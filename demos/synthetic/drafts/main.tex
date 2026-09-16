@@ -67,7 +67,10 @@ Y \arrow[r] & Y
 
 \nest{sections/appendix}
 
+% A missing \input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \iffalse, which LaTeX skips and the scanner does not interpret.
+\iffalse
 \input{nodes/missing}
+\fi
 
 \input{nodes/sy-000A}
 

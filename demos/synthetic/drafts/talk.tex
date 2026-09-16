@@ -1,12 +1,10 @@
 \documentclass{beamer}
-\usepackage{amsmath,amssymb,amsthm}
+\usepackage{amsmath,amssymb}
 \usepackage{macros}
 \usepackage{loom}
+% beamer predefines theorem, lemma, definition, corollary, example, and proof; declaring them again is an error. The talk declares proposition, which beamer lacks, in definition style, so that it conflicts with the paper's plain-style declaration (loom:taxon-conflict).
 \theoremstyle{definition}
-\newtheorem{lemma}{Lemma}
-\newtheorem{definition}{Definition}
-\theoremstyle{plain}
-\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
 
 \title{Widgets, in twenty minutes}
 
@@ -28,6 +26,10 @@
 
 \begin{frame}{The lemma again}
 \input{nodes/sy-0002}
+\end{frame}
+
+\begin{frame}{Two arguments}
+\input{nodes/sy-0006}
 \end{frame}
 
 \end{document}
