@@ -1,0 +1,29 @@
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+# Playwright
+test-results
+# pip wrapper bundle is produced by `npm run build:pip`, never committed here (loom vendors it)
+/python/src/arras/bundle/*
+!/python/src/arras/bundle/README.md
+/playwright-report

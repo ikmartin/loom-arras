@@ -1,0 +1,50 @@
+{
+  "interface_version": 1,
+  "publisher": {"name": "hand", "version": "0"},
+  "generated": "2026-09-15T00:00:00Z",
+  "corpus": {"name": "scaffold", "root_label": "Hand-written manifest"},
+  "masters": [
+    {"path": "drafts/main.tex", "title": "Hand-written manifest", "default": true, "fragment": "fragments/masters/main.html", "engine": "pdflatex", "numbering_known": false}
+  ],
+  "nodes": {
+    "hw-0001": {"id": "hw-0001", "kind": "environment", "taxon": "Definition", "style": "definition", "title": "Widget", "aliases": [], "tags": [], "file": "drafts/main.tex", "src": [100, 180], "fragment": "fragments/nodes/hw-0001.html", "numbers": {}, "reached_by": ["drafts/main.tex"], "parent": {}, "children": [], "proofs": [], "external": false, "digest": null, "incomplete": [], "state": "draft", "derived": {"proved": false, "settled": false}},
+    "hw-0002": {"id": "hw-0002", "kind": "environment", "taxon": "Lemma", "style": "plain", "title": "Every widget has a fixed point", "aliases": ["lem:fixed"], "tags": ["example"], "file": "drafts/main.tex", "src": [200, 320], "fragment": "fragments/nodes/hw-0002.html", "numbers": {}, "reached_by": ["drafts/main.tex"], "parent": {}, "children": [], "proofs": ["hw-0002/proof"], "external": false, "digest": null, "incomplete": [], "state": "draft", "derived": {"proved": false, "settled": false}}
+  },
+  "keys": {
+    "hw-0001": {"key": "hw-0001", "node": "hw-0001", "kind": "statement", "file": "drafts/main.tex", "src": [100, 180], "hash": "sha256:0", "incomplete": [], "state": "draft", "reviews": {"latest_current": null, "latest_any": null, "open": {}, "detached": 0}, "uses": [], "closure": ["hw-0001"], "previous_key_match": null},
+    "hw-0002": {"key": "hw-0002", "node": "hw-0002", "kind": "statement", "file": "drafts/main.tex", "src": [200, 260], "hash": "sha256:1", "incomplete": [], "state": "draft", "reviews": {"latest_current": null, "latest_any": null, "open": {}, "detached": 0}, "uses": ["hw-0001"], "closure": ["hw-0002", "hw-0001"], "previous_key_match": null},
+    "hw-0002/proof": {"key": "hw-0002/proof", "node": "hw-0002", "kind": "proof", "ordinal": 1, "file": "drafts/main.tex", "src": [260, 320], "hash": "sha256:2", "incomplete": [], "state": "draft", "reviews": {"latest_current": null, "latest_any": null, "open": {}, "detached": 0}, "uses": [], "closure": ["hw-0002", "hw-0001"], "previous_key_match": null}
+  },
+  "regions": {},
+  "edges": [
+    {"from": "hw-0002", "to": "hw-0001", "kind": "statement", "via": "ref", "src": {"file": "drafts/main.tex", "line": 12}}
+  ],
+  "inclusion": {
+    "drafts/main.tex": {"key": "drafts/main.tex", "children": [{"key": "hw-0001", "via": "nested-env", "shift": 0, "children": []}, {"key": "hw-0002", "via": "nested-env", "shift": 0, "children": []}]}
+  },
+  "states": {
+    "labels": {
+      "draft": {"label": "draft", "color": "neutral"},
+      "accepted": {"label": "accepted", "color": "positive"},
+      "stale": {"label": "stale", "color": "warning", "modifier": true},
+      "incomplete": {"label": "incomplete", "color": "negative"}
+    },
+    "derived": {
+      "proved": {"label": "proved", "color": "positive"},
+      "settled": {"label": "settled", "color": "positive-strong"}
+    }
+  },
+  "annotations": {},
+  "threads": {},
+  "diagnostics": [
+    {"severity": "info", "code": "unreachable", "message": "no root reaches hw-0003 (this manifest was written by hand)", "locations": [], "keys": []}
+  ],
+  "tags": {"example": ["hw-0002"]},
+  "taxa": {"Definition": {"style": "definition", "slug": "definition", "count": 1}, "Lemma": {"style": "plain", "slug": "lemma", "count": 1}},
+  "references": {},
+  "macros": {"default": [], "sets": {}},
+  "search": [
+    {"key": "hw-0001", "title": "Widget", "taxon": "Definition", "aliases": [], "tags": []},
+    {"key": "hw-0002", "title": "Every widget has a fixed point", "taxon": "Lemma", "aliases": ["lem:fixed"], "tags": ["example"]}
+  ]
+}
