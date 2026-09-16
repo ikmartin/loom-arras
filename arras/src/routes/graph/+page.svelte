@@ -8,6 +8,7 @@
 	import RailList from '$lib/components/RailList.svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import { nodeBadge } from '$lib/badges';
+	import { reachedExternal } from '$lib/reached';
 	import { keyUrl, nodeUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
@@ -16,7 +17,7 @@
 	let taxon = $state('');
 	let tag = $state('');
 	let stateFilter = $state('');
-	let hideExternal = $state(false);
+	let external = $state<'reached' | 'all' | 'none'>('reached');
 	let selected = $state('');
 	let depth = $state(0);
 	let highlight = $state<'downstream' | 'closure'>('downstream');
@@ -32,7 +33,8 @@
 	let seed = new Map<string, { x: number; y: number }>();
 	let moved = $state(new Map<string, { x: number; y: number }>());
 
-	const filters = $derived({ master: master || undefined, taxon: taxon || undefined, tag: tag || undefined, hideExternal });
+	const reached = $derived(reachedExternal(m));
+	const filters = $derived({ master: master || undefined, taxon: taxon || undefined, tag: tag || undefined, external, reached });
 
 	const related = $derived.by(() => {
 		if (!selected || !m) return new Set<string>();
@@ -245,7 +247,7 @@
 		<label>state<select bind:value={stateFilter}><option value="">all</option>{#each states as t (t)}<option value={t}>{t}</option>{/each}</select></label>
 		<label>depth around selection<select bind:value={depth}><option value={0}>whole scope</option><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label>
 		<label>highlight<select bind:value={highlight}><option value="downstream">what rests on it</option><option value="closure">what it rests on</option></select></label>
-		<label class="check"><input type="checkbox" bind:checked={hideExternal} /> hide external</label>
+		<label>cited results<select bind:value={external}><option value="reached">used here</option><option value="all">all</option><option value="none">none</option></select></label>
 	</div>
 </PagePanel>
 
@@ -389,11 +391,6 @@
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		color: var(--ink-faint);
-	}
-	.filters label.check {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-hair);
 	}
 	.sel {
 		font-size: 12px;

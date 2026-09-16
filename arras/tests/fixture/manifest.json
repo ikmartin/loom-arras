@@ -338,6 +338,15 @@
    "severity": "info"
   },
   {
+   "code": "loom:unresolved-work",
+   "keys": [
+    "Har77"
+   ],
+   "locations": [],
+   "message": "Har77 states no identifier; add doi = {...} or eprint = {...} to its bibliography entry so loom can name the work the same way on another machine",
+   "severity": "info"
+  },
+  {
    "code": "loom:uses-missing",
    "keys": [
     "sy-0002/proof"

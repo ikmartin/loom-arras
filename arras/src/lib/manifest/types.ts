@@ -3,255 +3,276 @@
 export const INTERFACE_VERSION = 1;
 export const ACCEPTED_INTERFACE_VERSIONS: readonly number[] = [1];
 
-export type Severity = 'error' | 'warning' | 'info';
-export type ColorClass = 'neutral' | 'positive' | 'positive-strong' | 'warning' | 'negative' | 'info' | (string & {});
+export type Severity = "error" | "warning" | "info";
+export type ColorClass =
+  | "neutral"
+  | "positive"
+  | "positive-strong"
+  | "warning"
+  | "negative"
+  | "info"
+  | (string & {});
 
 export interface Author {
-	kind: 'run' | 'person' | 'agent' | (string & {});
-	id: string;
-	label?: string;
+  kind: "run" | "person" | "agent" | (string & {});
+  id: string;
+  label?: string;
 }
 
 export interface Publisher {
-	name: string;
-	version: string;
+  name: string;
+  version: string;
 }
 
 export interface Corpus {
-	name: string;
-	root_label: string;
+  name: string;
+  root_label: string;
 }
 
 export interface Master {
-	path: string;
-	title: string;
-	default: boolean;
-	fragment: string;
-	engine?: string;
-	compiled?: string;
-	pdf?: string;
-	numbering_known?: boolean;
+  path: string;
+  title: string;
+  default: boolean;
+  fragment: string;
+  engine?: string;
+  compiled?: string;
+  pdf?: string;
+  numbering_known?: boolean;
 }
 
 export interface NumberEntry {
-	number: string;
-	page?: number;
+  number: string;
+  page?: number;
 }
 
 export interface Node {
-	id: string;
-	kind: 'environment' | 'section' | 'proof' | (string & {});
-	/** Sections only: the sectioning depth, 1 for \section. A contents list stops at a chosen depth with it. */
-	level?: number | null;
-	taxon: string;
-	style?: string;
-	title?: string;
-	aliases: string[];
-	author?: string[];
-	created?: string;
-	tags: string[];
-	file: string;
-	src: [number, number];
-	fragment: string;
-	numbers: Record<string, NumberEntry>;
-	reached_by: string[];
-	parent: Record<string, string>;
-	children: string[];
-	proofs: string[];
-	external: boolean;
-	digest: string | null;
-	locator?: string;
-	incomplete: string[];
-	state: string;
-	derived: Record<string, boolean>;
+  id: string;
+  kind: "environment" | "section" | "proof" | (string & {});
+  /** Sections only: the sectioning depth, 1 for \section. A contents list stops at a chosen depth with it. */
+  level?: number | null;
+  taxon: string;
+  style?: string;
+  title?: string;
+  aliases: string[];
+  author?: string[];
+  created?: string;
+  tags: string[];
+  file: string;
+  src: [number, number];
+  fragment: string;
+  numbers: Record<string, NumberEntry>;
+  reached_by: string[];
+  parent: Record<string, string>;
+  children: string[];
+  proofs: string[];
+  external: boolean;
+  digest: string | null;
+  locator?: string;
+  incomplete: string[];
+  state: string;
+  derived: Record<string, boolean>;
 }
 
 export interface Cause {
-	kind: string;
-	id?: string;
-	when?: string;
-	diff: string | null;
+  kind: string;
+  id?: string;
+  when?: string;
+  diff: string | null;
 }
 
 export interface Acceptance {
-	author: string;
-	date: string;
-	fresh: boolean;
-	causes?: Cause[];
+  author: string;
+  date: string;
+  fresh: boolean;
+  causes?: Cause[];
 }
 
 export interface Reviews {
-	latest_current: { author: Author; date: string } | null;
-	latest_any: { author: Author; date: string } | null;
-	open: Record<string, number>;
-	detached: number;
+  latest_current: { author: Author; date: string } | null;
+  latest_any: { author: Author; date: string } | null;
+  open: Record<string, number>;
+  detached: number;
 }
 
 export interface Key {
-	key: string;
-	node: string;
-	kind: 'statement' | 'proof' | (string & {});
-	ordinal?: number;
-	file: string;
-	src: [number, number];
-	hash: string;
-	incomplete: string[];
-	state: string;
-	acceptance?: Acceptance;
-	reviews: Reviews;
-	uses: string[];
-	closure: string[];
-	previous_key_match: string | null;
+  key: string;
+  node: string;
+  kind: "statement" | "proof" | (string & {});
+  ordinal?: number;
+  file: string;
+  src: [number, number];
+  hash: string;
+  incomplete: string[];
+  state: string;
+  acceptance?: Acceptance;
+  reviews: Reviews;
+  uses: string[];
+  closure: string[];
+  previous_key_match: string | null;
 }
 
 export interface Region {
-	key: string;
-	container: string;
-	in: string;
-	label: string;
-	numbers: Record<string, NumberEntry>;
-	src: [number, number];
+  key: string;
+  container: string;
+  in: string;
+  label: string;
+  numbers: Record<string, NumberEntry>;
+  src: [number, number];
 }
 
 export interface Edge {
-	from: string;
-	to: string;
-	kind: 'statement' | 'proof' | 'prose' | (string & {});
-	via: string;
-	src?: { file: string; line: number };
+  from: string;
+  to: string;
+  kind: "statement" | "proof" | "prose" | (string & {});
+  via: string;
+  src?: { file: string; line: number };
 }
 
 /** A declared relation between two nodes that is not a dependency: it never enters a closure, a bundle, or a staleness computation (specs/manifest.md §16). */
 export interface Relation {
-	kind: 'see' | (string & {});
-	from: string;
-	to: string;
+  kind: "see" | (string & {});
+  from: string;
+  to: string;
 }
 
 export interface InclusionNode {
-	key: string;
-	via?: string;
-	file?: string;
-	shift?: number;
-	children: InclusionNode[];
+  key: string;
+  via?: string;
+  file?: string;
+  shift?: number;
+  children: InclusionNode[];
 }
 
 export interface StateLabel {
-	label: string;
-	color: ColorClass;
-	modifier?: boolean;
+  label: string;
+  color: ColorClass;
+  modifier?: boolean;
 }
 
 export interface States {
-	labels: Record<string, StateLabel>;
-	derived: Record<string, StateLabel>;
+  labels: Record<string, StateLabel>;
+  derived: Record<string, StateLabel>;
 }
 
 export interface Annotation {
-	id: string;
-	author: Author;
-	created: string;
-	target: { key: string; hash: string };
-	kind: string;
-	body_html: string;
-	status: 'open' | 'resolved' | (string & {});
-	in_reply_to: string | null;
-	anchored: boolean;
-	detached: boolean;
-	quote?: string;
-	record: string;
-	discarded: boolean;
+  id: string;
+  author: Author;
+  created: string;
+  target: { key: string; hash: string };
+  kind: string;
+  body_html: string;
+  status: "open" | "resolved" | (string & {});
+  in_reply_to: string | null;
+  anchored: boolean;
+  detached: boolean;
+  quote?: string;
+  record: string;
+  discarded: boolean;
 }
 
 export interface ThreadMessage {
-	author: Author;
-	time: string;
-	body_html: string;
+  author: Author;
+  time: string;
+  body_html: string;
 }
 
 export interface Attachment {
-	name: string;
-	kind: string;
-	path?: string;
-	count?: number;
+  name: string;
+  kind: string;
+  path?: string;
+  count?: number;
 }
 
 export interface Thread {
-	id: string;
-	kind: string;
-	title: string;
-	created: string;
-	participants: Author[];
-	targets: string[];
-	messages: ThreadMessage[];
-	attachments: Attachment[];
-	log: { time: string; command: string }[];
-	discarded: boolean;
+  id: string;
+  kind: string;
+  title: string;
+  created: string;
+  participants: Author[];
+  targets: string[];
+  messages: ThreadMessage[];
+  attachments: Attachment[];
+  log: { time: string; command: string }[];
+  discarded: boolean;
 }
 
 export interface Location {
-	file: string;
-	line: number;
-	column?: number;
+  file: string;
+  line: number;
+  column?: number;
 }
 
 export interface Diagnostic {
-	severity: Severity;
-	code: string;
-	message: string;
-	locations: Location[];
-	keys: string[];
+  severity: Severity;
+  code: string;
+  message: string;
+  locations: Location[];
+  keys: string[];
 }
 
 export interface Taxon {
-	style: string;
-	slug: string;
-	count: number;
+  style: string;
+  slug: string;
+  count: number;
 }
 
 export interface Reference {
-	citekey: string;
-	bib: Record<string, string | number>;
-	digest: { file: string; fragment: string; source: string; method: string; nodes: string[] } | null;
-	version_mismatch: boolean;
-	cited_by: string[];
+  citekey: string;
+  slug?: string;
+  bib: Record<string, string | number>;
+  /** The work's global identifier, and every identifier it states. Local names are for authoring; these are what name the same work on another machine. */
+  work?: string;
+  works?: string[];
+  /** What has been fetched for the work. `dir` is servable under the viewer's origin; both flags are false until someone fetches or adds a copy, and the fetched material is not in version control, so another reader's copy of the corpus may have neither. */
+  artifacts?: { dir: string; pdf: boolean; source: boolean };
+  digest: {
+    file: string;
+    fragment: string;
+    source: string;
+    extracted_from?: string;
+    published_as?: string;
+    method: string;
+    nodes: string[];
+  } | null;
+  version_mismatch: boolean;
+  cited_by: string[];
 }
 
 export interface Macro {
-	name: string;
-	args: number;
-	body: string;
+  name: string;
+  args: number;
+  body: string;
 }
 
 export interface SearchEntry {
-	key: string;
-	title: string;
-	taxon?: string;
-	kind?: string;
-	aliases?: string[];
-	tags?: string[];
-	excerpt?: string;
+  key: string;
+  title: string;
+  taxon?: string;
+  kind?: string;
+  aliases?: string[];
+  tags?: string[];
+  excerpt?: string;
 }
 
 export interface Manifest {
-	interface_version: number;
-	publisher: Publisher;
-	generated: string;
-	corpus: Corpus;
-	masters: Master[];
-	nodes: Record<string, Node>;
-	keys: Record<string, Key>;
-	regions: Record<string, Region>;
-	relations?: Relation[];
-	edges: Edge[];
-	inclusion: Record<string, InclusionNode>;
-	states: States;
-	annotations: Record<string, Annotation>;
-	threads: Record<string, Thread>;
-	diagnostics: Diagnostic[];
-	tags: Record<string, string[]>;
-	taxa: Record<string, Taxon>;
-	references: Record<string, Reference>;
-	macros: { default: Macro[]; sets: Record<string, Macro[]> };
-	search: SearchEntry[];
+  interface_version: number;
+  publisher: Publisher;
+  generated: string;
+  corpus: Corpus;
+  masters: Master[];
+  nodes: Record<string, Node>;
+  keys: Record<string, Key>;
+  regions: Record<string, Region>;
+  relations?: Relation[];
+  edges: Edge[];
+  inclusion: Record<string, InclusionNode>;
+  states: States;
+  annotations: Record<string, Annotation>;
+  threads: Record<string, Thread>;
+  diagnostics: Diagnostic[];
+  tags: Record<string, string[]>;
+  taxa: Record<string, Taxon>;
+  references: Record<string, Reference>;
+  macros: { default: Macro[]; sets: Record<string, Macro[]> };
+  search: SearchEntry[];
 }

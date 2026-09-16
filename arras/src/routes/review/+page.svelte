@@ -7,6 +7,7 @@
 	import PagePanel from '$lib/shell/PagePanel.svelte';
 	import { reviewFacts, shortDate, stateBadge } from '$lib/badges';
 	import { keyUrl, threadUrl } from '$lib/nav';
+	import { reachedExternal } from '$lib/reached';
 
 	const m = $derived(store.manifest!);
 	let filter = $state('all');
@@ -15,7 +16,16 @@
 	let tag = $state('');
 	let open = $state('');
 
-	const keys = $derived(Object.values(m.keys));
+	// An external node owes no proof and counts as settled as a dependency (7.6.3), so leaving the ones nothing
+	// depends on out of the queue removes noise without hiding work. What is left is the handful whose acceptance
+	// means something precise: this digest faithfully states what the source says.
+	const reached = $derived(reachedExternal(m));
+	const keys = $derived(
+		Object.values(m.keys).filter((k) => {
+			const n = m.nodes[k.node];
+			return !n?.external || reached.has(k.node) || filter === 'external';
+		})
+	);
 	const counts = $derived({
 		accepted: keys.filter((k) => k.state === 'accepted').length,
 		stale: keys.filter((k) => k.acceptance && k.acceptance.fresh === false).length,
@@ -33,6 +43,7 @@
 			if (filter === 'incomplete' && k.state !== 'incomplete') return false;
 			if (filter === 'loose' && n?.reached_by.length) return false;
 			if (filter === 'retired' && !k.previous_key_match) return false;
+			if (filter === 'external' && !m.nodes[k.node]?.external) return false;
 			if (master && !n?.reached_by.includes(master)) return false;
 			if (author && !(n?.author ?? []).includes(author) && k.acceptance?.author !== author) return false;
 			if (tag && !n?.tags.includes(tag)) return false;
@@ -111,7 +122,7 @@
 
 <PagePanel label="Filters">
 	<div class="filters">
-		<label>show<select bind:value={filter}><option value="all">all</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option></select></label>
+		<label>show<select bind:value={filter}><option value="all">all</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option></select></label>
 		<label>document<select bind:value={master}><option value="">any</option>{#each m.masters as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
 		<label>author<select bind:value={author}><option value="">any</option>{#each authors as a (a)}<option value={a}>{a}</option>{/each}</select></label>
 		<label>tag<select bind:value={tag}><option value="">any</option>{#each Object.keys(m.tags).sort() as t (t)}<option value={t}>{t}</option>{/each}</select></label>
