@@ -228,3 +228,7 @@ Each milestone ends with its demonstration recorded in `docs/demonstrations/Mn.m
 
 - Publishing releases to PyPI and npm: gated by the user; the release checklist stops before the publish commands.
 - Overleaf test, the external user's paper, and the Codex session at M6/M7.
+
+## Outcome (2026-09-16)
+
+Every milestone was implemented and demonstrated in the order planned; the records are in `docs/demonstrations/` and the deviations in `docs/deviations.md` (DR-39 to DR-80). What this plan expected and what happened: the tolerant scanner, `import --fix-anchoring`, and the digest slugs held; the paper fixtures needed more than anticipated in the extractor (definition aliases, list environments in the macro block, the fallback document's composition) and in the viewer (ids with dots, the full MathJax component); Manolache and ACGS imported with no hand edits beyond `--fix-anchoring`; the relative localization paper went through criteria 1 to 8 on `demos/relloc/`. Still the user's: publishing, the Overleaf test, the external user, and the Codex session.
