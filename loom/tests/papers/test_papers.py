@@ -89,7 +89,9 @@ def test_paper_manolache_import(tmp_path: Path) -> None:
     assert "Identity test: pass" in out
     assert "5 by enclosure, 0 unattached" in out and "0 dangling" in out
     text = (q / "drafts" / "virtual6.tex").read_text()
-    assert text.count("\\label{man-") == 96 + 16  # 96 theorem-like environments and 16 headings through subsubsection (paragraphs are not labelled by default)
+    assert (
+        text.count("\\label{man-") == 96 + 16
+    )  # 96 theorem-like environments and 16 headings through subsubsection (paragraphs are not labelled by default)
     lint = run("lint", cwd=q).output
     assert "dangling-link" not in lint and "unattached-proof" not in lint
 
