@@ -22,10 +22,12 @@ relloc/
     rl-0001.tex
     rl-0004.tex
     rl-0004.proof.tex      a deferred proof moved by atomize
-  refs/                    digests
+  digests/                 cited papers' results, written or extracted
     Man12.tex
-    src/                   fetched sources; gitignored, never scanned
-    pdf/                   gitignored, never scanned
+  refs/                    what was fetched for each cited work; gitignored, never scanned
+    arxiv/0805.2065v2/
+      src/                 the unpacked e-print
+      paper.pdf
   comments/                human review records, per author
     markas/2026-09-16.json
   ai/                      optional AI layer; see Chapter 11
@@ -44,8 +46,8 @@ relloc/
 Rules:
 
 1. **[decided]** A directory is a quilt if and only if it contains `config.toml` with a `[quilt]` table. Every loom command locates the quilt by walking up from the current directory (or from `--quilt PATH`, or from `$LOOM_QUILT`) to the nearest such file.
-2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/`, `.loom/`, `.claude/`, or a version-control or tooling directory (`.git/`, `node_modules/`, `.svelte-kit/`) at any depth, those under `ai/`, `refs/src/`, or `refs/pdf/` at the root, and those whose first twenty lines contain `% !LOOM ignore`. Run outputs and fetched sources are complete documents carrying the quilt's ids, not the quilt's text (DR-70).
-3. **[decided]** The scanner never infers anything from a file's location. `nodes/`, `refs/`, and the masters directory are conventions: `loom new` writes to `nodes/`; digests are expected in `refs/`; masters are recognized by `\documentclass`, but only within the masters directory (rule 4.4.1).
+2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/`, `.loom/`, `.claude/`, or a version-control or tooling directory (`.git/`, `node_modules/`, `.svelte-kit/`) at any depth, those under `ai/` or `refs/` at the root, and those whose first twenty lines contain `% !LOOM ignore`. Run outputs and fetched sources are complete documents carrying the quilt's ids, not the quilt's text (DR-70).
+3. **[decided]** The scanner never infers anything from a file's location. `nodes/`, `digests/`, and the masters directory are conventions: `loom new` writes to `nodes/`; digests are expected in `digests/` but are recognized by their `% !LOOM digest:` header wherever they sit; masters are recognized by `\documentclass`, but only within the masters directory (rule 4.4.1). `refs/` is the one exception, and it is an exclusion rather than an inference: nothing under it is scanned at all, because nothing under it is authored (DR-108).
 4. **[decided]** Local style files, class files, and preamble fragments live at the quilt root, because masters compile from the root and LaTeX resolves `\usepackage{base-macros}` and `\input{preamble}` against the current directory.
 5. **[decided]** The author's other files (figures, bibliography, data) live wherever they did in the original paper; `import` preserves the original layout except for moving the master into the masters directory.
 
@@ -159,7 +161,7 @@ Rules:
 6. Everything a master needs is reachable from the root by `\input`, `\usepackage`, and `\bibliography`.
 7. `loom compile` mirrors Overleaf: `latexmk` from the root with an output directory and a clean environment.
 
-Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and `refs/src/`; `.loom/`, `ai/`, and `comments/` are harmless), set `drafts/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
+Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.loom/`, `ai/`, and `comments/` are harmless), set `drafts/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
 
 ## 4.7 What `loom init` creates
 
@@ -168,8 +170,8 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and
 - `config.toml` with the keys of 4.2 and `main = "drafts/main.tex"`; `prefix` is taken from `--prefix`, otherwise asked for once when a terminal is attached and `--yes` is absent, otherwise the default `q` is taken.
 - `loom.sty`.
 - `drafts/main.tex`, a minimal amsart master: `\documentclass{amsart}`, `\usepackage{amsmath,amssymb,amsthm}`, `\usepackage{loom}`, a `\newtheorem` block declaring theorem, lemma, proposition, corollary (plain), definition, example (definition), and remark (remark), numbered within section through the theorem counter, `\title{Untitled}`, `\begin{document}`, `\maketitle`, `\section{Introduction}`, `\end{document}`. With `--from`, no minimal master is written; the imported paper's master takes its place.
-- `nodes/` (empty), `refs/` (empty), `comments/` (empty).
-- `.gitignore` containing `build/`, `refs/pdf/`, `refs/src/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.bcf *.run.xml *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf`), each anchored to the root and to `drafts/` so that a node file's neighbours are never matched. It is written whether or not the quilt is a repository, because it costs nothing and is right the day it becomes one, and `init` says what it ignores and why.
+- `nodes/` (empty), `digests/` (empty), `refs/` (empty), `comments/` (empty).
+- `.gitignore` containing `build/`, `refs/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.bcf *.run.xml *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf`), each anchored to the root and to `drafts/` so that a node file's neighbours are never matched. It is written whether or not the quilt is a repository, because it costs nothing and is right the day it becomes one, and `init` says what it ignores and why.
 - `README.md` containing the contract page (the same text as the loom README's contract section).
 - the user config of 4.3, with a commented template, if it does not exist.
 - `git init`, **only** when `--git` is given, and then only if git is installed and the directory is not already inside a work tree; `init` says so when it happens. Loom uses version control for nothing: it never stages, commits, branches, tags, or reads history, and no command requires a quilt to be a repository. Making one is therefore the author's act, not the tool's (DR-105).

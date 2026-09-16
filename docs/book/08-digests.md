@@ -4,7 +4,7 @@ A digest is loom's index of a cited paper: the paper's results as external nodes
 
 ## 8.1 What a digest is
 
-**[decided]** A file `refs/<citekey>.tex` (the citekey is the bibliography key the paper is cited under) containing:
+**[decided]** A file `digests/<citekey>.tex` (the citekey is the bibliography key the paper is cited under) containing:
 
 1. A provenance header of directives (8.4).
 2. An optional macro block (8.3).
@@ -15,7 +15,9 @@ Example, abbreviated:
 
 ```tex
 % !LOOM digest: Man12
-% !LOOM source: arXiv:0805.2065v2
+% !LOOM prefix: Man12
+% !LOOM extracted-from: arXiv:0805.2065v2
+% !LOOM published-as: doi:10.1090/S1056-3911-2011-00606-1
 % !LOOM method: extract
 % !LOOM created: 2026-09-16
 % !LOOM requires: mathrsfs, xy
@@ -96,7 +98,8 @@ The problem: a verbatim statement uses the reference paper's macros, which are n
 **[decided]** The header directives:
 
 - `digest: CITEKEY` (required, within the file's first twenty lines; marks the file as a digest and names the citekey verbatim, which must exist in the quilt's bibliography or lint reports `loom:digest-without-bib`, warning).
-- `source: IDENT` (required; `arXiv:0805.2065v2`, `doi:10.1090/...`, `local:<file>`, or `manual`). The extractor writes the bibliography entry's arXiv identifier with its version (the `version` field appended as `vN` when the eprint carries none), falls back to `doi:<doi>`, then to `local:<main file>` when the entry has neither (M5: the Manolache digest carries the DOI, since the entry is the journal version).
+- `prefix: NAME` (optional; defaults to the citekey's slug). The id prefix every node of this digest carries, so that `\uses{Man12-prop-3.2}` stays typeable when the citekey is a thirty-character Zotero key, and so that the ids survive a citekey rename. It is what the scanner registers for the id grammar of 5.2, which is why declaring one is what makes `Man12-prop-3.2` an id rather than a human alias (DR-109).
+- `extracted-from: IDENT` (required for `method: extract`; `arXiv:0805.2065v2`, `doi:10.1090/...`, `work:<hash>`, or `local:<file>`) and `published-as: IDENT` (optional). Two facts, not two spellings of one: the statements and their numbers come from the artifact that was parsed, and the work a reader will open is whatever the bibliography cites. They differ whenever a digest is extracted from a preprint of a published article, which is the common case, and then every locator and page number in the digest is unverified against the version a reader has — `loom:unverified-locators` (warning) says so. The extractor resolves both from the bibliography entry in the order `doi` > `eprint` > `mrnumber` > `zbl` > `url`, taking the artifact from the path when the source sits under `refs/`. `source:` is the pre-0.5 spelling of `extracted-from:` and is still read (DR-109).
 - `method: extract | ingest | manual`.
 - `created: YYYY-MM-DD`.
 - `author:` (the person or run that produced it; optional; an ingested digest names the agent).
@@ -115,9 +118,9 @@ The problem: a verbatim statement uses the reference paper's macros, which are n
 4. Sectioning: the paper's `\section`s and `\subsection`s that contain results become section nodes `<slug>-sec-<number>`; prose between results is dropped, except that the first two paragraphs of the introduction (or of the first section) are placed under `\section*{Overview}` as a seed the human rewrites. **[decided]** This rule; a paper with no introduction gets `\section*{Overview}` with `\incomplete{Overview not extracted; the paper has no introduction.}` (M5).
 5. Standing assumptions: text the extractor cannot attribute to a numbered result is not guessed; it writes an empty `<slug>-setup` node titled `{\cite[Standing assumptions]{citekey}}` with `\incomplete{Standing assumptions not extracted; see the paper.}` for ingest or a person to fill. **[decided]** (M5: the Manolache digest carries the node.)
 6. Write the macro block from the unexpandable residue and the environments the statements use, and `requires:` as 8.3.3 (DR-74).
-7. Write `refs/<citekey>.tex` and report: results extracted by taxon, sections, `\uses` recorded, the macros expanded by name, the macro block's definitions, packages required, the numbering source (`from the paper's .aux`, or `emulated` with the compile error), each environment the quilt does not declare with a suggested `\newtheorem` line, and anything skipped; then lint runs on the new file and its diagnostics are printed (M5).
+7. Write `digests/<citekey>.tex` and report: results extracted by taxon, sections, `\uses` recorded, the macros expanded by name, the macro block's definitions, packages required, the numbering source (`from the paper's .aux`, or `emulated` with the compile error), each environment the quilt does not declare with a suggested `\newtheorem` line, and anything skipped; then lint runs on the new file and its diagnostics are printed (M5).
 
-`digest extract` refuses if `refs/<citekey>.tex` exists (`--to` writes elsewhere). A citekey absent from the bibliography is a warning (`loom:digest-without-bib`), not a refusal. A paper that declares its results with `\newenvironment` wrappers around a counter rather than with `\newtheorem` (Romagny) yields zero extracted results, and the report says so; ingest (8.6) is the route for such papers (M7).
+`digest extract` refuses if `digests/<citekey>.tex` exists (`--to` writes elsewhere). A citekey absent from the bibliography is a warning (`loom:digest-without-bib`), not a refusal. A paper that declares its results with `\newenvironment` wrappers around a counter rather than with `\newtheorem` (Romagny) yields zero extracted results, and the report says so; ingest (8.6) is the route for such papers (M7).
 
 ## 8.6 Ingest
 
@@ -144,17 +147,17 @@ Examples: `\cite[Theorem 4.1]{Man12}` matches `Man12-thm-4.1`; `\cite[Thm.~4.1, 
 
 ## 8.8 Versioning
 
-**[decided]** The digest's `source:` names the version it was made from. The bibliography entry's version is its `version` field or, **[decided]**, the trailing `vN` of its `eprint` (M5). When both are known and differ, lint reports `loom:version-mismatch` (warning), since numbering may have changed between versions, and the references index marks the entry. When the entry carries no version the check cannot fire: the relative localization paper cites Romagny under an earlier arXiv version's numbering and its entry has no version, so the digest carries both numberings, the source's as ids and the cited version's as aliases, and postnotes resolve under either (DR-75; M7). When a cited paper has no digest, `status --undigested` lists every citekey cited with a locator that lacks one; this list is the ingest trigger an agent acts on, and `loom ai orient` repeats it.
+**[decided]** The digest's `extracted-from:` names the version it was made from. The bibliography entry's version is its `version` field or, **[decided]**, the trailing `vN` of its `eprint` (M5). When both are known and differ, lint reports `loom:version-mismatch` (warning), since numbering may have changed between versions, and the references index marks the entry. When the entry carries no version the check cannot fire: the relative localization paper cites Romagny under an earlier arXiv version's numbering and its entry has no version, so the digest carries both numberings, the source's as ids and the cited version's as aliases, and postnotes resolve under either (DR-75; M7). When a cited paper has no digest, `status --undigested` lists every citekey cited with a locator that lacks one; this list is the ingest trigger an agent acts on, and `loom ai orient` repeats it.
 
 ## 8.9 Fetching
 
-**[decided]** Loom fetches nothing unless `[refs] fetch = true`. Then `loom digest fetch CITEKEY` retrieves the e-print source into `refs/src/<citekey>/` (gitignored; a gzipped tar, a gzipped single file, or a PDF is unpacked, paths that would escape the directory refused) and, with `--pdf`, the PDF into `refs/pdf/<citekey>.pdf` (gitignored), then names the `digest extract` command to run next. No other command touches the network. **[decided]** The identifier is the bib entry's `eprint`, used only when `eprinttype` or `archiveprefix` is absent or `arXiv` (a JSTOR eprint is refused); requests go to arXiv's e-print and PDF URLs with a `User-Agent` naming loom and its version; a request answered 406, 429, or 5xx is retried twice after a pause; when the source cannot be fetched but `--pdf` was asked, the PDF is still fetched and the source failure reported (DR-77). Fetched sources and PDFs are not the quilt's text: the scanner skips `refs/src/` and `refs/pdf/` (DR-70).
+**[decided]** Loom fetches nothing unless `[refs] fetch = true`. Then `loom digest fetch CITEKEY` retrieves the e-print source into `refs/<scheme>/<identifier>/src/` (gitignored; a gzipped tar, a gzipped single file, or a PDF is unpacked, paths that would escape the directory refused) and, with `--pdf`, the PDF beside it as `paper.pdf`. The directory is named by the work's global identifier rather than by the citekey, because a work reached through another paper's bibliography has no citekey at all, and because two quilts citing one paper should name one directory (DR-108). `loom refs path CITEKEY` prints it; `loom refs add CITEKEY FILE` files a PDF obtained by hand, which is how a published article gets in, since its PDF sits behind a subscription loom cannot and should not automate past, then names the `digest extract` command to run next. No other command touches the network. **[decided]** The identifier is the bib entry's `eprint`, used only when `eprinttype` or `archiveprefix` is absent or `arXiv` (a JSTOR eprint is refused); requests go to arXiv's e-print and PDF URLs with a `User-Agent` naming loom and its version; a request answered 406, 429, or 5xx is retried twice after a pause; when the source cannot be fetched but `--pdf` was asked, the PDF is still fetched and the source failure reported (DR-77). Fetched sources and PDFs are not the quilt's text: the scanner skips `refs/src/` and `refs/pdf/` (DR-70).
 
 ## 8.10 The library quilt and porting
 
 **[decided]** A library quilt is a quilt with no masters: `config.toml`, `loom.sty`, a minimal preamble-like file declaring the standard taxa for lint's benefit (`library.tex` at the root containing only `\newtheorem` declarations and `% !LOOM ignore`, or a `[quilt] library = true` flag; the decision is deferred), `refs.bib`, and `refs/`. It is where digests are kept once per paper, viewable in arras like anything else, and the source of every port.
 
-**[decided]** `loom digest import PATH [--as CITEKEY]` copies a digest into the quilt's `refs/<citekey>.tex`, never overwriting. With `--as` it rewrites the `digest:` directive, the slug prefix in every `\label`, `\ref`, `\eqref`, `\cref`, `\Cref`, `\autoref`, and `\uses` entry, and the citekey in every `\cite`, and reports the number of rewrites. It does not remap environment names; it reports the `requires:` packages the quilt's default master does not load (`loom:missing-package`), the theorem-like environments with a locator title that the quilt does not declare (`loom:unknown-environment`), and a citekey absent from the bibliography (`loom:digest-without-bib`), leaving the author to declare and load them. Exporting is `cp`.
+**[decided]** `loom digest import PATH [--as CITEKEY]` copies a digest into the quilt's `digests/<citekey>.tex`, never overwriting. With `--as` it rewrites the `digest:` directive, the slug prefix in every `\label`, `\ref`, `\eqref`, `\cref`, `\Cref`, `\autoref`, and `\uses` entry, and the citekey in every `\cite`, and reports the number of rewrites. It does not remap environment names; it reports the `requires:` packages the quilt's default master does not load (`loom:missing-package`), the theorem-like environments with a locator title that the quilt does not declare (`loom:unknown-environment`), and a citekey absent from the bibliography (`loom:digest-without-bib`), leaving the author to declare and load them. Exporting is `cp`.
 
 ## 8.11 Digests in bundles and closures
 

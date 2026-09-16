@@ -20,11 +20,11 @@ Several triggers below are numbers loom already prints. That is the property to 
 
 | id | item | repo | trigger |
 |---|---|---|---|
-| [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl to arbitrary depth | loom | the bibliography parse-rate study shipped by plan 0.5 reports above 70% on the depth-1 sources of `demos/relloc` and `demos/acgs` |
+| [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl to arbitrary depth | loom | [WQ-04](WQ-04-identity-resolvers.md) has landed: 0.5's study found only 9% of a fetched bibliography's entries carry an identifier, so resolution is the crawl's precondition |
 | [WQ-03](WQ-03-reference-libraries.md) | reference libraries: one quilt depends on another | loom | a second quilt exists whose digests another quilt wants |
 | [WQ-04](WQ-04-identity-resolvers.md) | network identity resolvers (Crossref, zbMATH, OpenAlex) | loom | `loom:unresolved-work` exceeds a quarter of a real bibliography |
 | [WQ-05](WQ-05-work-graph-view.md) | the contracted work graph (papers, not results) | arras | any quilt exceeds roughly 150 external nodes |
-| [WQ-06](WQ-06-byte-cache.md) | machine-global content-addressed cache for fetched sources | loom | `refs/src/` across all quilts on one machine exceeds a few GB |
+| [WQ-06](WQ-06-byte-cache.md) | a shared cache for fetched bytes | loom | `refs/` across all quilts on one machine exceeds a few GB, or a quilt needs its fetched bytes on another disk |
 | [WQ-07](WQ-07-atomize-relative.md) | `atomize --relative` | loom | a quilt wants its section files to read as standalone sections |
 | [WQ-08](WQ-08-nest-sectioning-classes.md) | `\nest` under `\part` and class-specific sectioning | loom | a fixture uses memoir, KOMA-Script or `\part` |
 | [WQ-09](WQ-09-tex-root-directive.md) | `% !TEX root` recorded for loose files | loom | a loose file needs to name the master it was written for |

@@ -267,15 +267,23 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 ```json
 "Man12": {
   "citekey": "Man12",
+  "slug": "Man12",
   "bib": {"author": "Manolache, Cristina", "title": "Virtual pull-backs", "year": 2012, "eprint": "0805.2065"},
-  "digest": {"file": "refs/Man12.tex", "fragment": "fragments/digests/Man12.html",
-             "source": "arXiv:0805.2065v2", "method": "extract", "nodes": ["Man12-setup", "Man12-thm-4.1"]},
+  "work": "doi:10.1090/S1056-3911-2011-00606-1",
+  "works": ["doi:10.1090/S1056-3911-2011-00606-1", "arXiv:0805.2065v2"],
+  "artifacts": {"dir": "refs/doi/10.1090_S1056-3911-2011-00606-1", "pdf": true, "source": false},
+  "digest": {"file": "digests/Man12.tex", "fragment": "fragments/digests/Man12.html",
+             "source": "arXiv:0805.2065v2", "extracted_from": "arXiv:0805.2065v2",
+             "published_as": "doi:10.1090/S1056-3911-2011-00606-1",
+             "method": "extract", "nodes": ["Man12-setup", "Man12-thm-4.1"]},
   "version_mismatch": false,
   "cited_by": ["rl-0004/proof", "drafts/main.tex"]
 }
 ```
 
-`digest` is null for an undigested citekey. Each entry also carries `slug`, the citekey with every character outside `[A-Za-z0-9]` removed, which is the prefix of the digest's node ids (DR-45).
+`digest` is null for an undigested citekey. Each entry also carries `slug`, the prefix of the digest's node ids: the prefix the digest declares in its header, or the citekey with every character outside `[A-Za-z0-9]` removed when it declares none (DR-45, DR-109).
+
+**[decided]** `work` is the work's global identifier and `works` every identifier its bibliography entry states, each written `scheme:value` with the scheme one of `doi`, `arxiv`, `mr`, `zbl`, or `work` (a deterministic hash of author, title and year, for an entry stating none). `artifacts.dir` is where what has been fetched for the work lives, servable under the viewer's origin, and the two flags say which of the source and the PDF are present; both are false until someone fetches or adds a copy, and that directory is not in version control, so another reader's copy of the corpus may have neither. `digest.extracted_from` and `digest.published_as` distinguish the artifact whose numbering the digest carries from the work the bibliography cites; `digest.source` repeats `extracted_from` and is retained for readers written before 0.5. All of these are additive and the interface version is unchanged (DR-108, DR-109, DR-110).
 
 ## 14. Macros
 

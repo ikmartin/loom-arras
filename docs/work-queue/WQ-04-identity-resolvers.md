@@ -4,11 +4,13 @@
 
 ## Trigger
 
-`loom:unresolved-work` (added by [[WQ-01]]) exceeds a quarter of a real bibliography — the count that `doctor` reports as "34 of 41 cited works resolved".
+Either of: `loom:unresolved-work` exceeds a quarter of a real bibliography — `loom lint` reports the rate, and on `demos/relloc` it is already 5 of 22 — **or** you want [[WQ-02]], which cannot be built without this.
+
+Plan 0.5's parse-rate study found that only 9% of entries in a fetched paper's bibliography carry an identifier at all, because a formatted `\bibitem` is display text and mathematics styles rarely print a DOI. That makes this item the crawl's precondition rather than a later refinement.
 
 ## Why deferred
 
-Until the identity model exists and reports its own failure rate, there is no evidence that a network resolver is needed and no way to measure whether one helped. A resolver is also the first thing in loom that would make a network request during ordinary work, which is not a step to take on a hunch.
+Until the identity model exists and reports its own failure rate, there is no evidence a network resolver is needed and no way to measure whether one helped. That evidence now exists and points here. A resolver is also the first thing in loom that would make a network request during ordinary work, which is not a step to take on a hunch.
 
 ## Rough design
 

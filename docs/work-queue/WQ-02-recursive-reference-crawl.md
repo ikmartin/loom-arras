@@ -4,11 +4,17 @@
 
 ## Trigger
 
-The bibliography parse-rate study that ships with [[WQ-01]] reports above 70% on the depth-1 sources of `demos/relloc` and `demos/acgs`.
+**[[WQ-04]] has landed.** The original trigger was a parse rate above 70%, and plan 0.5's study answered it — but measured the wrong half.
+
+`loom/scripts/bibliography_parse_rate.py`, run on the two fetched works in `demos/relloc`, reports **100% of bibliographies parseable and 9% of 103 entries carrying a usable identifier**. Both numbers matter and the second is the binding one: a crawler can read every bibliography it finds and still cannot follow nine citations in ten, because a formatted `\bibitem` is display text — authors, title, journal, volume, pages — and the bibliography *style* decides whether a DOI is printed, which mathematics styles mostly do not.
+
+So resolution is not a refinement of the crawl, it is its precondition. You cannot follow a citation you cannot identify.
 
 ## Why deferred
 
-The crawl's whole substrate is other papers' bibliographies, and nobody has measured how often those are actually parseable. If the real rate is 40% the design changes shape entirely, so the study comes first and its number is this trigger.
+Nine citations in ten cannot be resolved to a work without an external lookup, so a crawl built today would fetch the tenth and stall. [[WQ-04]] is what removes that.
+
+A second finding from the same study, to carry into the design: **neither fetched paper shipped a `.bbl` or a `.bib`.** Both inlined `\begin{thebibliography}` into a `.tex` file — one in the master, one in an included `bib.tex`. The unit a crawler must cope with is therefore `\bibitem` wherever it occurs, not a file extension, and the plan's original framing of "parse the `.bbl`" was wrong about real submissions.
 
 ## Rough design
 
@@ -16,7 +22,7 @@ A breadth-first walk over works, unbounded in depth. Depth 1 is your bibliograph
 
 **Depth 2 is free.** Once a depth-1 source is fetched its bibliography is already on disk, so knowing the depth-2 set costs no network at all — only parsing what you already have. Network cost begins when you want depth-2 *sources*. So the knob is `fetch_depth`, and known depth always runs one level beyond it.
 
-**The substrate is `.bbl`, not `.bib`.** arXiv does not run BibTeX, so submitters must include the compiled `.bbl`; a `.bib` comes along only when an author tarred their whole directory. Parse both, and prefer a metadata API (OpenAlex, Semantic Scholar) where it covers the work, since those return resolved ids and deduplicated edges with no parsing. Use both together: the API says *which paper*, the source says *which result* — `\cite[Theorem 3.2]{Har77}` is a locator and no metadata API has it.
+**The substrate is `\bibitem`, wherever it sits.** arXiv does not run BibTeX, so submitters must supply a formatted bibliography — but they usually do it by pasting `\begin{thebibliography}` into a `.tex` file rather than shipping a `.bbl`, as both of `demos/relloc`'s fetched works do. Parse all three shapes, and prefer a metadata API (OpenAlex, Semantic Scholar) where it covers the work, since those return resolved ids and deduplicated edges with no parsing. Use both together: the API says *which paper*, the source says *which result* — `\cite[Theorem 3.2]{Har77}` is a locator and no metadata API has it.
 
 **Budget by local in-degree, not by BFS order.** A naive cap spends itself on whatever arrives first, so one survey eats it while a targeted research paper is never reached. Three controls compose: expand at most ~40 references from any one work; treat a work with an unusually large bibliography, or typed as a survey or book, as a *sink* that is collected but never expanded; and expand in order of in-degree within the frontier, so a paper four of your references all cite is reached before a survey cited once in passing.
 
