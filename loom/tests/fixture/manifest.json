@@ -3048,6 +3048,11 @@
  },
  "references": {
   "Har77": {
+   "artifacts": {
+    "dir": "refs/work/5ac32442",
+    "pdf": false,
+    "source": false
+   },
    "bib": {
     "author": "Hartshorne, Robin",
     "title": "Algebraic Geometry",
@@ -3059,9 +3064,18 @@
    "citekey": "Har77",
    "digest": null,
    "slug": "Har77",
-   "version_mismatch": false
+   "version_mismatch": false,
+   "work": "work:5ac32442",
+   "works": [
+    "work:5ac32442"
+   ]
   },
   "Kre99": {
+   "artifacts": {
+    "dir": "refs/arxiv/math_9810166v2",
+    "pdf": false,
+    "source": false
+   },
    "bib": {
     "author": "Kresch, Andrew",
     "eprint": "math/9810166v2",
@@ -3077,6 +3091,7 @@
    ],
    "citekey": "Kre99",
    "digest": {
+    "extracted_from": "arXiv:math/9810166v2",
     "file": "digests/Kre99.tex",
     "fragment": "fragments/digests/Kre99.html",
     "method": "manual",
@@ -3084,12 +3099,22 @@
      "Kre99-setup",
      "Kre99-thm-2.1"
     ],
+    "published_as": "",
     "source": "arXiv:math/9810166v2"
    },
    "slug": "Kre99",
-   "version_mismatch": false
+   "version_mismatch": false,
+   "work": "arXiv:math/9810166v2",
+   "works": [
+    "arXiv:math/9810166v2"
+   ]
   },
   "Man12": {
+   "artifacts": {
+    "dir": "refs/arxiv/0805.2065v2",
+    "pdf": false,
+    "source": false
+   },
    "bib": {
     "author": "Manolache, Cristina",
     "eprint": "0805.2065v2",
@@ -3100,7 +3125,11 @@
    "citekey": "Man12",
    "digest": null,
    "slug": "Man12",
-   "version_mismatch": false
+   "version_mismatch": false,
+   "work": "arXiv:0805.2065v2",
+   "works": [
+    "arXiv:0805.2065v2"
+   ]
   }
  },
  "regions": {
