@@ -175,6 +175,20 @@
    "severity": "error"
   },
   {
+   "code": "dangling-link",
+   "keys": [
+    "sy-0008"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-0008.tex",
+     "line": 1
+    }
+   ],
+   "message": "% !LOOM see: sy-7777 refers to no node or label",
+   "severity": "error"
+  },
+  {
    "code": "double-inclusion",
    "keys": [
     "nodes/sy-0002.tex"
@@ -267,6 +281,20 @@
    ],
    "locations": [],
    "message": "sy-0006 has 2 unlabelled proofs; consider labelling them",
+   "severity": "info"
+  },
+  {
+   "code": "loom:see-redundant",
+   "keys": [
+    "sy-0008"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-0008.tex",
+     "line": 1
+    }
+   ],
+   "message": "% !LOOM see: def:gadget names the node it is written in",
    "severity": "info"
   },
   {
@@ -398,7 +426,7 @@
    "locations": [
     {
      "file": "nodes/sy-0009.tex",
-     "line": 6
+     "line": 7
     }
    ],
    "message": "sy-0009/proof lists sy-0002 in \\uses but never references it",
@@ -533,7 +561,7 @@
    "kind": "statement",
    "src": {
     "file": "nodes/sy-0009.tex",
-    "line": 4
+    "line": 5
    },
    "to": "sy-0002",
    "via": "ref"
@@ -663,7 +691,7 @@
    "kind": "proof",
    "src": {
     "file": "nodes/sy-0009.tex",
-    "line": 7
+    "line": 8
    },
    "to": "sy-0002",
    "via": "uses"
@@ -1538,8 +1566,8 @@
     "open": {}
    },
    "src": [
-    0,
-    164
+    33,
+    197
    ],
    "state": "draft",
    "uses": []
@@ -1552,7 +1580,7 @@
     "sy-0009"
    ],
    "file": "nodes/sy-0009.tex",
-   "hash": "sha256:fe6976759e8345282c28d2ecccb644eff1ba6079e8332bcc137963d3adeed2a4",
+   "hash": "sha256:2ae3972ff9dc3ff2a6b35f72165247f031529192109d7797d9cd2b54f753d02a",
    "incomplete": [],
    "key": "sy-0009",
    "kind": "statement",
@@ -1566,7 +1594,7 @@
    },
    "src": [
     21,
-    139
+    266
    ],
    "state": "draft",
    "uses": [
@@ -1595,8 +1623,8 @@
     "open": {}
    },
    "src": [
-    140,
-    191
+    267,
+    318
    ],
    "state": "draft",
    "uses": [
@@ -2497,8 +2525,8 @@
     "drafts/talk.tex"
    ],
    "src": [
-    0,
-    164
+    33,
+    197
    ],
    "state": "draft",
    "style": "definition",
@@ -2530,7 +2558,7 @@
    "reached_by": [],
    "src": [
     21,
-    139
+    266
    ],
    "state": "draft",
    "style": "plain",
@@ -3113,6 +3141,17 @@
    ]
   }
  },
+ "relations": [
+  {
+   "from": "sy-0009",
+   "kind": "see",
+   "src": {
+    "file": "nodes/sy-0009.tex",
+    "line": 4
+   },
+   "to": "sy-0008"
+  }
+ ],
  "search": [
   {
    "aliases": [],
@@ -3180,7 +3219,7 @@
   },
   {
    "aliases": [],
-   "excerpt": "This lemma is reached by no master; it depends on Lemma~\\ref{sy-0002}.",
+   "excerpt": "This lemma is reached by no master; it depends on Lemma~\\ref{sy-0002}. It restates part of the gadget definition at greater length, which is a relation and not ",
    "key": "sy-0009",
    "kind": "environment",
    "tags": [

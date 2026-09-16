@@ -125,32 +125,39 @@
 			<RailList label="in" empty="loose: no document reaches this node" />
 		{/each}
 
-		<RailList label="depends on" empty={deps.length ? '' : 'nothing'}>
-			{#if deps.length}
+		{#if deps.length}
+			<RailList label="depends on">
 				<ul class="plain">
 					{#each deps as d (d.key)}
 						<li><a href={keyUrl(m, d.key)}>{label(d.key)}</a> <span class="faint">{d.kinds.join(', ')}</span></li>
 					{/each}
 				</ul>
 				{#if closure.length}<p class="faint">read first: {closure.length} more</p>{/if}
-			{/if}
-		</RailList>
+			</RailList>
+		{:else}
+			<RailList label="depends on" empty="nothing" />
+		{/if}
 
-		<RailList label="used by" empty={usedBy.length ? '' : 'nothing'}>
-			{#if usedBy.length}
+		{#if usedBy.length}
+			<RailList label="used by">
 				<ul class="plain">
 					{#each usedBy as d (d.key)}
 						<li><a href={keyUrl(m, d.key)}>{label(d.key)}</a> <span class="faint">{d.kinds.join(', ')}</span></li>
 					{/each}
 				</ul>
-			{/if}
-		</RailList>
+			</RailList>
+		{:else}
+			<RailList label="used by" empty="nothing" />
+		{/if}
 
 		{#each relations as [kind, items] (kind)}
 			<RailList label={kind === 'see' ? 'see also' : kind}>
-				<ul class="plain">
+				<ul class="plain" data-testid="relations-{kind}">
 					{#each items as k (k)}
-						<li><a href={keyUrl(m, k)}>{label(k)}</a></li>
+						<li>
+							<a href={keyUrl(m, k)}>{label(k)}</a>
+							<span class="faint">{m.nodes[k]?.reached_by?.length ? m.nodes[k].reached_by.join(', ') : 'loose'}</span>
+						</li>
 					{/each}
 				</ul>
 			</RailList>

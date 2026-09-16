@@ -153,3 +153,27 @@ test("thread page shows the run's messages, attachments, and log", async ({ page
 	await expect(page.getByText('annotations.json').first()).toBeVisible();
 });
 
+
+test('see also lists both directions and says where each node is reached', async ({ page }) => {
+	await page.goto('/node/sy-0009');
+	const list = page.getByTestId('relations-see');
+	await expect(list.getByRole('link', { name: /Gadget/ })).toBeVisible();
+	await expect(list).toContainText('drafts/main.tex'); // the related node is reached by the paper
+
+	await page.goto('/node/sy-0008'); // the relation is declared on the other node and shows here too
+	await expect(page.getByTestId('relations-see').getByRole('link', { name: /Loose/ })).toBeVisible();
+	await expect(page.getByTestId('relations-see')).toContainText('loose');
+});
+
+test('an unknown relation kind renders as a labelled list of links', async ({ page }) => {
+	await page.route('**/build/manifest.json', async (route) => {
+		const res = await route.fetch();
+		const m = await res.json();
+		m.relations = [{ from: 'sy-0003', to: 'sy-0001', kind: 'contradicts', src: { file: 'x', line: 1 } }];
+		await route.fulfill({ response: res, json: m });
+	});
+	await page.goto('/node/sy-0003');
+	const list = page.getByTestId('relations-contradicts');
+	await expect(list).toBeVisible();
+	await expect(list.getByRole('link').first()).toHaveAttribute('href', '/node/sy-0001');
+});
