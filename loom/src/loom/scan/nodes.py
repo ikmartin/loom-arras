@@ -1,0 +1,449 @@
+"""Node assembly: theorem-like environments, proofs, sections, and containers become keyed records with ids, aliases, ownership, and regions (book 5.2-5.4, 5.6, 5.8, 5.9.3).
+
+Ownership is a partition of each file: every character belongs to the innermost claimant (a theorem-like environment, a proof, a section's per-file span, or the file itself, the master owning its preamble and top-level prose). Hierarchy for sections is per master, from the expansion; ownership is per file, so hashes never depend on which master reached a file.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+from loom.scan.bib import citekey_slug
+from loom.scan.directives import HEAD_LINES, file_level, list_value, parse_directives, within
+from loom.scan.envtree import FileEnvs, first_body_token_is_cite, labels_in, scan_environments
+from loom.scan.expand import Expansion
+from loom.scan.labels import is_id_shaped
+from loom.scan.model import Diagnostic, Directive, Env, Location, SourceFile, Taxon
+from loom.scan.preamble import PreambleClosure, document_start
+from loom.scan.sections import LEVEL_NAMES, SectionUnit, find_sections
+
+_INCOMPLETE = re.compile(r"\\incomplete\s*\{")
+_CITE_IN_TITLE = re.compile(r"\\cite[a-zA-Z*]*\s*[\[{]")
+
+
+@dataclass
+class NodeRec:
+    key: str
+    kind: str  # environment | section | proof | master | file
+    file: str
+    start: int
+    end: int
+    own: list[tuple[int, int]] = field(default_factory=list)
+    id: str | None = None
+    env: str | None = None
+    taxon: str | None = None
+    style: str | None = None
+    level: int | None = None
+    title: str | None = None
+    labels: list[str] = field(default_factory=list)
+    aliases: list[str] = field(default_factory=list)
+    parent: dict[str, str | None] = field(default_factory=dict)
+    children: dict[str, list[str]] = field(default_factory=dict)
+    proofs: list[str] = field(default_factory=list)
+    external: bool = False
+    digest: str | None = None
+    incomplete: list[str] = field(default_factory=list)
+    directives: dict[str, str] = field(default_factory=dict)
+    reached_by: list[str] = field(default_factory=list)
+    of: str | None = None  # proofs: the statement key
+    attach_via: str | None = None
+    ordinal: int = 0
+    exp_ranges: dict[str, tuple[int, int]] = field(default_factory=dict)
+    order: float = 0.0  # document order in the default master, else file order
+
+
+@dataclass
+class RegionRec:
+    key: str
+    container: str
+    label: str
+    file: str
+    offset: int
+    where: str  # statement | proof:<key> | prose
+
+
+@dataclass
+class Assembly:
+    nodes: dict[str, NodeRec] = field(default_factory=dict)
+    regions: dict[str, RegionRec] = field(default_factory=dict)
+    labels: dict[str, str] = field(default_factory=dict)  # label -> key (ids, aliases, section labels, region keys)
+    envs: dict[str, FileEnvs] = field(default_factory=dict)
+    sections: dict[str, list[SectionUnit]] = field(default_factory=dict)  # per master
+    diagnostics: list[Diagnostic] = field(default_factory=list)
+    directives: dict[str, list[Directive]] = field(default_factory=dict)
+    digest_files: dict[str, str] = field(default_factory=dict)  # file -> citekey
+
+    def statement_keys(self) -> list[str]:
+        return [k for k, n in self.nodes.items() if n.kind in ("environment", "section")]
+
+    def key_of_env(self, file: str, env: Env) -> str | None:
+        return self._env_keys.get((file, env.start))
+
+    _env_keys: dict[tuple[str, int], str] = field(default_factory=dict, repr=False)
+
+
+def assemble(
+    files: dict[str, SourceFile],
+    closures: dict[str, PreambleClosure],
+    expansions: dict[str, Expansion],
+    taxa: dict[str, Taxon],
+    citekeys: set[str],
+    default_master: str | None,
+) -> Assembly:
+    asm = Assembly()
+    masters = list(closures)
+    theorem_names = set(taxa)
+    slugs = {citekey_slug(k) for k in citekeys}
+    for path, src in files.items():
+        if src.ignored:
+            continue
+        asm.directives[path] = parse_directives(src)
+        for d in asm.directives[path]:
+            if d.form == "kv" and d.key == "digest" and d.line <= HEAD_LINES:
+                asm.digest_files[path] = d.value
+                slugs.add(citekey_slug(d.value))
+    for path, src in files.items():
+        if src.ignored:
+            continue
+        body = document_start(src) if path in closures else None
+        asm.envs[path] = scan_environments(src, theorem_names, body or 0)
+    for master, exp in expansions.items():
+        asm.sections[master] = find_sections(exp, files)
+    _statement_nodes(asm, files, taxa, slugs, masters)
+    _section_nodes(asm, files, slugs, masters, default_master)
+    _container_nodes(asm, files, masters)
+    _proof_nodes(asm, files, slugs, expansions, default_master)
+    _partition(asm, files)
+    _regions_and_details(asm, files, expansions, default_master)
+    return asm
+
+
+def _order(exp: Expansion | None, file: str, offset: int, files: dict[str, SourceFile]) -> float:
+    if exp is not None:
+        e = exp.exp_offset(file, offset)
+        if e is not None:
+            return float(e)
+    idx = list(files).index(file)
+    return 1e12 + idx * 1e9 + offset
+
+
+def _statement_nodes(
+    asm: Assembly, files: dict[str, SourceFile], taxa: dict[str, Taxon], slugs: set[str], masters: list[str]
+) -> None:
+    for path, fe in asm.envs.items():
+        src = files[path]
+        counts: dict[str, int] = {}
+        for env in fe.theorem_envs:
+            counts[env.name] = counts.get(env.name, 0) + 1
+            own = env.own_ranges()
+            labels = [lab for lab, _ in labels_in(src.clean, own)]
+            first = labels[0] if labels else None
+            node_id = first if first and is_id_shaped(first, slugs) else None
+            key = node_id or f"{path}#{env.name}:{counts[env.name]}"
+            taxon = taxa.get(env.name)
+            rec = NodeRec(
+                key=key,
+                kind="environment",
+                file=path,
+                start=env.start,
+                end=env.end,
+                id=node_id,
+                env=env.name,
+                taxon=taxon.name if taxon else env.name.capitalize(),
+                style=taxon.style if taxon else "plain",
+                title=env.optarg.strip() if env.optarg else None,
+                labels=labels,
+                aliases=[lab for lab in labels if lab != node_id],
+            )
+            has_cite = bool(env.optarg and _CITE_IN_TITLE.search(env.optarg)) or first_body_token_is_cite(
+                src.clean, env
+            )
+            rec.external = rec.style == "plain" and has_cite
+            asm.nodes[key] = rec
+            asm._env_keys[(path, env.start)] = key
+            if node_id is None:
+                asm.diagnostics.append(
+                    Diagnostic(
+                        "info",
+                        "loom:unlabelled-node",
+                        f"{env.name} without an id",
+                        [Location(path, src.line_of(env.start))],
+                        [key],
+                    )
+                )
+
+
+def _section_nodes(
+    asm: Assembly, files: dict[str, SourceFile], slugs: set[str], masters: list[str], default_master: str | None
+) -> None:
+    ordered = ([default_master] if default_master in asm.sections else []) + [
+        m for m in asm.sections if m != default_master
+    ]
+    for master in ordered:
+        units = asm.sections[master]
+        keys: dict[int, str] = {}
+        for u in units:
+            first = u.labels[0] if u.labels else None
+            node_id = first if first and is_id_shaped(first, slugs) else None
+            if node_id:
+                key = node_id
+            elif first:
+                key = f"{u.file}#{first}"
+            else:
+                key = f"{u.file}#{u.name}:{u.ordinal}"
+            keys[id(u)] = key
+            rec = asm.nodes.get(key)
+            if rec is None or rec.kind != "section":
+                rec = NodeRec(
+                    key=key,
+                    kind="section",
+                    file=u.file,
+                    start=u.offset,
+                    end=u.file_end,
+                    id=node_id,
+                    env=u.name,
+                    taxon=LEVEL_NAMES.get(u.level, u.name).capitalize(),
+                    level=u.level,
+                    title=u.title,
+                    labels=list(u.labels),
+                    aliases=[lab for lab in u.labels if lab != node_id],
+                )
+                asm.nodes[key] = rec
+            rec.exp_ranges[master] = (u.exp_start, u.exp_end)
+            rec.parent[master] = keys[id(u.parent)] if u.parent is not None else None
+            rec.children.setdefault(master, [])
+        for u in units:
+            if u.parent is not None:
+                asm.nodes[keys[id(u.parent)]].children[master].append(keys[id(u)])
+        asm.sections[master] = units
+
+
+def _container_nodes(asm: Assembly, files: dict[str, SourceFile], masters: list[str]) -> None:
+    for path, src in files.items():
+        if src.ignored:
+            continue
+        kind = "master" if path in masters else "file"
+        asm.nodes[path] = NodeRec(key=path, kind=kind, file=path, start=0, end=len(src.clean), title=path)
+
+
+def _proof_nodes(
+    asm: Assembly,
+    files: dict[str, SourceFile],
+    slugs: set[str],
+    expansions: dict[str, Expansion],
+    default_master: str | None,
+) -> None:
+    exp = expansions.get(default_master) if default_master else None
+    label_map: dict[str, str] = {}
+    for key, n in asm.nodes.items():
+        for lab in n.labels:
+            label_map.setdefault(lab, key)
+    pending: list[tuple[str, Env, str | None, str, list[str]]] = []
+    for path, fe in asm.envs.items():
+        for proof in fe.proofs:
+            att = fe.attachments[proof.start]
+            stmt_key: str | None = None
+            if att.statement is not None:
+                stmt_key = asm.key_of_env(path, att.statement)
+            elif att.via == "ref":
+                stmt_key = next((label_map[lab] for lab in att.ref_labels if lab in label_map), None)
+                if len(att.ref_labels) > 1:
+                    asm.diagnostics.append(
+                        Diagnostic(
+                            "warning",
+                            "loom:multi-target-proof",
+                            f"proof names several results ({', '.join(att.ref_labels)}); attached to the first",
+                            [Location(path, files[path].line_of(proof.start))],
+                        )
+                    )
+            pending.append((path, proof, stmt_key, att.via, att.ref_labels))
+    per_statement: dict[str, list[tuple[float, str, Env, str]]] = {}
+    for path, proof, stmt_key, via, ref_labels in pending:
+        src = files[path]
+        if stmt_key is None:
+            asm.diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "loom:unattached-proof",
+                    "proof is neither adjacent to a statement nor names one with \\ref"
+                    + (f" (unknown label {ref_labels[0]})" if ref_labels else ""),
+                    [Location(path, src.line_of(proof.start))],
+                )
+            )
+            key = f"{path}#proof:{proof.start}"
+            asm.nodes[key] = NodeRec(
+                key=key, kind="proof", file=path, start=proof.start, end=proof.end, env="proof", attach_via="none"
+            )
+            asm._env_keys[(path, proof.start)] = key
+            continue
+        per_statement.setdefault(stmt_key, []).append((_order(exp, path, proof.start, files), path, proof, via))
+    for stmt_key, items in per_statement.items():
+        items.sort(key=lambda x: x[0])
+        count = 0
+        for order, path, proof, via in items:
+            src = files[path]
+            own = proof.own_ranges()
+            labels = [lab for lab, _ in labels_in(src.clean, own)]
+            first = labels[0] if labels else None
+            if first and is_id_shaped(first, slugs):
+                key, pid = first, first
+            else:
+                count += 1
+                key, pid = (f"{stmt_key}/proof" if count == 1 else f"{stmt_key}/proof/{count}"), None
+            rec = NodeRec(
+                key=key,
+                kind="proof",
+                file=path,
+                start=proof.start,
+                end=proof.end,
+                id=pid,
+                env="proof",
+                taxon="Proof",
+                title=proof.optarg.strip() if proof.optarg else None,
+                labels=labels,
+                aliases=[lab for lab in labels if lab != pid],
+                of=stmt_key,
+                attach_via=via,
+                ordinal=count,
+                order=order,
+            )
+            asm.nodes[key] = rec
+            asm._env_keys[(path, proof.start)] = key
+            asm.nodes[stmt_key].proofs.append(key)
+        if count > 1:
+            asm.diagnostics.append(
+                Diagnostic(
+                    "info",
+                    "loom:positional-proof-key",
+                    f"{stmt_key} has {count} unlabelled proofs; consider labelling them",
+                    [],
+                    [stmt_key],
+                )
+            )
+
+
+def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
+    """Own ranges: each claimant's range minus its direct children's ranges, per file."""
+    by_file: dict[str, list[NodeRec]] = {}
+    for n in asm.nodes.values():
+        by_file.setdefault(n.file, []).append(n)
+    for recs in by_file.values():
+        recs.sort(key=lambda r: (r.start, -r.end, 0 if r.kind in ("master", "file") else 1))
+        stack: list[NodeRec] = []
+        children: dict[str, list[NodeRec]] = {r.key: [] for r in recs}
+        for r in recs:
+            while stack and stack[-1].end <= r.start:
+                stack.pop()
+            if stack:
+                children[stack[-1].key].append(r)
+            stack.append(r)
+        for r in recs:
+            pieces: list[tuple[int, int]] = []
+            pos = r.start
+            for c in sorted(children[r.key], key=lambda x: x.start):
+                if c.start > pos:
+                    pieces.append((pos, c.start))
+                pos = max(pos, min(c.end, r.end))
+            if r.end > pos:
+                pieces.append((pos, r.end))
+            r.own = pieces
+
+
+def _regions_and_details(
+    asm: Assembly, files: dict[str, SourceFile], expansions: dict[str, Expansion], default_master: str | None
+) -> None:
+    exp = expansions.get(default_master) if default_master else None
+    reached: dict[str, list[str]] = {}
+    for master, e in expansions.items():
+        for path in e.reached:
+            reached.setdefault(path, []).append(master)
+    for n in asm.nodes.values():
+        src = files[n.file]
+        n.reached_by = reached.get(n.file, []) if n.kind != "master" else [n.file]
+        if n.kind in ("environment", "proof") and not n.order:
+            n.order = _order(exp, n.file, n.start, files)
+        if n.kind == "section":
+            n.order = _order(exp, n.file, n.start, files)
+        n.incomplete = _incomplete_texts(src.clean, n.own)
+        node_dirs = within(asm.directives.get(n.file, []), n.own) if n.kind != "master" else []
+        for d in node_dirs:
+            if d.form == "kv":
+                n.directives[d.key] = d.value
+        if n.file in asm.digest_files and n.kind == "environment":
+            n.digest = asm.digest_files[n.file]
+            n.external = True
+    for path, src in files.items():
+        if src.ignored or path not in asm.envs:
+            continue
+        fe = asm.envs[path]
+        first_node = min(
+            [e.start for e in fe.theorem_envs + fe.proofs]
+            + [s.start for s in asm.nodes.values() if s.file == path and s.kind == "section"],
+            default=None,
+        )
+        file_dirs = {d.key: d.value for d in file_level(asm.directives.get(path, []), first_node) if d.form == "kv"}
+        for n in asm.nodes.values():
+            if n.file == path and n.kind in ("environment", "proof", "section"):
+                for k, v in file_dirs.items():
+                    n.directives.setdefault(k, v)
+    _collect_labels(asm, files)
+
+
+def _incomplete_texts(clean: str, own: list[tuple[int, int]]) -> list[str]:
+    from loom.scan.tokenize import match_group
+
+    out: list[str] = []
+    for a, b in own:
+        for m in _INCOMPLETE.finditer(clean, a, b):
+            end = match_group(clean, m.end() - 1)
+            if end > 0:
+                out.append(re.sub(r"\s+", " ", clean[m.end() : end - 1]).strip())
+    return out
+
+
+def _collect_labels(asm: Assembly, files: dict[str, SourceFile]) -> None:
+    seen: dict[str, tuple[str, str, int]] = {}
+    for key, n in sorted(asm.nodes.items(), key=lambda kv: (kv[1].file, kv[1].start)):
+        src = files[n.file]
+        heading = set(n.labels)
+        for lab in n.labels:
+            _claim(asm, files, seen, lab, key, n.file, n.start)
+        where = "statement" if n.kind == "environment" else (f"proof:{key}" if n.kind == "proof" else "prose")
+        for lab, off in labels_in(src.clean, n.own):
+            if lab in heading:
+                continue
+            qkey = f"{key}#{lab}"
+            asm.regions[qkey] = RegionRec(qkey, key, lab, n.file, off, where)
+            _claim(asm, files, seen, lab, qkey, n.file, off)
+
+
+def _claim(
+    asm: Assembly,
+    files: dict[str, SourceFile],
+    seen: dict[str, tuple[str, str, int]],
+    lab: str,
+    key: str,
+    file: str,
+    off: int,
+) -> None:
+    if lab in seen:
+        other_key, other_file, other_off = seen[lab]
+        if other_key == key:
+            return
+        code = "duplicate-id" if is_id_shaped(lab) else "loom:duplicate-label"
+        asm.diagnostics.append(
+            Diagnostic(
+                "error",
+                code,
+                f"label {lab} is defined twice",
+                [Location(other_file, files[other_file].line_of(other_off)), Location(file, files[file].line_of(off))],
+                sorted({other_key, key}),
+            )
+        )
+        return
+    seen[lab] = (key, file, off)
+    asm.labels[lab] = key
+
+
+def tags_of(n: NodeRec) -> list[str]:
+    return list_value(n.directives.get("tags", ""))

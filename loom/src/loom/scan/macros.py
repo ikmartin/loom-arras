@@ -1,0 +1,121 @@
+"""Macro definitions from the preamble closure (book 9.4.3, 8.3.1), replacing the sitegen regexes with brace matching.
+
+Forms: \\newcommand{\\x}[n][default]{body}, \\newcommand\\x{body}, \\renewcommand, \\providecommand, \\def\\x#1#2{body}, \\DeclareMathOperator*{\\x}{body}, \\let\\a\\b, \\NewDocumentCommand\\x{argspec}{body}. Later definitions win. Expansion substitutes #n and is used for text-mode macros and macro display names.
+"""
+
+from __future__ import annotations
+
+import re
+
+from loom.scan.model import Macro
+from loom.scan.tokenize import match_group, read_optional, skip_space
+
+_HEAD = re.compile(
+    r"\\(newcommand|renewcommand|providecommand|DeclareRobustCommand|NewDocumentCommand|RenewDocumentCommand"
+    r"|ProvideDocumentCommand|DeclareMathOperator|def|let)(\*?)"
+)
+_NAME = re.compile(r"\\([A-Za-z@]+|.)")
+
+
+def _read_name(text: str, pos: int) -> tuple[str | None, int]:
+    p = skip_space(text, pos)
+    if p < len(text) and text[p] == "{":
+        q = match_group(text, p)
+        inner = text[p + 1 : q - 1].strip() if q > 0 else ""
+        m = _NAME.match(inner)
+        return (m.group(1), q) if m and q > 0 else (None, pos)
+    m = _NAME.match(text, p)
+    return (m.group(1), m.end()) if m else (None, pos)
+
+
+def _read_body(text: str, pos: int) -> tuple[str | None, int]:
+    p = skip_space(text, pos)
+    if p < len(text) and text[p] == "{":
+        q = match_group(text, p)
+        if q > 0:
+            return text[p + 1 : q - 1], q
+    return None, pos
+
+
+def parse_macros(text: str) -> dict[str, Macro]:
+    """Parse every recognised definition in comment-blanked text; the returned dict maps macro name (no backslash) to its last definition."""
+    macros: dict[str, Macro] = {}
+    for m in _HEAD.finditer(text):
+        head, star = m.group(1), m.group(2)
+        pos = m.end()
+        if head == "let":
+            a, pos = _read_name(text, pos)
+            p = skip_space(text, pos)
+            if p < len(text) and text[p] == "=":
+                pos = p + 1
+            b, pos = _read_name(text, pos)
+            if a and b:
+                target = macros.get(b)
+                macros[a] = Macro(a, target.args if target else 0, target.body if target else "\\" + b, kind="let")
+            continue
+        if head == "def":
+            name, pos = _read_name(text, pos)
+            if not name:
+                continue
+            params = re.match(r"\s*((?:#\d)*)", text[pos:])
+            nargs = len(re.findall(r"#\d", params.group(1))) if params else 0
+            pos += params.end() if params else 0
+            body, pos = _read_body(text, pos)
+            if body is not None:
+                macros[name] = Macro(name, nargs, body, kind="def")
+            continue
+        if head == "DeclareMathOperator":
+            name, pos = _read_name(text, pos)
+            body, pos = _read_body(text, pos)
+            if name and body is not None:
+                op = "\\operatorname*" if star else "\\operatorname"
+                macros[name] = Macro(name, 0, f"{op}{{{body}}}", kind="operator")
+            continue
+        if head.endswith("DocumentCommand"):
+            name, pos = _read_name(text, pos)
+            spec, pos = _read_body(text, pos)
+            body, pos = _read_body(text, pos)
+            if name and body is not None:
+                nargs = len(re.findall(r"[a-zA-Z]", (spec or "").replace("O{", "o{")))
+                macros[name] = Macro(name, nargs, body, kind="xparse")
+            continue
+        name, pos = _read_name(text, pos)
+        if not name:
+            continue
+        nargs = 0
+        default: str | None = None
+        opt, _, _, pos2 = read_optional(text, pos)
+        if opt is not None and opt.strip().isdigit():
+            nargs = int(opt.strip())
+            pos = pos2
+            opt2, _, _, pos3 = read_optional(text, pos)
+            if opt2 is not None:
+                default = opt2
+                pos = pos3
+        body, pos = _read_body(text, pos)
+        if body is not None:
+            macros[name] = Macro(name, nargs, body, default=default, kind="newcommand")
+    return macros
+
+
+def expand(macro: Macro, args: list[str]) -> str:
+    body = macro.body
+    for i in range(macro.args, 0, -1):
+        val = args[i - 1] if i - 1 < len(args) else (macro.default or "")
+        body = body.replace(f"#{i}", val)
+    return body
+
+
+def to_mathjax(macros: dict[str, Macro]) -> list[dict[str, object]]:
+    """The manifest's macro list: {name, args, body}, sorted by name (book specs/manifest.md §14)."""
+    return [{"name": m.name, "args": m.args, "body": m.body} for m in sorted(macros.values(), key=lambda x: x.name)]
+
+
+MATH_ONLY_HINTS = re.compile(
+    r"\\(mathrm|mathbf|mathcal|mathbb|mathfrak|mathscr|operatorname|frac|sqrt|sum|prod|int|to|colon|widetilde|hat|bar|otimes|oplus|cdot|langle|rangle|alpha|beta|gamma|delta|Delta|epsilon|lambda|mu|nu|pi|sigma|tau|phi|psi|omega|Omega|Gamma|Sigma|infty|partial|nabla|circ|times|leq|geq|neq|subset|subseteq|in|forall|exists|left|right)\b|[\^_]"
+)
+
+
+def is_math_macro(macro: Macro) -> bool:
+    """Heuristic: a macro whose body only makes sense in math mode is left to MathJax; the converter expands the others in text."""
+    return bool(MATH_ONLY_HINTS.search(macro.body)) or macro.kind == "operator"
