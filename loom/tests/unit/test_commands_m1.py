@@ -27,7 +27,17 @@ def test_init_creates_layout(tmp_path: Path) -> None:
     r = run("init", str(tmp_path / "q"), "--prefix", "zz", "--yes")
     assert r.exit_code == 0, r.output
     q = tmp_path / "q"
-    for rel in ("config.toml", "loom.sty", "drafts/main.tex", "nodes", "refs", "comments", ".gitignore", "README.md"):
+    for rel in (
+        "config.toml",
+        "loom.sty",
+        "drafts/main.tex",
+        "nodes",
+        "digests",
+        "refs",
+        "comments",
+        ".gitignore",
+        "README.md",
+    ):
         assert (q / rel).exists(), rel
     assert 'prefix = "zz"' in (q / "config.toml").read_text()
     assert "\\usepackage{loom}" in (q / "drafts/main.tex").read_text()
@@ -88,15 +98,15 @@ def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path:
 
     # nothing a node is made of is ignored: only derived directories and LaTeX's own leavings
     ignored = [ln for ln in (tmp_path / "n" / ".gitignore").read_text().splitlines() if ln and not ln.startswith("#")]
-    assert "build/" in ignored and "refs/pdf/" in ignored and "refs/src/" in ignored
-    assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafts/", "comments/") for ln in ignored)
+    assert "build/" in ignored and "refs/" in ignored
+    assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafts/", "digests/", "comments/") for ln in ignored)
 
 
 def test_init_demo_writes_demo_and_lints_clean(tmp_path: Path) -> None:
     r = run("init", str(tmp_path / "demo"), "--demo")
     assert r.exit_code == 0, r.output
     demo = tmp_path / "demo"
-    assert (demo / "refs" / "Man12.tex").exists() and (demo / "nodes" / "dm-0003.tex").exists()
+    assert (demo / "digests" / "Man12.tex").exists() and (demo / "nodes" / "dm-0003.tex").exists()
     lint = run("lint", "--json", cwd=demo)
     assert lint.exit_code == 0, lint.output
     diags = json.loads(lint.output)

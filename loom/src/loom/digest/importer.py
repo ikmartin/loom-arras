@@ -1,4 +1,4 @@
-"""`loom digest import PATH [--as CITEKEY]` (book 8.10): copy a digest into this quilt's `refs/`, renaming its citekey and every prefixed id, label, and citation when `--as` says so."""
+"""`loom digest import PATH [--as CITEKEY]` (book 8.10): copy a digest into this quilt's `digests/`, renaming its citekey and every prefixed id, label, and citation when `--as` says so."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def plan_digest_import(result: ScanResult, path: Path, as_citekey: str | None) -
     declared = set(result.taxa) | {"proof", "document", "equation", "align", "itemize", "enumerate", "description"}
     undeclared = sorted({e for e in _ENV.findall(text) if e not in declared and not e.endswith("*") and e[0].islower()})
     undeclared = [e for e in undeclared if e in {t for t in re.findall(r"\\begin\{([a-z]+)\}\s*\[\{\\cite", text)}]
-    return DigestImport(old, new, text, f"refs/{new}.tex", renamed, missing, undeclared)
+    return DigestImport(old, new, text, f"digests/{new}.tex", renamed, missing, undeclared)
 
 
 def write_digest_import(root: Path, plan: DigestImport) -> Path:

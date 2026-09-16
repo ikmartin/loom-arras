@@ -24,7 +24,7 @@ Every mode file refers to this file. Read it once per session.
    Quote exact source text only when wording matters, and then from the
    bundle.
 5. Search order for anything about a cited paper: the digest
-   (`loom search CITEKEY --json`), then `refs/pdf/CITEKEY.pdf`, then the
+   (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the
    web. Say which you used. If none, write "unlocated".
 6. Distinguish what the author asked for from what you noticed on the way.
    Report both; do not act on the second.

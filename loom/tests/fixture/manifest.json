@@ -530,6 +530,16 @@
  ],
  "edges": [
   {
+   "from": "Kre99-thm-2.1",
+   "kind": "statement",
+   "src": {
+    "file": "digests/Kre99.tex",
+    "line": 24
+   },
+   "to": "Kre99-setup",
+   "via": "uses"
+  },
+  {
    "from": "sy-0001",
    "kind": "statement",
    "src": {
@@ -587,16 +597,6 @@
     "line": 2
    },
    "to": "sy-0006",
-   "via": "uses"
-  },
-  {
-   "from": "Kre99-thm-2.1",
-   "kind": "statement",
-   "src": {
-    "file": "refs/Kre99.tex",
-    "line": 24
-   },
-   "to": "Kre99-setup",
    "via": "uses"
   },
   {
@@ -1062,7 +1062,7 @@
    "closure": [
     "Kre99-setup"
    ],
-   "file": "refs/Kre99.tex",
+   "file": "digests/Kre99.tex",
    "hash": "sha256:b3e1d390ba41d48a8f3fb1caf1c16d78dd7e7ff8bdaea2df3c1aa5a5b351a592",
    "incomplete": [],
    "key": "Kre99-setup",
@@ -1087,7 +1087,7 @@
     "Kre99-setup",
     "Kre99-thm-2.1"
    ],
-   "file": "refs/Kre99.tex",
+   "file": "digests/Kre99.tex",
    "hash": "sha256:02714f87b2e495507ba11d0acddc82902fb21d315b23a4dd74aa2c24b76bbcfa",
    "incomplete": [],
    "key": "Kre99-thm-2.1",
@@ -1995,7 +1995,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "refs/Kre99.tex",
+   "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-sec-1.html",
    "id": "Kre99-sec-1",
    "incomplete": [],
@@ -2028,7 +2028,7 @@
    },
    "digest": null,
    "external": false,
-   "file": "refs/Kre99.tex",
+   "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-sec-2.html",
    "id": "Kre99-sec-2",
    "incomplete": [],
@@ -2059,7 +2059,7 @@
    },
    "digest": "Kre99",
    "external": true,
-   "file": "refs/Kre99.tex",
+   "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-setup.html",
    "id": "Kre99-setup",
    "incomplete": [],
@@ -2090,7 +2090,7 @@
    },
    "digest": "Kre99",
    "external": true,
-   "file": "refs/Kre99.tex",
+   "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-thm-2.1.html",
    "id": "Kre99-thm-2.1",
    "incomplete": [],
@@ -2110,7 +2110,7 @@
    "taxon": "Theorem",
    "title": ""
   },
-  "refs/Kre99.tex#section:1": {
+  "digests/Kre99.tex#section:1": {
    "aliases": [],
    "author": [],
    "children": [],
@@ -2121,9 +2121,9 @@
    },
    "digest": null,
    "external": false,
-   "file": "refs/Kre99.tex",
-   "fragment": "fragments/keys/refs%2FKre99.tex%23section%3A1.html",
-   "id": "refs/Kre99.tex#section:1",
+   "file": "digests/Kre99.tex",
+   "fragment": "fragments/keys/digests%2FKre99.tex%23section%3A1.html",
+   "id": "digests/Kre99.tex#section:1",
    "incomplete": [],
    "kind": "section",
    "level": 1,
@@ -3068,7 +3068,7 @@
    ],
    "citekey": "Kre99",
    "digest": {
-    "file": "refs/Kre99.tex",
+    "file": "digests/Kre99.tex",
     "fragment": "fragments/digests/Kre99.html",
     "method": "manual",
     "nodes": [
@@ -3156,6 +3156,24 @@
   }
  ],
  "search": [
+  {
+   "aliases": [],
+   "excerpt": "{Kre99}}] All stacks are algebraic and of finite type over a field.",
+   "key": "Kre99-setup",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Kre99-setup"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{Kre99}}] For every Artin stack $X$ the group $A_*(X)$ is well defined and $\\Hom(A_*(X), \\mathbb{Q})$ is functorial.",
+   "key": "Kre99-thm-2.1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Kre99-thm-2.1"
+  },
   {
    "aliases": [],
    "excerpt": "A \\emph{widget} is a pair $(X,\\sigma)$ of a set and an involution $\\sigma$ of $X$, so that \\eqref{eq:prose} holds. Its fixed locus is \\Fix(\\sigma) = \\{x \\in X :",
@@ -3248,24 +3266,6 @@
    "tags": [],
    "taxon": "Main Theorem",
    "title": "sy-000B"
-  },
-  {
-   "aliases": [],
-   "excerpt": "{Kre99}}] All stacks are algebraic and of finite type over a field.",
-   "key": "Kre99-setup",
-   "kind": "environment",
-   "tags": [],
-   "taxon": "Theorem",
-   "title": "Kre99-setup"
-  },
-  {
-   "aliases": [],
-   "excerpt": "{Kre99}}] For every Artin stack $X$ the group $A_*(X)$ is well defined and $\\Hom(A_*(X), \\mathbb{Q})$ is functorial.",
-   "key": "Kre99-thm-2.1",
-   "kind": "environment",
-   "tags": [],
-   "taxon": "Theorem",
-   "title": "Kre99-thm-2.1"
   },
   {
    "aliases": [],
@@ -3366,7 +3366,7 @@
   {
    "aliases": [],
    "excerpt": "Kresch constructs Chow groups for Artin stacks. This digest holds the standing assumptions and the one theorem the synthetic paper cites.",
-   "key": "refs/Kre99.tex#section:1",
+   "key": "digests/Kre99.tex#section:1",
    "kind": "section",
    "tags": [],
    "taxon": "Section",

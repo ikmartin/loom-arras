@@ -13,9 +13,8 @@ from loom.scan.model import SourceFile
 SKIP_DIRS = {"build", ".git", "node_modules", ".loom", ".svelte-kit", ".claude"}
 SKIP_PREFIXES = (
     "ai/",
-    "refs/src/",
-    "refs/pdf/",
-)  # run outputs and fetched sources are not the quilt's text (book 11.2, 8.9)
+    "refs/",
+)  # run outputs and fetched works are not the quilt's text. Nothing under refs/ is ever authored: digests live in digests/ (book 11.2, 8.9, DR-108)
 IGNORE_RE = re.compile(r"^\s*%\s*!LOOM\s+ignore\s*$", re.M)
 _VERB_RE = re.compile(r"\\verb\*?(\S)(.*?)\1")
 _VERBATIM_RE = re.compile(r"\\begin\{(verbatim\*?|lstlisting|comment|filecontents\*?)\}.*?\\end\{\1\}", re.S)

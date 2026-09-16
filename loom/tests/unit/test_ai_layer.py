@@ -70,7 +70,7 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     data = json.loads((q / ".claude" / "settings.json").read_text())
     deny = data["permissions"]["deny"]
     allow = data["permissions"]["allow"]
-    for d in ("nodes", "drafts", "refs", "comments", ".loom", "ai/modes"):
+    for d in ("nodes", "drafts", "digests", "refs", "comments", ".loom", "ai/modes"):
         assert f"Edit(/{d}/**)" in deny and f"Write(/{d}/**)" in deny, d
     assert "Edit(/ai/runs/**)" in allow and "Write(/build/**)" in allow
     assert any(rule.startswith("Bash(loom accept") for rule in deny) and any("promote" in rule for rule in deny)
@@ -259,19 +259,19 @@ def test_promote_digest_refuses_existing(tmp_path: Path) -> None:
     q = demo(tmp_path)
     rel = run("ai", "start", "ingest", cwd=q, env=FIXED).output.strip()
     ingest = q / rel / "ingest-Man12.tex"
-    ingest.write_text((q / "refs" / "Man12.tex").read_text().replace("method: manual", "method: ingest"))
+    ingest.write_text((q / "digests" / "Man12.tex").read_text().replace("method: manual", "method: ingest"))
     r = run("ai", "promote", str(ingest), cwd=q)
-    assert r.exit_code == 1 and "refs/Man12.tex exists" in r.output and "--replace" in r.output
+    assert r.exit_code == 1 and "digests/Man12.tex exists" in r.output and "--replace" in r.output
     r2 = run("ai", "promote", str(ingest), "--replace", cwd=q)
     assert r2.exit_code == 0, r2.output
     assert "-% !LOOM method: manual" in r2.output and "+% !LOOM method: ingest" in r2.output  # the diff was shown
-    assert "method: ingest" in (q / "refs" / "Man12.tex").read_text()
+    assert "method: ingest" in (q / "digests" / "Man12.tex").read_text()
     new = q / rel / "ingest-Har77.tex"
     new.write_text(
         "% !LOOM digest: Har77\n% !LOOM source: manual\n% !LOOM method: ingest\n\\section*{Overview}\nHartshorne.\n"
     )
     r3 = run("ai", "promote", str(new), cwd=q)
-    assert r3.exit_code == 0 and (q / "refs" / "Har77.tex").is_file()
+    assert r3.exit_code == 0 and (q / "digests" / "Har77.tex").is_file()
 
 
 def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:

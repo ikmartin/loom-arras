@@ -18,7 +18,7 @@ one sentence under [open-questions] and do not pursue it unless asked.
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
 - `loom bundle ID --run $LOOM_RUN` for each definition or result the
   topic touches.
-- The overview sections of the relevant digests (`refs/CITEKEY.tex`,
+- The overview sections of the relevant digests (`digests/CITEKEY.tex`,
   which are designed to be read whole); `loom search --kind digest`.
 - If the author has an outline master, `loom assemble drafts/outline.tex
   $LOOM_RUN/outline.tex` for the plan as it stands.

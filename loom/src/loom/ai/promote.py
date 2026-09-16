@@ -46,7 +46,7 @@ def plan_promotion(result: ScanResult, path: Path, prefix: str | None) -> Promot
     if m or path.name.startswith("ingest-"):
         if not m:
             raise ValueError(f"{path.name} has no `% !LOOM digest:` header")
-        return Promotion("digest", f"refs/{m.group(1)}.tex", text)
+        return Promotion("digest", f"digests/{m.group(1)}.tex", text)
     rel = path.relative_to(root).as_posix() if path.is_relative_to(root) else path.name
     src = _source(rel, path, text)
     fe = scan_environments(src, set(result.taxa))

@@ -13,11 +13,19 @@ def test_blank_comments_preserves_offsets() -> None:
 
 
 def test_scan_all_tex_recursively_skips_build(tmp_path: Path) -> None:
-    for rel in ["drafts/main.tex", "nodes/a.tex", "build/x.tex", "refs/d.tex", "notes.txt"]:
+    """Nothing under refs/ is the quilt's text: it holds fetched works, and a digest lives in digests/ (DR-108)."""
+    for rel in [
+        "drafts/main.tex",
+        "nodes/a.tex",
+        "digests/Kre99.tex",
+        "build/x.tex",
+        "refs/arxiv/1/src/d.tex",
+        "notes.txt",
+    ]:
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("x", encoding="utf-8")
-    assert discover_files(tmp_path) == ["drafts/main.tex", "nodes/a.tex", "refs/d.tex"]
+    assert discover_files(tmp_path) == ["digests/Kre99.tex", "drafts/main.tex", "nodes/a.tex"]
 
 
 def test_non_utf8_source_decoded(tmp_path: Path) -> None:

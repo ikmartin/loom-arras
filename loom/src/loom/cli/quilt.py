@@ -81,7 +81,7 @@ def ask_prefix(default: str, yes: bool) -> str:
 
 GITIGNORE_NOTE = """wrote .gitignore, ignores:
   build/ (everything loom can rebuild)
-  refs/pdf/ and refs/src/ (outside papers which are fetched not written)
+  refs/ (outside papers which are fetched not written; your digests are in digests/)
   all stray LaTeX files (.aux, .log, .bbl and the rest)"""
 
 
@@ -103,7 +103,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
         path.write_text(text, encoding="utf-8")
 
     mkdir(target / "drafts")
-    for d in ("nodes", "refs", "comments"):
+    for d in ("nodes", "digests", "refs", "comments"):
         mkdir(target / d)
     write(target / "config.toml", CONFIG_TEMPLATE.format(prefix=prefix))
     write(target / "loom.sty", (ASSETS / "loom.sty").read_text(encoding="utf-8"))

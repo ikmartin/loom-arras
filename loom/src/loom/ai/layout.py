@@ -21,7 +21,7 @@ TRIGGERS = {
     "question": "when the user asks a thorough question about a key or about the quilt",
     "quick": "when the user wants a brief answer about a key or the quilt",
     "draft": "when the user asks to write a node from a plan they supply",
-    "ingest": "when the user asks to digest a cited paper into refs/",
+    "ingest": "when the user asks to digest a cited paper into digests/",
     "brainstorm": "when the user wants to explore, brainstorm, or plan a topic before proving anything",
 }
 GITIGNORE_LINE = "ai/runs/*/bundle-*.tex"

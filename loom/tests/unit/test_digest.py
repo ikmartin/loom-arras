@@ -114,7 +114,7 @@ def test_postnote_match_edge_unmatched_and_no_postnote(tmp_path: Path) -> None:
     assert ("dm-0002", "Man12-setup") in post and ("dm-0002", "Man12-sec-2") in post  # Section 2 names both
     lint = run("lint", cwd=q).output
     assert "loom:unmatched-postnote" in lint and "Lemma 99" in lint
-    digest = q / "refs" / "Man12.tex"
+    digest = q / "digests" / "Man12.tex"
     digest.write_text(
         digest.read_text().replace("\\label{Man12-prop-3.2}", "\\label{Man12-prop-3.2}\\label{Man12-lem-99}", 1)
     )
@@ -127,7 +127,7 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
     bib = q / "refs.bib"
     bib.write_text(bib.read_text().replace("eprint  = {0805.2065v2}", "eprint  = {0805.2065v3}", 1))
     assert "0805.2065v3" in bib.read_text()
-    digest = q / "refs" / "Man12.tex"
+    digest = q / "digests" / "Man12.tex"
     digest.write_text(
         digest.read_text().replace("% !LOOM requires: amsmath, amsthm", "% !LOOM requires: amsmath, amsthm, tikz-cd")
     )
@@ -143,7 +143,7 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_pa
     q = demo(tmp_path)
     r = run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q)
     assert r.exit_code == 0, r.output
-    text = (q / "refs" / "Ref20.tex").read_text()
+    text = (q / "digests" / "Ref20.tex").read_text()
     head = text.splitlines()[:5]
     assert head[0] == "% !LOOM digest: Ref20" and head[1] == "% !LOOM source: arXiv:2001.00001v2"
     assert head[2] == "% !LOOM method: extract" and head[3].startswith("% !LOOM created: ")
@@ -195,7 +195,7 @@ def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q, env={"FAKE_TEX_FAIL": "1"})
     assert r.exit_code == 0, r.output
-    text = (q / "refs" / "Ref20.tex").read_text()
+    text = (q / "digests" / "Ref20.tex").read_text()
     assert "% !LOOM numbering: emulated" in text and "Numbering: emulated" in r.output
     for local in ("def-2.1", "lem-2.2", "thm-3.1", "thm-3.2", "sec-2", "sec-3"):
         assert f"\\label{{Ref20-{local}}}" in text, local
@@ -204,12 +204,12 @@ def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
 def test_import_digest_as_rewrites_prefix(tmp_path: Path) -> None:
     q = demo(tmp_path)
     assert run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q).exit_code == 0
-    src = q / "refs" / "Ref20.tex"
+    src = q / "digests" / "Ref20.tex"
     assert run("init", str(tmp_path / "lib"), "--demo", cwd=tmp_path).exit_code == 0
     lib = tmp_path / "lib"
     r = run("digest", "import", str(src), "--as", "Other20", cwd=lib)
     assert r.exit_code == 0, r.output
-    text = (lib / "refs" / "Other20.tex").read_text()
+    text = (lib / "digests" / "Other20.tex").read_text()
     assert text.startswith("% !LOOM digest: Other20\n")
     assert "Ref20" not in text
     assert "\\label{Other20-thm-3.1}" in text and "\\uses{Other20-lem-2.2, Other20-def-2.1}" in text
@@ -222,7 +222,7 @@ def test_fetch_refused_without_config(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = run("digest", "fetch", "Ref20", cwd=q)
     assert r.exit_code == 2 and "fetch = true" in r.output
-    assert not (q / "refs" / "src").exists()
+    assert not (q / "refs").exists() or not any((q / "refs").rglob("*.tex"))
 
 
 @pytest.mark.network
@@ -236,7 +236,8 @@ def test_fetch_writes_gitignored_dirs(tmp_path: Path) -> None:
     bib.write_text(bib.read_text().replace("eprint={2001.00001v2}", "eprint={0805.2065v2}"))
     r = run("digest", "fetch", "Ref20", "--pdf", cwd=q)
     assert r.exit_code == 0, r.output
-    assert any((q / "refs" / "src" / "Ref20").iterdir()) and (q / "refs" / "pdf" / "Ref20.pdf").exists()
+    home = q / "digests" / "arxiv" / "0805.2065v2"
+    assert any((home / "src").iterdir()) and (home / "paper.pdf").exists()
 
 
 def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) -> None:

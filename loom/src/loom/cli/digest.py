@@ -23,7 +23,7 @@ def digest() -> None:
 @digest.command(name="extract")
 @click.argument("citekey")
 @click.argument("src", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option("--to", "to", default=None, metavar="PATH", help="Write here instead of refs/<citekey>.tex.")
+@click.option("--to", "to", default=None, metavar="PATH", help="Write here instead of digests/<citekey>.tex.")
 @click.option(
     "--engine", default=None, help="Engine for compiling the reference (default: its magic comment or pdflatex)."
 )
@@ -41,10 +41,10 @@ def extract(
     no_compile: bool,
     quilt_path: str | None,
 ) -> None:
-    """Produce refs/CITEKEY.tex mechanically from the reference paper whose main file is SRC (proofs dropped, ids prefixed)."""
+    """Produce digests/CITEKEY.tex mechanically from the reference paper whose main file is SRC (proofs dropped, ids prefixed)."""
     result = open_scan(quilt_path)
     root = result.quilt.root
-    target = root / (to or f"refs/{citekey}.tex")
+    target = root / (to or f"digests/{citekey}.tex")
     if target.exists():
         raise EnvError(f"{target.relative_to(root)} exists; use --to to write elsewhere")
     if citekey not in result.bib:
@@ -72,7 +72,7 @@ def extract(
 @quilt_option
 @click.pass_context
 def import_digest(ctx: click.Context, path: Path, as_citekey: str | None, quilt_path: str | None) -> None:
-    """Copy a digest from another quilt into refs/, rewriting its id prefix when --as renames the citekey."""
+    """Copy a digest from another quilt into digests/, rewriting its id prefix when --as renames the citekey."""
     result = open_scan(quilt_path)
     try:
         plan = plan_digest_import(result, path, as_citekey)
@@ -102,11 +102,11 @@ def import_digest(ctx: click.Context, path: Path, as_citekey: str | None, quilt_
 
 @digest.command(name="fetch")
 @click.argument("citekey")
-@click.option("--pdf", is_flag=True, help="Also fetch the PDF into refs/pdf/.")
+@click.option("--pdf", is_flag=True, help="Also fetch the PDF alongside the source.")
 @quilt_option
 @click.pass_context
 def fetch_command(ctx: click.Context, citekey: str, pdf: bool, quilt_path: str | None) -> None:
-    """Fetch the arXiv e-print source for CITEKEY into refs/src/ (gitignored). Requires [refs] fetch = true."""
+    """Fetch the arXiv e-print source for CITEKEY into its directory under refs/ (gitignored). Requires [refs] fetch = true."""
     result = open_scan(quilt_path)
     try:
         written = fetch(result.quilt, citekey, result.bib.get(citekey), pdf=pdf)
@@ -114,4 +114,8 @@ def fetch_command(ctx: click.Context, citekey: str, pdf: bool, quilt_path: str |
         raise EnvError(str(exc)) from exc
     for p in written:
         click.echo(f"Wrote {p.relative_to(result.quilt.root)}")
-    click.echo(f"{len(written)} file(s); run loom digest extract {citekey} refs/src/{citekey}/<main>.tex next")
+    # the next command names a real file, not a shape: the work's directory is named by its identifier, which the author never typed and should not have to guess
+    tex = sorted(p for p in written if p.suffix == ".tex" and p.parent.name == "src")
+    main = next((p for p in tex if p.stem == "main"), tex[0] if tex else None)
+    where = main.relative_to(result.quilt.root) if main else "<the unpacked source>"
+    click.echo(f"{len(written)} file(s); run loom digest extract {citekey} {where} next")

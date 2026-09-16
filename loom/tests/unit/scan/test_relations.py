@@ -58,7 +58,7 @@ def test_see_resolves_alias_and_digest_id(tmp_path: Path) -> None:
         tmp_path,
         {
             "nodes/ab-0001.tex": DEF,
-            "refs/Zz99.tex": digest,
+            "digests/Zz99.tex": digest,
             "nodes/ab-0002.tex": (
                 "\\begin{lemma}\\label{ab-0002}\n% !LOOM see: def:widget, Zz99-thm-1.1\nA lemma.\n\\end{lemma}\n"
             ),

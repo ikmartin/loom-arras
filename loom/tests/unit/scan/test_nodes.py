@@ -183,7 +183,7 @@ def test_external_node_and_digest_file(tmp_path: Path) -> None:
         {
             "drafts/main.tex": PREAMBLE
             + "\\begin{document}\n\\begin{theorem}[{\\cite[Theorem 2]{K}}]\\label{ab-0001}\nT\n\\end{theorem}\n\\begin{definition}\\cite[Def 1]{K}\n\\label{ab-0002}\nD\n\\end{definition}\n\\end{document}\n",
-            "refs/Man12.tex": "% !LOOM digest: Man12\n% !LOOM source: arXiv:0805.2065v2\n% !LOOM method: extract\n\\section*{Overview}\n\\section{Preliminaries}\\label{Man12-sec-2}\n\\begin{theorem}[{\\cite[Theorem 4.1, p.~12]{Man12}}]\\label{Man12-thm-4.1}\nStatement.\n\\end{theorem}\n",
+            "digests/Man12.tex": "% !LOOM digest: Man12\n% !LOOM source: arXiv:0805.2065v2\n% !LOOM method: extract\n\\section*{Overview}\n\\section{Preliminaries}\\label{Man12-sec-2}\n\\begin{theorem}[{\\cite[Theorem 4.1, p.~12]{Man12}}]\\label{Man12-thm-4.1}\nStatement.\n\\end{theorem}\n",
             "refs.bib": "@article{Man12, title={Virtual pull-backs}}\n@misc{K, title={K}}\n",
         },
     )

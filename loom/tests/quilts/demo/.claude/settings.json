@@ -11,6 +11,8 @@
       "Write(/nodes/**)",
       "Edit(/drafts/**)",
       "Write(/drafts/**)",
+      "Edit(/digests/**)",
+      "Write(/digests/**)",
       "Edit(/refs/**)",
       "Write(/refs/**)",
       "Edit(/comments/**)",

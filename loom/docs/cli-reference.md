@@ -225,11 +225,11 @@ Digests of cited papers: extract one from a paper's source, port one in, or fetc
 
 `loom digest extract [OPTIONS] CITEKEY SRC`
 
-Produce refs/CITEKEY.tex mechanically from the reference paper whose main file is SRC (proofs dropped, ids prefixed).
+Produce digests/CITEKEY.tex mechanically from the reference paper whose main file is SRC (proofs dropped, ids prefixed).
 
 | option | description |
 |---|---|
-| `--to` `PATH` | Write here instead of refs/<citekey>.tex. |
+| `--to` `PATH` | Write here instead of digests/<citekey>.tex. |
 | `--engine` | Engine for compiling the reference (default: its magic comment or pdflatex). |
 | `--no-compile` | Skip compiling the reference; number results by emulation. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -238,18 +238,18 @@ Produce refs/CITEKEY.tex mechanically from the reference paper whose main file i
 
 `loom digest fetch [OPTIONS] CITEKEY`
 
-Fetch the arXiv e-print source for CITEKEY into refs/src/ (gitignored). Requires [refs] fetch = true.
+Fetch the arXiv e-print source for CITEKEY into its directory under refs/ (gitignored). Requires [refs] fetch = true.
 
 | option | description |
 |---|---|
-| `--pdf` | Also fetch the PDF into refs/pdf/. |
+| `--pdf` | Also fetch the PDF alongside the source. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom digest import`
 
 `loom digest import [OPTIONS] PATH`
 
-Copy a digest from another quilt into refs/, rewriting its id prefix when --as renames the citekey.
+Copy a digest from another quilt into digests/, rewriting its id prefix when --as renames the citekey.
 
 | option | description |
 |---|---|
@@ -342,6 +342,37 @@ Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
 |---|---|
 | `--prefix` | Allocate under this prefix instead of [quilt] prefix. |
 | `--print` | Print the skeleton without allocating an id or writing a file. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom refs`
+
+`loom refs [OPTIONS] COMMAND [ARGS]...`
+
+Fetched works: where their artifacts are, and how to add one by hand.
+
+### `loom refs add`
+
+`loom refs add [OPTIONS] CITEKEY FILE`
+
+File FILE as CITEKEY's PDF under refs/.
+
+A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing.
+
+| option | description |
+|---|---|
+| `--force` | Replace an artifact that is already there. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs path`
+
+`loom refs path [OPTIONS] CITEKEY`
+
+Print where CITEKEY's fetched artifacts live. Nothing under refs/ is meant to be navigated by hand.
+
+| option | description |
+|---|---|
+| `--pdf` | The PDF rather than the directory. |
+| `--src` | The unpacked source rather than the directory. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom search`

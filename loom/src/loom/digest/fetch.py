@@ -1,4 +1,4 @@
-"""`loom digest fetch CITEKEY [--pdf]` (book 8.9): the arXiv e-print source into `refs/src/<citekey>/`, and with `--pdf` the PDF into `refs/pdf/`. Nothing is fetched unless `[refs] fetch = true`; no other command touches the network."""
+"""`loom digest fetch CITEKEY [--pdf]` (book 8.9): the arXiv e-print source and, with `--pdf`, the PDF, into the work's own directory under `refs/`. Nothing is fetched unless `[refs] fetch = true`; no other command touches the network."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from loom.refs.identity import primary
 from loom.scan.bib import BibEntry
 from loom.scan.quilt import Quilt
 from loom.version import __version__
@@ -32,6 +33,17 @@ def arxiv_id(entry: BibEntry) -> str | None:
         return None
     e = re.sub(r"^arxiv:", "", e.strip(), flags=re.I)
     return e or None
+
+
+def work_dir(root: Path, entry: BibEntry | None) -> Path:
+    """The directory under `refs/` holding everything fetched for one work.
+
+    Named by the work's primary global identifier, never by the citekey: at depth 1 a citekey exists, and past it a work reached through someone else's bibliography has none at all. Two quilts citing one paper therefore name one directory, which is what lets a shared cache be a hardlink rather than a mapping (DR-108).
+    """
+    wid = primary(entry)
+    if wid is None:
+        raise FetchRefused("the work has no bibliography entry, so it has no identity to file under")
+    return root / "refs" / wid.path
 
 
 def _get(url: str, attempts: int = 3) -> bytes:
@@ -97,14 +109,15 @@ def fetch(quilt: Quilt, citekey: str, entry: BibEntry | None, pdf: bool = False)
     ident = arxiv_id(entry)
     if ident is None:
         raise FetchRefused(f"{citekey} has no eprint field naming an arXiv identifier")
+    home = work_dir(quilt.root, entry)
     written: list[Path] = []
     source_error: FetchRefused | None = None
     try:
-        written = _unpack(_get(f"https://arxiv.org/e-print/{ident}"), quilt.root / "refs" / "src" / citekey)
+        written = _unpack(_get(f"https://arxiv.org/e-print/{ident}"), home / "src")
     except FetchRefused as exc:
         source_error = exc
     if pdf:
-        p = quilt.root / "refs" / "pdf" / f"{citekey}.pdf"
+        p = home / "paper.pdf"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(_get(f"https://arxiv.org/pdf/{ident}"))
         written.append(p)

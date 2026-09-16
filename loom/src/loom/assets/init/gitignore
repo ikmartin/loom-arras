@@ -1,6 +1,5 @@
 build/
-refs/pdf/
-refs/src/
+refs/
 # LaTeX artifacts a hand compile scatters at the root or in drafts/; loom's own outputs all land under build/
 /*.aux
 /*.log

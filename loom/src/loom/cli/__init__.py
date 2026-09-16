@@ -14,6 +14,7 @@ from loom.cli.lint_cmd import lint_command
 from loom.cli.nodes import delete, new, search
 from loom.cli.paper import atomize, id_command, import_command, inline_command
 from loom.cli.quilt import init
+from loom.cli.refs import refs
 from loom.cli.review import accept, comment, status
 from loom.cli.serve_cmd import serve
 from loom.cli.upgrade import upgrade
@@ -48,6 +49,7 @@ main.add_command(unravel, name="downstream")
 main.add_command(unravel, name="reach")
 main.add_command(unravel, name="pop")
 main.add_command(lint_command)
+main.add_command(refs)
 main.add_command(build_command)
 main.add_command(bundle)
 main.add_command(compile)
