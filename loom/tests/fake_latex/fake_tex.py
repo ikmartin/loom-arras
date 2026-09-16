@@ -267,7 +267,7 @@ def main() -> int:
         return 0
     if tool in ENGINES:
         return run_engine(tool, args)
-    if tool == "dvisvgm":
+    if tool in ("dvisvgm", "pdftocairo"):
         return run_dvisvgm(args)
     if tool in ("bibtex", "biber"):
         return run_bib(args)

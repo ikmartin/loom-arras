@@ -25,6 +25,7 @@ TOOLS = [
     "pdftotext",
     "pdfinfo",
     "kpsewhich",
+    "pdftocairo",
 ]
 
 

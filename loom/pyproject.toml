@@ -52,6 +52,7 @@ markers = [
 line-length = 120
 target-version = "py311"
 src = ["src", "tests"]
+extend-exclude = ["tests/tools"]  # vendored verbatim from the workspace specs
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "W"]
