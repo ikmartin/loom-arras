@@ -1,6 +1,6 @@
 """`loom serve` (book 9.8): one loop with three jobs, watch, serve, compile.
 
-Serves the arras bundle at / (with index.html as the fallback for any path without an extension, so the viewer's routes work) and build/ at /build/. The manifest carries an ETag so the viewer's poll costs nothing while unchanged. Loom never notifies the viewer; the viewer polls.
+Serves the arras bundle at / (with index.html as the fallback for any path that is not a file of the bundle or an asset, so the viewer's routes work, dots in keys included) and build/ at /build/. The manifest carries an ETag so the viewer's poll costs nothing while unchanged. Loom never notifies the viewer; the viewer polls.
 """
 
 from __future__ import annotations
@@ -21,6 +21,24 @@ from loom.scan.quilt import Quilt
 from loom.tex.runner import compile_tex, normalise_engine
 
 DEFAULT_PORT = 8791
+ASSET_SUFFIXES = {
+    ".js",
+    ".mjs",
+    ".css",
+    ".map",
+    ".svg",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".ico",
+    ".json",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".txt",
+    ".webmanifest",
+}
 
 
 class LoomHandler(SimpleHTTPRequestHandler):
@@ -46,9 +64,11 @@ class LoomHandler(SimpleHTTPRequestHandler):
                 return target
             if target.is_dir() and (target / "index.html").is_file():
                 return target / "index.html"
-        if "." not in Path(rel).name:
-            return self.bundle_dir / "index.html"
-        return None
+        if rel.startswith("_app/") or Path(rel).suffix.lower() in ASSET_SUFFIXES:
+            return None  # a missing asset is a 404, never the app shell
+        return (
+            self.bundle_dir / "index.html"
+        )  # every other path is a viewer route, dots included (`/node/ro-thm-1.0.1`)
 
     def do_GET(self) -> None:  # noqa: N802
         target = self._resolve()

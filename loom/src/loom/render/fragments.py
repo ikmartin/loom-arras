@@ -5,6 +5,7 @@ A node fragment renders the node's own text with placeholders for child claimant
 
 from __future__ import annotations
 
+import dataclasses
 import html
 import re
 from collections.abc import Callable
@@ -72,27 +73,69 @@ class FragmentRenderer:
             return ""
         if master not in self.plan.fallback_preamble:
             closure = self.result.closures.get(master)
-            text = closure.raw_text() if closure else ""
+            # the master's own preamble only: it loads preamble.tex and the local .sty files itself when compiled from the quilt root, and copying their text too would define every macro twice
+            first = closure.fragments[0] if closure and closure.fragments else None
+            text = first.src.text[first.start : first.end] if first else ""
             text = re.sub(r"\\documentclass(\[[^\]]*\])?\{[^}]*\}", "", text)
+            # page-layout packages have nothing to do in a snippet and microtype's protrusion breaks the box it is measured in
+            text = re.sub(
+                r"\\usepackage(\[[^\]]*\])?\{(microtype|geometry|fancyhdr|titlesec|setspace|lineno)\}", "", text
+            )
             text = re.sub(r"^\s*%.*$", "", text, flags=re.M)
             text = re.sub(
                 r"\\(title|author|date|address|email|thanks|subjclass|keywords)\s*(\[[^\]]*\])?\{", r"\\@gobble{", text
             )
-            self.plan.fallback_preamble[master] = text
+            # \@gobble and any other internal the preamble uses need @ as a letter; standalone's preamble is not inside a package
+            # geometry and microtype may be loaded from an \\input preamble; `pass` and no protrusion neutralise them in the standalone box
+            guard = "\\PassOptionsToPackage{pass}{geometry}\n\\PassOptionsToPackage{protrusion=false,expansion=false}{microtype}\n"
+            self.plan.fallback_preamble[master] = guard + "\\makeatletter\n" + text + "\n\\makeatother\n"
         return self.plan.fallback_preamble[master]
 
-    def _fallback(self, master: str | None) -> Callable[[str, str, str], str]:
+    def _fallback(
+        self, master: str | None, file: str | None = None, key: str | None = None
+    ) -> Callable[[str, str, str], str]:
+        master = master or self.result.default_master  # a loose node (a digest's) borrows the default master's preamble
         preamble = self._fallback_preamble(master)
+        block = ""
+        extra = ""
+        if file is not None and file in self.result.assembly.digest_files:
+            # a digest statement compiles inside its macro block, with the packages its header requires that the preamble lacks (book 8.3.5)
+            from loom.scan.digests import loaded_packages, required_packages
+
+            closure = self.result.closures.get(master) if master else None
+            loaded = loaded_packages(closure) if closure else set()
+            extra = "".join(
+                f"\\usepackage{{{pkg}}}\n" for pkg in required_packages(self.result.assembly, file) if pkg not in loaded
+            )
+            block = "\n" + _macro_block(self.result, file) + "\n"
+        attempts = [preamble + extra + block] if extra else [preamble + block]
+        if extra:
+            attempts.append(
+                preamble + block
+            )  # a required package that clashes with the preamble is dropped before giving up
+        attempts.append("\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{tikz}\n\\usetikzlibrary{cd}\n" + block)
 
         def render(latex: str, css: str, data_src: str) -> str:
             root = self.result.quilt.root
-            res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=root)
+            res = compile_svg(latex, attempts[0], self.plan.svg_cache, texinputs=root)
+            errors = [res.error] if res.svg is None and res.error else []
+            for pre in attempts[1:]:
+                if res.svg is not None:
+                    break
+                res = compile_svg(latex, pre, self.plan.svg_cache, texinputs=root)
+                if res.svg is None and res.error:
+                    errors.append(res.error)
             if res.svg is None:
-                minimal = "\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{tikz}\n\\usetikzlibrary{cd}\n"
-                res = compile_svg(latex, minimal, self.plan.svg_cache, texinputs=root)
+                res.error = " || ".join(f"attempt {i + 1}: {e}" for i, e in enumerate(errors))
             if res.svg is None:
                 self.plan.diagnostics.append(
-                    Diagnostic("warning", "loom:converter-fallback", f"SVG fallback failed: {res.error}", [], [])
+                    Diagnostic(
+                        "warning",
+                        "loom:converter-fallback",
+                        f"SVG fallback failed in {key or file or '?'}: {res.error}",
+                        [],
+                        [key] if key else [],
+                    )
                 )
             return fallback_figure(latex, res, css, data_src)
 
@@ -128,7 +171,7 @@ class FragmentRenderer:
             if mode == "node"
             else (lambda key: self.render_node_html(key, "master")),
             include_html=lambda arg: self._include_html(arg, node, mode),
-            fallback=self._fallback(master),
+            fallback=self._fallback(master, node.file, node.key),
             cite_target=self._cite_target,
         )
         return ctx
@@ -290,7 +333,11 @@ class FragmentRenderer:
         return _stamp_first(head + self.render_container_body(node, "master"), "master")
 
     def digest_fragment(self, file: str) -> str:
+        """The digest file as a document, starting after its macro block: the block is loaded around every statement, never shown as text."""
         node = self.asm.nodes[file]
+        m = re.search(r"^\s*%\s*!LOOM\s+end\s+macros\s*$", self.result.files[file].text, re.M)
+        if m and m.end() > node.body_start:
+            node = dataclasses.replace(node, body_start=m.end())
         return _stamp_first(self.render_container_body(node, "master"), "digest")
 
 

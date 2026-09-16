@@ -31,7 +31,8 @@ def _render(cmd: click.Command, path: list[str], depth: int, out: list[str]) -> 
         out.append(cmd.help.strip())
         out.append("")
     ctx = click.Context(cmd, info_name=name)
-    params = [p for p in cmd.get_params(ctx) if isinstance(p, click.Option) and p.name != "help"]
+    # the help option is left out: its spelling depends on the context it was first rendered in, and every command has it
+    params = [p for p in cmd.get_params(ctx) if isinstance(p, click.Option) and "--help" not in p.opts]
     if params:
         out.append("| option | description |")
         out.append("|---|---|")

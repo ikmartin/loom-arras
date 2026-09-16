@@ -128,3 +128,13 @@ def test_serve_exit_2_without_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyP
     finally:
         os.chdir(old)
     assert r.exit_code == 2 and "bundle" in r.output
+
+
+def test_serve_spa_fallback_for_dotted_routes(session) -> None:  # type: ignore[no-untyped-def]
+    s, _d = session
+    status, _h, body = get(s.url + "node/Man12-thm-4.1")
+    assert status == 200 and b"<!doctype html>" in body[:200].lower()  # a key with dots is a route, not a file
+    status, _h, _b = get(s.url + "_app/immutable/missing.js")
+    assert status == 404  # a missing asset stays a 404
+    status, _h, _b = get(s.url + "favicon.png")
+    assert status in (200, 404)

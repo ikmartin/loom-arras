@@ -13,7 +13,6 @@ Every command except `init` and `doctor` runs against the nearest quilt, found b
 | option | description |
 |---|---|
 | `--version`, `-V` | Show the version and exit. |
-| `--help` | Show this message and exit. |
 
 ## `loom accept`
 
@@ -29,17 +28,12 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 | `--force` | Accept even when the master does not compile. |
 | `--yes`, `-y` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom ai`
 
 `loom ai [OPTIONS] COMMAND [ARGS]...`
 
 The optional AI layer: runs, orientation, promotion, and discarding review records.
-
-| option | description |
-|---|---|
-| `--help` | Show this message and exit. |
 
 ### `loom ai check`
 
@@ -50,7 +44,6 @@ Report files outside RUN, comments/, and build/ modified since the run started (
 | option | description |
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ### `loom ai discard`
 
@@ -65,7 +58,6 @@ Flag a run's or a comment session's records ignored (or unflag with --undo). Not
 | `--target` | Discard every record with an annotation on this key. |
 | `--undo` | Reverse: mark matching records not discarded. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ### `loom ai init`
 
@@ -78,7 +70,6 @@ Write ai/ (orientation, modes, runs/) and the vendor files CLAUDE.md and AGENTS.
 | `--permissions` | Also write the agents' permission settings (.claude/settings.json). |
 | `--skills` | Also write skill stubs and slash commands for Claude Code. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ### `loom ai orient`
 
@@ -90,7 +81,6 @@ Print the orientation document followed by the quilt's live state (and a run's j
 |---|---|
 | `--run` `RUN` | Also print this run's thread.md and run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ### `loom ai promote`
 
@@ -103,7 +93,6 @@ Copy a draft node (to nodes/<id>.tex, allocating an id if it has none) or a dige
 | `--prefix` | Allocate a new id under this prefix instead of [quilt] prefix. |
 | `--replace` | Overwrite an existing digest after showing the diff. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ### `loom ai start`
 
@@ -115,7 +104,6 @@ Create a run directory under ai/runs/, print its path, and launch [ai] agent fro
 |---|---|
 | `--no-launch` | Create the run without launching [ai] agent. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom assemble`
 
@@ -126,7 +114,6 @@ Write DEST: MASTER flattened with every \input, \nest (levels shifted), and \inc
 | option | description |
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom atomize`
 
@@ -142,7 +129,6 @@ Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inc
 | `--all` | Act on SRC and every file it reaches, writing spines under --to-dir. |
 | `--to-dir` `DIR` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom build`
 
@@ -154,7 +140,6 @@ Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnosti
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom bundle`
 
@@ -169,7 +154,6 @@ Write build/bundles/<key>.tex: the statements KEY depends on, in dependency orde
 | `--with` `FILE` | Substitute a unified diff or a .tex file for the key's text. |
 | `--draft` `FILE` | Bundle a node file that is not yet in the quilt. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom check`
 
@@ -182,7 +166,6 @@ lint, then compile every master, then bundles. Exit 1 on any failure. The CI com
 | `--no-compile` | Lint only. |
 | `--bundles` | Which bundles to compile (stale needs the ledger, milestone M3). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom comment`
 
@@ -200,7 +183,6 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 | `--resolve` `ID` |  |
 | `--batch` | Read JSON lines from stdin: {target, message, quote, kind, reply, resolve}. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom compile`
 
@@ -212,17 +194,12 @@ Run latexmk from the root into build/<stem>/ for a master (default: the default 
 |---|---|
 | `--engine` | Override the engine (pdflatex, lualatex, xelatex). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom delete`
 
 `loom delete [OPTIONS] [ARGS]...`
 
 Refuse: loom never deletes your notes.
-
-| option | description |
-|---|---|
-| `--help` | Show this message and exit. |
 
 ## `loom deps`
 
@@ -236,17 +213,12 @@ What KEY depends on: direct statement-edges and proof-edges, grouped.
 | `--json` |  |
 | `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom digest`
 
 `loom digest [OPTIONS] COMMAND [ARGS]...`
 
 Digests of cited papers: extract one from a paper's source, port one in, or fetch a source.
-
-| option | description |
-|---|---|
-| `--help` | Show this message and exit. |
 
 ### `loom digest extract`
 
@@ -260,7 +232,6 @@ Produce refs/CITEKEY.tex mechanically from the reference paper whose main file i
 | `--engine` | Engine for compiling the reference (default: its magic comment or pdflatex). |
 | `--no-compile` | Skip compiling the reference; number results by emulation. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ### `loom digest fetch`
 
@@ -272,7 +243,6 @@ Fetch the arXiv e-print source for CITEKEY into refs/src/ (gitignored). Requires
 |---|---|
 | `--pdf` | Also fetch the PDF into refs/pdf/. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ### `loom digest import`
 
@@ -284,7 +254,6 @@ Copy a digest from another quilt into refs/, rewriting its id prefix when --as r
 |---|---|
 | `--as` `CITEKEY` | Rename the digest's citekey on the way in. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom doctor`
 
@@ -295,7 +264,6 @@ Report Python, the TeX toolchain, git, the arras bundle, the resolved author nam
 | option | description |
 |---|---|
 | `--json` | Machine-readable report on stdout. |
-| `--help` | Show this message and exit. |
 
 ## `loom id`
 
@@ -310,7 +278,6 @@ Print a patch (or write a copy with --to) inserting \label{<id>} on every untagg
 | `--all-levels` | Also label paragraphs and subparagraphs. |
 | `--prefix` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom import`
 
@@ -324,7 +291,6 @@ Copy a paper and everything it reaches into the quilt, inserting ids into the co
 | `--fix-anchoring` | Rewrite the copy so every theorem-like \begin and \end is alone on its line. |
 | `--prefix` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom init`
 
@@ -340,7 +306,6 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--no-git` | Do not run git init. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
 | `--fix-anchoring` | With --from: rewrite the copies so theorem-like environments are line-anchored. |
-| `--help` | Show this message and exit. |
 
 ## `loom inline`
 
@@ -353,7 +318,6 @@ Write DEST, a copy of SRC with every \input of a node file replaced by its conte
 | `--to` `DEST` |  |
 | `--all` | Inline recursively. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom lint`
 
@@ -366,7 +330,6 @@ Scan and print every diagnostic. Fast; no LaTeX runs.
 | `--json` |  |
 | `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom new`
 
@@ -379,7 +342,6 @@ Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
 | `--prefix` | Allocate under this prefix instead of [quilt] prefix. |
 | `--print` | Print the skeleton without allocating an id or writing a file. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom search`
 
@@ -393,7 +355,6 @@ Find ids by id, alias, title, taxon, tag, or citekey; exact matches first.
 | `--json` |  |
 | `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom serve`
 
@@ -407,7 +368,6 @@ Watch, republish, and serve arras at / and build/ at /build/ until interrupted.
 | `--open` | Open the browser. |
 | `--no-compile` | Never run latexmk after a change. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom status`
 
@@ -431,7 +391,6 @@ Every key with its computed state, cause if stale, and review facts. Never exits
 | `--json` |  |
 | `--run` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom unravel`
 
@@ -444,7 +403,6 @@ Everything downstream of ID: dependents, reference and inclusion sites, ledger r
 | `--json` |  |
 | `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |
 
 ## `loom upgrade`
 
@@ -455,4 +413,3 @@ Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedite
 | option | description |
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--help` | Show this message and exit. |

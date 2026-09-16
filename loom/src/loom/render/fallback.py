@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import os
 import re
 import shutil
 import subprocess
@@ -35,7 +36,11 @@ def _hash(preamble: str, body: str, border: str) -> str:
 
 
 def _build_doc(preamble: str, body: str, border: str) -> str:
-    return f"\\documentclass[dvisvgm,border={border}]{{standalone}}\n{preamble}\n\\begin{{document}}\n{body}\n\\end{{document}}\n"
+    # a fixed-width minipage puts the body in vertical mode (lists and paragraphs are allowed) and gives displays a finite width; dvisvgm crops to the ink
+    return (
+        f"\\documentclass[dvisvgm,border={border}]{{standalone}}\n{preamble}\n\\begin{{document}}\n"
+        f"\\begin{{minipage}}{{16cm}}\n{body}\n\\end{{minipage}}\n\\end{{document}}\n"
+    )
 
 
 def namespace_ids(svg: str, prefix: str) -> str:
@@ -92,6 +97,10 @@ def compile_svg(
     dvisvgm = shutil.which(dvisvgm_bin)
     if latex is None or dvisvgm is None:
         return SvgResult(None, key, False, "latex or dvisvgm is not installed")
+    env = dict(os.environ)
+    if texinputs is not None:
+        # the quilt root first, then the distribution's trees (the trailing separator keeps them), so loom.sty and the author's .sty files resolve
+        env["TEXINPUTS"] = f"{texinputs}{os.pathsep}{env.get('TEXINPUTS', '')}"
     with tempfile.TemporaryDirectory(prefix="loom-svg-") as tmp:
         d = Path(tmp)
         (d / "d.tex").write_text(_build_doc(preamble, body, border), encoding="utf-8")
@@ -106,13 +115,32 @@ def compile_svg(
                     errors="replace",
                     timeout=timeout,
                     check=False,
+                    env=env,
                 )
             except subprocess.TimeoutExpired:
                 return SvgResult(None, key, False, "latex timed out")
             out = proc.stdout or ""
         if not (d / "d.dvi").exists() or re.search(r"(?m)^! ", out):
+            keep = os.environ.get("LOOM_SVG_KEEP")  # debugging: copy the failing document and its log here
+            if keep:
+                kd = Path(keep) / key
+                kd.mkdir(parents=True, exist_ok=True)
+                for name in ("d.tex", "d.log"):
+                    if (d / name).exists():
+                        shutil.copy(d / name, kd / name)
             err = re.search(r"(?m)^! .*$", out)
-            return SvgResult(None, key, False, "latex failed: " + (err.group(0) if err else out[-500:]))
+            detail = ""
+            if err:
+                after = out[err.end() : err.end() + 300].strip().splitlines()
+                detail = " ".join(
+                    ln.strip() for ln in after[:2] if ln.strip()
+                )  # the `<recently read> \\foo` and `l.N` lines
+            return SvgResult(
+                None,
+                key,
+                False,
+                "latex failed: " + (err.group(0) + (" " + detail if detail else "") if err else out[-500:]),
+            )
         try:
             proc = subprocess.run(
                 [dvisvgm, "--no-fonts", "--exact-bbox", "--output=d.svg", "d.dvi"],
