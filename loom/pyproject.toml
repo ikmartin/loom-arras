@@ -1,7 +1,7 @@
 [project]
 name = "loomtex"
 version = "0.1.0.dev0"
-description = "loom: a tool for atomized mathematical development in LaTeX"
+description = "loom: a tool for atomized mathematical research in LaTeX"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"

@@ -161,13 +161,18 @@ def locator_forms(node: NodeRec, slug: str) -> set[str]:
     if loc:
         forms.add(normalize(loc))
         forms.update(parts(loc))
-    if node.id and node.id.startswith(slug + "-"):
-        local = node.id[len(slug) + 1 :]
+    for label in [
+        node.id,
+        *node.aliases,
+    ]:  # an alias such as `thm-1.2.1` beside the id `thm-1.0.1` names the same result under an older numbering
+        if not label or not label.startswith(slug + "-"):
+            continue
+        local = label[len(slug) + 1 :]
         if local == "setup":
             forms.add(normalize("standing assumptions"))
         pieces = local.split("-")
         if len(pieces) >= 2 and pieces[0] in ABBREV:
-            forms.add(f"{ABBREV[pieces[0]]} {'-'.join(pieces[1:])}")
+            forms.add(normalize(f"{ABBREV[pieces[0]]} {'-'.join(pieces[1:])}"))  # `thm-A.20` names `theorem a.20`
     forms.discard("")
     return forms
 

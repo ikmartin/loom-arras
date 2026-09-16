@@ -37,8 +37,36 @@ def _read_body(text: str, pos: int) -> tuple[str | None, int]:
     return None, pos
 
 
+_ALIAS = re.compile(
+    r"\\(?:let|def)\s*\\([A-Za-z@]+)\s*=?\s*\\((?:re|provide)?newcommand|providecommand)\b"
+    r"|\\(?:new|renew|provide)command\*?\s*\{?\\([A-Za-z@]+)\}?\s*\{\\((?:re|provide)?newcommand|providecommand)\}"
+)
+
+
+def expand_definition_aliases(text: str) -> str:
+    """Rewrite uses of an alias such as `\\nc` (declared by `\\newcommand{\\nc}{\\newcommand}` or `\\let\\nc\\newcommand`) as the command it stands for, so definitions made through it are parsed."""
+    for _ in range(4):  # an alias may be declared through another alias (\\nc{\\renc}{\\renewcommand})
+        aliases: dict[str, str] = {}
+        for a in _ALIAS.finditer(text):
+            name = a.group(1) or a.group(3)
+            target = a.group(2) or a.group(4)
+            if name and target and name not in ("newcommand", "renewcommand", "providecommand"):
+                aliases[name] = target
+        if not aliases:
+            return text
+        pattern = re.compile(r"\\(" + "|".join(re.escape(n) for n in aliases) + r")(?![A-Za-z@])")
+        table = dict(aliases)
+
+        def _swap(mm: re.Match[str], al: dict[str, str] = table) -> str:
+            return "\\" + al[mm.group(1)]
+
+        text = pattern.sub(_swap, text)
+    return text
+
+
 def parse_macros(text: str) -> dict[str, Macro]:
     """Parse every recognised definition in comment-blanked text; the returned dict maps macro name (no backslash) to its last definition."""
+    text = expand_definition_aliases(text)
     macros: dict[str, Macro] = {}
     for m in _HEAD.finditer(text):
         head, star = m.group(1), m.group(2)

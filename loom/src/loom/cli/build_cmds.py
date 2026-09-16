@@ -212,7 +212,9 @@ def check(ctx: click.Context, no_compile: bool, bundles: str, quilt_path: str | 
                 engine_for(result, result.default_master or result.masters[0]),
             )
             click.echo(
-                ("ok      " if res.ok else "FAILED  ") + f"bundle {key}" + ("" if res.ok else f": {res.first_error}")
+                ("ok      " if res.ok else "error   loom:bundle-failed  ")
+                + f"bundle {key}"
+                + ("" if res.ok else f": {res.first_error}")
             )
             failed = failed or not res.ok
     click.echo("check: " + ("FAILED" if failed else "ok"))

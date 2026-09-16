@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fake TeX toolchain for the unit tier: one script installed under the names latexmk, pdflatex, latex, lualatex, xelatex, dvisvgm, bibtex, biber, pdftotext, pdfinfo, kpsewhich.
 
-It parses the input enough to find \\newtheorem declarations, sectioning, theorem-like environments, equations, and \\label commands through expanded inclusions; emits a plausible .aux with sequential numbering by section; writes a placeholder PDF carrying the document's plain text so the fake pdftotext returns it; emits a fixed SVG for dvisvgm. Every invocation is appended to $FAKE_TEX_LOG. FAKE_TEX_FAIL=1 makes the engines fail with a "! LaTeX Error" line and exit 12. Never install this on a real PATH.
+It parses the input enough to find \\newtheorem declarations, sectioning, theorem-like environments, equations, and \\label commands through expanded inclusions; emits a plausible .aux with sequential numbering by section; writes a placeholder PDF carrying the document's plain text so the fake pdftotext returns it; emits a fixed SVG for dvisvgm. Every invocation is appended to $FAKE_TEX_LOG. FAKE_TEX_FAIL=1 makes the engines fail with a "! LaTeX Error" line and exit 12; FAKE_TEX_FAIL_MATCH=substring fails only inputs whose path contains it. Never install this on a real PATH.
 """
 
 from __future__ import annotations
@@ -178,7 +178,8 @@ def run_engine(tool: str, args: list[str]) -> int:
     outdir = out_dir(args)
     outdir.mkdir(parents=True, exist_ok=True)
     stem = src.stem
-    if os.environ.get("FAKE_TEX_FAIL"):
+    match = os.environ.get("FAKE_TEX_FAIL_MATCH")  # fail only when the input path contains this (e.g. "bundles/")
+    if os.environ.get("FAKE_TEX_FAIL") or (match and match in str(src)):
         (outdir / f"{stem}.log").write_text(
             "! LaTeX Error: fake failure requested by FAKE_TEX_FAIL.\n", encoding="utf-8"
         )

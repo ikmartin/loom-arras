@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from loom.cli import main
@@ -137,3 +138,15 @@ def test_lint_exit_codes(tmp_path: Path) -> None:
     (demo / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
     r = run("lint", cwd=demo)
     assert r.exit_code == 1 and "duplicate-id" in r.output and r.output.strip().endswith("infos")
+
+
+def test_documentclass_outside_drafts_and_bundle_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    q = tmp_path / "q"
+    (q / "sections").mkdir()
+    (q / "sections" / "stray.tex").write_text("\\documentclass{article}\n\\begin{document}\nx\n\\end{document}\n")
+    lint = run("lint", cwd=q).output
+    assert "loom:documentclass-outside-drafts" in lint and "sections/stray.tex" in lint
+    monkeypatch.setenv("FAKE_TEX_FAIL_MATCH", "bundles/")  # the master compiles; every bundle fails
+    r = run("check", "--bundles", "all", cwd=q)
+    assert r.exit_code == 1 and "loom:bundle-failed" in r.output and "ok      drafts/main.tex" in r.output

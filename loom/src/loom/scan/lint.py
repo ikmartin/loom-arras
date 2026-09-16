@@ -79,7 +79,9 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         if target is None or source is None:
             continue
         src_masters = set(source.reached_by)
-        if src_masters and not (src_masters & set(target.reached_by)) and target.digest is None:
+        if (
+            src_masters and not (src_masters & set(target.reached_by)) and target.file not in asm.digest_files
+        ):  # digests are loose by construction (8.1.2)
             sev = "error" if any(m in result.masters for m in src_masters) else "info"
             diags.append(
                 Diagnostic(

@@ -21,6 +21,7 @@ from loom.scan.directives import parse_directives
 from loom.scan.envtree import labels_in, norm_label, scan_environments
 from loom.scan.expand import Expansion, expand_master
 from loom.scan.macros import expand as expand_macro
+from loom.scan.macros import expand_definition_aliases
 from loom.scan.model import Env, Macro, SourceFile, Taxon
 from loom.scan.preamble import build_closure, document_start
 from loom.scan.scan import ScanResult
@@ -45,6 +46,67 @@ _CMD = re.compile(r"\\([A-Za-z@]+)")
 _REF = re.compile(r"\\(ref|eqref|cref|Cref|autoref|vref)\s*\{([^}]*)\}")
 _LABEL = re.compile(r"\\label\s*\{([^}]*)\}")
 TEXT_EXTS = (".tex", ".sty", ".cls", ".ltx", ".def", ".clo")
+# packages about the page, the fonts, or the bibliography, which a statement never needs; the rest of the reference's \usepackage lines become `requires:`
+PRESENTATION = {
+    "inputenc",
+    "fontenc",
+    "lmodern",
+    "textcomp",
+    "geometry",
+    "hyperref",
+    "microtype",
+    "xcolor",
+    "color",
+    "graphicx",
+    "graphics",
+    "url",
+    "cleveref",
+    "enumitem",
+    "setspace",
+    "titlesec",
+    "fancyhdr",
+    "appendix",
+    "natbib",
+    "biblatex",
+    "babel",
+    "csquotes",
+    "booktabs",
+    "caption",
+    "subcaption",
+    "float",
+    "times",
+    "mathptmx",
+    "fullpage",
+    "titling",
+    "tocloft",
+    "todonotes",
+    "showkeys",
+    "lineno",
+    "epstopdf",
+    "xspace",
+    "etoolbox",
+    "parskip",
+    "indentfirst",
+    "amsrefs",
+    "cite",
+    "authblk",
+    "datetime",
+    "lastpage",
+    "afterpage",
+    "pdfsync",
+    "placeins",
+    "framed",
+    "mdframed",
+    "tcolorbox",
+    "comment",
+    "verbatim",
+    "listings",
+    "environ",
+    "ifthen",
+    "calc",
+    "kvoptions",
+    "xkeyval",
+}
 
 
 @dataclass
@@ -160,7 +222,9 @@ def expand_macros(text: str, macros: dict[str, Macro], max_passes: int = 8) -> t
                 pos = m.end()
                 continue
             args.extend(v or "" for v in vals)
-            body = expand_macro(mac, args)
+            body = re.sub(
+                r"\\xspace(?![A-Za-z@])", "", expand_macro(mac, args)
+            )  # a no-op in math and harmful before ^ or _
             out.append(text[pos : m.start()])
             out.append(body)
             if body and body[-1].isalpha() and after < len(text) and text[after].isalpha():
@@ -176,6 +240,7 @@ def expand_macros(text: str, macros: dict[str, Macro], max_passes: int = 8) -> t
 
 def _definitions(raw: str) -> dict[str, str]:
     """Raw definition text per macro name in a preamble closure, for the macro block; the last definition of a name wins."""
+    raw = expand_definition_aliases(raw)
     defs: dict[str, str] = {}
     for m in re.finditer(r"\\(?:new|renew|provide)command\*?\s*\{?\\([A-Za-z@]+)\}?", raw):
         pos = m.end()
@@ -210,6 +275,33 @@ def _definitions(raw: str) -> dict[str, str]:
         end = match_group(raw, m.end() - 1)
         if end > 0:
             defs[m.group(1)] = raw[m.start() : end]
+    return defs
+
+
+def _env_definitions(raw: str) -> dict[str, str]:
+    """Raw definition text per environment the reference declares with \\newenvironment or enumitem's \\newlist (with its \\setlist lines), keyed by environment name."""
+    defs: dict[str, str] = {}
+    for m in re.finditer(r"\\(?:new|renew)environment\*?\s*\{([A-Za-z*]+)\}", raw):
+        pos = m.end()
+        while True:
+            _v, _s, after = read_args(raw, pos, "o")
+            if after == pos:
+                break
+            pos = after
+        p1 = raw.find("{", pos)
+        e1 = match_group(raw, p1) if p1 >= 0 else -1
+        p2 = raw.find("{", e1) if e1 > 0 else -1
+        e2 = match_group(raw, p2) if p2 >= 0 else -1
+        if e2 > 0:
+            defs[m.group(1)] = raw[m.start() : e2]
+    for m in re.finditer(r"\\newlist\s*\{([A-Za-z*]+)\}\s*\{[^}]*\}\s*\{\d+\}", raw):
+        name = m.group(1)
+        parts = [m.group(0)]
+        for sm in re.finditer(r"\\setlist\s*\[" + re.escape(name) + r"(?:,[^\]]*)?\]\s*\{", raw):
+            end = match_group(raw, sm.end() - 1)
+            if end > 0:
+                parts.append(raw[sm.start() : end])
+        defs[name] = "\n".join(parts)
     return defs
 
 
@@ -379,7 +471,9 @@ def extract_digest(
             hit = env_index.get((rel, stmt.start))
             if hit is None:
                 continue
-            ptext = files[rel].clean[proof.start : proof.end]
+            ptext, _ = expand_macros(
+                files[rel].clean[proof.start : proof.end], closure.macros
+            )  # \thmref-style wrappers
             for m in _REF.finditer(ptext):
                 for raw_lab in m.group(2).split(","):
                     lab = norm_label(raw_lab)
@@ -405,10 +499,8 @@ def extract_digest(
         out.append("% !LOOM numbering: emulated")
     dm = result.default_master
     quilt_loaded = loaded_packages(result.closures[dm]) if dm and dm in result.closures else set()
-    report.requires = sorted(loaded_packages(closure) - ALWAYS_LOADED - quilt_loaded)
-    if report.requires:
-        out.append(f"% !LOOM requires: {', '.join(report.requires)}")
-    header_end = len(out)
+    report.requires = sorted(loaded_packages(closure) - ALWAYS_LOADED - PRESENTATION - quilt_loaded)
+    header_end = len(out)  # the requires: line is inserted here once the macro block is known
 
     body_lines: list[str] = []
     body_lines.append("\\section*{Overview}")
@@ -466,7 +558,16 @@ def extract_digest(
     for name in residue:
         block.append(f"\\let\\{name}\\undefined")
         block.append(defs[name])
+    env_defs = _env_definitions(closure.raw_text())
+    used_envs = sorted({m for m in re.findall(r"\\begin\{([A-Za-z*]+)\}", "\n".join(body_lines)) if m in env_defs})
+    for name in used_envs:
+        block.append(env_defs[name])
+        residue.append(f"env:{name}")
+        if env_defs[name].startswith("\\newlist") and "enumitem" not in report.requires:
+            report.requires.append("enumitem")
     report.block = residue
+    if report.requires:
+        out.insert(header_end, f"% !LOOM requires: {', '.join(sorted(report.requires))}")
     if block:
         out.append("")
         out.append("% !LOOM begin macros")

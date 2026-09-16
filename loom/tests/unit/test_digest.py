@@ -114,6 +114,11 @@ def test_postnote_match_edge_unmatched_and_no_postnote(tmp_path: Path) -> None:
     assert ("dm-0002", "Man12-setup") in post and ("dm-0002", "Man12-sec-2") in post  # Section 2 names both
     lint = run("lint", cwd=q).output
     assert "loom:unmatched-postnote" in lint and "Lemma 99" in lint
+    digest = q / "refs" / "Man12.tex"
+    digest.write_text(
+        digest.read_text().replace("\\label{Man12-prop-3.2}", "\\label{Man12-prop-3.2}\\label{Man12-lem-99}", 1)
+    )
+    assert "unmatched-postnote" not in run("lint", cwd=q).output  # an alias id names the result under another numbering
     assert lint.count("unmatched-postnote") == 1  # \cite{Man12} without a postnote is neither an edge nor a diagnostic
 
 
