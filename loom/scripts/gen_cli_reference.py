@@ -5,6 +5,8 @@ Usage: uv run python scripts/gen_cli_reference.py [--check]   (--check exits 1 w
 
 from __future__ import annotations
 
+import inspect
+import re
 import sys
 from pathlib import Path
 
@@ -13,6 +15,12 @@ import click
 from loom.cli import main
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "cli-reference.md"
+
+
+def _normalise(text: str) -> str:
+    """Docstrings keep or lose their indentation depending on the Python version; one space between words makes the output the same everywhere."""
+    lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in inspect.cleandoc(text).splitlines()]
+    return "\n".join(lines).strip()
 
 
 def _usage_line(cmd: click.Command, path: list[str]) -> str:
@@ -28,7 +36,7 @@ def _render(cmd: click.Command, path: list[str], depth: int, out: list[str]) -> 
     out.append(f"`{_usage_line(cmd, path)}`")
     out.append("")
     if cmd.help:
-        out.append(cmd.help.strip())
+        out.append(_normalise(cmd.help))
         out.append("")
     ctx = click.Context(cmd, info_name=name)
     # the help option is left out: its spelling depends on the context it was first rendered in, and every command has it
@@ -39,7 +47,7 @@ def _render(cmd: click.Command, path: list[str], depth: int, out: list[str]) -> 
         for p in params:
             opts = ", ".join(f"`{o}`" for o in [*p.opts, *p.secondary_opts])
             meta = f" `{p.metavar}`" if p.metavar else ""
-            help_text = (p.help or "").replace("|", "\\|")
+            help_text = _normalise(p.help or "").replace("|", "\\|")
             out.append(f"| {opts}{meta} | {help_text} |")
         out.append("")
     if isinstance(cmd, click.Group):
