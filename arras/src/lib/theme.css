@@ -445,6 +445,46 @@ table.list th {
 	}
 }
 
+/* `\textcolor{NAME}{...}` in prose. The publisher passes the colour's LaTeX name through; the viewer knows the base names and the dvipsnames an author is most likely to reach for, and anything else inherits the surrounding colour rather than guessing. */
+.tex-color {
+	color: var(--tex-color, inherit);
+}
+.tex-color[data-color='red'],
+.tex-color[data-color='Red'],
+.tex-color[data-color='BrickRed'],
+.tex-color[data-color='Mahogany'],
+.tex-color[data-color='Maroon'] { --tex-color: var(--state-incomplete); }
+.tex-color[data-color='blue'],
+.tex-color[data-color='Blue'],
+.tex-color[data-color='RoyalBlue'],
+.tex-color[data-color='NavyBlue'] { --tex-color: var(--link); }
+.tex-color[data-color='green'],
+.tex-color[data-color='Green'],
+.tex-color[data-color='ForestGreen'],
+.tex-color[data-color='OliveGreen'] { --tex-color: var(--state-accepted); }
+.tex-color[data-color='orange'],
+.tex-color[data-color='Orange'],
+.tex-color[data-color='BurntOrange'],
+.tex-color[data-color='brown'],
+.tex-color[data-color='Brown'] { --tex-color: var(--state-stale); }
+.tex-color[data-color='gray'],
+.tex-color[data-color='grey'],
+.tex-color[data-color='Gray'] { --tex-color: var(--ink-faint); }
+
+/* A diagram the fallback compiled from a numbered display carries the number the document gave it, since the picture itself is compiled without one. */
+.fragment figure.diagram[data-number] {
+	position: relative;
+}
+.fragment figure.diagram[data-number]::after {
+	content: '(' attr(data-number) ')';
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	font-family: var(--body-face);
+	color: var(--ink-soft);
+}
+
 /* The Stacks-project heading affordance: a node's own link, revealed on hover (15.3.1). */
 a.heading-link {
 	margin-left: var(--gap-tight);
@@ -489,7 +529,15 @@ a.heading-link:focus {
 .fragment section > h5,
 .fragment section > h6 { font-size: var(--body-size); }
 .fragment span.number { color: var(--ink-soft); margin-right: var(--gap-hair); }
-.fragment .math.display { overflow-x: auto; }
+/* A formula wider than the column scrolls, and says so: the shadow at an edge appears only when there is content past it, so a reader is never left wondering why a block moves. */
+.fragment .math.display {
+	overflow-x: auto;
+	background:
+		linear-gradient(to right, var(--paper) 30%, transparent) left / 24px 100% no-repeat local,
+		linear-gradient(to left, var(--paper) 30%, transparent) right / 24px 100% no-repeat local,
+		radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 10%), transparent) left / 7px 100% no-repeat scroll,
+		radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 10%), transparent) right / 7px 100% no-repeat scroll;
+}
 .fragment mark.annotation,
 .fragment .annotation-block { background: var(--mark); cursor: pointer; }
 .fragment mark.annotation.active,

@@ -31,7 +31,7 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 				inlineMath: [['\\(', '\\)']],
 				displayMath: [['\\[', '\\]']],
 				processEscapes: true,
-				packages: { '[+]': ['ams', 'boldsymbol', 'mathtools', 'newcommand', 'color', 'cancel', 'bbox', 'html', 'unicode', 'verb', 'mhchem', 'physics', 'textmacros'] },
+				packages: { '[+]': ['ams', 'amscd', 'boldsymbol', 'mathtools', 'newcommand', 'color', 'cancel', 'bbox', 'html', 'unicode', 'verb', 'mhchem', 'physics', 'textmacros'] },
 				macros: currentMacros,
 				tags: 'none'
 			},
