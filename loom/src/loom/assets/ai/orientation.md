@@ -88,9 +88,9 @@ ledger and never run `loom accept`.
   a bundle with your proposed text in place of the quilt's, to compile
   before the author promotes or applies; nothing in the quilt changes.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
-- `loom assemble MASTER --to $LOOM_RUN/<name>.tex`: a whole master in one
-  file, for when a plan or a paper is the context. Masters are not keys
-  and `bundle` does not apply to them.
+- `loom assemble MASTER $LOOM_RUN/<name>.tex`: a whole master flattened
+  into one file, for when a plan or a paper is the context. Masters are
+  not keys and `bundle` does not apply to them.
 - `loom comment KEY "message" --quote "exact text" --kind objection|
   suggestion|question|ok --run $LOOM_RUN`: leave a finding anchored to the
   sentence it concerns. This is how every review result is recorded.

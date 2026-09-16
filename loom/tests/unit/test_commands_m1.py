@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -106,6 +107,20 @@ def test_demo_has_outline_master(tmp_path: Path) -> None:
     # the conjecture owes a proof and is a gap until it is proved or refuted; the question owes nothing
     assert keys["dm-0006/proof"]["state"] == "incomplete"
     assert "dm-0007/proof" not in keys
+
+
+def test_deps_prints_see_also(tmp_path: Path) -> None:
+    """`deps` reports relations in a final section marked not-a-dependency, and `--json` carries them beside the closure (plan 0.2 §2.2)."""
+    q = tmp_path / "syn"
+    shutil.copytree(Path(__file__).resolve().parents[1] / "quilts" / "synthetic", q)
+    r = run("deps", "sy-0008", cwd=q)
+    assert r.exit_code == 0, r.output
+    assert "see also (not a dependency):" in r.output
+    assert "sy-0009" in r.output.split("see also (not a dependency):")[1]
+
+    payload = json.loads(run("deps", "sy-0009", "--json", cwd=q).output)
+    assert payload["relations"] == [{"key": "sy-0008", "kind": "see"}]  # both directions are reported
+    assert all(e["key"] != "sy-0008" for e in payload["closure"])  # and a relation is not in the closure
 
 
 def test_new_allocates_and_print(tmp_path: Path) -> None:

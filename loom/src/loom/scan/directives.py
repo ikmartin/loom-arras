@@ -9,8 +9,8 @@ import re
 
 from loom.scan.model import Directive, SourceFile
 
-KNOWN_KEYS = {"author", "created", "tags", "environment", "digest", "source", "method", "requires", "numbering"}
-LIST_KEYS = {"author", "tags", "requires"}
+KNOWN_KEYS = {"author", "created", "tags", "see", "environment", "digest", "source", "method", "requires", "numbering"}
+LIST_KEYS = {"author", "tags", "see", "requires"}
 BARE_KEYS = {"ignore"}
 REGION_KEYS = {"macros"}
 HEAD_LINES = 20

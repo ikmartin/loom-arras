@@ -120,6 +120,7 @@ def build_manifest(
         "keys": {},
         "regions": {},
         "edges": [],
+        "relations": [],
         "inclusion": {},
         "states": STATE_LABELS,
         "annotations": {},
@@ -207,6 +208,11 @@ def build_manifest(
     for e in result.edges.edges:
         manifest["edges"].append(
             {"from": e.src, "to": e.to, "kind": e.kind, "via": e.via, "src": {"file": e.file, "line": e.line}}
+        )
+    for rel in result.relations:
+        # a relation is never a dependency, so it sits beside the edges rather than among them; the viewer derives per-node lists from this list
+        manifest["relations"].append(
+            {"from": rel.from_key, "to": rel.to_key, "kind": rel.kind, "src": {"file": rel.file, "line": rel.line}}
         )
     for m in result.masters:
         manifest["inclusion"][m] = _inclusion_tree(result, m)

@@ -17,6 +17,7 @@ from loom.scan.model import Diagnostic, Location, SourceFile, Taxon
 from loom.scan.nodes import Assembly, assemble
 from loom.scan.preamble import PreambleClosure, build_closure, taxa_conflicts, taxa_union
 from loom.scan.quilt import Quilt
+from loom.scan.relations import RelationRec, find_relations
 from loom.scan.source import SKIP_DIRS, discover_files, read_source
 
 _DOCCLASS = re.compile(r"\\documentclass\b")
@@ -35,6 +36,7 @@ class ScanResult:
     assembly: Assembly = field(default_factory=Assembly)
     diagnostics: list[Diagnostic] = field(default_factory=list)
     edges: EdgeResult = field(default_factory=EdgeResult)
+    relations: list[RelationRec] = field(default_factory=list)
     graph: Graph | None = None
     lint: list[Diagnostic] = field(default_factory=list)
 
@@ -133,6 +135,10 @@ def scan(quilt: Quilt) -> ScanResult:
                 Diagnostic("error", "loom:environment-spans-files", msg, [Location(path, src.line_of(off))])
             )
     result.edges = find_edges(result.assembly, result.files)
+    # relations are resolved beside the edges and stored beside them; nothing that walks the graph can reach one
+    seen = find_relations(result.assembly, result.files)
+    result.relations = seen.relations
+    result.diagnostics.extend(seen.diagnostics)
     result.graph = Graph(result.assembly, result.edges.edges)
     from loom.scan.lint import lint as _lint
 

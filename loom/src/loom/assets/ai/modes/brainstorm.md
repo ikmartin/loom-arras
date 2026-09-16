@@ -21,7 +21,7 @@ one sentence under [open-questions] and do not pursue it unless asked.
 - The overview sections of the relevant digests (`refs/CITEKEY.tex`,
   which are designed to be read whole); `loom search --kind digest`.
 - If the author has an outline master, `loom assemble drafts/outline.tex
-  --to $LOOM_RUN/outline.tex` for the plan as it stands.
+  $LOOM_RUN/outline.tex` for the plan as it stands.
 
 ## Procedure
 1. Ask what the author is after and restate it precisely. Stop until

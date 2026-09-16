@@ -46,7 +46,26 @@ def deps_payload(result: ScanResult, key: str) -> dict[str, Any]:
         for pk in n.proofs:
             proof.extend(_edge_entries(result, pk, "proof"))
     closure = result.graph.closure(key)
-    return {"key": key, "statement": statement, "proof": proof, "closure": [{"key": k} for k in closure]}
+    return {
+        "key": key,
+        "statement": statement,
+        "proof": proof,
+        "closure": [{"key": k} for k in closure],
+        "relations": _relation_entries(result, key),
+    }
+
+
+def _relation_entries(result: ScanResult, key: str) -> list[dict[str, str]]:
+    """Both directions of every declared relation of `key`, in target order. These are not dependencies and are reported apart from them."""
+    node = result.assembly.nodes[key]
+    mine = {key, node.of} if node.kind == "proof" else {key, *node.proofs}
+    out: dict[str, str] = {}
+    for r in result.relations:
+        if r.from_key in mine and r.to_key not in mine:
+            out.setdefault(r.to_key, r.kind)
+        elif r.to_key in mine and r.from_key not in mine:
+            out.setdefault(r.from_key, r.kind)
+    return [{"key": k, "kind": out[k]} for k in sorted(out)]
 
 
 @click.command()
@@ -76,6 +95,10 @@ def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt
             click.echo(f"  {describe(result, entry['key'])}  via {entry['via']}")
         if not entries:
             click.echo("  (none)")
+    if payload["relations"]:
+        click.echo("see also (not a dependency):")
+        for entry in payload["relations"]:
+            click.echo(f"  {describe(result, entry['key'])}")
 
 
 def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:

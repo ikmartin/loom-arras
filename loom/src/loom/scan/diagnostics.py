@@ -36,6 +36,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:equation-in-proof-referenced": ("warning", False),
     "loom:uses-missing": ("info", False),
     "loom:uses-unused": ("info", False),
+    "loom:see-redundant": ("info", False),
     "loom:dependency-cycle": ("warning", False),
     "loom:converter-fallback": ("info", False),
     "loom:bundle-failed": ("error", False),
