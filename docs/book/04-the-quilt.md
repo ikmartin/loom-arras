@@ -176,7 +176,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and
 
 `loom init --from FILE` additionally performs an import (Chapter 6); the import refuses a paper whose theorem-like `\begin` and `\end` lines are not line-anchored (5.2.3) unless `--fix-anchoring` is given, in which case it rewrites the copies it makes (DR-40); `--yes` skips questions and confirms the import. `loom init --demo` writes the demo quilt instead of the minimal master (Chapter 14). `loom init` does not create `ai/`; that is `loom ai init` (Chapter 11).
 
-**[decided]** `init` refuses to run inside an existing quilt and refuses to run in a nonempty directory unless `--from` names a file in it (the case of turning an existing paper directory into a quilt in place, in which the paper's files are already there and only loom's files are added).
+**[decided]** `init` refuses to run inside an existing quilt and refuses to run in a nonempty directory unless `--from` names a file in it (the case of turning an existing paper directory into a quilt in place, in which the paper's files are already there and only loom's files are added). The refusal distinguishes its two cases: with no paper it says to name an empty directory or pass one, and with a paper outside the directory it names that file and says that where it sits is the fault, since telling a reader to pass `--from` when they already have sends them looking for the mistake everywhere but where it is. A directory that was defaulted rather than given is named as the current directory.
 
 ## 4.8 What loom never does to the directory
 

@@ -1,0 +1,15 @@
+[quilt]
+main = "drafts/main.tex"    # default master
+drafts = "drafts"           # masters directory
+prefix = "rl"               # default id prefix for loom new
+engine = "pdflatex"         # default engine; % !TEX program in a master overrides
+
+[refs]
+fetch = false               # may loom fetch from arXiv for digest fetch
+
+[lint]
+disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
+
+[ai]
+agent = ""                  # command loom ai start launches, if any
+runner = ""                 # deferred; see specs/runner.md
