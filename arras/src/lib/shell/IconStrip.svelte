@@ -1,5 +1,6 @@
 <script lang="ts">
-	// Shell C, the default (book 15.2.3): a 44px icon strip beside a 168px panel whose contents follow the view.
+	// Shell C, the default (book 15.2.3): a 44px icon strip of the six views, search and the settings control, beside a panel whose contents follow the view.
+	// The strip carries no separate home mark: home is one of the six views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Settings from './Settings.svelte';
@@ -14,7 +15,6 @@
 
 <div class="shell-c">
 	<nav class="strip" aria-label="Views">
-		<a class="home" href="/" aria-label="Home" title={label}>◆</a>
 		<ul>
 			{#each views as v (v.id)}
 				<li>
@@ -123,9 +123,6 @@
 	.strip a.current {
 		background: var(--link-wash);
 		color: var(--link);
-	}
-	.home {
-		color: var(--ink-soft);
 	}
 	.foot {
 		margin-top: auto;

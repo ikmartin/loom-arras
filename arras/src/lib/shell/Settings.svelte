@@ -113,7 +113,8 @@
 		top: calc(100% + 4px);
 		max-height: 80vh;
 		overflow-y: auto;
-		min-width: 170px;
+		/* A wrapping row lets this shrink-to-fit box settle at its minimum and fold the buttons under each other; with `nowrap` below, the widest row sets the width and a longer option widens the panel instead. The minimum is a little more than the widest row asks for, so the rows are not flush against the edge. */
+		min-width: 180px;
 		background: var(--sheet);
 		border: 1px solid var(--rule);
 		border-radius: var(--rad-card);
@@ -133,19 +134,19 @@
 		margin: 0;
 		padding: 0;
 		display: flex;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		gap: var(--gap-hair);
 		align-items: center;
 	}
 	legend {
-		float: left;
-		width: 46px;
+		/* a fieldset renders its legend above the content box, not as a flex item; it needs no width of its own */
 		font-size: 9px;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--ink-faint);
 	}
 	fieldset button {
+		white-space: nowrap;
 		font-family: var(--sans);
 		font-size: 11px;
 		color: var(--ink-soft);

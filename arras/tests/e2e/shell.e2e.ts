@@ -184,3 +184,25 @@ test('the contents rail shows its scrollbar only while it is in use', async ({ p
 		.poll(async () => rail.evaluate((el) => getComputedStyle(el).scrollbarColor))
 		.not.toContain('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
 });
+
+test('the settings panel puts every row on one line', async ({ page }) => {
+	await page.goto('/');
+	await page.getByTestId('settings-toggle').click();
+	const rows = await page.getByTestId('settings-panel').evaluate((el) =>
+		[...el.querySelectorAll('fieldset')].map((f) => ({
+			label: f.querySelector('legend')?.textContent ?? '',
+			lines: new Set([...f.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().top))).size
+		}))
+	);
+	expect(rows.length).toBe(5);
+	for (const r of rows) expect(r.lines, `the ${r.label} row wraps`).toBe(1);
+});
+
+test('the icon strip offers each destination exactly once', async ({ page }) => {
+	await page.goto('/');
+	await page.waitForSelector('main h1'); // until the manifest arrives the read icon has no document to point at
+	const strip = page.getByRole('navigation', { name: 'Views' });
+	const hrefs = await strip.locator('a[href]').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
+	expect(new Set(hrefs).size).toBe(hrefs.length); // no two icons go to the same place
+	expect(hrefs).toContain('/');
+});
