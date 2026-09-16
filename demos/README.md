@@ -13,3 +13,12 @@ demos/hermetic.sh loom init demos/man12 --from tests/fixtures/0805.2065/virtual6
 demos/hermetic.sh loom init demos/acgs --from tests/fixtures/1709.09864/decomposition-formula.tex --prefix acgs --no-git --yes --fix-anchoring
 demos/hermetic.sh loom init demos/relloc --from tests/fixtures/relloc/draft3.tex --prefix rl --no-git --yes --fix-anchoring
 ```
+
+Each paper quilt holds **one definition of each node**: `nodes/` has the patches, `drafts/main.tex` is the spine that includes them, and the file the paper was imported as carries `% !LOOM ignore` so it stays for reference without defining anything a second time. Several masters are welcome — they are different arrangements over the same patches, as `synthetic/` shows with `drafts/main.tex` and `drafts/talk.tex` — but two files defining the same id are not, and produce a `duplicate-id` error per node. Round-trip artefacts (`loom inline` output, an atomized copy kept for comparison) belong in a scratch directory outside the quilt.
+
+```
+demos/hermetic.sh loom init demos/man12 --from tests/fixtures/0805.2065/virtual6.tex --prefix man --no-git --yes --fix-anchoring
+demos/hermetic.sh loom atomize drafts/virtual6.tex drafts/main.tex --sections --ignore-src --quilt demos/man12
+# then main = "drafts/main.tex" in config.toml, and loom compile so the numbering is known
+```
+
