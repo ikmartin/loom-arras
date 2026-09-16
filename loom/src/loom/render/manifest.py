@@ -176,6 +176,8 @@ def build_manifest(
             "state": "draft",
             "derived": {"proved": False, "settled": False},
         }
+        if n.kind == "section":
+            entry["level"] = n.level  # the sectioning depth, so a viewer's contents can stop at subsubsection
         if n.external:
             entry["locator"] = _locator(n)
         manifest["nodes"][key] = entry

@@ -267,6 +267,7 @@ class FragmentRenderer:
         body = conv.render_range(env.body_start, env.body_end) if env else ""
         self.plan.diagnostics.extend(ctx.diagnostics)
         attrs = [f'class="env env-{slug(node.taxon or node.env or "env")}"']
+        attrs.append(f'id="{slug(node.key)}"')  # a real anchor target: without it no link into a document can land (book 15.3.1)
         if node.id:
             attrs.append(f'data-id="{html.escape(node.id, quote=True)}"')
         attrs.append(f'data-key="{html.escape(node.key, quote=True)}"')
@@ -288,7 +289,7 @@ class FragmentRenderer:
         if node.title:
             base = _title_base(env, node)
             title = f'<span class="title"> {conv.inline_text(node.title, base)}</span>'
-        attrs = ['class="env env-proof"', f'data-key="{html.escape(node.key, quote=True)}"']
+        attrs = ['class="env env-proof"', f'id="{slug(node.key)}"', f'data-key="{html.escape(node.key, quote=True)}"']
         if node.id:
             attrs.insert(1, f'data-id="{html.escape(node.id, quote=True)}"')
         if node.of:
@@ -321,7 +322,7 @@ class FragmentRenderer:
             if node.id
             else f'data-key="{html.escape(node.key, quote=True)}"'
         )
-        return f'<section {ident} data-level="{level}" data-src="{ctx.src(node.start, node.end)}"><h{h} data-src="{ctx.src(node.start, heading_end)}">{number_html}{title_html}</h{h}>{body}</section>'
+        return f'<section id="{slug(node.key)}" {ident} data-level="{level}" data-src="{ctx.src(node.start, node.end)}"><h{h} data-src="{ctx.src(node.start, heading_end)}">{number_html}{title_html}</h{h}>{body}</section>'
 
     def render_container_body(self, node: NodeRec, mode: str) -> str:
         """The prose of a master or file container with its claimants; for masters, the document body only."""
