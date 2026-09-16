@@ -275,12 +275,12 @@ def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
     started = time.time()
     (q / rel / "audit-dm-0003.notes.md").write_text("## [summary]\nfine\n")
     ok = run("ai", "check", rel, cwd=q)
-    assert ok.exit_code == 0 and "ok" in ok.output
+    assert ok.exit_code == 0 and "ok" in ok.output, ok.output
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text() + "% touched by an agent\n")
-    os.utime(node, (started + 5, started + 5))
+    os.utime(node, (started + 60, started + 60))  # well past the run's first second, whatever the clock's resolution
     bad = run("ai", "check", rel, cwd=q)
-    assert bad.exit_code == 1 and "loom:agent-wrote-outside-run" in bad.output and "nodes/dm-0002.tex" in bad.output
+    assert bad.exit_code == 1 and "loom:agent-wrote-outside-run" in bad.output and "nodes/dm-0002.tex" in bad.output, bad.output
     assert node.read_text().endswith("% touched by an agent\n")  # reported, never reverted
     node.write_text(node.read_text().replace("% touched by an agent\n", ""))
     os.utime(node, (started - 100, started - 100))
