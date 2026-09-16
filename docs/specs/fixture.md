@@ -39,9 +39,4 @@ Loom: scanner correctness on every construct above, diagnostics emitted with cor
 
 Arras: every page kind renders (node, master, digest, thread, review panel, problems, blockers, graph, tags, taxa, search); every diagnostic code appears on the problems page; unknown-code and unknown-state fixtures (added synthetically to a copy of the manifest) render generically; live reload triggers on a manifest change and not on a fragment-only change; the static prerender produces one shell per route with the content loaded client-side (DR-54).
 
-Interface: `specs/tools/validate-dialect.py` passes on every fragment; a JSON schema (`specs/manifest.schema.json`, **[deferred]** to be derived from `manifest.md`) validates the manifest.
-
-## Open questions
-
-- Timestamps are fixed by `LOOM_FIXED_TIME` during generation. **[decided]** (settled at M2).
-- The fixture includes `talk.tex` in beamer. **[decided]** (settled at M2; the talk declares `proposition` because beamer predefines `lemma`, DR-58).
+Interface: `specs/tools/validate-dialect.py` passes on every fragment. A JSON schema derived from `manifest.md` would validate the manifest as well; it is not written, and the vendored fixture compared byte for byte is what keeps the two implementations in agreement (WQ-14).

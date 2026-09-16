@@ -297,9 +297,3 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 ```
 
 `from` is the node that declared the relation, so the declaring side is known; display is symmetric and a viewer shows the relation on both nodes. `kind` is `see` in this version. Adding a kind is a decision-record event, and a viewer renders a kind it does not know as a labelled list of links. Nodes gain no field: a viewer derives per-node lists from this one.
-
-## Open questions
-
-- Whether diffs should be inlined in the manifest or referenced by path. **[assumed]** By path, under `build/diffs/`, to keep the manifest small.
-- Whether `search` should carry a full-text index. **[assumed]** Title, aliases, tags, excerpt only; full text is a later addition.
-- Size limits. **[deferred]**; measure on the ACGS fixture; fragments are lazy, the manifest is not.

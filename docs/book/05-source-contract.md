@@ -49,7 +49,7 @@ loomlocal  := [0-9A-Z]{4}               (uppercase base-36, zero-padded, 0001..Z
 paperlocal := [A-Za-z0-9.]+ ("-" [A-Za-z0-9.]+)*   (a cited paper's own label, e.g. thm-4.1, setup)
 ```
 
-A label is id-shaped if it matches `id`. Since `paperlocal` is broad, the scanner decides which form applies by prefix: a prefix that is the slug of a citekey (the citekey with everything but letters and digits removed) in the quilt's bibliography or in a digest header takes `paperlocal`; any other prefix takes `loomlocal`. Digest ids use the slug rather than the citekey because real citekeys contain hyphens, colons, and spaces, which the grammar forbids; two citekeys with one slug are `loom:citekey-slug-collision` (error), and the `% !LOOM digest:` directive keeps the verbatim citekey (DR-45). A label like `lem:res-indep` is not id-shaped (it contains a colon). A label like `sec-intro` is id-shaped by grammar (`sec` prefix, `intro` local) only if `sec` is a citekey slug; otherwise `intro` fails `loomlocal` and the label is an alias. **[assumed]** This rule; it keeps human labels with hyphens from being mistaken for ids.
+A label is id-shaped if it matches `id`. Since `paperlocal` is broad, the scanner decides which form applies by prefix: a prefix that is the slug of a citekey (the citekey with everything but letters and digits removed) in the quilt's bibliography or in a digest header takes `paperlocal`; any other prefix takes `loomlocal`. Digest ids use the slug rather than the citekey because real citekeys contain hyphens, colons, and spaces, which the grammar forbids; two citekeys with one slug are `loom:citekey-slug-collision` (error), and the `% !LOOM digest:` directive keeps the verbatim citekey (DR-45). A label like `lem:res-indep` is not id-shaped (it contains a colon). A label like `sec-intro` is id-shaped by grammar (`sec` prefix, `intro` local) only if `sec` is a citekey slug; otherwise `intro` fails `loomlocal` and the label is an alias. **[decided]** This rule; it keeps human labels with hyphens from being mistaken for ids.
 
 ### 5.3.2 Allocation
 
@@ -58,7 +58,7 @@ A label is id-shaped if it matches `id`. Since `paperlocal` is broad, the scanne
 3. **[decided]** Consequence: an id is reused only when nothing can point at it. A node created and deleted without ever being referenced, accepted, or annotated frees its number; a node that anything ever pointed at never does.
 4. **[decided]** `--prefix P` allocates under `P`; otherwise `[quilt] prefix`.
 5. **[decided]** Lint reports `loom:prefix-is-citekey` (warning) when the quilt's prefix equals a citekey in the bibliography, since digest ids use citekeys as prefixes.
-6. **[deferred]** The git history check's exact query (`git log -S` per candidate is slow; a single pass building the referenced-id set may be needed). Implement the simple form; optimize if allocation takes more than a second.
+6. **[decided]** The git history check runs the simple form, `git log -S` per candidate.
 
 Example: ids visible under `rl` are `rl-0001` through `rl-000Z` and a dangling `\ref{rl-0012}`. `loom new lemma` creates `rl-0013`.
 
@@ -226,7 +226,7 @@ Edges from this proof: to `rl-0002` (uses), to `rl-0004` (through the alias), to
 
 ### 5.9.6 `% !TEX root`
 
-**[deferred]** A file that is not a master and contains `% !TEX root = <path>` in its first twenty lines was to be recorded as belonging to that master, so that a loose file could say which master it was written for without changing reachability. The directive is parsed (`scan/directives.py`) and nothing consumes it yet; the manifest has no field for it (M7).
+**[decided]** `% !TEX root = <path>` in the first twenty lines of a file that is not a master is parsed (`scan/directives.py`) and consumed by nothing. The manifest has no field for it and reachability is unaffected. Recording it, so that a loose file can say which master it was written for, is WQ-09.
 
 ## 5.10 Digest nodes
 
@@ -304,7 +304,7 @@ No other macro has meaning to the scanner. `\todo` from `todonotes` is ignored.
 
 The preamble closure's hash is the hash of the concatenation of the normalized preamble text of the master followed by the included fragments in inclusion order, including `loom.sty`.
 
-**[assumed]** Whitespace inside a line is not normalized, so a reflowed paragraph changes the hash. Reflow is an edit; the author re-accepts.
+**[decided]** Whitespace inside a line is not normalized, so a reflowed paragraph changes the hash. Reflow is an edit; the author re-accepts.
 
 ## 5.14 Lint
 
@@ -422,11 +422,3 @@ We construct the residue as a specialization followed by a Segre class.
 ```
 
 Keys: `rl-0040`, `rl-0041`, `rl-0042`. The second proof follows a proof that attached by adjacency, so it attaches to the same theorem (5.6.1). The graph shows that `rl-0004` is used only by the first proof; if the author adopts the second, `rl-0004` may become unnecessary, which `loom unravel rl-0004` reports.
-
-## Open questions
-
-- Whether `\pageref` should create an edge (it references a location, not a result). **[assumed]** Yes, because omitting it would leave a dangling `\pageref` undetected.
-- Nested theorem-like environments: settled by DR-41; a statement inside a proof is a node with a `nested` proof-edge from the enclosing proof, and no diagnostic is reported.
-- The exact set of environments treated as labelled regions in 5.8.1. **[deferred]** Start with the amsmath display environments plus `figure`, `table`, and `enumerate` items; extend from fixtures.
-- Whether `\declaretheorem` with a `sibling=` or `numberwithin=` key needs anything from the scanner. **[assumed]** No; numbering comes from the `.aux`.
-- Whether `import` should also insert `\label`s on `\paragraph` and `\subparagraph` units. **[assumed]** No; sections through subsubsections only, by default; `--all-levels` to include them.

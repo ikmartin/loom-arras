@@ -97,12 +97,8 @@ Record the answers as a decision record (Appendix A) whether the feature is acce
 
 **[decided]** The philosophy changes only through decision records. A record states the principle affected, the change, the reason, and the date. Implementation may reveal that a principle is wrong; when it does, the record says so and the principle is amended here, not silently bypassed in code.
 
-**[assumed]** The decision-record format is the one in Appendix A. It is deliberately small so that records get written.
+**[decided]** The decision-record format is the one in Appendix A. It is deliberately small so that records get written.
 
 ## 1.6 Things the philosophy does not decide
 
 The philosophy does not decide names, directory conventions, or command vocabulary; those are in later chapters and may change more freely. It does not decide what a "good" proof is, how review should be conducted, or how much an author should atomize; those are the author's. It does not decide the future corpus (Chapter 2); it only ensures that nothing built now forecloses it.
-
-## Open questions
-
-- None at the level of principles. Every open question in later chapters is about how to satisfy these principles, not whether to.

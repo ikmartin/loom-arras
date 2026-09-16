@@ -110,9 +110,3 @@ A labelled proof node carries `data-id` as well. `open` is a hint the viewer may
 ## 4. Validation
 
 **[decided]** The workspace provides `specs/tools/validate-dialect.py` (a small standalone script, not shared code in the sense of P11 since it is a test tool consumed by both repositories) that checks a fragment against sections 1–3: the envelope, the allowed elements, classes, and attributes, `data-src` on blocks, and the forbidden elements. Each tool's test suite vendors it (loom at `tests/tools/`, arras through the fixture check); `refresh-fixture.sh` runs it on every regenerated fragment (settled at M2).
-
-## Open questions
-
-- Whether footnotes should be `span.footnote` inline or collected at the end. **[assumed]** Inline; the viewer decides placement.
-- Whether `data-src` should include the master path for expanded inclusions in master fragments. **[decided]** Yes, `data-file` on `div.included` plus each element's own `data-src`.
-- Whether to permit a `nav.toc` block in master fragments. **[assumed]** No; the viewer builds a table of contents from headings.

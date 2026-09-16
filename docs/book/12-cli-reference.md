@@ -445,9 +445,3 @@ Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedite
 ## 12.11 Withdrawn commands
 
 For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into runs having no lifecycle, `ai orient --run`, `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `init --ai` is `ai init`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`.
-
-## Open questions
-
-- `loom check` compiles bundles with `--bundles stale` by default, `all` or `none` on request. **[decided]** (settled at M2; a failed bundle is reported as `loom:bundle-failed`, M7).
-- `loom search` accepts `--kind node|digest|master|thread`. **[decided]** (settled at M1).
-- A `loom open KEY` that launches the user's editor at the node's file and line. Not in the MVP; would need a user-config editor key.

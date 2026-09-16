@@ -78,7 +78,7 @@ Rules:
 1. **[decided]** These are all the keys. Adding a key is a decision-record event and must pass principle P6 (config only for what the preamble cannot say).
 2. **[decided]** `main` must name a file inside `drafts`. `prefix` must match the prefix grammar (Chapter 5). `engine` is one of the engines `latexmk` knows; it applies to a master only when the master has no `% !TEX program` line.
 3. **[decided]** `[lint] disable` accepts diagnostic codes from `specs/diagnostics.md`. Reserved codes cannot be disabled; publisher codes can.
-4. **[assumed]** Unknown keys produce a warning, not an error, so that a newer quilt opens in an older loom.
+4. **[decided]** Unknown keys produce a warning, not an error, so that a newer quilt opens in an older loom.
 5. **[decided]** There is no `[taxa]` table, no `[author]` table, and no list of masters. Taxa come from the preamble, the author from the user config, masters from the directory.
 
 ## 4.3 User configuration
@@ -95,7 +95,7 @@ Rules:
 1. **[decided]** `loom accept` and `loom comment` need an author name. The resolution order is: `--author` on the command line; `[author] name` in the user config; `git config user.name` if git is present and configured; otherwise the command exits with code 2 and the message: `no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --author`.
 2. **[decided]** No interactive prompt, because agents run these commands.
 3. **[decided]** `loom doctor` prints the resolved author name and its source. `loom init` creates the user config with a commented template if it does not exist and does not fail if it cannot.
-4. **[assumed]** The user config has no other keys in the MVP. Candidate future keys (an editor command for `loom open`, a preferred prefix for personal quilts) are listed in Appendix B.
+4. **[decided]** The user config has no other keys.
 
 ## 4.4 Masters and the masters directory
 
@@ -143,7 +143,7 @@ Rules:
 
 1. **[decided]** `\providecommand` throughout, so that an author who already defines `\uses` keeps their definition; lint reports `loom:macro-shadowed` (warning) when a file of the preamble closure other than `loom.sty` defines one of the three names with `\newcommand`, `\renewcommand`, or `\providecommand`, because the scanner still reads the macro's arguments but the author's definition may print something.
 2. **[decided]** `\nest` uses `\input`, never `\include`, because `\include` forces a page break and a separate `.aux`.
-3. **[deferred]** Whether `\nest` must also handle `\part` and class-specific sectioning (memoir, KOMA-Script). Implement the chain above; extend when a fixture needs it.
+3. **[decided]** The chain above is the whole of it. `\part`, and the sectioning commands memoir and KOMA-Script add or rename, are not shifted; the chain extends when a fixture needs them (WQ-08).
 4. **[decided]** Bundles include `\usepackage{loom}` in their preamble; `loom compile` sets nothing in the environment, so `loom.sty` must be at the root.
 5. **[decided]** `import` inserts `\usepackage{loom}` after `\documentclass` in the copied master; lint reports `loom:macros-unloaded` (error) if any of the three macros is used in a master whose preamble closure never loads `loom.sty`.
 
@@ -159,13 +159,13 @@ Rules:
 6. Everything a master needs is reachable from the root by `\input`, `\usepackage`, and `\bibliography`.
 7. `loom compile` mirrors Overleaf: `latexmk` from the root with an output directory and a clean environment.
 
-Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and `refs/src/`; `.loom/`, `ai/`, and `comments/` are harmless), set `drafts/main.tex` as the main document, compile. **[deferred]** Whether Overleaf honours `% !TEX root` for main-document selection; the README instructs setting the main document in Overleaf's menu regardless.
+Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and `refs/src/`; `.loom/`, `ai/`, and `comments/` are harmless), set `drafts/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
 
 ## 4.7 What `loom init` creates
 
 **[decided]** `loom init [DIR]` creates, in an empty or nonexistent `DIR` (default: the current directory):
 
-- `config.toml` with the keys of 4.2 and `main = "drafts/main.tex"`; `prefix` is taken from `--prefix`, otherwise asked for once when a terminal is attached and `--yes` is absent, otherwise the default `q` is taken (**[assumed]**: the default and the non-interactive fallback).
+- `config.toml` with the keys of 4.2 and `main = "drafts/main.tex"`; `prefix` is taken from `--prefix`, otherwise asked for once when a terminal is attached and `--yes` is absent, otherwise the default `q` is taken.
 - `loom.sty`.
 - `drafts/main.tex`, a minimal amsart master: `\documentclass{amsart}`, `\usepackage{amsmath,amssymb,amsthm}`, `\usepackage{loom}`, a `\newtheorem` block declaring theorem, lemma, proposition, corollary (plain), definition, example (definition), and remark (remark), numbered within section through the theorem counter, `\title{Untitled}`, `\begin{document}`, `\maketitle`, `\section{Introduction}`, `\end{document}`. With `--from`, no minimal master is written; the imported paper's master takes its place.
 - `nodes/` (empty), `refs/` (empty), `comments/` (empty).
@@ -195,15 +195,8 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and
 
 ## 4.10 Coauthors
 
-**[decided]** Coauthors clone the quilt. `config.toml`, `.loom/`, `comments/`, `refs/*.tex`, and everything the author wrote are shared; `build/`, `refs/pdf/`, and personal files are not. Acceptance rows carry the accepting author's name from their own user config. Two coauthors allocating ids on separate branches can collide (both get `rl-0011`); the merge produces `duplicate-id`, and since the newer node is unreferenced, renaming it is a one-line fix; per-author prefixes avoid it.
+**[decided]** Coauthors clone the quilt. `config.toml`, `.loom/` (snapshots included: they are part of the acceptance record), `comments/`, `refs/*.tex`, and everything the author wrote are shared; `build/`, `refs/pdf/`, and personal files are not. Acceptance rows carry the accepting author's name from their own user config. Two coauthors allocating ids on separate branches can collide (both get `rl-0011`); the merge produces `duplicate-id`, and since the newer node is unreferenced, renaming it is a one-line fix; per-author prefixes avoid it.
 
 **[decided]** Loom's whole relationship with version control is this: it writes a `.gitignore`, it makes a repository when `--git` asks, `loom doctor` notices whether git is installed, and the ledger is written as one table per key so that two people accepting different keys merge cleanly. It reads no history and writes none. The snapshots under `.loom/` exist because loom cannot assume the quilt is versioned, not as a substitute for versioning it.
 
-**[assumed]** No merge tooling for the ledger in the MVP. TOML tables per key merge cleanly under git for different keys; the same key accepted concurrently by two people produces a textual conflict that either resolution leaves consistent, since both rows are valid acceptances.
-
-## Open questions
-
-- Whether `loom init` should ask for the prefix interactively or require `--prefix`. **[assumed]** Ask once when a terminal is attached and `--yes` is absent; take the default `q` otherwise, so that scripts and agents never block.
-- Whether `.loom/snapshots/` should be committed. **[decided]** Yes; they are part of the acceptance record.
-- Whether the user config should support a default editor for a future `loom open`. Not in the MVP.
-- Whether the default `\newtheorem` block in the minimal master should match the author's own conventions (e.g. `math-thms.sty`). **[assumed]** The minimal master is for new quilts; `--from` keeps the author's.
+**[decided]** There is no merge tooling for the ledger. TOML tables per key merge cleanly under git for different keys; the same key accepted concurrently by two people produces a textual conflict that either resolution leaves consistent, since both rows are valid acceptances.

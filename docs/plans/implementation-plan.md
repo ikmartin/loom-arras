@@ -1,6 +1,6 @@
 # Implementation plan (approved 2026-09-15)
 
-Copied verbatim from the plan approved in the implementing session. The live status of each milestone is in `docs/demonstrations/README.md`; deviations from the book are in `docs/deviations.md`.
+Copied verbatim from the plan approved in the implementing session. The live status of each milestone is in `docs/work-queue/closed.md`; deviations from the book are in `docs/deviations.md`.
 
 
 ## Context
@@ -23,13 +23,13 @@ The task: implement both tools following the book's milestones M0–M7 (`docs/bo
 
 ## Working method and record keeping
 
-- **`docs/demonstrations/README.md`**: a status table, one row per milestone: `pending | in progress | demonstrated | blocked (reason)`, plus the date. This is the file a `/loop` wake-up reads first to find the next incomplete milestone.
-- **`docs/demonstrations/M0.md` … `M7.md`**: one file per milestone with fixed sections: *Book says* (the "Demonstrates:" line from 13.2), *Commands run*, *Output* (actual, trimmed), *Tests* (counts per tier, command used), *Deviations recorded* (DR numbers), *Blocked on the user* (if any), *Status*.
+- **`docs/work-queue/closed.md`**: a status table, one row per milestone: `pending | in progress | demonstrated | blocked (reason)`, plus the date. This is the file a `/loop` wake-up reads first to find the next incomplete milestone.
+- **`docs/work-queue/closed/M0.md` … `M7.md`**: one file per milestone with fixed sections: *Book says* (the "Demonstrates:" line from 13.2), *Commands run*, *Output* (actual, trimmed), *Tests* (counts per tier, command used), *Deviations recorded* (DR numbers), *Blocked on the user* (if any), *Status*.
 - **`docs/deviations.md`**: running table: date · book section · what the book says · what was implemented · why · DR number · book updated (y/n). Every entry also becomes a decision record appended to `docs/book/A-decision-records.md` starting at DR-39, in the book's one-line format, never edited afterwards.
 - **`docs/book/B-open-questions.md`** is not edited until the final book revision; closed questions are tracked via DRs.
 - Prose in every file under `docs/` follows the repo CLAUDE.md: never hard-wrapped.
 - Work order: M0 → M1 → M2 → M3, then M4 and M5 (M4 first, M5 second, sequentially since one agent), then M6, then M7, then the book revision. M1's scanner is additionally exercised on all three real papers via `loom lint` before M2 begins.
-- **Monitoring from the phone**: the user runs `/remote-control` in this VS Code session (or starts a terminal session with `claude --remote-control` from the workspace directory); the session then appears under Code in the Claude mobile app, where progress is visible and messages and permission prompts can be answered. Each milestone's status line in `docs/demonstrations/README.md` is the one-glance summary.
+- **Monitoring from the phone**: the user runs `/remote-control` in this VS Code session (or starts a terminal session with `claude --remote-control` from the workspace directory); the session then appears under Code in the Claude mobile app, where progress is visible and messages and permission prompts can be answered. Each milestone's status line in `docs/work-queue/closed.md` is the one-glance summary.
 
 ## Technology choices
 
@@ -47,7 +47,7 @@ The task: implement both tools following the book's milestones M0–M7 (`docs/bo
 loom-arras/                      workspace repo (tracks docs/, CLAUDE.md, AGENTS.md, clone.sh, .gitignore, LICENSE)
   docs/book/  docs/specs/  docs/source/
   docs/specs/tools/validate-dialect.py   docs/specs/tools/refresh-fixture.sh   docs/specs/fixture/ (generated at M2)
-  docs/demonstrations/  docs/deviations.md
+  docs/work-queue/closed/  docs/deviations.md
   tests/fixtures/                gitignored: the paper sources only: relloc/ 0805.2065/ 1709.09864/ NOTES.md VERSIONS
   demos/                         README.md, refresh.sh, demo/ (= loom init --demo), synthetic/ (proof of concept) committed;
                                  relloc/ (acceptance), man12/, acgs/, scratch-*/ gitignored (paper sources)
@@ -125,11 +125,11 @@ Pipeline, each stage a pure function over dataclasses in `scan/model.py`:
 
 ## Milestones
 
-Each milestone ends with its demonstration recorded in `docs/demonstrations/Mn.md`, commits in each touched repo, and a push.
+Each milestone ends with its demonstration recorded in `docs/work-queue/closed/Mn.md`, commits in each touched repo, and a push.
 
 ### M0. Skeleton
 
-1. Workspace: `LICENSE` (GPL-3.0-or-later, ikmartin), `AGENTS.md` and an updated `CLAUDE.md` pointing agents at the book and specs, `clone.sh`, `.gitignore` gains `demos/relloc/`, `demos/man12/`, `demos/acgs/`, `demos/scratch-*/`, `demos/README.md` and `demos/refresh.sh` (a stub until M1), `docs/demonstrations/README.md` + `M0.md`, empty `docs/deviations.md`, `docs/specs/tools/validate-dialect.py` (stub that validates envelope and allowed elements), `docs/specs/fixture/.gitkeep`.
+1. Workspace: `LICENSE` (GPL-3.0-or-later, ikmartin), `AGENTS.md` and an updated `CLAUDE.md` pointing agents at the book and specs, `clone.sh`, `.gitignore` gains `demos/relloc/`, `demos/man12/`, `demos/acgs/`, `demos/scratch-*/`, `demos/README.md` and `demos/refresh.sh` (a stub until M1), `docs/work-queue/closed.md` + `M0.md`, empty `docs/deviations.md`, `docs/specs/tools/validate-dialect.py` (stub that validates envelope and allowed elements), `docs/specs/fixture/.gitkeep`.
 2. loom: `uv init --lib`, `pyproject.toml` (name `loomtex`, script `loom`, deps, ruff/mypy/pytest config, markers `tex`, `paper`, `network`), committed `uv.lock`, `LICENSE`, `NOTICE`, a README with the clone-and-install section (`pipx install git+https://github.com/ikmartin/loom` or `git clone` + `uv sync`, then `uv run loom doctor`), `scripts/vendor_arras.py` (copies a local `arras/build/` into `src/loom/assets/arras/` and writes `VERSION` with the arras commit hash and interface version; refuses if the interface versions differ), `src/loom/{__init__,__main__,version}.py`, `cli/__init__.py` with `loom --version` and `loom doctor` (reports Python, latexmk, engine, biber/bibtex, dvisvgm, pdftotext, git, arras bundle, author name and source, interface version; exit 2 if a required tool is missing), `tests/fake_latex/fake_tex.py` (argv-dispatching shim for latexmk/pdflatex/latex/lualatex/dvisvgm/bibtex/biber/pdftotext/pdfinfo: emits `.aux` with sequential per-section `\newlabel`s by scanning `\newtheorem`, sectioning, `\begin{ENV}` and `\label` through expanded `\input`s; placeholder PDF; fixed SVG; pdftotext = expanded source with commands stripped; invocation log via `FAKE_TEX_LOG`; failure via `FAKE_TEX_FAIL`), `tests/conftest.py` (fake bin dir prepended to PATH, isolated TeX env fixture, `tmp_quilt` builder), first tests (`test_cli_version`, `test_doctor_missing_tool_exit_2`, `test_fake_latex_emits_aux`), `.github/workflows/unit.yml` (uv + pytest on the shim, ruff, mypy, plus an `install-from-clone` job that does `pipx install .` on a clean runner and runs `loom --version` and `loom doctor`) and `tex.yml` (TeX Live container, `-m tex`).
 3. arras: `npx sv create` (TS, vitest, playwright), `adapter-static`, committed `package-lock.json`, replace LICENSE with AGPL, a README with the developer install (`npm ci`, `npm run build`, `npm test`) and the note that end users never need Node, `src/lib/manifest/types.ts` from `specs/manifest.md`, home page reading a hand-written `static/build/manifest.json`, `python/` pip package skeleton with `bundle_path()`, `.github/workflows/ci.yml` (install, build, vitest, playwright smoke).
 4. Demonstration: `uv run pytest`, `uv run ruff check`, `uv run mypy`, `npm run build && npm test` all green locally and on CI.
@@ -220,7 +220,7 @@ Each milestone ends with its demonstration recorded in `docs/demonstrations/Mn.m
 - Paper tier: `LOOM_PAPER_FIXTURES=/Users/isaac/dev/loom-arras/tests/fixtures uv run pytest -m paper`.
 - arras: `npm run check && npm run test:unit && npm run build && npm run test:e2e`; prerender test; forbidden-words guard.
 - Interface: `python docs/specs/tools/validate-dialect.py docs/specs/fixture/fragments` and `test_fixture_matches_vendored` in loom.
-- Each milestone's "Demonstrates" line executed literally, output pasted into `docs/demonstrations/Mn.md`, status table updated, repos committed and pushed.
+- Each milestone's "Demonstrates" line executed literally, output pasted into `docs/work-queue/closed/Mn.md`, status table updated, repos committed and pushed.
 - Author-file invariance: `test_never_modifies_author_files` runs every command on every fixture quilt.
 - `~/notes` is never touched: a pre-flight check in `conftest.py` asserts no test path resolves under `~/notes`, and every paper-derived quilt lives under `loom-arras/demos/`.
 
@@ -231,4 +231,4 @@ Each milestone ends with its demonstration recorded in `docs/demonstrations/Mn.m
 
 ## Outcome (2026-09-16)
 
-Every milestone was implemented and demonstrated in the order planned; the records are in `docs/demonstrations/` and the deviations in `docs/deviations.md` (DR-39 to DR-80). What this plan expected and what happened: the tolerant scanner, `import --fix-anchoring`, and the digest slugs held; the paper fixtures needed more than anticipated in the extractor (definition aliases, list environments in the macro block, the fallback document's composition) and in the viewer (ids with dots, the full MathJax component); Manolache and ACGS imported with no hand edits beyond `--fix-anchoring`; the relative localization paper went through criteria 1 to 8 on `demos/relloc/`. Still the user's: publishing, the Overleaf test, the external user, and the Codex session.
+Every milestone was implemented and demonstrated in the order planned; the records are in `docs/work-queue/closed/` and the deviations in `docs/deviations.md` (DR-39 to DR-80). What this plan expected and what happened: the tolerant scanner, `import --fix-anchoring`, and the digest slugs held; the paper fixtures needed more than anticipated in the extractor (definition aliases, list environments in the macro block, the fallback document's composition) and in the viewer (ids with dots, the full MathJax component); Manolache and ACGS imported with no hand edits beyond `--fix-anchoring`; the relative localization paper went through criteria 1 to 8 on `demos/relloc/`. Still the user's: publishing, the Overleaf test, the external user, and the Codex session.

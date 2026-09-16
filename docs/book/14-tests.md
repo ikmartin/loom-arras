@@ -10,7 +10,7 @@ This chapter lists the tests the MVP passes. It defines the tiers, the shim that
 - TeX tier: `tests/tex/`, marked `tex`: bundles and the demo master compiled with the real toolchain, the reshape identity tests, the vendored fixture rebuilt and compared, and two smoke tests of `latexmk` and `pdftotext`; 12 tests after the 0.3 round (10 at M7). `conftest.py` gives these tests the real `latexmk` and `pdftotext` directories on `PATH` and skips them when no `latexmk` is installed; HOME and every TeX tree still point at empty directories. Runs in a TeX Live container on every push.
 - Paper tier: `tests/papers/`, the Manolache and ACGS fixtures; 4 tests. The module is marked both `paper` and `tex`, so its tests run only with the real toolchain and only when `LOOM_PAPER_FIXTURES` names a directory holding `0805.2065/` and `1709.09864/`; skipped otherwise, and never in CI.
 - Network: one test, `test_fetch_writes_gitignored_dirs`, marked `network` and skipped unless `LOOM_NETWORK=1`; excluded from CI.
-- Manual tier: the Overleaf procedure and the agent sessions. Run per release; results recorded in the release notes. The Claude Code session was performed at M6 on the demo quilt and at M7 as the referee runs of the relloc migration; the Overleaf procedure and the Codex session have not been performed (`docs/demonstrations/M7.md`).
+- Manual tier: the Overleaf procedure and the agent sessions. Run per release; results recorded in the release notes. The Claude Code session was performed at M6 on the demo quilt and at M7 as the referee runs of the relloc migration; the Overleaf procedure and the Codex session have not been performed (`docs/work-queue/closed/M7.md`).
 - Arras tiers: unit (vitest, 20 tests: the specs beside the modules under `src/lib/` and the guard in `tests/unit/`); end-to-end (Playwright, 43 tests, on the vendored fixture, which `scripts/stage-fixture.mjs` copies into `static/build/` so `vite preview` serves it where `loom serve` would); screenshots (`npm run shots`, one run that writes the book's reference figures from the same fixture, 15.9); prerender (`npm run build:prerender` writes the static site of the fixture, 50 routes at M2, but no test checks it and CI does not run it).
 
 ## 14.2 The fake `latex`
@@ -34,7 +34,7 @@ This chapter lists the tests the MVP passes. It defines the tiers, the shim that
 
 ## 14.5 The Overleaf procedure
 
-**[decided]** Manual, per release; not yet performed (`docs/demonstrations/M7.md`, "Blocked on the user"):
+**[decided]** Manual, per release; not yet performed (`docs/work-queue/closed/M7.md`, "Blocked on the user"):
 
 1. `loom init demo --demo`; `loom compile`; record `pdftotext` of the local PDF.
 2. Zip the quilt without `build/`, `refs/pdf/`, and `refs/src/`; upload to a new Overleaf project; set `drafts/main.tex` as the main document; compile.
@@ -144,7 +144,7 @@ Not written: `selector_from_selection` (the write API is deferred); the prerende
 - `test_promote_draft_allocates_or_checks_id`, `test_promote_digest_refuses_existing`
 - `test_ai_check_reports_outside_writes`
 - `test_threads_from_runs_in_manifest_and_runs_not_scanned` (DR-70)
-- Manual: the Claude Code session was performed on the demo quilt at M6 and as the referee runs of the relloc migration at M7; the Codex session has not been performed (`docs/demonstrations/M6.md`).
+- Manual: the Claude Code session was performed on the demo quilt at M6 and as the referee runs of the relloc migration at M7; the Codex session has not been performed (`docs/work-queue/closed/M6.md`).
 
 Not written: `test_promote_never_touches_run_file`.
 
@@ -167,8 +167,3 @@ Not written: `test_cli_exit_codes_contract` as one test (exit codes 0, 1, and 2 
 **[decided]** Every test named in 14.6 exists, and every diagnostic code in `specs/diagnostics.md` is emitted by at least one test on one fixture. A release with a missing test or an unemitted code fails the checklist.
 
 The check made for this revision, on 2026-09-16, with the collected test ids against the two code tables: the 48 codes of `docs/specs/diagnostics.md` and the 48 codes of `loom/src/loom/scan/diagnostics.py` are the same set; 47 of them are emitted somewhere in loom's source, and the forty-seventh, `loom:interface-version`, is emitted by arras (`src/lib/manifest/loader.ts`) as the specification says and is tested by its loader spec; `test_all_emitted_codes_are_known` keeps every code the fixture quilts emit inside the table. Five codes gained their first test during M7: `loom:documentclass-outside-drafts` and `loom:bundle-failed` in `test_documentclass_outside_drafts_and_bundle_failed`; `loom:atomize-target-exists`, `loom:foreign-annotations`, `loom:main-not-found`, and the new `loom:unknown-config-key` in `test_remaining_codes_have_a_test`; and `loom:non-utf8-source` in `test_non_utf8_source_code_reported`, so every code in the table is asserted by a test and the rule above holds; 14.6 names the tests that were planned and not written.
-
-## Open questions
-
-- Whether the paper tier should run in a private CI with the sources stored as secrets. **[decided]** No; local only: `unit.yml` deselects `paper` and `network`, and the paper tier ran with `LOOM_PAPER_FIXTURES` on the implementing machine (`docs/demonstrations/M4.md`).
-- Whether Playwright should also run against a live `loom serve` rather than the vendored fixture. **[decided]** Not as a test. `test_serve_static_routes` serves the vendored bundle without a browser, and criterion 8 of M7 visited every page kind of the served relloc quilt in a headless browser by hand (`docs/demonstrations/M7.md`); arras reaches loom as the vendored bundle, not through the pip package.

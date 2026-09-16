@@ -22,7 +22,7 @@ This chapter turns the specification into an order of work. It names the milesto
 
 Demonstrates: both toolchains build and test on CI.
 
-Demonstrated 2026-09-15; see `docs/demonstrations/M0.md`: 13 unit-tier tests on the shim and 2 TeX-tier tests in loom, 5 vitest and 1 Playwright test in arras, `loom doctor` exit 0 with every tool present and exit 2 naming the missing tool otherwise, the loom `unit` and `tex` workflows and the arras `ci` workflow green; DR-39.
+Demonstrated 2026-09-15; see `docs/work-queue/closed/M0.md`: 13 unit-tier tests on the shim and 2 TeX-tier tests in loom, 5 vitest and 1 Playwright test in arras, `loom doctor` exit 0 with every tool present and exit 2 naming the missing tool otherwise, the loom `unit` and `tex` workflows and the arras `ci` workflow green; DR-39.
 
 ### M1. Read a quilt
 
@@ -35,7 +35,7 @@ Demonstrated 2026-09-15; see `docs/demonstrations/M0.md`: 13 unit-tier tests on 
 
 Demonstrates: `loom lint` on the demo quilt and the synthetic quilt reports exactly the diagnostics the fixture description lists; `loom deps` and `loom unravel` match hand-computed answers.
 
-Demonstrated 2026-09-15; see `docs/demonstrations/M1.md`: `loom lint` on the demo quilt (0 errors, 0 warnings, 2 infos) and the synthetic quilt (3 errors, 4 warnings, 13 infos) matches the frozen `EXPECTED-LINT.txt` files, `deps` and `unravel` match the hand-computed answers, and the scanner reads all three real papers without crashing (relloc in 0.14 s, Manolache in 0.21 s, ACGS in 0.15 s), which cost three scanner bugs and DR-40 to DR-53.
+Demonstrated 2026-09-15; see `docs/work-queue/closed/M1.md`: `loom lint` on the demo quilt (0 errors, 0 warnings, 2 infos) and the synthetic quilt (3 errors, 4 warnings, 13 infos) matches the frozen `EXPECTED-LINT.txt` files, `deps` and `unravel` match the hand-computed answers, and the scanner reads all three real papers without crashing (relloc in 0.14 s, Manolache in 0.21 s, ACGS in 0.15 s), which cost three scanner bugs and DR-40 to DR-53.
 
 ### M2. Publish and view
 
@@ -48,7 +48,7 @@ Demonstrated 2026-09-15; see `docs/demonstrations/M1.md`: `loom lint` on the dem
 
 Demonstrates: the synthetic quilt served by `loom serve` renders every page in arras; editing a node re-renders within two seconds; `arras build --prerender` produces a static site of the fixture; the dialect validator passes on every fragment.
 
-Demonstrated 2026-09-15; see `docs/demonstrations/M2.md`: every page kind renders in a 23-test Playwright suite over the fixture, an edit to a node produces a new manifest in 0.88 s, the prerender writes 50 routes, the validator reports 0 problems on the 26 fragments the fixture then had, the arras bundle is vendored into loom; 116 unit-tier and 6 TeX-tier tests; DR-54 to DR-58.
+Demonstrated 2026-09-15; see `docs/work-queue/closed/M2.md`: every page kind renders in a 23-test Playwright suite over the fixture, an edit to a node produces a new manifest in 0.88 s, the prerender writes 50 routes, the validator reports 0 problems on the 26 fragments the fixture then had, the arras bundle is vendored into loom; 116 unit-tier and 6 TeX-tier tests; DR-54 to DR-58.
 
 ### M3. Review
 
@@ -60,7 +60,7 @@ Demonstrated 2026-09-15; see `docs/demonstrations/M2.md`: every page kind render
 
 Demonstrates: the worked timeline of 7.11 executed on the synthetic quilt, with the panel showing the diff of the definition on day 9.
 
-Demonstrated 2026-09-15; see `docs/demonstrations/M3.md`: the timeline of 7.11 runs as the single test `test_timeline_7_11`, the shipped synthetic quilt reports 5 stale of 6 accepted with the definition's diff behind `status --explain` and in the review panel, and the fixture carries 7 annotations, 5 stale keys, and 3 diff files; 150 unit-tier tests, 25 Playwright tests; DR-59 to DR-61.
+Demonstrated 2026-09-15; see `docs/work-queue/closed/M3.md`: the timeline of 7.11 runs as the single test `test_timeline_7_11`, the shipped synthetic quilt reports 5 stale of 6 accepted with the definition's diff behind `status --explain` and in the review panel, and the fixture carries 7 annotations, 5 stale keys, and 3 diff files; 150 unit-tier tests, 25 Playwright tests; DR-59 to DR-61.
 
 ### M4. Bring a paper in
 
@@ -69,7 +69,7 @@ Demonstrated 2026-09-15; see `docs/demonstrations/M3.md`: the timeline of 7.11 r
 
 Demonstrates: both papers import, atomize, and inline with the identity test passing, after at most a documented set of hand edits; the relative localization paper imports.
 
-Demonstrated 2026-09-15; see `docs/demonstrations/M4.md`: Manolache imports after `--fix-anchoring` repairs its 51 line-anchoring violations, ACGS imports with no hand edits at all, both atomize and inline with the identity test passing, and relloc imports with identity passing; every compile ran through `demos/hermetic.sh`; 157 unit-tier, 10 TeX-tier, and 4 paper-tier tests; DR-62 to DR-65.
+Demonstrated 2026-09-15; see `docs/work-queue/closed/M4.md`: Manolache imports after `--fix-anchoring` repairs its 51 line-anchoring violations, ACGS imports with no hand edits at all, both atomize and inline with the identity test passing, and relloc imports with identity passing; every compile ran through `demos/hermetic.sh`; 157 unit-tier, 10 TeX-tier, and 4 paper-tier tests; DR-62 to DR-65.
 
 ### M5. Digests
 
@@ -80,7 +80,7 @@ Demonstrated 2026-09-15; see `docs/demonstrations/M4.md`: Manolache imports afte
 
 Demonstrates: `loom digest extract Man12` on the Manolache source in the relloc quilt; `\cite[Theorem 4.1]{Man12}` resolves; a bundle of a relloc lemma compiles with Manolache's theorem in it.
 
-Demonstrated 2026-09-16; see `docs/demonstrations/M5.md`: Manolache is extracted into the relloc quilt as 96 results and 13 sections with 33 `\uses` lines, every one of the six postnotes the paper uses resolves to a digest node, the bundles of the citing proofs compile with the cited results inside them, and a bundle that lacks the digest's packages fails with `loom:missing-package` named first; 166 unit-tier tests, 26 Playwright tests; DR-66 to DR-69.
+Demonstrated 2026-09-16; see `docs/work-queue/closed/M5.md`: Manolache is extracted into the relloc quilt as 96 results and 13 sections with 33 `\uses` lines, every one of the six postnotes the paper uses resolves to a digest node, the bundles of the citing proofs compile with the cited results inside them, and a bundle that lacks the digest's packages fails with `loom:missing-package` named first; 166 unit-tier tests, 26 Playwright tests; DR-66 to DR-69.
 
 ### M6. The AI layer
 
@@ -89,7 +89,7 @@ Demonstrated 2026-09-16; see `docs/demonstrations/M5.md`: Manolache is extracted
 
 Demonstrates: the example session of 11.11 performed with Claude Code and again with Codex on the demo quilt; findings appear as marks; a draft is promoted.
 
-Demonstrated 2026-09-16 for the Claude Code half; see `docs/demonstrations/M6.md`: the session of 11.11 performed on the demo quilt, whose shipped run now leaves two marks on the main theorem and one thread in the manifest, a second live run on `demos/demo/`, and a drafted lemma promoted to `nodes/dm-0012.tex` with `loom ai check` passing; 180 unit-tier tests, 27 Playwright tests; DR-70 to DR-72. The Codex half stayed blocked on the user: Codex is not installed on the implementing machine, and `M6.md` gives the command to run it.
+Demonstrated 2026-09-16 for the Claude Code half; see `docs/work-queue/closed/M6.md`: the session of 11.11 performed on the demo quilt, whose shipped run now leaves two marks on the main theorem and one thread in the manifest, a second live run on `demos/demo/`, and a drafted lemma promoted to `nodes/dm-0012.tex` with `loom ai check` passing; 180 unit-tier tests, 27 Playwright tests; DR-70 to DR-72. The Codex half stayed blocked on the user: Codex is not installed on the implementing machine, and `M6.md` gives the command to run it.
 
 ### M7. Acceptance
 
@@ -100,7 +100,7 @@ Demonstrated 2026-09-16 for the Claude Code half; see `docs/demonstrations/M6.md
 
 Demonstrates: MVP done.
 
-Demonstrated 2026-09-16 for criteria 1 to 8 of 2.3 on `demos/relloc`; see `docs/demonstrations/M7.md`: 57 accepted keys with 0 stale after the upstream edit was explained and re-accepted, three digests (Manolache and the virtual-localization paper extracted from source, Romagny ingested by the agent in a run) with every postnote resolving, a served manifest of 302 nodes, 257 keys, 236 edges, and 6 threads whose every page kind renders without a console error, both READMEs, both CONTRIBUTING files, the release checklist, the generated CLI reference (35 commands), and a fresh clone of both repositories installed and run from GitHub following the READMEs alone; 183 unit-tier, 10 TeX-tier, and 4 paper-tier tests, 10 vitest and 27 Playwright tests; DR-73 to DR-80. Criterion 9 (the Overleaf test) and criterion 10 (the external user's paper) stayed blocked on the user, as did publishing; `M7.md` lists the steps for each.
+Demonstrated 2026-09-16 for criteria 1 to 8 of 2.3 on `demos/relloc`; see `docs/work-queue/closed/M7.md`: 57 accepted keys with 0 stale after the upstream edit was explained and re-accepted, three digests (Manolache and the virtual-localization paper extracted from source, Romagny ingested by the agent in a run) with every postnote resolving, a served manifest of 302 nodes, 257 keys, 236 edges, and 6 threads whose every page kind renders without a console error, both READMEs, both CONTRIBUTING files, the release checklist, the generated CLI reference (35 commands), and a fresh clone of both repositories installed and run from GitHub following the READMEs alone; 183 unit-tier, 10 TeX-tier, and 4 paper-tier tests, 10 vitest and 27 Playwright tests; DR-73 to DR-80. Criterion 9 (the Overleaf test) and criterion 10 (the external user's paper) stayed blocked on the user, as did publishing; `M7.md` lists the steps for each.
 
 **[decided]** M1 through M3 are strictly ordered; M4 and M5 may proceed in parallel after M2; M6 after M3; M7 last. In the event one agent ran them in sequence, M0 to M7, M4 before M5, as `docs/plans/implementation-plan.md` set out.
 
@@ -116,7 +116,7 @@ Demonstrated 2026-09-16 for criteria 1 to 8 of 2.3 on `demos/relloc`; see `docs/
 - KaTeX as an alternative to MathJax.
 - `loom open`, user-level mode templates, a user-level default prefix.
 - Windows in CI.
-- A `manifest.schema.json` derived from `specs/manifest.md`. **[decided]** Not built at M2 or later (`docs/demonstrations/M2.md`); loom checks the manifest structurally in `test_build_layout_and_manifest` and arras types it in `src/lib/manifest/types.ts`.
+- A `manifest.schema.json` derived from `specs/manifest.md`. **[decided]** Not built at M2 or later (`docs/work-queue/closed/M2.md`); loom checks the manifest structurally in `test_build_layout_and_manifest` and arras types it in `src/lib/manifest/types.ts`.
 - Prerender optimisations for very large quilts, precomputed graph layouts.
 
 None of these exists at the end of M7: the generated CLI reference (`loom/docs/cli-reference.md`) has no `open`, no `atomize --relative`, and no `ai run`, and both CI workflows run on Ubuntu only.
@@ -137,7 +137,8 @@ loom-arras/                 workspace; a git repository tracking docs/, demos/, 
       tools/                validate-dialect.py, refresh-fixture.sh
       fixture/              generated, never edited: manifest.json, fragments/, svg/, diffs/, VERSION
     plans/implementation-plan.md   the plan that was followed, verbatim
-    demonstrations/         README.md (the status table) and M0.md to M7.md
+    work-queue/             README.md (what is not done, and its trigger), one file per item,
+                            closed.md and closed/ (the milestone records M0.md to M7.md)
     deviations.md           one row per deviation, each with its DR
     source/
       global-rules.md       the author's chat review rules, verbatim: the provenance of the mode files
@@ -226,7 +227,7 @@ Arras has no checklist of its own: its release is the build the checklist vendor
 
 ## 13.6 The relloc migration as acceptance
 
-**[decided]** The author's paper is the acceptance test, not a fixture: its sources are never committed to any tool repository. The sequence, each step a demonstration recorded in `docs/demonstrations/`, was carried out on `demos/relloc/` (a copy under the workspace, gitignored) with every compile through `demos/hermetic.sh`:
+**[decided]** The author's paper is the acceptance test, not a fixture: its sources are never committed to any tool repository. The sequence, each step a demonstration recorded in `docs/work-queue/closed/`, was carried out on `demos/relloc/` (a copy under the workspace, gitignored) with every compile through `demos/hermetic.sh`:
 
 1. `loom init relloc --from ~/papers/relloc/draft3.tex`; identity test; diagnostics triaged. Performed: import at M4 with `--fix-anchoring`, identity passing (`M4.md`); triage at M7, one dangling `\ref` repointed and two proofs separated from their lemma by `\red{}` notes attached with `[Proof of Lemma~\ref{...}]`, after which `loom lint` reports 0 errors (`M7.md`, criteria 1, 2, and 4).
 2. `loom atomize drafts/draft3.tex drafts/draft4.tex --sections`; `draft3.tex` deleted; `main` updated; identity test. Performed at M7: 52 nodes and 3 deferred proofs moved, a 104-line spine, identity passing, `inline --all` passing it again, `loom check` ok (`M7.md`, criterion 3).
@@ -240,10 +241,4 @@ Arras has no checklist of its own: its release is the build the checklist vendor
 
 **[decided]** The implementation is carried out by agents under the author's direction, in the manner the source paper's authors describe: the author supplies each milestone's plan and judges each demonstration; agents draft, test, and propose; every deviation from this book becomes a decision record before code is merged. The workspace's own `CLAUDE.md` and `AGENTS.md` point agents at this book and at `specs/`, and instruct them to mark in their pull requests which statements of the book they implemented, which they found wrong, and which were deferred.
 
-As carried out: one agent, Claude Fable 5.1 running as Claude Code, worked through M0 to M7 under the author's `/loop` directive from the plan the author approved on 2026-09-15 (`docs/plans/implementation-plan.md`), reading `docs/demonstrations/README.md` at each wake-up to find the first milestone not yet demonstrated. Each demonstration is a record in `docs/demonstrations/`, and each of the 42 deviations, DR-39 to DR-80, was appended to Appendix A with a row in `docs/deviations.md` before the work went on. The work reached the tool repositories as commits on `main` rather than pull requests, each commit message naming the records it implements; the author's judgement of the demonstrations is the review the plan foresaw.
-
-## Open questions
-
-- Whether M4 should precede M3, since importing the real paper early would surface scanner problems sooner. **[decided]** M3 first, as assumed; M1's scanner was additionally exercised on all three real papers through `loom lint` before M2 began, which is where the scanner problems surfaced (`docs/demonstrations/M1.md`, DR-40 to DR-53).
-- Whether the ACGS stress test should gate M4 or only inform it. **[decided]** It gated M4, with `test_paper_acgs_import_with_documented_edits` carrying the hand-edit list; the list is empty (`docs/demonstrations/M4.md`).
-- Whether to publish pre-1.0 releases to PyPI at all or install from git until M7. **[decided]** Install from git: the external user's install path is `pipx install git+https://github.com/ikmartin/loom` or a clone with `uv sync`, both exercised by the fresh-clone test at M7 (`docs/demonstrations/M7.md`), and no alpha was published because publishing is the author's step (`docs/demonstrations/M2.md`, `loom/docs/RELEASE.md`).
+As carried out: one agent, Claude Fable 5.1 running as Claude Code, worked through M0 to M7 under the author's `/loop` directive from the plan the author approved on 2026-09-15 (`docs/plans/implementation-plan.md`), reading `docs/work-queue/closed.md` at each wake-up to find the first milestone not yet demonstrated. Each demonstration is a record in `docs/work-queue/closed/`, and each of the 42 deviations, DR-39 to DR-80, was appended to Appendix A with a row in `docs/deviations.md` before the work went on. The work reached the tool repositories as commits on `main` rather than pull requests, each commit message naming the records it implements; the author's judgement of the demonstrations is the review the plan foresaw.

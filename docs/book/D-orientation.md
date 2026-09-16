@@ -1,6 +1,6 @@
 # Appendix D. `ai/orientation.md`
 
-The static orientation document `loom ai init` writes and `loom ai orient` prints (followed by live state). Reproduced in full. **[decided]** for content; **[assumed]** for wording.
+The static orientation document `loom ai init` writes and `loom ai orient` prints (followed by live state). Reproduced in full. **[decided]** for content; the wording is the drafter's.
 
 ---
 

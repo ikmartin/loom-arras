@@ -78,8 +78,3 @@ For a colleague or coauthor:
 ## 2.7 What "easy" means here
 
 **[decided]** Install: `pipx install loomtex`, a TeX distribution, `loom doctor`. First use: `loom init --demo` and `loom serve` in under five minutes. First real use: `loom init mypaper --from draft.tex` and a compiling quilt in under ten. Comprehension: the contract page of the README, one page, is all an author needs to keep a quilt valid. Everything beyond that is optional depth.
-
-## Open questions
-
-- Whether success criterion 10 (the external user) should gate a release or only inform one. **[assumed]** It gates the claim "MVP done", not the first tagged release.
-- Whether the library quilt should be demonstrated in the MVP with more than one paper. **[assumed]** Two digests, one extracted and one ingested, suffice.

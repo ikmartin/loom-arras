@@ -137,7 +137,7 @@ hyperref's `.aux` format (`\newlabel{ID}{{NUMBER}{PAGE}{TITLE}{ANCHOR}{}}`) and 
 2. Serve: a static HTTP server on `127.0.0.1:<port>` (default 8791; `--port` changes it, and the command fails if the port is busy) serving the arras bundle at `/` and `build/` at `/build/`. Every response carries an `ETag` and `If-None-Match` is answered with 304, so the viewer's poll of the manifest costs nothing while it is unchanged. Any path that is not a file of the bundle is answered with the bundle's `index.html`, unless it lies under `_app/` or ends in an asset suffix (`.js`, `.css`, `.svg`, `.png`, `.json`, fonts, ...), which stay 404, so viewer routes work with dots in keys (DR-78); `/_api` is 404, the write API being deferred. The bundle is found through `LOOM_ARRAS_BUNDLE`, then the installed `arras` pip package (`arras.bundle_path()`), then the copy vendored inside loom under `src/loom/assets/arras/`; `loom doctor` reports which one and its `VERSION` line. The vendored copy is refreshed by `scripts/vendor_arras.py ../arras/build`, which refuses an arras whose interface version differs from loom's and stamps `VERSION` with the arras commit; Vite's chunk hashes are not reproducible across installs, so that commit, not byte equality with a fresh build, is what ties a bundle to its source (M7).
 3. Compile: after publishing, if a `.tex`, `.sty`, `.cls`, or `.bib` file changed, run `loom compile` on the default master in the background and republish when it succeeds, so numbers refresh.
 
-**[decided]** Loom never notifies arras. Arras polls `/build/manifest.json` and re-renders when its hash changes (10.5). If watching proves too slow, the fallback is a `POST /_refresh` endpoint arras may call carrying nothing but "refresh", which preserves arras's ignorance of event types; **[deferred]** and not built unless needed.
+**[decided]** Loom never notifies arras. Arras polls `/build/manifest.json` and re-renders when its hash changes (10.5). If watching proves too slow, the fallback is a `POST /_refresh` endpoint arras may call carrying nothing but "refresh", which preserves arras's ignorance of event types. It is not built; polling has never been too slow.
 
 `loom serve --no-compile` skips step 3; `--port`; `--open` opens the browser.
 
@@ -156,7 +156,3 @@ Every manifest carries `interface_version`. Loom and arras each declare the vers
 ## 9.10 Sitegen as a second publisher
 
 **[decided]** The author's org-mode site generator becomes a publisher by emitting fragments in the dialect and a manifest, and dropping its own templates, link rewriting, backlinks, and search. Its `export.el` already emits most of the dialect's classes; the additions are `data-id`, `data-key`, `data-src`, the manifest, and the reserved diagnostics. This is not part of the MVP; it is the test that the interface is generic and the reason arras must never know what a proof is.
-
-## Open questions
-
-Settled by implementation: the `data-src` encoding (character offsets, `FILE:START:END`, specs/dialect.md §1 and 9.3); PDF figures (converted to SVG at build, 9.4.1); the port (fixed default 8791, `--port` to change, fail if busy, 9.8); whether `loom build` compiles when no `.aux` exists (it never compiles; the panel says "not yet compiled", 9.6); the bundle id-beside-number mechanism (the `% id:` comment before each environment, 9.7).

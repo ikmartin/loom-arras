@@ -103,10 +103,4 @@ When the write API is present (deferred), the same boxes gain reply and resolve 
 
 ## 10.9 Accessibility and print
 
-**[assumed]** Every page is navigable by keyboard and the master view prints as a document with badges suppressed; marks carry `aria-describedby` to their boxes (implemented). Not MVP-gating.
-
-## Open questions
-
-Settled by implementation: the route scheme (pretty paths under a server with the SPA fallback; `file://` unsupported, DR-57 and DR-78); the dark theme (yes, `src/lib/theme.css` follows `prefers-color-scheme` with a `data-theme` override, sitegen's tokens carried over); the "what you need to read first" list (yes, the node page's "Read first" line from the manifest's closure, 10.2.1).
-
-- Whether the graph should be drawn client-side for a five-thousand-node quilt or precomputed by the publisher. **[deferred]**; measure on the ACGS fixture; the manifest may gain optional layout hints later.
+**[decided]** Every page is navigable by keyboard and the master view prints as a document with badges suppressed; marks carry `aria-describedby` to their boxes (implemented). Not MVP-gating.

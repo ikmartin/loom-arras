@@ -102,8 +102,6 @@ Precisely:
 9. **[decided]** Afterwards, the identity test compares `DEST` against `SRC`: directly when `SRC` is a master; otherwise through the first master that reaches `SRC`, compiled as it is and again in a scratch copy of the quilt where `DEST`'s text stands at `SRC`'s path; when no master reaches `SRC` the test is reported skipped (DR-65). `atomize` refuses to write anything if `SRC` has line-anchoring violations or spans, naming the lines (DR-40). It ends by noting that `SRC` still defines its ids inline.
 10. **[decided]** `atomize` allocates no ids and inserts no labels.
 
-**[deferred]** `--relative`: additionally rewrite the moved section files' sectioning commands to top level and emit `\nest` at the site, so section files read as standalone sections. Identity-preserving. Not in the MVP.
-
 ### 6.4.2 Naming inside `nodes/`
 
 **[decided]** `nodes/<id>.tex` for nodes; `nodes/<id>.proof.tex`, `nodes/<id>.proof.2.tex` for unlabelled proofs. If a target file exists, `atomize` refuses before writing anything (`loom:atomize-target-exists`, exit 1).
@@ -159,8 +157,6 @@ This is the first conversion fixture (Chapter 14). Source: the arXiv e-print of 
 2. `loom atomize drafts/virtual6.tex drafts/virtual6-atomized.tex --sections`: 110 files under `nodes/` (96 environments and 14 sections and subsections, the subsections included from their section files), a 79-line spine for the 1246-line master; identity test: pass. `loom inline --all` on the spine rebuilds a 1229-line master that passes the identity test and differs from the imported file only in blank lines between nodes.
 3. `loom digest extract manolache_VirtualPullbacks2012 tests/fixtures/0805.2065/virtual6.tex` in the relloc quilt: `refs/manolache_VirtualPullbacks2012.tex` with 96 results; every Manolache postnote in the paper resolves to a digest node, `\cite[Theorem 4.3]{manolache_VirtualPullbacks2012}` among them, and a bundle of a relloc proof compiles with the theorem stated inside it (M5).
 
-**[deferred]** Still to run on this fixture: `loom bundle` of the main theorem inside the man12 quilt (its closure should list the definitions of relative obstruction theory and the earlier propositions), and the arras views (master view with sections and results, node pages linked through `\ref`s, a graph with no isolated nodes).
-
 What the fixture tests: import on a real paper, line-anchoring in the wild and its repair, proofs by enclosure, `\newtheorem` discovery, atomize with sections, the inline round trip, identity, and mechanical digest extraction of the same source. The paper-tier tests (`tests/papers`, run with `LOOM_PAPER_FIXTURES` pointing at the fixtures) pin the 51 violations, the 96 environment and 16 heading ids, the 5 proofs by enclosure, and identity on import and on `atomize --sections`.
 
 ## 6.9 Stress test: ACGS, decomposition of degenerate Gromov–Witten invariants
@@ -170,10 +166,3 @@ Source: arXiv `1709.09864`, version 4, local only under `tests/fixtures/1709.098
 **[decided]** What was found (settled at M4): no hand edits were needed. The source has 5 line-anchoring violations, all repaired by `--fix-anchoring`; the figure inputs are opaque inclusions (DR-44). Import: 71 environments (18 Definition, 16 Proposition, 10 Lemma, 9 Theorem, 9 Remark, 3 Example, 3 Corollary, 1 Examples, 1 Construction, 1 Notation) and 74 sectioning units (5 sections, 19 subsections, 42 subsubsections, 8 paragraphs); 31 proofs adjacent, 1 unattached; 0 dangling references; 27 citations with locators but no digest; identity test: pass. The one unattached proof (line 3596) follows its proposition after a prose paragraph, which the adjacency rule does not bridge; it is the author's to attach with `\begin{proof}[Proof of Proposition~\ref{...}]`. `atomize` moves 67 node files (four environments nested inside others travel with their parents), writes a 2838-line spine, identity pass; `inline --all` rebuilds a 4567-line master with zero non-blank line differences from the imported file, identity pass. A full scan of the imported quilt takes about one second and well under 100 MB. Of the failures the fixture was written to find (environments not alone on their lines in dense passages; `\begin{proof}` with optional arguments the reference rule does not match ("Proof of the theorem" without a `\ref`); `\label`s inside titles; equation labels reused across sections), the anchoring violations occurred and one proof was separated from its statement by prose; neither needed a hand edit.
 
 Pass criterion, met at M4: import completes with an empty hand-edit list; identity test passes; `atomize` and `inline` pass; the scanner handles the file in about a second (the paper-tier test allows ten seconds and 300 MB for the source map, 5.9.2).
-
-## Open questions
-
-- Whether `import` should also copy files reached only by `\includeonly` or `\includegraphics` with unusual extensions. **[assumed]** Reported, not copied.
-- Whether `atomize --sections` should default on: settled at M4, off; one-file-per-statement is the common wish, and section files can be made later.
-- Whether the identity test should also compare bookmarks/hyperref anchors: settled at M4, no; text and label numbers are compared.
-- The two fixtures' arXiv versions: settled at M4, pinned in `tests/fixtures/VERSIONS` (0805.2065 v2, 1709.09864 v4).

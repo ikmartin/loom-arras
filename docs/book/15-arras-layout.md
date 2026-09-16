@@ -2,7 +2,7 @@
 
 Chapter 10 says what arras shows. This chapter says what it looks like and how it is arranged: the three navigation shells, the regions every page has, what each rail holds per view, the graph's two layouts and its toggle, the token and typography rules, and the reference figures. It is arras's own design document and is not part of the loom–arras interface: nothing here changes what loom publishes, and a change here needs no manifest change. Chapter 10 remains authoritative on which pages exist and what data they show.
 
-Markers as elsewhere. The chapter was written before the viewer was built and its numbers were **[assumed]**; they are now what the viewer ships, and the few places where building it changed a number say so. Where a figure and a number disagree, the figure is a screenshot of what exists and the number has been corrected to match.
+Markers as elsewhere. The chapter was written before the viewer was built and its numbers were provisional; they are now what the viewer ships, and the few places where building it changed a number say so. Where a figure and a number disagree, the figure is a screenshot of what exists and the number has been corrected to match.
 
 ## 15.1 Principles
 
@@ -195,11 +195,3 @@ The original `.svg` drawings remain beside them for the record of what was inten
 ## 15.10 Accessibility
 
 **[decided]** Every icon-only control carries an `aria-label`; the icon strip is a `nav` with a list; marks are `mark` elements with `aria-describedby` pointing at their comment; the contents tree is a `nav` with `aria-current` on the current section; focus order runs shell then page then right rail; the graph canvas is preceded by a visually hidden summary and is not the only route to any information. Contrast: every state text colour on its tint meets AA at 11px.
-
-## Open questions
-
-- The serif stack. **[decided]**, DR-90: the site generator's own stack.
-- Whether the read view's right rail should push the text column or overlay it when comments appear. **[decided]** Push: the rail is a column of the shell's grid, so the text never moves under the cursor while reading.
-- Whether shell B's breadcrumb should be the document picker on node pages too. **[decided]** No: the breadcrumb names the current document and the picker lives in the rail, in every view.
-- Dark-mode values. **[decided]**, DR-90: derived from the light set in one file.
-- Whether the graph inspector and the node page's right rail should be the same component. **[decided]** They share `RailList` and nothing else. The two hold different things — one a selection, the other a node's whole context — and a component that served both would be a switch with two branches.

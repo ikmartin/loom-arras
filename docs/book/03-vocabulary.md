@@ -130,7 +130,3 @@ The following words were used during design and are not terms of the system. Do 
 - `impact`, `deps --closure` vs `closure`, `dependents`, `resolve`, `ai finish`, `ai resume`, `ai list`, `ai restore`, `digest export`, `state set`, `state refresh`, `ref use`, `bundle --for-review`, `\blocker`, `\block`, `% !LOOM begin preamble` : withdrawn commands and syntax; see the CLI reference for what replaced each.
 - `map.toml`, `map.md` : withdrawn digest form.
 - `--proofs` on `\nest`, `section-nesting` directive : withdrawn; `\nest` is per-site.
-
-## Open questions
-
-- Whether "thread" is too close to its withdrawn meaning to keep in the interface. **[assumed]** Kept; it is the ordinary word for a discussion and arras is the only place it appears.

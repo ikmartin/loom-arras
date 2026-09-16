@@ -1,5 +1,6 @@
 # Runner contract (deferred)
 
+**Not implemented.** This file is the runner's design, kept here because `config.toml`'s `[ai] runner` key points at it. Building it is WQ-15 in `docs/work-queue/`; everything below is what it would be, not what loom does today.
 A runner is an external command that turns one prompt into one response with no interactive session. Loom needs one only for things that happen without a person at the terminal: a triggered ingest under an explicit `--auto`, a batch review of every stale key, and the reply in an in-viewer thread. The MVP builds none of these. This file fixes the contract so the CLI and the AI layer are designed with it in mind. Status: specified, not built.
 
 **[decided]** Loom never contains a model client. The runner is a command named in `config.toml` under `[ai] runner`, and loom knows nothing about what it does beyond this contract. Any model reached through it must be local: a model running on the machine, or an agent CLI operated locally, per principle P9. No hosted API path exists.
@@ -20,7 +21,7 @@ A runner is an external command that turns one prompt into one response with no 
 - stdout: the response, UTF-8, written by loom to `<run>/<mode>-<target>.response.md` verbatim.
 - exit code 0: success; loom then validates the run directory against the mode's output contract (for a review mode, that `loom comment --run` calls were made or a `--batch` file was written to stdout in the documented form; for a draft mode, that a `draft-<id>.tex` exists) and reports.
 - exit code nonzero: failure; stderr is written to `<run>/<mode>-<target>.error.log`; nothing else is recorded.
-- timeout: `[ai] runner_timeout` seconds (**[assumed]** default 900); on timeout the process is killed and treated as failure.
+- timeout: `[ai] runner_timeout` seconds (default 900); on timeout the process is killed and treated as failure.
 
 ## 3. What the runner may do
 
@@ -28,7 +29,7 @@ A runner is an external command that turns one prompt into one response with no 
 
 ## 4. Examples of runner commands
 
-**[deferred]** Exact flags to be verified against each tool's current documentation at implementation time. The shapes:
+The exact flags are to be verified against each tool's current documentation when the runner is built. The shapes:
 
 - An agent CLI's non-interactive mode reading the prompt from stdin and writing the reply to stdout.
 - A local model server's CLI (`ollama run <model>` and similar) with the same stdin/stdout behaviour.
@@ -37,8 +38,3 @@ A runner is an external command that turns one prompt into one response with no 
 ## 5. Triggers
 
 **[decided]** With a runner configured, `loom ai run --queued` executes, one at a time and with confirmation, the items `loom status` would list as work: undigested citekeys (ingest), stale accepted keys (review). `--auto` skips confirmation and is the explicit opt-in to unattended use, because unattended runs cost tokens and review half-typed lemmas. Nothing runs on save; `serve` never invokes the runner.
-
-## Open questions
-
-- Whether the runner should receive the prompt as a file path rather than stdin, for tools that cannot read stdin. **[assumed]** Both: stdin, plus `LOOM_PROMPT_FILE`.
-- Whether responses should be streamed into the run directory for long runs. **[deferred]**

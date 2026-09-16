@@ -37,9 +37,3 @@ They are separate repositories because they have separate release cycles, separa
 **[decided]** Opening a node **launches the browser** rather than embedding a webview. Arras is a web application; a browser tab is what it wants to be, and it is the same page `loom serve` already offers. A webview would be a second rendering surface to keep in step with the first, for no gain.
 
 **[decided]** `LOOM_BIN` and `LOOM_LSP` in the environment override the two path settings. An extension host does not inherit a shell's `PATH`, so a server installed in a virtual environment cannot be found by name, and writing an absolute path into a user's settings is worse than the problem.
-
-## Open questions
-
-- Whether the server should offer rename, which would have to rewrite every `\ref` and every ledger row and is therefore a loom command with an editor trigger rather than an LSP rename. **[deferred]**
-- Whether an Emacs client is worth writing, given that `eglot` needs only the server and a root function. **[deferred]**
-- Whether the code actions that write should become one `loom.run` command the clients share, rather than each client building the same argument vectors. **[assumed]** They should; the server already returns the vector, and only the confirmation differs.

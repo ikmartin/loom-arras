@@ -26,7 +26,7 @@ Every successful write triggers a republish; the viewer sees the change through 
 
 ## 3. Authorship
 
-**[decided]** `author` defaults to the publisher's resolved author name. There is no authentication in version 1; the API binds to localhost and is intended for one person's machine. **[deferred]** Any multi-user deployment needs authentication designed before this API is exposed beyond localhost.
+**[decided]** `author` defaults to the publisher's resolved author name. There is no authentication in version 1; the API binds to localhost and is intended for one person's machine. Exposing it beyond localhost would need authentication, and CSRF and origin checks, designed first; version 1 does not, because it never leaves the machine.
 
 ## 4. Messages and the bridge
 
@@ -35,8 +35,3 @@ Every successful write triggers a republish; the viewer sees the change through 
 ## 5. Selection to quote
 
 **[decided]** The viewer computes the `quote` for a comment from the user's selection in a fragment: the selected text mapped back through the block's `data-src` to source text. When the selection crosses converted markup and the source text cannot be recovered exactly, the viewer sends the rendered text and the publisher attempts the whitespace-normalized match; failure returns the CLI's "quote not found" error and the viewer offers a whole-block comment instead.
-
-## Open questions
-
-- Whether `accept` should be exposed at all in version 1, given that a mis-click is an acceptance row forever. **[assumed]** Exposed behind a confirmation in the viewer.
-- CSRF and origin checks for a localhost API. **[deferred]**

@@ -47,7 +47,7 @@ Rules:
 2. **[decided]** `closure` lists every statement the key depends on transitively (5.7.2) with the hash of each statement's own text at acceptance time. For a proof key, the closure includes its own statement.
 3. **[decided]** `preamble` is the hash of the preamble closure (5.13) of the default master at the time of acceptance, which is the master named in `master` (settled at M3).
 4. **[decided]** `author` comes from the resolution order in 4.3; the row is refused without one.
-5. **[assumed]** `schema = 1`; a future loom migrates on `loom upgrade`.
+5. **[decided]** `schema = 1`; a future loom migrates on `loom upgrade`.
 6. **[decided]** Git merges of concurrent appends to different keys are clean; concurrent acceptances of the same key produce a textual conflict either resolution of which is consistent, since both rows are valid.
 
 ### 7.2.2 Snapshots
@@ -254,11 +254,3 @@ Day 3. The author decides the hypothesis objection is wrong, runs `loom comment 
 Day 9. The author edits Definition `rl-0002`, which `rl-0004`'s statement uses. `status --stale` lists `rl-0004` and `rl-0004/proof` with `dependency-changed rl-0002`; `status --explain rl-0004` shows the diff of the definition. The author reads it, decides nothing is affected, and runs `loom accept --stale`. Two new rows; both keys `accepted` again.
 
 **[decided]** The timeline runs as one test (`test_timeline_7_11`) on the demo quilt, and the synthetic quilt's shipped records were produced by running these commands on a copy, then editing the definition and deleting the retired lemma (settled at M3).
-
-## Open questions
-
-- Whether the ledger should record the arras or loom version: settled at M3, `schema` only.
-- Whether `--kind ok` should be allowed with a message ("read carefully; fine"): settled at M3, yes; the kind is what matters.
-- Whether a person's comment sessions should be one file per day or one per session started explicitly: settled at M3, per day.
-- Whether acceptance should be refused when the master does not compile: settled at M3, refused with `--force` to override.
-- How arras displays a key with both an acceptance and many detached annotations. **[deferred]** to the arras chapter's badge rules.
