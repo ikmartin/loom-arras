@@ -9,8 +9,8 @@ One file per milestone records what was run, what came out, and whether the mile
 | M2 publish and view | demonstrated | 2026-09-15 | serve republishes in 0.88 s; 23 e2e; fixture vendored; see M2.md |
 | M3 review | demonstrated | 2026-09-15 | timeline 7.11 as one test; see M3.md |
 | M4 bring a paper in | demonstrated | 2026-09-15 | both arXiv papers and relloc import with identity passing; ACGS needs no hand edits; see M4.md |
-| M5 digests | in progress | 2026-09-15 | |
-| M6 the AI layer | pending | | |
+| M5 digests | demonstrated | 2026-09-16 | Manolache extracted into relloc; every postnote resolves; bundles compile; see M5.md |
+| M6 the AI layer | in progress | 2026-09-16 | |
 | M7 acceptance | pending | | |
 | book revision | pending | | |
 

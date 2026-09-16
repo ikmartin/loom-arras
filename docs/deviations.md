@@ -31,3 +31,7 @@ Every place the implementation departs from a `[decided]` statement, or settles 
 | 2026-09-15 | 5.6.1 | a `\ref` in the proof's optional argument decides attachment | when every named label is unknown, position decides and the label is a dangling link | deferred proofs with a typo'd label were unattached | DR-63 | n |
 | 2026-09-15 | 6.2.4 | id label inserted after the heading | inserted directly after the heading's arguments, before existing labels | the id must be the first label | DR-64 | n |
 | 2026-09-15 | 6.3, 6.4, 6.6 | identity test on the master | for a non-master SRC, the first reaching master is compiled with DEST in SRC's place in a scratch copy | section files have no PDF of their own | DR-65 | n |
+| 2026-09-16 | 8.7 | `\cite[postnote]` in any region creates an edge | not when the citing node is in the digest of that citekey (its own locator title) | a digest node would depend on itself or its section | DR-66 | n |
+| 2026-09-16 | 8.5.3 | ids `<citekey>-<abbrev>-<number>` | unnumbered results get `-star-<n>` and the locator `(unnumbered)` | `\newtheorem*` results have no number | DR-67 | n |
+| 2026-09-16 | 8.5.2 | emulate counters only when compilation fails | emulate always, resynchronised at each `.aux` number; `numbering: emulated` only without an `.aux` | the `.aux` numbers only labelled results | DR-68 | n |
+| 2026-09-16 | 8.1.7 | map environments by display name | prefer the numbered environment when a display name is declared twice | starred twins such as `thm*` | DR-69 | n |
