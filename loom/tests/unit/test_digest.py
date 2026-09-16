@@ -252,3 +252,35 @@ def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) 
     assert lines[0].startswith("loom:missing-package: digest Ref20 requires xy") and lines[-1].startswith(
         "FAILED bundle dm-0002"
     )
+
+
+def test_unverified_locators_when_the_artifact_and_the_cited_work_differ(tmp_path: Path) -> None:
+    """A digest extracted from a preprint while the bibliography cites the published article carries numbers and pages from the wrong document. It is the fault that was sitting in demos/relloc: `\\cite[Definition 2.1, p.~4]` against an article beginning at page 201 (DR-109)."""
+    q = demo(tmp_path)
+    d = q / "digests" / "Split.tex"
+    d.parent.mkdir(parents=True, exist_ok=True)
+    (q / "refs.bib").write_text(
+        (q / "refs.bib").read_text() + "\n@article{Split, title={S}, doi={10.1090/S1}, eprint={2001.00002v1}}\n",
+        encoding="utf-8",
+    )
+    head = "% !LOOM digest: Split\n% !LOOM prefix: Split\n% !LOOM method: extract\n"
+    body = "\\section*{Overview}\nO.\n\\begin{theorem}[{\\cite[Theorem 1]{Split}}]\\label{Split-thm-1}\nS.\n\\end{theorem}\n"
+
+    d.write_text(
+        head.replace("method", "extracted-from: arXiv:2001.00002v1\n% !LOOM method", 1) + body, encoding="utf-8"
+    )
+    r = run("lint", "--json", cwd=q)
+    assert "loom:unverified-locators" not in r.output  # a preprint alone says nothing is wrong
+
+    d.write_text(
+        "% !LOOM digest: Split\n% !LOOM prefix: Split\n% !LOOM extracted-from: arXiv:2001.00002v1\n"
+        "% !LOOM published-as: doi:10.1090/S1\n% !LOOM method: extract\n" + body,
+        encoding="utf-8",
+    )
+    r = run("lint", "--json", cwd=q)
+    assert "loom:unverified-locators" in r.output and "a reader will open" in r.output
+
+    # and a digest that does not say where its statements came from cannot be checked at all
+    d.write_text(head + body, encoding="utf-8")
+    r = run("lint", "--json", cwd=q)
+    assert "loom:unverified-locators" in r.output and "does not say what it was extracted from" in r.output
