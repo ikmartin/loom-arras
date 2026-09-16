@@ -58,14 +58,16 @@ export function wire(
 		if (mark.dataset.wiredMark) continue;
 		mark.dataset.wiredMark = '1';
 		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
-		const first = manifest?.annotations[ids[0] ?? ''];
+		// several comments can share one phrase, and the mark lists them in no particular order; the one to select is the one with a card of its own, since a reply is shown inside its parent
+		const lead = ids.find((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to) ?? ids[0] ?? '';
+		const first = manifest?.annotations[lead];
 		if (first) mark.title = `${first.kind}: ${first.author.label ?? first.author.id}`;
 		mark.setAttribute('role', 'button');
 		mark.setAttribute('tabindex', '0');
 		mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
 		const go = () => {
-			select(ids[0] ?? '');
-			document.getElementById('ann-' + ids[0])?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			select(lead);
+			document.getElementById('ann-' + lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		};
 		mark.addEventListener('click', go);
 		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go());

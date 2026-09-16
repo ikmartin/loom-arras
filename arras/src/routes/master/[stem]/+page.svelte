@@ -31,8 +31,7 @@
 		<p class="muted">No master in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
 		<header class="doc-head">
-			<h1>{master.title || master.path}</h1>
-			<p class="muted">
+			<p class="faint">
 				<code>{master.path}</code>{master.numbering_known ? '' : ' · not yet compiled: ids shown without numbers'}
 				{#if master.pdf}· <a href={'/build/' + master.pdf}>PDF</a>{/if}
 			</p>
@@ -59,10 +58,6 @@
 	.doc-head {
 		margin-left: -110px;
 		padding-left: 110px;
-	}
-	.doc-head h1 {
-		font-family: var(--body-face);
-		font-size: 22px;
-		font-weight: 500;
+		margin-bottom: var(--gap-wide);
 	}
 </style>

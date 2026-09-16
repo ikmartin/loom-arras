@@ -31,8 +31,17 @@
 		}
 		return out;
 	}
-	const deps = $derived(m.edges.filter((e) => e.from === key || node?.proofs.includes(e.from)));
-	const usedBy = $derived(m.edges.filter((e) => e.to === key || (node?.proofs ?? []).includes(e.to)));
+	// One line per node, not one per edge: a statement and its two proofs all using the same lemma is one dependency, and listing it three times said nothing three times.
+	function collapse(edges: { from: string; to: string; kind: string }[], side: 'to' | 'from') {
+		const out = new Map<string, Set<string>>();
+		for (const e of edges) {
+			const other = e[side];
+			(out.get(other) ?? out.set(other, new Set()).get(other)!).add(e.kind);
+		}
+		return [...out.entries()].map(([k, kinds]) => ({ key: k, kinds: [...kinds].sort() }));
+	}
+	const deps = $derived(collapse(m.edges.filter((e) => e.from === key || node?.proofs.includes(e.from)), 'to'));
+	const usedBy = $derived(collapse(m.edges.filter((e) => e.to === key || (node?.proofs ?? []).includes(e.to)), 'from'));
 	const diagnostics = $derived(m.diagnostics.filter((d) => d.keys.includes(key)));
 	const annotations = $derived(Object.values(m.annotations).filter((a) => a.target.key === key || (node?.proofs ?? []).includes(a.target.key)));
 	const detached = $derived(annotations.filter((a) => a.detached && !a.discarded));
@@ -118,8 +127,8 @@
 		<RailList label="depends on" empty={deps.length ? '' : 'nothing'}>
 			{#if deps.length}
 				<ul class="plain">
-					{#each deps as e, i (i)}
-						<li><a href={keyUrl(m, e.to)}>{label(e.to)}</a> <span class="faint">{e.kind}</span></li>
+					{#each deps as d (d.key)}
+						<li><a href={keyUrl(m, d.key)}>{label(d.key)}</a> <span class="faint">{d.kinds.join(', ')}</span></li>
 					{/each}
 				</ul>
 				{#if closure.length}<p class="faint">read first: {closure.length} more</p>{/if}
@@ -129,8 +138,8 @@
 		<RailList label="used by" empty={usedBy.length ? '' : 'nothing'}>
 			{#if usedBy.length}
 				<ul class="plain">
-					{#each usedBy as e, i (i)}
-						<li><a href={keyUrl(m, e.from)}>{label(e.from)}</a> <span class="faint">{e.kind}</span></li>
+					{#each usedBy as d (d.key)}
+						<li><a href={keyUrl(m, d.key)}>{label(d.key)}</a> <span class="faint">{d.kinds.join(', ')}</span></li>
 					{/each}
 				</ul>
 			{/if}

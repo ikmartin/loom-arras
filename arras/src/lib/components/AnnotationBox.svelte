@@ -10,9 +10,9 @@
 <article class="box kind-{annotation.kind}" class:active class:discarded={annotation.discarded} id={'ann-' + annotation.id} data-annotation-id={annotation.id}>
 	<header>
 		<span class="kind">{annotation.kind}</span>
-		<span class="author">{annotation.author.label ?? annotation.author.id}</span>
 		<span class="date">{shortDate(annotation.created)}</span>
 		<span class="status">{annotation.status}</span>
+		<span class="author" title={annotation.author.id}>{annotation.author.label ?? annotation.author.id}</span>
 		{#if annotation.detached}<span class="detached">detached</span>{/if}
 		{#if annotation.discarded}<span class="detached">discarded</span>{/if}
 	</header>
@@ -32,12 +32,18 @@
 
 <style>
 	.box {
+		background: var(--sheet);
 		border: 1px solid var(--rule);
 		border-left: 3px solid var(--rule);
-		border-radius: 4px;
-		padding: 0.5rem 0.75rem;
-		margin: 0.5rem 0;
-		font-size: 0.92rem;
+		border-radius: var(--rad-control);
+		padding: var(--gap-tight);
+		margin: var(--gap-tight) 0;
+		font-size: 11px;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
+	}
+	.kind-objection {
+		background: var(--state-incomplete-wash);
 	}
 	.box.active {
 		border-color: var(--link);
@@ -60,17 +66,27 @@
 	}
 	header {
 		display: flex;
-		gap: 0.6rem;
-		color: var(--ink-soft);
-		font-size: 0.8rem;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--gap-hair);
+		color: var(--ink-faint);
+		font-family: var(--sans);
+		font-size: 9px;
+		letter-spacing: 0.02em;
+		margin-bottom: var(--gap-hair);
 	}
 	header .kind {
-		font-weight: 600;
 		color: var(--ink);
 	}
+	header .author {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 	.quote {
-		margin: 0.3rem 0;
-		padding-left: 0.6rem;
+		margin: var(--gap-hair) 0;
+		padding-left: var(--gap-tight);
 		border-left: 2px solid var(--mark);
 		color: var(--ink-soft);
 		font-style: italic;
