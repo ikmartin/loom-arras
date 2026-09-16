@@ -90,18 +90,22 @@ def run_import(
         raise EnvError(f"{paper} is not a file")
     plan = plan_import(quilt, paper, fix_anchors, prefix)
     note(f"Resolving closure of {paper.name} ... {len(plan.files)} files")
+    # the arrows are what would be copied, not what was: everything below is a plan until "Wrote N files" at the end
+    note("Plan, nothing written yet:")
     for dest, src in plan.files.items():
         if Path(src).name != Path(dest).name or not dest.startswith(quilt.config.drafts):
             note(f"  {Path(src).relative_to(plan.paper_dir).as_posix()} -> {dest}")
         else:
             note(f"  {Path(src).name} -> {dest}")
     for name in plan.outside:
-        note(f"  loom:import-outside-tree: {name} lies outside the paper directory and is not copied")
+        note(f"  {name} -> not copied; it lies outside the paper directory (loom:import-outside-tree)")
     if plan.violations:
+        note(f"Nothing was written. {paper.name} has {len(plan.violations)} line-anchoring violation(s):")
         for v in plan.violations[:20]:
             note(f"  line {v.line}: \\{v.kind}{{{v.env}}} is not alone on its line")
         raise ContentError(
-            f"{len(plan.violations)} line-anchoring violation(s) (loom:line-anchoring); fix them or pass --fix-anchoring to rewrite the copy"
+            "loom needs a theorem-like \\begin and \\end alone on their lines to find a node's exact span. "
+            "Fix them in the paper, or pass --fix-anchoring to rewrite loom's copy and leave your original alone."
         )
     if plan.spans:
         raise ContentError("an environment spans files: " + "; ".join(plan.spans))
