@@ -32,9 +32,13 @@ They are separate repositories because they have separate release cycles, separa
 
 **[decided]** A session owns its servers: one `loom serve` per quilt, on a port the plugin finds free and passes as `--port`, in a tmux pane below Neovim's own when Neovim runs inside tmux and in an unentered terminal split otherwise. Open in arras starts it when it is not running, waits until the manifest answers, says where it started, and leaves the cursor in the file; quitting Neovim stops every server the session started. Two sessions on one quilt run two servers over the same files, which show the same thing, and never compete for a port. Code actions' `loom.run` and `loom.open` are carried out by the plugin.
 
+**[decided]** Compiling stays vimtex's. A master in `drafts/` names everything relative to the quilt root (P12), and vimtex runs latexmk in the master's own folder, so while a file inside a quilt is the current buffer the plugin puts the quilt root first on `TEXINPUTS` and `BIBINPUTS` in Neovim's own environment, which the latexmk vimtex starts inherits; a file outside any quilt restores the original values. The quilt holds no search path and its source depends on none: the variables are the editor adapting to how it launches TeX, and they exist only in that Neovim process.
+
 ## 16.3 The VS Code client
 
 **[decided]** It activates only inside a quilt and starts a client for the server there; in a plain LaTeX folder it starts nothing. Eight palette entries under `Loom:` mirror the Neovim set, and a status bar item names the node under the cursor. A window owns its servers as a Neovim session does, one `loom serve` per quilt on a free port, run in a terminal that is not brought forward and disposed when the window closes, and it carries out `loom.run` and `loom.open` itself.
+
+**[decided]** LaTeX Workshop, which compiles in the main file's folder by default, is made to compile a quilt from its root through its own setting `latex-workshop.latex.build.fromFolder`, written to the workspace folder's settings only after the author agrees, once per quilt or on demand from the palette; before LaTeX Workshop 10.15.0 the boolean `fromWorkspaceFolder` serves a quilt that is its workspace folder. A setting the author can see and remove, rather than a changed search path inside the extension host, is what a VS Code user expects and can debug.
 
 **[decided]** Opening a node **launches the browser** rather than embedding a webview. Arras is a web application; a browser tab is what it wants to be, and it is the same page `loom serve` already offers. A webview would be a second rendering surface to keep in step with the first, for no gain.
 
