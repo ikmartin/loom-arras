@@ -4,32 +4,50 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
-		<link href="/_app/immutable/entry/start.m4E6Oa83.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/BcA34VSk.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/BnkgH5TF.js" rel="modulepreload">
-		<link href="/_app/immutable/entry/app.l0uDb6bQ.js" rel="modulepreload">
+		<script>
+			// The stored preferences are applied before the first paint: the app renders client-side, so without this the page flashes the default theme and width (book 15.7).
+			try {
+				var p = JSON.parse(localStorage.getItem('arras.prefs') || '{}');
+				var e = document.documentElement;
+				if (['a', 'b', 'c'].indexOf(p.shell) >= 0) e.setAttribute('data-shell', p.shell);
+				if (['serif', 'sans'].indexOf(p.face) >= 0) e.setAttribute('data-face', p.face);
+				if (['s', 'm', 'l'].indexOf(p.size) >= 0) e.setAttribute('data-size', p.size);
+				if (['narrow', 'mid', 'wide'].indexOf(p.width) >= 0) e.setAttribute('data-width', p.width);
+				if (p.theme === 'light' || p.theme === 'dark') e.setAttribute('data-theme', p.theme);
+			} catch (err) {
+				/* no stored preferences, or storage is unavailable: the defaults stand */
+			}
+		</script>
+		<link href="/_app/immutable/entry/start.zJoH_ofR.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/ACZaVGDy.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DzBHVohK.js" rel="modulepreload">
+		<link href="/_app/immutable/entry/app.D9O84h6m.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/uBIymjUX.js" rel="modulepreload">
 		<link href="/_app/immutable/chunks/xihTtKlq.js" rel="modulepreload">
-		<link href="/_app/immutable/nodes/0.Cda-DC59.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/DdP0IZyz.js" rel="modulepreload">
-		<link href="/_app/immutable/chunks/DIvW-Y6b.js" rel="modulepreload">
+		<link href="/_app/immutable/nodes/0.DzT0vlnp.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DiSGLDFh.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/DCDyNqhR.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/C3IeTtfx.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/Cw0Yc79U.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/C1aAlFFd.js" rel="modulepreload">
+		<link href="/_app/immutable/chunks/CKkdZSHT.js" rel="modulepreload">
 		
-		<link href="/_app/immutable/assets/Diagnostics.B9hEb5ep.css" rel="stylesheet">
-		<link href="/_app/immutable/assets/0.DoWEcAeS.css" rel="stylesheet">
+		<link href="/_app/immutable/assets/Tex.9g9RUBYr.css" rel="stylesheet">
+		<link href="/_app/immutable/assets/0.CQ41kgr7.css" rel="stylesheet">
 	</head>
 	<body data-sveltekit-preload-data="hover">
 		<div style="display: contents">
 			<script>
 				{
-					__sveltekit_guo1tm = {
+					__sveltekit_19x7r7j = {
 						base: ""
 					};
 
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("/_app/immutable/entry/start.m4E6Oa83.js"),
-						import("/_app/immutable/entry/app.l0uDb6bQ.js")
+						import("/_app/immutable/entry/start.zJoH_ofR.js"),
+						import("/_app/immutable/entry/app.D9O84h6m.js")
 					]).then(([kit, app]) => {
 						kit.start(app, element);
 					});

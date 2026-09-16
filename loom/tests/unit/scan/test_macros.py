@@ -40,3 +40,22 @@ def test_macros_math_classification_and_mathjax() -> None:
 def test_macros_later_definition_wins() -> None:
     m = parse_macros(r"\newcommand{\a}{1} \renewcommand{\a}{2}")
     assert m["a"].body == "2"
+
+
+def test_conditionals_a_math_renderer_cannot_evaluate_are_resolved() -> None:
+    """MathJax implements no TeX conditionals, so `\\arr` reached the page as the words `\\ifinner`, `\\else` and `\\fi` in error red beside two arrows (seen on the ACGS import). `\\ifinner` asks exactly what `\\mathchoice` selects on; `\\ifmmode` is always true inside math."""
+    m = parse_macros(r"\newcommand\arr{\ifinner\to\else\longrightarrow\fi}")
+    assert to_mathjax(m) == [{"name": "arr", "args": 0, "body": r"\mathchoice{\longrightarrow}{\to}{\to}{\to}"}]
+
+    m = parse_macros(r"\newcommand\x{\ifmmode A\else B\fi}")
+    assert to_mathjax(m)[0]["body"] == "A"
+
+    m = parse_macros(r"\newcommand\y{a\ifinner\to\fi b}")
+    assert to_mathjax(m)[0]["body"] == r"a\mathchoice{}{\to}{\to}{\to} b"  # the space after \fi is the author's
+
+
+def test_a_conditional_that_cannot_be_resolved_is_left_alone() -> None:
+    """Guessing a branch of a test the renderer might handle differently would silently change the mathematics."""
+    body = r"\ifdim 1pt>0pt A\else B\fi"
+    m = parse_macros(r"\newcommand\z{" + body + "}")
+    assert to_mathjax(m)[0]["body"] == body

@@ -1,0 +1,1 @@
+import{V as e,et as t,tt as n}from"./DzBHVohK.js";import"./xihTtKlq.js";import{t as r}from"./C1aAlFFd.js";function i(i,a){n(a,!0),e(()=>(r.snippet=a.children,()=>{r.snippet=null})),t()}export{i as t};

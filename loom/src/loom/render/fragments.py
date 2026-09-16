@@ -267,7 +267,9 @@ class FragmentRenderer:
         body = conv.render_range(env.body_start, env.body_end) if env else ""
         self.plan.diagnostics.extend(ctx.diagnostics)
         attrs = [f'class="env env-{slug(node.taxon or node.env or "env")}"']
-        attrs.append(f'id="{slug(node.key)}"')  # a real anchor target: without it no link into a document can land (book 15.3.1)
+        attrs.append(
+            f'id="{slug(node.key)}"'
+        )  # a real anchor target: without it no link into a document can land (book 15.3.1)
         if node.id:
             attrs.append(f'data-id="{html.escape(node.id, quote=True)}"')
         attrs.append(f'data-key="{html.escape(node.key, quote=True)}"')
@@ -384,13 +386,29 @@ def master_title(result: ScanResult, master: str) -> str | None:
     return plain_text(raw)
 
 
+_MATH_SPAN = re.compile(r"\$[^$]*\$|\\\((?:.|\n)*?\\\)")
+
+
 def plain_text(latex: str) -> str:
-    """A crude text-only rendering of a title: macros with one argument keep their argument, the rest is dropped."""
-    s = re.sub(r"\\(cite|label|uses|footnote|thanks)\s*(\[[^\]]*\])*\s*\{[^}]*\}", "", latex)
-    s = re.sub(r"\\[A-Za-z@]+\*?\s*(\[[^\]]*\])?\s*\{", "{", s)
-    s = re.sub(r"\\[A-Za-z@]+\*?", " ", s)
-    s = s.replace("{", "").replace("}", "").replace("~", " ").replace("--", "–")
-    return re.sub(r"\s+", " ", s).strip()
+    """A text-only rendering of a title: macros with one argument keep their argument, the rest is dropped, and inline math is kept as written.
+
+    Math is left as LaTeX rather than stripped because stripping it destroyed the title: a section called `Structure of $\\Sigma$` became `Structure of $ $`. A viewer typesets what it can and shows the source otherwise; nothing is lost either way.
+    """
+
+    def outside(part: str) -> str:
+        s = re.sub(r"\\(cite|label|uses|footnote|thanks)\s*(\[[^\]]*\])*\s*\{[^}]*\}", "", part)
+        s = re.sub(r"\\[A-Za-z@]+\*?\s*(\[[^\]]*\])?\s*\{", "{", s)
+        s = re.sub(r"\\[A-Za-z@]+\*?", " ", s)
+        return s.replace("{", "").replace("}", "").replace("~", " ").replace("--", "–")
+
+    out: list[str] = []
+    pos = 0
+    for m in _MATH_SPAN.finditer(latex):
+        out.append(outside(latex[pos : m.start()]))
+        out.append(m.group(0))
+        pos = m.end()
+    out.append(outside(latex[pos:]))
+    return re.sub(r"\s+", " ", "".join(out)).strip()
 
 
 def digest_macro_set(result: ScanResult, file: str) -> list[dict[str, object]]:

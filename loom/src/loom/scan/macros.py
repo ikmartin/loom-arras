@@ -134,9 +134,64 @@ def expand(macro: Macro, args: list[str]) -> str:
     return body
 
 
+_IF = re.compile(r"\\(if[a-zA-Z@]*|else|fi)(?![a-zA-Z@])")
+
+
+def _branches(body: str, start: int) -> tuple[str, str, int] | None:
+    """The then-branch, else-branch and end offset of the conditional whose `\\if...` begins at `start`, or None when it is unterminated."""
+    depth = 0
+    split = -1
+    pos = start
+    while True:
+        m = _IF.search(body, pos)
+        if m is None:
+            return None
+        word = m.group(1)
+        if word.startswith("if"):
+            depth += 1
+        elif word == "else":
+            if depth == 1 and split < 0:
+                split = m.start()
+                then_end = m.start()
+                else_start = m.end()
+        else:  # fi
+            depth -= 1
+            if depth == 0:
+                if split < 0:
+                    return body[_IF.match(body, start).end() : m.start()], "", m.end()  # type: ignore[union-attr]
+                return body[_IF.match(body, start).end() : then_end], body[else_start : m.start()], m.end()  # type: ignore[union-attr]
+        pos = m.end()
+
+
+def resolve_conditionals(body: str) -> str:
+    """Rewrite the TeX conditionals a viewer's math renderer cannot evaluate.
+
+    MathJax implements no conditionals at all, so `\\newcommand\\arr{\\ifinner\\to\\else\\longrightarrow\\fi}` reaches the page as the words `\\ifinner`, `\\else` and `\\fi` set in error red beside two arrows. `\\ifinner` asks whether the formula is inline, which is exactly what `\\mathchoice` selects on, so it is rewritten to one; `\\ifmmode` is always true inside math and takes its first branch. Anything else is left alone, since guessing a branch would silently change the mathematics.
+    """
+    out = body
+    for _ in range(8):  # a branch may itself hold a conditional
+        m = re.search(r"\\(ifinner|ifmmode)(?![a-zA-Z@])", out)
+        if m is None:
+            return out
+        got = _branches(out, m.start())
+        if got is None:
+            return out
+        then, other, end = got
+        then, other = then.lstrip(" "), other.lstrip(" ")  # TeX skips the spaces that follow a control word
+        if m.group(1) == "ifmmode":
+            rep = then
+        else:
+            rep = "\\mathchoice{" + other + "}{" + then + "}{" + then + "}{" + then + "}"
+        out = out[: m.start()] + rep + out[end:]
+    return out
+
+
 def to_mathjax(macros: dict[str, Macro]) -> list[dict[str, object]]:
     """The manifest's macro list: {name, args, body}, sorted by name (book specs/manifest.md §14)."""
-    return [{"name": m.name, "args": m.args, "body": m.body} for m in sorted(macros.values(), key=lambda x: x.name)]
+    return [
+        {"name": m.name, "args": m.args, "body": resolve_conditionals(m.body)}
+        for m in sorted(macros.values(), key=lambda x: x.name)
+    ]
 
 
 MATH_ONLY_HINTS = re.compile(

@@ -116,7 +116,9 @@ def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
     assert r.exit_code == 1, r.output  # the synthetic quilt has three intentional errors
     b = d / "build"
     node = (b / "fragments" / "nodes" / "sy-0003.html").read_text()
-    assert node.startswith('<div data-fragment="node" class="env env-theorem" id="sy-0003" data-id="sy-0003"')  # a real anchor target, so a link into a document lands
+    assert node.startswith(
+        '<div data-fragment="node" class="env env-theorem" id="sy-0003" data-id="sy-0003"'
+    )  # a real anchor target, so a link into a document lands
     assert node.count("<details ") == 2 and 'data-of="sy-0003"' in node
     assert '<span class="number">2.1</span>' in node
     master = (b / "fragments" / "masters" / "main.html").read_text()
