@@ -3,11 +3,14 @@
 	import { goto } from '$app/navigation';
 	import { store } from '$lib/manifest/client.svelte';
 	import { masterUrl, nodeUrl, threadUrl } from '$lib/nav';
+	import { registerPalette } from '$lib/palette';
 
 	let el: HTMLElement | undefined = $state();
 
-	onMount(async () => {
-		await import('ninja-keys');
+	onMount(() => {
+		void import('ninja-keys');
+		registerPalette(() => (el as unknown as { open?: () => void } | undefined)?.open?.());
+		return () => registerPalette(null);
 	});
 
 	type Item = { id: string; title: string; section: string; keywords?: string; handler: () => void };

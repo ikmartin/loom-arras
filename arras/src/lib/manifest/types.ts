@@ -41,6 +41,8 @@ export interface NumberEntry {
 export interface Node {
 	id: string;
 	kind: 'environment' | 'section' | 'proof' | (string & {});
+	/** Sections only: the sectioning depth, 1 for \section. A contents list stops at a chosen depth with it. */
+	level?: number | null;
 	taxon: string;
 	style?: string;
 	title?: string;

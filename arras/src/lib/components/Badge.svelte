@@ -1,12 +1,14 @@
 <script lang="ts">
+	// A state badge (book 15.3.2): a 14px pill, tinted background, state-coloured text. The colour comes from `state.ts`, never from this component.
 	import type { BadgePart } from '$lib/badges';
+	import { toneClass } from '$lib/state';
 
 	let { parts, facts = '' }: { parts: BadgePart[]; facts?: string } = $props();
 </script>
 
 <span class="badge">
 	{#each parts as p, i (i)}
-		<span class="chip chip-{p.color}">{p.text}</span>
+		<span class="chip {toneClass(p.color)}">{p.text}</span>
 	{/each}
 	{#if facts}<span class="facts">{facts}</span>{/if}
 </span>
@@ -15,36 +17,23 @@
 	.badge {
 		display: inline-flex;
 		flex-wrap: wrap;
-		gap: 0.3rem;
+		gap: var(--gap-hair);
 		align-items: baseline;
 	}
 	.chip {
-		font-size: 0.75rem;
-		padding: 0.05rem 0.45rem;
-		border-radius: 999px;
-		border: 1px solid var(--chip-border);
-		background: var(--chip-neutral);
-		color: var(--fg);
-	}
-	.chip-positive {
-		background: var(--chip-positive);
-	}
-	.chip-positive-strong {
-		background: var(--chip-positive-strong);
-		color: #fff;
-	}
-	.chip-warning {
-		background: var(--chip-warning);
-	}
-	.chip-negative {
-		background: var(--chip-negative);
-		color: #fff;
-	}
-	.chip-info {
-		background: var(--chip-info);
+		font-family: var(--sans);
+		font-size: 9px;
+		letter-spacing: 0.03em;
+		text-transform: lowercase;
+		line-height: 14px;
+		padding: 0 6px;
+		border-radius: var(--rad-pill);
+		background: var(--tone-wash);
+		color: var(--tone);
 	}
 	.facts {
-		font-size: 0.8rem;
-		color: var(--muted);
+		font-family: var(--sans);
+		font-size: 10px;
+		color: var(--ink-faint);
 	}
 </style>
