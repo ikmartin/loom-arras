@@ -1,5 +1,5 @@
 [quilt]
-main = "drafts/main.tex"    # default master
+main = "drafts/draft3.tex"    # default master
 drafts = "drafts"           # masters directory
 prefix = "rl"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides

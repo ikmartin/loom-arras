@@ -1,0 +1,60 @@
+%\usepackage[T1]{fontenc}
+\usepackage{microtype}        % better justification, fewer overful hboxes
+
+%%%%%%%%%%%%%%%%%%
+%% Font Choices
+%%%%%%%%%%%%%%%%%%
+
+%\usepackage{lmodern}          % safe default, good screen rendering
+%\usepackage{mathpazo}         % Palatino: wider, more readable than Times
+%\usepackage{fourier}          % Utopia: excellent for math-heavy documents
+
+% line spacing in the document
+\linespread{1.2}
+
+% xcolor commonly causes option clashes, this fixes that
+\PassOptionsToPackage{dvipsnames,table}{xcolor}
+\usepackage[tmargin=1in, bmargin=1in, lmargin=1.3in, rmargin=1.3in]{geometry}
+
+% included exclusively for clickable table of contents
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=black,
+    urlcolor=black
+}
+
+% use the better epsilon
+\renewcommand{\epsilon}{\varepsilon}
+
+% suppress the warning page
+\pdfsuppresswarningpagegroup=1
+
+% enable synctex for inverse search
+\synctex=1
+
+% include packages
+\usepackage{base-macros,math-env,quiver}
+\usepackage{microtype}
+
+% colored text shortcuts
+
+\newcommand{\isaac}[1]{\textcolor{Mahogany}{(Isaac) #1}}
+\newcommand{\blue}[1]{\color{MidnightBlue}{#1}}
+\newcommand{\red}[1]{\textcolor{Mahogany}{#1}}
+\newcommand{\green}[1]{\textcolor{ForestGreen}{#1}}
+
+% use mathptmx pkg while using default mathcal font
+\DeclareMathAlphabet{\mathcal}{OMS}{cmsy}{m}{n}
+
+% fixes the positioning of subscripts in $$ $$
+\renewcommand{\det}{\operatorname{det}}
+
+% number the pages
+\pagenumbering{arabic}
+
+\usetikzlibrary{positioning, arrows.meta}
+\newcommand{\here}[2]{\tikz[remember picture]{\node[inner sep=0](#2){#1}}}
+
