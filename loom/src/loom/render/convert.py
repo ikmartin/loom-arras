@@ -1,0 +1,950 @@
+"""LaTeX to the semantic dialect (book 9.4, docs/specs/dialect.md).
+
+A restricted translator over a node's own text: paragraphs, headings, lists, display math (left as TeX for the viewer), theorem-like environments and proofs, references, citations, footnotes, figures, simple tables, verbatim. Every block carries `data-src` back to its file offsets. Anything outside the contract renders exactly, per block, as SVG through `fallback.compile_svg`; nothing is silently dropped.
+"""
+
+from __future__ import annotations
+
+import html
+import re
+from collections.abc import Callable
+from dataclasses import dataclass, field
+
+from loom.scan.macros import expand
+from loom.scan.model import Diagnostic, Location, Macro, Taxon
+from loom.scan.tokenize import Tok, match_group, read_args, tokenize
+from loom.tex.aux import AuxNumber
+
+DISPLAY_ENVS = {
+    "equation",
+    "equation*",
+    "align",
+    "align*",
+    "gather",
+    "gather*",
+    "multline",
+    "multline*",
+    "eqnarray",
+    "eqnarray*",
+    "alignat",
+    "alignat*",
+    "flalign",
+    "flalign*",
+    "displaymath",
+    "split",
+    "cases",
+}
+LIST_ENVS = {
+    "itemize": "ul",
+    "enumerate": "ol",
+    "description": "dl",
+    "compactitem": "ul",
+    "compactenum": "ol",
+    "inparaenum": "ol",
+    "asparaenum": "ol",
+    "enumeratei": "ol",
+    "enumeratea": "ol",
+    "enumerate1": "ol",
+    "todolist": "ul",
+}
+CONTAINER_ENVS = {
+    "center",
+    "flushleft",
+    "flushright",
+    "quote",
+    "quotation",
+    "abstract",
+    "frame",
+    "block",
+    "small",
+    "footnotesize",
+    "minipage",
+}
+DIAGRAM_ENVS = {"tikzcd", "tikzpicture", "xy", "xymatrix"}
+VERBATIM_ENVS = {"verbatim", "verbatim*", "lstlisting"}
+SECTIONING = {
+    "part": -1,
+    "chapter": 0,
+    "section": 1,
+    "subsection": 2,
+    "subsubsection": 3,
+    "paragraph": 4,
+    "subparagraph": 5,
+}
+REF_CMDS = {"ref", "eqref", "cref", "Cref", "autoref", "pageref", "vref", "Vref"}
+CITE_CMDS = {
+    "cite",
+    "parencite",
+    "textcite",
+    "autocite",
+    "citep",
+    "citet",
+    "Cite",
+    "Parencite",
+    "Textcite",
+    "cites",
+    "footcite",
+    "citeauthor",
+    "citeyear",
+}
+INLINE_WRAP = {
+    "emph": "em",
+    "textit": "em",
+    "textbf": "strong",
+    "texttt": "code",
+    "textsc": "span.smallcaps",
+    "underline": "u",
+    "textsl": "em",
+    "textup": "",
+    "textrm": "",
+    "textmd": "",
+    "textnormal": "",
+    "mbox": "",
+    "hbox": "",
+    "text": "",
+    "textcolor": "!color",
+    "color": "!decl",
+    "mathrm": "",
+}
+IGNORED_CMDS = {
+    "noindent",
+    "indent",
+    "newline",
+    "smallskip",
+    "medskip",
+    "bigskip",
+    "vspace",
+    "vspace*",
+    "hspace",
+    "hspace*",
+    "vfill",
+    "hfill",
+    "centering",
+    "raggedright",
+    "raggedleft",
+    "label",
+    "uses",
+    "protect",
+    "relax",
+    "sloppy",
+    "fussy",
+    "allowbreak",
+    "linebreak",
+    "nolinebreak",
+    "pagebreak",
+    "nopagebreak",
+    "newpage",
+    "clearpage",
+    "cleardoublepage",
+    "maketitle",
+    "tableofcontents",
+    "printbibliography",
+    "bibliography",
+    "bibliographystyle",
+    "addcontentsline",
+    "thispagestyle",
+    "pagestyle",
+    "setcounter",
+    "addtocounter",
+    "numberwithin",
+    "qed",
+    "qedhere",
+    "displaystyle",
+    "footnotesize",
+    "small",
+    "large",
+    "Large",
+    "LARGE",
+    "huge",
+    "Huge",
+    "normalsize",
+    "scriptsize",
+    "tiny",
+    "em",
+    "bf",
+    "it",
+    "rm",
+    "sc",
+    "tt",
+    "sf",
+    "bfseries",
+    "itshape",
+    "scshape",
+    "ttfamily",
+    "rmfamily",
+    "sffamily",
+    "upshape",
+    "mdseries",
+    "normalfont",
+    "phantomsection",
+    "index",
+    "glossary",
+    "nocite",
+    "par",
+    "leavevmode",
+    "ignorespaces",
+    "unskip",
+    "frenchspacing",
+    "nonfrenchspacing",
+    "hyphenation",
+    "selectlanguage",
+}
+SYMBOLS = {
+    "S": "§",
+    "P": "¶",
+    "dots": "…",
+    "ldots": "…",
+    "textellipsis": "…",
+    "&": "&amp;",
+    "%": "%",
+    "$": "$",
+    "#": "#",
+    "_": "_",
+    "{": "{",
+    "}": "}",
+    "textbackslash": "\\",
+    "textendash": "–",
+    "textemdash": "—",
+    "textquoteleft": "‘",
+    "textquoteright": "’",
+    "textquotedblleft": "“",
+    "textquotedblright": "”",
+    "TeX": "TeX",
+    "LaTeX": "LaTeX",
+    "LaTeXe": "LaTeX2e",
+    "copyright": "©",
+    "dag": "†",
+    "ddag": "‡",
+    "pounds": "£",
+    "textdegree": "°",
+    "textasciitilde": "~",
+    "textasciicircum": "^",
+    "textbar": "|",
+    "textless": "&lt;",
+    "textgreater": "&gt;",
+    "textbullet": "•",
+    "guillemotleft": "«",
+    "guillemotright": "»",
+    "ss": "ß",
+    "ae": "æ",
+    "AE": "Æ",
+    "oe": "œ",
+    "OE": "Œ",
+    "o": "ø",
+    "O": "Ø",
+    "aa": "å",
+    "AA": "Å",
+    "i": "ı",
+    "j": "ȷ",
+    "l": "ł",
+    "L": "Ł",
+    " ": " ",
+    ",": "\u2009",
+    ";": "\u2005",
+    "!": "",
+    "@": "",
+    "/": "",
+    "-": "",
+    "quad": "\u2003",
+    "qquad": "\u2003\u2003",
+    "space": " ",
+    "enspace": "\u2002",
+    "thinspace": "\u2009",
+    "slash": "/",
+    "textvisiblespace": "␣",
+}
+ACCENTS = {
+    "'": "\u0301",
+    "`": "\u0300",
+    "^": "\u0302",
+    '"': "\u0308",
+    "~": "\u0303",
+    "=": "\u0304",
+    ".": "\u0307",
+    "u": "\u0306",
+    "v": "\u030c",
+    "H": "\u030b",
+    "c": "\u0327",
+    "k": "\u0328",
+    "b": "\u0331",
+    "d": "\u0323",
+    "r": "\u030a",
+    "t": "\u0361",
+}
+MAX_MACRO_DEPTH = 8
+
+
+@dataclass
+class RenderContext:
+    file: str
+    text: str
+    clean: str
+    key: str
+    labels: dict[str, str]
+    regions: dict[str, str]  # region key -> container key
+    numbers: dict[str, AuxNumber]
+    macros: dict[str, Macro]
+    taxa: dict[str, Taxon]
+    child_at: dict[int, tuple[int, str]]
+    child_html: Callable[[str], str]
+    include_html: Callable[[str], str]  # for \input{...} lines: html for the included file's nodes
+    fallback: Callable[[str, str, str], str]  # (latex, css_class, data_src) -> html
+    cite_target: Callable[[str, str | None], str | None]
+    diagnostics: list[Diagnostic] = field(default_factory=list)
+    footnotes: int = 0
+    region_ids: dict[str, str] = field(default_factory=dict)  # label -> element id
+
+    def src(self, a: int, b: int) -> str:
+        return f"{self.file}:{a}:{b}"
+
+
+def esc(s: str) -> str:
+    return html.escape(s, quote=False)
+
+
+def slug(s: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]+", "-", s).strip("-").lower() or "x"
+
+
+def ligatures(s: str) -> str:
+    s = s.replace("---", "—").replace("--", "–")
+    s = s.replace("``", "“").replace("''", "”").replace("`", "‘").replace("'", "’")
+    s = s.replace("~", "\u00a0")
+    return s
+
+
+def number_of(ctx: RenderContext, label: str) -> str | None:
+    n = ctx.numbers.get(label)
+    return n.number if n else None
+
+
+class Converter:
+    def __init__(self, ctx: RenderContext) -> None:
+        self.ctx = ctx
+
+    # ---- ranges and blocks -------------------------------------------------
+
+    def render_range(self, a: int, b: int) -> str:
+        """Render file text [a, b) as blocks, substituting child claimants and inclusion lines."""
+        out: list[str] = []
+        pos = a
+        while pos < b:
+            child = self.ctx.child_at.get(pos)
+            if child is not None:
+                end, key = child
+                out.append(self.ctx.child_html(key))
+                pos = end
+                continue
+            nxt = min([s for s in self.ctx.child_at if pos < s < b] + [b])
+            out.append(self._blocks(pos, nxt))
+            pos = nxt
+        return "".join(out)
+
+    def _blocks(self, a: int, b: int) -> str:
+        toks = [t for t in tokenize(self.ctx.clean[a:b])]
+        toks = [Tok(t.kind, t.start + a, t.end + a, t.value) for t in toks]
+        return self._walk(toks, a, b)
+
+    def _walk(self, toks: list[Tok], a: int, b: int) -> str:
+        ctx = self.ctx
+        clean = ctx.clean
+        out: list[str] = []
+        para: list[str] = []
+        pstart = [a]
+        fallback_reason: list[str | None] = [None]
+
+        def flush(pend: int) -> None:
+            body = "".join(para)
+            if body.strip():
+                if fallback_reason[0]:
+                    latex = ctx.text[pstart[0] : pend].strip()
+                    ctx.diagnostics.append(
+                        Diagnostic(
+                            "info",
+                            "loom:converter-fallback",
+                            f"{fallback_reason[0]} in {ctx.key}; rendered as SVG",
+                            [Location(ctx.file, 0)],
+                            [ctx.key],
+                        )
+                    )
+                    out.append(ctx.fallback(latex, "fallback", ctx.src(pstart[0], pend)))
+                else:
+                    out.append(f'<p data-src="{ctx.src(pstart[0], pend)}">{body.strip()}</p>')
+            para.clear()
+            fallback_reason[0] = None
+
+        i = 0
+        n = len(toks)
+        while i < n:
+            t = toks[i]
+            if not para:
+                pstart[0] = t.start
+            if t.kind == "text":
+                parts = re.split(r"(\n[ \t]*\n\s*)", t.value)
+                offset = t.start
+                for k, part in enumerate(parts):
+                    if k % 2 == 1:
+                        flush(offset)
+                        offset += len(part)
+                        pstart[0] = offset
+                        continue
+                    if part:
+                        if not para and not part.strip():
+                            pstart[0] = offset + len(part)
+                        para.append(esc(ligatures(part)))
+                    offset += len(part)
+                i += 1
+                continue
+            if t.kind == "begin":
+                env = t.value
+                end_idx = self._matching_end(toks, i)
+                env_end = toks[end_idx].end if end_idx is not None else b
+                if env in DISPLAY_ENVS:
+                    flush(t.start)
+                    out.append(self.display_env(env, t.start, env_end))
+                elif env in LIST_ENVS:
+                    flush(t.start)
+                    out.append(self.list_env(env, t.start, env_end, toks[i + 1 : end_idx] if end_idx else []))
+                elif env in DIAGRAM_ENVS:
+                    flush(t.start)
+                    out.append(ctx.fallback(ctx.text[t.start : env_end], "diagram", ctx.src(t.start, env_end)))
+                elif env in VERBATIM_ENVS:
+                    flush(t.start)
+                    inner = ctx.text[t.end : toks[end_idx].start] if end_idx else ctx.text[t.end : env_end]
+                    code = esc(inner.strip("\n"))
+                    out.append(f'<pre data-src="{ctx.src(t.start, env_end)}"><code>{code}</code></pre>')
+                elif env in ("figure", "figure*", "table", "table*", "wrapfigure"):
+                    flush(t.start)
+                    out.append(self.figure_env(t, env_end, end_idx, toks))
+                elif env in ("tabular", "tabular*", "array", "longtable"):
+                    flush(t.start)
+                    out.append(self.tabular_env(t, env_end, end_idx))
+                elif env in CONTAINER_ENVS:
+                    flush(t.start)
+                    inner_start = toks[i + 1].start if end_idx and i + 1 < end_idx else t.end
+                    inner_end = toks[end_idx].start if end_idx else env_end
+                    _, _, after = (
+                        read_args(clean, t.end, "o") if env in ("frame", "block", "minipage") else (None, None, t.end)
+                    )
+                    if env == "minipage":
+                        _, _, after = read_args(clean, after, "m")
+                    inner = self.render_range(max(after, inner_start if inner_start > after else after), inner_end)
+                    tag = "blockquote" if env in ("quote", "quotation", "abstract") else "div"
+                    if tag == "div":
+                        out.append(inner)
+                    else:
+                        out.append(f'<{tag} data-src="{ctx.src(t.start, env_end)}">{inner}</{tag}>')
+                elif t.start in ctx.child_at:
+                    flush(t.start)
+                    out.append(ctx.child_html(ctx.child_at[t.start][1]))
+                elif env in ("proof",) or env in ctx.taxa:
+                    flush(t.start)
+                    out.append(ctx.fallback(ctx.text[t.start : env_end], "fallback", ctx.src(t.start, env_end)))
+                elif env in ("document",):
+                    i += 1
+                    continue
+                else:
+                    flush(t.start)
+                    ctx.diagnostics.append(
+                        Diagnostic(
+                            "info",
+                            "loom:converter-fallback",
+                            f"environment {env} in {ctx.key}; rendered as SVG",
+                            [Location(ctx.file, 0)],
+                            [ctx.key],
+                        )
+                    )
+                    out.append(ctx.fallback(ctx.text[t.start : env_end], "fallback", ctx.src(t.start, env_end)))
+                i = (end_idx + 1) if end_idx is not None else n
+                continue
+            if t.kind == "end":
+                i += 1
+                continue
+            if t.kind == "math":
+                if t.value in ("$$", "\\["):
+                    close_val = "$$" if t.value == "$$" else "\\]"
+                    j = next(
+                        (k for k in range(i + 1, n) if toks[k].kind == "math" and toks[k].value == close_val), None
+                    )
+                    flush(t.start)
+                    end = toks[j].end if j is not None else b
+                    inner = ctx.text[t.end : toks[j].start] if j is not None else ctx.text[t.end : b]
+                    out.append(self.display_block(inner, t.start, end, None))
+                    i = (j + 1) if j is not None else n
+                    continue
+                if t.value in ("$", "\\("):
+                    close_val = "$" if t.value == "$" else "\\)"
+                    j = next(
+                        (k for k in range(i + 1, n) if toks[k].kind == "math" and toks[k].value == close_val), None
+                    )
+                    inner = ctx.text[t.end : toks[j].start] if j is not None else ctx.text[t.end : b]
+                    para.append(f'<span class="math inline">\\({esc(self.math_text(inner))}\\)</span>')
+                    i = (j + 1) if j is not None else n
+                    continue
+                i += 1
+                continue
+            if t.kind == "verb":
+                para.append(f"<code>{esc(t.value)}</code>")
+                i += 1
+                continue
+            if t.kind == "verbatim":
+                i += 1
+                continue
+            if t.kind == "open":
+                j = self._matching_close(toks, i)
+                inner_html, reason = self.inline_range(toks[i + 1 : j], toks[i].end, toks[j].start if j < n else b)
+                para.append(inner_html)
+                if reason and not fallback_reason[0]:
+                    fallback_reason[0] = reason
+                i = j + 1
+                continue
+            if t.kind in ("close", "bopen", "bclose"):
+                if t.kind in ("bopen", "bclose"):
+                    para.append(esc(t.value))
+                i += 1
+                continue
+            if t.kind == "cmd":
+                name = t.value
+                if name in SECTIONING:
+                    flush(t.start)
+                    (short, title), spans, after = read_args(clean, t.end, "om")
+                    level = SECTIONING[name]
+                    h = min(max(level, 1), 6)
+                    title_html = self.inline_text(title or "", spans[1][0]) if title is not None else ""
+                    out.append(f'<h{h} data-src="{ctx.src(t.start, after)}">{title_html}</h{h}>')
+                    i = self._skip_to(toks, i, after)
+                    continue
+                if name in ("input", "include", "nest"):
+                    flush(t.start)
+                    (arg,), spans, after = read_args(clean, t.end, "m")
+                    out.append(ctx.include_html(arg or ""))
+                    i = self._skip_to(toks, i, after)
+                    continue
+                if name == "includegraphics":
+                    flush(t.start)
+                    (opts, arg), spans, after = read_args(clean, t.end, "om")
+                    out.append(ctx.include_html("graphics:" + (arg or "")))
+                    i = self._skip_to(toks, i, after)
+                    continue
+                if name == "item":
+                    i += 1
+                    continue
+                piece, after, reason = self.inline_command(t, toks, i, b)
+                if piece is not None:
+                    para.append(piece)
+                if reason and not fallback_reason[0]:
+                    fallback_reason[0] = reason
+                i = self._skip_to(toks, i, after) if after > t.end else i + 1
+                continue
+            i += 1
+        flush(b)
+        return "".join(out)
+
+    # ---- helpers over the token list --------------------------------------
+
+    def _matching_end(self, toks: list[Tok], i: int) -> int | None:
+        depth = 0
+        name = toks[i].value
+        for k in range(i, len(toks)):
+            if toks[k].kind == "begin" and toks[k].value == name:
+                depth += 1
+            elif toks[k].kind == "end" and toks[k].value == name:
+                depth -= 1
+                if depth == 0:
+                    return k
+        return None
+
+    def _matching_close(self, toks: list[Tok], i: int) -> int:
+        depth = 0
+        for k in range(i, len(toks)):
+            if toks[k].kind == "open":
+                depth += 1
+            elif toks[k].kind == "close":
+                depth -= 1
+                if depth == 0:
+                    return k
+        return len(toks)
+
+    def _skip_to(self, toks: list[Tok], i: int, pos: int) -> int:
+        k = i + 1
+        while k < len(toks) and toks[k].start < pos:
+            k += 1
+        return k
+
+    # ---- inline ----------------------------------------------------------------
+
+    def inline_text(self, text: str, base: int, depth: int = 0) -> str:
+        """Convert a LaTeX string in text mode (a title, a footnote body, a macro expansion) to inline HTML."""
+        toks = [Tok(t.kind, t.start + base, t.end + base, t.value) for t in tokenize(text)]
+        html_out, _ = self.inline_range(toks, base, base + len(text), text_override=text, depth=depth)
+        return html_out
+
+    def inline_range(
+        self, toks: list[Tok], a: int, b: int, text_override: str | None = None, depth: int = 0
+    ) -> tuple[str, str | None]:
+        ctx = self.ctx
+        raw = text_override
+        base = a if raw is not None else 0
+
+        def rawslice(x: int, y: int) -> str:
+            return raw[x - base : y - base] if raw is not None else ctx.text[x:y]
+
+        out: list[str] = []
+        reason: str | None = None
+        i = 0
+        n = len(toks)
+        while i < n:
+            t = toks[i]
+            if t.kind == "text":
+                out.append(esc(ligatures(t.value)))
+            elif t.kind == "math":
+                if t.value in ("$", "\\(", "$$", "\\["):
+                    close_val = {"$": "$", "\\(": "\\)", "$$": "$$", "\\[": "\\]"}[t.value]
+                    j = next(
+                        (k for k in range(i + 1, n) if toks[k].kind == "math" and toks[k].value == close_val), None
+                    )
+                    inner = rawslice(t.end, toks[j].start) if j is not None else rawslice(t.end, b)
+                    out.append(f'<span class="math inline">\\({esc(self.math_text(inner))}\\)</span>')
+                    i = (j + 1) if j is not None else n
+                    continue
+            elif t.kind == "open":
+                j = self._matching_close(toks, i)
+                inner_html, r = self.inline_range(
+                    toks[i + 1 : j], toks[i].end, toks[j].start if j < n else b, text_override, depth
+                )
+                out.append(inner_html)
+                reason = reason or r
+                i = j + 1
+                continue
+            elif t.kind == "verb":
+                out.append(f"<code>{esc(t.value)}</code>")
+            elif t.kind == "cmd":
+                piece, after, r = self.inline_command(t, toks, i, b, text_override, depth)
+                if piece is not None:
+                    out.append(piece)
+                reason = reason or r
+                if after > t.end:
+                    i = self._skip_to(toks, i, after)
+                    continue
+            elif t.kind in ("begin", "end"):
+                reason = reason or f"environment {t.value} inside a paragraph"
+            i += 1
+        return "".join(out), reason
+
+    def inline_command(
+        self, t: Tok, toks: list[Tok], i: int, b: int, text_override: str | None = None, depth: int = 0
+    ) -> tuple[str | None, int, str | None]:
+        """Render one command in text mode. Returns (html or None, position after its arguments, fallback reason or None)."""
+        ctx = self.ctx
+        clean = ctx.clean if text_override is None else None
+        name = t.value
+
+        def args(spec: str) -> tuple[list[str | None], list[tuple[int, int]], int]:
+            if clean is not None:
+                return read_args(clean, t.end, spec)
+            base = toks[0].start if toks else t.start
+            local = text_override or ""
+            vals, spans, after = read_args(local, t.end - base, spec)
+            return vals, [(s + base, e + base) for s, e in spans], after + base
+
+        if name in REF_CMDS:
+            (arg,), spans, after = args("m")
+            return self.ref_html(name, arg or "", spans[0]), after, None
+        if name in CITE_CMDS:
+            (o1, o2, keys), spans, after = args("oom")
+            post = o2 if o2 is not None else o1
+            return self.cite_html(keys or "", post), after, None
+        if name == "footnote":
+            (body,), spans, after = args("m")
+            ctx.footnotes += 1
+            inner = self.inline_text(body or "", spans[0][0], depth + 1)
+            return f'<span class="footnote" data-n="{ctx.footnotes}">{inner}</span>', after, None
+        if name == "url":
+            (u,), spans, after = args("m")
+            return f'<a class="url" href="{html.escape(u or "", quote=True)}">{esc(u or "")}</a>', after, None
+        if name == "href":
+            (u, label), spans, after = args("mm")
+            inner = self.inline_text(label or "", spans[1][0], depth + 1)
+            return f'<a class="url" href="{html.escape(u or "", quote=True)}">{inner}</a>', after, None
+        if name == "incomplete":
+            (body,), spans, after = args("m")
+            inner = self.inline_text(body or "", spans[0][0], depth + 1)
+            return f'<span class="incomplete" data-key="{html.escape(ctx.key, quote=True)}">{inner}</span>', after, None
+        if name in ("label", "uses"):
+            (_,), _, after = args("m")
+            return None, after, None
+        if name == "\\":
+            (_,), _, after = args("o")
+            return "<br>", max(after, t.end), None
+        if name in INLINE_WRAP:
+            tag = INLINE_WRAP[name]
+            if tag == "!color":
+                (_, _, body), spans, after = args("omm")
+                inner = self.inline_text(body or "", spans[2][0], depth + 1)
+                return inner, after, None
+            if tag == "!decl":
+                (_, _), _, after = args("om")
+                return None, after, None
+            (body,), spans, after = args("m")
+            inner = self.inline_text(body or "", spans[0][0], depth + 1)
+            if not tag:
+                return inner, after, None
+            if "." in tag:
+                el, cls = tag.split(".")
+                return f'<{el} class="{cls}">{inner}</{el}>', after, None
+            return f"<{tag}>{inner}</{tag}>", after, None
+        if name in ACCENTS:
+            (body,), spans, after = args("m")
+            base_char = (body or "").strip("{}") or ""
+            if base_char in ("\\i", "\\j"):
+                base_char = "ı" if base_char == "\\i" else "ȷ"
+            return esc(base_char + ACCENTS[name]) if base_char else "", after, None
+        if name in SYMBOLS:
+            return SYMBOLS[name], t.end, None
+        if name in IGNORED_CMDS:
+            spec = {
+                "vspace": "m",
+                "vspace*": "m",
+                "hspace": "m",
+                "hspace*": "m",
+                "bibliography": "m",
+                "bibliographystyle": "m",
+                "setcounter": "mm",
+                "addtocounter": "mm",
+                "numberwithin": "mm",
+                "thispagestyle": "m",
+                "pagestyle": "m",
+                "addcontentsline": "mmm",
+                "index": "m",
+                "nocite": "m",
+                "hyphenation": "m",
+                "selectlanguage": "m",
+            }.get(name, "")
+            _, _, after = args(spec) if spec else ([], [], t.end)
+            return None, after, None
+        if name in ("textsuperscript", "textsubscript"):
+            (body,), spans, after = args("m")
+            return self.inline_text(body or "", spans[0][0], depth + 1), after, None
+        if name in ("caption",):
+            (_, body), spans, after = args("om")
+            return self.inline_text(body or "", spans[1][0], depth + 1), after, None
+        macro = ctx.macros.get(name)
+        if macro is not None and depth < MAX_MACRO_DEPTH:
+            spec = ("o" if macro.default is not None else "") + "m" * (
+                macro.args - (1 if macro.default is not None else 0)
+            )
+            vals, spans, after = args(spec) if spec else ([], [], t.end)
+            arg_values = [v if v is not None else (macro.default or "") for v in vals]
+            expansion = expand(macro, arg_values)
+            if not expansion.strip():
+                return None, after, None
+            if (
+                re.search(r"\\(mathrm|mathbf|mathcal|mathbb|frac|operatorname)\b|[\^_]", expansion)
+                and "$" not in expansion
+            ):
+                return f'<span class="math inline">\\({esc(expansion)}\\)</span>', after, None
+            return self.inline_text(expansion, t.start, depth + 1), after, None
+        return esc("\\" + name), t.end, f"unknown command \\{name}"
+
+    def ref_html(self, cmd: str, label: str, span: tuple[int, int]) -> str:
+        ctx = self.ctx
+        parts = [re.sub(r"\s+", " ", x).strip() for x in (label.split(",") if cmd in ("cref", "Cref") else [label])]
+        pieces = []
+        for lab in parts:
+            target = ctx.labels.get(lab)
+            num = number_of(ctx, lab)
+            if target is None:
+                pieces.append(f'<a class="ref ref-dangling" data-target="{html.escape(lab, quote=True)}">??</a>')
+                continue
+            container = ctx.regions.get(target, target)
+            is_region = target in ctx.regions
+            text = num if num else (lab if is_region else target)
+            if cmd == "eqref" or (is_region and cmd != "pageref"):
+                text = f"({num})" if num else f"({lab})"
+                cls = "ref ref-eq"
+            else:
+                cls = "ref"
+            href = "#" + slug(target)
+            pieces.append(
+                f'<a class="{cls}" data-target="{html.escape(target, quote=True)}" href="{href}">{esc(text)}</a>'
+            )
+            _ = container
+        return ", ".join(pieces)
+
+    def cite_html(self, keys: str, postnote: str | None) -> str:
+        ctx = self.ctx
+        out = []
+        for ck in [re.sub(r"\s+", " ", k).strip() for k in keys.split(",") if k.strip()]:
+            target = ctx.cite_target(ck, postnote)
+            attrs = f' data-citekey="{html.escape(ck, quote=True)}"'
+            if postnote:
+                attrs += f' data-postnote="{html.escape(postnote, quote=True)}"'
+            if target:
+                attrs += f' data-target="{html.escape(target, quote=True)}"'
+            label = f"[{ck}" + (f", {self.inline_text(postnote, 0, MAX_MACRO_DEPTH)}" if postnote else "") + "]"
+            out.append(f'<span class="cite"{attrs}>{label}</span>')
+        return " ".join(out)
+
+    # ---- math -------------------------------------------------------------------
+
+    def math_text(self, tex: str) -> str:
+        """TeX math left for the viewer: labels removed, references replaced by their numbers or labels so MathJax never sees \\ref."""
+        tex = re.sub(r"\\label\s*\{[^}]*\}", "", tex)
+
+        def ref_repl(m: re.Match[str]) -> str:
+            lab = re.sub(r"\s+", " ", m.group(2)).strip()
+            num = number_of(self.ctx, lab)
+            shown = num or lab
+            return f"\\text{{({shown})}}" if m.group(1) == "eqref" else f"\\text{{{shown}}}"
+
+        tex = re.sub(r"\\(eqref|ref|cref|Cref|autoref)\s*\{([^}]*)\}", ref_repl, tex)
+        return tex.strip()
+
+    def display_env(self, env: str, start: int, end: int) -> str:
+        ctx = self.ctx
+        raw = ctx.text[start:end]
+        m = re.match(r"\\begin\s*\{" + re.escape(env) + r"\}(.*)\\end\s*\{" + re.escape(env) + r"\}\s*$", raw, re.S)
+        inner = m.group(1) if m else raw
+        labels = re.findall(r"\\label\s*\{([^}]*)\}", inner)
+        first = re.sub(r"\s+", " ", labels[0]).strip() if labels else None
+        body = self.math_text(inner)
+        base = env.rstrip("*")
+        starred = env.endswith("*")
+        if base in ("equation", "displaymath"):
+            num = number_of(ctx, first) if first else None
+            tex = "\\[" + (f"\\tag{{{num}}}" if num and not starred else "") + body + "\\]"
+        else:
+            if not starred and base in ("align", "gather", "multline", "eqnarray", "alignat", "flalign"):
+                body = self._tag_lines(inner)
+            tex = (
+                f"\\begin{{{base}*}}{body}\\end{{{base}*}}"
+                if base not in ("split", "cases")
+                else f"\\[\\begin{{{base}}}{body}\\end{{{base}}}\\]"
+            )
+        return self.display_block_html(tex, start, end, first)
+
+    def _tag_lines(self, inner: str) -> str:
+        lines = re.split(r"(\\\\(?:\[[^\]]*\])?)", inner)
+        out = []
+        for piece in lines:
+            if piece.startswith("\\\\"):
+                out.append(piece)
+                continue
+            labels = re.findall(r"\\label\s*\{([^}]*)\}", piece)
+            cleaned = self.math_text(piece)
+            if labels:
+                num = number_of(self.ctx, re.sub(r"\s+", " ", labels[0]).strip())
+                if num and "\\tag" not in cleaned and "\\notag" not in cleaned:
+                    cleaned = cleaned + f"\\tag{{{num}}}"
+            out.append(cleaned)
+        return "".join(out)
+
+    def display_block(self, inner: str, start: int, end: int, label: str | None) -> str:
+        return self.display_block_html("\\[" + self.math_text(inner) + "\\]", start, end, label)
+
+    def display_block_html(self, tex: str, start: int, end: int, label: str | None) -> str:
+        ctx = self.ctx
+        attrs = f' data-src="{ctx.src(start, end)}"'
+        if label:
+            attrs += f' id="{slug(ctx.key + "-" + label)}" data-label="{html.escape(label, quote=True)}"'
+            num = number_of(ctx, label)
+            if num:
+                attrs += f' data-number="{html.escape(num, quote=True)}"'
+        return f'<div class="math display"{attrs}>{esc(tex)}</div>'
+
+    # ---- lists, figures, tables ----------------------------------------------------
+
+    def list_env(self, env: str, start: int, end: int, inner_toks: list[Tok]) -> str:
+        ctx = self.ctx
+        tag = LIST_ENVS[env]
+        begin_len = len(re.match(r"\\begin\s*\{[^}]*\}", ctx.clean[start:]).group(0))  # type: ignore[union-attr]
+        _, _, after = read_args(ctx.clean, start + begin_len, "o")
+        body_start = after
+        end_m = re.search(r"\\end\s*\{" + re.escape(env) + r"\}\s*$", ctx.clean[start:end])
+        body_end = start + end_m.start() if end_m else end
+        items = self._split_items(body_start, body_end)
+        parts = [f'<{tag} data-src="{ctx.src(start, end)}">']
+        for opt, a, b in items:
+            inner = self.render_range(a, b)
+            inner = (
+                re.sub(r'^<p data-src="[^"]*">(.*)</p>$', r"\1", inner.strip(), flags=re.S)
+                if inner.count("<p ") == 1
+                else inner
+            )
+            if tag == "dl":
+                parts.append(f"<dt>{self.inline_text(opt or '', a)}</dt><dd>{inner}</dd>")
+            elif opt is not None:
+                parts.append(f'<li data-label="{html.escape(opt, quote=True)}">{inner}</li>')
+            else:
+                parts.append(f"<li>{inner}</li>")
+        parts.append(f"</{tag}>")
+        return "".join(parts)
+
+    def _split_items(self, a: int, b: int) -> list[tuple[str | None, int, int]]:
+        clean = self.ctx.clean
+        items: list[tuple[str | None, int, int]] = []
+        depth = 0
+        pos = a
+        current: tuple[str | None, int] | None = None
+        for t in tokenize(clean[a:b]):
+            s = t.start + a
+            if t.kind == "begin":
+                depth += 1
+            elif t.kind == "end":
+                depth -= 1
+            elif t.kind == "cmd" and t.value == "item" and depth == 0:
+                if current is not None:
+                    items.append((current[0], current[1], s))
+                (opt,), _, after = read_args(clean, t.end + a, "o")
+                current = (opt, after)
+        if current is not None:
+            items.append((current[0], current[1], b))
+        _ = pos
+        return items
+
+    def figure_env(self, t: Tok, env_end: int, end_idx: int | None, toks: list[Tok]) -> str:
+        ctx = self.ctx
+        inner_start = read_args(ctx.clean, t.end, "o")[2]
+        inner_end = toks[end_idx].start if end_idx is not None else env_end
+        inner_raw = ctx.clean[inner_start:inner_end]
+        cap = re.search(r"\\caption\s*(\[[^\]]*\])?\s*\{", inner_raw)
+        caption_html = ""
+        body_ranges: list[tuple[int, int]] = []
+        if cap:
+            cstart = inner_start + cap.start()
+            cend = match_group(ctx.clean, inner_start + cap.end() - 1)
+            caption_html = f"<figcaption>{self.inline_text(ctx.clean[inner_start + cap.end() : cend - 1], inner_start + cap.end())}</figcaption>"
+            body_ranges = [(inner_start, cstart), (cend, inner_end)]
+        else:
+            body_ranges = [(inner_start, inner_end)]
+        body = "".join(self.render_range(x, y) for x, y in body_ranges if y > x)
+        body = re.sub(r'<p data-src="[^"]*">\s*</p>', "", body)
+        return f'<figure data-src="{ctx.src(t.start, env_end)}">{body}{caption_html}</figure>'
+
+    def tabular_env(self, t: Tok, env_end: int, end_idx: int | None) -> str:
+        ctx = self.ctx
+        raw = ctx.text[t.start : env_end]
+        m = re.match(
+            r"\\begin\s*\{(tabular\*?|array|longtable)\}\s*(\{[^}]*\})?\s*(\{[^}]*\})?(.*)\\end\s*\{\1\}", raw, re.S
+        )
+        if not m:
+            return ctx.fallback(raw, "fallback", ctx.src(t.start, env_end))
+        body = m.group(4)
+        if re.search(r"\\(multicolumn|multirow|cline|cmidrule|parbox|begin\{)", body):
+            ctx.diagnostics.append(
+                Diagnostic(
+                    "info",
+                    "loom:converter-fallback",
+                    f"complex table in {ctx.key}; rendered as SVG",
+                    [Location(ctx.file, 0)],
+                    [ctx.key],
+                )
+            )
+            return ctx.fallback(raw, "fallback", ctx.src(t.start, env_end))
+        body = re.sub(r"\\(hline|toprule|midrule|bottomrule)", "", body)
+        rows = [r for r in re.split(r"\\\\(?:\[[^\]]*\])?", body) if r.strip()]
+        html_rows = []
+        for r in rows:
+            cells = [self.inline_text(c.strip(), 0, MAX_MACRO_DEPTH) for c in r.split("&")]
+            html_rows.append("<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
+        return f'<table data-src="{ctx.src(t.start, env_end)}"><tbody>{"".join(html_rows)}</tbody></table>'

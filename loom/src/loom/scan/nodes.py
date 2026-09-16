@@ -51,6 +51,9 @@ class NodeRec:
     exp_ranges: dict[str, tuple[int, int]] = field(default_factory=dict)
     order: float = 0.0  # document order in the default master, else file order
     body_start: int = 0  # masters: offset of \\begin{document}; edges and regions are read from here on
+    claimants: list[str] = field(
+        default_factory=list
+    )  # direct child claimants (nodes, proofs, sections) in offset order
 
 
 @dataclass
@@ -344,7 +347,9 @@ def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
         for r in recs:
             pieces: list[tuple[int, int]] = []
             pos = r.start
-            for c in sorted(children[r.key], key=lambda x: x.start):
+            kids = sorted(children[r.key], key=lambda x: x.start)
+            r.claimants = [c.key for c in kids]
+            for c in kids:
                 if c.start > pos:
                     pieces.append((pos, c.start))
                 pos = max(pos, min(c.end, r.end))
