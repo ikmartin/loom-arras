@@ -40,7 +40,7 @@ Source and structure:
 - `loom:unknown-environment` (error): a theorem-like environment the preamble closure does not declare; fix with `% !LOOM environment:`.
 - `loom:unattached-proof` (error): a `proof` neither adjacent to a node nor referencing one.
 - `loom:multi-target-proof` (warning): a proof's optional argument references several nodes; attached to the first.
-- `loom:reference-to-loose` (error in masters, info in loose files): a reference to a node the master does not reach.
+- `loom:reference-to-loose` (error in masters, info in loose files): a reference to a node the master does not reach; never for a target in a digest file, which is loose by construction (DR-76).
 - `loom:duplicate-label` (error): a non-id label defined twice anywhere in the quilt.
 - `loom:macros-unloaded` (error): `\uses`, `\incomplete`, or `\nest` used in a master that does not load `loom.sty`.
 - `loom:macro-shadowed` (warning): the preamble defines one of the three names before `loom.sty`.
@@ -56,20 +56,27 @@ Source and structure:
 - `loom:uses-missing` (info): a `\ref` in a proof not listed in `\uses`.
 - `loom:uses-unused` (info): a `\uses` entry the proof's text never mentions.
 - `loom:dependency-cycle` (warning): statement dependencies form a cycle; breaks settledness.
-- `loom:converter-fallback` (info): a block rendered by SVG fallback, naming the construct.
-- `loom:bundle-failed` (error): a bundle did not compile; first LaTeX error attached.
+- `loom:converter-fallback` (info): a block rendered by SVG fallback, naming the construct; warning when the fallback itself failed, naming the node and each attempt's first error (DR-79).
+- `loom:bundle-failed` (error): a bundle did not compile; first LaTeX error attached; `loom check` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks (8.11).
 - `loom:atomize-target-exists` (error, fixed): atomize would overwrite a file.
 - `loom:import-outside-tree` (warning): import found a file outside the paper directory and did not copy it.
+- `loom:non-utf8-source` (warning): a scanned file was not UTF-8 and was decoded as Mac Roman or Latin-1 (DR-47).
+- `loom:unknown-theoremstyle` (warning): a `\theoremstyle` other than plain, definition, or remark; treated as plain (DR-46).
+- `loom:taxon-name-macro` (info): a `\newtheorem` display name is a macro the closure does not define; the environment name is used (DR-46).
+- `loom:citekey-slug-collision` (error): two citekeys share a digest prefix after slugging (DR-45).
+- `loom:main-not-found` (warning): `[quilt] main` names a file that is not a master; the first master is used.
 
 Review:
 
 - `loom:retired-ledger-key` (info): a ledger row whose key no longer exists.
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
+- `loom:foreign-annotations` (warning): a file in a record location (`comments/*/*.json`, `ai/runs/*/annotations.json`) that is not a valid schema-1 annotations file (book 11.6).
+- `loom:agent-wrote-outside-run` (error): reported by `loom ai check`: a file outside the run, `comments/`, and `build/` changed after the run started (book 11.8).
 
 References and digests:
 
-- `loom:unmatched-postnote` (warning): a `\cite[postnote]` that matched no digest node.
+- `loom:unmatched-postnote` (warning): a `\cite[postnote]` that matched no digest node, when a digest for the citekey exists; a digest node's own locator title is exempt (DR-66).
 - `loom:undigested-citekey` (info): a cited key with no digest; the ingest trigger.
 - `loom:version-mismatch` (warning): a digest's source version differs from the bibliography's.
 - `loom:missing-package` (warning): a digest requires a package the preamble closure does not load.

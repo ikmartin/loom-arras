@@ -1,6 +1,6 @@
 # 12. CLI reference
 
-Every loom command, with syntax, flags, behaviour, exit codes, and machine output. Behaviour is specified in the earlier chapters; this chapter is the index and the fixed surface. The implementation generates the `--help` text and the user-facing reference from the same definitions, so that this chapter, the help, and the code cannot drift apart without a test failing.
+Every loom command, with syntax, flags, behaviour, exit codes, and machine output. Behaviour is specified in the earlier chapters; this chapter is the index and the fixed surface. The implementation generates the `--help` text and the user-facing reference from the same definitions, so that this chapter, the help, and the code cannot drift apart without a test failing; 12.2 below is that generated reference.
 
 ## 12.1 Conventions
 
@@ -10,151 +10,427 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
 - Exit codes: `0` success; `1` a content problem (lint errors, a failed identity test, a failed compile, a refused write that the author can fix in the source); `2` a usage or environment problem (bad arguments, missing tools, no author name, refused destination).
 - `--json`: machine output on stdout, one JSON document, nothing else on stdout; diagnostics and progress go to stderr.
 - `--yes`: skip confirmations that would otherwise be asked on a terminal. Commands that would ask and have no terminal and no `--yes` exit 2.
-- `--run DIR`: on `bundle`, `comment`, `search`, `status`, `deps`, `unravel`, `check`: append the invocation to `DIR/run.log`; on `bundle`, also copy the output into `DIR`; on `comment`, make the run the author and write to `DIR/annotations.json`.
+- `--run DIR`: on `bundle`, `comment`, `status`, `search`, `deps`, `unravel`, `lint`, and `ai orient`: append the invocation to `DIR/run.log` (`LOOM_RUN` is the default); on `bundle`, also copy the output into `DIR`; on `comment`, make the run the author (refusing `--author`) and write to `DIR/annotations.json`; `ai promote` logs its move to the run the file came from (M6, M7).
 - `--author NAME`: on `accept` and `comment`, the author name, overriding the user config.
-- `--quiet` / `-q` and `--verbose` / `-v`: less or more on stderr.
+- `--quiet` / `-q` and `--verbose` / `-v` were planned and are not implemented; diagnostics go to stderr, summaries to stdout (M7).
 - Keys are written as ids (`rl-0004`), proof keys (`rl-0004/proof`, `rl-0004/proof/2`), qualified keys (`rl-0004#eq:main`, `drafts/main.tex#section:3`), or master paths. Aliases are accepted wherever an id is and resolved.
 - Ids in output are always shown with their number in the default master when known: `rl-0004 (Lemma 3.4)`.
 
-## 12.2 Quilt
+## 12.2 Commands
 
-### `loom init [DIR] [--from FILE] [--demo] [--prefix P] [--no-git] [--yes]`
+**[decided]** The reference below is generated from the command tree by `loom/scripts/gen_cli_reference.py`; `loom/docs/cli-reference.md` is the same text, and the test `test_cli_reference_matches_checked_in` fails when either drifts from the code. Every command's `--help` prints the same usage and options. Behaviour is specified in the earlier chapters; the sections 12.2 to 12.8 of the pre-implementation book, which listed the commands by hand, are replaced by this generated list (M7). Aliases: `rm` and `remove` for `delete`; `downstream`, `reach`, and `pop` for `unravel`.
 
-Create a quilt (4.7). `--from FILE` imports a paper (6.1). `--demo` writes the demo quilt. Refuses inside an existing quilt or in a nonempty directory that does not contain `FILE`. Exit 2 on refusal, 1 if the imported paper's identity test fails (the quilt is left in place).
+### `loom`
+
+`loom [OPTIONS] COMMAND [ARGS]...`
+
+loom: a tool for atomized mathematical development.
+
+Every command except `init` and `doctor` runs against the nearest quilt, found by walking up from the current directory to a `config.toml` with a [quilt] table.
+
+| option | description |
+|---|---|
+| `--version`, `-V` | Show the version and exit. |
+
+### `loom accept`
+
+`loom accept [OPTIONS] [KEYS]...`
+
+Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
+
+| option | description |
+|---|---|
+| `--proofs` | Also accept every proof attached to each statement given. |
+| `--stale` | Accept every key that is currently accepted-stale, after confirmation. |
+| `--author` |  |
+| `--force` | Accept even when the master does not compile. |
+| `--yes`, `-y` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom ai`
+
+`loom ai [OPTIONS] COMMAND [ARGS]...`
+
+The optional AI layer: runs, orientation, promotion, and discarding review records.
+
+#### `loom ai check`
+
+`loom ai check [OPTIONS] RUN`
+
+Report files outside RUN, comments/, and build/ modified since the run started (loom:agent-wrote-outside-run).
+
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai discard`
+
+`loom ai discard [OPTIONS] [RUN]`
+
+Flag a run's or a comment session's records ignored (or unflag with --undo). Nothing is deleted.
+
+| option | description |
+|---|---|
+| `--before` `DATE` | Discard every record created before this date (YYYY-MM-DD). |
+| `--author` | Discard every record whose author matches. |
+| `--target` | Discard every record with an annotation on this key. |
+| `--undo` | Reverse: mark matching records not discarded. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai init`
+
+`loom ai init [OPTIONS]`
+
+Write ai/ (orientation, modes, runs/) and the vendor files CLAUDE.md and AGENTS.md; refuses if ai/ exists.
+
+| option | description |
+|---|---|
+| `--permissions` | Also write the agents' permission settings (.claude/settings.json). |
+| `--skills` | Also write skill stubs and slash commands for Claude Code. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai orient`
+
+`loom ai orient [OPTIONS]`
+
+Print the orientation document followed by the quilt's live state (and a run's journal with --run).
+
+| option | description |
+|---|---|
+| `--run` `RUN` | Also print this run's thread.md and run.log. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai promote`
+
+`loom ai promote [OPTIONS] PATH`
+
+Copy a draft node (to nodes/<id>.tex, allocating an id if it has none) or a digest (to refs/) out of a run; lint runs on the result.
+
+| option | description |
+|---|---|
+| `--prefix` | Allocate a new id under this prefix instead of [quilt] prefix. |
+| `--replace` | Overwrite an existing digest after showing the diff. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai start`
+
+`loom ai start [OPTIONS] [SLUG]`
+
+Create a run directory under ai/runs/, print its path, and launch [ai] agent from config.toml if set.
+
+| option | description |
+|---|---|
+| `--no-launch` | Create the run without launching [ai] agent. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom assemble`
+
+`loom assemble [OPTIONS] MASTER DEST`
+
+Write DEST: MASTER flattened with every \input, \nest (levels shifted), and \include expanded, for arXiv or latexdiff.
+
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom atomize`
+
+`loom atomize [OPTIONS] SRC [DEST]`
+
+Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC is not modified.
+
+| option | description |
+|---|---|
+| `--to` `DEST` |  |
+| `--proofs` |  |
+| `--sections` | Also move labelled sections and subsections to nodes/. |
+| `--all` | Act on SRC and every file it reaches, writing spines under --to-dir. |
+| `--to-dir` `DIR` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom build`
+
+`loom build [OPTIONS]`
+
+Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
+
+| option | description |
+|---|---|
+| `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom bundle`
+
+`loom bundle [OPTIONS] [KEY]`
+
+Write build/bundles/<key>.tex: the statements KEY depends on, in dependency order, then KEY itself.
+
+| option | description |
+|---|---|
+| `--to` `FILE` | Write here instead of build/bundles/. |
+| `--run` `DIR` | Also copy into the run directory and log the call. |
+| `--with` `FILE` | Substitute a unified diff or a .tex file for the key's text. |
+| `--draft` `FILE` | Bundle a node file that is not yet in the quilt. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom check`
+
+`loom check [OPTIONS]`
+
+lint, then compile every master, then bundles. Exit 1 on any failure. The CI command.
+
+| option | description |
+|---|---|
+| `--no-compile` | Lint only. |
+| `--bundles` | Which bundles to compile (stale needs the ledger, milestone M3). |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom comment`
+
+`loom comment [OPTIONS] [TARGET] [MESSAGE]`
+
+Write an annotation on TARGET (a key, an equation's qualified key, or a master path); the only writer of review records.
+
+| option | description |
+|---|---|
+| `--quote` | Anchor to this exact text, which must occur once in the target's own text. |
+| `--kind` |  |
+| `--run` | Write into this run directory's annotations.json; the run is the author. |
+| `--author` |  |
+| `--reply` `ID` |  |
+| `--resolve` `ID` |  |
+| `--batch` | Read JSON lines from stdin: {target, message, quote, kind, reply, resolve}. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom compile`
+
+`loom compile [OPTIONS] [TARGET]`
+
+Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a bundle by key.
+
+| option | description |
+|---|---|
+| `--engine` | Override the engine (pdflatex, lualatex, xelatex). |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom delete`
+
+`loom delete [OPTIONS] [ARGS]...`
+
+Refuse: loom never deletes your notes.
+
+### `loom deps`
+
+`loom deps [OPTIONS] KEY`
+
+What KEY depends on: direct statement-edges and proof-edges, grouped.
+
+| option | description |
+|---|---|
+| `--closure` | The transitive statement closure in dependency order. |
+| `--json` |  |
+| `--run` `DIR` | Log this call to DIR/run.log. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom digest`
+
+`loom digest [OPTIONS] COMMAND [ARGS]...`
+
+Digests of cited papers: extract one from a paper's source, port one in, or fetch a source.
+
+#### `loom digest extract`
+
+`loom digest extract [OPTIONS] CITEKEY SRC`
+
+Produce refs/CITEKEY.tex mechanically from the reference paper whose main file is SRC (proofs dropped, ids prefixed).
+
+| option | description |
+|---|---|
+| `--to` `PATH` | Write here instead of refs/<citekey>.tex. |
+| `--engine` | Engine for compiling the reference (default: its magic comment or pdflatex). |
+| `--no-compile` | Skip compiling the reference; number results by emulation. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom digest fetch`
+
+`loom digest fetch [OPTIONS] CITEKEY`
+
+Fetch the arXiv e-print source for CITEKEY into refs/src/ (gitignored). Requires [refs] fetch = true.
+
+| option | description |
+|---|---|
+| `--pdf` | Also fetch the PDF into refs/pdf/. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom digest import`
+
+`loom digest import [OPTIONS] PATH`
+
+Copy a digest from another quilt into refs/, rewriting its id prefix when --as renames the citekey.
+
+| option | description |
+|---|---|
+| `--as` `CITEKEY` | Rename the digest's citekey on the way in. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom doctor`
 
-Report: Python version; `latexmk`, the configured engine, `bibtex`/`biber`, `dvisvgm`, `pdftotext`, `git`, and their versions; the arras bundle's location and version; the resolved author name and its source; the interface version loom produces. Exit 2 if a required tool is missing.
+`loom doctor [OPTIONS]`
+
+Report Python, the TeX toolchain, git, the arras bundle, the resolved author name, and the interface version.
+
+| option | description |
+|---|---|
+| `--json` | Machine-readable report on stdout. |
+
+### `loom id`
+
+`loom id [OPTIONS] FILE`
+
+Print a patch (or write a copy with --to) inserting \label{<id>} on every untagged theorem-like environment and section in FILE. Never modifies FILE.
+
+| option | description |
+|---|---|
+| `--to` `DEST` | Write the patched copy here instead of printing a diff. |
+| `--sections`, `--no-sections` | Also label sections through subsubsection (default on). |
+| `--all-levels` | Also label paragraphs and subparagraphs. |
+| `--prefix` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom import`
+
+`loom import [OPTIONS] FILE`
+
+Copy a paper and everything it reaches into the quilt, inserting ids into the copies and changing nothing else.
+
+| option | description |
+|---|---|
+| `--yes`, `-y` |  |
+| `--fix-anchoring` | Rewrite the copy so every theorem-like \begin and \end is alone on its line. |
+| `--prefix` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom init`
+
+`loom init [OPTIONS] [DIRECTORY]`
+
+Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it.
+
+| option | description |
+|---|---|
+| `--from` `FILE` | Import an existing paper: FILE is its main .tex file, anywhere on disk. |
+| `--demo` | Write the demo quilt instead of a minimal master. |
+| `--prefix` | Id prefix for new nodes. |
+| `--no-git` | Do not run git init. |
+| `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
+| `--fix-anchoring` | With --from: rewrite the copies so theorem-like environments are line-anchored. |
+
+### `loom inline`
+
+`loom inline [OPTIONS] SRC [DEST]`
+
+Write DEST, a copy of SRC with every \input of a node file replaced by its contents. The reverse of atomize.
+
+| option | description |
+|---|---|
+| `--to` `DEST` |  |
+| `--all` | Inline recursively. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom lint`
+
+`loom lint [OPTIONS]`
+
+Scan and print every diagnostic. Fast; no LaTeX runs.
+
+| option | description |
+|---|---|
+| `--json` |  |
+| `--run` `DIR` | Log this call to DIR/run.log. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom new`
+
+`loom new [OPTIONS] TAXON [TITLE]`
+
+Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
+
+| option | description |
+|---|---|
+| `--prefix` | Allocate under this prefix instead of [quilt] prefix. |
+| `--print` | Print the skeleton without allocating an id or writing a file. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom search`
+
+`loom search [OPTIONS] QUERY`
+
+Find ids by id, alias, title, taxon, tag, or citekey; exact matches first.
+
+| option | description |
+|---|---|
+| `--kind` |  |
+| `--json` |  |
+| `--run` `DIR` | Log this call to DIR/run.log. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom serve`
+
+`loom serve [OPTIONS]`
+
+Watch, republish, and serve arras at / and build/ at /build/ until interrupted.
+
+| option | description |
+|---|---|
+| `--port` | Port to listen on; fails if busy. |
+| `--open` | Open the browser. |
+| `--no-compile` | Never run latexmk after a change. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom status`
+
+`loom status [OPTIONS]`
+
+Every key with its computed state, cause if stale, and review facts. Never exits nonzero.
+
+| option | description |
+|---|---|
+| `--stale` |  |
+| `--draft` |  |
+| `--incomplete` |  |
+| `--loose` |  |
+| `--unmatched-cites` |  |
+| `--undigested` |  |
+| `--retired` |  |
+| `--runs` |  |
+| `--master` |  |
+| `--tag` |  |
+| `--explain` `KEY` |  |
+| `--json` |  |
+| `--run` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom unravel`
+
+`loom unravel [OPTIONS] ID`
+
+Everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing.
+
+| option | description |
+|---|---|
+| `--json` |  |
+| `--run` `DIR` | Log this call to DIR/run.log. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom upgrade`
 
-Refresh `loom.sty`, `ai/orientation.md`, the generated vendor files, permission settings, and the demo's `README.md` to the installed loom's versions; migrate `config.toml` and the ledger schema if needed, showing the diff first. Never touches author files.
+`loom upgrade [OPTIONS]`
 
-## 12.3 Nodes and files
+Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones.
 
-### `loom new TAXON ["TITLE"] [--prefix P] [--print]`
-
-Allocate an id (5.3.2) and write `nodes/<id>.tex` with the skeleton (author, created, tags directives; the environment with the title and `\label{<id>}`; a `proof` environment for plain-style taxa). `TAXON` is an environment name or display name declared by the default master's preamble closure. `--print` prints the skeleton to stdout and allocates nothing. Exit 2 for an unknown taxon.
-
-### `loom id FILE [--to DEST] [--sections | --no-sections] [--all-levels] [--prefix P]`
-
-Print a patch (unified diff) inserting `\label{<id>}` into every untagged theorem-like environment and sectioning command in `FILE`, or write the patched copy to `DEST`. Never modifies `FILE`. Exit 1 on line-anchoring violations, listing lines.
-
-### `loom import FILE [--yes]`
-
-Copy a paper into the quilt with ids inserted (6.2). Shows the diff and asks. Exit 1 if the original does not compile or the identity test fails.
-
-### `loom atomize SRC DEST | SRC --to DEST [--proofs attached|separate] [--sections] [--all --to-dir DIR]`
-
-Move each node of `SRC` to `nodes/`, writing the spine to `DEST` (6.4). Without a destination: exit 2 with `ERROR: specify a destination file after the source, or with --to`. Exit 1 on refusal (line anchoring, missing ids, target exists) or identity failure.
-
-### `loom inline SRC DEST | SRC --to DEST [--all]`
-
-Reverse of atomize (6.5). Same exit rules.
-
-### `loom search QUERY [--json]`
-
-Match `QUERY` against ids, aliases, titles, taxa, tags, and citekeys; print matches ranked (exact id or alias first, then title prefix, then substring). `--json` returns `[{key, kind, taxon, title, aliases, tags, file, number, url}]` where `url` is the arras route. Used by editors for completion and by other tools to resolve an id to a file.
-
-### `loom delete` (aliases `rm`, `remove`)
-
-Print `loom will not delete your notes; do this yourself with rm. Run loom unravel <ID> to see the consequences first.` Exit 1. Accepts and ignores any arguments.
-
-## 12.4 Graph
-
-### `loom deps KEY [--closure] [--json]`
-
-What `KEY` depends on: direct statement-edges and proof-edges, grouped; `--closure` the transitive statement closure in dependency order. `--json`: `{key, statement: [...], proof: [...], closure: [...]}` with each entry `{key, via, kind}`.
-
-### `loom unravel ID [--json]` (aliases `downstream`, `reach`, `pop`)
-
-Everything downstream of `ID`: transitive dependents (with the edge kind that reaches each), every reference site (file, line), every inclusion site, ledger rows for the id and its proofs, annotations targeting them. The pre-deletion report; changes nothing. `pop`'s help text says it reports and changes nothing.
-
-## 12.5 Build and check
-
-### `loom build [--keys KEY...]`
-
-Scan, derive, render, publish (9.1). Exit 1 if any error-severity diagnostic exists (the build is still published, with the diagnostics in the manifest).
-
-### `loom bundle KEY [--to FILE] [--run DIR] [--with FILE]` and `loom bundle --draft FILE [--run DIR]`
-
-Write `build/bundles/<key>.tex` (9.7) or `FILE`; with `--run`, also copy to the run directory as `bundle-<key>.tex`. `--with FILE` substitutes `FILE` for the key's own text before building: a unified diff is applied to a copy of the node's file, or a `.tex` file replaces it; the quilt is not touched. `--draft FILE` builds a bundle for a node that is not yet in the quilt: `FILE` is a complete node file, its `\ref`s and `\uses` determine the closure, and the bundle is written as `build/bundles/draft-<stem>.tex`. Both exist so that proposals and drafts can be compiled before promotion. Exit 1 if `KEY` does not exist, the diff does not apply, or a draft's dependency is unknown.
-
-### `loom compile [MASTER | KEY] [--engine E]`
-
-`latexmk` from the root into `build/<stem>/` for a master (default: the default master), or for a bundle by key (writing the bundle first if absent). Exit 1 on LaTeX errors, with the first error printed.
-
-### `loom assemble MASTER DEST`
-
-Write `DEST`, a single flat `.tex` with every `\input`, `\nest` (levels shifted), and `\include` expanded, for arXiv or `latexdiff`. Refuses without `DEST`.
-
-### `loom lint [--json]`
-
-Scan and print every diagnostic (5.14, `specs/diagnostics.md`), grouped by severity. Exit 1 if any error, else 0. Fast; no LaTeX runs.
-
-### `loom check [--no-compile] [--bundles all|stale|none]`
-
-`lint`; then `compile` every master; then compile bundles (default: every key whose acceptance is stale or that changed since the last check, **[assumed]**). Exit 1 on any failure. The CI command.
-
-### `loom status [FILTERS] [--explain KEY] [--json] [--run DIR]`
-
-The state table (7.7). Filters: `--stale`, `--draft`, `--incomplete`, `--loose`, `--unmatched-cites`, `--undigested`, `--retired`, `--runs`, `--master PATH`, `--tag TAG`. `--explain KEY` prints causes with diffs. `--json` returns `{summary: {...}, keys: {...}, runs: [...], undigested: [...]}` using the manifest's `keys` shape. Always exits 0.
-
-### `loom serve [--port N] [--open] [--no-compile]`
-
-Watch, republish, serve arras and `build/` (9.8). Runs until interrupted. Exit 2 if the port is busy or the arras bundle is not installed.
-
-## 12.6 Review
-
-### `loom accept KEY... [--proofs] [--stale] [--author NAME] [--force] [--yes]`
-
-Write acceptance rows and snapshots (7.3). Exit 2 without an author name or for an unknown key; exit 1 for an incomplete key or a master that does not compile (`--force` overrides the latter).
-
-### `loom comment TARGET ["MESSAGE"] [--quote TEXT] [--kind objection|suggestion|question|ok] [--run DIR | --author NAME] [--reply ID] [--resolve ID] [--batch]`
-
-Write an annotation (7.4.3). Exit 1 if the quote is missing or ambiguous, or the target does not exist; exit 2 without an author.
-
-`--batch` reads JSON lines from stdin: `{"target": ..., "message": ..., "quote": ..., "kind": ..., "reply": ..., "resolve": ...}`; prints one line per annotation written; stops at the first failure with its line number.
-
-## 12.7 Digests
-
-### `loom digest extract CITEKEY SRC.tex [--to FILE]`
-
-Mechanical digest from LaTeX source (8.5). Exit 1 if `refs/<citekey>.tex` exists without `--to`, or if the source cannot be read.
-
-### `loom digest fetch CITEKEY [--pdf]`
-
-Fetch the e-print source (and PDF) by the bib entry's arXiv identifier (8.9). Exit 2 unless `[refs] fetch = true`.
-
-### `loom digest import PATH [--as CITEKEY]`
-
-Copy a digest into `refs/`, rewriting the prefix if renamed, remapping environments by display name (8.10). Exit 1 if the target exists.
-
-## 12.8 AI
-
-### `loom ai init [--permissions] [--skills]`
-
-Write `ai/` and the vendor files (11.2, 11.3) and append the `bundle-*.tex` line to `.gitignore`. `--permissions` also writes the agents' permission settings; `--skills` also writes the skill stubs and slash commands (11.12). Refuses if `ai/` exists (`loom upgrade` refreshes; it leaves edited mode files alone and writes `<mode>.md.new` beside them).
-
-### `loom ai orient [--run RUN]`
-
-Print the orientation document followed by live state; with `--run`, that run's `thread.md` and `run.log` (11.3).
-
-### `loom ai start [SLUG]`
-
-Create a run directory, print its path, and launch `[ai] agent` if configured (11.4).
-
-### `loom ai discard RUN | --before DATE | --author NAME | --target KEY [--undo]`
-
-Flag review records ignored, or unflag them (7.8). `RUN` may also be a comments session path.
-
-### `loom ai promote PATH [--prefix P] [--replace]`
-
-Copy a draft node or a digest from a run into the quilt (11.7). Exit 1 if the target exists without `--replace`, or if lint on the result reports an error.
-
-### `loom ai check RUN`
-
-Report files outside `RUN`, `comments/`, and `build/` modified since the run started (11.8). **[assumed]** command name.
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## 12.9 Machine output
 
@@ -162,7 +438,7 @@ Report files outside `RUN`, `comments/`, and `build/` modified since the run sta
 
 ## 12.10 Environment variables
 
-**[decided]** `LOOM_QUILT` (quilt root, overrides discovery); `LOOM_RUN` (default for `--run`); `LOOM_FIXED_TIME` (fixture generation: all timestamps take this value); `LOOM_PAPER_FIXTURES` (tests: directory of arXiv sources for the paper tier). No other variable is read.
+**[decided]** `LOOM_QUILT` (quilt root, overrides discovery); `LOOM_RUN` (default for `--run`); `LOOM_FIXED_TIME` (fixture generation: all timestamps take this value); `LOOM_PAPER_FIXTURES` (tests: directory of arXiv sources for the paper tier); `LOOM_ARRAS_BUNDLE` (a viewer bundle directory that overrides the installed `arras` package and the vendored copy, 12.5); `LOOM_SVG_KEEP` (debugging: a directory that receives every fallback document that failed to compile, DR-79). The test shim reads `FAKE_TEX_LOG`, `FAKE_TEX_FAIL`, and `FAKE_TEX_FAIL_MATCH`. No other variable is read (M7).
 
 ## 12.11 Withdrawn commands
 
@@ -170,6 +446,6 @@ For readers of earlier design notes: `impact` became `unravel`; `dependents` and
 
 ## Open questions
 
-- Whether `loom check` should compile bundles by default (slow) or only with a flag. **[assumed]** `--bundles stale` by default.
-- Whether `loom search` should accept `--kind` filters. **[assumed]** Yes, `--kind node|digest|master|thread`.
+- `loom check` compiles bundles with `--bundles stale` by default, `all` or `none` on request. **[decided]** (settled at M2; a failed bundle is reported as `loom:bundle-failed`, M7).
+- `loom search` accepts `--kind node|digest|master|thread`. **[decided]** (settled at M1).
 - A `loom open KEY` that launches the user's editor at the node's file and line. Not in the MVP; would need a user-config editor key.
