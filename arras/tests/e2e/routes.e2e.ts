@@ -118,3 +118,15 @@ test('review panel shows stale causes with diff links and detached counts', asyn
 	const stale = page.locator('table.list tr', { hasText: 'sy-0001' }).first();
 	await expect(stale).toContainText('1 detached');
 });
+
+test('digest page lists results with their citers, and the references index counts them', async ({ page }) => {
+	await page.goto('/digest/Kre99');
+	const item = page.locator('li:has(> a:first-child[href="/node/Kre99-thm-2.1"])');
+	await expect(item).toContainText('sy-000A'); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
+	await page.goto('/references');
+	const row = page.locator('tr', { hasText: 'Kre99' });
+	await expect(row).toContainText('2 results (manual)');
+	await page.goto('/problems');
+	await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
+});
+

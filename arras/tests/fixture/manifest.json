@@ -247,6 +247,20 @@
    "severity": "warning"
   },
   {
+   "code": "loom:unmatched-postnote",
+   "keys": [
+    "sy-0100"
+   ],
+   "locations": [
+    {
+     "file": "drafts/main.tex",
+     "line": 31
+    }
+   ],
+   "message": "\\cite[Lemma 9]{Kre99} names no result in the digest of Kre99",
+   "severity": "warning"
+  },
+  {
    "code": "loom:positional-proof-key",
    "keys": [
     "sy-0006"
@@ -723,6 +737,26 @@
    },
    "to": "sy-0008",
    "via": "ref"
+  },
+  {
+   "from": "sy-000A",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sy-000A.tex",
+    "line": 2
+   },
+   "to": "Kre99-thm-2.1",
+   "via": "postnote"
+  },
+  {
+   "from": "sy-0100",
+   "kind": "prose",
+   "src": {
+    "file": "drafts/main.tex",
+    "line": 31
+   },
+   "to": "Kre99-thm-2.1",
+   "via": "postnote"
   }
  ],
  "generated": "2026-09-16T00:00:00Z",
@@ -1571,6 +1605,8 @@
   },
   "sy-000A": {
    "closure": [
+    "Kre99-setup",
+    "Kre99-thm-2.1",
     "sy-000A"
    ],
    "file": "nodes/sy-000A.tex",
@@ -1591,7 +1627,9 @@
     126
    ],
    "state": "draft",
-   "uses": []
+   "uses": [
+    "Kre99-thm-2.1"
+   ]
   },
   "sy-000B": {
    "closure": [
