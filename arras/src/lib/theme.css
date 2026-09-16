@@ -43,6 +43,7 @@
 	--rail-left: 168px;
 	--rail-right: 236px;
 	--strip: 44px;
+	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
 	--rail-a: 178px;
 	--rail-b: 160px;
 	--topbar: 30px;
@@ -55,7 +56,7 @@
 
 	/* set by the size and width preferences below */
 	--body-size: 13.5px;
-	--measure: 42rem;
+	--measure: 44rem;
 	--body-face: var(--serif);
 
 	color-scheme: light;
@@ -115,9 +116,9 @@
 :root[data-size='s'] { --body-size: 11px; }
 :root[data-size='m'] { --body-size: 13.5px; }
 :root[data-size='l'] { --body-size: 16px; }
-:root[data-width='narrow'] { --measure: 34rem; }
-:root[data-width='mid'] { --measure: 42rem; }
-:root[data-width='wide'] { --measure: 50rem; }
+:root[data-width='narrow'] { --measure: 36rem; }
+:root[data-width='mid'] { --measure: 44rem; }
+:root[data-width='wide'] { --measure: 52rem; }
 :root[data-face='serif'] { --body-face: var(--serif); }
 :root[data-face='sans'] { --body-face: var(--sans); }
 
@@ -276,7 +277,7 @@ table.list th {
 .fragment .env {
 	margin: var(--gap-wide) 0;
 	padding: 0 0 0 var(--gap);
-	border-left: 3px solid var(--rule-strong);
+	border-left: var(--env-accent) solid var(--rule-strong);
 }
 .fragment .env[data-taxon='Theorem'],
 .fragment .env[data-taxon='Proposition'] { border-left-color: #1a5fb4; }
@@ -320,29 +321,54 @@ table.list th {
 .fragment details.env-proof[open] > summary.env-label { margin-bottom: var(--gap-hair); }
 .fragment details.env-proof > :last-child { margin-bottom: 0; }
 
-/* The read view's margin column (15.3.1): the key in mono beside every node, the state word beneath it, the taxon accent doubling as the hairline rule. */
+/* The gutters (15.3.1), with the site generator's algebra so that a corpus page and a note page are laid out alike.
+   The ideal gutter is half the slack around the measure; these are two thirds of that, and the text column absorbs the third they give up. One knob: change the /3 and the column, the margin annotations and the gutter comments all follow, because each is expressed in terms of these. A viewport too narrow for the measure gets no gutters at all rather than negative ones. */
+.gutters-host {
+	container-type: inline-size;
+}
+.gutters {
+	--gutter: 0px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	align-items: start;
+}
+.gutters > .column {
+	min-width: 0;
+}
+/* The gutter is a container-relative length rather than a percentage, because the margin annotations and the gutter comments are positioned against a node and would otherwise resolve their percentage against that node instead of the page. */
+@supports (container-type: inline-size) {
+	.gutters {
+		--slack: max(0px, calc(100cqw - var(--measure)));
+		--gutter: calc(var(--slack) / 3);
+		grid-template-columns: var(--gutter) minmax(0, 1fr) var(--gutter);
+	}
+	.gutters > .column {
+		grid-column: 2;
+	}
+}
+
+/* The read view's margin annotation (15.3.1): the key in mono beside every node and the state word beneath it, set in the left gutter so that the environment's taxon accent is the boundary between the two and the text column keeps its whole measure. */
 .fragment.read .env[data-key],
 .fragment.read details.env-proof[data-key] {
 	position: relative;
-	margin-left: 96px;
-}
-.fragment.read .env .env[data-key] {
-	margin-left: 0;
 }
 .fragment.read .env .env[data-key] > .node-margin {
 	display: none;
 }
 .node-margin {
 	position: absolute;
-	left: -96px;
+	/* the containing block is the environment's padding box, which begins inside the accent rule, so the rule's own width is added back to end the gutter at the boundary rather than over it */
+	right: calc(100% + var(--env-accent));
 	top: 0;
-	width: 86px;
+	width: calc(var(--gutter) - var(--gap-wide));
+	padding-right: var(--gap);
 	text-align: right;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
 	gap: 1px;
 	line-height: 1.3;
+	overflow-wrap: anywhere;
 }
 .node-margin .mid {
 	font-family: var(--mono);
@@ -353,6 +379,43 @@ table.list th {
 	font-family: var(--sans);
 	font-size: 9px;
 	color: var(--tone);
+}
+
+/* Comments in the gutter (15.3.1). A short comment stands in the right gutter beside the node it is about; one with sizeable content stays in the text as a box, because a paragraph squeezed into a gutter is unreadable and a reader who has to hunt for the rest of a sentence would rather have it in the flow. */
+.comment-slot {
+	display: block;
+}
+.comment-slot.gutter {
+	position: absolute;
+	left: 100%; /* the content column's right edge */
+	top: 0;
+	width: calc(var(--gutter) - var(--gap-wide));
+	margin-left: var(--gap);
+	font-family: var(--sans);
+}
+.comment-slot.inline {
+	margin: var(--gap) 0 var(--gap-wide);
+	font-family: var(--sans);
+}
+.comment-slot.inline > .box:first-child {
+	margin-top: 0;
+}
+/* Below the width the gutters exist at, a gutter comment and a margin annotation have nowhere to stand and rejoin the flow. */
+@media (max-width: 1100px) {
+	.comment-slot.gutter {
+		position: static;
+		width: auto;
+		margin-left: 0;
+	}
+	.node-margin {
+		position: static;
+		width: auto;
+		padding: 0 0 var(--gap-hair);
+		flex-direction: row;
+		align-items: baseline;
+		gap: var(--gap-tight);
+		text-align: left;
+	}
 }
 
 /* The Stacks-project heading affordance: a node's own link, revealed on hover (15.3.1). */

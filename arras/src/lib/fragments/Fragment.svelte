@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
-	import { wire } from '$lib/fragments/mount';
+	import { wire, type CommentPlacement } from '$lib/fragments/mount';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
 	import { page } from '$app/state';
@@ -12,8 +12,18 @@
 		macroSet = '',
 		master = '',
 		headingLinks = false,
-		margins = false
-	}: { path: string; macroSet?: string; master?: string; headingLinks?: boolean; margins?: boolean } = $props();
+		margins = false,
+		comments,
+		onmounted
+	}: {
+		path: string;
+		macroSet?: string;
+		master?: string;
+		headingLinks?: boolean;
+		margins?: boolean;
+		comments?: (key: string) => CommentPlacement[];
+		onmounted?: (root: HTMLElement) => void;
+	} = $props();
 
 	let html = $state('');
 	let error = $state('');
@@ -43,11 +53,17 @@
 	}
 
 	async function mount(root: HTMLElement) {
-		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), { master, headingLinks, margins });
+		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
+			master,
+			headingLinks,
+			margins,
+			comments
+		});
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
 		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : []);
+		onmounted?.(root);
 		scrollToHash();
 	}
 

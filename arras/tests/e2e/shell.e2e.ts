@@ -98,3 +98,58 @@ test('the graph toggle keeps the selection and both layouts draw their edges', a
 	await expect(page.locator('aside').getByRole('link', { name: /Theorem/ })).toBeVisible();
 	await expect(page.locator('svg path.edge')).toHaveCount(forceEdges);
 });
+
+test('the read view has gutters, with the margin annotation in one and the comments in the other', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await page.goto('/master/main');
+	await page.waitForSelector('.fragment .env[data-key]');
+
+	const env = page.locator('.fragment .env[data-key="sy-0001"]');
+	const margin = env.locator('.node-margin');
+	await expect(margin).toContainText('sy-0001');
+	await expect(margin).toContainText('accepted');
+
+	const envBox = (await env.boundingBox())!;
+	const marginBox = (await margin.boundingBox())!;
+	// the annotation sits wholly in the left gutter, ending where the environment's accent rule begins
+	expect(marginBox.x + marginBox.width).toBeLessThanOrEqual(envBox.x + 1);
+
+	const comment = page.locator('aside.comment-slot.gutter[data-slot-for="sy-0001"]');
+	await expect(comment).toBeVisible();
+	const commentBox = (await comment.boundingBox())!;
+	// and the comment sits wholly in the right gutter, beginning where the text column ends
+	expect(commentBox.x).toBeGreaterThanOrEqual(envBox.x + envBox.width - 1);
+	await expect(comment.locator('article.box')).toHaveCount(1);
+	// aligned with the node it is about
+	expect(Math.abs(commentBox.y - envBox.y)).toBeLessThan(40);
+
+	// the two gutters are the same width, and the text keeps its measure between them
+	const host = (await page.locator('.gutters').boundingBox())!;
+	const left = envBox.x - host.x;
+	const right = host.x + host.width - (envBox.x + envBox.width);
+	expect(Math.abs(left - right)).toBeLessThan(2);
+	expect(left).toBeGreaterThan(80);
+});
+
+test('a comment with sizeable content stays in the text as a box', async ({ page }) => {
+	await page.route('**/build/manifest.json', async (route) => {
+		const res = await route.fetch();
+		const m = await res.json();
+		m.annotations['a-2026-09-16-0006'].body_html =
+			'<p>' + 'This comment says a great deal about the involution and its fixed locus. '.repeat(8) + '</p>';
+		await route.fulfill({ response: res, json: m });
+	});
+	await page.setViewportSize({ width: 1440, height: 1000 });
+	await page.goto('/master/main');
+	await page.waitForSelector('.fragment .env[data-key]');
+
+	const inline = page.locator('aside.comment-slot.inline[data-slot-for="sy-0001"]');
+	await expect(inline).toBeVisible();
+	await expect(page.locator('aside.comment-slot.gutter[data-slot-for="sy-0001"]')).toHaveCount(0);
+
+	// in the flow: as wide as the text column, and below the node rather than beside it
+	const env = (await page.locator('.fragment .env[data-key="sy-0001"]').boundingBox())!;
+	const box = (await inline.boundingBox())!;
+	expect(box.x).toBeGreaterThanOrEqual(env.x - 1);
+	expect(box.width).toBeGreaterThan(env.width / 2);
+});

@@ -10,6 +10,15 @@ export interface WireOptions {
 	headingLinks?: boolean;
 	/** Renders the read view's margin column: the key and its state beside every node (book 15.3.1). */
 	margins?: boolean;
+	/** Places a slot for each node's comments: in the right gutter when the comment is short, in the flow when it is long (book 15.3.1). The caller fills the slots; this only decides where they go. */
+	comments?: (key: string) => CommentPlacement[];
+}
+
+/** One comment and where it belongs beside the node it is about. */
+export interface CommentPlacement {
+	id: string;
+	/** `gutter` stands beside the node; `inline` stays in the text as a box. */
+	where: 'gutter' | 'inline';
 }
 
 export function labelFor(manifest: Manifest | null, key: string): string {
@@ -93,6 +102,26 @@ export function wire(
 				margin.appendChild(st);
 			}
 			el.prepend(margin);
+		}
+	}
+	if (opts.comments) {
+		for (const el of root.querySelectorAll<HTMLElement>('div.env[data-key], details.env-proof[data-key], section[data-key], section[data-id]')) {
+			if (el.dataset.wiredComments) continue;
+			const key = el.dataset.key ?? el.dataset.id ?? '';
+			const placements = key ? opts.comments(key) : [];
+			if (!placements.length) continue;
+			el.dataset.wiredComments = '1';
+			for (const where of ['gutter', 'inline'] as const) {
+				const ids = placements.filter((p) => p.where === where).map((p) => p.id);
+				if (!ids.length) continue;
+				const slot = document.createElement('aside');
+				slot.className = `comment-slot ${where}`;
+				slot.dataset.commentSlot = ids.join(' ');
+				slot.dataset.slotFor = key;
+				// a gutter slot is positioned against the node, so it is a child of it; an inline slot is a sibling, because it takes room in the text
+				if (where === 'gutter') el.appendChild(slot);
+				else el.after(slot);
+			}
 		}
 	}
 	if (opts.headingLinks) {
