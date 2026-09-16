@@ -53,9 +53,13 @@ Markers as elsewhere. The chapter was written before the viewer was built and it
 
 ![Read view](figures/page-read-master.png)
 
-**[decided]** The document rendered as a document. Prose in the body typeface at 11–16px depending on the user's type setting, `line-height: 1.7`. Each node is a row: a 86px right-aligned margin column holding the id in mono accent and the state word beneath it in the state colour at 9px, then a hairline vertical rule, then the node's rendered text indented 10px past the rule. Numbers come from the manifest and appear in the statement's label ("Lemma 3.4."). Proofs render collapsed with a disclosure marker, matching sitegen's `details.env-proof` treatment: no box, a left rule, a ▸/▾ marker. Environment boxes follow sitegen's `environments.css` convention: a per-taxon left-border accent, no filled background.
+**[decided]** The document rendered as a document, in a measured column with a gutter either side. The geometry is the site generator's own, so that a corpus page and a note page are laid out alike: the gutters are `(available − measure)/3` each and the text column absorbs the third they give up, one knob being the `/3`. Prose in the body typeface at 11–16px depending on the user's type setting, `line-height: 1.7`; the width setting is 36, 44 or 52rem, the middle being the site generator's own measure.
 
-**[decided]** The right rail appears in the read view only when a node on screen carries non-discarded comments, and then holds them, aligned as closely as layout allows to the node they target.
+**[decided]** The left gutter holds each node's margin annotation: the id in mono accent and the state word beneath it in the state colour at 9px, right-aligned, ending exactly at the environment's per-taxon accent rule, which is the boundary between the gutter and the text. Environments follow sitegen's `environments.css` convention — a left-border accent, no filled background — and that border is the rule; the node's text is indented past it. Numbers come from the manifest and appear in the statement's label ("Lemma 3.4."). Proofs render collapsed with a disclosure marker, matching sitegen's `details.env-proof` treatment: no box, a left rule, a ▸/▾ marker.
+
+**[decided]** The gutter is a container-relative length rather than a percentage, since the margin annotation and the gutter comments are positioned against a node and a percentage would resolve against that node instead of the page. Below 1100px there are no gutters, and everything that stands in one rejoins the flow (DR-98).
+
+**[decided]** A node's comments stand in the right gutter beside it, each aligned with the node it is about; the read view uses no shell rail for them. A comment whose rendered text and replies run past 220 characters stays in the text instead, as a box below the node, because a paragraph squeezed into a gutter is unreadable and a reader who must hunt for the rest of a sentence would rather have it in the flow (DR-98).
 
 ### 15.3.2 Node page
 
@@ -90,7 +94,7 @@ See 15.5.
 | view | left (shell C panel; A and B equivalents) | right |
 |---|---|---|
 | home | document picker, contents tree | none |
-| read | document picker, contents tree | comments, when a reached node carries one |
+| read | document picker, contents tree | none; comments stand in the page's own right gutter |
 | node | document picker, contents tree | in `<document>`, depends on, used by, see also, discussions, detached comments, diagnostics |
 | graph | layout, document, taxon, tag, state, depth, highlight | the selection and what rests on it |
 | review | show, document, author, tag, and the count | none; a row expands in place |
@@ -135,7 +139,9 @@ See 15.5.
 | `--rad-pill` `--rad-control` `--rad-card` | 4, 8, 12px | radii |
 | `--rail-left` `--rail-right` `--strip` | 168, 236, 44px | the fixed widths of 15.2 |
 | `--rail-a` `--rail-b` `--topbar` | 178, 160, 30px | shell A's rail, shell B's rail, shell B's bar |
-| `--measure` | 34rem, 42rem, 50rem by setting | body line width |
+| `--gutter` | `(100cqw − --measure) / 3` | the read view's gutters, on the site generator's algebra |
+| `--env-accent` | 3px | the per-taxon rule, and the boundary the left gutter ends at |
+| `--measure` | 36rem, 44rem, 52rem by setting | body line width; the middle is the site generator's |
 
 **[decided]** State tokens are a second group, named for the state rather than for a role, because arras's states are loom's and not a generic severity scale:
 
