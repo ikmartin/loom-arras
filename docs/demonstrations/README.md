@@ -12,6 +12,6 @@ One file per milestone records what was run, what came out, and whether the mile
 | M5 digests | demonstrated | 2026-09-16 | Manolache extracted into relloc; every postnote resolves; bundles compile; see M5.md |
 | M6 the AI layer | demonstrated | 2026-09-16 | Claude Code session on the demo; Codex half blocked (not installed); see M6.md |
 | M7 acceptance | demonstrated | 2026-09-16 | criteria 1 to 8 on demos/relloc; 9 (Overleaf) and 10 (external user) blocked on the user; see M7.md |
-| book revision | in progress | 2026-09-16 | |
+| book revision | demonstrated | 2026-09-16 | every chapter revised to the implementation; DR-81 to DR-83; see book-revision.md |
 
 Status values: `pending`, `in progress`, `demonstrated`, `blocked (reason)`.
