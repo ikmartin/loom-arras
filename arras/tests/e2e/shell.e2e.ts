@@ -206,3 +206,21 @@ test('the icon strip offers each destination exactly once', async ({ page }) => 
 	expect(new Set(hrefs).size).toBe(hrefs.length); // no two icons go to the same place
 	expect(hrefs).toContain('/');
 });
+
+test('a display block never scrolls vertically', async ({ page }) => {
+	await page.goto('/master/main');
+	await page.waitForSelector('.fragment .math.display');
+	await page.waitForTimeout(1500);
+	const r = await page.evaluate(() => {
+		const els = [...document.querySelectorAll('.fragment .math.display')] as HTMLElement[];
+		return {
+			n: els.length,
+			// naming one axis makes the browser compute the other to `auto`, and MathJax's hidden accessibility copy is taller than the box, which grew a scrollbar beside a formula that fitted
+			axes: [...new Set(els.map((el) => getComputedStyle(el).overflowY))],
+			bars: els.filter((el) => el.offsetWidth > el.clientWidth).length
+		};
+	});
+	expect(r.n).toBeGreaterThan(0);
+	expect(r.axes).toEqual(['hidden']);
+	expect(r.bars).toBe(0);
+});

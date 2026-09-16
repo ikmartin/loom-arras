@@ -532,6 +532,8 @@ a.heading-link:focus {
 /* A formula wider than the column scrolls, and says so: the shadow at an edge appears only when there is content past it, so a reader is never left wondering why a block moves. */
 .fragment .math.display {
 	overflow-x: auto;
+	/* Naming one axis makes the browser compute the other to `auto` as well, and a formula whose rendered height rounds a fraction past its box then grows a vertical scrollbar beside a display that fits perfectly well. A display in normal flow is as tall as its content, so there is nothing to scroll to. */
+	overflow-y: hidden;
 	background:
 		linear-gradient(to right, var(--paper) 30%, transparent) left / 24px 100% no-repeat local,
 		linear-gradient(to left, var(--paper) 30%, transparent) right / 24px 100% no-repeat local,

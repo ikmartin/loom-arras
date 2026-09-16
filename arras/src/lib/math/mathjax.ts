@@ -35,7 +35,8 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 				macros: currentMacros,
 				tags: 'none'
 			},
-			svg: { fontCache: 'local' },
+			// One glyph cache for the page, not one per expression. A local cache puts a `<defs>` block inside every container whose paths sit thousands of pixels above it in the SVG's coordinate space, and a scroll container counts that as content: every display block then had a vertical scrollbar beside a formula that fitted.
+			svg: { fontCache: 'global' },
 			options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
 			startup: { typeset: false }
 		};
