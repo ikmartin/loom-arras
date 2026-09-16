@@ -1,0 +1,37 @@
+% Bundle written by loom. Statements of the closure precede the key; ids are shown as comments before each environment.
+\documentclass[12pt,dvipsnames]{amsart}
+% !LOOM environment: convention = Convention, definition
+% !LOOM environment: condition = Condition, definition
+% !LOOM environment: setting = Setting, definition
+\usepackage{loom}
+\input{preamble.tex}
+
+% bibliography
+%\usepackage[citestyle=alphabetic,bibstyle=authortitle]{biblatex}
+\usepackage[backend=biber,style=alphabetic,sorting=anyt]{biblatex}
+\usepackage[new]{old-arrows} % for \longhookrightarrow
+\addbibresource{refs.bib}
+
+% document specific commands
+\newcommand{\vir}{\text{vir}}
+
+% checklist
+\newlist{todolist}{itemize}{2}
+\setlist[todolist]{label=$\square$}
+
+\title{Relative Virtual Localization}
+\begin{document}
+\section*{Bundle for rl-0002}
+
+% id: rl-0002
+\section{The fixed stack and its deformation theory}\label{rl-0002}
+
+The aim of this section is to recall the definition of the Romagny fixed stack and establish some preliminary results regarding its deformation theory. Throughout this section \(G\) is a group scheme acting on an algebraic stack \(\mathcal X\).
+
+\input{nodes/rl-0003}
+\input{nodes/rl-000C}
+\input{nodes/rl-000H}
+\input{nodes/rl-000K}
+
+
+\end{document}

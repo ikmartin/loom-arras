@@ -1,0 +1,63 @@
+% Bundle written by loom. Statements of the closure precede the key; ids are shown as comments before each environment.
+\documentclass[12pt,dvipsnames]{amsart}
+% !LOOM environment: convention = Convention, definition
+% !LOOM environment: condition = Condition, definition
+% !LOOM environment: setting = Setting, definition
+\usepackage{loom}
+\input{preamble.tex}
+
+% bibliography
+%\usepackage[citestyle=alphabetic,bibstyle=authortitle]{biblatex}
+\usepackage[backend=biber,style=alphabetic,sorting=anyt]{biblatex}
+\usepackage[new]{old-arrows} % for \longhookrightarrow
+\addbibresource{refs.bib}
+
+% document specific commands
+\newcommand{\vir}{\text{vir}}
+
+% checklist
+\newlist{todolist}{itemize}{2}
+\setlist[todolist]{label=$\square$}
+
+\title{Relative Virtual Localization}
+\begin{document}
+\section*{Bundle for rl-001A}
+
+% id: rl-001A
+\section{Appendix: Three fixed stacks, a disambiguation}\label{rl-001A}
+
+Given a group \(G\) acting on a stack \(X\), there are at least three notions of a fixed stack. We've already met the Romagny fixed stack, or the \emph{homotopy fixed stack}, which we'll denote here by \(X^{hG}\). It admits a natural map \(\eta:X^{hG}\to X\), but as we've seen it is not necessarily a monomorphism. The next notion we discuss is called ``the embedded fixed stack'' and is simply the image of $\eta$ as a substack of $X$. It's what Arahna et al. call simply $X^G$, but we denote it \(X^{eG}\). Note that the inclusion \(X^{eG}\hookrightarrow X\) may not be a closed immersion. The third and final notion we conside is called the \textit{stabilizer fixed stack}, or the \textit{na\"ive fixed stack} in Tom's notation, and it is denoted \(X^{sG}\). It's a base change of Tom's na\"ive fixed stack.
+
+We discuss each of these fixed stacks individually, and then demonstrate that at least for algebraic tori, they all capture essentially the same information.
+
+We start with the following definition in reference to the exact sequence \eqref{eqn:inertia-stack-sequence}.
+\input{nodes/rl-001B}
+
+This leads us immediately to the embedded fixed stack.
+
+\input{nodes/rl-001C}
+\input{nodes/rl-001D}
+
+Since the Romagny fixed stack $X^{hG}$ parameterizes sections of \(\St_{X,G} \to G\times_SX\), \(\eta:X^{hG} \to X\) factors through \(X^{eG}\hookrightarrow X\). However even the set theoretic image of \(X^{hG}\) will not necessarily coincide with \(|X^{eG}|\). When \(G\) is a torus this is resolved by reparameterization, see Theorem~\ref{thm:reconciliation-of-fixed-stacks-for-tori}
+
+
+And now the \textit{stabilizer fixed stack} \(X^{sG}\), or the \textit{na\"ive fixed stack} as Graber calls it. Its definition appears in \cite{aranha-khan-latyntsev-etal_VirtualLocalizationRevisited2025}, where it is called the ``Edidin-Rydh'' fixed stack since it is based upon a construction discussed in \cite{edidin-rydh_CanonicalReductionStabilizers2021}. We only define it for torus actions.
+
+\input{nodes/rl-001E}
+\input{nodes/rl-001F}
+
+At the end of Graber's section 2 in his note, he shows that after a possible reparameterization of \(T\) (that is, an isogeny \(\rho:T'\to T\) where \(T'\) is some other split torus over \(S\)) the na\"ive fixed stack and the Romagny fixed stack agree. Arahna et al. give another version of this same statement. First they define the \emph{reparameterized homotopy fixed point stack} as the filtered colimit of \(X^{hT}\) over reparameterizations:
+\[X^{rhT} := \lim_{\substack{\to \\ p}} X^{hT'}.\]
+It then relates to the stacks \(X^{eT}\) and \(X^{sT}\) in the following way.
+
+\input{nodes/rl-001G}
+
+
+
+\newpage
+
+\printbibliography
+
+
+
+\end{document}

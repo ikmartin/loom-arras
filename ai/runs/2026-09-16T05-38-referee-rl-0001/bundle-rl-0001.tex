@@ -1,0 +1,53 @@
+% Bundle written by loom. Statements of the closure precede the key; ids are shown as comments before each environment.
+\documentclass[12pt,dvipsnames]{amsart}
+% !LOOM environment: convention = Convention, definition
+% !LOOM environment: condition = Condition, definition
+% !LOOM environment: setting = Setting, definition
+\usepackage{loom}
+\input{preamble.tex}
+
+% bibliography
+%\usepackage[citestyle=alphabetic,bibstyle=authortitle]{biblatex}
+\usepackage[backend=biber,style=alphabetic,sorting=anyt]{biblatex}
+\usepackage[new]{old-arrows} % for \longhookrightarrow
+\addbibresource{refs.bib}
+
+% document specific commands
+\newcommand{\vir}{\text{vir}}
+
+% checklist
+\newlist{todolist}{itemize}{2}
+\setlist[todolist]{label=$\square$}
+
+\title{Relative Virtual Localization}
+\begin{document}
+\section*{Bundle for rl-0001}
+
+% id: rl-0001
+\section{Introduction}\label{rl-0001}
+
+I don't want to write an introduction right now, but here's some stuff to mention.
+\begin{itemize}
+  \item We use the Chow groups of Kresch, but \(\hat A_*^T\mathcal Y\) does not mean the Chow groups of Edidin-Graham-Totaro that appear in his Definition 2.1.4 (iii). We need this group in order to make sense of the Euler classes of vector bundle stacks.
+  \item The perfect obstruction theory of \(M^T\) is relative to the map \(M^T\to \mathcal Y^T\), \textit{not} the map \(M^T\to \mathcal Y\). We get this obstruction theory by restricting \(E\) to \(M^T\) and taking the fixed portion. This is the primary source of difficulty. We must find a way to relate the virtual fundamental classes \([M]^{vir}\) and \([M^T]^{vir}\) by studying the map \(\eta:\mathcal Y^T\to \mathcal Y\) between the bases, which is impossible via traditional localization theory since the main localization theorem fails for Artin stacks. We fix this by defining a residue map from classes of \(\mathcal Y\) to classes of \(\mathcal Y^T\). There is no canonical obstruction theory for \(\eta\) so the virtual pullback \(\eta^!\) (if it exists) depends on the choice of POT chosen, but this dependency can be fixed by capping with an appropriate inverse Euler class.
+\end{itemize}
+
+Each section begins with its own introduction explaining its context within the broader goal of the paper and is followed by subsections containing the actual math.
+
+\bigskip
+
+Throughout \(\mathcal X\) is an algebraic stack of finite type over a field \(k\) with an action of \(T\) a torus. We'll always denote by \(\eta:\mathcal X^T\to \mathcal X\) the canonical map from the Romagny fixed locus to \(\mathcal X\), and \(\mathcal Z\subseteq \mathcal X^T\) will be an open and closed sublocus. The restriction of \(\eta\) to \(\mathcal Z\) will also just be denoted \(\eta\). We'll need the following hypotheses.
+
+\noindent
+\begin{itemize}
+  \item \(T\) is a split torus. We need this so that \(e_T(V)\) is a unit whenever \(V\) is a finite-rank moving \(T\)-equivariant locally free sheaf on \(\mathcal Z\subseteq \mathcal X^T\).
+  \item \(\mathcal X\) is stratified by global quotients. Need this for Kresch's Chow groups and also for Manolache's virtual pullback.
+  \item \(\mathcal Z\) has the resolution property. We need this for the existence of a POT for \(\eta:\mathcal Z\to \mathcal X\). Note this implies \(\mathcal Z = [U/\GL_n]\) with \(U\) some quasi-affine by \cite{totaro_ResolutionPropertySchemes2004}.
+  \item \(\mathcal X^T\) is algebraic. This is not automatic, and is equivalent to \(\eta:\mathcal X^T\to \mathcal X\) being representable by algebraic spaces.
+\end{itemize}
+
+This means \(A^T_*(\mathcal Z) = A_*(\mathcal Z\times BT)\) exists with no further hypotheses.
+
+
+
+\end{document}

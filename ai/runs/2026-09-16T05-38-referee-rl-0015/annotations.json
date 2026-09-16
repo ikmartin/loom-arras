@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "discarded": false,
+  "annotations": [
+    {
+      "id": "a-2026-09-16-0001",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0016",
+        "hash": "sha256:1944a1e9b21c344a7b889041f2f727a0c266d6871f787ee8bc3eab0a4847ba04"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Statement read against the bundle; hypotheses match every use in the section.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0002",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0016/proof",
+        "hash": "sha256:222ddcca5e884c74b96c11abbd3ee249948d0e856a4303b05f82fcc4b17891d6"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Proof read against the bundle; every step invokes a statement in the closure.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0003",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0017",
+        "hash": "sha256:5e6f28841deb4fe6f58f867a9eb22650a09395dedaf75554d7908274b5d7f4b0"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Statement read against the bundle; hypotheses match every use in the section.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0004",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0017/proof",
+        "hash": "sha256:b20773e798b8d94a63f75eebab4f6c9e9cc93fc7ad0bd9c57a7c949c001f90cd"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Proof read against the bundle; every step invokes a statement in the closure.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0005",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0018",
+        "hash": "sha256:c808b10fa275d4a125e6d11285b1c31ce8ed4feffbe3258b6ec094294f854743"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Statement read against the bundle; hypotheses match every use in the section.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0006",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0018/proof",
+        "hash": "sha256:4cc9afb0022099981533e3423b00e352aa62289332adaa4cef4bc6be7d005cbc"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Proof read against the bundle; every step invokes a statement in the closure.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0007",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0019",
+        "hash": "sha256:dd2779a71013812b26daebfc73388f2eec58e674930e9d7d10f52fe03056a6d0"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Statement read against the bundle; hypotheses match every use in the section.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0008",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T05-38-referee-rl-0015"
+      },
+      "created": "2026-09-16T05:38:53Z",
+      "target": {
+        "key": "rl-0019/proof",
+        "hash": "sha256:9135dbab819174588f80cde27371cd1ccccf8dabd81ccaeab4767d6ed3e93af7"
+      },
+      "selector": null,
+      "kind": "ok",
+      "body": "Proof read against the bundle; every step invokes a statement in the closure.",
+      "status": "open",
+      "in_reply_to": null
+    }
+  ]
+}
