@@ -1,0 +1,8 @@
+loom (distribution loomtex)
+Copyright (C) 2026 ikmartin
+
+Licensed under the GNU General Public License v3.0 or later (see LICENSE).
+
+Files under src/loom/assets/ (loom.sty, the demo quilt, the AI-layer templates) are licensed under the MIT License (see src/loom/assets/LICENSE) so that they can travel with an author's paper.
+
+Portions of src/loom/render/tikz.py, src/loom/render/watch.py, src/loom/render/serve.py, the MathJax macro output format, and the test shim pattern derive from the copyright holder's own static-site generator (https://github.com/ikmartin/personal-site), which carries no license file; the copyright holder relicenses those portions here under the GNU General Public License v3.0 or later.

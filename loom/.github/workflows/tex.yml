@@ -1,0 +1,17 @@
+name: tex
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tex:
+    runs-on: ubuntu-latest
+    container: texlive/texlive:latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: apt-get update && apt-get install -y poppler-utils curl git
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: uv sync
+      - run: uv run pytest -m tex
