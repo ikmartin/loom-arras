@@ -138,6 +138,7 @@ def init(
     fix_anchors: bool,
 ) -> None:
     """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it."""
+    here = directory is None  # the message says so: "<path> is not empty" reads oddly when the path was never typed
     target = Path(directory).expanduser() if directory else Path.cwd()
     if is_quilt_root(target) or any(is_quilt_root(p) for p in target.resolve().parents):
         raise EnvError(f"{target} is already inside a quilt")
@@ -145,9 +146,18 @@ def init(
     if paper is not None and not paper.is_file():
         raise EnvError(f"{from_file} is not a file")
     if target.exists() and any(target.iterdir()):
-        if paper is None or not paper.is_relative_to(target.resolve()):
+        where = f"the current directory, {target}," if here else f"{target}"
+        if paper is None:
             raise EnvError(
-                f"{target} is not empty; use --from FILE with a file inside it to turn an existing paper directory into a quilt"
+                f"{where} is not empty. Name an empty or new directory to create the quilt in, "
+                "or pass --from FILE with a file inside it to turn an existing paper directory into a quilt."
+            )
+        if not paper.is_relative_to(target.resolve()):
+            # the paper was given, so the advice to pass one is no help; what is wrong is where it sits
+            raise EnvError(
+                f"{where} is not empty, and {paper} lies outside it. Either name an empty or new directory "
+                f"to create the quilt in (the paper may live anywhere), or pass a --from FILE inside the directory "
+                f"to turn an existing paper directory into a quilt."
             )
     if prefix is not None and not PREFIX.match(prefix):
         raise EnvError(f"prefix {prefix!r} must be letters and digits without hyphens")

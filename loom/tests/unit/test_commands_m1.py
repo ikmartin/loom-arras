@@ -43,6 +43,36 @@ def test_init_refuses_in_quilt_and_nonempty(tmp_path: Path) -> None:
     assert run("init", str(tmp_path / "full"), "--yes").exit_code == 2
 
 
+def test_a_nonempty_directory_says_what_is_actually_wrong(tmp_path: Path) -> None:
+    """The two refusals are different and the advice differs. Told to pass `--from` when one was already passed, a reader looks for the mistake everywhere but where it is."""
+    full = tmp_path / "full"
+    full.mkdir()
+    (full / "x.txt").write_text("x")
+    outside = tmp_path / "paper.tex"
+    outside.write_text("\\documentclass{article}\n\\begin{document}\\end{document}\n")
+
+    # no paper at all: passing one is the advice
+    plain = run("init", str(full), "--yes")
+    assert plain.exit_code == 2
+    assert "is not empty" in plain.output and "--from FILE with a file inside it" in plain.output
+
+    # a paper outside the directory: where it sits is the fault, and the message names it
+    apart = run("init", str(full), "--from", str(outside), "--yes")
+    assert apart.exit_code == 2
+    assert "lies outside it" in apart.output and str(outside) in apart.output
+
+    # and the current directory is named as such, since the path was never typed
+    import os
+
+    old = os.getcwd()
+    try:
+        os.chdir(full)
+        here = run("init", "--yes")
+    finally:
+        os.chdir(old)
+    assert here.exit_code == 2 and "the current directory" in here.output
+
+
 def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path: Path) -> None:
     """A quilt is files, and loom reads no history: it makes a repository only when `--git` asks for one, and says so when it does. The ignore file is written either way, since it costs nothing and is right the day the quilt becomes a repository."""
     plain = run("init", str(tmp_path / "n"), "--prefix", "a", "--yes")
