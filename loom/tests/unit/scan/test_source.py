@@ -57,7 +57,9 @@ def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
 
     assert scan(quilt).nodes["ab-0001"].title == "Saved"
 
-    edited = scan(quilt, {"nodes/ab-0001.tex": "\\begin{lemma}[Edited]\\label{ab-0001}\nIn the buffer.\n\\end{lemma}\n"})
+    edited = scan(
+        quilt, {"nodes/ab-0001.tex": "\\begin{lemma}[Edited]\\label{ab-0001}\nIn the buffer.\n\\end{lemma}\n"}
+    )
     assert edited.nodes["ab-0001"].title == "Edited"
     assert "In the buffer." in edited.files["nodes/ab-0001.tex"].text
     assert "On disk." in (root / "nodes" / "ab-0001.tex").read_text()  # nothing was written
