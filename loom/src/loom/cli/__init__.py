@@ -5,6 +5,10 @@ from __future__ import annotations
 import click
 
 from loom.cli.doctor import doctor
+from loom.cli.graph import deps, unravel
+from loom.cli.lint_cmd import lint_command
+from loom.cli.nodes import delete, new, search
+from loom.cli.quilt import init
 from loom.version import __version__
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -20,5 +24,17 @@ def main() -> None:
 
 
 main.add_command(doctor)
+main.add_command(init)
+main.add_command(new)
+main.add_command(search)
+main.add_command(delete)
+main.add_command(delete, name="rm")
+main.add_command(delete, name="remove")
+main.add_command(deps)
+main.add_command(unravel)
+main.add_command(unravel, name="downstream")
+main.add_command(unravel, name="reach")
+main.add_command(unravel, name="pop")
+main.add_command(lint_command)
 
 __all__ = ["main"]

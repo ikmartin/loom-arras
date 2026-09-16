@@ -1,0 +1,15 @@
+[quilt]
+main = "drafts/main.tex"    # default master
+drafts = "drafts"           # masters directory
+prefix = "dm"               # default id prefix for loom new
+engine = "pdflatex"         # default engine; % !TEX program in a master overrides
+
+[refs]
+fetch = false
+
+[lint]
+disable = []
+
+[ai]
+agent = ""
+runner = ""

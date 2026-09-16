@@ -64,12 +64,18 @@ def _local(root: Path, name: str, exts: tuple[str, ...]) -> str | None:
     return None
 
 
+_STYLE_CACHE: dict[tuple[str, str, float], SourceFile] = {}
+
+
 def _load(root: Path, rel: str, files: dict[str, SourceFile]) -> SourceFile:
+    """A scanned .tex file from `files`, or a local .sty/.cls/.tex read on demand and cached by mtime; never added to `files`."""
     if rel in files:
         return files[rel]
-    src = read_source(root, rel)
-    files[rel] = src
-    return src
+    mtime = (root / rel).stat().st_mtime
+    key = (str(root), rel, mtime)
+    if key not in _STYLE_CACHE:
+        _STYLE_CACHE[key] = read_source(root, rel)
+    return _STYLE_CACHE[key]
 
 
 def build_closure(
