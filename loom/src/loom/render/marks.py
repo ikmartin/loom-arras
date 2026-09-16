@@ -79,6 +79,7 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
     idx.feed(html)
     edits: list[tuple[int, int, str]] = []
     block_level: dict[int, list[str]] = {}
+    spans: dict[tuple[int, int], list[str]] = {}
     for e in entries:
         candidates = [
             b
@@ -125,17 +126,22 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
                     b = nt[1][k + len(target) - 1] + 1
                     abs_a = blk.open_end + off + a
                     abs_b = blk.open_end + off + b
-                    edits.append(
-                        (
-                            abs_a,
-                            abs_b,
-                            f'<mark class="annotation" data-annotation="{e.ann_id}">{html[abs_a:abs_b]}</mark>',
-                        )
-                    )
+                    spans.setdefault((abs_a, abs_b), []).append(e.ann_id)
                     placed = True
                     break
         if not placed:
             block_level.setdefault(blk.open_start, []).append(e.ann_id)
+    # Two comments on the same words are one mark carrying both ids, which is the shape the viewer already reads; two edits over one range would otherwise be applied one inside the other and emit the tag as text. A span that overlaps a kept one without matching it joins that mark rather than cutting it.
+    kept: list[tuple[int, int, list[str]]] = []
+    for (a_, b_), ids in sorted(spans.items()):
+        hit = next((k for k in kept if a_ < k[1] and k[0] < b_), None)
+        if hit is None:
+            kept.append((a_, b_, list(ids)))
+        else:
+            hit[2].extend(ids)
+    for a_, b_, ids in kept:
+        joined_ids = " ".join(dict.fromkeys(ids))
+        edits.append((a_, b_, f'<mark class="annotation" data-annotation="{joined_ids}">{html[a_:b_]}</mark>'))
     for open_start, ids in block_level.items():
         tag_end = html.index(">", open_start)
         open_tag = html[open_start:tag_end]
