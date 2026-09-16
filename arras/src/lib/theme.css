@@ -1,0 +1,254 @@
+:root {
+	--bg: #ffffff;
+	--fg: #1c1e21;
+	--muted: #666a70;
+	--rule: #e3e5e8;
+	--accent: #2b4a6f;
+	--link: #1f5fa8;
+	--code-bg: #f4f5f7;
+	--chip-border: #cfd3d8;
+	--chip-neutral: #eceef1;
+	--chip-positive: #d7f0dc;
+	--chip-positive-strong: #2e7d4f;
+	--chip-warning: #fdebc8;
+	--chip-negative: #b3261e;
+	--chip-info: #dbe8fb;
+	--negative: #b3261e;
+	--warning: #9a6700;
+	--mark: #fff3a8;
+	--mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+	--serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+	--sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--bg: #15171a;
+		--fg: #e6e8eb;
+		--muted: #9aa0a6;
+		--rule: #2b2f35;
+		--accent: #9fc0e8;
+		--link: #8ab4f8;
+		--code-bg: #1f2227;
+		--chip-border: #3a3f47;
+		--chip-neutral: #2a2e34;
+		--chip-positive: #1f4d2f;
+		--chip-positive-strong: #3fa66a;
+		--chip-warning: #5a4408;
+		--chip-negative: #c8443b;
+		--chip-info: #23405f;
+		--negative: #ff8a80;
+		--warning: #e8c15e;
+		--mark: #5a4e14;
+	}
+}
+:root[data-theme='dark'] {
+	--bg: #15171a;
+	--fg: #e6e8eb;
+	--muted: #9aa0a6;
+	--rule: #2b2f35;
+	--accent: #9fc0e8;
+	--link: #8ab4f8;
+	--code-bg: #1f2227;
+	--chip-border: #3a3f47;
+	--chip-neutral: #2a2e34;
+	--chip-positive: #1f4d2f;
+	--chip-positive-strong: #3fa66a;
+	--chip-warning: #5a4408;
+	--chip-negative: #c8443b;
+	--chip-info: #23405f;
+	--negative: #ff8a80;
+	--warning: #e8c15e;
+	--mark: #5a4e14;
+}
+html,
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--fg);
+	font-family: var(--sans);
+	line-height: 1.55;
+}
+a {
+	color: var(--link);
+	text-decoration: none;
+}
+a:hover {
+	text-decoration: underline;
+}
+code,
+pre {
+	font-family: var(--mono);
+	background: var(--code-bg);
+	border-radius: 4px;
+}
+code {
+	padding: 0 0.25em;
+}
+pre {
+	padding: 0.75rem;
+	overflow-x: auto;
+}
+.muted {
+	color: var(--muted);
+}
+.problem {
+	color: var(--negative);
+}
+main.page {
+	max-width: 52rem;
+	margin: 0 auto;
+	padding: 1rem 16px 4rem;
+}
+header.top {
+	border-bottom: 1px solid var(--rule);
+	padding: 0.5rem 16px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
+	align-items: baseline;
+	font-size: 0.95rem;
+}
+header.top .brand {
+	font-weight: 700;
+	color: var(--accent);
+}
+header.top nav a {
+	margin-right: 0.8rem;
+}
+header.top .counts {
+	margin-left: auto;
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+h1,
+h2,
+h3 {
+	font-family: var(--serif);
+	font-weight: 600;
+	line-height: 1.25;
+}
+table.list {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: 0.95rem;
+}
+table.list th,
+table.list td {
+	text-align: left;
+	padding: 0.3rem 0.5rem;
+	border-bottom: 1px solid var(--rule);
+	vertical-align: top;
+}
+
+/* the dialect */
+.fragment {
+	font-family: var(--serif);
+	font-size: 1.05rem;
+}
+.fragment .env {
+	margin: 1rem 0;
+	padding: 0.6rem 0.9rem;
+	border-left: 3px solid var(--accent);
+	background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.fragment .env-label {
+	margin: 0 0 0.3rem;
+	font-family: var(--sans);
+	font-size: 0.95rem;
+}
+.fragment .env-label .taxon {
+	font-weight: 700;
+}
+.fragment .env-label .title {
+	color: var(--muted);
+}
+.fragment details.env > summary {
+	cursor: pointer;
+	font-family: var(--sans);
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+.fragment details.env {
+	border-left-color: var(--rule);
+	background: transparent;
+}
+.fragment .math.display {
+	overflow-x: auto;
+	margin: 0.75rem 0;
+}
+.fragment div.include {
+	margin: 0.5rem 0;
+	padding: 0.4rem 0.6rem;
+	border: 1px dashed var(--rule);
+	font-family: var(--sans);
+	font-size: 0.9rem;
+}
+.fragment div.include button {
+	font-size: 0.75rem;
+	margin-left: 0.5rem;
+}
+.fragment .included {
+	margin: 0;
+}
+.fragment section > h1,
+.fragment section > h2,
+.fragment section > h3,
+.fragment section > h4 {
+	margin-top: 1.8rem;
+}
+.fragment span.number {
+	color: var(--muted);
+	margin-right: 0.4rem;
+}
+.fragment .cite {
+	color: var(--muted);
+	font-family: var(--sans);
+	font-size: 0.9em;
+}
+.fragment .footnote {
+	font-size: 0.85em;
+	color: var(--muted);
+}
+.fragment .footnote::before {
+	content: ' [';
+}
+.fragment .footnote::after {
+	content: '] ';
+}
+.fragment .incomplete {
+	background: var(--chip-warning);
+	padding: 0 0.3em;
+	border-radius: 3px;
+}
+.fragment mark.annotation {
+	background: var(--mark);
+	cursor: pointer;
+}
+.fragment figure {
+	margin: 1rem 0;
+	text-align: center;
+}
+.fragment figure svg {
+	max-width: 100%;
+	height: auto;
+}
+.fragment figure.fallback {
+	border: 1px dotted var(--rule);
+	padding: 0.5rem;
+}
+.fragment figure.failed pre {
+	text-align: left;
+}
+.fragment table {
+	border-collapse: collapse;
+	margin: 0.75rem auto;
+}
+.fragment td,
+.fragment th {
+	border: 1px solid var(--rule);
+	padding: 0.2rem 0.6rem;
+}
+.fragment a.ref-dangling {
+	color: var(--negative);
+	border-bottom: 1px dotted var(--negative);
+}

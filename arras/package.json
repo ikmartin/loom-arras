@@ -13,8 +13,8 @@
 		"node": ">=20"
 	},
 	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
+		"dev": "node scripts/stage-fixture.mjs tests/fixture && vite dev",
+		"build": "node scripts/stage-fixture.mjs --clean && vite build",
 		"build:pip": "node scripts/copy-bundle.mjs",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -22,7 +22,10 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"stage:fixture": "node scripts/stage-fixture.mjs tests/fixture",
+		"build:prerender": "node scripts/build-prerender.mjs",
+		"build:fixture": "node scripts/stage-fixture.mjs tests/fixture && vite build"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.60.0",
@@ -35,5 +38,10 @@
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16",
 		"vitest": "^4.1.8"
+	},
+	"dependencies": {
+		"elkjs": "^0.12.0",
+		"mathjax": "^3.2.2",
+		"ninja-keys": "^1.2.2"
 	}
 }
