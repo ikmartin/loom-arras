@@ -60,7 +60,7 @@ def main(argv: list[str]) -> int:
         if child.name in KEEP:
             continue
         shutil.rmtree(child) if child.is_dir() else child.unlink()
-    shutil.copytree(build, TARGET, dirs_exist_ok=True)
+    shutil.copytree(build, TARGET, dirs_exist_ok=True, ignore=shutil.ignore_patterns("build"))
     stamp = f"arras {arras_commit(arras_dir)} interface {mine} vendored {datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
     (TARGET / "VERSION").write_text(stamp, encoding="utf-8")
     print(f"vendored {build} -> {TARGET}\n{stamp.strip()}")
