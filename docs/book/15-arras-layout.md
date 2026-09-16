@@ -39,7 +39,7 @@ Markers as elsewhere. The chapter was written before the viewer was built and it
 
 ![Shell C](figures/shell-c-icon-strip.png)
 
-**[decided]** A 44px icon strip, `--leaf`, holding six 19px view icons at a 38px vertical pitch, the current one on a 32×26px `--link-wash` with `--rad-control`, search below them and the settings control at the foot; every icon has an `aria-label` and a tooltip. The strip carries no separate home mark: home is one of the six views, and a second control going to the same place is a puzzle rather than a shortcut. The settings panel opens upward from that control, because a panel hung below the foot of a full-height column opens past the bottom of the window; its rows never wrap, so the widest of them sets its width and a longer option widens the panel instead of folding under it. Beside the strip a 252px panel: the page's own panel when it has registered one, otherwise the document picker above the contents tree in the views that are about a document and the view list elsewhere, with the indexes and the counts below. Default shell.
+**[decided]** A 44px icon strip, `--leaf`, holding six 19px view icons at a 38px vertical pitch, the current one on a 32×26px `--link-wash` with `--rad-control`, search below them and the settings control at the foot; every icon has an `aria-label` and a tooltip. The strip carries no separate home mark: home is one of the six views, and a second control going to the same place is a puzzle rather than a shortcut. The settings panel opens upward from that control, because a panel hung below the foot of a full-height column opens past the bottom of the window; its rows never wrap, so the widest of them sets its width and a longer option widens the panel instead of folding under it. It is sized by its content and not by the control it hangs off, which here is 44px wide and would otherwise clip the last option in a row. Beside the strip a 252px panel: the page's own panel when it has registered one, otherwise the document picker above the contents tree in the views that are about a document and the view list elsewhere, with the indexes and the counts below. Default shell.
 
 ## 15.3 Page anatomy
 
@@ -167,7 +167,7 @@ See 15.5.
 
 **[decided]** The serif is the stack the author's site generator uses, copied from that project's `tokens.css` so that a corpus page and a note page read as the same publication: `'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif` (DR-90). Chrome is Inter and ids are the existing monospace stack.
 
-**[decided]** A settings control, in arras's own settings and written to arras's preferences, offers: body typeface (serif or sans), body size (three steps), line width (three steps), and theme (light, dark, system). Nothing else is user-adjustable in the MVP.
+**[decided]** A settings control, in arras's own settings and written to arras's preferences, offers: the shell (15.2), body typeface (serif or sans), body size (three steps), line width (three steps), and theme (light, dark, system). Nothing else is user-adjustable in the MVP. Each is one row of the panel, its label and its options on a single line — `Shell  [rail] [tabs] [strip]` — with the labels in a column of fixed width so that every row's options begin at the same place.
 
 **[decided]** Type scale: page title 15px/500, section heading 13px/500, body 11–16px by the size setting with `line-height: 1.7`, rail labels 9px uppercase muted with 0.04em tracking, rail items 10–13px, ids 9px mono, badges 9px. Sentence case everywhere. Two weights, 400 and 500.
 

@@ -6,7 +6,7 @@ This chapter lists the tests the MVP passes. It defines the tiers, the shim that
 
 **[decided]**
 
-- Unit tier: `tests/unit/`, everything that needs no real LaTeX, run against the fake toolchain of 14.2; 206 tests after the 0.3 round (183 at M7). `uv run pytest tests/unit`, or in CI `uv run pytest -m "not tex and not paper and not network"`. Runs on every push.
+- Unit tier: `tests/unit/`, everything that needs no real LaTeX, run against the fake toolchain of 14.2; 213 tests after the 0.3 round (183 at M7). `uv run pytest tests/unit`, or in CI `uv run pytest -m "not tex and not paper and not network"`. Runs on every push.
 - TeX tier: `tests/tex/`, marked `tex`: bundles and the demo master compiled with the real toolchain, the reshape identity tests, the vendored fixture rebuilt and compared, and two smoke tests of `latexmk` and `pdftotext`; 12 tests after the 0.3 round (10 at M7). `conftest.py` gives these tests the real `latexmk` and `pdftotext` directories on `PATH` and skips them when no `latexmk` is installed; HOME and every TeX tree still point at empty directories. Runs in a TeX Live container on every push.
 - Paper tier: `tests/papers/`, the Manolache and ACGS fixtures; 4 tests. The module is marked both `paper` and `tex`, so its tests run only with the real toolchain and only when `LOOM_PAPER_FIXTURES` names a directory holding `0805.2065/` and `1709.09864/`; skipped otherwise, and never in CI.
 - Network: one test, `test_fetch_writes_gitignored_dirs`, marked `network` and skipped unless `LOOM_NETWORK=1`; excluded from CI.
@@ -49,7 +49,7 @@ Names are the test functions as written. Unmarked tests are unit tier on the shi
 
 - Discovery and config: `test_quilt_discovery_walks_up`, `test_quilt_discovery_fails_outside`, `test_quilt_discovery_env_override`, `test_quilt_config_unknown_key_warns`
 - Author: `test_userconfig_author_resolution_order` (flag, user config, git, error with exact message)
-- Init and new: `test_init_creates_layout`, `test_init_refuses_in_quilt_and_nonempty`, `test_init_demo_writes_demo_and_lints_clean`, `test_init_git_init_unless_no_git`, `test_init_demo_matches_fixture`, `test_new_allocates_and_print`, `test_demo_ships_two_accepted_one_stale_and_a_finished_run`
+- Init and new: `test_init_creates_layout`, `test_init_refuses_in_quilt_and_nonempty`, `test_init_demo_writes_demo_and_lints_clean`, `test_init_writes_gitignore_always_and_a_repository_only_when_asked` (DR-105), `test_init_from_leaves_nothing_behind_when_the_import_fails` and `test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fails` (DR-106), `test_init_demo_matches_fixture`, `test_new_allocates_and_print`, `test_demo_ships_two_accepted_one_stale_and_a_finished_run`
 - `\nest`: `test_nested_nest_levels` (the scanner's levels under a nested `\nest`), `test_assemble_flattens_with_nest_shift`, `test_inline_nest_shifts` (tex), `test_real_latexmk_compiles_minimal_document` (tex)
 - Ignore and build directory: `test_ignore_directive_and_lines`, `test_build_dir_deletable_and_regenerated`
 - Author files: `test_never_modifies_author_files`, parametrised over the ten fixture quilts: every command run on each, author files' hashes unchanged afterwards
@@ -80,7 +80,7 @@ Not written: `test_taxa_style_class_default_plain` (the default is asserted insi
 
 ### Chapter 6: bringing a paper in
 
-- Import: `test_import_closure_layout_labels_main_and_identity` (closure resolution, layout preserved and the master moved, `\usepackage{loom}` inserted, labels inserted before existing ones, `main` set, identity on the shim), `test_import_shows_diff_and_asks`, `test_import_refuses_line_anchoring_and_fix_anchoring` (DR-40), `test_fix_anchoring_unit`, `test_import_outside_tree_warning_and_in_place`, `test_import_identity` (tex)
+- Import: `test_import_closure_layout_labels_main_and_identity` (closure resolution, layout preserved and the master moved, `\usepackage{loom}` inserted, labels inserted before existing ones, `main` set, identity on the shim), `test_import_shows_diff_and_asks`, `test_import_refuses_line_anchoring_and_fix_anchoring` (DR-40), `test_anchoring_violation_reports_the_authors_line`, `test_fix_anchoring_unit`, `test_import_outside_tree_warning_and_in_place`, `test_import_identity` (tex)
 - Id: `test_id_prints_patch_and_to_writes_copy` (DR-64)
 - Atomize: `test_atomize_requires_dest_moves_nodes_and_identity` (the exact refusal message, positional and `--to` forms, a node with its adjacent proof, a deferred proof), `test_atomize_proofs_separate_directives_sections_and_all`, `test_atomize_sections_and_inline_round_trip`, `test_atomize_identity_and_inline_identity` (tex), `test_selector_survives_atomize`
 - Inline: `test_inline_nest_shifts_and_identity_on_master` (DR-65), `test_inline_nest_shifts` (tex), `test_assemble_flattens_with_nest_shift`
