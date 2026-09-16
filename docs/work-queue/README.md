@@ -23,21 +23,18 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl to arbitrary depth | loom | [WQ-04](WQ-04-identity-resolvers.md) has landed: 0.5's study found only 9% of a fetched bibliography's entries carry an identifier, so resolution is the crawl's precondition |
 | [WQ-03](WQ-03-reference-libraries.md) | reference libraries: one quilt depends on another | loom | a second quilt exists whose digests another quilt wants |
 | [WQ-04](WQ-04-identity-resolvers.md) | network identity resolvers (Crossref, zbMATH, OpenAlex) | loom | `loom:unresolved-work` exceeds a quarter of a real bibliography |
-| [WQ-05](WQ-05-work-graph-view.md) | the contracted work graph (papers, not results) | arras | any quilt exceeds roughly 150 external nodes |
+| [WQ-05](WQ-05-work-graph-view.md) | the contracted work graph (papers, not results) | arras | **met** — `demos/relloc` has 200 external nodes against 185 of the author's own |
 | [WQ-06](WQ-06-byte-cache.md) | a shared cache for fetched bytes | loom | `refs/` across all quilts on one machine exceeds a few GB, or a quilt needs its fetched bytes on another disk |
-| [WQ-07](WQ-07-atomize-relative.md) | `atomize --relative` | loom | a quilt wants its section files to read as standalone sections |
 | [WQ-08](WQ-08-nest-sectioning-classes.md) | `\nest` under `\part` and class-specific sectioning | loom | a fixture uses memoir, KOMA-Script or `\part` |
-| [WQ-09](WQ-09-tex-root-directive.md) | `% !TEX root` recorded for loose files | loom | a loose file needs to name the master it was written for |
 | [WQ-10](WQ-10-locator-normalization.md) | locator normalization beyond English | loom | a digest whose locators do not match its citations |
 | [WQ-11](WQ-11-lsp-rename.md) | rename as a loom command with an editor trigger | loom-lsp | renaming an id by hand goes wrong once |
 | [WQ-13](WQ-13-graph-at-scale.md) | graph layout precomputed by the publisher | loom, arras | a quilt's graph exceeds roughly 2000 nodes, or the force layout takes over a second |
-| [WQ-14](WQ-14-manifest-schema.md) | `manifest.schema.json` derived from the specification | loom | a third implementation of the interface, or a manifest regression a schema would have caught |
-| [WQ-15](WQ-15-ai-runner.md) | the AI runner (`specs/runner.md`) | loom | an agent needs to be run by loom rather than beside it |
 | [WQ-16](WQ-16-overleaf.md) | the Overleaf procedure | — | cutting the first tagged release |
 | [WQ-17](WQ-17-external-user.md) | acceptance criterion 10: an external user | — | someone outside the project has a paper to bring in |
-| [WQ-18](WQ-18-codex-session.md) | the Codex half of the AI layer | loom | Codex is installed on the machine |
 | [WQ-19](WQ-19-publishing.md) | publishing to PyPI and npm | loom, arras | the author decides to release |
 | [WQ-21](WQ-21-arras-pdf-viewer.md) | arras displays PDFs and resolves reference links into them | arras | plan 0.5 has landed — a decision, not an observation |
 | [WQ-22](WQ-22-extraction-node-model.md) | digest extraction shares the node model | loom | extraction and atomize disagree about what a node is, or a corpus makes the per-paper LaTeX compile the bottleneck |
 
-Nineteen active, one slot of headroom. WQ-01 graduated to `docs/plans/0.5-reference-identity-and-layout.md` and WQ-12 was dropped; both are in [closed.md](closed.md), and their ids are retired rather than reused.
+Fourteen active, six slots of headroom.
+
+Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

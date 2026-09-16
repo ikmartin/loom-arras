@@ -4,11 +4,11 @@
 
 ## Trigger
 
-Any quilt exceeds roughly 150 external nodes — the point at which the result graph is mostly other people's theorems and cannot usefully be drawn expanded.
+**Met, 2026-09-16.** The threshold was roughly 150 external nodes, the point at which the result graph is mostly other people's theorems and cannot usefully be drawn expanded. After plan 0.5's migration `demos/relloc` holds **200 external nodes against 185 of the author's own**, from three digested papers — so the majority of that graph is already someone else's work.
 
 ## Why deferred
 
-With one paper's own nodes plus a handful of digest results, there is nothing to contract. The view would be a feature with no data behind it.
+It was deferred because a corpus small enough to draw whole needs no contraction. That ceased to be true the moment three papers were digested at `--all`: the `reached` primitive from plan 0.5 makes the expanded view legible by hiding what nothing uses, but it cannot make 200 external nodes *navigable*, which is what contracting them to one node per paper does.
 
 ## Rough design
 

@@ -226,7 +226,7 @@ Edges from this proof: to `rl-0002` (uses), to `rl-0004` (through the alias), to
 
 ### 5.9.6 `% !TEX root`
 
-**[decided]** `% !TEX root = <path>` in the first twenty lines of a file that is not a master is parsed (`scan/directives.py`) and consumed by nothing. The manifest has no field for it and reachability is unaffected. Recording it, so that a loose file can say which master it was written for, is WQ-09.
+**[decided]** `% !TEX root = <path>` in the first twenty lines of a file that is not a master is parsed (`scan/directives.py`) and consumed by nothing. The manifest has no field for it and reachability is unaffected. Recording it, so that a loose file could say which master it was written for, was considered and declined: no real quilt has needed it, and an editor that honours the directive does so for its own purposes (`docs/work-queue/closed.md`, WQ-09).
 
 ## 5.10 Digest nodes
 

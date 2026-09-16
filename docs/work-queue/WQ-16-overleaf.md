@@ -19,7 +19,7 @@ Per Chapter 14 §14.5, unchanged:
 3. Download the PDF; compare `pdftotext` with the local one. Equal modulo whitespace is a pass.
 4. Record Overleaf's TeX Live version and the result in the release notes.
 
-While there, settle the open question from Chapter 4 §4.6: whether Overleaf honours `% !TEX root` for main-document selection. The README instructs setting the main document in Overleaf's menu regardless, so nothing depends on the answer — but it is free to observe once someone is in the interface. See [[WQ-09]].
+While there, settle the open question from Chapter 4 §4.6: whether Overleaf honours `% !TEX root` for main-document selection. The README instructs setting the main document in Overleaf's menu regardless, so nothing depends on the answer — but it is free to observe once someone is in the interface. Recording it for loose files was WQ-09, since closed.
 
 ## Blast radius
 
@@ -27,4 +27,4 @@ While there, settle the open question from Chapter 4 §4.6: whether Overleaf hon
 
 ## Related
 
-[[WQ-09]], [[WQ-19]]; `closed/M7.md` ("Blocked on the user"); Chapter 13 §13.6 step 7.
+[[WQ-19]]; `closed/M7.md` ("Blocked on the user"); Chapter 13 §13.6 step 7.

@@ -20,4 +20,4 @@ Extend the shift chain in `loom.sty` to `\part`, and to the sectioning commands 
 
 ## Related
 
-Chapter 4 §4.5; [[WQ-07]].
+Chapter 4 §4.5.
