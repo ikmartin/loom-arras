@@ -51,8 +51,8 @@ def summary_line(diags: list[Diagnostic]) -> str:
 @click.pass_context
 def lint_command(ctx: click.Context, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Scan and print every diagnostic. Fast; no LaTeX runs."""
-    log_run(run_dir, "loom lint")
     result = open_scan(quilt_path)
+    log_run(run_dir, "loom lint", result.quilt.root)
     diags = all_diagnostics(result)
     if as_json:
         emit_json([d.to_dict() for d in diags])

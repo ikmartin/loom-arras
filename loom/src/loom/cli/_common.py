@@ -6,6 +6,7 @@ Exit codes follow the book's 12.1: 0 success, 1 a content problem the author can
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import click
@@ -41,3 +42,11 @@ def emit_json(obj: Any) -> None:
 def note(message: str) -> None:
     """Progress or diagnostic text, always on stderr so --json stdout stays clean."""
     click.echo(message, err=True)
+
+
+def resolve_run(root: Path, run_dir: str | None) -> Path | None:
+    """A `--run` directory as a path: absolute as given, otherwise relative to the quilt root (never to the shell's cwd), so `--run ai/runs/x` means the quilt's run from any directory."""
+    if not run_dir:
+        return None
+    p = Path(run_dir).expanduser()
+    return p if p.is_absolute() else root / p

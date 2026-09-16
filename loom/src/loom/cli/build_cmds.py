@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note, resolve_run
 from loom.cli._quilt import open_scan, quilt_option, resolve_key
 from loom.clock import stamp
 from loom.scan.scan import ScanResult
@@ -21,10 +21,12 @@ def engine_for(result: ScanResult, master: str, override: str | None = None) -> 
     return normalise_engine(override or (closure.engine if closure else None) or result.quilt.config.engine)
 
 
-def log_run(run_dir: str | None, command: str) -> None:
+def log_run(run_dir: str | None, command: str, root: Path | None = None) -> None:
+    """Append `command` to the run's run.log; a relative run directory is the quilt's (`root`) when `root` is given."""
     if not run_dir:
         return
-    p = Path(run_dir)
+    p = resolve_run(root, run_dir) if root is not None else Path(run_dir)
+    assert p is not None
     p.mkdir(parents=True, exist_ok=True)
     with (p / "run.log").open("a", encoding="utf-8") as fh:
         fh.write(f"{stamp()}  {command}\n")
@@ -35,8 +37,8 @@ def write_bundle(result: ScanResult, b: Bundle, to: str | None, run_dir: str | N
     out = Path(to).expanduser() if to else root / "build" / "bundles" / bundle_filename(b.key)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(b.text, encoding="utf-8")
-    if run_dir:
-        rp = Path(run_dir)
+    rp = resolve_run(root, run_dir)
+    if rp is not None:
         rp.mkdir(parents=True, exist_ok=True)
         shutil.copy(out, rp / f"bundle-{bundle_filename(b.key)[:-4]}.tex")
     return out
@@ -81,7 +83,7 @@ def bundle(
         parts += ["--with", with_file]
     if draft_file:
         parts += ["--draft", draft_file]
-    log_run(run_dir, " ".join(parts))
+    log_run(run_dir, " ".join(parts), result.quilt.root)
     if draft_file:
         b = draft_bundle(result, Path(draft_file).expanduser())
         if b.missing:

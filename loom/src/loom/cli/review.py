@@ -158,6 +158,8 @@ def _record_for(root: Path, run_dir: str | None, author: str | None) -> tuple[Re
     date = today()
     if run_dir:
         rp = Path(run_dir).expanduser()
+        if not rp.is_absolute():
+            rp = root / rp
         path = run_record_path(rp)
         kind, ident = "run", rp.name
     else:
@@ -312,6 +314,7 @@ def comment(
         run_dir,
         "loom comment "
         + " ".join(x for x in [target, "--quote" if quote else "", "--kind " + kind if kind else ""] if x),
+        root,
     )
     if batch:
         for lineno, line in enumerate(sys.stdin, 1):
@@ -444,7 +447,7 @@ def status(
     """Every key with its computed state, cause if stale, and review facts. Never exits nonzero."""
     result = open_scan(quilt_path)
     records = Records(result.quilt.root)
-    log_run(run_dir, "loom status")
+    log_run(run_dir, "loom status", result.quilt.root)
     payload = status_payload(result, records)
     if as_json:
         emit_json(payload)

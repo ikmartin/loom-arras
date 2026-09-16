@@ -124,7 +124,7 @@ def ai_orient(run_dir: str | None, quilt_path: str | None) -> None:
             raise EnvError(f"no run at {run_dir}")
     click.echo(static_text(root), nl=False)
     click.echo(live_text(result, Records(root), run), nl=False)
-    log_run(run_dir, "loom ai orient")
+    log_run(run_dir, "loom ai orient", root)
 
 
 @ai.command(name="start")

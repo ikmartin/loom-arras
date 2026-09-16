@@ -339,3 +339,15 @@ def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> N
     # the bundle copied into the run is not a master and none of its ids are duplicates
     lint = run("lint", cwd=q).output
     assert "duplicate-id" not in lint and f"{rel}/bundle-dm-0003.tex" not in lint
+
+
+def test_run_flag_relative_to_quilt_root(tmp_path: Path) -> None:
+    q = demo(tmp_path)
+    rel = run("ai", "start", "sub", cwd=q, env=FIXED).output.strip()
+    assert run("search", "gadget", "--run", rel, cwd=q / "nodes").exit_code == 0  # from a subdirectory
+    assert run("bundle", "dm-0003", "--run", rel, cwd=q / "nodes").exit_code == 0
+    assert run("comment", "dm-0003", "Fine.", "--kind", "ok", "--run", rel, cwd=q / "nodes", env=FIXED).exit_code == 0
+    log = (q / rel / "run.log").read_text()
+    assert "loom search gadget" in log and "loom bundle dm-0003" in log and "loom comment dm-0003" in log
+    assert (q / rel / "bundle-dm-0003.tex").is_file() and (q / rel / "annotations.json").is_file()
+    assert not (q / "nodes" / "ai").exists()  # nothing landed relative to the shell's directory

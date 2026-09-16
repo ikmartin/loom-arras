@@ -138,8 +138,8 @@ def search_entries(result: ScanResult, query: str, kind: str | None) -> list[dic
 @quilt_option
 def search(query: str, kind: str | None, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Find ids by id, alias, title, taxon, tag, or citekey; exact matches first."""
-    log_run(run_dir, f"loom search {query}")
     result = open_scan(quilt_path)
+    log_run(run_dir, f"loom search {query}", result.quilt.root)
     entries = search_entries(result, query, kind)
     if as_json:
         emit_json(entries)

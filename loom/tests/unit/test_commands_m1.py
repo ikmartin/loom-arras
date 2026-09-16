@@ -150,3 +150,21 @@ def test_documentclass_outside_drafts_and_bundle_failed(tmp_path: Path, monkeypa
     monkeypatch.setenv("FAKE_TEX_FAIL_MATCH", "bundles/")  # the master compiles; every bundle fails
     r = run("check", "--bundles", "all", cwd=q)
     assert r.exit_code == 1 and "loom:bundle-failed" in r.output and "ok      drafts/main.tex" in r.output
+
+
+def test_remaining_codes_have_a_test(tmp_path: Path) -> None:
+    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    q = tmp_path / "q"
+    (q / "comments" / "someone").mkdir(parents=True)
+    (q / "comments" / "someone" / "2026-01-01.json").write_text("{not json")
+    cfg = q / "config.toml"
+    cfg.write_text(
+        cfg.read_text().replace('main = "drafts/main.tex"', 'main = "drafts/missing.tex"', 1)
+        + "\n[colour]\nscheme = 1\n"
+    )
+    lint = run("lint", cwd=q).output
+    assert "loom:foreign-annotations" in lint and "loom:main-not-found" in lint and "loom:unknown-config-key" in lint
+    cfg.write_text(cfg.read_text().replace('main = "drafts/missing.tex"', 'main = "drafts/main.tex"', 1))
+    (q / "nodes" / "dm-0004.tex").write_text("% a file already sits where the inline node dm-0004 would move\n")
+    r = run("atomize", "drafts/main.tex", "drafts/spine.tex", cwd=q)
+    assert r.exit_code == 1 and "loom:atomize-target-exists" in r.output, r.output

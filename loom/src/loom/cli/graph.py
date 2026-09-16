@@ -57,8 +57,8 @@ def deps_payload(result: ScanResult, key: str) -> dict[str, Any]:
 @quilt_option
 def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """What KEY depends on: direct statement-edges and proof-edges, grouped."""
-    log_run(run_dir, f"loom deps {key}")
     result = open_scan(quilt_path)
+    log_run(run_dir, f"loom deps {key}", result.quilt.root)
     key = resolve_key(result, key)
     payload = deps_payload(result, key)
     if as_json:
@@ -127,8 +127,8 @@ def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:
 @quilt_option
 def unravel(id_: str, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing."""
-    log_run(run_dir, f"loom unravel {id_}")
     result = open_scan(quilt_path)
+    log_run(run_dir, f"loom unravel {id_}", result.quilt.root)
     key = resolve_key(result, id_)
     payload = unravel_payload(result, key)
     if as_json:
