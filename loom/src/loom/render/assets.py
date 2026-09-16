@@ -38,13 +38,19 @@ def publish_graphic(root: Path, name: str, svg_dir: Path) -> tuple[str | None, s
         return f"svg/{out.name}", None
     pdftocairo = shutil.which("pdftocairo")
     if pdftocairo:
-        proc = subprocess.run([pdftocairo, "-svg", str(src), str(out)], capture_output=True, text=True, check=False)
+        proc = subprocess.run(
+            [pdftocairo, "-svg", str(src), str(out)], capture_output=True, text=True, errors="replace", check=False
+        )
         if proc.returncode == 0 and out.exists():
             return f"svg/{out.name}", None
     dvisvgm = shutil.which("dvisvgm")
     if dvisvgm:
         proc = subprocess.run(
-            [dvisvgm, "--pdf", "--no-fonts", f"--output={out}", str(src)], capture_output=True, text=True, check=False
+            [dvisvgm, "--pdf", "--no-fonts", f"--output={out}", str(src)],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            check=False,
         )
         if proc.returncode == 0 and out.exists():
             return f"svg/{out.name}", None

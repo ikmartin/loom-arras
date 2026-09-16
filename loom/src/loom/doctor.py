@@ -113,7 +113,7 @@ class DoctorReport:
 
 def _version_of(path: str, flag: list[str]) -> str | None:
     try:
-        proc = subprocess.run([path, *flag], capture_output=True, text=True, timeout=20, check=False)
+        proc = subprocess.run([path, *flag], capture_output=True, text=True, errors="replace", timeout=20, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
     out = (proc.stdout or proc.stderr).strip().splitlines()

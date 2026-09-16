@@ -61,7 +61,14 @@ def compile_tex(
     cmd.append(tex_rel)
     try:
         proc = subprocess.run(
-            cmd, cwd=root, capture_output=True, text=True, timeout=timeout, check=False, env=os.environ.copy()
+            cmd,
+            cwd=root,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=timeout,
+            check=False,
+            env=os.environ.copy(),
         )
     except subprocess.TimeoutExpired:
         return CompileResult(False, engine, outdir, 124, errors=[f"latexmk timed out after {timeout}s"])

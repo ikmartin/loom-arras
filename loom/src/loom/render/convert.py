@@ -646,9 +646,10 @@ class Converter:
                     continue
             elif t.kind == "open":
                 j = self._matching_close(toks, i)
-                inner_html, r = self.inline_range(
-                    toks[i + 1 : j], toks[i].end, toks[j].start if j < n else b, text_override, depth
-                )
+                close_start = toks[j].start if j < n else b
+                # the override handed down must start where the inner range starts, or every offset inside the group is off by the prefix
+                inner_override = rawslice(toks[i].end, close_start) if raw is not None else None
+                inner_html, r = self.inline_range(toks[i + 1 : j], toks[i].end, close_start, inner_override, depth)
                 out.append(inner_html)
                 reason = reason or r
                 i = j + 1
@@ -656,7 +657,7 @@ class Converter:
             elif t.kind == "verb":
                 out.append(f"<code>{esc(t.value)}</code>")
             elif t.kind == "cmd":
-                piece, after, r = self.inline_command(t, toks, i, b, text_override, depth)
+                piece, after, r = self.inline_command(t, toks, i, b, text_override, depth, origin=base)
                 if piece is not None:
                     out.append(piece)
                 reason = reason or r
@@ -669,9 +670,16 @@ class Converter:
         return "".join(out), reason
 
     def inline_command(
-        self, t: Tok, toks: list[Tok], i: int, b: int, text_override: str | None = None, depth: int = 0
+        self,
+        t: Tok,
+        toks: list[Tok],
+        i: int,
+        b: int,
+        text_override: str | None = None,
+        depth: int = 0,
+        origin: int | None = None,
     ) -> tuple[str | None, int, str | None]:
-        """Render one command in text mode. Returns (html or None, position after its arguments, fallback reason or None)."""
+        """Render one command in text mode. Returns (html or None, position after its arguments, fallback reason or None). `origin` is the absolute offset where `text_override` starts."""
         ctx = self.ctx
         clean = ctx.clean if text_override is None else None
         name = t.value
@@ -679,7 +687,7 @@ class Converter:
         def args(spec: str) -> tuple[list[str | None], list[tuple[int, int]], int]:
             if clean is not None:
                 return read_args(clean, t.end, spec)
-            base = toks[0].start if toks else t.start
+            base = origin if origin is not None else (toks[0].start if toks else t.start)
             local = text_override or ""
             vals, spans, after = read_args(local, t.end - base, spec)
             return vals, [(s + base, e + base) for s, e in spans], after + base

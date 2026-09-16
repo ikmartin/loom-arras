@@ -21,6 +21,7 @@ class Attachment:
     statement: Env | None
     via: str  # ref | adjacent | enclosure | none
     ref_labels: list[str] = field(default_factory=list)
+    fallback: Attachment | None = None  # the positional attachment used when every ref label is unknown
 
 
 @dataclass
@@ -102,10 +103,15 @@ def _gap_is_blank(text: str, a: int, b: int) -> bool:
 
 
 def _attach(proof: Env, fe: FileEnvs, text: str) -> Attachment:
+    positional = _attach_positional(proof, fe, text)
     if proof.optarg:
         labels = REF_IN_OPT.findall(proof.optarg)
         if labels:
-            return Attachment(proof, None, "ref", [norm_label(x) for x in labels])
+            return Attachment(proof, None, "ref", [norm_label(x) for x in labels], fallback=positional)
+    return positional
+
+
+def _attach_positional(proof: Env, fe: FileEnvs, text: str) -> Attachment:
     sibs = _siblings(proof, fe)
     idx = sibs.index(proof)
     j = idx - 1

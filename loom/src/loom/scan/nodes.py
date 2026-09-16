@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from loom.scan.bib import citekey_slug
 from loom.scan.directives import HEAD_LINES, file_level, list_value, parse_directives, within
 from loom.scan.envtree import FileEnvs, first_body_token_is_cite, labels_in, scan_environments
-from loom.scan.expand import Expansion
+from loom.scan.expand import Expansion, Segment
 from loom.scan.labels import is_id_shaped
 from loom.scan.model import Diagnostic, Directive, Env, Location, SourceFile, Taxon
 from loom.scan.preamble import PreambleClosure, document_start
@@ -113,6 +113,13 @@ def assemble(
         asm.envs[path] = scan_environments(src, theorem_names, body or 0)
     for master, exp in expansions.items():
         asm.sections[master] = find_sections(exp, files)
+    reached_any = {f for exp in expansions.values() for f in exp.reached}
+    for path, src in files.items():
+        if src.ignored or path in expansions or path in reached_any or not path.endswith(".tex"):
+            continue
+        # a file no master reaches is sectioned on its own (book 5.9.2.3); the file path stands in for the master
+        solo = Expansion(master=path, text=src.clean, segments=[Segment(path, 0, len(src.clean), 0, 0)])
+        asm.sections[path] = find_sections(solo, files)
     _statement_nodes(asm, files, taxa, slugs, masters)
     _section_nodes(asm, files, slugs, masters, default_master)
     _container_nodes(asm, files, masters)
@@ -254,7 +261,12 @@ def _proof_nodes(
                 stmt_key = asm.key_of_env(path, att.statement)
             elif att.via == "ref":
                 stmt_key = next((label_map[lab] for lab in att.ref_labels if lab in label_map), None)
-                if len(att.ref_labels) > 1:
+                fallback_stmt = att.fallback.statement if att.fallback is not None else None
+                if stmt_key is None and fallback_stmt is not None and att.fallback is not None:
+                    # every named label is unknown (reported as a dangling link); the proof sits beside a statement, so position decides
+                    att = att.fallback
+                    stmt_key = asm.key_of_env(path, fallback_stmt)
+                elif len(att.ref_labels) > 1:
                     asm.diagnostics.append(
                         Diagnostic(
                             "warning",

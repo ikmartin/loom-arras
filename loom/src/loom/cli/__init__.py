@@ -11,6 +11,7 @@ from loom.cli.doctor import doctor
 from loom.cli.graph import deps, unravel
 from loom.cli.lint_cmd import lint_command
 from loom.cli.nodes import delete, new, search
+from loom.cli.paper import atomize, id_command, import_command, inline_command
 from loom.cli.quilt import init
 from loom.cli.review import accept, comment, status
 from loom.cli.serve_cmd import serve
@@ -31,6 +32,10 @@ def main() -> None:
 main.add_command(doctor)
 main.add_command(init)
 main.add_command(new)
+main.add_command(id_command)
+main.add_command(import_command)
+main.add_command(atomize)
+main.add_command(inline_command)
 main.add_command(search)
 main.add_command(delete)
 main.add_command(delete, name="rm")

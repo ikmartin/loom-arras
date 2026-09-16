@@ -40,7 +40,9 @@ def pdftotext(pdf: Path) -> str | None:
     exe = shutil.which("pdftotext")
     if exe is None:
         return None
-    proc = subprocess.run([exe, "-layout", str(pdf), "-"], capture_output=True, text=True, check=False)
+    proc = subprocess.run(
+        [exe, "-layout", str(pdf), "-"], capture_output=True, text=True, errors="replace", check=False
+    )
     return proc.stdout if proc.returncode == 0 else None
 
 

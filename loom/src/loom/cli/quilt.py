@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -11,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_USAGE, EnvError, note
+from loom.cli._common import EXIT_CONTENT, EnvError, note
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, user_config_path
 
@@ -46,6 +45,7 @@ def _inside_git(path: Path) -> bool:
             ["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"],
             capture_output=True,
             text=True,
+            errors="replace",
             timeout=10,
             check=False,
         )
@@ -77,15 +77,16 @@ def ask_prefix(default: str, yes: bool) -> str:
     return str(value).strip()
 
 
-def write_minimal_quilt(target: Path, prefix: str) -> None:
+def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> None:
     (target / "drafts").mkdir(parents=True, exist_ok=True)
     for d in ("nodes", "refs", "comments"):
         (target / d).mkdir(exist_ok=True)
     (target / "config.toml").write_text(CONFIG_TEMPLATE.format(prefix=prefix), encoding="utf-8")
     (target / "loom.sty").write_text((ASSETS / "loom.sty").read_text(encoding="utf-8"), encoding="utf-8")
-    (target / "drafts" / "main.tex").write_text(
-        (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"), encoding="utf-8"
-    )
+    if minimal_master:
+        (target / "drafts" / "main.tex").write_text(
+            (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"), encoding="utf-8"
+        )
     (target / ".gitignore").write_text((ASSETS / "init" / "gitignore").read_text(encoding="utf-8"), encoding="utf-8")
     (target / "README.md").write_text((ASSETS / "readme-contract.md").read_text(encoding="utf-8"), encoding="utf-8")
 
@@ -100,11 +101,23 @@ def write_demo_quilt(target: Path) -> None:
 
 @click.command()
 @click.argument("directory", required=False, default=None)
-@click.option("--from", "from_file", default=None, metavar="FILE", help="Import an existing paper (milestone M4).")
+@click.option(
+    "--from",
+    "from_file",
+    default=None,
+    metavar="FILE",
+    help="Import an existing paper: FILE is its main .tex file, anywhere on disk.",
+)
 @click.option("--demo", is_flag=True, help="Write the demo quilt instead of a minimal master.")
 @click.option("--prefix", default=None, help="Id prefix for new nodes.")
 @click.option("--no-git", is_flag=True, help="Do not run git init.")
-@click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults.")
+@click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
+@click.option(
+    "--fix-anchoring",
+    "fix_anchors",
+    is_flag=True,
+    help="With --from: rewrite the copies so theorem-like environments are line-anchored.",
+)
 @click.pass_context
 def init(
     ctx: click.Context,
@@ -114,15 +127,20 @@ def init(
     prefix: str | None,
     no_git: bool,
     yes: bool,
+    fix_anchors: bool,
 ) -> None:
-    """Create a quilt in DIRECTORY (default: the current directory)."""
+    """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it."""
     target = Path(directory).expanduser() if directory else Path.cwd()
     if is_quilt_root(target) or any(is_quilt_root(p) for p in target.resolve().parents):
         raise EnvError(f"{target} is already inside a quilt")
-    if target.exists() and any(target.iterdir()) and not from_file:
-        raise EnvError(f"{target} is not empty; use --from FILE to turn an existing paper directory into a quilt")
-    if from_file:
-        raise EnvError("loom init --from is implemented at milestone M4")
+    paper = Path(from_file).expanduser().resolve() if from_file else None
+    if paper is not None and not paper.is_file():
+        raise EnvError(f"{from_file} is not a file")
+    if target.exists() and any(target.iterdir()):
+        if paper is None or not paper.is_relative_to(target.resolve()):
+            raise EnvError(
+                f"{target} is not empty; use --from FILE with a file inside it to turn an existing paper directory into a quilt"
+            )
     if prefix is not None and not PREFIX.match(prefix):
         raise EnvError(f"prefix {prefix!r} must be letters and digits without hyphens")
     if demo:
@@ -132,11 +150,17 @@ def init(
         chosen = prefix or ask_prefix("q", yes)
         if not PREFIX.match(chosen):
             raise EnvError(f"prefix {chosen!r} must be letters and digits without hyphens")
-        write_minimal_quilt(target, chosen)
+        write_minimal_quilt(target, chosen, minimal_master=paper is None)
         note(f"created quilt {target} with prefix {chosen}")
     if not no_git:
         _git_init(target)
     _write_user_config_template()
+    if paper is not None:
+        from loom.cli.paper import run_import
+        from loom.scan.quilt import load_quilt
+
+        ident = run_import(load_quilt(target), paper, yes, fix_anchors, prefix)
+        if ident is not None and not ident.passed and not ident.skipped:
+            ctx.exit(EXIT_CONTENT)
+        return
     note('next: loom doctor; loom lint; loom new lemma "Title"')
-    if os.environ.get("LOOM_INIT_EXIT_USAGE_ON_TTY"):
-        ctx.exit(EXIT_USAGE)

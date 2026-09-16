@@ -84,7 +84,7 @@ def _kpsewhich(name: str) -> bool:
     if not exe:
         return False
     try:
-        proc = subprocess.run([exe, name], capture_output=True, text=True, timeout=20, check=False)
+        proc = subprocess.run([exe, name], capture_output=True, text=True, errors="replace", timeout=20, check=False)
     except (OSError, subprocess.SubprocessError):
         return False
     return proc.returncode == 0 and bool(proc.stdout.strip())

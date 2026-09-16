@@ -1913,6 +1913,70 @@
   }
  ],
  "nodes": {
+  "Kre99-sec-1": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Kre99-setup"
+   ],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "refs/Kre99.tex",
+   "fragment": "fragments/nodes/Kre99-sec-1.html",
+   "id": "Kre99-sec-1",
+   "incomplete": [],
+   "kind": "section",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    388,
+    581
+   ],
+   "state": "draft",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Setup"
+  },
+  "Kre99-sec-2": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Kre99-thm-2.1"
+   ],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "refs/Kre99.tex",
+   "fragment": "fragments/nodes/Kre99-sec-2.html",
+   "id": "Kre99-sec-2",
+   "incomplete": [],
+   "kind": "section",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    581,
+    836
+   ],
+   "state": "draft",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Cycle groups"
+  },
   "Kre99-setup": {
    "aliases": [],
    "author": [],
@@ -1974,6 +2038,36 @@
    "tags": [],
    "taxon": "Theorem",
    "title": ""
+  },
+  "refs/Kre99.tex#section:1": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "refs/Kre99.tex",
+   "fragment": "fragments/keys/refs%2FKre99.tex%23section%3A1.html",
+   "id": "refs/Kre99.tex#section:1",
+   "incomplete": [],
+   "kind": "section",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    229,
+    388
+   ],
+   "state": "draft",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Overview"
   },
   "sections/appendix.tex#remark:1": {
    "aliases": [],
@@ -2924,28 +3018,6 @@
   }
  },
  "regions": {
-  "refs/Kre99.tex#Kre99-sec-1": {
-   "container": "refs/Kre99.tex",
-   "in": "prose",
-   "key": "refs/Kre99.tex#Kre99-sec-1",
-   "label": "Kre99-sec-1",
-   "numbers": {},
-   "src": [
-    403,
-    403
-   ]
-  },
-  "refs/Kre99.tex#Kre99-sec-2": {
-   "container": "refs/Kre99.tex",
-   "in": "prose",
-   "key": "refs/Kre99.tex#Kre99-sec-2",
-   "label": "Kre99-sec-2",
-   "numbers": {},
-   "src": [
-    603,
-    603
-   ]
-  },
   "sy-0001#eq:fix": {
    "container": "sy-0001",
    "in": "statement",
@@ -3202,6 +3274,33 @@
    "tags": [],
    "taxon": "Section",
    "title": "Widgets"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Kresch constructs Chow groups for Artin stacks. This digest holds the standing assumptions and the one theorem the synthetic paper cites.",
+   "key": "refs/Kre99.tex#section:1",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Overview"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Kre99-sec-1",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Setup"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Kre99-sec-2",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Cycle groups"
   },
   {
    "aliases": [],

@@ -456,8 +456,15 @@ def status(
         if ks is None:
             raise EnvError(f"{key} is not a statement or proof key")
         click.echo(f"{describe(result, key)}  {ks.label}")
+        click.echo(f"  in {result.nodes[key].file}")
         if not ks.causes:
             click.echo("  no causes: the acceptance is fresh" if ks.row else "  never accepted")
+        e = payload["keys"][key]
+        opened = {k: v for k, v in e["reviews"]["open"].items() if v}
+        if opened:
+            click.echo("  " + ", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()))
+        if e["reviews"]["detached"]:
+            click.echo(f"  {e['reviews']['detached']} detached annotation(s): the quoted text is gone")
         for c in ks.causes:
             click.echo(f"  {c.kind}{' ' + c.id if c.id else ''}{' (' + c.when + ')' if c.when else ''}")
             diff = records.diff_for(result, c, key)

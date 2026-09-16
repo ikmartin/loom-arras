@@ -22,6 +22,14 @@ from loom.tex.aux import AuxNumber
 from loom.tex.bundle import _macro_block
 
 
+def _title_base(env: Env | None, node: NodeRec) -> int:
+    """Source offset of the node's title text, so inline spans in a title point into the file; the title may sit inside a brace group in the optional argument."""
+    if env is None or not env.optarg_span:
+        return node.start
+    off = env.optarg.find(node.title) if env.optarg and node.title else -1
+    return env.optarg_span[0] + (off if off >= 0 else 0)
+
+
 @dataclass
 class RenderPlan:
     result: ScanResult
@@ -187,7 +195,7 @@ class FragmentRenderer:
         if node.title:
             conv = Converter(ctx)
             env = self._env_of(node)
-            base = env.optarg_span[0] if env and env.optarg_span else node.start
+            base = _title_base(env, node)
             parts.append(f' <span class="title">({conv.inline_text(node.title, base)})</span>')
         return "".join(parts)
 
@@ -217,7 +225,7 @@ class FragmentRenderer:
         self.plan.diagnostics.extend(ctx.diagnostics)
         title = ""
         if node.title:
-            base = env.optarg_span[0] if env and env.optarg_span else node.start
+            base = _title_base(env, node)
             title = f'<span class="title"> {conv.inline_text(node.title, base)}</span>'
         attrs = ['class="env env-proof"', f'data-key="{html.escape(node.key, quote=True)}"']
         if node.id:

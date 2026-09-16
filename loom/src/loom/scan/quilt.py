@@ -134,7 +134,13 @@ def load_user_config() -> dict[str, Any]:
 def git_user_name(cwd: Path | None = None) -> str | None:
     try:
         proc = subprocess.run(
-            ["git", "config", "user.name"], capture_output=True, text=True, cwd=cwd, timeout=10, check=False
+            ["git", "config", "user.name"],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            cwd=cwd,
+            timeout=10,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return None

@@ -55,10 +55,29 @@ def expand(path: Path, seen: set[Path] | None = None) -> str:
         name = m.group(2).strip()
         for cand in (Path(name), Path(name + ".tex")):
             if cand.is_file():
-                return expand(cand, seen)
+                inner = expand(cand, seen)
+                return shift_sectioning(inner) if m.group(1) == "nest" else inner
         return f"[missing {name}]"
 
     return re.sub(r"\\(input|include|nest)\{([^}]*)\}", repl, text)
+
+
+SHIFT = {
+    "chapter": "section",
+    "section": "subsection",
+    "subsection": "subsubsection",
+    "subsubsection": "paragraph",
+    "paragraph": "subparagraph",
+}
+
+
+def shift_sectioning(text: str) -> str:
+    """What loom.sty's \\nest does: every sectioning command one level down, composing across nested files."""
+    return re.sub(
+        r"\\(chapter|section|subsection|subsubsection|paragraph)(\*?)(?=[\[{])",
+        lambda m: "\\" + SHIFT[m.group(1)] + m.group(2),
+        text,
+    )
 
 
 def theorem_envs(text: str) -> tuple[set[str], set[str]]:

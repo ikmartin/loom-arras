@@ -103,6 +103,7 @@ def compile_svg(
                     cwd=d,
                     capture_output=True,
                     text=True,
+                    errors="replace",
                     timeout=timeout,
                     check=False,
                 )
@@ -118,6 +119,7 @@ def compile_svg(
                 cwd=d,
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=timeout,
                 check=False,
             )
