@@ -1,7 +1,11 @@
 error dangling-link
 error double-inclusion
 error missing-include
+info loom:detached-annotation
 info loom:positional-proof-key
+info loom:previous-key-match
+info loom:retired-ledger-key
+info loom:retired-ledger-key
 info loom:undigested-citekey
 info loom:unexpected-proof
 info loom:unlabelled-node

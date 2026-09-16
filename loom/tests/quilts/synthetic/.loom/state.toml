@@ -1,0 +1,89 @@
+# .loom/state.toml -- written by `loom accept`. Do not edit.
+schema = 1
+
+[[accept]]
+key = "sy-0001"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+"sy-0100" = "sha256:c51119620f199cdfaada085ee9b62b357ee9c51a23108b2b7ec60a2939c05e45"
+
+[[accept]]
+key = "sy-0002"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+"sy-0100" = "sha256:c51119620f199cdfaada085ee9b62b357ee9c51a23108b2b7ec60a2939c05e45"
+"sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
+
+[[accept]]
+key = "sy-0002/proof"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:57e15b9a88a2cb06719fc7d1dc7e1599e042189b955244fecd419d9e3497e57c"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+"sy-0100" = "sha256:c51119620f199cdfaada085ee9b62b357ee9c51a23108b2b7ec60a2939c05e45"
+"sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
+"sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
+
+[[accept]]
+key = "sy-0003"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+
+[[accept]]
+key = "sy-0004"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+"sy-0100" = "sha256:c51119620f199cdfaada085ee9b62b357ee9c51a23108b2b7ec60a2939c05e45"
+"sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
+"sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
+"sy-0003" = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
+
+[[accept]]
+key = "sy-0005"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:facfa8fd5344b1ccec44ce7b29ccb7a7ab832789095a309373c5a09328cbd7a1"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+"sy-0100" = "sha256:c51119620f199cdfaada085ee9b62b357ee9c51a23108b2b7ec60a2939c05e45"
+"sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
+"sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
+"sy-0003" = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
+
+[[accept]]
+key = "sy-000F"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:263b1e553735064c0cf0375e991ed3a71d9d451c2e39fb38261e10e225a54fb7"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+
+[[accept]]
+key = "sy-000F/proof"
+author = "The synthetic quilt"
+date = 2026-09-16T00:00:00Z
+text = "sha256:ea642431f360d0d3227e6cce804ea09c1e0b6e29e2d4ee3767db4111bd83a007"
+preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
+master = "drafts/main.tex"
+[accept.closure]
+"sy-000F" = "sha256:263b1e553735064c0cf0375e991ed3a71d9d451c2e39fb38261e10e225a54fb7"

@@ -26,10 +26,24 @@ def run(*args: str, cwd: Path, stdin: str | None = None):  # type: ignore[no-unt
         os.chdir(old)
 
 
-def demo(tmp_path: Path) -> Path:
+def demo(tmp_path: Path, clean: bool = True) -> Path:
+    """The demo quilt; with `clean` its shipped ledger and comments are removed so a test starts from a blank record."""
     r = run("init", str(tmp_path / "demo"), "--demo", "--no-git", cwd=tmp_path)
     assert r.exit_code == 0, r.output
-    return tmp_path / "demo"
+    d = tmp_path / "demo"
+    if clean:
+        shutil.rmtree(d / ".loom", ignore_errors=True)
+        for p in (d / "comments").rglob("*.json"):
+            p.unlink()
+    return d
+
+
+def test_demo_ships_two_accepted_one_stale_one_annotation(tmp_path: Path) -> None:
+    d = demo(tmp_path, clean=False)
+    s = status_json(d)
+    assert s["summary"]["accepted"] == 1 and s["summary"]["stale"] == 1
+    assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "dm-0001"
+    assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {"suggestion": 1}
 
 
 def synthetic(tmp_path: Path) -> Path:
@@ -79,7 +93,7 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     assert s["keys"]["dm-0001"]["state"] == "draft"
     # dependency-changed: edit the definition the proof cites through \eqref
     f = d / "nodes" / "dm-0001.tex"
-    f.write_text(f.read_text().replace("of a set $X$", "of a finite set $X$"))
+    f.write_text(f.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
     s = status_json(d)
     proof = s["keys"]["dm-0002/proof"]
     assert proof["state"] == "accepted" and proof["acceptance"]["fresh"] is False
@@ -122,11 +136,11 @@ def test_stale_diff_from_snapshot_and_accept_stale(tmp_path: Path) -> None:
     d = demo(tmp_path)
     assert run("accept", "dm-0002", "--proofs", *AUTHOR, cwd=d).exit_code == 0
     f = d / "nodes" / "dm-0001.tex"
-    f.write_text(f.read_text().replace("of a set $X$", "of a finite set $X$"))
+    f.write_text(f.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
     r = run("status", "--explain", "dm-0002/proof", cwd=d)
     assert r.exit_code == 0, r.output
     assert "dependency-changed dm-0001" in r.output and "-" in r.output and "+" in r.output
-    assert "finite set" in r.output
+    assert "a subset of" in r.output
     r2 = run("status", "--stale", cwd=d)
     assert "dm-0002/proof" in r2.output and "dm-0002 " not in r2.output.split("\n")[0][:8] or True
     r3 = run("accept", "--stale", "--yes", "--force", *AUTHOR, cwd=d)
@@ -381,13 +395,13 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     # Day 9: an upstream definition changes; the lemma's proof (not the theorem) goes stale; re-accept
     assert run("accept", "dm-0002", "--proofs", *AUTHOR, cwd=d).exit_code == 0
     g = d / "nodes" / "dm-0001.tex"
-    g.write_text(g.read_text().replace("of a set $X$", "of a finite set $X$"))
+    g.write_text(g.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
     s = status_json(d)
     stale = [k for k, e in s["keys"].items() if e.get("acceptance") and not e["acceptance"]["fresh"]]
     assert stale == ["dm-0002/proof"]
     assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "dm-0001"
     explain = run("status", "--explain", "dm-0002/proof", cwd=d)
-    assert "+" in explain.output and "finite set" in explain.output
+    assert "+" in explain.output and "a subset of" in explain.output
     run("build", cwd=d)
     m = json.loads((d / "build" / "manifest.json").read_text())
     cause = m["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
