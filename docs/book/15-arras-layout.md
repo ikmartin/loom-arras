@@ -25,19 +25,19 @@ Markers as elsewhere. Most of this chapter is **[decided]** in arrangement and *
 
 ### 15.2.1 Shell A: rail sections
 
-![Shell A](figures/shell-a-rail-sections.svg)
+![Shell A](figures/shell-a-rail-sections.png)
 
 **[assumed]** A 178px rail, `--leaf`, hairline right border, holding four stacked sections separated by 10px and small-caps 9px muted labels: the quilt name (13px, no label); `VIEW` (the five views as 13px rows with a 15px leading icon, the current one on `--link-wash` with `--link` text); `DOCUMENT` (a select, full rail width minus 2×14px); `CONTENTS` (the heading tree of the current document, indent 10px per level, the current section marked by a 2px `--link` bar on the left edge and `--ink` text). No top bar. Page content begins at 206px.
 
 ### 15.2.2 Shell B: top bar and tabs
 
-![Shell B](figures/shell-b-topbar-tabs.svg)
+![Shell B](figures/shell-b-topbar-tabs.png)
 
 **[assumed]** A 30px top bar, `--leaf`, hairline bottom border: quilt name (12px) at the left; a breadcrumb beside it that is the document picker in read and graph views (`/ main.tex ▾`) and the position in others (`/ main.tex › §3 › Lemma 3.4`); view tabs pushed right, the current one on `--link-wash`; a search affordance at the far right. The rail below is 160px and holds contents only. Page content begins at 188px, 39px from the top.
 
 ### 15.2.3 Shell C: icon strip and panel
 
-![Shell C](figures/shell-c-icon-strip.svg)
+![Shell C](figures/shell-c-icon-strip.png)
 
 **[assumed]** A 44px icon strip, `--leaf`, holding six 19px icons at 38px vertical pitch (read, graph, review, problems, references, search), the current one on a 32×26px `--link-wash` with `--rad-control`; every icon has an `aria-label` and a tooltip. Beside it a 168px panel whose contents depend on the view: read and graph show the document picker above the contents tree; review shows the filter list and queue; problems shows the code filters; references shows the citekey list; search shows results. Page content begins at 221px. Default shell.
 
@@ -49,7 +49,7 @@ Markers as elsewhere. Most of this chapter is **[decided]** in arrangement and *
 
 ### 15.3.1 Read view (a master)
 
-![Read view](figures/page-read-master.svg)
+![Read view](figures/page-read-master.png)
 
 **[assumed]** The document rendered as a document. Prose in the body typeface at 11–16px depending on the user's type setting, `line-height: 1.7`. Each node is a row: a 86px right-aligned margin column holding the id in mono accent and the state word beneath it in the state colour at 9px, then a hairline vertical rule, then the node's rendered text indented 10px past the rule. Numbers come from the manifest and appear in the statement's label ("Lemma 3.4."). Proofs render collapsed with a disclosure marker, matching sitegen's `details.env-proof` treatment: no box, a left rule, a ▸/▾ marker. Environment boxes follow sitegen's `environments.css` convention: a per-taxon left-border accent, no filled background.
 
@@ -57,21 +57,21 @@ Markers as elsewhere. Most of this chapter is **[decided]** in arrangement and *
 
 ### 15.3.2 Node page
 
-![Node page](figures/page-node.svg)
+![Node page](figures/page-node.png)
 
 **[assumed]** Header: title and number (15px), id (mono, 9px), state badge (a 14px pill, tinted background, state-coloured text, 9px), tags (muted). Body: statement; then each proof as its own block with its own state line, in manifest order, the detailed proof (reached by another master) included and labelled with the master that reaches it; marks rendered inline on `--mark`. Left panel in shell C shows an on-this-page list. Right rail sections in this order: in `<master>` (the inclusion breadcrumb, one per master that reaches it), depends on, used by, see also, comments (objection cards on the `--state-incomplete` wash, others on `--sheet`), detached comments, diagnostics.
 
 ### 15.3.3 Graph
 
-![Graph, force](figures/page-graph-force.svg)
+![Graph, force](figures/page-graph-force.png)
 
-![Graph, layered](figures/page-graph-layered.svg)
+![Graph, layered](figures/page-graph-layered.png)
 
 See 15.5.
 
 ### 15.3.4 Home
 
-![Home](figures/page-home.svg)
+![Home](figures/page-home.png)
 
 **[assumed]** Four metric cards (48px tall, `--leaf`, `--rad-control`, 9px muted label, 18px value in the state colour), then cards for needs-attention, blockers, and views. Every line links. This is the landing route.
 
@@ -174,11 +174,9 @@ Rules: pages receive no shell props and import no shell module; a page that need
 
 ## 15.9 Reference figures and their status
 
-**[decided]** `books/figures/*.svg` are schematic references: they fix arrangement, proportion, and ordering, not pixel values, type rendering, or content. Where a figure and this chapter's numbers disagree, the numbers win. They are drawings, not screenshots, and must not be treated as a rendering target.
+**[decided]** The schematic drawings this chapter was designed against have been superseded, as they said they would be. The figures are now screenshots of the viewer rendering the conformance fixture, generated by `npm run shots` in `arras/` and committed: `page-home.png`, `page-read-master.png`, `page-node.png`, `page-node-dark.png`, `page-review.png`, `page-problems.png`, `page-graph-force.png`, `page-graph-layered.png`, and one page in each shell as `shell-a-rail-sections.png`, `shell-b-topbar-tabs.png`, `shell-c-icon-strip.png`. They are regenerated on any change to the chrome, and the release checklist carries "screenshots regenerated".
 
-Figures: `shell-a-rail-sections.svg`, `shell-b-topbar-tabs.svg`, `shell-c-icon-strip.svg`, `page-read-master.svg`, `page-node.svg`, `page-graph-force.svg`, `page-graph-layered.svg`, `page-home.svg`.
-
-**[decided]** Once arras renders the conformance fixture, these are superseded by a screenshot set generated by Playwright and committed: the default shell on home, read, node, graph (both layouts), and review; plus one page in each of the other two shells. Five to nine images, regenerated on any chrome change, and the release checklist gains "screenshots regenerated". Until then the figures here stand and the chapter's numbers are the specification.
+The original `.svg` drawings remain beside them for the record of what was intended. Where a screenshot and this chapter's numbers disagree, the screenshot is what exists and the chapter is corrected.
 
 ## 15.10 Accessibility
 
