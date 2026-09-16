@@ -174,7 +174,7 @@ def test_non_utf8_source_code_reported(tmp_path: Path) -> None:
     assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     (q / "nodes" / "old.tex").write_bytes(
-        "\\begin{remark}\label{dm-0099}\nSee pages 989\xd01004.\n\\end{remark}\n".encode("mac_roman")
-    )
+        b"\\begin{remark}\\label{dm-0099}\nSee pages 989\xd01004.\n\\end{remark}\n"
+    )  # Mac Roman en dash
     lint = run("lint", cwd=q).output
     assert "loom:non-utf8-source" in lint and "nodes/old.tex" in lint
