@@ -163,11 +163,14 @@ def assemble(master: str, dest: str, quilt_path: str | None) -> None:
 @click.pass_context
 def check(ctx: click.Context, no_compile: bool, bundles: str, quilt_path: str | None) -> None:
     """lint, then compile every master, then bundles. Exit 1 on any failure. The CI command."""
+    from loom.cli.lint_cmd import all_diagnostics
+
     result = open_scan(quilt_path)
     root = result.quilt.root
     failed = False
-    errors = [d for d in result.lint if d.severity == "error"]
-    for d in result.lint:
+    diags = all_diagnostics(result)
+    errors = [d for d in diags if d.severity == "error"]
+    for d in diags:
         note(f"{d.severity:<7} {d.code:<36} {d.message}")
     if errors:
         failed = True

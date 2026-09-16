@@ -11,8 +11,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from loom.records.store import Records
 from loom.render.fragments import FragmentRenderer, RenderPlan
 from loom.render.manifest import build_manifest
+from loom.render.marks import MarkEntry, place_marks
 from loom.render.publish import publish
 from loom.scan.model import Diagnostic
 from loom.scan.quilt import Quilt
@@ -67,11 +69,47 @@ def _input_hash(result: ScanResult, key: str, numbers: dict[str, dict[str, AuxNu
     return h.hexdigest()
 
 
-def build(quilt: Quilt, keys: list[str] | None = None, records: Any | None = None) -> BuildReport:
+def _marks_hash(marks: dict[str, list[MarkEntry]], key: str, result: ScanResult) -> str:
+    n = result.nodes[key]
+    keys = [key] if n.kind != "master" else [k for k, node in result.nodes.items() if key in node.reached_by]
+    h = hashlib.sha256()
+    for k in sorted(keys):
+        for m in marks.get(k, []):
+            h.update(f"{m.ann_id}|{m.start}|{m.end}".encode())
+    return h.hexdigest()[:16]
+
+
+def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkEntry]]:
+    """Mark entries grouped by the node whose fragment shows them (a proof's marks belong to its statement's node)."""
+    out: dict[str, list[MarkEntry]] = {}
+    for res in records.resolved(result):
+        if res.span is None or res.record.discarded:
+            continue
+        a = res.annotation
+        n = result.nodes.get(a.target_key)
+        if n is None:
+            region = result.assembly.regions.get(a.target_key)
+            n = result.nodes.get(region.container) if region else None
+        if n is None:
+            continue
+        _, pieces = Records.own_pieces(result, n)
+        span = Records.to_file_span(pieces, res.span)
+        if span is None:
+            continue
+        owner = n.of if n.kind == "proof" and n.of else n.key
+        out.setdefault(owner, []).append(
+            MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1])
+        )
+    return out
+
+
+def build(quilt: Quilt, keys: list[str] | None = None, records: Records | None = None) -> BuildReport:
     root = quilt.root
     build_dir = root / "build"
     cache_dir = build_dir / "cache"
     result = scan(quilt)
+    records = records or Records(root)
+    marks = _marks_by_node(result, records)
     numbers = {m: read_numbers(root, m) for m in result.masters}
     plan = RenderPlan(result=result, numbers=numbers, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg")
     renderer = FragmentRenderer(plan)
@@ -107,22 +145,29 @@ def build(quilt: Quilt, keys: list[str] | None = None, records: Any | None = Non
         rel = fragment_path(result, key)
         label = key if kind == "node" else f"{kind}:{key}"
         fragments[label] = rel
-        digest = _input_hash(result, key, numbers)
+        digest = _input_hash(result, key, numbers) + _marks_hash(marks, key, result)
         existing = build_dir / rel
         if (wanted is not None and key not in wanted) or (index.get(rel) == digest and existing.exists()):
             report.skipped.append(key)
             continue
         if kind == "node":
-            html_out = renderer.node_fragment(key)
+            html_out = place_marks(renderer.node_fragment(key), marks.get(key, []))
         elif kind == "master":
-            html_out = renderer.master_fragment(key)
+            html_out = place_marks(
+                renderer.master_fragment(key),
+                [m for k, ms in marks.items() for m in ms if key in result.nodes[k].reached_by],
+            )
         else:
             html_out = renderer.digest_fragment(key)
         files[rel] = html_out
         index[rel] = digest
         report.rendered.append(key)
     report.diagnostics = list(result.lint) + plan.diagnostics
-    manifest = build_manifest(result, numbers, fragments, report.diagnostics, records)
+    manifest = build_manifest(result, numbers, fragments, report.diagnostics)
+    records.apply(result, manifest, build_dir)
+    report.diagnostics = [d for d in report.diagnostics] + [
+        Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
+    ]
     report.manifest = manifest
     prune = ("fragments/",) if wanted is None else ()
     if wanted is None:

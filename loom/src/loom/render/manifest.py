@@ -267,8 +267,6 @@ def build_manifest(
         )
     for m in manifest["masters"]:
         manifest["search"].append({"key": m["path"], "title": m["title"], "kind": "master", "aliases": [], "tags": []})
-    if records is not None:
-        records.apply(manifest)
     return manifest
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import click
 
+from loom.cli.ai import ai
 from loom.cli.build_cmd import build_command
 from loom.cli.build_cmds import assemble, bundle, check, compile
 from loom.cli.doctor import doctor
@@ -11,6 +12,7 @@ from loom.cli.graph import deps, unravel
 from loom.cli.lint_cmd import lint_command
 from loom.cli.nodes import delete, new, search
 from loom.cli.quilt import init
+from loom.cli.review import accept, comment, status
 from loom.cli.serve_cmd import serve
 from loom.version import __version__
 
@@ -45,5 +47,9 @@ main.add_command(compile)
 main.add_command(assemble)
 main.add_command(check)
 main.add_command(serve)
+main.add_command(accept)
+main.add_command(comment)
+main.add_command(status)
+main.add_command(ai)
 
 __all__ = ["main"]

@@ -6,7 +6,9 @@ import click
 
 from loom.cli._common import EXIT_CONTENT, emit_json
 from loom.cli._quilt import open_scan, quilt_option
+from loom.records.store import Records
 from loom.scan.model import Diagnostic
+from loom.scan.scan import ScanResult
 
 
 def format_diagnostic(d: Diagnostic) -> str:
@@ -18,6 +20,22 @@ def format_diagnostic(d: Diagnostic) -> str:
     if keys:
         parts.append(f"keys: {keys}")
     return "  ".join(parts)
+
+
+def all_diagnostics(result: ScanResult) -> list[Diagnostic]:
+    """Scanner diagnostics plus those derived from the ledger and review records, in the scanner's order."""
+    records = Records(result.quilt.root)
+    extra = records.diagnostics(result, records.key_states(result))
+    diags = list(result.lint) + extra
+    diags.sort(
+        key=lambda d: (
+            {"error": 0, "warning": 1, "info": 2}[d.severity],
+            d.code,
+            d.locations[0].file if d.locations else "",
+            d.locations[0].line if d.locations else 0,
+        )
+    )
+    return diags
 
 
 def summary_line(diags: list[Diagnostic]) -> str:
@@ -32,7 +50,7 @@ def summary_line(diags: list[Diagnostic]) -> str:
 def lint_command(ctx: click.Context, as_json: bool, quilt_path: str | None) -> None:
     """Scan and print every diagnostic. Fast; no LaTeX runs."""
     result = open_scan(quilt_path)
-    diags = result.lint
+    diags = all_diagnostics(result)
     if as_json:
         emit_json([d.to_dict() for d in diags])
     else:
