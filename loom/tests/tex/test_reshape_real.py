@@ -64,9 +64,7 @@ def paper(tmp_path: Path) -> Path:
 
 def imported(tmp_path: Path) -> Path:
     p = paper(tmp_path)
-    r = run(
-        "init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--no-git", "--yes", cwd=tmp_path
-    )
+    r = run("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
     assert r.exit_code == 0, r.output
     assert "Identity test: pass" in r.output
     return tmp_path / "q"

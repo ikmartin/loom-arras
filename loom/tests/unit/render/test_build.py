@@ -31,7 +31,7 @@ def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
 
 
 def demo(tmp_path: Path) -> Path:
-    r = run("init", str(tmp_path / "demo"), "--demo", "--no-git", cwd=tmp_path)
+    r = run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     assert r.exit_code == 0, r.output
     return tmp_path / "demo"
 

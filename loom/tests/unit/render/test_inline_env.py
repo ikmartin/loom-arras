@@ -42,7 +42,7 @@ def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
 
 def quilt(tmp_path: Path) -> Path:
     q = tmp_path / "q"
-    assert run("init", str(q), "--prefix", "pp", "--no-git", "--yes", cwd=tmp_path).exit_code == 0
+    assert run("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path).exit_code == 0
     (q / "drafts" / "main.tex").write_text(MASTER, encoding="utf-8")
     return q
 

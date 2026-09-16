@@ -22,7 +22,7 @@ def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
 
 @pytest.mark.tex
 def test_bundle_compiles(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path).exit_code == 0
     d = tmp_path / "demo"
     for key in ("dm-0003", "dm-0003/proof", "dm-0005"):
         r = run("compile", key, cwd=d)
@@ -31,7 +31,7 @@ def test_bundle_compiles(tmp_path: Path) -> None:
 
 @pytest.mark.tex
 def test_demo_master_compiles_and_numbers(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path).exit_code == 0
     d = tmp_path / "demo"
     r = run("compile", cwd=d)
     assert r.exit_code == 0, r.output
@@ -41,7 +41,7 @@ def test_demo_master_compiles_and_numbers(tmp_path: Path) -> None:
 
 @pytest.mark.tex
 def test_bundle_failed_diagnostic(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path).exit_code == 0
     d = tmp_path / "demo"
     (d / "nodes" / "dm-0003.tex").write_text(
         (d / "nodes" / "dm-0003.tex").read_text().replace("\\end{theorem}", "$unbalanced\n\\end{theorem}")

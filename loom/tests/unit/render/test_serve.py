@@ -21,7 +21,7 @@ def demo(tmp_path: Path) -> Path:
     old = os.getcwd()
     try:
         os.chdir(tmp_path)
-        r = CliRunner().invoke(main, ["init", str(tmp_path / "demo"), "--demo", "--no-git"])
+        r = CliRunner().invoke(main, ["init", str(tmp_path / "demo"), "--demo"])
     finally:
         os.chdir(old)
     assert r.exit_code == 0, r.output

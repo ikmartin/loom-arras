@@ -55,7 +55,7 @@ def test_all_emitted_codes_are_known() -> None:
 
 
 def test_init_demo_matches_fixture(tmp_path: Path) -> None:
-    r = _run("init", str(tmp_path / "demo"), "--demo", "--no-git", cwd=tmp_path)
+    r = _run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     assert r.exit_code == 0, r.output
     fixture = QUILTS_DIR / "demo"
     skip = {"EXPECTED-LINT.txt"}

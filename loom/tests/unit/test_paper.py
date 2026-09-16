@@ -72,9 +72,7 @@ def paper_dir(tmp_path: Path, results: str = RESULTS) -> Path:
 
 def test_import_closure_layout_labels_main_and_identity(tmp_path: Path) -> None:
     p = paper_dir(tmp_path)
-    r = run(
-        "init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--no-git", "--yes", cwd=tmp_path
-    )
+    r = run("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
     assert r.exit_code == 0, r.output
     q = tmp_path / "q"
     for rel in (
@@ -109,7 +107,7 @@ def test_import_closure_layout_labels_main_and_identity(tmp_path: Path) -> None:
 
 def test_import_shows_diff_and_asks(tmp_path: Path) -> None:
     p = paper_dir(tmp_path)
-    assert run("init", str(tmp_path / "q"), "--prefix", "pp", "--no-git", "--yes", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--prefix", "pp", "--yes", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     r = run("import", str(p / "main.tex"), cwd=q)
     assert r.exit_code == 2 and "needs confirmation" in r.output
@@ -124,7 +122,7 @@ def test_import_refuses_line_anchoring_and_fix_anchoring(tmp_path: Path) -> None
         "Obvious.\n\\end{proof}", "Obvious. \\end{proof}"
     )
     p = paper_dir(tmp_path, bad)
-    assert run("init", str(tmp_path / "q"), "--prefix", "pp", "--no-git", "--yes", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--prefix", "pp", "--yes", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     r = run("import", str(p / "main.tex"), "--yes", cwd=q)
     assert r.exit_code == 1 and "line-anchoring" in r.output and not (q / "sections").exists()
@@ -151,7 +149,7 @@ def test_fix_anchoring_unit() -> None:
 def test_import_outside_tree_warning_and_in_place(tmp_path: Path) -> None:
     p = paper_dir(tmp_path)
     (p / "main.tex").write_text(PAPER.replace("\\input{preamble}", "\\input{preamble}\n\\input{../elsewhere}"))
-    r = run("init", str(p), "--from", str(p / "main.tex"), "--prefix", "pp", "--no-git", "--yes", cwd=tmp_path)
+    r = run("init", str(p), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
     assert r.exit_code in (0, 1), r.output
     assert "loom:import-outside-tree" in r.output
     assert (p / "config.toml").exists() and (p / "drafts" / "main.tex").exists()
@@ -168,7 +166,6 @@ def test_id_prints_patch_and_to_writes_copy(tmp_path: Path) -> None:
             str(p / "main.tex"),
             "--prefix",
             "pp",
-            "--no-git",
             "--yes",
             cwd=tmp_path,
         ).exit_code
@@ -203,7 +200,6 @@ def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
             str(p / "main.tex"),
             "--prefix",
             "pp",
-            "--no-git",
             "--yes",
             cwd=tmp_path,
         ).exit_code
@@ -243,7 +239,6 @@ def test_atomize_proofs_separate_directives_sections_and_all(tmp_path: Path) -> 
             str(p / "main.tex"),
             "--prefix",
             "pp",
-            "--no-git",
             "--yes",
             cwd=tmp_path,
         ).exit_code
@@ -278,7 +273,6 @@ def test_atomize_sections_and_inline_round_trip(tmp_path: Path) -> None:
             str(p / "main.tex"),
             "--prefix",
             "pp",
-            "--no-git",
             "--yes",
             cwd=tmp_path,
         ).exit_code
@@ -309,7 +303,6 @@ def test_inline_nest_shifts_and_identity_on_master(tmp_path: Path) -> None:
             str(p / "main.tex"),
             "--prefix",
             "pp",
-            "--no-git",
             "--yes",
             cwd=tmp_path,
         ).exit_code
@@ -341,7 +334,6 @@ def test_selector_survives_atomize(tmp_path: Path) -> None:
             str(p / "main.tex"),
             "--prefix",
             "pp",
-            "--no-git",
             "--yes",
             cwd=tmp_path,
         ).exit_code

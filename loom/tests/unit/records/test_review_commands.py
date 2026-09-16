@@ -28,7 +28,7 @@ def run(*args: str, cwd: Path, stdin: str | None = None):  # type: ignore[no-unt
 
 def demo(tmp_path: Path, clean: bool = True) -> Path:
     """The demo quilt; with `clean` its shipped ledger and comments are removed so a test starts from a blank record."""
-    r = run("init", str(tmp_path / "demo"), "--demo", "--no-git", cwd=tmp_path)
+    r = run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     assert r.exit_code == 0, r.output
     d = tmp_path / "demo"
     if clean:

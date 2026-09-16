@@ -27,7 +27,7 @@ def run(*args: str, cwd: Path, env: dict[str, str] | None = None, stdin: str | N
 
 
 def demo(tmp_path: Path, *flags: str) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     if (q / "ai").exists():  # the shipped demo carries its layer; start these tests from a bare quilt
         import shutil

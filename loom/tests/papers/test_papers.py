@@ -49,9 +49,7 @@ def copy_fixture(tmp_path: Path, name: str) -> Path:
 def import_paper(tmp_path: Path, name: str, master: str, prefix: str, *flags: str) -> tuple[Path, str]:
     paper = copy_fixture(tmp_path, name)
     q = tmp_path / "q"
-    r = run(
-        "init", str(q), "--from", str(paper / master), "--prefix", prefix, "--no-git", "--yes", *flags, cwd=tmp_path
-    )
+    r = run("init", str(q), "--from", str(paper / master), "--prefix", prefix, "--yes", *flags, cwd=tmp_path)
     assert r.exit_code == 0, r.output[-3000:]
     return q, r.output
 
@@ -65,7 +63,6 @@ def test_paper_manolache_import(tmp_path: Path) -> None:
         str(paper / "virtual6.tex"),
         "--prefix",
         "man",
-        "--no-git",
         "--yes",
         cwd=tmp_path,
     )
@@ -79,7 +76,6 @@ def test_paper_manolache_import(tmp_path: Path) -> None:
         str(paper / "virtual6.tex"),
         "--prefix",
         "man",
-        "--no-git",
         "--yes",
         "--fix-anchoring",
         cwd=tmp_path,
@@ -121,7 +117,6 @@ def test_paper_acgs_import_with_documented_edits(tmp_path: Path) -> None:
         str(paper / "decomposition-formula.tex"),
         "--prefix",
         "acgs",
-        "--no-git",
         "--yes",
         "--fix-anchoring",
         cwd=tmp_path,

@@ -65,7 +65,7 @@ def run(*args: str, cwd: Path, env: dict[str, str] | None = None):  # type: igno
 
 
 def demo(tmp_path: Path) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     with (q / "refs.bib").open("a") as fh:
         fh.write("\n@misc{Ref20, title={Widgets}, author={Ref, A.}, year={2020}, eprint={2001.00001v2}}\n")
@@ -205,7 +205,7 @@ def test_import_digest_as_rewrites_prefix(tmp_path: Path) -> None:
     q = demo(tmp_path)
     assert run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q).exit_code == 0
     src = q / "refs" / "Ref20.tex"
-    assert run("init", str(tmp_path / "lib"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "lib"), "--demo", cwd=tmp_path).exit_code == 0
     lib = tmp_path / "lib"
     r = run("digest", "import", str(src), "--as", "Other20", cwd=lib)
     assert r.exit_code == 0, r.output

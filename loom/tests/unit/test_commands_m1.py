@@ -24,7 +24,7 @@ def run(*args: str, cwd: Path | None = None):  # type: ignore[no-untyped-def]
 
 
 def test_init_creates_layout(tmp_path: Path) -> None:
-    r = run("init", str(tmp_path / "q"), "--prefix", "zz", "--no-git", "--yes")
+    r = run("init", str(tmp_path / "q"), "--prefix", "zz", "--yes")
     assert r.exit_code == 0, r.output
     q = tmp_path / "q"
     for rel in ("config.toml", "loom.sty", "drafts/main.tex", "nodes", "refs", "comments", ".gitignore", "README.md"):
@@ -36,22 +36,34 @@ def test_init_creates_layout(tmp_path: Path) -> None:
 
 
 def test_init_refuses_in_quilt_and_nonempty(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "q"), "--prefix", "a", "--no-git", "--yes").exit_code == 0
-    assert run("init", str(tmp_path / "q" / "inner"), "--no-git", "--yes").exit_code == 2
+    assert run("init", str(tmp_path / "q"), "--prefix", "a", "--yes").exit_code == 0
+    assert run("init", str(tmp_path / "q" / "inner"), "--yes").exit_code == 2
     (tmp_path / "full").mkdir()
     (tmp_path / "full" / "x.txt").write_text("x")
-    assert run("init", str(tmp_path / "full"), "--no-git", "--yes").exit_code == 2
+    assert run("init", str(tmp_path / "full"), "--yes").exit_code == 2
 
 
-def test_init_git_init_unless_no_git(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "g"), "--prefix", "a", "--yes").exit_code == 0
-    assert (tmp_path / "g" / ".git").is_dir()
-    assert run("init", str(tmp_path / "n"), "--prefix", "a", "--yes", "--no-git").exit_code == 0
+def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path: Path) -> None:
+    """A quilt is files, and loom reads no history: it makes a repository only when `--git` asks for one, and says so when it does. The ignore file is written either way, since it costs nothing and is right the day the quilt becomes a repository."""
+    plain = run("init", str(tmp_path / "n"), "--prefix", "a", "--yes")
+    assert plain.exit_code == 0
     assert not (tmp_path / "n" / ".git").exists()
+    assert (tmp_path / "n" / ".gitignore").is_file()
+    assert "wrote .gitignore" in plain.output and "build/" in plain.output
+
+    asked = run("init", str(tmp_path / "g"), "--prefix", "a", "--yes", "--git")
+    assert asked.exit_code == 0
+    assert (tmp_path / "g" / ".git").is_dir()
+    assert "git init" in asked.output  # never a silent side effect
+
+    # nothing a node is made of is ignored: only derived directories and LaTeX's own leavings
+    ignored = [ln for ln in (tmp_path / "n" / ".gitignore").read_text().splitlines() if ln and not ln.startswith("#")]
+    assert "build/" in ignored and "refs/pdf/" in ignored and "refs/src/" in ignored
+    assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafts/", "comments/") for ln in ignored)
 
 
 def test_init_demo_writes_demo_and_lints_clean(tmp_path: Path) -> None:
-    r = run("init", str(tmp_path / "demo"), "--demo", "--no-git")
+    r = run("init", str(tmp_path / "demo"), "--demo")
     assert r.exit_code == 0, r.output
     demo = tmp_path / "demo"
     assert (demo / "refs" / "Man12.tex").exists() and (demo / "nodes" / "dm-0003.tex").exists()
@@ -65,7 +77,7 @@ def test_init_demo_writes_demo_and_lints_clean(tmp_path: Path) -> None:
 
 def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
     """A quilt is usable for planning from the first minute: `conjecture` owes a proof and shows as a gap, `question` owes nothing (plan 0.2 §4)."""
-    assert run("init", str(tmp_path / "q"), "--no-git", "--yes").exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--yes").exit_code == 0
     main = (tmp_path / "q" / "drafts" / "main.tex").read_text()
     assert "\\newtheorem{conjecture}[theorem]{Conjecture}" in main
     assert "\\newtheorem{question}[theorem]{Question}" in main
@@ -85,7 +97,7 @@ def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
         "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\nHello.\n\\end{document}\n",
         encoding="utf-8",
     )
-    r = run("init", str(tmp_path / "q"), "--from", str(src), "--no-git", "--yes")
+    r = run("init", str(tmp_path / "q"), "--from", str(src), "--yes")
     assert r.exit_code == 0, r.output
     main = (tmp_path / "q" / "drafts" / "paper.tex").read_text()
     assert "conjecture" not in main and "question" not in main
@@ -93,7 +105,7 @@ def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
 
 def test_demo_has_outline_master(tmp_path: Path) -> None:
     """The demo shows the outline pattern: a second master reaching one conjecture and one question, so a candidate is reached rather than loose while it is being considered (plan 0.2 §1.2, book 4.4)."""
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git").exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0
     demo = tmp_path / "demo"
     outline = demo / "drafts" / "outline.tex"
     assert outline.exists()
@@ -124,7 +136,7 @@ def test_deps_prints_see_also(tmp_path: Path) -> None:
 
 
 def test_new_allocates_and_print(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git").exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0
     demo = tmp_path / "demo"
     p = run("new", "lemma", "Printed", "--print", cwd=demo)
     assert p.exit_code == 0, p.output
@@ -146,7 +158,7 @@ def test_new_allocates_and_print(tmp_path: Path) -> None:
 
 
 def test_alloc_sees_references_and_never_reuses(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git").exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0
     demo = tmp_path / "demo"
     (demo / "nodes" / "scratch.tex").write_text("% dangling reference\nSee \\ref{dm-0020}.\n")
     r = run("new", "lemma", cwd=demo)
@@ -154,7 +166,7 @@ def test_alloc_sees_references_and_never_reuses(tmp_path: Path) -> None:
 
 
 def test_search_deps_unravel_delete(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git").exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0
     demo = tmp_path / "demo"
     s = run("search", "orbits", "--json", cwd=demo)
     assert s.exit_code == 0, s.output
@@ -194,7 +206,7 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
 
 
 def test_lint_exit_codes(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git").exit_code == 0
+    assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0
     demo = tmp_path / "demo"
     (demo / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
     r = run("lint", cwd=demo)
@@ -202,7 +214,7 @@ def test_lint_exit_codes(tmp_path: Path) -> None:
 
 
 def test_documentclass_outside_drafts_and_bundle_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     (q / "sections").mkdir()
     (q / "sections" / "stray.tex").write_text("\\documentclass{article}\n\\begin{document}\nx\n\\end{document}\n")
@@ -214,7 +226,7 @@ def test_documentclass_outside_drafts_and_bundle_failed(tmp_path: Path, monkeypa
 
 
 def test_remaining_codes_have_a_test(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     (q / "comments" / "someone").mkdir(parents=True)
     (q / "comments" / "someone" / "2026-01-01.json").write_text("{not json")
@@ -232,7 +244,7 @@ def test_remaining_codes_have_a_test(tmp_path: Path) -> None:
 
 
 def test_non_utf8_source_code_reported(tmp_path: Path) -> None:
-    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
     (q / "nodes" / "old.tex").write_bytes(
         b"\\begin{remark}\\label{dm-0099}\nSee pages 989\xd01004.\n\\end{remark}\n"

@@ -54,10 +54,12 @@ def _inside_git(path: Path) -> bool:
     return proc.returncode == 0
 
 
-def _git_init(path: Path) -> None:
+def _git_init(path: Path) -> bool:
+    """Create a repository at `path`, unless git is missing or the directory is already in a work tree. Returns whether one was created, so the caller can say so; a silent side effect outside the tool's own files is the hardest kind to defend."""
     if shutil.which("git") is None or _inside_git(path):
-        return
-    subprocess.run(["git", "init", "-q", str(path)], check=False, capture_output=True)
+        return False
+    proc = subprocess.run(["git", "init", "-q", str(path)], check=False, capture_output=True)
+    return proc.returncode == 0
 
 
 def _write_user_config_template() -> None:
@@ -75,6 +77,13 @@ def ask_prefix(default: str, yes: bool) -> str:
         return default
     value = click.prompt("Id prefix for new nodes (letters and digits, no hyphen)", default=default)
     return str(value).strip()
+
+
+GITIGNORE_NOTE = (
+    "wrote .gitignore: build/ (everything loom can rebuild), refs/pdf/ and refs/src/ (other people's papers, fetched not written), "
+    "and LaTeX's own leavings (.aux, .log, .bbl and the rest). Nothing a node is made of is ignored. "
+    "It is written whether or not the quilt is a repository, because it costs nothing and is right the day it becomes one."
+)
 
 
 def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> None:
@@ -110,7 +119,7 @@ def write_demo_quilt(target: Path) -> None:
 )
 @click.option("--demo", is_flag=True, help="Write the demo quilt instead of a minimal master.")
 @click.option("--prefix", default=None, help="Id prefix for new nodes.")
-@click.option("--no-git", is_flag=True, help="Do not run git init.")
+@click.option("--git", "git_init", is_flag=True, help="Also run git init. A quilt is files; loom reads no history.")
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
 @click.option(
     "--fix-anchoring",
@@ -125,7 +134,7 @@ def init(
     from_file: str | None,
     demo: bool,
     prefix: str | None,
-    no_git: bool,
+    git_init: bool,
     yes: bool,
     fix_anchors: bool,
 ) -> None:
@@ -152,8 +161,11 @@ def init(
             raise EnvError(f"prefix {chosen!r} must be letters and digits without hyphens")
         write_minimal_quilt(target, chosen, minimal_master=paper is None)
         note(f"created quilt {target} with prefix {chosen}")
-    if not no_git:
-        _git_init(target)
+    note(GITIGNORE_NOTE)
+    if git_init and _git_init(target):
+        note(
+            f"git init {target}: a repository, because --git asked for one. Loom reads no history and needs none; the quilt is files."
+        )
     _write_user_config_template()
     if paper is not None:
         from loom.cli.paper import run_import
