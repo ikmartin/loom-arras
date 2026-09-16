@@ -207,3 +207,15 @@ Write each block under a heading with its name in brackets.
   original and confirm the meaning is unchanged. If it has changed, flag
   the drift explicitly and explain the reason. If preservation is
   non-obvious, say why it holds.
+- [candidates] One entry per candidate statement produced in this run:
+  its draft file name, its taxon, a one-line statement, the hypotheses
+  the author must still decide, and what it would depend on (ids).
+- [dead-ends] One entry per approach tried and abandoned: what it was,
+  why it fails (a computation, a counterexample, a known obstruction with
+  a digest node id), and whether anything was salvaged.
+- [known-results] What the digests already say about the topic: digest
+  node ids with locators, each with one line on how it bears on the
+  candidates (gives it, contradicts it, gives it under other hypotheses).
+- [open-questions] What could not be decided in this run and what would
+  decide it (a computation to run, a paper to digest, a definition to
+  fix).

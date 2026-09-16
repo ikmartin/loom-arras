@@ -96,10 +96,16 @@ def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
         cmd = (q / ".claude" / "commands" / f"{mode}.md").read_text()
         assert "$ARGUMENTS" in cmd and f"ai/modes/{mode}.md" in cmd and "argument-hint" in cmd
     assert not (q / ".claude" / "commands" / "question.md").exists()
+    # brainstorm takes no single target, so it gets a skill and no slash command (plan 0.2 §3.4)
+    assert (q / ".claude" / "skills" / "loom-brainstorm" / "SKILL.md").exists()
+    assert not (q / ".claude" / "commands" / "brainstorm.md").exists()
+    for name in ("candidates", "dead-ends", "known-results", "open-questions"):
+        assert f"- [{name}]" in blocks
 
 
 def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
     q = demo(tmp_path)
+    assert len(MODES) == 9  # eight modes and the shared block definitions
     for mode in MODES:
         text = (q / "ai" / "modes" / f"{mode}.md").read_text()
         if mode == "blocks":

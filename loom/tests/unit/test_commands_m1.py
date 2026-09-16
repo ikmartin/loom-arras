@@ -62,6 +62,52 @@ def test_init_demo_writes_demo_and_lints_clean(tmp_path: Path) -> None:
     assert "loom:undigested-citekey" not in codes or True
 
 
+def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
+    """A quilt is usable for planning from the first minute: `conjecture` owes a proof and shows as a gap, `question` owes nothing (plan 0.2 §4)."""
+    assert run("init", str(tmp_path / "q"), "--no-git", "--yes").exit_code == 0
+    main = (tmp_path / "q" / "drafts" / "main.tex").read_text()
+    assert "\\newtheorem{conjecture}[theorem]{Conjecture}" in main
+    assert "\\newtheorem{question}[theorem]{Question}" in main
+
+    # a conjecture is plain, because it owes a proof; a question is a remark, because it owes nothing
+    def style_of(name: str) -> str:
+        return main[: main.index("{" + name + "}[theorem]")].rsplit("\\theoremstyle{", 1)[1].split("}")[0]
+
+    assert style_of("conjecture") == "plain"
+    assert style_of("question") == "remark"
+
+
+def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
+    """`--from` adopts a paper as it is; loom does not edit an author's preamble to add its own taxa."""
+    src = tmp_path / "paper.tex"
+    src.write_text(
+        "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\nHello.\n\\end{document}\n",
+        encoding="utf-8",
+    )
+    r = run("init", str(tmp_path / "q"), "--from", str(src), "--no-git", "--yes")
+    assert r.exit_code == 0, r.output
+    main = (tmp_path / "q" / "drafts" / "paper.tex").read_text()
+    assert "conjecture" not in main and "question" not in main
+
+
+def test_demo_has_outline_master(tmp_path: Path) -> None:
+    """The demo shows the outline pattern: a second master reaching one conjecture and one question, so a candidate is reached rather than loose while it is being considered (plan 0.2 §1.2, book 4.4)."""
+    assert run("init", str(tmp_path / "demo"), "--demo", "--no-git").exit_code == 0
+    demo = tmp_path / "demo"
+    outline = demo / "drafts" / "outline.tex"
+    assert outline.exists()
+    r = run("status", "--master", "drafts/outline.tex", "--json", cwd=demo)
+    assert r.exit_code == 0, r.output
+    keys = json.loads(r.output)["keys"]
+    reached = {k for k, v in keys.items() if "drafts/outline.tex" in v["reached_by"]}
+    assert {"dm-0006", "dm-0007"} <= reached  # the candidates are reached, not loose, while they are being considered
+    taxa = {n["key"]: n.get("taxon") for n in json.loads(run("search", "dm-000", "--json", cwd=demo).output)}
+    assert taxa.get("dm-0006") == "Conjecture" and taxa.get("dm-0007") == "Question"
+    # the conjecture owes a proof and is a gap until it is proved or refuted; the question owes nothing
+    assert keys["dm-0006/proof"]["state"] == "incomplete"
+    assert "dm-0007/proof" not in keys
+
+
 def test_new_allocates_and_print(tmp_path: Path) -> None:
     assert run("init", str(tmp_path / "demo"), "--demo", "--no-git").exit_code == 0
     demo = tmp_path / "demo"

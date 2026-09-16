@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
-MODES = ["blocks", "audit", "referee", "simplify", "question", "quick", "draft", "ingest"]
+MODES = ["blocks", "audit", "referee", "simplify", "question", "quick", "draft", "ingest", "brainstorm"]
 TARGET_MODES = ["audit", "referee", "simplify", "draft", "ingest"]
 TRIGGERS = {
     "blocks": "the block definitions and standing rules every loom mode refers to; read once per session before applying a mode",
@@ -22,6 +22,7 @@ TRIGGERS = {
     "quick": "when the user wants a brief answer about a key or the quilt",
     "draft": "when the user asks to write a node from a plan they supply",
     "ingest": "when the user asks to digest a cited paper into refs/",
+    "brainstorm": "when the user wants to explore, brainstorm, or plan a topic before proving anything",
 }
 GITIGNORE_LINE = "ai/runs/*/bundle-*.tex"
 VERSION_FILE = ".loom-modes-version"
