@@ -12,6 +12,8 @@
 	import { prefs, type Shell } from '$lib/prefs.svelte';
 	import { openPalette } from '$lib/palette';
 	import { masterStem } from '$lib/nav';
+	import { rail } from '$lib/shell/rail.svelte';
+	import { panel } from '$lib/shell/panel.svelte';
 
 	let { children } = $props();
 
@@ -62,6 +64,9 @@
 	{currentSection}
 	counts={{ nodes: m ? Object.keys(m.nodes).length : 0, errors, warnings }}
 	search={openPalette}
+	rail={rail.snippet ? pageRail : undefined}
+	panel={panel.snippet ? pagePanel : undefined}
+	panelLabel={panel.label}
 >
 	{#if store.problem && !m}
 		<main class="page">
@@ -74,5 +79,13 @@
 		{@render children()}
 	{/if}
 </NavShell>
+
+{#snippet pageRail()}
+	{#if rail.snippet}{@render rail.snippet()}{/if}
+{/snippet}
+
+{#snippet pagePanel()}
+	{#if panel.snippet}{@render panel.snippet()}{/if}
+{/snippet}
 
 <Palette />

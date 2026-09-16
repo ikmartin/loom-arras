@@ -1,45 +1,125 @@
 <script lang="ts">
+	// Home (book 15.3.4): four metric cards, then what needs attention, what is blocked, and where to go. Every line links.
 	import { store } from '$lib/manifest/client.svelte';
-	import { masterUrl, nodeUrl } from '$lib/nav';
+	import { keyUrl, masterUrl, nodeUrl } from '$lib/nav';
+	import { toneClass } from '$lib/state';
 
 	const m = $derived(store.manifest!);
 	const keys = $derived(Object.values(m.keys));
 	const count = (state: string) => keys.filter((k) => k.state === state).length;
-	const stale = $derived(keys.filter((k) => k.acceptance && k.acceptance.fresh === false).length);
+	const stale = $derived(keys.filter((k) => k.acceptance && k.acceptance.fresh === false));
+	const incomplete = $derived(keys.filter((k) => k.state === 'incomplete'));
+	const errors = $derived(m.diagnostics.filter((d) => d.severity === 'error'));
 	const nodes = $derived(Object.values(m.nodes).filter((n) => n.kind !== 'section'));
+	const loose = $derived(nodes.filter((n) => n.reached_by.length === 0));
+
+	const cards = $derived([
+		{ label: 'accepted', value: count('accepted'), tone: 'positive', href: '/review' },
+		{ label: 'stale', value: stale.length, tone: 'warning', href: '/review' },
+		{ label: 'incomplete', value: incomplete.length, tone: 'negative', href: '/blockers' },
+		{ label: 'errors', value: errors.length, tone: errors.length ? 'negative' : 'neutral', href: '/problems' }
+	]);
+
+	const title = (k: string) => {
+		const n = m.nodes[m.keys[k]?.node ?? k] ?? m.nodes[k];
+		return n ? `${n.taxon}${n.title ? ' · ' + n.title : ''}` : k;
+	};
 </script>
 
 <main class="page">
 	<h1>{m.corpus.root_label}</h1>
 	<p class="muted">
-		corpus <code>{m.corpus.name}</code> · published by {m.publisher.name} {m.publisher.version} · interface {m.interface_version} · manifest <code>{store.hash.slice(7, 19)}</code>
+		{m.publisher.name}
+		{m.publisher.version} · interface {m.interface_version} · {nodes.length} nodes · {m.edges.length} edges
 	</p>
 
-	<h2>Masters</h2>
-	<ul>
+	<div class="cards">
+		{#each cards as c (c.label)}
+			<a class="card {toneClass(c.tone)}" href={c.href} data-testid="card-{c.label}">
+				<span class="card-label">{c.label}</span>
+				<span class="card-value">{c.value}</span>
+			</a>
+		{/each}
+	</div>
+
+	<h2>Documents</h2>
+	<ul class="plain">
 		{#each m.masters as master (master.path)}
-			<li><a href={masterUrl(master.path)}>{master.title}</a> <code>{master.path}</code>{master.default ? ' (default)' : ''}{master.numbering_known ? '' : ' · not yet compiled'}</li>
+			<li>
+				<a href={masterUrl(master.path)}>{master.title || master.path}</a>
+				<span class="faint">{master.path}{master.default ? ' · default' : ''}{master.numbering_known ? '' : ' · not yet compiled'}</span>
+			</li>
 		{/each}
 	</ul>
 
-	<h2>Review</h2>
-	<p>
-		<a href="/review">{keys.length} keys</a>: {count('accepted')} accepted{stale ? ` (${stale} stale)` : ''}, {count('draft')} draft, {count('incomplete')} incomplete ·
-		<a href="/problems">{m.diagnostics.length} diagnostics</a> ·
-		<a href="/graph">{m.edges.length} edges</a>
-	</p>
-
-	<h2>Nodes</h2>
-	<table class="list">
-		<tbody>
-			{#each nodes as n (n.id)}
-				<tr>
-					<td><a href={nodeUrl(n.id)}>{n.id}</a></td>
-					<td>{n.taxon}</td>
-					<td>{n.title ?? ''}</td>
-					<td class="muted">{n.state}</td>
-				</tr>
+	<h2>Needs attention</h2>
+	{#if stale.length || incomplete.length}
+		<ul class="plain">
+			{#each stale.slice(0, 8) as k (k.key)}
+				<li><a href={keyUrl(m, k.key)}>{title(k.key)}</a> <span class="faint">stale since acceptance</span></li>
 			{/each}
-		</tbody>
-	</table>
+			{#each incomplete.slice(0, 8) as k (k.key)}
+				<li><a href={keyUrl(m, k.key)}>{title(k.key)}</a> <span class="faint">incomplete</span></li>
+			{/each}
+		</ul>
+		{#if stale.length + incomplete.length > 16}<p class="faint"><a href="/review">all {stale.length + incomplete.length}</a></p>{/if}
+	{:else}
+		<p class="faint">nothing is stale and nothing is incomplete</p>
+	{/if}
+
+	<h2>Blocked</h2>
+	{#if incomplete.length}
+		<p><a href="/blockers">{incomplete.length} incomplete keys and what they block</a></p>
+	{:else}
+		<p class="faint">nothing is blocked</p>
+	{/if}
+
+	{#if loose.length}
+		<h2>Loose</h2>
+		<p><a href="/loose">{loose.length} nodes no document reaches</a></p>
+	{/if}
+
+	<h2>Recent</h2>
+	<ul class="plain">
+		{#each nodes.filter((n) => n.created).sort((a, b) => (b.created ?? '').localeCompare(a.created ?? '')).slice(0, 6) as n (n.id)}
+			<li><a href={nodeUrl(n.id)}>{n.taxon}{n.title ? ' · ' + n.title : ''}</a> <span class="faint">{n.created}</span></li>
+		{/each}
+	</ul>
 </main>
+
+<style>
+	.cards {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+		gap: var(--gap-tight);
+		max-width: 34rem;
+		margin: var(--gap-wide) 0;
+	}
+	.card {
+		height: 48px;
+		background: var(--leaf);
+		border-radius: var(--rad-control);
+		padding: var(--gap-tight) var(--gap);
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 1px;
+	}
+	.card:hover {
+		text-decoration: none;
+		background: var(--link-wash);
+	}
+	.card-label {
+		font-family: var(--sans);
+		font-size: 9px;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink-faint);
+	}
+	.card-value {
+		font-family: var(--sans);
+		font-size: 18px;
+		line-height: 1;
+		color: var(--tone);
+	}
+</style>

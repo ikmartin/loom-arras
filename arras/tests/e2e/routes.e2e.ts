@@ -109,14 +109,28 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	await expect(page.getByTestId('annotation-list').locator('article.box.discarded')).toHaveCount(1);
 });
 
-test('review panel shows stale causes with diff links and detached counts', async ({ page }) => {
+test('review panel shows stale causes and expands a row into a two-column diff', async ({ page }) => {
 	await page.goto('/review');
 	await expect(page.getByTestId('review-counts')).toContainText('5 stale');
 	const row = page.locator('table.list tr', { hasText: 'sy-0002/proof' });
 	await expect(row).toContainText('dependency-changed sy-0001');
-	await expect(row.locator('a', { hasText: 'diff' })).toHaveAttribute('href', /\/build\/diffs\//);
 	const stale = page.locator('table.list tr', { hasText: 'sy-0001' }).first();
 	await expect(stale).toContainText('1 detached');
+
+	await page.getByTestId('expand-sy-0001').click();
+	const diff = page.getByTestId('expansion-sy-0001').getByTestId('diff');
+	await expect(diff).toBeVisible();
+	await expect(diff.locator('tr.change td.l').first()).toContainText('satisfying');
+	await expect(diff.locator('tr.change td.r').first()).toContainText('involution');
+});
+
+test('review panel explains itself and names the command behind each state', async ({ page }) => {
+	await page.goto('/review');
+	await expect(page.locator('p.lead')).toContainText('states are recorded from the command line');
+	await page.getByTestId('help-review').click();
+	const help = page.getByTestId('help-panel-review');
+	await expect(help).toContainText('stale');
+	await expect(help).toContainText('accept');
 });
 
 test('digest page lists results with their citers, and the references index counts them', async ({ page }) => {

@@ -33,46 +33,46 @@
 <style>
 	.box {
 		border: 1px solid var(--rule);
-		border-left: 3px solid var(--chip-border);
+		border-left: 3px solid var(--rule);
 		border-radius: 4px;
 		padding: 0.5rem 0.75rem;
 		margin: 0.5rem 0;
 		font-size: 0.92rem;
 	}
 	.box.active {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+		border-color: var(--link);
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--link) 25%, transparent);
 	}
 	.box.discarded {
 		opacity: 0.55;
 	}
 	.kind-objection {
-		border-left-color: var(--negative);
+		border-left-color: var(--state-incomplete);
 	}
 	.kind-suggestion {
-		border-left-color: var(--warning);
+		border-left-color: var(--state-stale);
 	}
 	.kind-question {
 		border-left-color: var(--link);
 	}
 	.kind-ok {
-		border-left-color: var(--chip-positive-strong);
+		border-left-color: var(--state-accepted);
 	}
 	header {
 		display: flex;
 		gap: 0.6rem;
-		color: var(--muted);
+		color: var(--ink-soft);
 		font-size: 0.8rem;
 	}
 	header .kind {
 		font-weight: 600;
-		color: var(--fg);
+		color: var(--ink);
 	}
 	.quote {
 		margin: 0.3rem 0;
 		padding-left: 0.6rem;
 		border-left: 2px solid var(--mark);
-		color: var(--muted);
+		color: var(--ink-soft);
 		font-style: italic;
 	}
 	.replies {

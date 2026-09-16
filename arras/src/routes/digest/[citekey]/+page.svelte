@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
-	import { nodeUrl } from '$lib/nav';
+	import { keyUrl, nodeUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	const citekey = $derived(decodeURIComponent(page.params.citekey ?? ''));
@@ -25,11 +25,11 @@
 			<h2>Results and who cites them</h2>
 			<ul>
 				{#each ref.digest.nodes as id (id)}
-					<li><a href={nodeUrl(id)}>{id}</a> {m.nodes[id]?.locator ? `(${m.nodes[id].locator})` : ''}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={nodeUrl(c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
+					<li><a href={nodeUrl(id)}>{id}</a> {m.nodes[id]?.locator ? `(${m.nodes[id].locator})` : ''}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
 				{/each}
 			</ul>
 		{:else}
-			<p>No digest yet. Cited by: {#each ref.cited_by as c, i (c)}{#if i}, {/if}<a href={nodeUrl(c)}>{c}</a>{:else}<span class="muted">nothing</span>{/each}</p>
+			<p>No digest yet. Cited by: {#each ref.cited_by as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">nothing</span>{/each}</p>
 		{/if}
 	{/if}
 </main>

@@ -56,7 +56,7 @@
 		<div class="scroll">
 			<svg width={laid.width + 20} height={laid.height + 20} viewBox="-10 -10 {laid.width + 20} {laid.height + 20}" role="img" aria-label="dependency graph">
 				<defs>
-					<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)" /></marker>
+					<marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-soft)" /></marker>
 				</defs>
 				{#each laid.groups as g (g.id)}
 					<rect x={g.x} y={g.y} width={g.w} height={g.h} class="group" rx="6" />
@@ -88,16 +88,16 @@
 		border: 1px solid var(--rule);
 	}
 	.group {
-		fill: color-mix(in srgb, var(--accent) 6%, transparent);
+		fill: color-mix(in srgb, var(--link) 6%, transparent);
 		stroke: var(--rule);
 	}
 	.group-label {
 		font-size: 12px;
-		fill: var(--muted);
+		fill: var(--ink-soft);
 	}
 	.edge {
 		fill: none;
-		stroke: var(--muted);
+		stroke: var(--ink-soft);
 		stroke-width: 1.3;
 	}
 	.edge-proof {
@@ -107,36 +107,36 @@
 		stroke-dasharray: 1.5 3;
 	}
 	.node rect {
-		stroke: var(--chip-border);
+		stroke: var(--rule);
 	}
 	.node text {
 		font-size: 12px;
-		fill: var(--fg);
+		fill: var(--ink);
 		pointer-events: none;
 	}
 	.node .taxon {
-		fill: var(--muted);
+		fill: var(--ink-soft);
 	}
 	.fill-neutral {
-		fill: var(--chip-neutral);
+		fill: var(--state-draft-wash);
 	}
 	.fill-positive {
-		fill: var(--chip-positive);
+		fill: var(--state-accepted-wash);
 	}
 	.fill-positive-strong {
-		fill: var(--chip-positive-strong);
+		fill: var(--state-accepted);
 	}
 	.fill-warning {
-		fill: var(--chip-warning);
+		fill: var(--state-stale-wash);
 	}
 	.fill-negative {
-		fill: var(--chip-negative);
+		fill: var(--state-incomplete);
 	}
 	.fill-info {
-		fill: var(--chip-info);
+		fill: var(--link-wash);
 	}
 	.node.selected rect {
-		stroke: var(--accent);
+		stroke: var(--link);
 		stroke-width: 2.5;
 	}
 	.node.hl rect {

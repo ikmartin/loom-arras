@@ -121,6 +121,13 @@ export interface Edge {
 	src?: { file: string; line: number };
 }
 
+/** A declared relation between two nodes that is not a dependency: it never enters a closure, a bundle, or a staleness computation (specs/manifest.md §16). */
+export interface Relation {
+	kind: 'see' | (string & {});
+	from: string;
+	to: string;
+}
+
 export interface InclusionNode {
 	key: string;
 	via?: string;
@@ -235,6 +242,7 @@ export interface Manifest {
 	nodes: Record<string, Node>;
 	keys: Record<string, Key>;
 	regions: Record<string, Region>;
+	relations?: Relation[];
 	edges: Edge[];
 	inclusion: Record<string, InclusionNode>;
 	states: States;

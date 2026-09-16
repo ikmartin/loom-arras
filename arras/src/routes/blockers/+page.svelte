@@ -1,7 +1,8 @@
 <script lang="ts">
+	import HelpDot from '$lib/components/HelpDot.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { downstream } from '$lib/graph/layout';
-	import { nodeUrl } from '$lib/nav';
+	import { keyUrl, nodeUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	const incomplete = $derived(Object.values(m.keys).filter((k) => k.incomplete.length));
@@ -24,7 +25,8 @@
 </script>
 
 <main class="page">
-	<h1>Blockers</h1>
+	<h1>Blockers <HelpDot label="what the blockers page shows" topic="blockers" /></h1>
+	<p class="lead">Each text that marks a gap in itself, and everything that rests on it. A result whose proof is incomplete is not proved, and neither is anything that uses it.</p>
 	{#if !incomplete.length}
 		<p class="muted">Nothing is marked incomplete.</p>
 	{/if}
@@ -32,12 +34,21 @@
 		<h2>{mp}</h2>
 		<ul>
 			{#each ks as k (k.key)}
-				<li><a href={nodeUrl(k.key)}>{k.key}</a>{#each k.incomplete as t, i (i)}<div class="muted">{t}</div>{/each}</li>
+				<li><a href={keyUrl(m, k.key)}>{k.key}</a>{#each k.incomplete as t, i (i)}<div class="muted">{t}</div>{/each}</li>
 			{/each}
 		</ul>
 	{/each}
 	{#if blocked.length}
 		<h2>Results that depend on something incomplete</h2>
-		<p>{#each blocked as b, i (b)}{#if i}, {/if}<a href={nodeUrl(b)}>{b}</a>{/each}</p>
+		<p>{#each blocked as b, i (b)}{#if i}, {/if}<a href={keyUrl(m, b)}>{b}</a>{/each}</p>
 	{/if}
 </main>
+
+<style>
+	.lead {
+		max-width: var(--measure);
+		color: var(--ink-soft);
+		font-size: 12px;
+		line-height: 1.6;
+	}
+</style>

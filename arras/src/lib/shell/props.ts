@@ -18,4 +18,7 @@ export interface ShellProps {
 	search: () => void;
 	children: Snippet;
 	rail?: Snippet;
+	/** The page's own left-panel contents, when it has any: a table page's filters stand where a document's contents would (book 15.4). */
+	panel?: Snippet;
+	panelLabel?: string;
 }

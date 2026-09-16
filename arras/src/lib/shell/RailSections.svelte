@@ -6,7 +6,7 @@
 	import { INDEXES } from './views';
 	import type { ShellProps } from './props';
 
-	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail }: ShellProps = $props();
+	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 </script>
 
 <div class="shell-a">
@@ -36,6 +36,13 @@
 			<section>
 				<p class="rail-label">Document</p>
 				<DocumentPicker {masters} current={currentMaster} />
+			</section>
+		{/if}
+
+		{#if panel}
+			<section class="page-panel rail-scroll">
+				<p class="rail-label">{panelLabel}</p>
+				{@render panel()}
 			</section>
 		{/if}
 
@@ -91,6 +98,9 @@
 	}
 	.name:hover {
 		text-decoration: none;
+	}
+	.page-panel {
+		max-height: 40vh;
 	}
 	.contents-section {
 		flex: 1;

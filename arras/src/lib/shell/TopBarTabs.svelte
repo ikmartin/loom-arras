@@ -6,7 +6,7 @@
 	import { INDEXES } from './views';
 	import type { ShellProps } from './props';
 
-	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail }: ShellProps = $props();
+	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 </script>
 
 <div class="shell-b">
@@ -25,6 +25,10 @@
 	<div class="body">
 		<nav class="rail" aria-label="Contents">
 			{#if masters.length}<DocumentPicker {masters} current={currentMaster} />{/if}
+			{#if panel}
+				<p class="rail-label">{panelLabel}</p>
+				<div class="page-panel rail-scroll">{@render panel()}</div>
+			{/if}
 			<p class="rail-label">Contents</p>
 			<Contents entries={contents} masterPath={currentMaster} current={currentSection} />
 			<ul class="indexes">
@@ -99,6 +103,9 @@
 		flex-direction: column;
 		gap: var(--gap-tight);
 		overflow: hidden;
+	}
+	.page-panel {
+		max-height: 40vh;
 	}
 	.rail :global(.contents) {
 		flex: 1;

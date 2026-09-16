@@ -1,66 +1,68 @@
 <script lang="ts">
+	// The read view (book 15.3.1): the document rendered as a document, each node with its margin column. Navigation, the contents tree and the document picker belong to the shell; this page draws none of them.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
+	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
 	import { masterStem } from '$lib/nav';
+	import PageRail from '$lib/shell/PageRail.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
 	const master = $derived(m.masters.find((x) => masterStem(x.path) === stem));
-	const sections = $derived(
-		Object.values(m.nodes).filter((n) => n.kind === 'section' && master && n.reached_by.includes(master.path)).sort((a, b) => (a.numbers[master!.path]?.number ?? a.id).localeCompare(b.numbers[master!.path]?.number ?? b.id, undefined, { numeric: true }))
+
+	// The right rail appears only when a node this document reaches carries a comment that has not been discarded (15.3.1).
+	const comments = $derived(
+		master
+			? Object.values(m.annotations)
+					.filter((a) => !a.discarded && !a.in_reply_to)
+					.filter((a) => {
+						const owner = m.keys[a.target.key]?.node ?? a.target.key;
+						return m.nodes[owner]?.reached_by?.includes(master.path);
+					})
+			: []
 	);
+	const replies = (id: string) => Object.values(m.annotations).filter((a) => a.in_reply_to === id && !a.discarded);
 </script>
 
 <main class="page master">
 	{#if !master}
-		<h1>Unknown master</h1>
+		<h1>Unknown document</h1>
+		<p class="muted">No master in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
-		<p class="muted">
-			<code>{master.path}</code>{master.numbering_known ? '' : ' · not yet compiled: ids shown without numbers'}
-			{#if master.pdf}· <a href={'/build/' + master.pdf}>PDF</a>{/if}
-		</p>
-		<div class="with-rail">
-			<aside class="rail">
-				<strong>Contents</strong>
-				<ul>
-					{#each sections as s (s.id)}
-						<li style="margin-left: {(m.nodes[s.id]?.parent[master.path] ? 1 : 0) * 0.8}rem"><a href={'/node/' + s.id}>{s.numbers[master.path]?.number ?? ''} {s.title}</a></li>
-					{/each}
-				</ul>
-			</aside>
-			<div class="doc">
-				<Fragment path={master.fragment} />
-			</div>
-		</div>
+		<header class="doc-head">
+			<h1>{master.title || master.path}</h1>
+			<p class="muted">
+				<code>{master.path}</code>{master.numbering_known ? '' : ' · not yet compiled: ids shown without numbers'}
+				{#if master.pdf}· <a href={'/build/' + master.pdf}>PDF</a>{/if}
+			</p>
+		</header>
+		<Fragment path={master.fragment} master={master.path} headingLinks margins />
 	{/if}
 </main>
 
+{#if comments.length}
+	<PageRail>
+		<div data-testid="read-comments">
+			<p class="rail-label">Comments</p>
+			{#each comments as a (a.id)}
+				<AnnotationBox annotation={a} replies={replies(a.id)} />
+			{/each}
+		</div>
+	</PageRail>
+{/if}
+
 <style>
-	.with-rail {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 1.5rem;
+	main.master {
+		padding-left: 110px;
 	}
-	@media (min-width: 60rem) {
-		main.master {
-			max-width: 72rem;
-		}
-		.with-rail {
-			grid-template-columns: 14rem minmax(0, 1fr);
-		}
+	.doc-head {
+		margin-left: -110px;
+		padding-left: 110px;
 	}
-	.rail {
-		font-size: 0.85rem;
-		position: sticky;
-		top: 1rem;
-		align-self: start;
-	}
-	.rail ul {
-		list-style: none;
-		padding: 0;
-	}
-	.rail li {
-		margin: 0.2rem 0;
+	.doc-head h1 {
+		font-family: var(--body-face);
+		font-size: 22px;
+		font-weight: 500;
 	}
 </style>

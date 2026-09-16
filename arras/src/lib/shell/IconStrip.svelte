@@ -6,7 +6,7 @@
 	import { INDEXES } from './views';
 	import type { ShellProps } from './props';
 
-	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail }: ShellProps = $props();
+	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 
 	// The panel shows the document and its contents in the views that are about a document, and the indexes elsewhere; every shell holds the same elements, so both are always reachable (15.2).
 	const documentish = $derived(currentView === 'read' || currentView === 'graph' || currentView === 'home');
@@ -37,7 +37,10 @@
 		<div class="head">
 			<a href="/" class="name">{label}</a>
 		</div>
-		{#if documentish}
+		{#if panel}
+			<p class="rail-label">{panelLabel}</p>
+			<div class="page-panel rail-scroll">{@render panel()}</div>
+		{:else if documentish}
 			{#if masters.length}
 				<p class="rail-label">Document</p>
 				<DocumentPicker {masters} current={currentMaster} />
@@ -136,6 +139,10 @@
 		flex-direction: column;
 		gap: var(--gap-hair);
 		overflow: hidden;
+	}
+	.page-panel {
+		flex: 1;
+		min-height: 0;
 	}
 	.panel :global(.contents) {
 		flex: 1;

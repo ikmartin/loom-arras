@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Diagnostic } from '$lib/manifest/types';
-	import { nodeUrl } from '$lib/nav';
+	import { keyUrl } from '$lib/nav';
+	import { store } from '$lib/manifest/client.svelte';
 
 	let { items }: { items: Diagnostic[] } = $props();
 </script>
@@ -16,13 +17,13 @@
 					<span class="loc">{loc.file}:{loc.line}</span>
 				{/each}
 				{#each d.keys as k (k)}
-					<a href={nodeUrl(k)}>{k}</a>
+					<a href={keyUrl(store.manifest, k)}>{k}</a>
 				{/each}
 			</li>
 		{/each}
 	</ul>
 {:else}
-	<p class="muted">None.</p>
+	<p class="faint">None.</p>
 {/if}
 
 <style>
@@ -31,21 +32,24 @@
 		padding: 0;
 	}
 	.diagnostics li {
-		padding: 0.25rem 0;
+		font-size: 11px;
+		line-height: 1.5;
+		padding: var(--gap-hair) 0;
 		border-bottom: 1px solid var(--rule);
 	}
 	.sev {
 		display: inline-block;
 		width: 4.5rem;
-		font-size: 0.75rem;
+		font-family: var(--sans);
+		font-size: 9px;
 		text-transform: uppercase;
-		color: var(--muted);
+		color: var(--ink-faint);
 	}
 	.sev-error .sev {
-		color: var(--negative);
+		color: var(--state-incomplete);
 	}
 	.sev-warning .sev {
-		color: var(--warning);
+		color: var(--state-stale);
 	}
 	.loc,
 	code {

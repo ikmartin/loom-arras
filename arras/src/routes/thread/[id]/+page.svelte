@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
-	import { nodeUrl } from '$lib/nav';
+	import { keyUrl, nodeUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	const id = $derived(decodeURIComponent(page.params.id ?? ''));
@@ -14,7 +14,7 @@
 	{:else}
 		<h1>{t.title}</h1>
 		<p class="muted">{t.kind} · {t.created} · participants {t.participants.map((p) => p.id).join(', ')}{t.discarded ? ' · discarded' : ''}</p>
-		<p>targets: {#each t.targets as k, i (k)}{#if i}, {/if}<a href={nodeUrl(k)}>{k}</a>{/each}</p>
+		<p>targets: {#each t.targets as k, i (k)}{#if i}, {/if}<a href={keyUrl(m, k)}>{k}</a>{/each}</p>
 		<div class="messages">
 			{#each t.messages as msg, i (i)}
 				<article class="message">

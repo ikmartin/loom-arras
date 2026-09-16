@@ -5,8 +5,15 @@
 	import { wire } from '$lib/fragments/mount';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
+	import { page } from '$app/state';
 
-	let { path, macroSet = '' }: { path: string; macroSet?: string } = $props();
+	let {
+		path,
+		macroSet = '',
+		master = '',
+		headingLinks = false,
+		margins = false
+	}: { path: string; macroSet?: string; master?: string; headingLinks?: boolean; margins?: boolean } = $props();
 
 	let html = $state('');
 	let error = $state('');
@@ -36,15 +43,30 @@
 	}
 
 	async function mount(root: HTMLElement) {
-		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id));
+		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), { master, headingLinks, margins });
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
 		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : []);
+		scrollToHash();
+	}
+
+	/** The browser cannot honour `location.hash` for an element that did not exist at navigation time, and none of a fragment's elements do. */
+	function scrollToHash() {
+		const id = decodeURIComponent(location.hash.slice(1));
+		if (!id) return;
+		const target = document.getElementById(id);
+		if (target) target.scrollIntoView({ block: 'start' });
 	}
 
 	$effect(() => {
 		if (html && el) void mount(el);
+	});
+
+	// A contents entry on the page already changes only the hash, so nothing re-mounts and the browser will not scroll to an element the fragment created after navigation.
+	$effect(() => {
+		const hash = page.url.hash;
+		if (html && el && hash) scrollToHash();
 	});
 
 	onMount(() => {});
@@ -61,5 +83,5 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<div class="fragment" bind:this={el}>{@html html}</div>
+	<div class="fragment" class:read={margins} bind:this={el}>{@html html}</div>
 {/if}
