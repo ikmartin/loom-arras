@@ -11,7 +11,7 @@ One file per milestone records what was run, what came out, and whether the mile
 | M4 bring a paper in | demonstrated | 2026-09-15 | both arXiv papers and relloc import with identity passing; ACGS needs no hand edits; see M4.md |
 | M5 digests | demonstrated | 2026-09-16 | Manolache extracted into relloc; every postnote resolves; bundles compile; see M5.md |
 | M6 the AI layer | demonstrated | 2026-09-16 | Claude Code session on the demo; Codex half blocked (not installed); see M6.md |
-| M7 acceptance | in progress | 2026-09-16 | |
-| book revision | pending | | |
+| M7 acceptance | demonstrated | 2026-09-16 | criteria 1 to 8 on demos/relloc; 9 (Overleaf) and 10 (external user) blocked on the user; see M7.md |
+| book revision | in progress | 2026-09-16 | |
 
 Status values: `pending`, `in progress`, `demonstrated`, `blocked (reason)`.
