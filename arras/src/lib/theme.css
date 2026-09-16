@@ -224,6 +224,14 @@ table.list td {
 	background: var(--mark);
 	cursor: pointer;
 }
+.fragment mark.annotation.active,
+.fragment .annotation-block.active {
+	outline: 2px solid var(--accent);
+}
+.fragment .annotation-block {
+	border-right: 3px solid var(--mark);
+	padding-right: 0.4rem;
+}
 .fragment figure {
 	margin: 1rem 0;
 	text-align: center;

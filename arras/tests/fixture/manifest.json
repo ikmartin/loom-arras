@@ -1,5 +1,160 @@
 {
- "annotations": {},
+ "annotations": {
+  "a-2026-09-16-0001": {
+   "anchored": true,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0001",
+   "in_reply_to": null,
+   "kind": "objection",
+   "quote": "finite widget",
+   "record": "ai/runs/2026-09-16T00-00-referee/annotations.json",
+   "status": "open",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003"
+   }
+  },
+  "a-2026-09-16-0002": {
+   "anchored": true,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>Cite the orbit lemma by number here.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0002",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "quote": "disjoint union of orbits",
+   "record": "ai/runs/2026-09-16T00-00-referee/annotations.json",
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+    "key": "sy-0004"
+   }
+  },
+  "a-2026-09-16-0003": {
+   "anchored": true,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "<p>Is the orbit of a fixed point counted as one point or two?</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0003",
+   "in_reply_to": null,
+   "kind": "question",
+   "quote": "one or two points",
+   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "status": "open",
+   "target": {
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002"
+   }
+  },
+  "a-2026-09-16-0004": {
+   "anchored": true,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0004",
+   "in_reply_to": "a-2026-09-16-0001",
+   "kind": "question",
+   "quote": "finite widget",
+   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "status": "open",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003"
+   }
+  },
+  "a-2026-09-16-0005": {
+   "anchored": true,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "<p>Added the reference.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0005",
+   "in_reply_to": "a-2026-09-16-0002",
+   "kind": "ok",
+   "quote": "disjoint union of orbits",
+   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+    "key": "sy-0004"
+   }
+  },
+  "a-2026-09-16-0006": {
+   "anchored": false,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "<p>Should the involution be required to be a bijection explicitly?</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": true,
+   "discarded": false,
+   "id": "a-2026-09-16-0006",
+   "in_reply_to": null,
+   "kind": "question",
+   "quote": "with $\\sigma\\colon X\\to X$ satisfying",
+   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "status": "open",
+   "target": {
+    "hash": "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd",
+    "key": "sy-0001"
+   }
+  },
+  "a-2026-09-16-0007": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-15T10-00-quick",
+    "kind": "run",
+    "label": "2026-09-15T10-00-quick (run)"
+   },
+   "body_html": "<p>Gadgets of odd order cannot exist.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": true,
+   "id": "a-2026-09-16-0007",
+   "in_reply_to": null,
+   "kind": "ok",
+   "quote": null,
+   "record": "ai/runs/2026-09-15T10-00-quick/annotations.json",
+   "status": "open",
+   "target": {
+    "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
+    "key": "sy-000A"
+   }
+  }
+ },
  "corpus": {
   "name": "synthetic",
   "root_label": "Widgets, gadgets, and their fixed loci"
@@ -289,6 +444,42 @@
     }
    ],
    "message": "unknown command \\parbox in sy-0100; rendered as SVG",
+   "severity": "info"
+  },
+  {
+   "code": "loom:detached-annotation",
+   "keys": [
+    "sy-0001"
+   ],
+   "locations": [],
+   "message": "1 annotation(s) on sy-0001 no longer match its text",
+   "severity": "info"
+  },
+  {
+   "code": "loom:retired-ledger-key",
+   "keys": [
+    "sy-000F"
+   ],
+   "locations": [],
+   "message": "the ledger has rows for sy-000F, which no longer exists",
+   "severity": "info"
+  },
+  {
+   "code": "loom:retired-ledger-key",
+   "keys": [
+    "sy-000F/proof"
+   ],
+   "locations": [],
+   "message": "the ledger has rows for sy-000F/proof, which no longer exists",
+   "severity": "info"
+  },
+  {
+   "code": "loom:previous-key-match",
+   "keys": [
+    "sy-0202/proof"
+   ],
+   "locations": [],
+   "message": "acceptance recorded under sy-000F/proof matches the text of sy-0202/proof; re-accept to confirm",
    "severity": "info"
   }
  ],
@@ -878,33 +1069,66 @@
    "uses": []
   },
   "sy-0001": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0001-own-text-changed.diff",
+      "kind": "own-text-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-16T00:00:00Z",
+    "fresh": false
+   },
    "closure": [
     "sy-0100",
     "sy-0001"
    ],
    "file": "drafts/main.tex",
-   "hash": "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd",
+   "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
    "incomplete": [],
    "key": "sy-0001",
    "kind": "statement",
    "node": "sy-0001",
    "previous_key_match": null,
    "reviews": {
-    "detached": 0,
-    "latest_any": null,
+    "detached": 1,
+    "latest_any": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
     "latest_current": null,
-    "open": {}
+    "open": {
+     "question": 1
+    }
    },
    "src": [
     1046,
-    1307
+    1327
    ],
-   "state": "draft",
+   "state": "accepted",
    "uses": [
     "sy-0100"
    ]
   },
   "sy-0002": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0002-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-16T00:00:00Z",
+    "fresh": false
+   },
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -919,20 +1143,47 @@
    "previous_key_match": null,
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
-    "open": {}
+    "latest_any": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "open": {
+     "question": 1
+    }
    },
    "src": [
     93,
     240
    ],
-   "state": "draft",
+   "state": "accepted",
    "uses": [
     "sy-0001"
    ]
   },
   "sy-0002/proof": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0002_proof-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-16T00:00:00Z",
+    "fresh": false
+   },
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -956,12 +1207,17 @@
     241,
     401
    ],
-   "state": "draft",
+   "state": "accepted",
    "uses": [
     "sy-0100"
    ]
   },
   "sy-0003": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "date": "2026-09-16T00:00:00Z",
+    "fresh": true
+   },
    "closure": [
     "sy-0003"
    ],
@@ -974,18 +1230,45 @@
    "previous_key_match": null,
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
-    "open": {}
+    "latest_any": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "open": {
+     "objection": 1
+    }
    },
    "src": [
     84,
     215
    ],
-   "state": "draft",
+   "state": "accepted",
    "uses": []
   },
   "sy-0004": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0004-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-16T00:00:00Z",
+    "fresh": false
+   },
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -1002,20 +1285,45 @@
    "previous_key_match": null,
    "reviews": {
     "detached": 0,
-    "latest_any": null,
-    "latest_current": null,
+    "latest_any": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
     "open": {}
    },
    "src": [
     216,
     369
    ],
-   "state": "draft",
+   "state": "accepted",
    "uses": [
     "sy-0002"
    ]
   },
   "sy-0005": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0005-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-16T00:00:00Z",
+    "fresh": false
+   },
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -1040,7 +1348,7 @@
     370,
     595
    ],
-   "state": "draft",
+   "state": "accepted",
    "uses": [
     "sy-0002",
     "sy-0001"
@@ -1534,7 +1842,7 @@
    "kind": "proof",
    "node": "sy-0202",
    "ordinal": 1,
-   "previous_key_match": null,
+   "previous_key_match": "sy-000F/proof",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -1612,7 +1920,7 @@
    "created": "2026-09-16",
    "derived": {
     "proved": false,
-    "settled": false
+    "settled": true
    },
    "digest": "Kre99",
    "external": true,
@@ -1643,7 +1951,7 @@
    "created": "2026-09-16",
    "derived": {
     "proved": false,
-    "settled": false
+    "settled": true
    },
    "digest": "Kre99",
    "external": true,
@@ -1732,9 +2040,9 @@
    ],
    "src": [
     1046,
-    1307
+    1327
    ],
-   "state": "draft",
+   "state": "accepted",
    "style": "definition",
    "tags": [],
    "taxon": "Definition",
@@ -1783,7 +2091,7 @@
     93,
     240
    ],
-   "state": "draft",
+   "state": "accepted",
    "style": "plain",
    "tags": [
     "orbits",
@@ -1830,7 +2138,7 @@
     84,
     215
    ],
-   "state": "draft",
+   "state": "accepted",
    "style": "plain",
    "tags": [
     "main"
@@ -1873,7 +2181,7 @@
     216,
     369
    ],
-   "state": "draft",
+   "state": "accepted",
    "style": null,
    "tags": [
     "main"
@@ -1916,7 +2224,7 @@
     370,
     595
    ],
-   "state": "draft",
+   "state": "accepted",
    "style": null,
    "tags": [
     "main"
@@ -2331,7 +2639,7 @@
    ],
    "src": [
     576,
-    2093
+    2113
    ],
    "state": "draft",
    "style": null,
@@ -2649,8 +2957,8 @@
     }
    },
    "src": [
-    1218,
-    1218
+    1238,
+    1238
    ]
   },
   "sy-0002/proof#eq:step": {
@@ -2690,7 +2998,7 @@
  "search": [
   {
    "aliases": [],
-   "excerpt": "A \\emph{widget} is a pair $(X,\\sigma)$ with $\\sigma\\colon X\\to X$ satisfying \\eqref{eq:prose}. Its fixed locus is \\Fix(\\sigma) = \\{x \\in X : \\sigma x = x\\}.",
+   "excerpt": "A \\emph{widget} is a pair $(X,\\sigma)$ of a set and an involution $\\sigma$ of $X$, so that \\eqref{eq:prose} holds. Its fixed locus is \\Fix(\\sigma) = \\{x \\in X :",
    "key": "sy-0001",
    "kind": "environment",
    "tags": [],

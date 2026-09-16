@@ -4,6 +4,7 @@
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
+	import AnnotationPanel from '$lib/components/AnnotationPanel.svelte';
 	import { nodeBadge, reviewFacts, stateBadge } from '$lib/badges';
 	import { digestUrl, keyFromParam, masterUrl, nodeUrl, tagUrl } from '$lib/nav';
 
@@ -112,6 +113,7 @@
 			<ul>{#each threads as t (t.id)}<li><a href={'/thread/' + encodeURIComponent(t.id)}>{t.title}</a></li>{/each}</ul>
 		{/if}
 
+		<AnnotationPanel manifest={m} keys={[key, ...node.proofs]} />
 		{#if detached.length}
 			<h2>Detached annotations</h2>
 			<ul>{#each detached as a (a.id)}<li><em>{a.quote}</em>: {@html a.body_html}</li>{/each}</ul>

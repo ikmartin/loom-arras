@@ -4,6 +4,7 @@
 	import { fetchFragment } from '$lib/fragments/fetch';
 	import { wire } from '$lib/fragments/mount';
 	import { typeset } from '$lib/math/mathjax';
+	import { ui } from '$lib/ui.svelte';
 
 	let { path, macroSet = '' }: { path: string; macroSet?: string } = $props();
 
@@ -35,7 +36,7 @@
 	}
 
 	async function mount(root: HTMLElement) {
-		wire(root, store.manifest, (t, k) => void expand(t, k));
+		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id));
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
@@ -47,6 +48,14 @@
 	});
 
 	onMount(() => {});
+
+	$effect(() => {
+		const id = ui.activeAnnotation;
+		if (!el) return;
+		for (const m of el.querySelectorAll<HTMLElement>('[data-annotation]')) {
+			m.classList.toggle('active', !!id && (m.dataset.annotation ?? '').split(/\s+/).includes(id));
+		}
+	});
 </script>
 
 {#if error}

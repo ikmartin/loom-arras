@@ -10,7 +10,7 @@ export function labelFor(manifest: Manifest | null, key: string): string {
 	return `${n.taxon}${number ? ' ' + number : ''}${n.title ? ' (' + n.title + ')' : ''}`;
 }
 
-export function wire(root: HTMLElement, manifest: Manifest | null, expand: (el: HTMLElement, key: string) => void): void {
+export function wire(root: HTMLElement, manifest: Manifest | null, expand: (el: HTMLElement, key: string) => void, select: (id: string) => void = () => {}): void {
 	for (const a of root.querySelectorAll<HTMLAnchorElement>('a.ref[data-target]')) {
 		const target = a.dataset.target ?? '';
 		if (a.classList.contains('ref-dangling')) {
@@ -33,6 +33,22 @@ export function wire(root: HTMLElement, manifest: Manifest | null, expand: (el: 
 	for (const img of root.querySelectorAll<HTMLImageElement>('img[src]')) {
 		const src = img.getAttribute('src') ?? '';
 		if (!/^(\/|https?:)/.test(src)) img.src = '/build/' + src;
+	}
+	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
+		if (mark.dataset.wiredMark) continue;
+		mark.dataset.wiredMark = '1';
+		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
+		const first = manifest?.annotations[ids[0] ?? ''];
+		if (first) mark.title = `${first.kind}: ${first.author.label ?? first.author.id}`;
+		mark.setAttribute('role', 'button');
+		mark.setAttribute('tabindex', '0');
+		mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
+		const go = () => {
+			select(ids[0] ?? '');
+			document.getElementById('ann-' + ids[0])?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		};
+		mark.addEventListener('click', go);
+		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go());
 	}
 	for (const inc of root.querySelectorAll<HTMLElement>('div.include[data-key]')) {
 		if (inc.dataset.wired) continue;

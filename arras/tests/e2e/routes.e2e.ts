@@ -94,3 +94,27 @@ test('live reload follows the manifest only', async ({ page }) => {
 	version = 1;
 	await expect(page.locator('main h1')).toHaveText('Renamed corpus', { timeout: 5000 });
 });
+
+test('marks and boxes on the annotated node; discarded hidden by default', async ({ page }) => {
+	await page.goto('/node/sy-0003');
+	await expect(page.locator('.fragment mark.annotation')).toHaveCount(2);
+	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(2);
+	await page.locator('.fragment mark.annotation').first().click();
+	await expect(page.locator('article.box.active')).toHaveCount(1);
+	await expect(page.locator('article.box.active > header .kind')).toHaveText('objection');
+	await expect(page.locator('article.box .reply')).toHaveCount(1);
+	await page.goto('/node/sy-000A');
+	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0);
+	await page.getByLabel('show discarded').check();
+	await expect(page.getByTestId('annotation-list').locator('article.box.discarded')).toHaveCount(1);
+});
+
+test('review panel shows stale causes with diff links and detached counts', async ({ page }) => {
+	await page.goto('/review');
+	await expect(page.getByTestId('review-counts')).toContainText('5 stale');
+	const row = page.locator('table.list tr', { hasText: 'sy-0002/proof' });
+	await expect(row).toContainText('dependency-changed sy-0001');
+	await expect(row.locator('a', { hasText: 'diff' })).toHaveAttribute('href', /\/build\/diffs\//);
+	const stale = page.locator('table.list tr', { hasText: 'sy-0001' }).first();
+	await expect(stale).toContainText('1 detached');
+});
