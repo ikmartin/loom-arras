@@ -119,9 +119,14 @@ def closure_of(paper_dir: Path, master: Path) -> tuple[dict[str, Path], list[str
     return found, outside
 
 
-def _insert_usepackage(text: str) -> str:
-    if re.search(r"\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{[^}]*\bloom\b[^}]*\}", blank_comments(text)):
-        return text
+_LOADS_LOOM = re.compile(r"\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{[^}]*\bloom\b[^}]*\}")
+
+
+def _insert_usepackage(text: str, closure_texts: list[str] | None = None) -> str:
+    if _LOADS_LOOM.search(blank_comments(text)) or any(
+        _LOADS_LOOM.search(blank_comments(t)) for t in closure_texts or []
+    ):
+        return text  # the master or a file its preamble loads already has it
     m = re.search(r"\\documentclass\s*(\[[^\]]*\])?\s*\{[^}]*\}", blank_comments(text))  # not a commented-out one
     if not m:
         return text
@@ -154,14 +159,16 @@ def plan_import(quilt: Quilt, paper_file: Path, fix_anchors: bool = False, prefi
         _mirror_quilt(quilt, stage)
         texts: dict[str, str] = {}
         for dest, source in plan.files.items():
+            if dest.endswith(".tex") or dest.endswith(".sty") or dest.endswith(".cls"):
+                texts[dest] = _read(Path(source))
+        others = [t for d, t in texts.items() if d != plan.master_quilt_rel]
+        if plan.master_quilt_rel in texts:
+            texts[plan.master_quilt_rel] = _insert_usepackage(texts[plan.master_quilt_rel], others)
+        for dest, source in plan.files.items():
             staged = stage / dest
             staged.parent.mkdir(parents=True, exist_ok=True)
-            if dest.endswith(".tex") or dest.endswith(".sty") or dest.endswith(".cls"):
-                text = _read(Path(source))
-                if dest == plan.master_quilt_rel:
-                    text = _insert_usepackage(text)
-                texts[dest] = text
-                staged.write_text(text, encoding="utf-8")
+            if dest in texts:
+                staged.write_text(texts[dest], encoding="utf-8")
             else:
                 shutil.copy(source, staged)
         result = scan(load_quilt(stage))

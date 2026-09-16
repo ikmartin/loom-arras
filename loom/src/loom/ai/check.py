@@ -1,4 +1,4 @@
-"""`loom ai check RUN` (book 11.8): files outside the run, `comments/`, and `build/` modified since the run started."""
+"""`loom ai check RUN` (book 11.8): files outside the run, `comments/`, and `build/` modified since the run started, except the targets `loom ai promote` logged to the run."""
 
 from __future__ import annotations
 
@@ -16,6 +16,12 @@ def outside_writes(root: Path, run_dir: Path) -> list[str]:
     if not created:
         raise ValueError(f"{run_dir} has no run.toml with a created time")
     since = datetime.fromisoformat(created.replace("Z", "+00:00")).timestamp()
+    promoted: set[str] = set()
+    log = run_dir / "run.log"
+    if log.is_file():
+        for line in log.read_text(encoding="utf-8").splitlines():
+            if "loom ai promote" in line and " -> " in line:
+                promoted.add(line.rsplit(" -> ", 1)[1].strip())
     out: list[str] = []
     for p in sorted(root.rglob("*")):
         if not p.is_file():
@@ -23,8 +29,8 @@ def outside_writes(root: Path, run_dir: Path) -> list[str]:
         rel = p.relative_to(root)
         if any(part in SKIP for part in rel.parts[:-1]) or rel.parts[0] in SKIP:
             continue
-        if p.is_relative_to(run_dir):
-            continue
+        if p.is_relative_to(run_dir) or rel.as_posix() in promoted:
+            continue  # what the author promoted out of the run is theirs, not an agent's write
         if (
             p.stat().st_mtime > since + 1.0
         ):  # run.toml records whole seconds; a file written in the run's first second is not the agent's

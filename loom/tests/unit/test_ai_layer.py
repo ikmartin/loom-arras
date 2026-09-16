@@ -291,7 +291,8 @@ def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
     p = run("ai", "promote", str(draft), cwd=q)
     assert p.exit_code == 0, p.output
     assert "loom ai promote draft-x.tex -> nodes/" in (q / rel / "run.log").read_text()
-    assert run("ai", "check", rel, cwd=q).exit_code == 0  # the promoted node is the author's move, not an agent write
+    after = run("ai", "check", rel, cwd=q)
+    assert after.exit_code == 0, after.output  # the promoted node is the author's move, not an agent write
 
 
 def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> None:

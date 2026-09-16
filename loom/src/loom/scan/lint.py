@@ -56,6 +56,8 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     asm = result.assembly
     files = result.files
     diags: list[Diagnostic] = list(result.diagnostics) + list(edges.diagnostics)
+    for w in result.quilt.config.warnings:
+        diags.append(Diagnostic("warning", "loom:unknown-config-key", w, [Location("config.toml", 1)]))
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
     # proofs owed and unexpected
@@ -79,9 +81,10 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         if target is None or source is None:
             continue
         src_masters = set(source.reached_by)
-        if (
-            src_masters and not (src_masters & set(target.reached_by)) and target.file not in asm.digest_files
-        ):  # digests are loose by construction (8.1.2)
+        if target.file in asm.digest_files:  # digests are loose by construction (8.1.2)
+            continue
+        loose_to_loose = not src_masters and not target.reached_by and target.file != source.file
+        if (src_masters and not (src_masters & set(target.reached_by))) or loose_to_loose:
             sev = "error" if any(m in result.masters for m in src_masters) else "info"
             diags.append(
                 Diagnostic(

@@ -76,6 +76,7 @@ class Assembly:
     diagnostics: list[Diagnostic] = field(default_factory=list)
     directives: dict[str, list[Directive]] = field(default_factory=dict)
     digest_files: dict[str, str] = field(default_factory=dict)  # file -> citekey
+    citeslugs: set[str] = field(default_factory=set)  # slugs of the bibliography's citekeys, for the id grammar
 
     def statement_keys(self) -> list[str]:
         return [k for k, n in self.nodes.items() if n.kind in ("environment", "section")]
@@ -98,6 +99,7 @@ def assemble(
     masters = list(closures)
     theorem_names = set(taxa)
     slugs = {citekey_slug(k) for k in citekeys}
+    asm.citeslugs = slugs
     for path, src in files.items():
         if src.ignored:
             continue
@@ -451,7 +453,7 @@ def _claim(
         other_key, other_file, other_off = seen[lab]
         if other_key == key:
             return
-        code = "duplicate-id" if is_id_shaped(lab) else "loom:duplicate-label"
+        code = "duplicate-id" if is_id_shaped(lab, asm.citeslugs) else "loom:duplicate-label"
         asm.diagnostics.append(
             Diagnostic(
                 "error",

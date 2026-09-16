@@ -99,6 +99,11 @@ def plan_atomize(
                     region_end = p.end
                     claimed.add(p.key)
             ls, le = _line_bounds(text, region_start, region_end)
+            if re.search(r"\\include\s*\{", src.clean[ls:le]):
+                plan.refusals.append(
+                    f"{n.key} contains \\include, which cannot move into a node file (\\include forces a page break and its own .aux)"
+                )
+                continue
             moves.append(Move(n.key, f"nodes/{n.id}.tex", ls, le, text[ls:le].rstrip("\n") + "\n"))
             claimed.add(n.key)
         elif n.kind == "proof" and n.key not in claimed:
