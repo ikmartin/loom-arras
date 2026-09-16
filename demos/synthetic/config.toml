@@ -1,0 +1,15 @@
+[quilt]
+main = "drafts/main.tex"
+drafts = "drafts"
+prefix = "sy"
+engine = "pdflatex"
+
+[refs]
+fetch = false
+
+[lint]
+disable = []
+
+[ai]
+agent = ""
+runner = ""

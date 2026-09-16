@@ -84,3 +84,31 @@ DR-38 · 2026-09-16 · Mode files derived from the chat rules by an explicit map
 
 
 DR-39 · 2026-09-15 · The 10.8 forbidden-word list exempts "digest" and "proof" · P11, 10.8 · Arras's source may use the manifest's own field names (`proofs`, `digest`, `kind: proof`) and the spec's route `/digest/`; the guard test forbids "quilt", "atomize", "unravel", and every "loom <command>" phrase, and generic rendering of unknown labels, codes, and taxa stays enforced by tests. · The manifest specification and the route list name those words, and the Web Crypto API has `digest()`, so the rule as written could not be satisfied. · active
+
+DR-40 · 2026-09-15 · The scanner reads by character offset; line anchoring is enforced only where regions are moved · P1, 5.1.4, 5.2.3, 6.2 · Environments whose `\begin` or `\end` shares a line with body text are read correctly; `atomize` still refuses them and `import` gains `--fix-anchoring` to rewrite the copy it makes. · 43 % of the nodes in one fixture paper violate anchoring; refusing to read them would make lint useless on real papers (user decision). · active
+
+DR-41 · 2026-09-15 · Proofs attach by enclosure; statements nested in proofs are nodes · 5.6.1, 5.7.1 · A proof directly inside a theorem-like node with no statement before it attaches to that node; a theorem-like environment inside a proof is a node in its own right, and the enclosing proof gets an implicit proof-edge to it (`via: nested`). · Five proofs inside `example` environments in Manolache and four lemma-plus-proof pairs inside one proof in ACGS. · active
+
+DR-42 · 2026-09-15 · A `\cite` as the first token of the body marks an external node · 5.5.2 · External node = plain style, no proof, and a citation in the title or as the first body token. · Every real instance in the fixtures writes `\begin{definition}\cite[...]{...}` with no brackets. · active
+
+DR-43 · 2026-09-15 · A heading's label is never taken from a line that opens an environment or another heading · 5.4.2 · The "same line or next non-blank line" rule stops at such a line. · Three label-theft cases in the fixtures. · active
+
+DR-44 · 2026-09-15 · Inclusions resolve as TeX does · 5.9.1 · The path as written first, then with `.tex`; the braceless `\input name` form is accepted; a name kpsewhich finds is a system file and ignored; a non-.tex file is an opaque inclusion never scanned for nodes. · `\input{fig.pspdftex}` eleven times and `\input xy` in the fixtures. · active
+
+DR-45 · 2026-09-15 · Digest id prefixes are citekey slugs; labels are whitespace-normalised · 5.3.1, 5.4 · The prefix is the citekey with everything but letters and digits removed; two citekeys with one slug are `loom:citekey-slug-collision`; the `digest:` directive keeps the verbatim key; runs of whitespace in any label collapse to one space. · Real citekeys contain hyphens, colons, and spaces, and real labels wrap across lines. · active
+
+DR-46 · 2026-09-15 · The preamble closure is transitive through local style files; macro display names and unknown styles are resolved · 5.5.1, 5.5.3 · `\usepackage` lists, multi-line lists, and `\usepackage` inside a local `.sty` are followed; a display name that is a zero-argument macro is expanded, otherwise the environment name is capitalised with `loom:taxon-name-macro`; a `\theoremstyle` outside plain, definition, remark maps to plain with `loom:unknown-theoremstyle` unless `\newtheoremstyle` declared it. · All 26 declarations of the acceptance paper are two hops away in a local `.sty`. · active
+
+DR-47 · 2026-09-15 · Non-UTF-8 sources are decoded with a warning · 5.1 · UTF-8 first, then Mac Roman, then Latin-1, with `loom:non-utf8-source`. · A 2011 arXiv source carries Mac Roman en dashes. · active
+
+DR-48 · 2026-09-15 · Comments are blanked before every stage, not only before hashing · 5.13 · Comments are replaced by spaces of equal length so offsets are stable and no stage reads them; directives are parsed from the raw text. · A commented-out environment duplicated a live label. · active
+
+DR-49 · 2026-09-15 · Ownership is per file; hierarchy is per master · 5.9.2, 5.9.3 · A section's own text runs from its heading to the next heading of equal or higher level in the same file (or the file's end), minus nested claimants; its parent and children come from the expanded master. Every character of a file belongs to exactly one claimant, the file (or master, which owns the preamble) being the outermost. · Hashes must not depend on which master reached a file. · active
+
+DR-50 · 2026-09-15 · A master's preamble yields no edges or regions; a node never has an edge to itself; single-label reference commands are not split on commas · 5.7.1, 5.8 · Edges and region labels are read from `\begin{document}` on; `\ref` and `\eqref` take one label, `\cref`, `\Cref`, and `\uses` take lists. · Macro bodies in a preamble contain `\ref{#1;#2}`; labels contain commas. · active
+
+DR-51 · 2026-09-15 · `unreachable` is emitted once per loose file and never for digest files · specs/diagnostics.md, 8.1.2 · One diagnostic per file no master reaches, listing its node keys; digests are loose by construction and are not reported. · Per-node reports would drown the problems page. · active
+
+DR-52 · 2026-09-15 · Five diagnostic codes added · specs/diagnostics.md · `loom:non-utf8-source` (warning), `loom:unknown-theoremstyle` (warning), `loom:taxon-name-macro` (info), `loom:citekey-slug-collision` (error), `loom:main-not-found` (warning), plus the reserved `loom:foreign-annotations` and `loom:agent-wrote-outside-run` the book names in prose. · Each names a condition the fixtures produce. · active
+
+DR-53 · 2026-09-15 · Unknown theorem-like environments are detected by a list of common names · 5.5.1 · An undeclared environment is reported as `loom:unknown-environment` only when its name is one of the usual theorem-like names (theorem, lemma, prop, defn, and so on); any other undeclared environment is prose. · Without a declaration nothing else says an environment is theorem-like. · active

@@ -1,0 +1,1 @@
+The synthetic quilt: invented mathematics about widgets and gadgets that exercises every construct of the source contract and every diagnostic code. It is loom's main test fixture and the source of the conformance fixture in the workspace. EXPECTED-LINT.txt lists the diagnostics `loom lint` must report, one `severity code` per line, sorted.

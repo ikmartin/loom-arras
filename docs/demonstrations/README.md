@@ -4,9 +4,9 @@ One file per milestone records what was run, what came out, and whether the mile
 
 | milestone | status | date | notes |
 |---|---|---|---|
-| M0 skeleton | in progress | 2026-09-15 | green locally; CI re-runs pending |
-| M1 read a quilt | pending | | |
-| M2 publish and view | pending | | |
+| M0 skeleton | demonstrated | 2026-09-15 | CI: loom unit green, tex fixed; arras ci pending check |
+| M1 read a quilt | demonstrated | 2026-09-15 | scanner reads all three real papers; see M1.md |
+| M2 publish and view | in progress | 2026-09-15 | |
 | M3 review | pending | | |
 | M4 bring a paper in | pending | | |
 | M5 digests | pending | | |

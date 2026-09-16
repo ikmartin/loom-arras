@@ -1,0 +1,15 @@
+build/
+refs/pdf/
+refs/src/
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.pdf
