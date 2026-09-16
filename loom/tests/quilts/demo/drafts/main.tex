@@ -1,0 +1,51 @@
+\documentclass{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{loom}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\Fix}{\operatorname{Fix}}
+
+\title{Widgets and their fixed loci}
+\author{The loom demo}
+
+\begin{document}
+\maketitle
+
+\section{Setup}\label{dm-0010}
+
+A widget is the simplest object with an involution. We fix conventions here and prove the two results that every later section uses.
+
+\input{nodes/dm-0001}
+
+\input{nodes/dm-0002}
+
+\section{Results}\label{dm-0011}
+
+The main theorem says that the fixed locus is as nice as one could hope.
+
+\input{nodes/dm-0003}
+
+\begin{remark}\label{dm-0004}
+Closedness is where the involution being an automorphism matters; a merely continuous $\sigma$ can have a fixed locus that is not closed in the constructible topology.
+\end{remark}
+
+\begin{proposition}[Functoriality]\label{dm-0005}
+A map of widgets $f\colon (X,\sigma)\to(Y,\tau)$ with $f\sigma = \tau f$ restricts to a map $\Fix(\sigma)\to\Fix(\tau)$.
+\end{proposition}
+\begin{proof}
+\uses{dm-0001}
+If $\sigma x = x$ then $\tau f(x) = f(\sigma x) = f(x)$. \incomplete{Say why the restriction is continuous when $X$ carries the constructible topology.}
+\end{proof}
+
+\bibliographystyle{amsplain}
+\bibliography{refs}
+
+\end{document}

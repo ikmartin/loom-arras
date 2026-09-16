@@ -124,7 +124,7 @@ def heading_labels(clean: str, heading_end: int) -> list[str]:
     line_end = len(clean) if line_end < 0 else line_end
     same_line = _LABEL.findall(clean, heading_end, line_end)
     if same_line:
-        return [x.strip() for x in same_line]
+        return [re.sub(r"\s+", " ", x).strip() for x in same_line]
     pos = line_end + 1
     while pos < len(clean):
         nl = clean.find("\n", pos)
@@ -133,6 +133,6 @@ def heading_labels(clean: str, heading_end: int) -> list[str]:
         if line.strip():
             if _OPENER.match(line):
                 return []
-            return [x.strip() for x in _LABEL.findall(line)]
+            return [re.sub(r"\s+", " ", x).strip() for x in _LABEL.findall(line)]
         pos = nl + 1
     return []

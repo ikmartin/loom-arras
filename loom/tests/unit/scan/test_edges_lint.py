@@ -83,3 +83,18 @@ def test_dependency_cycle_and_slug_collision(tmp_path: Path) -> None:
     )
     c = codes(r)
     assert "loom:dependency-cycle" in c and "loom:citekey-slug-collision" in c
+
+
+def test_labels_with_spaces_commas_and_wrapped_refs(tmp_path: Path) -> None:
+    r = make_quilt(
+        tmp_path,
+        {
+            "drafts/main.tex": PREAMBLE
+            + "\\newcommand\\refpart[2]{(\\ref{#1;#2})}\n\\begin{document}\n\\begin{lemma}\n\\label{Prop: Index of the image}\nSee \\eqref{Eqn: M(G,bg)->M} and \\ref{Prop: Index of\nthe image} and \\cref{ab-0002,ab-0003}.\n\\begin{equation}\\label{Eqn: M(G,bg)->M} 1 \\end{equation}\n\\end{lemma}\n\\begin{lemma}\\label{ab-0002}\nA\n\\end{lemma}\n\\begin{lemma}\\label{ab-0003}\nB\n\\end{lemma}\n\\end{document}\n",
+        },
+    )
+    assert not [d for d in r.lint if d.code == "dangling-link"], [d.message for d in r.lint]
+    assert "Prop: Index of the image" in r.assembly.labels
+    assert "#1" not in " ".join(r.assembly.labels)
+    targets = {e.to for e in r.edges.edges if e.src == "drafts/main.tex#lemma:1"}
+    assert targets == {"ab-0002", "ab-0003"}

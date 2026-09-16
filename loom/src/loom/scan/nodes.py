@@ -50,6 +50,7 @@ class NodeRec:
     ordinal: int = 0
     exp_ranges: dict[str, tuple[int, int]] = field(default_factory=dict)
     order: float = 0.0  # document order in the default master, else file order
+    body_start: int = 0  # masters: offset of \\begin{document}; edges and regions are read from here on
 
 
 @dataclass
@@ -223,7 +224,10 @@ def _container_nodes(asm: Assembly, files: dict[str, SourceFile], masters: list[
         if src.ignored:
             continue
         kind = "master" if path in masters else "file"
-        asm.nodes[path] = NodeRec(key=path, kind=kind, file=path, start=0, end=len(src.clean), title=path)
+        body = document_start(src) if kind == "master" else None
+        asm.nodes[path] = NodeRec(
+            key=path, kind=kind, file=path, start=0, end=len(src.clean), title=path, body_start=body or 0
+        )
 
 
 def _proof_nodes(
@@ -364,7 +368,7 @@ def _regions_and_details(
             n.order = _order(exp, n.file, n.start, files)
         if n.kind == "section":
             n.order = _order(exp, n.file, n.start, files)
-        n.incomplete = _incomplete_texts(src.clean, n.own)
+        n.incomplete = _incomplete_texts(src.clean, [(max(a, n.body_start), b) for a, b in n.own if b > n.body_start])
         node_dirs = within(asm.directives.get(n.file, []), n.own) if n.kind != "master" else []
         for d in node_dirs:
             if d.form == "kv":
@@ -409,7 +413,7 @@ def _collect_labels(asm: Assembly, files: dict[str, SourceFile]) -> None:
         for lab in n.labels:
             _claim(asm, files, seen, lab, key, n.file, n.start)
         where = "statement" if n.kind == "environment" else (f"proof:{key}" if n.kind == "proof" else "prose")
-        for lab, off in labels_in(src.clean, n.own):
+        for lab, off in labels_in(src.clean, [(max(a, n.body_start), b) for a, b in n.own if b > n.body_start]):
             if lab in heading:
                 continue
             qkey = f"{key}#{lab}"

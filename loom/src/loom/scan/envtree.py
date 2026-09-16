@@ -105,7 +105,7 @@ def _attach(proof: Env, fe: FileEnvs, text: str) -> Attachment:
     if proof.optarg:
         labels = REF_IN_OPT.findall(proof.optarg)
         if labels:
-            return Attachment(proof, None, "ref", [x.strip() for x in labels])
+            return Attachment(proof, None, "ref", [norm_label(x) for x in labels])
     sibs = _siblings(proof, fe)
     idx = sibs.index(proof)
     j = idx - 1
@@ -132,8 +132,13 @@ def labels_in(text: str, ranges: list[tuple[int, int]]) -> list[tuple[str, int]]
     out: list[tuple[str, int]] = []
     for a, b in ranges:
         for m in _LABEL.finditer(text, a, b):
-            out.append((m.group(1).strip(), m.start()))
+            out.append((norm_label(m.group(1)), m.start()))
     return out
+
+
+def norm_label(label: str) -> str:
+    """Labels are read as TeX reads them: runs of whitespace, including line breaks, collapse to one space."""
+    return re.sub(r"\s+", " ", label).strip()
 
 
 def first_body_token_is_cite(text: str, env: Env) -> bool:
