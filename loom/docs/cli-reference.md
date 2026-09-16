@@ -119,7 +119,7 @@ Write DEST: MASTER flattened with every \input, \nest (levels shifted), and \inc
 
 `loom atomize [OPTIONS] SRC [DEST]`
 
-Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC is not modified.
+Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC's text is not modified (with --ignore-src, a directive line is added above it).
 
 | option | description |
 |---|---|
@@ -128,6 +128,7 @@ Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inc
 | `--sections` | Also move labelled sections and subsections to nodes/. |
 | `--all` | Act on SRC and every file it reaches, writing spines under --to-dir. |
 | `--to-dir` `DIR` |  |
+| `--ignore-src` | Add `% !LOOM ignore` to SRC's first line, so the quilt keeps one definition of each node. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom build`

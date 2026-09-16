@@ -77,6 +77,9 @@ def _strip_prolog(svg: str) -> str:
     return svg.strip()
 
 
+_RERUN = re.compile(r"Rerun to get|There were undefined references|Label\(s\) may have changed")
+
+
 def compile_svg(
     body: str,
     preamble: str,
@@ -93,6 +96,10 @@ def compile_svg(
     cached = cache_dir / f"{key}.svg"
     if cached.exists():
         return SvgResult(cached.read_text(encoding="utf-8"), key, True)
+    failed = cache_dir / f"{key}.failed"
+    if failed.exists():
+        # a block that could not be compiled is remembered, so a later cold build does not pay for it again; `loom build --force-svg` clears the cache
+        return SvgResult(None, key, True, failed.read_text(encoding="utf-8"))
     latex = shutil.which(latex_bin)
     dvisvgm = shutil.which(dvisvgm_bin)
     if latex is None or dvisvgm is None:
@@ -105,10 +112,11 @@ def compile_svg(
         d = Path(tmp)
         (d / "d.tex").write_text(_build_doc(preamble, body, border), encoding="utf-8")
         out = ""
-        for _ in range(2):
+        # one pass, and a second only when the log asks for it: a snippet that defines and uses its own label needs two, and nothing else does
+        for attempt in range(2):
             try:
                 proc = subprocess.run(
-                    [latex, "-interaction=nonstopmode", "d.tex"],
+                    [latex, "-interaction=nonstopmode", "-halt-on-error", "d.tex"],
                     cwd=d,
                     capture_output=True,
                     text=True,
@@ -120,6 +128,8 @@ def compile_svg(
             except subprocess.TimeoutExpired:
                 return SvgResult(None, key, False, "latex timed out")
             out = proc.stdout or ""
+            if attempt == 0 and not _RERUN.search(out):
+                break
         if not (d / "d.dvi").exists() or re.search(r"(?m)^! ", out):
             keep = os.environ.get("LOOM_SVG_KEEP")  # debugging: copy the failing document and its log here
             if keep:
@@ -135,12 +145,9 @@ def compile_svg(
                 detail = " ".join(
                     ln.strip() for ln in after[:2] if ln.strip()
                 )  # the `<recently read> \\foo` and `l.N` lines
-            return SvgResult(
-                None,
-                key,
-                False,
-                "latex failed: " + (err.group(0) + (" " + detail if detail else "") if err else out[-500:]),
-            )
+            message = "latex failed: " + (err.group(0) + (" " + detail if detail else "") if err else out[-500:])
+            failed.write_text(message, encoding="utf-8")
+            return SvgResult(None, key, False, message)
         try:
             proc = subprocess.run(
                 [dvisvgm, "--no-fonts", "--exact-bbox", "--output=d.svg", "d.dvi"],
@@ -154,7 +161,9 @@ def compile_svg(
         except subprocess.TimeoutExpired:
             return SvgResult(None, key, False, "dvisvgm timed out")
         if not (d / "d.svg").exists():
-            return SvgResult(None, key, False, "dvisvgm failed: " + (proc.stderr or "")[-500:])
+            message = "dvisvgm failed: " + (proc.stderr or "")[-500:]
+            failed.write_text(message, encoding="utf-8")
+            return SvgResult(None, key, False, message)
         svg = _strip_prolog((d / "d.svg").read_text(encoding="utf-8"))
     svg = resize_svg(namespace_ids(svg, f"lm{key}-"))
     cached.write_text(svg, encoding="utf-8")
@@ -165,5 +174,7 @@ def fallback_figure(latex: str, svg: SvgResult, css_class: str, data_src: str) -
     """`figure.fallback` (or `figure.diagram`) holding the inline SVG, or a `pre` with the error when rendering failed."""
     src_text = html.escape(latex, quote=True)
     if svg.svg is None:
-        return f'<figure class="{css_class} failed" data-src="{data_src}" data-src-text="{src_text}"><pre>{html.escape(latex)}</pre></figure>'
+        # the source is kept so nothing is lost, and data-error marks it as a fault rather than as the paper's text
+        error = html.escape(svg.error or "the block could not be compiled", quote=True)
+        return f'<figure class="{css_class} failed" data-src="{data_src}" data-src-text="{src_text}" data-error="{error}"><pre>{html.escape(latex)}</pre></figure>'
     return f'<figure class="{css_class}" data-src="{data_src}" data-src-text="{src_text}">{svg.svg}</figure>'

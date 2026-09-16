@@ -10,6 +10,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from loom.scan.envtree import norm_label
 from loom.scan.macros import expand
 from loom.scan.model import Diagnostic, Location, Macro, Taxon
 from loom.scan.tokenize import Tok, match_group, read_args, tokenize
@@ -332,6 +333,9 @@ def ligatures(s: str) -> str:
     return s
 
 
+_LABEL_IN_ENV = re.compile(r"\\label\s*\{([^}]*)\}")
+
+
 def number_of(ctx: RenderContext, label: str) -> str | None:
     n = ctx.numbers.get(label)
     return n.number if n else None
@@ -458,7 +462,7 @@ class Converter:
                     out.append(ctx.child_html(ctx.child_at[t.start][1]))
                 elif env in ("proof",) or env in ctx.taxa:
                     flush(t.start)
-                    out.append(ctx.fallback(ctx.text[t.start : env_end], "fallback", ctx.src(t.start, env_end)))
+                    out.append(self.inline_env(t, env, env_end, end_idx, toks))
                 elif env in ("document",):
                     i += 1
                     continue
@@ -1033,6 +1037,38 @@ class Converter:
         body = "".join(self.render_range(x, y) for x, y in body_ranges if y > x)
         body = re.sub(r'<p data-src="[^"]*">\s*</p>', "", body)
         return f'<figure data-src="{ctx.src(t.start, env_end)}">{body}{caption_html}</figure>'
+
+    def inline_env(self, t: Tok, env: str, env_end: int, end_idx: int | None, toks: list[Tok]) -> str:
+        """A theorem-like environment or a proof written inline in a container, as HTML rather than as an SVG picture of itself.
+
+        The markup matches what a node fragment carries (`fragments.py`), minus the node identity: an environment written inline claims no key.
+        """
+        ctx = self.ctx
+        (title,), spans, after = read_args(ctx.clean, t.end, "o")
+        body_end = toks[end_idx].start if end_idx is not None else env_end
+        body = self.render_range(after, body_end)
+        data_src = ctx.src(t.start, env_end)
+        if env == "proof":
+            title_html = f' <span class="title">{self.inline_text(title, spans[0][0])}</span>' if title else ""
+            return f'<details class="env env-proof" data-src="{data_src}" open><summary class="env-label">Proof{title_html}</summary>{body}</details>'
+        taxon = ctx.taxa.get(env)
+        name = taxon.name if taxon else env.capitalize()
+        style = taxon.style if taxon else "plain"
+        num = None
+        for m in _LABEL_IN_ENV.finditer(ctx.clean, t.start, body_end):
+            num = number_of(ctx, norm_label(m.group(1)))
+            if num:
+                break
+        parts = [f'<span class="taxon">{esc(name)}</span>']
+        if num:
+            parts.append(f' <span class="number">{esc(num)}</span>')
+        if title:
+            parts.append(f' <span class="title">({self.inline_text(title, spans[0][0])})</span>')
+        attrs = (
+            f'class="env env-{slug(name)}" data-taxon="{html.escape(name, quote=True)}" '
+            f'data-style="{html.escape(style, quote=True)}" data-src="{data_src}"'
+        )
+        return f'<div {attrs}><p class="env-label">{"".join(parts)}</p>{body}</div>'
 
     def tabular_env(self, t: Tok, env_end: int, end_idx: int | None) -> str:
         ctx = self.ctx

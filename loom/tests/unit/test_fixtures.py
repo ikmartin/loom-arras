@@ -145,3 +145,35 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
         assert after.get(rel) == digest, f"{rel} was modified or deleted by a command"
     new_files = set(after) - set(before)
     assert all(rel.startswith("nodes/") for rel in new_files), new_files
+
+
+def test_two_masters_share_one_set_of_nodes(tmp_path: Path) -> None:
+    """Several masters are arrangements over one set of patches: including the same node file twice is not a duplicate (book 4.1)."""
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+
+    q = tmp_path / "q"
+    dest = q / "drafts"
+    dest.mkdir(parents=True)
+    (q / "nodes").mkdir()
+    (q / "config.toml").write_text('[quilt]\nname = "q"\nmain = "drafts/main.tex"\nprefix = "sh"\n', encoding="utf-8")
+    (q / "loom.sty").write_text(
+        (REPO / "src" / "loom" / "assets" / "loom.sty").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    (q / "nodes" / "sh-0001.tex").write_text(
+        "\\begin{lemma}\\label{sh-0001}\nShared.\n\\end{lemma}\n", encoding="utf-8"
+    )
+    preamble = (
+        "\\documentclass{amsart}\n\\usepackage{amsthm}\n\\usepackage{loom}\n"
+        "\\newtheorem{lemma}{Lemma}[section]\n\\begin{document}\n"
+    )
+    (dest / "main.tex").write_text(
+        preamble + "\\section{One}\\label{sh-0100}\n\\input{nodes/sh-0001}\n\\end{document}\n", encoding="utf-8"
+    )
+    (dest / "talk.tex").write_text(
+        preamble + "\\section{Two}\\label{sh-0200}\n\\input{nodes/sh-0001}\n\\end{document}\n", encoding="utf-8"
+    )
+    result = scan(load_quilt(q))
+    codes = [d.code for d in result.lint]
+    assert "duplicate-id" not in codes and "loom:duplicate-label" not in codes
+    assert set(result.nodes["sh-0001"].reached_by) == {"drafts/main.tex", "drafts/talk.tex"}

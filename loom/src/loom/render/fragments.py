@@ -82,12 +82,30 @@ class FragmentRenderer:
                 r"\\usepackage(\[[^\]]*\])?\{(microtype|geometry|fancyhdr|titlesec|setspace|lineno)\}", "", text
             )
             text = re.sub(r"^\s*%.*$", "", text, flags=re.M)
+            # \loomgobble, not \@gobble: a preamble that loads xypic with `\input xy` restores @ to a non-letter, and every fallback compile then dies on the gobbler
             text = re.sub(
-                r"\\(title|author|date|address|email|thanks|subjclass|keywords)\s*(\[[^\]]*\])?\{", r"\\@gobble{", text
+                r"\\(title|author|date|address|email|thanks|subjclass|keywords)\s*(\[[^\]]*\])?\{",
+                r"\\loomgobble{",
+                text,
             )
-            # \@gobble and any other internal the preamble uses need @ as a letter; standalone's preamble is not inside a package
-            # geometry and microtype may be loaded from an \\input preamble; `pass` and no protrusion neutralise them in the standalone box
-            guard = "\\PassOptionsToPackage{pass}{geometry}\n\\PassOptionsToPackage{protrusion=false,expansion=false}{microtype}\n"
+            # \makeatletter for the author's own internals; standalone's preamble is not inside a package
+            # geometry and microtype may be loaded from an \input preamble; `pass` and no protrusion neutralise them in the standalone box
+            guard = (
+                "\\PassOptionsToPackage{pass}{geometry}\n"
+                "\\PassOptionsToPackage{protrusion=false,expansion=false}{microtype}\n"
+                "\\newcommand{\\loomgobble}[1]{}\n"
+            )
+            # the class is stripped, and with it what the class provided: amsart's amsmath (a preamble calling \numberwithin needs it) and the names a bibliography or a float caption uses
+            for pkg in ("amsmath", "amsthm"):
+                if not re.search(r"\\usepackage\s*(\[[^\]]*\])?\s*\{[^}]*\b" + pkg + r"\b[^}]*\}", text):
+                    guard += f"\\usepackage{{{pkg}}}\n"
+            guard += (
+                "\\providecommand{\\bibname}{Bibliography}\n"
+                "\\providecommand{\\refname}{References}\n"
+                "\\providecommand{\\abstractname}{Abstract}\n"
+                "\\providecommand{\\figurename}{Figure}\n"
+                "\\providecommand{\\tablename}{Table}\n"
+            )
             self.plan.fallback_preamble[master] = guard + "\\makeatletter\n" + text + "\n\\makeatother\n"
         return self.plan.fallback_preamble[master]
 

@@ -21,6 +21,7 @@ from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult, scan
+from loom.scan.source import IGNORE_RE
 from loom.tex.identity import IdentityResult, identity_test
 
 
@@ -167,6 +168,11 @@ def import_command(
     "--all", "all_files", is_flag=True, help="Act on SRC and every file it reaches, writing spines under --to-dir."
 )
 @click.option("--to-dir", default=None, metavar="DIR")
+@click.option(
+    "--ignore-src",
+    is_flag=True,
+    help="Add `% !LOOM ignore` to SRC's first line, so the quilt keeps one definition of each node.",
+)
 @quilt_option
 @click.pass_context
 def atomize(
@@ -178,9 +184,10 @@ def atomize(
     sections: bool,
     all_files: bool,
     to_dir: str | None,
+    ignore_src: bool,
     quilt_path: str | None,
 ) -> None:
-    """Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC is not modified."""
+    """Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC's text is not modified (with --ignore-src, a directive line is added above it)."""
     result = open_scan(quilt_path)
     root = result.quilt.root
     src_rel = _rel(root, src)
@@ -225,9 +232,17 @@ def atomize(
     ident = _identity_for(result, root, plan.src, plan.dest)
     if ident is not None:
         note(ident.summary())
-    note(
-        f"Note: {plan.src} still defines its ids inline. Either delete it, move it out of the quilt, or add `% !LOOM ignore` to its first line."
-    )
+    if ignore_src:
+        for pl in plans:
+            p_src = root / pl.src
+            text = p_src.read_text(encoding="utf-8")
+            if not IGNORE_RE.search(text[:400]):
+                p_src.write_text("% !LOOM ignore\n" + text, encoding="utf-8")
+            note(f"Wrote `% !LOOM ignore` above {pl.src}: the quilt now has one definition of each node.")
+    else:
+        note(
+            f"Note: {plan.src} still defines its ids inline, so the quilt has two copies of every node it moved. Pass --ignore-src, delete it, or move it out of the quilt."
+        )
     if ident is not None and not ident.passed and not ident.skipped:
         ctx.exit(EXIT_CONTENT)
 

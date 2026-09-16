@@ -27,12 +27,14 @@ def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | Non
         )
     session = ServeSession(quilt, bundle, port, compile_masters=not no_compile)
     try:
-        session.start()
+        session.listen()
     except OSError as exc:
         raise EnvError(f"cannot listen on port {port}: {exc}") from exc
+    # the URL first: a cold first build compiles every block the converter cannot translate, and a silent wait looks like a hang
     note(f"loom serve: {session.url}  (build directory at {session.url}build/; Ctrl-C to stop)")
     if open_browser:
         webbrowser.open(session.url)
+    session.start()
     try:
         while True:
             time.sleep(1)

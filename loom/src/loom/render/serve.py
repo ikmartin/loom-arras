@@ -10,12 +10,13 @@ import mimetypes
 import os
 import sys
 import threading
+import time
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from loom.arras_bundle import find_bundle
-from loom.render.build import build
+from loom.render.build import BuildReport, build
 from loom.render.watch import Watcher
 from loom.scan.quilt import Quilt
 from loom.tex.runner import compile_tex, normalise_engine
@@ -120,10 +121,12 @@ class ServeSession:
         self.builds = 0
         self.httpd: ThreadingHTTPServer | None = None
         self.watcher: Watcher | None = None
+        self.last_report: BuildReport | None = None
 
     def rebuild(self, changed: list[Path] | None = None) -> None:
         with self.lock:
             report = build(self.quilt)
+            self.last_report = report
             self.builds += 1
         if changed is not None:
             names = ", ".join(p.relative_to(self.quilt.root).as_posix() for p in changed[:3])
@@ -152,16 +155,37 @@ class ServeSession:
         if res.ok:
             self.rebuild()
 
-    def start(self) -> None:
+    def listen(self) -> None:
+        """Bind the port and start serving. The build has not run yet, so `/build/` answers 503 until `start` finishes it."""
         handler = type(
             "Handler", (LoomHandler,), {"bundle_dir": self.bundle_dir, "build_dir": self.quilt.root / "build"}
         )
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
-        self.rebuild()
+        threading.Thread(target=self.httpd.serve_forever, name="loom-http", daemon=True).start()
+
+    def start(self) -> None:
+        """Listen, then run the first build and begin watching. A cold first build can take a while, so callers that want the URL early call `listen` first."""
+        if self.httpd is None:
+            self.listen()
+        self.first_build()
         self.watcher = Watcher(self.quilt.root, self.rebuild, self.interval)
         self.watcher.start()
-        threading.Thread(target=self.httpd.serve_forever, name="loom-http", daemon=True).start()
+
+    def first_build(self) -> None:
+        """The initial publish, reported as it happens: on a cold cache it compiles every block the converter cannot translate."""
+        started = time.perf_counter()
+        print("loom serve: building the quilt ...", file=sys.stderr, flush=True)
+        self.rebuild()
+        errors = sum(1 for d in self.last_report.diagnostics if d.severity == "error") if self.last_report else 0
+        fragments = len(self.last_report.rendered) if self.last_report else 0
+        # a quilt with errors renders strangely rather than failing, so say so at startup instead of leaving it to be discovered
+        note = f"; {errors} error(s) -- run loom lint" if errors else ""
+        print(
+            f"loom serve: built {fragments} fragment(s) in {time.perf_counter() - started:.1f}s{note}",
+            file=sys.stderr,
+            flush=True,
+        )
 
     def stop(self) -> None:
         if self.watcher:
