@@ -109,6 +109,9 @@ def find_edges(asm: Assembly, files: dict[str, SourceFile]) -> EdgeResult:
                 skey = asm.key_of_env(path, env)
                 if pkey and skey:
                     res.edges.append(EdgeRec(pkey, skey, "proof", "nested", path, src.line_of(env.start)))
+    from loom.scan.postnote import postnote_edges
+
+    postnote_edges(asm, res)
     return res
 
 

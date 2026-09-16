@@ -130,8 +130,21 @@ def compile(ctx: click.Context, target: str | None, engine: str | None, quilt_pa
     if res.ok:
         click.echo(f"compiled {label} -> {res.outdir.relative_to(root)}/ ({res.engine})")
     else:
+        if label.startswith("bundle "):
+            for line in missing_package_notes(result, b.closure + [key]):
+                click.echo(line, err=True)
         click.echo(f"FAILED {label}: {res.first_error}", err=True)
         ctx.exit(EXIT_CONTENT)
+
+
+def missing_package_notes(result: ScanResult, keys: list[str]) -> list[str]:
+    """`loom:missing-package` lines for the digests among `keys`, named before a failed bundle compile (book 8.11)."""
+    files = {result.nodes[k].file for k in keys if k in result.nodes and result.nodes[k].digest}
+    out: list[str] = []
+    for d in result.lint:
+        if d.code == "loom:missing-package" and any(loc.file in files for loc in d.locations):
+            out.append(f"{d.code}: {d.message}")
+    return out
 
 
 @click.command()

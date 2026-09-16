@@ -90,7 +90,13 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     assert n["taxon"] == "Theorem" and n["title"] == "Main" and n["numbers"]["drafts/main.tex"]["number"] == "2.1"
     assert n["parent"]["drafts/main.tex"] == "dm-0011" and n["proofs"] == ["dm-0003/proof"]
     k = m["keys"]["dm-0003/proof"]
-    assert k["kind"] == "proof" and k["hash"].startswith("sha256:") and k["closure"] == ["dm-0002", "dm-0003"]
+    assert k["kind"] == "proof" and k["hash"].startswith("sha256:")
+    assert set(k["closure"]) == {
+        "dm-0002",
+        "dm-0003",
+        "Man12-prop-3.2",
+        "Man12-setup",
+    }  # the postnote edge brings the digest nodes in (book 8.11)
     assert m["keys"]["dm-0005/proof"]["state"] == "incomplete"
     assert m["regions"]["dm-0001#eq:fix"]["numbers"]["drafts/main.tex"]["number"] == "1.1"
     assert any(e["from"] == "dm-0003/proof" and e["to"] == "dm-0002" for e in m["edges"])

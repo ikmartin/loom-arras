@@ -103,10 +103,18 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
     d = run("deps", "dm-0003", "--json", cwd=demo)
     assert d.exit_code == 0, d.output
     payload = json.loads(d.output)
-    assert [e["key"] for e in payload["proof"]] == ["dm-0002"]
+    assert [e["key"] for e in payload["proof"]] == [
+        "dm-0002",
+        "Man12-prop-3.2",
+    ]  # \cite[Proposition 3.2]{Man12} resolves to the digest node
     assert payload["closure"] == [{"key": "dm-0003"}]
     dp = run("deps", "dm-0003/proof", "--closure", cwd=demo)
-    assert dp.output.splitlines()[2:] == ["  dm-0002 (Lemma)", "  dm-0003 (Theorem)"]
+    assert set(dp.output.splitlines()[2:]) == {
+        "  dm-0002 (Lemma)",
+        "  dm-0003 (Theorem)",
+        "  Man12-setup (Theorem)",
+        "  Man12-prop-3.2 (Proposition)",
+    }  # the closure includes the digest nodes the proof cites by postnote (book 8.11)
     u = run("unravel", "dm-0001", "--json", cwd=demo)
     assert u.exit_code == 0, u.output
     up = json.loads(u.output)

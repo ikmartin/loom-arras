@@ -94,6 +94,9 @@ def test_serve_republishes_on_change(session) -> None:  # type: ignore[no-untype
         time.sleep(0.2)
     assert after != before, "manifest did not change within the deadline"
     assert json.loads(body)["nodes"]["dm-0002"]["title"] == "Orbits, revised"
+    deadline = time.time() + 3
+    while s.builds < 2 and time.time() < deadline:  # the counter steps after the publish the ETag already shows
+        time.sleep(0.1)
     assert s.builds >= 2
 
 

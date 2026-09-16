@@ -9,6 +9,7 @@ import re
 
 from loom.scan.bib import citekey_slug
 from loom.scan.diagnostics import can_disable
+from loom.scan.digests import digest_header, missing_packages, source_version
 from loom.scan.directives import KNOWN_KEYS
 from loom.scan.edges import EdgeResult
 from loom.scan.graph import Graph
@@ -239,6 +240,32 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
             diags.append(
                 Diagnostic(
                     "warning", "loom:digest-without-bib", f"digest {ck} names a citekey not in the bibliography", []
+                )
+            )
+    # digest provenance against the bibliography, and requires: against the default master's preamble closure
+    dm = result.default_master
+    dm_closure = result.closures.get(dm) if dm else None
+    for f, ck in sorted(asm.digest_files.items()):
+        header = digest_header(asm, f)
+        bib = result.bib.get(ck)
+        sv = source_version(header.get("source", ""))
+        if bib is not None and bib.version and sv and bib.version != sv:
+            diags.append(
+                Diagnostic(
+                    "warning",
+                    "loom:version-mismatch",
+                    f"digest {ck} was made from v{sv} but the bibliography cites v{bib.version}",
+                    [Location(f, 1)],
+                )
+            )
+        missing = missing_packages(asm, f, dm_closure)
+        if missing:
+            diags.append(
+                Diagnostic(
+                    "warning",
+                    "loom:missing-package",
+                    f"digest {ck} requires {', '.join(missing)}, which the preamble of {dm} does not load",
+                    [Location(f, 1)],
                 )
             )
     # loose files

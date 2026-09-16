@@ -10,6 +10,7 @@ from typing import Any
 
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.scan.bib import citekey_slug
+from loom.scan.digests import source_version
 from loom.scan.directives import list_value
 from loom.scan.hashing import child_marker, hash_text
 from loom.scan.macros import to_mathjax
@@ -234,8 +235,8 @@ def build_manifest(
                 "method": ds.get("method", ""),
                 "nodes": nodes,
             }
-            src_version = re.search(r"v(\d+)$", ds.get("source", ""))
-            if bib and bib.version and src_version and bib.version != src_version.group(1):
+            sv = source_version(ds.get("source", ""))
+            if bib and bib.version and sv and bib.version != sv:
                 version_mismatch = True
             manifest["macros"]["sets"][ck] = digest_macro_set(result, f)
         manifest["references"][ck] = {

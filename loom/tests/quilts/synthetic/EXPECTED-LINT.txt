@@ -22,3 +22,4 @@ warning loom:equation-in-proof-referenced
 warning loom:multi-target-proof
 warning loom:taxon-conflict
 warning loom:unknown-directive
+warning loom:unmatched-postnote
