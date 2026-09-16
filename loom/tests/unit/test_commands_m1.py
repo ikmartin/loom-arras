@@ -168,3 +168,13 @@ def test_remaining_codes_have_a_test(tmp_path: Path) -> None:
     (q / "nodes" / "dm-0004.tex").write_text("% a file already sits where the inline node dm-0004 would move\n")
     r = run("atomize", "drafts/main.tex", "drafts/spine.tex", cwd=q)
     assert r.exit_code == 1 and "loom:atomize-target-exists" in r.output, r.output
+
+
+def test_non_utf8_source_code_reported(tmp_path: Path) -> None:
+    assert run("init", str(tmp_path / "q"), "--demo", "--no-git", cwd=tmp_path).exit_code == 0
+    q = tmp_path / "q"
+    (q / "nodes" / "old.tex").write_bytes(
+        "\\begin{remark}\label{dm-0099}\nSee pages 989\xd01004.\n\\end{remark}\n".encode("mac_roman")
+    )
+    lint = run("lint", cwd=q).output
+    assert "loom:non-utf8-source" in lint and "nodes/old.tex" in lint
