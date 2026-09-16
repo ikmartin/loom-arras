@@ -162,6 +162,7 @@ def plan_import(quilt: Quilt, paper_file: Path, fix_anchors: bool = False, prefi
             if dest.endswith(".tex") or dest.endswith(".sty") or dest.endswith(".cls"):
                 texts[dest] = _read(Path(source))
         others = [t for d, t in texts.items() if d != plan.master_quilt_rel]
+        authored = dict(texts)  # violations are reported at the author's line numbers, and the master is about to gain a \usepackage line that shifts every line below it
         if plan.master_quilt_rel in texts:
             texts[plan.master_quilt_rel] = _insert_usepackage(texts[plan.master_quilt_rel], others)
         for dest, source in plan.files.items():
@@ -176,7 +177,7 @@ def plan_import(quilt: Quilt, paper_file: Path, fix_anchors: bool = False, prefi
         for dest, text in list(texts.items()):
             if not dest.endswith(".tex"):
                 continue
-            v = anchoring_violations(text, theorem_names)
+            v = anchoring_violations(authored[dest], theorem_names)
             if v and fix_anchors:
                 texts[dest] = fix_anchoring(text, theorem_names)
                 (stage / dest).write_text(texts[dest], encoding="utf-8")
