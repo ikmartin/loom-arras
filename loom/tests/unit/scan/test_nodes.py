@@ -194,3 +194,28 @@ def test_external_node_and_digest_file(tmp_path: Path) -> None:
     assert nodes["Man12-thm-4.1"].external and nodes["Man12-thm-4.1"].digest == "Man12"
     assert nodes["Man12-thm-4.1"].reached_by == []
     assert "Man12" in r.bib
+
+
+def test_declared_prefix_carries_the_id_grammar(tmp_path: Path) -> None:
+    """A digest declares the prefix its node ids carry, so `\\uses` stays typeable and the ids survive a citekey rename.
+
+    Without the declaration the prefix would be the citekey's slug, and a Zotero key makes that 29 characters. The prefix is what `is_id_shaped` matches on, so declaring one is what makes `Man12-thm-4.1` an id at all rather than a human alias (plan 0.5, DR-109).
+    """
+    long_key = "manolache_VirtualPullbacks2012"
+    r = make_quilt(
+        tmp_path,
+        {
+            "drafts/main.tex": PREAMBLE
+            + "\\begin{document}\n\\begin{lemma}\\label{ab-0001}\n\\uses{Man12-thm-4.1}\nL\n\\end{lemma}\n\\end{document}\n",
+            "digests/paper.tex": f"% !LOOM digest: {long_key}\n% !LOOM prefix: Man12\n"
+            "% !LOOM extracted-from: arXiv:0805.2065v2\n% !LOOM method: extract\n"
+            "\\section*{Overview}\n"
+            f"\\begin{{theorem}}[{{\\cite[Theorem 4.1]{{{long_key}}}}}]\\label{{Man12-thm-4.1}}\nS.\n\\end{{theorem}}\n",
+            "refs.bib": f"@article{{{long_key}, title={{Virtual pull-backs}}, doi={{10.1090/S1}}}}\n",
+        },
+    )
+    # the short prefix is an id, not an alias: the node exists under it and carries its digest's citekey
+    assert r.nodes["Man12-thm-4.1"].external and r.nodes["Man12-thm-4.1"].digest == long_key
+    assert not any(k.startswith("manolacheVirtual") for k in r.nodes)
+    # and the edge from the quilt's own lemma resolves to it
+    assert ("ab-0001", "Man12-thm-4.1", "uses") in {(e.src, e.to, e.via) for e in r.edges.edges}

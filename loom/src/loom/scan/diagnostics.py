@@ -48,6 +48,8 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:unmatched-postnote": ("warning", False),
     "loom:undigested-citekey": ("info", False),
     "loom:version-mismatch": ("warning", False),
+    "loom:unresolved-work": ("info", False),
+    "loom:unverified-locators": ("warning", False),
     "loom:missing-package": ("warning", False),
     "loom:digest-without-bib": ("warning", False),
     "loom:interface-version": ("error", True),

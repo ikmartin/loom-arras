@@ -187,7 +187,6 @@ def match(postnote: str, candidates: list[tuple[str, set[str]]]) -> list[str]:
 
 def postnote_edges(asm: Assembly, res: EdgeResult) -> None:
     """Add a `postnote` edge for every `\\cite[postnote]{citekey}` that names a node of the citekey's digest; warn `loom:unmatched-postnote` when a digest exists but nothing matches."""
-    from loom.scan.bib import citekey_slug
     from loom.scan.edges import EdgeRec, _kind_of
 
     by_citekey: dict[str, list[tuple[str, set[str]]]] = {}
@@ -195,7 +194,7 @@ def postnote_edges(asm: Assembly, res: EdgeResult) -> None:
         ck = asm.digest_files.get(n.file)
         if ck is None or n.kind not in ("environment", "section"):
             continue
-        forms = locator_forms(n, citekey_slug(ck))
+        forms = locator_forms(n, asm.prefix_of(ck))
         if forms:
             by_citekey.setdefault(ck, []).append((key, forms))
     for c in res.cites:

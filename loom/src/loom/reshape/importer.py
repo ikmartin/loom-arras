@@ -12,6 +12,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.refs.identity import declared
 from loom.reshape.anchoring import Violation, anchoring_violations, fix_anchoring
 from loom.reshape.ids import Insertion, apply_insertions, plan_insertions, unified_diff
 from loom.scan.alloc import visible_locals
@@ -284,12 +285,16 @@ def report_counts(result: ScanResult) -> str:
     dangling = sum(1 for d in result.lint if d.code == "dangling-link")
     unmatched = sum(1 for d in result.lint if d.code in ("loom:unmatched-postnote", "loom:undigested-citekey"))
     unknown = sum(1 for d in result.lint if d.code == "loom:unknown-environment")
+    resolved = sum(1 for e in result.bib.values() if declared(e))
+    refs_line = f"References: {dangling} dangling; {unmatched} citations with locators but no digest"
+    if result.bib:
+        refs_line += f"; {resolved} of {len(result.bib)} works carry an identifier"
     lines = [
         "Nodes: "
         + ", ".join(f"{n} {t}" for t, n in sorted(taxa.items(), key=lambda x: -x[1]))
         + ("; " + ", ".join(f"{n} {t.lower()}s" for t, n in sorted(sections.items())) if sections else ""),
         f"Proofs: {proofs.get('adjacent', 0)} adjacent, {proofs.get('ref', 0)} by reference, {proofs.get('enclosure', 0)} by enclosure, {proofs.get('none', 0)} unattached",
-        f"References: {dangling} dangling; {unmatched} citations with locators but no digest",
+        refs_line,
     ]
     if unknown:
         lines.append(f"Unknown environments: {unknown} (add % !LOOM environment: lines to the master)")

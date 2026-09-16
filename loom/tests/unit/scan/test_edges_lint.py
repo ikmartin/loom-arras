@@ -18,7 +18,7 @@ def test_edge_family_alias_classification_closure(tmp_path: Path) -> None:
     assert r.graph.downstream("ab-0002") == ["ab-0003/proof"]
     cites = [(c.src, c.citekey, c.postnote) for c in r.edges.cites]
     assert cites == [("ab-0011", "Man12", "Theorem 4.1")]
-    assert codes(r) == ["loom:undigested-citekey", "loom:uses-missing", "loom:uses-unused"]
+    assert codes(r) == ["loom:undigested-citekey", "loom:unresolved-work", "loom:uses-missing", "loom:uses-unused"]
 
 
 def test_edge_dangling_loose_and_uses_lints(tmp_path: Path) -> None:

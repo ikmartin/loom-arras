@@ -20,6 +20,7 @@ PROVENANCE = ("declared", "resolved", "asserted")
 _ARXIV_URL = re.compile(r"arxiv\.org/(?:abs|pdf|e-print)/([^\s?#]+)", re.I)
 _DOI_URL = re.compile(r"(?:doi\.org/|dx\.doi\.org/)(10\.[^\s?#]+)", re.I)
 _DOI_BARE = re.compile(r"^10\.\d{4,9}/\S+$")
+_ARXIV_DOI = re.compile(r"^10\.48550/arxiv\.(\S+)$", re.I)
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 
 
@@ -103,8 +104,14 @@ def declared(entry: BibEntry) -> list[WorkId]:
     out: list[WorkId] = []
     doi = entry.fields.get("doi", "").strip()
     if doi and (_DOI_BARE.match(doi) or doi.startswith("10.")):
-        out.append(WorkId("doi", doi, "declared"))
-    if e := _eprint(entry):
+        # arXiv mints its own DOIs under 10.48550, so such a DOI names a preprint and not a published article.
+        # Normalising it means one artifact has one directory however the bibliography happened to record it, and
+        # keeps `published` honest: a 10.48550 DOI must not make loom:unverified-locators think the work is in print.
+        if m := _ARXIV_DOI.match(doi):
+            out.append(WorkId("arxiv", m.group(1), "declared"))
+        else:
+            out.append(WorkId("doi", doi, "declared"))
+    if (e := _eprint(entry)) and not any(w.scheme == "arxiv" for w in out):
         out.append(WorkId("arxiv", e, "declared"))
     for field, scheme in (("mrnumber", "mr"), ("zbl", "zbl"), ("zblnumber", "zbl")):
         v = entry.fields.get(field, "").strip()

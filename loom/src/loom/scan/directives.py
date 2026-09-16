@@ -9,7 +9,22 @@ import re
 
 from loom.scan.model import Directive, SourceFile
 
-KNOWN_KEYS = {"author", "created", "tags", "see", "environment", "digest", "source", "method", "requires", "numbering"}
+# `source` is the pre-0.5 spelling of `extracted-from` and stays known, so a quilt that has not been upgraded lints clean (DR-109)
+KNOWN_KEYS = {
+    "author",
+    "created",
+    "tags",
+    "see",
+    "environment",
+    "digest",
+    "prefix",
+    "extracted-from",
+    "published-as",
+    "source",
+    "method",
+    "requires",
+    "numbering",
+}
 LIST_KEYS = {"author", "tags", "see", "requires"}
 BARE_KEYS = {"ignore"}
 REGION_KEYS = {"macros"}

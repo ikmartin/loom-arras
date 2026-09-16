@@ -34,10 +34,15 @@ def plan_digest_import(result: ScanResult, path: Path, as_citekey: str | None) -
         raise ValueError(f"{path} has no `% !LOOM digest:` header")
     old = m.group(1)
     new = as_citekey or old
-    old_slug, new_slug = citekey_slug(old), citekey_slug(new)
+    # the file's ids carry whatever prefix it declares, which need not be the citekey's slug (DR-109)
+    pm = re.search(r"^%\s*!LOOM\s+prefix:\s*(\S+)\s*$", text, re.M)
+    old_slug = pm.group(1) if pm else citekey_slug(old)
+    new_slug = citekey_slug(new)
     renamed = 0
     if new != old:
         text, n1 = _HEADER.subn(f"% !LOOM digest: {new}", text, count=1)
+        if pm:
+            text = re.sub(r"^%\s*!LOOM\s+prefix:.*$", f"% !LOOM prefix: {new_slug}", text, count=1, flags=re.M)
         text, n2 = re.subn(
             r"(\\(?:label|ref|eqref|cref|Cref|autoref)\{)" + re.escape(old_slug) + r"-", r"\g<1>" + new_slug + "-", text
         )
@@ -49,7 +54,7 @@ def plan_digest_import(result: ScanResult, path: Path, as_citekey: str | None) -
 
         text, n4 = re.subn(r"(\\uses\{)([^}]*)\}", uses_repl, text)
         renamed = n1 + n2 + n3 + n4
-    header = {k: v for k, v in re.findall(r"^%\s*!LOOM\s+([a-z]+):\s*(.*)$", text, re.M)}
+    header = {k: v for k, v in re.findall(r"^%\s*!LOOM\s+([a-z][a-z-]*):\s*(.*)$", text, re.M)}
     dm = result.default_master
     loaded = (loaded_packages(result.closures[dm]) if dm and dm in result.closures else set()) | ALWAYS_LOADED
     missing = [p for p in list_value(header.get("requires", "")) if p not in loaded]

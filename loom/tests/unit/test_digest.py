@@ -145,8 +145,9 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_pa
     assert r.exit_code == 0, r.output
     text = (q / "digests" / "Ref20.tex").read_text()
     head = text.splitlines()[:5]
-    assert head[0] == "% !LOOM digest: Ref20" and head[1] == "% !LOOM source: arXiv:2001.00001v2"
-    assert head[2] == "% !LOOM method: extract" and head[3].startswith("% !LOOM created: ")
+    assert head[0] == "% !LOOM digest: Ref20" and head[1] == "% !LOOM prefix: Ref20"
+    assert head[2] == "% !LOOM extracted-from: arXiv:2001.00001v2"  # the artifact parsed, not the work cited (DR-109)
+    assert head[3] == "% !LOOM method: extract" and head[4].startswith("% !LOOM created: ")
     assert "% !LOOM requires: xy" in text and "numbering: emulated" not in text
     assert "\\begin{proof}" not in text
     assert (

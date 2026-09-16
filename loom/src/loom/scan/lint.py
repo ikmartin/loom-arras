@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import re
 
+from loom.refs.identity import declared, parse
 from loom.scan.bib import citekey_slug
 from loom.scan.diagnostics import can_disable
-from loom.scan.digests import digest_header, missing_packages, source_version
+from loom.scan.digests import digest_header, extracted_from, missing_packages, published_as, source_version
 from loom.scan.directives import KNOWN_KEYS
 from loom.scan.edges import EdgeResult
 from loom.scan.graph import Graph
@@ -240,6 +241,19 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 sorted(set(srcs)),
             )
         )
+    # a cited work with no global identifier can never be deduplicated, fetched, or matched against another quilt's
+    for ck in sorted({c.citekey for c in edges.cites}):
+        entry = result.bib.get(ck)
+        if entry is not None and not declared(entry):
+            diags.append(
+                Diagnostic(
+                    "info",
+                    "loom:unresolved-work",
+                    f"{ck} states no identifier; add doi = {{...}} or eprint = {{...}} to its bibliography entry so loom can name the work the same way on another machine",
+                    [],
+                    [ck],
+                )
+            )
     for ck in sorted(digest_keys):
         if ck not in result.bib:
             diags.append(
@@ -253,7 +267,23 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     for f, ck in sorted(asm.digest_files.items()):
         header = digest_header(asm, f)
         bib = result.bib.get(ck)
-        sv = source_version(header.get("source", ""))
+        got, cites_as = extracted_from(header), published_as(header)
+        a, b = parse(got), parse(cites_as)
+        why = None
+        if a is not None and b is not None and a.preprint and b.published:
+            why = f"was extracted from {got} but the bibliography cites {cites_as}"
+        elif not got and header.get("method", "") == "extract":
+            why = "does not say what it was extracted from"
+        if why:
+            diags.append(
+                Diagnostic(
+                    "warning",
+                    "loom:unverified-locators",
+                    f"digest {ck} {why}; its result numbers and page references are unverified against the version a reader will open",
+                    [Location(f, 1)],
+                )
+            )
+        sv = source_version(got)
         if bib is not None and bib.version and sv and bib.version != sv:
             diags.append(
                 Diagnostic(

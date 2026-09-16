@@ -77,7 +77,17 @@ class Assembly:
     diagnostics: list[Diagnostic] = field(default_factory=list)
     directives: dict[str, list[Directive]] = field(default_factory=dict)
     digest_files: dict[str, str] = field(default_factory=dict)  # file -> citekey
+    digest_prefixes: dict[str, str] = field(default_factory=dict)  # file -> the prefix its node ids carry
     citeslugs: set[str] = field(default_factory=set)  # slugs of the bibliography's citekeys, for the id grammar
+
+    def prefix_of(self, citekey: str) -> str:
+        """The id prefix a citekey's digest nodes carry: declared in its header, or the citekey's slug when it declares none."""
+        from loom.scan.bib import citekey_slug
+
+        for f, ck in self.digest_files.items():
+            if ck == citekey:
+                return self.digest_prefixes.get(f, citekey_slug(citekey))
+        return citekey_slug(citekey)
 
     def statement_keys(self) -> list[str]:
         return [k for k, n in self.nodes.items() if n.kind in ("environment", "section")]
@@ -105,10 +115,13 @@ def assemble(
         if src.ignored:
             continue
         asm.directives[path] = parse_directives(src)
-        for d in asm.directives[path]:
-            if d.form == "kv" and d.key == "digest" and d.line <= HEAD_LINES:
-                asm.digest_files[path] = d.value
-                slugs.add(citekey_slug(d.value))
+        head = {d.key: d.value for d in asm.directives[path] if d.form == "kv" and d.line <= HEAD_LINES}
+        if "digest" in head:
+            asm.digest_files[path] = head["digest"]
+            # the prefix is declared so that it survives a citekey rename and stays typeable in \uses; the slug is only the default (DR-109)
+            prefix = head.get("prefix", "").strip() or citekey_slug(head["digest"])
+            asm.digest_prefixes[path] = prefix
+            slugs.add(prefix)
     for path, src in files.items():
         if src.ignored:
             continue

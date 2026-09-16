@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from loom.digest.counters import Numbering
+from loom.refs.identity import WorkId, identify
 from loom.reshape.importer import closure_of
 from loom.scan.bib import citekey_slug
 from loom.scan.digests import ALWAYS_LOADED, loaded_packages
@@ -305,18 +306,28 @@ def _env_definitions(raw: str) -> dict[str, str]:
     return defs
 
 
-def _source_ident(result: ScanResult, citekey: str, src: Path) -> str:
-    bib = result.bib.get(citekey)
-    if bib is not None:
-        if bib.eprint:
-            ident = bib.eprint
-            if bib.version and not re.search(r"v\d+$", ident):
-                ident += f"v{bib.version}"
-            return ident if ident.lower().startswith("arxiv:") else f"arXiv:{ident}"
-        doi = bib.fields.get("doi")
-        if doi:
-            return f"doi:{doi}"
-    return f"local:{src.name}"
+def _provenance(result: ScanResult, citekey: str, src: Path) -> tuple[str, str | None]:
+    """What this digest was extracted from, and what the bibliography cites it as.
+
+    Two facts, not two candidates for one. The statements and their numbers come from the artifact that was parsed; the work a reader will open is whatever the entry cites. When those differ -- an arXiv source against a published DOI -- every locator is unverified, which `loom:unverified-locators` says and this pair is what lets it (DR-109).
+    """
+    entry = result.bib.get(citekey)
+    published = next((str(w) for w in identify(entry) if w.published), None) if entry else None
+    # the artifact is decided by where the source actually sits: a path inside refs/ names its own work
+    resolved = src.resolve()
+    parts = resolved.parts
+    if "refs" in parts:
+        i = len(parts) - 1 - parts[::-1].index("refs")
+        if len(parts) > i + 2:
+            wid = WorkId(parts[i + 1], parts[i + 2])
+            return str(wid), published
+    if entry is not None:
+        eprint = next((str(w) for w in identify(entry) if w.preprint), None)
+        if eprint:
+            return eprint, published
+        if published:
+            return published, published
+    return f"local:{src.name}", published
 
 
 def extract_digest(
@@ -490,9 +501,12 @@ def extract_digest(
         )  # a numbered environment of that display name first, never the starred twin
     used_names: set[str] = set()
     out: list[str] = []
-    source = _source_ident(result, citekey, src)
+    extracted_from, published_as = _provenance(result, citekey, src)
     out.append(f"% !LOOM digest: {citekey}")
-    out.append(f"% !LOOM source: {source}")
+    out.append(f"% !LOOM prefix: {slug}")  # declared, not derived, so the ids survive a citekey rename
+    out.append(f"% !LOOM extracted-from: {extracted_from}")
+    if published_as and published_as != extracted_from:
+        out.append(f"% !LOOM published-as: {published_as}")
     out.append("% !LOOM method: extract")
     out.append(f"% !LOOM created: {_today()}")
     if report.numbering == "emulated":

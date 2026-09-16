@@ -11,6 +11,7 @@ info loom:see-redundant
 info loom:undigested-citekey
 info loom:unexpected-proof
 info loom:unlabelled-node
+info loom:unresolved-work
 info loom:uses-missing
 info loom:uses-missing
 info loom:uses-missing

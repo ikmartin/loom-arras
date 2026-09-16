@@ -7,6 +7,7 @@ from importlib import resources
 import click
 
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.refs.migrate import migrate
 
 
 @click.command()
@@ -34,4 +35,14 @@ def upgrade(quilt_path: str | None) -> None:
             click.echo("ai/ is current")
     else:
         click.echo("no ai/ (loom ai init creates it)")
+    refs_rep = migrate(root)
+    for line in refs_rep.moved:
+        click.echo(f"moved {line}")
+    if refs_rep.unknown:
+        click.echo(
+            f"provenance split for {', '.join(refs_rep.unknown)}: the recorded identifier names the published work, so "
+            "what the statements were extracted from is unknown; loom:unverified-locators names it until you say"
+        )
+    if not refs_rep.done:
+        click.echo("references are current")
     click.echo("config.toml and the ledger need no migration")
