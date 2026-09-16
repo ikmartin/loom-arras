@@ -130,3 +130,12 @@ test('digest page lists results with their citers, and the references index coun
 	await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
 });
 
+test("thread page shows the run's messages, attachments, and log", async ({ page }) => {
+	await page.goto('/threads');
+	await expect(page.getByText('referee sy-0003').first()).toBeVisible();
+	await page.goto('/thread/2026-09-16T00-00-referee');
+	await expect(page.getByText('hostile review of the parity theorem').first()).toBeVisible();
+	await expect(page.locator('pre', { hasText: 'loom comment sy-0003' })).toHaveCount(1); // the log, collapsed by default
+	await expect(page.getByText('annotations.json').first()).toBeVisible();
+});
+
