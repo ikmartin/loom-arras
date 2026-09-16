@@ -2,6 +2,13 @@
    The names are drawn from print and are deliberately not the names used in the design documents or in any other product's system: arras renders a page of mathematics, not application chrome.
    Every colour, measure and typeface is a variable; no component hardcodes a value. */
 
+/* Padding and borders count inside a declared size. Without this a rail of `height: 100vh` with 12px of padding is 24px taller than the window, which puts the settings control and the counts line below the fold. */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
 :root {
 	/* surfaces */
 	--paper: #fbfaf8;
@@ -40,12 +47,12 @@
 	--rad-pill: 4px;
 	--rad-control: 8px;
 	--rad-card: 12px;
-	--rail-left: 168px;
+	--rail-left: 252px;
 	--rail-right: 236px;
 	--strip: 44px;
 	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
-	--rail-a: 178px;
-	--rail-b: 160px;
+	--rail-a: 267px;
+	--rail-b: 240px;
 	--topbar: 30px;
 
 	/* typefaces: serif for mathematical content, sans for chrome, mono for ids.
@@ -245,6 +252,26 @@ main.page > h2 {
 .rail-scroll {
 	overflow-y: auto;
 	overscroll-behavior: contain;
+	/* The bar is there but invisible until the pointer or the keyboard is in the rail, so a contents tree of 74 entries does not carry a grey stripe down the side of every page. The space is reserved either way, so nothing shifts when it appears. */
+	scrollbar-width: thin;
+	scrollbar-color: transparent transparent;
+}
+.rail-scroll:hover,
+.rail-scroll:focus-within {
+	scrollbar-color: var(--rule-strong) transparent;
+}
+.rail-scroll::-webkit-scrollbar {
+	width: 8px;
+}
+.rail-scroll::-webkit-scrollbar-thumb {
+	background: transparent;
+	border-radius: 4px;
+	border: 2px solid transparent;
+	background-clip: content-box;
+}
+.rail-scroll:hover::-webkit-scrollbar-thumb,
+.rail-scroll:focus-within::-webkit-scrollbar-thumb {
+	background-color: var(--rule-strong);
 }
 
 table.list {

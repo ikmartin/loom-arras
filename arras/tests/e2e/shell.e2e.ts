@@ -153,3 +153,34 @@ test('a comment with sizeable content stays in the text as a box', async ({ page
 	expect(box.x).toBeGreaterThanOrEqual(env.x - 1);
 	expect(box.width).toBeGreaterThan(env.width / 2);
 });
+
+test('the shell fits the window: nothing in a rail falls below the fold', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/');
+	await page.waitForSelector('main h1');
+
+	const fit = await page.evaluate(() => ({
+		inner: window.innerHeight,
+		scroll: document.documentElement.scrollHeight
+	}));
+	expect(fit.scroll).toBeLessThanOrEqual(fit.inner); // a rail is `height: 100vh`, and its padding must count inside that
+
+	// the two things at the foot of the shell are reachable without scrolling
+	await expect(page.getByTestId('settings-toggle')).toBeInViewport();
+	await expect(page.getByTestId('counts')).toBeInViewport();
+});
+
+test('the contents rail shows its scrollbar only while it is in use', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 340 });
+	await page.goto('/master/main');
+	const rail = page.getByRole('navigation', { name: 'Contents' });
+	await expect(rail).toBeVisible();
+
+	const atRest = await rail.evaluate((el) => getComputedStyle(el).scrollbarColor);
+	expect(atRest).toContain('rgba(0, 0, 0, 0)'); // the thumb is transparent until the rail is used
+
+    await rail.hover();
+	await expect
+		.poll(async () => rail.evaluate((el) => getComputedStyle(el).scrollbarColor))
+		.not.toContain('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
+});
