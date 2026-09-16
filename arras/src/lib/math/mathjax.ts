@@ -31,7 +31,7 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 				inlineMath: [['\\(', '\\)']],
 				displayMath: [['\\[', '\\]']],
 				processEscapes: true,
-				packages: { '[+]': ['ams', 'boldsymbol', 'mathtools', 'newcommand'] },
+				packages: { '[+]': ['ams', 'boldsymbol', 'mathtools', 'newcommand', 'color', 'cancel', 'bbox', 'html', 'unicode', 'verb', 'mhchem', 'physics', 'textmacros'] },
 				macros: currentMacros,
 				tags: 'none'
 			},
@@ -39,7 +39,8 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 			options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] },
 			startup: { typeset: false }
 		};
-		loaded = import('mathjax/es5/tex-svg.js').then(async () => {
+		// the full component carries every TeX extension, so \color and friends never trigger a runtime load from a path that does not exist offline
+		loaded = import('mathjax/es5/tex-svg-full.js').then(async () => {
 			const mj = window.MathJax as MJ;
 			await mj.startup.promise;
 			return mj;

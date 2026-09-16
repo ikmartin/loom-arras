@@ -7,7 +7,7 @@
 	const m = $derived(store.manifest!);
 	const citekey = $derived(decodeURIComponent(page.params.citekey ?? ''));
 	const ref = $derived(m.references[citekey]);
-	const citers = $derived((id: string) => m.edges.filter((e) => e.to === id).map((e) => e.from));
+	const citers = $derived((id: string) => [...new Set(m.edges.filter((e) => e.to === id).map((e) => e.from))]); // one entry per citing key, however many edges
 </script>
 
 <main class="page">
