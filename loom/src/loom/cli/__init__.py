@@ -11,6 +11,7 @@ from loom.cli.graph import deps, unravel
 from loom.cli.lint_cmd import lint_command
 from loom.cli.nodes import delete, new, search
 from loom.cli.quilt import init
+from loom.cli.serve_cmd import serve
 from loom.version import __version__
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -43,5 +44,6 @@ main.add_command(bundle)
 main.add_command(compile)
 main.add_command(assemble)
 main.add_command(check)
+main.add_command(serve)
 
 __all__ = ["main"]
