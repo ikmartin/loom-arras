@@ -79,11 +79,10 @@ def ask_prefix(default: str, yes: bool) -> str:
     return str(value).strip()
 
 
-GITIGNORE_NOTE = (
-    "wrote .gitignore: build/ (everything loom can rebuild), refs/pdf/ and refs/src/ (other people's papers, fetched not written), "
-    "and LaTeX's own leavings (.aux, .log, .bbl and the rest). Nothing a node is made of is ignored. "
-    "It is written whether or not the quilt is a repository, because it costs nothing and is right the day it becomes one."
-)
+GITIGNORE_NOTE = """wrote .gitignore, ignores:
+  build/ (everything loom can rebuild)
+  refs/pdf/ and refs/src/ (outside papers which are fetched not written)
+  all stray LaTeX files (.aux, .log, .bbl and the rest)"""
 
 
 def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> None:
