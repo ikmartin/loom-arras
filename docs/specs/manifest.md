@@ -242,7 +242,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 }
 ```
 
-`messages` comes from `thread.md` (rendered) or, later, from the write API; `log` from `run.log`.
+`messages` comes from `thread.md` (rendered) or, later, from the write API; `log` from `run.log`. As published by loom (M6): every run under `ai/runs/` is a thread of `kind` `run` with `path` (the run directory), `title` from the first heading of `thread.md` or the slug, `participants` from `run.toml`'s agent and the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `bundle`, `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`; every comment session under `comments/` is a thread of `kind` `comments` whose messages are its annotations. Each thread also has a `search` entry with `kind` `thread`.
 
 ## 11. Diagnostics
 
@@ -274,7 +274,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 }
 ```
 
-`digest` is null for an undigested citekey.
+`digest` is null for an undigested citekey. Each entry also carries `slug`, the citekey with every character outside `[A-Za-z0-9]` removed, which is the prefix of the digest's node ids (DR-45).
 
 ## 14. Macros
 
