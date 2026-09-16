@@ -85,18 +85,51 @@ GITIGNORE_NOTE = """wrote .gitignore, ignores:
   all stray LaTeX files (.aux, .log, .bbl and the rest)"""
 
 
-def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> None:
-    (target / "drafts").mkdir(parents=True, exist_ok=True)
+def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> list[Path]:
+    """Write the skeleton of a quilt into `target`.
+
+    Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
+    """
+    made: list[Path] = []
+
+    def mkdir(path: Path) -> None:
+        if not path.exists():
+            made.append(path)
+        path.mkdir(parents=True, exist_ok=True)
+
+    def write(path: Path, text: str) -> None:
+        if not path.exists():
+            made.append(path)
+        path.write_text(text, encoding="utf-8")
+
+    mkdir(target / "drafts")
     for d in ("nodes", "refs", "comments"):
-        (target / d).mkdir(exist_ok=True)
-    (target / "config.toml").write_text(CONFIG_TEMPLATE.format(prefix=prefix), encoding="utf-8")
-    (target / "loom.sty").write_text((ASSETS / "loom.sty").read_text(encoding="utf-8"), encoding="utf-8")
+        mkdir(target / d)
+    write(target / "config.toml", CONFIG_TEMPLATE.format(prefix=prefix))
+    write(target / "loom.sty", (ASSETS / "loom.sty").read_text(encoding="utf-8"))
     if minimal_master:
-        (target / "drafts" / "main.tex").write_text(
-            (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"), encoding="utf-8"
-        )
-    (target / ".gitignore").write_text((ASSETS / "init" / "gitignore").read_text(encoding="utf-8"), encoding="utf-8")
-    (target / "README.md").write_text((ASSETS / "readme-contract.md").read_text(encoding="utf-8"), encoding="utf-8")
+        write(target / "drafts" / "main.tex", (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"))
+    write(target / ".gitignore", (ASSETS / "init" / "gitignore").read_text(encoding="utf-8"))
+    write(target / "README.md", (ASSETS / "readme-contract.md").read_text(encoding="utf-8"))
+    return sorted(made, key=lambda q: len(q.parts), reverse=True)
+
+
+def undo_minimal_quilt(target: Path, existed: bool, made: list[Path]) -> None:
+    """Remove the skeleton again, for an `init --from` whose import failed before writing anything of its own.
+
+    A directory init created goes whole; one that was already there keeps everything init did not write, which is the author's paper in the in-place case.
+    """
+    if not existed:
+        shutil.rmtree(target, ignore_errors=True)
+        return
+    for path in made:
+        try:
+            if path.is_dir():
+                path.rmdir()  # only if still empty: the import may have left nothing, but a node the author wrote is not ours to delete
+            else:
+                path.unlink()
+        except OSError:
+            pass
 
 
 def write_demo_quilt(target: Path) -> None:
@@ -161,25 +194,38 @@ def init(
             )
     if prefix is not None and not PREFIX.match(prefix):
         raise EnvError(f"prefix {prefix!r} must be letters and digits without hyphens")
+    existed = target.exists()
+    made: list[Path] = []
+    chosen = ""
     if demo:
         write_demo_quilt(target)
-        note(f"wrote the demo quilt to {target}")
     else:
         chosen = prefix or ask_prefix("q", yes)
         if not PREFIX.match(chosen):
             raise EnvError(f"prefix {chosen!r} must be letters and digits without hyphens")
-        write_minimal_quilt(target, chosen, minimal_master=paper is None)
-        note(f"created quilt {target} with prefix {chosen}")
-    note(GITIGNORE_NOTE)
-    if git_init and _git_init(target):
-        note(f"git init {target} (--git asked; loom itself reads no history)")
+        made = write_minimal_quilt(target, chosen, minimal_master=paper is None)
     _write_user_config_template()
+
+    def announce() -> None:
+        """Say what was created, once the quilt is certain to outlive the command."""
+        note(f"wrote the demo quilt to {target}" if demo else f"created quilt {target} with prefix {chosen}")
+        note(GITIGNORE_NOTE)
+        if git_init and _git_init(target):
+            note(f"git init {target} (--git asked; loom itself reads no history)")
+
     if paper is not None:
         from loom.cli.paper import run_import
         from loom.scan.quilt import load_quilt
 
-        ident = run_import(load_quilt(target), paper, yes, fix_anchors, prefix)
+        try:
+            ident = run_import(load_quilt(target), paper, yes, fix_anchors, prefix)
+        except BaseException:
+            # the import writes nothing into the quilt until it says "Wrote N files", so a failure before that leaves only the skeleton above; leaving that behind would refuse the obvious retry -- the same command with --fix-anchoring -- as "already inside a quilt"
+            undo_minimal_quilt(target, existed, made)
+            raise
+        announce()
         if ident is not None and not ident.passed and not ident.skipped:
             ctx.exit(EXIT_CONTENT)
         return
+    announce()
     note('next: loom doctor; loom lint; loom new lemma "Title"')

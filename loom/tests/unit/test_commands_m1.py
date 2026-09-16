@@ -133,6 +133,39 @@ def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
     assert "conjecture" not in main and "question" not in main
 
 
+def test_init_from_leaves_nothing_behind_when_the_import_fails(tmp_path: Path) -> None:
+    """A failed import is not half a quilt. The instinct after the anchoring refusal is to re-run the same command with --fix-anchoring, and a surviving skeleton refuses that as "already inside a quilt"."""
+    src = tmp_path / "paper.tex"
+    src.write_text(
+        "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\n\\begin{thm} Inline.\\end{thm}\n\\end{document}\n",
+        encoding="utf-8",
+    )
+
+    bad = run("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes")
+    assert bad.exit_code == 1 and "line-anchoring" in bad.output
+    assert not (tmp_path / "q").exists()
+    assert "created quilt" not in bad.output  # nothing is announced that does not outlive the command
+
+    again = run("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes", "--fix-anchoring")
+    assert again.exit_code == 0, again.output
+    assert (tmp_path / "q" / "drafts" / "paper.tex").is_file() and "created quilt" in again.output
+
+
+def test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fails(tmp_path: Path) -> None:
+    """Undoing the skeleton removes what init wrote and nothing else: the author's own directory is not init's to delete."""
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    (paper / "main.tex").write_text(
+        "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\n\\begin{thm} Inline.\\end{thm}\n\\end{document}\n",
+        encoding="utf-8",
+    )
+    (paper / "notes.txt").write_text("mine\n", encoding="utf-8")
+
+    r = run("init", str(paper), "--from", str(paper / "main.tex"), "--prefix", "pp", "--yes")
+    assert r.exit_code == 1 and "line-anchoring" in r.output
+    assert sorted(x.name for x in paper.iterdir()) == ["main.tex", "notes.txt"]
+
+
 def test_demo_has_outline_master(tmp_path: Path) -> None:
     """The demo shows the outline pattern: a second master reaching one conjecture and one question, so a candidate is reached rather than loose while it is being considered (plan 0.2 §1.2, book 4.4)."""
     assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0

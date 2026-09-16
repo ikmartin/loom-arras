@@ -136,7 +136,10 @@ def test_import_refuses_line_anchoring_and_fix_anchoring(tmp_path: Path) -> None
 def test_anchoring_violation_reports_the_authors_line(tmp_path: Path) -> None:
     """The master gains \\usepackage{loom} in loom's staged copy; the lines it reports are the author's, which that insertion must not shift."""
     p = paper_dir(tmp_path)
-    bad = PAPER.replace("\\begin{definition}[Widget]\\label{def:widget}\nA widget", "\\begin{definition}[Widget]\\label{def:widget} A widget")
+    bad = PAPER.replace(
+        "\\begin{definition}[Widget]\\label{def:widget}\nA widget",
+        "\\begin{definition}[Widget]\\label{def:widget} A widget",
+    )
     (p / "main.tex").write_text(bad)
     expected = next(i for i, line in enumerate(bad.splitlines(), 1) if "\\begin{definition}" in line)
     assert run("init", str(tmp_path / "q"), "--prefix", "pp", "--yes", cwd=tmp_path).exit_code == 0
