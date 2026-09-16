@@ -3375,6 +3375,27 @@
    "kind": "master",
    "tags": [],
    "title": "Widgets, in twenty minutes"
+  },
+  {
+   "aliases": [],
+   "key": "2026-09-15T10-00-quick",
+   "kind": "thread",
+   "tags": [],
+   "title": "quick"
+  },
+  {
+   "aliases": [],
+   "key": "2026-09-16T00-00-referee",
+   "kind": "thread",
+   "tags": [],
+   "title": "referee sy-0003"
+  },
+  {
+   "aliases": [],
+   "key": "comments/the-synthetic-quilt/2026-09-16",
+   "kind": "thread",
+   "tags": [],
+   "title": "the-synthetic-quilt 2026-09-16"
   }
  ],
  "states": {
@@ -3464,5 +3485,148 @@
    "style": "plain"
   }
  },
- "threads": {}
+ "threads": {
+  "2026-09-15T10-00-quick": {
+   "attachments": [
+    {
+     "count": 1,
+     "kind": "annotations",
+     "name": "annotations.json"
+    }
+   ],
+   "created": "2026-09-15T10:00:00Z",
+   "discarded": true,
+   "id": "2026-09-15T10-00-quick",
+   "kind": "run",
+   "log": [
+    {
+     "command": "loom comment sy-000A --kind ok",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "messages": [],
+   "participants": [
+    {
+     "id": "agent",
+     "kind": "agent"
+    }
+   ],
+   "path": "ai/runs/2026-09-15T10-00-quick",
+   "targets": [
+    "sy-000A"
+   ],
+   "title": "quick"
+  },
+  "2026-09-16T00-00-referee": {
+   "attachments": [
+    {
+     "count": 2,
+     "kind": "annotations",
+     "name": "annotations.json"
+    }
+   ],
+   "created": "2026-09-16T00:00:00Z",
+   "discarded": false,
+   "id": "2026-09-16T00-00-referee",
+   "kind": "run",
+   "log": [
+    {
+     "command": "loom comment sy-0003 --quote --kind objection",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0004 --quote --kind suggestion",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom bundle sy-0003 --with --draft",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "messages": [
+    {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "body_html": "<p><strong>2026-09-16 00:00 referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read <code>bundle-sy-0003.tex</code>, left one objection on the statement and one suggestion on the first proof. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "participants": [
+    {
+     "id": "agent",
+     "kind": "agent"
+    }
+   ],
+   "path": "ai/runs/2026-09-16T00-00-referee",
+   "targets": [
+    "sy-0003",
+    "sy-0004"
+   ],
+   "title": "referee sy-0003"
+  },
+  "comments/the-synthetic-quilt/2026-09-16": {
+   "attachments": [
+    {
+     "count": 4,
+     "kind": "annotations",
+     "name": "2026-09-16.json"
+    }
+   ],
+   "created": "2026-09-16T00:00:00Z",
+   "discarded": false,
+   "id": "comments/the-synthetic-quilt/2026-09-16",
+   "kind": "comments",
+   "log": [],
+   "messages": [
+    {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "body_html": "<p><strong>question</strong> on <code>sy-0002</code>: Is the orbit of a fixed point counted as one point or two?</p>",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "body_html": "<p><strong>question</strong> on <code>sy-0003</code>:</p>",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "body_html": "<p><strong>ok</strong> on <code>sy-0004</code>: Added the reference.</p>",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "body_html": "<p><strong>question</strong> on <code>sy-0001</code>: Should the involution be required to be a bijection explicitly?</p>",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "participants": [
+    {
+     "id": "The synthetic quilt",
+     "kind": "person"
+    }
+   ],
+   "path": "comments/the-synthetic-quilt/2026-09-16.json",
+   "targets": [
+    "sy-0002",
+    "sy-0003",
+    "sy-0004",
+    "sy-0001"
+   ],
+   "title": "the-synthetic-quilt 2026-09-16"
+  }
+ }
 }

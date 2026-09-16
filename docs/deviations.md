@@ -35,3 +35,6 @@ Every place the implementation departs from a `[decided]` statement, or settles 
 | 2026-09-16 | 8.5.3 | ids `<citekey>-<abbrev>-<number>` | unnumbered results get `-star-<n>` and the locator `(unnumbered)` | `\newtheorem*` results have no number | DR-67 | n |
 | 2026-09-16 | 8.5.2 | emulate counters only when compilation fails | emulate always, resynchronised at each `.aux` number; `numbering: emulated` only without an `.aux` | the `.aux` numbers only labelled results | DR-68 | n |
 | 2026-09-16 | 8.1.7 | map environments by display name | prefer the numbered environment when a display name is declared twice | starred twins such as `thm*` | DR-69 | n |
+| 2026-09-16 | 5.1 | scan every `.tex` under the root except `build/` | `ai/`, `refs/src/`, `refs/pdf/`, and `.claude/` are skipped too | run outputs and fetched sources are not the quilt's text | DR-70 | n |
+| 2026-09-16 | 11.12 | skill stubs and slash commands | both are generated; skills carry the target as `$ARGUMENTS`, commands are one-line wrappers Claude Code now calls legacy | commands and skills were unified upstream | DR-71 | n |
+| 2026-09-16 | 11.4.1 | the agent is launched with the orientation as its initial prompt | launched with a one-sentence pointer to `loom ai orient --run RUN`, `LOOM_RUN` set | the orientation is long and `orient` adds live state | DR-72 | n |
