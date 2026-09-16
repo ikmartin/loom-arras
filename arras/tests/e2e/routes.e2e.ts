@@ -102,7 +102,7 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	await page.locator('.fragment mark.annotation').first().click();
 	await expect(page.locator('article.box.active')).toHaveCount(1);
 	await expect(page.locator('article.box.active > header .kind')).toHaveText('objection');
-	await expect(page.locator('article.box .reply')).toHaveCount(1);
+	await expect(page.locator('article.box.active .reply')).toHaveCount(1);
 	await page.goto('/node/sy-000A');
 	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0);
 	await page.getByLabel('show discarded').check();
