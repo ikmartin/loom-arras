@@ -24,7 +24,8 @@ relloc/
     rl-0004.proof.tex      a deferred proof moved by atomize
   refs/                    digests
     Man12.tex
-    pdf/                   gitignored
+    src/                   fetched sources; gitignored, never scanned
+    pdf/                   gitignored, never scanned
   comments/                human review records, per author
     markas/2026-09-16.json
   ai/                      optional AI layer; see Chapter 11
@@ -42,8 +43,8 @@ relloc/
 
 Rules:
 
-1. **[decided]** A directory is a quilt if and only if it contains `config.toml` with a `[quilt]` table. Every loom command locates the quilt by walking up from the current directory to the nearest such file.
-2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/` and those whose first twenty lines contain `% !LOOM ignore`.
+1. **[decided]** A directory is a quilt if and only if it contains `config.toml` with a `[quilt]` table. Every loom command locates the quilt by walking up from the current directory (or from `--quilt PATH`, or from `$LOOM_QUILT`) to the nearest such file.
+2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/`, `.loom/`, `.claude/`, or a version-control or tooling directory (`.git/`, `node_modules/`, `.svelte-kit/`) at any depth, those under `ai/`, `refs/src/`, or `refs/pdf/` at the root, and those whose first twenty lines contain `% !LOOM ignore`. Run outputs and fetched sources are complete documents carrying the quilt's ids, not the quilt's text (DR-70).
 3. **[decided]** The scanner never infers anything from a file's location. `nodes/`, `refs/`, and the masters directory are conventions: `loom new` writes to `nodes/`; digests are expected in `refs/`; masters are recognized by `\documentclass`, but only within the masters directory (rule 4.4.1).
 4. **[decided]** Local style files, class files, and preamble fragments live at the quilt root, because masters compile from the root and LaTeX resolves `\usepackage{base-macros}` and `\input{preamble}` against the current directory.
 5. **[decided]** The author's other files (figures, bibliography, data) live wherever they did in the original paper; `import` preserves the original layout except for moving the master into the masters directory.
@@ -138,7 +139,7 @@ Example: the masters directory holds `main.tex` (the paper), `talk.tex` (a beame
 
 Rules:
 
-1. **[decided]** `\providecommand` throughout, so that an author who already defines `\uses` keeps their definition; lint reports `loom:macro-shadowed` (warning) when the preamble closure defines one of the three names before `loom.sty` is loaded, because the scanner still reads the macro's arguments but the author's definition may print something.
+1. **[decided]** `\providecommand` throughout, so that an author who already defines `\uses` keeps their definition; lint reports `loom:macro-shadowed` (warning) when a file of the preamble closure other than `loom.sty` defines one of the three names with `\newcommand`, `\renewcommand`, or `\providecommand`, because the scanner still reads the macro's arguments but the author's definition may print something.
 2. **[decided]** `\nest` uses `\input`, never `\include`, because `\include` forces a page break and a separate `.aux`.
 3. **[deferred]** Whether `\nest` must also handle `\part` and class-specific sectioning (memoir, KOMA-Script). Implement the chain above; extend when a fixture needs it.
 4. **[decided]** Bundles include `\usepackage{loom}` in their preamble; `loom compile` sets nothing in the environment, so `loom.sty` must be at the root.
@@ -156,21 +157,22 @@ Rules:
 6. Everything a master needs is reachable from the root by `\input`, `\usepackage`, and `\bibliography`.
 7. `loom compile` mirrors Overleaf: `latexmk` from the root with an output directory and a clean environment.
 
-Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/pdf/`; `.loom/`, `ai/`, and `comments/` are harmless), set `drafts/main.tex` as the main document, compile. **[deferred]** Whether Overleaf honours `% !TEX root` for main-document selection; the README instructs setting the main document in Overleaf's menu regardless.
+Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and `refs/src/`; `.loom/`, `ai/`, and `comments/` are harmless), set `drafts/main.tex` as the main document, compile. **[deferred]** Whether Overleaf honours `% !TEX root` for main-document selection; the README instructs setting the main document in Overleaf's menu regardless.
 
 ## 4.7 What `loom init` creates
 
 **[decided]** `loom init [DIR]` creates, in an empty or nonexistent `DIR` (default: the current directory):
 
-- `config.toml` with the keys of 4.2, `prefix` taken from `--prefix` or asked for once on the terminal (**[assumed]**: default `q`), `main = "drafts/main.tex"`.
+- `config.toml` with the keys of 4.2 and `main = "drafts/main.tex"`; `prefix` is taken from `--prefix`, otherwise asked for once when a terminal is attached and `--yes` is absent, otherwise the default `q` is taken (**[assumed]**: the default and the non-interactive fallback).
 - `loom.sty`.
-- `drafts/main.tex`, a minimal amsart master: `\documentclass{amsart}`, `\usepackage{amsthm}`, `\usepackage{loom}`, a `\newtheorem` block declaring theorem, lemma, proposition, corollary, definition, example, remark with amsart's usual numbering, `\begin{document}`, one `\section{}`, `\end{document}`.
+- `drafts/main.tex`, a minimal amsart master: `\documentclass{amsart}`, `\usepackage{amsmath,amssymb,amsthm}`, `\usepackage{loom}`, a `\newtheorem` block declaring theorem, lemma, proposition, corollary (plain), definition, example (definition), and remark (remark), numbered within section through the theorem counter, `\title{Untitled}`, `\begin{document}`, `\maketitle`, `\section{Introduction}`, `\end{document}`. With `--from`, no minimal master is written; the imported paper's master takes its place.
 - `nodes/` (empty), `refs/` (empty), `comments/` (empty).
-- `.gitignore` containing `build/`, `refs/pdf/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf` at the root and in `drafts/`).
+- `.gitignore` containing `build/`, `refs/pdf/`, `refs/src/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.bcf *.run.xml *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf`), each anchored to the root and to `drafts/` so that a node file's neighbours are never matched.
 - `README.md` containing the contract page (the same text as the loom README's contract section).
+- the user config of 4.3, with a commented template, if it does not exist.
 - `git init` if the directory is not inside a git repository, unless `--no-git`.
 
-`loom init --from FILE` additionally performs an import (Chapter 6). `loom init --demo` writes the demo quilt instead of the minimal master (Chapter 14). `loom init` does not create `ai/`; that is `loom ai init` (Chapter 11).
+`loom init --from FILE` additionally performs an import (Chapter 6); the import refuses a paper whose theorem-like `\begin` and `\end` lines are not line-anchored (5.2.3) unless `--fix-anchoring` is given, in which case it rewrites the copies it makes (DR-40); `--yes` skips questions and confirms the import. `loom init --demo` writes the demo quilt instead of the minimal master (Chapter 14). `loom init` does not create `ai/`; that is `loom ai init` (Chapter 11).
 
 **[decided]** `init` refuses to run inside an existing quilt and refuses to run in a nonempty directory unless `--from` names a file in it (the case of turning an existing paper directory into a quilt in place, in which the paper's files are already there and only loom's files are added).
 
@@ -197,7 +199,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/pdf/`; 
 
 ## Open questions
 
-- Whether `loom init` should ask for the prefix interactively or require `--prefix`. **[assumed]** Ask once when a terminal is attached; require the flag otherwise.
+- Whether `loom init` should ask for the prefix interactively or require `--prefix`. **[assumed]** Ask once when a terminal is attached and `--yes` is absent; take the default `q` otherwise, so that scripts and agents never block.
 - Whether `.loom/snapshots/` should be committed. **[decided]** Yes; they are part of the acceptance record.
 - Whether the user config should support a default editor for a future `loom open`. Not in the MVP.
 - Whether the default `\newtheorem` block in the minimal master should match the author's own conventions (e.g. `math-thms.sty`). **[assumed]** The minimal master is for new quilts; `--from` keeps the author's.

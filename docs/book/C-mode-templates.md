@@ -512,15 +512,15 @@ intuition in the overview; be exact in the statements.
   `\section{Title}\label{CITEKEY-sec-N}` in the paper's order.
 - Every numbered result is an external node: the quilt's environment for
   its taxon; title `{\cite[LOCATOR]{CITEKEY}}` with the paper's own number
-  and page; `\label{CITEKEY-abbrev-number}` (`thm`, `lem`, `prop`, `cor`,
+  and page; `\label{SLUG-abbrev-number}` (`thm`, `lem`, `prop`, `cor`,
   `def`, `rem`, `ex`, `constr`, `conj`); the full statement with every
   hypothesis (verbatim where you have the source, faithful where only the
   PDF); `\uses{...}` listing the results its proof invokes; no proof.
-- One `\label{CITEKEY-setup}` node for standing assumptions, conventions,
+- One `\label{SLUG-setup}` node for standing assumptions, conventions,
   and notation stated outside numbered results.
 - Macro-free LaTeX: expand the paper's macros. What cannot be expanded goes
   in `% !LOOM begin macros` ... `% !LOOM end macros` at the top.
-- Every `\label` and `\eqref` inside the digest is prefixed `CITEKEY-`.
+- Every `\label` and `\eqref` inside the digest is prefixed with the citekey's slug (its letters and digits only) and a hyphen, `SLUG-`, the same prefix the ids carry.
 
 ## Case A: no digest exists
 Input: `refs/pdf/CITEKEY.pdf` (or its extracted text) or fetched source

@@ -10,11 +10,11 @@ This chapter specifies what loom produces for a viewer and how. The product boun
 2. Read records: the ledger, snapshots, every review record; compute states, causes, facts (Chapter 7).
 3. Read numbering: for every master, the `.aux` in `build/<master-stem>/` if present, else beside the master, else nothing (9.6).
 4. Derive: per-key statement and proof files (9.7), bundles on demand.
-5. Render: each node's own text and each master's expanded text to a fragment in the dialect (9.3, 9.4); each SVG needed by fallbacks and diagrams; annotation marks placed (9.5).
+5. Render: each node's own text, each master's expanded text, and each digest file to a fragment in the dialect (9.3, 9.4); each SVG needed by fallbacks and diagrams; each graphic published under `build/svg/`; annotation marks placed (9.5).
 6. Write the manifest.
 7. Publish atomically (9.2.2).
 
-`loom build --keys KEY...` limits rendering to the fragments those keys affect (and their masters); the manifest is always complete. **[assumed]** Rendering is cached by content hash so a full build after a one-line edit renders one fragment and its masters.
+`loom build --keys KEY...` limits rendering to those keys, their proofs, and the masters that reach them; the manifest is always complete. Exit status is 1 when any error-severity diagnostic exists, and the build is published all the same. **[decided]** Rendering is cached by an input hash per fragment (loom's version, the text of every file the fragment draws on, the numbering, and the marks it carries), recorded in `build/cache/fragments.json`, so a build after a one-line edit renders one node fragment and its masters (M2: two fragments re-rendered after an edit to a node).
 
 ## 9.2 The build directory
 
@@ -26,34 +26,35 @@ This chapter specifies what loom produces for a viewer and how. The product boun
 build/
   manifest.json              the manifest (specs/manifest.md)
   fragments/
-    nodes/<id>.html          one per node with an id
+    nodes/<id>.html          one per node with an id (labelled proofs included)
     keys/<qualified>.html    one per unlabelled node, by qualified key (URL-encoded)
     masters/<stem>.html      one per master, expanded, with marks
-    digests/<citekey>.html   one per digest file, its outline expanded
-  svg/<hash>.svg             rendered fallbacks and diagrams, content-addressed
+    digests/<citekey>.html   one per digest file, rendered as a document
+  svg/<hash>.<ext>           graphics from \includegraphics, content-addressed (PDF converted to SVG; PNG, JPEG, SVG copied)
+  diffs/                     the unified diffs behind stale causes, written when the records are applied (7.5)
   derived/
     <id>.statement.tex       statement only, for \transcludestatement-style use later
     <id>.proof.tex, <id>.proof.2.tex
   bundles/<key>.tex          written by loom bundle
   <master-stem>/             latexmk output directory per master (.aux, .pdf, .log)
-  cache/                     converter and render caches
+  cache/                     fragments.json (the render index) and svg/ (fallback and diagram SVGs by content hash)
 ```
 
-Everything under `build/` is derivable and gitignored. Deleting it and running `loom build` reproduces it.
+Fallback and diagram SVGs are inlined into their fragments (specs/dialect.md §2.11) and cached under `cache/svg/`; `svg/` holds only the published graphics. Everything under `build/` is derivable and gitignored. Deleting it and running `loom build` reproduces it.
 
 ### 9.2.2 Atomic publish
 
-**[decided]** A viewer must never read a half-written state. Loom writes fragments and SVGs to `build/.staging/`, moves each into place, and writes `manifest.json` last, by writing `manifest.json.tmp` and renaming. Arras's only trigger is the manifest changing (10.7), so a new manifest always refers to fragments that already exist.
+**[decided]** A viewer must never read a half-written state. Loom writes every fragment and asset by writing `<name>.tmp` beside it and renaming it into place, removes fragments the manifest no longer names, and writes `manifest.json` last the same way (`manifest.json.tmp`, then rename). Arras's only trigger is the manifest changing (10.5), so a new manifest always refers to fragments that already exist.
 
 ## 9.3 Fragments
 
-**[decided]** A fragment is one HTML file in the dialect (`specs/dialect.md`) with no page shell: no `<html>`, `<head>`, `<body>`, stylesheet, or script. Three kinds:
+**[decided]** A fragment is one HTML file in the dialect (`specs/dialect.md`) with no page shell: no `<html>`, `<head>`, `<body>`, stylesheet, or script. Its first element carries `data-fragment="node|master|digest"` as a courtesy. Three kinds:
 
-1. Node fragment: the node's own text rendered, with each child inclusion replaced by a placeholder element `<div class="include" data-key="..."></div>` that the viewer may expand or link. Statement and proofs are separate top-level elements so a page can show or collapse proofs.
-2. Master fragment: the master's full document rendered with every inclusion expanded in place, sectioning as headings at their shifted levels, every node wrapped in its `env` element with `data-id`, numbers from the `.aux` written into the labels, and annotation marks placed. This is the master view; arras assembles nothing.
-3. Digest fragment: the digest file rendered as a document, the same way.
+1. Node fragment: the node's own text rendered, with each child inclusion replaced by a placeholder element `<div class="include" data-key="..."></div>` that the viewer may expand or link. Statement (`div.env`) and proofs (`details.env-proof`) are separate top-level elements so a page can show or collapse proofs; a digest node's element carries `data-macros` naming its citekey's macro set (DR-56).
+2. Master fragment: an `h1` with the master's `\title`, then the master's full document rendered with every inclusion expanded in place inside `div.included`, sectioning as headings at their shifted levels, every node wrapped in its `env` element with `data-id`, numbers from the `.aux` written into the labels, and annotation marks placed. This is the master view; arras assembles nothing. A master's preamble yields no fragment content (M2).
+3. Digest fragment: the digest file rendered as a document, starting after its `% !LOOM end macros` line: the macro block is loaded around every statement that needs it and is never rendered as text (DR-80).
 
-**[decided]** Every element that comes from a source region carries `data-src` giving the file, start offset, and end offset (9.5), which is what makes marks and future editors possible.
+**[decided]** Every element that comes from a source region carries `data-src="FILE:START:END"`, `START` and `END` being character offsets into the file (specs/dialect.md §1; 9.5), which is what makes marks and future editors possible.
 
 ## 9.4 The LaTeX contract of the converter
 
@@ -63,28 +64,31 @@ Without pandoc (a decided constraint), loom's converter is a restricted translat
 
 **[decided]** In own text (statements, proofs, master prose, digest overviews):
 
-- Paragraphs (blank-line separated), `\par`.
+- Paragraphs (blank-line separated), `\par`; `\\` to `br`.
 - Sectioning commands to headings `h1`–`h6` by level after shifts, with `data-id` and the number.
-- `\emph`, `\textit`, `\textbf`, `\texttt`, `\textsc`, `\underline`, `\footnote` (rendered as a sidenote element), `\url`, `\href`.
-- `itemize`, `enumerate`, `description`, with `\item` and optional labels.
-- Inline math `$...$`, `\(...\)`; display math `\[...\]`, `equation`, `equation*`, `align`, `align*`, `gather`, `multline`, `split` inside them: passed through as TeX inside `<span class="math inline">` / `<div class="math display">` for MathJax, with `\label` inside display math turned into an `id` and a `data-label` on the div, and the number from the `.aux` attached.
+- `\emph`, `\textit`, `\textbf`, `\texttt`, `\textsc`, `\underline`, `\footnote` (rendered inline as `span.footnote` with `data-n`; the viewer decides placement), `\url`, `\href`. `\textcolor` and `\color` render their content and drop the colour, since the dialect has no colour element (M2).
+- `itemize`, `enumerate`, `description`, and the paralist and enumitem variants (`compactitem`, `inparaenum`, and so on), with `\item` and optional labels.
+- Inline math `$...$`, `\(...\)`; display math `\[...\]`, `equation`, `equation*`, `align`, `align*`, `gather`, `multline`, `split` inside them: passed through as TeX inside `<span class="math inline">` / `<div class="math display">` for MathJax, with `\label` inside display math turned into an `id` and a `data-label` on the div, the number from the `.aux` attached as `data-number` and as a `\tag`, and `\ref` inside math replaced by its number or label so MathJax never sees it.
 - Theorem-like environments to `div.env.env-<taxon-slug>` with the label element, title, `data-id`, `data-key`, style class; `proof` to `details.env.env-proof` with a summary.
-- `\ref`, `\eqref`, `\cref`, `\autoref`, `\pageref` to `a.ref` with `data-target` (an id or qualified key) and the number as text; `\cite` to `span.cite` with `data-citekey`, `data-postnote`, and `data-target` when a postnote resolved.
+- `\ref`, `\eqref`, `\cref`, `\Cref`, `\autoref`, `\pageref`, `\vref` to `a.ref` with `data-target` (an id or qualified key) and the number as text, a label no node carries becoming `a.ref.ref-dangling` reading `??`; `\cite` and its natbib and biblatex variants to `span.cite` with `data-citekey`, `data-postnote`, and `data-target` when a postnote resolved.
 - `\uses` and `\incomplete`: `\uses` renders nothing (the manifest carries the edges); `\incomplete` renders `span.incomplete` with the text.
-- `\includegraphics` to `img` with the file copied under `build/svg/` (PDF figures converted to SVG with `dvisvgm` via a standalone wrapper, **[assumed]**; PNG and JPEG copied).
-- `tikzcd`, `tikzpicture`, and `\begin{center}` wrappers around them to inline SVG (the sitegen `tikz.py` route: standalone class, `latex`, `dvisvgm --no-fonts --exact-bbox`, ids namespaced, width in em).
-- `tabular` and `array` to `table` for simple cell content; complex tables fall back.
+- `\includegraphics` to `figure > img` with the file published under `build/svg/` by content hash: **[decided]** PDF figures are converted to SVG with `pdftocairo -svg`, or with `dvisvgm --pdf` when pdftocairo is absent; PNG, JPEG, and SVG are copied (M2: the fixture's PDF figure).
+- `tikzcd`, `tikzpicture`, `xy`, and `xymatrix` to inline SVG in `figure.diagram` (the sitegen `tikz.py` route: standalone class, `latex`, `dvisvgm --no-fonts --exact-bbox`, ids namespaced, width in em). `center` and the other layout containers (`flushleft`, `small`, `minipage`, beamer's `frame`, ...) render their contents transparently; `quote`, `quotation`, and `abstract` become `blockquote`.
+- `tabular`, `array`, and `longtable` to `table` when every cell is inline content; a table using `\multicolumn`, `\multirow`, `\cline`, `\cmidrule`, `\parbox`, or a nested environment falls back.
 - `verbatim`, `lstlisting`, `\verb` to `pre`/`code`.
-- Text-mode macros without arguments defined in the preamble closure are expanded (`\newcommand{\Res}{\mathrm{Res}}` is a math macro and is left to MathJax; `\newcommand{\GW}{Gromov--Witten}` in text is expanded).
-- Common ligatures and punctuation: `--`, `---`, `` ` `` and `'` quotes, `~`, `\,`, `\ `.
+- Text-mode macros defined in the default master's preamble closure, aliases included (DR-73), are expanded with their arguments and the expansion converted; an expansion that is plainly math (`\mathrm`, `\frac`, `^`, `_`, ... with no `$`) becomes inline math, so `\newcommand{\Res}{\mathrm{Res}}` reaches MathJax and `\newcommand{\GW}{Gromov--Witten}` reaches the text.
+- Definitions (`\newcommand`, `\def`, `\let`, `\newtheorem`, `\newenvironment`, ...) and layout commands (`\vspace`, `\noindent`, `\frametitle`, `\title`, ...) render nothing; `\iffalse ... \fi` is skipped.
+- Common ligatures and punctuation: `--`, `---`, `` ` `` and `'` quotes, `~`, `\,`, `\ `, accents, and the usual text symbols.
 
 ### 9.4.2 Fallback
 
-**[decided]** Any block the converter cannot handle (an unknown environment, a text-mode macro with arguments, a `\parbox`, a complex table, anything that fails to parse) is rendered exactly as SVG through the standalone route and emitted as `figure.fallback` with the source text in a `data-src-text` attribute and a diagnostic `loom:converter-fallback` (info) naming the construct. The fallback is per block, never per fragment: the rest of the fragment converts normally.
+**[decided]** Any block the converter cannot handle (an unknown environment, a paragraph using a command the closure does not define, a `\parbox`, a complex table, a theorem-like environment or proof nested inside own text, anything that fails to parse) is rendered exactly as SVG through the standalone route and emitted as `figure.fallback` with the source text in a `data-src-text` attribute and a diagnostic `loom:converter-fallback` (info) naming the construct and the key. The fallback is per block, never per fragment: the rest of the fragment converts normally.
+
+**[decided]** How the fallback document is built (DR-79): the block is compiled in `standalone` (`dvisvgm` option, 2 pt border) from a scratch directory with the quilt root first on `TEXINPUTS`, so `loom.sty`, `preamble.tex`, and the author's `.sty` files load as the master loads them. The preamble is the reaching master's own text before `\begin{document}` (never the closure's concatenation, which would define every macro twice), with `\documentclass`, comment lines, and the page-layout packages (`geometry`, `microtype`, `fancyhdr`, `titlesec`, `setspace`, `lineno`) removed, `\title`, `\author`, and their kin gobbled, `geometry` passed `pass` and `microtype` told not to protrude in case an `\input` preamble loads them, the whole wrapped in `\makeatletter`/`\makeatother`. The body sits in a 16 cm `minipage`, so lists and displays are allowed and dvisvgm crops to the ink; `latex` runs twice, then `dvisvgm --no-fonts --exact-bbox`. A node the default master reaches uses that master's preamble, another node its first reaching master's, a loose node (a digest's) the default master's. A digest statement's document also carries the digest's macro block and the packages its header requires that the preamble lacks. Three attempts are made: as described, then without the added packages, then with a minimal preamble (`amsmath`, `amssymb`, `amsthm`, `tikz` with `cd`) plus the macro block. When every attempt fails, the figure is emitted as `figure.fallback.failed` holding the source in a `pre`, and `loom:converter-fallback` is raised to a warning naming the node and every attempt's first error; `LOOM_SVG_KEEP=DIR` keeps the failing documents and logs for inspection (M7: 33 blocks of the migrated paper failed until each part of this was fixed; none fail now). Results are cached by content hash under `build/cache/svg/`, ids inside each SVG are namespaced so several fit on one page, and widths are expressed in em so the viewer scales them with the text.
 
 ### 9.4.3 Math and macros
 
-**[decided]** Math is left as TeX. The manifest carries a macro set extracted from the preamble closure by the `macros.py` parser (`\newcommand`, `\renewcommand`, `\providecommand`, `\DeclareMathOperator`, zero-argument `\def`), plus per-fragment macro sets for digests with macro blocks. Arras configures MathJax from the manifest. **[assumed]** MathJax 3; KaTeX is a later option and the manifest's macro format is the same for both (name, argument count, body).
+**[decided]** Math is left as TeX. The manifest carries a default macro set extracted from the default master's preamble closure by the `macros.py` parser (`\newcommand`, `\renewcommand`, `\providecommand`, `\DeclareMathOperator`, zero-argument `\def`, and definitions made through aliases such as `\nc`, DR-73), with `\let` bindings and loom's own `\uses`, `\incomplete`, and `\nest` left out, plus one macro set per digest citekey parsed from the digest's macro block. Arras configures MathJax from the manifest. **[decided]** MathJax 3 with the `tex-svg` output, bundled: no font files ship and a deployed site works offline (DR-55); arras bundles the full component, so `\color` and the other extensions never load from the network (M7). A fragment whose element names a set in `data-macros` has that set applied as `\renewcommand` lines prepended to its first math element before typesetting; the default set is global (DR-56). The manifest's macro format (name, argument count, body) would serve KaTeX equally should it ever be wanted.
 
 ### 9.4.4 What the converter promises
 
@@ -94,31 +98,31 @@ Without pandoc (a decided constraint), loom's converter is a restricted translat
 
 **[decided]** For every non-discarded annotation with a selector, loom resolves the selector against the target's current own text (7.5.2), obtains a source span, finds the fragment block(s) whose `data-src` cover the span, and searches the quote inside those blocks' rendered text. If found, it wraps the matched text in `<mark class="annotation" data-annotation="ID">`; if the quote crosses converted markup and cannot be located, the whole block gets `data-annotation` and a class `annotation-block`. Detached annotations get no mark; the manifest lists them.
 
-Marks are placed in node fragments and in master fragments (where the node appears expanded).
+Marks are placed in node fragments (a proof's marks in its statement's fragment) and in master fragments (where the node appears expanded).
 
 ## 9.6 Numbering
 
-**[decided]** Loom never computes theorem or section numbers. After `loom compile MASTER`, `build/<stem>/<stem>.aux` contains `\newlabel{ID}{{NUMBER}{PAGE}...}` for every id and alias; the scanner reads number and page for each and stores them per master in the manifest. Equations get their numbers the same way. Before the first compile, numbers are absent; arras shows ids alone and the panel says "not yet compiled". `loom build` compiles nothing; `loom check` and `loom compile` do. **[assumed]** `loom serve` compiles the default master when its source changes, after publishing, so numbers refresh within one cycle; the fragment build does not wait for LaTeX.
+**[decided]** Loom never computes theorem or section numbers. After `loom compile MASTER`, `build/<stem>/<stem>.aux` contains `\newlabel{ID}{{NUMBER}{PAGE}...}` for every id and alias; the scanner reads number and page for each and stores them per master in the manifest. Equations get their numbers the same way. Before the first compile, numbers are absent; arras shows ids alone and the panel says "not yet compiled". `loom build` compiles nothing; `loom check` and `loom compile` do. **[decided]** After publishing, `loom serve` compiles the default master in the background whenever a `.tex`, `.sty`, `.cls`, or `.bib` file changed, and republishes when the compile succeeds, so numbers refresh within one cycle; the fragment build never waits for LaTeX (`render/serve.py`; no record beyond the code).
 
-hyperref's `.aux` format (`\newlabel{ID}{{NUMBER}{PAGE}{TITLE}{ANCHOR}{}}`) and the plain format are both read.
+hyperref's `.aux` format (`\newlabel{ID}{{NUMBER}{PAGE}{TITLE}{ANCHOR}{}}`) and the plain format are both read; cleveref's `@cref` entries are skipped.
 
 ## 9.7 Derived files and bundles
 
 **[decided]** `build/derived/<id>.statement.tex` and `<id>.proof.tex` are the node's statement region and each proof region alone, written by `loom build`, so that a future `\transcludestatement`-style macro or an external tool can input them. **[assumed]** Not used by any MVP command besides `bundle`.
 
-**[decided]** `loom bundle KEY [--to FILE]` writes `build/bundles/<key>.tex`: the master's preamble closure (verbatim, with `\usepackage{loom}` present), a `\begin{document}`, a heading "Bundle for KEY", the statements of the closure in dependency order (each with its environment, id label, and, for digest nodes, its macro block group), then the key's own region (a statement, or a statement and the proof) with inclusions expanded, then `\end{document}`. With the `bundle` note, every theorem's number is followed by its id in small type: **[assumed]** implemented by a `\loombundle` switch inside `loom.sty` that redefines `\@thmcounter` display; if this proves fragile, a comment with the id after each `\begin` line suffices for readers.
+**[decided]** `loom bundle KEY [--to FILE]` writes `build/bundles/<key>.tex`: a header comment, the master's preamble (its own text before `\begin{document}`, verbatim, with `\usepackage{loom}` inserted after `\documentclass` when the master does not load it), `\begin{document}`, a heading `\section*{Bundle for KEY}`, the statements of the closure in dependency order (each preceded by a comment `% id: <key>`; a digest node's statement wrapped in `\begingroup`/`\endgroup` around its macro block), then the key's own region (a statement and its proofs, or the statement and the one proof), then `\end{document}`. **[decided]** A reader finds each theorem's id in the `% id:` comment before its environment: the `\loombundle` switch inside `loom.sty` considered at design time was not built, and the comment form named as its fallback is what ships (`tex/bundle.py`; the bundles compiled at M2 and M7 carry it).
 
-`loom bundle KEY --with FILE` builds the same bundle with a proposed diff applied or a substitute file in place of the key's text, and `loom bundle --draft FILE` builds one for a not-yet-promoted node from its `\ref`s and `\uses`; neither touches the quilt, and both exist so that an agent's proposal or draft can be compiled before a person promotes it. `loom compile KEY` compiles the bundle. A bundle that fails to compile or reads incomplete is the operational failure of self-containedness and is reported as `loom:bundle-failed` with the LaTeX log's first error.
+`loom bundle KEY --with FILE` builds the same bundle with a proposed diff applied or a substitute file in place of the key's text, and `loom bundle --draft FILE` builds one for a not-yet-promoted node from its `\ref`s and `\uses`; neither touches the quilt, and both exist so that an agent's proposal or draft can be compiled before a person promotes it. `--run DIR` copies the bundle into a run directory and logs the call (11.4). `loom compile KEY` compiles the bundle. A bundle that fails to compile or reads incomplete is the operational failure of self-containedness and is reported as `loom:bundle-failed` with the LaTeX log's first error.
 
 ## 9.8 `loom serve`
 
 **[decided]** One loop with three jobs:
 
-1. Watch: poll mtimes of every scanned file, `config.toml`, the ledger, snapshots, and review records every second (as sitegen does); on change, run `loom build` for the affected keys (the changed file's nodes, their masters, and any fragment whose marks depend on a changed record), then publish.
-2. Serve: a static HTTP server on `localhost:<port>` (default 8791, **[assumed]**) serving the arras bundle at `/` and `build/` at `/build/`. The arras bundle is located from the `arras` pip package's installed assets.
-3. Compile: after publishing, if the changed file is reached by the default master, run `loom compile` on it in the background so numbers refresh.
+1. Watch: poll mtimes of every `.tex`, `.sty`, `.cls`, and `.bib` file under the root outside `build/`, of `config.toml`, of the ledger and snapshots under `.loom/`, of the review records under `comments/`, and of the run files under `ai/` once a second (as sitegen does); on change, run `loom build`, whose render cache limits re-rendering to the fragments whose inputs changed (the changed file's nodes, their masters, and any fragment whose marks depend on a changed record), then publish (M2: a new manifest 0.88 s after an edit).
+2. Serve: a static HTTP server on `127.0.0.1:<port>` (default 8791; `--port` changes it, and the command fails if the port is busy) serving the arras bundle at `/` and `build/` at `/build/`. Every response carries an `ETag` and `If-None-Match` is answered with 304, so the viewer's poll of the manifest costs nothing while it is unchanged. Any path that is not a file of the bundle is answered with the bundle's `index.html`, unless it lies under `_app/` or ends in an asset suffix (`.js`, `.css`, `.svg`, `.png`, `.json`, fonts, ...), which stay 404, so viewer routes work with dots in keys (DR-78); `/_api` is 404, the write API being deferred. The bundle is found through `LOOM_ARRAS_BUNDLE`, then the installed `arras` pip package (`arras.bundle_path()`), then the copy vendored inside loom under `src/loom/assets/arras/`; `loom doctor` reports which one and its `VERSION` line. The vendored copy is refreshed by `scripts/vendor_arras.py ../arras/build`, which refuses an arras whose interface version differs from loom's and stamps `VERSION` with the arras commit; Vite's chunk hashes are not reproducible across installs, so that commit, not byte equality with a fresh build, is what ties a bundle to its source (M7).
+3. Compile: after publishing, if a `.tex`, `.sty`, `.cls`, or `.bib` file changed, run `loom compile` on the default master in the background and republish when it succeeds, so numbers refresh.
 
-**[decided]** Loom never notifies arras. Arras polls `/build/manifest.json` and re-renders when its hash changes (10.7). If watching proves too slow, the fallback is a `POST /_refresh` endpoint arras may call carrying nothing but "refresh", which preserves arras's ignorance of event types; **[deferred]** and not built unless needed.
+**[decided]** Loom never notifies arras. Arras polls `/build/manifest.json` and re-renders when its hash changes (10.5). If watching proves too slow, the fallback is a `POST /_refresh` endpoint arras may call carrying nothing but "refresh", which preserves arras's ignorance of event types; **[deferred]** and not built unless needed.
 
 `loom serve --no-compile` skips step 3; `--port`; `--open` opens the browser.
 
@@ -129,10 +133,10 @@ The normative interface is `specs/`:
 - `specs/dialect.md`: the HTML dialect of fragments.
 - `specs/manifest.md`: the manifest schema.
 - `specs/diagnostics.md`: diagnostic codes, reserved and namespaced.
-- `specs/fixture.md`: the conformance fixture.
+- `specs/fixture.md`: the conformance fixture (DR-58: the synthetic quilt's missing include sits inside `\iffalse`, and its beamer talk declares `proposition`, so both masters compile for numbering).
 - `specs/write-api.md` and `specs/runner.md`: deferred; specified so the CLI is designed with them in mind.
 
-Every manifest carries `interface_version`. Loom and arras each declare the versions they produce and accept; a mismatch is reported by arras on its problems page (10.5), never silently.
+Every manifest carries `interface_version`. Loom and arras each declare the versions they produce and accept (both 1 today); a mismatch is reported by arras on its problems page as one diagnostic and nothing else (10.5, M2), never silently.
 
 ## 9.10 Sitegen as a second publisher
 
@@ -140,8 +144,4 @@ Every manifest carries `interface_version`. Loom and arras each declare the vers
 
 ## Open questions
 
-- The exact `data-src` encoding (file, start, end as characters or bytes). **[deferred]**; characters, UTF-8 file offsets recorded alongside.
-- Whether PDF figures should be converted to SVG at build or served as PDF objects. **[assumed]** Converted.
-- Port number and whether `serve` should choose a free port. **[assumed]** Fixed default, `--port` to change, fail if busy.
-- Whether `loom build` should compile the default master when no `.aux` exists at all. **[assumed]** No; `loom check` or `loom compile` does, and the panel says "not yet compiled".
-- The bundle id-beside-number mechanism. **[deferred]** to implementation, with the comment-based fallback stated.
+Settled by implementation: the `data-src` encoding (character offsets, `FILE:START:END`, specs/dialect.md §1 and 9.3); PDF figures (converted to SVG at build, 9.4.1); the port (fixed default 8791, `--port` to change, fail if busy, 9.8); whether `loom build` compiles when no `.aux` exists (it never compiles; the panel says "not yet compiled", 9.6); the bundle id-beside-number mechanism (the `% id:` comment before each environment, 9.7).
