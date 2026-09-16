@@ -1,27 +1,3 @@
-\documentclass{amsart}
-\usepackage{amsmath,amssymb,amsthm}
-\usepackage{graphicx}
-\usepackage{tikz-cd}
-\usepackage{xcolor}
-\usepackage{macros}
-\usepackage{loom}
-
-\theoremstyle{plain}
-\newtheorem{theorem}{Theorem}[section]
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{proposition}[theorem]{Proposition}
-\newtheorem*{mainthm}{Main Theorem}
-\theoremstyle{definition}
-\newtheorem{definition}[theorem]{Definition}
-\theoremstyle{remark}
-\newtheorem{remark}[theorem]{Remark}
-
-\title{Widgets, gadgets, and their fixed loci}
-\author{The synthetic quilt}
-
-\begin{document}
-\maketitle
-
 \section{Introduction}\label{sy-0100}
 
 This paper studies widgets. The basic identity is
@@ -30,12 +6,7 @@ This paper studies widgets. The basic identity is
 \end{equation}
 which we use throughout.\footnote{The name comes from nowhere.} The \GW{} theory of gadgets is not touched. See \cite[Chapter II]{Har77} for schemes and \cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\ref{sy-9999}.
 
-\begin{definition}[Widget]\label{sy-0001}
-A \emph{widget} is a pair $(X,\sigma)$ of a set and an involution $\sigma$ of $X$, so that \eqref{eq:prose} holds. Its fixed locus is
-\begin{equation}\label{eq:fix}
-\Fix(\sigma) = \{x \in X : \sigma x = x\}.
-\end{equation}
-\end{definition}
+% !LOOM child: sy-0001
 
 \input{nodes/sy-0002}
 
@@ -67,7 +38,6 @@ Y \arrow[r] & Y
 
 \nest{sections/appendix}
 
-% A missing \input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \iffalse, which LaTeX skips and the scanner does not interpret.
 \iffalse
 \input{nodes/missing}
 \fi
@@ -78,5 +48,3 @@ Y \arrow[r] & Y
 
 \bibliographystyle{amsplain}
 \bibliography{refs}
-
-\end{document}

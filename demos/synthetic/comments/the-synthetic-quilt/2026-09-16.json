@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "discarded": false,
+  "annotations": [
+    {
+      "id": "a-2026-09-16-0003",
+      "author": {
+        "kind": "person",
+        "id": "The synthetic quilt"
+      },
+      "created": "2026-09-16T00:00:00Z",
+      "target": {
+        "key": "sy-0002",
+        "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
+      },
+      "selector": {
+        "exact": "one or two points",
+        "prefix": "02}\nEvery orbit of a widget has ",
+        "suffix": "; compare \\eqref{eq:fix} in Defi"
+      },
+      "kind": "question",
+      "body": "Is the orbit of a fixed point counted as one point or two?",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0004",
+      "author": {
+        "kind": "person",
+        "id": "The synthetic quilt"
+      },
+      "created": "2026-09-16T00:00:00Z",
+      "target": {
+        "key": "sy-0003",
+        "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
+      },
+      "selector": {
+        "exact": "finite widget",
+        "prefix": "{sy-0003}\nLet $(X,\\sigma)$ be a ",
+        "suffix": ". Then $|X| \\equiv |\\Fix(\\sigma)"
+      },
+      "kind": "question",
+      "body": "",
+      "status": "open",
+      "in_reply_to": "a-2026-09-16-0001"
+    },
+    {
+      "id": "a-2026-09-16-0005",
+      "author": {
+        "kind": "person",
+        "id": "The synthetic quilt"
+      },
+      "created": "2026-09-16T00:00:00Z",
+      "target": {
+        "key": "sy-0004",
+        "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4"
+      },
+      "selector": {
+        "exact": "disjoint union of orbits",
+        "prefix": "~\\ref{sy-0002} the set $X$ is a ",
+        "suffix": " of size one or two.\n\\end{proof}"
+      },
+      "kind": "ok",
+      "body": "Added the reference.",
+      "status": "resolved",
+      "in_reply_to": "a-2026-09-16-0002"
+    },
+    {
+      "id": "a-2026-09-16-0006",
+      "author": {
+        "kind": "person",
+        "id": "The synthetic quilt"
+      },
+      "created": "2026-09-16T00:00:00Z",
+      "target": {
+        "key": "sy-0001",
+        "hash": "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
+      },
+      "selector": {
+        "exact": "with $\\sigma\\colon X\\to X$ satisfying",
+        "prefix": "{widget} is a pair $(X,\\sigma)$ ",
+        "suffix": " \\eqref{eq:prose}. Its fixed loc"
+      },
+      "kind": "question",
+      "body": "Should the involution be required to be a bijection explicitly?",
+      "status": "open",
+      "in_reply_to": null
+    }
+  ]
+}

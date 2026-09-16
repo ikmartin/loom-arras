@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "discarded": false,
+  "annotations": [
+    {
+      "id": "a-2026-09-16-0001",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T00-00-referee"
+      },
+      "created": "2026-09-16T00:00:00Z",
+      "target": {
+        "key": "sy-0003",
+        "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
+      },
+      "selector": {
+        "exact": "finite widget",
+        "prefix": "{sy-0003}\nLet $(X,\\sigma)$ be a ",
+        "suffix": ". Then $|X| \\equiv |\\Fix(\\sigma)"
+      },
+      "kind": "objection",
+      "body": "The hypothesis 'finite' is essential for the parity count; say so in the statement.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-16-0002",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-16T00-00-referee"
+      },
+      "created": "2026-09-16T00:00:00Z",
+      "target": {
+        "key": "sy-0004",
+        "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4"
+      },
+      "selector": {
+        "exact": "disjoint union of orbits",
+        "prefix": "~\\ref{sy-0002} the set $X$ is a ",
+        "suffix": " of size one or two.\n\\end{proof}"
+      },
+      "kind": "suggestion",
+      "body": "Cite the orbit lemma by number here.",
+      "status": "resolved",
+      "in_reply_to": null
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "discarded": false,
+  "annotations": [
+    {
+      "id": "a-2026-09-16-0001",
+      "author": {
+        "kind": "person",
+        "id": "The loom demo"
+      },
+      "created": "2026-09-16T00:00:00Z",
+      "target": {
+        "key": "dm-0003/proof",
+        "hash": "sha256:123743e3bc45a4fcedaf06e638b849193a69b19d10890da58924d3fa4c277f48"
+      },
+      "selector": {
+        "exact": "diagonal is closed",
+        "prefix": "\\colon X\\to X\\times X$, and the ",
+        "suffix": " when $X$ is Hausdorff; the same"
+      },
+      "kind": "suggestion",
+      "body": "Closedness only needs that the diagonal is closed; say where Hausdorff is used.",
+      "status": "open",
+      "in_reply_to": null
+    }
+  ]
+}

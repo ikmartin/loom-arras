@@ -24,3 +24,6 @@ Every place the implementation departs from a `[decided]` statement, or settles 
 | 2026-09-15 | 8.3.5, 10.1 | arras takes one macro set per page | per-fragment set applied via \renewcommand inside the fragment's math | MathJax macros are global | DR-56 | n |
 | 2026-09-15 | 10.1.2 | hash routing under file:// | path routing; SPA fallback in loom serve; file:// unsupported | router type is build-time | DR-57 | n |
 | 2026-09-15 | specs/fixture.md §1 | missing \input and beamer talk redeclaring lemma | \iffalse-guarded missing include; talk declares proposition | both masters must compile | DR-58 | n |
+| 2026-09-15 | 7.6.3 | proved needs an accepted proof | nodes that owe no proof are proved by acceptance | definitions could never be settled | DR-59 | n |
+| 2026-09-15 | 7.4.2 | id counter per file | counter over every record | quilt-wide uniqueness | DR-60 | n |
+| 2026-09-15 | 5.14 | lint = scanner checks | lint and check also report record-derived codes | codes need the records | DR-61 | n |
