@@ -82,3 +82,5 @@ DR-37 · 2026-09-16 · `bundle --with` and `bundle --draft` · P7, 11.5 · A bun
 
 DR-38 · 2026-09-16 · Mode files derived from the chat rules by an explicit mapping · 11.5 · `docs/source/global-rules.md` holds the chat rules verbatim and `global-rules-mapping.md` maps each part to its loom destination; the four environmental differences (inputs by command, outputs as files, findings as annotations, code and compilation available) drive every adaptation. · Provenance: an edit to a mode can be traced to the rule it came from. · active
 
+
+DR-39 · 2026-09-15 · The 10.8 forbidden-word list exempts "digest" and "proof" · P11, 10.8 · Arras's source may use the manifest's own field names (`proofs`, `digest`, `kind: proof`) and the spec's route `/digest/`; the guard test forbids "quilt", "atomize", "unravel", and every "loom <command>" phrase, and generic rendering of unknown labels, codes, and taxa stays enforced by tests. · The manifest specification and the route list name those words, and the Web Crypto API has `digest()`, so the rule as written could not be satisfied. · active
