@@ -23,7 +23,7 @@
 	</header>
 
 	<div class="body">
-		<nav class="rail" aria-label="Contents">
+		<nav class="rail" aria-label="Document">
 			{#if masters.length}<DocumentPicker {masters} current={currentMaster} />{/if}
 			{#if panel}
 				<p class="rail-label">{panelLabel}</p>

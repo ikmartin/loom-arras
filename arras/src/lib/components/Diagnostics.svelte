@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Diagnostic } from '$lib/manifest/types';
-	import { keyUrl } from '$lib/nav';
+	import { keyTarget } from '$lib/nav';
 	import { store } from '$lib/manifest/client.svelte';
 
 	let { items }: { items: Diagnostic[] } = $props();
@@ -17,7 +17,8 @@
 					<span class="loc">{loc.file}:{loc.line}</span>
 				{/each}
 				{#each d.keys as k (k)}
-					<a href={keyUrl(store.manifest, k)}>{k}</a>
+					{@const href = keyTarget(store.manifest, k)}
+					{#if href}<a {href}>{k}</a>{:else}<code class="unlinked">{k}</code>{/if}
 				{/each}
 			</li>
 		{/each}
@@ -57,7 +58,11 @@
 		font-size: 0.85em;
 		margin-left: 0.4rem;
 	}
-	a {
+	a,
+	.unlinked {
 		margin-left: 0.4rem;
+	}
+	.unlinked {
+		color: var(--ink-faint);
 	}
 </style>

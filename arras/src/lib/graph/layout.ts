@@ -1,5 +1,5 @@
 // The dependency graph as a layered drawing (book 10.2.7): ELK lays out statement nodes grouped by section; edges keep their kind so the drawing can dash proof-edges and dot prose-edges.
-import type { Manifest } from '$lib/manifest/types';
+import type { Manifest, Node } from '$lib/manifest/types';
 
 export interface GNode {
 	id: string;
@@ -9,6 +9,7 @@ export interface GNode {
 	color: string;
 	style: string;
 	external: boolean;
+	section: boolean;
 	x: number;
 	y: number;
 	w: number;
@@ -39,16 +40,25 @@ export interface Filters {
 }
 
 export function graphInput(m: Manifest, f: Filters) {
-	const nodes = Object.values(m.nodes).filter((n) => {
-		if (n.kind === 'section') return false;
+	const passes = (n: Node) => {
 		if (f.master && !n.reached_by.includes(f.master) && !n.external) return false;
 		if (f.taxon && n.taxon !== f.taxon) return false;
 		if (f.tag && !n.tags.includes(f.tag)) return false;
 		if (f.hideExternal && n.external) return false;
 		return true;
+	};
+	const stmtOf = (key: string) => m.keys[key]?.node ?? key;
+	// A section is a container, not a result, so it is not drawn — unless something depends on it by name, in which case dropping it would silently delete the edge as well. Sections that are an endpoint are kept and drawn as containers.
+	const endpoints = new Set<string>();
+	for (const e of m.edges) {
+		endpoints.add(stmtOf(e.from));
+		endpoints.add(stmtOf(e.to));
+	}
+	const nodes = Object.values(m.nodes).filter((n) => {
+		if (n.kind === 'section' && !endpoints.has(n.id)) return false;
+		return passes(n);
 	});
 	const ids = new Set(nodes.map((n) => n.id));
-	const stmtOf = (key: string) => m.keys[key]?.node ?? key;
 	const edges = m.edges
 		.map((e) => ({ from: stmtOf(e.from), to: stmtOf(e.to), kind: e.kind }))
 		.filter((e) => ids.has(e.from) && ids.has(e.to) && e.from !== e.to);
@@ -93,7 +103,7 @@ export function closureOf(m: Manifest, id: string): Set<string> {
 	return new Set(m.keys[id]?.closure.filter((k) => k !== id) ?? []);
 }
 
-type ElkNode = { id: string; width?: number; height?: number; children?: ElkNode[]; labels?: { text: string }[]; x?: number; y?: number; layoutOptions?: Record<string, string> };
+type ElkNode = { id: string; width?: number; height?: number; children?: ElkNode[]; labels?: { text: string }[]; x?: number; y?: number; layoutOptions?: Record<string, string>; edges?: ElkEdge[] };
 type ElkEdge = { id: string; sources: string[]; targets: string[]; sections?: { id: string; startPoint: { x: number; y: number }; endPoint: { x: number; y: number }; bendPoints?: { x: number; y: number }[] }[] };
 
 export async function layout(m: Manifest, f: Filters): Promise<Layout> {
@@ -140,7 +150,7 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
 				walk(c.children ?? [], x, y);
 			} else {
 				const n = byId.get(c.id)!;
-				out.nodes.push({ id: n.id, label: n.id, taxon: n.taxon, state: n.state, color: colorOf(m, n.state), style: n.style ?? 'plain', external: n.external, x, y, w: c.width ?? W, h: c.height ?? H, group: undefined });
+				out.nodes.push({ id: n.id, label: n.id, taxon: n.taxon, state: n.state, color: colorOf(m, n.state), style: n.style ?? 'plain', external: n.external, section: n.kind === 'section', x, y, w: c.width ?? W, h: c.height ?? H, group: undefined });
 			}
 		}
 	};
@@ -153,18 +163,24 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
 		}
 	};
 	collect(laid.children ?? [], 0, 0);
-	for (const [i, e] of (laid.edges ?? []).entries()) {
-		const src = edges[i];
-		const pts: { x: number; y: number }[] = [];
-		for (const s of e.sections ?? []) {
-			pts.push(s.startPoint, ...(s.bendPoints ?? []), s.endPoint);
+	// An edge is placed on the lowest common ancestor of its endpoints and its geometry is in that container's coordinates, so an edge inside a group is neither at the root nor at the root's origin; both were missed, which drew grouped edges from the wrong place or not at all.
+	const walkEdges = (node: ElkNode & { edges?: ElkEdge[] }, ox: number, oy: number) => {
+		for (const e of node.edges ?? []) {
+			const src = edges[Number(e.id.slice(1))];
+			if (!src) continue;
+			const pts: { x: number; y: number }[] = [];
+			for (const s of e.sections ?? []) {
+				for (const p of [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]) pts.push({ x: ox + p.x, y: oy + p.y });
+			}
+			if (!pts.length) {
+				const a = abs.get(src.from);
+				const b = abs.get(src.to);
+				if (a && b) pts.push({ x: a.x + W / 2, y: a.y + H }, { x: b.x + W / 2, y: b.y });
+			}
+			out.edges.push({ from: src.from, to: src.to, kind: src.kind, points: pts });
 		}
-		if (!pts.length) {
-			const a = abs.get(src.from);
-			const b = abs.get(src.to);
-			if (a && b) pts.push({ x: a.x + W / 2, y: a.y + H }, { x: b.x + W / 2, y: b.y });
-		}
-		out.edges.push({ from: src.from, to: src.to, kind: src.kind, points: pts });
-	}
+		for (const c of node.children ?? []) walkEdges(c as ElkNode & { edges?: ElkEdge[] }, ox + (c.x ?? 0), oy + (c.y ?? 0));
+	};
+	walkEdges(laid, 0, 0);
 	return out;
 }

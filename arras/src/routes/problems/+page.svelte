@@ -2,7 +2,7 @@
 	import HelpDot from '$lib/components/HelpDot.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { countBySeverity, groupDiagnostics } from '$lib/diagnostics';
-	import { keyUrl, nodeUrl } from '$lib/nav';
+	import { keyTarget, nodeUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	let severity = $state('');
@@ -30,13 +30,13 @@
 						{#if g.affordance === 'both-locations' || g.affordance === 'paths'}
 							<span class="locs">{#each d.locations as l, j (j)}<code>{l.file}:{l.line}</code>{/each}</span>
 						{:else if g.affordance === 'cycle'}
-							<span class="locs">{#each d.keys as k, j (k)}{#if j} → {/if}<a href={keyUrl(m, k)}>{k}</a>{/each}</span>
+							<span class="locs">{#each d.keys as k, j (k)}{#if j} → {/if}{@const href = keyTarget(m, k)}{#if href}<a {href}>{k}</a>{:else}<code>{k}</code>{/if}{/each}</span>
 						{:else if g.affordance === 'filter'}
 							<a href="/loose">loose nodes</a>
 						{:else}
 							<span class="locs">{#each d.locations as l, j (j)}<code>{l.file}:{l.line}</code>{/each}</span>
 						{/if}
-						{#if g.affordance !== 'cycle'}{#each d.keys as k (k)}<a class="key" href={keyUrl(m, k)}>{k}</a>{/each}{/if}
+						{#if g.affordance !== 'cycle'}{#each d.keys as k (k)}{@const href = keyTarget(m, k)}{#if href}<a class="key" {href}>{k}</a>{:else}<code class="key">{k}</code>{/if}{/each}{/if}
 					</li>
 				{/each}
 			</ul>

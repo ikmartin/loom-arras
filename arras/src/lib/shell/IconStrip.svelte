@@ -30,7 +30,7 @@
 			{/each}
 			<li><button onclick={search} aria-label="Search" title="search"><span aria-hidden="true">⌕</span></button></li>
 		</ul>
-		<div class="foot"><Settings /></div>
+		<div class="foot"><Settings placement="above" /></div>
 	</nav>
 
 	<div class="panel">
@@ -78,6 +78,8 @@
 		background: var(--leaf);
 		border-right: 1px solid var(--rule);
 		position: sticky;
+		/* both columns are sticky, so each is its own stacking context and the later one would paint over the strip's settings panel */
+		z-index: 20;
 		top: 0;
 		height: 100vh;
 		display: flex;
@@ -133,6 +135,7 @@
 		border-right: 1px solid var(--rule);
 		padding: var(--gap) 14px;
 		position: sticky;
+		z-index: 10;
 		top: 0;
 		height: 100vh;
 		display: flex;

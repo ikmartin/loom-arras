@@ -50,10 +50,24 @@ export function readUrl(masterPath: string, key?: string): string {
  *
  * An unlabelled proof gets a review key but no node entry, so linking it directly lands on "Unknown key"; `keys[key].node` names the statement that owns it, and the proof is an anchor within that page.
  */
-export function keyUrl(m: { nodes: Record<string, unknown>; keys?: Record<string, { node?: string }> } | null, key: string): string {
-	if (!m) return nodeUrl(key);
+export function keyUrl(m: KeyIndex | null, key: string): string {
+	return keyTarget(m, key) ?? nodeUrl(key);
+}
+
+interface KeyIndex {
+	nodes: Record<string, unknown>;
+	keys?: Record<string, { node?: string }>;
+}
+
+/**
+ * The page for `key`, or `null` when nothing in the manifest has one.
+ *
+ * A diagnostic names whatever it is about, which includes file containers such as `nodes/sy-0002.tex`; those have no page, and linking them lands on "Unknown key". A caller that can render plain text uses this and links only what resolves.
+ */
+export function keyTarget(m: KeyIndex | null, key: string): string | null {
+	if (!m) return null;
 	if (m.nodes[key]) return nodeUrl(key);
 	const owner = m.keys?.[key]?.node;
 	if (owner && m.nodes[owner]) return nodeUrl(owner) + '#' + anchorId(key);
-	return nodeUrl(key);
+	return null;
 }

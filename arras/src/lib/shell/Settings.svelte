@@ -2,6 +2,9 @@
 	// The display preferences (book 15.7): shell, typeface, size, line width, theme. Every control writes through `prefs`, which applies the data-* attributes and persists. Nothing here is published anywhere; the corpus is read-only to arras.
 	import { prefs, type Shell, type Face, type Size, type Width, type Theme } from '$lib/prefs.svelte';
 
+	// The icon strip puts its settings at the foot of a full-height column, so a panel hung below the button would open past the bottom of the window.
+	let { placement = 'below' }: { placement?: 'below' | 'above' } = $props();
+
 	let open = $state(false);
 
 	const SHELLS: { v: Shell; label: string }[] = [
@@ -40,7 +43,7 @@
 		data-testid="settings-toggle">⚙</button
 	>
 	{#if open}
-		<div class="panel" data-testid="settings-panel">
+		<div class="panel" class:above={placement === 'above'} data-testid="settings-panel">
 			<fieldset>
 				<legend>shell</legend>
 				{#each SHELLS as o (o.v)}
@@ -108,6 +111,8 @@
 		z-index: 40;
 		right: 0;
 		top: calc(100% + 4px);
+		max-height: 80vh;
+		overflow-y: auto;
 		min-width: 170px;
 		background: var(--sheet);
 		border: 1px solid var(--rule);
@@ -116,6 +121,12 @@
 		padding: var(--gap-gap);
 		display: grid;
 		gap: var(--gap-tight);
+	}
+	.panel.above {
+		top: auto;
+		bottom: calc(100% + 4px);
+		right: auto;
+		left: 0;
 	}
 	fieldset {
 		border: none;
