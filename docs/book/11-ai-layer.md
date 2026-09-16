@@ -80,6 +80,7 @@ A mode is a prompt template in `ai/modes/` with an input contract (what loom han
 | quick | brief answer, brevity first | as question | `quick-<slug>.md` |
 | draft | write a complete node from a plan the author supplies | the plan, the closure statements (`loom bundle` of the intended dependencies), the skeleton from `loom new --print` | `draft-<id>.tex`, a complete node file obeying the source contract |
 | ingest | produce or complete a digest | `refs/pdf/<citekey>.pdf` (or its text), or an extracted digest to complete, plus the digest chapter's format | `ingest-<citekey>.tex` (a complete digest) or `proposal-<citekey>.diff` |
+| brainstorm | explore a topic before anything is proved: make the author's idea precise, compute small cases, search the digests, record what was tried | `status --json`, `search --json`, bundles of the definitions the topic touches, digest overviews, the outline master via `assemble` | `brainstorm-<slug>.notes.md` with `[summary]`, `[candidates]`, `[dead-ends]`, `[known-results]`, `[open-questions]`; `draft-cand-*.tex` per candidate; `brainstorm-<slug>.check.py` |
 
 Rules common to every mode:
 
@@ -89,6 +90,7 @@ Rules common to every mode:
 4. **[decided]** Nothing a mode produces is applied. Drafts and digests are promoted by a person (11.7); proposals are applied by a person with their own tools.
 5. **[decided]** Every mode file begins with a "Before you begin" block stating the write policy, every notes file begins with a `[summary]` block, and every mode file ends with the output contract as a checklist the agent copies into the notes and ticks.
 6. **[decided]** Proposals and drafts are compiled before promotion with `loom bundle KEY --with FILE` and `loom bundle --draft FILE` (12.5); a mode that produces LaTeX reports the compile result in its notes.
+7. **[decided]** An agent that needs a whole master in context uses `loom assemble MASTER $LOOM_RUN/<name>.tex`; masters are not keys and `bundle` does not apply to them.
 
 ## 11.6 Comments from agents
 

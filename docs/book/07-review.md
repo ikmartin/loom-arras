@@ -234,6 +234,7 @@ Two further defences against garbage: annotations carry kinds, and the panel fil
 - After deletion, lint reports dangling references (`dangling-link`), missing inputs (`missing-include`), and `loom:retired-ledger-key` (info) for ledger rows whose key no longer exists (DR-61); `status --retired` lists retired keys with the date of their last acceptance; annotations targeting them are detached at the target level.
 - Dependents whose closure recorded the deleted id become stale with cause `dependency-removed`.
 - The recommended alternative to deletion is to make the node loose: remove its inclusion line. Everything about it survives, marked loose.
+- A refuted candidate is handled the same way: its `\input` line is removed, its body gains a sentence naming the run and the counterexample, and a tag of the author's choosing may mark it for filtering; no tag has special meaning.
 - Merging is aliasing (5.4.5); splitting is new ids for the pieces; renaming is not an operation.
 
 ## 7.10 Positional proof keys

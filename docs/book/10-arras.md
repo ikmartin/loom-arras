@@ -28,6 +28,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 - Margin marks and comment boxes (10.4).
 - Context: the chain of including nodes up to each master that reaches it ("in main.tex: §3 The residue map › §3.2 Independence"), or "loose".
 - Dependencies (statement-edges and proof-edges separately, each a linked list with taxa and titles) and dependents (the reverse), and, for digest nodes, "cited by".
+- See also: the nodes this one is related to by a `see:` declaration (5.11.3), both directions, each with its taxon, title, and the masters that reach it. A relation is never a dependency, and the list is separate from the dependency lists for that reason. A relation kind the viewer does not know renders as a labelled list of links.
 - The statement's closure as a "Read first" list of links.
 - Discussions: threads whose targets include this key.
 - Detached annotations, listed with their quotes.

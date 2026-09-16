@@ -436,6 +436,8 @@ Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedite
 
 **[decided]** Every `--json` output is a single JSON document. Shapes reuse the manifest's (specs/manifest.md) wherever the same data appears: `status --json` uses the `keys` shape; `deps --json` and `unravel --json` use the `edges` shape; `search --json` uses the `search` shape plus `file` and `url`. New shapes are documented here before they exist.
 
+**[decided]** `deps --json` carries `relations` beside `statement`, `proof` and `closure`: both directions of every `see:` declaration touching the key, as `{"key": ID, "kind": "see"}`, in target order. In the printed form they are a final section headed "see also (not a dependency):", after the edge lists, so that nothing reads them as dependencies. `unravel` does not list relations: it reports consequences, and a relation has none.
+
 ## 12.10 Environment variables
 
 **[decided]** `LOOM_QUILT` (quilt root, overrides discovery); `LOOM_RUN` (default for `--run`); `LOOM_FIXED_TIME` (fixture generation: all timestamps take this value); `LOOM_PAPER_FIXTURES` (tests: directory of arXiv sources for the paper tier); `LOOM_ARRAS_BUNDLE` (a viewer bundle directory that overrides the installed `arras` package and the vendored copy, 12.5); `LOOM_SVG_KEEP` (debugging: a directory that receives every fallback document that failed to compile, DR-79). The test shim reads `FAKE_TEX_LOG`, `FAKE_TEX_FAIL`, and `FAKE_TEX_FAIL_MATCH`. No other variable is read (M7).

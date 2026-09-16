@@ -139,6 +139,7 @@ A `proof` that no rule places is `loom:unattached-proof` (error).
 3. **[decided]** A `proof` environment whose first `\label` is id-shaped is a node of taxon `Proof`, keyed by its id, attached to its statement by rule 5.6.1, and may live in its own file.
 4. **[decided]** Edges inside a proof belong to that proof, so the graph records which lemmas each proof uses.
 5. **[decided]** Loom recovers from positional shifts by hash: an acceptance row whose recorded hash equals the current text of a differently keyed proof is reported by `status` as "acceptance recorded under a previous key; re-accept to confirm".
+6. **[decided]** A more detailed proof of the same statement is a second labelled proof; a more detailed node with a different statement is linked with `% !LOOM see:` (5.11.3).
 
 ### 5.6.3 Proof files
 
@@ -160,7 +161,7 @@ A node never has an edge to itself, and a proof has none to its own statement (D
 ### 5.7.2 Classification
 
 1. **[decided]** An edge is a statement-edge if it occurs in a statement's own text, a proof-edge if in a proof's own text, and a prose-edge if in a section's own text or in master prose outside every section.
-2. **[decided]** The closure of a key is the transitive closure over statement-edges from the key's statement (for a proof key, from its statement) together with the direct proof-edges of the proof. Definitions and setup nodes reach a bundle through statement-edges; lemmas a proof cites reach it through proof-edges.
+2. **[decided]** The closure of a key is the transitive closure over statement-edges from the key's statement (for a proof key, from its statement) together with the direct proof-edges of the proof. Definitions and setup nodes reach a bundle through statement-edges; lemmas a proof cites reach it through proof-edges. Relations declared with `see:` are not edges and enter no closure.
 3. **[decided]** An `\eqref` to an equation inside another node's proof is a proof-dependency on that node's proof; lint reports `loom:equation-in-proof-referenced` (warning) because a proof may be rewritten and take the equation with it. It is never an error.
 
 ### 5.7.3 Resolution
@@ -268,6 +269,7 @@ Rules:
 | `author: NAME[, NAME]` | key-value | file or node | author(s) of the node(s) |
 | `created: YYYY-MM-DD` | key-value | file or node | creation date |
 | `tags: a, b` | key-value | file or node | thematic labels |
+| `see: ID, ID` | key-value | file or node | related nodes for the viewer; never a dependency |
 | `environment: ENV = Name, style` | key-value | master file | declare a taxon the preamble does not (5.5.1) |
 | `digest: CITEKEY` | key-value | digest file | this file is the digest of CITEKEY |
 | `source: IDENT` | key-value | digest file | provenance, e.g. `arXiv:0805.2065v2` |
@@ -277,6 +279,8 @@ Rules:
 | `begin macros` / `end macros` | region | digest file | scoped macro block |
 
 Any other key is unknown.
+
+**[decided]** `see:` declares a relation, not a dependency. Each item resolves like a reference: an id, an alias, or a digest node id; an item that names nothing is `dangling-link`, and one that names the node it is written in, or repeats a relation already declared there, is `loom:see-redundant` (info). A relation enters no closure, no bundle, no acceptance row and no staleness computation, so a detailed version of a result may change freely without making the compact version stale. It is stored once, on the declaring node, and a viewer shows it on both. `\uses` remains the only way to declare a dependency the text does not name.
 
 ## 5.12 Macros
 

@@ -19,6 +19,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "keys": { "rl-0004": { ... }, "rl-0004/proof": { ... } },
   "regions": { "rl-0004#eq:main": { ... } },
   "edges": [ ... ],
+  "relations": [ ... ],
   "inclusion": { "drafts/main.tex": { ... } },
   "states": { "labels": { ... } },
   "annotations": { "a-2026-09-16-0007": { ... } },
@@ -283,6 +284,19 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 ## 15. Search
 
 **[decided]** Entries for the viewer's search box: `{"key": "rl-0004", "title": "...", "taxon": "Lemma", "aliases": [...], "tags": [...], "excerpt": "..."}` for every node and every digest node; masters and threads have entries with `kind`.
+
+## 16. Relations
+
+**[decided]** Links between nodes that are not dependencies. A relation enters no closure, no bundle, no acceptance row and no staleness computation; it exists so that a viewer can show two nodes as related. `\uses` remains the only way to declare a dependency the text does not name.
+
+```json
+"relations": [
+  {"from": "rl-0071", "to": "rl-0004", "kind": "see",
+   "src": {"file": "nodes/rl-0071.tex", "line": 1}}
+]
+```
+
+`from` is the node that declared the relation, so the declaring side is known; display is symmetric and a viewer shows the relation on both nodes. `kind` is `see` in this version. Adding a kind is a decision-record event, and a viewer renders a kind it does not know as a labelled list of links. Nodes gain no field: a viewer derives per-node lists from this one.
 
 ## Open questions
 

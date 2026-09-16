@@ -55,6 +55,7 @@ Source and structure:
 - `loom:equation-in-proof-referenced` (warning): another node references an equation inside this node's proof.
 - `loom:uses-missing` (info): a `\ref` in a proof not listed in `\uses`.
 - `loom:uses-unused` (info): a `\uses` entry the proof's text never mentions.
+- `loom:see-redundant` (info): a `% !LOOM see:` item that names the node it is written in, or that repeats a relation already declared on that node.
 - `loom:dependency-cycle` (warning): statement dependencies form a cycle; breaks settledness.
 - `loom:converter-fallback` (info): a block rendered by SVG fallback, naming the construct; warning when the fallback itself failed, naming the node and each attempt's first error (DR-79).
 - `loom:bundle-failed` (error): a bundle did not compile; first LaTeX error attached; `loom check` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks (8.11).

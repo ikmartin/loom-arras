@@ -65,7 +65,9 @@ only through loom commands. Everything else is the author's.
   includes it as written.
 - Equations keep the author's labels (`eq:main`); refer to them normally.
 - Comments beginning `% !LOOM` are directives loom reads
-  (`% !LOOM tags: ...`, `% !LOOM author: ...`); they never change the PDF.
+  (`% !LOOM tags: ...`, `% !LOOM author: ...`, `% !LOOM see: ID, ID`);
+  they never change the PDF. `see:` links two nodes in the viewer and is
+  never a dependency.
 - Digest nodes have ids `<citekey>-<label>`, e.g. `Man12-thm-4.1`; their
   statements are the cited paper's, verbatim, with locators in the title.
 
@@ -93,6 +95,9 @@ ledger and never run `loom accept`.
   a bundle with your proposed text in place of the quilt's, to compile
   before the author promotes or applies; nothing in the quilt changes.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
+- `loom assemble MASTER $LOOM_RUN/<name>.tex`: a whole master flattened
+  into one file, for when a plan or a paper is the context. Masters are
+  not keys and `bundle` does not apply to them.
 - `loom comment KEY "message" --quote "exact text" --kind objection|
   suggestion|question|ok --run $LOOM_RUN`: leave a finding anchored to the
   sentence it concerns. This is how every review result is recorded.
@@ -128,6 +133,8 @@ Follow the template exactly; tick its checklist in your notes file.
 - question / quick: answers, thorough or brief.
 - draft: a complete node from the author's plan.
 - ingest: a digest of a cited paper.
+- brainstorm: explore a topic before anything is proved; candidates,
+  dead ends, what the digests already say.
 
 Findings are annotations. Drafts and digests wait in your run for
 `loom ai promote`. Proposals are diffs the author applies.

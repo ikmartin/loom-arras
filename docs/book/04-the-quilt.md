@@ -110,6 +110,8 @@ Rules:
 
 Example: the masters directory holds `main.tex` (the paper), `talk.tex` (a beamer talk reusing nine nodes), and `draft3.tex` (the pre-atomize version, kept with `% !LOOM ignore` at its top so its inline copies of the nodes do not define their ids twice). Arras offers `main.tex` and `talk.tex` as paper views; `draft3.tex` is not scanned.
 
+**[decided]** Multiple masters are views. The paper master reaches what is settled; a talk reaches a selection; an outline master reaches candidates, planned sections, and the settled results they build on, so that candidates are reached rather than loose while they are being considered. The transition from plan to paper is moving `\input` lines. `status --master` reports each view; a node may be reached by several. The demo quilt shows the pattern: `drafts/outline.tex` beside `drafts/main.tex`, reaching one conjecture and one question that the paper does not.
+
 ## 4.5 `loom.sty`
 
 **[decided]** One file, vendored at the quilt root by `loom init`, refreshed by `loom upgrade`, loaded by `\usepackage{loom}` in every master. It provides exactly three commands and nothing else. License MIT so it can travel with a paper.
