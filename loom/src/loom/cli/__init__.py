@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import click
 
+from loom.cli.build_cmds import assemble, bundle, check, compile
 from loom.cli.doctor import doctor
 from loom.cli.graph import deps, unravel
 from loom.cli.lint_cmd import lint_command
@@ -36,5 +37,9 @@ main.add_command(unravel, name="downstream")
 main.add_command(unravel, name="reach")
 main.add_command(unravel, name="pop")
 main.add_command(lint_command)
+main.add_command(bundle)
+main.add_command(compile)
+main.add_command(assemble)
+main.add_command(check)
 
 __all__ = ["main"]
