@@ -15,6 +15,7 @@ HERE = Path(__file__).resolve().parent
 DOCS = HERE.parent
 ROW = re.compile(r"^\|\s*\[?(WQ-\d+)\]?[^|]*\|([^|]*)\|([^|]*)\|([^|]*)\|\s*$")
 LINK = re.compile(r"\]\(([^)#]+)(?:#[^)]*)?\)")
+SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 RETIRED = re.compile(r"^\|\s*(WQ-\d+)\s*\|")
 
 
@@ -50,10 +51,11 @@ def main() -> int:
     if len(active) > CAP:
         faults.append(f"{len(active)} active items, cap is {CAP}; promote, merge or drop one before adding another")
 
-    # 4. every relative pointer in the queue resolves
+    # 4. every relative pointer in the queue resolves. Anything carrying a URI scheme is not a path:
+    # http, mailto, and loom's own `loom:arxiv:…` reference links, which an item may quote as an example.
     for path in sorted(HERE.glob("*.md")):
         for target in LINK.findall(path.read_text(encoding="utf-8")):
-            if target.startswith(("http://", "https://", "mailto:")):
+            if SCHEME.match(target):
                 continue
             if not (path.parent / target).exists():
                 faults.append(f"{path.name}: link to {target} does not resolve")

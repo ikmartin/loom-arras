@@ -26,6 +26,8 @@ A breadth-first walk over works, unbounded in depth. Depth 1 is your bibliograph
 
 The output of a deep crawl is a **library** ([[WQ-03]]), not a 50,000-node quilt. The working quilt stays small and points at it.
 
+**Do [[WQ-03]] first if both triggers have fired.** The crawl's payoff is far larger once libraries exist, because a crawl with nowhere to put its result is a large `refs/` directory. And note what the crawl does *not* automate: it gives you the set of works and the edges between them, never the digests. Four hundred works still means four hundred extractions, each compiling a paper, and — if the locators are to be trusted — four hundred verifications against published PDFs. Extraction is mechanical; verification is not. So an automated library is a large corpus quilt with a **complete citation graph and selective digests**, which is the same shape as this item's own "depth 2 is metadata-only" rule seen from the library end.
+
 ## Blast radius
 
 A new subsystem in loom, `config.toml` (a `depth` key, which must not be added before it can be honoured, and whose name must not collide with the viewer's existing local-radius control), the corpus store layout, `docs/specs/`, Chapter 8, and arXiv/OpenAlex terms of use.

@@ -10,6 +10,8 @@ A second quilt exists whose digests another quilt wants — for instance a Gross
 
 There is only one quilt at a time to test against, so nothing can exercise resolution across two, and the versioning contract cannot be validated by a single consumer.
 
+**This trigger is a decision, not an observation.** Most items here wait for something to be noticed; this one waits for you to choose to build a library, which you can do in a weekend — fetch twenty papers in a subfield from arXiv, extract each at `--all`, curate. Worth knowing, because **this item is what unlocks library functionality, not [[WQ-02]]**: the crawl makes a large library cheap to assemble, but a hand-built one works the day this lands and needs no crawling at all.
+
 ## Rough design
 
 **A reference library is just a quilt** — nodes, ids, a graph, a ledger. It already has everything. A paper quilt depends on one:

@@ -9,6 +9,8 @@ The full design of a built item lives in its plan; the full design of a dropped 
 | id | item | closed | outcome |
 |---|---|---|---|
 | WQ-20 | `loom bundle` of the main theorem in the man12 quilt, and the arras views over it | 2026-09-16 | dropped: a verification pass over one fixture, not a feature. Chapter 6 §6.10 already records what the man12 import produced; run it by hand if man12 is revisited. |
+| WQ-01 | reference identity and the `reached` primitive | 2026-09-16 | graduated: the author committed to building it, so it is now [docs/plans/0.5-reference-identity-and-layout.md](../plans/0.5-reference-identity-and-layout.md). The first item to leave the queue by being built. |
+| WQ-12 | an Emacs client | 2026-09-16 | dropped to stay under the cap: nobody on the project uses Emacs, and `eglot` needs only the server and a root function, so it costs no more to write the day someone wants it than it does today. |
 
 ## Milestones
 

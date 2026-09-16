@@ -20,8 +20,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 
 | id | item | repo | trigger |
 |---|---|---|---|
-| [WQ-01](WQ-01-reference-identity.md) | reference identity and the `reached` primitive | loom, arras | **met** — ready to start; the first walk of this queue should pop it |
-| [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl to arbitrary depth | loom | the bibliography parse-rate study in WQ-01 reports above 70% on the depth-1 sources of `demos/relloc` and `demos/acgs` |
+| [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl to arbitrary depth | loom | the bibliography parse-rate study shipped by plan 0.5 reports above 70% on the depth-1 sources of `demos/relloc` and `demos/acgs` |
 | [WQ-03](WQ-03-reference-libraries.md) | reference libraries: one quilt depends on another | loom | a second quilt exists whose digests another quilt wants |
 | [WQ-04](WQ-04-identity-resolvers.md) | network identity resolvers (Crossref, zbMATH, OpenAlex) | loom | `loom:unresolved-work` exceeds a quarter of a real bibliography |
 | [WQ-05](WQ-05-work-graph-view.md) | the contracted work graph (papers, not results) | arras | any quilt exceeds roughly 150 external nodes |
@@ -31,7 +30,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-09](WQ-09-tex-root-directive.md) | `% !TEX root` recorded for loose files | loom | a loose file needs to name the master it was written for |
 | [WQ-10](WQ-10-locator-normalization.md) | locator normalization beyond English | loom | a digest whose locators do not match its citations |
 | [WQ-11](WQ-11-lsp-rename.md) | rename as a loom command with an editor trigger | loom-lsp | renaming an id by hand goes wrong once |
-| [WQ-12](WQ-12-emacs-client.md) | an Emacs client | — | someone wants to drive loom from Emacs |
 | [WQ-13](WQ-13-graph-at-scale.md) | graph layout precomputed by the publisher | loom, arras | a quilt's graph exceeds roughly 2000 nodes, or the force layout takes over a second |
 | [WQ-14](WQ-14-manifest-schema.md) | `manifest.schema.json` derived from the specification | loom | a third implementation of the interface, or a manifest regression a schema would have caught |
 | [WQ-15](WQ-15-ai-runner.md) | the AI runner (`specs/runner.md`) | loom | an agent needs to be run by loom rather than beside it |
@@ -39,5 +37,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-17](WQ-17-external-user.md) | acceptance criterion 10: an external user | — | someone outside the project has a paper to bring in |
 | [WQ-18](WQ-18-codex-session.md) | the Codex half of the AI layer | loom | Codex is installed on the machine |
 | [WQ-19](WQ-19-publishing.md) | publishing to PyPI and npm | loom, arras | the author decides to release |
+| [WQ-21](WQ-21-arras-pdf-viewer.md) | arras displays PDFs and resolves reference links into them | arras | plan 0.5 has landed — a decision, not an observation |
+| [WQ-22](WQ-22-extraction-node-model.md) | digest extraction shares the node model | loom | extraction and atomize disagree about what a node is, or a corpus makes the per-paper LaTeX compile the bottleneck |
 
-Nineteen active, one slot of headroom.
+Nineteen active, one slot of headroom. WQ-01 graduated to `docs/plans/0.5-reference-identity-and-layout.md` and WQ-12 was dropped; both are in [closed.md](closed.md), and their ids are retired rather than reused.

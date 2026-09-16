@@ -1,10 +1,10 @@
-# WQ-06 · Machine-global cache for fetched sources
+# WQ-06 · A shared cache for fetched bytes
 
 **Repo:** loom
 
 ## Trigger
 
-`refs/src/` across all quilts on one machine exceeds a few GB — check with `du -sh` across the quilts in use.
+`refs/` across all quilts on one machine exceeds a few GB — `du -sh` across the quilts in use — or a quilt needs its fetched bytes on another disk.
 
 ## Why deferred
 
@@ -12,16 +12,18 @@ With one or two quilts holding a handful of fetched papers each, per-quilt stora
 
 ## Rough design
 
-Fetched bytes — arXiv tarballs, PDFs — move to a content-addressed store outside any quilt, keyed by the global id from [[WQ-01]] and shared by every project on the machine. `refs/<citekey>/` becomes a thin binding into it. This is plumbing with no design tension; the only reason it waits is that it buys nothing at current volume.
+**`[refs] cache = "/Volumes/big/loom"`** — a setting saying where fetched bytes physically live, implemented with hardlinks or a redirect at fetch time. Nothing else changes: `refs/<scheme>/<id>/` stays the quilt's way of referring to a fetched work at every scale, from a three-reference note to a fifty-thousand-work corpus.
 
-It becomes necessary rather than nice at the scale [[WQ-02]] implies: 50,000 works is roughly 150 GB, which wants a configurable root on an external disk and certainly not one copy per quilt.
+This item previously proposed a machine-global *store*: a second kind of place, outside any quilt, with its own keying rules. That was wrong, and the reason is worth keeping. A store would have been the library-quilt/project-quilt distinction in disguise — two kinds of thing where the design deliberately has one. Everything is a quilt, quilt concepts work at any size, and where the bytes sit is configuration rather than ontology.
 
-Distinguish it from [[WQ-03]]: that shares *digests*, which are small, authored and valuable. This shares *bytes*, which are large, licence-encumbered and disposable. The second is a cache; the first is a dependency.
+Plan 0.5 did the part that made this easy: `refs/` is keyed by global id, so two quilts citing the same work already name the same directory and deduplication is a hardlink rather than a mapping layer.
+
+Distinguish it from [[WQ-03]]: that shares *digests*, which are small, authored and valuable, and never deduplicate because two people's digests of one paper are different documents. This shares *bytes*, which are large, licence-encumbered and disposable, and deduplicate exactly. One is a dependency; this is a cache.
 
 ## Blast radius
 
-`refs/` layout, `loom digest fetch`, `.gitignore` (the store leaves the quilt entirely), `loom doctor`, Chapter 8, Chapter 4 §4.7.
+`loom/src/loom/digest/fetch.py`, `config.toml`'s `[refs]` table, `loom doctor` (reporting where the cache is and how large), Chapter 8 §8.9, Chapter 4 §4.2.
 
 ## Related
 
-[[WQ-01]], [[WQ-02]], [[WQ-03]].
+[[WQ-02]] (whose 150 GB at depth 5 is what makes this necessary rather than tidy), [[WQ-03]]; plan 0.5, which established the global-id keying.
