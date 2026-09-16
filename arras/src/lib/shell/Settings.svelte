@@ -44,46 +44,27 @@
 	>
 	{#if open}
 		<div class="panel" class:above={placement === 'above'} data-testid="settings-panel">
-			<fieldset>
-				<legend>shell</legend>
-				{#each SHELLS as o (o.v)}
-					<button
-						class:on={prefs.shell === o.v}
-						aria-pressed={prefs.shell === o.v}
-						onclick={() => (prefs.shell = o.v)}
-						data-testid="shell-{o.v}">{o.label}</button
-					>
-				{/each}
-			</fieldset>
-			<fieldset>
-				<legend>type</legend>
-				{#each FACES as o (o.v)}
-					<button class:on={prefs.face === o.v} aria-pressed={prefs.face === o.v} onclick={() => (prefs.face = o.v)}>{o.label}</button>
-				{/each}
-			</fieldset>
-			<fieldset>
-				<legend>size</legend>
-				{#each SIZES as o (o.v)}
-					<button class:on={prefs.size === o.v} aria-pressed={prefs.size === o.v} onclick={() => (prefs.size = o.v)}>{o.label}</button>
-				{/each}
-			</fieldset>
-			<fieldset>
-				<legend>width</legend>
-				{#each WIDTHS as o (o.v)}
-					<button class:on={prefs.width === o.v} aria-pressed={prefs.width === o.v} onclick={() => (prefs.width = o.v)}>{o.label}</button>
-				{/each}
-			</fieldset>
-			<fieldset>
-				<legend>theme</legend>
-				{#each THEMES as o (o.v)}
-					<button
-						class:on={prefs.theme === o.v}
-						aria-pressed={prefs.theme === o.v}
-						onclick={() => (prefs.theme = o.v)}
-						data-testid="theme-{o.v}">{o.label}</button
-					>
-				{/each}
-			</fieldset>
+			{#snippet row(label: string, options: { v: string; label: string }[], current: string, pick: (v: string) => void, test: string)}
+				<div class="row" role="group" aria-label={label}>
+					<span class="lbl">{label}</span>
+					<div class="opts">
+						{#each options as o (o.v)}
+							<button
+								class:on={current === o.v}
+								aria-pressed={current === o.v}
+								onclick={() => pick(o.v)}
+								data-testid={test ? `${test}-${o.v}` : undefined}>{o.label}</button
+							>
+						{/each}
+					</div>
+				</div>
+			{/snippet}
+
+			{@render row('Shell', SHELLS, prefs.shell, (v) => (prefs.shell = v as Shell), 'shell')}
+			{@render row('Type', FACES, prefs.face, (v) => (prefs.face = v as Face), 'face')}
+			{@render row('Size', SIZES, prefs.size, (v) => (prefs.size = v as Size), 'size')}
+			{@render row('Width', WIDTHS, prefs.width, (v) => (prefs.width = v as Width), 'width')}
+			{@render row('Theme', THEMES, prefs.theme, (v) => (prefs.theme = v as Theme), 'theme')}
 		</div>
 	{/if}
 </div>
@@ -113,13 +94,14 @@
 		top: calc(100% + 4px);
 		max-height: 80vh;
 		overflow-y: auto;
-		/* A wrapping row lets this shrink-to-fit box settle at its minimum and fold the buttons under each other; with `nowrap` below, the widest row sets the width and a longer option widens the panel instead. The minimum is a little more than the widest row asks for, so the rows are not flush against the edge. */
-		min-width: 180px;
+		/* The containing block is the control, which in the icon strip is 44px wide, so a shrink-to-fit box is clamped to nothing and its rows spill out of it. `max-content` sizes the panel to the widest row instead, whatever the control it hangs off. */
+		width: max-content;
+		max-width: min(92vw, 420px);
 		background: var(--sheet);
 		border: 1px solid var(--rule);
 		border-radius: var(--rad-card);
 		box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
-		padding: var(--gap-gap);
+		padding: var(--gap);
 		display: grid;
 		gap: var(--gap-tight);
 	}
@@ -129,23 +111,24 @@
 		right: auto;
 		left: 0;
 	}
-	fieldset {
-		border: none;
-		margin: 0;
-		padding: 0;
+	/* One fixed label column, so every row's options start at the same place. */
+	.row {
+		display: grid;
+		grid-template-columns: 3.4rem minmax(0, 1fr);
+		align-items: center;
+		gap: var(--gap-tight);
+	}
+	.lbl {
+		font-family: var(--sans);
+		font-size: 11px;
+		color: var(--ink-soft);
+	}
+	.opts {
 		display: flex;
 		flex-wrap: nowrap;
 		gap: var(--gap-hair);
-		align-items: center;
 	}
-	legend {
-		/* a fieldset renders its legend above the content box, not as a flex item; it needs no width of its own */
-		font-size: 9px;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--ink-faint);
-	}
-	fieldset button {
+	.opts button {
 		white-space: nowrap;
 		font-family: var(--sans);
 		font-size: 11px;
@@ -153,13 +136,13 @@
 		background: var(--leaf);
 		border: 1px solid var(--rule);
 		border-radius: var(--rad-pill);
-		padding: 2px 7px;
+		padding: 2px 8px;
 		cursor: pointer;
 	}
-	fieldset button:hover {
+	.opts button:hover {
 		color: var(--ink);
 	}
-	fieldset button.on {
+	.opts button.on {
 		background: var(--link-wash);
 		border-color: var(--link);
 		color: var(--link);

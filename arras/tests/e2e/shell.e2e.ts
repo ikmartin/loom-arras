@@ -185,17 +185,30 @@ test('the contents rail shows its scrollbar only while it is in use', async ({ p
 		.not.toContain('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
 });
 
-test('the settings panel puts every row on one line', async ({ page }) => {
+test('the settings panel puts every row on one line, label included, with nothing cut off', async ({ page }) => {
 	await page.goto('/');
 	await page.getByTestId('settings-toggle').click();
-	const rows = await page.getByTestId('settings-panel').evaluate((el) =>
-		[...el.querySelectorAll('fieldset')].map((f) => ({
-			label: f.querySelector('legend')?.textContent ?? '',
-			lines: new Set([...f.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().top))).size
-		}))
-	);
+	const rows = await page.getByTestId('settings-panel').evaluate((el) => {
+		const panel = el.getBoundingClientRect();
+		return [...el.querySelectorAll('.row')].map((f) => {
+			const label = f.querySelector('.lbl') as HTMLElement;
+			const buttons = [...f.querySelectorAll('button')].map((b) => b.getBoundingClientRect());
+			const mid = (r: DOMRect) => r.top + r.height / 2;
+			return {
+				label: label.textContent ?? '',
+				lines: new Set(buttons.map((r) => Math.round(r.top))).size,
+				// the label shares the row's line: its middle falls inside every button's box
+				inline: buttons.every((r) => mid(label.getBoundingClientRect()) > r.top && mid(label.getBoundingClientRect()) < r.bottom),
+				spill: buttons.filter((r) => r.right > panel.right || r.left < panel.left).length
+			};
+		});
+	});
 	expect(rows.length).toBe(5);
-	for (const r of rows) expect(r.lines, `the ${r.label} row wraps`).toBe(1);
+	for (const r of rows) {
+		expect(r.lines, `the ${r.label} row wraps`).toBe(1);
+		expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(true);
+		expect(r.spill, `the ${r.label} row is clipped by the panel`).toBe(0);
+	}
 });
 
 test('the icon strip offers each destination exactly once', async ({ page }) => {
