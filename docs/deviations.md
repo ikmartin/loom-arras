@@ -27,3 +27,7 @@ Every place the implementation departs from a `[decided]` statement, or settles 
 | 2026-09-15 | 7.6.3 | proved needs an accepted proof | nodes that owe no proof are proved by acceptance | definitions could never be settled | DR-59 | n |
 | 2026-09-15 | 7.4.2 | id counter per file | counter over every record | quilt-wide uniqueness | DR-60 | n |
 | 2026-09-15 | 5.14 | lint = scanner checks | lint and check also report record-derived codes | codes need the records | DR-61 | n |
+| 2026-09-15 | 5.9.2.3, 8.3.1 | loose files sectioned per file (stated, unimplemented) | files reached by no master get their own section units; digest headings become `<citekey>-sec-<n>` nodes | `loom id` on loose files; digests | DR-62 | n |
+| 2026-09-15 | 5.6.1 | a `\ref` in the proof's optional argument decides attachment | when every named label is unknown, position decides and the label is a dangling link | deferred proofs with a typo'd label were unattached | DR-63 | n |
+| 2026-09-15 | 6.2.4 | id label inserted after the heading | inserted directly after the heading's arguments, before existing labels | the id must be the first label | DR-64 | n |
+| 2026-09-15 | 6.3, 6.4, 6.6 | identity test on the master | for a non-master SRC, the first reaching master is compiled with DEST in SRC's place in a scratch copy | section files have no PDF of their own | DR-65 | n |
