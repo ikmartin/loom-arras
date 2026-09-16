@@ -180,7 +180,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and
 
 **[decided]** These promises hold for every command and are enforced by tests:
 
-1. Loom never modifies a file the author wrote. It writes new files at destinations the user names, writes new files in `nodes/` and `refs/` on `new` and `promote`, writes into `.loom/`, `comments/`, `ai/runs/`, and `build/`, and prints patches. `import` edits only the copies it makes.
+1. Loom never modifies a file the author wrote. It writes new files at destinations the user names, writes new files in `nodes/` and `refs/` on `new` and `promote`, writes into `.loom/`, `comments/`, `ai/runs/`, and `build/`, writes `ai/`, `CLAUDE.md`, `AGENTS.md`, and `.claude/` on `ai init` and `upgrade` (DR-71), and prints patches. `import` edits only the copies it makes.
 2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal.
 3. Loom never edits the ledger except by appending acceptance rows.
 4. Loom never writes a state word anywhere.

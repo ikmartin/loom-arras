@@ -225,7 +225,7 @@ Edges from this proof: to `rl-0002` (uses), to `rl-0004` (through the alias), to
 
 ### 5.9.6 `% !TEX root`
 
-**[decided]** A file that is not a master and contains `% !TEX root = <path>` in its first twenty lines is recorded as belonging to that master. The scanner uses it only to say, for a loose file, which master it was written for; it never changes reachability.
+**[deferred]** A file that is not a master and contains `% !TEX root = <path>` in its first twenty lines was to be recorded as belonging to that master, so that a loose file could say which master it was written for without changing reachability. The directive is parsed (`scan/directives.py`) and nothing consumes it yet; the manifest has no field for it (M7).
 
 ## 5.10 Digest nodes
 

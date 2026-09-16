@@ -65,6 +65,7 @@ Source and structure:
 - `loom:taxon-name-macro` (info): a `\newtheorem` display name is a macro the closure does not define; the environment name is used (DR-46).
 - `loom:citekey-slug-collision` (error): two citekeys share a digest prefix after slugging (DR-45).
 - `loom:main-not-found` (warning): `[quilt] main` names a file that is not a master; the first master is used.
+- `loom:unknown-config-key` (warning): `config.toml` has a table or key outside the inventory of 4.2; it is ignored (M7).
 
 Review:
 

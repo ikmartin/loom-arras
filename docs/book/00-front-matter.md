@@ -2,7 +2,7 @@
 
 Internal design documentation for `loom` (a tool for atomized mathematical development), `arras` (a viewer for node-based text corpora), and the `quilt` (the directory contract between an author and loom).
 
-Status: pre-implementation. Everything in this book was decided in design conversations before a line of code existed. The book is the specification an implementing agent works from, and it will change as implementation reveals what the conversations could not.
+Status: implemented. Everything in this book was decided in design conversations before a line of code existed, and the book was then implemented between 2026-09-15 and 2026-09-16 following Chapter 13, milestone by milestone. Every deviation the implementation made is a decision record, DR-39 to DR-80 in Appendix A, with one row each in the deviations log at `docs/deviations.md`; what each milestone demonstrated, with its commands, output, and test counts, is recorded in `docs/demonstrations/` (`README.md` is the status table, `M0.md` to `M7.md` the records). Statements the implementation changed now carry the record that changed them. What remains the author's to do (publishing, the Overleaf test, the external user's paper, the Codex session) is listed at the end of `docs/demonstrations/M7.md`.
 
 ## How to read this book
 
@@ -29,7 +29,7 @@ Each chapter ends with a section "Open questions" listing what that chapter coul
 
 ## Contents
 
-Chapters (`books/`):
+Chapters (`book/`):
 
 1. Design philosophy
 2. Objectives
@@ -46,7 +46,7 @@ Chapters (`books/`):
 13. The plan
 14. Tests
 
-Appendices (`books/`):
+Appendices (`book/`):
 
 - A. Decision records
 - B. Open questions
@@ -69,6 +69,8 @@ Specifications (`specs/`):
 - `write-api.md` : the write API (deferred)
 - `runner.md` : the runner contract (deferred)
 - `fixture.md` : the conformance fixture
+- `tools/` : `validate-dialect.py` and `refresh-fixture.sh`
+- `fixture/` : the generated conformance fixture, vendored into both tool repositories
 
 ## Licenses
 
