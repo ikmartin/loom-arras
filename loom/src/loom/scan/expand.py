@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
 
 from loom.scan.model import Diagnostic, Location, SourceFile, Span
@@ -79,7 +80,9 @@ class Expansion:
         return None
 
 
+@cache
 def _kpsewhich(name: str) -> bool:
+    """Whether the distribution resolves `name`. Memoised because it is a subprocess run once per unresolved inclusion, and a paper's unresolved names repeat: on the Manolache import it was 86 ms of a 166 ms scan, over half the total."""
     exe = shutil.which("kpsewhich")
     if not exe:
         return False
@@ -90,14 +93,18 @@ def _kpsewhich(name: str) -> bool:
     return proc.returncode == 0 and bool(proc.stdout.strip())
 
 
-def resolve_inclusion(root: Path, name: str) -> tuple[str | None, str | None]:
-    """(quilt-relative path, problem). Problems: 'system' for a kpsewhich-resolvable name, 'missing' otherwise."""
+def resolve_inclusion(root: Path, name: str, known: frozenset[str] = frozenset()) -> tuple[str | None, str | None]:
+    """(quilt-relative path, problem). Problems: 'system' for a kpsewhich-resolvable name, 'missing' otherwise.
+
+    `known` holds paths that exist only in an editor's buffers, so a file an author has written but not yet saved resolves.
+    """
     name = name.strip()
     if not name or name.startswith("/") or ".." in Path(name).parts:
         return None, "missing"
     for cand in (name, name + ".tex"):
-        if (root / cand).is_file():
-            return Path(cand).as_posix(), None
+        rel = Path(cand).as_posix()
+        if rel in known or (root / cand).is_file():
+            return rel, None
     probe = name if "." in Path(name).name else name + ".tex"
     if _kpsewhich(probe):
         return None, "system"
@@ -118,6 +125,7 @@ def _read_include_arg(text: str, pos: int) -> tuple[str | None, int]:
 
 
 def expand_master(master: SourceFile, root: Path, files: dict[str, SourceFile]) -> Expansion:
+    """`files` is the scanner's whole file table, so a path that exists only in an editor's buffer resolves like one on disk."""
     exp = Expansion(master=master.path)
     parts: list[str] = []
     cursor = [0]
@@ -144,7 +152,7 @@ def expand_master(master: SourceFile, root: Path, files: dict[str, SourceFile]) 
             child_shift = shift + 1 if t.value == "nest" else shift
             inc = Inclusion(src.path, t.start, arg_end, name, t.value, None, child_shift)
             exp.inclusions.append(inc)
-            rel, problem = resolve_inclusion(root, name)
+            rel, problem = resolve_inclusion(root, name, frozenset(files))
             loc = [Location(src.path, src.line_of(t.start))]
             if rel is None:
                 inc.problem = problem

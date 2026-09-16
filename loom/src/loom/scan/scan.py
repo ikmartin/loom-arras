@@ -55,11 +55,17 @@ def find_bib_files(root: Path) -> list[str]:
     return sorted(out)
 
 
-def scan(quilt: Quilt) -> ScanResult:
+def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
+    """Scan a quilt. `overlay` maps quilt-relative paths to the text of unsaved editor buffers, which stand in for what is on disk; a path the quilt does not contain is added, so a new file is scanned before it is first saved."""
     root = quilt.root
     result = ScanResult(quilt=quilt)
-    for rel in discover_files(root):
-        result.files[rel] = read_source(root, rel)
+    overlay = overlay or {}
+    paths = list(discover_files(root))
+    for extra in sorted(overlay):
+        if extra not in paths:
+            paths.append(extra)
+    for rel in paths:
+        result.files[rel] = read_source(root, rel, overlay.get(rel))
     for rel, src in result.files.items():
         if src.encoding != "utf-8":
             result.diagnostics.append(

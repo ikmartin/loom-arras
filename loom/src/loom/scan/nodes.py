@@ -49,6 +49,7 @@ class NodeRec:
     attach_via: str | None = None
     ordinal: int = 0
     exp_ranges: dict[str, tuple[int, int]] = field(default_factory=dict)
+    label_offsets: dict[str, int] = field(default_factory=dict)  # label -> its \label offset in the file, for editors
     order: float = 0.0  # document order in the default master, else file order
     body_start: int = 0  # masters: offset of \\begin{document}; edges and regions are read from here on
     claimants: list[str] = field(
@@ -149,7 +150,8 @@ def _statement_nodes(
         for env in fe.theorem_envs:
             counts[env.name] = counts.get(env.name, 0) + 1
             own = env.own_ranges()
-            labels = [lab for lab, _ in labels_in(src.clean, own)]
+            found = labels_in(src.clean, own)
+            labels = [lab for lab, _ in found]
             first = labels[0] if labels else None
             node_id = first if first and is_id_shaped(first, slugs) else None
             key = node_id or f"{path}#{env.name}:{counts[env.name]}"
@@ -166,6 +168,7 @@ def _statement_nodes(
                 style=taxon.style if taxon else "plain",
                 title=env.optarg.strip() if env.optarg else None,
                 labels=labels,
+                label_offsets={lab: off for lab, off in found},
                 aliases=[lab for lab in labels if lab != node_id],
             )
             has_cite = bool(env.optarg and _CITE_IN_TITLE.search(env.optarg)) or first_body_token_is_cite(
@@ -219,6 +222,8 @@ def _section_nodes(
                     level=u.level,
                     title=u.title,
                     labels=list(u.labels),
+                    # a section's definition site is its sectioning command, not the \label beside it, so every label points there
+                    label_offsets=dict.fromkeys(u.labels, u.offset),
                     aliases=[lab for lab in u.labels if lab != node_id],
                 )
                 asm.nodes[key] = rec
@@ -304,7 +309,8 @@ def _proof_nodes(
         for order, path, proof, via in items:
             src = files[path]
             own = proof.own_ranges()
-            labels = [lab for lab, _ in labels_in(src.clean, own)]
+            found = labels_in(src.clean, own)
+            labels = [lab for lab, _ in found]
             first = labels[0] if labels else None
             if first and is_id_shaped(first, slugs):
                 key, pid = first, first
@@ -322,6 +328,7 @@ def _proof_nodes(
                 taxon="Proof",
                 title=proof.optarg.strip() if proof.optarg else None,
                 labels=labels,
+                label_offsets={lab: off for lab, off in found},
                 aliases=[lab for lab in labels if lab != pid],
                 of=stmt_key,
                 attach_via=via,

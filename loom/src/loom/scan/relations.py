@@ -23,6 +23,7 @@ class RelationRec:
     kind: str
     file: str
     line: int
+    column: int | None = None
 
 
 @dataclass
@@ -46,7 +47,7 @@ def find_relations(asm: Assembly, files: dict[str, SourceFile]) -> RelationResul
     res = RelationResult()
     seen: set[tuple[str, str, str]] = set()
 
-    def declare(from_key: str, value: str, path: str, line: int) -> None:
+    def declare(from_key: str, value: str, path: str, line: int, column: int | None = None) -> None:
         for item in list_value(value):
             target = asm.labels.get(item)
             if target is None:
@@ -55,7 +56,7 @@ def find_relations(asm: Assembly, files: dict[str, SourceFile]) -> RelationResul
                         "error",
                         "dangling-link",
                         f"% !LOOM see: {item} refers to no node or label",
-                        [Location(path, line)],
+                        [Location(path, line, column)],
                         [from_key],
                     )
                 )
@@ -68,7 +69,7 @@ def find_relations(asm: Assembly, files: dict[str, SourceFile]) -> RelationResul
                         "info",
                         "loom:see-redundant",
                         f"% !LOOM see: {item} names the node it is written in",
-                        [Location(path, line)],
+                        [Location(path, line, column)],
                         [from_key],
                     )
                 )
@@ -80,13 +81,13 @@ def find_relations(asm: Assembly, files: dict[str, SourceFile]) -> RelationResul
                         "info",
                         "loom:see-redundant",
                         f"% !LOOM see: {item} is already declared on {from_key}",
-                        [Location(path, line)],
+                        [Location(path, line, column)],
                         [from_key],
                     )
                 )
                 continue
             seen.add(token)
-            res.relations.append(RelationRec(from_key, to_key, "see", path, line))
+            res.relations.append(RelationRec(from_key, to_key, "see", path, line, column))
 
     for path in sorted(files):
         src = files[path]
@@ -97,10 +98,10 @@ def find_relations(asm: Assembly, files: dict[str, SourceFile]) -> RelationResul
         for n in sorted(nodes, key=lambda x: x.start):
             for d in within(directives, n.own):
                 if d.form == "kv" and d.key == "see":
-                    declare(n.key, d.value, path, d.line)
+                    declare(n.key, d.value, path, d.line, src.col_of(d.offset))
         for d in file_level(directives, _first_node_offset(asm, path)):
             if d.form == "kv" and d.key == "see":
                 for n in sorted(nodes, key=lambda x: x.start):
-                    declare(n.key, d.value, path, d.line)
+                    declare(n.key, d.value, path, d.line, src.col_of(d.offset))
     res.relations.sort(key=lambda r: (r.from_key, r.to_key, r.kind))
     return res

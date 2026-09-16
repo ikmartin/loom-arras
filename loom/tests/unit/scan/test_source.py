@@ -35,3 +35,41 @@ def test_ignore_directive_and_lines(tmp_path: Path) -> None:
     assert src.ignored
     assert src.line_of(src.text.index("line3")) == 3
     assert src.col_of(src.text.index("line3")) == 1
+
+
+def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
+    """An editor holds text the disk does not; `scan(quilt, overlay)` sees the buffer, so diagnostics follow the keystrokes rather than the last save."""
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+    from tests.unit.scan.helpers import DEFAULT_CONFIG, PREAMBLE
+
+    root = tmp_path / "q"
+    (root / "drafts").mkdir(parents=True)
+    (root / "nodes").mkdir()
+    (root / "config.toml").write_text(DEFAULT_CONFIG, encoding="utf-8")
+    (root / "drafts" / "main.tex").write_text(
+        PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0001}\n\\end{document}\n", encoding="utf-8"
+    )
+    (root / "nodes" / "ab-0001.tex").write_text(
+        "\\begin{lemma}[Saved]\\label{ab-0001}\nOn disk.\n\\end{lemma}\n", encoding="utf-8"
+    )
+    quilt = load_quilt(root)
+
+    assert scan(quilt).nodes["ab-0001"].title == "Saved"
+
+    edited = scan(quilt, {"nodes/ab-0001.tex": "\\begin{lemma}[Edited]\\label{ab-0001}\nIn the buffer.\n\\end{lemma}\n"})
+    assert edited.nodes["ab-0001"].title == "Edited"
+    assert "In the buffer." in edited.files["nodes/ab-0001.tex"].text
+    assert "On disk." in (root / "nodes" / "ab-0001.tex").read_text()  # nothing was written
+
+    # a file the buffer has created but never saved is scanned too
+    created = scan(
+        quilt,
+        {
+            "nodes/ab-0002.tex": "\\begin{lemma}[New]\\label{ab-0002}\nUnsaved.\n\\end{lemma}\n",
+            "drafts/main.tex": PREAMBLE
+            + "\\begin{document}\n\\input{nodes/ab-0001}\n\\input{nodes/ab-0002}\n\\end{document}\n",
+        },
+    )
+    assert created.nodes["ab-0002"].title == "New"
+    assert created.nodes["ab-0002"].reached_by == ["drafts/main.tex"]

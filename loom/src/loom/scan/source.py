@@ -82,9 +82,13 @@ def line_starts(text: str) -> list[int]:
     return starts
 
 
-def read_source(root: Path, rel: str) -> SourceFile:
+def read_source(root: Path, rel: str, overlay: str | None = None) -> SourceFile:
+    """One file as the scanner sees it. `overlay` is the text of an unsaved editor buffer, used in place of what is on disk; it is decoded already, and CRLF is normalised here as for a file."""
     abspath = root / rel
-    text, enc = decode(abspath.read_bytes())
+    if overlay is None:
+        text, enc = decode(abspath.read_bytes())
+    else:
+        text, enc = overlay, "utf-8"
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     head = "\n".join(text.split("\n", 20)[:20])
     ignored = bool(IGNORE_RE.search(head))

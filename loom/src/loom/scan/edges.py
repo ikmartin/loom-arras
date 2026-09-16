@@ -44,6 +44,8 @@ class EdgeRec:
     file: str
     line: int
     label: str = ""
+    offset: int = -1  # the command's character offset in the file, for editors; -1 when it has none (a nested edge)
+    column: int | None = None
 
 
 @dataclass
@@ -82,16 +84,17 @@ def find_edges(asm: Assembly, files: dict[str, SourceFile]) -> EdgeResult:
             for m in _CMD.finditer(text, a, b):
                 cmd = m.group(1)
                 line = src.line_of(m.start())
+                col = src.col_of(m.start())  # the offset was computed here and discarded; an editor needs the range
                 if cmd == "uses":
                     (arg,), _, _ = read_args(text, m.end(), "m")
                     for lab in _labels(arg, True):
                         res.uses_in.setdefault(key, []).append(lab)
-                        _resolve(res, asm, key, lab, kind, "uses", n.file, line)
+                        _resolve(res, asm, key, lab, kind, "uses", n.file, line, m.start(), col)
                 elif cmd in REF_CMDS:
                     (arg,), _, _ = read_args(text, m.end(), "m")
                     for lab in _labels(arg, cmd in LIST_CMDS):
                         res.refs_in.setdefault(key, []).append(lab)
-                        _resolve(res, asm, key, lab, kind, cmd, n.file, line)
+                        _resolve(res, asm, key, lab, kind, cmd, n.file, line, m.start(), col)
                 else:
                     (o1, o2, keys), _, _ = read_args(text, m.end(), "oom")
                     postnote = o2 if o2 is not None else o1
@@ -123,7 +126,16 @@ def _labels(arg: str | None, split: bool) -> list[str]:
 
 
 def _resolve(
-    res: EdgeResult, asm: Assembly, from_key: str, label: str, kind: str, via: str, file: str, line: int
+    res: EdgeResult,
+    asm: Assembly,
+    from_key: str,
+    label: str,
+    kind: str,
+    via: str,
+    file: str,
+    line: int,
+    offset: int = -1,
+    column: int | None = None,
 ) -> None:
     target = asm.labels.get(label)
     if target is None:
@@ -132,7 +144,7 @@ def _resolve(
                 "error",
                 "dangling-link",
                 f"\\{via}{{{label}}} refers to no node or label",
-                [Location(file, line)],
+                [Location(file, line, column)],
                 [from_key],
             )
         )
@@ -144,4 +156,6 @@ def _resolve(
     src_node = asm.nodes.get(from_key)
     if src_node is not None and src_node.kind == "proof" and src_node.of == to:
         return
-    res.edges.append(EdgeRec(from_key, to, kind, "postnote" if via == "cite" else via, file, line, label))
+    res.edges.append(
+        EdgeRec(from_key, to, kind, "postnote" if via == "cite" else via, file, line, label, offset, column)
+    )

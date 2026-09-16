@@ -1,4 +1,7 @@
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from loom.scan.expand import expand_master
 from loom.scan.sections import find_sections, heading_labels
@@ -81,3 +84,22 @@ def test_section_label_not_stolen_and_same_line(tmp_path: Path) -> None:
     assert heading_labels(clean, clean.index("{S}") + 3) == ["sec:s", "alias"]
     assert heading_labels(clean, clean.index("{T}") + 3) == ["sec:t"]
     assert heading_labels(clean, clean.index("{U}") + 3) == []
+
+
+def test_kpsewhich_is_probed_once_per_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The probe is a subprocess run once per unresolved inclusion, and a paper's unresolved names repeat; on the Manolache import it was 86 ms of a 166 ms scan."""
+    from loom.scan import expand as expand_mod
+
+    expand_mod._kpsewhich.cache_clear()
+    calls: list[str] = []
+
+    def fake(cmd, **kw):  # type: ignore[no-untyped-def]
+        calls.append(cmd[1])
+        return subprocess.CompletedProcess(cmd, 0, stdout="/usr/share/x.sty\n", stderr="")
+
+    monkeypatch.setattr(expand_mod.shutil, "which", lambda _n: "/usr/bin/kpsewhich")
+    monkeypatch.setattr(expand_mod.subprocess, "run", fake)
+    for _ in range(5):
+        assert expand_mod._kpsewhich("amsmath.sty") is True
+    assert calls == ["amsmath.sty"]
+    expand_mod._kpsewhich.cache_clear()
