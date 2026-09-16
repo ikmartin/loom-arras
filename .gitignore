@@ -1,5 +1,8 @@
 loom/
 arras/
+loom-lsp/
+loom-nvim/
+loom-vscode/
 tests/fixtures/
 demos/relloc/
 demos/man12/

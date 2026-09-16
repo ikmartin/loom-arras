@@ -63,6 +63,6 @@ def assign_urls(nodes, *, disambiguate=True):
 
 ## This workspace
 
-`loom-arras/` is the workspace for `loom` (Python CLI, repository in `loom/`) and `arras` (Svelte viewer, repository in `arras/`). Both tool repositories are separate git clones ignored by this repository; this repository tracks the design book, the interface specification, the plan, the demonstration log, the deviations log, and the committed example quilts under `demos/`.
+`loom-arras/` is the workspace for `loom` (Python CLI, repository in `loom/`) and `arras` (Svelte viewer, repository in `arras/`), and for the three editor clients: `loom-lsp/` (a language server), `loom-nvim/` (a Neovim plugin) and `loom-vscode/` (a VS Code extension). Every tool repository is a separate git repository ignored by this one; this repository tracks the design book, the interface specification, the plan, the demonstration log, the deviations log, and the committed example quilts under `demos/`.
 
 Start by reading `AGENTS.md`, then `docs/plans/implementation-plan.md`, then `docs/demonstrations/README.md` for the current milestone. The rules in `AGENTS.md` apply to every session.

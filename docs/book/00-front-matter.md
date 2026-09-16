@@ -2,7 +2,7 @@
 
 Internal design documentation for `loom` (a tool for atomized mathematical development), `arras` (a viewer for node-based text corpora), and the `quilt` (the directory contract between an author and loom).
 
-Status: implemented. Everything in this book was decided in design conversations before a line of code existed, and the book was then implemented between 2026-09-15 and 2026-09-16 following Chapter 13, milestone by milestone. Every deviation the implementation made is a decision record, DR-39 to DR-80 in Appendix A, with one row each in the deviations log at `docs/deviations.md`; what each milestone demonstrated, with its commands, output, and test counts, is recorded in `docs/demonstrations/` (`README.md` is the status table, `M0.md` to `M7.md` the records). Statements the implementation changed now carry the record that changed them. What remains the author's to do (publishing, the Overleaf test, the external user's paper, the Codex session) is listed at the end of `docs/demonstrations/M7.md`.
+Status: implemented. Everything in this book was decided in design conversations before a line of code existed, and the book was then implemented between 2026-09-15 and 2026-09-16 following Chapter 13, milestone by milestone, and extended on 2026-09-16 by the round recorded in `docs/records/record-2026-09-16.md`, which built Chapter 15, added the `see:` relation and the brainstorm mode, and produced the three editor clients of Chapter 16. Every deviation the implementation made is a decision record, DR-39 to DR-97 in Appendix A, with one row each in the deviations log at `docs/deviations.md`; what each milestone demonstrated, with its commands, output, and test counts, is recorded in `docs/demonstrations/` (`README.md` is the status table, `M0.md` to `M7.md` the records). Statements the implementation changed now carry the record that changed them. What remains the author's to do (publishing, the Overleaf test, the external user's paper, the Codex session, and the GitHub remotes for the three new repositories) is listed at the end of `docs/demonstrations/M7.md` and in the 0.3 record.
 
 ## How to read this book
 
@@ -45,6 +45,8 @@ Chapters (`book/`):
 12. CLI reference
 13. The plan
 14. Tests
+15. Arras layout
+16. Editor clients
 
 Appendices (`book/`):
 

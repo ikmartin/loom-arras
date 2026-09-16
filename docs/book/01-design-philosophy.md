@@ -42,7 +42,7 @@ An author's file is theirs; a tool that edits it in place is a tool that destroy
 
 ### P8. No editor, server, model, or credential is required by any command.
 
-Every command runs from a terminal against files. Consequence: Emacs, VS Code, Overleaf, Claude Code, and Codex are all clients; none is assumed. Loom holds no API key and imports no model SDK.
+Every command runs from a terminal against files. Consequence: Emacs, VS Code, Overleaf, Claude Code, and Codex are all clients; none is assumed. Loom holds no API key and imports no model SDK. A language server and two editor plugins exist (Chapter 16); they are clients like the rest, and no loom command requires one.
 
 ### P9. Local models only.
 

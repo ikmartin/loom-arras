@@ -6,12 +6,12 @@ This chapter lists the tests the MVP passes. It defines the tiers, the shim that
 
 **[decided]**
 
-- Unit tier: `tests/unit/`, everything that needs no real LaTeX, run against the fake toolchain of 14.2; 183 tests at M7. `uv run pytest tests/unit`, or in CI `uv run pytest -m "not tex and not paper and not network"`. Runs on every push.
-- TeX tier: `tests/tex/`, marked `tex`: bundles and the demo master compiled with the real toolchain, the reshape identity tests, the vendored fixture rebuilt and compared, and two smoke tests of `latexmk` and `pdftotext`; 10 tests at M7. `conftest.py` gives these tests the real `latexmk` and `pdftotext` directories on `PATH` and skips them when no `latexmk` is installed; HOME and every TeX tree still point at empty directories. Runs in a TeX Live container on every push.
+- Unit tier: `tests/unit/`, everything that needs no real LaTeX, run against the fake toolchain of 14.2; 206 tests after the 0.3 round (183 at M7). `uv run pytest tests/unit`, or in CI `uv run pytest -m "not tex and not paper and not network"`. Runs on every push.
+- TeX tier: `tests/tex/`, marked `tex`: bundles and the demo master compiled with the real toolchain, the reshape identity tests, the vendored fixture rebuilt and compared, and two smoke tests of `latexmk` and `pdftotext`; 12 tests after the 0.3 round (10 at M7). `conftest.py` gives these tests the real `latexmk` and `pdftotext` directories on `PATH` and skips them when no `latexmk` is installed; HOME and every TeX tree still point at empty directories. Runs in a TeX Live container on every push.
 - Paper tier: `tests/papers/`, the Manolache and ACGS fixtures; 4 tests. The module is marked both `paper` and `tex`, so its tests run only with the real toolchain and only when `LOOM_PAPER_FIXTURES` names a directory holding `0805.2065/` and `1709.09864/`; skipped otherwise, and never in CI.
 - Network: one test, `test_fetch_writes_gitignored_dirs`, marked `network` and skipped unless `LOOM_NETWORK=1`; excluded from CI.
 - Manual tier: the Overleaf procedure and the agent sessions. Run per release; results recorded in the release notes. The Claude Code session was performed at M6 on the demo quilt and at M7 as the referee runs of the relloc migration; the Overleaf procedure and the Codex session have not been performed (`docs/demonstrations/M7.md`).
-- Arras tiers: unit (vitest, 10 tests: the specs beside the modules under `src/lib/` and the guard in `tests/unit/`); end-to-end (Playwright, 27 tests, on the vendored fixture, which `scripts/stage-fixture.mjs` copies into `static/build/` so `vite preview` serves it where `loom serve` would); prerender (`npm run build:prerender` writes the static site of the fixture, 50 routes at M2, but no test checks it and CI does not run it).
+- Arras tiers: unit (vitest, 20 tests: the specs beside the modules under `src/lib/` and the guard in `tests/unit/`); end-to-end (Playwright, 43 tests, on the vendored fixture, which `scripts/stage-fixture.mjs` copies into `static/build/` so `vite preview` serves it where `loom serve` would); screenshots (`npm run shots`, one run that writes the book's reference figures from the same fixture, 15.9); prerender (`npm run build:prerender` writes the static site of the fixture, 50 routes at M2, but no test checks it and CI does not run it).
 
 ## 14.2 The fake `latex`
 
@@ -153,6 +153,14 @@ Not written: `test_promote_never_touches_run_file`.
 - `test_cli_version`, `test_doctor_ok_on_shim`, `test_doctor_json_shape`, `test_doctor_missing_tool_exit_2`, `test_cli_reference_matches_checked_in` (the checked-in `docs/cli-reference.md` equals what `scripts/gen_cli_reference.py` generates from the command tree), `test_lint_exit_codes`, `test_search_json_still_single_document`, `test_serve_exit_2_without_bundle`
 
 Not written: `test_cli_exit_codes_contract` as one test (exit codes 0, 1, and 2 are asserted per command throughout the suite); `test_cli_aliases_unravel`; `test_cli_withdrawn_commands_absent`.
+
+### Chapter 16: the editor clients
+
+**[decided]** The clients have their own suites in their own repositories; loom's checklist does not run them, and nothing in loom depends on them passing.
+
+- `loom-lsp`: seventeen tests. The server is driven in process against a copy of the synthetic quilt — the published diagnostics match `loom lint --json`, a dangling reference is an error at the command rather than at the line, an unsaved buffer produces diagnostics the disk does not justify and closing it takes them away again, definitions resolve for a reference and an inclusion, references find every site, hover carries the state, the symbol tree nests proofs under their statements, completion offers ids, directive keys, taxa and citekeys in the right places, and a code action arrives as an edit for the missing `\uses` and as a confirmed command for the rest. Three tests cover the position encoding, over an astral character and a CRLF file. One drives the real binary over stdio, and one asserts that the transport flag clients append is accepted.
+- `loom-nvim`: seventeen busted tests under plenary, over root detection, the key under the cursor, every command's argument vector, and the client configuration. They start nothing: the browser opener is injected and no loom process runs. Two scripts drive the real server against a real quilt, one printing the diagnostics after `LspAttach` and one asking for a hover and a definition.
+- `loom-vscode`: twenty tests across two integration passes in a real VS Code, one inside a copy of the synthetic quilt where the client must reach *running* and one in a plain LaTeX folder where no client may start.
 
 ## 14.7 Coverage rule
 

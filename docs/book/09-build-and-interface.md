@@ -90,9 +90,17 @@ Without pandoc (a decided constraint), loom's converter is a restricted translat
 
 **[decided]** Math is left as TeX. The manifest carries a default macro set extracted from the default master's preamble closure by the `macros.py` parser (`\newcommand`, `\renewcommand`, `\providecommand`, `\DeclareMathOperator`, zero-argument `\def`, and definitions made through aliases such as `\nc`, DR-73), with `\let` bindings and loom's own `\uses`, `\incomplete`, and `\nest` left out, plus one macro set per digest citekey parsed from the digest's macro block. Arras configures MathJax from the manifest. **[decided]** MathJax 3 with the `tex-svg` output, bundled: no font files ship and a deployed site works offline (DR-55); arras bundles the full component, so `\color` and the other extensions never load from the network (M7). A fragment whose element names a set in `data-macros` has that set applied as `\renewcommand` lines prepended to its first math element before typesetting; the default set is global (DR-56). The manifest's macro format (name, argument count, body) would serve KaTeX equally should it ever be wanted.
 
+**[decided]** A macro body's TeX conditionals are resolved before publication, because a viewer's math renderer implements none. `\ifinner A\else B\fi` becomes `\mathchoice{B}{A}{A}{A}`, which selects on exactly the distinction `\ifinner` tests, and `\ifmmode A\else B\fi` becomes `A`, since a macro body inside a formula is always in math mode. Any other conditional is published as written: guessing a branch would silently change the mathematics. Without this the ACGS paper's own `\newcommand\arr{\ifinner\to\else\longrightarrow\fi}` reached every page as the words `\ifinner`, `\else` and `\fi` in error red beside two arrows (DR-95).
+
+**[decided]** A title keeps its mathematics. The plain text a node's `title` carries preserves `$…$` and `\(…\)` spans as written and cleans only the prose around them; a viewer typesets what it can and shows the source otherwise. Stripping control sequences had turned a section called `Structure of $\Sigma$` into `Structure of $ $` (DR-96).
+
 ### 9.4.4 What the converter promises
 
 **[decided]** For any quilt that compiles: every fragment is produced; every construct outside the contract is rendered exactly by fallback; nothing is silently dropped; and every element from source carries `data-src`. The converter does not promise that a fragment is beautiful; it promises that it is complete and honest.
+
+### 9.4.5 What a client needs from a scan
+
+**[decided]** `scan(quilt, overlay)` takes an optional map of quilt-relative paths to the text of unsaved editor buffers, which stand in for what is on disk; a path that exists only in a buffer resolves as an inclusion, so a file written and not yet saved is scanned. Nothing is written anywhere. Reference and `\uses` sites carry the character offset and column of the command, and a node records the offset of each of its `\label`s, so a diagnostic points at a command rather than at a line and a definition site is a range. `kpsewhich` is memoised per name, since it is a subprocess run once per unresolved inclusion and a paper's unresolved names repeat (DR-97).
 
 ## 9.5 Annotation marks
 

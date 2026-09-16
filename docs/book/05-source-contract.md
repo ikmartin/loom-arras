@@ -166,7 +166,7 @@ A node never has an edge to itself, and a proof has none to its own statement (D
 
 ### 5.7.3 Resolution
 
-1. **[decided]** A reference to a label that is neither a node's id or alias nor a labelled region in any scanned file is `dangling-link` (error), with the file and line.
+1. **[decided]** A reference to a label that is neither a node's id or alias nor a labelled region in any scanned file is `dangling-link` (error), with the file, line and column of the command (DR-97).
 2. **[decided]** A reference to a node that the referencing master does not reach is `loom:reference-to-loose` (error for masters, since the PDF will have an undefined reference; info for loose files), unless the target lives in a digest file, whether it is a result or one of the digest's section nodes, because digests are loose by construction (DR-76).
 3. **[decided]** Lint reports, as information, `\ref`s in a proof not listed in that proof's `\uses` (`loom:uses-missing`) and `\uses` entries never mentioned in the proof's text (`loom:uses-unused`), so an author may adopt either discipline.
 

@@ -26,8 +26,8 @@ Each page is a route; the manifest supplies everything but the fragment text.
 - The review badge (10.3).
 - The node fragment: statement, then each proof as a collapsible block with its own badge.
 - Margin marks and comment boxes (10.4).
-- Context: the chain of including nodes up to each master that reaches it ("in main.tex: §3 The residue map › §3.2 Independence"), or "loose".
-- Dependencies (statement-edges and proof-edges separately, each a linked list with taxa and titles) and dependents (the reverse), and, for digest nodes, "cited by".
+- In `<document>`: the chain of including nodes up to each master that reaches it ("document › The residue map › Independence"), or "loose". The section was headed "Context" in design; it is the breadcrumb and is named for what it shows.
+- Depends on and used by: one line per node rather than one per edge, each with the kinds that established it, since a statement and its two proofs all using the same lemma is one dependency. "Dependents" was the design's name for the second; it is now "used by". For digest nodes, "cited by".
 - See also: the nodes this one is related to by a `see:` declaration (5.11.3), both directions, each with its taxon, title, and the masters that reach it. A relation is never a dependency, and the list is separate from the dependency lists for that reason. A relation kind the viewer does not know renders as a labelled list of links.
 - The statement's closure as a "Read first" list of links.
 - Discussions: threads whose targets include this key.
@@ -69,9 +69,11 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.10 Home
 
-**[decided]** `/`: the corpus title, links to the default master view, the review panel, the problems page, the graph, the indexes, and the counts.
+**[decided]** `/`: the corpus title, four metric cards (accepted, stale, incomplete, errors), the documents, what needs attention, what is blocked, what is loose, and what is recent. Every line links. It is the landing route, and its shape is 15.3.4.
 
 ## 10.3 Badges
+
+**[decided]** A key that has no page of its own is not linked. An unlabelled proof resolves through the node that owns it, so its link lands on that node's page at the proof; a key that resolves to nothing at all, such as the file container a `double-inclusion` names, is rendered as plain text (DR-94).
 
 **[decided]** A key's badge shows its state label with the publisher's colour class and, for accepted keys, the stale modifier; then the review facts in small type: "reviewed clean 16 Sep" or "2 open objections". A node's header badge combines its statement's badge and the best of its proofs' ("statement accepted · proof accepted, stale"), plus the derived `proved` or `settled` label when the manifest reports it, plus `incomplete` overriding everything. Arras renders whatever labels and colours the manifest declares; it has no built-in notion of what "accepted" means.
 

@@ -11,6 +11,9 @@ The interface between publishers and viewers lives in `docs/specs/`, beside this
 | diagnostic codes | 5.14 | `specs/diagnostics.md` | specification |
 | states and colour classes | 7.6 | `specs/manifest.md` §8 | book for meaning; specification for shape |
 | threads | 11.4 | `specs/manifest.md` §10 | specification |
+| relations (`see:`) | 5.11.3, 10.2.1 | `specs/manifest.md` §16 | book for meaning; specification for shape |
+| a section node's level | 15.2 | `specs/manifest.md` §3 | specification |
+| anchors on node elements | 9.3 | `specs/dialect.md` §2.2 | specification |
 | the write API | 9.9, 10.4 | `specs/write-api.md` | specification (deferred; specified, not built) |
 | the runner | 11.9 | `specs/runner.md` | specification (deferred; specified, not built) |
 | the conformance fixture | 14.3 | `specs/fixture.md` | specification |
