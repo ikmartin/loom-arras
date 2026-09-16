@@ -35,15 +35,22 @@ def demo(tmp_path: Path, clean: bool = True) -> Path:
         shutil.rmtree(d / ".loom", ignore_errors=True)
         for p in (d / "comments").rglob("*.json"):
             p.unlink()
+        for p in (d / "ai" / "runs").glob("*/annotations.json"):
+            p.unlink()
     return d
 
 
-def test_demo_ships_two_accepted_one_stale_one_annotation(tmp_path: Path) -> None:
+def test_demo_ships_two_accepted_one_stale_and_a_finished_run(tmp_path: Path) -> None:
     d = demo(tmp_path, clean=False)
     s = status_json(d)
     assert s["summary"]["accepted"] == 1 and s["summary"]["stale"] == 1
     assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "dm-0001"
-    assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {"suggestion": 1}
+    assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {
+        "suggestion": 1,
+        "objection": 1,
+    }  # the author's suggestion and the run's objection
+    assert s["keys"]["dm-0003"]["reviews"]["open"] == {"suggestion": 1}  # the run's suggestion on the statement
+    assert (d / "ai" / "runs" / "2026-09-16T14-02-referee-dm-0003" / "referee-dm-0003.notes.md").is_file()
 
 
 def synthetic(tmp_path: Path) -> Path:

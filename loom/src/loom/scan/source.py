@@ -10,7 +10,12 @@ from pathlib import Path
 
 from loom.scan.model import SourceFile
 
-SKIP_DIRS = {"build", ".git", "node_modules", ".loom", ".svelte-kit"}
+SKIP_DIRS = {"build", ".git", "node_modules", ".loom", ".svelte-kit", ".claude"}
+SKIP_PREFIXES = (
+    "ai/",
+    "refs/src/",
+    "refs/pdf/",
+)  # run outputs and fetched sources are not the quilt's text (book 11.2, 8.9)
 IGNORE_RE = re.compile(r"^\s*%\s*!LOOM\s+ignore\s*$", re.M)
 _VERB_RE = re.compile(r"\\verb\*?(\S)(.*?)\1")
 _VERBATIM_RE = re.compile(r"\\begin\{(verbatim\*?|lstlisting|comment|filecontents\*?)\}.*?\\end\{\1\}", re.S)
@@ -22,6 +27,8 @@ def discover_files(root: Path) -> list[str]:
     for path in root.rglob("*.tex"):
         rel = path.relative_to(root)
         if any(part in SKIP_DIRS for part in rel.parts[:-1]):
+            continue
+        if rel.as_posix().startswith(SKIP_PREFIXES):
             continue
         found.append(rel.as_posix())
     return sorted(found)

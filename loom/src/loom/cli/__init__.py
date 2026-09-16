@@ -16,6 +16,7 @@ from loom.cli.paper import atomize, id_command, import_command, inline_command
 from loom.cli.quilt import init
 from loom.cli.review import accept, comment, status
 from loom.cli.serve_cmd import serve
+from loom.cli.upgrade import upgrade
 from loom.version import __version__
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -58,5 +59,6 @@ main.add_command(comment)
 main.add_command(status)
 main.add_command(ai)
 main.add_command(digest)
+main.add_command(upgrade)
 
 __all__ = ["main"]

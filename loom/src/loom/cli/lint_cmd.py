@@ -6,6 +6,7 @@ import click
 
 from loom.cli._common import EXIT_CONTENT, emit_json
 from loom.cli._quilt import open_scan, quilt_option
+from loom.cli.build_cmds import log_run
 from loom.records.store import Records
 from loom.scan.model import Diagnostic
 from loom.scan.scan import ScanResult
@@ -45,10 +46,12 @@ def summary_line(diags: list[Diagnostic]) -> str:
 
 @click.command(name="lint")
 @click.option("--json", "as_json", is_flag=True)
+@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="DIR", help="Log this call to DIR/run.log.")
 @quilt_option
 @click.pass_context
-def lint_command(ctx: click.Context, as_json: bool, quilt_path: str | None) -> None:
+def lint_command(ctx: click.Context, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Scan and print every diagnostic. Fast; no LaTeX runs."""
+    log_run(run_dir, "loom lint")
     result = open_scan(quilt_path)
     diags = all_diagnostics(result)
     if as_json:

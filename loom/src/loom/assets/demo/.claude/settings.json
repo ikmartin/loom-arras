@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/ai/runs/**)",
+      "Write(/ai/runs/**)",
+      "Edit(/build/**)",
+      "Write(/build/**)"
+    ],
+    "deny": [
+      "Edit(/nodes/**)",
+      "Write(/nodes/**)",
+      "Edit(/drafts/**)",
+      "Write(/drafts/**)",
+      "Edit(/refs/**)",
+      "Write(/refs/**)",
+      "Edit(/comments/**)",
+      "Write(/comments/**)",
+      "Edit(/.loom/**)",
+      "Write(/.loom/**)",
+      "Edit(/ai/modes/**)",
+      "Write(/ai/modes/**)",
+      "Edit(/ai/orientation.md)",
+      "Write(/ai/orientation.md)",
+      "Edit(/config.toml)",
+      "Write(/config.toml)",
+      "Edit(/*.tex)",
+      "Write(/*.tex)",
+      "Edit(/*.sty)",
+      "Write(/*.sty)",
+      "Edit(/*.bib)",
+      "Write(/*.bib)",
+      "Bash(loom accept*)",
+      "Bash(loom atomize*)",
+      "Bash(loom inline*)",
+      "Bash(loom import*)",
+      "Bash(loom ai promote*)",
+      "Bash(loom delete*)",
+      "Bash(loom rm*)",
+      "Bash(loom remove*)",
+      "Bash(rm *)"
+    ]
+  }
+}

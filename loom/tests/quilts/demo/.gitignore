@@ -26,3 +26,4 @@ drafts/*.fls
 drafts/*.fdb_latexmk
 drafts/*.synctex.gz
 drafts/*.pdf
+ai/runs/*/bundle-*.tex

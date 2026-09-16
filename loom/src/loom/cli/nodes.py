@@ -9,6 +9,7 @@ import click
 
 from loom.cli._common import EXIT_CONTENT, EnvError, emit_json, note
 from loom.cli._quilt import open_scan, quilt_option
+from loom.cli.build_cmds import log_run
 from loom.clock import today
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
@@ -133,9 +134,11 @@ def search_entries(result: ScanResult, query: str, kind: str | None) -> list[dic
 @click.argument("query")
 @click.option("--kind", type=click.Choice(["node", "digest", "master", "thread"]), default=None)
 @click.option("--json", "as_json", is_flag=True)
+@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="DIR", help="Log this call to DIR/run.log.")
 @quilt_option
-def search(query: str, kind: str | None, as_json: bool, quilt_path: str | None) -> None:
+def search(query: str, kind: str | None, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Find ids by id, alias, title, taxon, tag, or citekey; exact matches first."""
+    log_run(run_dir, f"loom search {query}")
     result = open_scan(quilt_path)
     entries = search_entries(result, query, kind)
     if as_json:

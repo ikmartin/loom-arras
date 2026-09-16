@@ -94,7 +94,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
 def write_demo_quilt(target: Path) -> None:
     demo = ASSETS / "demo"
     target.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(str(demo), str(target), dirs_exist_ok=True)
+    shutil.copytree(str(demo), str(target), dirs_exist_ok=True, ignore=shutil.ignore_patterns("build", "__pycache__"))
     for cache in target.rglob("__pycache__"):
         shutil.rmtree(cache, ignore_errors=True)
 

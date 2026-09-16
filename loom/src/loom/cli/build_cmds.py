@@ -76,7 +76,12 @@ def bundle(
     result = open_scan(quilt_path)
     if not result.masters:
         raise ContentError("the quilt has no master; a bundle needs a preamble")
-    log_run(run_dir, "loom bundle " + " ".join(x for x in [key, "--with", with_file, "--draft", draft_file] if x))
+    parts = ["loom bundle"] + ([key] if key else [])
+    if with_file:
+        parts += ["--with", with_file]
+    if draft_file:
+        parts += ["--draft", draft_file]
+    log_run(run_dir, " ".join(parts))
     if draft_file:
         b = draft_bundle(result, Path(draft_file).expanduser())
         if b.missing:

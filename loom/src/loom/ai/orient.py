@@ -1,0 +1,77 @@
+"""`loom ai orient [--run RUN]` (book 11.3): the static orientation followed by what only the moment knows."""
+
+from __future__ import annotations
+
+from importlib import resources
+from pathlib import Path
+
+from loom.ai.runs import read_run_toml
+from loom.records.store import Records
+from loom.scan.scan import ScanResult
+
+
+def static_text(root: Path) -> str:
+    p = root / "ai" / "orientation.md"
+    if p.is_file():
+        return p.read_text(encoding="utf-8")
+    return resources.files("loom").joinpath("assets", "ai", "orientation.md").read_text(encoding="utf-8")
+
+
+def open_runs(root: Path) -> list[tuple[str, str, str]]:
+    """(relative path, slug, created) for every run not discarded, oldest first."""
+    out: list[tuple[str, str, str]] = []
+    runs = root / "ai" / "runs"
+    if not runs.is_dir():
+        return out
+    for d in sorted(p for p in runs.iterdir() if p.is_dir()):
+        meta = read_run_toml(d)
+        if meta.get("discarded") == "true":
+            continue
+        out.append((d.relative_to(root).as_posix(), meta.get("slug", d.name), meta.get("created", "")))
+    return out
+
+
+def live_text(result: ScanResult, records: Records, run: Path | None) -> str:
+    from loom.cli.review import status_payload
+
+    root = result.quilt.root
+    cfg = result.quilt.config
+    lines = ["", "---", "", "# Live state", ""]
+    lines.append(
+        f"- quilt: `{root.name}` at `{root}`; prefix `{cfg.prefix}`; main `{result.default_master or '(none)'}`"
+    )
+    lines.append(f"- masters: {', '.join(result.masters) if result.masters else '(none)'}")
+    payload = status_payload(result, records)
+    s = payload["summary"]
+    lines.append(
+        f"- status: {s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"
+    )
+    errors = sum(1 for d in result.lint if d.severity == "error")
+    lines.append(f"- lint: {errors} error(s); run `loom lint` for the list")
+    und = payload["undigested"]
+    lines.append("- undigested citekeys: " + (", ".join(und) if und else "none"))
+    runs = open_runs(root)
+    if runs:
+        lines.append("- open runs:")
+        for rel, slug, created in runs:
+            lines.append(f"  - `{rel}` ({slug}, created {created})")
+    else:
+        lines.append("- open runs: none")
+    if run is not None:
+        rel = run.relative_to(root).as_posix() if run.is_absolute() else run.as_posix()
+        lines += ["", f"# Your run: `{rel}`", ""]
+        lines.append(f"Pass `--run {rel}` on every command that accepts it (`export LOOM_RUN={rel}`).")
+        thread = run / "thread.md"
+        lines += ["", "## thread.md", ""]
+        lines.append(
+            thread.read_text(encoding="utf-8").rstrip("\n") if thread.is_file() else "(no thread.md yet; write one)"
+        )
+        log = run / "run.log"
+        lines += ["", "## run.log", ""]
+        lines.append(log.read_text(encoding="utf-8").rstrip("\n") if log.is_file() else "(empty)")
+        outputs = sorted(
+            p.name for p in run.iterdir() if p.is_file() and p.name not in ("run.toml", "run.log", "thread.md")
+        )
+        lines += ["", "## files in the run", ""]
+        lines.append(", ".join(outputs) if outputs else "(none)")
+    return "\n".join(lines) + "\n"

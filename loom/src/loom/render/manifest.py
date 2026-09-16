@@ -9,6 +9,7 @@ import re
 from typing import Any
 
 from loom.render.fragments import digest_macro_set, master_title, plain_text
+from loom.render.threads import build_threads
 from loom.scan.bib import citekey_slug
 from loom.scan.digests import source_version
 from loom.scan.directives import list_value
@@ -122,7 +123,7 @@ def build_manifest(
         "inclusion": {},
         "states": STATE_LABELS,
         "annotations": {},
-        "threads": {},
+        "threads": build_threads(result.quilt.root),
         "diagnostics": [d.to_dict() for d in diagnostics],
         "tags": {},
         "taxa": {},
@@ -268,6 +269,8 @@ def build_manifest(
         )
     for m in manifest["masters"]:
         manifest["search"].append({"key": m["path"], "title": m["title"], "kind": "master", "aliases": [], "tags": []})
+    for tid, t in manifest["threads"].items():
+        manifest["search"].append({"key": tid, "title": t["title"], "kind": "thread", "aliases": [], "tags": []})
     return manifest
 
 
