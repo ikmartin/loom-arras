@@ -106,7 +106,7 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
     assert [e["key"] for e in payload["proof"]] == ["dm-0002"]
     assert payload["closure"] == [{"key": "dm-0003"}]
     dp = run("deps", "dm-0003/proof", "--closure", cwd=demo)
-    assert "dm-0001" in dp.output and "dm-0002" in dp.output
+    assert dp.output.splitlines()[2:] == ["  dm-0002 (Lemma)", "  dm-0003 (Theorem)"]
     u = run("unravel", "dm-0001", "--json", cwd=demo)
     assert u.exit_code == 0, u.output
     up = json.loads(u.output)
