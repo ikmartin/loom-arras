@@ -107,6 +107,25 @@ INLINE_WRAP = {
     "mathrm": "",
 }
 IGNORED_CMDS = {
+    "titlepage",
+    "frametitle",
+    "framesubtitle",
+    "pause",
+    "usetheme",
+    "usecolortheme",
+    "logo",
+    "institute",
+    "date",
+    "author",
+    "title",
+    "subtitle",
+    "thanks",
+    "email",
+    "address",
+    "subjclass",
+    "keywords",
+    "urladdr",
+    "dedicatory",
     "noindent",
     "indent",
     "newline",
@@ -505,10 +524,13 @@ class Converter:
                 continue
             if t.kind == "cmd":
                 name = t.value
-                if name in SECTIONING:
+                if name in ("iffalse", "if0"):
+                    i = self._skip_conditional(toks, i)
+                    continue
+                if name.rstrip("*") in SECTIONING:
                     flush(t.start)
                     (short, title), spans, after = read_args(clean, t.end, "om")
-                    level = SECTIONING[name]
+                    level = SECTIONING[name.rstrip("*")]
                     h = min(max(level, 1), 6)
                     title_html = self.inline_text(title or "", spans[1][0]) if title is not None else ""
                     out.append(f'<h{h} data-src="{ctx.src(t.start, after)}">{title_html}</h{h}>')
@@ -563,6 +585,21 @@ class Converter:
                 depth -= 1
                 if depth == 0:
                     return k
+        return len(toks)
+
+    def _skip_conditional(self, toks: list[Tok], i: int) -> int:
+        """Skip from an \\iffalse to its matching \\fi, honouring nested conditionals."""
+        depth = 0
+        for k in range(i, len(toks)):
+            t = toks[k]
+            if t.kind != "cmd":
+                continue
+            if t.value.startswith("if") and t.value not in ("iff",):
+                depth += 1
+            elif t.value == "fi":
+                depth -= 1
+                if depth == 0:
+                    return k + 1
         return len(toks)
 
     def _skip_to(self, toks: list[Tok], i: int, pos: int) -> int:
@@ -673,6 +710,22 @@ class Converter:
         if name in ("label", "uses"):
             (_,), _, after = args("m")
             return None, after, None
+        if name in (
+            "newcommand",
+            "renewcommand",
+            "providecommand",
+            "DeclareMathOperator",
+            "def",
+            "let",
+            "newtheorem",
+            "theoremstyle",
+            "newenvironment",
+            "renewenvironment",
+            "setlength",
+            "newlength",
+            "newcounter",
+        ):
+            return None, self._skip_definition(name, t, text_override, toks), None
         if name == "\\":
             (_,), _, after = args("o")
             return "<br>", max(after, t.end), None
@@ -703,6 +756,23 @@ class Converter:
             return SYMBOLS[name], t.end, None
         if name in IGNORED_CMDS:
             spec = {
+                "frametitle": "m",
+                "framesubtitle": "m",
+                "usetheme": "om",
+                "usecolortheme": "om",
+                "logo": "m",
+                "institute": "om",
+                "date": "om",
+                "author": "om",
+                "title": "om",
+                "subtitle": "om",
+                "thanks": "m",
+                "email": "m",
+                "address": "m",
+                "subjclass": "om",
+                "keywords": "m",
+                "urladdr": "m",
+                "dedicatory": "m",
                 "vspace": "m",
                 "vspace*": "m",
                 "hspace": "m",
@@ -745,6 +815,41 @@ class Converter:
                 return f'<span class="math inline">\\({esc(expansion)}\\)</span>', after, None
             return self.inline_text(expansion, t.start, depth + 1), after, None
         return esc("\\" + name), t.end, f"unknown command \\{name}"
+
+    def _skip_definition(self, name: str, t: Tok, text_override: str | None, toks: list[Tok]) -> int:
+        """Position after a definition command and its arguments, which the converter never renders."""
+        from loom.scan.macros import _read_body, _read_name
+
+        text = self.ctx.clean if text_override is None else text_override
+        base = 0 if text_override is None else (toks[0].start if toks else t.start)
+        pos = t.end - base
+        if name == "let":
+            _, pos = _read_name(text, pos)
+            if pos < len(text) and text[pos] == "=":
+                pos += 1
+            _, pos = _read_name(text, pos)
+            return pos + base
+        if name in ("theoremstyle", "setlength", "newlength", "newcounter"):
+            _, _, after = read_args(text, pos, "m" if name != "setlength" else "mm")
+            return after + base
+        if name == "newtheorem":
+            _, _, after = read_args(text, pos, "momo")
+            return after + base
+        if name in ("newenvironment", "renewenvironment"):
+            _, _, after = read_args(text, pos, "moomm")
+            return after + base
+        if name == "def":
+            _, pos = _read_name(text, pos)
+            m = re.match(r"[^{]*", text[pos:])
+            pos += m.end() if m else 0
+            _, pos = _read_body(text, pos)
+            return pos + base
+        _, pos = _read_name(text, pos)
+        _, _, pos = read_args(text, pos, "oo")
+        _, pos = _read_body(text, pos)
+        if name == "DeclareMathOperator":
+            pass
+        return pos + base
 
     def ref_html(self, cmd: str, label: str, span: tuple[int, int]) -> str:
         ctx = self.ctx

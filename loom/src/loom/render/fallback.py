@@ -81,6 +81,7 @@ def compile_svg(
     latex_bin: str = "latex",
     dvisvgm_bin: str = "dvisvgm",
     timeout: int = 120,
+    texinputs: Path | None = None,
 ) -> SvgResult:
     key = _hash(preamble, body, border)
     cache_dir.mkdir(parents=True, exist_ok=True)

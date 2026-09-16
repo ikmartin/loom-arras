@@ -37,6 +37,7 @@ class Checker(HTMLParser):
         self.name = name
         self.problems: list[str] = []
         self.svg_depth = 0
+        self.figure_depth = 0
         self.seen_any = False
 
     def _add(self, msg: str) -> None:
@@ -47,6 +48,8 @@ class Checker(HTMLParser):
         self.seen_any = True
         if tag == "svg":
             self.svg_depth += 1
+        if tag == "figure":
+            self.figure_depth += 1
         if self.svg_depth and tag != "svg":
             return
         if tag in FORBIDDEN:
@@ -68,7 +71,7 @@ class Checker(HTMLParser):
                 self._add("div.include without data-key")
             if ("env" in classes or "math" in classes or "included" in classes) and "data-src" not in a and "include" not in classes:
                 self._add(f"div.{'.'.join(sorted(classes))} without data-src")
-        elif tag in BLOCKS_NEEDING_SRC and "data-src" not in a and "env-label" not in classes:
+        elif tag in BLOCKS_NEEDING_SRC and "data-src" not in a and "env-label" not in classes and not (tag == "pre" and self.figure_depth):
             self._add(f"<{tag}> without data-src")
         if "data-src" in a and not re.match(r"^[^:]+:\d+:\d+$", a["data-src"]):
             self._add(f"malformed data-src {a['data-src']!r}")
@@ -83,6 +86,8 @@ class Checker(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "svg" and self.svg_depth:
             self.svg_depth -= 1
+        if tag == "figure" and self.figure_depth:
+            self.figure_depth -= 1
 
 
 def check(path: Path) -> list[str]:

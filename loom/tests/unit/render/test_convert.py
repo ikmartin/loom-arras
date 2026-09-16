@@ -126,3 +126,12 @@ def test_convert_children_and_inclusions_become_placeholders() -> None:
     )
     assert calls == []
     assert re.search(r'<p data-src="f.tex:\d+:\d+">After\.</p>', out)
+
+
+def test_convert_conditionals_definitions_starred_sections() -> None:
+    text = "\\section*{Overview}\nA \\let\\Hom\\undefined \\newcommand{\\Hom}{\\mathrm{Hom}} paragraph.\n\\iffalse\n\\input{nodes/missing} and \\mystery{x}\n\\fi\nAfter.\n"
+    out, ctx, calls = make(text)
+    assert "<h1 " in out and "Overview" in out
+    assert "After." in out and "missing" not in out and "mystery" not in out
+    assert calls == [] and ctx.diagnostics == []
+    assert "paragraph." in out

@@ -77,10 +77,11 @@ class FragmentRenderer:
         preamble = self._fallback_preamble(master)
 
         def render(latex: str, css: str, data_src: str) -> str:
-            res = compile_svg(latex, preamble, self.plan.svg_cache)
+            root = self.result.quilt.root
+            res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=root)
             if res.svg is None:
                 minimal = "\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{tikz}\n\\usetikzlibrary{cd}\n"
-                res = compile_svg(latex, minimal, self.plan.svg_cache)
+                res = compile_svg(latex, minimal, self.plan.svg_cache, texinputs=root)
             if res.svg is None:
                 self.plan.diagnostics.append(
                     Diagnostic("warning", "loom:converter-fallback", f"SVG fallback failed: {res.error}", [], [])
