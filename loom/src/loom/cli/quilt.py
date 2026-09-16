@@ -162,9 +162,7 @@ def init(
         note(f"created quilt {target} with prefix {chosen}")
     note(GITIGNORE_NOTE)
     if git_init and _git_init(target):
-        note(
-            f"git init {target}: a repository, because --git asked for one. Loom reads no history and needs none; the quilt is files."
-        )
+        note(f"git init {target} (--git asked; loom itself reads no history)")
     _write_user_config_template()
     if paper is not None:
         from loom.cli.paper import run_import
