@@ -19,3 +19,8 @@ Every place the implementation departs from a `[decided]` statement, or settles 
 | 2026-09-15 | diagnostics.md, 8.1.2 | unreachable for a node or file | once per loose file, never for digests | noise | DR-51 | n |
 | 2026-09-15 | diagnostics.md | fixed code table | five codes added | new conditions | DR-52 | n |
 | 2026-09-15 | 5.5.1 | unknown-environment when a node uses an undeclared ENV | detected only for common theorem-like names | needs a heuristic | DR-53 | n |
+| 2026-09-15 | 10.1.1, 10.7 | prerender every route to static files so a site is crawlable | shell prerender: one index.html per route plus the build directory; content loads client-side | needs a second data path; deferred | DR-54 | n |
+| 2026-09-15 | 9.4.3, 10.1 (assumed) | MathJax 3 | MathJax 3 tex-svg, bundled | no font assets offline | DR-55 | n |
+| 2026-09-15 | 8.3.5, 10.1 | arras takes one macro set per page | per-fragment set applied via \renewcommand inside the fragment's math | MathJax macros are global | DR-56 | n |
+| 2026-09-15 | 10.1.2 | hash routing under file:// | path routing; SPA fallback in loom serve; file:// unsupported | router type is build-time | DR-57 | n |
+| 2026-09-15 | specs/fixture.md §1 | missing \input and beamer talk redeclaring lemma | \iffalse-guarded missing include; talk declares proposition | both masters must compile | DR-58 | n |
