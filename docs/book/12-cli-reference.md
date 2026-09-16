@@ -321,7 +321,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--from` `FILE` | Import an existing paper: FILE is its main .tex file, anywhere on disk. |
 | `--demo` | Write the demo quilt instead of a minimal master. |
 | `--prefix` | Id prefix for new nodes. |
-| `--no-git` | Do not run git init. |
+| `--git` | Also run git init. A quilt is files; loom reads no history. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
 | `--fix-anchoring` | With --from: rewrite the copies so theorem-like environments are line-anchored. |
 

@@ -6,7 +6,7 @@ The governing rule is P7: loom never modifies an author file. Every operation he
 
 ## 6.1 `loom init DIR --from FILE`
 
-**[decided]** Creates the quilt as in 4.7, then performs `import FILE` into it. `FILE` is the paper's main `.tex` file, anywhere on disk. The two are one command because it is the common case. `--prefix`, `--yes`, and `--fix-anchoring` (6.2) pass through to the import; `--no-git` skips `git init`.
+**[decided]** Creates the quilt as in 4.7, then performs `import FILE` into it. `FILE` is the paper's main `.tex` file, anywhere on disk. The two are one command because it is the common case. `--prefix`, `--yes`, and `--fix-anchoring` (6.2) pass through to the import; `--git` additionally makes the quilt a repository, which loom otherwise does not do (4.7).
 
 **[decided]** `loom import FILE`, run inside an existing quilt, is the same operation without creating the quilt. It may be run more than once, for a second master or a section file that was not reached.
 

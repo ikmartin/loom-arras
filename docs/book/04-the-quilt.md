@@ -169,10 +169,10 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and
 - `loom.sty`.
 - `drafts/main.tex`, a minimal amsart master: `\documentclass{amsart}`, `\usepackage{amsmath,amssymb,amsthm}`, `\usepackage{loom}`, a `\newtheorem` block declaring theorem, lemma, proposition, corollary (plain), definition, example (definition), and remark (remark), numbered within section through the theorem counter, `\title{Untitled}`, `\begin{document}`, `\maketitle`, `\section{Introduction}`, `\end{document}`. With `--from`, no minimal master is written; the imported paper's master takes its place.
 - `nodes/` (empty), `refs/` (empty), `comments/` (empty).
-- `.gitignore` containing `build/`, `refs/pdf/`, `refs/src/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.bcf *.run.xml *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf`), each anchored to the root and to `drafts/` so that a node file's neighbours are never matched.
+- `.gitignore` containing `build/`, `refs/pdf/`, `refs/src/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.bcf *.run.xml *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf`), each anchored to the root and to `drafts/` so that a node file's neighbours are never matched. It is written whether or not the quilt is a repository, because it costs nothing and is right the day it becomes one, and `init` says what it ignores and why.
 - `README.md` containing the contract page (the same text as the loom README's contract section).
 - the user config of 4.3, with a commented template, if it does not exist.
-- `git init` if the directory is not inside a git repository, unless `--no-git`.
+- `git init`, **only** when `--git` is given, and then only if git is installed and the directory is not already inside a work tree; `init` says so when it happens. Loom uses version control for nothing: it never stages, commits, branches, tags, or reads history, and no command requires a quilt to be a repository. Making one is therefore the author's act, not the tool's (DR-105).
 
 `loom init --from FILE` additionally performs an import (Chapter 6); the import refuses a paper whose theorem-like `\begin` and `\end` lines are not line-anchored (5.2.3) unless `--fix-anchoring` is given, in which case it rewrites the copies it makes (DR-40); `--yes` skips questions and confirms the import. `loom init --demo` writes the demo quilt instead of the minimal master (Chapter 14). `loom init` does not create `ai/`; that is `loom ai init` (Chapter 11).
 
@@ -196,6 +196,8 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/pdf/`, and
 ## 4.10 Coauthors
 
 **[decided]** Coauthors clone the quilt. `config.toml`, `.loom/`, `comments/`, `refs/*.tex`, and everything the author wrote are shared; `build/`, `refs/pdf/`, and personal files are not. Acceptance rows carry the accepting author's name from their own user config. Two coauthors allocating ids on separate branches can collide (both get `rl-0011`); the merge produces `duplicate-id`, and since the newer node is unreferenced, renaming it is a one-line fix; per-author prefixes avoid it.
+
+**[decided]** Loom's whole relationship with version control is this: it writes a `.gitignore`, it makes a repository when `--git` asks, `loom doctor` notices whether git is installed, and the ledger is written as one table per key so that two people accepting different keys merge cleanly. It reads no history and writes none. The snapshots under `.loom/` exist because loom cannot assume the quilt is versioned, not as a substitute for versioning it.
 
 **[assumed]** No merge tooling for the ledger in the MVP. TOML tables per key merge cleanly under git for different keys; the same key accepted concurrently by two people produces a textual conflict that either resolution leaves consistent, since both rows are valid acceptances.
 

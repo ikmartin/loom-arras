@@ -7,6 +7,6 @@ if ! command -v loom >/dev/null 2>&1 && ! [ -x ../loom/.venv/bin/loom ]; then
   exit 2
 fi
 LOOM=${LOOM:-../loom/.venv/bin/loom}
-rm -rf demo && "$LOOM" init demo --demo --no-git --yes
+rm -rf demo && "$LOOM" init demo --demo --yes
 rm -rf synthetic && cp -R ../loom/tests/quilts/synthetic synthetic
 echo "refreshed demos/demo and demos/synthetic"
