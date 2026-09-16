@@ -2,6 +2,7 @@
 	// The contents tree of the current document (book 15.2, 15.4). Identical in all three shells.
 	import type { ContentsEntry } from '$lib/contents';
 	import { readUrl } from '$lib/nav';
+	import Tex from '$lib/math/Tex.svelte';
 
 	let { entries, masterPath, current = '' }: { entries: ContentsEntry[]; masterPath: string; current?: string } = $props();
 </script>
@@ -15,7 +16,7 @@
 					aria-current={current === e.key ? 'true' : undefined}
 					class:current={current === e.key}
 				>
-					{#if e.number}<span class="num">{e.number}</span>{/if}{e.title}
+					{#if e.number}<span class="num">{e.number}</span>{/if}<Tex text={e.title} />
 				</a>
 			</li>
 		{:else}

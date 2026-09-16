@@ -9,6 +9,7 @@
 	import AnnotationPanel from '$lib/components/AnnotationPanel.svelte';
 	import RailList from '$lib/components/RailList.svelte';
 	import PageRail from '$lib/shell/PageRail.svelte';
+	import Tex from '$lib/math/Tex.svelte';
 	import { nodeBadge, reviewFacts, stateBadge } from '$lib/badges';
 	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
@@ -75,7 +76,7 @@
 		<p class="muted">The manifest has no node <code>{key}</code>.</p>
 	{:else}
 		<header class="node-head">
-			<h1>{node.title ?? node.id}{#if number}<span class="num">{number}</span>{/if}</h1>
+			<h1><Tex text={node.title ?? node.id} />{#if number}<span class="num">{number}</span>{/if}</h1>
 			<p class="meta">
 				<span class="taxon">{node.taxon}</span>
 				<IdChip id={node.id} aliases={node.aliases} />
