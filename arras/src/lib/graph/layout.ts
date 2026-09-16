@@ -94,7 +94,7 @@ export function closureOf(m: Manifest, id: string): Set<string> {
 }
 
 type ElkNode = { id: string; width?: number; height?: number; children?: ElkNode[]; labels?: { text: string }[]; x?: number; y?: number; layoutOptions?: Record<string, string> };
-type ElkEdge = { id: string; sources: string[]; targets: string[]; sections?: { startPoint: { x: number; y: number }; endPoint: { x: number; y: number }; bendPoints?: { x: number; y: number }[] }[] };
+type ElkEdge = { id: string; sources: string[]; targets: string[]; sections?: { id: string; startPoint: { x: number; y: number }; endPoint: { x: number; y: number }; bendPoints?: { x: number; y: number }[] }[] };
 
 export async function layout(m: Manifest, f: Filters): Promise<Layout> {
 	const { nodes, edges } = graphInput(m, f);
