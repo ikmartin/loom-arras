@@ -27,19 +27,19 @@ Markers as elsewhere. The chapter was written before the viewer was built and it
 
 ![Shell A](figures/shell-a-rail-sections.png)
 
-**[decided]** A 178px rail, `--leaf`, hairline right border, holding stacked sections separated by 10px and small-caps 9px muted labels: the corpus label (13px, no label) with the settings control beside it; `VIEW` (the six views as 13px rows with a 15px leading icon, the current one on `--link-wash` with `--link` text, and search below them); the page's own panel when it has registered one; `DOCUMENT` (a select, full rail width minus 2×14px); `CONTENTS` (the heading tree of the current document, indent 10px per level, the current section marked by a 2px `--link` bar on the left edge and `--ink` text); `INDEXES`; and the counts. No top bar.
+**[decided]** A 267px rail, `--leaf`, hairline right border, holding stacked sections separated by 10px and small-caps 9px muted labels: the corpus label (13px, no label) with the settings control beside it; `VIEW` (the six views as 13px rows with a 15px leading icon, the current one on `--link-wash` with `--link` text, and search below them); the page's own panel when it has registered one; `DOCUMENT` (a select, full rail width minus 2×14px); `CONTENTS` (the heading tree of the current document, indent 10px per level, the current section marked by a 2px `--link` bar on the left edge and `--ink` text); `INDEXES`; and the counts. No top bar.
 
 ### 15.2.2 Shell B: top bar and tabs
 
 ![Shell B](figures/shell-b-topbar-tabs.png)
 
-**[decided]** A 30px top bar, `--leaf`, hairline bottom border: the corpus label (12px) at the left; a breadcrumb beside it naming the current document; view tabs pushed right, the current one on `--link-wash`; a search affordance and the settings control at the far right. The rail below is 160px and holds the document picker, the page's panel when it has one, the contents tree, the indexes and the counts.
+**[decided]** A 30px top bar, `--leaf`, hairline bottom border: the corpus label (12px) at the left; a breadcrumb beside it naming the current document; view tabs pushed right, the current one on `--link-wash`; a search affordance and the settings control at the far right. The rail below is 240px and holds the document picker, the page's panel when it has one, the contents tree, the indexes and the counts.
 
 ### 15.2.3 Shell C: icon strip and panel
 
 ![Shell C](figures/shell-c-icon-strip.png)
 
-**[decided]** A 44px icon strip, `--leaf`, holding the home mark and six 19px view icons at a 38px vertical pitch, the current one on a 32×26px `--link-wash` with `--rad-control`, search below them and the settings control at the foot; every icon has an `aria-label` and a tooltip. The settings panel opens upward from that control, because a panel hung below the foot of a full-height column opens past the bottom of the window. Beside the strip a 168px panel: the page's own panel when it has registered one, otherwise the document picker above the contents tree in the views that are about a document and the view list elsewhere, with the indexes and the counts below. Default shell.
+**[decided]** A 44px icon strip, `--leaf`, holding the home mark and six 19px view icons at a 38px vertical pitch, the current one on a 32×26px `--link-wash` with `--rad-control`, search below them and the settings control at the foot; every icon has an `aria-label` and a tooltip. The settings panel opens upward from that control, because a panel hung below the foot of a full-height column opens past the bottom of the window. Beside the strip a 252px panel: the page's own panel when it has registered one, otherwise the document picker above the contents tree in the views that are about a document and the view list elsewhere, with the indexes and the counts below. Default shell.
 
 ## 15.3 Page anatomy
 
@@ -118,6 +118,8 @@ See 15.5.
 
 **[decided]** Arras defines its own token vocabulary. It does not adopt the names used in these design documents or in any other product's design system: borrowing names would imply a shared system that does not exist, and arras's vocabulary should describe what it renders, which is a page of mathematics rather than application chrome. The names below are drawn from print. Every colour, measure, and typeface is a variable; no component hardcodes a value.
 
+**[decided]** Padding and borders count inside a declared size, everywhere. A rail is `height: 100vh` with padding, and without this it is that much taller than the window, which puts the settings control and the counts line below the fold (DR-99).
+
 **[decided]** Visual character: a warm off-white page, hairline rules rather than borders, generous line height, no shadows, no filled chrome, colour used only to carry meaning. Claude's web interface is a reasonable reference for that character; nothing is copied from it.
 
 **[decided]** The vocabulary, with the light-mode values the viewer ships:
@@ -137,8 +139,8 @@ See 15.5.
 | `--mark` | `#faeeda` | annotation highlight behind marked text |
 | `--gap-hair` `--gap-tight` `--gap` `--gap-wide` | 4, 8, 12, 20px | spacing scale |
 | `--rad-pill` `--rad-control` `--rad-card` | 4, 8, 12px | radii |
-| `--rail-left` `--rail-right` `--strip` | 168, 236, 44px | the fixed widths of 15.2 |
-| `--rail-a` `--rail-b` `--topbar` | 178, 160, 30px | shell A's rail, shell B's rail, shell B's bar |
+| `--rail-left` `--rail-right` `--strip` | 252, 236, 44px | the fixed widths of 15.2 |
+| `--rail-a` `--rail-b` `--topbar` | 267, 240, 30px | shell A's rail, shell B's rail, shell B's bar |
 | `--gutter` | `(100cqw − --measure) / 3` | the read view's gutters, on the site generator's algebra |
 | `--env-accent` | 3px | the per-taxon rule, and the boundary the left gutter ends at |
 | `--measure` | 36rem, 44rem, 52rem by setting | body line width; the middle is the site generator's |
@@ -178,7 +180,7 @@ NavShell({ label, views, currentView, masters, currentMaster, contents,
   renders the page, the page's right rail, and the page's left panel
 ```
 
-Rules: pages receive no shell props and import no shell module; a page that needs a right rail or a left panel registers one, and the shell places it; a page's title lives in the page, never in the shell; the three arrangements differ only in placement, never in what they contain. Adding an element to one shell means adding it to all three or to none. Every rail is a scroll container, and that belongs to the shell rather than to any page's stylesheet, so no view can regress it.
+Rules: pages receive no shell props and import no shell module; a page that needs a right rail or a left panel registers one, and the shell places it; a page's title lives in the page, never in the shell; the three arrangements differ only in placement, never in what they contain. Adding an element to one shell means adding it to all three or to none. Every rail is a scroll container, and that belongs to the shell rather than to any page's stylesheet, so no view can regress it. A rail's scrollbar is `thin` with a transparent thumb until the pointer or the keyboard is in the rail, so a contents tree of 74 entries does not carry a grey stripe down the side of every page; the space it needs is reserved either way, so nothing shifts when it appears (DR-99).
 
 **[decided]** Shared components as built: `Badge(parts, facts)` and `IdChip(id, aliases)` for the header line; `RailList(label, empty)` for every section of the right rail; `DiffView(path)` for the two-column diff of 15.3.5; `HelpDot(label, topic)` for the question mark of 15.3.5; `Contents`, `DocumentPicker` and `Settings` shared by the three shells; `PageRail` and `PagePanel`, the two registries; `Tex(text)`, which typesets a title that carries mathematics, since a title keeps its `$…$` rather than losing it (DR-96).
 
