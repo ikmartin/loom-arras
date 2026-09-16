@@ -62,6 +62,54 @@ CONTAINER_ENVS = {
     "minipage",
 }
 DIAGRAM_ENVS = {"tikzcd", "tikzpicture", "xy", "xymatrix"}
+# Environments a mathematics renderer handles inside a display; anything else in one means the block is a picture and belongs to the fallback (book 9.4.2).
+MATH_SAFE_ENVS = {
+    # the display environments themselves, which `display_env` wraps back up before this is asked
+    "equation",
+    "displaymath",
+    "align",
+    "gather",
+    "multline",
+    "eqnarray",
+    "alignat",
+    "flalign",
+    "array",
+    "matrix",
+    "pmatrix",
+    "bmatrix",
+    "Bmatrix",
+    "vmatrix",
+    "Vmatrix",
+    "smallmatrix",
+    "cases",
+    "dcases",
+    "rcases",
+    "aligned",
+    "alignedat",
+    "gathered",
+    "split",
+    "subarray",
+    "subequations",
+    "multlined",
+    "CD",  # amscd, which a viewer's renderer draws natively; it is a diagram but not a picture
+}
+# Commands that draw rather than typeset. `\xymatrix` is the common one: it is a command, not an environment, so an environment test alone never sees it.
+_DRAWS = re.compile(
+    r"\\(xymatrix|xygraph|xybox|tikz|pgfplots|includegraphics|scalebox|resizebox|raisebox|parbox|fbox|shortstack)(?![A-Za-z])"
+)  # `\xymatrix@C=1cm{...}` is `\xymatrix` followed by xy's own syntax, so only a letter continues the control word
+_ENV_IN = re.compile(r"\\begin\s*\{([^}]*)\}")
+
+
+def renders_as_math(tex: str) -> bool:
+    """Whether a display block is mathematics a renderer can typeset, or a picture the fallback must compile.
+
+    A block naming an environment outside `MATH_SAFE_ENVS`, or a drawing command, is a picture. Deciding by an allowlist rather than by a list of known offenders means an environment nobody anticipated goes to LaTeX, which can always render it, instead of to a renderer that cannot.
+    """
+    if _DRAWS.search(tex):
+        return False
+    return all(name.strip().rstrip("*") in MATH_SAFE_ENVS for name in _ENV_IN.findall(tex))
+
+
 VERBATIM_ENVS = {"verbatim", "verbatim*", "lstlisting"}
 SECTIONING = {
     "part": -1,
@@ -744,9 +792,11 @@ class Converter:
         if name in INLINE_WRAP:
             tag = INLINE_WRAP[name]
             if tag == "!color":
-                (_, _, body), spans, after = args("omm")
+                (_, colour, body), spans, after = args("omm")
                 inner = self.inline_text(body or "", spans[2][0], depth + 1)
-                return inner, after, None
+                # the colour's LaTeX name travels to the viewer, which knows the common ones and lets anything else inherit; dropping it lost an author's own convention for marking unverified text
+                named = html.escape(re.sub(r"\s+", " ", colour or "").strip(), quote=True)
+                return (f'<span class="tex-color" data-color="{named}">{inner}</span>' if named else inner), after, None
             if tag == "!decl":
                 (_, _), _, after = args("om")
                 return None, after, None
@@ -820,8 +870,9 @@ class Converter:
             expansion = expand(macro, arg_values)
             if not expansion.strip():
                 return None, after, None
+            # whether a macro is mathematics is a property of its definition, not of what it is applied to: testing the expansion made `\red{... \cite{author_Title2025} ...}` mathematics because a citekey holds an underscore, and set a paragraph of prose in the renderer's error colour
             if (
-                re.search(r"\\(mathrm|mathbf|mathcal|mathbb|frac|operatorname)\b|[\^_]", expansion)
+                re.search(r"\\(mathrm|mathbf|mathcal|mathbb|frac|operatorname)\b|[\^_]", macro.body)
                 and "$" not in expansion
             ):
                 return f'<span class="math inline">\\({esc(expansion)}\\)</span>', after, None
@@ -961,13 +1012,36 @@ class Converter:
 
     def display_block_html(self, tex: str, start: int, end: int, label: str | None) -> str:
         ctx = self.ctx
-        attrs = f' data-src="{ctx.src(start, end)}"'
+        src = ctx.src(start, end)
+        num = number_of(ctx, label) if label else None
+        if not renders_as_math(tex):
+            # a commutative diagram written inside a display environment is a picture; handing it to the viewer's mathematics renderer sets the whole block in error colour
+            figure = ctx.fallback(self._undisplay(ctx.text[start:end]), "diagram", src)
+            extra = ""
+            if label:
+                extra += f' id="{slug(ctx.key + "-" + label)}" data-label="{html.escape(label, quote=True)}"'
+            if num:
+                extra += f' data-number="{html.escape(num, quote=True)}"'
+            return figure.replace("<figure ", f"<figure{extra} ", 1) if extra else figure
+        attrs = f' data-src="{src}"'
         if label:
             attrs += f' id="{slug(ctx.key + "-" + label)}" data-label="{html.escape(label, quote=True)}"'
-            num = number_of(ctx, label)
             if num:
                 attrs += f' data-number="{html.escape(num, quote=True)}"'
         return f'<div class="math display"{attrs}>{esc(tex)}</div>'
+
+    @staticmethod
+    def _undisplay(raw: str) -> str:
+        """The block as the fallback should compile it: numbered display environments starred, so the picture carries no number of its own.
+
+        The number the document gave it is on the figure, where a viewer can print it; a standalone compile would otherwise start counting again and print (1).
+        """
+        out = re.sub(
+            r"\\(begin|end)\s*\{(equation|align|gather|multline|eqnarray|alignat|flalign)\}", r"\\\1{\2*}", raw
+        )
+        out = re.sub(r"\\label\s*\{[^}]*\}", "", out)
+        # a label alone on its line leaves a blank one behind, and a blank line inside a display environment is a LaTeX error
+        return re.sub(r"\n[ \t]*\n+", "\n", out)
 
     # ---- lists, figures, tables ----------------------------------------------------
 

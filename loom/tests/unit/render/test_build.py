@@ -197,3 +197,16 @@ def test_build_dir_deletable_and_regenerated(tmp_path: Path) -> None:
     shutil.rmtree(d / "build")
     rep = build(load_quilt(d))
     assert (d / "build" / "manifest.json").exists() and rep.rendered
+
+
+def test_a_display_that_is_a_picture_goes_to_the_fallback(tmp_path: Path) -> None:
+    """A commutative diagram written inside a numbered display is a picture, not a formula: handing it to the viewer's mathematics renderer sets the whole block in error colour, which is what the relative localization and ACGS papers showed."""
+    from loom.render.convert import renders_as_math
+
+    assert not renders_as_math(r"\[\tag{2}\begin{tikzcd} a \arrow[r] & b \end{tikzcd}\]")
+    assert not renders_as_math(r"\[\xymatrix{A \ar[r] & B}\]")  # a command, not an environment
+    assert not renders_as_math(r"\[\includegraphics{a.pdf}\]")
+    # and everything a renderer does handle stays mathematics
+    assert renders_as_math(r"\begin{align*}\begin{pmatrix}1\end{pmatrix}\end{align*}")
+    assert renders_as_math(r"\[\begin{cases} 1 & x > 0 \end{cases}\]")
+    assert renders_as_math(r"\[x^2 + \frac{1}{2}\]")

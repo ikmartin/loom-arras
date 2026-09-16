@@ -14,7 +14,7 @@ from loom.scan.bib import citekey_slug
 from loom.scan.digests import source_version
 from loom.scan.directives import list_value
 from loom.scan.hashing import child_marker, hash_text
-from loom.scan.macros import to_mathjax
+from loom.scan.macros import compatibility_macros, declared_alphabets, to_mathjax
 from loom.scan.model import Diagnostic
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
@@ -262,6 +262,11 @@ def build_manifest(
         for k, v in (closure.macros.items() if closure else [])
         if v.kind != "let" and k not in ("uses", "incomplete", "nest")
     }
+    # an alphabet declared with \DeclareMathAlphabet is a font the renderer has never heard of, and a body may use commands it does not implement; both are published as the nearest thing it can draw, so an author's own macro renders rather than reaching the page in error colour
+    if closure is not None:
+        for name, macro in declared_alphabets(closure.clean_text()).items():
+            mathjax_macros.setdefault(name, macro)
+    mathjax_macros.update(compatibility_macros(mathjax_macros))
     manifest["macros"]["default"] = to_mathjax(mathjax_macros)
     for key, entry in manifest["nodes"].items():
         manifest["search"].append(

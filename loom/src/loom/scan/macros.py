@@ -186,6 +186,50 @@ def resolve_conditionals(body: str) -> str:
     return out
 
 
+# LaTeX commands an author's macro body may use that a viewer's mathematics renderer does not implement, with the closest form it does. Each keeps the content and gives up only presentation, which is the trade a red error message loses on both sides.
+COMPATIBILITY: dict[str, tuple[int, str]] = {  # name -> (argument count, body)
+    "ensuremath": (1, "#1"),  # inside a formula this is the identity, which is where a macro body is always used
+    "scalebox": (2, "#2"),  # the scale is given up; the content is not
+    "resizebox": (3, "#3"),
+    "raisebox": (2, "#2"),
+    "mbox": (1, r"\text{#1}"),
+    "hbox": (1, r"\text{#1}"),
+}
+
+# `\DeclareMathAlphabet{\name}{encoding}{family}{series}{shape}` declares a font a renderer does not have. The family is mapped to the nearest alphabet the renderer does have; an unrecognised family becomes upright roman, which is legible and honest, rather than an error.
+_ALPHABET = re.compile(r"\\DeclareMathAlphabet\s*\{\s*\\([A-Za-z@]+)\s*\}\s*\{[^}]*\}\s*\{([^}]*)\}")
+_FAMILY_ALPHABET = {
+    "pzc": "mathcal",  # Zapf Chancery, the usual choice for a script alphabet
+    "rsfs": "mathscr",
+    "eus": "mathscr",
+    "euf": "mathfrak",
+    "bbold": "mathbb",
+    "dsrom": "mathbb",
+    "cmss": "mathsf",
+    "cmtt": "mathtt",
+}
+
+
+def declared_alphabets(text: str) -> dict[str, Macro]:
+    r"""Alphabets declared with `\DeclareMathAlphabet`, as macros mapping each to the nearest alphabet a renderer has."""
+    out: dict[str, Macro] = {}
+    for m in _ALPHABET.finditer(text):
+        name, family = m.group(1), m.group(2).strip()
+        target = _FAMILY_ALPHABET.get(family, "mathrm")
+        out[name] = Macro(name=name, args=1, body=f"\\{target}{{#1}}")
+    return out
+
+
+def compatibility_macros(used: dict[str, Macro]) -> dict[str, Macro]:
+    """The compatibility definitions any published body actually needs, so nothing is defined for a renderer that will never see it."""
+    bodies = "".join(m.body for m in used.values())
+    return {
+        name: Macro(name=name, args=args, body=body)
+        for name, (args, body) in COMPATIBILITY.items()
+        if re.search(r"\\" + name + r"(?![A-Za-z@])", bodies)
+    }
+
+
 def to_mathjax(macros: dict[str, Macro]) -> list[dict[str, object]]:
     """The manifest's macro list: {name, args, body}, sorted by name (book specs/manifest.md §14)."""
     return [

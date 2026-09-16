@@ -20,7 +20,7 @@ _SVG_OPEN_RE = re.compile(r"<svg\b[^>]*>", re.S)
 _WIDTH_RE = re.compile(r"""\swidth=['"]([\d.]+)(pt|px)['"]""")
 _HEIGHT_RE = re.compile(r"""\sheight=['"]([\d.]+)(pt|px)['"]""")
 _BASE_PT = 10.0
-MINIMAL_PREAMBLE = "\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{tikz}\n\\usetikzlibrary{cd}\n"
+MINIMAL_PREAMBLE = "\\usepackage{amsmath,amssymb,amsthm,amscd}\n\\usepackage{tikz}\n\\usetikzlibrary{cd}\n"
 
 
 @dataclass

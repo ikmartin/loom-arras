@@ -59,3 +59,26 @@ def test_a_conditional_that_cannot_be_resolved_is_left_alone() -> None:
     body = r"\ifdim 1pt>0pt A\else B\fi"
     m = parse_macros(r"\newcommand\z{" + body + "}")
     assert to_mathjax(m)[0]["body"] == body
+
+
+def test_declared_alphabets_become_the_nearest_alphabet_a_renderer_has() -> None:
+    """`\\DeclareMathAlphabet` names a font no browser has. The family is mapped to the nearest alphabet MathJax does have; without this the relative localization paper's `\\mathpzc` reached the page in error colour."""
+    from loom.scan.macros import declared_alphabets
+
+    got = declared_alphabets(r"\DeclareMathAlphabet{\mathpzc}{OT1}{pzc}{m}{it}")
+    assert {k: v.body for k, v in got.items()} == {"mathpzc": r"\mathcal{#1}"}
+    assert got["mathpzc"].args == 1
+
+    unknown = declared_alphabets(r"\DeclareMathAlphabet{\mathodd}{OT1}{zzz}{m}{n}")
+    assert unknown["mathodd"].body == r"\mathrm{#1}"  # legible, rather than an error
+
+
+def test_compatibility_macros_are_published_only_when_a_body_needs_them() -> None:
+    """A renderer implements neither `\\scalebox` nor `\\ensuremath`, and an operator defined with them renders as an error; each keeps its content and gives up only presentation."""
+    from loom.scan.macros import compatibility_macros
+
+    used = parse_macros(r"\DeclareMathOperator{\sHom}{\scalebox{1.2}{\ensuremath{\mathpzc{Hom}}}}")
+    got = compatibility_macros(used)
+    assert {k: (v.args, v.body) for k, v in got.items()} == {"ensuremath": (1, "#1"), "scalebox": (2, "#2")}
+
+    assert compatibility_macros(parse_macros(r"\newcommand{\Z}{\mathbb{Z}}")) == {}
