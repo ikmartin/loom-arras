@@ -8,10 +8,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from loom.refs.identity import identify, primary
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
-from loom.scan.bib import citekey_slug
-from loom.scan.digests import source_version
+from loom.scan.digests import extracted_from, published_as, source_version
 from loom.scan.directives import list_value
 from loom.scan.hashing import child_marker, hash_text
 from loom.scan.macros import compatibility_macros, declared_alphabets, to_mathjax
@@ -240,18 +240,31 @@ def build_manifest(
             digest_entry = {
                 "file": f,
                 "fragment": fragments.get(f"digest:{f}", ""),
-                "source": ds.get("source", ""),
+                "source": extracted_from(ds),
+                "extracted_from": extracted_from(ds),
+                "published_as": published_as(ds),
                 "method": ds.get("method", ""),
                 "nodes": nodes,
             }
-            sv = source_version(ds.get("source", ""))
+            sv = source_version(extracted_from(ds))
             if bib and bib.version and sv and bib.version != sv:
                 version_mismatch = True
             manifest["macros"]["sets"][ck] = digest_macro_set(result, f)
+        # what is on disk for this work, so the viewer can offer a PDF or say it has not been fetched.
+        # Additive: the interface version is unchanged, as `relations` was in 0.2.
+        wid = primary(bib) if bib else None
+        home = result.quilt.root / "refs" / wid.path if wid else None
         manifest["references"][ck] = {
             "citekey": ck,
-            "slug": citekey_slug(ck),
+            "slug": asm.prefix_of(ck),
             "bib": fields,
+            "work": str(wid) if wid else "",
+            "works": [str(w) for w in identify(bib)] if bib else [],
+            "artifacts": {
+                "dir": f"refs/{wid.path}" if wid else "",
+                "pdf": bool(home and (home / "paper.pdf").is_file()),
+                "source": bool(home and (home / "src").is_dir()),
+            },
             "digest": digest_entry,
             "version_mismatch": version_mismatch,
             "cited_by": sorted(set(cited_by.get(ck, []))),

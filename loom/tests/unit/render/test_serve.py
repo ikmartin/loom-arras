@@ -138,3 +138,20 @@ def test_serve_spa_fallback_for_dotted_routes(session) -> None:  # type: ignore[
     assert status == 404  # a missing asset stays a 404
     status, _h, _b = get(s.url + "favicon.png")
     assert status in (200, 404)
+
+
+def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignore[no-untyped-def]
+    """The viewer opens a reference at the place a comment points to, so the server offers what was fetched -- the first thing it serves that it did not generate (DR-110). Localhost, read only, and confined to refs/ by the same prefix check the build tree gets."""
+    s, d = session
+    home = d / "refs" / "arxiv" / "0805.2065v2"
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "paper.pdf").write_bytes(b"%PDF-1.4\nfetched\n")
+
+    status, headers, body = get(s.url + "refs/arxiv/0805.2065v2/paper.pdf")
+    assert status == 200 and body.startswith(b"%PDF") and headers["Content-Type"] == "application/pdf"
+
+    status, _, _ = get(s.url + "refs/arxiv/0805.2065v2/absent.pdf")
+    assert status == 404  # a missing artifact is a 404, never the app shell
+
+    status, _, _ = get(s.url + "refs/../config.toml")
+    assert status in (400, 404)  # nothing outside refs/ is reachable through it

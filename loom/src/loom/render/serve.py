@@ -14,6 +14,7 @@ import time
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote
 
 from loom.arras_bundle import find_bundle
 from loom.render.build import BuildReport, build
@@ -45,6 +46,7 @@ ASSET_SUFFIXES = {
 class LoomHandler(SimpleHTTPRequestHandler):
     bundle_dir: Path = Path(".")
     build_dir: Path = Path(".")
+    refs_dir: Path = Path(".")
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
@@ -56,6 +58,13 @@ class LoomHandler(SimpleHTTPRequestHandler):
             rel = path[len("/build/") :]
             target = (self.build_dir / rel).resolve()
             return target if str(target).startswith(str(self.build_dir.resolve())) and target.is_file() else None
+        if path.startswith("/refs/"):
+            # the first thing the server offers that it did not generate: a work's fetched PDF or source, so the
+            # viewer can open a reference at the place a comment points to. Localhost only, read only, and still
+            # confined to one directory by the same prefix check the build tree gets (DR-110).
+            rel = unquote(path[len("/refs/") :])
+            target = (self.refs_dir / rel).resolve()
+            return target if str(target).startswith(str(self.refs_dir.resolve())) and target.is_file() else None
         if path == "/_api":
             return None
         rel = path.lstrip("/")
@@ -158,7 +167,13 @@ class ServeSession:
     def listen(self) -> None:
         """Bind the port and start serving. The build has not run yet, so `/build/` answers 503 until `start` finishes it."""
         handler = type(
-            "Handler", (LoomHandler,), {"bundle_dir": self.bundle_dir, "build_dir": self.quilt.root / "build"}
+            "Handler",
+            (LoomHandler,),
+            {
+                "bundle_dir": self.bundle_dir,
+                "build_dir": self.quilt.root / "build",
+                "refs_dir": self.quilt.root / "refs",
+            },
         )
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
