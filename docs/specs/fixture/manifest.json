@@ -1969,6 +1969,7 @@
    "id": "Kre99-sec-1",
    "incomplete": [],
    "kind": "section",
+   "level": 1,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -2001,6 +2002,7 @@
    "id": "Kre99-sec-2",
    "incomplete": [],
    "kind": "section",
+   "level": 1,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -2093,6 +2095,7 @@
    "id": "refs/Kre99.tex#section:1",
    "incomplete": [],
    "kind": "section",
+   "level": 1,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -2758,6 +2761,7 @@
    "id": "sy-0100",
    "incomplete": [],
    "kind": "section",
+   "level": 1,
    "numbers": {
     "drafts/main.tex": {
      "number": "1",
@@ -2799,6 +2803,7 @@
    "id": "sy-0200",
    "incomplete": [],
    "kind": "section",
+   "level": 1,
    "numbers": {
     "drafts/main.tex": {
      "number": "2",
@@ -2842,6 +2847,7 @@
    "id": "sy-0201",
    "incomplete": [],
    "kind": "section",
+   "level": 2,
    "numbers": {
     "drafts/main.tex": {
      "number": "2.1",
@@ -2933,6 +2939,7 @@
    "id": "sy-0300",
    "incomplete": [],
    "kind": "section",
+   "level": 2,
    "numbers": {
     "drafts/main.tex": {
      "number": "2.2",
@@ -2972,6 +2979,7 @@
    "id": "sy-0400",
    "incomplete": [],
    "kind": "section",
+   "level": 1,
    "numbers": {
     "drafts/talk.tex": {
      "number": "1",

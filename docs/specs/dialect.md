@@ -19,15 +19,17 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 
 ### 2.2 Headings
 
-**[decided]** Sectioning renders as `h1`–`h6` by level. A sectioning unit that is a node wraps its heading and own text in `section` with `data-id` (or `data-key` for untagged units) and `data-level`. Heading text may include a number in `span.number`.
+**[decided]** Sectioning renders as `h1`–`h6` by level. A sectioning unit that is a node wraps its heading and own text in `section` with `id`, `data-id` (or `data-key` for untagged units) and `data-level`. Heading text may include a number in `span.number`.
 
 ```html
-<section data-id="rl-0020" data-level="1" data-src="drafts/main.tex:1204:1298">
+<section id="rl-0020" data-id="rl-0020" data-level="1" data-src="drafts/main.tex:1204:1298">
   <h1><span class="number">3</span> The residue map</h1>
   <p>We construct ...</p>
   <div class="include" data-key="rl-0011"></div>
 </section>
 ```
+
+**[decided]** Every element that is a node — `section`, `div.env`, `details.env-proof` — carries a real `id`, the element's `data-key` slugged by `[^A-Za-z0-9]+` to `-`, trimmed and lowercased, which is the rule display equations already use. It is the anchor a link into a document lands on; without it a fragment has no anchor targets and every in-document link dead-ends. Ids are unique within a fragment unless the document includes the same file twice, which is itself reported as `double-inclusion`.
 
 ### 2.3 Inclusions
 
@@ -38,7 +40,7 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 **[decided]**
 
 ```html
-<div class="env env-lemma" data-id="rl-0004" data-key="rl-0004" data-taxon="Lemma"
+<div class="env env-lemma" id="rl-0004" data-id="rl-0004" data-key="rl-0004" data-taxon="Lemma"
      data-style="plain" data-src="nodes/rl-0004.tex:104:611">
   <p class="env-label"><span class="taxon">Lemma</span> <span class="number">3.4</span>
      <span class="title">(Residue independent of embedding)</span></p>
@@ -53,7 +55,7 @@ Rules: the class `env-<taxon-slug>` uses the lowercased, hyphenated taxon (`env-
 **[decided]**
 
 ```html
-<details class="env env-proof" data-key="rl-0004/proof" data-of="rl-0004"
+<details class="env env-proof" id="rl-0004-proof" data-key="rl-0004/proof" data-of="rl-0004"
          data-src="nodes/rl-0004.tex:612:1420" open>
   <summary class="env-label">Proof<span class="title"> of Theorem 3.4</span></summary>
   <p>...</p>

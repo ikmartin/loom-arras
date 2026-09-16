@@ -84,7 +84,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 }
 ```
 
-Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for digest nodes, with `digest` naming the citekey and `locator` present; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments.
+Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for digest nodes, with `digest` naming the citekey and `locator` present; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments.
 
 ## 4. Keys
 
