@@ -79,4 +79,4 @@ Specifications (`specs/`):
 - `loom.sty` and the demo quilts: MIT, so that they can travel with an author's paper.
 - This book and the specifications: the same license as the repository they live in (the workspace repository).
 
-Copyright holder: Markas Hecht. Contributions are accepted under the same licenses. If a repository's `LICENSE` file differs from the above, it is replaced.
+Copyright holder: ikmartin (DR-39's milestone decision at M0: every `LICENSE` and `COPYRIGHT` names ikmartin). Contributions are accepted under the same licenses. If a repository's `LICENSE` file differs from the above, it is replaced.
