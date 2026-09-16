@@ -68,6 +68,8 @@ A labelled proof node carries `data-id` as well. `open` is a hint the viewer may
 
 **[decided]** `p`; `em`, `strong`, `code`, `span.smallcaps`, `u`; `a.url[href]`; `span.footnote` containing the note text, with `data-n`; `blockquote`; `pre`, `code` for verbatim; `ul`, `ol`, `dl` with `li`, `dt`, `dd`; `hr`.
 
+**[decided]** `\textcolor{NAME}{text}` in prose is `<span class="tex-color" data-color="NAME">text</span>`. The colour's LaTeX name travels as written, because a publisher cannot know a document's colour definitions and a viewer knows only the names it chooses to; a name the viewer does not know inherits the surrounding colour. Dropping the colour instead loses an author's own convention, and an author who writes `\red{...}` to mark unverified text means it to be visible.
+
 ### 2.7 Math
 
 **[decided]** Inline: `<span class="math inline">\(...\)</span>`. Display: `<div class="math display" id="LABEL-ID" data-label="eq:main" data-number="3.2">\[...\]</div>`, the id being the qualified key slug. TeX is passed through verbatim inside; the viewer renders it with the macro set from the manifest (plus a per-fragment set if the fragment's first element carries `data-macros="NAME"` naming a set in the manifest).

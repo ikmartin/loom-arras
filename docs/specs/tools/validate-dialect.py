@@ -22,7 +22,7 @@ ALLOWED_CLASSES = {
     "details": {"env", "env-proof", "annotation-block"},
     "summary": {"env-label"},
     "p": {"env-label", "annotation-block"},
-    "span": {"number", "taxon", "title", "math", "inline", "cite", "footnote", "incomplete", "smallcaps"},
+    "span": {"number", "taxon", "title", "math", "inline", "cite", "footnote", "incomplete", "smallcaps", "tex-color"},
     "a": {"ref", "ref-eq", "ref-dangling", "url"},
     "mark": {"annotation"},
     "figure": {"diagram", "fallback", "failed"},
