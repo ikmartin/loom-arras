@@ -102,7 +102,16 @@ Precisely:
 9. **[decided]** Afterwards, the identity test compares `DEST` against `SRC`: directly when `SRC` is a master; otherwise through the first master that reaches `SRC`, compiled as it is and again in a scratch copy of the quilt where `DEST`'s text stands at `SRC`'s path; when no master reaches `SRC` the test is reported skipped (DR-65). `atomize` refuses to write anything if `SRC` has line-anchoring violations or spans, naming the lines (DR-40). It ends by noting that `SRC` still defines its ids inline.
 10. **[decided]** `atomize` allocates no ids and inserts no labels.
 
-### 6.4.2 Naming inside `nodes/`
+### 6.4.2 One node, planned rather than applied
+
+**[decided]** `loom atomize --key KEY [--key KEY2]` moves only the nodes named, wherever they live, and never edits the source: it writes `nodes/<id>.tex` and prints the patch for the file, which the author applies, or `--json` prints the plan and writes nothing at all. The plan is what an editor applies as one workspace edit, creating the node file and replacing the region in the same step, so the author's file is changed by the author's editor, one undo puts it back, and an unsaved buffer is included (16.1). Until the patch is applied the quilt holds two definitions of the node and lint says so.
+
+1. **[decided]** The region, the directives that travel with it, the proof a statement carries, and the naming inside `nodes/` are those of 6.4.1: a key names one node, and a proof key names the statement that carries it.
+2. **[decided]** It refuses, with nothing written: a key the quilt does not have; a key in another file than the one being atomized; a node with no id, naming `loom id --next`; a section, which moves with `--sections` in the whole-file form; a node already in its own file; and a node inside another node being moved.
+3. **[decided]** The plan is checked without LaTeX: putting the moved text back where the inclusion line stands must reproduce the file byte for byte, else it is refused (`loom:atomize-plan-unsound`). The compiled identity test of 6.6 governs the whole-file form; a single region moved verbatim needs no compile.
+4. **[decided]** `loom id --next` prints the next free id and inserts nothing, so an editor can label a node itself before atomizing it. It allocates from the same visible set as `loom id` (5.3.2).
+
+### 6.4.3 Naming inside `nodes/`
 
 **[decided]** `nodes/<id>.tex` for nodes; `nodes/<id>.proof.tex`, `nodes/<id>.proof.2.tex` for unlabelled proofs. If a target file exists, `atomize` refuses before writing anything (`loom:atomize-target-exists`, exit 1).
 

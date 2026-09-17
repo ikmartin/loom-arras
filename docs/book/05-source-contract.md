@@ -211,7 +211,7 @@ Edges from this proof: to `rl-0002` (uses), to `rl-0004` (through the alias), to
 
 ### 5.9.3 Ownership
 
-**[decided]** Ownership is a partition of each file. The claimants are the theorem-like environments, proofs, and sections of the file, and the file itself as the outermost claimant (a master owns its preamble and every character outside all sections); every character belongs to the innermost claimant containing it, and a node's own text is its region minus its children's regions. A section's region runs from its heading to the next heading of equal or higher level whose heading is in the same file, or to the file's end (`\end{document}` in a master); its parent and children come from the expanded master (5.9.2). Ownership therefore never depends on which master reached a file, and neither do the hashes taken over own text (5.13) (DR-49). Annotations anchor into own text; hashing uses own text with inclusions replaced by their inclusion lines.
+**[decided]** Ownership is a partition of each file. The claimants are the theorem-like environments, proofs, and sections of the file, and the file itself as the outermost claimant (a master owns its preamble and every character outside all sections); every character belongs to the innermost claimant containing it, and a node's own text is its region minus its children's regions. A section's region runs from its heading to the next heading of equal or higher level whose heading is in the same file, or to the file's end (`\end{document}` in a master); its parent and children come from the expanded master (5.9.2). Ownership therefore never depends on which master reached a file, and neither do the hashes taken over own text (5.13) (DR-49). Annotations anchor into own text; hashing uses own text with each child replaced by its child marker, whether the child sits inline or is included (5.13).
 
 ### 5.9.4 Uniqueness and cycles
 
@@ -296,7 +296,7 @@ No other macro has meaning to the scanner. `\todo` from `todonotes` is ignored.
 
 **[decided]** Where loom hashes text (acceptance rows, annotation target hashes, snapshots), it hashes the normalized own text of the region:
 
-1. Inclusion lines (`\input`, `\nest`, `\include`) are kept as written; the included text is not part of the parent's own text. A child claimant in the same file (a nested environment, a proof, a subsection) is replaced by the line `% !LOOM child: <key>`, so that a structural change changes the parent's hash.
+1. A child is replaced by the line `% !LOOM child: <key>`, so that a structural change changes the parent's hash: a child claimant in the same file (a nested environment, a proof, a subsection), and equally an inclusion line (`\input`, `\nest`, `\include`) of a file whose nodes are the parent's children, one marker per node that file provides. The included text itself is not part of the parent's own text. A parent therefore hashes the same whether a child sits inline or in `nodes/<id>.tex`, and moving one there moves no state (DR-124). An inclusion line naming a file with no nodes of its own is kept as written.
 2. Comment lines that are not directives are removed; directives are kept. Comments are in any case invisible to every earlier stage, having been blanked when the file was read (5.1.1), so a commented-out environment defines no node and no label (DR-48).
 3. Trailing whitespace is removed; runs of blank lines collapse to one; tabs become spaces.
 4. Line endings are normalized to `\n`.

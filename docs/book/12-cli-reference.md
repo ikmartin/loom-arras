@@ -135,17 +135,20 @@ Write DEST: MASTER flattened with every \input, \nest (levels shifted), and \inc
 
 ### `loom atomize`
 
-`loom atomize [OPTIONS] SRC [DEST]`
+`loom atomize [OPTIONS] [SRC] [DEST]`
 
-Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC is not modified.
+Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC's text is not modified (with --ignore-src, a directive line is added above it).
 
 | option | description |
 |---|---|
 | `--to` `DEST` |  |
+| `--key` `KEY` | Move only these nodes, wherever they live; SRC is not needed. Writes the node files and prints the patch for the source, which loom never edits. |
+| `--json` | With --key: print the plan and write nothing. |
 | `--proofs` |  |
 | `--sections` | Also move labelled sections and subsections to nodes/. |
 | `--all` | Act on SRC and every file it reaches, writing spines under --to-dir. |
 | `--to-dir` `DIR` |  |
+| `--ignore-src` | Add `% !LOOM ignore` to SRC's first line, so the quilt keeps one definition of each node. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom build`
@@ -285,9 +288,9 @@ Report Python, the TeX toolchain, git, the arras bundle, the resolved author nam
 
 ### `loom id`
 
-`loom id [OPTIONS] FILE`
+`loom id [OPTIONS] [FILE]`
 
-Print a patch (or write a copy with --to) inserting \label{<id>} on every untagged theorem-like environment and section in FILE. Never modifies FILE.
+Print a patch (or write a copy with --to) inserting \label{<id>} on every untagged theorem-like environment and section in FILE, or with --next the next free id. Never modifies FILE.
 
 | option | description |
 |---|---|
@@ -295,6 +298,8 @@ Print a patch (or write a copy with --to) inserting \label{<id>} on every untagg
 | `--sections`, `--no-sections` | Also label sections through subsubsection (default on). |
 | `--all-levels` | Also label paragraphs and subparagraphs. |
 | `--prefix` |  |
+| `--next` | Print the next free id and nothing else; inserts nothing. |
+| `--json` | With --next: print it as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom import`

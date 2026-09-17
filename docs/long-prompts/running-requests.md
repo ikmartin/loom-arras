@@ -1,0 +1,9 @@
+- add the option for expandable annotation/comment boxes. Comment boxes and annotations no longer are restricted to live in the right gutter, they appear as color coded highlights on the source text. Clicking them expands them.
+- the graph view needs work. the layered view is completely broken for instance, and the nodes shouldn't be draggable in this view. see the broken-graph.png screenshot on desktop for an example of the broken view in a zoom.
+- it would be nice to have a local graph view that you can open up which changes based on where you are in the draft. Something like the graph viewer in quartz5 -- maybe it's even portable from that project (https://quartz.jzhao.xyz/).
+- links in the references should be clickable
+- the accepted, stale, incomplete, and errors pages are bizarre, the incomplete page in particular -- it's called "blockers", it has a "views" panel on the side replicating the strip.
+- the tabs view should be retired, keep strip and rail
+- clicking anywhere outside of the settings box when the box is expanded should close the box, same behavior for other floating boxes.
+- it'd be nice to have something similar to the "hover to preview" functionality that exists in my sitegen. For example, if worked-examples or counter examples or stress tests of even other nodes linked to or are linked from a node I'm viewing, it'd be nice to hover over the links/backlinks to get a preview.
+- the viewer could generally be sped up and optimized. Many things feel a little slow.
