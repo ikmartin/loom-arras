@@ -31,8 +31,11 @@ review what they wrote, digest what they cite, answer what they ask.
 - `drafts/` — masters, the compilable documents. `config.toml [quilt] main`
   names the default. Read only.
 - `nodes/` — one node per file, by convention. Read only.
-- `refs/` — digests: cited papers' results as external nodes; `refs/pdf/`
-  holds PDFs. Read only.
+- `digests/` — cited papers' results as external nodes, one file per
+  citekey. Read only.
+- `refs/` — what was fetched for each cited work: its source and PDF, under
+  a directory named by the work's identifier. `loom refs path CITEKEY`
+  prints it. Read only, and not in version control.
 - `comments/` — human review records. Never write here except through
   `loom comment`.
 - `.loom/` — the ledger and snapshots. Never touch.
