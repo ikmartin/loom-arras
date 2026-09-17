@@ -64,7 +64,7 @@ export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: num
 			const p = at.get(n.id)!;
 			return {
 				id: n.id,
-				label: n.id,
+				label: n.kind === 'work' ? (n.title ?? n.id) : n.id,
 				taxon: n.taxon,
 				state: n.state,
 				color: colorOf(m, n.state),
@@ -81,7 +81,7 @@ export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: num
 		edges: edges.map((e) => {
 			const a = at.get(e.from)!;
 			const b = at.get(e.to)!;
-			return { from: e.from, to: e.to, kind: e.kind, points: [a, b] };
+			return { from: e.from, to: e.to, kind: e.kind, points: [a, b], count: e.count };
 		}),
 		width: maxX - minX + pad * 2,
 		height: maxY - minY + pad * 2

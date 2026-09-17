@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Shell C, the default (book 15.2.3): a 44px icon strip of the six views, search and the settings control, beside a panel whose contents follow the view.
+	// Shell C, the default (book 15.2.3): a 44px icon strip of the six views, search and the settings control, beside a panel holding the page's own panel when it has one and the document's contents otherwise.
 	// The strip carries no separate home mark: home is one of the six views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
@@ -9,9 +9,6 @@
 	import type { ShellProps } from './props';
 
 	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
-
-	// The panel shows the document and its contents in the views that are about a document, and the indexes elsewhere; every shell holds the same elements, so both are always reachable (15.2).
-	const documentish = $derived(currentView === 'read' || currentView === 'graph' || currentView === 'home');
 </script>
 
 <div class="shell-c">
@@ -41,20 +38,14 @@
 		{#if panel}
 			<p class="rail-label">{panelLabel}</p>
 			<div class="page-panel rail-scroll">{@render panel()}</div>
-		{:else if documentish}
+		{:else}
+			<!-- A page with nothing of its own for the panel gets the document and its contents. The views are already the strip beside it, and listing them a second time made every such page look like a menu. -->
 			{#if masters.length}
 				<p class="rail-label">Document</p>
 				<DocumentPicker {masters} current={currentMaster} />
 			{/if}
 			<p class="rail-label">Contents</p>
 			<Contents entries={contents} masterPath={currentMaster} current={currentSection} />
-		{:else}
-			<p class="rail-label">Views</p>
-			<ul class="plain">
-				{#each views as v (v.id)}
-					<li><a href={v.href} class:current={currentView === v.id}>{v.label}</a></li>
-				{/each}
-			</ul>
 		{/if}
 		<p class="rail-label">Indexes</p>
 		<ul class="plain">
@@ -175,10 +166,6 @@
 	ul.plain a:hover {
 		color: var(--ink);
 		text-decoration: none;
-	}
-	ul.plain a.current {
-		background: var(--link-wash);
-		color: var(--link);
 	}
 	.counts {
 		font-size: 10px;

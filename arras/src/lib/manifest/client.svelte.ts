@@ -46,14 +46,23 @@ class ManifestStore {
 	start(intervalMs = 1000): void {
 		void this.refresh();
 		if (this.#timer === null && intervalMs > 0) {
-			this.#timer = setInterval(() => void this.refresh(), intervalMs);
+			// a tab nobody is looking at has nothing to re-render, so it stops asking, and asks at once when it is looked at again
+			this.#timer = setInterval(() => {
+				if (globalThis.document?.visibilityState !== 'hidden') void this.refresh();
+			}, intervalMs);
+			globalThis.document?.addEventListener('visibilitychange', this.#onVisible);
 		}
 	}
+
+	#onVisible = () => {
+		if (document.visibilityState === 'visible') void this.refresh();
+	};
 
 	stop(): void {
 		if (this.#timer !== null) {
 			clearInterval(this.#timer);
 			this.#timer = null;
+			globalThis.document?.removeEventListener('visibilitychange', this.#onVisible);
 		}
 	}
 }

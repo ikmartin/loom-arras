@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const SHELLS = ["a", "b", "c"] as const;
+const SHELLS = ["a", "c"] as const;
 
 for (const shell of SHELLS) {
   test(`shell ${shell} contains the same elements as the others`, async ({
@@ -105,6 +105,7 @@ test("every icon in the strip is drawn, not a text glyph", async ({ page }) => {
   await page.goto("/");
   const strip = page.getByRole("navigation", { name: "Views" });
   const links = strip.locator("a");
+  await links.first().waitFor(); // count() does not wait, and the strip is not there until the app has started
   const n = await links.count();
   expect(n).toBeGreaterThan(3);
   for (let i = 0; i < n; i++) {
@@ -146,10 +147,10 @@ test("the display preferences survive a reload and change the document", async (
   await expect(page.locator("html")).toHaveAttribute("data-shell", "a");
 });
 
-test("no route reaches an unknown key from review, blockers or the problems page", async ({
+test("no route reaches an unknown key from review, its incomplete view, or the problems page", async ({
   page,
 }) => {
-  for (const start of ["/review", "/blockers", "/problems"]) {
+  for (const start of ["/review", "/review?show=incomplete", "/problems"]) {
     await page.goto(start);
     await expect(page.locator('main a[href^="/node/"]').first()).toBeAttached();
     const hrefs = await page
@@ -193,7 +194,9 @@ test("the graph toggle keeps the selection and both layouts draw their edges", a
   await expect(
     page.locator("aside").getByRole("link", { name: /Theorem/ }),
   ).toBeVisible();
-  await expect(page.locator("svg path.edge")).toHaveCount(forceEdges);
+  // layered leaves out an edge from a node into the section that contains it, which ELK cannot route into an ancestor, so it can draw fewer
+  await expect.poll(() => page.locator("svg path.edge").count()).toBeGreaterThan(0);
+  expect(await page.locator("svg path.edge").count()).toBeLessThanOrEqual(forceEdges);
 });
 
 test("the read view has gutters, with the margin annotation in one and the comments in the other", async ({
@@ -334,7 +337,7 @@ test("the settings panel puts every row on one line, label included, with nothin
       };
     });
   });
-  expect(rows.length).toBe(5);
+  expect(rows.length).toBe(6);
   for (const r of rows) {
     expect(r.lines, `the ${r.label} row wraps`).toBe(1);
     expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(

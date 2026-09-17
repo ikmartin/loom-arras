@@ -6,12 +6,15 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
 	import Palette from '$lib/components/Palette.svelte';
+	import LinkPreview from '$lib/components/LinkPreview.svelte';
+	import PdfViewer from '$lib/components/PdfViewer.svelte';
 	import NavShell from '$lib/shell/NavShell.svelte';
 	import { viewsOf, viewOf } from '$lib/shell/views';
 	import { contentsOf } from '$lib/contents';
 	import { followReading, reading, sectionIds } from '$lib/reading.svelte';
 	import { prefs, type Shell } from '$lib/prefs.svelte';
 	import { openPalette } from '$lib/palette';
+	import { ensureMathJax } from '$lib/math/mathjax';
 	import { masterStem } from '$lib/nav';
 	import { rail } from '$lib/shell/rail.svelte';
 	import { panel } from '$lib/shell/panel.svelte';
@@ -21,7 +24,7 @@
 	onMount(() => {
 		// `?shell=` beats the stored choice, so two shells can be compared by sending a link (book 15.2)
 		const q = page.url.searchParams.get('shell');
-		prefs.load(q === 'a' || q === 'b' || q === 'c' ? { shell: q as Shell } : undefined);
+		prefs.load(q === 'a' || q === 'c' ? { shell: q as Shell } : undefined);
 		store.start(1000);
 	});
 	onDestroy(() => store.stop());
@@ -30,6 +33,17 @@
 	$effect(() => prefs.apply());
 
 	const m = $derived(store.manifest);
+
+	// MathJax is two megabytes of script. Loading it while the browser is idle, once the corpus's macros are known, means the first page with mathematics does not wait for it.
+	let warmed = false;
+	$effect(() => {
+		const mm = m;
+		if (!mm || warmed) return;
+		warmed = true;
+		const warm = () => void ensureMathJax(mm.macros.default ?? []);
+		if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 2000 });
+		else setTimeout(warm, 200);
+	});
 	const errors = $derived(m ? m.diagnostics.filter((d) => d.severity === 'error').length : 0);
 	const warnings = $derived(m ? m.diagnostics.filter((d) => d.severity === 'warning').length : 0);
 	const defaultMaster = $derived(m?.masters.find((x) => x.default) ?? m?.masters[0]);
@@ -98,3 +112,5 @@
 {/snippet}
 
 <Palette />
+<LinkPreview />
+<PdfViewer />

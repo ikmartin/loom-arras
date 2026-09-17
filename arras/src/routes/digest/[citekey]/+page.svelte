@@ -4,6 +4,10 @@
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import { keyUrl, nodeUrl } from '$lib/nav';
 	import { reachedExternal } from '$lib/reached';
+	import Tex from '$lib/math/Tex.svelte';
+	import WorkLinks from '$lib/components/WorkLinks.svelte';
+	import { bibText } from '$lib/works';
+	import Locator from '$lib/components/Locator.svelte';
 
 	const m = $derived(store.manifest!);
 	const citekey = $derived(decodeURIComponent(page.params.citekey ?? ''));
@@ -21,9 +25,10 @@
 	{#if !ref}
 		<h1>Unknown reference</h1>
 	{:else}
-		<h1>{ref.bib.title ?? citekey}</h1>
+		<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
 		<p class="muted">
-			<code>{citekey}</code>{ref.bib.author ? ` · ${ref.bib.author}` : ''}{ref.bib.year ? ` · ${ref.bib.year}` : ''}
+			<code>{citekey}</code>{ref.bib.author ? ` · ${bibText(ref.bib.author)}` : ''}{ref.bib.year ? ` · ${ref.bib.year}` : ''}
+			<WorkLinks {ref} />
 			{#if ref.digest}· digest from {ref.digest.source} ({ref.digest.method}){/if}
 			{#if ref.version_mismatch}<span class="problem"> · version mismatch between the digest's source and the bibliography</span>{/if}
 		</p>
@@ -33,7 +38,7 @@
 			{#if used.length}
 				<ul>
 					{#each used as id (id)}
-						<li><a href={nodeUrl(id)}>{id}</a> {m.nodes[id]?.locator ? `(${m.nodes[id].locator})` : ''}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
+						<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
 					{/each}
 				</ul>
 			{:else}
@@ -48,7 +53,7 @@
 				{#if showAll}
 					<ul>
 						{#each rest as id (id)}
-							<li><a href={nodeUrl(id)}>{id}</a> {m.nodes[id]?.locator ? `(${m.nodes[id].locator})` : ''}</li>
+							<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}</li>
 						{/each}
 					</ul>
 				{/if}

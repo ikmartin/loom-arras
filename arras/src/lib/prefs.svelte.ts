@@ -1,11 +1,13 @@
-// The viewer's own preferences (book 15.2, 15.7): the navigation shell, the body typeface, the body size, the line width, and the theme.
+// The viewer's own preferences (book 15.2, 15.7): the navigation shell, the body typeface, the body size, the line width, the theme, and where comments stand.
 // They are arras's and never the corpus's, so they live in this browser and are written nowhere else. Every storage access is guarded: a private window, cleared site data, or a thumbnail capture can make localStorage throw or come back empty, and the viewer must render anyway.
 
-export type Shell = 'a' | 'b' | 'c';
+export type Shell = 'a' | 'c';
 export type Face = 'serif' | 'sans';
 export type Size = 's' | 'm' | 'l';
 export type Width = 'narrow' | 'mid' | 'wide';
 export type Theme = 'light' | 'dark' | 'system';
+/** `margin` stands a comment beside its node; `inline` shows it as a highlight on the text that expands where it is. */
+export type Comments = 'margin' | 'inline';
 
 const KEY = 'arras.prefs';
 
@@ -15,15 +17,18 @@ export interface Prefs {
 	size: Size;
 	width: Width;
 	theme: Theme;
+	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system' };
+export const DEFAULTS: Prefs = { shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', comments: 'margin' };
 
-const SHELLS: Shell[] = ['a', 'b', 'c'];
+// A stored `b`, the retired tabs shell, is not in the list, so it falls back to the default like any unknown value.
+const SHELLS: Shell[] = ['a', 'c'];
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
 const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
+const COMMENTS: Comments[] = ['margin', 'inline'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */
 export function coerce(raw: unknown): Prefs {
@@ -35,7 +40,8 @@ export function coerce(raw: unknown): Prefs {
 		face: pick(o.face, FACES, DEFAULTS.face),
 		size: pick(o.size, SIZES, DEFAULTS.size),
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
-		theme: pick(o.theme, THEMES, DEFAULTS.theme)
+		theme: pick(o.theme, THEMES, DEFAULTS.theme),
+		comments: pick(o.comments, COMMENTS, DEFAULTS.comments)
 	};
 }
 
@@ -63,7 +69,8 @@ export function attributes(p: Prefs): Record<string, string | null> {
 		'data-face': p.face,
 		'data-size': p.size,
 		'data-width': p.width,
-		'data-theme': p.theme === 'system' ? null : p.theme
+		'data-theme': p.theme === 'system' ? null : p.theme,
+		'data-comments': p.comments
 	};
 }
 
@@ -73,9 +80,10 @@ class PrefsState {
 	size = $state<Size>(DEFAULTS.size);
 	width = $state<Width>(DEFAULTS.width);
 	theme = $state<Theme>(DEFAULTS.theme);
+	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { shell: this.shell, face: this.face, size: this.size, width: this.width, theme: this.theme };
+		return { shell: this.shell, face: this.face, size: this.size, width: this.width, theme: this.theme, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -85,6 +93,7 @@ class PrefsState {
 		this.size = p.size;
 		this.width = p.width;
 		this.theme = p.theme;
+		this.comments = p.comments;
 	}
 
 	/** Apply to <html> and persist. Called from one effect in the layout. */

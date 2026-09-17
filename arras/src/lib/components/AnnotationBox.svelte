@@ -3,11 +3,12 @@
 	import { shortDate } from '$lib/badges';
 	import { ui } from '$lib/ui.svelte';
 
-	let { annotation, replies = [] }: { annotation: Annotation; replies?: Annotation[] } = $props();
+	// `anchor` gives the box the element id marks point at; a copy opened in the text beside the one in a list must not claim the same id
+	let { annotation, replies = [], anchor = true }: { annotation: Annotation; replies?: Annotation[]; anchor?: boolean } = $props();
 	const active = $derived(ui.activeAnnotation === annotation.id);
 </script>
 
-<article class="box kind-{annotation.kind}" class:active class:discarded={annotation.discarded} id={'ann-' + annotation.id} data-annotation-id={annotation.id}>
+<article class="box kind-{annotation.kind}" class:active class:discarded={annotation.discarded} id={anchor ? 'ann-' + annotation.id : undefined} data-annotation-id={annotation.id}>
 	<header>
 		<span class="kind">{annotation.kind}</span>
 		<span class="date">{shortDate(annotation.created)}</span>

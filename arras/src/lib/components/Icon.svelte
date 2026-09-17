@@ -50,6 +50,14 @@
 	{:else if name === 'search'}
 		<circle cx="11" cy="11" r="8" />
 		<path d="m21 21-4.3-4.3" />
+	{:else if name === 'expand'}
+		<path d="M15 3h6v6" />
+		<path d="M9 21H3v-6" />
+		<path d="m21 3-7 7" />
+		<path d="m3 21 7-7" />
+	{:else if name === 'close'}
+		<path d="M18 6 6 18" />
+		<path d="m6 6 12 12" />
 	{/if}
 </svg>
 

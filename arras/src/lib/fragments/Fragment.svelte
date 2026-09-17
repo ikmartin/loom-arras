@@ -6,6 +6,8 @@
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
 	import { page } from '$app/state';
+	import { prefs } from '$lib/prefs.svelte';
+	import { inlineComments, type InlineComments } from './expand';
 
 	let {
 		path,
@@ -52,17 +54,28 @@
 		await mount(child);
 	}
 
+	// comments shown in place are opened by the marks and counts this fragment wires; the controller lives as long as the fragment does
+	let inline: InlineComments | null = null;
+	$effect(() => () => inline?.destroy());
+
 	async function mount(root: HTMLElement) {
+		inline?.destroy();
+		inline = prefs.comments === 'inline' && store.manifest ? inlineComments(store.manifest) : null;
+		const opened = inline;
 		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
 			master,
 			headingLinks,
 			margins,
-			comments
+			comments,
+			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined
 		});
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
-		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : []);
+		const id = decodeURIComponent(location.hash.slice(1));
+		const target = id ? document.getElementById(id) : null;
+		// a long document typesets the part the reader lands on first, and everything above it, before revealing and scrolling there
+		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
 		onmounted?.(root);
 		scrollToHash();
 	}
@@ -99,5 +112,8 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<div class="fragment" class:read={margins} bind:this={el}>{@html html}</div>
+	<!-- switching where comments stand rebuilds the fragment, since marks and slots are wired once per element -->
+	{#key prefs.comments}
+		<div class="fragment" class:read={margins} class:inline-comments={prefs.comments === 'inline'} bind:this={el}>{@html html}</div>
+	{/key}
 {/if}

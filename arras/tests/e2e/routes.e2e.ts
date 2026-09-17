@@ -10,7 +10,7 @@ const routes: [string, string][] = [
 	['/digest/Kre99', 'Cycle groups'],
 	['/review', 'Review'],
 	['/problems', 'Problems'],
-	['/blockers', 'Blockers'],
+	['/blockers', 'Review'],
 	['/graph', 'Graph'],
 	['/threads', 'Threads'],
 	['/tags', 'Tags'],

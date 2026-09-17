@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The contents tree of the current document (book 15.2, 15.4). Identical in all three shells.
+	// The contents tree of the current document (book 15.2, 15.4). Identical in both shells.
 	import type { ContentsEntry } from '$lib/contents';
 	import { anchorId, readUrl } from '$lib/nav';
 	import Tex from '$lib/math/Tex.svelte';

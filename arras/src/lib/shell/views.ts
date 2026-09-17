@@ -29,7 +29,7 @@ export function viewOf(path: string): string {
 	if (path.startsWith('/master')) return 'read';
 	if (path.startsWith('/node') || path.startsWith('/digest')) return 'read';
 	if (path.startsWith('/graph')) return 'graph';
-	if (path.startsWith('/review') || path.startsWith('/blockers')) return 'review';
+	if (path.startsWith('/review')) return 'review';
 	if (path.startsWith('/problems')) return 'problems';
 	if (path.startsWith('/references')) return 'references';
 	return '';
@@ -40,6 +40,5 @@ export const INDEXES = [
 	{ label: 'threads', href: '/threads' },
 	{ label: 'tags', href: '/tags' },
 	{ label: 'taxa', href: '/taxa' },
-	{ label: 'loose', href: '/loose' },
-	{ label: 'blockers', href: '/blockers' }
+	{ label: 'loose', href: '/loose' }
 ];

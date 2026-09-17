@@ -1,13 +1,15 @@
 <script lang="ts">
 	// The question-mark circle beside a page title (book 15.3.5): what the page means, what each state means, and which command records it.
-	let { label, topic }: { label: string; topic: 'review' | 'problems' | 'blockers' | (string & {}) } = $props();
+	import { dismiss } from '$lib/dismiss';
+
+	let { label, topic }: { label: string; topic: 'review' | 'problems' | (string & {}) } = $props();
 
 	let open = $state(false);
 
 	const TOPICS: Record<string, { title: string; body: string; states?: [string, string][]; command: string }> = {
 		review: {
 			title: 'What the review panel shows',
-			body: 'One row per statement and per proof. The state is what was last recorded for that exact text. When a text that was accepted has since changed, the row says so and can show the change. Acceptance is recorded from the command line; this page only reads it back.',
+			body: 'One row per statement and per proof. The state is what was last recorded for that exact text. When a text that was accepted has since changed, the row says so and can show the change; when a text marks a gap in itself, the row says what rests on it. Acceptance is recorded from the command line; this page only reads it back.',
 			states: [
 				['accepted', 'someone recorded that this text, as it stands, is correct'],
 				['stale', 'the text was accepted and has changed since, or something it depends on has'],
@@ -21,18 +23,13 @@
 			title: 'What the problems page shows',
 			body: 'Every diagnostic the publisher raised, by severity and code. An error means the published corpus is wrong in a way a reader would notice; a warning means something is probably a mistake; information is a remark.',
 			command: 'lint'
-		},
-		blockers: {
-			title: 'What the blockers page shows',
-			body: 'Each text that marks a gap in itself, and everything that rests on it. A result whose proof is incomplete is not yet proved, and neither is anything that uses it.',
-			command: 'deps'
 		}
 	};
 
 	const t = $derived(TOPICS[topic] ?? { title: label, body: '', command: '' });
 </script>
 
-<span class="help">
+<span class="help" use:dismiss={() => (open = false)}>
 	<button aria-label={label} aria-expanded={open} title={label} onclick={() => (open = !open)} data-testid="help-{topic}">?</button>
 	{#if open}
 		<div class="pop" role="note" data-testid="help-panel-{topic}">

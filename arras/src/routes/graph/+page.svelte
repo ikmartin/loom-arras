@@ -1,7 +1,7 @@
 <script lang="ts">
-	// The graph (book 15.5): one page, two layouts, a toggle that keeps the selection, the filters and the scope. Pan, zoom and drag belong to both.
+	// The graph (book 15.5): one page, two layouts, a toggle that keeps the selection, the filters and the scope. Pan and zoom belong to both; dragging a node belongs to force alone, since a layered drawing's positions are its meaning.
 	import { store } from '$lib/manifest/client.svelte';
-	import { closureOf, downstream, layout, type Layout } from '$lib/graph/layout';
+	import { closureOf, downstream, layout, PAPER, type Layout } from '$lib/graph/layout';
 	import { forceLayout, R } from '$lib/graph/force';
 	import PagePanel from '$lib/shell/PagePanel.svelte';
 	import PageRail from '$lib/shell/PageRail.svelte';
@@ -9,7 +9,9 @@
 	import Badge from '$lib/components/Badge.svelte';
 	import { nodeBadge } from '$lib/badges';
 	import { reachedExternal } from '$lib/reached';
-	import { keyUrl, nodeUrl } from '$lib/nav';
+	import { digestUrl, keyUrl, nodeUrl } from '$lib/nav';
+	import WorkLinks from '$lib/components/WorkLinks.svelte';
+	import { bibText } from '$lib/works';
 
 	const m = $derived(store.manifest!);
 	let mode = $state<'force' | 'layered'>('force');
@@ -17,11 +19,13 @@
 	let taxon = $state('');
 	let tag = $state('');
 	let stateFilter = $state('');
-	let external = $state<'reached' | 'all' | 'none'>('reached');
+	let external = $state<'reached' | 'all' | 'none' | 'papers'>('reached');
 	let selected = $state('');
 	let depth = $state(0);
 	let highlight = $state<'downstream' | 'closure'>('downstream');
 	let laid = $state<Layout | null>(null);
+	// which layout `laid` holds: ELK answers asynchronously, and until it does the drawing on screen is still the force one, so shapes follow this rather than the toggle
+	let laidMode = $state<'force' | 'layered'>('force');
 	let error = $state('');
 
 	// Pan and zoom, as a viewBox transform; the previous drawing's positions seed the next so a filter change moves nodes rather than reshuffling them.
@@ -38,8 +42,12 @@
 
 	const related = $derived.by(() => {
 		if (!selected || !m) return new Set<string>();
+		// a paper drawn as one node is no key of the manifest's; what rests on it is what the drawing joins to it
+		if (selected.startsWith(PAPER)) return new Set((laid?.edges ?? []).filter((e) => e.to === selected).map((e) => e.from));
 		return highlight === 'downstream' ? downstream(m, selected) : closureOf(m, selected);
 	});
+	const paper = $derived(selected.startsWith(PAPER) ? m.references[selected.slice(PAPER.length)] : undefined);
+	const open = (id: string) => (id.startsWith(PAPER) ? digestUrl(id.slice(PAPER.length)) : nodeUrl(id));
 
 	/** Nodes within `depth` steps of the selection, ignoring direction; 0 means the whole scope (15.5). */
 	function inScope(l: Layout): Set<string> | null {
@@ -75,6 +83,7 @@
 				const next = forceLayout(m, f, seed);
 				seed = new Map(next.nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
 				laid = next;
+				laidMode = 'force';
 				moved = new Map();
 				error = '';
 			} catch (e) {
@@ -84,7 +93,9 @@
 		}
 		layout(m, f)
 			.then((l) => {
+				if (mode !== 'layered') return; // toggled back while ELK was working
 				laid = l;
+				laidMode = 'layered';
 				moved = new Map();
 				error = '';
 			})
@@ -93,7 +104,8 @@
 
 	const scope = $derived(laid ? inScope(laid) : null);
 	const shown = $derived(laid ? laid.nodes.filter((n) => !scope || scope.has(n.id)) : []);
-	const shownIds = $derived(new Set(shown.map((n) => n.id)));
+	// a section drawn as a group can be an edge's endpoint, so it counts as shown whenever its box is drawn
+	const shownIds = $derived(new Set([...shown.map((n) => n.id), ...(laidMode === 'layered' && laid && !scope ? laid.groups.map((g) => g.id) : [])]));
 	const shownEdges = $derived(laid ? laid.edges.filter((e) => shownIds.has(e.from) && shownIds.has(e.to)) : []);
 	const at = (id: string, x: number, y: number) => moved.get(id) ?? { x, y };
 
@@ -102,17 +114,17 @@
 		return pts.map((p, i) => `${i ? 'L' : 'M'}${p.x},${p.y}`).join(' ');
 	}
 
-	function toDiagram(ev: PointerEvent): { x: number; y: number } {
-		const r = svgEl?.getBoundingClientRect();
-		if (!r || !laid) return { x: 0, y: 0 };
-		const vw = laid.width / scale;
-		const vh = laid.height / scale;
-		return { x: tx + ((ev.clientX - r.left) / r.width) * vw, y: ty + ((ev.clientY - r.top) / r.height) * vh };
+	/** A pointer position in the drawing's own coordinates. The screen matrix accounts for the letterboxing `preserveAspectRatio` adds when the canvas and the drawing differ in shape, which a proportional mapping does not. */
+	function toDiagram(ev: { clientX: number; clientY: number }): { x: number; y: number } {
+		const ctm = svgEl?.getScreenCTM();
+		if (!svgEl || !ctm) return { x: 0, y: 0 };
+		const p = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
+		return { x: p.x, y: p.y };
 	}
 
 	function down(ev: PointerEvent, id?: string) {
 		const p = toDiagram(ev);
-		dragging = { kind: id ? 'node' : 'pan', id, x: p.x, y: p.y };
+		dragging = { kind: id && laidMode === 'force' ? 'node' : 'pan', id, x: p.x, y: p.y };
 		(ev.currentTarget as Element).setPointerCapture?.(ev.pointerId);
 	}
 	function move(ev: PointerEvent) {
@@ -121,6 +133,7 @@
 		const dx = p.x - dragging.x;
 		const dy = p.y - dragging.y;
 		if (dragging.kind === 'pan') {
+			// shifting the view by the pointer's travel puts the anchor back under the pointer, so the anchor itself stays put
 			tx -= dx;
 			ty -= dy;
 		} else if (dragging.id) {
@@ -137,10 +150,16 @@
 	function up() {
 		dragging = null;
 	}
+	/** Zoom about the pointer, so the thing being looked at stays under it. */
 	function wheel(ev: WheelEvent) {
 		ev.preventDefault();
-		const k = Math.exp(-ev.deltaY / 400);
-		scale = Math.min(6, Math.max(0.2, scale * k));
+		if (!laid) return;
+		const before = toDiagram(ev);
+		const next = Math.min(6, Math.max(0.2, scale * Math.exp(-ev.deltaY / 400)));
+		const f = scale / next;
+		tx = before.x - (before.x - tx) * f;
+		ty = before.y - (before.y - ty) * f;
+		scale = next;
 	}
 	function reset() {
 		tx = 0;
@@ -173,7 +192,7 @@
 		<p class="faint">Laying out…</p>
 	{:else}
 		<p class="faint">
-			{shown.length} nodes · {shownEdges.length} edges · solid statement, dashed proof, dotted prose · drag to pan, scroll to zoom, drag a node to move it, click to select, double-click to open
+			{shown.length} nodes · {shownEdges.length} edges · solid statement, dashed proof, dotted prose · {external === 'papers' ? 'a box is a cited paper, dash-dot a citation, a thicker edge uses more of its results · ' : ''}{laidMode === 'layered' ? 'what a result rests on sits above it · ' : ''}drag to pan, scroll to zoom, {laidMode === 'force' ? 'drag a node to move it, ' : ''}click to select, double-click to open
 		</p>
 		<div class="canvas">
 			<svg
@@ -181,7 +200,7 @@
 				{viewBox}
 				role="application"
 				aria-label="dependency graph"
-				class:layered={mode === 'layered'}
+				class:layered={laidMode === 'layered'}
 				onpointerdown={(e) => down(e)}
 				onpointermove={move}
 				onpointerup={up}
@@ -193,7 +212,7 @@
 						<path d="M0,0 L10,5 L0,10 z" fill="var(--ink-faint)" />
 					</marker>
 				</defs>
-				{#if mode === 'layered'}
+				{#if laidMode === 'layered'}
 					{#each laid.groups as g (g.id)}
 						<rect x={g.x} y={g.y} width={g.w} height={g.h} class="group" rx="6" />
 						<text x={g.x + 8} y={g.y + 18} class="group-label">{g.label}</text>
@@ -203,14 +222,16 @@
 					<path
 						d={path(e.points, e)}
 						class="edge edge-{e.kind}"
+						stroke-width={e.count && e.count > 1 ? 1.1 + Math.min(3, Math.log2(e.count)) : undefined}
 						class:dim={selected && !related.has(e.from) && e.from !== selected}
-						marker-end={mode === 'layered' ? 'url(#arrow)' : undefined}
+						marker-end={laidMode === 'layered' ? 'url(#arrow)' : undefined}
 					/>
 				{/each}
 				{#each shown as n (n.id)}
 					{@const p = at(n.id, n.x, n.y)}
 					<g
 						class="node"
+						class:paper={n.style === 'paper'}
 						class:selected={n.id === selected}
 						class:hl={related.has(n.id)}
 						class:dim={(selected && !related.has(n.id) && n.id !== selected) || !stateOk(n.id)}
@@ -219,15 +240,21 @@
 							down(e, n.id);
 						}}
 						onclick={() => (selected = n.id)}
-						ondblclick={() => (location.href = nodeUrl(n.id))}
+						ondblclick={() => (location.href = open(n.id))}
 						role="button"
 						tabindex="0"
 						onkeydown={(e) => e.key === 'Enter' && (selected = n.id)}
 						data-testid="gnode-{n.id}"
 					>
-						{#if mode === 'force'}
+						{#if laidMode === 'force' && n.style === 'paper'}
+							<rect x={p.x - R * 1.4} y={p.y - R * 1.4} width={R * 2.8} height={R * 2.8} rx="2" class="paper-box" />
+							<text x={p.x} y={p.y + R * 1.4 + 10} class="under">{n.label}</text>
+						{:else if laidMode === 'force'}
 							<circle cx={p.x} cy={p.y} r={n.id === selected ? R * 1.7 : n.section ? R * 1.3 : R} class="fill-{n.color}" stroke-dasharray={n.external ? '3 2' : ''} />
 							<text x={p.x} y={p.y + R + 10} class="under">{n.id}</text>
+						{:else if n.style === 'paper'}
+							<rect x={p.x} y={p.y} width={n.w} height={n.h} rx="2" class="paper-box" />
+							<text x={p.x + 8} y={p.y + 21}><tspan class="taxon">paper</tspan> <tspan class="id">{n.label}</tspan></text>
 						{:else}
 							<rect x={p.x} y={p.y} width={n.w} height={n.h} rx={n.style === 'definition' ? 12 : n.style === 'remark' ? 0 : 4} class="fill-{n.color}" stroke-dasharray={n.external ? '4 2' : ''} />
 							<text x={p.x + 8} y={p.y + 21}><tspan class="id">{n.id}</tspan> <tspan class="taxon">{n.taxon}</tspan></text>
@@ -247,11 +274,21 @@
 		<label>state<select bind:value={stateFilter}><option value="">all</option>{#each states as t (t)}<option value={t}>{t}</option>{/each}</select></label>
 		<label>depth around selection<select bind:value={depth}><option value={0}>whole scope</option><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label>
 		<label>highlight<select bind:value={highlight}><option value="downstream">what rests on it</option><option value="closure">what it rests on</option></select></label>
-		<label>cited results<select bind:value={external}><option value="reached">used here</option><option value="all">all</option><option value="none">none</option></select></label>
+		<label>cited results<select bind:value={external} data-testid="filter-cited"><option value="reached">used here</option><option value="all">all</option><option value="papers">as papers</option><option value="none">none</option></select></label>
 	</div>
 </PagePanel>
 
-{#if node}
+{#if paper}
+	<PageRail>
+		<RailList label="selected paper">
+			<p class="sel"><a href={digestUrl(paper.citekey)}>{bibText(paper.bib.title) || paper.citekey}</a></p>
+			<p class="faint">{bibText(paper.bib.author)}{paper.bib.year ? ` · ${paper.bib.year}` : ''}</p>
+			<p><WorkLinks ref={paper} /></p>
+			<p class="faint">{related.size} {related.size === 1 ? 'result here uses' : 'results here use'} it{paper.digest ? ` · digest of ${paper.digest.nodes.length}` : ' · no digest'}</p>
+			<p><button class="as-link" onclick={() => (selected = '')}>clear</button></p>
+		</RailList>
+	</PageRail>
+{:else if node}
 	<PageRail>
 		<RailList label="selected">
 			<p class="sel"><a href={keyUrl(m, selected)}>{node.taxon}{node.title ? ' · ' + node.title : ''}</a></p>
@@ -324,6 +361,21 @@
 	}
 	.edge-proof {
 		stroke-dasharray: 5 3;
+	}
+	.edge-cites {
+		stroke-dasharray: 6 2 1 2;
+	}
+	.paper-box {
+		fill: var(--leaf);
+		stroke: var(--ink-soft);
+		stroke-width: 1.4;
+	}
+	.node.selected .paper-box {
+		stroke: var(--link);
+		stroke-width: 2.5;
+	}
+	.node.hl .paper-box {
+		stroke: var(--link);
 	}
 	.edge-prose {
 		stroke-dasharray: 1.5 3;

@@ -9,11 +9,12 @@
 			try {
 				var p = JSON.parse(localStorage.getItem('arras.prefs') || '{}');
 				var e = document.documentElement;
-				if (['a', 'b', 'c'].indexOf(p.shell) >= 0) e.setAttribute('data-shell', p.shell);
+				if (['a', 'c'].indexOf(p.shell) >= 0) e.setAttribute('data-shell', p.shell);
 				if (['serif', 'sans'].indexOf(p.face) >= 0) e.setAttribute('data-face', p.face);
 				if (['s', 'm', 'l'].indexOf(p.size) >= 0) e.setAttribute('data-size', p.size);
 				if (['narrow', 'mid', 'wide'].indexOf(p.width) >= 0) e.setAttribute('data-width', p.width);
 				if (p.theme === 'light' || p.theme === 'dark') e.setAttribute('data-theme', p.theme);
+				if (p.comments === 'inline') e.setAttribute('data-comments', 'inline');
 			} catch (err) {
 				/* no stored preferences, or storage is unavailable: the defaults stand */
 			}

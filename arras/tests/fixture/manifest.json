@@ -343,7 +343,7 @@
     "Har77"
    ],
    "locations": [],
-   "message": "Har77 states no identifier; add doi = {...} or eprint = {...} to its bibliography entry so loom can name the work the same way on another machine",
+   "message": "Har77 states no identifier, so loom cannot name the work the same way on another machine; add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom refs resolve",
    "severity": "info"
   },
   {

@@ -54,12 +54,64 @@ function macroPrefix(macros: Macro[]): string {
 	return macros.map((m) => (m.args > 0 ? `\\renewcommand{\\${m.name}}[${m.args}]{${m.body}}` : `\\renewcommand{\\${m.name}}{${m.body}}`)).join('');
 }
 
-export async function typeset(el: Element, defaults: Macro[], perFragment: Macro[] = []): Promise<void> {
+/** Typesetting is serialised: MathJax is not safe to enter twice, and a document typesetting in the background shares it with titles and previews. */
+let queue: Promise<unknown> = Promise.resolve();
+function run(mj: MJ, els: Element[]): Promise<void> {
+	const next = queue.then(() => mj.typesetPromise(els));
+	queue = next.catch(() => {});
+	return next;
+}
+
+/** How many formulas one pass typesets before the page gets a turn. */
+const BATCH = 160;
+
+/**
+ * Typeset the mathematics inside `el`.
+ *
+ * A short fragment is typeset in one pass. A long one — a whole document, where two or three thousand formulas took over a second before anything showed — is typeset in batches: first everything up to `until` (the element a link points at) or the first screenful, and the returned promise resolves once that part is done, so the caller can reveal and scroll; the rest follows in batches that yield to the page between them. Everything above the reader is typeset before the promise resolves, so nothing above them changes height afterwards and the page never jumps under them.
+ *
+ * Parameters
+ * ----------
+ * el : Element
+ *     The container.
+ * defaults : Macro[]
+ *     The corpus-wide macros, applied when MathJax first loads.
+ * perFragment : Macro[], default []
+ *     A digest's own macros, defined ahead of the first formula.
+ * until : Element | null, default null
+ *     Typeset at least through this element before resolving.
+ *
+ * Returns
+ * -------
+ * Promise<void>
+ *     Resolves when the part the reader will see first is typeset; the remainder continues while the element stays in the document.
+ */
+export async function typeset(el: Element, defaults: Macro[], perFragment: Macro[] = [], until: Element | null = null): Promise<void> {
 	const mj = await ensureMathJax(defaults);
+	const items = [...el.querySelectorAll('.math')];
 	if (perFragment.length) {
-		const prefix = macroPrefix(perFragment);
-		const first = el.querySelector('.math');
-		if (first) first.textContent = prefix + (first.textContent ?? '');
+		const first = items[0];
+		if (first) first.textContent = macroPrefix(perFragment) + (first.textContent ?? '');
 	}
-	await mj.typesetPromise([el]);
+	if (items.length <= BATCH) {
+		await run(mj, [el]);
+		return;
+	}
+	// the first part: through the linked element, or through what fits on the first screen
+	let cut = 0;
+	if (until) {
+		cut = items.findIndex((m) => until.compareDocumentPosition(m) & Node.DOCUMENT_POSITION_FOLLOWING);
+		if (cut < 0) cut = items.length;
+	}
+	const screen = window.innerHeight * 1.5;
+	while (cut < items.length && items[cut].getBoundingClientRect().top < screen) cut++;
+	cut = Math.min(items.length, Math.max(cut, BATCH));
+	for (let i = 0; i < cut; i += BATCH) await run(mj, items.slice(i, Math.min(cut, i + BATCH)));
+	void (async () => {
+		for (let i = cut; i < items.length; i += BATCH) {
+			await new Promise((r) => setTimeout(r, 0));
+			if (!el.isConnected) return;
+			await run(mj, items.slice(i, i + BATCH));
+		}
+	})();
 }

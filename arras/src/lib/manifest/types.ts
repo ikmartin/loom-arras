@@ -236,6 +236,8 @@ export interface Reference {
   } | null;
   version_mismatch: boolean;
   cited_by: string[];
+  /** Identifiers a lookup proposed for a work whose entry states none. Unconfirmed: never the work's identity, which changes only when the bibliography states it. */
+  candidates?: { id: string; source: string; confidence: number; strength: 'strong' | 'possible' | (string & {}); title: string }[];
 }
 
 export interface Macro {

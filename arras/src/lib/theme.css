@@ -52,8 +52,6 @@
 	--strip: 44px;
 	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
 	--rail-a: 267px;
-	--rail-b: 240px;
-	--topbar: 30px;
 
 	/* typefaces: serif for mathematical content, sans for chrome, mono for ids.
 	   The serif is the stack the author's site generator uses, so a corpus page and a note page look like the same publication (15.7). */
@@ -580,3 +578,55 @@ a.heading-link:focus {
 	margin-bottom: var(--gap-hair);
 }
 .fragment figure[data-error] pre { text-align: left; background: none; padding: 0; }
+
+/* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. A whole marked block carries the colour down its edge rather than under every line. */
+.fragment mark.annotation.k-objection { background: var(--state-incomplete-wash); box-shadow: inset 0 -2px 0 var(--state-incomplete); }
+.fragment mark.annotation.k-suggestion { background: var(--state-stale-wash); box-shadow: inset 0 -2px 0 var(--state-stale); }
+.fragment mark.annotation.k-question { background: var(--link-wash); box-shadow: inset 0 -2px 0 var(--link); }
+.fragment mark.annotation.k-ok { background: var(--state-accepted-wash); box-shadow: inset 0 -2px 0 var(--state-accepted); }
+.fragment mark.annotation {
+	color: inherit;
+	border-radius: 2px;
+	padding: 0 1px;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+.fragment .annotation-block.k-objection { box-shadow: inset 3px 0 0 var(--state-incomplete); }
+.fragment .annotation-block.k-suggestion { box-shadow: inset 3px 0 0 var(--state-stale); }
+.fragment .annotation-block.k-question { box-shadow: inset 3px 0 0 var(--link); }
+.fragment .annotation-block.k-ok { box-shadow: inset 3px 0 0 var(--state-accepted); }
+.fragment mark.annotation.expanded,
+.fragment .annotation-block.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
+.fragment mark.annotation:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+
+/* A comment opened where it is: in the flow beneath its paragraph, raised just enough to read as something that opened. */
+.comment-slot.expanded {
+	margin: var(--gap-tight) 0 var(--gap);
+	font-family: var(--sans);
+}
+.comment-slot.expanded > .box {
+	margin: 0 0 var(--gap-hair);
+	box-shadow: 0 4px 16px rgb(0 0 0 / 9%);
+}
+
+/* The count beside a node's label for comments that have no mark of their own. */
+.fragment button.comment-count {
+	margin-left: var(--gap-tight);
+	font-family: var(--sans);
+	font-size: 9px;
+	font-style: normal;
+	font-weight: 400;
+	line-height: 14px;
+	padding: 0 6px;
+	border: none;
+	border-radius: var(--rad-pill);
+	cursor: pointer;
+	color: var(--ink-soft);
+	background: var(--leaf);
+	vertical-align: 1px;
+}
+.fragment button.comment-count.k-objection { color: var(--state-incomplete); background: var(--state-incomplete-wash); }
+.fragment button.comment-count.k-suggestion { color: var(--state-stale); background: var(--state-stale-wash); }
+.fragment button.comment-count.k-question { color: var(--link); background: var(--link-wash); }
+.fragment button.comment-count.k-ok { color: var(--state-accepted); background: var(--state-accepted-wash); }
+.fragment button.comment-count.expanded { outline: 2px solid var(--link); outline-offset: 1px; }

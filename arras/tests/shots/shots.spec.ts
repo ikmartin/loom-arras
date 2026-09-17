@@ -9,10 +9,10 @@ async function settle(page: Page) {
 	await page.waitForTimeout(700); // MathJax and the force simulation
 }
 
-async function shot(page: Page, name: string, path: string, opts: { shell?: 'a' | 'b' | 'c'; theme?: 'light' | 'dark' } = {}) {
+async function shot(page: Page, name: string, path: string, opts: { shell?: 'a' | 'c'; theme?: 'light' | 'dark' } = {}) {
 	await page.goto('/');
 	await page.evaluate(
-		([shell, theme]) => localStorage.setItem('arras.prefs', JSON.stringify({ shell, face: 'serif', size: 'm', width: 'mid', theme })),
+		([shell, theme]) => localStorage.setItem('arras.prefs', JSON.stringify({ shell, face: 'serif', size: 'm', width: 'mid', theme, comments: 'margin' })),
 		[opts.shell ?? 'c', opts.theme ?? 'light']
 	);
 	await page.goto(path);
@@ -37,7 +37,6 @@ test('the reference figures', async ({ page }) => {
 	await page.screenshot({ path: `${OUT}/page-graph-layered.png` });
 
 	await shot(page, 'shell-a-rail-sections', '/master/main', { shell: 'a' });
-	await shot(page, 'shell-b-topbar-tabs', '/master/main', { shell: 'b' });
 	await shot(page, 'shell-c-icon-strip', '/master/main', { shell: 'c' });
 	await shot(page, 'page-node-dark', '/node/sy-0003', { theme: 'dark' });
 });

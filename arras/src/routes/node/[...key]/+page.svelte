@@ -9,6 +9,8 @@
 	import AnnotationPanel from '$lib/components/AnnotationPanel.svelte';
 	import RailList from '$lib/components/RailList.svelte';
 	import PageRail from '$lib/shell/PageRail.svelte';
+	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
+	import Locator from '$lib/components/Locator.svelte';
 	import Tex from '$lib/math/Tex.svelte';
 	import { nodeBadge, reviewFacts, stateBadge } from '$lib/badges';
 	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
@@ -83,7 +85,7 @@
 				<Badge parts={nodeBadge(m, node)} facts={reviewFacts(stmt)} />
 				{#if !number}<span class="muted">not yet compiled</span>{/if}
 				{#each node.tags as t (t)}<a class="tag" href={tagUrl(t)}>#{t}</a>{/each}
-				{#if node.external && node.digest}<span class="muted">from <a href={digestUrl(node.digest)}>{node.digest}</a>{node.locator ? `, ${node.locator}` : ''}</span>{/if}
+				{#if node.external && node.digest}<span class="muted">from <a href={digestUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
 		</header>
 
@@ -112,6 +114,10 @@
 
 {#if node}
 	<PageRail>
+		<RailList label="local graph">
+			<LocalGraphPanel center={key} />
+		</RailList>
+
 		{#each node.reached_by as mp (mp)}
 			<RailList label={'in ' + mp}>
 				<p class="crumb">

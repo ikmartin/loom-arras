@@ -1,5 +1,5 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
-import { anchorId, keyUrl, nodeUrl } from '$lib/nav';
+import { anchorId, digestUrl, keyUrl, nodeUrl } from '$lib/nav';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
 
@@ -12,13 +12,15 @@ export interface WireOptions {
 	margins?: boolean;
 	/** Places a slot for each node's comments: in the right gutter when the comment is short, in the flow when it is long (book 15.3.1). The caller fills the slots; this only decides where they go. */
 	comments?: (key: string) => CommentPlacement[];
+	/** Expands comments in place instead of pointing at a card elsewhere: marks and counts call this with the comments they stand for (the `inline` comments preference). */
+	expand?: (trigger: HTMLElement, ids: string[]) => void;
 }
 
 /** One comment and where it belongs beside the node it is about. */
 export interface CommentPlacement {
 	id: string;
-	/** `gutter` stands beside the node; `inline` stays in the text as a box. */
-	where: 'gutter' | 'inline';
+	/** `gutter` stands beside the node; `inline` stays in the text as a box; `count` is a small control beside the node's label that expands it, for a comment with no mark of its own when comments are shown in place. */
+	where: 'gutter' | 'inline' | 'count';
 }
 
 export function labelFor(manifest: Manifest | null, key: string): string {
@@ -50,12 +52,16 @@ export function wire(
 		const here = opts.master ? manifest?.nodes[owner]?.reached_by?.includes(opts.master) : false;
 		a.href = here ? '#' + anchorId(key) : keyUrl(manifest, owner) + (region ? '#' + anchorId(key) : '');
 	}
-	for (const c of root.querySelectorAll<HTMLElement>('span.cite[data-target]')) {
+	// A citation with a digest node behind it opens that result; one without opens the reference, which links out to the work. A citekey the manifest does not know stays text.
+	for (const c of root.querySelectorAll<HTMLElement>('span.cite[data-citekey]')) {
+		if (c.querySelector('a')) continue;
 		const target = c.dataset.target;
-		if (!target || c.querySelector('a')) continue;
+		const citekey = c.dataset.citekey ?? '';
+		const href = target ? nodeUrl(target) : manifest?.references[citekey] ? digestUrl(citekey) : '';
+		if (!href) continue;
 		const a = document.createElement('a');
-		a.href = nodeUrl(target);
-		a.className = 'cite-link';
+		a.href = href;
+		a.className = target ? 'cite-link' : 'cite-link cite-work';
 		while (c.firstChild) a.appendChild(c.firstChild);
 		c.appendChild(a);
 	}
@@ -70,11 +76,17 @@ export function wire(
 		// several comments can share one phrase, and the mark lists them in no particular order; the one to select is the one with a card of its own, since a reply is shown inside its parent
 		const lead = ids.find((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to) ?? ids[0] ?? '';
 		const first = manifest?.annotations[lead];
-		if (first) mark.title = `${first.kind}: ${first.author.label ?? first.author.id}`;
+		if (first) {
+			mark.title = `${first.kind}: ${first.author.label ?? first.author.id}`;
+			// coloured by what the comment is, so an objection reads differently from a question before anyone opens it
+			mark.classList.add('k-' + first.kind);
+		}
 		mark.setAttribute('role', 'button');
 		mark.setAttribute('tabindex', '0');
-		mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
+		if (opts.expand) mark.setAttribute('aria-expanded', 'false');
+		else mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
 		const go = () => {
+			if (opts.expand) return opts.expand(mark, ids);
 			select(lead);
 			document.getElementById('ann-' + lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		};
@@ -111,6 +123,22 @@ export function wire(
 			const placements = key ? opts.comments(key) : [];
 			if (!placements.length) continue;
 			el.dataset.wiredComments = '1';
+			const counted = placements.filter((p) => p.where === 'count').map((p) => p.id);
+			const label = el.querySelector<HTMLElement>(':scope > p.env-label, :scope > summary.env-label, :scope > :is(h1,h2,h3,h4,h5,h6)');
+			if (counted.length && label && opts.expand) {
+				const kind = manifest?.annotations[counted[0]]?.kind ?? '';
+				const btn = document.createElement('button');
+				btn.type = 'button';
+				btn.className = `comment-count k-${kind}`;
+				btn.textContent = counted.length === 1 ? '1 comment' : `${counted.length} comments`;
+				btn.setAttribute('aria-expanded', 'false');
+				btn.dataset.countFor = key;
+				btn.addEventListener('click', (e) => {
+					e.preventDefault(); // inside a proof's summary a click would also fold the proof
+					opts.expand!(btn, counted);
+				});
+				label.appendChild(btn);
+			}
 			for (const where of ['gutter', 'inline'] as const) {
 				const ids = placements.filter((p) => p.where === where).map((p) => p.id);
 				if (!ids.length) continue;

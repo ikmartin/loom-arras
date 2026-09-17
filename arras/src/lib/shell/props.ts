@@ -1,4 +1,4 @@
-// The one prop set the three arrangements share (book 15.8). Every shell contains the same elements; adding one here means adding it to all three or to none.
+// The one prop set the two arrangements share (book 15.8). Every shell contains the same elements; adding one here means adding it to both or to neither.
 
 import type { Snippet } from 'svelte';
 import type { ContentsEntry } from '$lib/contents';
