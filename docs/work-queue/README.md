@@ -20,7 +20,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 
 | id | item | repo | trigger |
 |---|---|---|---|
-| [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl: building a library by depth and subject, under a download cap | loom | the author decides to build a library — a decision; its prerequisite, identity lookups, landed in plan 0.7 |
 | [WQ-03](WQ-03-reference-libraries.md) | reference libraries: one quilt depends on another | loom | a second quilt exists whose digests another quilt wants |
 | [WQ-06](WQ-06-byte-cache.md) | a shared cache for fetched bytes | loom | `refs/` across all quilts on one machine exceeds a few GB, or a quilt needs its fetched bytes on another disk |
 | [WQ-08](WQ-08-nest-sectioning-classes.md) | `\nest` under `\part` and class-specific sectioning | loom | a fixture uses memoir, KOMA-Script or `\part` |
@@ -33,6 +32,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-22](WQ-22-extraction-node-model.md) | digest extraction shares the node model | loom | extraction and atomize disagree about what a node is, or a corpus makes the per-paper LaTeX compile the bottleneck |
 | [WQ-23](WQ-23-agent-review.md) | reviewing agent runs in arras: the split view, severity, run-scoped notation, citation candidates | loom, arras | the author resumes the design, paused on 2026-09-16 — a decision, not an observation |
 
-Twelve active, eight slots of headroom.
+Eleven active, nine slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

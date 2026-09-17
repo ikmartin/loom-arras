@@ -19,6 +19,7 @@ The full design of a built item lives in its plan; the full design of a dropped 
 | WQ-05 | the contracted work graph | 2026-09-17 | graduated: built as "cited results: as papers" in [docs/plans/0.7-three-queue-items.md](../plans/0.7-three-queue-items.md), DR-124. The full quotient, contracting the corpus's own results too, waits for a corpus spanning several quilts. |
 | WQ-21 | arras displays PDFs and resolves reference links into them | 2026-09-17 | graduated: [docs/plans/0.7-three-queue-items.md](../plans/0.7-three-queue-items.md), DR-123. PDF.js, for finding a quoted passage rather than a page, is not queued: add it when page-level links prove insufficient. |
 | WQ-04 | network identity resolvers | 2026-09-17 | graduated with its trigger unmet (23% unresolved on relloc against a 25% threshold), at the author's request for the three most immediate items: [docs/plans/0.7-three-queue-items.md](../plans/0.7-three-queue-items.md), DR-122. Built as candidates only; binding a candidate as an identity waits on WQ-23. |
+| WQ-02 | recursive reference crawl: building a library | 2026-09-17 | graduated: the author asked for its implementation plan with the trigger set aside; [docs/plans/0.8-reference-crawl.md](../plans/0.8-reference-crawl.md) carries the design settled that night. |
 
 ## Milestones
 
