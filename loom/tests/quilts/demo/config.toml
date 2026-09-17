@@ -12,4 +12,3 @@ disable = []
 
 [ai]
 agent = ""
-runner = ""

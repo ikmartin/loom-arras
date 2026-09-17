@@ -18,15 +18,35 @@ _SOURCE = re.compile(r"^%\s*!LOOM\s+source:\s*(.*)$", re.M)
 _PREFIX = re.compile(r"^%\s*!LOOM\s+prefix:\s*\S+\s*$", re.M)
 
 
+_RETIRED_KEY = re.compile(r"^runner\s*=.*(?:\r?\n)?", re.M)
+
+
 @dataclass
 class Migration:
     moved: list[str] = field(default_factory=list)
     rewrote: list[str] = field(default_factory=list)
     unknown: list[str] = field(default_factory=list)  # a digest whose provenance could not be split
+    retired: list[str] = field(default_factory=list)  # config keys loom wrote and has since withdrawn
 
     @property
     def done(self) -> bool:
-        return bool(self.moved or self.rewrote)
+        return bool(self.moved or self.rewrote or self.retired)
+
+
+def _drop_retired_keys(root: Path) -> list[str]:
+    """Remove config keys loom itself wrote and has since withdrawn.
+
+    Only `[ai] runner`, and only by deleting its line: rewriting the file through a TOML round trip would lose the comments the template ships with. The key is still accepted if left in place, so this is tidying rather than a fix.
+    """
+    cfg = root / "config.toml"
+    if not cfg.is_file():
+        return []
+    text = cfg.read_text(encoding="utf-8")
+    out, n = _RETIRED_KEY.subn("", text)
+    if not n:
+        return []
+    cfg.write_text(out, encoding="utf-8")
+    return ["[ai] runner"]
 
 
 def _bib(root: Path) -> dict[str, BibEntry]:
@@ -66,6 +86,7 @@ def _split_header(text: str, entry: BibEntry | None) -> tuple[str, bool]:
 def migrate(root: Path) -> Migration:
     """Move a quilt's references into the current layout and split its digest headers. Idempotent."""
     rep = Migration()
+    rep.retired = _drop_retired_keys(root)
     bib = _bib(root)
     refs = root / "refs"
 

@@ -20,6 +20,8 @@ CONFIG_KEYS: dict[str, set[str]] = {
     "quilt": {"main", "drafts", "prefix", "engine"},
     "refs": {"fetch"},
     "lint": {"disable"},
+    # `runner` is retired: the runner was declined (docs/work-queue/closed.md, WQ-15). It stays accepted and ignored
+    # so that a quilt loom itself wrote the key into does not now report it as unknown; `loom upgrade` removes the line.
     "ai": {"agent", "runner"},
 }
 
@@ -41,7 +43,6 @@ class QuiltConfig:
     fetch: bool = False
     lint_disable: list[str] = field(default_factory=list)
     ai_agent: str = ""
-    ai_runner: str = ""
     warnings: list[str] = field(default_factory=list)
 
     @classmethod
@@ -66,7 +67,6 @@ class QuiltConfig:
         cfg.fetch = bool(data.get("refs", {}).get("fetch", False))
         cfg.lint_disable = [str(x) for x in data.get("lint", {}).get("disable", [])]
         cfg.ai_agent = str(data.get("ai", {}).get("agent", ""))
-        cfg.ai_runner = str(data.get("ai", {}).get("runner", ""))
         return cfg
 
 

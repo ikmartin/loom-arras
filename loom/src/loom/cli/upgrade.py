@@ -38,6 +38,8 @@ def upgrade(quilt_path: str | None) -> None:
     refs_rep = migrate(root)
     for line in refs_rep.moved:
         click.echo(f"moved {line}")
+    for key in refs_rep.retired:
+        click.echo(f"removed {key} from config.toml (withdrawn; it did nothing)")
     if refs_rep.unknown:
         click.echo(
             f"provenance split for {', '.join(refs_rep.unknown)}: the recorded identifier names the published work, so "
@@ -45,4 +47,5 @@ def upgrade(quilt_path: str | None) -> None:
         )
     if not refs_rep.done:
         click.echo("references are current")
-    click.echo("config.toml and the ledger need no migration")
+    if not refs_rep.retired:
+        click.echo("config.toml and the ledger need no migration")

@@ -30,7 +30,6 @@ disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched
 
 [ai]
 agent = ""                  # command loom ai start launches, if any
-runner = ""                 # deferred; see specs/runner.md
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.
