@@ -414,6 +414,16 @@ def _author_label(a: Annotation) -> str:
 
 
 def _when(result: ScanResult, n: NodeRec) -> str | None:
+    """The date a node's file last changed, from its modification time.
+
+    Under LOOM_FIXED_TIME it is the fixed date instead: a modification time depends on when and how a quilt was copied, so a fixture built from it would differ by the day it was regenerated.
+    """
+    import os
+
+    if os.environ.get("LOOM_FIXED_TIME"):
+        from loom.clock import today
+
+        return today()
     try:
         import datetime
 
