@@ -8,7 +8,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from loom.refs.identity import identify, primary
+from loom.refs.identity import declared, identify, primary
+from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
 from loom.scan.digests import extracted_from, published_as, source_version
@@ -269,6 +270,20 @@ def build_manifest(
             "version_mismatch": version_mismatch,
             "cited_by": sorted(set(cited_by.get(ck, []))),
         }
+        # identifiers a lookup proposed for a work that states none: unconfirmed, and never the work's identity (8.9.1)
+        if bib is not None and not declared(bib):
+            found = load_candidates(result.quilt.root, bib)
+            if found:
+                manifest["references"][ck]["candidates"] = [
+                    {
+                        "id": c.id,
+                        "source": c.source,
+                        "confidence": c.confidence,
+                        "strength": c.strength,
+                        "title": c.title,
+                    }
+                    for c in found
+                ]
     closure = result.closures.get(dm) if dm else None
     mathjax_macros = {
         k: v

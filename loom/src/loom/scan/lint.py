@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 
 from loom.refs.identity import declared, parse
+from loom.refs.resolve import load as load_candidates
 from loom.scan.bib import citekey_slug
 from loom.scan.diagnostics import can_disable
 from loom.scan.digests import digest_header, extracted_from, missing_packages, published_as, source_version
@@ -245,11 +246,22 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     for ck in sorted({c.citekey for c in edges.cites}):
         entry = result.bib.get(ck)
         if entry is not None and not declared(entry):
+            # a lookup already made is named here, read from refs/; lint itself never touches the network
+            found = load_candidates(result.quilt.root, entry)
+            if found:
+                best = found[0]
+                scheme, _, value = best.id.partition(":")
+                field_name = {"doi": "doi", "zbl": "zbl", "mr": "mrnumber", "arxiv": "eprint"}.get(scheme, scheme)
+                advice = f"a lookup found {best.id} ({best.strength} match, {best.source}); if it is the right work, add {field_name} = {{{value}}} to the entry"
+            else:
+                advice = (
+                    "add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom refs resolve"
+                )
             diags.append(
                 Diagnostic(
                     "info",
                     "loom:unresolved-work",
-                    f"{ck} states no identifier; add doi = {{...}} or eprint = {{...}} to its bibliography entry so loom can name the work the same way on another machine",
+                    f"{ck} states no identifier, so loom cannot name the work the same way on another machine; {advice}",
                     [],
                     [ck],
                 )

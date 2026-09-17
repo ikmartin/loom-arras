@@ -18,7 +18,7 @@ NO_AUTHOR_MESSAGE = (
 
 CONFIG_KEYS: dict[str, set[str]] = {
     "quilt": {"main", "drafts", "prefix", "engine"},
-    "refs": {"fetch"},
+    "refs": {"fetch", "resolve", "contact"},
     "lint": {"disable"},
     # `runner` is retired: the runner was declined (docs/work-queue/closed.md, WQ-15). It stays accepted and ignored
     # so that a quilt loom itself wrote the key into does not now report it as unknown; `loom upgrade` removes the line.
@@ -41,6 +41,8 @@ class QuiltConfig:
     prefix: str = "q"
     engine: str = "pdflatex"
     fetch: bool = False
+    resolve: bool = False
+    contact: str = ""
     lint_disable: list[str] = field(default_factory=list)
     ai_agent: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -65,6 +67,8 @@ class QuiltConfig:
         cfg.prefix = str(q.get("prefix", cfg.prefix))
         cfg.engine = str(q.get("engine", cfg.engine))
         cfg.fetch = bool(data.get("refs", {}).get("fetch", False))
+        cfg.resolve = bool(data.get("refs", {}).get("resolve", False))
+        cfg.contact = str(data.get("refs", {}).get("contact", ""))
         cfg.lint_disable = [str(x) for x in data.get("lint", {}).get("disable", [])]
         cfg.ai_agent = str(data.get("ai", {}).get("agent", ""))
         return cfg

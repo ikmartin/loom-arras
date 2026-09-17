@@ -348,7 +348,7 @@ Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
 
 `loom refs [OPTIONS] COMMAND [ARGS]...`
 
-Fetched works: where their artifacts are, and how to add one by hand.
+Fetched works: where their artifacts are, how to add one by hand, and identifiers for works that state none.
 
 ### `loom refs add`
 
@@ -373,6 +373,20 @@ Print where CITEKEY's fetched artifacts live. Nothing under refs/ is meant to be
 |---|---|
 | `--pdf` | The PDF rather than the directory. |
 | `--src` | The unpacked source rather than the directory. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs resolve`
+
+`loom refs resolve [OPTIONS] [CITEKEYS]...`
+
+Look up identifiers for cited works whose bibliography entry states none. Requires [refs] resolve = true.
+
+Asks zbMATH Open, then Crossref, and prints candidates with how well each matched. Nothing is changed: a candidate becomes the work's identity when you add the field to your own bibliography entry. Answers are kept under refs/, so `loom lint` can name them and a second run asks nothing. With no CITEKEYS, every cited entry that states no identifier.
+
+| option | description |
+|---|---|
+| `--refresh` | Ask again even where an answer is recorded. |
+| `--json` | Print the candidates as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom search`
