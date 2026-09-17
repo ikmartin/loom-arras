@@ -1,5 +1,6 @@
 <script lang="ts">
 	// Shell A (book 15.2.1): one 178px rail of stacked labelled sections, no top bar.
+	import Icon from '$lib/components/Icon.svelte';
 	import Contents from './Contents.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Settings from './Settings.svelte';
@@ -22,12 +23,12 @@
 				{#each views as v (v.id)}
 					<li>
 						<a href={v.href} class:current={currentView === v.id} aria-current={currentView === v.id ? 'page' : undefined}>
-							<span class="icon" aria-hidden="true">{v.icon}</span>{v.label}
+							<span class="icon"><Icon name={v.icon} size={14} /></span>{v.label}
 						</a>
 					</li>
 				{/each}
 				<li>
-					<button class="as-link" onclick={search}><span class="icon" aria-hidden="true">⌕</span>search</button>
+					<button class="as-link" onclick={search}><span class="icon"><Icon name="search" size={14} /></span>search</button>
 				</li>
 			</ul>
 		</section>
@@ -148,9 +149,11 @@
 		color: var(--link);
 	}
 	.icon {
+		/* a fixed box so every label starts at the same x, whatever the drawing inside it */
 		width: 15px;
-		display: inline-block;
-		text-align: center;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		color: var(--ink-faint);
 	}
 	ul.views a.current .icon {

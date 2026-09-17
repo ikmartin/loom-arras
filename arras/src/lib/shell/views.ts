@@ -7,19 +7,19 @@ export interface View {
 	id: string;
 	label: string;
 	href: string;
-	/** A single glyph for the icon strip; every one also carries its label as an aria-label. */
+	/** The icon strip's drawing for this view, by name; see `$lib/components/Icon.svelte`. Every one also carries its label as an aria-label. */
 	icon: string;
 }
 
 export function viewsOf(m: Manifest | null): View[] {
 	const master = m?.masters.find((x) => x.default) ?? m?.masters[0];
 	return [
-		{ id: 'home', label: 'home', href: '/', icon: '◇' },
-		{ id: 'read', label: 'read', href: master ? masterUrl(master.path) : '/', icon: '▤' },
-		{ id: 'graph', label: 'graph', href: '/graph', icon: '◈' },
-		{ id: 'review', label: 'review', href: '/review', icon: '✓' },
-		{ id: 'problems', label: 'problems', href: '/problems', icon: '!' },
-		{ id: 'references', label: 'references', href: '/references', icon: '¶' }
+		{ id: 'home', label: 'home', href: '/', icon: 'home' },
+		{ id: 'read', label: 'read', href: master ? masterUrl(master.path) : '/', icon: 'read' },
+		{ id: 'graph', label: 'graph', href: '/graph', icon: 'graph' },
+		{ id: 'review', label: 'review', href: '/review', icon: 'review' },
+		{ id: 'problems', label: 'problems', href: '/problems', icon: 'problems' },
+		{ id: 'references', label: 'references', href: '/references', icon: 'references' }
 	];
 }
 

@@ -3,6 +3,7 @@
 	// The strip carries no separate home mark: home is one of the six views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
+	import Icon from '$lib/components/Icon.svelte';
 	import Settings from './Settings.svelte';
 	import { INDEXES } from './views';
 	import type { ShellProps } from './props';
@@ -24,11 +25,11 @@
 						title={v.label}
 						class:current={currentView === v.id}
 						aria-current={currentView === v.id ? 'page' : undefined}
-						data-testid="view-{v.id}"><span aria-hidden="true">{v.icon}</span></a
+						data-testid="view-{v.id}"><Icon name={v.icon} /></a
 					>
 				</li>
 			{/each}
-			<li><button onclick={search} aria-label="Search" title="search"><span aria-hidden="true">⌕</span></button></li>
+			<li><button onclick={search} aria-label="Search" title="search"><Icon name="search" /></button></li>
 		</ul>
 		<div class="foot"><Settings placement="above" /></div>
 	</nav>

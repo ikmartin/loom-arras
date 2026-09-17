@@ -9,6 +9,7 @@
 	import NavShell from '$lib/shell/NavShell.svelte';
 	import { viewsOf, viewOf } from '$lib/shell/views';
 	import { contentsOf } from '$lib/contents';
+	import { followReading, reading, sectionIds } from '$lib/reading.svelte';
 	import { prefs, type Shell } from '$lib/prefs.svelte';
 	import { openPalette } from '$lib/palette';
 	import { masterStem } from '$lib/nav';
@@ -46,7 +47,15 @@
 	});
 
 	const contents = $derived(m && currentMaster ? contentsOf(m, currentMaster) : []);
-	const currentSection = $derived(page.url.hash ? page.url.hash.slice(1) : '');
+	// The rail's position bar follows the scroll while a document is being read, and falls back to the hash
+	// elsewhere. Reading the fragments' own element ids means it also lights for a section with no allocated id,
+	// whose key is not slug-shaped and so never matched a hash.
+	const reads = $derived(page.url.pathname.startsWith('/master'));
+	$effect(() => {
+		if (!reads) return;
+		return followReading(sectionIds(contents));
+	});
+	const currentSection = $derived(reading.section || (page.url.hash ? page.url.hash.slice(1) : ''));
 </script>
 
 <svelte:head>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	// Shell B (book 15.2.2): a 30px top bar of corpus label, breadcrumb, view tabs and search, over a 160px rail holding contents only.
+	import Icon from '$lib/components/Icon.svelte';
 	import Contents from './Contents.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Settings from './Settings.svelte';
@@ -18,7 +19,7 @@
 				<a href={v.href} class:current={currentView === v.id} aria-current={currentView === v.id ? 'page' : undefined}>{v.label}</a>
 			{/each}
 		</nav>
-		<button class="as-link" onclick={search} aria-label="Search">⌕</button>
+		<button class="as-link" onclick={search} aria-label="Search"><Icon name="search" size={14} /></button>
 		<Settings />
 	</header>
 
