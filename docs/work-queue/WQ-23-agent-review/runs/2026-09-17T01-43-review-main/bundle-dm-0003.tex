@@ -1,0 +1,33 @@
+% Bundle written by loom. Statements of the closure precede the key; ids are shown as comments before each environment.
+\documentclass{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{loom}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\Fix}{\operatorname{Fix}}
+
+\title{Widgets and their fixed loci}
+\author{The loom demo}
+\begin{document}
+\section*{Bundle for dm-0003}
+
+% id: dm-0003
+\begin{theorem}[Main]\label{dm-0003}
+Let $(X,\sigma)$ be a widget. Then $|\Fix(\sigma)| \equiv |X| \pmod 2$, so $\Fix(\sigma)$ is nonempty when $|X|$ is odd; and $\Fix(\sigma)$ is closed in every Hausdorff topology on $X$.
+\end{theorem}
+
+% proof: dm-0003/proof
+\begin{proof}
+\uses{dm-0002}
+By Lemma~\ref{lem:orbits} the set $X$ is a disjoint union of orbits of size one or two, so $|X| \equiv |\Fix(\sigma)| \pmod 2$, which gives the parity statement. For closedness, $\Fix(\sigma)$ is the preimage of the diagonal under $(\mathrm{id},\sigma)\colon X\to X\times X$, and the diagonal is closed when $X$ is Hausdorff; the same argument in the algebraic setting is \cite[Proposition 3.2]{Man12}.
+\end{proof}
+
+\end{document}

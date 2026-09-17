@@ -285,6 +285,8 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 **[decided]** `work` is the work's global identifier and `works` every identifier its bibliography entry states, each written `scheme:value` with the scheme one of `doi`, `arxiv`, `mr`, `zbl`, or `work` (a deterministic hash of author, title and year, for an entry stating none). `artifacts.dir` is where what has been fetched for the work lives, servable under the viewer's origin, and the two flags say which of the source and the PDF are present; both are false until someone fetches or adds a copy, and that directory is not in version control, so another reader's copy of the corpus may have neither. `digest.extracted_from` and `digest.published_as` distinguish the artifact whose numbering the digest carries from the work the bibliography cites; `digest.source` repeats `extracted_from` and is retained for readers written before 0.5. All of these are additive and the interface version is unchanged (DR-108, DR-109, DR-110).
 
+**[decided]** `candidates`, present only on a reference whose bibliography entry states no identifier and only once a lookup has run, lists identifiers a lookup proposed, best first: `{"id": "doi:10.1353/ajm.1998.0020", "source": "zbMATH Open", "confidence": 1.0, "strength": "strong", "title": "…"}`. They are unconfirmed and never the reference's `work`, which changes only when the bibliography states the identifier. A viewer may show them, marked as unconfirmed. Additive; the interface version is unchanged (DR-122).
+
 ## 14. Macros
 
 **[decided]** Each macro is `{"name": "Res", "args": 0, "body": "\\mathrm{Res}"}`. `macros.default` is the preamble closure's set; `macros.sets` holds per-fragment sets named in fragments' `data-macros`.

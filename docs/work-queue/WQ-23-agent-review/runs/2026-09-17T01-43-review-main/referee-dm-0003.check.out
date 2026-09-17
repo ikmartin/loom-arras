@@ -1,0 +1,8 @@
+Trial 1: Fix(sigma) nonempty  <=>  |X| odd
+  widgets with |X| <= 5 checked; counterexamples to the 'only if': 8
+  smallest: X = {0,1}, sigma = (0, 1) (the identity), Fix = [0, 1], |X| = 2
+  the congruence |X| = |Fix| mod 2 held in every case
+Trial 2: Fix(sigma) closed when sigma is continuous and X is Hausdorff
+  29 topologies on 3 points; Hausdorff ones: 1, all discrete: 1
+  Hausdorff and Fix not closed: 0  (the clause holds, and vacuously: discrete)
+  not Hausdorff, sigma continuous, Fix not closed: 9  (Hausdorff is load-bearing)

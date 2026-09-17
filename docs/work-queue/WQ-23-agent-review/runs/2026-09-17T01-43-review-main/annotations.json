@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "discarded": false,
+  "annotations": [
+    {
+      "id": "a-2026-09-17-0001",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-17T01-43-review-main"
+      },
+      "created": "2026-09-17T01:44:40Z",
+      "target": {
+        "key": "dm-0003",
+        "hash": "sha256:e4b7a452d450283402b48f7fdd2494e9872c15a1010ecb508d3a0d2fe5232838"
+      },
+      "selector": {
+        "exact": "is nonempty if and only if $|X|$ is odd",
+        "prefix": "finite set. Then $\\Fix(\\sigma)$ ",
+        "suffix": ", and it is closed in every topo"
+      },
+      "kind": "objection",
+      "body": "The 'only if' is false. Take X = {0,1} and sigma = id: Fix(sigma) = X is nonempty and |X| = 2 is even. A brute force over every widget with |X| <= 5 finds 8 such counterexamples (referee-dm-0003.check.py, trial 1). Only the 'if' direction holds.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-17-0002",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-17T01-43-review-main"
+      },
+      "created": "2026-09-17T01:44:40Z",
+      "target": {
+        "key": "dm-0003/proof",
+        "hash": "sha256:123743e3bc45a4fcedaf06e638b849193a69b19d10890da58924d3fa4c277f48"
+      },
+      "selector": {
+        "exact": "which gives the parity statement",
+        "prefix": "\\equiv |\\Fix(\\sigma)| \\pmod 2$, ",
+        "suffix": ". For closedness, $\\Fix(\\sigma)$"
+      },
+      "kind": "objection",
+      "body": "The congruence is correct but does not give the statement. |X| = |Fix(sigma)| mod 2 says |Fix(sigma)| is odd exactly when |X| is odd: a claim about oddness, not about nonemptiness. An even number of fixed points can be nonzero, which is the counterexample above. The step 'which gives the parity statement' hides this.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-17-0003",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-17T01-43-review-main"
+      },
+      "created": "2026-09-17T01:44:40Z",
+      "target": {
+        "key": "dm-0003/proof",
+        "hash": "sha256:123743e3bc45a4fcedaf06e638b849193a69b19d10890da58924d3fa4c277f48"
+      },
+      "selector": {
+        "exact": "the same argument in the algebraic setting is",
+        "prefix": "s closed when $X$ is Hausdorff; ",
+        "suffix": " \\cite[Proposition 3.2]{Man12}.\n"
+      },
+      "kind": "question",
+      "body": "Is the appeal to Proposition 3.2 of Man12 meant as a dependency or as an analogy? 'The same argument in the algebraic setting' reads as analogy, but a \\cite with a locator makes a postnote edge, so the graph currently records it as something this proof rests on.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-17-0004",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-17T01-43-review-main"
+      },
+      "created": "2026-09-17T01:45:40Z",
+      "target": {
+        "key": "dm-0003",
+        "hash": "sha256:e4b7a452d450283402b48f7fdd2494e9872c15a1010ecb508d3a0d2fe5232838"
+      },
+      "selector": {
+        "exact": "with $X$ a finite set",
+        "prefix": "3}\nLet $(X,\\sigma)$ be a widget ",
+        "suffix": ". Then $\\Fix(\\sigma)$ is nonempt"
+      },
+      "kind": "suggestion",
+      "body": "Redundant: a widget's set is finite by definition (dm-0001), so this restates a hypothesis the reader already has. Verdict: implied by another hypothesis. file-verified against dm-0001.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-17-0005",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-17T01-43-review-main"
+      },
+      "created": "2026-09-17T01:45:40Z",
+      "target": {
+        "key": "dm-0003",
+        "hash": "sha256:e4b7a452d450283402b48f7fdd2494e9872c15a1010ecb508d3a0d2fe5232838"
+      },
+      "selector": {
+        "exact": "for which $\\sigma$ is continuous",
+        "prefix": "closed in every topology on $X$ ",
+        "suffix": " and $X$ is Hausdorff.\n\\end{theo"
+      },
+      "kind": "suggestion",
+      "body": "Redundant given the other hypotheses. A finite Hausdorff space is discrete, and every map out of a discrete space is continuous, so this condition is always met. Verdict: implied by another hypothesis. proved-here.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-17-0006",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-17T01-43-review-main"
+      },
+      "created": "2026-09-17T01:45:40Z",
+      "target": {
+        "key": "dm-0003",
+        "hash": "sha256:e4b7a452d450283402b48f7fdd2494e9872c15a1010ecb508d3a0d2fe5232838"
+      },
+      "selector": {
+        "exact": "and $X$ is Hausdorff",
+        "prefix": "or which $\\sigma$ is continuous ",
+        "suffix": ".\n\\end{theorem}"
+      },
+      "kind": "ok",
+      "body": "Checked and necessary. Drop it and, on three points, 9 continuous involutions leave Fix(sigma) not closed (referee-dm-0003.check.py, trial 2). Verdict: load-bearing.",
+      "status": "open",
+      "in_reply_to": null
+    },
+    {
+      "id": "a-2026-09-17-0007",
+      "author": {
+        "kind": "run",
+        "id": "2026-09-17T01-43-review-main"
+      },
+      "created": "2026-09-17T01:45:40Z",
+      "target": {
+        "key": "dm-0003/proof",
+        "hash": "sha256:123743e3bc45a4fcedaf06e638b849193a69b19d10890da58924d3fa4c277f48"
+      },
+      "selector": {
+        "exact": "the diagonal is closed when $X$ is Hausdorff",
+        "prefix": "gma)\\colon X\\to X\\times X$, and ",
+        "suffix": "; the same argument in the algeb"
+      },
+      "kind": "suggestion",
+      "body": "Sharpening: the argument proves more work than the conclusion needs. X is finite and Hausdorff, hence discrete, so every subset is closed; the diagonal is not needed. The argument is correct, only heavier than necessary.",
+      "status": "open",
+      "in_reply_to": null
+    }
+  ]
+}

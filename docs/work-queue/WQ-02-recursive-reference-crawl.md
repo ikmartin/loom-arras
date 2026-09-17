@@ -4,7 +4,7 @@
 
 ## Trigger
 
-**[[WQ-04]] has landed.** The original trigger was a parse rate above 70%, and plan 0.5's study answered it — but measured the wrong half.
+**Candidates can bind as identities**, or the author accepts a crawl that follows only strong candidates. [[WQ-04]] graduated on 2026-09-17 into plan 0.7 as `loom refs resolve`, which finds identifiers but records them as unconfirmed candidates; a crawl needs to follow them without an author confirming each, and whether a confirmed identity is recorded anywhere but the bibliography is WQ-23's open question. The original trigger was a parse rate above 70%, and plan 0.5's study answered it — but measured the wrong half.
 
 `loom/scripts/bibliography_parse_rate.py`, run on the two fetched works in `demos/relloc`, reports **100% of bibliographies parseable and 9% of 103 entries carrying a usable identifier**. Both numbers matter and the second is the binding one: a crawler can read every bibliography it finds and still cannot follow nine citations in ten, because a formatted `\bibitem` is display text — authors, title, journal, volume, pages — and the bibliography *style* decides whether a DOI is printed, which mathematics styles mostly do not.
 

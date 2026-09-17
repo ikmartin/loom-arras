@@ -1,0 +1,751 @@
+<title>Arras Review Prototypes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#fbfaf8;--leaf:#f4f2ed;--sheet:#ffffff;--rule:#d8d5cd;--rule-strong:#b4b2a9;
+  --ink:#2c2c2a;--ink-soft:#5f5e5a;--ink-faint:#888780;--link:#185fa5;--link-wash:#e6f1fb;--mark:#faeeda;
+  --ok:#0f6e56;--ok-wash:#e1f5ee;--warn:#854f0b;--warn-wash:#faeeda;--bad:#a32d2d;--bad-wash:#fcebeb;
+  --draft:#5f5e5a;--draft-wash:#f1efe8;--proto:#6d4fb3;--proto-wash:#f1ecfa;
+  --serif:'Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  --sans:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r-pill:4px;--r-ctl:8px;--r-card:12px;--shadow:0 8px 26px rgb(0 0 0/10%);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#17171a;--leaf:#1e1e22;--sheet:#202025;--rule:#33333a;--rule-strong:#4c4c55;
+  --ink:#e7e5e0;--ink-soft:#a8a69f;--ink-faint:#85837c;--link:#7fb0e8;--link-wash:rgb(127 176 232/14%);--mark:rgb(250 238 218/18%);
+  --ok:#5cc4a3;--ok-wash:rgb(92 196 163/14%);--warn:#d9a44f;--warn-wash:rgb(217 164 79/16%);--bad:#e8827c;--bad-wash:rgb(232 130 124/16%);
+  --draft:#a8a69f;--draft-wash:rgb(168 166 159/12%);--proto:#b39ddb;--proto-wash:rgb(179 157 219/14%);--shadow:0 8px 26px rgb(0 0 0/45%);}}
+:root[data-theme="dark"]{
+  --paper:#17171a;--leaf:#1e1e22;--sheet:#202025;--rule:#33333a;--rule-strong:#4c4c55;
+  --ink:#e7e5e0;--ink-soft:#a8a69f;--ink-faint:#85837c;--link:#7fb0e8;--link-wash:rgb(127 176 232/14%);--mark:rgb(250 238 218/18%);
+  --ok:#5cc4a3;--ok-wash:rgb(92 196 163/14%);--warn:#d9a44f;--warn-wash:rgb(217 164 79/16%);--bad:#e8827c;--bad-wash:rgb(232 130 124/16%);
+  --draft:#a8a69f;--draft-wash:rgb(168 166 159/12%);--proto:#b39ddb;--proto-wash:rgb(179 157 219/14%);--shadow:0 8px 26px rgb(0 0 0/45%);}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.45;margin:0;display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--link);outline-offset:2px;border-radius:3px}
+code,.mono{font-family:var(--mono);font-size:.92em}
+
+/* the prototype layer: about the mockup, not arras */
+.proto{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:9px 16px;border-bottom:1px solid var(--rule);background:var(--sheet)}
+.proto h1{font-size:14px;font-weight:600;margin:0}
+.proto .runref{color:var(--ink-faint);font-size:11.5px}
+.tabs{display:flex;gap:2px;flex-wrap:wrap;margin-left:auto}
+.tabs button{border:0;background:none;padding:5px 10px;border-radius:var(--r-ctl);color:var(--ink-soft);cursor:pointer;font-size:12.5px}
+.tabs button:hover{background:var(--leaf);color:var(--ink)}
+.tabs button[aria-selected="true"]{background:var(--proto-wash);color:var(--proto);font-weight:500}
+.legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--ink-faint);flex-basis:100%}
+.legend .sw{display:inline-block;width:22px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.sw-exists{border:1px solid var(--rule-strong)}.sw-prop{border:1px dashed var(--proto);background:var(--proto-wash)}
+.proposed{outline:1px dashed var(--proto);outline-offset:3px;border-radius:4px}
+.ptag{display:inline-block;font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--proto);background:var(--proto-wash);border-radius:3px;padding:1px 5px;vertical-align:1px;white-space:nowrap}
+.aside{font-size:12px;color:var(--ink-soft);border-left:2px solid var(--proto);padding:3px 0 3px 10px;max-width:65ch;margin:0}
+.aside b{color:var(--ink);font-weight:500}
+
+/* the workspace: the strip is fixed; views scroll inside themselves */
+.ws{flex:1;min-height:0;display:flex}
+.strip{width:44px;flex:none;background:var(--leaf);border-right:1px solid var(--rule);display:flex;flex-direction:column;align-items:center;gap:12px;padding-top:12px;color:var(--ink-faint);overflow:hidden}
+.strip span{display:flex;width:32px;height:26px;align-items:center;justify-content:center;border-radius:var(--r-ctl)}
+.strip span.cur{background:var(--link-wash);color:var(--link)}
+.strip svg{width:18px;height:18px}
+#view{flex:1;min-width:0;min-height:0;overflow-y:auto}
+#view.fill{overflow:hidden}
+.panes{display:grid;height:100%}
+.panes > section{min-width:0;min-height:0;overflow-y:auto;position:relative}
+.panes > section + section{border-left:1px solid var(--rule);background:var(--sheet)}
+.split{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+.nodeg{grid-template-columns:minmax(0,1fr) 330px}
+@media (max-width:860px){
+  body{overflow:auto;display:block;height:auto}
+  .ws{display:block}.strip{display:none}
+  #view,#view.fill{overflow:visible}
+  .panes{height:auto;grid-template-columns:1fr!important}
+  .panes > section{overflow:visible}
+  .panes > section + section{border-left:0;border-top:1px solid var(--rule)}
+}
+.pane-head{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;padding:9px 16px;border-bottom:1px solid var(--rule);background:var(--leaf);position:sticky;top:0;z-index:5}
+.pane-head h2{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:0}
+.pad{padding:16px 20px 32px}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:var(--r-ctl);overflow:hidden;background:var(--sheet)}
+.seg button{border:0;background:none;padding:3px 11px;cursor:pointer;color:var(--ink-soft);font-size:12px}
+.seg button[aria-pressed="true"]{background:var(--link-wash);color:var(--link)}
+.intro{max-width:70ch;color:var(--ink-soft);margin:0 0 14px}
+.intro b{color:var(--ink);font-weight:500}
+.cap{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px}
+
+/* mathematical text, set as arras sets it */
+.doc{font-family:var(--serif);font-size:15px;line-height:1.62;max-width:44rem}
+.doc p{margin:0 0 .7em}
+.doc .env{border-left:3px solid var(--rule-strong);padding:2px 0 2px 14px;margin:0 0 1em}
+.doc .env-theorem{border-left-color:var(--link)}
+.doc .env-label{font-family:var(--sans);font-size:12px;margin:0 0 .25em}
+.doc .taxon{font-weight:600}.doc .title{color:var(--ink-soft)}
+.doc details.env-proof{border-left-color:var(--rule)}
+.doc details.env-proof > summary{font-family:var(--sans);font-size:12px;font-style:italic;cursor:default;list-style:none}
+.doc details > summary::-webkit-details-marker{display:none}
+.doc h1,.doc h2,.doc h3{font-family:var(--sans);font-weight:600;text-wrap:balance}
+.doc h1{font-size:19px;margin:.2em 0 .6em}.doc h2{font-size:15px;margin:1.3em 0 .5em}.doc h3{font-size:13.5px;margin:1.1em 0 .4em}
+.doc a.ref{color:var(--link);text-decoration:none}
+.doc mark.annotation{background:none;color:inherit}
+
+/* highlights, one colour per kind; a run that is not selected leaves its highlights drawn but switched off */
+mark.hl{background:none;color:inherit;border-radius:2px;cursor:pointer;padding:0 1px;box-decoration-break:clone;-webkit-box-decoration-break:clone;pointer-events:auto;transition:background-color .15s,box-shadow .15s}
+mark.hl.k-objection{background:var(--bad-wash);box-shadow:inset 0 -2px 0 var(--bad)}
+mark.hl.k-suggestion{background:var(--warn-wash);box-shadow:inset 0 -2px 0 var(--warn)}
+mark.hl.k-question{background:var(--link-wash);box-shadow:inset 0 -2px 0 var(--link)}
+mark.hl.k-ok{background:var(--ok-wash);box-shadow:inset 0 -2px 0 var(--ok)}
+mark.hl.off{background:none;box-shadow:none;cursor:text;pointer-events:none}
+mark.hl.flash{animation:flash 1.3s ease}
+@keyframes flash{0%,45%{outline:2px solid var(--link);outline-offset:2px}100%{outline:2px solid transparent;outline-offset:2px}}
+@media (prefers-reduced-motion:reduce){mark.hl.flash,.flashblk{animation:none}mark.hl{transition:none}}
+.kinds{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink-faint)}
+.kinds i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+
+/* the expanded annotation, in the text */
+.anncard{font-family:var(--sans);font-size:12.5px;line-height:1.5;background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r-card);padding:10px 12px;margin:.4em 0 .9em;box-shadow:var(--shadow)}
+.anncard .meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:5px}
+.anncard .body p{margin:0 0 .4em}
+.anncard .from{margin-top:8px;padding-top:8px;border-top:1px solid var(--rule);display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--ink-soft)}
+.linkbtn{border:0;background:none;padding:0;color:var(--link);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.pill{display:inline-block;font-size:10.5px;font-weight:500;padding:1px 6px;border-radius:var(--r-pill);white-space:nowrap}
+.p-objection,.p-major{color:var(--bad);background:var(--bad-wash)}.p-suggestion,.p-minor{color:var(--warn);background:var(--warn-wash)}
+.p-question{color:var(--link);background:var(--link-wash)}.p-ok{color:var(--ok);background:var(--ok-wash)}
+.p-none{color:var(--ink-faint);background:var(--draft-wash)}.p-draft,.p-open{color:var(--draft);background:var(--draft-wash)}
+
+/* notation: declared by the agent in its run, expandable from the run pane, previewed on hover */
+.ntab[aria-expanded="true"]{background:var(--link-wash);border-color:var(--link);color:var(--link)}
+.npanel{position:absolute;right:12px;top:calc(100% + 6px);width:min(340px,calc(100% - 24px));background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r-card);box-shadow:var(--shadow);padding:12px 14px;z-index:6;max-height:60vh;overflow-y:auto}
+.npanel dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:9px 12px;align-items:baseline}
+.npanel dt{font-family:var(--serif);font-size:15px}
+.npanel dd{margin:0;font-size:12px;color:var(--ink-soft)}
+.npanel dd .where{display:block;font-size:11px;color:var(--ink-faint)}
+#nthover{position:fixed;z-index:50;max-width:300px;background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r-card);box-shadow:var(--shadow);padding:9px 12px;font-size:12px;pointer-events:none}
+#nthover .d{font-family:var(--serif);font-size:15px;margin:0 0 3px}
+#nthover .m{margin:0 0 4px;color:var(--ink-soft)}
+#nthover .w{font-size:11px;color:var(--ink-faint);margin:0}
+[class*="symdef-"]{cursor:help;fill:color-mix(in srgb,var(--link) 70%,var(--ink));color:color-mix(in srgb,var(--link) 70%,var(--ink))}
+[class*="symdef-"]:hover{fill:var(--link);color:var(--link)}
+.checks{list-style:none;margin:2px 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:12px}
+.checks li{display:grid;grid-template-columns:16px 1fr;gap:4px}
+.checks li::before{font-weight:600}
+.checks li.ok::before{content:"✓";color:var(--ok)}
+.checks li.open::before{content:"…";color:var(--ink-faint)}
+
+/* the run pane: cycle runs, report or transcript */
+.runnav{border:1px solid var(--rule);background:var(--sheet);border-radius:var(--r-ctl);width:28px;height:28px;cursor:pointer;color:var(--ink-soft);font-size:15px;line-height:1}
+.runnav:hover{border-color:var(--link);color:var(--link)}
+.runmeta{display:flex;flex-direction:column;min-width:0;flex:1}
+.runmeta select{font:inherit;font-size:13px;font-weight:600;border:0;background:none;color:var(--ink);padding:0;max-width:100%;cursor:pointer}
+.runmeta .url{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.report{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--sheet);margin:0 0 14px;overflow:hidden}
+.report > header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--rule)}
+.report > header h3{margin:0;font-size:13px;font-weight:600}
+.report > header .file{color:var(--ink-faint);font-size:10.5px}
+.complete{display:flex;flex-wrap:wrap;gap:4px;padding:7px 14px;background:var(--leaf);border-bottom:1px solid var(--rule);align-items:center}
+.complete .count{font-size:11px;color:var(--ink-soft);margin-right:6px;font-variant-numeric:tabular-nums}
+.bk{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:3px;border:1px solid var(--rule);color:var(--ink-soft);background:var(--sheet)}
+.bk.miss{border-color:var(--bad);color:var(--bad);background:var(--bad-wash)}
+.blk{padding:9px 14px;border-bottom:1px solid var(--rule)}
+.blk:last-child{border-bottom:0}
+.blk > .bname{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);margin:0 0 4px}
+.blk .txt{font-family:var(--serif);font-size:14px;line-height:1.55}
+.blk .txt p{margin:0 0 .45em}.blk .txt ul,.blk .txt ol{margin:.2em 0 .4em;padding-left:1.3em}.blk .txt li{margin:.15em 0}
+.blk.demoted{background:var(--proto-wash)}
+.blk .note{font-family:var(--sans);font-size:11.5px;color:var(--proto);margin:6px 0 0}
+.flashblk{animation:flashblk 1.6s ease}
+@keyframes flashblk{0%,40%{background:var(--link-wash)}100%{background:transparent}}
+.fchip{display:inline;font-family:var(--serif);font-size:13px;border:0;border-radius:3px;padding:0 4px;cursor:pointer;background:var(--leaf);box-shadow:inset 2px 0 0 var(--rule-strong)}
+.fchip.k-objection{box-shadow:inset 2px 0 0 var(--bad)}.fchip.k-suggestion{box-shadow:inset 2px 0 0 var(--warn)}
+.fchip.k-question{box-shadow:inset 2px 0 0 var(--link)}.fchip.k-ok{box-shadow:inset 2px 0 0 var(--ok)}
+.fchip:hover{background:var(--link-wash)}
+.badge{display:inline-flex;align-items:center;font-family:var(--sans);font-size:10px;font-weight:500;border-radius:10px;padding:0 7px;vertical-align:1px;border:1px solid transparent;white-space:nowrap}
+.b-memory{color:var(--warn);background:var(--warn-wash);border-color:var(--warn)}
+.b-candidate{color:var(--proto);background:var(--proto-wash);border-color:var(--proto)}
+.b-onfile{color:var(--link);background:var(--link-wash);border-color:var(--link)}
+.b-verified,.b-proved{color:var(--ok);background:var(--ok-wash);border-color:var(--ok)}
+.tl{list-style:none;margin:0;padding:0}
+.tl > li{position:relative;padding:0 0 0 18px}
+.tl > li::before{content:"";position:absolute;left:5px;top:0;bottom:0;width:1px;background:var(--rule)}
+.tl > li::after{content:"";position:absolute;left:1px;top:9px;width:9px;height:9px;border-radius:50%;background:var(--sheet);border:1px solid var(--rule-strong)}
+.tl > li.msg::after{background:var(--link);border-color:var(--link)}
+.tl .t{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.tl .cmd{font-family:var(--mono);font-size:11px;color:var(--ink-soft);padding:4px 0;display:flex;gap:9px;overflow-x:auto;white-space:nowrap}
+.tl .msgbody{font-family:var(--serif);font-size:14px;line-height:1.55;padding:6px 0 10px}
+.tl .msgbody p{margin:0 0 .5em}.tl .msgbody strong{font-family:var(--sans);font-size:12.5px}
+.atts{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.atts span{font-family:var(--mono);font-size:10.5px;border:1px solid var(--rule);border-radius:3px;padding:1px 6px;color:var(--ink-soft)}
+.group{margin:0 0 16px}
+.group h4{margin:0 0 6px;font-size:12px;font-weight:600;display:flex;gap:8px;align-items:baseline}
+.group ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+
+/* node page */
+.nodehead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin:0 0 12px}
+.nodehead .nm{font-size:18px;font-weight:600}
+.nodehead .id{font-family:var(--mono);font-size:12px;color:var(--link)}
+.rail{display:flex;flex-direction:column;gap:18px}
+.rail h3{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.sevbar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:0 0 8px;background:var(--draft-wash)}
+.sevbar i{display:block;height:100%}
+.flist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.flist li{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;padding:6px 8px;border-radius:var(--r-ctl);cursor:pointer;align-items:baseline}
+.flist li:hover{background:var(--leaf)}
+.flist .q{font-family:var(--serif);font-size:13px;grid-column:2}
+.flist .src{grid-column:2;font-size:10.5px;color:var(--ink-faint)}
+.ex{border:1px solid var(--rule);border-radius:var(--r-card);padding:10px 12px;background:var(--sheet);display:flex;flex-direction:column;gap:6px}
+.ex .h{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.ex .h b{font-size:12px;font-weight:600}
+.ex .txt{font-family:var(--serif);font-size:13.5px;line-height:1.5}
+.ex .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--ink-faint)}
+.btn{border:1px solid var(--rule-strong);background:var(--sheet);border-radius:var(--r-ctl);padding:4px 10px;cursor:pointer;font-size:12px}
+.btn:hover{border-color:var(--link);color:var(--link)}
+.btn.quiet{border-color:var(--rule);color:var(--ink-soft)}
+.accept{border:1px solid var(--rule-strong);border-radius:var(--r-card);padding:12px;background:var(--leaf);display:flex;flex-direction:column;gap:8px}
+.accept p{margin:0;font-size:11.5px;color:var(--ink-soft)}
+pre.diff,pre.code{font-family:var(--mono);font-size:11px;line-height:1.55;margin:0;padding:10px 12px;background:var(--leaf);border:1px solid var(--rule);border-radius:var(--r-ctl);overflow-x:auto;white-space:pre}
+pre.diff .a{color:var(--ok);background:var(--ok-wash)}pre.diff .d{color:var(--bad);background:var(--bad-wash)}pre.diff .h{color:var(--ink-faint)}
+pre .dim{color:var(--ink-faint)}
+
+/* a real sequence, so its steps are numbered */
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:24px;counter-reset:s;max-width:62rem}
+.steps > li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;counter-increment:s}
+.steps > li::before{content:counter(s);width:24px;height:24px;border-radius:50%;background:var(--sheet);border:1px solid var(--rule-strong);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;color:var(--ink-soft)}
+.steps h3{margin:2px 0 4px;font-size:13.5px;font-weight:600}
+.steps .lead{margin:0 0 10px;color:var(--ink-soft);max-width:65ch}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.menu{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--sheet);box-shadow:var(--shadow);padding:5px;max-width:320px}
+.menu div{padding:6px 9px;border-radius:6px;font-size:12.5px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.menu div.on{background:var(--link-wash);color:var(--link)}
+.menu hr{border:0;border-top:1px solid var(--rule);margin:4px 2px}
+.menu .k{font-size:10.5px;color:var(--ink-faint)}
+.menu .sub{color:var(--ink-faint)}
+.chat{border:1px solid var(--rule);border-radius:var(--r-card);background:var(--sheet);overflow:hidden}
+.chat .who{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);padding:8px 12px 0}
+.chat .say{padding:4px 12px 10px;font-size:13px}
+.chat .say pre{margin:4px 0 0}
+.chat + .chat{margin-top:8px}
+.versions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
+.ver{border:1px solid var(--rule);border-radius:var(--r-card);padding:10px 12px;background:var(--sheet)}
+.ver.cur{border-color:var(--link)}
+.ver .vh{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--ink-faint);margin:0 0 6px}
+.ver .vb{font-family:var(--serif);font-size:13.5px;line-height:1.5}
+.ver .vb p{margin:0}
+
+/* citation */
+.stepper{display:flex;flex-wrap:wrap;margin:0 0 14px}
+.stepper button{border:1px solid var(--rule);background:var(--sheet);padding:6px 12px;font-size:12px;cursor:pointer;color:var(--ink-soft);margin-left:-1px}
+.stepper button:first-child{border-radius:var(--r-ctl) 0 0 var(--r-ctl);margin-left:0}
+.stepper button:last-child{border-radius:0 var(--r-ctl) var(--r-ctl) 0}
+.stepper button[aria-pressed="true"]{background:var(--link-wash);border-color:var(--link);color:var(--link);position:relative;z-index:1}
+.cand{border:1px dashed var(--proto);background:var(--proto-wash);border-radius:var(--r-card);padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.cand .res{font-size:11.5px;color:var(--ok)}
+.pdf{background:var(--leaf);border:1px solid var(--rule);border-radius:var(--r-card);padding:14px;display:flex;flex-direction:column;gap:8px}
+.pdfbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--ink-faint)}
+.page{background:#fff;color:#222;border:1px solid var(--rule);border-radius:2px;padding:22px 26px;font-family:var(--serif);font-size:12.5px;line-height:1.55;box-shadow:0 2px 10px rgb(0 0 0/8%);max-width:34rem}
+.page .hd{text-align:center;font-size:10px;letter-spacing:.06em;color:#777;margin:0 0 12px}
+.page .blur{color:#999}.page .target{background:#fff4c2;box-shadow:0 0 0 4px #fff4c2;border-radius:2px}
+.page.empty{text-align:center;color:#777;padding:48px 26px}
+
+/* notation view */
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:var(--r-card);background:var(--sheet)}
+table.nt{border-collapse:collapse;width:100%;font-size:12.5px}
+table.nt th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);padding:8px 12px;border-bottom:1px solid var(--rule);background:var(--leaf)}
+table.nt td{padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.nt tr:last-child td{border-bottom:0}
+table.nt td.sym{font-family:var(--serif);font-size:15px}
+.illus td{background:var(--proto-wash)}
+</style>
+
+<div class="proto" role="banner">
+  <h1>Arras Review Prototypes</h1>
+  <span class="runref">built on a real run: <code id="runref"></code></span>
+  <div class="tabs" role="tablist" aria-label="Prototype views">
+    <button role="tab" data-v="run" aria-selected="true">Reviewing a run</button>
+    <button role="tab" data-v="node">Node &amp; evidence</button>
+    <button role="tab" data-v="invoke">Asking for a review</button>
+    <button role="tab" data-v="cite">Verifying a citation</button>
+    <button role="tab" data-v="notation">Notation</button>
+  </div>
+  <div class="legend"><span><span class="sw sw-exists"></span>exists in loom today</span><span><span class="sw sw-prop"></span>proposed, not built</span><span>Every finding, trial and diff here came from an actual referee → audit → simplify run on the demo quilt.</span></div>
+</div>
+
+<div class="ws">
+  <nav class="strip" aria-label="arras shell, illustrative">
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
+    <span class="cur"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/></svg></span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg></span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg></span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+  </nav>
+  <main id="view"></main>
+</div>
+<div id="nthover" hidden></div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+window.MathJax = {
+  loader: { load: ['[tex]/html'] },
+  tex: { packages: { '[+]': ['html'] }, inlineMath: [['\\(', '\\)'], ['$', '$']], macros: __MACROS__ },
+  svg: { fontCache: 'global' },
+  options: { enableMenu: false },
+  startup: { typeset: false }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const ANN = Object.fromEntries(D.annotations.map(a => [a.id, a]));
+const PIPE = D.run.id, EARLY = D.other_run.id;
+const PERSON = (D.annotations.find(a => !a.record.startsWith('ai/runs/')) || {}).record;
+document.getElementById('runref').textContent = PIPE;
+
+// proposed field: severity. Only the pipeline run's findings carry it; older records predate the field.
+const SEV = { 'a-2026-09-17-0001': 'major', 'a-2026-09-17-0002': 'major', 'a-2026-09-17-0003': 'minor',
+  'a-2026-09-17-0004': 'minor', 'a-2026-09-17-0005': 'minor', 'a-2026-09-17-0006': 'none', 'a-2026-09-17-0007': 'minor' };
+const REQUIRED = {
+  referee: ['summary','gaps-and-ambiguities','worked-examples','counterexample','referee-review','referee-revised','decision'],
+  audit: ['summary','hypothesis-ledger','citation-ledger','uses-ledger','self-containedness','sharpenings','patch-list'],
+  simplify: ['summary','simplifications','rejected','revised','meaning-drift-check'],
+};
+const RUNLIST = [
+  { id: PIPE, label: 'Referee → audit → simplify', when: D.run.created, kind: 'run' },
+  { id: EARLY, label: 'Referee', when: D.other_run.created, kind: 'run' },
+  { id: PERSON, label: 'Your comments', when: '2026-09-16', kind: 'person' },
+  { id: '*', label: 'All runs', when: '', kind: 'all' },
+];
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hm = t => (t || '').slice(11, 16);
+const day = t => (t || '').slice(0, 10);
+const whenMath = f => (window.MathJax && MathJax.startup && MathJax.startup.promise) ? MathJax.startup.promise.then(f) : f();
+const typeset = el => whenMath(() => MathJax.typesetPromise ? MathJax.typesetPromise([el]).catch(() => {}) : null);
+const sourceOf = a => a.record.startsWith('ai/runs/') ? a.record.split('/')[2] : a.record;
+const runLabel = id => (RUNLIST.find(r => r.id === id) || {}).label || id;
+
+function highlight(root, anns) {
+  [...anns].sort((a, b) => (b.quote || '').length - (a.quote || '').length).forEach(a => {
+    if (!a.quote) return;
+    const scope = root.querySelector(`[data-key="${CSS.escape(a.target.key)}"]`) || root;
+    const want = a.quote.replace(/\$([^$]+)\$/g, '\\($1\\)');
+    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+    const nodes = []; let text = '';
+    while (walker.nextNode()) { nodes.push([walker.currentNode, text.length]); text += walker.currentNode.nodeValue; }
+    const at = text.indexOf(want);
+    if (at < 0) return;
+    const locate = pos => { for (let i = nodes.length - 1; i >= 0; i--) if (nodes[i][1] <= pos) return [nodes[i][0], pos - nodes[i][1]]; };
+    const locateEnd = pos => { for (const [n, s] of nodes) if (pos > s && pos <= s + n.nodeValue.length) return [n, pos - s]; };
+    const [sn, so] = locate(at), [en, eo] = locateEnd(at + want.length);
+    const r = document.createRange(); r.setStart(sn, so); r.setEnd(en, eo);
+    const m = document.createElement('mark');
+    m.className = `hl k-${a.kind}`; m.dataset.ann = a.id; m.dataset.run = sourceOf(a); m.tabIndex = 0;
+    m.setAttribute('aria-label', `${a.kind}: ${a.quote}`);
+    m.appendChild(r.extractContents()); r.insertNode(m);
+  });
+}
+
+function sevPill(a) {
+  const s = SEV[a.id];
+  return s === undefined ? '' : `<span class="pill p-${s} proposed">${s === 'none' ? 'confirmation' : s}</span>`;
+}
+function card(a, action) {
+  const person = !a.record.startsWith('ai/runs/');
+  return `<div class="anncard" data-card="${a.id}">
+    <div class="meta"><span class="pill p-${a.kind}">${a.kind}</span>${sevPill(a)}<span class="pill p-open">${a.status}</span></div>
+    <div class="body">${a.body_html}</div>
+    <div class="from"><span>${person ? 'written by you' : `from <b>${esc(runLabel(sourceOf(a)))}</b>, ${day(a.created)}`}</span>${action}</div>
+  </div>`;
+}
+const kindsLegend = `<div class="kinds"><span><i style="background:var(--bad)"></i>objection</span><span><i style="background:var(--warn)"></i>suggestion</span><span><i style="background:var(--link)"></i>question</span><span><i style="background:var(--ok)"></i>confirmation</span></div>`;
+
+/* ---------- notation the agent declares, marked in what the agent writes ---------- */
+// proposed: the run's [notation] block. Written here from Definition (Widget); the demo run has none.
+const tokens = src => src.match(/\\[A-Za-z]+|\\.|&[a-z]+;|\s+|./g) || [];
+const NT = D.notation.map(n => tokens(n.tex).filter(x => !/^\s+$/.test(x)));
+function markTex(src) {
+  const toks = tokens(src), sig = [], spans = [];
+  toks.forEach((x, i) => { if (!/^\s+$/.test(x)) sig.push(i); });
+  NT.map((seq, k) => [seq, k]).sort((a, b) => b[0].length - a[0].length).forEach(([seq, k]) => {
+    for (let j = 0; j + seq.length <= sig.length; j++) {
+      if (!seq.every((x, o) => toks[sig[j + o]] === x)) continue;
+      const s = sig[j], e = sig[j + seq.length - 1];
+      const crosses = spans.some(q => (s < q.s && q.s <= e && e < q.e) || (q.s < s && s <= q.e && q.e < e) || (q.s === s && q.e === e));
+      if (!crosses) spans.push({ s, e, k, len: seq.length });
+    }
+  });
+  if (!spans.length) return src;
+  return toks.map((x, i) => spans.filter(q => q.s === i).sort((a, b) => b.len - a.len).map(q => `{\\class{symdef-${q.k}}{`).join('') + x + spans.filter(q => q.e === i).map(() => '}}').join('')).join('');
+}
+const markMath = s => s.replace(/\$([^$]+)\$/g, (m, x) => '$' + markTex(x) + '$').replace(/\\\(([\s\S]+?)\\\)/g, (m, x) => '\\(' + markTex(x) + '\\)');
+const hasNotation = run => run === PIPE;
+const notationSource = () => ['[notation]', ...D.notation.map(n => `- $${n.tex}$: ${n.meaning.replace(/\\\(|\\\)/g, '$')}. ${n.where}.`)].join('\n');
+function notationBlock() {
+  return `<div class="blk demoted" data-block="notation"><p class="bname">[notation] <span class="ptag">proposed</span></p><div class="txt">${mdBlock(notationSource().split('\n').slice(1), false)}</div><p class="note">The modes don't ask for this block yet; it is written here from Definition (Widget). Every symbol it declares is marked in this run's reports and messages.</p></div>`;
+}
+
+/* ---------- reports ---------- */
+const LABEL = { 'file-verified': 'b-verified', 'memory-grade': 'b-memory', 'proved-here': 'b-proved' };
+function inline(s, nt) {
+  return (nt ? markMath(esc(s)) : esc(s))
+    .replace(/`([^`]+)`/g, (m, x) => LABEL[x] ? `<span class="badge ${LABEL[x]} proposed">${x}</span>` : `<code>${x}</code>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/a-\d{4}-\d{2}-\d{2}-\d{4}/g, id => { const a = ANN[id]; return a ? `<button class="fchip k-${a.kind}" data-chip="${id}" title="${a.kind}: show where it sits">${esc(a.quote || a.kind)}</button>` : ''; });
+}
+function blocks(md) {
+  const out = []; let cur = null;
+  md.split('\n').forEach(line => {
+    const m = line.match(/^(?:#+\s*)?\[([a-z-]+)\]\s*$/);
+    if (m) { cur = { name: m[1], lines: [] }; out.push(cur); }
+    else if (/^#+\s/.test(line)) cur = null;
+    else if (cur) cur.lines.push(line);
+  });
+  return out;
+}
+function mdBlock(lines, nt) {
+  let html = '', list = null;
+  const flush = () => { if (list) { html += `</${list}>`; list = null; } };
+  lines.forEach(l => {
+    const ul = l.match(/^\s*-\s+(.*)/), ol = l.match(/^\s*\d+\.\s+(.*)/);
+    if (ul || ol) { const t = ul ? 'ul' : 'ol'; if (list !== t) { flush(); html += `<${t}>`; list = t; } html += `<li>${inline((ul || ol)[1], nt)}</li>`; }
+    else if (l.trim()) { flush(); html += `<p>${inline(l, nt)}</p>`; }
+    else flush();
+  });
+  flush(); return html;
+}
+function reportHtml(mode, md, file, top = '', nt = false) {
+  const bs = blocks(md), have = new Set(bs.map(b => b.name)), req = REQUIRED[mode];
+  const present = req.filter(r => have.has(r)).length;
+  const chips = req.map(r => `<span class="bk ${have.has(r) ? '' : 'miss'}" title="${have.has(r) ? 'present' : 'required and missing'}">${have.has(r) ? '' : '✕ '}${r}</span>`).join('');
+  const body = bs.map(b => {
+    const demote = mode === 'referee' && b.name === 'decision';
+    return `<div class="blk ${demote ? 'demoted' : ''}" data-block="${b.name}"><p class="bname">[${b.name}]</p><div class="txt">${mdBlock(b.lines, nt)}</div>${demote ? `<p class="note"><span class="ptag">proposed</span> A verdict moves to the transcript; severity on each finding carries what it was for.</p>` : ''}</div>`;
+  }).join('');
+  return `<article class="report"><header><h3>${mode[0].toUpperCase() + mode.slice(1)}</h3><span class="file mono">${file}</span></header>
+    <div class="complete"><span class="count">${present} of ${req.length} blocks</span>${chips}</div>${top}${body}</article>`;
+}
+
+/* ---------- the review view: draft on the left, the run on the right ---------- */
+const S = { view: 'run', run: PIPE, rtab: 'report', ntOpen: false, stepCite: 0, open: null };
+const V = document.getElementById('view');
+
+function rightBody() {
+  if (S.rtab === 'transcript') return transcriptHtml();
+  if (S.run === PIPE) return `${reportHtml('referee', D.notes.referee, 'referee-dm-0003.notes.md', notationBlock(), true)}${reportHtml('audit', D.notes.audit, 'audit-dm-0003.notes.md', '', true)}${reportHtml('simplify', D.notes.simplify, 'simplify-dm-0003.notes.md', '', true)}`;
+  if (S.run === EARLY) return `<p class="aside" style="margin:0 0 14px"><b>Compare the two referees.</b> This earlier run found no counterexample and called the mathematics correct. The theorem's "only if" is false, which the later run caught.</p>${reportHtml('referee', D.other_run.notes, 'referee-dm-0003.notes.md')}`;
+  const list = D.annotations.filter(a => S.run === '*' ? true : sourceOf(a) === S.run);
+  if (S.run === PERSON) return `<div class="group"><h4>Comments you wrote by hand <span class="pill p-none">${list.length}</span></h4><ul>${list.map(a => `<li><button class="fchip k-${a.kind}" data-chip="${a.id}">${esc(a.quote)}</button></li>`).join('')}</ul></div>`;
+  return RUNLIST.filter(r => r.kind !== 'all').map(r => {
+    const f = D.annotations.filter(a => sourceOf(a) === r.id);
+    return `<div class="group"><h4>${esc(r.label)} <span class="pill p-none">${f.length}</span> <button class="linkbtn" data-gorun="${esc(r.id)}" style="font-size:11px;font-weight:400">open</button></h4><ul>${f.map(a => `<li><button class="fchip k-${a.kind}" data-chip="${a.id}">${esc(a.quote)}</button> ${sevPill(a)}</li>`).join('')}</ul></div>`;
+  }).join('');
+}
+function transcriptHtml() {
+  const r = S.run === PIPE ? D.run : S.run === EARLY ? D.other_run : null;
+  if (!r) return `<p class="intro">${S.run === '*' ? 'Pick a run to read its transcript.' : 'Comments written by hand have no transcript; they were not produced by an agent.'}</p>`;
+  const items = [...r.messages.map(m => ({ t: m.time, msg: m })), ...r.log.map(l => ({ t: l.time, cmd: l.command }))].sort((a, b) => a.t.localeCompare(b.t));
+  return `<p class="cap">From <code>thread.md</code> and <code>run.log</code></p><ol class="tl">${items.map(it => it.msg
+    ? `<li class="msg"><span class="t">${hm(it.t)} · ${esc(it.msg.author.id)}</span><div class="msgbody">${hasNotation(S.run) ? markMath(it.msg.body_html) : it.msg.body_html}</div></li>`
+    : `<li><div class="cmd"><span class="t">${hm(it.t)}</span><span>${esc(it.cmd)}</span></div></li>`).join('')}</ol>
+    <p class="cap" style="margin-top:16px">Attachments</p><div class="atts">${r.attachments.map(a => `<span>${esc(a.name)}${a.count ? ` · ${a.count}` : ''}</span>`).join('')}</div>`;
+}
+function renderRight() {
+  const right = V.querySelector('#right'), r = RUNLIST.find(x => x.id === S.run);
+  const count = S.run === '*' ? D.annotations.length : D.annotations.filter(a => sourceOf(a) === S.run).length;
+  right.innerHTML = `<div class="pane-head">
+      <button class="runnav" data-step="-1" aria-label="Previous run">‹</button>
+      <div class="runmeta"><select id="runsel" aria-label="Run">${RUNLIST.map(x => `<option value="${esc(x.id)}" ${x.id === S.run ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select>
+        <span class="url">${r.kind === 'run' ? `localhost:8791/review/${esc(r.id)}` : r.kind === 'person' ? `${esc(day(r.when))} · written by hand` : 'every run on this text'} · ${count} on this text</span></div>
+      <button class="runnav" data-step="1" aria-label="Next run">›</button>
+      <div class="seg" role="group" aria-label="Show"><button data-rtab="report" aria-pressed="${S.rtab === 'report'}">Report</button><button data-rtab="transcript" aria-pressed="${S.rtab === 'transcript'}">Transcript</button></div>
+      ${hasNotation(S.run) ? notationPanel() : ''}
+    </div><div class="pad" id="rightbody">${rightBody()}</div>`;
+  right.scrollTop = 0;
+  typeset(right);
+}
+function setRun(id) {
+  S.run = id;
+  V.querySelectorAll('#left mark.hl').forEach(m => m.classList.toggle('off', id !== '*' && m.dataset.run !== id));
+  closeCards();
+  renderRight();
+}
+function notationPanel() {
+  const rows = D.notation.map(n => `<dt>\\(${n.tex}\\)</dt><dd>${n.meaning}<span class="where">${esc(n.where)}</span></dd>`).join('');
+  return `<button class="btn quiet ntab proposed" data-nt aria-expanded="${S.ntOpen}" aria-controls="npanel">Notation</button>
+    <div class="npanel" id="npanel" ${S.ntOpen ? '' : 'hidden'}><p class="cap">Declared in this run</p><dl>${rows}</dl>
+    <p style="margin:10px 0 0;font-size:11px;color:var(--ink-faint)">Hover any of these in the reports or the transcript. Your draft is never marked; its notation is yours.</p></div>`;
+}
+function viewRun() {
+  V.classList.add('fill');
+  V.innerHTML = `<div class="panes split">
+    <section id="left" aria-label="Draft">
+      <div class="pane-head"><h2>Draft</h2><span style="font-size:11.5px;color:var(--ink-faint)">drafts/main.tex</span></div>
+      <div class="pad"><p class="intro">Highlights follow the run selected on the right. Cycle runs with <b>‹ ›</b>; select a highlight to expand it, and select outside it to close. In the run's reports, hover a symbol for the definition the agent declared.</p>${kindsLegend}
+        <div class="doc" id="draft" style="margin-top:14px">${D.fragments.master}</div></div>
+    </section>
+    <section id="right" aria-label="Run"></section>
+  </div>`;
+  highlight(V.querySelector('#draft'), D.annotations);
+  setRun(S.run);
+  return Promise.resolve(typeset(V.querySelector('#left')));
+}
+
+/* ---------- scrolling one pane without moving the other ---------- */
+function scrollPane(pane, el) {
+  if (pane.scrollHeight > pane.clientHeight + 1 && getComputedStyle(pane).overflowY !== 'visible') {
+    const pr = pane.getBoundingClientRect(), er = el.getBoundingClientRect();
+    pane.scrollBy({ top: er.top - pr.top - pr.height / 3, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  } else el.scrollIntoView({ block: 'center' });
+}
+function closeCards() { V.querySelectorAll('.anncard').forEach(c => c.remove()); }
+function openCard(id, actionFor) {
+  closeCards();
+  const m = V.querySelector(`mark.hl[data-ann="${id}"]:not(.off)`), a = ANN[id];
+  if (!m || !a) return null;
+  (m.closest('p, li') || m.parentElement).insertAdjacentHTML('afterend', card(a, actionFor(a)));
+  m.classList.remove('flash'); void m.offsetWidth; m.classList.add('flash');
+  typeset(V.querySelector(`[data-card="${id}"]`));
+  return m;
+}
+const runAction = a => a.record.startsWith('ai/runs/')
+  ? `<button class="linkbtn" data-inreport="${a.id}">Show in its report</button>`
+  : `<button class="linkbtn" data-inreport="${a.id}">Show in your comments</button>`;
+
+function showInReport(id) {       // scrolls the right pane only
+  const a = ANN[id], run = sourceOf(a);
+  if (S.run !== run) { S.run = run; V.querySelectorAll('#left mark.hl').forEach(m => m.classList.toggle('off', m.dataset.run !== run)); }
+  S.rtab = 'report'; renderRight();
+  whenMath(() => setTimeout(() => {
+    const right = V.querySelector('#right'), el = right.querySelector(`[data-chip="${id}"]`);
+    if (!el) return;
+    const blk = el.closest('.blk, li') || el;
+    scrollPane(right, blk); blk.classList.remove('flashblk'); void blk.offsetWidth; blk.classList.add('flashblk');
+  }, 60));
+}
+function showInDraft(id) {        // scrolls the left pane only
+  const m = openCard(id, runAction);
+  if (m) scrollPane(V.querySelector('#left'), m);
+}
+
+/* ---------- node page ---------- */
+function examplesFromNotes() {
+  const b = Object.fromEntries(blocks(D.notes.referee).map(x => [x.name, x.lines]));
+  const items = [];
+  (b['worked-examples'] || []).filter(l => /^\s*-\s+/.test(l)).forEach(l => items.push({ kind: 'worked example', text: l.replace(/^\s*-\s+/, '') }));
+  const ce = (b['counterexample'] || []).filter(l => l.trim()).join(' ');
+  if (ce) items.push({ kind: 'counterexample', text: ce });
+  return items;
+}
+function diffHtml(d) {
+  return `<pre class="diff">${esc(d).split('\n').map(l => l.startsWith('+') && !l.startsWith('+++') ? `<span class="a">${l}</span>` : l.startsWith('-') && !l.startsWith('---') ? `<span class="d">${l}</span>` : l.startsWith('@@') ? `<span class="h">${l}</span>` : l).join('\n')}</pre>`;
+}
+function viewNode() {
+  V.classList.add('fill');
+  const anns = D.annotations, counts = { major: 0, minor: 0, none: 0, unset: 0 };
+  anns.forEach(a => { const s = SEV[a.id]; counts[s === undefined ? 'unset' : s]++; });
+  const bar = [['major', 'var(--bad)'], ['minor', 'var(--warn)'], ['none', 'var(--ok)'], ['unset', 'var(--rule-strong)']]
+    .map(([k, c]) => counts[k] ? `<i style="width:${100 * counts[k] / anns.length}%;background:${c}"></i>` : '').join('');
+  const order = { major: 0, minor: 1, none: 2 };
+  const flist = [...anns].sort((a, b) => (order[SEV[a.id]] ?? 3) - (order[SEV[b.id]] ?? 3)).map(a => {
+    const s = SEV[a.id];
+    return `<li data-focus="${a.id}" tabindex="0"><span class="pill p-${s === undefined ? 'none' : s}">${s === undefined ? 'unset' : s === 'none' ? 'ok' : s}</span><span class="q">“${esc(a.quote || '')}”</span><span class="src">${a.kind} · ${esc(runLabel(sourceOf(a)))}</span></li>`;
+  }).join('');
+  const exs = examplesFromNotes().map(e => {
+    const counter = e.kind === 'counterexample';
+    return `<div class="ex"><div class="h"><span class="pill ${counter ? 'p-objection' : 'p-ok'}">${e.kind}</span><b>from the referee</b>${counter ? '<span class="pill p-question">8 cases, |X| ≤ 5</span>' : ''}</div>
+      <div class="txt">${inline(e.text, true)}</div>
+      <div class="row"><button class="btn proposed" data-promote="${counter ? 'counter' : 'example'}">Promote to a node</button><span>${counter ? 'linked by <code>see: dm-0003</code>, never <code>\\uses</code>' : 'depends on it by <code>\\uses{dm-0003}</code>'}</span></div></div>`;
+  }).join('');
+  V.innerHTML = `<div class="panes nodeg">
+    <section id="left" aria-label="Node"><div class="pane-head"><h2>Node</h2></div><div class="pad">
+      <div class="nodehead"><span class="nm">Theorem (Main)</span><span class="id">dm-0003</span><span class="pill p-draft">draft</span></div>
+      <p class="intro">Annotations are highlights on the text, coloured by kind. Select one to expand it; select outside to close it.</p>${kindsLegend}
+      <div class="doc" id="nodedoc" style="margin-top:14px">${D.fragments.statement}</div></div></section>
+    <section id="right" aria-label="Evidence"><div class="pad rail">
+      <div><h3>Findings by severity <span class="ptag">proposed</span></h3>
+        <div class="sevbar proposed" role="img" aria-label="${counts.major} major, ${counts.minor} minor, ${counts.none} confirmed, ${counts.unset} without severity">${bar}</div>
+        <p style="margin:0 0 8px;font-size:11.5px;color:var(--ink-soft)"><b style="color:var(--bad)">${counts.major} major</b> · ${counts.minor} minor · ${counts.none} confirmed · <span style="color:var(--ink-faint)">${counts.unset} predate the field</span></p>
+        <ul class="flist">${flist}</ul></div>
+      <div><h3>Examples</h3><div style="display:flex;flex-direction:column;gap:8px">${exs}</div></div>
+      <div><h3>Proposal</h3><p style="margin:0 0 8px;font-size:11.5px;color:var(--ink-soft)">Revised by simplify over the referee's version, and built before being offered.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-toggle-diff>Show the diff</button><button class="btn quiet proposed">Apply in editor</button></div>
+        <div id="diffbox" hidden style="margin-top:8px">${diffHtml(D.proposal)}</div></div>
+      <div class="accept"><h3 style="margin:0">Your review</h3><p>Acceptance is yours, separate from everything above: it records that you read this exact text.</p>
+        <button class="btn" disabled style="opacity:.55;cursor:not-allowed">Accept dm-0003</button><p style="color:var(--bad)">${counts.major} major findings are open.</p></div>
+    </div></section></div>`;
+  highlight(V.querySelector('#nodedoc'), D.annotations);
+  typeset(V);
+}
+
+/* ---------- asking for a review, chat first ---------- */
+function viewInvoke() {
+  V.classList.remove('fill');
+  const r1 = ANN['a-2026-09-17-0001'];
+  V.innerHTML = `<div class="pad"><p class="intro">The chat stays where you ask. Your tag syntax still works; what changes is the payload — <b>a node's key instead of pasted LaTeX</b> — and that arras shows what came back.</p>
+  <ol class="steps">
+    <li><div><h3>Ask in the chat, naming the node</h3><p class="lead">In Claude Code or Claude Desktop, as today.</p>
+      <div class="two">
+        <div><p class="cap">Claude Code</p><div class="chat"><p class="who">You</p><div class="say"><pre class="code">[simplify][audit][referee] dm-0003 [/referee][/audit][/simplify]</pre></div></div>
+          <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0;max-width:52ch">In chat, the model saw only what you pasted. Here the agent runs <code>loom bundle dm-0003</code>, so it reviews the theorem with the definitions and lemmas it depends on.</p></div>
+        <div><p class="cap">From arras, if you are already reading it</p><div class="menu proposed" role="presentation">
+            <div class="on">Copy for chat <span class="k">⌘C</span></div>
+            <div class="sub">copies: [referee] dm-0003 [/referee]</div><hr>
+            <div>Start from arras <span class="k">secondary</span></div></div>
+          <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">Copying keeps the chat primary; arras hands you the line rather than launching anything.</p></div>
+      </div></div></li>
+    <li><div><h3>The agent records what it was asked</h3><p class="lead">So arras knows which text the run is about, and in what order the modes ran.</p>
+      <pre class="code"><span class="dim">$</span> loom ai start review-main <span class="proposed">--target dm-0003 --pipeline referee,audit,simplify</span>
+
+<span class="dim"># ${esc(PIPE)}/run.toml</span>
+created  = "${esc(D.run.created)}"
+<span class="proposed">targets  = ["dm-0003"]
+pipeline = ["referee", "audit", "simplify"]</span></pre></div></li>
+    <li><div><h3>The run ends with a link, and that opens the review</h3><p class="lead">This is what launches the split view: the agent's closing line.</p>
+      <div class="chat"><p class="who">Claude</p><div class="say">Referee, audit and simplify are done on dm-0003: two major findings, the statement's "only if" is false, and a proposal that fixes it.<br><span class="proposed" style="font-family:var(--mono);font-size:11.5px;color:var(--link)">Review in arras → localhost:8791/review/${esc(PIPE)}</span></div></div>
+      <p style="font-size:11.5px;color:var(--ink-soft);margin:8px 0 0">The review view is also reachable from a run in arras's threads index, and from any finding on a node page.</p></div></li>
+    <li><div><h3>A follow-up in the same chat edits the finding</h3><p class="lead">Same run, a later turn: you ask for the counterexample to say where the proof misses it. The agent edits its own finding rather than writing a second one.</p>
+      <div class="versions">
+        <div class="ver"><p class="vh"><span class="pill p-objection">objection</span><span>turn 1</span></p><div class="vb">${r1.body_html}</div></div>
+        <div class="ver cur proposed"><p class="vh"><span class="pill p-objection">objection</span><span class="ptag">edited</span><span>turn 2, the same finding</span></p><div class="vb"><p>The ‘only if’ is false. Take \\(X=\\{0,1\\}\\) and \\(\\sigma=\\mathrm{id}\\): \\(\\operatorname{Fix}(\\sigma)=X\\) is nonempty and \\(|X|=2\\) is even. <strong>The proof misses it at one step:</strong> the congruence \\(|X|\\equiv|\\operatorname{Fix}(\\sigma)| \\pmod 2\\) fixes the parity of \\(|\\operatorname{Fix}(\\sigma)|\\), and an even count can still be nonzero. Brute force over \\(|X|\\le 5\\): 8 such cases.</p></div></div>
+      </div>
+      <ul style="font-size:12px;color:var(--ink-soft);margin:10px 0 0;padding-left:1.2em;max-width:65ch">
+        <li><b>The review shows one finding</b>, with its current wording; the transcript says what turn 2 changed.</li>
+        <li><b>It is re-anchored to the current text</b>, since the agent re-read it.</li></ul>
+      <p class="aside" style="margin-top:14px"><b>A different run stands on its own.</b> The earlier referee chat and this run's audit both marked “with \\(X\\) a finite set”, and say different things about it. Both appear: overlap between runs is for you to weigh, not for loom to merge.</p>
+      <p class="aside" style="margin-top:8px"><b>Not built:</b> <code>loom comment</code> cannot edit a finding, so today turn 2 can only add another.</p>
+
+      <div class="versions">
+        <div class="ver"><p class="vh"><span class="pill p-none">referee</span><span>kept as history</span></p>${diffHtml(D.proposal_referee)}</div>
+        <div class="ver cur"><p class="vh"><span class="pill p-question">simplify</span><span>current</span></p>${diffHtml(D.proposal)}</div>
+      </div></div></li>
+  </ol></div>`;
+  typeset(V);
+}
+
+/* ---------- verifying a citation ---------- */
+function viewCite() {
+  V.classList.remove('fill');
+  const steps = [
+    { b: 'b-memory', label: 'memory-grade', what: 'Cited from memory, because the paper is not on file: the digest was written by hand and nothing has been fetched.' },
+    { b: 'b-candidate', label: 'candidate', what: 'The agent names its best guess at the work, says what it takes the work to be, and reports what it checked. Whether it is the right paper is your call.' },
+    { b: 'b-onfile', label: 'on file', what: 'The paper is filed under refs/ by its identifier. An arXiv paper the agent can fetch for itself; anything else you download.' },
+    { b: 'b-verified', label: 'file-verified', what: 'Someone opened the paper at the locator and found the statement there.' },
+  ];
+  const s = steps[S.stepCite], st = S.stepCite;
+  V.innerHTML = `<div class="pad"><p class="intro">The agent already labels every claim. As a badge the label is scannable, and <b>a memory-grade citation is usually one whose paper isn't on file</b> — so the badge is also where getting it on file starts.</p>
+  <div class="stepper" role="group" aria-label="Where the citation stands">${steps.map((x, i) => `<button data-cite="${i}" aria-pressed="${i === st}">${i + 1}. ${x.label}</button>`).join('')}</div>
+  <div class="two" style="align-items:start">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div><p class="cap">In the proof</p><div class="doc" style="border-left:3px solid var(--rule);padding-left:14px">… and the diagonal is closed when \\(X\\) is Hausdorff; the same argument in the algebraic setting is <a class="ref" href="#" data-noop>[Man12, Proposition 3.2]</a> <span class="badge ${s.b} proposed">${s.label}</span>.</div></div>
+      <div><p class="cap">What this means</p><p style="margin:0;max-width:54ch">${esc(s.what)}</p></div>
+      ${st === 1 ? `<div class="cand"><div><span class="ptag">proposed by the agent</span> <b>Best guess</b></div>
+          <div><b>arXiv:0805.2065</b> · <span style="color:var(--link)">arxiv.org/abs/0805.2065</span></div>
+          <div>Manolache's construction of virtual pull-backs for a morphism with a perfect obstruction theory relative to its target: the paper the entry <code>Man12</code> describes.</div>
+          <ul class="checks"><li class="ok">arXiv's record matches the entry's title and author: “Virtual pull-backs”, Cristina Manolache.</li><li class="open">Proposition 3.2 is unchecked until the paper is on file.</li></ul>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px"><button class="btn" data-cite="2">Right paper</button><button class="btn quiet" data-cite="0">Not this one</button></div>
+          <div style="font-size:11px;color:var(--ink-soft)">Your bibliography stays yours. If you want the identifier in it, your reference manager puts it there; loom only reads it.</div></div>` : ''}
+      ${st === 2 ? `<pre class="code"><span class="dim">$</span> loom digest fetch Man12 --pdf
+Wrote refs/arxiv/0805.2065v2/src/virtual6.tex
+Wrote refs/arxiv/0805.2065v2/paper.pdf</pre><p style="font-size:11.5px;color:var(--ink-soft);margin:0">This exists today, behind <code>[refs] fetch = true</code>. For a paper not on arXiv, you download it and <code>loom refs add Man12 FILE</code> files it.</p>` : ''}
+      <div><p class="cap">The audit's own entry, from this run</p><div class="blk" style="border:1px solid var(--rule);border-radius:var(--r-card);background:var(--sheet)"><div class="txt">${mdBlock(blocks(D.notes.audit).find(b => b.name === 'citation-ledger').lines, true)}</div></div></div>
+    </div>
+    <div class="pdf"><div class="pdfbar"><span class="ptag">stand-in: the demo's own text</span><code>/refs/arxiv/0805.2065v2/paper.pdf</code><span>· page 9</span></div>
+      ${st < 2 ? `<div class="page empty"><p style="margin:0">Not on file yet.</p></div>`
+        : `<div class="page"><p class="hd">VIRTUAL PULL-BACKS · C. MANOLACHE · 9</p><p class="blur">so that the obstruction theory is compatible with the base change along the embedding, as in Section 2 …</p><p class="target"><b>Proposition 3.2.</b> <i>Let \\(f\\colon X\\to Y\\) be a closed embedding of Deligne–Mumford stacks. Then the fixed locus of any involution commuting with \\(f\\) is closed in \\(X\\).</i></p><p class="blur">Proof. The fixed locus is the preimage of the diagonal under …</p>
+           ${st === 2 ? '<p style="text-align:center;margin:14px 0 0"><button class="btn" data-cite="3" style="color:#185fa5;border-color:#185fa5">It says this — mark verified</button></p>' : ''}</div>
+          <p style="font-size:11px;color:var(--ink-faint);margin:0">The page is drawn here; the demo quilt has fetched nothing. In a real quilt, the /refs/ route from plan 0.5 serves the file, and #page=9 opens it at the locator.</p>`}
+    </div>
+  </div></div>`;
+  typeset(V);
+}
+
+/* ---------- notation ---------- */
+function viewNotation() {
+  V.classList.remove('fill');
+  const ledger = blocks(D.notes.audit).find(b => b.name === 'hypothesis-ledger').lines;
+  V.innerHTML = `<div class="pad"><p class="intro">Notation is marked in what the agent writes, meaning its reports and its messages. <b>Your drafts and nodes are never marked</b>; their notation is yours. The <code>[variable-defs]</code> that opened each chat answer becomes a block the agent writes once per run.</p>
+  <ol class="steps">
+    <li><div><h3>The agent declares it</h3><p class="lead">A <code>[notation]</code> block in whichever report first uses the symbols. The mode's prompt asks for it, and the completeness check counts it like any other block.</p>
+      <pre class="code"><span class="dim"># ${esc(PIPE)}/referee-dm-0003.notes.md</span>
+${esc(notationSource())}</pre></div></li>
+    <li><div><h3>arras marks each use in the run's math</h3><p class="lead">It matches TeX tokens, so <code>\\sigma</code> never matches <code>\\Sigma</code> and <code>X</code> never matches <code>x</code>. A longer declaration wins, with shorter ones marked inside it: in \\(\\Fix(\\sigma)\\) both the whole and the \\(\\sigma\\) are marked. Hover a symbol below; these lines are the audit's own.</p>
+      <div class="blk" style="border:1px solid var(--rule);border-radius:var(--r-card);background:var(--sheet)"><p class="bname">[hypothesis-ledger] · audit-dm-0003.notes.md</p><div class="txt">${mdBlock(ledger, true)}</div></div></div></li>
+    <li><div><h3>One declaration holds for the whole run</h3><p class="lead">All three reports and every message in the transcript share it. A symbol given a second meaning within the run is flagged, as a clash in <code>[variable-defs]</code> would have been; another run declares its own.</p>
+      <button class="btn" data-goview="run">See it in the review</button></div></li>
+  </ol>
+  <p class="aside" style="margin-top:22px"><b>What loom has to do:</b> add the block to the modes and to the completeness check. There is no scanner or converter change, and nothing in <code>nodes/</code> or <code>drafts/</code> is touched. <b>Not built:</b> the modes don't ask for the block yet, so the one shown here is written from Definition (Widget).</p>
+  </div>`;
+  typeset(V);
+}
+
+/* ---------- navigation and events ---------- */
+function go(view) {
+  S.view = view; S.open = null;
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.v === view));
+  const done = ({ run: viewRun, node: viewNode, invoke: viewInvoke, cite: viewCite, notation: viewNotation })[view]();
+  V.scrollTop = 0;
+  return Promise.resolve(done);
+}
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b) go(b.dataset.v); });
+
+V.addEventListener('click', e => {
+  const t = e.target;
+  const q = sel => t.closest(sel);
+  if (q('[data-noop]')) { e.preventDefault(); return; }
+  if (q('[data-goview]')) { go(q('[data-goview]').dataset.goview); return; }
+  if (q('[data-step]')) { const i = RUNLIST.findIndex(r => r.id === S.run), n = RUNLIST.length; setRun(RUNLIST[(i + +q('[data-step]').dataset.step + n) % n].id); return; }
+  if (q('[data-gorun]')) { setRun(q('[data-gorun]').dataset.gorun); return; }
+  if (q('[data-rtab]')) { S.rtab = q('[data-rtab]').dataset.rtab; renderRight(); return; }
+  if (q('[data-nt]')) { S.ntOpen = !S.ntOpen; q('[data-nt]').setAttribute('aria-expanded', S.ntOpen); V.querySelector('#npanel').hidden = !S.ntOpen; return; }
+  if (q('[data-inreport]')) { showInReport(q('[data-inreport]').dataset.inreport); return; }
+  if (q('[data-chip]')) { showInDraft(q('[data-chip]').dataset.chip); return; }
+  if (q('[data-openreview]')) { const id = q('[data-openreview]').dataset.openreview; S.run = sourceOf(ANN[id]); go('run').then(() => { showInDraft(id); showInReport(id); }); return; }
+  const mark = q('mark.hl');
+  if (mark && !q('.anncard')) {
+    openCard(mark.dataset.ann, S.view === 'node' ? a => `<button class="linkbtn" data-openreview="${a.id}">Open in review</button>` : runAction);
+    return;
+  }
+  if (q('[data-focus]')) { const id = q('[data-focus]').dataset.focus; const m = openCard(id, a => `<button class="linkbtn" data-openreview="${a.id}">Open in review</button>`); if (m) scrollPane(V.querySelector('#left'), m); return; }
+  if (q('[data-cite]')) { S.stepCite = +q('[data-cite]').dataset.cite; viewCite(); return; }
+  if (q('[data-toggle-diff]')) { const box = V.querySelector('#diffbox'); box.hidden = !box.hidden; q('[data-toggle-diff]').textContent = box.hidden ? 'Show the diff' : 'Hide the diff'; return; }
+  if (q('[data-promote]')) { const c = q('[data-promote]').dataset.promote === 'counter'; q('[data-promote]').outerHTML = `<span class="pill p-question proposed">would write a new node: ${c ? 'a counterexample, <code>see: dm-0003</code>' : 'an example, <code>\\uses{dm-0003}</code>'}</span>`; }
+});
+V.addEventListener('change', e => { if (e.target.id === 'runsel') setRun(e.target.value); });
+
+// select outside a box to close it; the notation panel closes the same way
+document.addEventListener('click', e => {
+  if (!e.target.closest('.anncard, mark.hl, [data-chip], [data-focus], [data-inreport], [data-openreview]')) closeCards();
+  if (S.ntOpen && !e.target.closest('.npanel, [data-nt]')) { S.ntOpen = false; const p = V.querySelector('#npanel'), b = V.querySelector('[data-nt]'); if (p) p.hidden = true; if (b) b.setAttribute('aria-expanded', 'false'); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeCards(); if (S.ntOpen) V.querySelector('[data-nt]')?.click(); }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('mark.hl, [data-focus]')) { e.preventDefault(); e.target.click(); }
+});
+
+// hover a declared symbol in agent prose for its definition
+const H = document.getElementById('nthover');
+H.innerHTML = D.notation.map((n, k) => `<div data-k="${k}" hidden><p class="d">\\(${n.tex}\\)</p><p class="m">${n.meaning}</p><p class="w">${esc(n.where)} · declared by the referee</p></div>`).join('');
+whenMath(() => MathJax.typesetPromise([H]).catch(() => {}));
+const symAt = el => el && el.closest ? el.closest('[class*="symdef-"]') : null;
+let hideT;
+document.addEventListener('mouseover', e => {
+  const g = symAt(e.target);
+  if (!g) return;
+  clearTimeout(hideT);
+  const k = (g.getAttribute('class').match(/symdef-(\d+)/) || [])[1];
+  H.querySelectorAll('[data-k]').forEach(x => { x.hidden = x.dataset.k !== k; });
+  const r = g.getBoundingClientRect();
+  H.hidden = false;
+  const w = H.offsetWidth, h = H.offsetHeight;
+  H.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  H.style.top = (r.top - h - 8 > 8 ? r.top - h - 8 : r.bottom + 8) + 'px';
+});
+document.addEventListener('mouseout', e => { if (symAt(e.target) && !symAt(e.relatedTarget)) hideT = setTimeout(() => { H.hidden = true; }, 120); });
+V.addEventListener('scroll', () => { H.hidden = true; }, true);
+
+go('run');
+})();
+</script>

@@ -66,6 +66,8 @@ engine = "pdflatex"         # default engine; % !TEX program in a master overrid
 
 [refs]
 fetch = false               # may loom fetch from arXiv for digest fetch
+resolve = false             # may loom look up identifiers at zbMATH Open and Crossref (8.9.1)
+contact = ""                # optional address sent to Crossref, which routes lookups to its polite pool
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
@@ -187,7 +189,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.lo
 2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal.
 3. Loom never edits the ledger except by appending acceptance rows.
 4. Loom never writes a state word anywhere.
-5. Loom never fetches from the network unless `[refs] fetch = true`, and then only in `loom digest fetch`.
+5. Loom never touches the network unless the author has allowed it: `[refs] fetch = true` for `loom digest fetch`, `[refs] resolve = true` for `loom refs resolve` (DR-122). No other command does, `loom lint` included.
 6. Loom never runs a model.
 
 ## 4.9 Ignoring a file
