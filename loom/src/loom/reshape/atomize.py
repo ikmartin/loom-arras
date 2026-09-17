@@ -32,6 +32,40 @@ class AtomizePlan:
     unlabelled: list[str] = field(default_factory=list)
 
 
+def _wanted(result: ScanResult, src_rel: str, keys: list[str], plan: AtomizePlan) -> set[str]:
+    """The statement keys to move, with a refusal in `plan` for each key that cannot be one: unknown, elsewhere, unlabelled, or inside another chosen node."""
+    asm = result.assembly
+    out: set[str] = set()
+    for key in keys:
+        n = asm.nodes.get(key)
+        if n is None:
+            plan.refusals.append(f"{key} is not a key of this quilt")
+            continue
+        if n.kind == "proof" and n.of:  # a proof is moved by the statement that carries it
+            n = asm.nodes.get(n.of, n)
+        if n.file != src_rel:
+            plan.refusals.append(f"{n.key} lives in {n.file}, not in {src_rel}")
+            continue
+        if not n.id:
+            plan.refusals.append(
+                f"loom:atomize-unlabelled: {n.key} has no id; give it one first (loom id --next, then \\label, "
+                'or the editor\'s "Give this node an id")'
+            )
+            continue
+        if n.kind == "section":
+            plan.refusals.append(f"{n.key} is a section; one-node atomize moves theorem-like nodes and their proofs")
+            continue
+        if n.file == f"nodes/{n.id}.tex":
+            plan.refusals.append(f"{n.key} already lives in {n.file}")
+            continue
+        out.add(n.key)
+    for key in sorted(out):
+        n = asm.nodes[key]
+        if any(k != key and asm.nodes[k].start <= n.start and n.end <= asm.nodes[k].end for k in out):
+            plan.refusals.append(f"{key} lies inside another node being moved")
+    return out
+
+
 def _line_bounds(text: str, start: int, end: int) -> tuple[int, int]:
     """Widen [start, end) to whole lines; an end that already sits at a line start (a section's span ends where the next heading begins) does not pull that next line in."""
     ls = text.rfind("\n", 0, start) + 1
@@ -57,9 +91,18 @@ def _directive_start(result: ScanResult, node: NodeRec, region_start: int) -> in
 
 
 def plan_atomize(
-    result: ScanResult, src_rel: str, dest_rel: str, proofs: str = "attached", sections: bool = False
+    result: ScanResult,
+    src_rel: str,
+    dest_rel: str,
+    proofs: str = "attached",
+    sections: bool = False,
+    keys: list[str] | None = None,
 ) -> AtomizePlan:
+    """The moves and the spine for atomizing `src_rel`, or with `keys` only those nodes (a proof names its statement, which carries it)."""
     plan = AtomizePlan(src=src_rel, dest=dest_rel)
+    wanted = _wanted(result, src_rel, keys, plan) if keys is not None else None
+    if plan.refusals:
+        return plan
     asm = result.assembly
     src = result.files[src_rel]
     text = src.text
@@ -79,6 +122,8 @@ def plan_atomize(
     moves: list[Move] = []
     for n in nodes_here:
         if n.key in claimed:
+            continue
+        if wanted is not None and n.key not in wanted:
             continue
         if n.kind == "environment":
             if not n.id:
@@ -221,6 +266,61 @@ def write_atomize(result: ScanResult, plan: AtomizePlan, force: bool = False) ->
     dest.write_text(plan.spine, encoding="utf-8")
     written.append(plan.dest)
     return written
+
+
+def write_moves(result: ScanResult, plan: AtomizePlan) -> list[str]:
+    """Write a plan's node files, refusing before writing anything if one exists. The source file is the author's to change."""
+    root = result.quilt.root
+    for m in plan.moves:
+        if (root / m.target).exists():
+            raise FileExistsError(m.target)
+    written: list[str] = []
+    for m in plan.moves:
+        path = root / m.target
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(m.text, encoding="utf-8")
+        written.append(m.target)
+    return written
+
+
+def verify_plan(result: ScanResult, plan: AtomizePlan) -> str | None:
+    """None when the moves and the spine put back together are the source file byte for byte, else what differs.
+
+    The moved text is the region with its trailing newlines normalised to one, and the spine carries an inclusion line in its place, so reversing the plan is exact and needs no LaTeX.
+    """
+    text = result.files[plan.src].text
+    rebuilt = plan.spine
+    for m in sorted(plan.moves, key=lambda x: x.start, reverse=True):
+        stem = m.target[: -len(".tex")] if m.target.endswith(".tex") else m.target
+        line = f"\\input{{{stem}}}"
+        at = rebuilt.find(line)
+        if at < 0:
+            return f"the spine has no inclusion line for {m.key}"
+        rebuilt = rebuilt[:at] + text[m.start : m.end] + rebuilt[at + len(line) :]
+        if m.text != text[m.start : m.end].rstrip("\n") + "\n":
+            return f"the text moved for {m.key} is not its region"
+    return None if rebuilt == text else f"{plan.src} is not reproduced by the plan"
+
+
+def plan_payload(result: ScanResult, plan: AtomizePlan) -> dict[str, object]:
+    """The plan as data for an editor: the region to replace, what stands in its place, and the files to create."""
+    src = result.files[plan.src]
+    return {
+        "src": plan.src,
+        "keys": [m.key for m in plan.moves],
+        "edits": [
+            {
+                "file": plan.src,
+                "start": m.start,
+                "end": m.end,
+                "line": src.line_of(m.start),
+                "text": f"\\input{{{m.target[: -len('.tex')]}}}",
+            }
+            for m in plan.moves
+        ],
+        "files": [{"path": m.target, "text": m.text} for m in plan.moves],
+        "refusals": list(plan.refusals),
+    }
 
 
 def inline(result: ScanResult, src_rel: str, recursive: bool = False) -> str:

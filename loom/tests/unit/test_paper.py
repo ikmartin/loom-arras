@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -365,3 +366,105 @@ def test_selector_survives_atomize(tmp_path: Path) -> None:
     assert "1 open question" in after and "detached" not in after, after
     assert "nodes/pp-0005.tex" in after
     assert "detached-annotation" not in run("lint", cwd=q).output
+
+
+def _quilt_from_paper(tmp_path: Path) -> Path:
+    p = paper_dir(tmp_path)
+    assert (
+        run(
+            "init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path
+        ).exit_code
+        == 0
+    )
+    return tmp_path / "q"
+
+
+def test_id_next_prints_a_free_id_and_inserts_nothing(tmp_path: Path) -> None:
+    q = _quilt_from_paper(tmp_path)
+    before = (q / "drafts" / "main.tex").read_text()
+    r = run("id", "--next", cwd=q)
+    assert r.exit_code == 0
+    allocated = r.output.strip()
+    assert allocated.startswith("pp-") and allocated not in (q / "drafts" / "main.tex").read_text()
+    assert (q / "drafts" / "main.tex").read_text() == before
+    assert json.loads(run("id", "--next", "--json", cwd=q).output) == {"id": allocated, "prefix": "pp"}
+    assert run("id", cwd=q).exit_code == 2  # a file, or --next
+
+
+def test_atomize_one_key_writes_the_node_and_leaves_the_source_to_the_author(tmp_path: Path) -> None:
+    q = _quilt_from_paper(tmp_path)
+    result = scan(load_quilt(q))
+    key = next(k for k, n in result.assembly.nodes.items() if n.kind == "environment" and n.file == "drafts/main.tex")
+    before = (q / "drafts" / "main.tex").read_text()
+    states_before = run("status", cwd=q).output
+
+    r = run("atomize", "--key", key, cwd=q)
+    assert r.exit_code == 0, r.output
+    node_file = q / "nodes" / f"{key}.tex"
+    assert node_file.is_file() and key in node_file.read_text()
+    assert (q / "drafts" / "main.tex").read_text() == before, "loom never edits the source"
+    assert f"+\\input{{nodes/{key}}}" in r.output and f"-\\begin{{definition}}[Widget]\\label{{{key}}}" in r.output
+
+    # applying the patch is the author's act; afterwards the quilt holds one definition and every state is where it was
+    patched = before.replace(node_file.read_text().rstrip("\n"), f"\\input{{nodes/{key}}}")
+    (q / "drafts" / "main.tex").write_text(patched)
+    assert "duplicate-id" not in run("lint", cwd=q).output, "one definition of the node, once the patch is applied"
+    assert run("status", cwd=q).output == states_before, "moving a node into nodes/ moves no state"
+
+
+def test_atomize_key_json_writes_nothing_and_carries_the_edit(tmp_path: Path) -> None:
+    q = _quilt_from_paper(tmp_path)
+    result = scan(load_quilt(q))
+    key = next(k for k, n in result.assembly.nodes.items() if n.kind == "environment" and n.file == "drafts/main.tex")
+    r = run("atomize", "--key", key, "--json", cwd=q)
+    assert r.exit_code == 0, r.output
+    plan = json.loads(r.output)
+    assert plan["keys"] == [key] and plan["refusals"] == []
+    (edit,) = plan["edits"]
+    assert edit["file"] == "drafts/main.tex" and edit["text"] == f"\\input{{nodes/{key}}}"
+    (made,) = plan["files"]
+    assert made["path"] == f"nodes/{key}.tex" and made["text"].endswith("\n")
+    text = (q / "drafts" / "main.tex").read_text()
+    assert text[edit["start"] : edit["end"]] == made["text"].rstrip("\n"), "the region is what moves"
+    assert not (q / "nodes" / f"{key}.tex").exists(), "--json writes nothing"
+
+
+def test_atomize_key_refuses_what_it_cannot_move(tmp_path: Path) -> None:
+    q = _quilt_from_paper(tmp_path)
+    result = scan(load_quilt(q))
+    key = next(k for k, n in result.assembly.nodes.items() if n.kind == "environment" and n.file == "drafts/main.tex")
+    section = next(k for k, n in result.assembly.nodes.items() if n.kind == "section")
+
+    assert run("atomize", "--key", key, cwd=q).exit_code == 0
+    main = q / "drafts" / "main.tex"
+    moved = (q / "nodes" / f"{key}.tex").read_text().rstrip("\n")
+    main.write_text(main.read_text().replace(moved, f"\\input{{nodes/{key}}}"))
+    already = run("atomize", "--key", key, cwd=q)
+    assert already.exit_code == 1 and "already lives in" in already.output
+    sec = run("atomize", "--key", section, cwd=q)
+    assert sec.exit_code == 1 and "is a section" in sec.output
+    unknown = run("atomize", "--key", "pp-ZZZZ", cwd=q)
+    assert unknown.exit_code == 1 and "not a key of this quilt" in unknown.output, unknown.output
+
+    main.write_text(
+        main.read_text().replace("\\end{document}", "\\begin{lemma}\nNo id.\n\\end{lemma}\n\\end{document}")
+    )
+    unlabelled = next(k for k, n in scan(load_quilt(q)).assembly.nodes.items() if n.kind == "environment" and not n.id)
+    r = run("atomize", "--key", unlabelled, cwd=q)
+    assert r.exit_code == 1 and "loom:atomize-unlabelled" in r.output and "loom id --next" in r.output
+
+
+def test_atomize_key_moves_an_attached_proof_with_its_statement(tmp_path: Path) -> None:
+    q = _quilt_from_paper(tmp_path)
+    main = q / "drafts" / "main.tex"
+    result = scan(load_quilt(q))
+    key = next(k for k, n in result.assembly.nodes.items() if n.kind == "environment" and n.file == "drafts/main.tex")
+    node = result.assembly.nodes[key]
+    text = main.read_text()
+    main.write_text(text[: node.end] + "\n\\begin{proof}\nBy inspection.\n\\end{proof}" + text[node.end :])
+    proof_key = next(k for k, n in scan(load_quilt(q)).assembly.nodes.items() if n.kind == "proof")
+
+    r = run("atomize", "--key", proof_key, cwd=q)
+    assert r.exit_code == 0, r.output
+    moved = (q / "nodes" / f"{key}.tex").read_text()
+    assert "\\begin{proof}" in moved and "\\begin{definition}" in moved, "the statement carries its proof"

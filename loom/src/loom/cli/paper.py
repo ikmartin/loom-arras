@@ -9,12 +9,12 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
+from loom.cli._common import EXIT_CONTENT, EXIT_USAGE, ContentError, EnvError, emit_json, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.cli.build_cmds import engine_for
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.atomize import inline as inline_text
-from loom.reshape.atomize import plan_atomize, write_atomize
+from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
 from loom.reshape.ids import apply_insertions, plan_insertions, unified_diff
 from loom.reshape.importer import apply_import, plan_import, report_counts, set_main
 from loom.scan.alloc import visible_locals
@@ -26,27 +26,39 @@ from loom.tex.identity import IdentityResult, identity_test
 
 
 @click.command(name="id")
-@click.argument("file")
+@click.argument("file", required=False, default=None)
 @click.option(
     "--to", "to", default=None, metavar="DEST", help="Write the patched copy here instead of printing a diff."
 )
 @click.option("--sections/--no-sections", default=True, help="Also label sections through subsubsection (default on).")
 @click.option("--all-levels", is_flag=True, help="Also label paragraphs and subparagraphs.")
 @click.option("--prefix", default=None)
+@click.option("--next", "next_only", is_flag=True, help="Print the next free id and nothing else; inserts nothing.")
+@click.option("--json", "as_json", is_flag=True, help="With --next: print it as JSON.")
 @quilt_option
 @click.pass_context
 def id_command(
     ctx: click.Context,
-    file: str,
+    file: str | None,
     to: str | None,
     sections: bool,
     all_levels: bool,
     prefix: str | None,
+    next_only: bool,
+    as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Print a patch (or write a copy with --to) inserting \\label{<id>} on every untagged theorem-like environment and section in FILE. Never modifies FILE."""
+    """Print a patch (or write a copy with --to) inserting \\label{<id>} on every untagged theorem-like environment and section in FILE, or with --next the next free id. Never modifies FILE."""
     result = open_scan(quilt_path)
     root = result.quilt.root
+    pre_next = prefix or result.quilt.config.prefix
+    if next_only:
+        allocated = f"{pre_next}-{next_local(visible_locals(result, pre_next))}"
+        emit_json({"id": allocated, "prefix": pre_next}) if as_json else click.echo(allocated)
+        return
+    if file is None:
+        click.echo("ERROR: name a file to label, or pass --next for the next free id", err=True)
+        ctx.exit(EXIT_USAGE)
     rel = _rel(root, file)
     if rel not in result.files:
         raise EnvError(f"{file} is not a scanned file of this quilt")
@@ -163,9 +175,17 @@ def import_command(
 
 
 @click.command()
-@click.argument("src")
+@click.argument("src", required=False, default=None)
 @click.argument("dest", required=False, default=None)
 @click.option("--to", "to", default=None, metavar="DEST")
+@click.option(
+    "--key",
+    "keys",
+    multiple=True,
+    metavar="KEY",
+    help="Move only these nodes, wherever they live; SRC is not needed. Writes the node files and prints the patch for the source, which loom never edits.",
+)
+@click.option("--json", "as_json", is_flag=True, help="With --key: print the plan and write nothing.")
 @click.option("--proofs", type=click.Choice(["attached", "separate"]), default="attached")
 @click.option("--sections", is_flag=True, help="Also move labelled sections and subsections to nodes/.")
 @click.option(
@@ -181,9 +201,11 @@ def import_command(
 @click.pass_context
 def atomize(
     ctx: click.Context,
-    src: str,
+    src: str | None,
     dest: str | None,
     to: str | None,
+    keys: tuple[str, ...],
+    as_json: bool,
     proofs: str,
     sections: bool,
     all_files: bool,
@@ -194,6 +216,14 @@ def atomize(
     """Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC's text is not modified (with --ignore-src, a directive line is added above it)."""
     result = open_scan(quilt_path)
     root = result.quilt.root
+    if keys:
+        _atomize_keys(ctx, result, list(keys), src, as_json, proofs)
+        return
+    if as_json:
+        raise EnvError("--json needs --key")
+    if src is None:
+        click.echo("ERROR: name the file to atomize, or the nodes with --key", err=True)
+        ctx.exit(EXIT_USAGE)
     src_rel = _rel(root, src)
     if src_rel not in result.files:
         raise EnvError(f"{src} is not a scanned file of this quilt")
@@ -281,6 +311,55 @@ def inline_command(
         note(ident.summary())
         if not ident.passed and not ident.skipped:
             ctx.exit(EXIT_CONTENT)
+
+
+def _atomize_keys(
+    ctx: click.Context, result: ScanResult, keys: list[str], src: str | None, as_json: bool, proofs: str
+) -> None:
+    """`atomize --key`: write the node files and print the patch for the source, or with --json print the plan and write nothing.
+
+    The source is never edited: the editor applies the patch (loom-lsp offers it as one workspace edit), which is what keeps undo and an unsaved buffer the author's business.
+    """
+    root = result.quilt.root
+    src_rel = _rel(root, src) if src else None
+    if src_rel is None:
+        unknown = [k for k in keys if k not in result.assembly.nodes]
+        if unknown:
+            for k in unknown:
+                note(f"{k} is not a key of this quilt")
+            ctx.exit(EXIT_CONTENT)
+        homes = {result.assembly.nodes[k].file for k in keys}
+        if len(homes) > 1:
+            raise EnvError("those keys live in different files; atomize one file's nodes at a time")
+        src_rel = homes.pop()
+    if src_rel not in result.files:
+        raise EnvError(f"{src or keys[0]} is not in a scanned file of this quilt")
+    plan = plan_atomize(result, src_rel, src_rel, proofs, False, keys=keys)
+    if not plan.refusals and not plan.moves:
+        plan.refusals.append(f"nothing to move for {', '.join(keys)}")
+    if plan.refusals:
+        if as_json:
+            emit_json(plan_payload(result, plan))
+            ctx.exit(EXIT_CONTENT)
+        for r in plan.refusals:
+            note(f"{src_rel}: {r}")
+        ctx.exit(EXIT_CONTENT)
+    problem = verify_plan(result, plan)
+    if problem is not None:
+        raise ContentError(f"loom:atomize-plan-unsound: {problem}")
+    if as_json:
+        emit_json(plan_payload(result, plan))
+        return
+    for m in plan.moves:
+        if (root / m.target).exists():
+            raise ContentError(f"loom:atomize-target-exists: {m.target} exists")
+    written = write_moves(result, plan)
+    for path in written:
+        click.echo(f"Wrote {path}")
+    click.echo(unified_diff(result.files[src_rel].text, plan.spine, src_rel), nl=False)
+    note(
+        f"{src_rel} is yours to change: apply the patch above, or let your editor do it. Until then lint reports duplicate ids."
+    )
 
 
 def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -> IdentityResult | None:
