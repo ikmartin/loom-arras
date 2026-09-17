@@ -1,0 +1,1 @@
+var e=(e,t)=>{let n=t,r=t=>{e.contains(t.target)||n?.()},i=e=>{e.key===`Escape`&&n?.()};return document.addEventListener(`pointerdown`,r,!0),document.addEventListener(`keydown`,i),{update(e){n=e},destroy(){document.removeEventListener(`pointerdown`,r,!0),document.removeEventListener(`keydown`,i)}}};export{e as t};
