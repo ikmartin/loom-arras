@@ -67,7 +67,7 @@ Specifications (`specs/`):
 - `manifest.md` : the manifest schema
 - `diagnostics.md` : diagnostic codes
 - `write-api.md` : the write API (deferred)
-- `runner.md` : the runner contract (deferred)
+- `runner.md` : the runner contract (declined, kept as a design)
 - `fixture.md` : the conformance fixture
 - `tools/` : `validate-dialect.py` and `refresh-fixture.sh`
 - `fixture/` : the generated conformance fixture, vendored into both tool repositories

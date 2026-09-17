@@ -115,7 +115,7 @@ After any run, `loom ai check RUN` (**[decided]** a command of its own, M6) repo
 
 ## 11.9 Triggers
 
-**[decided]** In interactive use there is no queue and nothing runs unattended. `loom status` is the to-do list: undigested citekeys are the ingest trigger; stale accepted keys and draft keys are the review triggers; the orientation document tells the agent to run `status` first and propose work from it. The runner contract (`specs/runner.md`) specifies `loom ai run --queued` and `--auto` for the non-interactive future and is not built in the MVP.
+**[decided]** In interactive use there is no queue and nothing runs unattended. `loom status` is the to-do list: undigested citekeys are the ingest trigger; stale accepted keys and draft keys are the review triggers; the orientation document tells the agent to run `status` first and propose work from it. A runner contract was specified for a non-interactive future (`loom ai run --queued`, `--auto`) and has been declined: loom prepares an agent's context and records what it did, and supervising the process would mean holding credentials and tracking vendors' flags for three features that were never built. `specs/runner.md` is kept as a declined design and its `[ai] runner` config key is withdrawn (`docs/work-queue/closed.md`, WQ-15).
 
 ## 11.10 Two agents, one layer
 

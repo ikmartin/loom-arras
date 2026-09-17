@@ -15,7 +15,7 @@ The interface between publishers and viewers lives in `docs/specs/`, beside this
 | a section node's level | 15.2 | `specs/manifest.md` §3 | specification |
 | anchors on node elements | 9.3 | `specs/dialect.md` §2.2 | specification |
 | the write API | 9.9, 10.4 | `specs/write-api.md` | specification (deferred; specified, not built) |
-| the runner | 11.9 | `specs/runner.md` | specification (deferred; specified, not built) |
+| the runner | 11.9 | `specs/runner.md` | declined; kept as a design that was specified and not built (WQ-15) |
 | the conformance fixture | 14.3 | `specs/fixture.md` | specification |
 | interface versioning | 9.9 | `specs/README.md` | specification |
 

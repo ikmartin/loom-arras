@@ -149,7 +149,7 @@ The normative interface is `specs/`:
 - `specs/manifest.md`: the manifest schema.
 - `specs/diagnostics.md`: diagnostic codes, reserved and namespaced.
 - `specs/fixture.md`: the conformance fixture (DR-58: the synthetic quilt's missing include sits inside `\iffalse`, and its beamer talk declares `proposition`, so both masters compile for numbering).
-- `specs/write-api.md` and `specs/runner.md`: deferred; specified so the CLI is designed with them in mind.
+- `specs/write-api.md`: deferred, and `specs/runner.md`: declined (WQ-15). Both were specified so the CLI is designed with them in mind.
 
 Every manifest carries `interface_version`. Loom and arras each declare the versions they produce and accept (both 1 today); a mismatch is reported by arras on its problems page as one diagnostic and nothing else (10.5, M2), never silently.
 

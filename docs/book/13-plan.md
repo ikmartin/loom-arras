@@ -121,6 +121,8 @@ Demonstrated 2026-09-16 for criteria 1 to 8 of 2.3 on `demos/relloc`; see `docs/
 
 None of these exists at the end of M7: the generated CLI reference (`loom/docs/cli-reference.md`) has no `open`, no `atomize --relative`, and no `ai run`, and both CI workflows run on Ubuntu only.
 
+What became of them since is in `docs/work-queue/`, and three were not merely cut but **declined**, which is a different thing: the runner (WQ-15), `atomize --relative` (WQ-07), and `manifest.schema.json` (WQ-14). Each had a specification kept so as not to foreclose it, and each was examined later and found to be a decline rather than a deferral — a trigger nobody would ever observe. The rest are live queue items or were settled by a later round.
+
 ## 13.4 Repositories and workspace
 
 **[decided]** The layouts as built. The workspace repository tracks `docs/`, `demos/` (the two committed quilts), and the files at its root; the tool repositories and the paper sources are gitignored.

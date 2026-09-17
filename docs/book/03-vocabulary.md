@@ -91,7 +91,7 @@ All entries are **[decided]** unless marked.
 - publisher code : a namespaced diagnostic code (`loom:unattached-proof`) defined by one publisher.
 - thread : the interface's name for a discussion: messages, attachments, targets. A run publishes as a thread.
 - write API : the HTTP form of loom's record-writing commands, for a browser. Specified, deferred.
-- runner : an external command that turns one prompt into one response with no interactive session. Specified, deferred.
+- runner : an external command that turns one prompt into one response with no interactive session. Specified and declined; loom prepares an agent's context and records what it did, and does not supervise the process (WQ-15).
 
 ## 3.8 AI layer
 

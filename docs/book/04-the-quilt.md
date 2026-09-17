@@ -72,7 +72,6 @@ disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched
 
 [ai]
 agent = ""                  # command loom ai start launches, if any
-runner = ""                 # deferred; see specs/runner.md
 ```
 
 Rules:
