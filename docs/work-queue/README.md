@@ -20,7 +20,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 
 | id | item | repo | trigger |
 |---|---|---|---|
-| [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl to arbitrary depth | loom | candidates from plan 0.7 can bind as identities — that waits on WQ-23's question of where a confirmed identity lives — or the author accepts a crawl that follows only strong candidates |
+| [WQ-02](WQ-02-recursive-reference-crawl.md) | recursive reference crawl: building a library by depth and subject, under a download cap | loom | the author decides to build a library — a decision; its prerequisite, identity lookups, landed in plan 0.7 |
 | [WQ-03](WQ-03-reference-libraries.md) | reference libraries: one quilt depends on another | loom | a second quilt exists whose digests another quilt wants |
 | [WQ-06](WQ-06-byte-cache.md) | a shared cache for fetched bytes | loom | `refs/` across all quilts on one machine exceeds a few GB, or a quilt needs its fetched bytes on another disk |
 | [WQ-08](WQ-08-nest-sectioning-classes.md) | `\nest` under `\part` and class-specific sectioning | loom | a fixture uses memoir, KOMA-Script or `\part` |
