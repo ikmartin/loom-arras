@@ -9,7 +9,7 @@ The static orientation document `loom ai init` writes and `loom ai orient` print
 
 You are working inside a **quilt**: a LaTeX-based research project managed by `loom`, usually mathematical, usually aimed at producing one or more papers but never limited to one. A quilt holds results, their dependencies, what the author has accepted, the papers being written from them, and digests of the literature they draw on. Loom exists to make that project workable with an assistant in it.
 
-Read this document once. Then run `loom status` and propose what to do from what it reports.
+`loom ai orient` printed this and `ai/rules.md` together: this says where you are, and that says how to work and what your output looks like. Read both once. Then run `loom status` and propose what to do from what it reports.
 
 ## 1. What a quilt is
 
@@ -95,7 +95,7 @@ Loom writes `run.log` there for you, and `run.toml`, which holds the run's name 
 
 ## 7. Modes
 
-The author asks for a mode by name. Each has a template in `ai/modes/` with an input contract, a procedure, and an output contract with a checklist. Follow the template exactly, and tick its checklist in your notes file.
+The author asks for a mode by name. Each has a template in `ai/modes/` with an input contract, a procedure, and an output contract with a checklist. `ai/rules.md` holds what is common to all of them, and applies when no mode is named at all. Follow the template exactly, and tick its checklist in your notes file.
 
 - **audit**: hypothesis, citation, uses, and self-containedness ledgers.
 - **referee**: hostile review — gaps, worked examples, counterexamples, verdict.
@@ -106,19 +106,17 @@ The author asks for a mode by name. Each has a template in `ai/modes/` with an i
 - **ingest**: a digest of a cited paper.
 - **brainstorm**: explore a topic before anything is proved — candidates, dead ends, what the digests already say.
 
-Findings are annotations. Review mode grades every one with `--severity`; elsewhere you give a severity only when something is actually wrong, and a `--payload` only when you are proposing text. On a re-check you edit a finding that still stands rather than replying to yourself. `blocks.md` rules 5 to 7 are the full contract; where this summary and those rules disagree, the rules win.
+Findings are annotations. Review mode grades every one with `--severity`; elsewhere you give a severity only when something is actually wrong, and a `--payload` only when you are proposing text. On a re-check you edit a finding that still stands rather than replying to yourself. `ai/rules.md` rules 5 to 7 are the full contract; where this summary and those rules disagree, the rules win.
 
 A digest you produce waits in your run for the author to run `loom ai promote`. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
 
 ## 8. Context economy
 
-Read a key's closure, not directories: it is complete by construction. Use `loom search` to find ids and `loom status --json` for the quilt's state. Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`, and do not read the annotation log when `loom ai findings` answers the question.
-
-When you need a cited result, its digest node's statement is in the closure; if there is no digest, say so and propose an ingest.
+Read a key's closure, not directories: it is complete by construction. Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`, and do not read the annotation log when `loom ai findings` answers the question. `ai/rules.md` §Inputs is the contract, including the one exception — a digest's overview, which no command prints.
 
 ## 9. What you never do
 
-Never edit files outside your run. Never write the annotation log by hand — `loom comment` is the only way a finding is recorded. Never run `loom accept`, `loom atomize`, `loom inline`, `loom import`, `loom refs note`, or anything else that writes to the quilt on the author's behalf; several of these are refused outright. Never delete anything. Never claim a result is proved when a step is missing — mark it `\incomplete`. Never invent a locator; write "unlocated".
+`ai/rules.md` §Never is the list, and it is the file to check: a mode reached through a slash command never passes through this document, so the prohibitions live where that reader will see them. In one line: you write only under your run directory, only through loom commands, and nothing that writes to the quilt on the author's behalf.
 
 ## 10. When you are done
 
