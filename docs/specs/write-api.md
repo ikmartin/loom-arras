@@ -1,12 +1,12 @@
-# Write API (deferred)
+# Write API
 
-The write API is the HTTP form of the publisher's record-writing commands, so that a browser can do what the CLI does: create a thread, append a message, comment, reply, resolve, accept, discard. It is served by the publisher (loom's `serve`), never by the viewer. It writes only to the publisher's own record locations and never to source files. Interface version 1; status: specified, not built.
+The write API is the HTTP form of the publisher's record-writing commands, so that a browser can do what the CLI does: create a thread, append a message, comment, reply, resolve, accept, discard. It is served by the publisher (loom's `serve`), never by the viewer. It writes only to the publisher's own record locations and never to source files. Interface version 1; status: built in plan 0.11.
 
-**[decided]** Everything in this file is deferred. It is written now so that the CLI commands it wraps are designed as library functions with the same signatures, and so that arras can be built with feature detection from the start.
+**[decided]** The commands it wraps are library functions with the same signatures, and a viewer detects it rather than assuming it.
 
 ## 1. Discovery
 
-**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": ["comment", "reply", "resolve", "accept", "thread", "message", "discard"]}` or 404. A viewer that receives 404 or a version it does not accept shows no editing affordances.
+**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...]}` or 404. A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
 
 ## 2. Endpoints
 
@@ -14,13 +14,16 @@ The write API is the HTTP form of the publisher's record-writing commands, so th
 
 | method | path | body | effect |
 |---|---|---|---|
-| `POST` | `/_api/comment` | `{target, message, quote?, kind?, author?, run?}` | as `loom comment` |
-| `POST` | `/_api/reply` | `{annotation, message, author?, run?}` | as `loom comment --reply` |
-| `POST` | `/_api/resolve` | `{annotation, message?, author?}` | as `loom comment --resolve` |
-| `POST` | `/_api/accept` | `{keys: [...], proofs?: bool, author?}` | as `loom accept` |
-| `POST` | `/_api/thread` | `{title?}` | as `loom ai start`; returns the run id |
-| `POST` | `/_api/message` | `{thread, body, author}` | appends to the thread's message log |
-| `POST` | `/_api/discard` | `{record, undo?: bool}` | as `loom ai discard` |
+| `POST` | `/_api/comment` | `{target, message, quote?, kind?, severity?, payload?, placement?, author?, run?}` | writes one finding |
+| `POST` | `/_api/reply` | `{annotation, message, author?, run?}` | answers one |
+| `POST` | `/_api/resolve` | `{annotation, message?, author?, run?}` | closes one that is met |
+| `POST` | `/_api/edit` | `{annotation, message?, severity?, payload?, placement?, author?, run?}` | restates one that still stands |
+| `POST` | `/_api/discard` | `{annotation, reason?, author?, run?}` | withdraws one that should not have been raised |
+| `POST` | `/_api/refs-note` | `{annotation, decision: "accept" \| "reject", reason?, author?}` | records a citation suggestion's outcome |
+
+**[decided]** `discard` takes an **annotation**, not a record. Until the annotation log there was a file per review and discarding meant discarding the file; there is one log now, and what a person withdraws is a finding. Discarding a whole run is not served here: it is the author's own housekeeping and has no viewer affordance.
+
+**[decided]** `resolve` and `discard` are different acts and the API keeps them apart, as the log does. Resolved means the fault was addressed; discarded means it should not have been raised. Collapsing them loses the only record of which agent findings were worth having.
 
 Every successful write triggers a republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content.
 
@@ -28,9 +31,11 @@ Every successful write triggers a republish; the viewer sees the change through 
 
 **[decided]** `author` defaults to the publisher's resolved author name. There is no authentication in version 1; the API binds to localhost and is intended for one person's machine. Exposing it beyond localhost would need authentication, and CSRF and origin checks, designed first; version 1 does not, because it never leaves the machine.
 
-## 4. Messages and the bridge
+## 4. No model behaviour, and no bridge
 
-**[decided]** `POST /_api/message` appends a human message to a thread (`messages.jsonl` in the run directory). Whether a model replies is the bridge's business: a separate, optional component that watches threads and invokes the runner (`runner.md`). Version 1 of this API has no model behaviour; a thread with no bridge is a place people write to each other.
+**[decided]** Nothing in this API wakes an agent, and version 1 has no `message` endpoint. An earlier draft routed a reply through "the bridge": a component that watched threads and invoked the runner. The runner was declined as WQ-15 and `specs/runner.md` is kept only as a declined design, so the bridge had nothing left to invoke.
+
+**[decided]** The direction is the other way round, and it already works: an agent **pulls**. It reads open findings with `loom status` and `loom ai findings`, and answers with `loom comment --reply`. That needs no server, no credentials held by loom, and no tracking of vendor flags that churn. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends, which is what the log was for.
 
 ## 5. Selection to quote
 
