@@ -5,6 +5,8 @@ loom-nvim/
 loom-vscode/
 tests/fixtures/
 demos/relloc/
+demos/relloc-helpful/
+demos/relloc-hostile/
 demos/man12/
 demos/acgs/
 .DS_Store
