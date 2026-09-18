@@ -91,7 +91,7 @@ Rules common to every mode:
 4. **[decided]** Nothing a mode produces is applied. A digest is promoted by a person and a drafted node is pasted by one (11.7); proposals are applied by a person with their own tools.
 5. **[decided]** Every mode file begins with a "Before you begin" block stating the write policy, every notes file begins with a `[summary]` block, and every mode file ends with the output contract as a checklist the agent copies into the notes and ticks.
 6. **[decided]** Proposals and drafts are compiled before promotion with `loom compile KEY --with FILE` and `loom compile --draft FILE` (12.5); a mode that produces LaTeX reports the compile result in its notes.
-7. **[decided]** An agent that needs a whole master in context uses `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`; masters are not keys and `bundle` does not apply to them.
+7. **[decided]** An agent that needs a whole document in context uses `loom source PATH --run RUN`, which prints it flattened, every `\input`, `\include` and `\nest` expanded in place and nothing written. Masters are not keys, so the closure form does not apply to one; and `loom linearize`, which flattens a document into a file, supersedes what it flattened and is denied to the agent (11.5), so until `loom source` took a path there was no command an agent could use for this (DR-155).
 
 ## 11.6 Comments from agents
 

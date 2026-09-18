@@ -63,9 +63,8 @@ Working in the quilt:
 
 - `loom status` (first, always): every key, its state, causes, open annotations; `--stale`, `--draft`, `--incomplete`, `--undigested`, `--explain KEY`; `--json` for tools. This is the to-do list.
 - `loom search QUERY --json`: find ids by title, alias, tag or citekey; get a node's file.
-- `loom source KEY [--closure]`: prints a key's own text, and with `--closure` exactly the statements it depends on first. Read this, not the directories. It writes no file, so nothing you read can go stale behind you.
+- `loom source TARGET [--closure]`: prints a key's own text, and with `--closure` exactly the statements it depends on first. Give it a document's path instead and it prints that document flattened, every inclusion expanded in place, for when a plan or a paper is the context. Read this, not the directories. It writes no file, so nothing you read can go stale behind you.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
-- `loom linearize SPINE --to <file> --no-check`: a whole master flattened into one file, for when a plan or a paper is the context. Masters are not keys, so `loom source` does not apply to them.
 - `loom lint`: what is structurally wrong. `loom check`: lint, then compile every master; with `--bundles all` it also compiles every key's closure, which the default does not.
 - `loom compile KEY --with proposal.diff`, `loom compile --draft draft-ID.tex`: compiles your proposed text in place of the quilt's, so you can check it before the author applies anything. Nothing in the quilt changes.
 - `loom new TAXON "Title" --print`: a skeleton for a node you will draft, printed rather than written. `loom id --next` prints the next free id alone.
