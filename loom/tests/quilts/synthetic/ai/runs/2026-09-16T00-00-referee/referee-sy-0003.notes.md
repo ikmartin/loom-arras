@@ -1,6 +1,11 @@
 ## [summary]
 The parity theorem is correct as stated but leans on finiteness without saying so. One citation is missing a number. The document as a whole does not say which conventions it inherits.
 
+## [notation]
+- $\Fix(\sigma)$ is the fixed locus of the involution.
+- $k$ is the number of two-element orbits.
+- $\Fix(\sigma)$ is also used below for the fixed locus of the induced map on orbits.
+
 ## [referee-review] Major and minor issues
 
 ### Major Issues

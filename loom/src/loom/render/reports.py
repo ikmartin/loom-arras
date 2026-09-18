@@ -17,11 +17,25 @@ from loom.records.store import render_markdown
 #: A block heading: any level, the block's name in brackets, and whatever the agent wrote after it.
 HEADING = re.compile(r"^(?P<hashes>#{1,6})[ \t]*\[(?P<name>[a-z][a-z0-9-]*)\][ \t]*(?P<rest>.*)$", re.M)
 
+#: A declared symbol: a list item whose first inline math is the symbol and whose remainder says what it means.
+DECLARATION = re.compile(r"^[ \t]*[-*][ \t]+\$(?P<tex>[^$]+)\$(?P<means>.*)$", re.M)
+
 #: The elements a finding can be: a list item or a paragraph, with whatever attributes the renderer gave it.
 OPENING = re.compile(r"<(li|p)(\s[^>]*)?>")
 
 #: The annotation id a finding ends with, as `loom comment` prints it.
 ANNOTATION = re.compile(r"\(\s*(a-\d{4}-\d{2}-\d{2}-\d+)\s*\)")
+
+
+@dataclass
+class Symbol:
+    """A symbol an agent declared in its `[notation]` block: the TeX as written, and what it was said to mean."""
+
+    tex: str
+    means: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"tex": self.tex, "means": self.means}
 
 
 @dataclass
@@ -31,11 +45,14 @@ class Block:
     name: str
     title: str
     findings: list[str] = field(default_factory=list)
+    symbols: list[Symbol] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"name": self.name, "title": self.title}
         if self.findings:
             out["findings"] = self.findings
+        if self.symbols:
+            out["symbols"] = [s.to_dict() for s in self.symbols]
         return out
 
 
@@ -69,6 +86,18 @@ def _anchor_findings(html: str) -> tuple[str, list[str]]:
     # attribute, so leaving the id in the prose shows the reader a machine's bookkeeping.
     html = ANNOTATION.sub("", html)
     return re.sub(r"[ \t]+(?=</(?:li|p)>)", "", html), [marks[pos][1] for pos in sorted(marks)]
+
+
+def _symbols(body: str) -> list[Symbol]:
+    """The symbols a `[notation]` block declares, read from the markdown rather than the rendering.
+
+    A declaration is one list item that opens with the symbol in inline math; everything after it is what the symbol was said to mean. Reading the source and not the HTML is what keeps this out of the viewer: MathJax turns math into SVG, so by the time a browser has it the TeX is gone.
+    """
+    out: list[Symbol] = []
+    for m in DECLARATION.finditer(body):
+        means = m.group("means").strip().lstrip("-\u2014:").strip()
+        out.append(Symbol(tex=m.group("tex").strip(), means=means or ""))
+    return out
 
 
 def _section(name: str, heading: str, body_html: str, src: str, start: int, end: int) -> str:
@@ -119,7 +148,9 @@ def parse_report(text: str, run: str = "", src: str = "") -> Report:
         lead = len(body) - len(body.lstrip())
         html, found = _anchor_findings(render_markdown(body.strip(), src=src or None, offset=m.end() + lead))
         head = f'<h{level} data-src="{src}:{m.start()}:{m.end()}">{escape(title)}</h{level}>'
-        blocks.append(Block(name=name, title=title, findings=found))
+        blocks.append(
+            Block(name=name, title=title, findings=found, symbols=_symbols(body) if name == "notation" else [])
+        )
         pieces.append(_section(name, head, html, src, m.start(), end))
 
     attr = f' data-run="{run}"' if run else ""

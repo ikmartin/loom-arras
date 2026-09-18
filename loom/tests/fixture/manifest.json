@@ -212,7 +212,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "171c87f85681eee6cb1289de0ed11b5d8974a846d189209a31d488aae5132dd8",
+   "hash": "bb8fc3a2facc3e13e6b3e89b948812b611b6459097a237104bdc337fdde6679e",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -224,7 +224,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "8b7bbdb929e713b71b250e10747397f242722089b5f9904c40afa699caf89aa0",
+   "hash": "3de73a34ebaf9df6976c4647d9f10a009f79f79d24169b0811f3f8577e3339f5",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -236,7 +236,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "a7125dd98fc59d02b7e43bbfa2531b41949633767f0b9ce24ade942fdca9a453",
+   "hash": "85327f36119729c5161e6eddd6592f76f1d1d7cc8c4b9ab491efc4a18cb4f255",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -4411,6 +4411,24 @@
       {
        "name": "summary",
        "title": "summary"
+      },
+      {
+       "name": "notation",
+       "symbols": [
+        {
+         "means": "is the fixed locus of the involution.",
+         "tex": "\\Fix(\\sigma)"
+        },
+        {
+         "means": "is the number of two-element orbits.",
+         "tex": "k"
+        },
+        {
+         "means": "is also used below for the fixed locus of the induced map on orbits.",
+         "tex": "\\Fix(\\sigma)"
+        }
+       ],
+       "title": "notation"
       },
       {
        "findings": [

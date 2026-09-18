@@ -310,9 +310,14 @@ def build_synthetic(dest: Path) -> None:
 
 
 def _synthetic_report(objection: str, suggestion: str, document: str) -> str:
-    """The conformance fixture's referee report: several named blocks, findings that resolve to real annotations, and math in the prose, so the report pane has something with structure to render."""
+    """The conformance fixture's referee report: several named blocks, findings that resolve to real annotations, math in the prose, and one symbol declared twice with different meanings, so the report pane and the notation panel both have something real to work on."""
     return f"""## [summary]
 The parity theorem is correct as stated but leans on finiteness without saying so. One citation is missing a number. The document as a whole does not say which conventions it inherits.
+
+## [notation]
+- $\\Fix(\\sigma)$ is the fixed locus of the involution.
+- $k$ is the number of two-element orbits.
+- $\\Fix(\\sigma)$ is also used below for the fixed locus of the induced map on orbits.
 
 ## [referee-review] Major and minor issues
 
