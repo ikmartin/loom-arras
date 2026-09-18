@@ -99,6 +99,10 @@
 		white-space: pre-wrap;
 		font-size: 0.92em;
 	}
+	/* The neutral treatment an unknown kind gets; the four known ones override it below. */
+	.box {
+		border-left-color: var(--rule-strong);
+	}
 	.kind-objection {
 		background: var(--state-incomplete-wash);
 	}

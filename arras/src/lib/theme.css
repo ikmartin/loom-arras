@@ -676,6 +676,16 @@ a.heading-link:focus {
 	--taxon-8: #c0a8e8;
 }
 
+/* A kind this viewer has never heard of still has to read as a comment. `kind` is an open string -- a publisher may
+   use one arras was never told about, and 0.10's own `citation` was unstyled for exactly this reason -- so the base
+   rule carries the neutral treatment and the four known kinds override it. Found by a corpus built to break things, whose
+   annotations include a kind of `catastrophe`. */
+.fragment mark.annotation,
+.fragment .annotation-block {
+	background: var(--leaf);
+	box-shadow: inset 0 -2px 0 var(--rule-strong);
+}
+
 /* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. A whole marked block carries the colour down its edge rather than under every line. */
 .fragment mark.annotation.k-objection { background: var(--state-incomplete-wash); box-shadow: inset 0 -2px 0 var(--state-incomplete); }
 .fragment mark.annotation.k-suggestion { background: var(--state-stale-wash); box-shadow: inset 0 -2px 0 var(--state-stale); }
