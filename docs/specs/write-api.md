@@ -16,12 +16,14 @@ The write API is the HTTP form of the publisher's record-writing commands, so th
 |---|---|---|---|
 | `POST` | `/_api/comment` | `{target, message, quote?, kind?, severity?, payload?, placement?, author?, run?}` | writes one finding |
 | `POST` | `/_api/reply` | `{annotation, message, author?, run?}` | answers one |
-| `POST` | `/_api/resolve` | `{annotation, message?, author?, run?}` | closes one that is met |
+| `POST` | `/_api/resolve` | `{annotation, message?, undo?, author?, run?}` | closes one that is met |
 | `POST` | `/_api/edit` | `{annotation, message?, severity?, payload?, placement?, author?, run?}` | restates one that still stands |
-| `POST` | `/_api/discard` | `{annotation, reason?, author?, run?}` | withdraws one that should not have been raised |
+| `POST` | `/_api/discard` | `{annotation, reason?, undo?, author?, run?}` | withdraws one that should not have been raised |
 | `POST` | `/_api/refs-note` | `{annotation, decision: "accept" \| "reject", reason?, author?}` | records a citation suggestion's outcome |
 
 **[decided]** `discard` takes an **annotation**, not a record. Until the annotation log there was a file per review and discarding meant discarding the file; there is one log now, and what a person withdraws is a finding. Discarding a whole run is not served here: it is the author's own housekeeping and has no viewer affordance.
+
+**[decided]** `undo: true` on `resolve` or `discard` puts the finding back (DR-174). It appends another event rather than removing one, so the record still says that it was resolved or withdrawn, when and by whom, and that it was reopened. A viewer offers it in place of the verb that fired, which is what lets those two act on a single click: a wrong one is one click back.
 
 **[decided]** `resolve` and `discard` are different acts and the API keeps them apart, as the log does. Resolved means the fault was addressed; discarded means it should not have been raised. Collapsing them loses the only record of which agent findings were worth having.
 

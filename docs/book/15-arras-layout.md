@@ -95,6 +95,16 @@ See 15.5.
 
 **[decided]** Four metric cards (48px tall, `--leaf`, `--rad-control`, 9px muted label, 18px value in the state colour) — accepted, stale, incomplete, errors — then the documents, what needs attention, what is blocked, what is loose, and what is recent. Every line links. Each card opens the table of exactly what it counts: `/review?show=accepted`, `?show=stale`, `?show=incomplete`, and `/problems?severity=error` (DR-118). This is the landing route.
 
+### 15.3.4a Answering a finding
+
+**[decided]** An annotation box carries a row of verbs at the right of its header: **reply**, **resolve**, **edit** and **discard**, each shown only when `GET /_api` says the publisher serves it, so a corpus read from a static host shows none of them (DR-161). Loom serves six endpoints and the viewer called two; these are the other four (DR-174).
+
+**[decided]** The shape follows what each endpoint needs. `reply`, `edit` and `discard` take text, so each opens a small panel **above** the row — above, because the body it is about is below it and must not move. `resolve` needs nothing, so it is one click, and **the button that fired becomes its own undo where it stood**: the row never changes length or order, so nothing moves under the pointer between the act and the second thoughts. Withdrawing is the same, and both undos are appended events (7.4).
+
+**[decided]** A reply carries a `discard` of its own, because a reply is an annotation with `in_reply_to` set and withdrawing one is `discard` on its own id. Nothing in the viewer deletes: reverting an edit is another edit back to the wording the log still holds.
+
+**[decided]** In a gutter slot — about `(container − measure) / 3`, some 210px — the metadata and four verbs cannot share a line, so `edit` and `discard` fold behind `⋯` and `reply` and `resolve` stay out. A container query, not a media query: the same box is wide in the flow and narrow in the gutter on one screen.
+
 ### 15.3.5 Review panel, problems, threads, indexes
 
 **[decided]** Table-shaped pages: a header with counts and an explanatory sentence, filter controls in the left panel through the registry of 15.3, rows with state badge, id, taxon, title, cause, counts. Filters live in the URL, so a filtered table is a link, and each count in the header toggles its own filter. A column no row in the current table fills is not drawn. A row expands in place to show the stale cause and its diff, as a two-column diff with the accepted text tinted by `--state-incomplete-wash` on the left and the current text by `--state-accepted-wash` on the right. The review table's incomplete view, which is what `/blockers` opens, adds a column saying how many results each gap blocks, expanding in place to the list (DR-118). There is no right rail; the expansion is in the table. Beside the title of the review and problems pages is a question mark that defines each state and names the command that records it; its panel closes on a press outside it (DR-121).
@@ -222,7 +232,7 @@ See 15.5.
 
 **[decided]** The serif is the stack the author's site generator uses, copied from that project's `tokens.css` so that a corpus page and a note page read as the same publication: `'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif` (DR-90). Chrome is Inter and ids are the existing monospace stack.
 
-**[decided]** A settings control, in arras's own settings and written to arras's preferences, offers: the shell (15.2), body typeface (serif or sans), body size (three steps), line width (three steps), theme (light, dark, system), and where comments stand (margin or inline, 15.3.1). Nothing else is user-adjustable in the MVP. Each is one row of the panel, its label and its options on a single line — `Shell  [rail] [strip]` — with the labels in a column of fixed width so that every row's options begin at the same place.
+**[decided]** A settings control, in arras's own settings and written to arras's preferences, offers: the shell (15.2), body typeface (serif or sans), body size (three steps), line width (three steps), theme (light, dark, system), the format a document is set in (paper or blog), and where comments stand (margin, inline or hover, 15.3.1). Nothing else is user-adjustable in the MVP. Each is one row of the panel, its label and its options on a single line — `Shell  [rail] [strip]` — with the labels in a column of fixed width so that every row's options begin at the same place.
 
 **[decided]** Type scale: page title 15px/500, section heading 13px/500, body 11–16px by the size setting with `line-height: 1.7`, rail labels 9px uppercase muted with 0.04em tracking, rail items 10–13px, ids 9px mono, badges 9px. Sentence case everywhere. Two weights, 400 and 500.
 
