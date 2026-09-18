@@ -8,6 +8,9 @@
 	const all = $derived(Object.values(manifest.annotations).filter((a) => keys.includes(a.target.key)));
 	const roots = $derived(all.filter((a) => a.in_reply_to === null));
 	const authors = $derived([...new Set(all.map((a) => a.author.label ?? a.author.id))].sort());
+	// derived, not listed: a publisher may use kinds this viewer has never heard of, and one it cannot offer is one
+	// nobody can filter by
+	const kinds = $derived([...new Set(all.map((a) => a.kind))].sort());
 	const visible = $derived(
 		roots
 			.filter((a) => (ui.showDiscarded || !a.discarded) && (!ui.kindFilter || a.kind === ui.kindFilter) && (!ui.authorFilter || (a.author.label ?? a.author.id) === ui.authorFilter))
@@ -20,7 +23,7 @@
 {#if roots.length}
 	<h2>Annotations <span class="muted">{visible.length}{hiddenDiscarded && !ui.showDiscarded ? ` (+${hiddenDiscarded} discarded)` : ''}</span></h2>
 	<p class="filters">
-		<label>kind <select bind:value={ui.kindFilter}><option value="">all</option><option value="objection">objection</option><option value="suggestion">suggestion</option><option value="question">question</option><option value="ok">ok</option></select></label>
+		<label>kind <select bind:value={ui.kindFilter}><option value="">all</option>{#each kinds as k (k)}<option value={k}>{k}</option>{/each}</select></label>
 		<label>author <select bind:value={ui.authorFilter}><option value="">all</option>{#each authors as a (a)}<option value={a}>{a}</option>{/each}</select></label>
 		<label><input type="checkbox" bind:checked={ui.showDiscarded} /> show discarded</label>
 	</p>

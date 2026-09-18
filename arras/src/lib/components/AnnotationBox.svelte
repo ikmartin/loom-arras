@@ -43,6 +43,31 @@
 		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
+	.severity {
+		text-transform: uppercase;
+		font-size: 0.68em;
+		letter-spacing: 0.04em;
+		padding: 0 0.3em;
+		border-radius: 2px;
+		border: 1px solid currentColor;
+	}
+	.sev-major {
+		color: var(--state-incomplete);
+	}
+	.sev-moderate {
+		color: var(--state-draft);
+	}
+	.sev-minor {
+		color: var(--muted);
+	}
+	.payload {
+		margin: 0.4em 0 0;
+		padding: 0.4em 0.5em;
+		border-left: 2px solid var(--rule);
+		overflow-x: auto;
+		white-space: pre-wrap;
+		font-size: 0.92em;
+	}
 	.kind-objection {
 		background: var(--state-incomplete-wash);
 	}

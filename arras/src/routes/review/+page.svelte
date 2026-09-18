@@ -68,7 +68,7 @@
 	const cols = $derived(4 + (hasCauses ? 1 : 0) + (hasFacts ? 1 : 0) + (hasIncomplete ? 2 : 0));
 
 	const authors = $derived([...new Set([...Object.values(m.nodes).flatMap((n) => n.author ?? []), ...keys.map((k) => k.acceptance?.author).filter(Boolean)])].sort() as string[]);
-	const records = $derived([...new Set(Object.values(m.annotations).map((a) => a.record))].sort());
+	const records = $derived([...new Set(Object.values(m.annotations).map((a) => a.run ?? a.record))].sort());
 	const threads = $derived(Object.values(m.threads));
 	const causes = (k: string) => m.keys[k]?.acceptance?.causes ?? [];
 

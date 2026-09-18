@@ -12,15 +12,15 @@ export interface WireOptions {
 	/** Renders the read view's margin column: the key and its state beside every node (book 15.3.1). */
 	margins?: boolean;
 	/** Places a slot for each node's comments: in the right gutter when the comment is short, in the flow when it is long (book 15.3.1). The caller fills the slots; this only decides where they go. */
-	comments?: (key: string) => CommentPlacement[];
+	comments?: (key: string) => CommentSlot[];
 	/** A fragment with no node identity (a landmark): its references are the publisher's own in-page anchors and must be left alone, and nothing in it is a key to look up. */
 	keyless?: boolean;
 	/** Expands comments in place instead of pointing at a card elsewhere: marks and counts call this with the comments they stand for (the `inline` comments preference). */
 	expand?: (trigger: HTMLElement, ids: string[]) => void;
 }
 
-/** One comment and where it belongs beside the node it is about. */
-export interface CommentPlacement {
+/** One comment and which slot it occupies beside the node it is about.\n *\n * Named `slot` rather than `placement` because an annotation now carries a `placement` of its own, which is a different\n * thing: this is the viewer's layout decision, that is the publisher's hint about where a payload's text would go. */
+export interface CommentSlot {
 	id: string;
 	/** `gutter` stands beside the node; `inline` stays in the text as a box; `count` is a small control beside the node's label that expands it, for a comment with no mark of its own when comments are shown in place. */
 	where: 'gutter' | 'inline' | 'count';

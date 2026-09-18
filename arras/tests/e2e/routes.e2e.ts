@@ -150,7 +150,7 @@ test("thread page shows the run's messages, attachments, and log", async ({ page
 	await page.goto('/thread/2026-09-16T00-00-referee');
 	await expect(page.getByText('hostile review of the parity theorem').first()).toBeVisible();
 	await expect(page.locator('pre', { hasText: 'loom comment sy-0003' })).toHaveCount(1); // the log, collapsed by default
-	await expect(page.getByText('annotations.json').first()).toBeVisible();
+	await expect(page.getByText('annotations', { exact: false }).first()).toBeVisible(); // one log, so the attachment is the count, not a file
 });
 
 

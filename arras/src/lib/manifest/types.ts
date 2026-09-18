@@ -187,6 +187,15 @@ export interface Annotation {
   anchored: boolean;
   detached: boolean;
   quote?: string;
+  /** How bad the fault is, not how strongly it is felt: `major` | `moderate` | `minor`. */
+  severity?: string | null;
+  /** Text the annotation proposes. Preview and copy only; nothing here applies it. */
+  payload?: string | null;
+  /** Where the payload would go relative to the anchor: `replace` | `after` | `before`. A hint, not an instruction. */
+  placement?: string | null;
+  /** The run or session this belongs to; the grouping key, since every annotation now lives in one log. */
+  run: string;
+  /** @deprecated Use `run`. Kept while publishers that wrote a file path are still in use. */
   record: string;
   discarded: boolean;
 }

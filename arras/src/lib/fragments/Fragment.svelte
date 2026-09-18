@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
-	import { wire, type CommentPlacement } from '$lib/fragments/mount';
+	import { wire, type CommentSlot } from '$lib/fragments/mount';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
 	import { page } from '$app/state';
@@ -26,7 +26,7 @@
 		margins?: boolean;
 		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
 		standalone?: boolean;
-		comments?: (key: string) => CommentPlacement[];
+		comments?: (key: string) => CommentSlot[];
 		onmounted?: (root: HTMLElement) => void;
 	} = $props();
 

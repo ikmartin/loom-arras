@@ -6,7 +6,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
-	import type { CommentPlacement } from '$lib/fragments/mount';
+	import type { CommentSlot } from '$lib/fragments/mount';
 	import type { Annotation } from '$lib/manifest/types';
 	import { anchorId, keyUrl, masterStem } from '$lib/nav';
 	import { prefs } from '$lib/prefs.svelte';
@@ -35,7 +35,7 @@
 		return Object.values(m.annotations).filter((a) => !a.discarded && !a.in_reply_to && a.target.key === key);
 	}
 
-	function placements(key: string): CommentPlacement[] {
+	function slots(key: string): CommentSlot[] {
 		// shown in place, a comment with a mark is reached from its mark; one without gets a count beside its node's label
 		if (prefs.comments === 'inline') return commentsOn(key).filter((a) => !(a.anchored && a.quote)).map((a) => ({ id: a.id, where: 'count' }));
 		return commentsOn(key).map((a) => ({ id: a.id, where: plainLength(a) > GUTTER_LIMIT ? 'inline' : 'gutter' }));
@@ -115,7 +115,7 @@
 						master={master.path}
 						headingLinks
 						margins
-						comments={placements}
+						comments={slots}
 						onmounted={fill}
 					/>
 				</div>
