@@ -1,6 +1,6 @@
 # Standing rules, contracts, and blocks
 
-How to work in a quilt, whatever you have been asked to do. `orientation.md` says where you are — the layout, the source contract, the states, the commands; this says how to behave and what your output looks like. Every mode file refers to it. Read it once per session, including when no mode was named.
+How to work in a quilt, whatever you have been asked to do. `orientation.md` says where you are — the layout, the source contract, the states, the commands; this says how to behave and what your output looks like. `loom ai orient` prints both, so you have already been given it; a mode reached through a slash command has not, which is why every mode file also names it. Read it once per session, including when no mode was named.
 
 This file is the contract. Where a mode template, the orientation, or anything else disagrees with it, this wins, and the disagreement is a bug worth reporting to the author.
 

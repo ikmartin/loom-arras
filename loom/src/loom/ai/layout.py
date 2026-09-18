@@ -25,7 +25,7 @@ TRIGGERS = {
     "ingest": "when the user asks to digest a cited paper into digests/",
     "brainstorm": "when the user wants to explore, brainstorm, or plan a topic before proving anything",
 }
-CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and read `ai/rules.md`; follow both. Write only under `ai/runs/`."
+CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under `ai/runs/`."
 VERSION_FILE = ".loom-modes-version"
 
 
@@ -143,22 +143,6 @@ def init_layer(root: Path, permissions: bool = False, skills: bool = False) -> L
     return rep
 
 
-def _move_blocks_to_rules(root: Path, rep: LayerReport) -> None:
-    """`ai/modes/blocks.md` becomes `ai/rules.md`: it was never a mode, and filing it among them is what let it grow into a second orientation.
-
-    The author's own edits move with it. A quilt that already has `ai/rules.md` is left alone, and the old file is removed only once its content is somewhere.
-    """
-    old = root / "ai" / "modes" / "blocks.md"
-    new = root / "ai" / RULES
-    if not old.is_file():
-        return
-    if not new.exists():
-        new.write_text(old.read_text(encoding="utf-8"), encoding="utf-8")
-        rep.written.append(f"ai/{RULES}")
-    old.unlink()
-    rep.written.append("ai/modes/blocks.md (removed; it is ai/rules.md now)")
-
-
 def upgrade_layer(root: Path) -> LayerReport:
     """Refresh the generated files of an existing `ai/`; keep edited mode files and write `.new` beside them."""
     ai = root / "ai"
@@ -166,7 +150,6 @@ def upgrade_layer(root: Path) -> LayerReport:
     if not ai.is_dir():
         return rep
     recorded = read_versions(root)
-    _move_blocks_to_rules(root, rep)
     texts = tracked_docs()
     for rel, shipped in texts.items():
         p = root / rel
@@ -188,7 +171,6 @@ def upgrade_layer(root: Path) -> LayerReport:
             rep.kept.append(rel)
             rep.new_beside.append(rel + ".new")
     new_versions = dict(recorded)
-    new_versions.pop("blocks.md", None)  # the file it named is now ai/rules.md
     for rel, shipped in texts.items():
         if rel in rep.kept:
             continue  # the record keeps the hash of what was shipped last time, so a later upgrade still sees the edit

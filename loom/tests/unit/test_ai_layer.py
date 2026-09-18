@@ -225,29 +225,6 @@ def test_review_mode_grades_every_finding_and_writes_no_pdf(tmp_path: Path) -> N
     assert "`citation` for a work" in blocks
 
 
-def test_upgrade_moves_blocks_into_rules_and_keeps_the_edit(tmp_path: Path) -> None:
-    """`blocks.md` was never a mode, and filing it among them is what let it grow into a second orientation.
-
-    A quilt written before the move carries the author's own edits in it, so the upgrade moves the file rather than
-    replacing it, and the old path goes away only once its content is at the new one.
-    """
-    q = demo(tmp_path)
-    rules = q / "ai" / "rules.md"
-    old = q / "ai" / "modes" / "blocks.md"
-
-    # a quilt as it stood before the move: the file under modes/, with a house edit
-    old.write_text(rules.read_text() + "\n## House rule\n\nAlways check the sign.\n", encoding="utf-8")
-    rules.unlink()
-
-    r = run("upgrade", cwd=q)
-    assert r.exit_code == 0, r.output
-    assert not old.exists()
-    assert "Always check the sign." in rules.read_text()  # the author's edit moved with the file
-    assert "blocks.md" not in (q / "ai" / ".loom-modes-version").read_text()  # and the stale record is dropped
-
-    assert run("upgrade", cwd=q).exit_code == 0  # idempotent
-
-
 def test_orient_static_plus_live(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = run("ai", "orient", cwd=q)

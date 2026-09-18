@@ -9,12 +9,24 @@ from loom.ai.runs import read_run_toml
 from loom.records.store import Records
 from loom.scan.scan import ScanResult
 
+STATIC = ("orientation.md", "rules.md")
+
 
 def static_text(root: Path) -> str:
-    p = root / "ai" / "orientation.md"
-    if p.is_file():
-        return p.read_text(encoding="utf-8")
-    return resources.files("loom").joinpath("assets", "ai", "orientation.md").read_text(encoding="utf-8")
+    """Both standing documents, the quilt's own copies where it has them: where an agent is, then how it works.
+
+    Printed together because the alternative is a two-part instruction — run a command, then read a file — whose second half fails silently. A command either ran or it did not.
+    """
+    out: list[str] = []
+    for name in STATIC:
+        p = root / "ai" / name
+        text = (
+            p.read_text(encoding="utf-8")
+            if p.is_file()
+            else resources.files("loom").joinpath("assets", "ai", name).read_text(encoding="utf-8")
+        )
+        out.append(text.rstrip("\n"))
+    return "\n\n---\n\n".join(out) + "\n"
 
 
 def open_runs(root: Path, include_discarded: bool = False) -> list[tuple[str, str, str, bool]]:

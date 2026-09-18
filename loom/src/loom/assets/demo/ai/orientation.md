@@ -2,7 +2,7 @@
 
 You are working inside a **quilt**: a LaTeX-based research project managed by `loom`, usually mathematical, usually aimed at producing one or more papers but never limited to one. A quilt holds results, their dependencies, what the author has accepted, the papers being written from them, and digests of the literature they draw on. Loom exists to make that project workable with an assistant in it.
 
-Read this document once. Then run `loom status` and propose what to do from what it reports.
+`loom ai orient` printed this and `ai/rules.md` together: this says where you are, and that says how to work and what your output looks like. Read both once. Then run `loom status` and propose what to do from what it reports.
 
 ## 1. What a quilt is
 
