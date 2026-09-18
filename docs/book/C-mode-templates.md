@@ -1,17 +1,19 @@
 # Appendix C. Mode templates
 
-The files loom writes into `ai/modes/` on `loom ai init`, in full, as they ship. They are derived from the author's chat rules (`docs/source/global-rules.md`) by the mapping in `docs/source/global-rules-mapping.md`. The block definitions keep the author's wording; the environment-specific text (inputs, outputs, findings, verification) is new and follows the four differences the mapping names. **[decided]** for structure, contracts, and the standing rules; the author edits wording freely, and `loom upgrade` never overwrites an edited mode file.
+`ai/rules.md` and the files loom writes into `ai/modes/` on `loom ai init`, in full, as they ship. The rules file is not a mode and is no longer filed among them: `orientation.md` says where an agent is, `rules.md` says how to work and what its output looks like, and a mode says what one particular job produces. They are derived from the author's chat rules (`docs/source/global-rules.md`) by the mapping in `docs/source/global-rules-mapping.md`. The block definitions keep the author's wording; the environment-specific text (inputs, outputs, findings, verification) is new and follows the four differences the mapping names. **[decided]** for structure, contracts, and the standing rules; the author edits wording freely, and `loom upgrade` never overwrites an edited mode file.
 
 Every mode file begins with the same "Before you begin" block, so that an agent that loads a mode without having read the orientation still knows the write policy.
 
 ---
 
-## `ai/modes/blocks.md`
+## `ai/rules.md`
 
 ```markdown
-# Blocks and standing rules
+# Standing rules, contracts, and blocks
 
-Every mode file refers to this file. Read it once per session.
+How to work in a quilt, whatever you have been asked to do. `orientation.md` says where you are — the layout, the source contract, the states, the commands; this says how to behave and what your output looks like. Every mode file refers to it. Read it once per session, including when no mode was named.
+
+This file is the contract. Where a mode template, the orientation, or anything else disagrees with it, this wins, and the disagreement is a bug worth reporting to the author.
 
 ## Standing rules
 
@@ -30,7 +32,7 @@ Every mode file refers to this file. Read it once per session.
 
 ## Inputs
 
-1. Inputs come from loom commands, never from reading directories.
+1. Inputs come from loom commands, never from reading directories unless explicitly asked.
    - A key: `loom source KEY --closure --run RUN` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
@@ -68,6 +70,14 @@ Modes are applied one at a time inside a run and each writes its own files. When
 Most work is not a mode. The author asks a question, thinks aloud, wants a calculation checked, or asks for something no template covers — and a mode applied because one had to be applied fits the answer to the form instead of the other way round.
 
 The blocks below are the vocabulary, not furniture belonging to the templates. When no mode is named and none is plainly meant, **choose the blocks that fit what was asked and compose them yourself.** A question about whether a hypothesis is load-bearing wants `[hypothesis-ledger]` and nothing else; a claim you doubt wants `[counterexample]` and `[worked-examples]`; a suggestion for a citation wants one `[citation-ledger]` row. Name them the same way, under their bracketed headings, so the output reads like every other and a later session can scan it. Where nothing in the catalogue fits, answer in plain prose rather than forcing a block; the blocks are for structure that exists, not structure imposed.
+
+**Loom is still how anything durable is recorded, and a question is not a reason to stop using it.** Most of what an agent notices while answering something else is worth keeping, and a chat reply loses it the moment the session ends. So, with no mode named:
+
+- you find a fault in a key while answering a question about something else: annotate it (`loom comment KEY "..." --quote "..." --kind objection --severity ... --run RUN`), and say in your reply that you did;
+- you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
+- you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs note`;
+- you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;
+- you read something and it was fine: `--kind ok` is a record that it was read, which is worth more than silence.
 
 Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, a run directory for every file, `loom comment` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
 
@@ -127,7 +137,7 @@ Write each block under a heading with its name in brackets.
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 - Findings are `loom comment ... --run RUN` calls, quote-anchored.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 A load-bearing audit of one key. Assume the mathematics is correct; do not hunt for errors (that is referee). Hunt for mismatch between what is stated and what is used. If an error surfaces incidentally, flag it in [summary] and as an objection, and continue the audit; do not switch into referee mode.
@@ -147,7 +157,7 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 3. An entry in `thread.md`.
 
 ## On a re-check
-Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind ok`.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind ok`.
 
 ## Checklist (copy into the notes and tick)
 - [ ] Every hypothesis has a verdict.
@@ -166,7 +176,7 @@ Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard wha
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 - Findings are `loom comment ... --run RUN` calls, quote-anchored.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 A hostile review of one key. You are a referee at a top-tier journal looking for any possible opportunity to reject. Find gaps, test the equations, look for counterexamples, and render a verdict. Do not soften: a wrong step is an objection even if it is fixable.
@@ -185,7 +195,7 @@ Read the closure. Produce the blocks of the output contract in order. Every gap,
 5. An entry in `thread.md`.
 
 ## On a re-check
-Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind ok`.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind ok`.
 
 ## Checklist
 - [ ] At least two worked examples with exact outputs.
@@ -204,7 +214,7 @@ Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard wha
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 - Findings are `loom comment ... --run RUN` calls, quote-anchored, every one carrying `--severity`.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 A referee aiming to improve the source rather than to reject it. Where `referee` hunts for a reason the result is wrong, review reads for everything that would make the paper better and grades each finding by how bad the fault is. The author reaches for this most.
@@ -236,7 +246,7 @@ Errors and prose both go in [referee-review], which already groups by severity a
 There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; exporting an annotated document for a reader who cannot open the viewer is a separate feature, and not this mode's job.
 
 ## On a re-check
-Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. The fresh report goes in a new numbered notes file, `review-KEY.2.notes.md`, so each pass stays readable as what you thought at the time.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. The fresh report goes in a new numbered notes file, `review-KEY.2.notes.md`, so each pass stays readable as what you thought at the time.
 
 ## Checklist
 - [ ] Every one of the nine kinds above was looked for.
@@ -254,7 +264,7 @@ Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard wha
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 - The revised text is a diff the author applies; you apply nothing.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Revise the text of one key to be simpler and shorter while preserving mathematical content exactly. Assume the mathematics is correct; do not perform in-depth verification (that is referee). Citation verification is required for any argument you replace with a citation. If an error surfaces incidentally, flag it in [summary] and as an objection, and leave that passage unsimplified rather than propagating it.
@@ -274,7 +284,7 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 4. An entry in `thread.md`.
 
 ## On a re-check
-Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.
 
 ## Checklist
 - [ ] Every new-citation names a digest node id and is marked verified.
@@ -292,7 +302,7 @@ Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard wha
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Answer a question about a key or about the quilt, thoroughly, with the five blocks of the output contract under a [summary].
@@ -341,7 +351,7 @@ If the answer needs worked examples, edge cases or a stress test, that is `quest
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept` or `loom ai promote`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Write a complete node from a plan the author supplies. The plan states the intended statement, its role, and a proof plan with the estimates, computations, case division, and conclusion. You complete the local argument. You do not change the plan's strategy; where the plan is wrong, say so in the notes and stop at that step with `\incomplete`.
@@ -375,7 +385,7 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`. Never edit `digests/`; the author promotes.
-- Read `ai/modes/blocks.md` once this session and the digest rules below.
+- Read `ai/rules.md` once this session and the digest rules below.
 
 ## Purpose
 Produce or complete a digest of a cited paper: its results as external nodes in the quilt's format, so that citations become edges and the paper need not be reread. Read the paper thoroughly once. Focus on verbal intuition in the overview; be exact in the statements.
@@ -416,7 +426,7 @@ Input: `digests/CITEKEY.tex` with `method: extract`, and the paper. Output: `pro
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept` or paste it; the author decides.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Help the author explore a topic before anything is proved. Your job is to make the author's ideas precise and testable quickly, not to supply strategy: restate what they want as a candidate statement with explicit hypotheses before evaluating it; compute the small cases before opining; search the digests before claiming anything is new or known; record what was tried and why it failed. If you have an idea of your own, offer it in one sentence under [open-questions] and do not pursue it unless asked.
