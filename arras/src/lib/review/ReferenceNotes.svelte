@@ -4,6 +4,7 @@
 	// Two lists in one place, because they are two halves of one errand: the citation suggestions still open on this key, each answerable here, and the works already accepted for it. An accepted note is a breadcrumb and never a second source of identity truth -- `verified` stays false until a person puts the identifier in the bibliography, and nothing here enters a closure.
 	import { store } from '$lib/manifest/client.svelte';
 	import { can, write } from '$lib/write';
+	import { openOn } from '$lib/annotations';
 	import type { Annotation } from '$lib/manifest/types';
 
 	let { forKey }: { forKey: string } = $props();
@@ -11,9 +12,7 @@
 	const m = $derived(store.manifest!);
 	const notes = $derived((m.reference_notes ?? []).filter((n) => n.for?.includes(forKey)));
 	const open = $derived(
-		Object.values(m.annotations).filter(
-			(a) => a.kind === 'citation' && a.status === 'open' && !a.discarded && !a.in_reply_to && a.target.key === forKey
-		)
+		openOn(m, forKey).filter((a) => a.kind === 'citation' && a.status === 'open')
 	);
 
 	let allowed = $state(false);

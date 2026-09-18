@@ -2,6 +2,7 @@
 
 import { mount, unmount, type Component } from 'svelte';
 import AnnotationBox from '$lib/components/AnnotationBox.svelte';
+import { repliesTo } from '$lib/annotations';
 import type { Annotation, Manifest } from '$lib/manifest/types';
 
 export interface InlineComments {
@@ -58,7 +59,7 @@ export function inlineComments(manifest: Manifest): InlineComments {
 			(a) =>
 				mount(AnnotationBox as unknown as Box, {
 					target: host,
-					props: { annotation: a, replies: Object.values(manifest.annotations).filter((r) => r.in_reply_to === a.id && !r.discarded), anchor: false }
+					props: { annotation: a, replies: repliesTo(manifest, a.id), anchor: false }
 				}) as Record<string, unknown>
 		);
 		trigger.classList.add('expanded');

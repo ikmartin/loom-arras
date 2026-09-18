@@ -15,8 +15,8 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it('defaults to shell C, serif, medium, mid, system, comments in the margin', () => {
-		expect(DEFAULTS).toEqual({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', comments: 'margin' });
+	it('defaults to shell C, serif, medium, mid, system, paper, comments in the margin', () => {
+		expect(DEFAULTS).toEqual({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'paper', comments: 'margin' });
 	});
 
 	it('reads a stored tabs shell, which is retired, as the default', () => {

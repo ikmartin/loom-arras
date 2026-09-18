@@ -15,6 +15,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	import { dataUrl } from '$lib/paths';
+	import { openOn, repliesTo } from '$lib/annotations';
 	import Composer from '$lib/review/Composer.svelte';
 
 	const m = $derived(store.manifest!);
@@ -27,7 +28,7 @@
 	/** Annotations on the document itself, as opposed to on anything inside it. */
 	const onDocument = $derived(master ? commentsOn(master.path) : []);
 
-	const replies = (id: string) => Object.values(m.annotations).filter((a) => a.in_reply_to === id && !a.discarded);
+	const replies = (id: string) => repliesTo(m, id);
 
 	function plainLength(a: Annotation): number {
 		const own = a.body_html.replace(/<[^>]*>/g, '').trim().length + (a.quote?.length ?? 0);
@@ -36,7 +37,7 @@
 
 	/** The undiscarded top-level comments on exactly this key, in manifest order. A proof has an element of its own, so matching a node's proofs here as well would place the same comment twice. */
 	function commentsOn(key: string): Annotation[] {
-		return Object.values(m.annotations).filter((a) => !a.discarded && !a.in_reply_to && a.target.key === key);
+		return openOn(m, key);
 	}
 
 	function slots(key: string): CommentSlot[] {
@@ -107,7 +108,7 @@
 			<div class="gutters">
 				<div class="column">
 					{#if onDocument.length}
-						<!-- An annotation whose target is the document rather than a key. loom has written these since 0.6 -- `loom comment` has always taken a master path -- and `commentsOn` was only ever called with node keys, so no viewer has ever shown one. -->
+						<!-- An annotation whose target is the document rather than a key. a publisher may target a document as easily as a key, and `commentsOn` was only ever called with node keys, so no viewer has ever shown one. -->
 						<section class="doc-annotations" data-testid="document-annotations">
 							<p class="head">About this document</p>
 							{#each onDocument as a (a.id)}

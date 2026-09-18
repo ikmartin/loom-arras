@@ -127,7 +127,7 @@
 
 		{#if tab === 'report'}
 			{#if notation.length}
-				<!-- Notation is the run's, never the quilt's: a symbol an agent introduced to explain something is not a symbol the paper uses. Collapsed, because it is a reference you consult rather than prose you read. -->
+				<!-- Notation is the run's, never the corpus's: a symbol an agent introduced to explain something is not a symbol the paper uses. Collapsed, because it is a reference you consult rather than prose you read. -->
 				<details class="notation" data-testid="notation">
 					<summary>Notation ({notation.length}){#if clashes.size}<span class="clash-count"> · {clashes.size} with two meanings</span>{/if}</summary>
 					<dl>

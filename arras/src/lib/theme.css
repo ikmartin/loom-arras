@@ -306,24 +306,14 @@ table.list th {
 	font-size: var(--body-size);
 }
 
-/* Environments: a per-taxon left accent and no filled background (15.3.1). */
+/* Environments: a per-taxon left accent and no filled background (15.3.1). The colour is the token `$lib/taxonomy`
+   chose for this taxon, set on the element as `--taxon-tone`; the palette itself is declared once above, so changing
+   how a Lemma looks in the document changes how it looks in the graph. The fallback is what an unmarked element gets. */
 .fragment .env {
 	margin: var(--gap-wide) 0;
 	padding: 0 0 0 var(--gap);
-	border-left: var(--env-accent) solid var(--rule-strong);
+	border-left: var(--env-accent) solid var(--taxon-tone, var(--rule-strong));
 }
-.fragment .env[data-taxon='Theorem'],
-.fragment .env[data-taxon='Proposition'] { border-left-color: #1a5fb4; }
-.fragment .env[data-taxon='Lemma'],
-.fragment .env[data-taxon='Corollary'],
-.fragment .env[data-taxon='Conjecture'] { border-left-color: #7048e8; }
-.fragment .env[data-taxon='Definition'],
-.fragment .env[data-taxon='Construction'],
-.fragment .env[data-taxon='Notation'] { border-left-color: #0b7285; }
-.fragment .env[data-taxon='Example'],
-.fragment .env[data-taxon='Examples'],
-.fragment .env[data-taxon='Exercise'] { border-left-color: #2f9e44; }
-.fragment .env[data-style='remark'] { border-left-color: var(--ink-faint); }
 
 .fragment .env-label {
 	margin: 0 0 var(--gap-hair);
@@ -586,6 +576,105 @@ a.heading-link:focus {
 	margin-bottom: var(--gap-hair);
 }
 .fragment figure[data-error] pre { text-align: left; background: none; padding: 0; }
+
+/* Skipping what is off screen (running-requests: "many things feel a little slow").
+   Measured on a 145-node corpus: one document page is ~92,000 elements, 85% of them inside typeset math, and changing
+   any inherited token from the settings panel made the browser restyle all of it -- 308 ms before the next paint, which
+   is exactly the lag a settings click has. `content-visibility: auto` lets the browser skip style, layout and paint for
+   subtrees that are off screen, and takes the same flip to 33 ms.
+   `contain-intrinsic-size: auto <n>` is what keeps the scrollbar honest: the browser remembers each block's last real
+   size and uses it while the block is skipped, so scrolling past does not jump. Content inside remains findable by
+   find-in-page and reachable by an in-page anchor -- the browser renders a skipped subtree when it needs to.
+   Printing renders everything, because a printer has no viewport to be outside of. */
+.fragment > section,
+.fragment .included {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 600px;
+}
+.fragment mjx-container {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 1.2em;
+}
+@media print {
+	.fragment > section,
+	.fragment .included,
+	.fragment mjx-container {
+		content-visibility: visible;
+	}
+}
+
+/* Blog setting (running-requests: a global toggle for "paper" or "blog"). Paper is the measured, numbered column a
+   mathematician reads. Blog is the same content set as a website reads it: wider, more air, sans-serif headings, and
+   environments carried by a tinted panel rather than by a hairline accent. It is one switch on the root, so the read
+   view and a node's own page change together -- a result should not read as a different kind of thing depending on
+   which page it is standing on. Nothing about the content changes; only how it is set. */
+.arras[data-format='blog'] {
+	--measure: 46rem;
+	--gap-wide: 1.9rem;
+}
+.arras[data-format='blog'] .fragment {
+	line-height: 1.75;
+}
+.arras[data-format='blog'] .fragment h1,
+.arras[data-format='blog'] .fragment h2,
+.arras[data-format='blog'] .fragment h3 {
+	font-family: var(--sans);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+.arras[data-format='blog'] .fragment .env {
+	padding: var(--gap) var(--gap-wide);
+	border-left-width: 0;
+	border-radius: var(--rad-card);
+	background: color-mix(in srgb, var(--taxon-tone, var(--rule)) 7%, var(--sheet));
+}
+.arras[data-format='blog'] .fragment .env-label {
+	font-size: 0.82em;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--taxon-tone, var(--ink-soft));
+}
+/* A number is the paper's way of pointing at a result; a blog points with a link and a name. */
+.arras[data-format='blog'] .fragment .env-label .number {
+	display: none;
+}
+
+/* The taxon palette: one place to set the colours a taxon is drawn in, wherever it is drawn. `$lib/taxonomy` decides
+   which token a taxon gets and never knows a value; these are the values. A remark reads quietly whatever it is called,
+   which is the one assignment made by meaning rather than by position. */
+.arras {
+	--taxon-1: #1a5fb4;
+	--taxon-2: #7048e8;
+	--taxon-3: #0b7285;
+	--taxon-4: #2f9e44;
+	--taxon-5: #b5651d;
+	--taxon-6: #a4243b;
+	--taxon-7: #5f6d3f;
+	--taxon-8: #6b4c9a;
+	--taxon-remark: var(--ink-faint);
+}
+@media (prefers-color-scheme: dark) {
+	.arras:not([data-theme='light']) {
+		--taxon-1: #7aa9e9;
+		--taxon-2: #b197fc;
+		--taxon-3: #63c7d8;
+		--taxon-4: #8ce99a;
+		--taxon-5: #e8b17a;
+		--taxon-6: #f08c9b;
+		--taxon-7: #b5c98e;
+		--taxon-8: #c0a8e8;
+	}
+}
+.arras[data-theme='dark'] {
+	--taxon-1: #7aa9e9;
+	--taxon-2: #b197fc;
+	--taxon-3: #63c7d8;
+	--taxon-4: #8ce99a;
+	--taxon-5: #e8b17a;
+	--taxon-6: #f08c9b;
+	--taxon-7: #b5c98e;
+	--taxon-8: #c0a8e8;
+}
 
 /* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. A whole marked block carries the colour down its edge rather than under every line. */
 .fragment mark.annotation.k-objection { background: var(--state-incomplete-wash); box-shadow: inset 0 -2px 0 var(--state-incomplete); }

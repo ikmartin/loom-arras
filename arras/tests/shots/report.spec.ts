@@ -74,3 +74,26 @@ test('a node read three ways', async ({ page }) => {
 	await page.waitForTimeout(800);
 	await page.screenshot({ path: `${OUT}/notation.png` });
 });
+
+test('the graph coloured by taxon', async ({ page }) => {
+	await page.goto('/');
+	await page.evaluate(() => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'margin' })));
+	await page.goto('/graph');
+	await page.waitForSelector('main h1');
+	await page.waitForTimeout(1600); // the force simulation settling
+	await page.screenshot({ path: `${OUT}/graph-taxa.png` });
+});
+
+test('the same document, set two ways', async ({ page }) => {
+	for (const format of ['paper', 'blog'] as const) {
+		await page.goto('/');
+		await page.evaluate(
+			(f) => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', format: f, comments: 'margin' })),
+			format
+		);
+		await page.goto('/master/main');
+		await page.waitForSelector('main h1');
+		await page.waitForTimeout(900);
+		await page.screenshot({ path: `${OUT}/format-${format}.png` });
+	}
+});

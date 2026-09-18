@@ -1,6 +1,6 @@
 <script lang="ts">
 	// The display preferences (book 15.7): shell, typeface, size, line width, theme, and where comments stand. Every control writes through `prefs`, which applies the data-* attributes and persists. Nothing here is published anywhere; the corpus is read-only to arras.
-	import { prefs, type Shell, type Face, type Size, type Width, type Theme, type Comments } from '$lib/prefs.svelte';
+	import { prefs, type Shell, type Face, type Size, type Width, type Theme, type Format, type Comments } from '$lib/prefs.svelte';
 	import { dismiss } from '$lib/dismiss';
 
 	// The icon strip puts its settings at the foot of a full-height column, so a panel hung below the button would open past the bottom of the window.
@@ -30,6 +30,10 @@
 		{ v: 'light', label: 'light' },
 		{ v: 'dark', label: 'dark' },
 		{ v: 'system', label: 'auto' }
+	];
+	const FORMATS: { v: Format; label: string }[] = [
+		{ v: 'paper', label: 'paper' },
+		{ v: 'blog', label: 'blog' }
 	];
 	const COMMENTS: { v: Comments; label: string }[] = [
 		{ v: 'margin', label: 'margin' },
@@ -69,6 +73,7 @@
 			{@render row('Size', SIZES, prefs.size, (v) => (prefs.size = v as Size), 'size')}
 			{@render row('Width', WIDTHS, prefs.width, (v) => (prefs.width = v as Width), 'width')}
 			{@render row('Theme', THEMES, prefs.theme, (v) => (prefs.theme = v as Theme), 'theme')}
+			{@render row('Format', FORMATS, prefs.format, (v) => (prefs.format = v as Format), 'format')}
 			{@render row('Comments', COMMENTS, prefs.comments, (v) => (prefs.comments = v as Comments), 'comments')}
 		</div>
 	{/if}

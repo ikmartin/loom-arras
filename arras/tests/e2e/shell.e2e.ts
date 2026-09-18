@@ -342,7 +342,7 @@ test("the settings panel puts every row on one line, label included, with nothin
       };
     });
   });
-  expect(rows.length).toBe(6);
+  expect(rows.length).toBe(7); // shell, type, size, width, theme, format, comments
   for (const r of rows) {
     expect(r.lines, `the ${r.label} row wraps`).toBe(1);
     expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(

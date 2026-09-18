@@ -87,7 +87,7 @@ export interface Declared {
 /**
  * The symbols a run declared, and which of them it gave more than one meaning.
  *
- * Notation belongs to an agent's prose and never to the quilt's own text, so this is a property of the run and not of any node. A symbol that picked up a second meaning inside one run is the thing worth catching: the reader has no way to tell which one a given formula meant.
+ * Notation belongs to an agent's prose and never to the corpus's own text, so this is a property of the run and not of any node. A symbol that picked up a second meaning inside one run is the thing worth catching: the reader has no way to tell which one a given formula meant.
  */
 export function notationOf(thread: Thread): Declared[] {
 	const seen = new Map<string, string[]>();

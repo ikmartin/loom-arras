@@ -395,13 +395,13 @@
 									<rect x={p.x - R * 1.4} y={p.y - R * 1.4} width={R * 2.8} height={R * 2.8} rx="2" class="paper-box" />
 									<text x={p.x} y={p.y + R * 1.4 + 10} class="under">{n.label}</text>
 								{:else if laidMode === 'dots'}
-									<circle cx={p.x} cy={p.y} r={n.id === selected ? R * 1.7 : n.section ? R * 1.3 : R} class="fill-{n.color}" stroke-dasharray={n.external ? '3 2' : ''} />
+									<circle cx={p.x} cy={p.y} r={n.id === selected ? R * 1.7 : n.section ? R * 1.3 : R} class="taxon fill-{n.color}" style="--taxon-tone: {n.tone}" stroke-dasharray={n.external ? '3 2' : ''} />
 									<text x={p.x} y={p.y + R + 10} class="under">{n.id}</text>
 								{:else if n.style === 'paper'}
 									<rect x={p.x} y={p.y} width={n.w} height={n.h} rx="2" class="paper-box" />
 									<text x={p.x + 8} y={p.y + 21}><tspan class="taxon">paper</tspan> <tspan class="id">{n.label}</tspan></text>
 								{:else}
-									<rect x={p.x} y={p.y} width={n.w} height={n.h} rx={n.style === 'definition' ? 12 : n.style === 'remark' ? 0 : 4} class="fill-{n.color}" stroke-dasharray={n.external ? '4 2' : ''} />
+									<rect x={p.x} y={p.y} width={n.w} height={n.h} rx={n.style === 'definition' ? 12 : n.style === 'remark' ? 0 : 4} class="taxon fill-{n.color}" style="--taxon-tone: {n.tone}" stroke-dasharray={n.external ? '4 2' : ''} />
 									<text x={p.x + 8} y={p.y + 15}><tspan class="id">{n.id}</tspan> <tspan class="taxon">{n.taxon}</tspan></text>
 									{#if n.note}<text x={p.x + 8} y={p.y + 27} class="note">{clip(n.note, 24)}</text>{/if}
 								{/if}
@@ -592,6 +592,13 @@
 	}
 	.node text.note {
 		font-size: 9px;
+	}
+	/* The taxon is the fill and the state is the ring: what a node IS does not change while you work, and how it
+	   stands does, so the slower fact gets the larger area. `fill-*` still sets the stroke, which is why both apply. */
+	.node circle.taxon,
+	.node rect.taxon {
+		fill: color-mix(in srgb, var(--taxon-tone) 30%, var(--sheet));
+		stroke: var(--taxon-tone);
 	}
 	.fill-neutral {
 		fill: var(--state-draft-wash);

@@ -34,7 +34,7 @@ export function forgetSource(): void {
 /**
  * A key and its text, ready to paste into a conversation with an agent.
  *
- * The tag syntax is the author's own, so the agent reading it can resolve the key against the quilt rather than guessing from the prose around it.
+ * The tag syntax is the author's own, so the agent reading it can resolve the key against the corpus rather than guessing from the prose around it.
  */
 export function forChat(key: string, text: string): string {
 	return `@${key}\n\n${text.trim()}\n`;

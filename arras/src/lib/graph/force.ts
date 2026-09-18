@@ -2,6 +2,7 @@
 
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
 import type { Manifest } from '$lib/manifest/types';
+import { taxonTone } from '$lib/taxonomy';
 import { colorOf, graphInput, type Filters, type Layout } from './layout';
 
 /** The radius of a node at rest; the selection is drawn larger by the page, not here. */
@@ -68,6 +69,7 @@ export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: num
 				taxon: n.taxon,
 				state: n.state,
 				color: colorOf(m, n.state),
+				tone: taxonTone(m, n.taxon),
 				style: n.style ?? 'plain',
 				external: n.external,
 				section: n.kind === 'section',

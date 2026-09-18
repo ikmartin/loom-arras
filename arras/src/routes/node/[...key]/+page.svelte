@@ -14,6 +14,7 @@
 	import Tex from '$lib/math/Tex.svelte';
 	import SourceToggle from '$lib/components/SourceToggle.svelte';
 	import ClosurePanel from '$lib/review/ClosurePanel.svelte';
+	import { onAny } from '$lib/annotations';
 	import Composer from '$lib/review/Composer.svelte';
 	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
@@ -52,7 +53,7 @@
 	const deps = $derived(collapse(m.edges.filter((e) => e.from === key || node?.proofs.includes(e.from)), 'to'));
 	const usedBy = $derived(collapse(m.edges.filter((e) => e.to === key || (node?.proofs ?? []).includes(e.to)), 'from'));
 	const diagnostics = $derived(m.diagnostics.filter((d) => d.keys.includes(key)));
-	const annotations = $derived(Object.values(m.annotations).filter((a) => a.target.key === key || (node?.proofs ?? []).includes(a.target.key)));
+	const annotations = $derived(onAny(m, [key, ...(node?.proofs ?? [])]));
 	const detached = $derived(annotations.filter((a) => a.detached && !a.discarded));
 	const threads = $derived(Object.values(m.threads).filter((t) => t.targets.includes(key) && !t.discarded));
 	const closure = $derived(stmt?.closure.filter((k) => k !== key) ?? []);

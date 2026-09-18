@@ -1,4 +1,4 @@
-// The viewer's own preferences (book 15.2, 15.7): the navigation shell, the body typeface, the body size, the line width, the theme, and where comments stand.
+// The viewer's own preferences (book 15.2, 15.7): the navigation shell, the body typeface, the body size, the line width, the theme, how a document is set, and where comments stand.
 // They are arras's and never the corpus's, so they live in this browser and are written nowhere else. Every storage access is guarded: a private window, cleared site data, or a thumbnail capture can make localStorage throw or come back empty, and the viewer must render anyway.
 
 export type Shell = 'a' | 'c';
@@ -6,6 +6,8 @@ export type Face = 'serif' | 'sans';
 export type Size = 's' | 'm' | 'l';
 export type Width = 'narrow' | 'mid' | 'wide';
 export type Theme = 'light' | 'dark' | 'system';
+/** How a document and its results are set: `paper` is the measured, numbered column a mathematician reads; `blog` is the wider, quieter setting a website reads. It applies to the read view and to a node's own page alike, because a result should not change character depending on which page it is standing on. */
+export type Format = 'paper' | 'blog';
 /** `margin` stands a comment beside its node; `inline` shows it as a highlight on the text that expands where it is. */
 export type Comments = 'margin' | 'inline';
 
@@ -17,10 +19,11 @@ export interface Prefs {
 	size: Size;
 	width: Width;
 	theme: Theme;
+	format: Format;
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', comments: 'margin' };
+export const DEFAULTS: Prefs = { shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'paper', comments: 'margin' };
 
 // A stored `b`, the retired tabs shell, is not in the list, so it falls back to the default like any unknown value.
 const SHELLS: Shell[] = ['a', 'c'];
@@ -28,6 +31,7 @@ const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
 const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
+const FORMATS: Format[] = ['paper', 'blog'];
 const COMMENTS: Comments[] = ['margin', 'inline'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */
@@ -41,6 +45,7 @@ export function coerce(raw: unknown): Prefs {
 		size: pick(o.size, SIZES, DEFAULTS.size),
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
 		theme: pick(o.theme, THEMES, DEFAULTS.theme),
+		format: pick(o.format, FORMATS, DEFAULTS.format),
 		comments: pick(o.comments, COMMENTS, DEFAULTS.comments)
 	};
 }
@@ -70,6 +75,7 @@ export function attributes(p: Prefs): Record<string, string | null> {
 		'data-size': p.size,
 		'data-width': p.width,
 		'data-theme': p.theme === 'system' ? null : p.theme,
+		'data-format': p.format,
 		'data-comments': p.comments
 	};
 }
@@ -80,10 +86,11 @@ class PrefsState {
 	size = $state<Size>(DEFAULTS.size);
 	width = $state<Width>(DEFAULTS.width);
 	theme = $state<Theme>(DEFAULTS.theme);
+	format = $state<Format>(DEFAULTS.format);
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { shell: this.shell, face: this.face, size: this.size, width: this.width, theme: this.theme, comments: this.comments };
+		return { shell: this.shell, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -93,6 +100,7 @@ class PrefsState {
 		this.size = p.size;
 		this.width = p.width;
 		this.theme = p.theme;
+		this.format = p.format;
 		this.comments = p.comments;
 	}
 

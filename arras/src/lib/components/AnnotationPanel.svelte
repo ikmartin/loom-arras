@@ -2,10 +2,11 @@
 	import type { Annotation, Manifest } from '$lib/manifest/types';
 	import AnnotationBox from './AnnotationBox.svelte';
 	import { ui } from '$lib/ui.svelte';
+	import { onAny, repliesTo } from '$lib/annotations';
 
 	let { manifest, keys }: { manifest: Manifest; keys: string[] } = $props();
 
-	const all = $derived(Object.values(manifest.annotations).filter((a) => keys.includes(a.target.key)));
+	const all = $derived(onAny(manifest, keys));
 	const roots = $derived(all.filter((a) => a.in_reply_to === null));
 	const authors = $derived([...new Set(all.map((a) => a.author.label ?? a.author.id))].sort());
 	// derived, not listed: a publisher may use kinds this viewer has never heard of, and one it cannot offer is one
@@ -16,7 +17,7 @@
 			.filter((a) => (ui.showDiscarded || !a.discarded) && (!ui.kindFilter || a.kind === ui.kindFilter) && (!ui.authorFilter || (a.author.label ?? a.author.id) === ui.authorFilter))
 			.sort((a, b) => (a.status === b.status ? b.created.localeCompare(a.created) : a.status === 'open' ? -1 : 1))
 	);
-	const replies = (id: string): Annotation[] => all.filter((a) => a.in_reply_to === id && (ui.showDiscarded || !a.discarded));
+	const replies = (id: string): Annotation[] => repliesTo(manifest, id);
 	const hiddenDiscarded = $derived(roots.filter((a) => a.discarded).length);
 </script>
 

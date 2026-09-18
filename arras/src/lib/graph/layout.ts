@@ -1,4 +1,5 @@
 // The dependency graph as a layered drawing (book 10.2.7): ELK lays the results out in layers, what a result rests on above it. Edges keep their kind so the drawing can dash proof-edges and dot prose-edges.
+import { taxonTone } from "$lib/taxonomy";
 import type { Manifest, Node } from "$lib/manifest/types";
 import { bibText } from "$lib/works";
 
@@ -8,6 +9,8 @@ export interface GNode {
   taxon: string;
   state: string;
   color: string;
+  /** The taxon's colour from the shared palette, as a `var(...)` reference. */
+  tone: string;
   style: string;
   external: boolean;
   section: boolean;
@@ -265,6 +268,7 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
       taxon: n.taxon,
       state: n.state,
       color: colorOf(m, n.state),
+      tone: taxonTone(m, n.taxon),
       style: n.style ?? "plain",
       external: n.external,
       section: false,

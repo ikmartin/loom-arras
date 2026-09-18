@@ -1,6 +1,7 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
 import { anchorId, digestUrl, keyUrl, nodeUrl } from '$lib/nav';
 import { dataUrl } from '$lib/paths';
+import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
 
@@ -68,6 +69,11 @@ export function wire(
 		a.className = target ? 'cite-link' : 'cite-link cite-work';
 		while (c.firstChild) a.appendChild(c.firstChild);
 		c.appendChild(a);
+	}
+	// One palette, two surfaces: the accent down an environment's edge and the node in the graph are the same colour
+	// because both ask `$lib/taxonomy` for it, rather than each keeping a list of taxon names.
+	for (const env of root.querySelectorAll<HTMLElement>('.env[data-taxon]')) {
+		env.style.setProperty('--taxon-tone', taxonTone(manifest, env.dataset.taxon));
 	}
 	for (const img of root.querySelectorAll<HTMLImageElement>('img[src]')) {
 		const src = img.getAttribute('src') ?? '';

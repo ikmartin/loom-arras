@@ -24,7 +24,7 @@ export function stack(m: Manifest, key: string, depth = 1): string[] {
 	const owner = m.keys[key]?.node ?? key;
 	const node = m.nodes[owner];
 	if (!m.keys[key] && !node) return [];
-	// A result rests on whatever its PROOF rests on: in most quilts the statement's own `uses` is empty and every
+	// A result rests on whatever its PROOF rests on: in most corpora the statement's own `uses` is empty and every
 	// dependency is declared inside the argument. Seeding with the statement alone answers a question nobody asked.
 	const seeds = [key, ...(node?.proofs ?? [])].filter((k) => m.keys[k]);
 	const distance = new Map<string, number>(seeds.map((k) => [k, 0]));
