@@ -25,6 +25,8 @@
       "Write(/.loom/**)",
       "Edit(/ai/modes/**)",
       "Write(/ai/modes/**)",
+      "Edit(/ai/rules.md)",
+      "Write(/ai/rules.md)",
       "Edit(/ai/orientation.md)",
       "Write(/ai/orientation.md)",
       "Edit(/config.toml)",

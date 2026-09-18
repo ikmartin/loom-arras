@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept` or paste it; the author decides.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Help the author explore a topic before anything is proved. Your job is to make the author's ideas precise and testable quickly, not to supply strategy: restate what they want as a candidate statement with explicit hypotheses before evaluating it; compute the small cases before opining; search the digests before claiming anything is new or known; record what was tried and why it failed. If you have an idea of your own, offer it in one sentence under [open-questions] and do not pursue it unless asked.

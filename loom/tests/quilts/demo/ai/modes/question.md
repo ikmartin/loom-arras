@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Answer a question about a key or about the quilt, thoroughly, with the five blocks of the output contract under a [summary].

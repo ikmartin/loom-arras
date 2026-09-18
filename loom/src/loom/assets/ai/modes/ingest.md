@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`. Never edit `digests/`; the author promotes.
-- Read `ai/modes/blocks.md` once this session and the digest rules below.
+- Read `ai/rules.md` once this session and the digest rules below.
 
 ## Purpose
 Produce or complete a digest of a cited paper: its results as external nodes in the quilt's format, so that citations become edges and the paper need not be reread. Read the paper thoroughly once. Focus on verbal intuition in the overview; be exact in the statements.

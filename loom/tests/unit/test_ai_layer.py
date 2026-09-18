@@ -90,12 +90,10 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
 
 def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
     q = demo(tmp_path, "--skills")
-    blocks = (q / "ai" / "modes" / "blocks.md").read_text()
+    blocks = (q / "ai" / "rules.md").read_text()
     block_names = re.findall(r"^- \[([a-z-]+)\]", blocks, re.M)
     assert len(block_names) > 20
     for mode in MODES:
-        if mode == "blocks":
-            continue
         stub = q / ".claude" / "skills" / f"loom-{mode}" / "SKILL.md"
         text = stub.read_text()
         assert text.startswith("---\n") and f"name: loom-{mode}\n" in text and "description: " in text
@@ -152,18 +150,18 @@ def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path
 
 def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    assert len(MODES) == 10  # nine modes and the shared block definitions
+    assert len(MODES) == 9  # rules.md is not among them: it is not a mode and no longer filed as one
+    assert not (q / "ai" / "modes" / "blocks.md").exists()
+    rules = (q / "ai" / "rules.md").read_text()
+    assert rules.startswith("# Standing rules, contracts, and blocks") and "## Never" in rules
     for mode in MODES:
         text = (q / "ai" / "modes" / f"{mode}.md").read_text()
-        if mode == "blocks":
-            assert text.startswith("# Blocks and standing rules") and "## Never" in text
-            continue
         assert text.startswith(f"# Mode: {mode}\n\n## Before you begin\n")
         assert "## Checklist" in text
         # the write policy is stated in every template, so a mode read without the orientation still carries it.
         # It says "your run directory" rather than $LOOM_RUN: nothing sets that variable since the launcher went.
         assert re.search(r"^- \[ \] Nothing was written outside your run directory\.", text, re.M)
-        assert "$LOOM_RUN" not in text  # nothing sets it; blocks.md is the one file that explains that
+        assert "$LOOM_RUN" not in text  # nothing sets it; ai/rules.md is the one file that explains that
         if mode not in ("quick",):
             assert "## Output" in text and "thread.md" in text
 
@@ -186,14 +184,14 @@ def test_upgrade_preserves_edited_modes(tmp_path: Path) -> None:
     # the shipped text has not changed in this test, so no .new is written; simulate a changed shipped version
     import loom.ai.layout as layout
 
-    shipped = layout.shipped_modes()
-    shipped["referee.md" and "referee"] = shipped["referee"] + "\n## New shipped section\n"
-    original = layout.shipped_modes
-    layout.shipped_modes = lambda: shipped  # type: ignore[assignment]
+    shipped = layout.tracked_docs()
+    shipped["ai/modes/referee.md"] = shipped["ai/modes/referee.md"] + "\n## New shipped section\n"
+    original = layout.tracked_docs
+    layout.tracked_docs = lambda: shipped  # type: ignore[assignment]
     try:
         r2 = run("upgrade", cwd=q)
     finally:
-        layout.shipped_modes = original  # type: ignore[assignment]
+        layout.tracked_docs = original  # type: ignore[assignment]
     assert r2.exit_code == 0 and "referee.md.new" in r2.output
     assert (
         "House rule" in referee.read_text()
@@ -222,9 +220,32 @@ def test_review_mode_grades_every_finding_and_writes_no_pdf(tmp_path: Path) -> N
     assert "There is no compiled LaTeX or PDF pair." in text
     assert "review-KEY.2.notes.md" in text  # a re-check's report is a new numbered pass
 
-    blocks = (q / "ai" / "modes" / "blocks.md").read_text()
+    blocks = (q / "ai" / "rules.md").read_text()
     assert "a reply is for talking to the author" in blocks  # the edit-not-reply rule
     assert "`citation` for a work" in blocks
+
+
+def test_upgrade_moves_blocks_into_rules_and_keeps_the_edit(tmp_path: Path) -> None:
+    """`blocks.md` was never a mode, and filing it among them is what let it grow into a second orientation.
+
+    A quilt written before the move carries the author's own edits in it, so the upgrade moves the file rather than
+    replacing it, and the old path goes away only once its content is at the new one.
+    """
+    q = demo(tmp_path)
+    rules = q / "ai" / "rules.md"
+    old = q / "ai" / "modes" / "blocks.md"
+
+    # a quilt as it stood before the move: the file under modes/, with a house edit
+    old.write_text(rules.read_text() + "\n## House rule\n\nAlways check the sign.\n", encoding="utf-8")
+    rules.unlink()
+
+    r = run("upgrade", cwd=q)
+    assert r.exit_code == 0, r.output
+    assert not old.exists()
+    assert "Always check the sign." in rules.read_text()  # the author's edit moved with the file
+    assert "blocks.md" not in (q / "ai" / ".loom-modes-version").read_text()  # and the stale record is dropped
+
+    assert run("upgrade", cwd=q).exit_code == 0  # idempotent
 
 
 def test_orient_static_plus_live(tmp_path: Path) -> None:

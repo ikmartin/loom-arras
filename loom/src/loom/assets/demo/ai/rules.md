@@ -1,6 +1,8 @@
-# Blocks and standing rules
+# Standing rules, contracts, and blocks
 
-Every mode file refers to this file. Read it once per session.
+How to work in a quilt, whatever you have been asked to do. `orientation.md` says where you are — the layout, the source contract, the states, the commands; this says how to behave and what your output looks like. Every mode file refers to it. Read it once per session, including when no mode was named.
+
+This file is the contract. Where a mode template, the orientation, or anything else disagrees with it, this wins, and the disagreement is a bug worth reporting to the author.
 
 ## Standing rules
 
@@ -19,7 +21,7 @@ Every mode file refers to this file. Read it once per session.
 
 ## Inputs
 
-1. Inputs come from loom commands, never from reading directories.
+1. Inputs come from loom commands, never from reading directories unless explicitly asked.
    - A key: `loom source KEY --closure --run RUN` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
@@ -57,6 +59,14 @@ Modes are applied one at a time inside a run and each writes its own files. When
 Most work is not a mode. The author asks a question, thinks aloud, wants a calculation checked, or asks for something no template covers — and a mode applied because one had to be applied fits the answer to the form instead of the other way round.
 
 The blocks below are the vocabulary, not furniture belonging to the templates. When no mode is named and none is plainly meant, **choose the blocks that fit what was asked and compose them yourself.** A question about whether a hypothesis is load-bearing wants `[hypothesis-ledger]` and nothing else; a claim you doubt wants `[counterexample]` and `[worked-examples]`; a suggestion for a citation wants one `[citation-ledger]` row. Name them the same way, under their bracketed headings, so the output reads like every other and a later session can scan it. Where nothing in the catalogue fits, answer in plain prose rather than forcing a block; the blocks are for structure that exists, not structure imposed.
+
+**Loom is still how anything durable is recorded, and a question is not a reason to stop using it.** Most of what an agent notices while answering something else is worth keeping, and a chat reply loses it the moment the session ends. So, with no mode named:
+
+- you find a fault in a key while answering a question about something else: annotate it (`loom comment KEY "..." --quote "..." --kind objection --severity ... --run RUN`), and say in your reply that you did;
+- you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
+- you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs note`;
+- you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;
+- you read something and it was fine: `--kind ok` is a record that it was read, which is worth more than silence.
 
 Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, a run directory for every file, `loom comment` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
 

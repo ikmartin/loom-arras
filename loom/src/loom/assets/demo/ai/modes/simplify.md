@@ -3,7 +3,7 @@
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 - The revised text is a diff the author applies; you apply nothing.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Revise the text of one key to be simpler and shorter while preserving mathematical content exactly. Assume the mathematics is correct; do not perform in-depth verification (that is referee). Citation verification is required for any argument you replace with a citation. If an error surfaces incidentally, flag it in [summary] and as an objection, and leave that passage unsimplified rather than propagating it.
@@ -23,7 +23,7 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 4. An entry in `thread.md`.
 
 ## On a re-check
-Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.
 
 ## Checklist
 - [ ] Every new-citation names a digest node id and is marked verified.

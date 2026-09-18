@@ -3,7 +3,7 @@
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 - Findings are `loom comment ... --run RUN` calls, quote-anchored.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 A load-bearing audit of one key. Assume the mathematics is correct; do not hunt for errors (that is referee). Hunt for mismatch between what is stated and what is used. If an error surfaces incidentally, flag it in [summary] and as an objection, and continue the audit; do not switch into referee mode.
@@ -23,7 +23,7 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 3. An entry in `thread.md`.
 
 ## On a re-check
-Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind ok`.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind ok`.
 
 ## Checklist (copy into the notes and tick)
 - [ ] Every hypothesis has a verdict.

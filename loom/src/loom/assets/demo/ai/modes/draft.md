@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept` or `loom ai promote`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 Write a complete node from a plan the author supplies. The plan states the intended statement, its role, and a proof plan with the estimates, computations, case division, and conclusion. You complete the local argument. You do not change the plan's strategy; where the plan is wrong, say so in the notes and stop at that step with `\incomplete`.

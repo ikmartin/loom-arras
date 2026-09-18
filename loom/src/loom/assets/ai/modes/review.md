@@ -3,7 +3,7 @@
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 - Findings are `loom comment ... --run RUN` calls, quote-anchored, every one carrying `--severity`.
-- Read `ai/modes/blocks.md` once this session.
+- Read `ai/rules.md` once this session.
 
 ## Purpose
 A referee aiming to improve the source rather than to reject it. Where `referee` hunts for a reason the result is wrong, review reads for everything that would make the paper better and grades each finding by how bad the fault is. The author reaches for this most.
@@ -35,7 +35,7 @@ Errors and prose both go in [referee-review], which already groups by severity a
 There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; exporting an annotated document for a reader who cannot open the viewer is a separate feature, and not this mode's job.
 
 ## On a re-check
-Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. The fresh report goes in a new numbered notes file, `review-KEY.2.notes.md`, so each pass stays readable as what you thought at the time.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. The fresh report goes in a new numbered notes file, `review-KEY.2.notes.md`, so each pass stays readable as what you thought at the time.
 
 ## Checklist
 - [ ] Every one of the nine kinds above was looked for.
