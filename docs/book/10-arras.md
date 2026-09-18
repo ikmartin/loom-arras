@@ -98,7 +98,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.4.1 Links into cited works
 
-**[decided]** A link `loom:<scheme>:<value>#page=N` or `#quote=TEXT` in a comment, a thread message or a report names a place in a cited work by its global identifier (specs/dialect.md §2.13). Selecting it opens the viewer of 15.3.7 without leaving the page. The fetched PDF is opened only when it is filed under the identifier the link names; when the copy on file is another artifact of the same work, the viewer says the pages may not match and opens it only on request, and when nothing is fetched it says so and links to the identifier's own service, arXiv's PDF at the page where it can (DR-123).
+**[decided]** A link `cited:<scheme>:<value>#page=N` or `#quote=TEXT` in a comment, a thread message or a report names a place in a cited work by its global identifier (specs/dialect.md §2.13). Selecting it opens the viewer of 15.3.7 without leaving the page. The fetched PDF is opened only when it is filed under the identifier the link names; when the copy on file is another artifact of the same work, the viewer says the pages may not match and opens it only on request, and when nothing is fetched it says so and links to the identifier's own service, arXiv's PDF at the page where it can (DR-123).
 
 When the write API is present (deferred), the same boxes gain reply and resolve controls, and selecting text offers "comment"; the selection is mapped to a quote per `specs/write-api.md`.
 

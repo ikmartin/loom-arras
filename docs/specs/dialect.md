@@ -107,7 +107,7 @@ A labelled proof node carries `data-id` as well. `open` is a hint the viewer may
 
 ### 2.13 Links into cited works
 
-**[decided]** `<a href="loom:SCHEME:VALUE#page=N">` or `#quote=TEXT` names a place in a cited work by its global identifier — `SCHEME` one of `doi`, `arxiv`, `mr`, `zbl`, compared case-insensitively, and `VALUE` as the manifest's `works` writes it — never by a citekey, so a link survives a bibliography re-export and means the same thing in a collaborator's corpus. It appears in annotation and message bodies, written in their Markdown as `[text](loom:arxiv:0805.2065v2#page=9)`. `page` is 1-based; `quote` is URL-encoded text to look for. A viewer resolves the identifier through the manifest's references and opens a fetched copy only when it is filed under that identifier (DR-123).
+**[decided]** `<a href="cited:SCHEME:VALUE#page=N">` or `#quote=TEXT` names a place in a cited work by its global identifier — `SCHEME` one of `doi`, `arxiv`, `mr`, `zbl`, compared case-insensitively, and `VALUE` as the manifest's `works` writes it — never by a citekey, so a link survives a bibliography re-export and means the same thing in a collaborator's corpus. It appears in annotation and message bodies, written in their Markdown as `[text](cited:arxiv:0805.2065v2#page=9)`. `page` is 1-based; `quote` is URL-encoded text to look for. A viewer resolves the identifier through the manifest's references and opens a fetched copy only when it is filed under that identifier (DR-123).
 
 ## 3. Forbidden
 

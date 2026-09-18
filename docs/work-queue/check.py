@@ -52,7 +52,7 @@ def main() -> int:
         faults.append(f"{len(active)} active items, cap is {CAP}; promote, merge or drop one before adding another")
 
     # 4. every relative pointer in the queue resolves. Anything carrying a URI scheme is not a path:
-    # http, mailto, and loom's own `loom:arxiv:…` reference links, which an item may quote as an example.
+    # http, mailto, and the interface's own `cited:arxiv:…` reference links, which an item may quote as an example.
     for path in sorted(HERE.glob("*.md")):
         for target in LINK.findall(path.read_text(encoding="utf-8")):
             if SCHEME.match(target):
