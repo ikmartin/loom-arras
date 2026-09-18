@@ -38,6 +38,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-32](WQ-32-modes-against-the-cli.md) | rewrite every mode against loom's CLI, and let the gaps name the missing commands | loom | 0.10 has landed, so the annotation log is the modes' output contract |
 | [WQ-33](WQ-33-the-proposed-document.md) | the proposed document: an agent assembling a revision | loom, arras | an agent proposes reordering a section and a per-node diff cannot show the result |
 | [WQ-34](WQ-34-write-surfaces.md) | writing through the editor and the viewer | loom, editors, arras | the author works a review without the terminal |
+| [WQ-36](WQ-36-annotation-bodies-beside-the-manifest.md) | annotation bodies beside the manifest rather than inside it | loom, arras | a manifest crosses a few megabytes because of annotation prose |
 
 Nineteen active, twenty-six slots of headroom.
 

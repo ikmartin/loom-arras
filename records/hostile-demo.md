@@ -125,9 +125,21 @@ The quilt produces **364 nodes, 4 errors and 318 warnings**, and the problems pa
 
 ---
 
+## What was done about it
+
+All five recommendations were acted on the same day, 2026-09-18. What follows is the list as it was written, with what happened to each.
+
+1. **Give `_include_html` a visited set.** Done — and it was **two** walks, not one. The fragment renderer was the site the traceback named; the manifest's inclusion tree (`_inclusion_tree`) has the same flaw and crashed the build as soon as the first was fixed. Both now keep the files they are expanding. The guard sits at the *inclusion* and never at a claimant: a section claimant lives in the file it was already in, and guarding those cut every master's own sections off the tree, which one existing test caught immediately. The renderer emits its ordinary unexpanded-inclusion element carrying `data-cycle` with the chain that closed; the tree marks the node `"cycle": true`. **The hostile quilt now builds in 1.2 s, 365 fragments, 0 dialect problems, with `inclusion-cycle` reported as the error it always was** (DR-164).
+2. **Write the log's columns into Chapter 7 and stop assuming a kind.** Done. Chapter 7 carries the list, spelled as the code spells it, and says why the underscores matter. An `annotation_kind` outside the five is now reported and **kept as written** rather than corrected — `kind` is an open string a viewer must tolerate from any publisher, so the silence was the fault and not the value. Plan 0.10's line is corrected in place with a note (DR-165).
+3. **Report a reply whose parent is absent.** Done, same place.
+4. **Check annotation ids.** Done: an id not of the form `a-YYYY-MM-DD-NNNN` is reported. The hostile log's `../../escape` is now named on the line it appears on.
+5. **Annotation bodies beside the manifest.** *Not done, deliberately.* The condition it guards against has not happened — the largest real manifest is relloc's at 772 KB and none of that is annotation prose — and the split costs an interface change, a publisher change and a loading state in every surface that draws a comment. It is [WQ-36](../docs/work-queue/WQ-36-annotation-bodies-beside-the-manifest.md), whose trigger is observable: a manifest crossing a few megabytes because of prose. Its first step is a diagnostic, so the trigger fires by itself rather than waiting to be noticed.
+
+The unknown-kind styling gap found under direction 3 was fixed when it was found.
+
 ## What to do
 
-In the order I would do it:
+As written on the day, before any of it was acted on:
 
 1. **Give `_include_html` a visited set.** A cycle is already an error; the renderer should skip the repeated inclusion and let the diagnostic stand, rather than recursing until Python stops it. One guard, and the crash becomes the error message loom already writes.
 2. **Write the log's columns into Chapter 7**, spelled as the code spells them, and make an unknown `annotation_kind` a `loom:foreign-annotations` warning rather than a silent `objection`. The silence is what made the first problem invisible.
@@ -136,6 +148,8 @@ In the order I would do it:
 5. **Consider annotation bodies the way `build/source/` considers node text** — beside the manifest rather than inside it — if any real corpus grows a large one.
 
 Nothing here is urgent except the first, which turns a handled error into a traceback.
+
+*(All five were acted on; see above.)*
 
 ## Reproducing
 
