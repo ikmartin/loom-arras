@@ -144,13 +144,65 @@ test('digest page lists results with their citers, and the references index coun
 	await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
 });
 
-test("thread page shows the run's messages, attachments, and log", async ({ page }) => {
+test('a run is read as the document beside the report', async ({ page }) => {
 	await page.goto('/threads');
 	await expect(page.getByText('referee sy-0003').first()).toBeVisible();
 	await page.goto('/thread/2026-09-16T00-00-referee');
-	await expect(page.getByText('hostile review of the parity theorem').first()).toBeVisible();
+	await expect(page.getByTestId('split-view')).toBeVisible();
+	// the document on the left, the report on the right, and the report is rendered rather than named
+	await expect(page.locator('.pane.left .fragment').first()).toBeVisible();
+	await expect(page.getByTestId('report-step')).toHaveCount(1);
+	await expect(page.locator('.pane.right').getByText('Major Issues')).toBeVisible();
+	// a finding about the whole document comes first, in a section of its own
+	await expect(page.getByTestId('document-findings')).toBeVisible();
+	// the journal is thread.md under its real name
+	await page.getByTestId('tab-journal').click();
+	await expect(page.getByTestId('journal').getByText('hostile review of the parity theorem')).toBeVisible();
+	await page.getByTestId('tab-report').click();
 	await expect(page.locator('pre', { hasText: 'loom comment sy-0003' })).toHaveCount(1); // the log, collapsed by default
-	await expect(page.getByText('annotations', { exact: false }).first()).toBeVisible(); // one log, so the attachment is the count, not a file
+});
+
+test('the panes point at each other', async ({ page }) => {
+	// The gate of plan 0.11 Parts B and C: a finding scrolls the document to the sentence it is about, and a mark in
+	// the document scrolls the report to the finding that made it. Without both, this is two pages sharing a route.
+	//
+	// Asserting that scrollTop merely changed is not enough -- a target already at the top of its pane moves nothing --
+	// so each half asserts the thing the reader cares about: after the click, the target is inside its pane's box.
+	const inPane = (el: Element) => {
+		const pane = el.closest('.pane') as HTMLElement;
+		const a = el.getBoundingClientRect();
+		const b = pane.getBoundingClientRect();
+		return a.top >= b.top - 2 && a.bottom <= b.bottom + 2;
+	};
+
+	await page.goto('/thread/2026-09-16T00-00-referee');
+	const finding = page.locator('.pane.right [data-annotation-id]').first();
+	await expect(finding).toBeVisible();
+	const id = await finding.getAttribute('data-annotation-id');
+	const mark = page.locator(`.pane.left [data-annotation~="${id}"]`).first();
+	await expect(mark).toBeVisible();
+
+	// a finding scrolls the document to its mark
+	await page.locator('.pane.left').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await page.waitForTimeout(200);
+	await finding.click();
+	await page.waitForTimeout(900); // smooth scrolling
+	expect(await mark.evaluate(inPane)).toBe(true);
+
+	// and a mark scrolls the report to its finding
+	await page.locator('.pane.right').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await page.waitForTimeout(200);
+	await mark.click();
+	await page.waitForTimeout(900);
+	expect(await finding.evaluate(inPane)).toBe(true);
+});
+
+test('a comment session keeps the shape it had', async ({ page }) => {
+	// A session has no report and no draft to split against, so it is still a list. One route, two renderings.
+	await page.goto('/thread/' + encodeURIComponent('comments/the-synthetic-quilt/2026-09-16'));
+	await expect(page.locator('main h1')).toBeVisible();
+	await expect(page.getByTestId('split-view')).toHaveCount(0);
+	await expect(page.getByRole('heading', { name: 'Attachments' })).toHaveCount(0); // a session has none
 });
 
 

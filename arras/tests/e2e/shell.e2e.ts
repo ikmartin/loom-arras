@@ -241,7 +241,12 @@ test("a comment with sizeable content stays in the text as a box", async ({
   await page.route("**/build/manifest.json", async (route) => {
     const res = await route.fetch();
     const m = await res.json();
-    m.annotations["a-2026-09-16-0006"].body_html =
+    // found rather than named: an annotation's id depends on how many were written before it, so hard-coding one
+    // makes this test fail the next time the fixture gains a comment anywhere earlier in the log.
+    const on = Object.values(m.annotations).find(
+      (a: any) => a.target.key === "sy-0001" && !a.in_reply_to,
+    ) as any;
+    on.body_html =
       "<p>" +
       "This comment says a great deal about the involution and its fixed locus. ".repeat(
         8,

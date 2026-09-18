@@ -221,6 +221,26 @@ export interface Attachment {
   count?: number;
 }
 
+/** One named section of a rendered report, and the findings inside it. */
+export interface ReportBlock {
+  name: string;
+  title: string;
+  findings?: string[];
+}
+
+/** One mode a run applied. Derived by the publisher from what the run wrote; a corpus whose publisher has no modes emits none. */
+export interface PipelineStep {
+  mode: string;
+  target: string;
+  /** The notes file, corpus-relative. */
+  report: string;
+  /** Present on a numbered re-run. */
+  pass?: number;
+  /** The rendered report fragment, when the publisher rendered one. */
+  fragment?: string;
+  blocks?: ReportBlock[];
+}
+
 export interface Thread {
   id: string;
   kind: string;
@@ -230,6 +250,7 @@ export interface Thread {
   targets: string[];
   messages: ThreadMessage[];
   attachments: Attachment[];
+  pipeline?: PipelineStep[];
   log: { time: string; command: string }[];
   discarded: boolean;
 }

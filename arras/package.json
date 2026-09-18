@@ -29,7 +29,7 @@
 		"shots": "playwright test --config playwright.shots.config.ts",
 		"build:fixture-minimal": "node scripts/stage-fixture.mjs tests/fixture-minimal && vite build",
 		"test:minimal": "playwright test --config playwright.minimal.config.ts",
-		"shots:report": "playwright test --config playwright.shots.config.ts --grep 'a corpus that has everything'",
+		"shots:report": "playwright test --config playwright.shots.config.ts tests/shots/report.spec.ts",
 		"shots:floor": "playwright test --config playwright.shots-minimal.config.ts"
 	},
 	"devDependencies": {

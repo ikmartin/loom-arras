@@ -29,3 +29,18 @@ test('a corpus that has everything', async ({ page }) => {
 	await shot(page, 'node-page', '/node/sy-0003');
 	await shot(page, 'review-ledger', '/review');
 });
+
+test('a run reviewed', async ({ page }) => {
+	// The centre of plan 0.11: the document on the left, the report on the right, linked both ways.
+	await shot(page, 'split-view', '/thread/2026-09-16T00-00-referee');
+	await page.getByTestId('tab-journal').click();
+	await page.waitForTimeout(400);
+	await page.screenshot({ path: `${OUT}/split-view-journal.png` });
+	await page.getByTestId('tab-report').click();
+	await page.waitForTimeout(300);
+	// and the link working: a finding clicked, the document scrolled to its mark
+	await page.locator('.pane.left').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await page.locator('.pane.right [data-annotation-id]').first().click();
+	await page.waitForTimeout(900);
+	await page.screenshot({ path: `${OUT}/split-view-linked.png` });
+});
