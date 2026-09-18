@@ -1,4 +1,4 @@
-"""What a log says when it is wrong, and what a cycle does to a build (records/hostile-demo.md)."""
+"""What a log says when it is wrong, and what a cycle does to a build (docs/reports/hostile-demo.md)."""
 
 from __future__ import annotations
 

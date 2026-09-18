@@ -234,7 +234,7 @@ def test_a_display_that_is_a_picture_goes_to_the_fallback(tmp_path: Path) -> Non
 
 
 def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> None:
-    """Found by the hostile corpus (records/hostile-demo.md). The scanner has always reported `inclusion-cycle`; the renderer and the inclusion tree both followed the cycle anyway until Python stopped them."""
+    """Found by the hostile corpus (docs/reports/hostile-demo.md). The scanner has always reported `inclusion-cycle`; the renderer and the inclusion tree both followed the cycle anyway until Python stopped them."""
     d = demo(tmp_path)
     # a file that includes itself, and a mutual pair
     (d / "nodes" / "self.tex").write_text(
