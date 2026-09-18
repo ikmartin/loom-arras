@@ -110,7 +110,7 @@ All entries are **[decided]** unless marked.
 - application : one use of a mode on one target inside a run, producing named output files in the run directory.
 - `run.log` : automatic log of every loom command invoked with `--run`, in the run directory.
 - `thread.md` : voluntary journal the agent appends to, in the run directory.
-- promote : copying a digest from a run directory into `digests/` (`loom ai promote`), then linting. A drafted node is not promoted: the author previews it and pastes it, taking an id from `loom id --next`.
+- promote : withdrawn (DR-173). Nothing copies what an agent wrote into the quilt: a digest is made by `loom digest extract` and checked by ingest mode, and a drafted node is previewed by the author and pasted by them, taking an id from `loom id --next`.
 - agent : the interactive program a person points at a quilt (Claude Code, Codex). Never a dependency.
 
 ## 3.9 Operations

@@ -6,9 +6,6 @@ Every mode file begins with the same "Before you begin" block, so that an agent 
 
 ---
 
-## `ai/rules.md`
-
-```markdown
 # Standing rules, contracts, and blocks
 
 How to work in a quilt, whatever you have been asked to do. `orientation.md` says where you are — the layout, the source contract, the states, the commands; this says how to behave and what your output looks like. `loom ai orient` prints both, so you have already been given it; a mode reached through a slash command has not, which is why every mode file also names it. Read it once per session, including when no mode was named.
@@ -83,10 +80,42 @@ Two things do not change. **The standing rules, the Inputs and Outputs contracts
 
 ## Never
 
-- Never edit a file outside your run directory.
+- Never edit a file outside your run directory, including any scratch directory your harness provides: the run directory is your scratch directory. The exception is a file this quilt's own orientation names.
 - Never write `annotations/log.jsonl` by hand; `loom comment` appends to it.
-- Never run `loom accept`, `loom atomize`, `loom inline`, `loom import`, or paste a node; those are the author's.
-- Never delete anything.
+- **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written:
+
+  - `loom ai check`
+  - `loom ai discard`
+  - `loom ai findings`
+  - `loom ai name`
+  - `loom ai orient`
+  - `loom ai runs`
+  - `loom ai start`
+  - `loom build`
+  - `loom check`
+  - `loom comment`
+  - `loom compile`
+  - `loom deps`
+  - `loom digest extract`
+  - `loom digest fetch`
+  - `loom doctor`
+  - `loom downstream`
+  - `loom history`
+  - `loom id`
+  - `loom lint`
+  - `loom new`
+  - `loom pop`
+  - `loom reach`
+  - `loom refs path`
+  - `loom refs resolve`
+  - `loom search`
+  - `loom serve`
+  - `loom source`
+  - `loom status`
+  - `loom unravel`
+
+  `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your run.
+- Never delete anything outside your own run directory. Inside it, you may remove what you created.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
 
@@ -126,12 +155,9 @@ Write each block under a heading with its name in brackets.
 - [dead-ends] One entry per approach tried and abandoned: what it was, why it fails (a computation, a counterexample, a known obstruction with a digest node id), and whether anything was salvaged.
 - [known-results] What the digests already say about the topic: digest node ids with locators, each with one line on how it bears on the candidates (gives it, contradicts it, gives it under other hypotheses).
 - [open-questions] What could not be decided in this run and what would decide it (a computation to run, a paper to digest, a definition to fix).
-```
 
+---
 
-## `ai/modes/audit.md`
-
-```markdown
 # Mode: audit
 
 ## Before you begin
@@ -165,12 +191,9 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 - [ ] Every uses-ledger, self-containedness, and patch-list item is an annotation with its id in the notes.
 - [ ] [summary] states what the author must decide.
 - [ ] Nothing was written outside your run directory.
-```
 
+---
 
-## `ai/modes/referee.md`
-
-```markdown
 # Mode: referee
 
 ## Before you begin
@@ -203,12 +226,9 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 - [ ] [decision] cites the blocks above.
 - [ ] The diff, if any, compiles.
 - [ ] Nothing was written outside your run directory.
-```
 
+---
 
-## `ai/modes/review.md`
-
-```markdown
 # Mode: review
 
 ## Before you begin
@@ -253,12 +273,9 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 - [ ] Every finding is anchored, graded, and its id is in the notes.
 - [ ] Every citation proposed from memory says so.
 - [ ] Nothing was written outside your run directory.
-```
 
+---
 
-## `ai/modes/simplify.md`
-
-```markdown
 # Mode: simplify
 
 ## Before you begin
@@ -292,12 +309,9 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 - [ ] The diff applies cleanly and the result compiles.
 - [ ] [meaning-drift-check] covers every modified passage.
 - [ ] Nothing was written outside your run directory.
-```
 
+---
 
-## `ai/modes/question.md`
-
-```markdown
 # Mode: question
 
 ## Before you begin
@@ -319,12 +333,9 @@ The closure of the key concerned, or `loom status --json` for quilt-level questi
 - [ ] Every claim carries an epistemic label.
 - [ ] Trials are saved and reported.
 - [ ] Nothing was written outside your run directory.
-```
 
+---
 
-## `ai/modes/quick.md`
-
-```markdown
 # Mode: quick
 
 ## Before you begin
@@ -341,16 +352,13 @@ If the answer needs worked examples, edge cases or a stress test, that is `quest
 ## Checklist
 - [ ] The answer was checked once against the source or a digest.
 - [ ] Nothing was written outside your run directory.
-```
 
+---
 
-## `ai/modes/draft.md`
-
-```markdown
 # Mode: draft
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept` or `loom ai promote`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
+- Write only under your run directory. Never edit source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -375,53 +383,50 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 - [ ] Every incomplete step is marked `\incomplete`.
 - [ ] The draft compiles.
 - [ ] Nothing was written outside your run directory.
-```
 
+---
 
-## `ai/modes/ingest.md`
-
-```markdown
 # Mode: ingest
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`. Never edit `digests/`; the author promotes.
+- Write only under your run directory. Never edit source. Never run `loom accept`. **Never write `digests/`.** A digest is produced by `loom digest extract`, not typed.
 - Read `ai/rules.md` once this session and the digest rules below.
 
 ## Purpose
-Produce or complete a digest of a cited paper: its results as external nodes in the quilt's format, so that citations become edges and the paper need not be reread. Read the paper thoroughly once. Focus on verbal intuition in the overview; be exact in the statements.
+Check a mechanically extracted digest of a cited paper against the paper itself, and say exactly where the two differ. You are the verifier of loom's copy, not its author: a typed transcription is unfalsifiable, an extracted one can be diffed against its source, and the whole value of a digest is that a reader can trust it without opening the paper.
 
-## Digest rules (from the digests chapter)
-- File header: `% !LOOM digest: CITEKEY`, `% !LOOM extracted-from: IDENT` (the artifact you read: `arXiv:0805.2065v2`, `doi:10.1090/...`, `work:<hash>` or `local:<file>`), `% !LOOM published-as: IDENT` when the work a reader would open differs from it, `% !LOOM method: ingest`, `% !LOOM created: DATE`, `% !LOOM requires: pkg, pkg`. They are two facts, not two spellings of one: the statements and their numbers come from what you parsed, and the bibliography cites what a reader opens. `source:` is the pre-0.5 spelling of `extracted-from:` and is read but never written.
-- `\section*{Overview}` in your words; then the paper's sections as `\section{Title}\label{CITEKEY-sec-N}` in the paper's order.
-- Every numbered result is an external node: the quilt's environment for its taxon; title `{\cite[LOCATOR]{CITEKEY}}` with the paper's own number and page; `\label{SLUG-abbrev-number}` (`thm`, `lem`, `prop`, `cor`, `def`, `rem`, `ex`, `constr`, `conj`); the full statement with every hypothesis (verbatim where you have the source, faithful where only the PDF); `\uses{...}` listing the results its proof invokes; no proof.
-- One `\label{SLUG-setup}` node for standing assumptions, conventions, and notation stated outside numbered results.
-- Macro-free LaTeX: expand the paper's macros. What cannot be expanded goes in `% !LOOM begin macros` ... `% !LOOM end macros` at the top.
-- Every `\label` and `\eqref` inside the digest is prefixed with the citekey's slug (its letters and digits only) and a hyphen, `SLUG-`, the same prefix the ids carry.
+## What loom already did
+`loom digest extract CITEKEY SRC --to ingest-CITEKEY.tex` produces the digest from the paper's LaTeX source: every numbered result as an external node, proofs dropped, labels prefixed with the citekey's slug, numbering taken from the compiled reference. `loom digest fetch CITEKEY` gets that source from arXiv when `[refs] fetch = true`. Extraction is mechanical and therefore wrong in predictable ways, which is what you are looking for.
 
-## Case A: no digest exists
-Input: the PDF or unpacked source of the work, which `loom refs path CITEKEY` locates. Output: `ingest-CITEKEY.tex`, a complete digest whose overview contains [overview], [proof-basics], [dependencies], [reconstruction-plan] as prose and a [notation] table.
+## What to check, in this order
+1. **Completeness.** Every numbered result in the paper is a node, and nothing that is not a result became one. Name what is missing by the paper's own number.
+2. **Hypotheses.** A statement is worthless with a hypothesis dropped. Read each against the paper and say which are incomplete — this is the failure that makes a digest dangerous rather than merely thin.
+3. **Standing assumptions.** The `-setup` node holds what the paper assumes outside numbered results: conventions, notation, blanket hypotheses. The extractor cannot find these; they are stated in prose.
+4. **`\uses` edges.** A proof invokes lemmas it never `\ref`s. The extractor sees only what the source cites, so the dependency graph is systematically thin.
+5. **Locators.** Every node's title carries the paper's own number and page. The extractor leaves what it could not resolve as `\incomplete`.
+6. **Macros.** What could not be expanded sits in `% !LOOM begin macros`. Check the statements still say what the paper says with those definitions.
 
-## Case B: an extracted digest exists
-Input: `digests/CITEKEY.tex` with `method: extract`, and the paper. Output: `proposal-CITEKEY.diff` filling the `-setup` node, the overview and [notation], missing `\uses` (a proof invokes lemmas it never `\ref`s), and locators the extractor left as `\incomplete`.
+## Output
+1. `ingest-CITEKEY.tex` — the extractor's output, unedited, so the author can see what it produced.
+2. `proposal-CITEKEY.diff` — a unified diff against it carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
+3. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
+4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --run RUN`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
+5. An entry in `thread.md`.
 
-## Output (both cases)
-1. The file above.
-2. `ingest-CITEKEY.notes.md`: [summary]; what you could not determine; any result whose statement you could not read exactly.
-3. An entry in `thread.md`. The author promotes (case A) or applies the diff (case B).
+## When there is no source
+`loom digest extract` needs the paper's LaTeX. For a work that exists only as a PDF there is nothing to extract, and a digest you typed would be exactly the unverifiable artefact this mode exists to avoid. Say so in the notes, name the work, and stop; the author decides whether to obtain the source.
 
 ## Checklist
-- [ ] Every numbered result of the paper is a node with a locator.
-- [ ] Hypotheses are complete in every statement.
-- [ ] No proofs copied.
-- [ ] `requires:` lists every package the statements need.
-- [ ] [notation] maps the paper's symbols to the quilt's.
-- [ ] Nothing was written outside your run directory.
-```
+- [ ] `loom digest extract` was run and its output is in the run directory, unedited.
+- [ ] Every numbered result of the paper is accounted for, present or named as missing.
+- [ ] Every statement checked for dropped hypotheses, by the paper's own numbers.
+- [ ] Standing assumptions found in the prose and proposed for the `-setup` node.
+- [ ] `\uses` edges the source does not state are proposed.
+- [ ] Every locator either resolved or named as unresolved.
+- [ ] Nothing was written outside your run directory. In particular nothing was written to `digests/`.
 
+---
 
-## `ai/modes/brainstorm.md`
-
-```markdown
 # Mode: brainstorm
 
 ## Before you begin
@@ -455,4 +460,3 @@ Help the author explore a topic before anything is proved. Your job is to make t
 - [ ] Every dead end has a reason.
 - [ ] Every "known" or "new" claim cites a digest node or says "no digest; memory-grade".
 - [ ] Nothing was written outside your run directory.
-```

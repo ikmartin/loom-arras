@@ -4,7 +4,6 @@ The static orientation document `loom ai init` writes and `loom ai orient` print
 
 ---
 
-```markdown
 # Orientation: working in a quilt
 
 You are working inside a **quilt**: a LaTeX-based research project managed by `loom`, usually mathematical, usually aimed at producing one or more papers but never limited to one. A quilt holds results, their dependencies, what the author has accepted, the papers being written from them, and digests of the literature they draw on. Loom exists to make that project workable with an assistant in it.
@@ -47,7 +46,7 @@ The rule: you write only under your run directory, and you write records only th
 - `\nest{file}` includes a file one section level down; `\input{file}` includes it as written.
 - Equations keep the author's labels (`eq:main`); refer to them normally.
 - Comments beginning `% !LOOM` are directives loom reads (`% !LOOM tags: ...`, `% !LOOM author: ...`, `% !LOOM see: ID, ID`); they never change the PDF. `see:` links two nodes in the viewer and is never a dependency.
-- Digest nodes have ids `<citekey>-<label>`, e.g. `Man12-thm-4.1`; their statements are the cited paper's, verbatim, with locators in the title.
+- Digest nodes carry a cited paper's statements verbatim, with locators in the title. Their ids are derived from the citekey, but not by copying it: punctuation is stripped, so the citekey in `refs.bib` is not the id. Ask instead of guessing — `loom search CITEKEY --json` gives the ids of everything digested from that work.
 
 ## 4. The ledger and states
 
@@ -107,7 +106,7 @@ The author asks for a mode by name. Each has a template in `ai/modes/` with an i
 
 Findings are annotations. Review mode grades every one with `--severity`; elsewhere you give a severity only when something is actually wrong, and a `--payload` only when you are proposing text. On a re-check you edit a finding that still stands rather than replying to yourself. `ai/rules.md` rules 5 to 7 are the full contract; where this summary and those rules disagree, the rules win.
 
-A digest you produce waits in your run for the author to run `loom ai promote`. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
+A digest is not something you produce: `loom digest extract` makes one from the cited paper's source and ingest mode checks it, so what waits in your run is the extractor's output and a diff of your corrections. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
 
 ## 8. Context economy
 
@@ -120,4 +119,3 @@ Read a key's closure, not directories: it is complete by construction. Do not re
 ## 10. When you are done
 
 Update `thread.md`, list your outputs, and tell the author which are drafted nodes to paste, which are diffs to apply, and which annotations need their decision.
-```

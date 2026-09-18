@@ -10,7 +10,7 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
 - Exit codes: `0` success; `1` a content problem (lint errors, a failed identity test, a failed compile, a refused write that the author can fix in the source); `2` a usage or environment problem (bad arguments, missing tools, no author name, refused destination).
 - `--json`: machine output on stdout, one JSON document, nothing else on stdout; diagnostics and progress go to stderr.
 - `--yes`: skip confirmations that would otherwise be asked on a terminal. Commands that would ask and have no terminal and no `--yes` exit 2.
-- `--run RUN`: on `source`, `compile`, `comment`, `status`, `search`, `deps`, `unravel`, `lint`, `ai orient` and `ai findings`: append the invocation to the run's `run.log` (`LOOM_RUN` is the default). **[decided]** `RUN` is a run's name, a prefix of one, or its path; an ambiguous prefix names its matches and refuses. On `comment` it also makes the run the author, refusing `--author`; `ai promote` logs its move to the run the file came from (M6, M7, 11.4).
+- `--run RUN`: on `source`, `compile`, `comment`, `status`, `search`, `deps`, `unravel`, `lint`, `ai orient` and `ai findings`: append the invocation to the run's `run.log` (`LOOM_RUN` is the default). **[decided]** `RUN` is a run's name, a prefix of one, or its path; an ambiguous prefix names its matches and refuses. On `comment` it also makes the run the author, refusing `--author` (M6, M7, 11.4).
 - `--author NAME`: on `accept` and `comment`, the author name, overriding the user config.
 - `--quiet` / `-q` and `--verbose` / `-v` were planned and are not implemented; diagnostics go to stderr, summaries to stdout (M7).
 - Keys are written as ids (`rl-0004`), proof keys (`rl-0004/proof`, `rl-0004/proof/2`), qualified keys (`rl-0004#eq:main`, `drafting/main.tex#section:3`), or master paths. Aliases are accepted wherever an id is and resolved. An **address** adds a step: `rl-0004@3`, or `rl-0004@paper-v2` naming the landmark instead of the number (17.4).
@@ -134,17 +134,6 @@ This is also how an agent attaches to a run it did not start: `loom ai orient --
 | option | description |
 |---|---|
 | `--run` `RUN` | Attach to this run: also print its thread.md and run.log. A name, a prefix of one, or a path. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom ai promote`
-
-`loom ai promote [OPTIONS] PATH`
-
-Copy a digest out of a run into digests/; lint runs on the result. A drafted node is previewed in arras and pasted by hand.
-
-| option | description |
-|---|---|
-| `--replace` | Overwrite an existing digest after showing the diff. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai runs`
@@ -667,6 +656,7 @@ Every key with its computed state, cause if stale, and review facts. Never exits
 | `--kind` | Keys carrying an annotation of this kind. |
 | `--status` | Keys carrying an annotation in this state. |
 | `--detached` | Keys whose annotations no longer find their quoted text. |
+| `--include-digests` | Also list the digest keys nothing in this quilt depends on; they are left out by default. |
 | `--explain` `KEY` |  |
 | `--json` |  |
 | `--run` |  |
@@ -706,4 +696,4 @@ Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedite
 
 ## 12.11 Withdrawn commands
 
-For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into runs having no lifecycle, `ai orient --run`, `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `init --ai` is `ai init`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai promote` of a drafted node is gone, such a node being previewed in arras and pasted by the author with an id from `loom id --next` (DR-140). `loom refs crawl plan`, `fetch` and `status` went to weft with the rest of the crawl, and the `[crawl]` table with them (8.13, DR-144). `loom bundle` is gone: reading a key and its dependencies is `loom source KEY --closure`, which prints, and checking that a proposal compiles is `loom compile KEY --with FILE`; the document itself is still written under `build/bundles/` by the compile that needs it (DR-148). `loom ai start` no longer launches an agent and `[ai] agent` and `--no-launch` are withdrawn with it (DR-149). There has never been a `loom label`: the command that writes ids is `loom id`.
+For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into runs having no lifecycle, `ai orient --run`, `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `init --ai` is `ai init`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai promote` is gone entirely: a drafted node is previewed in arras and pasted by the author with an id from `loom id --next` (DR-140), and a digest is produced by `loom digest extract` rather than typed by an agent, so there is nothing left for it to copy (DR-173). `loom refs crawl plan`, `fetch` and `status` went to weft with the rest of the crawl, and the `[crawl]` table with them (8.13, DR-144). `loom bundle` is gone: reading a key and its dependencies is `loom source KEY --closure`, which prints, and checking that a proposal compiles is `loom compile KEY --with FILE`; the document itself is still written under `build/bundles/` by the compile that needs it (DR-148). `loom ai start` no longer launches an agent and `[ai] agent` and `--no-launch` are withdrawn with it (DR-149). There has never been a `loom label`: the command that writes ids is `loom id`.
