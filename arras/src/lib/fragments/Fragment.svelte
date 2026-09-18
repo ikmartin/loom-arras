@@ -61,8 +61,12 @@
 	let inline: InlineComments | null = null;
 	$effect(() => () => inline?.destroy());
 
-	/** Wire the fragment for where comments currently stand; nothing here re-renders or re-typesets. */
+	/** Wire the fragment for where comments currently stand; nothing here re-renders or re-typesets.
+	 *
+	 * The setting it was wired for is left on the element. A fragment mounts before the stored preferences are read, so it is wired once for the default and again when they arrive, and "which placement is live" is otherwise only knowable from a closure.
+	 */
 	function wireComments(root: HTMLElement) {
+		root.dataset.commentsWired = prefs.comments;
 		inline?.destroy();
 		const inPlace = prefs.comments === 'inline' || prefs.comments === 'hover';
 		inline = inPlace && store.manifest ? inlineComments(store.manifest, prefs.comments === 'hover') : null;
@@ -81,11 +85,16 @@
 	// Changing where comments stand used to re-key the fragment, which re-rendered the HTML and re-typeset every
 	// formula in it: about 800ms of stall on a whole paper, for a setting that moves boxes around. The marks read the
 	// live options, so the slots are taken out, put back the other way, and refilled.
-	let wired = $state(false);
+	//
+	// Only on a real change. The mount wires the fragment for the setting it has, and a re-wire tears down the
+	// controller: firing once more when typesetting finishes closed a comment the reader had already opened.
+	let wiredFor: string | null = null;
 	$effect(() => {
 		const mode = prefs.comments;
-		if (!el || !wired) return;
-		void mode;
+		// `wiredFor` is set as the fragment is wired, before its mathematics is typeset, so a change of placement is
+		// answered at once rather than waiting on a document that takes seconds to set.
+		if (!el || wiredFor === null || mode === wiredFor) return;
+		wiredFor = mode;
 		resetComments(el);
 		wireComments(el);
 		onmounted?.(el);
@@ -93,6 +102,7 @@
 
 	async function mount(root: HTMLElement) {
 		wireComments(root);
+		wiredFor = prefs.comments;
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
@@ -102,7 +112,6 @@
 		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
 		onmounted?.(root);
 		scrollToHash();
-		wired = true;
 	}
 
 	/** The browser cannot honour `location.hash` for an element that did not exist at navigation time, and none of a fragment's elements do. */

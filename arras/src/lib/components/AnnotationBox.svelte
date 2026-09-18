@@ -1,5 +1,6 @@
 <script lang="ts">
 	import SourceToggle from './SourceToggle.svelte';
+	import VerbRow from '$lib/review/VerbRow.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import type { Annotation } from '$lib/manifest/types';
 	import { shortDate } from '$lib/badges';
@@ -19,6 +20,8 @@
 		<span class="author" title={annotation.author.id}>{annotation.author.label ?? annotation.author.id}</span>
 		{#if annotation.detached}<span class="detached">detached</span>{/if}
 		{#if annotation.discarded}<span class="detached">discarded</span>{/if}
+		<span class="grow"></span>
+		<VerbRow {annotation} />
 	</header>
 	{#if annotation.quote}<blockquote class="quote">{annotation.quote}</blockquote>{/if}
 	<Prose html={annotation.body_html} />
@@ -35,9 +38,15 @@
 	{#if replies.length}
 		<div class="replies">
 			{#each replies as r (r.id)}
-				<article class="reply">
-					<header><span class="author">{r.author.label ?? r.author.id}</span> <span class="date">{shortDate(r.created)}</span> <span class="kind">{r.kind}</span></header>
+				<article class="reply" class:withdrawn={r.status === 'discarded'}>
+					<header>
+						<span class="author">{r.author.label ?? r.author.id}</span> <span class="date">{shortDate(r.created)}</span> <span class="kind">{r.kind}</span>
+						<span class="grow"></span>
+						<!-- A reply is an annotation with `in_reply_to` set, so withdrawing one is `discard` on its own id; nothing is deleted from the log. -->
+						<VerbRow annotation={r} compact />
+					</header>
 					<Prose html={r.body_html} />
+					{#if r.status === 'discarded'}<p class="gone">withdrawn: {r.discard_reason || 'no reason given'}</p>{/if}
 				</article>
 			{/each}
 		</div>
@@ -46,6 +55,9 @@
 
 <style>
 	.box {
+		/* The verb row folds two of its four behind `⋯` in a gutter slot. A container query, not a media query:
+		   the same box is wide in the flow and about 210px in the gutter on one screen. */
+		container: annotation / inline-size;
 		background: var(--sheet);
 		border: 1px solid var(--rule);
 		border-left: 3px solid var(--rule);
@@ -57,6 +69,19 @@
 		font-size: calc(var(--body-size) * 0.92);
 		line-height: 1.5;
 		overflow-wrap: anywhere;
+	}
+	.grow {
+		flex: 1 1 auto;
+		min-width: var(--gap-hair);
+	}
+	.reply.withdrawn {
+		opacity: 0.55;
+	}
+	.gone {
+		margin: 0.2em 0 0;
+		font-size: 0.85em;
+		font-style: italic;
+		color: var(--ink-faint);
 	}
 	.severity {
 		text-transform: uppercase;

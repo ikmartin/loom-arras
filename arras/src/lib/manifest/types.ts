@@ -192,9 +192,13 @@ export interface Annotation {
   body_html: string;
   status: "open" | "resolved" | (string & {});
   in_reply_to: string | null;
+  /** Whether the text this was written against can still be produced: the current text, or a version the publisher kept. */
+  recorded?: boolean;
   anchored: boolean;
   detached: boolean;
   quote?: string;
+  /** Why it was withdrawn, when it was. The only record of why a finding should not have stood. */
+  discard_reason?: string | null;
   /** How bad the fault is, not how strongly it is felt: `major` | `moderate` | `minor`. */
   severity?: string | null;
   /** Text the annotation proposes. Preview and copy only; nothing here applies it. */

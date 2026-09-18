@@ -345,7 +345,9 @@ test.describe('comments on hover', () => {
 	test('a mark opens a floating box the pointer brings up, and clicking away closes it', async ({ page }) => {
 		await withPrefs(page, { comments: 'hover' });
 		await page.goto('/master/main');
-		await page.waitForSelector('.fragment .env[data-key]');
+		// A fragment is wired once for the default placement and again when the stored preferences arrive, so waiting
+		// on the marks is not enough: wait until it is wired for the placement under test.
+		await page.waitForSelector('.fragment[data-comments-wired="hover"] mark.annotation[data-wired-mark]');
 		await expect(page.locator('aside.comment-slot.floating')).toHaveCount(0);
 
 		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
@@ -358,5 +360,65 @@ test.describe('comments on hover', () => {
 
 		await page.mouse.click(4, 4);
 		await expect(box).toHaveCount(0);
+	});
+});
+
+test.describe('the four verbs on an annotation', () => {
+	/** The publisher's own write API, stubbed: the fixture is served by `vite preview`, which has none. */
+	async function withWriteApi(page: import('@playwright/test').Page) {
+		await page.route('**/_api', (r) =>
+			r.fulfill({
+				contentType: 'application/json',
+				body: JSON.stringify({ write_api: 1, capabilities: ['comment', 'reply', 'resolve', 'edit', 'discard', 'refs-note'] })
+			})
+		);
+		await page.route('**/_api/*', (r) =>
+			r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, result: 'done' }) })
+		);
+	}
+
+	test('no write API means no editing affordance at all', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		await expect(page.locator('article.box').first()).toBeVisible();
+		await expect(page.locator('[data-testid="verb-row"]')).toHaveCount(0);
+	});
+
+	test('a panel opens above the row, so the body it is about never moves', async ({ page }) => {
+		await withWriteApi(page);
+		await page.goto('/node/sy-0003');
+		const row = page.locator('[data-testid="verb-row"]').first();
+		await expect(row).toBeVisible();
+
+		await row.getByTestId('verb-reply').click();
+		const panel = row.getByTestId('verb-panel');
+		await expect(panel).toBeVisible();
+		const pb = (await panel.boundingBox())!;
+		const rb = (await row.boundingBox())!;
+		expect(pb.y + pb.height).toBeLessThanOrEqual(rb.y + 2);
+
+		// it says nothing until it has something to say
+		await expect(panel.getByTestId('verb-send')).toBeDisabled();
+		await panel.getByTestId('verb-text').fill('Fixed in the next revision.');
+		await expect(panel.getByTestId('verb-send')).toBeEnabled();
+
+		await page.keyboard.press('Escape');
+		await expect(panel).toHaveCount(0);
+	});
+
+	test('in a gutter slot two verbs fold behind a menu', async ({ page }) => {
+		await withWriteApi(page);
+		await withPrefs(page, { comments: 'margin', width: 'narrow' });
+		await page.setViewportSize({ width: 1600, height: 1000 });
+		await page.goto('/master/main');
+		const slot = page.locator('aside.comment-slot.gutter').first();
+		await expect(slot).toBeVisible();
+		// the slot is about (container - measure) / 3 wide, and four verbs will not fit beside the metadata
+		expect((await slot.boundingBox())!.width).toBeLessThan(330);
+
+		const row = slot.locator('[data-testid="verb-row"]').first();
+		await expect(row.getByTestId('verb-reply')).toBeVisible();
+		await expect(row.getByTestId('verb-edit')).toBeHidden();
+		await row.getByTestId('verb-more').click();
+		await expect(row.getByTestId('verb-menu')).toBeVisible();
 	});
 });

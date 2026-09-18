@@ -307,15 +307,11 @@ table.list th {
 	font-family: var(--body-face);
 	font-size: var(--body-size);
 }
-/* A whole paper is one fragment -- 44,000 elements for a 160-node document -- and the browser laid out and painted
-   every one of them on every reflow. `content-visibility: auto` lets it skip the ones far offscreen; the intrinsic
-   size keeps the scrollbar honest so the bar does not jump as they are realised. Only in the read view, where the
-   document is long enough for it to pay, and never on a `details` a reader may have open. */
-.fragment.read > .env,
-.fragment.read > section {
-	content-visibility: auto;
-	contain-intrinsic-size: auto 240px;
-}
+/* `content-visibility: auto` was tried here and withdrawn. It skips layout and paint for the offscreen part of a
+   long document, which is worth having on a 44,000-element paper -- but it brings paint containment with it, and the
+   read view's margin apparatus is built out of children that leave their node's box: a gutter comment sits at
+   `left: 100%` and a margin annotation in the gutter opposite. Both were clipped, which made the gutter unclickable.
+   A node that owns nothing outside itself could take it; a node in the read view is exactly the one that does. */
 
 /* Environments: a per-taxon left accent and no filled background (15.3.1). The colour is the token `$lib/taxonomy`
    chose for this taxon, set on the element as `--taxon-tone`; the palette itself is declared once above, so changing
@@ -421,6 +417,9 @@ table.list th {
 }
 .comment-slot.gutter {
 	position: absolute;
+	/* Above the grid it overhangs: the slot is positioned out of the text column into the gutter track, and until it
+	   carried buttons nothing needed to be clicked in it, so `.gutters` caught the pointer first. */
+	z-index: 2;
 	left: 100%; /* the content column's right edge */
 	top: 0;
 	width: calc(var(--gutter) - var(--gap-wide));
@@ -633,8 +632,12 @@ a.heading-link:focus {
    size and uses it while the block is skipped, so scrolling past does not jump. Content inside remains findable by
    find-in-page and reachable by an in-page anchor -- the browser renders a skipped subtree when it needs to.
    Printing renders everything, because a printer has no viewport to be outside of. */
-.fragment > section,
-.fragment .included {
+/* Not in the read view. `content-visibility: auto` brings paint containment with it, and the read view's margin
+   apparatus is built out of children that leave their node's box -- a gutter comment at `left: 100%`, a margin
+   annotation in the gutter opposite -- so both were clipped, and a gutter comment could not be clicked at all
+   (DR-174). A node page owns nothing outside itself and keeps the skipping. */
+.fragment:not(.read) > section,
+.fragment:not(.read) .included {
 	content-visibility: auto;
 	contain-intrinsic-size: auto 600px;
 }
