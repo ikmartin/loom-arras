@@ -44,7 +44,7 @@ for (const path of ROUTES) {
 // Check 2 of §11, and R2b is done: the list of phrases awaiting it is gone rather than empty, because an empty list
 // invites a fifth entry. "not yet compiled" became "not yet numbered" and is shown only where the corpus declares it
 // has documents; "loose" became "not in a document" everywhere it was copy. Every phrase below is asserted absent.
-const FORBIDDEN = ['not yet compiled', 'loose', 'quilt', 'loom'];
+const FORBIDDEN = ['not yet compiled', 'loose', 'working drafts', 'quilt', 'loom'];
 
 for (const path of ROUTES) {
 	test(`${path} speaks no publisher's vocabulary`, async ({ page }) => {
