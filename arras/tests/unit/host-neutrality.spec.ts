@@ -54,17 +54,13 @@ const RULES: Rule[] = [
 		exempt: (f) => f === OWNS_PATHS
 	},
 	{
+		// No exemption. The work-link scheme is `cited:` (specs/dialect.md §2.13, DR-166): the interface's own, named
+		// for what it points at rather than for whoever wrote the corpus. `worklink.ts` naming it is arras
+		// implementing the format, and there is nothing left in `src/` that names a publisher.
 		name: "names a publisher's URL scheme",
-		re: /['"`]loom:/,
-		// `loom:` is the INTERFACE's scheme, specified `[decided]` at specs/dialect.md §2.13, not a publisher's name
-		// arras happens to know -- so naming it here is arras implementing the format, and taking it from
-		// `manifest.publisher` would break conformance for any other publisher. What is actually wrong is that the
-		// interface named its own URI scheme after one publisher; that is a seam 1 question, open as of 2026-09-18.
-		exempt: (f) => NAMES_THE_INTERFACE_SCHEME.includes(f)
+		re: /['"`]loom:/
 	}
 ];
-
-const NAMES_THE_INTERFACE_SCHEME = ['src/lib/worklink.ts', 'src/lib/components/PdfViewer.svelte'];
 
 function walk(dir: string, out: string[] = []): string[] {
 	for (const name of readdirSync(dir)) {
@@ -98,6 +94,13 @@ describe('host neutrality', () => {
 		const rule = RULES.find((r) => r.name === 'declares tokens on :root')!;
 		expect(rule.re.test(':root { --ink: black; }')).toBe(true);
 		expect(rule.re.test('.arras { --ink: black; }')).toBe(false);
+		expect(rule.exempt).toBeUndefined();
+	});
+
+	it('still forbids a publisher scheme, now that nothing is exempt from it', () => {
+		const rule = RULES.find((r) => r.name === "names a publisher's URL scheme")!;
+		expect(rule.re.test(`const PREFIX = 'loom:';`)).toBe(true);
+		expect(rule.re.test(`const PREFIX = 'cited:';`)).toBe(false);
 		expect(rule.exempt).toBeUndefined();
 	});
 });

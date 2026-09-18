@@ -29,7 +29,7 @@ test.describe('links into cited works', () => {
 	test('a link in a comment opens the fetched paper at its page, and Escape closes it', async ({ page }) => {
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
-			linkInComment(m, 'loom:arxiv:math/9810166v2#page=4');
+			linkInComment(m, 'cited:arxiv:math/9810166v2#page=4');
 		});
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
@@ -44,7 +44,7 @@ test.describe('links into cited works', () => {
 	});
 
 	test('a paper not fetched on this machine says so and links to its source at the page', async ({ page }) => {
-		await serve(page, (m) => linkInComment(m, 'loom:arxiv:math/9810166v2#page=4'));
+		await serve(page, (m) => linkInComment(m, 'cited:arxiv:math/9810166v2#page=4'));
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
 		await expect(page.getByTestId('pdf-absent')).toContainText('has not been fetched on this machine');
@@ -56,7 +56,7 @@ test.describe('links into cited works', () => {
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
 			m.references.Kre99.works = ['arXiv:math/9810166v2', 'doi:10.1007/s002220050351'];
-			linkInComment(m, 'loom:doi:10.1007/s002220050351#page=4');
+			linkInComment(m, 'cited:doi:10.1007/s002220050351#page=4');
 		});
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
@@ -69,7 +69,7 @@ test.describe('links into cited works', () => {
 	test('a quote anchor is shown to look for', async ({ page }) => {
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
-			linkInComment(m, 'loom:arxiv:math/9810166v2#quote=Artin%20stacks');
+			linkInComment(m, 'cited:arxiv:math/9810166v2#quote=Artin%20stacks');
 		});
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();

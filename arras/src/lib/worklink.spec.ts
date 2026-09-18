@@ -7,12 +7,12 @@ const manifest = (refs: Reference[]) => ({ references: Object.fromEntries(refs.m
 
 describe('a work link', () => {
 	it('names an identifier and a page or a quote', () => {
-		expect(parseWorkLink('loom:arxiv:0805.2065v2#page=9')).toEqual({ id: 'arxiv:0805.2065v2', page: 9 });
-		expect(parseWorkLink('loom:arXiv:math/9810166v2#quote=fixed%20locus')).toEqual({ id: 'arxiv:math/9810166v2', quote: 'fixed locus' });
-		expect(parseWorkLink('loom:DOI:10.1090/S1056-3911-2011-00606-1')).toEqual({ id: 'doi:10.1090/s1056-3911-2011-00606-1' });
+		expect(parseWorkLink('cited:arxiv:0805.2065v2#page=9')).toEqual({ id: 'arxiv:0805.2065v2', page: 9 });
+		expect(parseWorkLink('cited:arXiv:math/9810166v2#quote=fixed%20locus')).toEqual({ id: 'arxiv:math/9810166v2', quote: 'fixed locus' });
+		expect(parseWorkLink('cited:DOI:10.1090/S1056-3911-2011-00606-1')).toEqual({ id: 'doi:10.1090/s1056-3911-2011-00606-1' });
 		expect(parseWorkLink('https://arxiv.org/abs/0805.2065')).toBeNull();
-		expect(parseWorkLink('loom:arxiv:')).toBeNull();
-		expect(parseWorkLink('loom:arxiv:1#page=0')).toEqual({ id: 'arxiv:1' });
+		expect(parseWorkLink('cited:arxiv:')).toBeNull();
+		expect(parseWorkLink('cited:arxiv:1#page=0')).toEqual({ id: 'arxiv:1' });
 	});
 
 	it('spells an identifier one way', () => {

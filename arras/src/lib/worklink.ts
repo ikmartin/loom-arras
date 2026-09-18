@@ -1,4 +1,4 @@
-// Links into a cited work (book 10.4.1): `loom:<scheme>:<value>#page=N` or `#quote=TEXT` in a comment names a place in a paper by the work's global identifier, never by a citekey, so it survives a bibliography re-export and means the same thing to a collaborator whose citekeys differ.
+// Links into a cited work (book 10.4.1): `cited:<scheme>:<value>#page=N` or `#quote=TEXT` in a comment names a place in a paper by the work's global identifier, never by a citekey, so it survives a bibliography re-export and means the same thing to a collaborator whose citekeys differ.
 import { artifactUrl } from '$lib/paths';
 // The link form is the interface's (specs/dialect.md §2.13); nothing here knows the publisher.
 
@@ -12,7 +12,7 @@ export interface WorkLink {
 	quote?: string;
 }
 
-const PREFIX = 'loom:';
+const PREFIX = 'cited:';
 
 /** Whether an href is a work link. */
 export function isWorkLink(href: string | null | undefined): boolean {

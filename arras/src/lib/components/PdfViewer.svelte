@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The PDF viewer (book 15.3.7): a link into a cited work, `loom:<scheme>:<value>#page=N`, opens the fetched paper at that page in the browser's own renderer. A link naming an artifact that is not on this machine says so and offers the identifier's own resolver instead, and a copy of a different version of the work is offered only with a warning, since that is where page numbers disagree.
+	// The PDF viewer (book 15.3.7): a link into a cited work, `cited:<scheme>:<value>#page=N`, opens the fetched paper at that page in the browser's own renderer. A link naming an artifact that is not on this machine says so and offers the identifier's own resolver instead, and a copy of a different version of the work is offered only with a warning, since that is where page numbers disagree.
 	// Clicks on work links anywhere are caught here, so a comment body, a thread message and a report all behave alike without each wiring its links.
 	import { onMount } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
