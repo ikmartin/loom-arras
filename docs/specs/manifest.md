@@ -12,6 +12,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 {
   "interface_version": 1,
   "publisher": {"name": "loom", "version": "0.1.0"},
+  "publishes": {"documents": true, "review": true, "bibliography": true, "discussions": true},
   "generated": "2026-09-16T14:40:02Z",
   "corpus": {"name": "Relative localization", "root_label": "Relative virtual localization"},
   "masters": [ ... ],
@@ -35,6 +36,12 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 ```
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it.
+
+**[decided]** `publishes` is the read side's capability block, and it answers a question the data cannot: **what this corpus *has*, never what a viewer should draw.** Four booleans — `documents`, `review`, `bibliography`, `discussions` — each saying whether the corpus is the kind of thing that has one. `"documents": false` says this corpus is not assembled into documents; it does not say "hide the read view", and a viewer decides what to make of it, as `GET /_api`'s capability list works on the write side (`write-api.md` §1).
+
+It exists because deriving the answer from emptiness cannot distinguish **empty because not yet** from **empty because never**. A quilt with no runs yet would lose a view and get it back later, and since the manifest is re-polled every second the furniture would move while someone worked. A publisher declares once instead.
+
+The values are properties of the publisher and its corpora, not of this corpus's current contents: loom writes all four `true` for every quilt, because a quilt with no documents yet is still a project that assembles into them. `publishes` is optional, and a manifest that omits it leaves the viewer to derive what it can from the data — which is what every version 1 manifest written before this field gets. Additive, so `interface_version` is unchanged.
 
 **[decided]** **A publisher may omit any top-level section it has nothing to say about, and a viewer treats an absent section as an empty one.** `interface_version` and `publisher` are the two exceptions; everything else may be missing. A publisher with no masters, no review ledger or no bibliography writes no `masters`, no `annotations` and no `references`, and is conforming. This is what makes the interface publisher-neutral rather than loom-shaped: a corpus tool and a site generator publish very different subsets of it, and neither should have to write empty objects to prove it read the specification. Absence and emptiness mean the same thing, so a viewer must never distinguish them, and a publisher may use whichever is more natural. A malformed *value* is a different matter and remains the publisher's error. `docs/specs/fixture-minimal/` is the fixture that holds this floor.
 

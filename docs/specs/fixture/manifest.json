@@ -186,7 +186,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "b944a337f3f6e8615a45ea433bce74d0e605871cbeb93c3cf6e0d0fa7fdc82f6",
+   "hash": "f7b9d78cb13e2d9b2676f6c23cb24c6a0a567b6137d4d4ceeca26e67e0b4d5dd",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -198,7 +198,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "311a8986e733729ffa4143d8a040815a391aa3f8f56babbc8b9d4d183aaa7581",
+   "hash": "a23e6011b8d3f82027d130063500828f251d13fdc825326ac64b83672af9f87b",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -210,7 +210,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "ab60c55d3fb296e19ceec84e17f5d566a7aa449ff0e64adbd8f1fdf20df0d093",
+   "hash": "56470d2a28cfc86717cb6fae2e736450a64c06ebfd8cba8f8909b57dd7ced627",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -3703,6 +3703,12 @@
  "publisher": {
   "name": "loom",
   "version": "0.1.0.dev0"
+ },
+ "publishes": {
+  "bibliography": true,
+  "discussions": true,
+  "documents": true,
+  "review": true
  },
  "references": {
   "Har77": {

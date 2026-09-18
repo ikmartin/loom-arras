@@ -35,7 +35,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-28](WQ-28-annotated-export.md) | an annotated view exported as LaTeX and PDF | loom, arras | a review has to reach someone who cannot run arras |
 | [WQ-29](WQ-29-node-manager.md) | the node manager: fork from history, retire, merge, rename (absorbs WQ-11) | loom, arras, loom-lsp | ten or more forks, or a fork or rename by hand goes wrong once |
 | [WQ-30](WQ-30-history-gc.md) | `loom history gc` | loom | `.loom/history/texts/` exceeds a few thousand files or fifty megabytes |
-| [WQ-31](WQ-31-host-split.md) | the host split: the core behind a component API and a token contract a person can use by hand | arras, loom-arras | a second host exists or is wanted |
 | [WQ-32](WQ-32-modes-against-the-cli.md) | rewrite every mode against loom's CLI, and let the gaps name the missing commands | loom | 0.10 has landed, so the annotation log is the modes' output contract |
 | [WQ-33](WQ-33-the-proposed-document.md) | the proposed document: an agent assembling a revision | loom, arras | an agent proposes reordering a section and a per-node diff cannot show the result |
 | [WQ-34](WQ-34-write-surfaces.md) | writing through the editor and the viewer | loom, editors, arras | the author works a review without the terminal |

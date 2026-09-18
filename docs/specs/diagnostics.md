@@ -96,7 +96,10 @@ References and digests:
 
 Interface:
 
-- `loom:interface-version` (error, fixed): emitted by the viewer, not loom, when the manifest's version is not accepted; listed here so the code is reserved.
+- `arras:interface-version` (error, fixed): emitted by the viewer when the manifest's version is not accepted.
+- `arras:manifest-unreadable` (error, fixed): emitted by the viewer when `manifest.json` is not valid JSON.
+
+Both are listed here so the codes are reserved, and both are in the **viewer's** namespace rather than a publisher's: a diagnostic a viewer raises about a manifest is the viewer speaking, and naming it `loom:` said that loom had complained about something loom never saw.
 
 ### The workbench and the record
 
