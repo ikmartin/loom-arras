@@ -7,6 +7,5 @@ tests/fixtures/
 demos/relloc/
 demos/man12/
 demos/acgs/
-demos/scratch-*/
 .DS_Store
 ai/

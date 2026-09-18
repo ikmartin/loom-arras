@@ -60,6 +60,10 @@ Loom and arras share no code; they share two documents. Consequence: loom publis
 
 Portability is a property of the source, not of the tool. Consequence: all paths are root-relative, local style files sit at the root, no `TEXINPUTS`, no shell escape, no absolute paths.
 
+### P13. Loom verifies what it can, reports what diverges, repairs nothing, and never blocks work.
+
+The head is always the files on disk, and the history is a log of what loom was told, never a claim about the filesystem; a divergence between the two is a fact to report, not a fault to mend. Consequence: an edited canon document, a hand-edited record, a retired id written under again, and two live definitions of one id are each reported with the exact commands that would resolve them, the rest of the quilt builds normally, and no command creates a step, moves a file, or rewrites a record of its own accord to make the report go away.
+
 ## 1.3 Signs that a feature is bad
 
 **[decided]** A proposed feature is antithetical to the design if it exhibits any of the following. The list is a filter, not a guideline; one hit is enough to reject or redesign.

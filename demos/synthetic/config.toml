@@ -1,6 +1,8 @@
 [quilt]
-main = "drafts/main.tex"
-drafts = "drafts"
+name = "The synthetic quilt"
+main = "drafting/main.tex"
+drafting = "drafting"
+canon = "canon"
 prefix = "sy"
 engine = "pdflatex"
 
@@ -12,4 +14,3 @@ disable = []
 
 [ai]
 agent = ""
-runner = ""

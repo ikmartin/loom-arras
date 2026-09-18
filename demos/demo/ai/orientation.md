@@ -21,11 +21,14 @@ review what they wrote, digest what they cite, answer what they ask.
 ## 2. Layout, and what you may write
 
 - `config.toml` — quilt configuration. Read only.
-- `drafts/` — masters, the compilable documents. `config.toml [quilt] main`
+- `drafting/` — the working documents, every one live. `config.toml [quilt] main`
   names the default. Read only.
 - `nodes/` — one node per file, by convention. Read only.
-- `refs/` — digests: cited papers' results as external nodes; `refs/pdf/`
-  holds PDFs. Read only.
+- `digests/` — cited papers' results as external nodes, one file per
+  citekey. Read only.
+- `refs/` — what was fetched for each cited work: its source and PDF, under
+  a directory named by the work's identifier. `loom refs path CITEKEY`
+  prints it. Read only, and not in version control.
 - `comments/` — human review records. Never write here except through
   `loom comment`.
 - `.loom/` — the ledger and snapshots. Never touch.
@@ -58,7 +61,9 @@ only through loom commands. Everything else is the author's.
   includes it as written.
 - Equations keep the author's labels (`eq:main`); refer to them normally.
 - Comments beginning `% !LOOM` are directives loom reads
-  (`% !LOOM tags: ...`, `% !LOOM author: ...`); they never change the PDF.
+  (`% !LOOM tags: ...`, `% !LOOM author: ...`, `% !LOOM see: ID, ID`);
+  they never change the PDF. `see:` links two nodes in the viewer and is
+  never a dependency.
 - Digest nodes have ids `<citekey>-<label>`, e.g. `Man12-thm-4.1`; their
   statements are the cited paper's, verbatim, with locators in the title.
 
@@ -86,6 +91,9 @@ ledger and never run `loom accept`.
   a bundle with your proposed text in place of the quilt's, to compile
   before the author promotes or applies; nothing in the quilt changes.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
+- `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`: a whole master flattened
+  into one file, for when a plan or a paper is the context. Masters are
+  not keys and `bundle` does not apply to them.
 - `loom comment KEY "message" --quote "exact text" --kind objection|
   suggestion|question|ok --run $LOOM_RUN`: leave a finding anchored to the
   sentence it concerns. This is how every review result is recorded.
@@ -121,9 +129,11 @@ Follow the template exactly; tick its checklist in your notes file.
 - question / quick: answers, thorough or brief.
 - draft: a complete node from the author's plan.
 - ingest: a digest of a cited paper.
+- brainstorm: explore a topic before anything is proved; candidates,
+  dead ends, what the digests already say.
 
 Findings are annotations. Drafts and digests wait in your run for
-`loom ai promote`. Proposals are diffs the author applies.
+`loom ai promote` for a digest; a drafted node is previewed and pasted by the author. Proposals are diffs the author applies.
 
 ## 8. Context economy
 
@@ -144,5 +154,5 @@ anything. Never claim a result is proved when a step is missing; mark it
 ## 10. When you are done
 
 Update `thread.md`, list your outputs, and tell the author which ones are
-drafts to promote, which are diffs to apply, and which annotations need
+drafted nodes to paste, which are diffs to apply, and which annotations need
 their decision.

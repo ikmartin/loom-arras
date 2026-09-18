@@ -32,7 +32,7 @@ ai/
       plan-rl-0019.md      the author's plan for a draft
       referee-rl-0004.notes.md
       referee-rl-0004.check.py
-      draft-rl-0019.tex    a complete node awaiting promote
+      draft-rl-0019.tex    a complete node for the author to read and paste
       proposal-rl-0004.diff
 CLAUDE.md                  generated at the quilt root; see 11.3
 AGENTS.md                  generated at the quilt root; see 11.3
@@ -87,10 +87,10 @@ Rules common to every mode:
 1. **[decided]** The agent obtains context through loom commands, not by reading directories wholesale: `loom bundle` for a key, `loom status --json` for the quilt, `loom search` for ids, `loom deps` and `loom unravel` for the graph. The orientation document says so.
 2. **[decided]** Review findings are annotations, one `loom comment --run` call per finding (or one `--batch`), anchored by `--quote` to the sentence they concern; the notes file summarizes. This is the mode's output contract, and it is what makes findings appear in the margin.
 3. **[decided]** The audit mode's uses-ledger: for each proof, list facts the argument invokes that no `\ref`, `\uses`, or matched citation names (candidates for `\uses` entries or new nodes), and `\uses` entries the argument never consumes. Each is an annotation anchored to the invoking sentence.
-4. **[decided]** Nothing a mode produces is applied. Drafts and digests are promoted by a person (11.7); proposals are applied by a person with their own tools.
+4. **[decided]** Nothing a mode produces is applied. A digest is promoted by a person and a drafted node is pasted by one (11.7); proposals are applied by a person with their own tools.
 5. **[decided]** Every mode file begins with a "Before you begin" block stating the write policy, every notes file begins with a `[summary]` block, and every mode file ends with the output contract as a checklist the agent copies into the notes and ticks.
 6. **[decided]** Proposals and drafts are compiled before promotion with `loom bundle KEY --with FILE` and `loom bundle --draft FILE` (12.5); a mode that produces LaTeX reports the compile result in its notes.
-7. **[decided]** An agent that needs a whole master in context uses `loom assemble MASTER $LOOM_RUN/<name>.tex`; masters are not keys and `bundle` does not apply to them.
+7. **[decided]** An agent that needs a whole master in context uses `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`; masters are not keys and `bundle` does not apply to them.
 
 ## 11.6 Comments from agents
 
@@ -100,16 +100,15 @@ An agent may `--resolve` its own earlier annotations after a re-check, and may r
 
 ## 11.7 Promote
 
-**[decided]** `loom ai promote PATH` copies a file from a run into the quilt:
+**[decided]** `loom ai promote PATH` copies a digest from a run into the quilt: `ingest-<citekey>.tex`, or any file with a `% !LOOM digest:` header, to `digests/<citekey>.tex`, refusing if it exists (`--replace` to overwrite after showing a diff).
 
-- `draft-<id>.tex` or any file containing exactly one node: to `nodes/<id>.tex`. If the draft carries no id-shaped label, loom allocates one under the quilt's prefix (or `--prefix`) and inserts it into the copy at the end of the `\begin` line; if it carries one, loom checks it is unallocated (and not referenced by a record or a dangling link) or matches an existing loose skeleton the author created for it with `loom new`, which it replaces. Then lint runs on the result.
-- `ingest-<citekey>.tex`, or any file with a `% !LOOM digest:` header: to `digests/<citekey>.tex`, refusing if it exists (`--replace` to overwrite after showing a diff).
+Promote is a copy plus a check. It never modifies the run's file and never accepts anything. It appends `loom ai promote FILE -> TARGET` to the run's `run.log`, prints the lint diagnostics located in the promoted file, and exits 1 on an error (M6).
 
-Promote is a copy plus a check. It never modifies the run's file, never inlines into a master (the author adds the `\input` line), and never accepts anything. It appends `loom ai promote FILE -> TARGET` to the run's `run.log`, prints the lint diagnostics located in the promoted file, and exits 1 on an error (M6).
+**[decided]** A drafted node is not promoted (DR-140). The author reads it in arras, copies it, and pastes it where they decide, taking an id from `loom id --next` or letting `loom id FILE` write one. Pasting is more intentional than a command that files a stranger's lemma into `nodes/`, it is the same act as accepting any other suggestion, and it needs no machinery. `loom ai promote` of a node file therefore refuses and says so.
 
 ## 11.8 Write policy and permissions
 
-**[decided]** An agent writes only under `ai/runs/`. `nodes/`, `drafts/`, `digests/`, the root files, `refs/`, `comments/` (except through `loom comment`), and `.loom/` are read-only to it. The orientation document states this; `loom ai init --permissions` additionally generates `.claude/settings.json`, which denies `Edit` and `Write` under `nodes/`, `drafts/`, `digests/`, `refs/`, `comments/`, `.loom/`, `ai/modes/`, `ai/orientation.md`, `config.toml`, and the root `.tex`, `.sty`, and `.bib` files, and denies the author-only commands (`loom accept`, `atomize`, `inline`, `import`, `ai promote`, `delete`, `rm`), because Claude Code's deny rules take precedence over allow rules and an allow-only whitelist cannot be expressed (DR-71); `loom upgrade` regenerates it. Codex has no project-level permission file loom could write; for it the write policy rests on `AGENTS.md` and `loom ai check` (M6).
+**[decided]** An agent writes only under `ai/runs/`. `nodes/`, `drafting/`, the canon directory, `retired/`, `digests/`, the root files, `refs/`, `comments/` (except through `loom comment`), and `.loom/` are read-only to it. The orientation document states this; `loom ai init --permissions` additionally generates `.claude/settings.json`, which denies `Edit` and `Write` under `nodes/`, `drafting/`, `canon/`, `retired/`, `digests/`, `refs/`, `comments/`, `.loom/`, `ai/modes/`, `ai/orientation.md`, `config.toml`, and the root `.tex`, `.sty`, and `.bib` files, and denies the author-only commands (`loom accept`, `atomize`, `inline`, `import`, `draft`, `canonize`, `stamp`, `fork`, `revert`, `live`, `linearize`, `ai promote`, `delete`, `rm`), because Claude Code's deny rules take precedence over allow rules and an allow-only whitelist cannot be expressed (DR-71); `loom upgrade` regenerates it. Codex has no project-level permission file loom could write; for it the write policy rests on `AGENTS.md` and `loom ai check` (M6).
 
 After any run, `loom ai check RUN` (**[decided]** a command of its own, M6) reports files outside the run directory, `comments/`, `build/`, and `.loom/` whose mtime is later than the run's `created` time, as `loom:agent-wrote-outside-run` (error), exiting 1; `run.toml` records whole seconds, so a file written in the run's first second is not reported. It does not revert.
 

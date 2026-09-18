@@ -13,14 +13,15 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "interface_version": 1,
   "publisher": {"name": "loom", "version": "0.1.0"},
   "generated": "2026-09-16T14:40:02Z",
-  "corpus": {"name": "relloc", "root_label": "Relative virtual localization"},
+  "corpus": {"name": "Relative localization", "root_label": "Relative virtual localization"},
   "masters": [ ... ],
-  "nodes": { "rl-0004": { ... }, "drafts/main.tex#section:3": { ... } },
+  "canon": [ ... ],
+  "nodes": { "rl-0004": { ... }, "drafting/main.tex#section:3": { ... } },
   "keys": { "rl-0004": { ... }, "rl-0004/proof": { ... } },
   "regions": { "rl-0004#eq:main": { ... } },
   "edges": [ ... ],
   "relations": [ ... ],
-  "inclusion": { "drafts/main.tex": { ... } },
+  "inclusion": { "drafting/main.tex": { ... } },
   "states": { "labels": { ... } },
   "annotations": { "a-2026-09-16-0007": { ... } },
   "threads": { "2026-09-16T14-02-referee": { ... } },
@@ -33,15 +34,30 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 }
 ```
 
-`corpus.name` is the quilt name (or site name for another publisher); `root_label` a display title.
+`corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it.
 
-## 2. Masters
+## 2. Masters and canon
+
+**[decided]** `masters` lists the documents a reader may work in; `canon` lists the landmarks, in the order the publisher recorded them, oldest first. A document the publisher considers superseded appears in neither.
+
+```json
+"canon": [
+  {"path": "canon/paper-v1.tex", "stem": "paper-v1", "title": "Relative virtual localization",
+   "fragment": "fragments/canon/paper-v1.html", "hash": "3f9a...",
+   "step": "0002", "name": "paper-v1", "message": "Submitted to the Journal", "when": "2026-09-13T09:00:00Z",
+   "macros": "canon:paper-v1"}
+]
+```
+
+`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `macros` names an entry of `macros.sets` (§14). A canon fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
+
+## 2a. Masters
 
 **[decided]**
 
 ```json
 {
-  "path": "drafts/main.tex",
+  "path": "drafting/main.tex",
   "title": "Relative virtual localization",
   "default": true,
   "fragment": "fragments/masters/main.html",
@@ -58,6 +74,17 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 
 **[decided]** Keyed by id, or by qualified key for untagged nodes.
 
+**[decided]** A node whose id two files define is published with `"state": "conflicted"`, an empty `fragment` and `file`, `"src": [0, 0]`, no children and no proofs, and an additional `conflict` listing the files that define it. It has no text: a publisher that cannot say which of two definitions is the node's says neither. Its key entry carries the same `state` and `conflict`, an empty `hash`, an empty `uses`, and no acceptance.
+
+```json
+"rl-0011": {
+  "id": "rl-0011", "kind": "environment", "taxon": "Lemma", "title": null,
+  "file": "", "src": [0, 0], "fragment": "", "state": "conflicted",
+  "conflict": ["drafting/main.tex", "drafting/talk.tex"],
+  "reached_by": ["drafting/main.tex", "drafting/talk.tex"], "proofs": [], "children": []
+}
+```
+
 ```json
 "rl-0004": {
   "id": "rl-0004",
@@ -72,9 +99,9 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "file": "nodes/rl-0004.tex",
   "src": [104, 1420],
   "fragment": "fragments/nodes/rl-0004.html",
-  "numbers": { "drafts/main.tex": {"number": "3.4", "page": 12} },
-  "reached_by": ["drafts/main.tex", "drafts/talk.tex"],
-  "parent": { "drafts/main.tex": "rl-0020" },
+  "numbers": { "drafting/main.tex": {"number": "3.4", "page": 12} },
+  "reached_by": ["drafting/main.tex", "drafting/talk.tex"],
+  "parent": { "drafting/main.tex": "rl-0020" },
   "children": [],
   "proofs": ["rl-0004/proof"],
   "external": false,
@@ -90,6 +117,8 @@ Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes)
 ## 4. Keys
 
 **[decided]** One entry per ledger-acceptable key.
+
+**[decided]** A key may carry `version`, `{"step": "0002", "name": "paper-v1"}`, when its current text is one the publisher has recorded: what a viewer shows as "text of @2". Its absence says nothing is wrong — a key whose text has moved on since the last landmark is the ordinary case. Sections and qualified keys never carry it.
 
 ```json
 "rl-0004/proof": {
@@ -136,7 +165,7 @@ Rules: `state` is one of the publisher's state labels (section 8); `acceptance` 
   "container": "rl-0004",
   "in": "statement",
   "label": "eq:main",
-  "numbers": { "drafts/main.tex": {"number": "3.2"} },
+  "numbers": { "drafting/main.tex": {"number": "3.2"} },
   "src": [301, 388]
 }
 ```
@@ -159,8 +188,8 @@ Rules: `state` is one of the publisher's state labels (section 8); `acceptance` 
 **[decided]** One tree per master, as nested objects.
 
 ```json
-"drafts/main.tex": {
-  "key": "drafts/main.tex",
+"drafting/main.tex": {
+  "key": "drafting/main.tex",
   "children": [
     {"key": "rl-0020", "via": "section", "shift": 0, "children": [
       {"key": "rl-0011", "via": "input", "file": "nodes/rl-0011.tex", "shift": 0, "children": []},
@@ -182,7 +211,8 @@ Rules: `state` is one of the publisher's state labels (section 8); `acceptance` 
     "draft":      {"label": "draft",      "color": "neutral"},
     "accepted":   {"label": "accepted",   "color": "positive"},
     "stale":      {"label": "stale",      "color": "warning", "modifier": true},
-    "incomplete": {"label": "incomplete", "color": "negative"}
+    "incomplete": {"label": "incomplete", "color": "negative"},
+    "conflicted": {"label": "conflicted", "color": "negative"}
   },
   "derived": {
     "proved":  {"label": "proved",  "color": "positive"},
@@ -191,7 +221,7 @@ Rules: `state` is one of the publisher's state labels (section 8); `acceptance` 
 }
 ```
 
-Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `negative`, `info`. A key's `state` is a label name; `stale` is reported as `acceptance.fresh = false` and rendered as the modifier.
+Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `negative`, `info`. A key's `state` is a label name; `stale` is reported as `acceptance.fresh = false` and rendered as the modifier. Two labels may share a colour class — `incomplete` and `conflicted` are both negative — and a viewer that wants to tell them apart does so by name, not by colour.
 
 ## 9. Annotations
 
@@ -251,9 +281,19 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 ```json
 {"severity": "error", "code": "double-inclusion",
- "message": "rl-0011 is included twice in drafts/main.tex (via rl-0020 and via rl-0031)",
+ "message": "rl-0011 is included twice in drafting/main.tex (via rl-0020 and via rl-0031)",
  "locations": [{"file": "nodes/rl-0020.tex", "line": 14}, {"file": "nodes/rl-0031.tex", "line": 3}],
  "keys": ["rl-0011", "rl-0020", "rl-0031"]}
+```
+
+**[decided]** Two optional fields. `subject` says what the diagnostic is about: `"source"` (the default when absent) or `"record"`, the publisher's own account of the source. `fixes` is a list of commands that would resolve it, each `{"label": "...", "command": "..."}`; they are data, and a viewer offers them to be copied and runs nothing.
+
+```json
+{"severity": "error", "code": "duplicate-id",
+ "message": "rl-0011 is defined by drafting/main.tex and drafting/talk.tex; it has no text until one definition remains",
+ "locations": [{"file": "drafting/main.tex", "line": 88}, {"file": "drafting/talk.tex", "line": 12}],
+ "keys": ["rl-0011"],
+ "fixes": [{"label": "fork the copy in drafting/talk.tex", "command": "loom fork rl-0011 --in drafting/talk.tex"}]}
 ```
 
 ## 12. Tags and taxa
@@ -277,7 +317,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
              "published_as": "doi:10.1090/S1056-3911-2011-00606-1",
              "method": "extract", "nodes": ["Man12-setup", "Man12-thm-4.1"]},
   "version_mismatch": false,
-  "cited_by": ["rl-0004/proof", "drafts/main.tex"]
+  "cited_by": ["rl-0004/proof", "drafting/main.tex"]
 }
 ```
 
@@ -293,7 +333,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 ## 15. Search
 
-**[decided]** Entries for the viewer's search box: `{"key": "rl-0004", "title": "...", "taxon": "Lemma", "aliases": [...], "tags": [...], "excerpt": "..."}` for every node and every digest node; masters and threads have entries with `kind`.
+**[decided]** Entries for the viewer's search box: `{"key": "rl-0004", "title": "...", "taxon": "Lemma", "aliases": [...], "tags": [...], "excerpt": "..."}` for every node and every digest node; masters, canon documents and threads have entries with `kind` (`master`, `canon`, `thread`).
 
 ## 16. Relations
 

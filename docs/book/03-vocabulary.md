@@ -13,15 +13,20 @@ All entries are **[decided]** unless marked.
 
 ## 3.2 Files and directories of a quilt
 
-- master : a `.tex` file containing `\documentclass`, located in the masters directory. Compiled as a document. Addressed by path. The root of an inclusion tree.
-- masters directory : the directory named by `config.toml [quilt] drafts`, by default `drafts/`. Every file in it with `\documentclass` is a master.
+- master : a `.tex` file containing `\documentclass`, located in the drafting directory. Compiled as a document. Addressed by path. The root of an inclusion tree. Also called a live document.
+- drafting directory : the directory named by `config.toml [quilt] drafting`, by default `drafting/`. Every file in it with `\documentclass` is a master, and every one is live. Read as `drafts` in a quilt written before 0.9.
+- canon directory : the directory named by `config.toml [quilt] canon`, by default `canon/`. Holds landmarks. Never scanned: nothing in it defines a node.
+- canon document : a flat, self-contained copy of a document as it stood when `loom import` or `loom canonize` wrote it. Compiles on its own, with no `loom.sty` and no `\input`. Shown in arras; never a master.
+- live : a property of a document, not of a file: a document is live when it sits in the drafting directory and no conversion has recorded that its output superseded it. Only live documents define the nodes they hold inline.
+- superseded : a document a conversion (`atomize`, `linearize`) replaced, recorded in the history. It defines nothing until `loom live` says otherwise.
 - default master : the master named by `config.toml [quilt] main`.
 - spine : a file consisting of prose, sectioning, and inclusion lines, produced by `atomize`. Not a distinct kind to the scanner; the word is descriptive.
 - `nodes/` : the directory `loom new` and `atomize` write node files to. A convention, not a rule.
-- `refs/` : the directory of digests. `refs/pdf/` holds PDFs and is gitignored.
+- `digests/` : the directory of digests. `refs/` holds fetched works, named by identifier, and is gitignored.
 - `comments/<author>/` : human review records.
 - `ai/` : the optional AI layer: `orientation.md`, `modes/`, `runs/`.
-- `.loom/` : loom's own durable data: `state.toml` (the ledger) and `snapshots/`.
+- `.loom/` : loom's own durable data: `state.toml` (the acceptance ledger) and `history/` (the history ledger, the step directories, and the content-addressed text store).
+- `retired/` : where `atomize --retire` moves a converted file at the author's request. Never scanned.
 - `build/` : everything derivable. Gitignored. Deletable at any time.
 - `loom.sty` : the vendored LaTeX package providing the three macros. Lives at the quilt root.
 - user config : `~/.config/loom/config.toml`. Per person, not per quilt. Holds `[author] name`.
@@ -36,8 +41,12 @@ All entries are **[decided]** unless marked.
 - tag : a thematic label attached to a node by a `% !LOOM tags:` directive (`algebraic-geometry`). Any number per node. Never an identifier.
 - taxon : the kind of a node: the display name declared by `\newtheorem` (or `\declaretheorem`) for a theorem-like environment; `Section`, `Subsection`, and so on for sectioning units; `Proof` for a labelled proof.
 - style class : amsthm's `plain`, `definition`, or `remark`, read from the `\theoremstyle` in force when the environment was declared. `plain` nodes owe a proof.
+- version : the text a key had at a step, stored in that step's directory and addressed `rl-0001@3`.
+- address : a key and a step, `rl-0001@3` or `rl-0001@paper-v2`; the step may be named by number or by the canon document it wrote.
+- retired id : an id the history has recorded and no live document defines. Never allocated again.
+- conflicted : the state of an id two live files both define. It has no text: loom reports both and chooses neither.
 - key : the unit the ledger accepts and annotations target: a statement (its id) or a proof (`<id>/proof`, `<id>/proof/2`, ..., or a labelled proof's own id). Equations and masters are also annotation targets but never ledger keys.
-- qualified key : the internal address of something without an id: `rl-0004#eq:main` for an equation, `drafts/main.tex#sec:setup` for an untagged section.
+- qualified key : the internal address of something without an id: `rl-0004#eq:main` for an equation, `drafting/main.tex#sec:setup` for an untagged section.
 - region : the span of source text belonging to a node, a proof, or a labelled equation.
 - own text : a node's region minus the regions of its children. Every character of the quilt belongs to exactly one node's own text (the master owns the preamble and top-level prose).
 - external node : a `plain` node with no proof whose title contains a citation. Digests consist of these.
@@ -57,7 +66,7 @@ All entries are **[decided]** unless marked.
 
 - ledger : `.loom/state.toml`. Holds acceptance rows and nothing else. Written only by `loom accept`. Never edited.
 - acceptance row : one entry in the ledger: key, author, date, hash of the key's text, hashes of the closure's statements and the preamble closure, references to snapshots.
-- snapshot : the normalized text of a key or preamble at the time of an acceptance, stored content-addressed under `.loom/snapshots/`. What lets a stale acceptance be explained with a diff.
+- snapshot : the normalized text of a key or preamble at the time of an acceptance, stored content-addressed under `.loom/history/texts/`, the same store the versions use. What lets a stale acceptance be explained with a diff.
 - review record : an `annotations.json` file under a run directory or a comments directory, written only by `loom comment`. Contains annotations.
 - annotation : one comment: id, author (person or run), target key, target hash, selector, kind, body, status, reply-to.
 - selector : the text-quote selector: the exact quoted text with prefix and suffix context, resolved within the target's own text.
@@ -101,15 +110,25 @@ All entries are **[decided]** unless marked.
 - application : one use of a mode on one target inside a run, producing named output files in the run directory.
 - `run.log` : automatic log of every loom command invoked with `--run`, in the run directory.
 - `thread.md` : voluntary journal the agent appends to, in the run directory.
-- promote : copying a draft node or a digest from a run directory into the quilt (`loom ai promote`), allocating or checking its id, then linting.
+- promote : copying a digest from a run directory into `digests/` (`loom ai promote`), then linting. A drafted node is not promoted: the author previews it and pastes it, taking an id from `loom id --next`.
 - agent : the interactive program a person points at a quilt (Claude Code, Codex). Never a dependency.
 
 ## 3.9 Operations
 
-- import : copying a paper and everything it reaches into a quilt, inserting ids into the copies, changing nothing else.
-- atomize : moving each node of a file into its own file, writing a spine to a named destination. Never in place.
-- inline : the reverse of atomize, to a named destination.
-- identity test : the compiled output (`pdftotext`) of a master must be unchanged by import, atomize, or inline.
+- atomic format : a file written around inclusion lines, with each node in a file of its own.
+- linear format : a file written as one document, with its environments in place. Neither is rigorous; they name the two shapes loom's conversions move between.
+- import : copying a paper into a quilt as one flat canon document, with its styles, bibliography and figures at the root; nothing is inserted and step 0001 records it.
+- draft : copying a canon document into the drafting directory as a working document, with `\usepackage{loom}` and an id on every node. The canon document is not touched.
+- canonize : writing a live document as a flat, self-contained canon document and recording a step: what every key was at that moment, quilt-wide.
+- stamp : recording a step without writing a canon document: every key whose text has moved since the last one.
+- fork : giving a document its own copy of a node under a new id, as a patch the author applies.
+- revert : printing the patch that puts a recorded version's text back in place of the head's.
+- live : making a superseded document define its nodes again.
+- linearize : flattening a document, every inclusion expanded in place with `\nest`'s level shift applied. The whole-document counterpart of `inline`.
+- atomize : moving each node of a file into its own file, writing a spine to a named destination. Never in place; the history records that the spine superseded the source.
+- inline : the reverse of atomize for one inclusion or for a file's own inclusions, to a named destination.
+- step : a numbered, directory-creating event in the history: an import, a canonize, or a stamp. Numbered once over the whole quilt.
+- identity test : the compiled output (`pdftotext`) of a document must be unchanged by import, draft, atomize, inline, linearize, or canonize.
 - unravel : the report of everything downstream of a node: transitive dependents, inclusion sites, ledger rows, annotations. Aliases `downstream`, `reach`, `pop`.
 - publish (verb) : writing the build directory. The command is `loom build`.
 
@@ -123,7 +142,11 @@ The following words were used during design and are not terms of the system. Do 
 - math-aid, mathaid : the working label before naming.
 - tutte : the viewer's earlier name; now arras.
 - `sections/` : no dedicated directory; section node files live in `nodes/`.
-- `drafts/` (as a loose-files directory) : no such directory; loose is computed. `drafts/` is the masters directory.
+- `drafts/` : the pre-0.9 name of the drafting directory. Still read from an old `config.toml`, with a warning; never written.
+- `assemble` : withdrawn; `linearize` flattens a document, `inline` reverses one atomization.
+- expanded format, assembled format : now linear format.
+- work, bench, revise : considered and rejected as verbs; the pair is atomize and linearize, and the passage between the two states is draft and canonize.
+- `--ignore-src` : withdrawn from `atomize`; the history records that the output superseded the input, and `--retire` moves it.
 - `loose/`, `attic/`, `archive/` : not loom directories; an author may use any of them, and `% !LOOM ignore` handles a file that must not be scanned.
 - sidecar, `block.toml` : no per-node metadata files exist.
 - `reviewed` (as a state) : not a state; reviews are facts and counts.

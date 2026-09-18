@@ -585,7 +585,7 @@ one sentence under [open-questions] and do not pursue it unless asked.
   topic touches.
 - The overview sections of the relevant digests (`refs/CITEKEY.tex`,
   which are designed to be read whole); `loom search --kind digest`.
-- If the author has an outline master, `loom assemble drafts/outline.tex
+- If the author has an outline master, `loom linearize drafting/outline.tex --to
   $LOOM_RUN/outline.tex` for the plan as it stands.
 
 ## Procedure

@@ -1,6 +1,8 @@
 [quilt]
-main = "drafts/main.tex"    # default master
-drafts = "drafts"           # masters directory
+name = "The loom demo"
+main = "drafting/main.tex"    # default master
+drafting = "drafting"           # working documents, every one live
+canon = "canon"                 # landmarks: flat, self-contained, never scanned
 prefix = "dm"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 
@@ -12,4 +14,3 @@ disable = []
 
 [ai]
 agent = ""
-runner = ""

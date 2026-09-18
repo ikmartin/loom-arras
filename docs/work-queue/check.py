@@ -10,7 +10,7 @@ import re
 import sys
 from pathlib import Path
 
-CAP = 20
+CAP = 45
 HERE = Path(__file__).resolve().parent
 DOCS = HERE.parent
 ROW = re.compile(r"^\|\s*\[?(WQ-\d+)\]?[^|]*\|([^|]*)\|([^|]*)\|([^|]*)\|\s*$")

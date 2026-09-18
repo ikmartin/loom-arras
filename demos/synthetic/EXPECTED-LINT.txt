@@ -1,6 +1,7 @@
 error dangling-link
 error dangling-link
 error double-inclusion
+error duplicate-id
 error missing-include
 info loom:detached-annotation
 info loom:positional-proof-key
@@ -11,6 +12,7 @@ info loom:see-redundant
 info loom:undigested-citekey
 info loom:unexpected-proof
 info loom:unlabelled-node
+info loom:unresolved-work
 info loom:uses-missing
 info loom:uses-missing
 info loom:uses-missing
@@ -20,6 +22,7 @@ info loom:uses-missing
 info loom:uses-unused
 info loom:uses-unused
 info unreachable
+warning loom:canon-edited
 warning loom:equation-in-proof-referenced
 warning loom:multi-target-proof
 warning loom:taxon-conflict

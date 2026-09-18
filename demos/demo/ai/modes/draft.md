@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under `$LOOM_RUN`. Never edit source. Never run
-  `loom ai promote`; the author promotes.
+  paste it; the author decides, with an id from `loom id --next`.
 - Read `ai/modes/blocks.md` once this session.
 
 ## Purpose

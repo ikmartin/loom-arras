@@ -1,7 +1,7 @@
 build/
 refs/pdf/
 refs/src/
-# LaTeX artifacts a hand compile scatters at the root or in drafts/; loom's own outputs all land under build/
+# LaTeX artifacts a hand compile scatters at the root or in drafting/; loom's own outputs all land under build/
 /*.aux
 /*.log
 /*.out
@@ -14,16 +14,16 @@ refs/src/
 /*.fdb_latexmk
 /*.synctex.gz
 /*.pdf
-drafts/*.aux
-drafts/*.log
-drafts/*.out
-drafts/*.bbl
-drafts/*.blg
-drafts/*.bcf
-drafts/*.run.xml
-drafts/*.toc
-drafts/*.fls
-drafts/*.fdb_latexmk
-drafts/*.synctex.gz
-drafts/*.pdf
+drafting/*.aux
+drafting/*.log
+drafting/*.out
+drafting/*.bbl
+drafting/*.blg
+drafting/*.bcf
+drafting/*.run.xml
+drafting/*.toc
+drafting/*.fls
+drafting/*.fdb_latexmk
+drafting/*.synctex.gz
+drafting/*.pdf
 ai/runs/*/bundle-*.tex

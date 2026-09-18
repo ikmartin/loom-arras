@@ -17,7 +17,7 @@ Markers as elsewhere. The chapter was written before the viewer was built and it
 
 ## 15.2 The two shells
 
-**[decided]** Two navigation shells are built and shipped together; the user picks one. They differ only in arrangement: every shell contains the same elements (quilt name, view switcher, document picker, contents, search) and no shell contains anything another lacks. The default is C.
+**[decided]** Two navigation shells are built and shipped together; the user picks one. They differ only in arrangement: every shell contains the same elements (the corpus's name, view switcher, document picker, contents, search) and no shell contains anything another lacks. The default is C. The document picker offers both kinds of document in two headed groups — Canon, newest first; then Working Drafts — and the name at the top of the shell is `corpus.name`, the project's own name rather than the default document's title.
 
 **[decided]** The choice is a per-viewer preference stored in arras's own settings (browser `localStorage`), never in the quilt, plus a `?shell=` URL parameter so two shells can be compared by sending a link. Preferences are arras's: shell, typography, theme.
 
@@ -47,11 +47,13 @@ Shell B, a top bar with view tabs, was retired (DR-113). The number is kept so t
 
 **[decided]** A page fills the shell's regions through two registries, one for the right rail and one for the left panel, rather than by drawing a rail of its own. That is what lets a table page put its filters where a document's contents otherwise sit (15.4) while the rule of 15.1 — the page renders no navigation — still holds.
 
-### 15.3.1 Read view (a master)
+### 15.3.1 Read view (a live document, or a landmark)
 
 ![Read view](figures/page-read-master.png)
 
-**[decided]** The document rendered as a document, in a measured column with a gutter either side. The geometry is the site generator's own, so that a corpus page and a note page are laid out alike: the gutters are `(available − measure)/3` each and the text column absorbs the third they give up, one knob being the `/3`. Prose in the body typeface at 11–16px depending on the user's type setting, `line-height: 1.7`; the width setting is 36, 44 or 52rem, the middle being the site generator's own measure.
+**[decided]** The document rendered as a document, in a measured column with a gutter either side. Two kinds of document are read here and the page is the same shape for both: a live document at `/master/<stem>`, with everything below, and a landmark at `/canon/<stem>`, with none of it — no margins, no heading links, no comments, no local graph — because nothing in a landmark is a node (10.2.2). A landmark's head line names the step that wrote it and its message; its theorems are typeset and go nowhere.
+
+**[decided]** When the drafting directory holds no document, the read view, the graph and the review panel each show one bordered notice in place of their content: *Nothing is being worked on*, what is consequently absent, the newest landmark as a link, and a pointer to the problems page, where the publisher's diagnostic carries the command that starts a draft. The notice never names a command itself (10.8). The geometry is the site generator's own, so that a corpus page and a note page are laid out alike: the gutters are `(available − measure)/3` each and the text column absorbs the third they give up, one knob being the `/3`. Prose in the body typeface at 11–16px depending on the user's type setting, `line-height: 1.7`; the width setting is 36, 44 or 52rem, the middle being the site generator's own measure.
 
 **[decided]** The left gutter holds each node's margin annotation: the id in mono accent and the state word beneath it in the state colour at 9px, right-aligned, ending exactly at the environment's per-taxon accent rule, which is the boundary between the gutter and the text. Environments follow sitegen's `environments.css` convention — a left-border accent, no filled background — and that border is the rule; the node's text is indented past it. Numbers come from the manifest and appear in the statement's label ("Lemma 3.4."). Proofs render collapsed with a disclosure marker, matching sitegen's `details.env-proof` treatment: no box, a left rule, a ▸/▾ marker.
 
@@ -73,9 +75,13 @@ Shell B, a top bar with view tabs, was retired (DR-113). The number is kept so t
 
 ### 15.3.3 Graph
 
-![Graph, force](figures/page-graph-force.png)
+![Graph, Dots](figures/page-graph-dots.png)
 
-![Graph, layered](figures/page-graph-layered.png)
+![Graph, Box](figures/page-graph-box.png)
+
+![Graph, Sections](figures/page-graph-sections.png)
+
+![Graph, Reading Order](figures/page-graph-reading.png)
 
 See 15.5.
 
@@ -99,6 +105,8 @@ See 15.5.
 
 **[decided]** One dialog, mounted once by the layout, that anything linking into a cited work opens: a comment's `loom:` link (10.4.1), or a digest result's page in its locator. The paper is shown in the browser's own PDF renderer in an `iframe` at `/refs/<dir>/paper.pdf#page=N`, under a header with the work's title, its identifier and the page, a link to open the file in a tab, and a close control; it is 90% of the window, `--sheet` on a dimmed backdrop, and closes on a press outside it or Escape (DR-121). A `#quote=` anchor is shown above the paper as "look for …", since finding text needs a text layer the browser's renderer does not expose. When no copy of that artifact is on file, the dialog explains that fetched papers are not in version control and links to the identifier's own service; when a copy of a different version is, it says the pages may not match and offers to open it anyway (DR-123). Safari's handling of `#page=` is not verified; opening the file in a tab is the fallback.
 
+**[decided]** The problems page carries two more things: a heading per **subject** — *The source* and *The record* — shown only when both are present, with a filter beside severity and code; and, under any diagnostic that carries them, its **fixes**, each the command as the publisher wrote it with a button that copies it. The button says `copy`, then `copied`; the command is always on screen, so a browser that refuses the clipboard costs nothing. Nothing in arras runs a command.
+
 ## 15.4 Rails by view
 
 **[decided]** As built. A page with nothing for a region registers nothing and the region is absent; a page that registers a left panel displaces the contents tree, which is where a table page's filters go.
@@ -108,7 +116,7 @@ See 15.5.
 | home | document picker, contents tree | none |
 | read | document picker, contents tree | none; comments stand in the page's own right gutter or in the text, and the local graph floats when opened |
 | node | document picker, contents tree | local graph, in `<document>`, depends on, used by, see also, discussions, detached comments, diagnostics |
-| graph | layout, document, taxon, tag, state, depth, highlight, cited results | the selection and what rests on it, or the selected paper and its links |
+| graph | drawing, document, taxon, tag, state, depth, highlight, cited results | the selection and what rests on it, or the selected paper and its links |
 | review | show, document, author, tag, and the count | none; a row expands in place |
 | threads, tags, taxa, loose | document picker, contents tree | none |
 | problems | severity and code filters | none |
@@ -117,23 +125,27 @@ See 15.5.
 
 ## 15.5 The graph
 
-**[decided]** One graph page with two layouts and a toggle; the toggle preserves the selection, the filters, and the scope, and animates node positions between the two so it reads as one view rather than two pages.
+**[decided]** One graph page with four drawings of the one filtered graph — **Dots**, **Box**, **Sections** and **Reading Order** — chosen by a control that keeps the selection, the filters and the scope, so moving between them is one view asked a different question rather than four pages (DR-129).
 
-**[decided]** Force is the default, in the spirit of org-roam-ui: a force-directed neighbourhood with circular nodes, labels beneath, node radius larger for the selection, and no direction encoded. It answers what sits near what.
+**[decided]** **Dots** is the default, in the spirit of org-roam-ui: a force-directed neighbourhood with circular nodes, labels beneath, node radius larger for the selection, and no direction encoded. It answers what sits near what.
 
-**[decided]** Layered is the alternative: dependency direction on the vertical axis, upstream above, nodes as rounded rectangles in layers by longest path, edges routed orthogonally from a dependency down to what uses it, statements grouped in a box per section. A section that holds drawn statements is drawn once, as their box, and an edge from a node into the section containing it is left out, since it cannot be routed into its own container. Every coordinate is taken in one frame, the drawing's own (DR-115). It answers what this rests on and what breaks if it changes.
+**[decided]** **Box** draws the results in layers: dependency direction on the vertical axis, upstream above, rounded rectangles in layers by longest path, each box carrying its id, taxon and the section it sits in, edges from a dependency down to what uses it. Sections are not drawn, and the references that run from a section's prose are left out with them. Grouping the boxes by section, which this replaced, is what made the drawing sprawl: a group spanning several layers reserves the whole column and every edge leaving it is routed around the rest, which on `demos/acgs` — 71 results inside 74 sections — filled a canvas a screen could only show at an unreadable zoom (DR-129). It answers what this rests on and what breaks if it changes.
 
-**[decided]** Shared by both: colour encodes state (15.6); statement edges solid, proof edges dashed, prose edges dotted; `see` relations are not drawn at all in this version, since the toggle that would draw them is deferred (plan 0.2 §2.4); inclusion is not drawn as edges (grouping only, in layered); external nodes drawn with a dashed border; scope controls are master, local depth around the selection (default 2, 0 meaning the whole scope), and filters by taxon, tag, and state; clicking selects and fills the inspector; double-clicking opens the node page; dragging the background pans and the wheel zooms about the pointer. Dragging a node moves it in force only: a layered drawing's positions are its meaning, so a drag there pans. The shapes drawn are those of the layout that has arrived, so toggling to layered keeps the force drawing until ELK answers (DR-115).
+**[decided]** **Sections** is the same graph seen a section at a time: one card per section holding its results in reading order, a line between two cards for every dependency between them, thicker for more, and prose references drawn dotted. A section that holds nothing drawn belongs to the nearest section above it that does, so a reference to a section is a reference to the card it is drawn as; cited works drawn as papers, and results outside every section, get a card of their own. Hovering a result lights the lines it is in; clicking one selects it, and clicking a card selects the section. It answers which parts of the paper lean on which (DR-129).
 
-**[decided]** Force is `d3-force`, stepped to completion rather than animated and seeded from the previous drawing so a filter change moves nodes rather than reshuffling them; layered is `elkjs` (DR-93). **[decided]** There is no node count at which the page scopes itself: the useful scope depends on the question, so the scope is chosen by selecting a node and a depth.
+**[decided]** **Reading Order** is not laid out at all: the document top to bottom, sections and results as rows in the order the master reaches them, and every dependency an arc in the left margin, bulging with the distance it reaches. Hovering or selecting a row tints it and lights its arcs. Nothing can sprawl and every label is at full size, at the cost of showing no depth. What is not in play fades only halfway, since a row of text is unreadable at the dimming a shape tolerates (DR-129).
+
+**[decided]** Shared by all four: colour encodes state (15.6); statement edges solid, proof edges dashed, prose edges dotted; `see` relations are not drawn at all in this version, since the toggle that would draw them is deferred (plan 0.2 §2.4); inclusion is not drawn as edges; external nodes drawn with a dashed border; scope controls are master, local depth around the selection (0 meaning the whole scope, counted in the quilt's dependency graph), and filters by taxon, tag, and state; clicking selects and fills the inspector; double-clicking opens the node page. Dragging the background pans and the wheel zooms about the pointer in the three laid-out drawings; Reading Order scrolls like the document it follows. Dragging a node moves it in Dots only: a laid-out drawing's positions are its meaning, so a drag there pans. The shapes drawn are those of the drawing that has arrived, so choosing Box or Sections keeps the previous drawing until ELK answers (DR-115, DR-129).
+
+**[decided]** Dots is `d3-force`, stepped to completion rather than animated and seeded from the previous drawing so a filter change moves nodes rather than reshuffling them; Box and Sections are `elkjs` (DR-93); Reading Order is arithmetic on the manifest's inclusion tree. **[decided]** There is no node count at which the page scopes itself: the useful scope depends on the question, so the scope is chosen by selecting a node and a depth.
 
 ### 15.5.1 The local graph
 
-**[decided]** One node's neighbourhood, drawn live in the manner of Quartz's graph view: the nodes one or two dependency steps out in either direction (a two-button control, default one), with `see` relations drawn dotted but never followed, and a proof drawn as its statement. `d3-force` runs animated here, with the centre pinned in the middle, so when the centre changes the nodes that stay keep their places and only arrivals move, each starting beside a neighbour already placed. A node's radius grows with its degree and its fill is its state's tone; the centre is `--link`; an external node is hollow with a dashed rim. Hovering a node dims everything but it and its neighbours and labels them; otherwise only the centre is labelled, until the reader zooms in. Each node is a link, so a click opens it — a result the document being read holds is a jump within it — and a rest previews it (15.3.6). The drawing fits itself to its box, enlarging at most 1.6 times, until the reader zooms or pans. It heads a node page's right rail at 200px tall, and floats over the read view at 300px wide when opened, centred on the last statement or proof whose top has passed a third of the way down the window, so prose between two results keeps the one above and the centre does not flicker. Either expands to a dialog of 80% of the window, labelling every node, that closes on a press outside it or Escape (DR-116, DR-121). It is SVG rather than Quartz's PixiJS, since a neighbourhood is tens of nodes and a renderer would be weight in every install.
+**[decided]** One node's neighbourhood, drawn as **Dot** or as **Box** — the graph page's two laid-out drawings at neighbourhood scale, chosen in the panel's own bar, which reads `Local Graph`, then the depth, then the drawing, then expand and close (DR-129). The nodes are those one or two dependency steps out in either direction (a two-button control, default one), with `see` relations drawn dotted but never followed, and a proof drawn as its statement. `d3-force` runs animated here, with the centre pinned in the middle, so when the centre changes the nodes that stay keep their places and only arrivals move, each starting beside a neighbour already placed. A node's radius grows with its degree and its fill is its state's tone; the centre is `--link`; an external node is hollow with a dashed rim. Hovering a node dims everything but it and its neighbours and labels them; otherwise only the centre is labelled, until the reader zooms in. Each node is a link, so a click opens it — a result the document being read holds is a jump within it — and a rest previews it (15.3.6). The drawing fits itself to its box, enlarging at most 1.6 times, until the reader zooms or pans. It heads a node page's right rail at 200px tall, and floats over the read view at 300px wide when opened, centred on the last statement or proof whose top has passed a third of the way down the window, so prose between two results keeps the one above and the centre does not flicker. Either expands to a dialog of 80% of the window, labelling every node, that closes on a press outside it or Escape (DR-116, DR-121). It is SVG rather than Quartz's PixiJS, since a neighbourhood is tens of nodes and a renderer would be weight in every install. Box lays the same neighbourhood out in layers with ELK and no section groups, since a neighbourhood crosses sections and a handful of boxes reads without them; the expanded dialog is moved to the end of the document so that no panel it was declared inside can cover it (DR-129).
 
 ### 15.5.2 The work graph
 
-**[decided]** "Cited results: as papers" draws the corpus's own results as they are and every cited work as one node: the quotient of the result graph by source, taken over external nodes only. An edge runs from an own result to a paper when the result depends on any of the paper's digested results, or cites the paper at all (dash-dot), and between two papers when a result in one digest depends on a result in another; an edge standing for several results is drawn thicker, by their count's logarithm. A work cited but never digested appears too, which the expanded graph cannot show. A paper is a square box on `--leaf` with a darker rim in force and a box labelled "paper" and its title in layered; selecting one fills the inspector with the work, its links and how many results here use it, and double-clicking opens its reference page. The manifest carries everything needed, since a node's source is its `digest`. Contracting the corpus's own results as well would leave one node and a star for a single corpus, so it waits for a corpus spanning several quilts (DR-124).
+**[decided]** "Cited results: as papers" draws the corpus's own results as they are and every cited work as one node: the quotient of the result graph by source, taken over external nodes only. An edge runs from an own result to a paper when the result depends on any of the paper's digested results, or cites the paper at all (dash-dot), and between two papers when a result in one digest depends on a result in another; an edge standing for several results is drawn thicker, by their count's logarithm. A work cited but never digested appears too, which the expanded graph cannot show. A paper is a square box on `--leaf` with a darker rim in Dots, a box labelled "paper" and its title in Box, and a card of its own in Sections; selecting one fills the inspector with the work, its links and how many results here use it, and double-clicking opens its reference page. The manifest carries everything needed, since a node's source is its `digest`. Contracting the corpus's own results as well would leave one node and a star for a single corpus, so it waits for a corpus spanning several quilts (DR-124).
 
 ## 15.6 Tokens and vocabulary
 
@@ -180,6 +192,8 @@ See 15.5.
 
 **[decided]** Dark values are the same vocabulary a second time in the same file: `--paper: #17171a`, inks inverted, and every state wash expressed as a low-alpha overlay of its state colour rather than a second hand-picked hue. The block is declared under both `@media (prefers-color-scheme: dark) :root:not([data-theme='light'])` and `:root[data-theme='dark']`, so the system setting and an explicit choice share one definition (DR-90).
 
+**[decided]** The token vocabulary is a contract, not a private stylesheet. The custom properties this chapter names, and the class names the components emit, are what a host restyles a corpus with; they are documented here for that purpose and are not renamed without a decision record. A host that wants a different look writes ordinary CSS against them (10.8.1).
+
 ## 15.7 Typography
 
 **[decided]** Serif by default for mathematical content: statements, proofs, prose, digests. Sans for chrome: rails, badges, labels, tables, buttons. Mono for ids.
@@ -207,7 +221,7 @@ Rules: pages receive no shell props and import no shell module; a page that need
 
 ## 15.9 Reference figures and their status
 
-**[decided]** The schematic drawings this chapter was designed against have been superseded, as they said they would be. The figures are now screenshots of the viewer rendering the conformance fixture, generated by `npm run shots` in `arras/` and committed: `page-home.png`, `page-read-master.png`, `page-node.png`, `page-node-dark.png`, `page-review.png`, `page-problems.png`, `page-graph-force.png`, `page-graph-layered.png`, and one page in each shell as `shell-a-rail-sections.png` and `shell-c-icon-strip.png`. They are regenerated on any change to the chrome, and the release checklist carries "screenshots regenerated".
+**[decided]** The schematic drawings this chapter was designed against have been superseded, as they said they would be. The figures are now screenshots of the viewer rendering the conformance fixture, generated by `npm run shots` in `arras/` and committed: `page-home.png`, `page-read-master.png`, `page-node.png`, `page-node-dark.png`, `page-review.png`, `page-problems.png`, `page-graph-dots.png`, `page-graph-box.png`, `page-graph-sections.png`, `page-graph-reading.png`, and one page in each shell as `shell-a-rail-sections.png` and `shell-c-icon-strip.png`. They are regenerated on any change to the chrome, and the release checklist carries "screenshots regenerated".
 
 The original `.svg` drawings remain beside them for the record of what was intended. Where a screenshot and this chapter's numbers disagree, the screenshot is what exists and the chapter is corrected.
 

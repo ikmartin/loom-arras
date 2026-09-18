@@ -11,6 +11,7 @@ Arras is the viewer. It is a static bundle that reads a build directory conformi
 3. Arras is distributed from one build. Loom vendors `build/` under `src/loom/assets/arras/` through `scripts/vendor_arras.py`, which stamps `VERSION` with the arras commit and the interface version, so loom users never install Node; `npm run build:pip` copies the same build into the optional `arras` pip wrapper under `python/`, whose `arras.bundle_path()` loom also honours; the npm package is private. Publishing to PyPI and npm is the user's step (M7).
 4. Arras has no runtime dependency on the publisher. It polls the manifest; the write API is deferred, arras has no client for it yet, and `loom serve` answers `/_api` with 404.
 5. The manifest is loaded whole; fragments are fetched lazily per page and cached in memory under the manifest's hash, and a new hash empties the cache.
+6. The corpus is named by `corpus.name`, which the publisher takes from the project's own configuration and falls back to the directory's name. It is what the shell and the browser tab show; `corpus.root_label` remains the default document's title, which is a different thing and is shown where a document is meant.
 
 **[decided]** Runtime libraries bundled: MathJax 3 with SVG output, the full `tex-svg-full` component so that no extension loads from the network (DR-55, M7), configured from the manifest's macro sets with a per-fragment set applied inside the fragment's math (DR-56), loaded while the browser is idle once the manifest's macros are known; ELK.js (`elkjs`) for the layered graph layout, **[decided]** chosen at implementation over dagre (`src/lib/graph/layout.ts`; the fixture's graph renders in the M2 suite); `d3-force` for the force layout and the local graph; ninja-keys for the search palette. Nothing loads from a CDN at runtime; a deployed site works offline.
 
@@ -40,9 +41,15 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 **[decided]** Every link to a node or a cited work, on this page and every other, previews what is behind it on hover (15.3.6, DR-117).
 
-### 10.2.2 Master view
+### 10.2.2 Read view
 
-**[decided]** `/master/<stem>` for each master. Renders the master fragment as a document: headings, prose, every node in place with its id in the margin linking to its node page (the Stacks pattern), review badges in the margin, marks in the text, a table of contents built from the master's section nodes in a rail. Numbers come from the manifest. A master that is not yet compiled renders with ids only and says so. A citation opens the digest result it names, or the cited work's page when it names none (DR-119). The local graph can be opened over the document and follows the result being read (DR-116).
+**[decided]** `/master/<stem>` for each live document, and `/canon/<stem>` for each landmark. The picker names both, in two headed groups — Canon, newest first, each named by the step that wrote it; then Working Drafts — so that "the version we submitted" is one click from the version being written.
+
+**[decided]** `/master/<stem>` renders the master fragment as a document: headings, prose, every node in place with its id in the margin linking to its node page (the Stacks pattern), review badges in the margin, marks in the text, a table of contents built from the master's section nodes in a rail. Numbers come from the manifest. A master that is not yet compiled renders with ids only and says so. A citation opens the digest result it names, or the cited work's page when it names none (DR-119). The local graph can be opened over the document and follows the result being read (DR-116).
+
+**[decided]** `/canon/<stem>` renders a landmark as the document it is: its title, the step that wrote it and that step's message, and the text. Nothing in it is a node, so it offers no margins, no heading links, no comments, no review badges and no local graph, and its theorems link nowhere; its own references are in-page links, because a landmark is self-contained. It typesets with its own macros (9.3).
+
+**[decided]** When the drafting directory holds no document — the state a quilt is in between `loom import` and `loom draft` — every view that is about nodes says so rather than showing an empty table, names the newest landmark as somewhere to read, and points at the problems page, where the publisher's own diagnostic carries the command that starts one. Arras never names a loom command itself (10.8).
 
 ### 10.2.3 Digest view
 
@@ -54,7 +61,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.5 Problems page
 
-**[decided]** `/problems`: every diagnostic, grouped by code, filterable by severity and code from the left panel and the URL (`/problems?severity=error`), each with its message, linked locations, and linked keys. Reserved codes get their specific affordances (10.6); unknown codes render generically. Counts appear in the header of every page.
+**[decided]** `/problems`: every diagnostic, grouped first by **subject** and then by code, filterable by severity, code and subject from the left panel and the URL (`/problems?severity=error`, `?subject=record`), each with its message, linked locations, and linked keys. The two subjects are the source and the record — what is wrong with the mathematics, and what is wrong with the publisher's own account of it — and they are different kinds of work, so they are not interleaved. A diagnostic that carries **fixes** shows each as the command it is, with a button that copies it; nothing in arras runs anything, and the command stays on screen so it can be read or typed. Reserved codes get their specific affordances (10.6); unknown codes render generically. Counts appear in the header of every page.
 
 ### 10.2.6 Blockers
 
@@ -62,7 +69,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.7 Graph
 
-**[decided]** `/graph`: the dependency graph, force-directed by default and layered on a toggle (15.5). In the layered drawing (ELK.js), dependencies sit above what uses them, statements are grouped by section, and nodes stay where the layout put them; nodes are coloured by state and freshness, shaped by style class; edges by kind (statement solid, proof dashed, prose dotted); inclusion shown as grouping, not as edges (DR-115). Controls: highlight downstream of a node (the unravel set), highlight closure, filter by master, by taxon, by tag, state, depth around the selection, and which cited results to draw: those used here, all, none, or each cited work contracted to a single node (15.5.2, DR-124). Click highlights, double-click opens the node page, or a paper's reference page.
+**[decided]** `/graph`: the dependency graph in four drawings — Dots (force-directed), Box (results in layers), Sections (a card per section) and Reading Order (the document with dependency arcs) — chosen by one control that keeps the selection, the filters and the scope (15.5). In Box, what a result rests on sits above it; in Sections, a line between two cards carries every dependency behind it; in Reading Order, an arc reaches back from a result to what it rests on (DR-129).
 
 ### 10.2.8 Threads
 
@@ -100,15 +107,28 @@ When the write API is present (deferred), the same boxes gain reply and resolve 
 
 ## 10.6 Affordances for reserved diagnostics
 
-**[decided]** `duplicate-id`: both locations linked side by side. `dangling-link`: the source location linked, the missing target named. `missing-include`: the site linked. `double-inclusion`: both inclusion paths rendered as breadcrumbs. `inclusion-cycle`: the cycle listed as a chain. `unreachable`: a filter on the indexes and a "loose" mark on the node page. Everything else: severity, message, locations, keys.
+**[decided]** `duplicate-id`: both locations linked side by side, and the id shown as conflicted wherever it appears — its page says which files define it and offers no text, its badge carries the conflicted label, and the graph draws it in the conflicted colour. A publisher may leave such a key with no text; arras shows what it is told. The state label `conflicted` is declared by the manifest like any other, with a colour class from the fixed vocabulary; arras tells it apart from `incomplete`, which shares that class, by name, and draws it with a dashed outline so the two are not confused. `dangling-link`: the source location linked, the missing target named. `missing-include`: the site linked. `double-inclusion`: both inclusion paths rendered as breadcrumbs. `inclusion-cycle`: the cycle listed as a chain. `unreachable`: a filter on the indexes and a "loose" mark on the node page. Everything else: severity, message, locations, keys.
 
 ## 10.7 Static deployment
 
-**[decided]** `npm run build:prerender <build-dir> [<out>]` builds the SPA, writes an `index.html` for every route the manifest names (home, the index pages, every node, master, digest, tag, taxon, and thread) plus a `routes.json`, and copies the build directory beside them, ready for GitHub Pages or any static host. The pages are the single-page shell: content loads in the browser from `build/manifest.json`, fragments are not inlined, MathJax is bundled; a crawlable, server-rendered site needs a second data path and is deferred (DR-54; M2 prerendered the fixture's 50 routes). This is how the author's site will be published once sitegen publishes to the interface. Prerendering is a deploy-time step and never runs during `loom serve`.
+**[decided]** `npm run build:prerender <build-dir> [<out>]` builds the SPA, writes an `index.html` for every route the manifest names (home, the index pages, every node, master, landmark, digest, tag, taxon, and thread) plus a `routes.json`, and copies the build directory beside them. `ARRAS_BASE=/prefix` builds a bundle for a site served under a prefix: the routes, the assets and the prerendered directories all sit under it, and the output directory is served at the origin root, ready for GitHub Pages or any static host. The pages are the single-page shell: content loads in the browser from `build/manifest.json`, fragments are not inlined, MathJax is bundled; a crawlable, server-rendered site needs a second data path and is deferred (DR-54; M2 prerendered the fixture's 50 routes). This is how the author's site will be published once sitegen publishes to the interface. Prerendering is a deploy-time step and never runs during `loom serve`.
 
 ## 10.8 What arras must never know
 
-**[decided]** Arras never contains: a LaTeX or org parser; the word "quilt", the loom-only operations "atomize" and "unravel", or any `loom <command>` phrase in its code (they may appear in fixture data and in labels the manifest supplies); any assumption about which state labels exist beyond the reserved colour classes; any knowledge of event kinds; any write path other than the write API client; any loom code, imported or copied. The words "digest" and "proof" are exempt from the word list because the manifest's own field names, the spec's route `/digest/<citekey>`, and the Web Crypto API's `digest()` use them (DR-39). A pull request that adds any of these is rejected by review, `tests/unit/forbidden-words.spec.ts` enforces the word list over `src/`, and the fixture with synthetic unknown labels and codes is the test that generic rendering still works.
+**[decided]** Arras never contains: a LaTeX or org parser; the word "quilt", the loom-only operations "atomize" and "unravel", or any `loom <command>` phrase in its code — advice that names a command reaches a reader as a diagnostic's fix, which is the publisher's words travelling as data (they may appear in fixture data and in labels the manifest supplies); any assumption about which state labels exist beyond the reserved colour classes; any knowledge of event kinds; any write path other than the write API client; any loom code, imported or copied. The words "digest" and "proof" are exempt from the word list because the manifest's own field names, the spec's route `/digest/<citekey>`, and the Web Crypto API's `digest()` use them (DR-39). A pull request that adds any of these is rejected by review, `tests/unit/forbidden-words.spec.ts` enforces the word list over `src/`, and the fixture with synthetic unknown labels and codes is the test that generic rendering still works.
+
+## 10.8.1 What arras must never assume about its host
+
+**[decided]** Arras's core — everything under `src/lib/` — is the engine: loading, wiring, typesetting, and deriving display facts. The app served beside the publisher is one host of that engine, not the only one, and the core must not assume it is. Four things the core never does, enforced by `tests/unit/host-neutrality.spec.ts` beside the forbidden-words guard:
+
+1. Write to `:root` or to `document.documentElement`. Tokens are declared in one stylesheet a host may override, and preferences are applied to a root the host owns.
+2. Write an origin-absolute URL or route literal. Every route is composed from the base path the bundle was built for, every corpus file from the configured data root, and every URL a widget emits for someone else's use comes from an injected policy — as the local graph's `hrefFor` already did before this was a rule.
+3. Add a module-level singleton holding corpus state. One corpus per page is a host's choice.
+4. Name a publisher's scheme, command, or vocabulary, in code or in comments. Those arrive in the manifest.
+
+**[decided]** Where the app is served and where the corpus is served are two settings, not one. The base path is fixed when the bundle is built, because routes and asset URLs resolve against it; the data root — the build directory holding `manifest.json` and the fragments — is settable at run time and defaults to `build/` beside the app. A page that is not this application, embedding a fragment of a corpus served from somewhere else, needs the second without rebuilding the first (DR-143).
+
+Like the word list, this is a boundary rather than a style: a violation is in the wrong place, not merely in the wrong form. The guard carries a named list of the sites that predate it, which the plan that removes them empties.
 
 ## 10.9 Accessibility and print
 

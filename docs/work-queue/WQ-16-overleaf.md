@@ -15,7 +15,7 @@ It is a manual procedure requiring an Overleaf account, and it is the author's t
 Per Chapter 14 §14.5, unchanged:
 
 1. `loom init demo --demo`; `loom compile`; record `pdftotext` of the local PDF.
-2. Zip the quilt without `build/`, `refs/pdf/` and `refs/src/`; upload to a new Overleaf project; set `drafts/main.tex` as the main document; compile.
+2. Zip the quilt without `build/`, `refs/pdf/` and `refs/src/`; upload to a new Overleaf project; set `drafting/main.tex` as the main document; compile.
 3. Download the PDF; compare `pdftotext` with the local one. Equal modulo whitespace is a pass.
 4. Record Overleaf's TeX Live version and the result in the release notes.
 

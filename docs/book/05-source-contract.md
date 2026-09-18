@@ -4,7 +4,7 @@ This chapter specifies what loom reads from LaTeX and what an author must do for
 
 ## 5.1 What is scanned
 
-1. **[decided]** Every file with extension `.tex` under the quilt root is scanned, at any depth, except files under `build/`, `.loom/`, `.claude/`, and tooling directories at any depth, files under `ai/`, `refs/src/`, and `refs/pdf/` at the root (4.1.2, DR-70), and files with `% !LOOM ignore` in their first twenty lines. A file is decoded as UTF-8, else as Mac Roman, else as Latin-1, and a fallback is reported as `loom:non-utf8-source` (warning) (DR-47). Comments are then blanked to spaces of equal length, so that offsets are stable and no later stage sees a comment; directives are read from the raw text (DR-48).
+1. **[decided]** Every file with extension `.tex` under the quilt root is scanned, at any depth, except files under `build/`, `.loom/`, `.claude/`, and tooling directories at any depth, files under `ai/`, `refs/`, the canon directory, and `retired/` at the root (4.1.2, DR-70, DR-132), files with `% !LOOM ignore` in their first twenty lines, and documents a conversion recorded as superseded (17.12). A file is decoded as UTF-8, else as Mac Roman, else as Latin-1, and a fallback is reported as `loom:non-utf8-source` (warning) (DR-47). Comments are then blanked to spaces of equal length, so that offsets are stable and no later stage sees a comment; directives are read from the raw text (DR-48).
 2. **[decided]** Files reached from a master through `\input`, `\nest`, or `\include` are scanned in the context of that master (5.9). Files reached from no master are scanned on their own, sectioned per file (5.9.2), and reported as loose: one `unreachable` (info) per file, listing its node keys. Digest files are loose by construction and are not reported (DR-51).
 3. **[decided]** Local `.sty` and `.cls` files that a master's preamble closure loads, transitively (a local style may load another), are read for declarations (5.5) and macro definitions (Chapter 9) only. They never contain nodes (DR-46).
 4. **[decided]** The scanner is a restricted parser, not a TeX interpreter. It recognizes the constructs in this chapter by their surface form, reading by character offset rather than by line, and treats what it does not recognize as prose (DR-40).
@@ -53,9 +53,9 @@ A label is id-shaped if it matches `id`. Since `paperlocal` is broad, the scanne
 
 ### 5.3.2 Allocation
 
-1. **[decided]** `loom new` allocates the next id under a prefix: the maximum, in base-36 order, over every id it can see under that prefix, plus one. The set it sees: ids defined in the source; ids that are ledger keys; ids targeted by annotations; ids referenced anywhere in the source by `\ref`, `\eqref`, `\cref`, `\autoref`, `\uses`, or a matched postnote, including references that dangle; and, when git is present, ids referenced anywhere in the repository's history.
+1. **[decided]** `loom new` allocates the next id under a prefix: the maximum, in base-36 order, over every id it can see under that prefix, plus one. The set it sees: ids defined in the source; ids that are acceptance-ledger keys; **ids the history ledger has ever recorded, and the version files in its step directories** (17.14); ids targeted by annotations; ids referenced anywhere in the source by `\ref`, `\eqref`, `\cref`, `\autoref`, `\uses`, or a matched postnote, including references that dangle; and, when git is present, ids referenced anywhere in the repository's history.
 2. **[decided]** Nothing is stored. The maximum is recomputed on every call.
-3. **[decided]** Consequence: an id is reused only when nothing can point at it. A node created and deleted without ever being referenced, accepted, or annotated frees its number; a node that anything ever pointed at never does.
+3. **[decided]** Consequence: an id is reused only when nothing can point at it and the history never recorded it. A node created and deleted in one sitting, never referenced, accepted, annotated, or recorded, frees its number; once anything has pointed at it or a step has held its text, it is retired and never allocated again.
 4. **[decided]** `--prefix P` allocates under `P`; otherwise `[quilt] prefix`.
 5. **[decided]** Lint reports `loom:prefix-is-citekey` (warning) when the quilt's prefix equals a citekey in the bibliography, since digest ids use citekeys as prefixes.
 6. **[decided]** The git history check runs the simple form, `git log -S` per candidate.
@@ -65,23 +65,44 @@ Example: ids visible under `rl` are `rl-0001` through `rl-000Z` and a dangling `
 ### 5.3.3 Permanence
 
 1. **[decided]** Ids are never renamed. Renaming is deletion plus creation, and lint reports the dangling references that result.
-2. **[decided]** An id is unique across the quilt: defined by at most one node in all scanned files together, including digests and loose files. Two definitions are `duplicate-id` (error), naming both locations.
+2. **[decided]** An id is unique across the quilt: defined by at most one node in all scanned files together, including digests and loose files. Two definitions are `duplicate-id` (error), naming both locations; what the id then means is 5.3.5.
 
 ### 5.3.4 Qualified keys
 
 **[decided]** Things without ids are addressed internally by qualified keys, never written to source:
 
-- an unlabelled theorem-like node: `<file>#<env>:<n>` (`drafts/main.tex#lemma:3`, the third lemma in that file);
-- an untagged sectioning unit: `<file>#<label>` if it has any label, else `<file>#<command>:<n>` (`drafts/main.tex#subsection:2`, the second subsection in that file);
-- a labelled equation or other labelled region: `<container key>#<label>` (`rl-0004#eq:main`, `drafts/main.tex#eq:intro`);
+- an unlabelled theorem-like node: `<file>#<env>:<n>` (`drafting/main.tex#lemma:3`, the third lemma in that file);
+- an untagged sectioning unit: `<file>#<label>` if it has any label, else `<file>#<command>:<n>` (`drafting/main.tex#subsection:2`, the second subsection in that file);
+- a labelled equation or other labelled region: `<container key>#<label>` (`rl-0004#eq:main`, `drafting/main.tex#eq:intro`);
 - an unlabelled proof: `<id>/proof`, `<id>/proof/2`, ... in document order.
 
 Qualified keys are stable only while the structure they name is stable; ids are the stable address.
 
+### 5.3.5 Definition and liveness
+
+**[decided]** A node is defined once and included many times. This is the rule the whole system rests on, and it is structural rather than advisory.
+
+**[decided]** Liveness is a property of *documents*, not of every file. A document is a file containing `\documentclass`. A document is **live** when it sits in the drafting directory and no conversion has recorded that its output superseded it (17.12). Only a live document defines the nodes it holds inline. Every other scanned file — a node file, a section file, a digest — defines its nodes exactly as it always has, whether a master reaches it or not; being loose is still a computed property and still not a fault.
+
+**[decided]** When two files both define one id, loom publishes the id as **conflicted**: it has no text, no winner is chosen, and `duplicate-id` (error) names every file that defines it, with one fix per file (`loom fork ID --in FILE`) and the option of giving one copy a fresh id by hand. The conflicted id still exists as a target — references to it resolve and the graph shows it — and everything that needs its *text* refuses: it renders no fragment, it is not a bundle, it cannot be accepted, commented on, atomized, forked, reverted, or canonized.
+
+**[decided]** Resolution by walk order was rejected. Four things go wrong when two files define one id and the tool picks one:
+
+1. the manifest publishes one of the two, chosen by filename, and a reader has no way to know a second exists;
+2. a bundle inlines the other file's closure, and the paper it compiles matches nothing in the quilt;
+3. every hash, staleness computation and acceptance asks for "the text of `rl-0001`" and there are two, so a state is recorded against a text nobody chose;
+4. an agent edits one copy while the other silently disagrees, which is the failure that cannot be debugged from the output.
+
+Publishing the conflict costs one error and ends all four.
+
+**[decided]** `loom linearize --keep-shared` writes its reason beside each inclusion it did not inline (17.13), so a document that is deliberately not flat says so in the file rather than in someone's memory.
+
+Example: `drafting/main.tex` includes `nodes/rl-0001.tex`; a talk includes the same file. That is one definition and two inclusions, which is the intended shape. If instead the talk pastes the lemma's text inline, the id is defined twice, `rl-0001` goes conflicted, and `loom fork rl-0001 --in drafting/talk.tex` gives the talk its own node with its own id.
+
 ## 5.4 Labels and aliases
 
 1. **[decided]** The first `\label` in a theorem-like environment or immediately after a sectioning command is the node's identity if id-shaped. All other `\label`s in the same environment or on the same sectioning command are aliases. Multiple labels on one environment are legal LaTeX; each refers to the same number. Labels are read as TeX reads them: runs of whitespace inside the braces, a line break included, collapse to one space (DR-45).
-2. **[decided]** A `\label` "immediately after" a sectioning command means on the same line as the heading, else on the next non-blank line, unless that line opens an environment or another heading, in which case the heading has no label and the label belongs to what that line opens (DR-43). `loom id` and `loom import` insert a heading's id label directly after the heading's arguments, ahead of any label the author already placed there, so that the id is the first label under this rule (DR-64).
+2. **[decided]** A `\label` "immediately after" a sectioning command means on the same line as the heading, else on the next non-blank line, unless that line opens an environment or another heading, in which case the heading has no label and the label belongs to what that line opens (DR-43). `loom id` and `loom draft` insert a heading's id label directly after the heading's arguments, ahead of any label the author already placed there, so that the id is the first label under this rule (DR-64).
 3. **[decided]** References through an alias resolve to the node. Lint never asks an author to change an alias.
 4. **[decided]** Labels inside an environment nested in a node's text (equation labels, item labels) are free-form and belong to the node as regions (5.8). No namespacing is required; `loom new` skeletons use `<id>-eq-<name>` by convention.
 5. **[decided]** Merging node B into node A is: delete B's region, add `\label{B}` inside A's environment. B becomes an alias of A; the ledger's rows for B remain as history; `status` shows B as an alias.
@@ -294,7 +315,7 @@ No other macro has meaning to the scanner. `\todo` from `todonotes` is ignored.
 
 ## 5.13 Text normalization and hashing
 
-**[decided]** Where loom hashes text (acceptance rows, annotation target hashes, snapshots), it hashes the normalized own text of the region:
+**[decided]** Where loom hashes text (acceptance rows, annotation target hashes, snapshots, and the versions of Chapter 17), it hashes the normalized own text of the region:
 
 1. A child is replaced by the line `% !LOOM child: <key>`, so that a structural change changes the parent's hash: a child claimant in the same file (a nested environment, a proof, a subsection), and equally an inclusion line (`\input`, `\nest`, `\include`) of a file whose nodes are the parent's children, one marker per node that file provides. The included text itself is not part of the parent's own text. A parent therefore hashes the same whether a child sits inline or in `nodes/<id>.tex`, and moving one there moves no state (DR-124). An inclusion line naming a file with no nodes of its own is kept as written.
 2. Comment lines that are not directives are removed; directives are kept. Comments are in any case invisible to every earlier stage, having been blanked when the file was read (5.1.1), so a commented-out environment defines no node and no label (DR-48).
@@ -304,15 +325,21 @@ No other macro has meaning to the scanner. `\todo` from `todonotes` is ignored.
 
 The preamble closure's hash is the hash of the concatenation of the normalized preamble text of the master followed by the included fragments in inclusion order, including `loom.sty`.
 
+**[decided]** Snapshots and versions are stored together under `.loom/history/texts/`, named by the hash of their normalized text (17.2). A canon document is hashed differently, over its exact text rather than its normalized text, because a landmark is a file rather than a key and a comment changed in one is a change to it (17.15).
+
 **[decided]** Whitespace inside a line is not normalized, so a reflowed paragraph changes the hash. Reflow is an edit; the author re-accepts.
 
 ## 5.14 Lint
 
 Lint is the set of checks performed on every scan, together with the checks that need the review records (Chapter 7): detached annotations, retired ledger keys, previous-key matches, and foreign annotation files are reported by `loom lint` and `loom check` alongside the scanner's codes, not only in the manifest (DR-61). Diagnostics are published in the manifest (Chapter 9) and printed by `loom lint`. The full code table is `specs/diagnostics.md`. Reserved codes (any publisher): `duplicate-id`, `dangling-link`, `missing-include`, `double-inclusion`, `inclusion-cycle`, `unreachable` (once per loose file, never for a digest; DR-51). Loom's own codes, with severity:
 
-- error: `loom:environment-spans-files`, `loom:unattached-proof`, `loom:unknown-environment`, `loom:reference-to-loose`, `loom:macros-unloaded`, `loom:duplicate-label`, `loom:citekey-slug-collision`, `loom:line-anchoring` (a theorem-like `\begin` or `\end` not alone on its line, reported by `import` and `atomize` only; DR-40)
-- warning: `loom:missing-proof`, `loom:multi-target-proof`, `loom:equation-in-proof-referenced`, `loom:unmatched-postnote`, `loom:taxon-conflict`, `loom:prefix-is-citekey`, `loom:macro-shadowed`, `loom:unknown-directive`, `loom:unknown-theoremstyle`, `loom:non-utf8-source`, `loom:main-not-found`, `loom:dependency-cycle`, `loom:version-mismatch`, `loom:missing-package`, `loom:digest-without-bib`, `loom:foreign-annotations`
-- info: `loom:unlabelled-node`, `loom:positional-proof-key`, `loom:unexpected-proof`, `loom:uses-missing`, `loom:uses-unused`, `loom:documentclass-outside-drafts`, `loom:taxon-name-macro`, `loom:retired-ledger-key`, `loom:previous-key-match`, `loom:undigested-citekey`, `loom:detached-annotation`
+- error: `loom:environment-spans-files`, `loom:unattached-proof`, `loom:unknown-environment`, `loom:reference-to-loose`, `loom:macros-unloaded`, `loom:duplicate-label`, `loom:citekey-slug-collision`, `loom:line-anchoring` (a theorem-like `\begin` or `\end` not alone on its line, reported by `draft` and `atomize` only; DR-40), `loom:id-reused`, `loom:history-missing`, `loom:history-edited`, `loom:history-corrupt`
+- warning: `loom:missing-proof`, `loom:multi-target-proof`, `loom:equation-in-proof-referenced`, `loom:unmatched-postnote`, `loom:taxon-conflict`, `loom:prefix-is-citekey`, `loom:macro-shadowed`, `loom:unknown-directive`, `loom:unknown-theoremstyle`, `loom:non-utf8-source`, `loom:main-not-found`, `loom:dependency-cycle`, `loom:version-mismatch`, `loom:missing-package`, `loom:digest-without-bib`, `loom:foreign-annotations`, `loom:canon-edited`, `loom:dangling-ancestry`, `loom:deprecated-config-key`
+- info: `loom:unlabelled-node`, `loom:positional-proof-key`, `loom:unexpected-proof`, `loom:uses-missing`, `loom:uses-unused`, `loom:documentclass-outside-drafts`, `loom:taxon-name-macro`, `loom:retired-ledger-key`, `loom:previous-key-match`, `loom:undigested-citekey`, `loom:detached-annotation`, `loom:superseded-file`, `loom:node-recovered`, `loom:no-live-document`
+
+**[decided]** A diagnostic says what it is about: `subject: "record"` for the checks that compare loom's own record against the files (`loom:superseded-file`, `loom:canon-edited`, the three `loom:history-*` codes, `loom:dangling-ancestry`), and nothing — meaning the source — for every other code. `loom:canon-edited` is checked on every scan; the rest of the record checks run in `loom lint` and `loom history verify`, which walk every step directory (17.15).
+
+**[decided]** A diagnostic may carry **fixes**: commands that would resolve it, each with a label. They are data, not actions: loom prints them, a viewer offers them to be copied, and nothing runs them. `duplicate-id` carries one fix per file that defines the id; `loom:canon-edited` carries the copy that restores the landmark and the command that drafts from it instead.
 
 `loom:non-utf8-source`, `loom:unknown-theoremstyle`, `loom:taxon-name-macro`, `loom:citekey-slug-collision`, and `loom:main-not-found` were added at implementation time, each for a condition the fixture papers produce (DR-52).
 
@@ -322,7 +349,7 @@ Lint is the set of checks performed on every scan, together with the checks that
 
 ### 5.15.1 A single-file paper
 
-An author who writes like the Stacks project has `drafts/main.tex` and nothing else:
+An author who writes like the Stacks project has `drafting/main.tex` and nothing else:
 
 ```tex
 \documentclass{amsart}
@@ -388,7 +415,7 @@ Keys: `rl-0004` (draft or accepted per the ledger), `rl-0004/proof` (incomplete,
 
 ### 5.15.3 A spine with `\nest`
 
-`drafts/main.tex` after `loom atomize`:
+`drafting/main.tex` after `loom atomize`:
 
 ```tex
 \section{The residue map}\label{rl-0020}

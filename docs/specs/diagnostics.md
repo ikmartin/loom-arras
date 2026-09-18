@@ -13,8 +13,14 @@ A diagnostic is a structured report of something wrong or notable in a corpus. P
 | `message` | string | human-readable, one sentence |
 | `locations` | list of `{file, line, column?}` | where, zero or more |
 | `keys` | list of keys or node ids | what it concerns, zero or more |
+| `subject` | `source`, `record` | optional; what the diagnostic is about. Absent means `source`. |
+| `fixes` | list of `{label, command}` | optional; commands that would resolve it |
 
-Viewers group by code, filter by severity and code, and link locations and keys. A viewer renders unknown codes generically and never fails on one.
+Viewers group by code, filter by severity, code and subject, and link locations and keys. A viewer renders unknown codes generically and never fails on one.
+
+**[decided]** `subject` separates what is wrong with the corpus's text from what is wrong with the publisher's own record of it. They are different kinds of work, and a viewer may group them apart; a viewer that ignores the field loses nothing.
+
+**[decided]** `fixes` are data, never actions. A viewer shows each command and may offer to copy it; nothing in a viewer runs one. The label says what the command would achieve, so that a reader choosing between two fixes is choosing between outcomes.
 
 ## 2. Reserved codes
 
@@ -22,12 +28,14 @@ Viewers group by code, filter by severity and code, and link locations and keys.
 
 | code | severity | meaning | viewer affordance |
 |---|---|---|---|
-| `duplicate-id` | error | the same identifier is defined by two nodes | link both locations |
+| `duplicate-id` | error | the same identifier is defined by two nodes | link both locations; show the id as conflicted wherever it appears |
 | `dangling-link` | error | a link to no node or region | mark the source |
 | `missing-include` | error | an inclusion names a file that does not exist | link the site |
 | `double-inclusion` | error | one node under two parents in one root | link both paths |
 | `inclusion-cycle` | error | a node includes itself through a chain | list the cycle |
 | `unreachable` | info | a node or file no root reaches (loom: loose) | filter |
+
+**[decided]** A publisher may leave a doubly-defined identifier with no text and the state `conflicted` (manifest §3, §8) rather than choosing between the definitions. A viewer renders that state like any other the manifest declares.
 
 ## 3. Loom codes
 
@@ -36,7 +44,7 @@ Viewers group by code, filter by severity and code, and link locations and keys.
 Source and structure:
 
 - `loom:environment-spans-files` (error): a theorem-like environment opens in one file and closes in another.
-- `loom:line-anchoring` (error, fixed): a `\begin` or `\end` of a theorem-like environment is not alone on its line; reported by import and atomize.
+- `loom:line-anchoring` (error, fixed): a `\begin` or `\end` of a theorem-like environment is not alone on its line; reported by `draft` and `atomize`.
 - `loom:unknown-environment` (error): a theorem-like environment the preamble closure does not declare; fix with `% !LOOM environment:`.
 - `loom:unattached-proof` (error): a `proof` neither adjacent to a node nor referencing one.
 - `loom:multi-target-proof` (warning): a proof's optional argument references several nodes; attached to the first.
@@ -89,6 +97,21 @@ References and digests:
 Interface:
 
 - `loom:interface-version` (error, fixed): emitted by the viewer, not loom, when the manifest's version is not accepted; listed here so the code is reserved.
+
+### The workbench and the record
+
+**[decided]** These concern loom's own record of the quilt (Chapter 17) and carry `subject: "record"` except where noted.
+
+- `loom:superseded-file` (info): a document a conversion replaced; it defines nothing until `loom live`.
+- `loom:canon-edited` (warning): a canon document is not the text the step that wrote it recorded.
+- `loom:history-missing` (error): a step directory or one of its files is gone.
+- `loom:history-edited` (error): a version file, a preamble, or a step's document copy does not hash to what the ledger recorded.
+- `loom:history-corrupt` (error): a ledger line cannot be read, or a step number does not follow the last.
+- `loom:dangling-ancestry` (warning): a `fork`, `revert`, or `draft` line names a step or version the history no longer resolves.
+- `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
+- `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.
+- `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes; carries the fix that starts one.
+- `loom:deprecated-config-key` (warning, subject `source`): a configuration key loom still reads under an older name.
 
 ## 4. Adding a code
 

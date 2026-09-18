@@ -1,7 +1,7 @@
 # Mode: ingest
 
 ## Before you begin
-- Write only under `$LOOM_RUN`. Never edit `refs/`; the author promotes.
+- Write only under `$LOOM_RUN`. Never edit `digests/`; the author promotes.
 - Read `ai/modes/blocks.md` once this session and the digest rules below.
 
 ## Purpose
@@ -29,13 +29,13 @@ intuition in the overview; be exact in the statements.
 - Every `\label` and `\eqref` inside the digest is prefixed with the citekey's slug (its letters and digits only) and a hyphen, `SLUG-`, the same prefix the ids carry.
 
 ## Case A: no digest exists
-Input: `refs/pdf/CITEKEY.pdf` (or its extracted text) or fetched source
-under `refs/src/CITEKEY/`. Output: `ingest-CITEKEY.tex`, a complete digest
+Input: the PDF or unpacked source of the work, which
+`loom refs path CITEKEY` locates. Output: `ingest-CITEKEY.tex`, a complete digest
 whose overview contains [overview], [proof-basics], [dependencies],
 [reconstruction-plan] as prose and a [notation] table.
 
 ## Case B: an extracted digest exists
-Input: `refs/CITEKEY.tex` with `method: extract`, and the paper. Output:
+Input: `digests/CITEKEY.tex` with `method: extract`, and the paper. Output:
 `proposal-CITEKEY.diff` filling the `-setup` node, the overview and
 [notation], missing `\uses` (a proof invokes lemmas it never `\ref`s), and
 locators the extractor left as `\incomplete`.

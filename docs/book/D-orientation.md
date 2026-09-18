@@ -28,7 +28,7 @@ review what they wrote, digest what they cite, answer what they ask.
 ## 2. Layout, and what you may write
 
 - `config.toml` — quilt configuration. Read only.
-- `drafts/` — masters, the compilable documents. `config.toml [quilt] main`
+- `drafting/` — masters, the compilable documents. `config.toml [quilt] main`
   names the default. Read only.
 - `nodes/` — one node per file, by convention. Read only.
 - `digests/` — cited papers' results as external nodes, one file per
@@ -98,7 +98,7 @@ ledger and never run `loom accept`.
   a bundle with your proposed text in place of the quilt's, to compile
   before the author promotes or applies; nothing in the quilt changes.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
-- `loom assemble MASTER $LOOM_RUN/<name>.tex`: a whole master flattened
+- `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`: a whole master flattened
   into one file, for when a plan or a paper is the context. Masters are
   not keys and `bundle` does not apply to them.
 - `loom comment KEY "message" --quote "exact text" --kind objection|

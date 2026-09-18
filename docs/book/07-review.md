@@ -22,7 +22,7 @@ author = "Markas Hecht"
 date = 2026-09-16T14:02:11Z
 text = "sha256:9b1c4e..."          # hash of the key's normalized own text
 preamble = "sha256:77aa02..."      # hash of the master's preamble closure
-master = "drafts/main.tex"         # the master whose preamble was hashed
+master = "drafting/main.tex"         # the master whose preamble was hashed
 [accept.closure]                   # hashes of every statement in the closure
 "rl-0002" = "sha256:3c0e91..."
 "rl-0001" = "sha256:1f2d7b..."
@@ -34,7 +34,7 @@ author = "Markas Hecht"
 date = 2026-09-16T14:02:11Z
 text = "sha256:5d2f..."
 preamble = "sha256:77aa02..."
-master = "drafts/main.tex"
+master = "drafting/main.tex"
 [accept.closure]
 "rl-0004" = "sha256:9b1c4e..."
 "rl-0002" = "sha256:3c0e91..."
@@ -52,7 +52,7 @@ Rules:
 
 ### 7.2.2 Snapshots
 
-**[decided]** `.loom/snapshots/<hex>.tex`, where `<hex>` is the SHA-256 of the file's contents, which is the normalized own text of a key or the normalized preamble closure. Written by `loom accept` for the key's text, its preamble, and every statement in its closure. Content-addressed, so identical text is stored once and a snapshot is never overwritten or deleted. Committed. They exist so that a stale acceptance can be explained with a diff without git.
+**[decided]** `.loom/history/texts/<hex>.tex`, where `<hex>` is the SHA-256 of the file's contents, which is the normalized own text of a key or the normalized preamble closure. Written by `loom accept` for the key's text, its preamble, and every statement in its closure. Content-addressed, so identical text is stored once and a snapshot is never overwritten or deleted. Committed. They exist so that a stale acceptance can be explained with a diff without git.
 
 ## 7.3 `loom accept`
 

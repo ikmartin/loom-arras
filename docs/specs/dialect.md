@@ -15,14 +15,14 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 
 ### 2.1 Fragment kinds
 
-**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest"` on its first element as a courtesy, not as authority.
+**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest|canon"` on its first element as a courtesy, not as authority.
 
 ### 2.2 Headings
 
 **[decided]** Sectioning renders as `h1`–`h6` by level. A sectioning unit that is a node wraps its heading and own text in `section` with `id`, `data-id` (or `data-key` for untagged units) and `data-level`. Heading text may include a number in `span.number`.
 
 ```html
-<section id="rl-0020" data-id="rl-0020" data-level="1" data-src="drafts/main.tex:1204:1298">
+<section id="rl-0020" data-id="rl-0020" data-level="1" data-src="drafting/main.tex:1204:1298">
   <h1><span class="number">3</span> The residue map</h1>
   <p>We construct ...</p>
   <div class="include" data-key="rl-0011"></div>
@@ -72,7 +72,7 @@ A labelled proof node carries `data-id` as well. `open` is a hint the viewer may
 
 ### 2.7 Math
 
-**[decided]** Inline: `<span class="math inline">\(...\)</span>`. Display: `<div class="math display" id="LABEL-ID" data-label="eq:main" data-number="3.2">\[...\]</div>`, the id being the qualified key slug. TeX is passed through verbatim inside; the viewer renders it with the macro set from the manifest (plus a per-fragment set if the fragment's first element carries `data-macros="NAME"` naming a set in the manifest).
+**[decided]** Inline: `<span class="math inline">\(...\)</span>`. Display: `<div class="math display" id="LABEL-ID" data-label="eq:main" data-number="3.2">\[...\]</div>`, the id being the qualified key slug. TeX is passed through inside, save for what the viewer's typesetter cannot read: `\label` is removed, `\ref` is replaced by its number or label, and a macro of the author's used inside a `\text{…}` is written between dollars (DR-130). The viewer renders it with the macro set from the manifest (plus a per-fragment set if the fragment's first element carries `data-macros="NAME"` naming a set in the manifest).
 
 ### 2.8 References and citations
 

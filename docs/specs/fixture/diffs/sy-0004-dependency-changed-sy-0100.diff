@@ -1,0 +1,13 @@
+--- accepted/sy-0100
++++ current/sy-0100
+@@ -48,9 +48,7 @@
+ % !LOOM child: sy-000B
+ % !LOOM child: sy-000B/proof
+ 
+-% !LOOM child: sy-000F
+-
+-% !LOOM child: sy-000F/proof
++% !LOOM child: nodes/sy-999B.tex#lemma:1
+ 
+ \bibliographystyle{amsplain}
+ \bibliography{refs}

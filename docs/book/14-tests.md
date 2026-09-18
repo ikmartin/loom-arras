@@ -21,9 +21,11 @@ This chapter lists the tests the MVP passes. It defines the tiers, the shim that
 
 **[decided]**
 
-- `tests/quilts/demo/`: the quilt `loom init --demo` writes, asserted byte-equal to it by `test_init_demo_matches_fixture`; small; every command runs on it in well under a second on the shim.
-- `tests/quilts/synthetic/`: the quilt described in `specs/fixture.md` §1; exercises every construct in the source contract and every diagnostic code the scanner emits on a quilt; the conformance fixture is generated from it.
-- `tests/quilts/edge/`: eight small quilts each isolating one hard case: `spanning-env` (an environment spanning files), `begin-not-alone` (a `\begin` not alone on its line), `cycle`, `double-inclusion`, `nested-nest` (a `\nest` inside a `\nest`), `macro-collision` (a digest with a nonempty macro block whose name collides with the quilt's), `taxon-conflict` (two masters declaring one environment differently), `beamer-talk` (a beamer master).
+- `tests/quilts/sources/<name>/`: what an author wrote — the masters, the node files, the styles, the bibliography, the figures. Nothing under it is a quilt; it has no `config.toml`, so it is not picked up as one.
+- `scripts/gen_quilts.py`: writes both fixture quilts from those sources by running loom's own commands under a fixed clock, so that every record in a fixture — the acceptance ledger, the history, the runs, the comments — was made by the command that makes one rather than typed. `--check` regenerates into a temporary directory and compares byte for byte; `test_the_checked_in_quilt_is_what_the_generator_writes` runs it for both. Editing a fixture by hand fails that test, and so does editing an asset the generator draws on (`assets/ai/*`, `assets/init/*`, `loom.sty`) without regenerating: that is the alarm it exists for. Nothing the generator writes may depend on the machine it ran on — no tool versions, no absolute paths, no author name from the environment — or the check could not run at all.
+- `tests/quilts/demo/`: the quilt `loom init --demo` writes, asserted byte-equal to it by `test_init_demo_matches_fixture`; small; every command runs on it in well under a second on the shim. The generator writes it and `src/loom/assets/demo/` together, which is what keeps them equal.
+- `tests/quilts/synthetic/`: the quilt described in `specs/fixture.md` §1; exercises every construct in the source contract and every diagnostic code the scanner emits on a quilt; the conformance fixture is generated from it. Its `EXPECTED-LINT.txt` is written by the generator from `loom lint --json`, and `test_the_synthetic_quilt_carries_the_intended_errors` pins the four errors it is meant to carry: two `dangling-link`, one `missing-include`, one `double-inclusion`, one `duplicate-id`.
+- `tests/quilts/edge/`: ten small quilts each isolating one hard case: `spanning-env` (an environment spanning files), `begin-not-alone` (a `\begin` not alone on its line), `cycle`, `double-inclusion`, `nested-nest` (a `\nest` inside a `\nest`), `macro-collision` (a digest with a nonempty macro block whose name collides with the quilt's), `taxon-conflict` (two masters declaring one environment differently), `beamer-talk` (a beamer master), `node-conflict` (two live files defining one id), `superseded` (a checked-in history ledger recording that a spine replaced its source).
 - Every quilt above carries an `EXPECTED-LINT.txt`, the frozen `loom lint` output, which `test_lint_fixture_expected_codes` checks; `test_all_emitted_codes_are_known` checks that every code in those files is in loom's diagnostics table.
 - `tests/fixture/`: the vendored conformance snapshot (`manifest.json`, `fragments/`, `svg/`, `diffs/`, `VERSION`), refreshed by `docs/specs/tools/refresh-fixture.sh` in the workspace.
 - `tests/fixtures/` in the workspace: the paper sources, uncommitted, with `NOTES.md` and `VERSIONS`.
@@ -37,7 +39,7 @@ This chapter lists the tests the MVP passes. It defines the tiers, the shim that
 **[decided]** Manual, per release; not yet performed (`docs/work-queue/closed/M7.md`, "Blocked on the user"):
 
 1. `loom init demo --demo`; `loom compile`; record `pdftotext` of the local PDF.
-2. Zip the quilt without `build/`, `refs/pdf/`, and `refs/src/`; upload to a new Overleaf project; set `drafts/main.tex` as the main document; compile.
+2. Zip the quilt without `build/`, `refs/pdf/`, and `refs/src/`; upload to a new Overleaf project; set `drafting/main.tex` as the main document; compile.
 3. Download the PDF; compare `pdftotext` with the local one; equal modulo whitespace is a pass.
 4. Record the Overleaf TeX Live version and the result in the release notes.
 

@@ -41,7 +41,7 @@ For a colleague or coauthor:
 6. At least one upstream edit has produced stale acceptances that `loom status --explain` attributes correctly with a diff, and those keys have been re-accepted.
 7. Digests exist for the paper's principal references, including one extracted mechanically from LaTeX source and one produced by ingest from a PDF, and at least one `\cite[postnote]` resolves to a digest node.
 8. Arras, served by `loom serve`, shows the master view, node pages, the review panel, the problems page, the graph, tags, and search for this quilt, and re-renders on save.
-9. The quilt, uploaded to Overleaf with `drafts/main.tex` as the main document, compiles and matches the local PDF.
+9. The quilt, uploaded to Overleaf with `drafting/main.tex` as the main document, compiles and matches the local PDF.
 10. A second person, a graduate student in a different field with their own paper, has run `loom init --from` on it and reached step 4 without help beyond the README.
 
 **[decided]** Whole-paper migration is required; a single section is not enough.
