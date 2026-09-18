@@ -13,11 +13,18 @@ export function versionLabel(key: Key | undefined): string {
 	return `text of @${Number.isFinite(n) ? n : key.version.step}${key.version.name ? ' (' + key.version.name + ')' : ''}`;
 }
 
+/**
+ * The state badge for a key, with the manifest's own label and colour.
+ *
+ * An accepted external node reads `transcription verified`: accepting a digest claims that loom's copy of the cited paper is faithful, never that this corpus proved the theorem, and the two rendered identically. The wording is the viewer's because the state value is the same one; a publisher that gives `accepted` its own label still wins for everything the corpus wrote.
+ */
 export function stateBadge(manifest: Manifest, key: Key | undefined): BadgePart[] {
 	if (!key) return [];
 	const labels = manifest.states.labels;
 	const label = labels[key.state];
-	const parts: BadgePart[] = [{ text: label?.label ?? key.state, color: label?.color ?? 'neutral' }];
+	const external = manifest.nodes[key.node]?.external;
+	const text = external && key.state === 'accepted' ? 'transcription verified' : (label?.label ?? key.state);
+	const parts: BadgePart[] = [{ text, color: label?.color ?? 'neutral' }];
 	if (key.acceptance && key.acceptance.fresh === false) {
 		const stale = labels['stale'];
 		parts.push({ text: stale?.label ?? 'stale', color: stale?.color ?? 'warning' });
