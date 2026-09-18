@@ -137,6 +137,13 @@ def _locator(node: NodeRec) -> str | None:
     return m.group(1).strip() if m else None
 
 
+# What a quilt has, never what a viewer should draw (specs/manifest.md §2, plan 0.9.5 §9). Every value is a property of
+# loom, not of this quilt's current contents: a quilt with no documents yet is still a project that assembles into
+# them, and "empty because not yet" is exactly what a viewer cannot tell from the data alone. A publisher whose corpora
+# genuinely never have one says so, and a manifest that declares nothing leaves the viewer to derive from the data.
+PUBLISHES = {"documents": True, "review": True, "bibliography": True, "discussions": True}
+
+
 def build_manifest(
     result: ScanResult,
     numbers: dict[str, dict[str, AuxNumber]],
@@ -154,6 +161,7 @@ def build_manifest(
     manifest: dict[str, Any] = {
         "interface_version": INTERFACE_VERSION,
         "publisher": {"name": "loom", "version": __version__},
+        "publishes": PUBLISHES,
         "generated": _stamp(),
         "corpus": {"name": root_name, "root_label": corpus_label},
         "masters": [],
