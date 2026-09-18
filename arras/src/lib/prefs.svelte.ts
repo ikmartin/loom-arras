@@ -6,8 +6,14 @@ export type Face = 'serif' | 'sans';
 export type Size = 's' | 'm' | 'l';
 export type Width = 'narrow' | 'mid' | 'wide';
 export type Theme = 'light' | 'dark' | 'system';
-/** How a document and its results are set: `paper` is the measured, numbered column a mathematician reads; `blog` is the wider, quieter setting a website reads. It applies to the read view and to a node's own page alike, because a result should not change character depending on which page it is standing on. */
-export type Format = 'paper' | 'blog';
+/**
+ * How a document and its results are set. Four, named for how they are chosen rather than described, so all four fit one row of the settings panel.
+ *
+ * `p1` and `p2` are the compiled page: justified text, run-in theorem heads, numbers, and no colour on a result at all — the paper as `amsart` sets it, with the viewer's machinery intact. `p2` adds the page boundaries of the real compiled PDF, taken from the numbers loom publishes, so a divider falls exactly where a page ended. `b1` is the measured column with a taxon accent at the edge; `b2` is the wider setting a website reads, with sans heads and a tinted panel.
+ *
+ * It applies to the read view and to a node's own page alike, because a result should not change character depending on which page it is standing on.
+ */
+export type Format = 'p1' | 'p2' | 'b1' | 'b2';
 /** `margin` stands a comment beside its node; `inline` shows it as a highlight on the text that expands where it is; `hover` opens the same box as a floating panel the pointer brings up, free to overlap the text and the gutter. */
 export type Comments = 'margin' | 'inline' | 'hover';
 
@@ -23,15 +29,17 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'paper', comments: 'margin' };
+export const DEFAULTS: Prefs = { shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'margin' };
 
 // A stored `b`, the retired tabs shell, is not in the list, so it falls back to the default like any unknown value.
+// The same carries the format rename: a browser holding `paper` or `blog` gets the default back, which is what the
+// reader would have chosen anyway now that the compiled page is on offer.
 const SHELLS: Shell[] = ['a', 'c'];
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
 const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
-const FORMATS: Format[] = ['paper', 'blog'];
+const FORMATS: Format[] = ['p1', 'p2', 'b1', 'b2'];
 const COMMENTS: Comments[] = ['margin', 'inline', 'hover'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */

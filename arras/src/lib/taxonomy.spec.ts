@@ -12,17 +12,23 @@ const m = {
 } as unknown as Manifest;
 
 describe('the taxon palette', () => {
-	it('gives every taxon a colour, whatever it is called', () => {
-		// Definition, Lemma, Widget sorted; Remark is out of the ordering because its style decides it.
-		expect(taxonTone(m, 'Definition')).toBe('var(--taxon-1)');
-		expect(taxonTone(m, 'Lemma')).toBe('var(--taxon-2)');
-		expect(taxonTone(m, 'Widget')).toBe('var(--taxon-3)'); // a taxon no publisher of ours ever named
-		expect(taxonTone(m, 'Remark')).toBe('var(--taxon-remark)'); // by meaning, not by position
+	it('gives a taxon the colour of its style, whatever it is called', () => {
+		// Three, by style, so a finding has a register no taxon can wear (DR-175).
+		expect(taxonTone(m, 'Lemma')).toBe('var(--taxon-result)');
+		expect(taxonTone(m, 'Widget')).toBe('var(--taxon-result)'); // a taxon no publisher of ours ever named
+		expect(taxonTone(m, 'Definition')).toBe('var(--taxon-definition)');
+		expect(taxonTone(m, 'Remark')).toBe('var(--taxon-aside)');
+	});
+
+	it('draws a style it has never heard of as a result rather than as nothing', () => {
+		const odd = { taxa: { Gadget: { style: 'conjecture', slug: 'gadget', count: 1 } } } as unknown as Manifest;
+		expect(taxonTone(odd, 'Gadget')).toBe('var(--taxon-result)');
 	});
 
 	it('keeps a colour as the corpus grows', () => {
 		const grown = { taxa: { ...m.taxa, Zorn: { style: 'plain', slug: 'zorn', count: 1 } } } as unknown as Manifest;
-		expect(taxonTone(grown, 'Lemma')).toBe(taxonTone(m, 'Lemma')); // adding a later taxon repaints nothing
+		expect(taxonTone(grown, 'Lemma')).toBe(taxonTone(m, 'Lemma')); // nothing here counts or orders taxa
+		expect(taxonTone(grown, 'Zorn')).toBe(taxonTone(m, 'Lemma')); // and two of a style share one colour
 	});
 
 	it('says nothing about a taxon the corpus does not have', () => {

@@ -328,23 +328,23 @@ test('a node shows the citations suggested for it and those already accepted', a
 	await expect(page.getByTestId('reference-notes')).toContainText('Suggested citations');
 });
 
-test('paper and blog are one switch, applied everywhere', async ({ page }) => {
+test('the setting is one switch, applied everywhere', async ({ page }) => {
 	// running-requests: "applied globally so that it affects the read display as well as the display of nodes."
 	await page.goto('/master/main');
-	await expect(page.locator('html')).toHaveAttribute('data-format', 'paper');
+	await expect(page.locator('html')).toHaveAttribute('data-format', 'p1'); // the compiled page, by default
 	const numbered = page.locator('.fragment .env-label .number').first();
 	await expect(numbered).toBeVisible();
 
 	await page.evaluate(() => {
 		const p = JSON.parse(localStorage.getItem('arras.prefs') || '{}');
-		localStorage.setItem('arras.prefs', JSON.stringify({ ...p, format: 'blog' }));
+		localStorage.setItem('arras.prefs', JSON.stringify({ ...p, format: 'b2' }));
 	});
 	await page.goto('/master/main');
-	await expect(page.locator('html')).toHaveAttribute('data-format', 'blog');
+	await expect(page.locator('html')).toHaveAttribute('data-format', 'b2');
 	await expect(page.locator('.fragment .env-label .number').first()).toBeHidden();
 
 	// the same switch on a node's own page: a result does not change character with the page it stands on
 	await page.goto('/node/sy-0003');
-	await expect(page.locator('html')).toHaveAttribute('data-format', 'blog');
+	await expect(page.locator('html')).toHaveAttribute('data-format', 'b2');
 	await expect(page.locator('.fragment .env-label .number').first()).toBeHidden();
 });

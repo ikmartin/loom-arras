@@ -3,6 +3,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
 	import { resetComments, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { markPages } from '$lib/fragments/pages';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
 	import { page } from '$app/state';
@@ -60,6 +61,19 @@
 	// comments shown in place are opened by the marks and counts this fragment wires; the controller lives as long as the fragment does
 	let inline: InlineComments | null = null;
 	$effect(() => () => inline?.destroy());
+
+	// The compiled paper's page boundaries, drawn only where they can be known: `p2`, in a document, from the numbers
+	// loom read out of the `.aux`. Re-run on a change of setting, and cleared when the setting is not `p2`.
+	$effect(() => {
+		const paged = prefs.format === 'p2';
+		// Everything it reads: the setting, the manifest the boundaries come from, and the markup they are drawn into.
+		// The fragment's HTML arrives after the element does, so an effect that does not read it runs once against an
+		// empty div and never again.
+		void store.hash;
+		void html;
+		if (!el) return;
+		markPages(paged ? store.manifest : null, paged ? master : null, el);
+	});
 
 	/** Wire the fragment for where comments currently stand; nothing here re-renders or re-typesets.
 	 *

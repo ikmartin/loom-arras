@@ -653,77 +653,196 @@ a.heading-link:focus {
 	}
 }
 
-/* Blog setting (running-requests: a global toggle for "paper" or "blog"). Paper is the measured, numbered column a
-   mathematician reads. Blog is the same content set as a website reads it: wider, more air, sans-serif headings, and
-   environments carried by a tinted panel rather than by a hairline accent. It is one switch on the root, so the read
-   view and a node's own page change together -- a result should not read as a different kind of thing depending on
-   which page it is standing on. Nothing about the content changes; only how it is set. */
-.arras[data-format='blog'] {
+/* The four settings (running-requests: a global toggle, then "the new paper view should be AS FAITHFUL TO THE
+   COMPILED VIEW OF THE PDF AS POSSIBLE"). One switch on the root, so the read view and a node's own page change
+   together — a result should not read as a different kind of thing depending on which page it is standing on.
+   Nothing about the content changes; only how it is set.
+
+   `p1` and `p2` are the compiled page. `b1` is the measured column with a taxon accent at its edge, which is what
+   arras defaulted to before the paper setting existed; `b2` is the same content as a website reads it. */
+
+/* ---- b2: wider, sans heads, environments carried by a tinted panel ---- */
+.arras[data-format='b2'] {
 	--measure: 46rem;
 	--gap-wide: 1.9rem;
 }
-.arras[data-format='blog'] .fragment {
+.arras[data-format='b2'] .fragment {
 	line-height: 1.75;
 }
-.arras[data-format='blog'] .fragment h1,
-.arras[data-format='blog'] .fragment h2,
-.arras[data-format='blog'] .fragment h3 {
+.arras[data-format='b2'] .fragment h1,
+.arras[data-format='b2'] .fragment h2,
+.arras[data-format='b2'] .fragment h3 {
 	font-family: var(--sans);
 	font-weight: 600;
 	letter-spacing: -0.01em;
 }
-.arras[data-format='blog'] .fragment .env {
+.arras[data-format='b2'] .fragment .env {
 	padding: var(--gap) var(--gap-wide);
 	border-left-width: 0;
 	border-radius: var(--rad-card);
 	background: color-mix(in srgb, var(--taxon-tone, var(--rule)) 7%, var(--sheet));
 }
-.arras[data-format='blog'] .fragment .env-label {
+.arras[data-format='b2'] .fragment .env-label {
 	font-size: 0.82em;
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	color: var(--taxon-tone, var(--ink-soft));
 }
 /* A number is the paper's way of pointing at a result; a blog points with a link and a name. */
-.arras[data-format='blog'] .fragment .env-label .number {
+.arras[data-format='b2'] .fragment .env-label .number {
 	display: none;
 }
 
-/* The taxon palette: one place to set the colours a taxon is drawn in, wherever it is drawn. `$lib/taxonomy` decides
-   which token a taxon gets and never knows a value; these are the values. A remark reads quietly whatever it is called,
-   which is the one assignment made by meaning rather than by position. */
+/* ---- p1 and p2: the compiled page ----
+
+   Modelled on the PDF this corpus compiles to. `amsart` carries a theorem with weight and shape and nothing else:
+   the head runs into the first line, bold for a result or a definition and italic for a remark, the statement is
+   italic where the class italicises it, and there is no rule, no fill and no colour anywhere on it. That last is the
+   point — with the taxa uncoloured, the only coloured thing on the page is a finding. */
+.arras[data-format='p1'],
+.arras[data-format='p2'] {
+	--measure: 33rem; /* amsart's text block is about 4.6in at 12pt */
+	/* The paper's own face where the reader asked for serif; `--body-face` still decides, so choosing sans still works. */
+	--serif: 'Latin Modern Roman', 'CMU Serif', 'Computer Modern', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+.arras[data-format='p1'] .fragment,
+.arras[data-format='p2'] .fragment {
+	line-height: 1.42;
+	text-align: justify;
+	hyphens: auto;
+}
+.arras[data-format='p1'] .fragment p,
+.arras[data-format='p2'] .fragment p {
+	margin: 0;
+	text-indent: 1.4em;
+}
+/* The paragraph that opens a section, or follows a displayed thing, is not indented — as the class sets it. */
+.arras[data-format='p1'] .fragment :is(h1, h2, h3, h4, h5, h6, .math.display, figure, .env) + p,
+.arras[data-format='p2'] .fragment :is(h1, h2, h3, h4, h5, h6, .math.display, figure, .env) + p {
+	text-indent: 0;
+}
+.arras[data-format='p1'] .fragment :is(h1, h2, h3, h4, h5, h6),
+.arras[data-format='p2'] .fragment :is(h1, h2, h3, h4, h5, h6) {
+	text-align: center;
+	font-variant: small-caps;
+	font-weight: 400;
+	font-size: 1em;
+	letter-spacing: 0.03em;
+	margin: 1.8em 0 0.9em;
+}
+/* Run-in heads: the label and the first paragraph are one line of text, which is what makes a compiled theorem
+   look like prose with a bold opening rather than like a card. */
+.arras[data-format='p1'] .fragment .env,
+.arras[data-format='p2'] .fragment .env {
+	border-left-width: 0;
+	background: none;
+	padding: 0;
+	margin: 0.85em 0;
+}
+.arras[data-format='p1'] .fragment .env > .env-label,
+.arras[data-format='p2'] .fragment .env > .env-label,
+.arras[data-format='p1'] .fragment .env > .env-label + p,
+.arras[data-format='p2'] .fragment .env > .env-label + p {
+	display: inline;
+	text-indent: 0;
+	color: inherit;
+}
+.arras[data-format='p1'] .fragment .env > .env-label,
+.arras[data-format='p2'] .fragment .env > .env-label {
+	font-family: inherit;
+	font-weight: 700;
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: 1em;
+}
+.arras[data-format='p1'] .fragment .env > .env-label .number::after,
+.arras[data-format='p2'] .fragment .env > .env-label .number::after {
+	content: '.';
+}
+.arras[data-format='p1'] .fragment .env > .env-label + p::before,
+.arras[data-format='p2'] .fragment .env > .env-label + p::before {
+	content: ' ';
+}
+/* A plain result is italic and a remark's head is italic rather than bold: amsthm's three styles, as they print. */
+.arras[data-format='p1'] .fragment .env[data-style='plain'] > .env-label + p,
+.arras[data-format='p2'] .fragment .env[data-style='plain'] > .env-label + p {
+	font-style: italic;
+}
+.arras[data-format='p1'] .fragment .env[data-style='remark'] > .env-label,
+.arras[data-format='p2'] .fragment .env[data-style='remark'] > .env-label {
+	font-weight: 400;
+	font-style: italic;
+}
+/* What the viewer adds is not the paper and is not set like it: a comment, a margin key, a composer. They sit inside
+   the fragment and would otherwise inherit its justification and its indent, which at gutter width is unreadable. */
+.arras[data-format='p1'] .fragment :is(.comment-slot, .node-margin, .composer, .verbs),
+.arras[data-format='p2'] .fragment :is(.comment-slot, .node-margin, .composer, .verbs) {
+	text-align: left;
+	text-indent: 0;
+	hyphens: none;
+	font-style: normal;
+}
+.arras[data-format='p1'] .fragment :is(.comment-slot, .composer) p,
+.arras[data-format='p2'] .fragment :is(.comment-slot, .composer) p {
+	text-indent: 0;
+}
+
+/* A proof reads as prose with an italic head and a tombstone, never as a disclosure widget. */
+.arras[data-format='p1'] .fragment details.env-proof > summary,
+.arras[data-format='p2'] .fragment details.env-proof > summary {
+	font-style: italic;
+	font-weight: 400;
+	list-style: none;
+}
+.arras[data-format='p1'] .fragment details.env-proof[open] > summary::after,
+.arras[data-format='p2'] .fragment details.env-proof[open] > summary::after {
+	content: '';
+}
+
+/* The page boundaries of the compiled paper (`p2`). A faint rule with the page's own number set into it, so the
+   number a reader sees is the number they would cite. `$lib/fragments/pages` draws them; only a document has them. */
+.page-break {
+	display: flex;
+	align-items: center;
+	gap: var(--gap);
+	margin: var(--gap-wide) 0;
+	color: var(--ink-faint);
+	font-family: var(--sans);
+	font-size: 0.72em;
+	letter-spacing: 0.06em;
+	text-indent: 0;
+}
+.page-break::before,
+.page-break::after {
+	content: '';
+	flex: 1 1 auto;
+	border-top: 1px solid var(--rule);
+}
+.page-break::after {
+	content: 'page ' attr(data-page);
+	flex: 0 0 auto;
+	border: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The taxon palette: three colours, by style. `$lib/taxonomy` decides which token a taxon gets and never knows a
+   value; these are the values. A result, a definition, an aside — and a fourth register deliberately left free,
+   because the annotation colour has to be one no taxon can wear or a finding has nothing of its own (DR-175). Eight
+   hues, one per taxon, used up every register the page had. */
 .arras {
-	--taxon-1: #1a5fb4;
-	--taxon-2: #7048e8;
-	--taxon-3: #0b7285;
-	--taxon-4: #2f9e44;
-	--taxon-5: #b5651d;
-	--taxon-6: #a4243b;
-	--taxon-7: #5f6d3f;
-	--taxon-8: #6b4c9a;
-	--taxon-remark: var(--ink-faint);
+	--taxon-result: #3f5c91;
+	--taxon-definition: #2f6f6a;
+	--taxon-aside: var(--ink-faint);
 }
 @media (prefers-color-scheme: dark) {
 	.arras:not([data-theme='light']) {
-		--taxon-1: #7aa9e9;
-		--taxon-2: #b197fc;
-		--taxon-3: #63c7d8;
-		--taxon-4: #8ce99a;
-		--taxon-5: #e8b17a;
-		--taxon-6: #f08c9b;
-		--taxon-7: #b5c98e;
-		--taxon-8: #c0a8e8;
+		--taxon-result: #8fadde;
+		--taxon-definition: #63c0b8;
 	}
 }
 .arras[data-theme='dark'] {
-	--taxon-1: #7aa9e9;
-	--taxon-2: #b197fc;
-	--taxon-3: #63c7d8;
-	--taxon-4: #8ce99a;
-	--taxon-5: #e8b17a;
-	--taxon-6: #f08c9b;
-	--taxon-7: #b5c98e;
-	--taxon-8: #c0a8e8;
+	--taxon-result: #8fadde;
+	--taxon-definition: #63c0b8;
 }
 
 /* A kind this viewer has never heard of still has to read as a comment. `kind` is an open string -- a publisher may

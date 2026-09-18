@@ -31,9 +31,13 @@
 		{ v: 'dark', label: 'dark' },
 		{ v: 'system', label: 'auto' }
 	];
-	const FORMATS: { v: Format; label: string }[] = [
-		{ v: 'paper', label: 'paper' },
-		{ v: 'blog', label: 'blog' }
+	// Four abbreviations, so the row fits beside the others: p1 and p2 are the compiled page, continuous and paginated;
+	// b1 and b2 are the two web settings. The titles carry what the letters cannot.
+	const FORMATS: { v: Format; label: string; title: string }[] = [
+		{ v: 'p1', label: 'p1', title: 'paper, continuous' },
+		{ v: 'p2', label: 'p2', title: 'paper, in pages' },
+		{ v: 'b1', label: 'b1', title: 'column with a taxon accent' },
+		{ v: 'b2', label: 'b2', title: 'wide, with tinted panels' }
 	];
 	const COMMENTS: { v: Comments; label: string }[] = [
 		{ v: 'margin', label: 'margin' },
@@ -53,7 +57,7 @@
 	>
 	{#if open}
 		<div class="panel" class:above={placement === 'above'} data-testid="settings-panel">
-			{#snippet row(label: string, options: { v: string; label: string }[], current: string, pick: (v: string) => void, test: string)}
+			{#snippet row(label: string, options: { v: string; label: string; title?: string }[], current: string, pick: (v: string) => void, test: string)}
 				<div class="row" role="group" aria-label={label}>
 					<span class="lbl">{label}</span>
 					<div class="opts">
@@ -62,6 +66,7 @@
 								class:on={current === o.v}
 								aria-pressed={current === o.v}
 								onclick={() => pick(o.v)}
+								title={o.title}
 								data-testid={test ? `${test}-${o.v}` : undefined}>{o.label}</button
 							>
 						{/each}

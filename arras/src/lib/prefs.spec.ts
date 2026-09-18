@@ -15,8 +15,8 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it('defaults to shell C, serif, medium, mid, system, paper, comments in the margin', () => {
-		expect(DEFAULTS).toEqual({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'paper', comments: 'margin' });
+	it('defaults to shell C, serif, medium, mid, system, the compiled page, comments in the margin', () => {
+		expect(DEFAULTS).toEqual({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'margin' });
 	});
 
 	it('reads a stored tabs shell, which is retired, as the default', () => {
@@ -54,5 +54,15 @@ describe('the display preferences', () => {
 	it('sets no theme attribute when the theme follows the system', () => {
 		expect(attributes({ ...DEFAULTS, theme: 'system' })['data-theme']).toBeNull();
 		expect(attributes({ ...DEFAULTS, theme: 'dark' })['data-theme']).toBe('dark');
+	});
+});
+
+describe('the format rename', () => {
+	it('sends a stored `paper` or `blog` back to the default', () => {
+		// The names moved: what was `paper` is `b1` and what was `blog` is `b2`, and the compiled page took the name.
+		// Nothing migrates a stored value, so a browser holding either gets p1 — which is what it would now choose.
+		expect(coerce({ format: 'paper' }).format).toBe('p1');
+		expect(coerce({ format: 'blog' }).format).toBe('p1');
+		for (const f of ['p1', 'p2', 'b1', 'b2']) expect(coerce({ format: f }).format).toBe(f);
 	});
 });

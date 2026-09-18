@@ -351,9 +351,13 @@ test.describe('comments on hover', () => {
 		await expect(page.locator('aside.comment-slot.floating')).toHaveCount(0);
 
 		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
-		await mark.hover();
 		const box = page.locator('aside.comment-slot.floating');
-		await expect(box).toHaveCount(1);
+		// One hover is one event: if it lands in the tick between the fragment being wired for the default placement
+		// and being wired again for this one, nothing opens and nothing retries. Poll the gesture, not the result.
+		await expect(async () => {
+			await mark.hover({ trial: false, force: true });
+			await expect(box).toHaveCount(1, { timeout: 500 });
+		}).toPass({ timeout: 8000 });
 		// it floats over the page rather than opening in the flow, so it is free to overlap the text and the gutter
 		await expect(box).toHaveCSS('position', 'fixed');
 		await expect(box.locator('article.box')).toHaveCount(1);
@@ -420,5 +424,62 @@ test.describe('the four verbs on an annotation', () => {
 		await expect(row.getByTestId('verb-edit')).toBeHidden();
 		await row.getByTestId('verb-more').click();
 		await expect(row.getByTestId('verb-menu')).toBeVisible();
+	});
+});
+
+test.describe('the four settings a document is read in', () => {
+	test('p1 sets the compiled page: run-in heads, no colour on a result', async ({ page }) => {
+		await withPrefs(page, { format: 'p1' });
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment .env[data-key]');
+		await expect(page.locator('html')).toHaveAttribute('data-format', 'p1');
+
+		const env = page.locator('.fragment .env[data-style="plain"]').first();
+		const label = env.locator('> .env-label');
+		// the head runs into the first line, in weight, and the statement is italic as the class sets it
+		await expect(label).toHaveCSS('display', 'inline');
+		await expect(label).toHaveCSS('font-weight', '700');
+		await expect(env.locator('> .env-label + p')).toHaveCSS('font-style', 'italic');
+		// and carries no colour of its own at all
+		await expect(env).toHaveCSS('border-left-width', '0px');
+		await expect(env).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+
+		// a remark's head is italic rather than bold
+		const remark = page.locator('.fragment .env[data-style="remark"] > .env-label').first();
+		if (await remark.count()) await expect(remark).toHaveCSS('font-style', 'italic');
+	});
+
+	test('p2 marks where the compiled pages ended, and p1 marks nothing', async ({ page }) => {
+		await withPrefs(page, { format: 'p2' });
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment .env[data-key]');
+		const breaks = page.locator('.page-break');
+		await expect.poll(() => breaks.count()).toBeGreaterThan(0);
+		// every boundary carries the page it begins, which is the page a reader would cite
+		const pages = await breaks.evaluateAll((els) => els.map((e) => Number((e as HTMLElement).dataset.page)));
+		expect(pages).toEqual([...pages].sort((a, b) => a - b));
+		expect(new Set(pages).size).toBe(pages.length);
+
+		await page.getByTestId('settings-toggle').click();
+		await page.getByTestId('format-p1').click();
+		await expect(page.locator('.page-break')).toHaveCount(0);
+	});
+
+	test('b1 and b2 keep the taxon accent, and there are three colours in it', async ({ page }) => {
+		await withPrefs(page, { format: 'b1' });
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment .env[data-key]');
+		const tones = await page.evaluate(() =>
+			[...document.querySelectorAll('.fragment .env[data-key]')].map((e) =>
+				(e as HTMLElement).style.getPropertyValue('--taxon-tone')
+			)
+		);
+		expect(new Set(tones.filter(Boolean)).size).toBeLessThanOrEqual(3);
+
+		await page.getByTestId('settings-toggle').click();
+		await page.getByTestId('format-b2').click();
+		await expect(page.locator('html')).toHaveAttribute('data-format', 'b2');
+		// b2 points at a result by name, not by number
+		await expect(page.locator('.fragment .env-label .number').first()).toBeHidden();
 	});
 });
