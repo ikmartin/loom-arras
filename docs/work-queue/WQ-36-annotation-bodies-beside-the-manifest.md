@@ -8,7 +8,7 @@ A corpus's manifest crosses a few megabytes and the reason is annotation prose r
 
 ## Why deferred
 
-Raised by the hostile demo (`records/hostile-demo.md`, direction 5) and deliberately not acted on, because the condition it guards against has not happened.
+Raised by the hostile demo (`docs/reports/hostile-demo.md`, direction 5) and deliberately not acted on, because the condition it guards against has not happened.
 
 The manifest is **loaded whole on every poll**. `build/source/<key>.tex` exists precisely so that a key's own LaTeX is fetched one key at a time and only when a reader asks; annotation bodies, payloads and thread messages have no such arrangement and are carried inline. A single 400 KB annotation body put into a hostile quilt took its manifest to 3.2 MB on its own.
 
@@ -31,4 +31,4 @@ The second step is additive and needs no interface version: a viewer that finds 
 
 ## Related
 
-`records/hostile-demo.md`, which measured it; [plan 0.11](../plans/0.11-run-review-view.md), which introduced `build/source/` for the same reason about node text.
+[the hostile demo](../reports/hostile-demo.md), which measured it; [plan 0.11](../plans/0.11-run-review-view.md), which introduced `build/source/` for the same reason about node text.

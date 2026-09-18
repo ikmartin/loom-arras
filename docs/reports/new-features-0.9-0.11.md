@@ -1,6 +1,6 @@
 # New features, 0.9 to 0.11
 
-What the three plans added, written 2026-09-18 for someone picking the project up rather than for whoever executed them. Every screenshot is of the viewer rendering the conformance fixture or a real corpus, taken by `arras`'s own shot harness (`npm run shots:report`, `npm run shots:floor`) and stored in `records/images/`. Nothing here is a mock-up.
+What the three plans added, written 2026-09-18 for someone picking the project up rather than for whoever executed them. Every screenshot is of the viewer rendering the conformance fixture or a real corpus, taken by `arras`'s own shot harness (`npm run shots:report`, `npm run shots:floor`) and stored in `docs/reports/images/`. Nothing here is a mock-up.
 
 The three plans are one movement: **0.9 gave the work a history, 0.10 gave it a record, and 0.11 gave the record a reader.** Before 0.9 a quilt had no versions; before 0.10 an agent's findings could not be edited or queried; before 0.11 none of it could be read anywhere but a terminal.
 
