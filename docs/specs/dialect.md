@@ -15,7 +15,9 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 
 ### 2.1 Fragment kinds
 
-**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest|canon"` on its first element as a courtesy, not as authority.
+**[decided]** The manifest says which kind a fragment is; the fragment itself carries `data-fragment="node|master|digest|canon|report"` on its first element as a courtesy, not as authority.
+
+**[decided]** A **report** fragment is an agent's notes file rendered: `<section data-fragment="report" data-run="RUN">` holding one `<section data-block="NAME">` per bracketed heading the agent wrote, in order, with an unnamed leading section for anything before the first heading. `NAME` is the block's name without its brackets. A finding — any element ending in an annotation's id — carries `id="finding-<id>"` and `data-annotation-id="<id>"`, so a viewer can scroll to it and highlight the annotation's quote in the document beside it. Every element carries `data-src` into the notes file as usual, because a report originates in a file like anything else loom publishes. A notes file with no bracketed heading is one unnamed section, which is a report that could not be parsed rather than an error.
 
 ### 2.2 Headings
 

@@ -37,6 +37,8 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it.
 
+**[decided]** Beside `manifest.json` and `fragments/`, a publisher may write **`source/<key>.tex`**: one file per key holding that key's own source text before macro expansion, which a viewer fetches lazily for a verbatim view. It is beside the manifest rather than inside it because the manifest is loaded whole on every poll and already runs to hundreds of kilobytes, while source is wanted one key at a time and only when a reader asks. Optional: a viewer that finds nothing there shows the rendered form and no toggle.
+
 **[decided]** `publishes` is the read side's capability block, and it answers a question the data cannot: **what this corpus *has*, never what a viewer should draw.** Four booleans — `documents`, `review`, `bibliography`, `discussions` — each saying whether the corpus is the kind of thing that has one. `"documents": false` says this corpus is not assembled into documents; it does not say "hide the read view", and a viewer decides what to make of it, as `GET /_api`'s capability list works on the write side (`write-api.md` §1).
 
 It exists because deriving the answer from emptiness cannot distinguish **empty because not yet** from **empty because never**. A quilt with no runs yet would lose a view and get it back later, and since the manifest is re-polled every second the furniture would move while someone worked. A publisher declares once instead.
@@ -289,6 +291,8 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "discarded": false
 }
 ```
+
+**[decided]** A thread of kind `run` also carries `pipeline`: the modes the run applied, in order, each `{mode, target, report}` with `pass` when it is a numbered re-run, `fragment` naming the rendered report fragment, and `blocks` indexing that fragment as `{name, title, findings}`. It is **derived, not declared** — every mode writes `<mode>-<target>.notes.md` without exception, so the run directory already says which modes ran and against what, and says it retroactively for runs written before the field existed. The order is the files' own, a numbered second pass after its first; name order rather than clock order, because two builds of one quilt must not disagree about it. A publisher with no modes emits no `pipeline`, and a viewer must not recover a mode by parsing a filename itself.
 
 `messages` comes from `thread.md` (rendered) or, later, from the write API; `log` from `run.log`. As published by loom (M6): every run under `ai/runs/` is a thread of `kind` `run` with `path` (the run directory), `title` from the first heading of `thread.md` or the run's name, `participants` from the run's name and the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`; every comment session — one author on one day, replayed from the annotation log — is a thread of `kind` `comments` whose messages are its annotations. Each thread also has a `search` entry with `kind` `thread`.
 

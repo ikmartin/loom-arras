@@ -1,5 +1,5 @@
 ## Open
-- the viewer could generally be sped up and optimized. Many things feel a little slow. Clicking buttons in the settings is laggy.
+- the viewer could generally be sped up and optimized. Many things feel a little slow. Clicking buttons in the settings is laggy. Test out 6 potential optimizations, implement the top 3.
 - a toggle in settings for "paper" or "blog" format display, applied globally so that it affects the read display as well as the display of nodes.
 - (FOR HUMAN) the modes should be reviewed and heavily modified. This likely needs to be verified and completed by a human.
 - color coding in the graph view: currently no color coding at all. should match the color of the taxons, and there should be one place to set these colors.
