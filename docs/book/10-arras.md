@@ -130,6 +130,8 @@ When the write API is present (deferred), the same boxes gain reply and resolve 
 
 Like the word list, this is a boundary rather than a style: a violation is in the wrong place, not merely in the wrong form. The guard carries a named list of the sites that predate it, which the plan that removes them empties.
 
+**[decided]** A publisher may omit any top-level manifest section it has nothing to say about, and arras treats an absent section as an empty one (`specs/manifest.md` §1). Absence is resolved once, in the loader, so every view downstream keeps a total type and no view carries a guard of its own; a malformed value is still the publisher's error and is not papered over. `docs/specs/fixture-minimal/` is the fixture that holds that floor — a manifest belonging to the specification, written by nobody's publisher, omitting eleven sections outright — and `arras/tests/e2e-minimal/` renders every route against it (DR-146). It is a second fixture with a different job from the conformance fixture, and the two are not merged: one proves that a publisher and a viewer agree construct by construct, the other that the interface has a floor at all.
+
 ## 10.9 Accessibility and print
 
 **[decided]** Every page is navigable by keyboard and the master view prints as a document with badges suppressed; marks carry `aria-describedby` to their boxes in the margin placement and `aria-expanded` in place (implemented). Not MVP-gating.

@@ -36,6 +36,8 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it.
 
+**[decided]** **A publisher may omit any top-level section it has nothing to say about, and a viewer treats an absent section as an empty one.** `interface_version` and `publisher` are the two exceptions; everything else may be missing. A publisher with no masters, no review ledger or no bibliography writes no `masters`, no `annotations` and no `references`, and is conforming. This is what makes the interface publisher-neutral rather than loom-shaped: a corpus tool and a site generator publish very different subsets of it, and neither should have to write empty objects to prove it read the specification. Absence and emptiness mean the same thing, so a viewer must never distinguish them, and a publisher may use whichever is more natural. A malformed *value* is a different matter and remains the publisher's error. `docs/specs/fixture-minimal/` is the fixture that holds this floor.
+
 ## 2. Masters and canon
 
 **[decided]** `masters` lists the documents a reader may work in; `canon` lists the landmarks, in the order the publisher recorded them, oldest first. A document the publisher considers superseded appears in neither.
