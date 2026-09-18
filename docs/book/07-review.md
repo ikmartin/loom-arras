@@ -177,6 +177,12 @@ resolved a-2026-09-16-0007
 
 **[decided]** Annotations may target: a key; a labelled equation (qualified key); a master (path), whose own text is the region. They may not target rendered-only content, LaTeX comments, the preamble, or a span crossing a node boundary (`loom comment` refuses a quote that crosses out of the target's own text).
 
+### 7.5.5 Annotations whose subject is gone
+
+**[decided]** Detached is not the only way an annotation can lose its footing, and the two are independent. An annotation records `against`: the hash of the text it was written about, and loom freezes that text into the history's `texts/` when it notices the author edit under an annotation. Two edits between two scans leave a version loom never saw and cannot freeze. The quote may still match the new text perfectly — the annotation is not detached — while the thing that was being objected to can no longer be produced.
+
+**[decided]** Loom reports this rather than assuming it away: the annotation is `recorded: false`, and `anchored` — the fact a viewer draws its margin mark from and a re-checking agent trusts — is false with it (DR-168). An annotation is anchored when it has a selector, that selector resolves, **and** the version it names can still be shown.
+
 ## 7.6 Computed states
 
 ### 7.6.1 Per key
@@ -213,7 +219,9 @@ resolved a-2026-09-16-0007
 
 ## 7.7 `loom status`
 
-**[decided]** Prints every key as `<key> (<Taxon>)` with its state, the cause if stale (with the date of the changed file), review facts, and its `\incomplete` text if any; then a summary line counting stale of accepted, draft, incomplete, loose, proved, and settled keys. Filters: `--stale`, `--draft`, `--incomplete`, `--loose`, `--master PATH`, `--tag TAG`, `--unmatched-cites`, `--undigested`, `--retired`, `--runs`; `--explain KEY`; `--json`, which also carries each key's closure and the masters reaching it. It never exits nonzero; `loom check` is the command that fails.
+**[decided]** Prints every key as `<key> (<Taxon>)` and its title, with its state, the cause if stale (with the date of the changed file), review facts, and its `\incomplete` text if any; then a summary line counting stale of accepted, draft, incomplete, loose, proved, and settled keys **of the rows it printed**, so a filtered list is summarised by what it holds. Filters: `--stale`, `--draft`, `--incomplete`, `--loose`, `--master PATH`, `--tag TAG`, `--severity S`, `--kind K`, `--status S`, `--detached`, `--unmatched-cites`, `--undigested`, `--retired`, `--runs`; `--explain KEY`; `--json`, which also carries each key's closure, its title and taxon, the masters reaching it, and the live annotations on it. It never exits nonzero; `loom check` is the command that fails.
+
+**[decided]** **Every row filter applies to `--json` exactly as it applies to the text form** (DR-168). The last four filter on the annotations a key carries: `--severity` and `--kind` and `--status` keep a key when any live annotation on it matches, and `--detached` keeps a key whose annotations no longer find their quoted text. Discarded annotations are not counted by any of them, here or in `loom ai findings`, because a withdrawn finding is not something to do.
 
 `loom status --stale` on the synthetic quilt (14.3) at M3:
 

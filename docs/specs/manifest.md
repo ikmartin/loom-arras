@@ -253,17 +253,23 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "in_reply_to": null,
   "anchored": true,
   "detached": false,
+  "recorded": true,
   "quote": "the inclusion is open by the rigidity lemma",
   "severity": "major",
   "payload": "\\begin{lemma}\\label{rl-0021}...",
   "placement": "after",
   "run": "ai/runs/2026-09-16T14-02-referee",
   "record": "ai/runs/2026-09-16T14-02-referee",
-  "discarded": false
+  "discarded": false,
+  "discard_reason": null
 }
 ```
 
 `body_html` is the Markdown body rendered by the publisher into the dialect's inline subset.
+
+**[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash` — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
+
+**[decided]** `discard_reason` is the text given when the annotation was withdrawn, or null. Discarding is the one state change that carries a reason, because withdrawing a finding says the finding should not have been raised and the record is worth nothing without the why.
 
 **[decided]** `severity` grades the fault a finding names — `major`, `moderate`, `minor` — and is null where the annotation names no fault. It is unrelated to a diagnostic's `severity`, which grades a message. `payload` is text the annotation proposes and `placement` (`replace`, `after`, `before`) is a hint for where a viewer shows it relative to the anchor; a viewer previews a payload and never applies one.
 
