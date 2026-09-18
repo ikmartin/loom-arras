@@ -52,7 +52,7 @@ class ScanResult:
 def find_bib_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
     """The quilt's bibliography files.
 
-    A `.bib` inside a fetched or crawled work's source under `refs/`, or inside a run under `ai/`, is someone else's bibliography, not the quilt's; reading it would merge a whole library's references into the author's. The canon directory and `retired/` (`skip_top`) hold nothing that is source.
+    A `.bib` inside a fetched work's source under `refs/`, or inside a run under `ai/`, is someone else's bibliography, not the quilt's; reading it would merge a whole library's references into the author's. The canon directory and `retired/` (`skip_top`) hold nothing that is source.
     """
     out: list[str] = []
     for path in root.rglob("*.bib"):

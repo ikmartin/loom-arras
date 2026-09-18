@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from loom.scan.quilt import NoQuiltError, find_quilt, load_quilt
+from loom.scan.quilt import NoQuiltError, QuiltConfig, find_quilt, load_quilt
 
 
 def _make(root: Path, body: str = '[quilt]\nmain = "drafting/main.tex"\n') -> Path:
@@ -42,3 +42,15 @@ def test_quilt_config_unknown_key_warns(tmp_path: Path) -> None:
     assert any("[extra]" in w for w in q.config.warnings)
     assert q.config.main == "drafting/main.tex"
     assert q.config.prefix == "q"
+
+
+def test_a_table_that_is_not_a_table_warns() -> None:
+    cfg = QuiltConfig.from_dict({"quilt": {"name": "Q"}, "refs": "yes"})
+    assert cfg.name == "Q"
+    assert any("[refs] is not a table" in w for w in cfg.warnings)
+
+
+def test_a_retired_table_is_accepted_and_ignored() -> None:
+    """A quilt still carrying `[crawl]` (DR-144) must not start reporting it as unknown; `loom upgrade` removes it."""
+    cfg = QuiltConfig.from_dict({"crawl": {"depth": 3, "subjects": ["14N"], "categories": ["math.AG"], "cap": 50}})
+    assert cfg.warnings == []

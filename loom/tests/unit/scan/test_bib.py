@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from loom.scan.bib import citekey_slug, parse_bib
+from loom.scan.scan import find_bib_files
 
 BIB = r"""
 @comment{ignored}
@@ -31,3 +34,12 @@ def test_citekey_slug() -> None:
     assert citekey_slug("stacks-project") == "stacksproject"
     assert citekey_slug("Parker: gluing") == "Parkergluing"
     assert citekey_slug("Man12") == "Man12"
+
+
+def test_a_bib_inside_a_fetched_source_is_not_the_quilts(tmp_path: Path) -> None:
+    (tmp_path / "refs.bib").write_text("")
+    (tmp_path / "refs" / "arxiv" / "1" / "src").mkdir(parents=True)
+    (tmp_path / "refs" / "arxiv" / "1" / "src" / "theirs.bib").write_text("")
+    (tmp_path / "ai" / "runs" / "r").mkdir(parents=True)
+    (tmp_path / "ai" / "runs" / "r" / "draft.bib").write_text("")
+    assert find_bib_files(tmp_path) == ["refs.bib"]

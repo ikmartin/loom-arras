@@ -21,9 +21,10 @@ CONFIG_KEYS: dict[str, set[str]] = {
     "quilt": {"name", "main", "drafting", "drafts", "canon", "history", "prefix", "engine"},
     "refs": {"fetch", "resolve", "contact"},
     "lint": {"disable"},
+    # `[crawl]` is retired: the crawl went to weft (DR-144). `runner` is retired: the runner was declined
+    # (docs/work-queue/closed.md, WQ-15). Both stay accepted and ignored so that a quilt loom itself wrote them into
+    # does not now report them as unknown; `loom upgrade` removes the table and the line.
     "crawl": {"depth", "subjects", "categories", "cap"},
-    # `runner` is retired: the runner was declined (docs/work-queue/closed.md, WQ-15). It stays accepted and ignored
-    # so that a quilt loom itself wrote the key into does not now report it as unknown; `loom upgrade` removes the line.
     "ai": {"agent", "runner"},
 }
 
@@ -52,10 +53,6 @@ class QuiltConfig:
     fetch: bool = False
     resolve: bool = False
     contact: str = ""
-    crawl_depth: int = 2
-    crawl_subjects: list[str] = field(default_factory=list)
-    crawl_categories: list[str] = field(default_factory=list)
-    crawl_cap: int = 1000
     lint_disable: list[str] = field(default_factory=list)
     ai_agent: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -67,18 +64,24 @@ class QuiltConfig:
     def from_dict(cls, data: dict[str, Any], user: dict[str, Any] | None = None) -> QuiltConfig:
         """The config of a quilt from its `config.toml` table, with the user config's `[quilt]` values (USER_QUILT_KEYS only) as defaults under it."""
         cfg = cls()
-        for table, keys in data.items():
+
+        def table(name: str) -> dict[str, Any]:
+            """A named table, or empty when the file gives that name a scalar (which is warned about below)."""
+            value = data.get(name, {})
+            return value if isinstance(value, dict) else {}
+
+        for table_name, keys in data.items():
             if not isinstance(keys, dict):
-                cfg.warnings.append(f"config.toml: [{table}] is not a table; ignored")
+                cfg.warnings.append(f"config.toml: [{table_name}] is not a table; ignored")
                 continue
-            known = CONFIG_KEYS.get(table)
+            known = CONFIG_KEYS.get(table_name)
             if known is None:
-                cfg.warnings.append(f"config.toml: unknown table [{table}]; ignored")
+                cfg.warnings.append(f"config.toml: unknown table [{table_name}]; ignored")
                 continue
             for key in keys:
                 if key not in known:
-                    cfg.warnings.append(f"config.toml: unknown key {table}.{key}; ignored")
-        q = dict(data.get("quilt", {}))
+                    cfg.warnings.append(f"config.toml: unknown key {table_name}.{key}; ignored")
+        q = dict(table("quilt"))
         uq = (user or {}).get("quilt", {})
         if isinstance(uq, dict):
             for key in USER_QUILT_KEYS:
@@ -95,31 +98,11 @@ class QuiltConfig:
         cfg.main = str(q.get("main", f"{cfg.drafting}/main.tex"))
         cfg.prefix = str(q.get("prefix", cfg.prefix))
         cfg.engine = str(q.get("engine", cfg.engine))
-        cfg.fetch = bool(data.get("refs", {}).get("fetch", False))
-        cfg.resolve = bool(data.get("refs", {}).get("resolve", False))
-        cfg.contact = str(data.get("refs", {}).get("contact", ""))
-        crawl = data.get("crawl", {}) if isinstance(data.get("crawl", {}), dict) else {}
-        for key, attr in (("depth", "crawl_depth"), ("cap", "crawl_cap")):
-            if key in crawl:
-                value = crawl[key]
-                if isinstance(value, int) and not isinstance(value, bool) and value >= (1 if key == "depth" else 0):
-                    setattr(cfg, attr, value)
-                else:
-                    cfg.warnings.append(
-                        f"config.toml: crawl.{key} must be a whole number{' of at least 1' if key == 'depth' else ''}; using {getattr(cfg, attr)}"
-                    )
-        for key, attr, example in (
-            ("subjects", "crawl_subjects", 'MSC families such as ["14N", "14D"]'),
-            ("categories", "crawl_categories", 'arXiv categories such as ["math.AG"]'),
-        ):
-            if key in crawl:
-                value = crawl[key]
-                if isinstance(value, list) and all(isinstance(s, str) for s in value):
-                    setattr(cfg, attr, [s.strip() for s in value if s.strip()])
-                else:
-                    cfg.warnings.append(f"config.toml: crawl.{key} must be a list of {example}; ignored")
-        cfg.lint_disable = [str(x) for x in data.get("lint", {}).get("disable", [])]
-        cfg.ai_agent = str(data.get("ai", {}).get("agent", ""))
+        cfg.fetch = bool(table("refs").get("fetch", False))
+        cfg.resolve = bool(table("refs").get("resolve", False))
+        cfg.contact = str(table("refs").get("contact", ""))
+        cfg.lint_disable = [str(x) for x in table("lint").get("disable", [])]
+        cfg.ai_agent = str(table("ai").get("agent", ""))
         return cfg
 
 

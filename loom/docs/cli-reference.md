@@ -456,7 +456,7 @@ Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
 
 `loom refs [OPTIONS] COMMAND [ARGS]...`
 
-Fetched works: where their artifacts are, how to add one by hand, identifiers for works that state none, and a library crawled from the bibliography.
+Fetched works: where their artifacts are, how to add one by hand, and identifiers for works that state none.
 
 ### `loom refs add`
 
@@ -469,48 +469,6 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 | option | description |
 |---|---|
 | `--force` | Replace an artifact that is already there. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-### `loom refs crawl`
-
-`loom refs crawl [OPTIONS] COMMAND [ARGS]...`
-
-Build a library from the bibliography: plan by depth and subject from metadata, then fetch under a cap (book 8.13).
-
-#### `loom refs crawl fetch`
-
-`loom refs crawl fetch [OPTIONS]`
-
-Download what the plan selected, shallowest and most cited first, until [crawl] cap downloads are on disk. Resumable. Requires [refs] fetch = true and a plan made from the current settings and bibliography.
-
-| option | description |
-|---|---|
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom refs crawl plan`
-
-`loom refs crawl plan [OPTIONS]`
-
-Plan a crawl from metadata alone: identify the cited works, follow references to [crawl] depth, keep the works in [crawl] subjects and categories, and say what fetch would download. Downloads nothing. Requires [refs] resolve = true.
-
-Without [crawl] subjects, and deeper than depth 1, it surveys instead: it counts the works the cited works cite by MSC family and arXiv category, to choose subjects and categories from, and makes no plan.
-
-| option | description |
-|---|---|
-| `--refresh` | Ask the services again instead of using recorded answers. |
-| `--json` | Print the plan as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom refs crawl status`
-
-`loom refs crawl status [OPTIONS]`
-
-What the plan's library holds: its works, how many are downloaded or failed, how many are still to fetch under the cap and beyond it, and whether the plan is current.
-
-| option | description |
-|---|---|
-| `--json` | Print the status as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs path`

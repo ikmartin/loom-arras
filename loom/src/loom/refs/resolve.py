@@ -2,7 +2,7 @@
 
 A work with no DOI, eprint, MR or Zbl number is filed under a synthetic `work:<hash>`, which names it consistently but cannot be fetched or joined with anyone else's copy. This module asks zbMATH Open and Crossref which work an entry most likely is, and returns *candidates*: an identifier, where it came from, what it matched and how well. It never changes a work's identity and never writes the bibliography. A candidate becomes an identity when the author adds the field to their own entry, at which point it is declared like any other.
 
-Every returned record is scored here rather than trusting either service's own score, so a confidence means the same thing whichever service answered. The core takes a `Query`, which a bibliography entry or a formatted reference string both reduce to, so a crawl can resolve a `\\bibitem` with the same code.
+Every returned record is scored here rather than trusting either service's own score, so a confidence means the same thing whichever service answered. The core takes a `Query`, which a bibliography entry or a formatted reference string both reduce to.
 """
 
 from __future__ import annotations

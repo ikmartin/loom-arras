@@ -19,6 +19,8 @@ _PREFIX = re.compile(r"^%\s*!LOOM\s+prefix:\s*\S+\s*$", re.M)
 
 
 _RETIRED_KEY = re.compile(r"^runner\s*=.*(?:\r?\n)?", re.M)
+# a retired table: the header and every line under it, up to the next table or the end of the file
+_RETIRED_TABLE = re.compile(r"^\[crawl\][^\n]*(?:\r?\n)(?:(?!\s*\[)[^\n]*(?:\r?\n|$))*", re.M)
 
 
 @dataclass
@@ -34,19 +36,20 @@ class Migration:
 
 
 def _drop_retired_keys(root: Path) -> list[str]:
-    """Remove config keys loom itself wrote and has since withdrawn.
+    """Remove config loom has since withdrawn: the `[ai] runner` key (WQ-15) and the whole `[crawl]` table (DR-144).
 
-    Only `[ai] runner`, and only by deleting its line: rewriting the file through a TOML round trip would lose the comments the template ships with. The key is still accepted if left in place, so this is tidying rather than a fix.
+    By line, not through a TOML round trip, which would lose the comments the template ships with. Both are still accepted if left in place, so this is tidying rather than a fix; `runner` is a key loom's own template once wrote, while `[crawl]` is one the author wrote following the book, which is why the migration reports it.
     """
     cfg = root / "config.toml"
     if not cfg.is_file():
         return []
     text = cfg.read_text(encoding="utf-8")
-    out, n = _RETIRED_KEY.subn("", text)
-    if not n:
+    out, keys = _RETIRED_KEY.subn("", text)
+    out, tables = _RETIRED_TABLE.subn("", out)
+    if not (keys or tables):
         return []
-    cfg.write_text(out, encoding="utf-8")
-    return ["[ai] runner"]
+    cfg.write_text(re.sub(r"\n{3,}", "\n\n", out), encoding="utf-8")
+    return (["[ai] runner"] if keys else []) + (["[crawl]"] if tables else [])
 
 
 def _bib(root: Path) -> dict[str, BibEntry]:

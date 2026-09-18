@@ -110,5 +110,41 @@ def test_migrate_moves_digests_and_splits_provenance(tmp_path: Path) -> None:
     assert not migrate(q).done  # idempotent
 
 
+def test_migrate_drops_retired_config_and_keeps_the_comments(tmp_path: Path) -> None:
+    """`[ai] runner` (WQ-15) and the whole `[crawl]` table (DR-144) go; everything the author wrote around them stays."""
+    q = tmp_path / "q"
+    q.mkdir(parents=True)
+    (q / "config.toml").write_text(
+        "[quilt]\n"
+        'name = "Q"                  # the project\n'
+        'prefix = "q"\n'
+        "\n"
+        "[refs]\n"
+        "fetch = false               # may loom fetch from arXiv\n"
+        "\n"
+        "[crawl]\n"
+        "# the library this paper draws on\n"
+        "depth = 3\n"
+        'subjects = [\n  "14N",\n  "14D",\n]\n'
+        "cap = 50\n"
+        "\n"
+        "[ai]\n"
+        'agent = "claude"            # command loom ai start launches\n'
+        'runner = "make"\n',
+        encoding="utf-8",
+    )
+    rep = migrate(q)
+    assert rep.retired == ["[ai] runner", "[crawl]"]
+
+    out = (q / "config.toml").read_text(encoding="utf-8")
+    assert "[crawl]" not in out and "subjects" not in out and "14N" not in out and "runner" not in out
+    # the tables around it, their values and their trailing comments are untouched
+    assert "# may loom fetch from arXiv" in out and "# command loom ai start launches" in out
+    assert '[ai]\nagent = "claude"' in out and "[refs]" in out and "[quilt]" in out
+    assert "\n\n\n" not in out
+
+    assert not migrate(q).done  # idempotent
+
+
 def test_primary_is_none_without_an_entry() -> None:
     assert primary(None) is None and identify(None) == []
