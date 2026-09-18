@@ -193,6 +193,8 @@ def _one_comment(
         return f"resolved {resolve}"
 
     if reply:
+        if not (message or "").strip():
+            raise EnvError("a reply with no message says nothing; give the text as the argument after the id")
         found = find_annotation(records, reply)
         if found is None:
             raise ContentError(f"no annotation {reply}")
@@ -283,6 +285,14 @@ def discard_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, s
     return f"discarded {ann_id}"
 
 
+def check_edit(body: str | None, severity: str | None, payload: str | None) -> None:
+    """An edit must change something, and an edit to an empty body says nothing -- `--discard` is how a finding is withdrawn."""
+    if body is not None and not body.strip():
+        raise EnvError("an edit to an empty body says nothing; give the new text, or withdraw it with --discard")
+    if body is None and severity is None and payload is None:
+        raise EnvError("--edit with nothing to change; give a new body, --severity or --payload")
+
+
 def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str], **fields: str | None) -> str:
     """Supersede an annotation's body or payload; the history stays in the log and one current body is shown.
 
@@ -329,6 +339,7 @@ def _batch_line(result: ScanResult, writer: tuple[str | None, str, str], item: d
     if item.get("discard"):
         return discard_annotation(root, str(item["discard"]), writer, item.get("message"))
     if item.get("edit"):
+        check_edit(item.get("message"), item.get("severity"), item.get("payload"))
         return edit_annotation(
             root,
             str(item["edit"]),
@@ -435,13 +446,16 @@ def comment(
             except (ContentError, EnvError) as exc:
                 raise ContentError(f"batch line {lineno}: {exc.message}") from exc
         return
+    # Each of these names its annotation by id and takes no TARGET (7.4), so the one positional given is the body.
+    # `--edit` and `--discard` did this; `--reply` and `--resolve` read it as a target and filed an empty body.
+    if (reply or resolve or edit or discard_id) and message is None:
+        message, target = target, None
     if discard_id:
-        click.echo(discard_annotation(root, discard_id, writer, message if message is not None else target))
+        click.echo(discard_annotation(root, discard_id, writer, message))
         return
     if edit:
-        # `loom comment --edit ID "the new body"` takes no target, so the one positional given is the body
-        body = message if message is not None else target
-        click.echo(edit_annotation(root, edit, writer, body=body, severity=severity, payload=payload))
+        check_edit(message, severity, payload)
+        click.echo(edit_annotation(root, edit, writer, body=message, severity=severity, payload=payload))
         return
     click.echo(_one_comment(result, writer, target, message, quote, kind, reply, resolve, severity, payload, placement))
 

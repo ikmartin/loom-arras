@@ -701,3 +701,39 @@ def test_a_reference_note_records_the_work_and_the_argument_for_it(tmp_path: Pat
     note = json.loads((d / "reference-notes.jsonl").read_text().splitlines()[0])
     assert note["work"].startswith("Kreschmer,")
     assert note["claim"].startswith("The parity count")
+
+
+def test_every_verb_takes_its_message_as_the_one_positional(tmp_path: Path) -> None:
+    """`--reply` and `--resolve` read the single argument as a TARGET and filed an empty body, silently discarding the author's answer."""
+    d = demo(tmp_path)
+    first = run("comment", "dm-0003", "The hypothesis is unused", "--severity", "major", *AUTHOR, cwd=d)
+    assert first.exit_code == 0, first.output
+    ann = first.output.split()[0]
+
+    assert run("comment", "--reply", ann, "It is used in step 3", "--author", "Bob", cwd=d).exit_code == 0
+    assert run("comment", "--resolve", ann, "fixed in the new statement", *AUTHOR, cwd=d).exit_code == 0
+    bodies = {e["event"]: e.get("body") for e in events(d)}
+    assert bodies["replied"] == "It is used in step 3"
+    assert bodies["resolved"] == "fixed in the new statement"
+
+
+def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    ann = run("comment", "dm-0002", "A finding", *AUTHOR, cwd=d).output.split()[0]
+    before = len(events(d))
+
+    empty_reply = run("comment", "--reply", ann, *AUTHOR, cwd=d)
+    assert empty_reply.exit_code != 0 and "a reply with no message" in empty_reply.output
+    nothing = run("comment", "--edit", ann, *AUTHOR, cwd=d)
+    assert nothing.exit_code != 0 and "nothing to change" in nothing.output
+    blank = run("comment", "--edit", ann, "", *AUTHOR, cwd=d)
+    assert blank.exit_code != 0 and "empty body" in blank.output
+    assert len(events(d)) == before  # none of them wrote
+
+    # a field-only edit still stands, and a resolution needs no comment (7.4)
+    assert run("comment", "--edit", ann, "--severity", "minor", *AUTHOR, cwd=d).exit_code == 0
+    assert run("comment", "--resolve", ann, *AUTHOR, cwd=d).exit_code == 0
+
+    # and the batch path is guarded the same way
+    r = run("comment", "--batch", *AUTHOR, cwd=d, stdin=json.dumps({"edit": ann}) + "\n")
+    assert r.exit_code != 0 and "nothing to change" in r.output
