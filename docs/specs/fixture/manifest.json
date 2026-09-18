@@ -18,8 +18,8 @@
    "placement": null,
    "quote": "finite widget",
    "record": "ai/runs/2026-09-16T00-00-referee",
-   "run": "ai/runs/2026-09-16T00-00-referee",
-   "severity": null,
+   "run": "2026-09-16T00-00-referee",
+   "severity": "major",
    "status": "open",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
@@ -40,12 +40,12 @@
    "id": "a-2026-09-16-0002",
    "in_reply_to": null,
    "kind": "suggestion",
-   "payload": null,
-   "placement": null,
+   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
+   "placement": "replace",
    "quote": "disjoint union of orbits",
    "record": "ai/runs/2026-09-16T00-00-referee",
-   "run": "ai/runs/2026-09-16T00-00-referee",
-   "severity": null,
+   "run": "2026-09-16T00-00-referee",
+   "severity": "minor",
    "status": "resolved",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
@@ -53,6 +53,32 @@
    }
   },
   "a-2026-09-16-0003": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0003",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "run": "2026-09-16T00-00-referee",
+   "severity": "moderate",
+   "status": "open",
+   "target": {
+    "hash": "sha256:c2c3814a51416f1f58bd87e0e76b99dd8a05d76486962c1adc81a5cbc887bbc3",
+    "key": "drafting/main.tex"
+   }
+  },
+  "a-2026-09-16-0004": {
    "anchored": true,
    "author": {
     "id": "The synthetic quilt",
@@ -63,7 +89,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": false,
-   "id": "a-2026-09-16-0003",
+   "id": "a-2026-09-16-0004",
    "in_reply_to": null,
    "kind": "question",
    "payload": null,
@@ -78,7 +104,7 @@
     "key": "sy-0002"
    }
   },
-  "a-2026-09-16-0004": {
+  "a-2026-09-16-0005": {
    "anchored": true,
    "author": {
     "id": "The synthetic quilt",
@@ -89,7 +115,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": false,
-   "id": "a-2026-09-16-0004",
+   "id": "a-2026-09-16-0005",
    "in_reply_to": "a-2026-09-16-0001",
    "kind": "question",
    "payload": null,
@@ -104,7 +130,7 @@
     "key": "sy-0003"
    }
   },
-  "a-2026-09-16-0005": {
+  "a-2026-09-16-0006": {
    "anchored": true,
    "author": {
     "id": "The synthetic quilt",
@@ -115,7 +141,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": false,
-   "id": "a-2026-09-16-0005",
+   "id": "a-2026-09-16-0006",
    "in_reply_to": "a-2026-09-16-0002",
    "kind": "question",
    "payload": null,
@@ -130,7 +156,7 @@
     "key": "sy-0004"
    }
   },
-  "a-2026-09-16-0006": {
+  "a-2026-09-16-0007": {
    "anchored": false,
    "author": {
     "id": "The synthetic quilt",
@@ -141,7 +167,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": true,
    "discarded": false,
-   "id": "a-2026-09-16-0006",
+   "id": "a-2026-09-16-0007",
    "in_reply_to": null,
    "kind": "question",
    "payload": null,
@@ -156,7 +182,7 @@
     "key": "sy-0001"
    }
   },
-  "a-2026-09-16-0007": {
+  "a-2026-09-16-0008": {
    "anchored": false,
    "author": {
     "id": "2026-09-15T10-00-quick",
@@ -167,14 +193,14 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": true,
-   "id": "a-2026-09-16-0007",
+   "id": "a-2026-09-16-0008",
    "in_reply_to": null,
    "kind": "ok",
    "payload": null,
    "placement": null,
    "quote": null,
    "record": "ai/runs/2026-09-15T10-00-quick",
-   "run": "ai/runs/2026-09-15T10-00-quick",
+   "run": "2026-09-15T10-00-quick",
    "severity": null,
    "status": "open",
    "target": {
@@ -186,7 +212,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "86343360f9fbc5618bafa0c43f49995968153c13c368a583617afa0488f63eda",
+   "hash": "bb8fc3a2facc3e13e6b3e89b948812b611b6459097a237104bdc337fdde6679e",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -198,7 +224,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "6bbd8e0d3a4d56807d0f50c54e45e4bfacaac6c1365200bd8c7d1eeb2c3e395b",
+   "hash": "3de73a34ebaf9df6976c4647d9f10a009f79f79d24169b0811f3f8577e3339f5",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -210,7 +236,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "60a2de817d82db0882a1c8ceb26e6d363b18d9e43abdee6c87b28953ee9138de",
+   "hash": "85327f36119729c5161e6eddd6592f76f1d1d7cc8c4b9ab491efc4a18cb4f255",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -4334,9 +4360,14 @@
   "2026-09-16T00-00-referee": {
    "attachments": [
     {
-     "count": 2,
+     "count": 3,
      "kind": "annotations",
      "name": "annotations"
+    },
+    {
+     "kind": "notes",
+     "name": "referee-sy-0003.notes.md",
+     "path": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md"
     }
    ],
    "created": "2026-09-16T00:00:00Z",
@@ -4351,6 +4382,10 @@
     {
      "command": "loom comment sy-0004 --quote --kind suggestion",
      "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment drafting/main.tex --kind suggestion",
+     "time": "2026-09-16T00:00:00Z"
     }
    ],
    "messages": [
@@ -4359,7 +4394,7 @@
       "id": "referee",
       "kind": "agent"
      },
-     "body_html": "<p><strong>2026-09-16 00:00 referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read <code>bundle-sy-0003.tex</code>, left one objection on the statement and one suggestion on the first proof. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
+     "body_html": "<p><strong>2026-09-16 00:00 referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
      "time": "2026-09-16T00:00:00Z"
     }
    ],
@@ -4370,10 +4405,55 @@
     }
    ],
    "path": "ai/runs/2026-09-16T00-00-referee",
-   "pipeline": [],
+   "pipeline": [
+    {
+     "blocks": [
+      {
+       "name": "summary",
+       "title": "summary"
+      },
+      {
+       "name": "notation",
+       "symbols": [
+        {
+         "means": "is the fixed locus of the involution.",
+         "tex": "\\Fix(\\sigma)"
+        },
+        {
+         "means": "is the number of two-element orbits.",
+         "tex": "k"
+        },
+        {
+         "means": "is also used below for the fixed locus of the induced map on orbits.",
+         "tex": "\\Fix(\\sigma)"
+        }
+       ],
+       "title": "notation"
+      },
+      {
+       "findings": [
+        "a-2026-09-16-0001",
+        "a-2026-09-16-0002",
+        "a-2026-09-16-0003"
+       ],
+       "name": "referee-review",
+       "title": "Major and minor issues"
+      },
+      {
+       "name": "decision",
+       "title": "decision"
+      }
+     ],
+     "fragment": "fragments/reports/ai%2Fruns%2F2026-09-16T00-00-referee%2Freferee-sy-0003.notes.md.html",
+     "mode": "referee",
+     "report": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md",
+     "target": "sy-0003"
+    }
+   ],
    "targets": [
     "sy-0003",
-    "sy-0004"
+    "sy-0004",
+    "drafting/main.tex"
    ],
    "title": "referee sy-0003"
   },
