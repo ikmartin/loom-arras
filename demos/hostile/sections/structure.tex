@@ -1,0 +1,19 @@
+\section{Shapes the scanner must survive}\label{hx-0400}
+
+\input{sections/structure}
+
+\input{nodes/cycle-a}
+
+\begin{lemma}[Defined here and in three other files]\label{hx-0007}
+The same id is claimed by this lemma and by three files under nodes/. Loom must report all four rather than choose.
+\end{lemma}
+
+\nest{sections/deep-1}
+
+\begin{lemma}[A dependency on itself]\label{hx-0008}
+This result follows from Lemma~\ref{hx-0008}, which is itself. \uses{hx-0008}
+\end{lemma}
+
+\begin{lemma}[A reference to nothing]\label{hx-0009}
+By Lemma~\ref{hx-does-not-exist} and \cite[Theorem 9]{NoSuchWork}, the claim holds. \uses{hx-also-missing, , ,}
+\end{lemma}
