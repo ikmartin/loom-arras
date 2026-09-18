@@ -41,6 +41,28 @@ export function checkVersion(data: unknown): Diagnostic | null {
 	return typeof v === 'number' && ACCEPTED_INTERFACE_VERSIONS.includes(v) ? null : versionDiagnostic(v);
 }
 
+/**
+ * Fill in every top-level section the publisher left out.
+ *
+ * A publisher writes what it has: one may have no masters, another no review ledger, and a corpus nobody has worked
+ * on yet has no states. The interface says an absent section means an empty one (specs/manifest.md §1),
+ * so absence is resolved here, once, and every consumer downstream keeps a total type. Only top-level sections are
+ * filled: a malformed *value* is still the publisher's error and is not papered over.
+ */
+export function normalise(data: Record<string, unknown>): Manifest {
+	const m = { ...data } as Record<string, unknown>;
+	for (const k of ['masters', 'canon', 'relations', 'edges', 'diagnostics', 'search'])
+		if (m[k] === undefined || m[k] === null) m[k] = [];
+	for (const k of ['nodes', 'keys', 'regions', 'inclusion', 'annotations', 'threads', 'tags', 'taxa', 'references'])
+		if (m[k] === undefined || m[k] === null) m[k] = {};
+	if (m.macros === undefined || m.macros === null) m.macros = { default: [], sets: {} };
+	if (m.states === undefined || m.states === null) m.states = { labels: {}, derived: {} };
+	if (m.corpus === undefined || m.corpus === null) m.corpus = { name: '', root_label: '' };
+	if (m.publisher === undefined || m.publisher === null) m.publisher = { name: '', version: '' };
+	if (typeof m.generated !== 'string') m.generated = '';
+	return m as unknown as Manifest;
+}
+
 export async function parseManifest(text: string, etag: string | null = null): Promise<LoadResult> {
 	let data: unknown;
 	try {
@@ -59,7 +81,7 @@ export async function parseManifest(text: string, etag: string | null = null): P
 	}
 	const problem = checkVersion(data);
 	if (problem) return { manifest: null, diagnostic: problem };
-	return { manifest: data as Manifest, hash: await hashText(text), etag };
+	return { manifest: normalise(data as Record<string, unknown>), hash: await hashText(text), etag };
 }
 
 export async function loadManifest(url = dataUrl('manifest.json'), etag: string | null = null): Promise<LoadResult | 'unchanged'> {

@@ -5,6 +5,7 @@
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Settings from './Settings.svelte';
 	import { INDEXES } from './views';
+	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
 	let { label, views, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
@@ -13,7 +14,7 @@
 <div class="shell-a">
 	<nav class="rail" aria-label="Navigation">
 		<div class="corpus">
-			<a href="/" class="name">{label}</a>
+			<a href={route('/')} class="name">{label}</a>
 			<Settings />
 		</div>
 

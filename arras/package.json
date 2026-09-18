@@ -21,12 +21,14 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test:unit": "vitest",
-		"test": "npm run test:unit -- --run && npm run test:e2e",
+		"test": "npm run test:unit -- --run && npm run test:e2e && npm run test:minimal",
 		"test:e2e": "playwright test",
 		"stage:fixture": "node scripts/stage-fixture.mjs tests/fixture",
 		"build:prerender": "node scripts/build-prerender.mjs",
 		"build:fixture": "node scripts/stage-fixture.mjs tests/fixture && vite build",
-		"shots": "playwright test --config playwright.shots.config.ts"
+		"shots": "playwright test --config playwright.shots.config.ts",
+		"build:fixture-minimal": "node scripts/stage-fixture.mjs tests/fixture-minimal && vite build",
+		"test:minimal": "playwright test --config playwright.minimal.config.ts"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.60.0",

@@ -1,0 +1,186 @@
+{
+ "corpus": {
+  "name": "A corpus at the floor",
+  "root_label": "A corpus at the floor"
+ },
+ "edges": [
+  {
+   "from": "a-2",
+   "kind": "statement",
+   "src": {
+    "file": "source.tex",
+    "line": 1
+   },
+   "to": "a-1",
+   "via": "uses"
+  },
+  {
+   "from": "a-3",
+   "kind": "statement",
+   "src": {
+    "file": "source.tex",
+    "line": 2
+   },
+   "to": "a-1",
+   "via": "echoes"
+  }
+ ],
+ "interface_version": 1,
+ "macros": {
+  "default": [
+   {
+    "args": 0,
+    "body": "\\mathbb{N}",
+    "name": "NN"
+   }
+  ],
+  "sets": {}
+ },
+ "nodes": {
+  "a-1": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": "2026-09-17",
+   "derived": {},
+   "digest": null,
+   "external": false,
+   "file": "source.tex",
+   "fragment": "fragments/nodes/a-1.html",
+   "id": "a-1",
+   "incomplete": [],
+   "kind": "statement",
+   "level": 0,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    0,
+    0
+   ],
+   "state": "published",
+   "style": null,
+   "tags": [
+    "odd"
+   ],
+   "taxon": "Proposition",
+   "title": "The first result"
+  },
+  "a-2": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": "2026-09-17",
+   "derived": {},
+   "digest": null,
+   "external": false,
+   "file": "source.tex",
+   "fragment": "fragments/nodes/a-2.html",
+   "id": "a-2",
+   "incomplete": [],
+   "kind": "statement",
+   "level": 0,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    0,
+    0
+   ],
+   "state": "draft",
+   "style": null,
+   "tags": [],
+   "taxon": "Remark",
+   "title": "The second result"
+  },
+  "a-3": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": "2026-09-17",
+   "derived": {},
+   "digest": null,
+   "external": false,
+   "file": "source.tex",
+   "fragment": "fragments/nodes/a-3.html",
+   "id": "a-3",
+   "incomplete": [],
+   "kind": "statement",
+   "level": 0,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    0,
+    0
+   ],
+   "state": "published",
+   "style": null,
+   "tags": [],
+   "taxon": "Scholium",
+   "title": "A result whose taxon is unlisted"
+  }
+ },
+ "publisher": {
+  "name": "fixture-minimal",
+  "version": "1"
+ },
+ "search": [
+  {
+   "aliases": [],
+   "key": "a-1",
+   "kind": "node",
+   "tags": [
+    "odd"
+   ],
+   "title": "The first result"
+  },
+  {
+   "aliases": [],
+   "key": "a-2",
+   "kind": "node",
+   "tags": [],
+   "title": "The second result"
+  },
+  {
+   "aliases": [],
+   "key": "a-3",
+   "kind": "node",
+   "tags": [],
+   "title": "A result whose taxon is unlisted"
+  }
+ ],
+ "states": {
+  "derived": {},
+  "labels": {
+   "draft": {
+    "color": "neutral",
+    "label": "draft"
+   },
+   "published": {
+    "color": "positive",
+    "label": "published"
+   }
+  }
+ },
+ "tags": {
+  "odd": [
+   "a-1"
+  ]
+ },
+ "taxa": {
+  "Proposition": {
+   "count": 1,
+   "slug": "proposition",
+   "style": "plain"
+  },
+  "Remark": {
+   "count": 1,
+   "slug": "remark",
+   "style": "remark"
+  }
+ }
+}

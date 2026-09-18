@@ -6,6 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Settings from './Settings.svelte';
 	import { INDEXES } from './views';
+	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
 	let { label, views, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
@@ -33,7 +34,7 @@
 
 	<div class="panel">
 		<div class="head">
-			<a href="/" class="name">{label}</a>
+			<a href={route('/')} class="name">{label}</a>
 		</div>
 		{#if panel}
 			<p class="rail-label">{panelLabel}</p>

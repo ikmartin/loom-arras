@@ -43,8 +43,9 @@ const RULES: Rule[] = [
 		exempt: (f) => f === OWNS_PATHS
 	},
 	{
+		// `/[a-z]` would miss a bare `href="/"`, which is just as origin-absolute and was how two shells linked home.
 		name: 'writes an origin-absolute route',
-		re: /(?:href|url|src)\s*[=:]\s*['"`]\/[a-z]/i,
+		re: /(?:href|url|src)\s*[=:]\s*['"`]\/(?![/*])/i,
 		exempt: (f) => f === OWNS_PATHS
 	},
 	{
