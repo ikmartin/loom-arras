@@ -13,6 +13,10 @@
 	// newest landmark first: the one a reader is most likely to want
 	const landmarks = $derived([...canon].reverse());
 
+	// The file name, not the typeset title. Two drafts of one paper share a title and differ only in their path, which
+	// is what the author types and what every other surface -- `--master`, the read view's URL -- names them by.
+	const filename = (path: string) => path.split('/').pop() || path;
+
 	function go(path: string) {
 		const hit = canon.find((c) => c.path === path);
 		void goto(hit ? canonUrl(hit.path) : masterUrl(path));
@@ -23,14 +27,14 @@
 	{#if landmarks.length}
 		<optgroup label="Canon">
 			{#each landmarks as x (x.path)}
-				<option value={x.path}>{x.title || x.stem}{x.step ? ' \u00b7 @' + Number(x.step) : ''}</option>
+				<option value={x.path}>{filename(x.path)}{x.step ? ' \u00b7 @' + Number(x.step) : ''}</option>
 			{/each}
 		</optgroup>
 	{/if}
 	{#if masters.length}
 		<optgroup label="Working Drafts">
 			{#each masters as x (x.path)}
-				<option value={x.path}>{x.title || x.path}</option>
+				<option value={x.path}>{filename(x.path)}</option>
 			{/each}
 		</optgroup>
 	{/if}

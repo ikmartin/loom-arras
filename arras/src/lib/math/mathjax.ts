@@ -62,8 +62,10 @@ function run(mj: MJ, els: Element[]): Promise<void> {
 	return next;
 }
 
-/** How many formulas one pass typesets before the page gets a turn. */
-const BATCH = 160;
+/** How many formulas one pass typesets before the page gets a turn.
+ *
+ * 160 was one long task of 90-100ms on a 1250-formula document, which is a visible stall; 48 costs a few more yields and keeps each pass around 30ms, under the 50ms a frame can absorb. The first screen of a document holds about 25 formulas, so a document still reveals in one pass. */
+const BATCH = 48;
 
 /**
  * Typeset the mathematics inside `el`.
@@ -91,7 +93,16 @@ export async function typeset(el: Element, defaults: Macro[], perFragment: Macro
 	const items = [...el.querySelectorAll('.math')];
 	if (perFragment.length) {
 		const first = items[0];
-		if (first) first.textContent = macroPrefix(perFragment) + (first.textContent ?? '');
+		// Inside the opening delimiter, not before it. MathJax reads what lies outside `\(…\)` as prose, so a prefix
+		// prepended to the element put four kilobytes of `\renewcommand` on the page as visible text and defined
+		// nothing -- which is what the canon read view was: a document whose first paragraph was its own preamble.
+		if (first) {
+			const text = first.textContent ?? '';
+			const open = /^\s*(\\\(|\\\[)/.exec(text);
+			first.textContent = open
+				? text.slice(0, open[0].length) + macroPrefix(perFragment) + text.slice(open[0].length)
+				: macroPrefix(perFragment) + text;
+		}
 	}
 	if (items.length <= BATCH) {
 		await run(mj, [el]);

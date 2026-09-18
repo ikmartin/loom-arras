@@ -1,5 +1,6 @@
 <script lang="ts">
 	import SourceToggle from './SourceToggle.svelte';
+	import Prose from '$lib/math/Prose.svelte';
 	import type { Annotation } from '$lib/manifest/types';
 	import { shortDate } from '$lib/badges';
 	import { ui } from '$lib/ui.svelte';
@@ -20,7 +21,7 @@
 		{#if annotation.discarded}<span class="detached">discarded</span>{/if}
 	</header>
 	{#if annotation.quote}<blockquote class="quote">{annotation.quote}</blockquote>{/if}
-	<div class="body">{@html annotation.body_html}</div>
+	<Prose html={annotation.body_html} />
 	{#if annotation.payload}
 		<!-- Text the annotation proposes, shown where its `placement` says it would go. Preview and copy only: nothing here applies anything, and the toggle is the same one a node's own source gets. -->
 		<div class="payload" data-testid="payload" data-placement={annotation.placement ?? 'replace'}>
@@ -36,7 +37,7 @@
 			{#each replies as r (r.id)}
 				<article class="reply">
 					<header><span class="author">{r.author.label ?? r.author.id}</span> <span class="date">{shortDate(r.created)}</span> <span class="kind">{r.kind}</span></header>
-					<div class="body">{@html r.body_html}</div>
+					<Prose html={r.body_html} />
 				</article>
 			{/each}
 		</div>
@@ -51,7 +52,9 @@
 		border-radius: var(--rad-control);
 		padding: var(--gap-tight);
 		margin: var(--gap-tight) 0;
-		font-size: 11px;
+		/* The reader chose a body size; a finding about the text is read alongside it and is set at the same size,
+		   one notch down. A fixed 11px ignored the setting entirely and was unreadable at the large one. */
+		font-size: calc(var(--body-size) * 0.92);
 		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
@@ -132,7 +135,7 @@
 		gap: var(--gap-hair);
 		color: var(--ink-faint);
 		font-family: var(--sans);
-		font-size: 9px;
+		font-size: calc(var(--body-size) * 0.76);
 		letter-spacing: 0.02em;
 		margin-bottom: var(--gap-hair);
 	}

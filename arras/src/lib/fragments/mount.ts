@@ -18,6 +18,8 @@ export interface WireOptions {
 	keyless?: boolean;
 	/** Expands comments in place instead of pointing at a card elsewhere: marks and counts call this with the comments they stand for (the `inline` comments preference). */
 	expand?: (trigger: HTMLElement, ids: string[]) => void;
+	/** Open a comment on pointer entry as well as on click (the `hover` setting). */
+	hover?: boolean;
 }
 
 /** One comment and which slot it occupies beside the node it is about.\n *\n * Named `slot` rather than `placement` because an annotation now carries a `placement` of its own, which is a different\n * thing: this is the viewer's layout decision, that is the publisher's hint about where a payload's text would go. */
@@ -35,6 +37,19 @@ export function labelFor(manifest: Manifest | null, key: string): string {
 	return `${n.taxon}${number ? ' ' + number : ''}${n.title ? ' (' + n.title + ')' : ''}`;
 }
 
+/**
+ * The options a wired fragment is currently working under.
+ *
+ * A mark's handlers are bound once and then read this, so changing where comments stand costs a re-wire rather than a re-render. Re-rendering meant re-typesetting: 1,250 formulas and about 800ms of stall for one click in the settings panel.
+ */
+const LIVE = new WeakMap<HTMLElement, WireOptions>();
+
+/** Take out what the comment setting put in, so `wire` can put the other setting's back without the fragment being rebuilt. */
+export function resetComments(root: HTMLElement): void {
+	for (const el of root.querySelectorAll('aside.comment-slot, button.comment-count')) el.remove();
+	for (const el of root.querySelectorAll<HTMLElement>('[data-wired-comments]')) delete el.dataset.wiredComments;
+}
+
 export function wire(
 	root: HTMLElement,
 	manifest: Manifest | null,
@@ -42,6 +57,7 @@ export function wire(
 	select: (id: string) => void = () => {},
 	opts: WireOptions = {}
 ): void {
+	LIVE.set(root, opts);
 	for (const a of root.querySelectorAll<HTMLAnchorElement>('a.ref[data-target]')) {
 		const target = a.dataset.target ?? '';
 		if (opts.keyless) continue;
@@ -93,15 +109,26 @@ export function wire(
 		}
 		mark.setAttribute('role', 'button');
 		mark.setAttribute('tabindex', '0');
-		if (opts.expand) mark.setAttribute('aria-expanded', 'false');
-		else mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
+		mark.setAttribute('aria-expanded', 'false');
+		mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
 		const go = () => {
-			if (opts.expand) return opts.expand(mark, ids);
+			const now = LIVE.get(root) ?? opts;
+			if (now.expand) return now.expand(mark, ids);
 			select(lead);
 			document.getElementById('ann-' + lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		};
 		mark.addEventListener('click', go);
 		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go());
+		// In hover mode the pointer opens it after a beat, so passing over a line of marked text does not flash a box
+		// per mark; a click still opens one, and every dismissal is the same as inline's.
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		mark.addEventListener('pointerenter', () => {
+			const now = LIVE.get(root) ?? opts;
+			if (!now.hover || !now.expand) return;
+			clearTimeout(timer);
+			timer = setTimeout(go, 120);
+		});
+		mark.addEventListener('pointerleave', () => clearTimeout(timer));
 	}
 	if (opts.margins) {
 		for (const el of root.querySelectorAll<HTMLElement>('div.env[data-key], details.env-proof[data-key]')) {

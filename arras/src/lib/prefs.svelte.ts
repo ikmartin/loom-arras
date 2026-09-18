@@ -8,8 +8,8 @@ export type Width = 'narrow' | 'mid' | 'wide';
 export type Theme = 'light' | 'dark' | 'system';
 /** How a document and its results are set: `paper` is the measured, numbered column a mathematician reads; `blog` is the wider, quieter setting a website reads. It applies to the read view and to a node's own page alike, because a result should not change character depending on which page it is standing on. */
 export type Format = 'paper' | 'blog';
-/** `margin` stands a comment beside its node; `inline` shows it as a highlight on the text that expands where it is. */
-export type Comments = 'margin' | 'inline';
+/** `margin` stands a comment beside its node; `inline` shows it as a highlight on the text that expands where it is; `hover` opens the same box as a floating panel the pointer brings up, free to overlap the text and the gutter. */
+export type Comments = 'margin' | 'inline' | 'hover';
 
 const KEY = 'arras.prefs';
 
@@ -32,7 +32,7 @@ const SIZES: Size[] = ['s', 'm', 'l'];
 const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
 const FORMATS: Format[] = ['paper', 'blog'];
-const COMMENTS: Comments[] = ['margin', 'inline'];
+const COMMENTS: Comments[] = ['margin', 'inline', 'hover'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */
 export function coerce(raw: unknown): Prefs {

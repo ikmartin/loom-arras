@@ -1,4 +1,6 @@
-// Comments shown where they are (book 15.3.1, the `inline` comments preference): a mark on the text, or a count beside a node that has comments with no mark, expands the comments beneath it in the flow. One is open at a time; selecting outside it or pressing Escape closes it.
+// Comments shown where they are (book 15.3.1, the `inline` and `hover` comments preferences): a mark on the text, or a count beside a node that has comments with no mark, opens the comments on it. One is open at a time; selecting outside it or pressing Escape closes it.
+//
+// Two settings share this controller because they differ only in where the box goes. `inline` puts it in the flow beneath the block the mark sits in, so nothing is covered and the text reflows. `hover` floats it over the page at the mark, free to overlap the text and the gutter, and the pointer opens it; both are dismissed the same way, and in both the box is the same `AnnotationBox`.
 
 import { mount, unmount, type Component } from 'svelte';
 import AnnotationBox from '$lib/components/AnnotationBox.svelte';
@@ -29,8 +31,24 @@ export function leadComments(manifest: Manifest, ids: string[]): Annotation[] {
 	return out;
 }
 
-export function inlineComments(manifest: Manifest): InlineComments {
+export function inlineComments(manifest: Manifest, floating = false): InlineComments {
 	let open: { trigger: HTMLElement; host: HTMLElement; made: Record<string, unknown>[] } | null = null;
+
+	/**
+	 * Put a floating box at the mark: below it when there is room, above it when there is not, never off either edge.
+	 *
+	 * Viewport coordinates and `position: fixed`, so the box does not depend on which ancestor happens to be positioned, and it lives inside the fragment rather than in the page's root -- arras is a guest and writes only in its own subtree. Scrolling closes it, which is what a pointer-opened box should do anyway.
+	 */
+	const place = (host: HTMLElement, trigger: HTMLElement) => {
+		const r = trigger.getBoundingClientRect();
+		const width = Math.min(420, window.innerWidth - 32);
+		host.style.width = width + 'px';
+		host.style.left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8) + 'px';
+		host.style.top = r.bottom + 6 + 'px';
+		// measured once it is in the page, because its height depends on the comment
+		const h = host.offsetHeight;
+		if (r.bottom + h + 14 > window.innerHeight && r.top - h - 6 > 0) host.style.top = r.top - h - 6 + 'px';
+	};
 
 	const close = () => {
 		if (!open) return;
@@ -48,13 +66,17 @@ export function inlineComments(manifest: Manifest): InlineComments {
 		const lead = leadComments(manifest, ids);
 		if (!lead.length) return;
 		const host = document.createElement('aside');
-		host.className = 'comment-slot expanded';
+		host.className = floating ? 'comment-slot expanded floating' : 'comment-slot expanded';
 		host.dataset.testid = 'comment-expanded';
-		// beneath the paragraph, item or display the mark sits in, so the text keeps its line; a count beside a label opens under the label
-		const block = trigger.classList.contains('comment-count')
-			? trigger.closest<HTMLElement>('p.env-label, summary.env-label, h1, h2, h3, h4, h5, h6')
-			: trigger.closest<HTMLElement>('p, li, .math.display, .annotation-block, summary');
-		(block ?? trigger).after(host);
+		if (floating) {
+			(trigger.closest('.fragment') ?? trigger.parentElement ?? trigger).append(host);
+		} else {
+			// beneath the paragraph, item or display the mark sits in, so the text keeps its line; a count beside a label opens under the label
+			const block = trigger.classList.contains('comment-count')
+				? trigger.closest<HTMLElement>('p.env-label, summary.env-label, h1, h2, h3, h4, h5, h6')
+				: trigger.closest<HTMLElement>('p, li, .math.display, .annotation-block, summary');
+			(block ?? trigger).after(host);
+		}
 		const made = lead.map(
 			(a) =>
 				mount(AnnotationBox as unknown as Box, {
@@ -65,6 +87,7 @@ export function inlineComments(manifest: Manifest): InlineComments {
 		trigger.classList.add('expanded');
 		trigger.setAttribute('aria-expanded', 'true');
 		open = { trigger, host, made };
+		if (floating) place(host, trigger);
 	};
 
 	const down = (e: PointerEvent) => {
@@ -74,8 +97,11 @@ export function inlineComments(manifest: Manifest): InlineComments {
 		close();
 	};
 	const key = (e: KeyboardEvent) => e.key === 'Escape' && close();
+	const away = () => floating && close();
 	document.addEventListener('pointerdown', down, true);
 	document.addEventListener('keydown', key);
+	window.addEventListener('scroll', away, true);
+	window.addEventListener('resize', away);
 
 	return {
 		toggle,
@@ -84,6 +110,8 @@ export function inlineComments(manifest: Manifest): InlineComments {
 			close();
 			document.removeEventListener('pointerdown', down, true);
 			document.removeEventListener('keydown', key);
+			window.removeEventListener('scroll', away, true);
+			window.removeEventListener('resize', away);
 		}
 	};
 }

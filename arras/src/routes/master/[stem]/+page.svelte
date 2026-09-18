@@ -42,7 +42,7 @@
 
 	function slots(key: string): CommentSlot[] {
 		// shown in place, a comment with a mark is reached from its mark; one without gets a count beside its node's label
-		if (prefs.comments === 'inline') return commentsOn(key).filter((a) => !(a.anchored && a.quote)).map((a) => ({ id: a.id, where: 'count' }));
+		if (prefs.comments !== 'margin') return commentsOn(key).filter((a) => !(a.anchored && a.quote)).map((a) => ({ id: a.id, where: 'count' }));
 		return commentsOn(key).map((a) => ({ id: a.id, where: plainLength(a) > GUTTER_LIMIT ? 'inline' : 'gutter' }));
 	}
 

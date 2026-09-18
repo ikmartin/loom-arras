@@ -125,9 +125,11 @@
 }
 
 /* The four preferences of 15.7, applied as attributes on <html> by the layout. */
-.arras[data-size='s'] { --body-size: 11px; }
-.arras[data-size='m'] { --body-size: 13.5px; }
-.arras[data-size='l'] { --body-size: 16px; }
+/* The scale starts where the old middle was: 11px was below what anybody reads a paper at, and the old large was
+   what a reader with ordinary eyesight actually chose, so each step moved down one name and a new large was added. */
+.arras[data-size='s'] { --body-size: 13.5px; }
+.arras[data-size='m'] { --body-size: 16px; }
+.arras[data-size='l'] { --body-size: 19px; }
 .arras[data-width='narrow'] { --measure: 36rem; }
 .arras[data-width='mid'] { --measure: 44rem; }
 .arras[data-width='wide'] { --measure: 52rem; }
@@ -305,6 +307,15 @@ table.list th {
 	font-family: var(--body-face);
 	font-size: var(--body-size);
 }
+/* A whole paper is one fragment -- 44,000 elements for a 160-node document -- and the browser laid out and painted
+   every one of them on every reflow. `content-visibility: auto` lets it skip the ones far offscreen; the intrinsic
+   size keeps the scrollbar honest so the bar does not jump as they are realised. Only in the read view, where the
+   document is long enough for it to pay, and never on a `details` a reader may have open. */
+.fragment.read > .env,
+.fragment.read > section {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 240px;
+}
 
 /* Environments: a per-taxon left accent and no filled background (15.3.1). The colour is the token `$lib/taxonomy`
    chose for this taxon, set on the element as `--taxon-tone`; the palette itself is declared once above, so changing
@@ -422,6 +433,42 @@ table.list th {
 }
 .comment-slot.inline > .box:first-child {
 	margin-top: 0;
+}
+/* The `hover` setting: the same box, floated over the page at the mark rather than opened in the flow, so it is free
+   to overlap the text and the gutter and nothing reflows under the reader as it appears. Placed in viewport
+   coordinates by `expand.ts`, which closes it on a scroll rather than letting it drift. */
+.comment-slot.floating {
+	position: fixed;
+	z-index: 40;
+	font-family: var(--sans);
+	background: var(--sheet);
+	border: 1px solid var(--rule-strong);
+	border-radius: var(--rad-panel, var(--rad-control));
+	box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+	padding: var(--gap-tight);
+	max-height: 60vh;
+	overflow-y: auto;
+}
+.comment-slot.floating > .box {
+	margin: 0;
+	border: none;
+	border-left: 3px solid var(--rule-strong);
+	background: none;
+}
+.comment-slot.floating > .box + .box {
+	margin-top: var(--gap-tight);
+	border-top: 1px solid var(--rule);
+	padding-top: var(--gap-tight);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.comment-slot.floating {
+		animation: comment-appear 90ms ease-out;
+	}
+	@keyframes comment-appear {
+		from {
+			opacity: 0;
+		}
+	}
 }
 /* Below the width the gutters exist at, a gutter comment and a margin annotation have nowhere to stand and rejoin the flow. */
 @media (max-width: 1100px) {

@@ -3,6 +3,7 @@
 	//
 	// The panes are linked both ways and only both ways: clicking a finding scrolls the document to the sentence it is about, clicking a mark in the document scrolls the report to the finding that made it. That pairing is the whole reason this is one page rather than two.
 	import { store } from '$lib/manifest/client.svelte';
+	import Prose from '$lib/math/Prose.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import type { CommentSlot } from '$lib/fragments/mount';
 	import type { Annotation, Thread } from '$lib/manifest/types';
@@ -152,7 +153,7 @@
 									{#if a.severity}<span class="sev sev-{a.severity}">{a.severity}</span>{/if}
 									<span class="kind">{a.kind}</span>
 								</button>
-								<div class="body">{@html a.body_html}</div>
+								<Prose html={a.body_html} />
 								{#if versionNote(m, a)}<p class="moved">{versionNote(m, a)}</p>{/if}
 							</li>
 						{/each}
@@ -177,7 +178,7 @@
 				{#each thread.messages as msg, i (i)}
 					<article class="message">
 						<p class="faint">{msg.author.id} · {msg.time}</p>
-						<div>{@html msg.body_html}</div>
+						<Prose html={msg.body_html} class="msg" />
 					</article>
 				{:else}
 					<p class="faint">This run kept no journal.</p>

@@ -37,7 +37,8 @@
 	];
 	const COMMENTS: { v: Comments; label: string }[] = [
 		{ v: 'margin', label: 'margin' },
-		{ v: 'inline', label: 'inline' }
+		{ v: 'inline', label: 'inline' },
+		{ v: 'hover', label: 'hover' }
 	];
 </script>
 

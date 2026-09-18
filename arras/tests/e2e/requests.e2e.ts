@@ -340,3 +340,23 @@ test.describe('hover previews', () => {
 		await expect(page.getByTestId('link-preview')).toContainText('Algebraic Geometry');
 	});
 });
+
+test.describe('comments on hover', () => {
+	test('a mark opens a floating box the pointer brings up, and clicking away closes it', async ({ page }) => {
+		await withPrefs(page, { comments: 'hover' });
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment .env[data-key]');
+		await expect(page.locator('aside.comment-slot.floating')).toHaveCount(0);
+
+		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
+		await mark.hover();
+		const box = page.locator('aside.comment-slot.floating');
+		await expect(box).toHaveCount(1);
+		// it floats over the page rather than opening in the flow, so it is free to overlap the text and the gutter
+		await expect(box).toHaveCSS('position', 'fixed');
+		await expect(box.locator('article.box')).toHaveCount(1);
+
+		await page.mouse.click(4, 4);
+		await expect(box).toHaveCount(0);
+	});
+});

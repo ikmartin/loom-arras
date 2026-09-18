@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
-	import { wire, type CommentSlot } from '$lib/fragments/mount';
+	import { resetComments, wire, type CommentSlot } from '$lib/fragments/mount';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
 	import { page } from '$app/state';
@@ -61,9 +61,11 @@
 	let inline: InlineComments | null = null;
 	$effect(() => () => inline?.destroy());
 
-	async function mount(root: HTMLElement) {
+	/** Wire the fragment for where comments currently stand; nothing here re-renders or re-typesets. */
+	function wireComments(root: HTMLElement) {
 		inline?.destroy();
-		inline = prefs.comments === 'inline' && store.manifest ? inlineComments(store.manifest) : null;
+		const inPlace = prefs.comments === 'inline' || prefs.comments === 'hover';
+		inline = inPlace && store.manifest ? inlineComments(store.manifest, prefs.comments === 'hover') : null;
 		const opened = inline;
 		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
 			master,
@@ -71,8 +73,26 @@
 			margins,
 			keyless: standalone,
 			comments,
-			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined
+			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined,
+			hover: prefs.comments === 'hover'
 		});
+	}
+
+	// Changing where comments stand used to re-key the fragment, which re-rendered the HTML and re-typeset every
+	// formula in it: about 800ms of stall on a whole paper, for a setting that moves boxes around. The marks read the
+	// live options, so the slots are taken out, put back the other way, and refilled.
+	let wired = $state(false);
+	$effect(() => {
+		const mode = prefs.comments;
+		if (!el || !wired) return;
+		void mode;
+		resetComments(el);
+		wireComments(el);
+		onmounted?.(el);
+	});
+
+	async function mount(root: HTMLElement) {
+		wireComments(root);
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
@@ -82,6 +102,7 @@
 		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
 		onmounted?.(root);
 		scrollToHash();
+		wired = true;
 	}
 
 	/** The browser cannot honour `location.hash` for an element that did not exist at navigation time, and none of a fragment's elements do. */
@@ -116,8 +137,5 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<!-- switching where comments stand rebuilds the fragment, since marks and slots are wired once per element -->
-	{#key prefs.comments}
-		<div class="fragment" class:read={margins} class:inline-comments={prefs.comments === 'inline'} bind:this={el}>{@html html}</div>
-	{/key}
+	<div class="fragment" class:read={margins} class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'hover'} bind:this={el}>{@html html}</div>
 {/if}
