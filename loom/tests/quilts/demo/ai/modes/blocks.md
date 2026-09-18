@@ -12,7 +12,7 @@ Every mode file refers to this file. Read it once per session.
 2. Admit ignorance when uncertain; never bluff. A step you cannot complete
    is marked, not glossed.
 3. Every mathematical claim carries an epistemic label:
-   - `file-verified`: checked against a bundle, a digest node, or a file in
+   - `file-verified`: checked against printed source, a digest node, or a file in
      the quilt; name which.
    - `memory-grade`: from your own knowledge; say so.
    - `proved-here`: proved in this run; the proof is in the notes.
@@ -22,7 +22,7 @@ Every mode file refers to this file. Read it once per session.
    `rl-0004/proof`); a fact from a cited paper as its digest node id with
    the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12).
    Quote exact source text only when wording matters, and then from the
-   bundle.
+   closure.
 5. Search order for anything about a cited paper: the digest
    (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the
    web. Say which you used. If none, write "unlocated".
@@ -35,18 +35,18 @@ Every mode file refers to this file. Read it once per session.
 ## Inputs
 
 1. Inputs come from loom commands, never from reading directories.
-   - A key: `loom bundle KEY --run $LOOM_RUN` writes `bundle-KEY.tex` in
-     your run: the statement, its proofs, and the statements of everything
-     it depends on, in dependency order. This is the complete context; you
-     may assume nothing outside it.
+   - A key: `loom source KEY --closure --run $LOOM_RUN` prints the
+     statement, its proofs, and the statements of everything it depends
+     on, in dependency order. This is the complete context; you may assume
+     nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`.
      The graph: `loom deps KEY --closure`, `loom unravel ID`.
-   - A cited result: its digest node's statement is in the bundle when the
-     citation resolved. Otherwise see standing rule 5.
+   - A cited result: its digest node's statement is in the closure when
+     the citation resolved. Otherwise see standing rule 5.
 2. `$LOOM_RUN` is your run directory. Pass `--run $LOOM_RUN` on every
    command that accepts it; loom logs the call there.
 3. If you need a dependency's *proof* rather than its statement, request
-   it (`loom bundle DEP/proof --run $LOOM_RUN`) and record in your findings
+   it (`loom source DEP/proof --closure --run $LOOM_RUN`) and record in your findings
    that the argument relies on something inside another proof; that is a
    candidate for extraction into a statement of its own.
 
@@ -56,7 +56,7 @@ Every mode file refers to this file. Read it once per session.
    target. Never write anywhere else.
 2. LaTeX outputs (`draft-ID.tex`, `proposal-KEY.diff`,
    `ingest-CITEKEY.tex`) must compile with the quilt's preamble: use the
-   environment names and macros as they appear in the bundle;
+   environment names and macros as they appear in the source;
    `\ref{ID}` and `\uses{ID, ...}` for dependencies; `\incomplete{...}` for
    anything you could not do; `\label{ID}` when an id was given. This is
    real LaTeX; no chat restrictions apply.
@@ -65,10 +65,10 @@ Every mode file refers to this file. Read it once per session.
    name blocks: `## [hypothesis-ledger]`. Every notes file begins with
    `## [summary]` and ends with the mode's checklist, ticked.
 4. Verification you can do: to check that a proposal or a draft compiles,
-   build a bundle with your file in place of the quilt's text
-   (`loom bundle KEY --with proposal-KEY.diff --run $LOOM_RUN` or
-   `loom bundle --draft draft-ID.tex --run $LOOM_RUN`) and compile it
-   (`loom compile build/bundles/...`). Report the result in the notes.
+   compile it with your text in place of the quilt's
+   (`loom compile KEY --with proposal-KEY.diff --run $LOOM_RUN` or
+   `loom compile --draft draft-ID.tex --run $LOOM_RUN`). Nothing in the
+   quilt changes. Report the result in the notes.
 
 ## Findings
 
@@ -76,7 +76,7 @@ Every mode file refers to this file. Read it once per session.
    `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question --run $LOOM_RUN`
    One finding per call; `--batch` (JSON lines on stdin) for many.
 2. The quote is a substring of the key's own text, copied exactly from the
-   bundle, long enough to be unique and no longer. If loom reports it
+   source, long enough to be unique and no longer. If loom reports it
    ambiguous, lengthen it; if not found, you copied it wrong. A finding
    about the whole key takes no `--quote`.
 3. The message states the problem and, where you have one, the fix, in at
@@ -179,7 +179,7 @@ Write each block under a heading with its name in brackets.
   nodes), and `\uses` entries the argument never consumes. Each finding is
   an annotation anchored to the invoking sentence.
 - [self-containedness] Every theorem, lemma, and definition that fails to
-  parse standalone in its bundle: undefined symbols, back-references,
+  parse standalone in its closure: undefined symbols, back-references,
   invisible standing hypotheses, notation introduced after first use.
 - [sharpenings] Places where the proof gives more than the statement
   claims, or where a hypothesis can be weakened without touching the
@@ -201,7 +201,7 @@ Write each block under a heading with its name in brackets.
 - [rejected] Simplifications considered and not made, with reasons. If
   nothing was rejected, name the areas examined and found already tight.
 - [revised] The revised text as `proposal-KEY.diff`, a unified diff
-  against the node's file, and the result of compiling the bundle with it
+  against the node's file, and the result of compiling with it
   applied.
 - [meaning-drift-check] For each modified passage, compare against the
   original and confirm the meaning is unchanged. If it has changed, flag

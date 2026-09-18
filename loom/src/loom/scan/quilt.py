@@ -21,9 +21,9 @@ CONFIG_KEYS: dict[str, set[str]] = {
     "quilt": {"name", "main", "drafting", "drafts", "canon", "history", "prefix", "engine"},
     "refs": {"fetch", "resolve", "contact"},
     "lint": {"disable"},
-    # `[crawl]` is retired: the crawl went to weft (DR-144). `runner` is retired: the runner was declined
-    # (docs/work-queue/closed.md, WQ-15). Both stay accepted and ignored so that a quilt loom itself wrote them into
-    # does not now report them as unknown; `loom upgrade` removes the table and the line.
+    # `[crawl]` is retired: the crawl went to weft (DR-144). `runner` was declined (closed.md, WQ-15) and `agent` is
+    # retired with the launcher (DR-149). All stay accepted and ignored so that a quilt loom itself wrote them into
+    # does not now report them as unknown; `loom upgrade` removes the table and the lines.
     "crawl": {"depth", "subjects", "categories", "cap"},
     "ai": {"agent", "runner"},
 }
@@ -54,7 +54,6 @@ class QuiltConfig:
     resolve: bool = False
     contact: str = ""
     lint_disable: list[str] = field(default_factory=list)
-    ai_agent: str = ""
     warnings: list[str] = field(default_factory=list)
     deprecations: list[str] = field(
         default_factory=list
@@ -102,7 +101,6 @@ class QuiltConfig:
         cfg.resolve = bool(table("refs").get("resolve", False))
         cfg.contact = str(table("refs").get("contact", ""))
         cfg.lint_disable = [str(x) for x in table("lint").get("disable", [])]
-        cfg.ai_agent = str(table("ai").get("agent", ""))
         return cfg
 
 

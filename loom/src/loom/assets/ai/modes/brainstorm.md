@@ -16,7 +16,7 @@ one sentence under [open-questions] and do not pursue it unless asked.
 
 ## Input
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
-- `loom bundle ID --run $LOOM_RUN` for each definition or result the
+- `loom source ID --closure --run $LOOM_RUN` for each definition or result the
   topic touches.
 - The overview sections of the relevant digests (`digests/CITEKEY.tex`,
   which are designed to be read whole); `loom search --kind digest`.

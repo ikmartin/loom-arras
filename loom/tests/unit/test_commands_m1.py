@@ -336,19 +336,19 @@ def test_non_utf8_source_code_reported(tmp_path: Path) -> None:
 
 
 def test_retired_config_key_is_tolerated_and_upgrade_removes_it(tmp_path: Path) -> None:
-    """`[ai] runner` was withdrawn when the runner was declined (WQ-15). A quilt loom itself wrote the key into must not now be told it is unknown, so it stays accepted and inert; `loom upgrade` tidies the line away."""
+    """`[ai] runner` was withdrawn with the declined runner (WQ-15) and `[ai] agent` with the declined launcher (DR-149). A quilt loom itself wrote either key into must not now be told it is unknown, so both stay accepted and inert; `loom upgrade` tidies the lines away."""
     assert run("init", str(tmp_path / "q"), "--prefix", "zz", "--yes").exit_code == 0
     q = tmp_path / "q"
     cfg = q / "config.toml"
-    assert "runner" not in cfg.read_text()  # a new quilt never gets it
+    assert "runner" not in cfg.read_text() and "agent" not in cfg.read_text()  # a new quilt gets neither
 
-    cfg.write_text(cfg.read_text().replace('agent = ""', 'agent = ""\nrunner = "some-command"'), encoding="utf-8")
+    cfg.write_text(cfg.read_text().replace("[ai]", '[ai]\nagent = "claude"\nrunner = "some-command"'), encoding="utf-8")
     lint = run("lint", "--json", cwd=q)
-    assert "unknown-config-key" not in lint.output  # tolerated: loom wrote it there
+    assert "unknown-config-key" not in lint.output  # tolerated: loom wrote them there
 
     up = run("upgrade", cwd=q)
     assert up.exit_code == 0 and "[ai] runner" in up.output
-    assert "runner" not in cfg.read_text() and 'agent = ""' in cfg.read_text()
+    assert "runner" not in cfg.read_text()
 
     again = run("upgrade", cwd=q)
     assert "[ai] runner" not in again.output  # idempotent

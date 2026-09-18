@@ -12,5 +12,5 @@ Double-check the answer for accuracy before writing it.
 unless a defect was found. An entry in `thread.md`.
 
 ## Checklist
-- [ ] The answer was checked once against the bundle or a digest.
+- [ ] The answer was checked once against the source or a digest.
 - [ ] Nothing was written outside `$LOOM_RUN`.

@@ -13,14 +13,14 @@ stated and what is used. If an error surfaces incidentally, flag it in
 referee mode.
 
 ## Input
-- `loom bundle KEY --run $LOOM_RUN`.
+- `loom source KEY --closure --run $LOOM_RUN`.
 - `loom deps KEY --closure --json` for the closure and edge kinds.
 - `loom status --json` for the states of the closure.
-- Digest nodes for cited results are in the bundle when the citation
+- Digest nodes for cited results are in the closure when the citation
   resolved; otherwise standing rule 5.
 
 ## Procedure
-Read the bundle once completely. Then build the six ledgers in order.
+Read the closure once completely. Then build the six ledgers in order.
 Search digests before declaring anything unlocated; search the web only
 if no digest exists and say so. For the uses-ledger, read each proof
 sentence by sentence and ask what fact it invokes; if the fact is not

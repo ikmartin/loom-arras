@@ -31,7 +31,6 @@ fetch = false               # may loom fetch from arXiv for digest fetch
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
 
 [ai]
-agent = ""                  # command loom ai start launches, if any
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.

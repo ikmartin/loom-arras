@@ -24,7 +24,7 @@ TRIGGERS = {
     "ingest": "when the user asks to digest a cited paper into digests/",
     "brainstorm": "when the user wants to explore, brainstorm, or plan a topic before proving anything",
 }
-GITIGNORE_LINE = "ai/runs/*/bundle-*.tex"
+CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under `ai/runs/`."
 VERSION_FILE = ".loom-modes-version"
 
 
@@ -57,9 +57,8 @@ def write_versions(root: Path, texts: dict[str, str]) -> None:
 
 
 def vendor_files(permissions: bool, skills: bool) -> dict[str, str]:
-    """Quilt-relative path -> text for the vendor files; the root files always, the rest on request."""
-    root_text = _asset("vendor", "root.md")
-    out = {"CLAUDE.md": root_text, "AGENTS.md": root_text}
+    """Quilt-relative path -> text for the files loom owns whole; the agent root files are not among them (see `ensure_root_line`)."""
+    out: dict[str, str] = {}
     if permissions:
         out[".claude/settings.json"] = _asset("vendor", "claude", "settings.json")
     if skills:
@@ -85,6 +84,35 @@ class LayerReport:
     unchanged: list[str] = field(default_factory=list)
 
 
+ROOT_FILES = ("CLAUDE.md", "AGENTS.md")
+
+
+def ensure_root_line(root: Path) -> list[str]:
+    """Put loom's one line into CLAUDE.md and AGENTS.md without taking the files over; returns what was written.
+
+    These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. An earlier version of the line is replaced in place; everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
+    """
+    written: list[str] = []
+    for name in ROOT_FILES:
+        p = root / name
+        existing = p.read_text(encoding="utf-8") if p.is_file() else ""
+        lines = existing.splitlines()
+        if CLAUDE_LINE in lines:
+            continue
+        stale = [i for i, ln in enumerate(lines) if ln.startswith("This directory is a quilt managed by loom.")]
+        if stale:
+            lines[stale[0]] = CLAUDE_LINE
+            for i in reversed(stale[1:]):
+                del lines[i]
+            p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        else:
+            p.write_text(
+                existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + CLAUDE_LINE + "\n", encoding="utf-8"
+            )
+        written.append(name)
+    return written
+
+
 def init_layer(root: Path, permissions: bool = False, skills: bool = False) -> LayerReport:
     """Write `ai/` and the vendor files into a quilt that has no `ai/` yet."""
     ai = root / "ai"
@@ -107,18 +135,8 @@ def init_layer(root: Path, permissions: bool = False, skills: bool = False) -> L
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
         rep.written.append(rel)
-    if ensure_gitignore_line(root):
-        rep.written.append(".gitignore")
+    rep.written.extend(ensure_root_line(root))
     return rep
-
-
-def ensure_gitignore_line(root: Path) -> bool:
-    p = root / ".gitignore"
-    existing = p.read_text(encoding="utf-8") if p.is_file() else ""
-    if GITIGNORE_LINE in existing.splitlines():
-        return False
-    p.write_text(existing.rstrip("\n") + ("\n" if existing else "") + GITIGNORE_LINE + "\n", encoding="utf-8")
-    return True
 
 
 def upgrade_layer(root: Path) -> LayerReport:
@@ -174,8 +192,7 @@ def upgrade_layer(root: Path) -> LayerReport:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
         rep.written.append(rel)
-    if ensure_gitignore_line(root):
-        rep.written.append(".gitignore")
+    rep.written.extend(ensure_root_line(root))
     return rep
 
 

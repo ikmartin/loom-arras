@@ -92,23 +92,31 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
     assert text.index("% id: dm-0002") < text.index("% id: dm-0003") < text.index("% proof: dm-0003/proof")
     assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in text and "\\begin{theorem}[Main]\\label{dm-0003}" in text
     assert "Take" not in text  # dm-0002's proof is not part of the closure
-    r = run("bundle", "dm-0003", cwd=d)
-    assert r.exit_code == 0 and r.output.strip() == "build/bundles/dm-0003.tex"
     c = run("compile", "dm-0003", cwd=d)
     assert c.exit_code == 0, c.output
     assert (d / "build" / "bundles" / "dm-0003" / "dm-0003.pdf").exists()
 
 
-def test_bundle_run_copy_and_log(tmp_path: Path) -> None:
+def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
+    """`loom source` replaced `loom bundle` as the way to read a result: it prints, so there is no file to go stale."""
     d = demo(tmp_path)
     run_dir = d / "ai" / "runs" / "t"
-    r = run("bundle", "dm-0002", "--run", str(run_dir), cwd=d)
+    r = run("source", "dm-0002", "--run", str(run_dir), cwd=d)
     assert r.exit_code == 0, r.output
-    assert (run_dir / "bundle-dm-0002.tex").exists()
-    assert "loom bundle dm-0002" in (run_dir / "run.log").read_text()
+    assert r.output.startswith("\\begin{lemma}[Orbits]\\label{dm-0002}")
+    assert "% id:" not in r.output  # the key alone, not the closure document
+    assert not list(run_dir.glob("*.tex"))  # nothing written into the run
+    assert "loom source dm-0002" in (run_dir / "run.log").read_text()
+
+    # the theorem's own closure is empty -- its dependency is declared inside the proof, so the proof key is the one
+    # with something to gather, which is also what a referee reads
+    c = run("source", "dm-0003/proof", "--closure", cwd=d)
+    assert c.exit_code == 0, c.output
+    assert c.output.index("% id: dm-0002") < c.output.index("% id: dm-0003") < c.output.index("% proof: dm-0003/proof")
+    assert "\\usepackage{loom}" in c.output
 
 
-def test_bundle_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
+def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     d = demo(tmp_path)
     node = d / "nodes" / "dm-0002.tex"
     original = node.read_text()
@@ -116,7 +124,7 @@ def test_bundle_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     diff = unified_diff(original, proposed, "nodes/dm-0002.tex")
     (tmp_path / "proposal.diff").write_text(diff)
     assert apply_unified_diff(original, diff) == proposed
-    r = run("bundle", "dm-0002", "--with", str(tmp_path / "proposal.diff"), cwd=d)
+    r = run("compile", "dm-0002", "--with", str(tmp_path / "proposal.diff"), cwd=d)
     assert r.exit_code == 0, r.output
     text = (d / "build" / "bundles" / "dm-0002.tex").read_text()
     assert "Orbits have at most two points" in text and "Every orbit of a widget" not in text
@@ -124,32 +132,32 @@ def test_bundle_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     (tmp_path / "replacement.tex").write_text(
         "\\begin{lemma}[Orbits]\\label{dm-0002}\nReplaced statement.\n\\end{lemma}\n"
     )
-    r2 = run("bundle", "dm-0002", "--with", str(tmp_path / "replacement.tex"), cwd=d)
+    r2 = run("compile", "dm-0002", "--with", str(tmp_path / "replacement.tex"), cwd=d)
     assert r2.exit_code == 0 and "Replaced statement." in (d / "build" / "bundles" / "dm-0002.tex").read_text()
 
 
-def test_bundle_with_bad_diff_exit_1(tmp_path: Path) -> None:
+def test_compile_with_bad_diff_exit_1(tmp_path: Path) -> None:
     d = demo(tmp_path)
     (tmp_path / "bad.diff").write_text(
         "--- a/nodes/dm-0002.tex\n+++ b/nodes/dm-0002.tex\n@@ -1,1 +1,1 @@\n-this line is not in the file\n+replacement\n"
     )
-    r = run("bundle", "dm-0002", "--with", str(tmp_path / "bad.diff"), cwd=d)
+    r = run("compile", "dm-0002", "--with", str(tmp_path / "bad.diff"), cwd=d)
     assert r.exit_code == 1 and "does not match" in r.output
 
 
-def test_bundle_draft_unpromoted_node(tmp_path: Path) -> None:
+def test_compile_draft_unpromoted_node(tmp_path: Path) -> None:
     d = demo(tmp_path)
     draft = tmp_path / "draft-dm-0019.tex"
     draft.write_text(
         "\\begin{lemma}[Drafted]\\label{dm-0019}\nUses Lemma~\\ref{lem:orbits}.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nP\n\\end{proof}\n"
     )
-    r = run("bundle", "--draft", str(draft), cwd=d)
+    r = run("compile", "--draft", str(draft), cwd=d)
     assert r.exit_code == 0, r.output
     out = d / "build" / "bundles" / "draft-draft-dm-0019.tex"
     text = out.read_text()
     assert "% id: dm-0002" in text and "% id: dm-0001" in text and "Drafted" in text
     draft.write_text("\\begin{lemma}\\label{dm-0019}\nSee \\ref{nope}.\n\\end{lemma}\n")
-    assert run("bundle", "--draft", str(draft), cwd=d).exit_code == 1
+    assert run("compile", "--draft", str(draft), cwd=d).exit_code == 1
 
 
 def test_check_lints_and_compiles(tmp_path: Path) -> None:

@@ -15,7 +15,7 @@ a wrong step is an objection even if it is fixable.
 As audit. You can run code: save every trial per standing rule 7.
 
 ## Procedure
-Read the bundle. Produce the six blocks in order. Every gap, error, or
+Read the closure. Produce the six blocks in order. Every gap, error, or
 unjustified step is an objection anchored to the exact sentence; every
 improvement a suggestion; every doubt a question. If an earlier audit
 notes file exists in this run, read it first and do not repeat its
@@ -28,8 +28,8 @@ findings.
 2. Annotations for every item of [gaps-and-ambiguities] and
    [referee-review], ids listed in the notes.
 3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result
-   of `loom bundle KEY --with proposal-KEY.diff --run $LOOM_RUN` followed
-   by `loom compile` on it.
+   of `loom compile KEY --with proposal-KEY.diff --run $LOOM_RUN`, which
+   compiles your text in place of the quilt's without changing it.
 4. `referee-KEY.check.py` with its output, for every trial.
 5. An entry in `thread.md`.
 
@@ -42,5 +42,5 @@ Then a fresh [decision] in a new notes file `referee-KEY.2.notes.md`, and
 - [ ] At least two worked examples with exact outputs.
 - [ ] Every objection is anchored and its id is in the notes.
 - [ ] [decision] cites the blocks above.
-- [ ] The diff, if any, compiles in a bundle.
+- [ ] The diff, if any, compiles.
 - [ ] Nothing was written outside `$LOOM_RUN`.

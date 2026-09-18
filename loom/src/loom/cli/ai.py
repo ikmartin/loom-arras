@@ -93,7 +93,9 @@ def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
         raise EnvError("ai/ exists; run loom upgrade to refresh it") from None
     for rel in rep.written:
         click.echo(f"wrote {rel}")
-    click.echo("next: loom ai start [SLUG]; then, in the agent, loom ai orient --run $LOOM_RUN")
+    click.echo(
+        'next: start your agent here; it reads CLAUDE.md and runs loom ai orient. loom ai start "a name" opens a run.'
+    )
 
 
 @ai.command(name="orient")
@@ -103,54 +105,118 @@ def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
     default=None,
     envvar="LOOM_RUN",
     metavar="RUN",
-    help="Also print this run's thread.md and run.log.",
+    help="Attach to this run: also print its thread.md and run.log. A name, a prefix of one, or a path.",
 )
 @quilt_option
 def ai_orient(run_dir: str | None, quilt_path: str | None) -> None:
-    """Print the orientation document followed by the quilt's live state (and a run's journal with --run)."""
+    """Print the orientation document followed by the quilt's live state, and with --run a run's own journal.
+
+    This is also how an agent attaches to a run it did not start: `loom ai orient --run <name>` prints the orientation, the quilt's live state, and that run's thread.md and run.log, which is the scrollback a later session resumes from.
+    """
     from loom.ai.orient import live_text, static_text
+    from loom.cli._common import find_run
     from loom.cli._quilt import open_scan
     from loom.cli.build_cmds import log_run
     from loom.records.store import Records
 
     result = open_scan(quilt_path)
     root = result.quilt.root
-    run: Path | None = None
-    if run_dir:
-        run = Path(run_dir)
-        if not run.is_absolute():
-            run = root / run
-        if not run.is_dir():
-            raise EnvError(f"no run at {run_dir}")
+    run: Path | None = find_run(root, run_dir) if run_dir else None
     click.echo(static_text(root), nl=False)
     click.echo(live_text(result, Records(root), run), nl=False)
-    log_run(run_dir, "loom ai orient", root)
+    log_run(run.relative_to(root).as_posix() if run else None, "loom ai orient", root)
 
 
 @ai.command(name="start")
-@click.argument("slug", required=False, default=None)
-@click.option("--no-launch", is_flag=True, help="Create the run without launching [ai] agent.")
+@click.argument("name", required=False, default=None)
 @quilt_option
-@click.pass_context
-def ai_start(ctx: click.Context, slug: str | None, no_launch: bool, quilt_path: str | None) -> None:
-    """Create a run directory under ai/runs/, print its path, and launch [ai] agent from config.toml if set."""
-    from loom.ai.runs import launch_agent, start_run
+def ai_start(name: str | None, quilt_path: str | None) -> None:
+    """Create a run directory under ai/runs/ named NAME, and print its path.
+
+    Loom does not launch your agent. `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`, so starting a session is `claude`, and this is the command it runs when you ask it to begin a run.
+    """
+    from loom.ai.runs import start_run
 
     quilt = open_quilt(quilt_path)
     if not (quilt.root / "ai").is_dir():
         raise EnvError("no ai/ in this quilt; run loom ai init first")
-    agent = quilt.config.ai_agent
-    d = start_run(quilt.root, slug, agent if agent and not no_launch else None)
-    rel = d.relative_to(quilt.root).as_posix()
-    click.echo(rel)
-    if agent and not no_launch:
-        click.echo(f"(launching: {agent})")
-        try:
-            code = launch_agent(quilt.root, agent, d)
-        except FileNotFoundError as exc:
-            raise EnvError(f"[ai] agent = {agent!r} is not on PATH ({exc}); the run {rel} was created") from None
-        if code != 0:
-            ctx.exit(code)
+    d = start_run(quilt.root, name)
+    click.echo(d.relative_to(quilt.root).as_posix())
+
+
+@ai.command(name="runs")
+@click.option("--all", "show_all", is_flag=True, help="Include discarded runs, marked.")
+@quilt_option
+def ai_runs(show_all: bool, quilt_path: str | None) -> None:
+    """List this quilt's runs, newest last, as `YYYY-MM-DD: name`."""
+    from loom.ai.orient import open_runs
+
+    quilt = open_quilt(quilt_path)
+    rows = open_runs(quilt.root, include_discarded=show_all)
+    if not rows:
+        click.echo("no runs yet" if show_all else "no open runs")
+        return
+    for _rel, name, created, discarded in rows:
+        click.echo(f"  {created[:10]}: {name}" + (" (discarded)" if discarded else ""))
+
+
+@ai.command(name="name")
+@click.argument("new_name")
+@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="The run to rename.")
+@quilt_option
+def ai_name(new_name: str, run_dir: str | None, quilt_path: str | None) -> None:
+    """Rename a run. The directory keeps the name it was created under, which is its address."""
+    from loom.ai.runs import rename_run
+    from loom.cli._common import find_run
+
+    quilt = open_quilt(quilt_path)
+    d = find_run(quilt.root, run_dir)
+    rename_run(d, new_name)
+    click.echo(f"{d.relative_to(quilt.root).as_posix()}: {new_name}")
+
+
+@ai.command(name="findings")
+@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="The run to report on.")
+@click.option("--json", "as_json", is_flag=True, help="Print the findings as JSON.")
+@quilt_option
+def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> None:
+    """What this run has annotated: id, target, kind, status, and the quoted text.
+
+    An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it.
+    """
+    import json
+
+    from loom.cli._common import find_run
+    from loom.cli._quilt import open_scan
+    from loom.records.store import Records
+
+    result = open_scan(quilt_path)
+    root = result.quilt.root
+    d = find_run(root, run_dir)
+    rel = d.relative_to(root).as_posix()
+    rows = [
+        {
+            "id": a.annotation.id,
+            "target": a.annotation.target_key,
+            "kind": a.annotation.kind,
+            "status": a.annotation.status,
+            "reply_to": a.annotation.in_reply_to,
+            "detached": a.detached,
+            "quote": a.annotation.selector.exact if a.annotation.selector else None,
+        }
+        for a in Records(root).resolved(result)
+        if a.record.rel.startswith(f"{rel}/") or a.annotation.author_id == d.name
+    ]
+    if as_json:
+        click.echo(json.dumps({"run": rel, "findings": rows}, indent=2))
+        return
+    if not rows:
+        click.echo(f"{rel}: no findings yet")
+        return
+    for r in rows:
+        mark = "" if r["status"] == "open" else f" ({r['status']})"
+        quote = f"  \u201c{r['quote']}\u201d" if r["quote"] else ""
+        click.echo(f"{r['id']}  {r['target']}  {r['kind']}{mark}{quote}")
 
 
 @ai.command(name="promote")

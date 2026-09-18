@@ -84,16 +84,16 @@ ledger and never run `loom accept`.
   `--json` for tools. This is the to-do list.
 - `loom search QUERY --json`: find ids by title, alias, tag, citekey; get
   a node's file.
-- `loom bundle KEY --run $LOOM_RUN`: the standalone document for a key,
-  containing exactly the statements it depends on. Read this, not the
-  directories. It is the whole context a review needs.
-- `loom bundle KEY --with proposal.diff`, `loom bundle --draft draft-ID.tex`:
-  a bundle with your proposed text in place of the quilt's, to compile
-  before the author promotes or applies; nothing in the quilt changes.
+- `loom source KEY --closure --run $LOOM_RUN`: prints a key with exactly
+  the statements it depends on. Read this, not the directories. It is the
+  whole context a review needs, and it writes no file to go stale.
+- `loom compile KEY --with proposal.diff`, `loom compile --draft draft-ID.tex`:
+  compiles your proposed text in place of the quilt's, to check it before
+  the author promotes or applies; nothing in the quilt changes.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
 - `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`: a whole master flattened
   into one file, for when a plan or a paper is the context. Masters are
-  not keys and `bundle` does not apply to them.
+  not keys, so `loom source` does not apply to them.
 - `loom comment KEY "message" --quote "exact text" --kind objection|
   suggestion|question|ok --run $LOOM_RUN`: leave a finding anchored to the
   sentence it concerns. This is how every review result is recorded.
@@ -137,10 +137,10 @@ Findings are annotations. Drafts and digests wait in your run for
 
 ## 8. Context economy
 
-Read bundles, not directories. A bundle is complete by construction. Use
+Read a key's closure, not directories. It is complete by construction. Use
 `loom search` to find ids and `loom status --json` for the quilt's state.
 Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`.
-When you need a cited result, its digest node's statement is in the bundle;
+When you need a cited result, its digest node's statement is in the closure;
 if there is no digest, say so and propose an ingest.
 
 ## 9. What you never do

@@ -6,7 +6,7 @@ import click
 
 from loom.cli.ai import ai
 from loom.cli.build_cmd import build_command
-from loom.cli.build_cmds import bundle, check, compile
+from loom.cli.build_cmds import check, compile, source
 from loom.cli.digest import digest
 from loom.cli.doctor import doctor
 from loom.cli.graph import deps, unravel
@@ -52,9 +52,9 @@ main.add_command(unravel, name="pop")
 main.add_command(lint_command)
 main.add_command(refs)
 main.add_command(build_command)
-main.add_command(bundle)
 main.add_command(compile)
 main.add_command(check)
+main.add_command(source)
 main.add_command(serve)
 main.add_command(accept)
 main.add_command(comment)

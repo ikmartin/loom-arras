@@ -158,7 +158,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "06e0c97acd1d946973372c69d692486fdb099f446eb94ad6bd936f9c0cd6ad87",
+   "hash": "7d5cd0099f97897d19fa7a4fe06decd68562603829aa9e9f30292ee63f5d7ac2",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -170,7 +170,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "46b5f7c0c5412540cdc2140b94c73bab34de7036f2e41d5c129741bf6a77cc6d",
+   "hash": "84f957af2c32228084011b233d5fa487d68f38dee035595006cc414c48cddcf1",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -182,7 +182,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "221b2ca735a6e7c1303c5eedd07279e03b6d1a709f82cfb60c3cd45c308e97de",
+   "hash": "a2219d0330169919ced50c6d2ebde0e216f72ee473439825bfe6bf1d6e5d24bb",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -4156,7 +4156,7 @@
    "key": "2026-09-15T10-00-quick",
    "kind": "thread",
    "tags": [],
-   "title": "quick"
+   "title": "2026-09-15T10-00-quick"
   },
   {
    "aliases": [],
@@ -4294,7 +4294,7 @@
    "targets": [
     "sy-000A"
    ],
-   "title": "quick"
+   "title": "2026-09-15T10-00-quick"
   },
   "2026-09-16T00-00-referee": {
    "attachments": [

@@ -1,8 +1,7 @@
-"""`loom compile`, `loom bundle`, `loom check` (book 12.5). `loom build` and `loom serve` live in render/; `loom linearize` (17.13) replaced `loom assemble`."""
+"""`loom compile`, `loom source`, `loom check` (book 12.5). `loom build` and `loom serve` live in render/; `loom linearize` (17.13) replaced `loom assemble`."""
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import click
@@ -11,7 +10,7 @@ from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note, resolve
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.clock import stamp
 from loom.scan.scan import ScanResult
-from loom.tex.bundle import Bundle, build_bundle, bundle_filename, draft_bundle, substituted_region
+from loom.tex.bundle import Bundle, build_bundle, bundle_filename, draft_bundle, region_text, substituted_region
 from loom.tex.runner import compile_tex, normalise_engine
 
 
@@ -31,92 +30,75 @@ def log_run(run_dir: str | None, command: str, root: Path | None = None) -> None
         fh.write(f"{stamp()}  {command}\n")
 
 
-def write_bundle(result: ScanResult, b: Bundle, to: str | None, run_dir: str | None) -> Path:
+def write_bundle(result: ScanResult, b: Bundle) -> Path:
+    """Write a key's closure document under build/bundles/, for `loom compile KEY` and `loom check` to run latexmk on.
+
+    A bundle is an internal artifact now: `loom source KEY --closure` is how a reader or an agent gets the text, so
+    nothing copies one into a run directory and nothing gitignores it.
+    """
     root = result.quilt.root
-    out = Path(to).expanduser() if to else root / "build" / "bundles" / bundle_filename(b.key)
+    out = root / "build" / "bundles" / bundle_filename(b.key)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(b.text, encoding="utf-8")
-    rp = resolve_run(root, run_dir)
-    if rp is not None:
-        rp.mkdir(parents=True, exist_ok=True)
-        shutil.copy(out, rp / f"bundle-{bundle_filename(b.key)[:-4]}.tex")
     return out
-
-
-@click.command()
-@click.argument("key", required=False, default=None)
-@click.option("--to", "to", default=None, metavar="FILE", help="Write here instead of build/bundles/.")
-@click.option(
-    "--run",
-    "run_dir",
-    default=None,
-    metavar="DIR",
-    envvar="LOOM_RUN",
-    help="Also copy into the run directory and log the call.",
-)
-@click.option(
-    "--with",
-    "with_file",
-    default=None,
-    metavar="FILE",
-    help="Substitute a unified diff or a .tex file for the key's text.",
-)
-@click.option(
-    "--draft", "draft_file", default=None, metavar="FILE", help="Bundle a node file that is not yet in the quilt."
-)
-@quilt_option
-def bundle(
-    key: str | None,
-    to: str | None,
-    run_dir: str | None,
-    with_file: str | None,
-    draft_file: str | None,
-    quilt_path: str | None,
-) -> None:
-    """Write build/bundles/<key>.tex: the statements KEY depends on, in dependency order, then KEY itself."""
-    result = open_scan(quilt_path)
-    if not result.masters:
-        raise ContentError("the quilt has no master; a bundle needs a preamble")
-    parts = ["loom bundle"] + ([key] if key else [])
-    if with_file:
-        parts += ["--with", with_file]
-    if draft_file:
-        parts += ["--draft", draft_file]
-    log_run(run_dir, " ".join(parts), result.quilt.root)
-    if draft_file:
-        b = draft_bundle(result, Path(draft_file).expanduser())
-        if b.missing:
-            raise ContentError(f"the draft references unknown labels: {', '.join(b.missing)}")
-    else:
-        if key is None:
-            raise EnvError("give a KEY, or --draft FILE")
-        key = resolve_key(result, key)
-        require_text(result, key)
-        if result.nodes[key].kind not in ("environment", "proof", "section"):
-            raise EnvError(f"{key} is not a statement or proof key")
-        override = None
-        if with_file:
-            try:
-                override = substituted_region(result, key, Path(with_file).expanduser())
-            except ValueError as exc:
-                raise ContentError(f"--with {with_file}: {exc}") from exc
-        b = build_bundle(result, key, override_text=override)
-    out = write_bundle(result, b, to, run_dir)
-    click.echo(str(out.relative_to(result.quilt.root)) if out.is_relative_to(result.quilt.root) else str(out))
-    if b.missing and not draft_file:
-        note(f"closure entries without a statement: {', '.join(b.missing)}")
 
 
 @click.command()
 @click.argument("target", required=False, default=None)
 @click.option("--engine", default=None, help="Override the engine (pdflatex, lualatex, xelatex).")
+@click.option(
+    "--with",
+    "with_file",
+    default=None,
+    metavar="FILE",
+    help="Substitute a unified diff or a .tex file for KEY's text; the quilt is not touched.",
+)
+@click.option("--draft", "draft_file", default=None, metavar="FILE", help="Compile a node file not yet in the quilt.")
+@click.option("--run", "run_dir", default=None, metavar="DIR", envvar="LOOM_RUN", help="Log this call to DIR/run.log.")
 @quilt_option
 @click.pass_context
-def compile(ctx: click.Context, target: str | None, engine: str | None, quilt_path: str | None) -> None:  # noqa: A001
-    """Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a bundle by key."""
+def compile(  # noqa: A001
+    ctx: click.Context,
+    target: str | None,
+    engine: str | None,
+    with_file: str | None,
+    draft_file: str | None,
+    run_dir: str | None,
+    quilt_path: str | None,
+) -> None:
+    """Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.
+
+    Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing before it names the error.
+    """
     result = open_scan(quilt_path)
     root = result.quilt.root
+    parts = ["loom compile"] + ([target] if target else [])
+    if with_file:
+        parts += ["--with", with_file]
+    if draft_file:
+        parts += ["--draft", draft_file]
+    log_run(run_dir, " ".join(parts), root)
+    if draft_file:
+        if not result.masters:
+            raise ContentError("the quilt has no master; compiling a draft needs a preamble")
+        b = draft_bundle(result, Path(draft_file).expanduser())
+        if b.missing:
+            raise ContentError(f"the draft references unknown labels: {', '.join(b.missing)}")
+        out = write_bundle(result, b)
+        res = compile_tex(
+            root,
+            str(out.relative_to(root)),
+            root / "build" / "bundles" / out.stem,
+            engine_for(result, result.default_master or result.masters[0], engine),
+        )
+        if res.ok:
+            click.echo(f"compiled {out.stem} -> {res.outdir.relative_to(root)}/ ({res.engine})")
+            return
+        click.echo(f"FAILED {out.stem}: {res.first_error}", err=True)
+        ctx.exit(EXIT_CONTENT)
     if target is None or target in result.masters or (root / target).is_file() and target.endswith(".tex"):
+        if with_file:
+            raise EnvError("--with substitutes one key's text; give a KEY rather than a master")
         master = target or result.default_master
         if master is None:
             raise EnvError("the quilt has no master")
@@ -125,8 +107,16 @@ def compile(ctx: click.Context, target: str | None, engine: str | None, quilt_pa
     else:
         key = resolve_key(result, target)
         require_text(result, key)
-        b = build_bundle(result, key)
-        out = write_bundle(result, b, None, None)
+        if not result.masters:
+            raise ContentError("the quilt has no master; compiling a key needs a preamble")
+        override = None
+        if with_file:
+            try:
+                override = substituted_region(result, key, Path(with_file).expanduser())
+            except ValueError as exc:
+                raise ContentError(f"--with {with_file}: {exc}") from exc
+        b = build_bundle(result, key, override_text=override)
+        out = write_bundle(result, b)
         stem = out.stem
         res = compile_tex(
             root,
@@ -190,7 +180,7 @@ def check(ctx: click.Context, no_compile: bool, bundles: str, quilt_path: str | 
             keys = []  # the ledger arrives at M3; until then nothing is stale
         for key in keys:
             b = build_bundle(result, key)
-            out = write_bundle(result, b, None, None)
+            out = write_bundle(result, b)
             res = compile_tex(
                 root,
                 str(out.relative_to(root)),
@@ -206,3 +196,28 @@ def check(ctx: click.Context, no_compile: bool, bundles: str, quilt_path: str | 
     click.echo("check: " + ("FAILED" if failed else "ok"))
     if failed:
         ctx.exit(EXIT_CONTENT)
+
+
+@click.command()
+@click.argument("key")
+@click.option("--closure", is_flag=True, help="Everything KEY depends on, in dependency order, then KEY itself.")
+@click.option("--run", "run_dir", default=None, metavar="DIR", envvar="LOOM_RUN", help="Log this call to DIR/run.log.")
+@quilt_option
+def source(key: str, closure: bool, run_dir: str | None, quilt_path: str | None) -> None:
+    """Print KEY's own LaTeX source; with --closure, the statements it depends on first.
+
+    This is how a reader or an agent gets the text of a result. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+    """
+    result = open_scan(quilt_path)
+    key = resolve_key(result, key)
+    require_text(result, key)
+    log_run(run_dir, f"loom source {key}" + (" --closure" if closure else ""), result.quilt.root)
+    if not closure:
+        click.echo(region_text(result, key).rstrip("\n"))
+        return
+    if not result.masters:
+        raise ContentError("the quilt has no master; a closure document needs a preamble")
+    b = build_bundle(result, key)
+    click.echo(b.text.rstrip("\n"))
+    if b.missing:
+        note(f"closure entries without a statement: {', '.join(b.missing)}")

@@ -59,6 +59,20 @@ Flag a run's or a comment session's records ignored (or unflag with --undo). Not
 | `--undo` | Reverse: mark matching records not discarded. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom ai findings`
+
+`loom ai findings [OPTIONS]`
+
+What this run has annotated: id, target, kind, status, and the quoted text.
+
+An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it.
+
+| option | description |
+|---|---|
+| `--run` `RUN` | The run to report on. |
+| `--json` | Print the findings as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom ai init`
 
 `loom ai init [OPTIONS]`
@@ -71,15 +85,28 @@ Write ai/ (orientation, modes, runs/) and the vendor files CLAUDE.md and AGENTS.
 | `--skills` | Also write skill stubs and slash commands for Claude Code. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom ai name`
+
+`loom ai name [OPTIONS] NEW_NAME`
+
+Rename a run. The directory keeps the name it was created under, which is its address.
+
+| option | description |
+|---|---|
+| `--run` `RUN` | The run to rename. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom ai orient`
 
 `loom ai orient [OPTIONS]`
 
-Print the orientation document followed by the quilt's live state (and a run's journal with --run).
+Print the orientation document followed by the quilt's live state, and with --run a run's own journal.
+
+This is also how an agent attaches to a run it did not start: `loom ai orient --run <name>` prints the orientation, the quilt's live state, and that run's thread.md and run.log, which is the scrollback a later session resumes from.
 
 | option | description |
 |---|---|
-| `--run` `RUN` | Also print this run's thread.md and run.log. |
+| `--run` `RUN` | Attach to this run: also print its thread.md and run.log. A name, a prefix of one, or a path. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom ai promote`
@@ -93,15 +120,27 @@ Copy a digest out of a run into digests/; lint runs on the result. A drafted nod
 | `--replace` | Overwrite an existing digest after showing the diff. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-### `loom ai start`
+### `loom ai runs`
 
-`loom ai start [OPTIONS] [SLUG]`
+`loom ai runs [OPTIONS]`
 
-Create a run directory under ai/runs/, print its path, and launch [ai] agent from config.toml if set.
+List this quilt's runs, newest last, as `YYYY-MM-DD: name`.
 
 | option | description |
 |---|---|
-| `--no-launch` | Create the run without launching [ai] agent. |
+| `--all` | Include discarded runs, marked. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom ai start`
+
+`loom ai start [OPTIONS] [NAME]`
+
+Create a run directory under ai/runs/ named NAME, and print its path.
+
+Loom does not launch your agent. `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`, so starting a session is `claude`, and this is the command it runs when you ask it to begin a run.
+
+| option | description |
+|---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom atomize`
@@ -134,20 +173,6 @@ Rendering is cached per fragment by its inputs, which include loom's own version
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
 | `--force` | Render every fragment again, ignoring the cache. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-## `loom bundle`
-
-`loom bundle [OPTIONS] [KEY]`
-
-Write build/bundles/<key>.tex: the statements KEY depends on, in dependency order, then KEY itself.
-
-| option | description |
-|---|---|
-| `--to` `FILE` | Write here instead of build/bundles/. |
-| `--run` `DIR` | Also copy into the run directory and log the call. |
-| `--with` `FILE` | Substitute a unified diff or a .tex file for the key's text. |
-| `--draft` `FILE` | Bundle a node file that is not yet in the quilt. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom canonicalize`
@@ -228,11 +253,16 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 
 `loom compile [OPTIONS] [TARGET]`
 
-Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a bundle by key.
+Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.
+
+Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing before it names the error.
 
 | option | description |
 |---|---|
 | `--engine` | Override the engine (pdflatex, lualatex, xelatex). |
+| `--with` `FILE` | Substitute a unified diff or a .tex file for KEY's text; the quilt is not touched. |
+| `--draft` `FILE` | Compile a node file not yet in the quilt. |
+| `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom delete`
@@ -532,6 +562,20 @@ Watch, republish, and serve arras at / and build/ at /build/ until interrupted.
 | `--port` | Port to listen on; fails if busy. |
 | `--open` | Open the browser. |
 | `--no-compile` | Never run latexmk after a change. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom source`
+
+`loom source [OPTIONS] KEY`
+
+Print KEY's own LaTeX source; with --closure, the statements it depends on first.
+
+This is how a reader or an agent gets the text of a result. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+
+| option | description |
+|---|---|
+| `--closure` | Everything KEY depends on, in dependency order, then KEY itself. |
+| `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom stamp`

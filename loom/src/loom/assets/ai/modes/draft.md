@@ -17,15 +17,15 @@ say so in the notes and stop at that step with `\incomplete`.
   ask for it and stop.
 - `loom new TAXON "Title" --print` for the skeleton in the quilt's
   environment names, or the id of a skeleton file the author created.
-- `loom bundle DEP --run $LOOM_RUN` for each intended dependency, so the
+- `loom source DEP --closure --run $LOOM_RUN` for each intended dependency, so the
   statements you rely on are in front of you.
 
 ## Procedure
 Write the statement first and check it against the plan. Then the proof:
 cite each fact used by `\ref{ID}` and list all dependencies in `\uses`;
 mark every step you could not complete with `\incomplete{...}`. Then
-`loom bundle --draft draft-ID.tex --run $LOOM_RUN` and `loom compile` on
-the result; fix compile errors; record the result.
+`loom compile --draft draft-ID.tex --run $LOOM_RUN` compiles it against
+the quilt's preamble; fix compile errors; record the result.
 
 ## Output
 1. `draft-ID.tex`: one complete node obeying the source contract
@@ -40,5 +40,5 @@ the result; fix compile errors; record the result.
 - [ ] Every fact used is a `\ref` or `\uses` to an existing id or a
       digest node.
 - [ ] Every incomplete step is marked `\incomplete`.
-- [ ] The draft compiles in a bundle.
+- [ ] The draft compiles.
 - [ ] Nothing was written outside `$LOOM_RUN`.

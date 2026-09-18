@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import stat
 import time
 from pathlib import Path
 
@@ -57,12 +56,24 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     assert again.exit_code == 2 and "loom upgrade" in again.output
 
 
-def test_ai_init_gitignore_line(tmp_path: Path) -> None:
+def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
+    """CLAUDE.md is the author's file with one line of loom's in it; an upgrade must not take it over (DR-151)."""
+    from loom.ai.layout import CLAUDE_LINE
+
     q = demo(tmp_path)
-    lines = (q / ".gitignore").read_text().splitlines()
-    assert lines.count("ai/runs/*/bundle-*.tex") == 1
+    for name in ("CLAUDE.md", "AGENTS.md"):
+        assert (q / name).read_text().splitlines().count(CLAUDE_LINE) == 1
+    mine = "\n## This project\n\nNever touch canon/ without asking.\n"
+    (q / "CLAUDE.md").write_text((q / "CLAUDE.md").read_text() + mine)
     assert run("upgrade", cwd=q).exit_code == 0
-    assert (q / ".gitignore").read_text().splitlines().count("ai/runs/*/bundle-*.tex") == 1
+    after = (q / "CLAUDE.md").read_text()
+    assert after.count(CLAUDE_LINE) == 1 and "Never touch canon/ without asking." in after
+
+    # an earlier version of loom's line is replaced where it stands, not appended beside
+    (q / "AGENTS.md").write_text("This directory is a quilt managed by loom. Old wording.\n\nMine.\n")
+    assert run("upgrade", cwd=q).exit_code == 0
+    agents = (q / "AGENTS.md").read_text()
+    assert agents.count(CLAUDE_LINE) == 1 and "Old wording" not in agents and "Mine." in agents
 
 
 def test_ai_init_permissions_generated(tmp_path: Path) -> None:
@@ -162,25 +173,67 @@ def test_orient_static_plus_live(tmp_path: Path) -> None:
 
 def test_run_start_creates_dir_and_toml_and_orient_run(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = run("ai", "start", "referee-dm-0003", cwd=q, env=FIXED)
+    r = run("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED)
     assert r.exit_code == 0, r.output
     rel = r.output.strip().splitlines()[0]
-    assert rel == "ai/runs/2026-09-16T14-02-referee-dm-0003"
+    assert rel == "ai/runs/2026-09-16T14-02-referee-of-dm-0003"  # the name, slugified and truncated
     toml = (q / rel / "run.toml").read_text()
-    assert toml == 'created = 2026-09-16T14:02:00Z\nslug = "referee-dm-0003"\ndiscarded = false\n'
+    assert toml == 'created = "2026-09-16T14:02:00Z"\nname = "Referee of dm-0003"\ndiscarded = false\n'
     (q / rel / "thread.md").write_text(
-        "# Thread: referee dm-0003\n\n## 2026-09-16 14:10 first pass\n\nAsked: referee. Did: read the bundle.\n"
+        "# Thread: referee dm-0003\n\n## 2026-09-16 14:10 first pass\n\nAsked: referee. Did: read the source.\n"
     )
-    assert run("bundle", "dm-0003", "--run", rel, cwd=q).exit_code == 0
+    assert run("source", "dm-0003", "--closure", "--run", rel, cwd=q).exit_code == 0
     log = (q / rel / "run.log").read_text()
-    assert "loom bundle dm-0003" in log and (q / rel / "bundle-dm-0003.tex").is_file()
+    assert "loom source dm-0003 --closure" in log
+    assert not list((q / rel).glob("*.tex"))  # reading writes nothing into the run
     o = run("ai", "orient", "--run", rel, cwd=q)
     assert o.exit_code == 0, o.output
-    assert f"# Your run: `{rel}`" in o.output and "first pass" in o.output and "loom bundle dm-0003" in o.output
-    assert "bundle-dm-0003.tex" in o.output
+    assert f"# Your run: `{rel}`" in o.output and "first pass" in o.output
+    assert "loom source dm-0003" in o.output
     assert "loom ai orient" in (q / rel / "run.log").read_text()
-    second = run("ai", "start", "referee-dm-0003", cwd=q, env=FIXED).output.strip()
-    assert second == rel + "-2"  # a run started in the same minute with the same slug gets a suffix
+    second = run("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED).output.strip()
+    assert second == rel + "-2"  # a run started in the same minute under the same name gets a suffix
+
+
+def test_runs_listed_by_name_and_addressed_by_prefix(tmp_path: Path) -> None:
+    """A run is addressed by what the author called it; remembering the minute it started is not a workflow."""
+    q = demo(tmp_path)
+    assert run("ai", "runs", cwd=q).output.strip() == "no open runs"
+    ref = run("ai", "start", "Referee of the parity theorem", cwd=q, env=FIXED).output.strip()
+    other = run("ai", "start", "Ingest of Hartshorne", cwd=q, env=FIXED).output.strip()
+    assert ref != other
+    listing = run("ai", "runs", cwd=q).output
+    assert "2026-09-16: Referee of the parity theorem" in listing
+    assert "2026-09-16: Ingest of Hartshorne" in listing
+
+    ambiguous = run("ai", "findings", "--run", "of", cwd=q)  # "Referee **of**…" and "Ingest **of**…"
+    assert ambiguous.exit_code == 2 and "matches 2 runs" in ambiguous.output  # named, not guessed
+
+    named = run("ai", "name", "Parity, revisited", "--run", "parity", cwd=q)
+    assert named.exit_code == 0, named.output
+    assert "Parity, revisited" in run("ai", "runs", cwd=q).output
+
+    c = run(
+        "comment",
+        "dm-0003",
+        "Say where finiteness is used.",
+        "--quote",
+        "with $X$ a finite set",
+        "--kind",
+        "suggestion",
+        "--run",
+        ref,
+        cwd=q,
+        env=FIXED,
+    )
+    assert c.exit_code == 0, c.output
+    f = run("ai", "findings", "--run", "parity", cwd=q)
+    assert f.exit_code == 0, f.output
+    assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output
+
+    assert run("ai", "discard", ref, cwd=q).exit_code == 0
+    assert "Parity, revisited" not in run("ai", "runs", cwd=q).output
+    assert "(discarded)" in run("ai", "runs", "--all", cwd=q).output
 
 
 def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
@@ -202,25 +255,6 @@ def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
         "loom status",
     ]
     assert commands[-1] == "loom search gadget"
-
-
-def test_run_launch_agent_if_configured(tmp_path: Path) -> None:
-    q = demo(tmp_path)
-    fake = tmp_path / "fakeagent"
-    fake.write_text('#!/bin/sh\nprintf \'%s\\n\' "$LOOM_RUN" "$#" "$1" > "$LOOM_RUN/launched.txt"\n')
-    fake.chmod(fake.stat().st_mode | stat.S_IXUSR)
-    cfg = q / "config.toml"
-    assert 'agent = ""' in cfg.read_text()
-    cfg.write_text(cfg.read_text().replace('agent = ""', f'agent = "{fake}"', 1))
-    r = run("ai", "start", "quick", cwd=q, env=FIXED)
-    assert r.exit_code == 0, r.output
-    rel = r.output.strip().splitlines()[0]
-    assert "(launching:" in r.output
-    launched = (q / rel / "launched.txt").read_text().splitlines()
-    assert launched[0] == rel and launched[1] == "1" and f"loom ai orient --run {rel}" in launched[2]
-    cfg.write_text(cfg.read_text().replace(f'agent = "{fake}"', 'agent = "no-such-agent-binary"'))
-    r2 = run("ai", "start", "quick", cwd=q, env=FIXED)
-    assert r2.exit_code == 2 and "not on PATH" in r2.output and "ai/runs/" in r2.output  # refused, path printed
 
 
 def test_promote_refuses_a_node_and_names_the_pattern(tmp_path: Path) -> None:
@@ -286,8 +320,8 @@ def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
 
 def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    rel = run("ai", "start", "referee-dm-0003", cwd=q, env=FIXED).output.strip()
-    assert run("bundle", "dm-0003", "--run", rel, cwd=q).exit_code == 0
+    rel = run("ai", "start", "referee dm-0003", cwd=q, env=FIXED).output.strip()
+    assert run("source", "dm-0003", "--closure", "--run", rel, cwd=q).exit_code == 0
     r = run(
         "comment",
         "dm-0003/proof",
@@ -314,13 +348,9 @@ def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> N
     assert [msg["body_html"] for msg in t["messages"]][0] == "<p>Opening note.</p>"
     assert t["messages"][1]["time"] == "2026-09-16T14:31:00Z" and "one objection" in t["messages"][1]["body_html"]
     kinds = {a["name"]: a["kind"] for a in t["attachments"]}
-    assert kinds == {
-        "annotations.json": "annotations",
-        "bundle-dm-0003.tex": "bundle",
-        "referee-dm-0003.notes.md": "notes",
-    }
+    assert kinds == {"annotations.json": "annotations", "referee-dm-0003.notes.md": "notes"}  # reading leaves no file
     assert [entry["command"] for entry in t["log"]][:2] == [
-        "loom bundle dm-0003",
+        "loom source dm-0003 --closure",
         "loom comment dm-0003/proof --quote --kind objection",
     ]
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
@@ -334,9 +364,9 @@ def test_run_flag_relative_to_quilt_root(tmp_path: Path) -> None:
     q = demo(tmp_path)
     rel = run("ai", "start", "sub", cwd=q, env=FIXED).output.strip()
     assert run("search", "gadget", "--run", rel, cwd=q / "nodes").exit_code == 0  # from a subdirectory
-    assert run("bundle", "dm-0003", "--run", rel, cwd=q / "nodes").exit_code == 0
+    assert run("source", "dm-0003", "--run", rel, cwd=q / "nodes").exit_code == 0
     assert run("comment", "dm-0003", "Fine.", "--kind", "ok", "--run", rel, cwd=q / "nodes", env=FIXED).exit_code == 0
     log = (q / rel / "run.log").read_text()
-    assert "loom search gadget" in log and "loom bundle dm-0003" in log and "loom comment dm-0003" in log
-    assert (q / rel / "bundle-dm-0003.tex").is_file() and (q / rel / "annotations.json").is_file()
+    assert "loom search gadget" in log and "loom source dm-0003" in log and "loom comment dm-0003" in log
+    assert (q / rel / "annotations.json").is_file()  # the record lands in the run; reading leaves nothing
     assert not (q / "nodes" / "ai").exists()  # nothing landed relative to the shell's directory

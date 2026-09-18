@@ -17,17 +17,22 @@ def static_text(root: Path) -> str:
     return resources.files("loom").joinpath("assets", "ai", "orientation.md").read_text(encoding="utf-8")
 
 
-def open_runs(root: Path) -> list[tuple[str, str, str]]:
-    """(relative path, slug, created) for every run not discarded, oldest first."""
-    out: list[tuple[str, str, str]] = []
+def open_runs(root: Path, include_discarded: bool = False) -> list[tuple[str, str, str, bool]]:
+    """(relative path, name, created, discarded) for every run, oldest first; discarded ones only when asked.
+
+    Oldest first falls out of sorting the directory names, which lead with the timestamp for exactly that reason.
+    """
+    out: list[tuple[str, str, str, bool]] = []
     runs = root / "ai" / "runs"
     if not runs.is_dir():
         return out
     for d in sorted(p for p in runs.iterdir() if p.is_dir()):
         meta = read_run_toml(d)
-        if meta.get("discarded") == "true":
+        discarded = meta.get("discarded") == "true"
+        if discarded and not include_discarded:
             continue
-        out.append((d.relative_to(root).as_posix(), meta.get("slug", d.name), meta.get("created", "")))
+        name = meta.get("name") or meta.get("slug") or d.name
+        out.append((d.relative_to(root).as_posix(), name, meta.get("created", ""), discarded))
     return out
 
 
@@ -53,8 +58,8 @@ def live_text(result: ScanResult, records: Records, run: Path | None) -> str:
     runs = open_runs(root)
     if runs:
         lines.append("- open runs:")
-        for rel, slug, created in runs:
-            lines.append(f"  - `{rel}` ({slug}, created {created})")
+        for rel, name, created, _ in runs:
+            lines.append(f"  - `{rel}` ({name}, created {created})")
     else:
         lines.append("- open runs: none")
     if run is not None:

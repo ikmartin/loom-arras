@@ -45,8 +45,41 @@ def note(message: str) -> None:
 
 
 def resolve_run(root: Path, run_dir: str | None) -> Path | None:
-    """A `--run` directory as a path: absolute as given, otherwise relative to the quilt root (never to the shell's cwd), so `--run ai/runs/x` means the quilt's run from any directory."""
+    """A `--run` directory as a path: absolute as given, otherwise relative to the quilt root (never to the shell's cwd), so `--run ai/runs/x` means the quilt's run from any directory.
+
+    See Also
+    --------
+    find_run : the same, but accepting a run's name or a prefix of it.
+    """
     if not run_dir:
         return None
     p = Path(run_dir).expanduser()
     return p if p.is_absolute() else root / p
+
+
+def find_run(root: Path, run: str | None) -> Path:
+    """Locate a run by name, by a prefix of its name, or by its path; with nothing, the most recent undiscarded one.
+
+    A run directory is `2026-09-17T01-43-review-main`, so addressing one by path means remembering the minute it started. The name is what the author remembers, so that is what this accepts. An ambiguous prefix names its matches and refuses rather than guessing, as `refs resolve` does with candidates.
+    """
+    from loom.ai.orient import open_runs
+
+    if run:
+        p = resolve_run(root, run)
+        if p is not None and p.is_dir():
+            return p
+    runs = open_runs(root, include_discarded=True)
+    if not run:
+        live = [r for r in runs if not r[3]]
+        if not live:
+            raise EnvError('no runs yet; loom ai start "a name" makes one')
+        return root / live[-1][0]
+    want = run.strip().lower()
+    exact = [r for r in runs if r[1].lower() == want]
+    hits = exact or [r for r in runs if want in r[1].lower() or r[0].rsplit("/", 1)[-1].startswith(want)]
+    if not hits:
+        raise EnvError(f"no run matches {run!r}; loom ai runs lists them")
+    if len(hits) > 1:
+        named = "\n".join(f"  {r[2][:10]}: {r[1]}" for r in hits)
+        raise EnvError(f"{run!r} matches {len(hits)} runs:\n{named}\ngive more of the name")
+    return root / hits[0][0]

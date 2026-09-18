@@ -9,7 +9,7 @@ Answer a question about a key or about the quilt, thoroughly, with the
 five blocks.
 
 ## Input
-The bundle of the key concerned, or `loom status --json` for quilt-level
+The closure of the key concerned, or `loom status --json` for quilt-level
 questions; anything further through loom commands.
 
 ## Output

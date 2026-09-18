@@ -26,4 +26,3 @@ drafting/*.fls
 drafting/*.fdb_latexmk
 drafting/*.synctex.gz
 drafting/*.pdf
-ai/runs/*/bundle-*.tex
