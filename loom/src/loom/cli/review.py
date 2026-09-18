@@ -77,7 +77,7 @@ def accept(
     result = open_scan(quilt_path)
     root = result.quilt.root
     name = _author(author, root)
-    records = Records(root)
+    records = Records(root, result.quilt.history_dir)
     targets: list[str] = []
     if accept_stale:
         states = records.key_states(result)
@@ -179,7 +179,7 @@ def _one_comment(
 ) -> str:
     """Append one review event to the log and describe it; the only writer of review records."""
     root = result.quilt.root
-    records = Records(root).records
+    records = Records(root, result.quilt.history_dir).records
     date = today()
     run, akind, aid = writer
     base = {"when": stamp(), "author": aid, "kind": "agent" if akind == "run" else "human", "run": run}

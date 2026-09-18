@@ -37,7 +37,7 @@ def discard(
 
     quilt = open_quilt(quilt_path)
     root = quilt.root
-    records = Records(root).records
+    records = Records(root, quilt.history_dir).records
     sources: list[str] = []
     if run:
         d = find_run(root, run)
@@ -127,7 +127,7 @@ def ai_orient(run_dir: str | None, quilt_path: str | None) -> None:
     root = result.quilt.root
     run: Path | None = find_run(root, run_dir) if run_dir else None
     click.echo(static_text(root), nl=False)
-    click.echo(live_text(result, Records(root), run), nl=False)
+    click.echo(live_text(result, Records(root, result.quilt.history_dir), run), nl=False)
     log_run(run.relative_to(root).as_posix() if run else None, "loom ai orient", root)
 
 
@@ -207,7 +207,7 @@ def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> N
             "detached": a.detached,
             "quote": a.annotation.selector.exact if a.annotation.selector else None,
         }
-        for a in Records(root).resolved(result)
+        for a in Records(root, result.quilt.history_dir).resolved(result)
         if a.record.rel.startswith(f"{rel}/") or a.annotation.author_id == d.name
     ]
     if as_json:

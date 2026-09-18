@@ -16,9 +16,12 @@ from loom.refs.migrate import migrate
 def upgrade(quilt_path: str | None) -> None:
     """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones. Also brings the records to the current layout: snapshots into the history's texts/, `drafts` renamed `drafting` in config.toml."""
     from loom.ai.layout import upgrade_layer
+    from loom.records.lastseen import ensure_gitignore_line
 
     quilt = open_quilt(quilt_path)
     root = quilt.root
+    if ensure_gitignore_line(root):
+        click.echo("wrote .gitignore (loom's last-seen cache)")
     sty = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")
     p = root / "loom.sty"
     if not p.is_file() or p.read_text(encoding="utf-8") != sty:

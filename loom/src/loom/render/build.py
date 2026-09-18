@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import load_history
+from loom.records.lastseen import freeze_moved
 from loom.records.store import Records
 from loom.render.canon import CanonRenderer, canon_fragment_path, load_canon
 from loom.render.fragments import FragmentRenderer, RenderPlan
@@ -141,7 +142,9 @@ def build(
     build_dir = root / "build"
     cache_dir = build_dir / "cache"
     result = scan(quilt)
-    records = records or Records(root)
+    records = records or Records(root, quilt.history_dir)
+    # the one moment loom can still see both the text an annotation was written against and the text that replaced it
+    freeze_moved(result, records.records, quilt.history_dir)
     marks = _marks_by_node(result, records)
     numbers = {m: read_numbers(root, m) for m in result.masters}
     plan = RenderPlan(result=result, numbers=numbers, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg")

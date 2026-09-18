@@ -1,5 +1,7 @@
 build/
 refs/
+# loom's cache of the last text it saw for every key: one copy of the quilt, rebuilt on demand
+last-seen.json
 # LaTeX artifacts a hand compile scatters at the root or in drafting/; loom's own outputs all land under build/
 /*.aux
 /*.log
