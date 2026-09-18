@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from loom.history.ledger import load_history
 from loom.records.lastseen import freeze_moved
@@ -38,6 +39,45 @@ class BuildReport:
     @property
     def has_errors(self) -> bool:
         return any(d.severity == "error" for d in self.diagnostics)
+
+
+def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, str], files: dict[str, Any]) -> None:
+    """Render every run's notes files as report fragments and index their blocks on the thread's pipeline.
+
+    A report is a fragment like any other -- lazily fetched, dialect-conformant, checked by `validate-dialect.py` -- so what the manifest carries is the index a viewer navigates by and not the prose itself. A corpus whose publisher has no modes has no pipelines and nothing happens here.
+    """
+    from loom.render.reports import parse_report
+
+    for tid, thread in manifest.get("threads", {}).items():
+        for entry in thread.get("pipeline", []):
+            src = root / entry["report"]
+            if not src.is_file():
+                continue
+            parsed = parse_report(src.read_text(encoding="utf-8", errors="replace"), run=str(tid), src=entry["report"])
+            rel = f"fragments/reports/{quote(entry['report'], safe='')}.html"
+            fragments[f"report:{entry['report']}"] = rel
+            files[rel] = parsed.html
+            entry["fragment"] = rel
+            entry["blocks"] = [b.to_dict() for b in parsed.blocks]
+
+
+def _write_source(result: ScanResult, fragments: dict[str, str], files: dict[str, Any]) -> None:
+    """One file per key holding its own LaTeX, for the viewer's verbatim toggle (specs/manifest.md §1).
+
+    Beside the manifest rather than inside it: the manifest is loaded whole on every poll and already runs to hundreds of kilobytes, while source is wanted one key at a time and only when a reader asks to see it.
+    """
+    from loom.tex.bundle import region_text
+
+    for key, n in result.nodes.items():
+        if n.kind not in ("environment", "section") and not (n.kind == "proof" and n.id):
+            continue
+        try:
+            text = region_text(result, key)
+        except (KeyError, IndexError):
+            continue
+        rel = f"source/{quote(key, safe='')}.tex"
+        fragments[f"source:{key}"] = rel
+        files[rel] = text
 
 
 def fragment_path(result: ScanResult, key: str) -> str:
@@ -220,11 +260,13 @@ def build(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
     records.apply(result, manifest, build_dir)
+    _attach_reports(result.quilt.root, manifest, fragments, files)
+    _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
     ]
     report.manifest = manifest
-    prune = ("fragments/",) if wanted is None else ()
+    prune = ("fragments/", "source/") if wanted is None else ()
     if wanted is None:
         for rel in list(index):
             if rel not in fragments.values():

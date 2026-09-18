@@ -289,6 +289,34 @@ def build_synthetic(dest: Path) -> None:
     _write_expected_lint(g)
 
 
+def _demo_report(*, suggestion: str, objection: str, document: str) -> str:
+    """The demo's referee report, written the way `ai/rules.md` says to write one: named blocks, and every finding ending in its annotation's id.
+
+    It exists so the fixture has something the report pane can actually render -- several blocks, findings that resolve to real annotations, math in the prose, and a notation block for the panel that reads one.
+    """
+    return f"""## [summary]
+The statement mixes a finiteness claim with a closedness claim; the proof leaves one continuity step unsaid. One suggestion carries a proposed replacement for the statement. The author must decide whether to split the theorem.
+
+## [notation]
+- $\\Fix(\\sigma)$ is the fixed locus, written $X^\\sigma$ in the cited literature.
+- $(X,\\sigma)$ is a widget; the paper's $\\iota$ is this quilt's $\\sigma$.
+
+## [referee-review] Major and minor issues
+
+### Major Issues
+- The proof takes continuity of $(\\mathrm{{id}},\\sigma)\\colon X \\to X \\times X$ for granted. It does follow from continuity of $\\sigma$ and the universal property of the product, but the step is load-bearing for the closedness claim and is never stated. ({objection})
+
+### Minor Issues
+- The statement binds a parity claim, which needs $|X|$ finite, to a closedness claim, which does not. Splitting them would let the second be cited on its own. A replacement statement is attached. ({suggestion})
+
+### Clarity/Exposition
+- $\\Fix$ is introduced twice in the setup, once in prose and once as a definition. ({document})
+
+## [decision]
+Minor Revision. Nothing here is wrong; the proof is missing one sentence and the statement is doing two jobs.
+"""
+
+
 def _annotation_ids(root: Path, run: str) -> list[str]:
     """The ids a run created, read back out of the log so the generator can reply to and resolve them."""
     import json
@@ -341,8 +369,14 @@ def build_demo(dest: Path) -> None:
         "The theorem assumes $X$ finite for the parity claim, but the closedness claim needs no finiteness; consider splitting the statement.",
         "--kind",
         "suggestion",
+        "--severity",
+        "moderate",
         "--quote",
         "with $X$ a finite set",
+        "--payload",
+        "Let $(X,\\sigma)$ be a widget. Then $\\Fix(\\sigma)$ is closed in every topology on $X$ for which $\\sigma$ is continuous and $X$ is Hausdorff; if moreover $X$ is finite, $\\Fix(\\sigma)$ is nonempty if and only if $|X|$ is odd.",
+        "--placement",
+        "replace",
         "--run",
         run_dir,
     )
@@ -352,18 +386,36 @@ def build_demo(dest: Path) -> None:
         "Continuity of $(\\mathrm{id},\\sigma)$ into the product is used without being said; it follows from $\\sigma$ continuous, but say so.",
         "--kind",
         "objection",
+        "--severity",
+        "major",
         "--quote",
         "the preimage of the diagonal",
         "--run",
         run_dir,
     )
-    g.write(
-        f"{run_dir}/thread.md",
-        "# Thread: referee dm-0003\n\n## 2026-09-16 14:31 referee\n\nRefereed dm-0003; one suggestion and one objection.\n",
+    # A whole-document annotation: its target is the master's path, which loom has written since 0.6 and nothing showed.
+    g.run(
+        "comment",
+        "drafting/main.tex",
+        "The setup section introduces $\\Fix$ twice, once in prose and once in the definition; keep the definition.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "minor",
+        "--run",
+        run_dir,
     )
     g.write(
+        f"{run_dir}/thread.md",
+        "# Thread: referee dm-0003\n\n## 2026-09-16 14:31 referee\n\n"
+        "Refereed dm-0003. One major objection in the proof, one moderate suggestion on the statement "
+        "with a proposed replacement, and one minor point about the document as a whole.\n",
+    )
+    # in creation order: the statement suggestion, the proof objection, the whole-document point
+    suggestion, objection, document = _annotation_ids(dest, run_dir)[:3]
+    g.write(
         f"{run_dir}/referee-dm-0003.notes.md",
-        "## [summary]\nThe statement mixes a finiteness claim with a closedness claim; the proof leaves one continuity step unsaid.\n",
+        _demo_report(suggestion=suggestion, objection=objection, document=document),
     )
     # the edit that leaves an accepted key stale, so a fresh demo shows a state worth looking at
     g.edit("nodes/dm-0001.tex", "a pair $(X,\\sigma)$ of a finite set", "a pair $(X,\\sigma)$ of a set")

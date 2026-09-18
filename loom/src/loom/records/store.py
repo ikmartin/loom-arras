@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import difflib
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -446,14 +447,90 @@ def _slug(s: str | None) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", s or "")
 
 
-def render_markdown(text: str) -> str:
-    """Annotation bodies are Markdown rendered into the dialect's inline subset."""
+_MATH = re.compile(r"\$\$(.+?)\$\$|(?<!\\)\$((?:[^$\\]|\\.)+?)\$", re.S)
+_HOLE = "loommathx{}x"
+
+
+def _protect_math(text: str) -> tuple[str, list[tuple[bool, str]]]:
+    """Lift `$...$` and `$$...$$` out of Markdown before it is rendered, leaving a bare word in their place.
+
+    Commonmark has no math, so `$O(n^2)$` renders as literal dollars and `$a_i b_i$` loses both subscripts to emphasis. Lifting first is what stops the second: a placeholder is an ordinary word, and whatever the TeX contains is never seen by the parser.
+    """
+    spans: list[tuple[bool, str]] = []
+
+    def take(m: re.Match[str]) -> str:
+        display = m.group(1) is not None
+        spans.append((display, (m.group(1) if display else m.group(2)).strip()))
+        return _HOLE.format(len(spans) - 1)
+
+    return _MATH.sub(take, text), spans
+
+
+def _restore_math(html_text: str, spans: list[tuple[bool, str]]) -> str:
+    """Put each lifted span back as the dialect writes it (specs/dialect.md §2.6)."""
+    import html as _html
+
+    for i, (display, tex) in enumerate(spans):
+        tex = _html.escape(tex, quote=False)
+        block = (
+            f'<div class="math display">\\[{tex}\\]</div>'
+            if display
+            else f'<span class="math inline">\\({tex}\\)</span>'
+        )
+        html_text = html_text.replace(_HOLE.format(i), block)
+    # A display equation alone in its paragraph is a block, and Commonmark wrapped the placeholder that stood for it in
+    # a <p>; leaving it there nests a div inside a p, which no dialect check should have to tolerate.
+    return re.sub(r'<p>\s*(<div class="math display">.*?</div>)\s*</p>', r"\1", html_text, flags=re.S)
+
+
+def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
+    """Markdown rendered into the dialect's inline subset, math included.
+
+    Every body loom publishes as HTML comes through here -- annotations, thread messages, an agent's report -- and all of them are written by people and agents who use `$...$` without thinking about it.
+
+    Parameters
+    ----------
+    text : str
+        The Markdown as it was written.
+    src : str, optional
+        The file this text came from, quilt-relative. Given it, every block element carries `data-src="FILE:START:END"` in character offsets, as the dialect requires of anything that originates in source (specs/dialect.md §1.4).
+    offset : int, default 0
+        Where `text` begins in that file, when it is a slice of one.
+
+    Returns
+    -------
+    str
+        Dialect HTML.
+    """
+    protected, spans = _protect_math(text)
     try:
         from markdown_it import MarkdownIt
 
         md = MarkdownIt("commonmark", {"html": False})
-        return str(md.render(text)).strip()
+        if src is None:
+            out = str(md.render(protected)).strip()
+        else:
+            out = str(md.renderer.render(_sourced(md.parse(protected), protected, src, offset), md.options, {})).strip()
     except Exception:  # noqa: BLE001
         import html
 
-        return "<p>" + html.escape(text) + "</p>"
+        out = "<p>" + html.escape(protected) + "</p>"
+    return _restore_math(out, spans)
+
+
+def _sourced(tokens: list[Any], text: str, src: str, offset: int) -> list[Any]:
+    """Stamp `data-src` on every opening block token, from the line map markdown-it already keeps.
+
+    A report is written in a file like anything else loom publishes, so its blocks can say where they came from rather than being exempted from the rule that they must.
+    """
+    starts = [0]
+    for line in text.splitlines(keepends=True):
+        starts.append(starts[-1] + len(line))
+    for tok in tokens:
+        if tok.map is None or tok.nesting == -1 or tok.hidden:
+            continue
+        lo, hi = tok.map
+        a = offset + starts[min(lo, len(starts) - 1)]
+        b = offset + starts[min(hi, len(starts) - 1)]
+        tok.attrSet("data-src", f"{src}:{a}:{b}")
+    return tokens

@@ -6,12 +6,13 @@ import re
 from pathlib import Path
 from typing import Any
 
+from loom.ai.layout import MODES
 from loom.ai.runs import read_run_toml
 from loom.records.annotations import Record
 
 _HEADING = re.compile(r"^##\s+(.*)$", re.M)
 _DATE = re.compile(r"(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}):(\d{2}))?")
-KINDS = {"bundle-": "bundle", "draft-": "draft", "proposal-": "proposal", "ingest-": "digest", "plan-": "plan"}
+KINDS = {"draft-": "draft", "proposal-": "proposal", "ingest-": "digest", "plan-": "plan"}
 
 
 def _attachment_kind(name: str) -> str:
@@ -23,6 +24,31 @@ def _attachment_kind(name: str) -> str:
     if name.endswith(".check.py"):
         return "script"
     return "file"
+
+
+_NOTES = re.compile(r"^(?P<mode>[a-z]+)-(?P<target>.+?)(?:\.(?P<pass>\d+))?\.notes\.md$")
+
+
+def _pipeline(run_dir: Path, rel: str) -> list[dict[str, Any]]:
+    """The modes this run applied, derived from the notes files it wrote (specs/manifest.md §10, plan 0.11 Part A).
+
+    Nothing declares this: a mode writes `<mode>-<target>.notes.md` without exception, so the directory already says which modes ran and against what, and it says so retroactively for runs written before the field existed. The order is the files' own, with a numbered second pass sorted after its first rather than before it -- name order rather than clock order, because a manifest that two builds of one quilt disagree about is worse than one whose sequence is alphabetical. A corpus whose publisher has no modes emits nothing here.
+    """
+    out: list[dict[str, Any]] = []
+    for p in sorted(run_dir.iterdir(), key=lambda q: (q.name.split(".")[0], int(_pass_of(q.name)))):
+        m = _NOTES.match(p.name) if p.is_file() else None
+        if not m or m.group("mode") not in MODES:
+            continue
+        entry: dict[str, Any] = {"mode": m.group("mode"), "target": m.group("target"), "report": f"{rel}/{p.name}"}
+        if m.group("pass"):
+            entry["pass"] = int(m.group("pass"))
+        out.append(entry)
+    return out
+
+
+def _pass_of(name: str) -> str:
+    m = _NOTES.match(name)
+    return (m.group("pass") or "1") if m else "1"
 
 
 def _messages(thread: str, agent: str, fallback_time: str) -> list[dict[str, Any]]:
@@ -95,6 +121,7 @@ def run_thread(root: Path, run_dir: Path, record: Record | None = None) -> dict[
         "targets": targets,
         "messages": _messages(thread_text, agent, created) if thread_text else [],
         "attachments": attachments,
+        "pipeline": _pipeline(run_dir, rel),
         "log": log,
         "discarded": discarded,
     }
