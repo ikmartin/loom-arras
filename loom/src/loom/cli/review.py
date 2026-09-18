@@ -409,12 +409,22 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
     derived = records.derived(result, states)
     keys: dict[str, Any] = {}
     assert result.graph is not None
+    live: dict[str, list[dict[str, Any]]] = {}
+    for res in records.resolved(result):
+        if res.record.discarded:
+            continue
+        a = res.annotation
+        live.setdefault(a.target_key, []).append(
+            {"id": a.id, "kind": a.kind, "severity": a.severity, "status": a.status, "detached": res.detached}
+        )
     for key, ks in states.items():
         n = result.nodes[key]
         entry: dict[str, Any] = {
             "key": key,
             "node": n.of if n.kind == "proof" and n.of else key,
             "kind": "proof" if n.kind == "proof" else "statement",
+            "taxon": n.taxon or "",
+            "title": n.title or "",
             "state": ks.state,
             "incomplete": list(n.incomplete),
             "reached_by": list(n.reached_by),
@@ -433,6 +443,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
                 else None,
                 "open": dict(ks.open),
                 "detached": ks.detached,
+                "annotations": live.get(key, []),
             },
             "previous_key_match": ks.previous_key_match,
             "closure": result.graph.closure(key),
@@ -447,16 +458,6 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         if key in derived:
             entry["derived"] = derived[key]
         keys[key] = entry
-    summary = {
-        "keys": len(keys),
-        "accepted": sum(1 for s in states.values() if s.state == "accepted" and s.fresh),
-        "stale": sum(1 for s in states.values() if s.state == "accepted" and not s.fresh),
-        "draft": sum(1 for s in states.values() if s.state == "draft"),
-        "incomplete": sum(1 for s in states.values() if s.state == "incomplete"),
-        "loose": sum(1 for k in states if not result.nodes[k].reached_by),
-        "proved": sum(1 for d in derived.values() if d["proved"]),
-        "settled": sum(1 for d in derived.values() if d["settled"]),
-    }
     runs = [
         {
             "path": r.rel,
@@ -469,7 +470,78 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
     digested = set(result.assembly.digest_files.values())
     undigested = sorted({c.citekey for c in result.edges.cites if c.postnote and c.citekey not in digested})
     retired = sorted(k for k in records.latest if k not in result.nodes and k not in result.assembly.labels)
-    return {"summary": summary, "keys": keys, "runs": runs, "undigested": undigested, "retired": retired}
+    return {
+        "summary": summarise(result, keys),
+        "keys": keys,
+        "runs": runs,
+        "undigested": undigested,
+        "retired": retired,
+    }
+
+
+STATUSES = ("open", "resolved")
+
+
+def summarise(result: ScanResult, rows: dict[str, Any]) -> dict[str, int]:
+    """The counting line, over the rows it is printed under — a filtered list is summarised by what it holds, not by the quilt."""
+    acc = [e for e in rows.values() if e.get("acceptance")]
+    return {
+        "keys": len(rows),
+        "accepted": sum(1 for e in acc if e["acceptance"]["fresh"]),
+        "stale": sum(1 for e in acc if not e["acceptance"]["fresh"]),
+        "draft": sum(1 for e in rows.values() if e["state"] == "draft"),
+        "incomplete": sum(1 for e in rows.values() if e["state"] == "incomplete"),
+        "loose": sum(1 for k in rows if not result.nodes[k].reached_by),
+        "proved": sum(1 for e in rows.values() if e.get("derived", {}).get("proved")),
+        "settled": sum(1 for e in rows.values() if e.get("derived", {}).get("settled")),
+    }
+
+
+def filter_keys(
+    result: ScanResult,
+    rows: dict[str, Any],
+    *,
+    stale: bool = False,
+    draft: bool = False,
+    incomplete: bool = False,
+    loose: bool = False,
+    master: str | None = None,
+    tag: str | None = None,
+    severity: str | None = None,
+    kind: str | None = None,
+    status: str | None = None,
+    detached: bool = False,
+) -> dict[str, Any]:
+    """Every row filter `loom status` offers, in one place, so the text form and `--json` answer the same question.
+
+    The annotation filters keep a key when any live annotation on it matches; `detached` is the same test on `reviews.detached`.
+    """
+    out: dict[str, Any] = {}
+    for key, e in rows.items():
+        n = result.nodes[key]
+        anns = e["reviews"]["annotations"]
+        if stale and not (e.get("acceptance") and not e["acceptance"]["fresh"]):
+            continue
+        if draft and e["state"] != "draft":
+            continue
+        if incomplete and e["state"] != "incomplete":
+            continue
+        if loose and n.reached_by:
+            continue
+        if master and master not in n.reached_by:
+            continue
+        if tag and tag not in (n.directives.get("tags", "").replace(" ", "").split(",")):
+            continue
+        if severity and not any(a["severity"] == severity for a in anns):
+            continue
+        if kind and not any(a["kind"] == kind for a in anns):
+            continue
+        if status and not any(a["status"] == status for a in anns):
+            continue
+        if detached and not e["reviews"]["detached"]:
+            continue
+        out[key] = e
+    return out
 
 
 @click.command()
@@ -483,6 +555,22 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
 @click.option("--runs", "f_runs", is_flag=True)
 @click.option("--master", "f_master", default=None)
 @click.option("--tag", "f_tag", default=None)
+@click.option(
+    "--severity",
+    "f_severity",
+    type=click.Choice(SEVERITIES),
+    default=None,
+    help="Keys carrying an annotation of this severity.",
+)
+@click.option("--kind", "f_kind", default=None, help="Keys carrying an annotation of this kind.")
+@click.option(
+    "--status",
+    "f_status",
+    type=click.Choice(list(STATUSES)),
+    default=None,
+    help="Keys carrying an annotation in this state.",
+)
+@click.option("--detached", "f_detached", is_flag=True, help="Keys whose annotations no longer find their quoted text.")
 @click.option("--explain", default=None, metavar="KEY")
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--run", "run_dir", default=None, envvar="LOOM_RUN")
@@ -498,6 +586,10 @@ def status(
     f_runs: bool,
     f_master: str | None,
     f_tag: str | None,
+    f_severity: str | None,
+    f_kind: str | None,
+    f_status: str | None,
+    f_detached: bool,
     explain: str | None,
     as_json: bool,
     run_dir: str | None,
@@ -508,6 +600,21 @@ def status(
     records = Records(result.quilt.root)
     log_run(run_dir, "loom status", result.quilt.root)
     payload = status_payload(result, records)
+    payload["keys"] = filter_keys(
+        result,
+        payload["keys"],
+        stale=f_stale,
+        draft=f_draft,
+        incomplete=f_incomplete,
+        loose=f_loose,
+        master=f_master,
+        tag=f_tag,
+        severity=f_severity,
+        kind=f_kind,
+        status=f_status,
+        detached=f_detached,
+    )
+    payload["summary"] = summarise(result, payload["keys"])
     if as_json:
         emit_json(payload)
         return
@@ -562,21 +669,7 @@ def status(
                     f"{cite.file}:{cite.line}  \\cite[{cite.postnote}]{{{cite.citekey}}}  no digest node matches"
                 )
         return
-    rows = payload["keys"]
-    for key, e in rows.items():
-        n = result.nodes[key]
-        if f_stale and not (e.get("acceptance") and not e["acceptance"]["fresh"]):
-            continue
-        if f_draft and e["state"] != "draft":
-            continue
-        if f_incomplete and e["state"] != "incomplete":
-            continue
-        if f_loose and n.reached_by:
-            continue
-        if f_master and f_master not in n.reached_by:
-            continue
-        if f_tag and f_tag not in (n.directives.get("tags", "").replace(" ", "").split(",")):
-            continue
+    for key, e in payload["keys"].items():
         state = e["state"] + (", stale" if e.get("acceptance") and not e["acceptance"]["fresh"] else "")
         cause = ""
         if e.get("acceptance") and e["acceptance"]["causes"]:
@@ -597,7 +690,7 @@ def status(
         if e.get("previous_key_match"):
             facts.append(f"acceptance recorded under {e['previous_key_match']}; re-accept to confirm")
         inc = f"  incomplete: {'; '.join(e['incomplete'])}" if e["incomplete"] else ""
-        click.echo(f"{describe(result, key):<40} {state:<18} {cause:<40} {'; '.join(facts)}{inc}")
+        click.echo(f"{describe(result, key):<40} {e['title'][:38]:<40} {state:<18} {cause:<40} {'; '.join(facts)}{inc}")
     s = payload["summary"]
     click.echo(
         f"{s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"

@@ -101,6 +101,39 @@ def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt
             click.echo(f"  {describe(result, entry['key'])}")
 
 
+def _unravel_records(result: ScanResult, key: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The acceptance rows and the live annotations on `key` and its proofs, for `unravel`'s last two blocks.
+
+    Discarded annotations are left out: `unravel` reports what a change to this key would disturb, and a withdrawn finding disturbs nothing.
+    """
+    from loom.records.store import Records
+
+    records = Records(result.quilt.root, result.quilt.history_dir)
+    targets = {key, *result.assembly.nodes[key].proofs}
+    ledger = [
+        {"key": r.key, "author": r.author, "date": r.date, "master": r.master} for r in records.rows if r.key in targets
+    ]
+    annotations = [
+        {
+            "id": a.id,
+            "target": a.target_key,
+            "kind": a.kind,
+            "severity": a.severity,
+            "status": a.status,
+            "author": a.author_id,
+            "created": a.created,
+            "quote": a.selector.exact if a.selector else None,
+            "message": a.body,
+            "detached": res.detached,
+            "recorded": res.recorded,
+        }
+        for res in records.resolved(result)
+        for a in [res.annotation]
+        if a.target_key in targets and not res.record.discarded
+    ]
+    return ledger, annotations
+
+
 def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:
     assert result.graph is not None
     n = result.assembly.nodes[key]
@@ -133,13 +166,14 @@ def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:
         for inc in exp.inclusions
         if inc.child == n.file
     ]
+    ledger, annotations = _unravel_records(result, key)
     return {
         "id": key,
         "dependents": dependents,
         "references": references,
         "inclusions": inclusions,
-        "ledger": [],
-        "annotations": [],
+        "ledger": ledger,
+        "annotations": annotations,
     }
 
 
@@ -168,7 +202,13 @@ def unravel(id_: str, as_json: bool, run_dir: str | None, quilt_path: str | None
                 click.echo(f"  {item['file']}:{item['line']}  in {item['key']}")
             elif section == "inclusions":
                 click.echo(f"  {item['file']}:{item['line']}  ({item['master']})")
+            elif section == "ledger":
+                click.echo(f"  {item['date']}  {item['key']} accepted by {item['author']} against {item['master']}")
             else:
-                click.echo(f"  {item}")
+                sev = f" {item['severity']}" if item["severity"] else ""
+                mark = "" if item["status"] == "open" else f" ({item['status']})"
+                loose = "  [detached]" if item["detached"] else ""
+                click.echo(f"  {item['id']}  {item['target']}  {item['kind']}{sev}{mark}{loose}")
+                click.echo(f"      {item['message']}")
         if not items:
             click.echo("  (none)")

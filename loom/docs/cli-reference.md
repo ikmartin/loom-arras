@@ -65,13 +65,17 @@ Discarding appends an event like any other change, so a run's findings can be di
 
 `loom ai findings [OPTIONS]`
 
-What this run has annotated: id, target, kind, status, and the quoted text.
+What this run has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole finding.
 
-An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it.
+An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
 
 | option | description |
 |---|---|
 | `--run` `RUN` | The run to report on. |
+| `--severity` | Only findings of this severity. |
+| `--kind` | Only findings of this kind. |
+| `--status` | Only findings in this state: open, resolved or discarded. |
+| `--all` | Include withdrawn findings, with the reason they were withdrawn. |
 | `--json` | Print the findings as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -636,6 +640,10 @@ Every key with its computed state, cause if stale, and review facts. Never exits
 | `--runs` |  |
 | `--master` |  |
 | `--tag` |  |
+| `--severity` | Keys carrying an annotation of this severity. |
+| `--kind` | Keys carrying an annotation of this kind. |
+| `--status` | Keys carrying an annotation in this state. |
+| `--detached` | Keys whose annotations no longer find their quoted text. |
 | `--explain` `KEY` |  |
 | `--json` |  |
 | `--run` |  |

@@ -354,3 +354,19 @@ def test_retired_config_key_is_tolerated_and_upgrade_removes_it(tmp_path: Path) 
 
     again = run("upgrade", cwd=q)
     assert "[ai] runner" not in again.output  # idempotent
+
+
+def test_unravel_reports_the_ledger_and_the_annotations_it_heads(tmp_path: Path) -> None:
+    """Both blocks were hardcoded empty, so `annotations: (none)` read as a positive statement that a reviewed node was unreviewed (F13)."""
+    assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0
+    d = tmp_path / "demo"
+    assert run("comment", "dm-0002", "Which orbits?", "--author", "Tom", cwd=d).exit_code == 0
+
+    payload = json.loads(run("unravel", "dm-0002", "--json", cwd=d).output)
+    assert [r["key"] for r in payload["ledger"]] == ["dm-0002", "dm-0002/proof"]  # the statement and its proof
+    (a,) = payload["annotations"]
+    assert a["message"] == "Which orbits?" and a["target"] == "dm-0002" and a["status"] == "open"
+
+    text = run("unravel", "dm-0002", cwd=d).output
+    assert "Which orbits?" in text
+    assert "annotations:\n  (none)" not in text

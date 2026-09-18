@@ -66,6 +66,7 @@ class ResolvedAnnotation:
     record: Record
     span: tuple[int, int] | None  # in the target's own text (concatenated pieces)
     detached: bool
+    recorded: bool = True  # the text this was written against is still recoverable: it is the current text, or frozen
 
 
 class Records:
@@ -76,6 +77,7 @@ class Records:
         self.latest = latest_rows(self.rows)
         self.records, self.problems = load_records(root)
         self._resolved_cache: tuple[ScanResult, list[ResolvedAnnotation]] | None = None
+        self._snapshot_seen: dict[str, bool] = {}
 
     # ---- text helpers --------------------------------------------------------
 
@@ -263,17 +265,32 @@ class Records:
                     region = result.assembly.regions.get(a.target_key)
                     n = result.nodes.get(region.container) if region else None
                 if n is None:
-                    out.append(ResolvedAnnotation(a, rec, None, True))
-                    continue
-                if a.selector is None:
-                    out.append(ResolvedAnnotation(a, rec, None, False))
+                    out.append(ResolvedAnnotation(a, rec, None, True, self._recorded(a, None)))
                     continue
                 if n.key not in texts:
                     texts[n.key], _ = self.own_pieces(result, n)
+                kept = self._recorded(a, texts[n.key])
+                if a.selector is None:
+                    out.append(ResolvedAnnotation(a, rec, None, False, kept))
+                    continue
                 span = resolve_selector(texts[n.key], a.selector)
-                out.append(ResolvedAnnotation(a, rec, span, span is None))
+                out.append(ResolvedAnnotation(a, rec, span, span is None, kept))
         self._resolved_cache = (result, out)
         return out
+
+    def _recorded(self, a: Annotation, current: str | None) -> bool:
+        """Whether the text `a` was written against can still be shown: it is the current text, or a frozen snapshot.
+
+        Two edits between two scans lose the text in between (`lastseen.py`), and the quote may still match the new text, so `detached` does not answer this. An annotation with no `against` made no claim about a version and counts as recorded.
+        """
+        want = a.target_hash
+        if not want:
+            return True
+        if current is not None and hash_text(current) == want:
+            return True
+        if want not in self._snapshot_seen:
+            self._snapshot_seen[want] = read_snapshot(self.root, want, self.history_dir) is not None
+        return self._snapshot_seen[want]
 
     # ---- diagnostics ------------------------------------------------------------
 
@@ -396,12 +413,14 @@ class Records:
                 "body_html": render_markdown(a.body),
                 "status": a.status,
                 "in_reply_to": a.in_reply_to,
-                "anchored": a.selector is not None and not res.detached,
+                "anchored": a.selector is not None and not res.detached and res.recorded,
                 "detached": res.detached,
+                "recorded": res.recorded,
                 "quote": a.selector.exact if a.selector else None,
                 "severity": a.severity,
                 "payload": a.payload,
                 "placement": a.placement,
+                "discard_reason": a.discard_reason,
                 # the run or comment session this belongs to; with one log it is the grouping key a viewer needs,
                 # which a file path no longer is, and it is the thread's own id so the two can be joined
                 "run": thread_id(res.record.rel),

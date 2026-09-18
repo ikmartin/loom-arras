@@ -575,3 +575,64 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     assert s["summary"]["stale"] == 0
     m = json.loads((d / "build" / "manifest.json").read_text()) if run("build", cwd=d).exit_code == 0 else {}
     assert m["annotations"] and any(a["detached"] for a in m["annotations"].values())
+
+
+def test_status_json_answers_the_same_question_as_the_text_form(tmp_path: Path) -> None:
+    """Every row filter applies to both forms (F3): `--json` is what a tool reaches for, and it returned the whole quilt."""
+    q = synthetic(tmp_path)
+    text = run("status", "--master", "drafting/main.tex", cwd=q)
+    assert text.exit_code == 0, text.output
+    lines = [ln for ln in text.output.splitlines() if ln.strip()][:-1]  # the last line is the count
+    js = json.loads(run("status", "--master", "drafting/main.tex", "--json", cwd=q).output)
+    assert len(js["keys"]) == len(lines)
+    assert all("drafting/main.tex" in e["reached_by"] for e in js["keys"].values())
+    assert len(js["keys"]) < len(json.loads(run("status", "--json", cwd=q).output)["keys"])
+    assert js["summary"]["keys"] == len(lines)  # and the count is of what was asked for, not of the quilt
+
+
+def test_status_carries_the_title_beside_the_taxon(tmp_path: Path) -> None:
+    """`rl-000G (Lemma) draft` does not say what the lemma is about, so choosing what to review meant grepping the source (F5)."""
+    d = demo(tmp_path)
+    js = status_json(d)
+    assert js["keys"]["dm-0002"]["title"] == "Orbits" and js["keys"]["dm-0002"]["taxon"] == "Lemma"
+    line = next(ln for ln in run("status", cwd=d).output.splitlines() if ln.startswith("dm-0002 "))
+    assert "Orbits" in line
+
+
+def test_status_filters_by_what_the_annotations_say(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    assert run("comment", "dm-0002", "Which orbits?", "--severity", "major", *AUTHOR, cwd=d).exit_code == 0
+    assert run("comment", "dm-0003", "A thought", "--kind", "suggestion", *AUTHOR, cwd=d).exit_code == 0
+
+    major = json.loads(run("status", "--severity", "major", "--json", cwd=d).output)["keys"]
+    assert list(major) == ["dm-0002"]
+    sugg = json.loads(run("status", "--kind", "suggestion", "--json", cwd=d).output)["keys"]
+    assert list(sugg) == ["dm-0003"]
+    assert list(json.loads(run("status", "--status", "resolved", "--json", cwd=d).output)["keys"]) == []
+    assert list(json.loads(run("status", "--detached", "--json", cwd=d).output)["keys"]) == []
+
+
+def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
+    """A withdrawn finding is not a live one (F20); the reason was typed into the log and shown nowhere."""
+    d = demo(tmp_path)
+    rel = run("ai", "start", "Referee", cwd=d).output.strip()
+    run_name = rel.rsplit("/", 1)[-1]
+    assert run("comment", "dm-0002", "Wrong", "--severity", "major", "--run", run_name, cwd=d).exit_code == 0
+    assert run("comment", "dm-0003", "Also wrong", "--run", run_name, cwd=d).exit_code == 0
+    live = json.loads(run("ai", "findings", "--run", run_name, "--json", cwd=d).output)["findings"]
+    assert len(live) == 2
+    assert [f["message"] for f in live] == ["Wrong", "Also wrong"]
+
+    assert (
+        run("comment", "--discard", live[1]["id"], "I misread the hypothesis", "--run", run_name, cwd=d).exit_code == 0
+    )
+    after = json.loads(run("ai", "findings", "--run", run_name, "--json", cwd=d).output)["findings"]
+    assert [f["id"] for f in after] == [live[0]["id"]]  # the withdrawn one is out of the way
+
+    every = json.loads(run("ai", "findings", "--run", run_name, "--all", "--json", cwd=d).output)["findings"]
+    (gone,) = [f for f in every if f["discarded"]]
+    assert gone["discard_reason"] == "I misread the hypothesis"
+    assert "I misread the hypothesis" in run("ai", "findings", "--run", run_name, "--all", cwd=d).output
+
+    only_major = json.loads(run("ai", "findings", "--run", run_name, "--severity", "major", "--json", cwd=d).output)
+    assert [f["id"] for f in only_major["findings"]] == [live[0]["id"]]

@@ -33,6 +33,9 @@ class Annotation:
     severity: str | None = None  # major | moderate | minor: how bad the fault is, not how keen the suggestion
     payload: str | None = None  # suggested text, previewed and copied by the author; nothing applies it (WQ-27)
     placement: str | None = None  # replace | after | before, relative to the anchor: a hint for where a viewer shows it
+    discard_reason: str | None = (
+        None  # why it was withdrawn, from the discarding event's body; never typed, always replayed
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,6 +51,7 @@ class Annotation:
             "severity": self.severity,
             "payload": self.payload,
             "placement": self.placement,
+            "discard_reason": self.discard_reason,
         }
 
     @classmethod
@@ -68,6 +72,7 @@ class Annotation:
             severity=d.get("severity"),
             payload=d.get("payload"),
             placement=d.get("placement"),
+            discard_reason=d.get("discard_reason"),
         )
 
 

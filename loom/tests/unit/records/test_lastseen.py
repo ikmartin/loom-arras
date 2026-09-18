@@ -100,3 +100,23 @@ def test_the_cache_survives_a_nondefault_history_directory(tmp_path: Path) -> No
     assert run("build", cwd=q).exit_code == 0
     kept = sorted((q / "records" / "history" / "texts").iterdir())
     assert len(kept) == 1 and ORIGINAL in kept[0].read_text()
+
+
+def test_an_annotation_written_against_a_lost_version_is_not_reported_anchored(tmp_path: Path) -> None:
+    """The quote can still match while the text it was written against is gone; `anchored` says so rather than reading only the quote."""
+    import json
+
+    q = demo(tmp_path)
+    assert run("build", cwd=q).exit_code == 0  # last-seen holds the original
+
+    edit(q, "the union of the one-point orbits", "the union of the one-point orbits, as we now check")
+    assert run("comment", "dm-0002", "Which orbits?", "--quote", ORIGINAL, "--author", "Tom", cwd=q).exit_code == 0
+    edit(q, "as we now check", "as we verify below")  # a second edit, far from the quote, before loom scans again
+    assert run("build", cwd=q).exit_code == 0
+
+    assert texts(q) == []  # the version the annotation names was never in the cache, so there was nothing to freeze
+    m = json.loads((q / "build" / "manifest.json").read_text())
+    (a,) = m["annotations"].values()
+    assert a["detached"] is False  # the quote still finds its sentence
+    assert a["recorded"] is False  # but the text it was written about is unrecoverable
+    assert a["anchored"] is False  # so loom does not claim the annotation is in good order

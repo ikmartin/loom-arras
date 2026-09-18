@@ -83,15 +83,16 @@ def find_run(root: Path, run: str | None) -> Path:
     if not runs:
         raise EnvError('no runs yet; loom ai start "a name" makes one')
 
-    want = run.strip().lower()
+    want = run.strip().strip("/").lower()
 
-    def slug(rel: str) -> str:
-        """The directory's name without its leading timestamp, which is what a person types when they type a path."""
-        name = rel.rsplit("/", 1)[-1]
-        return name.split("-", 3)[-1] if name[:4].isdigit() else name
+    def spellings(rel: str, name: str) -> tuple[str, ...]:
+        """Every way of writing this run: its name, its directory, the directory without its leading timestamp, and the path."""
+        dirname = rel.rsplit("/", 1)[-1]
+        slug = dirname.split("-", 4)[-1] if dirname[:4].isdigit() else dirname
+        return (name.lower(), dirname.lower(), slug.lower(), rel.lower())
 
-    exact = [r for r in runs if r[1].lower() == want or slug(r[0]) == want]
-    hits = exact or [r for r in runs if want in r[1].lower() or want in slug(r[0])]
+    exact = [r for r in runs if want in spellings(r[0], r[1])]
+    hits = exact or [r for r in runs if any(want in s for s in spellings(r[0], r[1]))]
     if len(hits) > 1:
         named = "\n".join(f"  {r[2][:10]}: {r[1]}" for r in hits)
         raise EnvError(f"{run!r} matches {len(hits)} runs:\n{named}\ngive more of the name")

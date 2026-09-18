@@ -180,12 +180,24 @@ def ai_name(new_name: str, run_dir: str | None, quilt_path: str | None) -> None:
 
 @ai.command(name="findings")
 @click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="The run to report on.")
+@click.option("--severity", "f_severity", default=None, help="Only findings of this severity.")
+@click.option("--kind", "f_kind", default=None, help="Only findings of this kind.")
+@click.option("--status", "f_status", default=None, help="Only findings in this state: open, resolved or discarded.")
+@click.option("--all", "f_all", is_flag=True, help="Include withdrawn findings, with the reason they were withdrawn.")
 @click.option("--json", "as_json", is_flag=True, help="Print the findings as JSON.")
 @quilt_option
-def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> None:
-    """What this run has annotated: id, target, kind, status, and the quoted text.
+def ai_findings(
+    run_dir: str | None,
+    f_severity: str | None,
+    f_kind: str | None,
+    f_status: str | None,
+    f_all: bool,
+    as_json: bool,
+    quilt_path: str | None,
+) -> None:
+    """What this run has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole finding.
 
-    An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it.
+    An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
     """
     import json
 
@@ -205,10 +217,24 @@ def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> N
             "status": a.annotation.status,
             "reply_to": a.annotation.in_reply_to,
             "detached": a.detached,
+            "recorded": a.recorded,
             "quote": a.annotation.selector.exact if a.annotation.selector else None,
+            "message": a.annotation.body,
+            "payload": a.annotation.payload,
+            "placement": a.annotation.placement,
+            "discarded": a.annotation.status == "discarded" or a.record.discarded,
+            "discard_reason": a.annotation.discard_reason,
         }
         for a in Records(root, result.quilt.history_dir).resolved(result)
         if a.record.rel.startswith(f"{rel}/") or a.annotation.author_id == d.name
+    ]
+    rows = [
+        r
+        for r in rows
+        if (f_all or not r["discarded"])
+        and (not f_severity or r["severity"] == f_severity)
+        and (not f_kind or r["kind"] == f_kind)
+        and (not f_status or r["status"] == f_status)
     ]
     if as_json:
         click.echo(json.dumps({"run": rel, "findings": rows}, indent=2))
@@ -221,6 +247,8 @@ def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> N
         mark = "" if r["status"] == "open" else f" ({r['status']})"
         quote = f"  \u201c{r['quote']}\u201d" if r["quote"] else ""
         click.echo(f"{r['id']}  {r['target']}  {r['kind']}{sev}{mark}{quote}")
+        if r["discarded"]:
+            click.echo(f"      withdrawn: {r['discard_reason'] or 'no reason given'}")
 
 
 @ai.command(name="promote")

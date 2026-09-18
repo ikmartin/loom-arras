@@ -141,7 +141,9 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
         elif kind == "resolved":
             ann.status = "resolved"
         elif kind == "discarded":
-            ann.status = "open" if event.get("undo") else "discarded"
+            undo = bool(event.get("undo"))
+            ann.status = "open" if undo else "discarded"
+            ann.discard_reason = None if undo else (str(event.get("body") or "") or None)
     out: list[Record] = []
     for src in order:
         out.append(
