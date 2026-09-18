@@ -477,7 +477,7 @@ Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
 
 `loom refs [OPTIONS] COMMAND [ARGS]...`
 
-Fetched works: where their artifacts are, how to add one by hand, identifiers for works that state none, and a library crawled from the bibliography.
+Fetched works: where their artifacts are, how to add one by hand, and identifiers for works that state none.
 
 #### `loom refs add`
 
@@ -490,48 +490,6 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 | option | description |
 |---|---|
 | `--force` | Replace an artifact that is already there. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom refs crawl`
-
-`loom refs crawl [OPTIONS] COMMAND [ARGS]...`
-
-Build a library from the bibliography: plan by depth and subject from metadata, then fetch under a cap (book 8.13).
-
-#### `loom refs crawl fetch`
-
-`loom refs crawl fetch [OPTIONS]`
-
-Download what the plan selected, shallowest and most cited first, until [crawl] cap downloads are on disk. Resumable. Requires [refs] fetch = true and a plan made from the current settings and bibliography.
-
-| option | description |
-|---|---|
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom refs crawl plan`
-
-`loom refs crawl plan [OPTIONS]`
-
-Plan a crawl from metadata alone: identify the cited works, follow references to [crawl] depth, keep the works in [crawl] subjects and categories, and say what fetch would download. Downloads nothing. Requires [refs] resolve = true.
-
-Without [crawl] subjects, and deeper than depth 1, it surveys instead: it counts the works the cited works cite by MSC family and arXiv category, to choose subjects and categories from, and makes no plan.
-
-| option | description |
-|---|---|
-| `--refresh` | Ask the services again instead of using recorded answers. |
-| `--json` | Print the plan as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-#### `loom refs crawl status`
-
-`loom refs crawl status [OPTIONS]`
-
-What the plan's library holds: its works, how many are downloaded or failed, how many are still to fetch under the cap and beyond it, and whether the plan is current.
-
-| option | description |
-|---|---|
-| `--json` | Print the status as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs path`
@@ -663,8 +621,8 @@ Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedite
 
 ## 12.10 Environment variables
 
-**[decided]** `LOOM_QUILT` (quilt root, overrides discovery); `LOOM_RUN` (default for `--run`); `LOOM_FIXED_TIME` (fixture generation: all timestamps take this value); `LOOM_PAPER_FIXTURES` (tests: directory of arXiv sources for the paper tier); `LOOM_ARRAS_BUNDLE` (a viewer bundle directory that overrides the installed `arras` package and the vendored copy, 12.5); `LOOM_SVG_KEEP` (debugging: a directory that receives every fallback document that failed to compile, DR-79); `LOOM_OPENALEX_KEY` (an OpenAlex key for `loom refs crawl plan`, sent as a header and never written, DR-127). The test shim reads `FAKE_TEX_LOG`, `FAKE_TEX_FAIL`, and `FAKE_TEX_FAIL_MATCH`. No other variable is read (M7).
+**[decided]** `LOOM_QUILT` (quilt root, overrides discovery); `LOOM_RUN` (default for `--run`); `LOOM_FIXED_TIME` (fixture generation: all timestamps take this value); `LOOM_PAPER_FIXTURES` (tests: directory of arXiv sources for the paper tier); `LOOM_ARRAS_BUNDLE` (a viewer bundle directory that overrides the installed `arras` package and the vendored copy, 12.5); `LOOM_SVG_KEEP` (debugging: a directory that receives every fallback document that failed to compile, DR-79). The test shim reads `FAKE_TEX_LOG`, `FAKE_TEX_FAIL`, and `FAKE_TEX_FAIL_MATCH`. No other variable is read (M7).
 
 ## 12.11 Withdrawn commands
 
-For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into runs having no lifecycle, `ai orient --run`, `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `init --ai` is `ai init`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai promote` of a drafted node is gone, such a node being previewed in arras and pasted by the author with an id from `loom id --next` (DR-140). There has never been a `loom label`: the command that writes ids is `loom id`.
+For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into runs having no lifecycle, `ai orient --run`, `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `init --ai` is `ai init`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai promote` of a drafted node is gone, such a node being previewed in arras and pasted by the author with an id from `loom id --next` (DR-140). `loom refs crawl plan`, `fetch` and `status` went to weft with the rest of the crawl, and the `[crawl]` table with them (8.13, DR-144). There has never been a `loom label`: the command that writes ids is `loom id`.

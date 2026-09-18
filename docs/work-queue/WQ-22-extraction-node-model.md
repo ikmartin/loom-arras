@@ -4,11 +4,11 @@
 
 ## Trigger
 
-Either of: extraction and `atomize` disagree about what counts as a node — a nested statement, a proof by enclosure, a label rule one honours and the other does not — or a corpus makes the per-paper LaTeX compile the bottleneck it already is in miniature.
+Extraction and `atomize` disagree about what counts as a node — a nested statement, a proof by enclosure, a label rule one honours and the other does not.
 
 ## Why deferred
 
-The duplication is real but currently harmless, and the refactor it wants is not small. Nothing has yet diverged, and no corpus exists to make the compile cost bite.
+The duplication is real but currently harmless, and the refactor it wants is not small. Nothing has yet diverged.
 
 ## Rough design
 
@@ -22,12 +22,10 @@ A `scan_paper(dir, master)` returning an `Assembly` without requiring a `config.
 
 **It is the minority of extraction, though.** Genuinely digest-specific, with no `atomize` analogue: numbering from the `.aux` plus the amsthm counter emulation, macro expansion with a self-contained residue block for a foreign preamble, label namespacing (every label prefixed, every `\ref` rewritten to a digest id or a literal number), and single-file output rather than node-files-plus-spine. Call it 60% irreducible. The refactor is worth doing for correctness, not for size.
 
-**Cache the `.aux`.** Extraction compiles the paper into a temp directory and `rmtree`s it immediately. Everything else in extraction is linear or small-*n* quadratic over ~100 results; the cost is entirely that compile, seconds per paper. Digesting a corpus means one LaTeX run per work, and nothing else is within two orders of magnitude, so caching the `.aux` beside the fetched source under `refs/` is the only optimisation that matters at scale. Do not micro-optimise the Python; it is not where the time goes.
-
 ## Blast radius
 
-`loom/src/loom/scan/scan.py` (a non-quilt entry point), `loom/src/loom/digest/extract.py`, `loom/src/loom/reshape/importer.py` (its staging trick becomes redundant), `refs/` layout for the cached `.aux`, Chapter 8.
+`loom/src/loom/scan/scan.py` (a non-quilt entry point), `loom/src/loom/digest/extract.py`, `loom/src/loom/reshape/importer.py` (its staging trick becomes redundant), Chapter 8.
 
 ## Related
 
-Plan 0.5 (which established the `refs/` layout the cache would use); [[WQ-02]], whose corpus scale is what makes the compile cost matter.
+Plan 0.5 (which established the `refs/` layout). The second half of this item — caching the `.aux` so that digesting a corpus is not one LaTeX run per work — went to **weft** with the crawl (DR-144, `docs/plans/weft-and-loom.md` §4): the cost only bites at corpus scale, and weft's copy of `digest/extract.py` is where it will be paid. What is left here is loom's, and is about correctness rather than speed.

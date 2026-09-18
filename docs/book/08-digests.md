@@ -151,7 +151,7 @@ Examples: `\cite[Theorem 4.1]{Man12}` matches `Man12-thm-4.1`; `\cite[Thm.~4.1, 
 
 ## 8.9 Fetching
 
-**[decided]** Loom fetches nothing unless `[refs] fetch = true`. Then `loom digest fetch CITEKEY` retrieves the e-print source into `refs/<scheme>/<identifier>/src/` (gitignored; a gzipped tar, a gzipped single file, or a PDF is unpacked, paths that would escape the directory refused) and, with `--pdf`, the PDF beside it as `paper.pdf`. The directory is named by the work's global identifier rather than by the citekey, because a work reached through another paper's bibliography has no citekey at all, and because two quilts citing one paper should name one directory (DR-108). `loom refs path CITEKEY` prints it; `loom refs add CITEKEY FILE` files a PDF obtained by hand, which is how a published article gets in, since its PDF sits behind a subscription loom cannot and should not automate past, then names the `digest extract` command to run next. Apart from `loom refs resolve` (8.9.1) and the crawl (8.13), no other command touches the network. **[decided]** The identifier is the bib entry's `eprint`, used only when `eprinttype` or `archiveprefix` is absent or `arXiv` (a JSTOR eprint is refused); requests go to arXiv's e-print and PDF URLs with a `User-Agent` naming loom and its version; a request answered 406, 429, or 5xx is retried twice after a pause; when the source cannot be fetched but `--pdf` was asked, the PDF is still fetched and the source failure reported (DR-77). Fetched sources and PDFs are not the quilt's text: the scanner skips `refs/src/` and `refs/pdf/` (DR-70).
+**[decided]** Loom fetches nothing unless `[refs] fetch = true`. Then `loom digest fetch CITEKEY` retrieves the e-print source into `refs/<scheme>/<identifier>/src/` (gitignored; a gzipped tar, a gzipped single file, or a PDF is unpacked, paths that would escape the directory refused) and, with `--pdf`, the PDF beside it as `paper.pdf`. The directory is named by the work's global identifier rather than by the citekey, because a work reached through another paper's bibliography has no citekey at all, and because two quilts citing one paper should name one directory (DR-108). `loom refs path CITEKEY` prints it; `loom refs add CITEKEY FILE` files a PDF obtained by hand, which is how a published article gets in, since its PDF sits behind a subscription loom cannot and should not automate past, then names the `digest extract` command to run next. Apart from `loom refs resolve` (8.9.1), no other command touches the network. **[decided]** The identifier is the bib entry's `eprint`, used only when `eprinttype` or `archiveprefix` is absent or `arXiv` (a JSTOR eprint is refused); requests go to arXiv's e-print and PDF URLs with a `User-Agent` naming loom and its version; a request answered 406, 429, or 5xx is retried twice after a pause; when the source cannot be fetched but `--pdf` was asked, the PDF is still fetched and the source failure reported (DR-77). Fetched sources and PDFs are not the quilt's text: the scanner skips `refs/src/` and `refs/pdf/` (DR-70).
 
 ### 8.9.1 Identity candidates
 
@@ -177,85 +177,6 @@ Examples: `\cite[Theorem 4.1]{Man12}` matches `Man12-thm-4.1`; `\cite[Thm.~4.1, 
 
 Digest nodes are nodes: a page each, with the locator in the header, links from every `\cite[postnote]` that resolves to them (the rendered citation carries its target), and dependents listing the quilt's keys that use them; their fragments name the digest's macro set (8.3.5, DR-56). The digest file's outline renders as a document view (the reference's table of results) that starts after the macro block (DR-80), reachable from a References index listing every citekey in the bibliography and every digest, with the digest's result count and method, a version-mismatch mark (8.8), and the keys that cite it (M5). Ids with dots (`ro-thm-1.0.1`) are served as pages like any other (DR-78). Arras builds all of this from the manifest's references, section nodes containing nodes, an index of a taxon, and edges; it knows nothing of extraction or verbatim statements.
 
-## 8.13 Libraries: the reference crawl
+## 8.13 A corpus is another tool's business
 
-**[decided]** A quilt's library is the works recorded under its `refs/`: the works its bibliography cites, the works those cite, and so on to a chosen depth, within chosen subjects, with the ones that can be downloaded fetched under a cap. `loom refs crawl plan` walks metadata and downloads nothing; `loom refs crawl fetch` downloads what the plan selected; `loom refs crawl status` says what the library holds. The same commands build a project's working library or, with the cap raised, a corpus. The crawl finds works and citations and never writes a digest. It is not the library quilt of 8.10, which keeps digests, and connecting one quilt to another's library is WQ-03 (DR-125).
-
-```toml
-[crawl]
-depth = 2                                    # the bibliography is depth 1
-subjects = ["14N", "14L", "14D", "14C"]      # MSC families to keep
-categories = ["math.AG"]                     # arXiv categories that keep a work with no MSC code
-cap = 1000                                   # downloads on disk
-```
-
-**[decided]** A work at a depth below `depth` is expanded, its references read; a work at `depth` is included and not expanded. The works the author cited always pass. The cap counts downloads on disk, whether the crawl, `loom digest fetch` or `loom refs add` put them there, and is raised only in `config.toml`; there is no flag. Planning needs `[refs] resolve = true`, since it sends identifiers, titles and authors to zbMATH Open, OpenAlex, arXiv and Crossref; fetching also needs `[refs] fetch = true`. A plan records a fingerprint of the `[crawl]` table and the bibliography's files, and `fetch` refuses a plan made from others, naming `plan` as the command to run (DR-125). On a copy of `demos/relloc`, whose bibliography cites 15 works, a depth-2 plan printed:
-
-```
-depth 2 · subjects 14- 14A 14C 14D 14F 14H 14L 14N · categories math.AG · cap 20
-  199 works: 142 downloadable (arXiv 124, open copies 18), 57 metadata only, 33 excluded
-  excluded, outside the subjects: 14E 3 · 53D 3 · 18- 2 · 37J 1 · 11G 1 · 19- 1 · 57S 1 · 22E 1
-  excluded, no MSC code and no arXiv category: 10
-  references not yet known for 4 works (no index lists them; they are read from a source once it is fetched)
-  to fetch: 18 (2 already on disk) · ~52 MB · ~1 min · 128 lookups made
-  over the cap: 122 downloadable works would be left out; raise cap under [crawl] to include them
-  identified by lookup: 49 strong (followed), 8 possible (listed, not followed), 32 unidentified
-  the excluded, possible and unidentified works are listed in refs/crawl/plan.json
-```
-
-### 8.13.1 Subjects and categories
-
-**[decided]** Which works a crawl keeps is the author's to say, in two lists, and loom infers neither (DR-126).
-
-- **Subjects** are MSC families, the first three characters of a code: `14N` for `14N35` (Gromov–Witten invariants), `14-` for `14-02`. They judge every work zbMATH has classified, which is nearly every published paper: a work is kept when any of its codes is in a listed family. Graber–Pandharipande (14N35, 14L30, 14N10) is kept by `14N` or by `14L`; Alper's "Good moduli spaces for Artin stacks" (14L24, 14L30, 14J15) only by `14L` or `14J`.
-- **Categories** are arXiv categories: `math.AG`, `math.AT`, `math.AP`. They judge only works with no MSC code, mostly preprints zbMATH has not classified yet — Aranha–Khan's "The stacky concentration theorem" (2024), filed under `math.AG`, is kept only if `math.AG` is listed. Without `categories`, every such work is excluded.
-- A work with neither, such as anything zbMATH classified before MSC existed (Mumford's *Geometric Invariant Theory*, 1965), is excluded.
-
-Every exclusion is listed in the plan, and the summary counts them by family and by category, so the author sees what the lists leave out.
-
-**[decided]** Loom holds no correspondence between the two schemes and no default for either list, because any it held would suit some fields and silently lose papers in others: a table from MSC areas to arXiv categories, checked most closely in algebraic geometry, contained the category authors chose for 93% of June 2025's algebraic-geometry papers but 75% of PDE papers and 38% of ODE papers, and a default taken from the cited works' primary codes left out algebraic groups (`14L`), the second most common family among what relloc's cited works cite (DR-126).
-
-**[decided]** Instead the author chooses from what is there. Deeper than depth 1 and with no `subjects`, `plan` surveys: it identifies the cited works, reads and classifies the works they cite — the same lookups a plan makes, and cached — counts them, writes no plan and no record, and says what to set. On relloc:
-
-```
-the 14 cited works, by primary MSC family: 14N 3 · 14C 3 · 14D 2 · 14A 2 · 14- 1 · 14F 1 · 14H 1
-the 218 works they cite, by primary MSC family: 14N 38 · 14L 20 · 14A 19 · 14- 16 · 14C 15 · 14F 14 · 14D 12 · 14H 12 · 14E 8 · 53D 7 · 14M 6 · 14J 3
-  by any of their codes: 14N 53 · 14F 52 · 14A 46 · 14L 45 · 14D 44 · 14C 40 · 14- 28 · 14M 27 · 14H 22 · 18F 20 · 14E 20 · 14J 19
-  with no MSC code, by arXiv category: math.AG 8
-  with neither: 10
-  not counted: 8 possible matches, 32 references not identified
-```
-
-The survey counts only the cited works' references: counting a further level would first need subjects to say which works to expand. `loom/scripts/msc_arxiv_categories.py FAMILY...` helps choose `categories`: it reads arXiv's own records, which carry the MSC codes authors gave beside the categories they filed under, and counts the categories of papers with a code in the families named. For `35J 46E 47A`, `math.AP` and `math.FA` cover 71% of June 2025's papers; for `14D 14L 14N`, `math.AG` alone covers 86%.
-
-### 8.13.2 Sources
-
-**[decided]** Every client goes through one kind of service object that spaces its requests, caches each raw answer under `refs/cache/crawl/<service>/` keyed by URL, records a 404 as an absence so it is not asked again, and counts its failures; `plan --refresh` asks again. Tests replace its transport, never the network.
-
-- **zbMATH Open**, a request a second, data CC-BY-SA 4.0: a work's MSC codes and identifiers by DOI, arXiv number or Zbl number; for a work it does not know under the identifier cited, typically a book cited by one edition's or one chapter's DOI, a search by title and first author scored as in 8.9.1 and matched against the title in the language of publication as well as zbMATH's English one; and a reference list whose entries carry the DOI, document number and MSC codes of the works zbMATH matched them to. Old papers often have none (Graber–Pandharipande 1999), recent published ones many (Aranha et al. 2025: 46).
-- **OpenAlex**, five requests a second, data CC0: a work by DOI (an arXiv number is asked as arXiv's `10.48550` DOI), its reference list in batches of fifty, and an open copy's PDF where one exists outside arXiv. A preprint's record lists no references. A key is read from `LOOM_OPENALEX_KEY`, sent as a header, and never written anywhere; without one requests draw on the anonymous allowance and the plan says so. When a service refuses requests, the plan names it and how many, so a plan missing what they would have added says why (DR-127).
-- **arXiv**: primary categories from the export API, fifty numbers to a request, three seconds apart; e-print sources through the fetcher of 8.9.
-- **Crossref**, through the lookups of 8.9.1, for references known only as text.
-
-A work's references are the union of the three reference lists — zbMATH's, OpenAlex's, and its own source's once on disk (8.13.3) — one entry per identifier, text kept only where no source resolved anything. The union is load-bearing: zbMATH has none for Graber–Pandharipande where OpenAlex has 19, and OpenAlex none for the Aranha et al. preprint where zbMATH has 46 (DR-127).
-
-### 8.13.3 Formatted bibliographies
-
-**[decided]** A downloaded source's references are read from its `\bibitem`s wherever they sit, in a `.bbl` or pasted into a `.tex`, since arXiv runs no BibTeX: commented lines are dropped and a list ends at `\end{thebibliography}`. An arXiv number (`arXiv:`, `\arXiv{…}`, an `arxiv.org/abs/` URL) or a DOI in an entry's text is its identifier. An entry with neither becomes a lookup: its title from `\textit`, `\emph` or `{\it …}`, each author's surname as the last capitalised word of their name, and its year in parentheses or else the last one in the text, never one inside an identifier. On relloc's two fetched sources this reads 100 entries, 15 with an identifier (`loom/scripts/bibliography_parse_rate.py`).
-
-### 8.13.4 Identity and records
-
-**[decided]** Identifiers are compared in one spelling: scheme and DOI lowercased, an arXiv number without its version, an arXiv `10.48550` DOI as the arXiv number. A work known by several is keyed by the first in the order of 8.4 — DOI, arXiv, MR, Zbl — and every one of its identifiers is indexed, so a reference citing a known work under another scheme joins it, and two records a source links become one. A reference identified by lookup is followed when the match is strong (8.9.1); a formatted reference is scored by the record's title appearing in its text and an author's surname appearing in it. A possible match is listed and not followed, as is an unmatched reference (DR-127).
-
-**[decided]** Each work's record is `refs/<scheme>/<identifier>/work.json`, beside whatever is downloaded: its identifiers, title, authors, year, MSC codes, arXiv category, references, depth, the works it was reached from, how it was identified (`declared`, `index` or `lookup`), the citekeys that cite it, its open copy, its download and the service records it came from. A cited work keeps the directory its bibliography entry declares, version included, so its record sits beside what `loom digest fetch` put there. Records are written whole or not at all, so an interrupted crawl never leaves one that does not load. A `.bib` file under `refs/` or `ai/` is not the quilt's bibliography (DR-127).
-
-### 8.13.5 Planning
-
-**[decided]** A plan identifies the cited works, reads their records and reference lists, identifies each reference, classifies the works not yet seen, keeps those its subjects and categories keep, and repeats to the chosen depth. Works are ordered by depth, then by how many works found cite them, then by key; the cap selects the first `cap` downloadable works in that order. The plan writes every work's record and `refs/crawl/plan.json` — the settings and fingerprint, the subjects and categories, the order, the selection, the counts, the estimate, and the excluded, possible and unidentified works — and prints the summary. Estimates use the average size of what is already on disk, and 3 MB a source and 1 MB a PDF before there is any. A re-plan keeps every download recorded (DR-125).
-
-**[decided]** A plan is exact wherever an index lists a work's references and a floor where none does: a preprint's references are known only once its source is on disk, and the summary counts the works in that state; a plan after a fetch reads those sources. Every answer is cached, so on relloc a depth-2 plan that took twelve minutes against the services took about one the second time.
-
-### 8.13.6 Fetching
-
-**[decided]** `fetch` takes the plan's works in order and downloads each until `cap` downloads are on disk: an arXiv source through the fetcher of 8.9, with its retries and path confinement, and otherwise the open copy, kept only if it is a PDF. Every download already on disk is counted before anything is fetched, so running fetch again never exceeds the cap. Each result is written into the work's record at once, so an interrupted fetch resumes by skipping what is on disk. A failure is recorded, reported, and takes no place under the cap; a later run retries it if a place is free. Three arXiv refusals in a row stop the fetch, since arXiv then refuses every request for a while. A downloaded source's `\bibitem`s are read into its record (8.13.3), ready for a deeper plan. `status` counts the plan's works: downloaded, failed, still to fetch under the cap and beyond it, metadata only, and whether the plan is current (DR-128).
-
+Loom reaches one level out from the paper: it fetches a work its own bibliography cites, and it stops there. Following citations for their own sake — a library built by depth and subject, filtered by MSC family and arXiv category, downloaded under a cap — was built here and has been taken out again (DR-144). That work belongs to **weft**, a separate tool for other people's results at corpus scale, whose boundary with loom is written down in `docs/plans/weft-and-loom.md`: weft knows nothing about quilts, loom knows nothing about corpora, and what crosses between them is an identifier and a bibliography entry, both formats that predate either tool. Nothing in a quilt depends on weft having run, so a quilt stays self-contained and compiles years later with no corpus in sight.

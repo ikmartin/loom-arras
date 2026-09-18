@@ -21,7 +21,7 @@ There is only one quilt at a time to test against, so nothing can exercise resol
 libraries = ["~/math/gross-siebert"]
 ```
 
-and `\uses{Man12-prop-3.2}` resolves locally first, then into the libraries. No new concept, and the subfield object becomes publishable and collaboratively maintained rather than something every author re-derives. This is also where a deep crawl's output lands ([[WQ-02]]).
+and `\uses{Man12-prop-3.2}` resolves locally first, then into the libraries. No new concept, and the subfield object becomes publishable and collaboratively maintained rather than something every author re-derives. A library here is a *quilt* holding digests someone wrote, which is not a corpus: a crawled corpus is weft's, and weft never writes into a quilt (DR-144, `docs/plans/weft-and-loom.md` §2).
 
 Three things to settle:
 
@@ -37,4 +37,4 @@ Folded in from Chapter 8's open questions: **how a library quilt is recognized**
 
 ## Related
 
-[[WQ-01]], [[WQ-02]], [[WQ-06]]; Chapter 8 §8.9.
+[[WQ-01]], [[WQ-02]] (closed; its implementation went to weft); Chapter 8 §8.9. Distinct from weft in exactly the way this item's own design says: this shares *digests*, which are small, authored and valuable, and never deduplicate because two people's digests of one paper are different documents.

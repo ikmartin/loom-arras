@@ -53,21 +53,23 @@ While you are only *looking*, weft's keys stay global — `arxiv:1709.09864v3#th
 
 Plausible, if wanted: an MCP server (weft already plans one) that loom's AI layer can reach, so an agent advising your project queries the library with your consent; an arras artifact projected from weft that you keep open beside your quilt; a "cite this" action that appends the entry to `refs.bib` for you.
 
-Ruled out unless a decision reverses this document: weft writing into a quilt; a quilt's build, lint or compile reaching for weft; a shared code dependency in either direction. **A quilt must build with no weft installed, and weft must run with no quilt in existence.**
+Ruled out unless a decision reverses this document: weft writing into a quilt; a quilt's build, lint or compile reaching for weft; a shared code dependency in either direction. **A quilt must build with no weft installed, and weft must run with no quilt in existence.** The "cite this" action above is not an exception: what appends the entry to `refs.bib` is the author's editor or their agent, acting with their consent inside their own quilt. No weft process ever holds a path into one.
 
 ## 4. Code: copied, not depended upon
 
 weft copies the code it needs from loom and maintains it separately. That is the pattern this workspace already uses successfully: loom and arras share **no code at all**, and are joined by a written interface plus a conformance fixture.
 
-To copy, then refactor freely: `refs/crawl/*` (the crawl), `refs/identity.py` (identifiers, the synthetic key, normalisation), `refs/resolve.py` (lookup and scoring), `scan/bib.py` (the BibTeX reader), `scan/postnote.py` (locator normalisation and matching), `digest/extract.py` and its counter emulation (extraction).
+To copy, then refactor freely, from **loom `d053b09`** — the commit before the removal of §5, since `refs/crawl/` is no longer in loom's HEAD: `refs/crawl/*` (the crawl), `refs/identity.py` (identifiers, the synthetic key, normalisation), `refs/resolve.py` (lookup and scoring), `scan/bib.py` (the BibTeX reader), `scan/postnote.py` (locator normalisation and matching), `digest/extract.py` and its counter emulation (extraction).
 
 Why copy rather than depend: every one of those files must change in ways loom should not carry — proofs kept rather than dropped, per-version output, batch extraction with a cached `.aux`, an index instead of a full rescan, a PDF adapter later. Depending on `loomtex` would freeze loom's internals into a public API and tie weft's releases to loom's.
 
-**The cost of copying is drift, and drift is paid for with a written contract.** Before the copy: write down the digest contract that both implementations must keep — the header directives, the id grammar, prefixes and aliases, the title-carries-the-locator rule, the locator normalisation table and match forms, and the `proofs:` policy — and extend the shared conformance fixture with digests and their expected locator matches. Then a divergence is a failing test rather than a discovery months later.
+**The cost of copying is drift, and weft pays it.** An earlier version of this section asked for a written digest contract that both implementations must keep. That was struck on 2026-09-17 (DR-144), because §3 of this document removes the invariant such a contract would protect: *two digests of one paper may differ, weft's and yours, and that is correct*. A digest is a quilt artifact — an abbreviated cited paper under **your** citekey, with your locators, your `\uses` and a place in your ledger — and weft produces no such thing; its extractions are global, unverified and keyed `arxiv:1709.09864v3#thm-4.1`. There is nothing for the two sides to agree on, so a conformance fixture spanning them would be testing a boundary that does not exist.
+
+What copying actually costs is that weft's fork of `digest/extract.py` will drift from loom's, and weft owns that divergence in its own tests. The interface that *is* shared — the identifier and the BibTeX entry of §3 — predates both tools and needs no fixture from either.
 
 ## 5. What loom gives up
 
-loom's crawl (`src/loom/refs/crawl/`, nine modules, three CLI commands, `[crawl]` config) is committed and working. It is corpus machinery living in a paper's tool, and it goes to weft in a deliberate change, not by neglect.
+loom's crawl (`src/loom/refs/crawl/`, ten modules, three CLI commands, `[crawl]` config) was committed and working. It is corpus machinery living in a paper's tool, and it went to weft in a deliberate change, not by neglect: **done on 2026-09-17, DR-144**. The reduction below is the record of what was removed.
 
 **loom keeps** — everything a single project needs:
 
@@ -87,7 +89,7 @@ loom's crawl (`src/loom/refs/crawl/`, nine modules, three CLI commands, `[crawl]
 
 **The reduction, concretely:**
 
-1. weft ports `refs/crawl/*` and makes it weft's own (plan 0.1, M1).
+1. weft ports `refs/crawl/*` from loom `d053b09` and makes it weft's own (plan 0.1, M1).
 2. loom deletes `src/loom/refs/crawl/`, the three `refs crawl` commands, the `[crawl]` table and its validation, and the crawl tests; `refs/cache/crawl/` stops being written.
 3. `loom digest fetch` stays exactly as it is: one work, named by citekey, gated on `[refs] fetch`.
 4. The book loses its crawl sections (chapter 8's crawl material, chapter 4's `[crawl]` keys, chapter 12's generated entries) and gains one paragraph saying that a corpus is another tool's business and naming weft. The decision records that specified the crawl stay in the appendix as history, as retired decisions do, with a new record for the removal; `docs/deviations.md` gains its row.

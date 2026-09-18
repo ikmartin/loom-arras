@@ -79,12 +79,6 @@ fetch = false               # may loom fetch from arXiv for digest fetch
 resolve = false             # may loom look up identifiers at zbMATH Open and Crossref (8.9.1)
 contact = ""                # optional address sent to Crossref, which routes lookups to its polite pool
 
-[crawl]
-depth = 2                   # how far loom refs crawl follows references; the bibliography is depth 1 (8.13)
-subjects = []               # MSC families to keep, e.g. ["14N", "14L"]; none: plan surveys instead
-categories = []             # arXiv categories that keep a work with no MSC code, e.g. ["math.AG"]
-cap = 1000                  # downloads a crawl may have on disk
-
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
 
@@ -205,7 +199,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.lo
 2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal. The one exception is inside loom's own directory: `loom upgrade` moves `.loom/snapshots/` into the history's `texts/`, where the files are content-addressed and every reference still resolves.
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.
-5. Loom never touches the network unless the author has allowed it: `[refs] fetch = true` for `loom digest fetch`, `[refs] resolve = true` for `loom refs resolve` (DR-122) and `loom refs crawl plan`, both for `loom refs crawl fetch` (DR-125). No other command does, `loom lint` included.
+5. Loom never touches the network unless the author has allowed it: `[refs] fetch = true` for `loom digest fetch`, `[refs] resolve = true` for `loom refs resolve` (DR-122). No other command does, `loom lint` included.
 6. Loom never runs a model.
 
 ## 4.9 Ignoring a file
