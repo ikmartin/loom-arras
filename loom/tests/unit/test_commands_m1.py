@@ -34,11 +34,11 @@ def test_init_creates_layout(tmp_path: Path) -> None:
         "nodes",
         "digests",
         "refs",
-        "comments",
         ".gitignore",
         "README.md",
     ):
         assert (q / rel).exists(), rel
+    assert not (q / "comments").exists()  # replaced by annotations/log.jsonl four plans ago and still created
     assert 'prefix = "zz"' in (q / "config.toml").read_text()
     assert "\\usepackage{loom}" in (q / "drafting/main.tex").read_text()
     lint = run("lint", cwd=q)
@@ -344,7 +344,8 @@ def test_retired_config_key_is_tolerated_and_upgrade_removes_it(tmp_path: Path) 
     cfg = q / "config.toml"
     assert "runner" not in cfg.read_text() and "agent" not in cfg.read_text()  # a new quilt gets neither
 
-    cfg.write_text(cfg.read_text().replace("[ai]", '[ai]\nagent = "claude"\nrunner = "some-command"'), encoding="utf-8")
+    # a new quilt no longer writes an empty `[ai]` either, so the table is added here as an older quilt would carry it
+    cfg.write_text(cfg.read_text() + '\n[ai]\nagent = "claude"\nrunner = "some-command"\n', encoding="utf-8")
     lint = run("lint", "--json", cwd=q)
     assert "unknown-config-key" not in lint.output  # tolerated: loom wrote them there
 

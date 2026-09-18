@@ -1,4 +1,4 @@
-"""`loom ai check RUN` (book 11.8): files outside the run, `comments/`, and `build/` modified since the run started, except the targets `loom ai promote` logged to the run."""
+"""`loom ai check RUN` (book 11.8): files outside the run, the annotation log, and `build/` modified since the run started, except the targets `loom ai promote` logged to the run."""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ from pathlib import Path
 
 from loom.ai.runs import read_run_toml
 
-SKIP = {".git", "build", "comments", ".loom", "node_modules"}
+# `annotations/` holds the log every `loom comment --run` appends to, which is the agent's own sanctioned write and
+# not a write outside its run; `comments/` is the name that directory had before the log replaced it.
+SKIP = {".git", "build", "annotations", ".loom", "node_modules"}
 
 
 def outside_writes(root: Path, run_dir: Path) -> list[str]:

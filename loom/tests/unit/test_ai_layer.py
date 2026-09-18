@@ -82,7 +82,7 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     data = json.loads((q / ".claude" / "settings.json").read_text())
     deny = data["permissions"]["deny"]
     allow = data["permissions"]["allow"]
-    for d in ("nodes", "drafting", "digests", "refs", "comments", ".loom", "ai/modes"):
+    for d in ("nodes", "drafting", "digests", "refs", "annotations", ".loom", "ai/modes"):
         assert f"Edit(/{d}/**)" in deny and f"Write(/{d}/**)" in deny, d
     assert "Edit(/ai/runs/**)" in allow and "Write(/build/**)" in allow
     assert any(rule.startswith("Bash(loom accept") for rule in deny) and any("promote" in rule for rule in deny)
@@ -172,13 +172,17 @@ def test_upgrade_preserves_edited_modes(tmp_path: Path) -> None:
     referee.write_text(referee.read_text() + "\n## House rule\nAlways check the dimension count.\n")
     audit = q / "ai" / "modes" / "audit.md"
     original_audit = audit.read_text()
-    (q / "ai" / "orientation.md").write_text("stale orientation\n")
+    orientation = q / "ai" / "orientation.md"
+    orientation.write_text("stale orientation\n")
     r = run("upgrade", cwd=q)
     assert r.exit_code == 0, r.output
-    assert "kept ai/modes/referee.md (edited)" in r.output and "wrote ai/orientation.md" in r.output
+    assert "kept ai/modes/referee.md (edited)" in r.output
     assert "House rule" in referee.read_text()  # untouched
     assert audit.read_text() == original_audit
-    assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md").read_text()
+    # the orientation is the first file an author tailors, so an edited one is kept like a mode file (DR-170)
+    assert "kept ai/orientation.md (edited)" in r.output
+    assert orientation.read_text() == "stale orientation\n"
+    assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md.new").read_text()
     versions = (q / "ai" / ".loom-modes-version").read_text()
     assert "referee.md" in versions and "audit.md" in versions
     # the shipped text has not changed in this test, so no .new is written; simulate a changed shipped version
@@ -442,3 +446,38 @@ def test_run_flag_relative_to_quilt_root(tmp_path: Path) -> None:
     assert "loom search gadget" in log and "loom source dm-0003" in log and "loom comment dm-0003" in log
     assert (q / "annotations" / "log.jsonl").is_file()  # the record lands in the quilt's one log
     assert not (q / "nodes" / "ai").exists()  # nothing landed relative to the shell's directory
+
+
+def test_upgrade_keeps_an_edited_orientation(tmp_path: Path) -> None:
+    """The orientation is the first file an author tailors and the only shipped document with no policy: `loom upgrade` overwrote it with no warning and no backup (A1)."""
+    q = demo(tmp_path)
+    orientation = q / "ai" / "orientation.md"
+    mine = orientation.read_text() + "\n## Standing rule for this quilt\nNever touch drafting/appendix.tex.\n"
+    orientation.write_text(mine)
+    r = run("upgrade", cwd=q)
+    assert r.exit_code == 0, r.output
+    assert orientation.read_text() == mine
+    assert "kept ai/orientation.md (edited)" in r.output
+    assert (q / "ai" / "orientation.md.new").is_file()
+
+
+def test_ai_check_does_not_flag_the_annotations_the_agent_was_told_to_write(tmp_path: Path) -> None:
+    """`loom comment --run` appends to the log; the command that verifies an agent behaved reported that as a violation (H13's stale name)."""
+    import os
+    import time
+
+    q = demo(tmp_path)
+    rel = run("ai", "start", "Referee", cwd=q).output.strip()
+    assert run("comment", "dm-0002", "A finding", "--run", rel, cwd=q).exit_code == 0
+    later = time.time() + 60  # run.toml records whole seconds and check allows the run's first one
+    os.utime(q / "annotations" / "log.jsonl", (later, later))
+
+    r = run("ai", "check", "Referee", cwd=q)  # by name, like every other run address (DR-167)
+    assert r.exit_code == 0, r.output
+    assert "ok: nothing outside the run changed" in r.output
+
+    node = q / "nodes" / "dm-0002.tex"
+    node.write_text(node.read_text() + "\n% edited\n")
+    os.utime(node, (later, later))
+    bad = run("ai", "check", "Referee", cwd=q)
+    assert bad.exit_code == 1 and "nodes/dm-0002.tex" in bad.output  # a real write outside the run still reports

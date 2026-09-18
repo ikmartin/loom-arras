@@ -39,7 +39,7 @@ The optional AI layer: runs, orientation, promotion, and discarding review recor
 
 `loom ai check [OPTIONS] RUN`
 
-Report files outside RUN, comments/, and build/ modified since the run started (loom:agent-wrote-outside-run).
+Report files outside RUN, the annotation log, and build/ modified since the run started (loom:agent-wrote-outside-run).
 
 | option | description |
 |---|---|

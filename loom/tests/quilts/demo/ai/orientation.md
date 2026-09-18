@@ -40,7 +40,7 @@ The rule: you write only under your run directory, and you write records only th
 - `\nest{file}` includes a file one section level down; `\input{file}` includes it as written.
 - Equations keep the author's labels (`eq:main`); refer to them normally.
 - Comments beginning `% !LOOM` are directives loom reads (`% !LOOM tags: ...`, `% !LOOM author: ...`, `% !LOOM see: ID, ID`); they never change the PDF. `see:` links two nodes in the viewer and is never a dependency.
-- Digest nodes have ids `<citekey>-<label>`, e.g. `Man12-thm-4.1`; their statements are the cited paper's, verbatim, with locators in the title.
+- Digest nodes carry a cited paper's statements verbatim, with locators in the title. Their ids are derived from the citekey, but not by copying it: punctuation is stripped, so the citekey in `refs.bib` is not the id. Ask instead of guessing — `loom search CITEKEY --json` gives the ids of everything digested from that work.
 
 ## 4. The ledger and states
 

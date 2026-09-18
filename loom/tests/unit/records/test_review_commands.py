@@ -675,3 +675,29 @@ def test_a_clean_read_takes_no_severity(tmp_path: Path) -> None:
     assert r.exit_code != 0
     assert "drop one of them" in r.output
     assert events(d) == []
+
+
+def test_a_reference_note_records_the_work_and_the_argument_for_it(tmp_path: Path) -> None:
+    """`work` held the agent's prose and `claim` was empty, so the breadcrumb could never become a bibliography entry (H18)."""
+    d = demo(tmp_path)
+    bare = run("comment", "dm-0002", "Someone has surely proved this.", "--kind", "citation", *AUTHOR, cwd=d)
+    assert bare.exit_code == 0, bare.output
+    r = run("refs", "note", "--accept", bare.output.split()[0], *AUTHOR, cwd=d)
+    assert r.exit_code != 0 and "proposes no work" in r.output
+
+    named = run(
+        "comment",
+        "dm-0002",
+        "The parity count is Kreschmer's; cite it rather than reproving it.",
+        "--kind",
+        "citation",
+        "--payload",
+        "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
+        *AUTHOR,
+        cwd=d,
+    )
+    assert named.exit_code == 0, named.output
+    assert run("refs", "note", "--accept", named.output.split()[0], *AUTHOR, cwd=d).exit_code == 0
+    note = json.loads((d / "reference-notes.jsonl").read_text().splitlines()[0])
+    assert note["work"].startswith("Kreschmer,")
+    assert note["claim"].startswith("The parity count")

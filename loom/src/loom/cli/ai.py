@@ -306,15 +306,11 @@ def ai_promote(ctx: click.Context, path: Path, replace: bool, quilt_path: str | 
 @quilt_option
 @click.pass_context
 def ai_check(ctx: click.Context, run: str, quilt_path: str | None) -> None:
-    """Report files outside RUN, comments/, and build/ modified since the run started (loom:agent-wrote-outside-run)."""
+    """Report files outside RUN, the annotation log, and build/ modified since the run started (loom:agent-wrote-outside-run)."""
     from loom.ai.check import outside_writes
 
     quilt = open_quilt(quilt_path)
-    run_dir = Path(run)
-    if not run_dir.is_absolute():
-        run_dir = quilt.root / run_dir
-    if not run_dir.is_dir():
-        raise EnvError(f"no run at {run}")
+    run_dir = find_run(quilt.root, run)  # a name, a prefix or a path, resolved as everywhere else (DR-167)
     try:
         hits = outside_writes(quilt.root, run_dir)
     except ValueError as exc:

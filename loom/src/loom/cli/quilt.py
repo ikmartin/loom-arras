@@ -29,8 +29,6 @@ fetch = false               # may loom fetch from arXiv for digest fetch
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
-
-[ai]
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.
@@ -120,7 +118,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
 
     mkdir(target / drafting)
     mkdir(target / canon)
-    for d in ("nodes", "digests", "refs", "comments"):
+    for d in ("nodes", "digests", "refs"):
         mkdir(target / d)
     mkdir(target / ".loom" / "history")
     write(

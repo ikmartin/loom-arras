@@ -34,8 +34,11 @@ def _asset(*parts: str) -> str:
 
 
 def tracked_docs() -> dict[str, str]:
-    """Quilt-relative path -> shipped text for every file whose edits `loom upgrade` preserves."""
-    out = {f"ai/{RULES}": _asset(RULES)}
+    """Quilt-relative path -> shipped text for every file whose edits `loom upgrade` preserves.
+
+    The orientation is here because it is the first thing an author tailors -- a standing rule about this quilt, a mode the agent should not reach for -- and `loom upgrade` overwrote it without a word until it was.
+    """
+    out = {f"ai/{RULES}": _asset(RULES), "ai/orientation.md": _asset("orientation.md")}
     out.update({f"ai/modes/{m}.md": _asset("modes", f"{m}.md") for m in MODES})
     return out
 
@@ -129,7 +132,7 @@ def init_layer(root: Path, permissions: bool = False, skills: bool = False) -> L
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
         rep.written.append(rel)
-    for name in ("orientation.md", "README.md"):
+    for name in ("README.md",):
         (ai / name).write_text(_asset(name), encoding="utf-8")
         rep.written.append(f"ai/{name}")
     write_versions(root, texts)
@@ -178,7 +181,7 @@ def upgrade_layer(root: Path) -> LayerReport:
     (ai / VERSION_FILE).write_text(
         "\n".join(f"{k} {v}" for k, v in sorted(new_versions.items())) + "\n", encoding="utf-8"
     )
-    for name in ("orientation.md", "README.md"):
+    for name in ("README.md",):
         p = ai / name
         text = _asset(name)
         if not p.is_file() or p.read_text(encoding="utf-8") != text:

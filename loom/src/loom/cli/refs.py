@@ -198,12 +198,16 @@ def note_command(
         raise ContentError(f"{ann_id} is a {ann.kind}, not a citation suggestion")
     who = resolve_author(author, root)[0]
     if accept_id:
+        # The payload names the work and the body argues for it: a note whose `work` held the argument could never
+        # become a bibliography entry, which is the one thing the breadcrumb exists for.
+        if not ann.payload:
+            raise ContentError(f"{ann_id} proposes no work; a citation suggestion names one in --payload")
         append_note(
             root,
             {
-                "work": ann.body,
+                "work": ann.payload,
                 "for": [ann.target_key],
-                "claim": ann.payload or "",
+                "claim": ann.body,
                 "identifier": {"verified": False},
                 "accepted": {"when": stamp(), "who": who},
                 "from": {"run": _rec.rel if _rec.is_run else None, "annotation": ann_id},

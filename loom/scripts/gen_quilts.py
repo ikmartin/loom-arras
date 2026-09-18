@@ -253,6 +253,8 @@ def build_synthetic(dest: Path) -> None:
         "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.",
         "--kind",
         "citation",
+        "--payload",  # the work the suggestion names; the message argues for it
+        "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
         "--run",
         referee,
     )
@@ -262,6 +264,8 @@ def build_synthetic(dest: Path) -> None:
         "The orbit decomposition is standard; a textbook reference would do.",
         "--kind",
         "citation",
+        "--payload",
+        "any standard text on group actions",
         "--run",
         referee,
     )
