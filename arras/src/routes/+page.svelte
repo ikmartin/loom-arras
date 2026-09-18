@@ -1,7 +1,8 @@
 <script lang="ts">
+	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	// Home (book 15.3.4): four metric cards, then what needs attention, what is blocked, and where to go. Every line links, and each card opens the table of exactly what it counts.
 	import { store } from '$lib/manifest/client.svelte';
-	import { keyUrl, masterUrl, nodeUrl } from '$lib/nav';
+	import { canonUrl, keyUrl, masterUrl, nodeUrl } from '$lib/nav';
 	import { toneClass } from '$lib/state';
 
 	const m = $derived(store.manifest!);
@@ -43,14 +44,30 @@
 	</div>
 
 	<h2>Documents</h2>
-	<ul class="plain">
-		{#each m.masters as master (master.path)}
-			<li>
-				<a href={masterUrl(master.path)}>{master.title || master.path}</a>
-				<span class="faint">{master.path}{master.default ? ' · default' : ''}{master.numbering_known ? '' : ' · not yet compiled'}</span>
-			</li>
-		{/each}
-	</ul>
+	{#if m.masters.length}
+		<ul class="plain">
+			{#each m.masters as master (master.path)}
+				<li>
+					<a href={masterUrl(master.path)}>{master.title || master.path}</a>
+					<span class="faint">{master.path}{master.default ? ' · default' : ''}{master.numbering_known ? '' : ' · not yet compiled'}</span>
+				</li>
+			{/each}
+		</ul>
+	{:else}
+		<NoDrafts what="documents to read" />
+	{/if}
+
+	{#if m.canon?.length}
+		<h2>Canon</h2>
+		<ul class="plain">
+			{#each [...m.canon].reverse() as doc (doc.path)}
+				<li>
+					<a href={canonUrl(doc.path)}>{doc.title || doc.stem}</a>
+					<span class="faint">{doc.step ? '@' + Number(doc.step) : doc.path}{doc.message ? ' · ' + doc.message : ''}</span>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
 	<h2>Needs attention</h2>
 	{#if stale.length || incomplete.length}

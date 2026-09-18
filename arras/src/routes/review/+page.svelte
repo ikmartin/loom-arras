@@ -1,4 +1,5 @@
 <script lang="ts">
+	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	// The review panel (book 15.3.5): which keys are accepted, which have gone stale and why, and which mark a gap and what that gap blocks. A row expands in place to show the cause and its diff. The filters stand in the shell's left panel and live in the URL, so a home card opens this table already filtered.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
@@ -87,6 +88,9 @@
 
 <main class="page">
 	<h1>Review <HelpDot label="what the review panel shows" topic="review" /></h1>
+	{#if !m.masters.length}
+		<NoDrafts what="keys to review" />
+	{/if}
 	<p class="lead">{LEADS[filter]} Nothing here writes: states are recorded from the command line, and this page reads them back.</p>
 	<p class="counts" data-testid="review-counts">
 		{#each [['accepted', counts.accepted], ['stale', counts.stale], ['draft', counts.draft], ['incomplete', counts.incomplete]] as [name, n], i (name)}

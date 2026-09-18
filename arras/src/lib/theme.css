@@ -36,6 +36,8 @@
 	--state-draft-wash: #f1efe8;
 	--state-incomplete: #a32d2d;
 	--state-incomplete-wash: #fcebeb;
+	--state-conflicted: #8a2f6b;
+	--state-conflicted-wash: #f8e9f3;
 	--state-loose: #888780;
 	--state-loose-wash: transparent;
 
@@ -81,6 +83,8 @@
 		--link: #7fb0e8;
 		--link-wash: rgb(127 176 232 / 14%);
 		--mark: rgb(250 238 218 / 18%);
+		--state-conflicted: #d98ac4;
+		--state-conflicted-wash: rgb(217 138 196 / 16%);
 		--state-accepted: #5cc4a3;
 		--state-accepted-wash: rgb(92 196 163 / 14%);
 		--state-stale: #d9a44f;
@@ -223,6 +227,7 @@ ul.plain li {
 .tone-stale { --tone: var(--state-stale); --tone-wash: var(--state-stale-wash); }
 .tone-draft { --tone: var(--state-draft); --tone-wash: var(--state-draft-wash); }
 .tone-incomplete { --tone: var(--state-incomplete); --tone-wash: var(--state-incomplete-wash); }
+.tone-conflicted { --tone: var(--state-conflicted); --tone-wash: var(--state-conflicted-wash); border-style: dashed; }
 .tone-loose { --tone: var(--state-loose); --tone-wash: var(--state-loose-wash); }
 
 /* The content region of every page: the shell owns the chrome, the page owns its own <main> (15.3). */

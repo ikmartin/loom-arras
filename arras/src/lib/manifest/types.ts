@@ -29,6 +29,22 @@ export interface Corpus {
   root_label: string;
 }
 
+/** A landmark: a flat, self-contained copy of a document as it stood when loom recorded a step (book 17.1). It is a document, not a corpus of nodes: nothing in it has an identity. */
+export interface CanonDoc {
+	path: string;
+	stem: string;
+	title: string;
+	fragment: string;
+	hash: string;
+	/** The step that wrote it, `0002`, when the history knows; a file dropped into the canon directory by hand has none. */
+	step?: string;
+	name?: string;
+	message?: string;
+	when?: string;
+	/** The macro set to typeset it with: a landmark renders with its own preamble's macros, whatever the drafting documents have since become. */
+	macros?: string;
+}
+
 export interface Master {
   path: string;
   title: string;
@@ -66,6 +82,8 @@ export interface Node {
   children: string[];
   proofs: string[];
   external: boolean;
+  /** The files that each define this id, when two do. The id is then `conflicted`: it has no text, and loom reports both rather than choosing (book 5.3.5). */
+  conflict?: string[];
   digest: string | null;
   locator?: string;
   incomplete: string[];
@@ -109,6 +127,9 @@ export interface Key {
   uses: string[];
   closure: string[];
   previous_key_match: string | null;
+  /** The step whose recorded text this key's current text is, when it is one: what "text of @2" is built from (book 17.5). */
+  version?: { step: string; name?: string };
+  conflict?: string[];
 }
 
 export interface Region {
@@ -202,12 +223,21 @@ export interface Location {
   column?: number;
 }
 
+/** A command that would resolve a diagnostic, offered to be copied. Nothing in the viewer runs anything. */
+export interface Fix {
+  label: string;
+  command: string;
+}
+
 export interface Diagnostic {
   severity: Severity;
   code: string;
   message: string;
   locations: Location[];
   keys: string[];
+  fixes?: Fix[];
+  /** What the diagnostic is about: the source, or loom's own record of it. Absent means `source`. */
+  subject?: "source" | "record" | (string & {});
 }
 
 export interface Taxon {
@@ -262,6 +292,7 @@ export interface Manifest {
   generated: string;
   corpus: Corpus;
   masters: Master[];
+  canon?: CanonDoc[];
   nodes: Record<string, Node>;
   keys: Record<string, Key>;
   regions: Record<string, Region>;

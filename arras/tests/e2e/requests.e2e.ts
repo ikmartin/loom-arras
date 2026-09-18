@@ -69,13 +69,13 @@ test.describe('comments as expandable highlights', () => {
 	});
 });
 
-test.describe('the layered graph', () => {
+test.describe('the Box drawing', () => {
 	test('every edge begins and ends on a box it joins', async ({ page }) => {
 		await page.goto('/graph');
-		await page.getByTestId('layout-layered').click();
+		await page.getByTestId('layout-box').click();
 		await expect.poll(() => page.locator('svg g.node rect').count()).toBeGreaterThan(3);
 		const misses = await page.evaluate(() => {
-			const boxes = [...document.querySelectorAll('svg g.node rect, svg rect.group')].map((r) => {
+			const boxes = [...document.querySelectorAll('svg g.node rect')].map((r) => {
 				const b = (r as SVGRectElement).getBBox();
 				return b;
 			});
@@ -96,12 +96,12 @@ test.describe('the layered graph', () => {
 		expect(misses).toEqual([]);
 	});
 
-	test('a node cannot be dragged in the layered layout, and dragging pans instead', async ({ page }) => {
+	test('a node cannot be dragged in the Box drawing, and dragging pans instead', async ({ page }) => {
 		await page.goto('/graph');
-		await page.getByTestId('layout-layered').click();
+		await page.getByTestId('layout-box').click();
 		const node = page.locator('svg g.node').first();
 		await expect(node.locator('rect')).toBeVisible();
-		await expect(node.locator('circle')).toHaveCount(0); // the layered drawing has arrived, not the force one it replaces
+		await expect(node.locator('circle')).toHaveCount(0); // the Box drawing has arrived, not the Dots one it replaces
 		const x = await node.locator('rect').getAttribute('x');
 		const box = (await node.boundingBox())!;
 		const before = await page.locator('svg[aria-label="dependency graph"]').getAttribute('viewBox');
@@ -130,9 +130,11 @@ test.describe('the local graph', () => {
 		await page.getByTestId('local-graph-open').click();
 		const panel = page.getByTestId('local-graph-panel');
 		await expect(panel).toBeVisible();
-		const first = await panel.locator('.around').innerText();
+		const centre = () => panel.locator('a:has(circle.centre)').getAttribute('data-preview-key');
+		await expect.poll(centre).toBeTruthy();
+		const first = await centre();
 		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-		await expect.poll(() => panel.locator('.around').innerText()).not.toBe(first);
+		await expect.poll(centre).not.toBe(first);
 
 		await page.getByTestId('local-graph-expand').click();
 		await expect(page.getByTestId('local-graph-dialog')).toBeVisible();
@@ -143,6 +145,68 @@ test.describe('the local graph', () => {
 		await expect(page.getByTestId('local-graph-panel')).toBeVisible(); // remembered in this browser
 		await page.getByTestId('local-graph-close').click();
 		await expect(page.getByTestId('local-graph-open')).toBeVisible();
+	});
+});
+
+test.describe('the local graph header', () => {
+	test('reads Local Graph, then depth, then Dot or Box, then expand; Box draws the neighbourhood in layers', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		const panel = page.locator('aside').getByTestId('local-graph-panel');
+		const bar = panel.locator('.bar');
+		await expect(bar.locator('.title')).toHaveText('Local Graph');
+		await expect(bar.locator('button')).toHaveText(['1', '2', 'Dot', 'Box', '']);
+		await expect(bar.locator('.sep')).toHaveCount(2);
+		await expect(panel.getByTestId('local-graph-dot')).toHaveAttribute('aria-pressed', 'true');
+
+		await panel.getByTestId('local-graph-box-toggle').click();
+		const boxes = panel.getByTestId('local-graph-box');
+		await expect.poll(() => boxes.locator('rect.box').count()).toBeGreaterThan(1);
+		await expect(boxes.locator('a[data-preview-key="sy-0003"] rect.centre')).toHaveCount(1);
+		await expect(panel.getByTestId('local-graph')).toHaveCount(0);
+		// the neighbourhood is laid out in more than one layer
+		const centreY = Number(await boxes.locator('a[data-preview-key="sy-0003"] rect').getAttribute('y'));
+		const ys = await boxes.locator('a:not([data-preview-key="sy-0003"]) rect').evaluateAll((rs) => rs.map((r) => Number(r.getAttribute('y'))));
+		expect(ys.some((y) => y !== centreY)).toBe(true);
+
+		await panel.getByTestId('local-graph-dot').click();
+		await expect(panel.getByTestId('local-graph')).toBeVisible();
+	});
+
+	test('the graph page offers four drawings by name', async ({ page }) => {
+		await page.goto('/graph');
+		await expect(page.locator('.toggle button')).toHaveText(['Dots', 'Box', 'Sections', 'Reading Order']);
+	});
+});
+
+test.describe('the Sections and Reading Order drawings', () => {
+	test('Sections draws a card per section with its results inside, and a row selects the result', async ({ page }) => {
+		await page.goto('/graph');
+		await page.getByTestId('layout-sections').click();
+		await expect.poll(() => page.locator('g.card').count()).toBeGreaterThan(1);
+		const row = page.getByTestId('grow-sy-0003');
+		await expect(row).toBeVisible();
+		await expect(page.locator('g.card').filter({ has: row })).toHaveCount(1); // the result sits inside its section's card
+		await row.click();
+		await expect(page.locator('aside').getByRole('link', { name: /Theorem/ })).toBeVisible();
+		// a line between two cards stands for every dependency behind it
+		const widths = await page.locator('svg path.edge').evaluateAll((ps) => ps.map((p) => Number(p.getAttribute('stroke-width'))));
+		expect(Math.max(...widths)).toBeGreaterThan(1);
+	});
+
+	test('Reading Order lists the document in order with arcs, and fades the rest only halfway', async ({ page }) => {
+		await page.goto('/graph');
+		await page.getByTestId('layout-reading').click();
+		const canvas = page.getByTestId('reading-canvas');
+		await expect(canvas).toBeVisible();
+		await expect.poll(() => canvas.locator('g.row').count()).toBeGreaterThan(3);
+		await expect.poll(() => canvas.locator('path.edge').count()).toBeGreaterThan(0);
+		const ys = await canvas.locator('g.row').evaluateAll((gs) => gs.map((g) => g.getBoundingClientRect().top));
+		expect(ys).toEqual([...ys].sort((a, b) => a - b)); // rows follow the document, top to bottom
+		await canvas.getByTestId('grow-sy-0003').click();
+		await expect(page.locator('aside').getByRole('link', { name: /Theorem/ })).toBeVisible();
+		const faded = canvas.locator('g.row.soft').first();
+		await expect(faded).toHaveCount(1);
+		expect(await faded.evaluate((el) => getComputedStyle(el).opacity)).toBe('0.55');
 	});
 });
 

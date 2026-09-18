@@ -1,9 +1,11 @@
 <script lang="ts">
-	// The local graph with its controls (book 15.5.1): how far out to draw, a larger drawing on demand, and — where it floats over the read view — a way to put it away.
+	// The local graph with its controls (book 15.5.1): how far out to draw, dots or boxes as in the graph view, a larger drawing on demand, and — where it floats over the read view — a way to put it away.
 	import Icon from '$lib/components/Icon.svelte';
 	import { dismiss } from '$lib/dismiss';
+	import { portal } from '$lib/portal';
 	import { store } from '$lib/manifest/client.svelte';
 	import LocalGraph from './LocalGraph.svelte';
+	import LocalBoxGraph from './LocalBoxGraph.svelte';
 	import { shortLabel } from './local';
 
 	let {
@@ -22,6 +24,7 @@
 	} = $props();
 
 	let depth = $state(1);
+	let drawAs = $state<'dot' | 'box'>('dot');
 	let expanded = $state(false);
 	const m = $derived(store.manifest);
 	const owner = $derived(m?.keys[center]?.node ?? center);
@@ -29,32 +32,46 @@
 </script>
 
 {#snippet controls()}
-	<div class="depth" role="group" aria-label="Steps out from the centre">
+	<div class="group" role="group" aria-label="Steps out from the centre">
 		{#each [1, 2] as d (d)}
 			<button class:on={depth === d} aria-pressed={depth === d} onclick={() => (depth = d)} title="{d} {d === 1 ? 'step' : 'steps'} out">{d}</button>
 		{/each}
 	</div>
+	<span class="sep" aria-hidden="true"></span>
+	<div class="group" role="group" aria-label="Drawing">
+		<button class:on={drawAs === 'dot'} aria-pressed={drawAs === 'dot'} onclick={() => (drawAs = 'dot')} title="dots, placed by force" data-testid="local-graph-dot">Dot</button>
+		<button class:on={drawAs === 'box'} aria-pressed={drawAs === 'box'} onclick={() => (drawAs = 'box')} title="boxes, in layers" data-testid="local-graph-box-toggle">Box</button>
+	</div>
+	<span class="sep" aria-hidden="true"></span>
 {/snippet}
 
 <div class="panel" data-testid="local-graph-panel">
 	<div class="bar">
-		<span class="around" title={owner}>around {label}</span>
+		<span class="title">Local Graph</span>
 		{@render controls()}
 		<button class="icon" onclick={() => (expanded = true)} aria-label="Expand the local graph" title="expand" data-testid="local-graph-expand"><Icon name="expand" size={13} /></button>
 		{#if onclose}<button class="icon" onclick={onclose} aria-label="Close the local graph" title="close" data-testid="local-graph-close"><Icon name="close" size={13} /></button>{/if}
 	</div>
-	<LocalGraph center={owner} {depth} {height} {master} {hrefFor} />
+	{#if drawAs === 'box'}
+		<LocalBoxGraph center={owner} {depth} {height} {master} {hrefFor} />
+	{:else}
+		<LocalGraph center={owner} {depth} {height} {master} {hrefFor} />
+	{/if}
 </div>
 
 {#if expanded}
-	<div class="backdrop">
+	<div class="backdrop" use:portal>
 		<div class="dialog" role="dialog" aria-modal="true" aria-label="the neighbourhood of {label}" use:dismiss={() => (expanded = false)} data-testid="local-graph-dialog">
 			<div class="bar">
-				<span class="around">around {label}</span>
+				<span class="title">Local Graph</span>
 				{@render controls()}
 				<button class="icon" onclick={() => (expanded = false)} aria-label="Close" title="close"><Icon name="close" size={14} /></button>
 			</div>
-			<LocalGraph center={owner} {depth} height={Math.round(window.innerHeight * 0.72)} {master} {hrefFor} allLabels />
+			{#if drawAs === 'box'}
+				<LocalBoxGraph center={owner} {depth} height={Math.round(window.innerHeight * 0.72)} {master} {hrefFor} />
+			{:else}
+				<LocalGraph center={owner} {depth} height={Math.round(window.innerHeight * 0.72)} {master} {hrefFor} allLabels />
+			{/if}
 		</div>
 	</div>
 {/if}
@@ -74,18 +91,25 @@
 		color: var(--ink-faint);
 		min-width: 0;
 	}
-	.around {
+	.title {
 		flex: 1;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		color: var(--ink-soft);
 	}
-	.depth {
+	.group {
 		display: flex;
 		gap: 2px;
 	}
-	.depth button,
+	.sep {
+		align-self: stretch;
+		width: 1px;
+		margin: 2px 1px;
+		background: var(--rule);
+	}
+	.group button,
 	.icon {
 		font: inherit;
 		font-size: 10px;
@@ -102,13 +126,13 @@
 		padding: 0 4px;
 		cursor: pointer;
 	}
-	.depth button.on {
+	.group button.on {
 		background: var(--link-wash);
 		border-color: var(--link);
 		color: var(--link);
 	}
 	.icon:hover,
-	.depth button:hover {
+	.group button:hover {
 		color: var(--ink);
 	}
 	.backdrop {

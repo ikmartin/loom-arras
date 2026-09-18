@@ -12,6 +12,8 @@ export interface WireOptions {
 	margins?: boolean;
 	/** Places a slot for each node's comments: in the right gutter when the comment is short, in the flow when it is long (book 15.3.1). The caller fills the slots; this only decides where they go. */
 	comments?: (key: string) => CommentPlacement[];
+	/** A fragment with no node identity (a landmark): its references are the publisher's own in-page anchors and must be left alone, and nothing in it is a key to look up. */
+	keyless?: boolean;
 	/** Expands comments in place instead of pointing at a card elsewhere: marks and counts call this with the comments they stand for (the `inline` comments preference). */
 	expand?: (trigger: HTMLElement, ids: string[]) => void;
 }
@@ -40,6 +42,7 @@ export function wire(
 ): void {
 	for (const a of root.querySelectorAll<HTMLAnchorElement>('a.ref[data-target]')) {
 		const target = a.dataset.target ?? '';
+		if (opts.keyless) continue;
 		if (a.classList.contains('ref-dangling')) {
 			a.removeAttribute('href');
 			a.title = `dangling reference to ${target}`;

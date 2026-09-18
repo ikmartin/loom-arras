@@ -108,7 +108,7 @@ test.describe('the work graph', () => {
 		await expect(page.locator('aside')).toContainText('Cycle groups for Artin stacks');
 		await expect(page.locator('aside')).toContainText('digest of 2');
 
-		await page.getByTestId('layout-layered').click();
+		await page.getByTestId('layout-box').click();
 		await expect(page.getByTestId('gnode-paper:Kre99').locator('rect.paper-box')).toBeVisible();
 		await page.getByTestId('gnode-paper:Kre99').dblclick();
 		await expect(page).toHaveURL(/\/digest\/Kre99$/);

@@ -15,6 +15,7 @@
 		master = '',
 		headingLinks = false,
 		margins = false,
+		standalone = false,
 		comments,
 		onmounted
 	}: {
@@ -23,6 +24,8 @@
 		master?: string;
 		headingLinks?: boolean;
 		margins?: boolean;
+		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
+		standalone?: boolean;
 		comments?: (key: string) => CommentPlacement[];
 		onmounted?: (root: HTMLElement) => void;
 	} = $props();
@@ -66,6 +69,7 @@
 			master,
 			headingLinks,
 			margins,
+			keyless: standalone,
 			comments,
 			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined
 		});

@@ -2,7 +2,7 @@
 
 import type { Snippet } from 'svelte';
 import type { ContentsEntry } from '$lib/contents';
-import type { Master } from '$lib/manifest/types';
+import type { CanonDoc, Master } from '$lib/manifest/types';
 import type { View } from './views';
 
 export interface ShellProps {
@@ -10,7 +10,9 @@ export interface ShellProps {
 	views: View[];
 	currentView: string;
 	masters: Master[];
-	currentMaster: string;
+	canon: CanonDoc[];
+	/** The document the shell is about, by path: a master or a landmark. */
+	currentDoc: string;
 	contents: ContentsEntry[];
 	currentSection: string;
 	counts: { nodes: number; errors: number; warnings: number };

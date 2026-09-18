@@ -12,7 +12,7 @@
 	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
 	import Locator from '$lib/components/Locator.svelte';
 	import Tex from '$lib/math/Tex.svelte';
-	import { nodeBadge, reviewFacts, stateBadge } from '$lib/badges';
+	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
 	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
@@ -83,18 +83,30 @@
 				<span class="taxon">{node.taxon}</span>
 				<IdChip id={node.id} aliases={node.aliases} />
 				<Badge parts={nodeBadge(m, node)} facts={reviewFacts(stmt)} />
+				{#if versionLabel(stmt)}<span class="version" data-testid="version">{versionLabel(stmt)}</span>{/if}
 				{#if !number}<span class="muted">not yet compiled</span>{/if}
 				{#each node.tags as t (t)}<a class="tag" href={tagUrl(t)}>#{t}</a>{/each}
 				{#if node.external && node.digest}<span class="muted">from <a href={digestUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
 		</header>
 
-		<Fragment path={node.fragment} macroSet={node.digest ?? ''} />
+		{#if node.conflict?.length}
+			<p class="conflicted" data-testid="conflicted">
+				Defined in two files: {#each node.conflict as f, i (f)}{#if i}{' and '}{/if}<code>{f}</code>{/each}. It has no
+				text until one definition moves or is forked — see <a href="/problems?code=duplicate-id">problems</a>.
+			</p>
+		{:else}
+			<Fragment path={node.fragment} macroSet={node.digest ?? ''} />
+		{/if}
 
 		{#if node.proofs.length}
 			<div class="proof-states">
 				{#each node.proofs as pk (pk)}
-					<p><code>{pk}</code> <Badge parts={stateBadge(m, m.keys[pk])} facts={reviewFacts(m.keys[pk])} /></p>
+					<p>
+						<code>{pk}</code>
+						<Badge parts={stateBadge(m, m.keys[pk])} facts={reviewFacts(m.keys[pk])} />
+						{#if versionLabel(m.keys[pk])}<span class="version">{versionLabel(m.keys[pk])}</span>{/if}
+					</p>
 				{/each}
 			</div>
 		{/if}
@@ -194,6 +206,21 @@
 {/if}
 
 <style>
+	.version {
+		font-family: var(--sans);
+		font-size: 10px;
+		color: var(--ink-faint);
+	}
+	.conflicted {
+		max-width: var(--measure);
+		font-size: 12px;
+		line-height: 1.6;
+		color: var(--ink-soft);
+		padding: var(--gap-tight);
+		border: 1px dashed var(--state-conflicted);
+		border-radius: var(--rad-card);
+		background: var(--state-conflicted-wash);
+	}
 	.node-head h1 {
 		font-family: var(--body-face);
 		font-size: 18px;

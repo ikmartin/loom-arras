@@ -49,18 +49,26 @@
 	const defaultMaster = $derived(m?.masters.find((x) => x.default) ?? m?.masters[0]);
 
 	// The document the shell is about: the one on screen in the read and graph views, the default elsewhere.
-	const currentMaster = $derived.by(() => {
+	// The route decides which kind, never the stem: a landmark and a draft may share one.
+	const currentDoc = $derived.by(() => {
 		const stem = page.params.stem;
 		if (stem && m) {
-			const hit = m.masters.find((x) => masterStem(x.path) === stem);
-			if (hit) return hit.path;
+			if (page.route.id?.startsWith('/canon')) {
+				const c = m.canon?.find((x) => x.stem === stem);
+				if (c) return c.path;
+			} else {
+				const hit = m.masters.find((x) => masterStem(x.path) === stem);
+				if (hit) return hit.path;
+			}
 		}
 		const g = page.url.searchParams.get('master');
 		if (g && m?.masters.some((x) => x.path === g)) return g;
-		return defaultMaster?.path ?? '';
+		return defaultMaster?.path ?? m?.canon?.[m.canon.length - 1]?.path ?? '';
 	});
 
-	const contents = $derived(m && currentMaster ? contentsOf(m, currentMaster) : []);
+	// a landmark has no nodes, so it has no contents list of its own
+	const isCanon = $derived(!!m?.canon?.some((c) => c.path === currentDoc));
+	const contents = $derived(m && currentDoc && !isCanon ? contentsOf(m, currentDoc) : []);
 	// The rail's position bar follows the scroll while a document is being read, and falls back to the hash
 	// elsewhere. Reading the fragments' own element ids means it also lights for a section with no allocated id,
 	// whose key is not slug-shaped and so never matched a hash.
@@ -73,16 +81,17 @@
 </script>
 
 <svelte:head>
-	<title>{m ? m.corpus.root_label : 'arras'}</title>
+	<title>{m ? m.corpus.name : 'arras'}</title>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
 <NavShell
-	label={m ? m.corpus.root_label : 'arras'}
+	label={m ? m.corpus.name : 'arras'}
 	views={viewsOf(m)}
 	currentView={viewOf(page.url.pathname)}
 	masters={m?.masters ?? []}
-	{currentMaster}
+	canon={m?.canon ?? []}
+	{currentDoc}
 	{contents}
 	{currentSection}
 	counts={{ nodes: m ? Object.keys(m.nodes).length : 0, errors, warnings }}

@@ -31,6 +31,30 @@ export function groupDiagnostics(items: Diagnostic[]): Group[] {
 	return [...map.values()].sort((a, b) => (order[a.severity] ?? 3) - (order[b.severity] ?? 3) || a.code.localeCompare(b.code));
 }
 
+/** The two kinds of thing a diagnostic can be about: the source, and loom's own record of it (book 10.2.5). A diagnostic that names no subject is about the source. */
+export function subjectOf(d: Diagnostic): string {
+	return d.subject ?? 'source';
+}
+
+const SUBJECT_ORDER = ['source', 'record'];
+
+/** Diagnostics by subject, source first, in the order they were given. */
+export function groupBySubject(items: Diagnostic[]): { subject: string; items: Diagnostic[] }[] {
+	const map = new Map<string, Diagnostic[]>();
+	for (const d of items) {
+		const s = subjectOf(d);
+		if (!map.has(s)) map.set(s, []);
+		map.get(s)!.push(d);
+	}
+	return [...map.entries()]
+		.map(([subject, xs]) => ({ subject, items: xs }))
+		.sort((a, b) => {
+			const ai = SUBJECT_ORDER.indexOf(a.subject);
+			const bi = SUBJECT_ORDER.indexOf(b.subject);
+			return (ai < 0 ? 9 : ai) - (bi < 0 ? 9 : bi) || a.subject.localeCompare(b.subject);
+		});
+}
+
 export function countBySeverity(items: Diagnostic[]): Record<string, number> {
 	const out: Record<string, number> = {};
 	for (const d of items) out[d.severity] = (out[d.severity] ?? 0) + 1;

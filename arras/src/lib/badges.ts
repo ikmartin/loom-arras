@@ -6,6 +6,13 @@ export interface BadgePart {
 	color: ColorClass;
 }
 
+/** `text of @3 (paper-v2)` when a key's current text is one a landmark recorded (book 17.5); nothing when it is not, which is the ordinary case and not a fault. */
+export function versionLabel(key: Key | undefined): string {
+	if (!key?.version) return '';
+	const n = Number(key.version.step);
+	return `text of @${Number.isFinite(n) ? n : key.version.step}${key.version.name ? ' (' + key.version.name + ')' : ''}`;
+}
+
 export function stateBadge(manifest: Manifest, key: Key | undefined): BadgePart[] {
 	if (!key) return [];
 	const labels = manifest.states.labels;
@@ -29,6 +36,10 @@ export function reviewFacts(key: Key | undefined): string {
 }
 
 export function nodeBadge(manifest: Manifest, node: Node): BadgePart[] {
+	if (node.conflict?.length) {
+		const c = manifest.states.labels['conflicted'];
+		return [{ text: c?.label ?? 'conflicted', color: c?.color ?? 'negative' }];
+	}
 	const stmt = manifest.keys[node.id];
 	if (node.incomplete.length || stmt?.state === 'incomplete') {
 		const inc = manifest.states.labels['incomplete'];

@@ -21,6 +21,7 @@ test('home page leads with the four metric cards, each opening the table of what
 
 test('home page lists the documents and what needs attention', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.locator('main').getByRole('link', { name: 'Widgets, gadgets, and their fixed loci' })).toBeVisible();
+	// the landmarks carry the same title, so the assertion names the documents list rather than the page
+	await expect(page.locator('main ul').first().getByRole('link', { name: 'Widgets, gadgets, and their fixed loci' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Needs attention' })).toBeVisible();
 });

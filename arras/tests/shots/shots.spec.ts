@@ -31,10 +31,12 @@ test('the reference figures', async ({ page }) => {
 
 	await page.goto('/graph');
 	await settle(page);
-	await page.screenshot({ path: `${OUT}/page-graph-force.png` });
-	await page.getByTestId('layout-layered').click();
-	await page.waitForTimeout(900);
-	await page.screenshot({ path: `${OUT}/page-graph-layered.png` });
+	await page.screenshot({ path: `${OUT}/page-graph-dots.png` });
+	for (const drawing of ['box', 'sections', 'reading']) {
+		await page.getByTestId(`layout-${drawing}`).click();
+		await page.waitForTimeout(900);
+		await page.screenshot({ path: `${OUT}/page-graph-${drawing}.png` });
+	}
 
 	await shot(page, 'shell-a-rail-sections', '/master/main', { shell: 'a' });
 	await shot(page, 'shell-c-icon-strip', '/master/main', { shell: 'c' });

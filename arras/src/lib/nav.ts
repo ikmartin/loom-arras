@@ -16,6 +16,16 @@ export function masterStem(path: string): string {
 	return path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
 }
 
+export function canonUrl(path: string): string {
+	const stem = path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
+	return '/canon/' + encodeURIComponent(stem);
+}
+
+/** The read route for a document, whichever kind it is: a landmark has a page of its own. */
+export function docUrl(m: { masters: { path: string }[]; canon?: { path: string }[] } | null, path: string): string {
+	return m?.canon?.some((c) => c.path === path) ? canonUrl(path) : masterUrl(path);
+}
+
 export function digestUrl(citekey: string): string {
 	return '/digest/' + encodeURIComponent(citekey);
 }

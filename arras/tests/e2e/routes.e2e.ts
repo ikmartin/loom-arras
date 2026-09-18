@@ -117,8 +117,8 @@ test('review panel shows stale causes and expands a row into a two-column diff',
 	const stale = page.locator('table.list tr', { hasText: 'sy-0001' }).first();
 	await expect(stale).toContainText('1 detached');
 
-	await page.getByTestId('expand-sy-0001').click();
-	const diff = page.getByTestId('expansion-sy-0001').getByTestId('diff');
+	await page.getByTestId('expand-sy-0001').first().click(); // the key is listed once per stale cause
+	const diff = page.getByTestId('expansion-sy-0001').first().getByTestId('diff').first(); // own text first, then each changed dependency
 	await expect(diff).toBeVisible();
 	await expect(diff.locator('tr.change td.l').first()).toContainText('satisfying');
 	await expect(diff.locator('tr.change td.r').first()).toContainText('involution');
@@ -158,7 +158,7 @@ test('see also lists both directions and says where each node is reached', async
 	await page.goto('/node/sy-0009');
 	const list = page.getByTestId('relations-see');
 	await expect(list.getByRole('link', { name: /Gadget/ })).toBeVisible();
-	await expect(list).toContainText('drafts/main.tex'); // the related node is reached by the paper
+	await expect(list).toContainText('drafting/main.tex'); // the related node is reached by the paper
 
 	await page.goto('/node/sy-0008'); // the relation is declared on the other node and shows here too
 	await expect(page.getByTestId('relations-see').getByRole('link', { name: /Loose/ })).toBeVisible();

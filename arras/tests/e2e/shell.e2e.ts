@@ -175,7 +175,7 @@ test("the graph toggle keeps the selection and both layouts draw their edges", a
   page,
 }) => {
   await page.goto("/graph");
-  await expect(page.getByTestId("layout-force")).toHaveAttribute(
+  await expect(page.getByTestId("layout-dots")).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -186,8 +186,8 @@ test("the graph toggle keeps the selection and both layouts draw their edges", a
   const forceEdges = await page.locator("svg path.edge").count();
   expect(forceEdges).toBeGreaterThan(0);
 
-  await page.getByTestId("layout-layered").click();
-  await expect(page.getByTestId("layout-layered")).toHaveAttribute(
+  await page.getByTestId("layout-box").click();
+  await expect(page.getByTestId("layout-box")).toHaveAttribute(
     "aria-pressed",
     "true",
   );

@@ -1,4 +1,4 @@
-// The dependency graph as a layered drawing (book 10.2.7): ELK lays out statement nodes grouped by section; edges keep their kind so the drawing can dash proof-edges and dot prose-edges.
+// The dependency graph as a layered drawing (book 10.2.7): ELK lays the results out in layers, what a result rests on above it. Edges keep their kind so the drawing can dash proof-edges and dot prose-edges.
 import type { Manifest, Node } from "$lib/manifest/types";
 import { bibText } from "$lib/works";
 
@@ -15,7 +15,8 @@ export interface GNode {
   y: number;
   w: number;
   h: number;
-  group?: string;
+  /** A second line in the box: the section a result sits in, or `paper`. */
+  note?: string;
 }
 
 export interface GEdge {
@@ -29,14 +30,6 @@ export interface GEdge {
 
 export interface Layout {
   nodes: GNode[];
-  groups: {
-    id: string;
-    label: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  }[];
   edges: GEdge[];
   width: number;
   height: number;
@@ -233,119 +226,57 @@ type ElkEdge = {
 };
 
 /**
- * Lay the filtered graph out in layers with ELK, dependencies above what uses them, statements grouped by the section that holds them.
+ * Lay the filtered graph out in layers with ELK, dependencies above what uses them.
  *
- * Every coordinate ELK returns is asked for in the root's frame (`elk.json.shapeCoords` and `elk.json.edgeCoords`). By default a node is placed relative to its group and an edge relative to the lowest common ancestor of its endpoints, while the edge is still listed at the root; reading such an edge as if it were at the root is what drew grouped edges away from the nodes they join. A section that is both a group and an endpoint is drawn once, as the group, and an edge from a node to the section that contains it is left out, since ELK cannot route an edge into its own ancestor.
+ * Results only: a section is a container, not a result, so it is not drawn, and the references that run from or to one are left out with it. Sections drawn as groups around their results is what made this drawing sprawl — a group spanning several layers reserves the whole column and every edge leaving it is routed around the rest — and what each result belongs to is written in its box instead. The Sections drawing (15.5) is where a section is a thing you can see.
  */
 export async function layout(m: Manifest, f: Filters): Promise<Layout> {
   const { nodes, edges } = graphInput(m, f);
-  const master =
-    f.master ??
-    m.masters.find((x) => x.default)?.path ??
-    m.masters[0]?.path ??
-    "";
-  const W = 150;
+  const master = f.master ?? m.masters.find((x) => x.default)?.path ?? m.masters[0]?.path ?? "";
+  const W = 132;
   const H = 34;
-  const drawn = new Set(nodes.map((n) => n.id));
-  const groupOf = new Map<string, string>();
-  for (const n of nodes) {
-    const parent = n.parent[master];
-    if (parent && parent !== n.id && m.nodes[parent]) groupOf.set(n.id, parent);
-  }
-  const groupIds = new Set(groupOf.values());
-  const groups = new Map<string, ElkNode>();
-  const roots: ElkNode[] = [];
-  const groupNode = (id: string): ElkNode => {
-    let g = groups.get(id);
-    if (!g) {
-      g = {
-        id,
-        children: [],
-        layoutOptions: { "elk.padding": "[top=28,left=12,bottom=12,right=12]" },
-      };
-      groups.set(id, g);
-      roots.push(g);
-    }
-    return g;
-  };
-  for (const n of nodes) {
-    // a section that holds drawn nodes is its group; drawing it a second time as a node inside or beside that group would give one key two boxes
-    if (groupIds.has(n.id)) {
-      groupNode(n.id);
-      continue;
-    }
-    const child: ElkNode = { id: n.id, width: W, height: H };
-    const parent = groupOf.get(n.id);
-    if (parent) groupNode(parent).children!.push(child);
-    else roots.push(child);
-  }
-  const inside = (id: string, ancestor: string) => groupOf.get(id) === ancestor;
-  const routed = edges
-    .map((e, i) => ({ e, i }))
-    .filter(({ e }) => !inside(e.from, e.to) && !inside(e.to, e.from) && (drawn.has(e.from) || groups.has(e.from)) && (drawn.has(e.to) || groups.has(e.to)));
-  // ELK puts a source above its target, and upstream belongs above (15.5), so each edge is laid out from the dependency to what uses it
-  const elkEdges: ElkEdge[] = routed.map(({ e, i }) => ({ id: "e" + i, sources: [e.to], targets: [e.from] }));
+  const drawn = nodes.filter((n) => n.kind !== "section");
+  const ids = new Set(drawn.map((n) => n.id));
+  const routed = edges.filter((e) => ids.has(e.from) && ids.has(e.to));
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
-  const elk = new ELK();
-  const graph = {
+  const laid = (await new ELK().layout({
     id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
-      "elk.hierarchyHandling": "INCLUDE_CHILDREN",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "40",
-      "elk.spacing.nodeNode": "24",
-      "elk.json.shapeCoords": "ROOT",
-      "elk.json.edgeCoords": "ROOT",
+      "elk.edgeRouting": "POLYLINE",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "34",
+      "elk.spacing.nodeNode": "14",
+      "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
+      "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
     },
-    children: roots,
-    edges: elkEdges,
-  };
-  const laid = (await elk.layout(graph)) as ElkNode & {
-    edges?: ElkEdge[];
-    width?: number;
-    height?: number;
-  };
-  const out: Layout = {
-    nodes: [],
-    groups: [],
-    edges: [],
-    width: laid.width ?? 800,
-    height: laid.height ?? 600,
-  };
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const box = new Map<string, { x: number; y: number; w: number; h: number }>();
-  const walk = (list: ElkNode[]) => {
-    for (const c of list) {
-      const b = { x: c.x ?? 0, y: c.y ?? 0, w: c.width ?? W, h: c.height ?? H };
-      box.set(c.id, b);
-      if (groups.has(c.id)) {
-        out.groups.push({ id: c.id, label: m.nodes[c.id]?.title ?? c.id, ...b });
-        walk(c.children ?? []);
-      } else {
-        const n = byId.get(c.id)!;
-        out.nodes.push({
-          id: n.id,
-          label: n.kind === "work" ? (n.title ?? n.id) : n.id,
-          taxon: n.taxon,
-          state: n.state,
-          color: colorOf(m, n.state),
-          style: n.style ?? "plain",
-          external: n.external,
-          section: n.kind === "section",
-          ...b,
-          group: groupOf.get(n.id),
-        });
-      }
-    }
-  };
-  walk(laid.children ?? []);
+    // ELK puts a source above its target, and upstream belongs above (15.5), so each edge is laid out from the dependency to what uses it
+    children: drawn.map((n) => ({ id: n.id, width: W, height: H })),
+    edges: routed.map((e, i) => ({ id: "e" + i, sources: [e.to], targets: [e.from] })),
+  })) as ElkNode & { edges?: ElkEdge[]; width?: number; height?: number };
+  const box = new Map((laid.children ?? []).map((c) => [c.id, { x: c.x ?? 0, y: c.y ?? 0, w: c.width ?? W, h: c.height ?? H }]));
+  const out: Layout = { nodes: [], edges: [], width: laid.width ?? 800, height: laid.height ?? 600 };
+  for (const n of drawn) {
+    const b = box.get(n.id);
+    if (!b) continue;
+    out.nodes.push({
+      id: n.id,
+      label: n.kind === "work" ? (n.title ?? n.id) : n.id,
+      taxon: n.taxon,
+      state: n.state,
+      color: colorOf(m, n.state),
+      style: n.style ?? "plain",
+      external: n.external,
+      section: false,
+      note: n.kind === "work" ? "paper" : sectionLabel(m, n.id, master),
+      ...b,
+    });
+  }
   for (const e of laid.edges ?? []) {
-    const src = edges[Number(e.id.slice(1))];
+    const src = routed[Number(e.id.slice(1))];
     if (!src) continue;
     const pts: { x: number; y: number }[] = [];
-    for (const s of e.sections ?? [])
-      for (const p of [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]) pts.push({ x: p.x, y: p.y });
+    for (const s of e.sections ?? []) for (const p of [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]) pts.push({ x: p.x, y: p.y });
     if (!pts.length) {
       const a = box.get(src.to);
       const b = box.get(src.from);
@@ -354,4 +285,20 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
     out.edges.push({ from: src.from, to: src.to, kind: src.kind, points: pts, count: src.count });
   }
   return out;
+}
+
+/** The section a result sits in, as its number and title, for the line under a box. */
+export function sectionLabel(m: Manifest, id: string, master: string): string {
+  const sec = sectionOf(m, id, master);
+  if (!sec) return "";
+  const n = m.nodes[sec];
+  const number = n?.numbers[master]?.number;
+  return [number, n?.title ?? ""].filter(Boolean).join(" ");
+}
+
+/** The nearest section above a node in the master's tree. */
+export function sectionOf(m: Manifest, id: string, master: string): string {
+  let p = m.nodes[id]?.parent[master];
+  while (p && m.nodes[p] && m.nodes[p].kind !== "section") p = m.nodes[p].parent[master];
+  return p && m.nodes[p]?.kind === "section" ? p : "";
 }

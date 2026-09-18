@@ -77,7 +77,6 @@ export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: num
 				h: R * 2
 			};
 		}),
-		groups: [],
 		edges: edges.map((e) => {
 			const a = at.get(e.from)!;
 			const b = at.get(e.to)!;

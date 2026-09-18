@@ -8,7 +8,7 @@
 	import { INDEXES } from './views';
 	import type { ShellProps } from './props';
 
-	let { label, views, currentView, masters, currentMaster, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
+	let { label, views, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 </script>
 
 <div class="shell-c">
@@ -42,10 +42,10 @@
 			<!-- A page with nothing of its own for the panel gets the document and its contents. The views are already the strip beside it, and listing them a second time made every such page look like a menu. -->
 			{#if masters.length}
 				<p class="rail-label">Document</p>
-				<DocumentPicker {masters} current={currentMaster} />
+				<DocumentPicker {masters} {canon} current={currentDoc} />
 			{/if}
 			<p class="rail-label">Contents</p>
-			<Contents entries={contents} masterPath={currentMaster} current={currentSection} />
+			<Contents entries={contents} masterPath={currentDoc} current={currentSection} />
 		{/if}
 		<p class="rail-label">Indexes</p>
 		<ul class="plain">

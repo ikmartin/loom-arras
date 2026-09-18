@@ -13,6 +13,7 @@
 	import { followNodes, reading } from '$lib/reading.svelte';
 	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import NoDrafts from '$lib/components/NoDrafts.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -90,7 +91,10 @@
 </script>
 
 <main class="page master">
-	{#if !master}
+	{#if !m.masters.length}
+		<h1>Read</h1>
+		<NoDrafts what="documents to read" />
+	{:else if !master}
 		<h1>Unknown document</h1>
 		<p class="muted">No master in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
