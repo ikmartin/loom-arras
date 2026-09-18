@@ -292,6 +292,10 @@ def test_runs_listed_by_name_and_addressed_by_prefix(tmp_path: Path) -> None:
         env=FIXED,
     )
     assert c.exit_code == 0, c.output
+    # the directory leads with a timestamp, so a slug prefix matches nothing unless the slug is looked at on its own
+    by_slug = run("ai", "findings", "--run", "referee-of-the", cwd=q)
+    assert by_slug.exit_code == 0, by_slug.output
+
     f = run("ai", "findings", "--run", "parity", cwd=q)
     assert f.exit_code == 0, f.output
     assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output

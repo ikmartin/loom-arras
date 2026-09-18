@@ -250,6 +250,28 @@ def test_comment_run_author_log_reply_resolve_batch(tmp_path: Path) -> None:
     assert made == ["Domination is asserted.", "one"]  # the failing batch line stops the rest
 
 
+def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
+    """The case an agent hits on every re-check, and the one the file-per-record store silently lost.
+
+    When the parent lived in the same file as the writer, the status flip was written and then overwritten by the
+    writer's stale copy a line later. The two `--resolve` tests either side of this one both resolve as a person,
+    which is the path that always worked. An append-only log cannot express the bug; this is what says so.
+    """
+    d = demo(tmp_path)
+    run_dir = d / "ai" / "runs" / "r1"
+    run_dir.mkdir(parents=True)
+    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--run", str(run_dir), cwd=d)
+    assert made.exit_code == 0, made.output
+    ann = made.output.split()[0]
+
+    # the run resolves the annotation it made itself, writing as the same run
+    got = run("comment", "--resolve", ann, "Fixed in the revision.", "--run", str(run_dir), cwd=d)
+    assert got.exit_code == 0 and got.output.strip() == f"resolved {ann}"
+
+    assert [e["event"] for e in events(d)] == ["created", "resolved"]
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}  # the resolution survived
+
+
 def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
     """The log's point: a finding that still stands is restated, not replied to, so three passes leave one finding."""
     d = demo(tmp_path)
