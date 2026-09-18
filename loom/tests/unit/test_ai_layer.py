@@ -115,9 +115,44 @@ def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
         assert f"- [{name}]" in blocks
 
 
+def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path: Path) -> None:
+    """The deny list is a deny list, so a new write command is agent-accessible the day it ships unless someone adds it.
+
+    A habit fails the first time a command lands at 2am; this does not. The allow list gives an agent `ai/runs/` and
+    `build/`, so every command that writes anywhere else is the author's and must appear here by name.
+    """
+    from loom.ai.layout import settings_deny_paths
+
+    denied = settings_deny_paths()
+    commands = {d.removeprefix("Bash(loom ").removesuffix("*)") for d in denied if d.startswith("Bash(loom ")}
+
+    # every loom command that writes into the quilt outside ai/runs/ and build/
+    writes_outside_a_run = {
+        "accept",
+        "atomize",
+        "inline",
+        "import",
+        "draft",
+        "canonize",
+        "stamp",
+        "fork",
+        "revert",
+        "live",
+        "linearize",
+        "ai promote",
+        "refs note",
+    }
+    missing = sorted(writes_outside_a_run - commands)
+    assert not missing, f"agent-writable commands missing from the deny list: {missing}"
+
+    # and the files those commands own, which a direct Write would otherwise reach
+    for path in ("/nodes/**", "/drafting/**", "/canon/**", "/digests/**", "/.loom/**", "/reference-notes.jsonl"):
+        assert f"Write({path})" in denied and f"Edit({path})" in denied, path
+
+
 def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    assert len(MODES) == 9  # eight modes and the shared block definitions
+    assert len(MODES) == 10  # nine modes and the shared block definitions
     for mode in MODES:
         text = (q / "ai" / "modes" / f"{mode}.md").read_text()
         if mode == "blocks":
@@ -161,6 +196,32 @@ def test_upgrade_preserves_edited_modes(tmp_path: Path) -> None:
         "House rule" in referee.read_text()
         and "New shipped section" in (q / "ai" / "modes" / "referee.md.new").read_text()
     )
+
+
+def test_review_mode_grades_every_finding_and_writes_no_pdf(tmp_path: Path) -> None:
+    """Mode 7 of the author's own rules: it supersedes the compiled red-marked pair rather than producing one."""
+    q = demo(tmp_path)
+    text = (q / "ai" / "modes" / "review.md").read_text()
+    for wanted in (
+        "new citations",
+        "bad citations",
+        "unnecessary hypotheses",
+        "merge-or-delete",
+        "sharpenings",
+        "self-containedness",
+        "mathematical errors",
+        "grammar and wording",
+        "clarity",
+    ):
+        assert wanted in text, wanted
+    assert "--severity" in text and "--payload" in text
+    assert "[referee-review]" in text  # reused, not a new block: blocks are structures, modes are procedures
+    assert "There is no compiled LaTeX or PDF pair." in text
+    assert "review-KEY.2.notes.md" in text  # a re-check's report is a new numbered pass
+
+    blocks = (q / "ai" / "modes" / "blocks.md").read_text()
+    assert "a reply is for talking to the author" in blocks  # the edit-not-reply rule
+    assert "`citation` for a work" in blocks
 
 
 def test_orient_static_plus_live(tmp_path: Path) -> None:

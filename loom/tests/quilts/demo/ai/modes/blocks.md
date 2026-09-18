@@ -84,11 +84,26 @@ Every mode file refers to this file. Read it once per session.
    the annotation by the id loom printed.
 4. Kinds: `objection` for anything that must change; `suggestion` for
    anything that could; `question` for anything you could not decide;
-   `ok` for a clean read with nothing to report.
-5. After the author revises, resolve your own annotations that are met
-   (`loom comment KEY --resolve ID "reason" --run $LOOM_RUN`), leave the
-   rest open with a reply saying why, and record a clean re-read with
-   `--kind ok`.
+   `ok` for a clean read with nothing to report; `citation` for a work
+   worth citing that the bibliography does not have.
+5. `--severity major|moderate|minor` grades the fault a finding names, not
+   how strongly you feel about it: a grammar note is minor because the
+   fault is small. Review mode requires one on every item; elsewhere give
+   one only when something is actually wrong.
+6. `--payload` carries text you are proposing -- a proof, a paragraph, a
+   rewritten passage -- and `--placement replace|after|before` says where
+   it would go relative to the anchor. It is preview and copy: the author
+   reads it and pastes it if they want it. Nothing applies it for them.
+7. On a re-check, the event says what you found:
+   - the fault is met: `--resolve ID "reason"`;
+   - the fault stands and you would put it better:
+     `--edit ID "the restated finding"`. One finding, restated. Do not
+     reply to yourself; a reply is for talking to the author, and three
+     passes of replies leave one finding wearing three copies of itself;
+   - you were wrong to raise it: `--discard`, since resolved would claim
+     the author addressed something;
+   - it has become a different fault: resolve this one and make a new one.
+   Record a clean re-read with `--kind ok`.
 
 ## Sequential applications
 

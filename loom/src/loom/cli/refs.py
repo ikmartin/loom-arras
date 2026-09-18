@@ -9,7 +9,7 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, EnvError, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
 from loom.cli._quilt import open_scan, quilt_option
 from loom.refs.identity import declared, primary
 from loom.refs.resolve import Resolver, ResolveRefused, query_for, save
@@ -143,3 +143,82 @@ def resolve_command(
         )
     if failures:
         ctx.exit(EXIT_CONTENT)
+
+
+@refs.command(name="note")
+@click.option("--from", "run_dir", default=None, metavar="RUN", help="The run whose suggestion this is.")
+@click.option(
+    "--accept", "accept_id", default=None, metavar="ID", help="Record this citation suggestion and resolve it."
+)
+@click.option("--reject", "reject_id", default=None, metavar="ID", help="Resolve the suggestion without recording it.")
+@click.option("--reason", default=None, help="Why, optionally; it rides on the resolve event.")
+@click.option("--author", default=None, help="Who accepted, when the user config and git do not say.")
+@click.option("--list", "as_list", is_flag=True, help="Print what has been accepted.")
+@quilt_option
+def note_command(
+    run_dir: str | None,
+    accept_id: str | None,
+    reject_id: str | None,
+    reason: str | None,
+    author: str | None,
+    as_list: bool,
+    quilt_path: str | None,
+) -> None:
+    """Accept or reject an agent's citation suggestion.
+
+    Accepting appends to `reference-notes.jsonl` and resolves the annotation; rejecting resolves it and records nothing, the reason riding on the resolve event. Neither touches `refs.bib`: a candidate becomes a work's identity when your own bibliography entry says so, and nothing else (DR-122). This is the breadcrumb for the day you add it.
+    """
+    from loom.clock import stamp
+    from loom.records.annotations import find_annotation
+    from loom.records.log import append
+    from loom.records.store import Records
+    from loom.refs.notes import append_note, read_notes
+    from loom.scan.quilt import resolve_author
+
+    result = open_scan(quilt_path)
+    root = result.quilt.root
+    if as_list:
+        notes = read_notes(root)
+        if not notes:
+            click.echo("no reference notes yet")
+            return
+        for n in notes:
+            keys = ", ".join(n.get("for", [])) or "-"
+            click.echo(f"{n.get('accepted', {}).get('when', '')[:10]}  {n.get('work', '')}  ({keys})")
+        return
+    if bool(accept_id) == bool(reject_id):
+        raise EnvError("give --accept ID or --reject ID")
+    ann_id = accept_id or reject_id
+    assert ann_id is not None
+    found = find_annotation(Records(root).records, ann_id)
+    if found is None:
+        raise ContentError(f"no annotation {ann_id}")
+    _rec, ann = found
+    if ann.kind != "citation":
+        raise ContentError(f"{ann_id} is a {ann.kind}, not a citation suggestion")
+    who = resolve_author(author, root)[0]
+    if accept_id:
+        append_note(
+            root,
+            {
+                "work": ann.body,
+                "for": [ann.target_key],
+                "claim": ann.payload or "",
+                "identifier": {"verified": False},
+                "accepted": {"when": stamp(), "who": who},
+                "from": {"run": _rec.rel if _rec.is_run else None, "annotation": ann_id},
+            },
+        )
+    append(
+        root,
+        {
+            "event": "resolved",
+            "id": ann_id,
+            "when": stamp(),
+            "author": who,
+            "kind": "human",
+            "run": None,
+            "body": reason or ("accepted" if accept_id else "rejected"),
+        },
+    )
+    click.echo(f"{'accepted' if accept_id else 'rejected'} {ann_id}" + (f": {reason}" if reason else ""))

@@ -322,6 +322,68 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
     assert len(st["runs"]) == 2 and run("status", "--runs", cwd=d).output.count("annotation(s)") == 2
 
 
+def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
+    """An agent proposes a citation; the author accepts or rejects. Neither path touches refs.bib (DR-122)."""
+    d = demo(tmp_path)
+    run_dir = d / "ai" / "runs" / "r1"
+    run_dir.mkdir(parents=True)
+    bib_before = (d / "refs.bib").read_text()
+
+    good = run(
+        "comment",
+        "dm-0002",
+        "Kreck 1999 proves this; cite it instead of arguing.",
+        "--quote",
+        "Every orbit",
+        "--kind",
+        "citation",
+        "--payload",
+        "K. Kreck, Surgery and duality, Ann. of Math. 149 (1999).",
+        "--run",
+        str(run_dir),
+        cwd=d,
+    )
+    assert good.exit_code == 0, good.output
+    first = good.output.split()[0]
+    bad = run(
+        "comment",
+        "dm-0003",
+        "Har77 might cover this.",
+        "--quote",
+        "with $X$ a finite set",
+        "--kind",
+        "citation",
+        "--run",
+        str(run_dir),
+        cwd=d,
+    )
+    assert bad.exit_code == 0, bad.output
+    second = bad.output.split()[0]
+
+    a = run("refs", "note", "--accept", first, "--reason", "Checked the statement.", *AUTHOR, cwd=d)
+    assert a.exit_code == 0, a.output
+    notes = [json.loads(ln) for ln in (d / "reference-notes.jsonl").read_text().splitlines() if ln.strip()]
+    assert len(notes) == 1
+    assert notes[0]["for"] == ["dm-0002"] and notes[0]["identifier"] == {"verified": False}
+    assert notes[0]["from"]["annotation"] == first and "Kreck" in notes[0]["claim"]
+
+    r = run("refs", "note", "--reject", second, "--reason", "Har77 is about something else.", *AUTHOR, cwd=d)
+    assert r.exit_code == 0, r.output
+    still = [json.loads(ln) for ln in (d / "reference-notes.jsonl").read_text().splitlines() if ln.strip()]
+    assert len(still) == 1  # rejecting records nothing; the reason rides on the resolve event
+
+    # both suggestions are resolved either way, so neither sits open forever
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
+    assert (d / "refs.bib").read_text() == bib_before  # the bibliography is the author's, always
+
+    listed = run("refs", "note", "--list", cwd=d)
+    assert listed.exit_code == 0 and "Kreck" in listed.output
+
+    plain = run("comment", "dm-0002", "Not a citation.", "--quote", "one or two", *AUTHOR, cwd=d)
+    wrong = run("refs", "note", "--accept", plain.output.split()[0], *AUTHOR, cwd=d)
+    assert wrong.exit_code == 1 and "not a citation suggestion" in wrong.output
+
+
 def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
     d = demo(tmp_path)
     assert run("accept", "dm-0004", "dm-0002", "--proofs", *AUTHOR, cwd=d).exit_code == 0

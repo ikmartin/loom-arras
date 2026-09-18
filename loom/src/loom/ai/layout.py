@@ -11,11 +11,12 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
-MODES = ["blocks", "audit", "referee", "simplify", "question", "quick", "draft", "ingest", "brainstorm"]
-TARGET_MODES = ["audit", "referee", "simplify", "draft", "ingest"]
+MODES = ["blocks", "audit", "referee", "review", "simplify", "question", "quick", "draft", "ingest", "brainstorm"]
+TARGET_MODES = ["audit", "referee", "review", "simplify", "draft", "ingest"]
 TRIGGERS = {
     "blocks": "the block definitions and standing rules every loom mode refers to; read once per session before applying a mode",
     "audit": "when the user asks to audit a key of this quilt: its hypotheses, citations, uses, or self-containedness",
+    "review": "a referee reading to improve the source: citations, hypotheses, errors, wording, each finding graded by severity; the author reaches for this most",
     "referee": "when the user asks to referee, review, or find gaps or errors in a node of this quilt",
     "simplify": "when the user asks to shorten, tighten, or simplify a node's text without changing its mathematics",
     "question": "when the user asks a thorough question about a key or about the quilt",

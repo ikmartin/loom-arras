@@ -507,6 +507,24 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 | `--force` | Replace an artifact that is already there. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom refs note`
+
+`loom refs note [OPTIONS]`
+
+Accept or reject an agent's citation suggestion.
+
+Accepting appends to `reference-notes.jsonl` and resolves the annotation; rejecting resolves it and records nothing, the reason riding on the resolve event. Neither touches `refs.bib`: a candidate becomes a work's identity when your own bibliography entry says so, and nothing else (DR-122). This is the breadcrumb for the day you add it.
+
+| option | description |
+|---|---|
+| `--from` `RUN` | The run whose suggestion this is. |
+| `--accept` `ID` | Record this citation suggestion and resolve it. |
+| `--reject` `ID` | Resolve the suggestion without recording it. |
+| `--reason` | Why, optionally; it rides on the resolve event. |
+| `--author` | Who accepted, when the user config and git do not say. |
+| `--list` | Print what has been accepted. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom refs path`
 
 `loom refs path [OPTIONS] CITEKEY`

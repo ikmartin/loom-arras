@@ -125,14 +125,21 @@ Follow the template exactly; tick its checklist in your notes file.
 
 - audit: hypothesis, citation, uses, and self-containedness ledgers.
 - referee: hostile review, worked examples, counterexamples, verdict.
+- review: a referee reading to improve rather than to reject; citations,
+  hypotheses, errors and wording, each finding graded by severity.
 - simplify: shorter text, identical mathematics, as a diff.
-- question / quick: answers, thorough or brief.
+- question / quick: answers, thorough or brief. If the author would want
+  to re-read it next week it is quick; if it is a clarification of
+  something you just said, it is chat and nothing is written.
 - draft: a complete node from the author's plan.
 - ingest: a digest of a cited paper.
 - brainstorm: explore a topic before anything is proved; candidates,
   dead ends, what the digests already say.
 
-Findings are annotations. Drafts and digests wait in your run for
+Findings are annotations, graded with `--severity` and carrying a
+`--payload` when you are proposing text. On a re-check you edit a finding
+that still stands rather than replying to yourself (`blocks.md` rule 7).
+Drafts and digests wait in your run for
 `loom ai promote` for a digest; a drafted node is previewed and pasted by the author. Proposals are diffs the author applies.
 
 ## 8. Context economy
