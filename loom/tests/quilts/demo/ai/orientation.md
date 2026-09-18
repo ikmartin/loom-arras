@@ -1,6 +1,6 @@
 # Orientation: working in a quilt
 
-You are working inside a quilt: a LaTeX paper/project managed by `loom`, a tool for atomized mathematical development. Read this document once. Then run `loom status` and propose what to do from what it reports.
+You are working inside a quilt: a LaTeX paper managed by `loom`, a tool for atomized mathematical development. Read this document once. Then run `loom status` and propose what to do from what it reports.
 
 ## 1. What a quilt is
 
