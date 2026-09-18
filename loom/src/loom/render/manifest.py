@@ -494,6 +494,11 @@ def _inclusion_tree(result: ScanResult, master: str) -> dict[str, Any]:
     exp = result.expansions[master]
     sites = {(inc.parent, inc.site_start): inc for inc in exp.inclusions if inc.child and inc.child in asm.nodes}
 
+    # The files currently being expanded. Only an INCLUSION enters one -- a section claimant lives in the file it was
+    # already in, and guarding those would cut every master's own sections off the tree. `inclusion-cycle` is already
+    # an error the scanner reports; a tree that follows the cycle turns that error into a traceback.
+    including: set[str] = set()
+
     def children_of(container: NodeRec, shift: int) -> list[dict[str, Any]]:
         src = result.files[container.file]
         events: list[tuple[int, str, Any]] = []
@@ -514,14 +519,25 @@ def _inclusion_tree(result: ScanResult, master: str) -> dict[str, Any]:
             else:
                 inc = payload
                 child = asm.nodes[inc.child]
-                entry = {
-                    "key": inc.child,
-                    "via": inc.kind,
-                    "file": inc.child,
-                    "shift": inc.shift,
-                    "children": children_of(child, inc.shift),
-                }
-                out.append(entry)
+                if inc.child in including:
+                    # The cycle is named where it closes, so a reader of the tree can see why it stops.
+                    out.append(
+                        {
+                            "key": inc.child,
+                            "via": inc.kind,
+                            "file": inc.child,
+                            "shift": inc.shift,
+                            "children": [],
+                            "cycle": True,
+                        }
+                    )
+                    continue
+                including.add(inc.child)
+                try:
+                    kids = children_of(child, inc.shift)
+                finally:
+                    including.discard(inc.child)
+                out.append({"key": inc.child, "via": inc.kind, "file": inc.child, "shift": inc.shift, "children": kids})
         _ = src
         return out
 

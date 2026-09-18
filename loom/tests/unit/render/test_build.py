@@ -231,3 +231,33 @@ def test_a_display_that_is_a_picture_goes_to_the_fallback(tmp_path: Path) -> Non
     assert renders_as_math(r"\begin{align*}\begin{pmatrix}1\end{pmatrix}\end{align*}")
     assert renders_as_math(r"\[\begin{cases} 1 & x > 0 \end{cases}\]")
     assert renders_as_math(r"\[x^2 + \frac{1}{2}\]")
+
+
+def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> None:
+    """Found by the hostile corpus (records/hostile-demo.md). The scanner has always reported `inclusion-cycle`; the renderer and the inclusion tree both followed the cycle anyway until Python stopped them."""
+    d = demo(tmp_path)
+    # a file that includes itself, and a mutual pair
+    (d / "nodes" / "self.tex").write_text(
+        "\\input{nodes/self}\n\\begin{lemma}[Self]\\label{dm-9001}\nIncludes itself.\n\\end{lemma}\n"
+    )
+    (d / "nodes" / "ping.tex").write_text(
+        "\\input{nodes/pong}\n\\begin{lemma}[Ping]\\label{dm-9002}\nOne half.\n\\end{lemma}\n"
+    )
+    (d / "nodes" / "pong.tex").write_text(
+        "\\input{nodes/ping}\n\\begin{lemma}[Pong]\\label{dm-9003}\nThe other.\n\\end{lemma}\n"
+    )
+    main = d / "drafting" / "main.tex"
+    main.write_text(
+        main.read_text().replace("\\end{document}", "\\input{nodes/self}\n\\input{nodes/ping}\n\\end{document}")
+    )
+
+    r = run("build", cwd=d)
+    assert r.exit_code in (0, 1), r.output  # an error exit is fine; a traceback is not
+    assert "RecursionError" not in r.output
+    assert "inclusion-cycle" in r.output
+    m = json.loads((d / "build" / "manifest.json").read_text())
+
+    def cycles(node: dict) -> int:  # type: ignore[type-arg]
+        return int(bool(node.get("cycle"))) + sum(cycles(c) for c in node.get("children", []))
+
+    assert cycles(m["inclusion"]["drafting/main.tex"]) == 2  # each cycle named where it closes

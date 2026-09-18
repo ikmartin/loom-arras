@@ -90,6 +90,11 @@ class FragmentRenderer:
             for env in fe.all_envs():
                 self.env_at[(path, env.start)] = env
         self.master_titles = {m: master_title(self.result, m) for m in self.result.masters}
+        # The files currently being expanded, innermost last. An inclusion cycle is already an error the scanner
+        # reports (`inclusion-cycle`), and before this the renderer followed the cycle anyway until Python stopped it
+        # with a RecursionError -- a traceback where loom had already written the message. A file that is being
+        # expanded is not expanded again; the diagnostic stands and the document renders around the missing inclusion.
+        self._expanding: list[str] = []
 
     # ---- contexts -----------------------------------------------------------
 
@@ -242,11 +247,22 @@ class FragmentRenderer:
         rel, _ = resolve_inclusion(root, arg)
         if rel is None or rel not in self.asm.nodes:
             return ""
+        if rel in self._expanding:
+            # Named rather than dropped: a reader looking at the gap should be able to see what closed it, and the
+            # scanner's `inclusion-cycle` error says the same thing about the same file.
+            return (
+                f'<div class="include" data-key="{html.escape(rel, quote=True)}" '
+                f'data-cycle="{html.escape(" -> ".join([*self._expanding, rel]), quote=True)}"></div>'
+            )
         container = self.asm.nodes[rel]
         if mode == "node":
             keys = [k for k in container.claimants if self.asm.nodes[k].kind in ("environment", "section")] or [rel]
             return "".join(self._placeholder(k) for k in keys)
-        inner = self.render_container_body(container, "master")
+        self._expanding.append(rel)
+        try:
+            inner = self.render_container_body(container, "master")
+        finally:
+            self._expanding.pop()
         return f'<div class="included" data-key="{html.escape(rel, quote=True)}" data-file="{html.escape(rel, quote=True)}" data-src="{rel}:0:{len(self.result.files[rel].text)}">{inner}</div>'
 
     # ---- rendering nodes ------------------------------------------------------

@@ -8,10 +8,11 @@ Two people appending in parallel merge as two lines, which is why this is JSONL 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
-from loom.records.annotations import Annotation, Record
+from loom.records.annotations import KINDS, Annotation, Record
 from loom.records.selectors import Selector
 
 LOG = "annotations/log.jsonl"
@@ -44,6 +45,11 @@ def source_of(event: dict[str, Any]) -> str:
     return f"comments/{author_slug(str(event.get('author', '')))}/{day}"
 
 
+#: What `loom comment` writes as an id. An id reaches a DOM id and a URL fragment in the viewer, and would reach a
+#: filename the first time anything stored one per annotation, so it is the one identifier worth checking on the way in.
+ID = re.compile(r"^a-\d{4}-\d{2}-\d{2}-\d+$")
+
+
 def _annotation(event: dict[str, Any]) -> Annotation:
     anchor = event.get("anchor")
     return Annotation(
@@ -54,7 +60,7 @@ def _annotation(event: dict[str, Any]) -> Annotation:
         target_key=str(event.get("target", "")),
         target_hash=str(event.get("against", "")),
         selector=Selector.from_dict(anchor) if isinstance(anchor, dict) else None,
-        kind=str(event.get("annotation_kind", "objection")),
+        kind=str(event.get("annotation_kind") or "objection"),
         body=str(event.get("body", "")),
         status="open",
         in_reply_to=event.get("reply_to"),
@@ -92,6 +98,17 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 continue
             src = source_of(event)
             ann = _annotation(event)
+            # Reported, not corrected. A kind loom does not know is still shown -- `kind` is an open string and a
+            # viewer renders one it has never heard of -- but a log line missing the column, or spelling it the way
+            # an older draft of the plan spelled it, produced a finding that silently claimed to be an objection.
+            if event.get("annotation_kind") not in KINDS:
+                problems.append(f"{LOG}:{n}: {event.get('annotation_kind')!r} is not one of {', '.join(KINDS)}")
+            if not ID.match(ann.id):
+                problems.append(f"{LOG}:{n}: {ann.id!r} is not an annotation id")
+            if kind == "replied" and str(event.get("reply_to") or "") not in index:
+                # Otherwise it is in the record and on no page: not a finding, because it answers one, and under no
+                # finding, because the one it answers is not there.
+                problems.append(f"{LOG}:{n}: replies to unknown annotation {event.get('reply_to')!r}")
             if src not in by_source:
                 by_source[src] = []
                 order.append(src)
