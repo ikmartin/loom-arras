@@ -30,3 +30,4 @@ test-results
 # served build directory, staged from tests/fixture by scripts/stage-fixture.mjs
 /static/build
 /site
+.tmp-write-quilt/

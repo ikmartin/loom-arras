@@ -14,6 +14,8 @@
 	import Tex from '$lib/math/Tex.svelte';
 	import SourceToggle from '$lib/components/SourceToggle.svelte';
 	import ClosurePanel from '$lib/review/ClosurePanel.svelte';
+	import Composer from '$lib/review/Composer.svelte';
+	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
 	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
@@ -118,6 +120,9 @@
 				{/each}
 			</div>
 		{/if}
+
+		<Composer target={key} />
+		<ReferenceNotes forKey={key} />
 
 		<!-- The graph answers "what would this disturb"; the stack answers "what does this rest on". Neither is a route: a closure is a way of looking at a node, not a place to go. -->
 		<details class="closure-open" data-testid="closure-open" bind:open={restsOpen}>

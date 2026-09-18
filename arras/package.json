@@ -30,7 +30,8 @@
 		"build:fixture-minimal": "node scripts/stage-fixture.mjs tests/fixture-minimal && vite build",
 		"test:minimal": "playwright test --config playwright.minimal.config.ts",
 		"shots:report": "playwright test --config playwright.shots.config.ts tests/shots/report.spec.ts",
-		"shots:floor": "playwright test --config playwright.shots-minimal.config.ts"
+		"shots:floor": "playwright test --config playwright.shots-minimal.config.ts",
+		"test:write": "playwright test --config playwright.write.config.ts"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.60.0",

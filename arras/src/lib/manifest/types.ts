@@ -249,6 +249,16 @@ export interface PipelineStep {
   blocks?: ReportBlock[];
 }
 
+/** A work an agent proposed citing and a person accepted: a breadcrumb, never a second source of identity truth. */
+export interface ReferenceNote {
+  work: string;
+  for?: string[];
+  claim?: string | null;
+  identifier?: { verified: boolean; id?: string };
+  accepted?: { when: string; who: string };
+  from?: { run: string; annotation: string };
+}
+
 export interface Thread {
   id: string;
   kind: string;
@@ -349,6 +359,7 @@ export interface Manifest {
   states: States;
   annotations: Record<string, Annotation>;
   threads: Record<string, Thread>;
+  reference_notes?: ReferenceNote[];
   diagnostics: Diagnostic[];
   tags: Record<string, string[]>;
   taxa: Record<string, Taxon>;

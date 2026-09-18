@@ -15,6 +15,7 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	import { dataUrl } from '$lib/paths';
+	import Composer from '$lib/review/Composer.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -22,6 +23,9 @@
 
 	/** How much a comment may say before a gutter is the wrong place for it. Measured on the rendered text of the comment and its replies. */
 	const GUTTER_LIMIT = 220;
+
+	/** Annotations on the document itself, as opposed to on anything inside it. */
+	const onDocument = $derived(master ? commentsOn(master.path) : []);
 
 	const replies = (id: string) => Object.values(m.annotations).filter((a) => a.in_reply_to === id && !a.discarded);
 
@@ -102,6 +106,16 @@
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
+					{#if onDocument.length}
+						<!-- An annotation whose target is the document rather than a key. loom has written these since 0.6 -- `loom comment` has always taken a master path -- and `commentsOn` was only ever called with node keys, so no viewer has ever shown one. -->
+						<section class="doc-annotations" data-testid="document-annotations">
+							<p class="head">About this document</p>
+							{#each onDocument as a (a.id)}
+								<AnnotationBox annotation={a} replies={replies(a.id)} />
+							{/each}
+						</section>
+					{/if}
+					<Composer target={master.path} />
 					<header class="doc-head">
 						<p class="faint">
 							<code>{master.path}</code>{master.numbering_known
@@ -132,6 +146,17 @@
 </main>
 
 <style>
+	.doc-annotations {
+		margin-bottom: var(--gap-wide);
+	}
+	.doc-annotations .head {
+		font-family: var(--sans);
+		font-size: 0.72em;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--ink-faint);
+		margin: 0 0 var(--gap-tight);
+	}
 	main.master {
 		padding-left: 0;
 		padding-right: 0;

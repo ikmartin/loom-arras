@@ -79,6 +79,58 @@
    }
   },
   "a-2026-09-16-0004": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0004",
+   "in_reply_to": null,
+   "kind": "citation",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "run": "2026-09-16T00-00-referee",
+   "severity": null,
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003"
+   }
+  },
+  "a-2026-09-16-0005": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discarded": false,
+   "id": "a-2026-09-16-0005",
+   "in_reply_to": null,
+   "kind": "citation",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "run": "2026-09-16T00-00-referee",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002"
+   }
+  },
+  "a-2026-09-16-0006": {
    "anchored": true,
    "author": {
     "id": "The synthetic quilt",
@@ -89,7 +141,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": false,
-   "id": "a-2026-09-16-0004",
+   "id": "a-2026-09-16-0006",
    "in_reply_to": null,
    "kind": "question",
    "payload": null,
@@ -104,7 +156,7 @@
     "key": "sy-0002"
    }
   },
-  "a-2026-09-16-0005": {
+  "a-2026-09-16-0007": {
    "anchored": true,
    "author": {
     "id": "The synthetic quilt",
@@ -115,7 +167,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": false,
-   "id": "a-2026-09-16-0005",
+   "id": "a-2026-09-16-0007",
    "in_reply_to": "a-2026-09-16-0001",
    "kind": "question",
    "payload": null,
@@ -130,7 +182,7 @@
     "key": "sy-0003"
    }
   },
-  "a-2026-09-16-0006": {
+  "a-2026-09-16-0008": {
    "anchored": true,
    "author": {
     "id": "The synthetic quilt",
@@ -141,7 +193,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": false,
-   "id": "a-2026-09-16-0006",
+   "id": "a-2026-09-16-0008",
    "in_reply_to": "a-2026-09-16-0002",
    "kind": "question",
    "payload": null,
@@ -156,7 +208,7 @@
     "key": "sy-0004"
    }
   },
-  "a-2026-09-16-0007": {
+  "a-2026-09-16-0009": {
    "anchored": false,
    "author": {
     "id": "The synthetic quilt",
@@ -167,7 +219,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": true,
    "discarded": false,
-   "id": "a-2026-09-16-0007",
+   "id": "a-2026-09-16-0009",
    "in_reply_to": null,
    "kind": "question",
    "payload": null,
@@ -182,7 +234,7 @@
     "key": "sy-0001"
    }
   },
-  "a-2026-09-16-0008": {
+  "a-2026-09-16-0010": {
    "anchored": false,
    "author": {
     "id": "2026-09-15T10-00-quick",
@@ -193,7 +245,7 @@
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discarded": true,
-   "id": "a-2026-09-16-0008",
+   "id": "a-2026-09-16-0010",
    "in_reply_to": null,
    "kind": "ok",
    "payload": null,
@@ -212,7 +264,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "bb8fc3a2facc3e13e6b3e89b948812b611b6459097a237104bdc337fdde6679e",
+   "hash": "438c601ea05030b337728ff567a4a593762d347c3d7bcd45c6e85230f6e9af82",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -224,7 +276,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "3de73a34ebaf9df6976c4647d9f10a009f79f79d24169b0811f3f8577e3339f5",
+   "hash": "e32c3d6fea7ea04a764337c42f46c9841130c582206718f25950a304b6bec333",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -236,7 +288,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "85327f36119729c5161e6eddd6592f76f1d1d7cc8c4b9ab491efc4a18cb4f255",
+   "hash": "50c177f778abbfd2d0b2ac449ebc138a7c067ca55d00c895a1bd1861bdd4053a",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -1496,19 +1548,20 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "open": {
+     "citation": 1,
      "question": 1
     }
    },
@@ -3736,6 +3789,26 @@
   "documents": true,
   "review": true
  },
+ "reference_notes": [
+  {
+   "accepted": {
+    "when": "2026-09-16T09:00:00Z",
+    "who": "The synthetic quilt"
+   },
+   "claim": "",
+   "for": [
+    "sy-0003"
+   ],
+   "from": {
+    "annotation": "a-2026-09-16-0004",
+    "run": "2026-09-16T00-00-referee"
+   },
+   "identifier": {
+    "verified": false
+   },
+   "work": "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count."
+  }
+ ],
  "references": {
   "Har77": {
    "artifacts": {
@@ -4360,7 +4433,7 @@
   "2026-09-16T00-00-referee": {
    "attachments": [
     {
-     "count": 3,
+     "count": 5,
      "kind": "annotations",
      "name": "annotations"
     },
@@ -4385,6 +4458,14 @@
     },
     {
      "command": "loom comment drafting/main.tex --kind suggestion",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0003 --kind citation",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0002 --kind citation",
      "time": "2026-09-16T00:00:00Z"
     }
    ],
@@ -4453,7 +4534,8 @@
    "targets": [
     "sy-0003",
     "sy-0004",
-    "drafting/main.tex"
+    "drafting/main.tex",
+    "sy-0002"
    ],
    "title": "referee sy-0003"
   },

@@ -97,8 +97,23 @@ test('live reload follows the manifest only', async ({ page }) => {
 
 test('marks and boxes on the annotated node; discarded hidden by default', async ({ page }) => {
 	await page.goto('/node/sy-0003');
+	// Counted as "every open annotation on this key has a box", not as a literal, so adding one to the fixture does
+	// not fail a test that is about marks and boxes agreeing.
+	const open = await page.evaluate(async () => {
+		const m = await (await fetch(new URL('/build/manifest.json', location.href))).json();
+		// the panel is about the node, which means every key the node owns -- its statement and its proofs, which
+		// carry ids of their own rather than a `/proof` suffix
+		const keys = Object.entries(m.keys)
+			.filter(([, k]: [string, any]) => k.node === 'sy-0003')
+			.map(([id]) => id);
+		return Object.values(m.annotations).filter(
+			(a: any) => keys.includes(a.target.key) && !a.in_reply_to && !a.discarded
+		).length;
+	});
+	expect(open).toBeGreaterThan(1);
+	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(open);
+	// only the annotations that quote a phrase can be marked in the text
 	await expect(page.locator('.fragment mark.annotation')).toHaveCount(2);
-	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(2);
 	await page.locator('.fragment mark.annotation').first().click();
 	await expect(page.locator('article.box.active')).toHaveCount(1);
 	await expect(page.locator('article.box.active > header .kind')).toHaveText('objection');
@@ -283,4 +298,32 @@ test('a node page answers both closure questions without leaving it', async ({ p
 
 	await page.getByTestId('closure-depth-2').click();
 	expect(await panel.locator('ol.stack > li').count()).toBeGreaterThanOrEqual(shallow);
+});
+
+test('the viewer shows no editing affordance when the publisher serves none', async ({ page }) => {
+	// Plan 0.11 Part H and specs/write-api.md §1: detected, never assumed. The e2e fixture is served by a static
+	// preview with no write API, so every affordance must be absent -- which is also what a deployed static site gets.
+	await page.goto('/node/sy-0003');
+	await expect(page.locator('main h1')).toBeVisible();
+	await expect(page.getByTestId('composer')).toHaveCount(0);
+	await expect(page.getByTestId('refnote-accept')).toHaveCount(0);
+});
+
+test('a document carries annotations of its own', async ({ page }) => {
+	// loom has written these since 0.6 -- `loom comment` has always taken a master path -- and no viewer showed one.
+	await page.goto('/master/main');
+	const box = page.getByTestId('document-annotations');
+	await expect(box).toBeVisible();
+	await expect(box).toContainText('which conventions it inherits');
+	await expect(box.getByTestId('severity').first()).toHaveText('moderate');
+});
+
+test('a node shows the citations suggested for it and those already accepted', async ({ page }) => {
+	await page.goto('/node/sy-0003');
+	const notes = page.getByTestId('reference-notes');
+	await expect(notes).toBeVisible();
+	await expect(notes).toContainText('Accepted, not yet in the bibliography');
+	await expect(notes).toContainText('identifier unconfirmed'); // a breadcrumb, never a second source of identity truth
+	await page.goto('/node/sy-0002');
+	await expect(page.getByTestId('reference-notes')).toContainText('Suggested citations');
 });
