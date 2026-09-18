@@ -9,21 +9,19 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError, emit_json
+from loom.cli._common import ContentError, EnvError, emit_json, find_run
 from loom.cli._quilt import describe, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for, log_run
 from loom.clock import stamp, today
 from loom.records.annotations import (
     KINDS,
-    Annotation,
-    Record,
+    PLACEMENTS,
+    SEVERITIES,
     find_annotation,
-    load_record,
     next_id,
-    person_record_path,
-    run_record_path,
 )
 from loom.records.ledger import AcceptRow, append_rows
+from loom.records.log import append
 from loom.records.selectors import find_quote, make_selector
 from loom.records.snapshots import write_snapshot
 from loom.records.store import Records
@@ -156,90 +154,66 @@ def _target_text(result: ScanResult, target: str) -> tuple[str, str]:
     return key, text
 
 
-def _record_for(root: Path, run_dir: str | None, author: str | None) -> tuple[Record, str, str]:
-    """The record file to append to, and the author (kind, id)."""
-    date = today()
+def _writer(root: Path, run_dir: str | None, author: str | None) -> tuple[str | None, str, str]:
+    """(run, author kind, author id) for whoever is writing: a run writes as itself, a person as their name."""
     if run_dir:
-        rp = Path(run_dir).expanduser()
-        if not rp.is_absolute():
-            rp = root / rp
-        path = run_record_path(rp)
-        kind, ident = "run", rp.name
-    else:
-        name = _author(author, root)
-        path = person_record_path(root, name, date)
-        kind, ident = "person", name
-    if path.exists():
-        rec = load_record(root, path) if path.is_relative_to(root) else load_record(path.parent.parent, path)
-        if isinstance(rec, str):
-            raise ContentError(f"{path} exists but is not a valid record: {rec}")
-    else:
-        rel = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
-        rec = Record(path=path, rel=rel)
-    return rec, kind, ident
+        rp = find_run(root, run_dir)
+        rel = rp.relative_to(root).as_posix() if rp.is_relative_to(root) else rp.name
+        return rel, "run", rp.name
+    name = _author(author, root)
+    return None, "person", name
 
 
 def _one_comment(
     result: ScanResult,
-    rec: Record,
-    kind_author: tuple[str, str],
+    writer: tuple[str | None, str, str],
     target: str | None,
     message: str | None,
     quote: str | None,
     kind: str | None,
     reply: str | None,
     resolve: str | None,
+    severity: str | None = None,
+    payload: str | None = None,
+    placement: str | None = None,
 ) -> str:
+    """Append one review event to the log and describe it; the only writer of review records."""
     root = result.quilt.root
-    records = Records(root)
-    all_records = records.records + ([rec] if all(r.path != rec.path for r in records.records) else [])
+    records = Records(root).records
     date = today()
-    akind, aid = kind_author
+    run, akind, aid = writer
+    base = {"when": stamp(), "author": aid, "kind": "agent" if akind == "run" else "human", "run": run}
+
     if resolve:
-        found = find_annotation(all_records, resolve)
+        found = find_annotation(records, resolve)
         if found is None:
             raise ContentError(f"no annotation {resolve}")
-        prec, parent = found
-        parent.status = "resolved"
-        prec.write()
-        if message:
-            child = Annotation(
-                next_id(all_records, date),
-                akind,
-                aid,
-                stamp(),
-                parent.target_key,
-                parent.target_hash,
-                parent.selector,
-                kind or "ok",
-                message,
-                "resolved",
-                parent.id,
-            )
-            rec.annotations.append(child)
-            rec.write()
+        _, parent = found
+        append(root, {**base, "event": "resolved", "id": resolve, "body": message or ""})
         return f"resolved {resolve}"
+
     if reply:
-        found = find_annotation(all_records, reply)
+        found = find_annotation(records, reply)
         if found is None:
             raise ContentError(f"no annotation {reply}")
         _, parent = found
-        ann = Annotation(
-            next_id(all_records, date),
-            akind,
-            aid,
-            stamp(),
-            parent.target_key,
-            parent.target_hash,
-            parent.selector,
-            kind or "question",
-            message or "",
-            "open",
-            parent.id,
+        ann_id = next_id(records, date)
+        append(
+            root,
+            {
+                **base,
+                "event": "replied",
+                "id": ann_id,
+                "target": parent.target_key,
+                "against": parent.target_hash,
+                "anchor": parent.selector.to_dict() if parent.selector else None,
+                "annotation_kind": kind or "question",
+                "body": message or "",
+                "reply_to": reply,
+            },
         )
-        rec.annotations.append(ann)
-        rec.write()
-        return f"{ann.id}  {ann.target_key}  reply to {reply}  ({aid})"
+        return f"{ann_id}  {parent.target_key}  reply to {reply}  ({aid})"
+
     if not target:
         raise EnvError("TARGET is required")
     key, text = _target_text(result, target)
@@ -256,22 +230,46 @@ def _one_comment(
         kind = "ok" if not message else "objection"
     if kind not in KINDS:
         raise EnvError(f"kind must be one of {', '.join(KINDS)}")
-    ann = Annotation(
-        next_id(all_records, date),
-        akind,
-        aid,
-        stamp(),
-        key,
-        key_hash(result, node_key),
-        selector,
-        kind,
-        message or "",
-        "open",
-        None,
+    if severity is not None and severity not in SEVERITIES:
+        raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
+    if placement is not None and placement not in PLACEMENTS:
+        raise EnvError(f"placement must be one of {', '.join(PLACEMENTS)}")
+    if placement and not payload:
+        raise EnvError("--placement says where a payload goes; give --payload too")
+    ann_id = next_id(records, date)
+    append(
+        root,
+        {
+            **base,
+            "event": "created",
+            "id": ann_id,
+            "target": key,
+            "against": key_hash(result, node_key),
+            "anchor": selector.to_dict() if selector else None,
+            "annotation_kind": kind,
+            "body": message or "",
+            "severity": severity,
+            "payload": payload,
+            "placement": placement,
+        },
     )
-    rec.annotations.append(ann)
-    rec.write()
-    return f"{ann.id}  {key}  {kind}  ({aid}{' run' if akind == 'run' else ''})"
+    sev = f" {severity}" if severity else ""
+    return f"{ann_id}  {key}  {kind}{sev}  ({aid}{' run' if akind == 'run' else ''})"
+
+
+def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str], **fields: str | None) -> str:
+    """Supersede an annotation's body or payload; the history stays in the log and one current body is shown.
+
+    This is what a re-check does to a finding that still stands. A reply is dialogue; an edit is restatement.
+    """
+    records = Records(root).records
+    if find_annotation(records, ann_id) is None:
+        raise ContentError(f"no annotation {ann_id}")
+    run, akind, aid = writer
+    event = {"event": "edited", "id": ann_id, "when": stamp(), "author": aid, "run": run}
+    event["kind"] = "agent" if akind == "run" else "human"
+    append(root, {**event, **{k: v for k, v in fields.items() if v is not None}})
+    return f"edited {ann_id}"
 
 
 @click.command()
@@ -286,13 +284,25 @@ def _one_comment(
     "run_dir",
     default=None,
     envvar="LOOM_RUN",
-    help="Write into this run directory's annotations.json; the run is the author.",
+    help="Write as this run: a name, a prefix of one, or a path. The run is the author.",
 )
 @click.option("--author", default=None)
 @click.option("--reply", default=None, metavar="ID")
 @click.option("--resolve", default=None, metavar="ID")
 @click.option(
-    "--batch", is_flag=True, help="Read JSON lines from stdin: {target, message, quote, kind, reply, resolve}."
+    "--edit", default=None, metavar="ID", help="Supersede an annotation's body; the history stays in the log."
+)
+@click.option(
+    "--severity", type=click.Choice(list(SEVERITIES)), default=None, help="How bad the fault is, not how keen you are."
+)
+@click.option("--payload", default=None, help="Suggested text the author may preview and copy.")
+@click.option(
+    "--placement", type=click.Choice(list(PLACEMENTS)), default=None, help="Where the payload goes, as a hint."
+)
+@click.option(
+    "--batch",
+    is_flag=True,
+    help="Read JSON lines from stdin: {target, message, quote, kind, reply, resolve, severity, payload, placement}.",
 )
 @quilt_option
 def comment(
@@ -304,6 +314,10 @@ def comment(
     author: str | None,
     reply: str | None,
     resolve: str | None,
+    edit: str | None,
+    severity: str | None,
+    payload: str | None,
+    placement: str | None,
     batch: bool,
     quilt_path: str | None,
 ) -> None:
@@ -312,7 +326,7 @@ def comment(
     root = result.quilt.root
     if run_dir and author:
         raise EnvError("give --run or --author, not both")
-    rec, akind, aid = _record_for(root, run_dir, author)
+    writer = _writer(root, run_dir, author)
     log_run(
         run_dir,
         "loom comment "
@@ -332,20 +346,27 @@ def comment(
                 click.echo(
                     _one_comment(
                         result,
-                        rec,
-                        (akind, aid),
+                        writer,
                         item.get("target"),
                         item.get("message"),
                         item.get("quote"),
                         item.get("kind"),
                         item.get("reply"),
                         item.get("resolve"),
+                        item.get("severity"),
+                        item.get("payload"),
+                        item.get("placement"),
                     )
                 )
             except (ContentError, EnvError) as exc:
                 raise ContentError(f"batch line {lineno}: {exc.message}") from exc
         return
-    click.echo(_one_comment(result, rec, (akind, aid), target, message, quote, kind, reply, resolve))
+    if edit:
+        # `loom comment --edit ID "the new body"` takes no target, so the one positional given is the body
+        body = message if message is not None else target
+        click.echo(edit_annotation(root, edit, writer, body=body, severity=severity, payload=payload))
+        return
+    click.echo(_one_comment(result, writer, target, message, quote, kind, reply, resolve, severity, payload, placement))
 
 
 def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:

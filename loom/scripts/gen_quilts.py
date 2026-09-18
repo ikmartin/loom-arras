@@ -244,7 +244,7 @@ def build_synthetic(dest: Path) -> None:
         "--author",
         AUTHOR,
     )
-    objection, suggestion = _annotation_ids(dest / referee / "annotations.json")
+    objection, suggestion = _annotation_ids(dest, referee)
     g.run("comment", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--author", AUTHOR)
     g.run("comment", "--reply", suggestion, "Done in the next revision.", "--author", AUTHOR)
     g.run("comment", "--resolve", suggestion, "--author", AUTHOR)
@@ -289,10 +289,19 @@ def build_synthetic(dest: Path) -> None:
     _write_expected_lint(g)
 
 
-def _annotation_ids(path: Path) -> list[str]:
+def _annotation_ids(root: Path, run: str) -> list[str]:
+    """The ids a run created, read back out of the log so the generator can reply to and resolve them."""
     import json
 
-    return [a["id"] for a in json.loads(path.read_text(encoding="utf-8"))["annotations"]]
+    log = root / "annotations" / "log.jsonl"
+    out: list[str] = []
+    for line in log.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        e = json.loads(line)
+        if e.get("event") == "created" and e.get("run") == run:
+            out.append(e["id"])
+    return out
 
 
 def build_demo(dest: Path) -> None:

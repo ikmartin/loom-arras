@@ -35,8 +35,9 @@ def demo(tmp_path: Path, *flags: str) -> Path:
         for rel in ("CLAUDE.md", "AGENTS.md"):
             (q / rel).unlink(missing_ok=True)
         shutil.rmtree(q / ".claude", ignore_errors=True)
-        gi = q / ".gitignore"
-        gi.write_text("\n".join(ln for ln in gi.read_text().splitlines() if "bundle-" not in ln) + "\n")
+        # the annotation log lives at the quilt root, not under ai/: a run recreated under the same directory name
+        # would otherwise inherit the shipped run's findings, since a run is addressed by that name in the log
+        shutil.rmtree(q / "annotations", ignore_errors=True)
     r = run("ai", "init", *flags, cwd=q)
     assert r.exit_code == 0, r.output
     return q
@@ -348,13 +349,18 @@ def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> N
     assert [msg["body_html"] for msg in t["messages"]][0] == "<p>Opening note.</p>"
     assert t["messages"][1]["time"] == "2026-09-16T14:31:00Z" and "one objection" in t["messages"][1]["body_html"]
     kinds = {a["name"]: a["kind"] for a in t["attachments"]}
-    assert kinds == {"annotations.json": "annotations", "referee-dm-0003.notes.md": "notes"}  # reading leaves no file
+    assert kinds == {"annotations": "annotations", "referee-dm-0003.notes.md": "notes"}  # reading leaves no file
     assert [entry["command"] for entry in t["log"]][:2] == [
         "loom source dm-0003 --closure",
         "loom comment dm-0003/proof --quote --kind objection",
     ]
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
-    assert "comments/the-loom-demo/2026-09-16" in m["threads"]
+    # a person's annotations are a thread too, grouped by the day they wrote them
+    assert run("comment", "dm-0002", "Mine.", "--author", "Tom", cwd=q, env=FIXED).exit_code == 0
+    assert run("build", cwd=q).exit_code == 0
+    m2 = json.loads((q / "build" / "manifest.json").read_text())
+    session = m2["threads"]["comments/tom/2026-09-16"]
+    assert session["kind"] == "comments" and session["participants"] == [{"kind": "person", "id": "Tom"}]
     # the bundle copied into the run is not a master and none of its ids are duplicates
     lint = run("lint", cwd=q).output
     assert "duplicate-id" not in lint and f"{rel}/bundle-dm-0003.tex" not in lint
@@ -368,5 +374,5 @@ def test_run_flag_relative_to_quilt_root(tmp_path: Path) -> None:
     assert run("comment", "dm-0003", "Fine.", "--kind", "ok", "--run", rel, cwd=q / "nodes", env=FIXED).exit_code == 0
     log = (q / rel / "run.log").read_text()
     assert "loom search gadget" in log and "loom source dm-0003" in log and "loom comment dm-0003" in log
-    assert (q / rel / "annotations.json").is_file()  # the record lands in the run; reading leaves nothing
+    assert (q / "annotations" / "log.jsonl").is_file()  # the record lands in the quilt's one log
     assert not (q / "nodes" / "ai").exists()  # nothing landed relative to the shell's directory

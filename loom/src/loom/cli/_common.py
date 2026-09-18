@@ -68,6 +68,8 @@ def find_run(root: Path, run: str | None) -> Path:
         p = resolve_run(root, run)
         if p is not None and p.is_dir():
             return p
+        if p is not None and ("/" in run or Path(run).is_absolute()):
+            raise EnvError(f'no run at {run}; loom ai start "a name" makes one')
     runs = open_runs(root, include_discarded=True)
     if not run:
         live = [r for r in runs if not r[3]]
@@ -75,8 +77,14 @@ def find_run(root: Path, run: str | None) -> Path:
             raise EnvError('no runs yet; loom ai start "a name" makes one')
         return root / live[-1][0]
     want = run.strip().lower()
-    exact = [r for r in runs if r[1].lower() == want]
-    hits = exact or [r for r in runs if want in r[1].lower() or r[0].rsplit("/", 1)[-1].startswith(want)]
+
+    def slug(rel: str) -> str:
+        """The directory's name without its leading timestamp, which is what a person types when they type a path."""
+        name = rel.rsplit("/", 1)[-1]
+        return name.split("-", 3)[-1] if name[:4].isdigit() else name
+
+    exact = [r for r in runs if r[1].lower() == want or slug(r[0]) == want]
+    hits = exact or [r for r in runs if want in r[1].lower() or want in slug(r[0])]
     if not hits:
         raise EnvError(f"no run matches {run!r}; loom ai runs lists them")
     if len(hits) > 1:

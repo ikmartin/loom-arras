@@ -310,8 +310,10 @@ def test_documentclass_outside_drafts_and_bundle_failed(tmp_path: Path, monkeypa
 def test_remaining_codes_have_a_test(tmp_path: Path) -> None:
     assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
-    (q / "comments" / "someone").mkdir(parents=True)
-    (q / "comments" / "someone" / "2026-01-01.json").write_text("{not json")
+    log = q / "annotations" / "log.jsonl"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("a", encoding="utf-8") as fh:
+        fh.write("{not json\n")  # a line nothing can read is reported, and the rest of the log still loads
     cfg = q / "config.toml"
     cfg.write_text(
         cfg.read_text().replace('main = "drafting/main.tex"', 'main = "drafting/missing.tex"', 1)

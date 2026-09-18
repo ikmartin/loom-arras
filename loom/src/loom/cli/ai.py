@@ -6,9 +6,8 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import ContentError, EnvError
+from loom.cli._common import ContentError, EnvError, find_run
 from loom.cli._quilt import open_quilt, quilt_option
-from loom.records.annotations import load_record, record_paths
 
 
 @click.group()
@@ -28,24 +27,23 @@ def ai() -> None:
 def discard(
     run: str | None, before: str | None, author: str | None, target: str | None, undo: bool, quilt_path: str | None
 ) -> None:
-    """Flag a run's or a comment session's records ignored (or unflag with --undo). Nothing is deleted."""
+    """Flag a run's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
+
+    Discarding appends an event like any other change, so a run's findings can be dismissed and brought back without anything being rewritten or lost.
+    """
+    from loom.clock import stamp
+    from loom.records.log import append
+    from loom.records.store import Records
+
     quilt = open_quilt(quilt_path)
     root = quilt.root
-    paths: list[Path] = []
+    records = Records(root).records
+    sources: list[str] = []
     if run:
-        p = Path(run).expanduser()
-        if not p.is_absolute():
-            p = root / p
-        if p.is_dir():
-            p = p / "annotations.json"
-        if not p.is_file():
-            raise EnvError(f"no record at {run}")
-        paths.append(p)
+        d = find_run(root, run)
+        sources.append(d.relative_to(root).as_posix())
     elif before or author or target:
-        for p in record_paths(root):
-            rec = load_record(root, p)
-            if isinstance(rec, str):
-                continue
+        for rec in records:
             created = min((a.created for a in rec.annotations), default="")
             if before and not (created and created[:10] < before):
                 continue
@@ -53,29 +51,36 @@ def discard(
                 continue
             if target and not any(a.target_key == target for a in rec.annotations):
                 continue
-            paths.append(p)
+            sources.append(rec.rel)
     else:
         raise EnvError("give RUN, or --before, --author, or --target")
-    if not paths:
+    if not sources:
         click.echo("no matching records")
         return
-    for p in paths:
-        rec = load_record(root, p)
-        if isinstance(rec, str):
-            raise ContentError(rec)
-        rec.discarded = not undo
-        rec.write()
-        toml = p.parent / "run.toml"
+    for rel in sources:
+        is_run = rel.startswith("ai/runs/")
+        event: dict[str, object] = {
+            "event": "discarded",
+            "source": rel,
+            "when": stamp(),
+            "author": rel.rsplit("/", 1)[-1],
+            "kind": "agent" if is_run else "human",
+            "run": rel if is_run else None,
+        }
+        if undo:
+            event["undo"] = True
+        append(root, event)
+        toml = root / rel / "run.toml"
         if toml.is_file():
+            import re
+
             text = toml.read_text(encoding="utf-8")
             if "discarded" in text:
-                import re
-
                 text = re.sub(r"discarded\s*=\s*(true|false)", f"discarded = {'false' if undo else 'true'}", text)
             else:
                 text = text.rstrip("\n") + f"\ndiscarded = {'false' if undo else 'true'}\n"
             toml.write_text(text, encoding="utf-8")
-        click.echo(f"{'restored' if undo else 'discarded'} {p.relative_to(root).as_posix()}")
+        click.echo(f"{'restored' if undo else 'discarded'} {rel}")
 
 
 @ai.command(name="init")
@@ -114,7 +119,6 @@ def ai_orient(run_dir: str | None, quilt_path: str | None) -> None:
     This is also how an agent attaches to a run it did not start: `loom ai orient --run <name>` prints the orientation, the quilt's live state, and that run's thread.md and run.log, which is the scrollback a later session resumes from.
     """
     from loom.ai.orient import live_text, static_text
-    from loom.cli._common import find_run
     from loom.cli._quilt import open_scan
     from loom.cli.build_cmds import log_run
     from loom.records.store import Records
@@ -167,7 +171,6 @@ def ai_runs(show_all: bool, quilt_path: str | None) -> None:
 def ai_name(new_name: str, run_dir: str | None, quilt_path: str | None) -> None:
     """Rename a run. The directory keeps the name it was created under, which is its address."""
     from loom.ai.runs import rename_run
-    from loom.cli._common import find_run
 
     quilt = open_quilt(quilt_path)
     d = find_run(quilt.root, run_dir)
@@ -186,7 +189,6 @@ def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> N
     """
     import json
 
-    from loom.cli._common import find_run
     from loom.cli._quilt import open_scan
     from loom.records.store import Records
 
@@ -199,6 +201,7 @@ def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> N
             "id": a.annotation.id,
             "target": a.annotation.target_key,
             "kind": a.annotation.kind,
+            "severity": a.annotation.severity,
             "status": a.annotation.status,
             "reply_to": a.annotation.in_reply_to,
             "detached": a.detached,
@@ -214,9 +217,10 @@ def ai_findings(run_dir: str | None, as_json: bool, quilt_path: str | None) -> N
         click.echo(f"{rel}: no findings yet")
         return
     for r in rows:
+        sev = f" {r['severity']}" if r["severity"] else ""
         mark = "" if r["status"] == "open" else f" ({r['status']})"
         quote = f"  \u201c{r['quote']}\u201d" if r["quote"] else ""
-        click.echo(f"{r['id']}  {r['target']}  {r['kind']}{mark}{quote}")
+        click.echo(f"{r['id']}  {r['target']}  {r['kind']}{sev}{mark}{quote}")
 
 
 @ai.command(name="promote")

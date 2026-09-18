@@ -15,7 +15,7 @@
    "in_reply_to": null,
    "kind": "objection",
    "quote": "finite widget",
-   "record": "ai/runs/2026-09-16T00-00-referee/annotations.json",
+   "record": "ai/runs/2026-09-16T00-00-referee",
    "status": "open",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
@@ -37,7 +37,7 @@
    "in_reply_to": null,
    "kind": "suggestion",
    "quote": "disjoint union of orbits",
-   "record": "ai/runs/2026-09-16T00-00-referee/annotations.json",
+   "record": "ai/runs/2026-09-16T00-00-referee",
    "status": "resolved",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
@@ -59,7 +59,7 @@
    "in_reply_to": null,
    "kind": "question",
    "quote": "one or two points",
-   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
    "status": "open",
    "target": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
@@ -81,7 +81,7 @@
    "in_reply_to": "a-2026-09-16-0001",
    "kind": "question",
    "quote": "finite widget",
-   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
    "status": "open",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
@@ -103,7 +103,7 @@
    "in_reply_to": "a-2026-09-16-0002",
    "kind": "question",
    "quote": "disjoint union of orbits",
-   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
    "status": "open",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
@@ -125,7 +125,7 @@
    "in_reply_to": null,
    "kind": "question",
    "quote": "an involution $\\sigma$ of $X$",
-   "record": "comments/the-synthetic-quilt/2026-09-16.json",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
    "status": "open",
    "target": {
     "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
@@ -147,7 +147,7 @@
    "in_reply_to": null,
    "kind": "ok",
    "quote": null,
-   "record": "ai/runs/2026-09-15T10-00-quick/annotations.json",
+   "record": "ai/runs/2026-09-15T10-00-quick",
    "status": "open",
    "target": {
     "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
@@ -158,7 +158,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "7d5cd0099f97897d19fa7a4fe06decd68562603829aa9e9f30292ee63f5d7ac2",
+   "hash": "9218334da416ad67289a495001fe1998b374c4fbde6a5cf20ceef25995cb74a8",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -170,7 +170,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "84f957af2c32228084011b233d5fa487d68f38dee035595006cc414c48cddcf1",
+   "hash": "bc7268159b0534931710964065a1c884399d0dba5ec0438c0c5198ee63c253b1",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -182,7 +182,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "a2219d0330169919ced50c6d2ebde0e216f72ee473439825bfe6bf1d6e5d24bb",
+   "hash": "b61d2d44905a228682b4e4d188ebf53e639af18282a867adc8ea6948998c8bb8",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -1543,15 +1543,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -1608,15 +1608,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -4156,7 +4156,7 @@
    "key": "2026-09-15T10-00-quick",
    "kind": "thread",
    "tags": [],
-   "title": "2026-09-15T10-00-quick"
+   "title": "quick"
   },
   {
    "aliases": [],
@@ -4170,7 +4170,7 @@
    "key": "comments/the-synthetic-quilt/2026-09-16",
    "kind": "thread",
    "tags": [],
-   "title": "the-synthetic-quilt 2026-09-16"
+   "title": "The synthetic quilt"
   }
  ],
  "states": {
@@ -4270,7 +4270,7 @@
     {
      "count": 1,
      "kind": "annotations",
-     "name": "annotations.json"
+     "name": "annotations"
     }
    ],
    "created": "2026-09-15T10:00:00Z",
@@ -4286,7 +4286,7 @@
    "messages": [],
    "participants": [
     {
-     "id": "agent",
+     "id": "quick",
      "kind": "agent"
     }
    ],
@@ -4294,14 +4294,14 @@
    "targets": [
     "sy-000A"
    ],
-   "title": "2026-09-15T10-00-quick"
+   "title": "quick"
   },
   "2026-09-16T00-00-referee": {
    "attachments": [
     {
      "count": 2,
      "kind": "annotations",
-     "name": "annotations.json"
+     "name": "annotations"
     }
    ],
    "created": "2026-09-16T00:00:00Z",
@@ -4321,7 +4321,7 @@
    "messages": [
     {
      "author": {
-      "id": "agent",
+      "id": "referee",
       "kind": "agent"
      },
      "body_html": "<p><strong>2026-09-16 00:00 referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read <code>bundle-sy-0003.tex</code>, left one objection on the statement and one suggestion on the first proof. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
@@ -4330,7 +4330,7 @@
    ],
    "participants": [
     {
-     "id": "agent",
+     "id": "referee",
      "kind": "agent"
     }
    ],
@@ -4342,13 +4342,7 @@
    "title": "referee sy-0003"
   },
   "comments/the-synthetic-quilt/2026-09-16": {
-   "attachments": [
-    {
-     "count": 4,
-     "kind": "annotations",
-     "name": "2026-09-16.json"
-    }
-   ],
+   "attachments": [],
    "created": "2026-09-16T00:00:00Z",
    "discarded": false,
    "id": "comments/the-synthetic-quilt/2026-09-16",
@@ -4356,34 +4350,22 @@
    "log": [],
    "messages": [
     {
-     "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
-     },
+     "author": "The synthetic quilt",
      "body_html": "<p><strong>question</strong> on <code>sy-0002</code>: Is the orbit of a fixed point counted as one point or two?</p>",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
-     },
+     "author": "The synthetic quilt",
      "body_html": "<p><strong>question</strong> on <code>sy-0003</code>:</p>",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
-     },
+     "author": "The synthetic quilt",
      "body_html": "<p><strong>question</strong> on <code>sy-0004</code>:</p>",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "author": {
-      "id": "The synthetic quilt",
-      "kind": "person"
-     },
+     "author": "The synthetic quilt",
      "body_html": "<p><strong>question</strong> on <code>sy-0001</code>: Is the involution required to be a bijection, or does that follow?</p>",
      "time": "2026-09-16T00:00:00Z"
     }
@@ -4394,14 +4376,14 @@
      "kind": "person"
     }
    ],
-   "path": "comments/the-synthetic-quilt/2026-09-16.json",
+   "path": "comments/the-synthetic-quilt/2026-09-16",
    "targets": [
     "sy-0002",
     "sy-0003",
     "sy-0004",
     "sy-0001"
    ],
-   "title": "the-synthetic-quilt 2026-09-16"
+   "title": "The synthetic quilt"
   }
  }
 }

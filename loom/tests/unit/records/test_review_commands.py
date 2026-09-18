@@ -26,17 +26,20 @@ def run(*args: str, cwd: Path, stdin: str | None = None):  # type: ignore[no-unt
         os.chdir(old)
 
 
+def events(root: Path) -> list[dict]:
+    """Every line of the annotation log, in the order it was appended."""
+    p = root / "annotations" / "log.jsonl"
+    return [json.loads(ln) for ln in p.read_text().splitlines() if ln.strip()] if p.is_file() else []
+
+
 def demo(tmp_path: Path, clean: bool = True) -> Path:
-    """The demo quilt; with `clean` its shipped ledger and comments are removed so a test starts from a blank record."""
+    """The demo quilt; with `clean` its shipped ledger and annotation log are removed so a test starts blank."""
     r = run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     assert r.exit_code == 0, r.output
     d = tmp_path / "demo"
     if clean:
         shutil.rmtree(d / ".loom", ignore_errors=True)
-        for p in (d / "comments").rglob("*.json"):
-            p.unlink()
-        for p in (d / "ai" / "runs").glob("*/annotations.json"):
-            p.unlink()
+        shutil.rmtree(d / "annotations", ignore_errors=True)
     return d
 
 
@@ -192,13 +195,11 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
     r = run("comment", "dm-0003/proof", "Needs the rigidity lemma.", "--quote", "closedness", *AUTHOR, cwd=d)
     assert r.exit_code == 0, r.output
     assert r.output.startswith("a-") and "dm-0003/proof  objection  (Markas Hecht)" in r.output
-    rec = json.loads(next((d / "comments" / "markas-hecht").glob("*.json")).read_text())
-    a = rec["annotations"][0]
-    assert a["target"]["hash"].startswith("sha256:") and a["selector"]["exact"] == "closedness"
+    a = events(d)[0]
+    assert a["event"] == "created" and a["author"] == "Markas Hecht" and a["kind"] == "human" and a["run"] is None
+    assert a["against"].startswith("sha256:") and a["anchor"]["exact"] == "closedness"
     assert (
-        len(a["selector"]["prefix"]) <= 32
-        and len(a["selector"]["suffix"]) <= 32
-        and a["selector"]["prefix"].endswith("For ")
+        len(a["anchor"]["prefix"]) <= 32 and len(a["anchor"]["suffix"]) <= 32 and a["anchor"]["prefix"].endswith("For ")
     )
     r2 = run("comment", "dm-0003/proof", "x", "--quote", "no such words here", *AUTHOR, cwd=d)
     assert r2.exit_code == 1 and "quote not found in dm-0003/proof" in r2.output
@@ -217,6 +218,7 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
 def test_comment_run_author_log_reply_resolve_batch(tmp_path: Path) -> None:
     d = demo(tmp_path)
     run_dir = d / "ai" / "runs" / "2026-09-16T14-02-referee"
+    run_dir.mkdir(parents=True)  # a run is a directory loom ai start makes; commenting into one does not create it
     r = run(
         "comment",
         "dm-0003/proof",
@@ -229,27 +231,77 @@ def test_comment_run_author_log_reply_resolve_batch(tmp_path: Path) -> None:
     )
     assert r.exit_code == 0, r.output
     ann_id = r.output.split()[0]
-    assert (run_dir / "annotations.json").exists() and "loom comment dm-0003/proof" in (run_dir / "run.log").read_text()
-    rec = json.loads((run_dir / "annotations.json").read_text())
-    assert rec["annotations"][0]["author"] == {"kind": "run", "id": "2026-09-16T14-02-referee"}
+    assert "loom comment dm-0003/proof" in (run_dir / "run.log").read_text()
+    assert not (run_dir / "annotations.json").exists()  # one log, not a file per run
+    first = events(d)[0]
+    assert first["author"] == "2026-09-16T14-02-referee" and first["kind"] == "agent"
+    assert first["run"] == "ai/runs/2026-09-16T14-02-referee"
     r2 = run("comment", "--reply", ann_id, "Agreed, will fix.", *AUTHOR, cwd=d)
     assert r2.exit_code == 0 and "reply to" in r2.output
     r3 = run("comment", "dm-0003/proof", "--resolve", ann_id, "Added the argument.", *AUTHOR, cwd=d)
     assert r3.exit_code == 0 and r3.output.strip() == f"resolved {ann_id}"
-    rec = json.loads((run_dir / "annotations.json").read_text())
-    assert rec["annotations"][0]["status"] == "resolved"
+    assert [e["event"] for e in events(d)] == ["created", "replied", "resolved"]  # appended, never rewritten
     s = status_json(d)
     assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {}
     batch = '{"target": "dm-0002", "message": "one", "quote": "Every orbit", "kind": "suggestion"}\n{"target": "dm-0002", "message": "two", "quote": "NOPE"}\n{"target": "dm-0002", "message": "three"}\n'
     r4 = run("comment", "--batch", "--run", str(run_dir), cwd=d, stdin=batch)
     assert r4.exit_code == 1 and "batch line 2" in r4.output
-    rec = json.loads((run_dir / "annotations.json").read_text())
-    assert [a["body"] for a in rec["annotations"]] == ["Domination is asserted.", "one"]
+    made = [e["body"] for e in events(d) if e["event"] == "created"]
+    assert made == ["Domination is asserted.", "one"]  # the failing batch line stops the rest
+
+
+def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
+    """The log's point: a finding that still stands is restated, not replied to, so three passes leave one finding."""
+    d = demo(tmp_path)
+    run_dir = d / "ai" / "runs" / "r1"
+    run_dir.mkdir(parents=True)
+    r = run(
+        "comment",
+        "dm-0002",
+        "Orbits may be empty.",
+        "--quote",
+        "Every orbit",
+        "--kind",
+        "objection",
+        "--severity",
+        "major",
+        "--payload",
+        "Every nonempty orbit...",
+        "--placement",
+        "replace",
+        "--run",
+        str(run_dir),
+        cwd=d,
+    )
+    assert r.exit_code == 0, r.output
+    assert "objection major" in r.output
+    ann = r.output.split()[0]
+
+    e = run("comment", "--edit", ann, "Still wrong, and the fix is smaller than I said.", "--run", str(run_dir), cwd=d)
+    assert e.exit_code == 0 and e.output.strip() == f"edited {ann}"
+
+    kinds = [x["event"] for x in events(d)]
+    assert kinds == ["created", "edited"]  # appended; the first body is still on disk
+
+    s = status_json(d)
+    assert s["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}  # one finding, not two
+    f = json.loads(run("ai", "findings", "--run", str(run_dir), "--json", cwd=d).output)["findings"]
+    assert len(f) == 1 and f[0]["severity"] == "major"  # severity and the anchor survive an edit that names neither
+
+    assert run("comment", "--edit", "a-nope-0001", "x", "--run", str(run_dir), cwd=d).exit_code == 1
+
+
+def test_severity_and_placement_are_checked(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    assert run("comment", "dm-0002", "x", "--severity", "catastrophic", *AUTHOR, cwd=d).exit_code == 2
+    bad = run("comment", "dm-0002", "x", "--placement", "after", *AUTHOR, cwd=d)
+    assert bad.exit_code == 2 and "give --payload too" in bad.output  # a placement with nothing to place
 
 
 def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
     d = demo(tmp_path)
     run_dir = d / "ai" / "runs" / "r1"
+    run_dir.mkdir(parents=True)
     assert (
         run("comment", "dm-0002", "Objection.", "--quote", "Every orbit", "--run", str(run_dir), cwd=d).exit_code == 0
     )
@@ -258,7 +310,7 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
     r = run("ai", "discard", "ai/runs/r1", cwd=d)
     assert r.exit_code == 0, r.output
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
-    assert json.loads((run_dir / "annotations.json").read_text())["discarded"] is True
+    assert [e["event"] for e in events(d)][-1] == "discarded"  # an event, not a rewritten file
     assert run("ai", "discard", "--author", "Markas Hecht", cwd=d).exit_code == 0
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
     assert run("ai", "discard", "ai/runs/r1", "--undo", cwd=d).exit_code == 0
@@ -331,6 +383,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     d = demo(tmp_path)
     key, proof = "dm-0003", "dm-0003/proof"
     run_dir = d / "ai" / "runs" / "2026-09-16T14-02-referee"
+    run_dir.mkdir(parents=True)
     # Day 1: draft, never reviewed; a referee run leaves three objections
     s = status_json(d)
     assert s["keys"][key]["state"] == "draft" and s["keys"][key]["reviews"]["latest_any"] is None
@@ -392,7 +445,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["latest_current"]["author"]["kind"] == "run"
     # Day 3: the author resolves the statement objection and accepts
-    ann = json.loads((run_dir / "annotations.json").read_text())["annotations"][0]["id"]
+    ann = next(e["id"] for e in events(d) if e["event"] == "created")
     assert run("comment", key, "--resolve", ann, "Finiteness is used for parity.", *AUTHOR, cwd=d).exit_code == 0
     r = run("accept", key, "--proofs", *AUTHOR, cwd=d)
     assert r.exit_code == 0, r.output

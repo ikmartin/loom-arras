@@ -25,8 +25,9 @@ def visible_locals(result: ScanResult, prefix: str) -> set[str]:
         for step in history.iterdir():
             if step.is_dir() and step.name != "texts":
                 found.update(pat.findall(" ".join(p.name for p in step.iterdir())))
-    for rec in list(root.glob("comments/*/*.json")) + list(root.glob("ai/runs/*/annotations.json")):
-        found.update(pat.findall(rec.read_text(encoding="utf-8", errors="replace")))
+    log = root / "annotations" / "log.jsonl"
+    if log.is_file():
+        found.update(pat.findall(log.read_text(encoding="utf-8", errors="replace")))
     try:
         revs = subprocess.run(
             ["git", "-C", str(root), "rev-list", "--all", "--max-count=500"],

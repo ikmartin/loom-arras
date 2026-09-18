@@ -49,7 +49,9 @@ Report files outside RUN, comments/, and build/ modified since the run started (
 
 `loom ai discard [OPTIONS] [RUN]`
 
-Flag a run's or a comment session's records ignored (or unflag with --undo). Nothing is deleted.
+Flag a run's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
+
+Discarding appends an event like any other change, so a run's findings can be dismissed and brought back without anything being rewritten or lost.
 
 | option | description |
 |---|---|
@@ -242,11 +244,15 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 |---|---|
 | `--quote` | Anchor to this exact text, which must occur once in the target's own text. |
 | `--kind` |  |
-| `--run` | Write into this run directory's annotations.json; the run is the author. |
+| `--run` | Write as this run: a name, a prefix of one, or a path. The run is the author. |
 | `--author` |  |
 | `--reply` `ID` |  |
 | `--resolve` `ID` |  |
-| `--batch` | Read JSON lines from stdin: {target, message, quote, kind, reply, resolve}. |
+| `--edit` `ID` | Supersede an annotation's body; the history stays in the log. |
+| `--severity` | How bad the fault is, not how keen you are. |
+| `--payload` | Suggested text the author may preview and copy. |
+| `--placement` | Where the payload goes, as a hint. |
+| `--batch` | Read JSON lines from stdin: {target, message, quote, kind, reply, resolve, severity, payload, placement}. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom compile`

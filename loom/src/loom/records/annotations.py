@@ -1,11 +1,10 @@
-"""Review records: `annotations.json` files under `comments/<author>/` and `ai/runs/<run>/`, written only by `loom comment` (book 7.4).
+"""What an annotation is, and the record one belongs to (book 7.4).
 
-The scanner finds them by those two paths; a file there that fails validation is `loom:foreign-annotations`. The only field ever rewritten in place is `status`, when a comment is resolved.
+Annotations are stored as events in `annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom comment` and `loom refs note` write them.
 """
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,7 +12,9 @@ from typing import Any
 
 from loom.records.selectors import Selector
 
-KINDS = ("objection", "suggestion", "question", "ok")
+KINDS = ("objection", "suggestion", "question", "ok", "citation")
+SEVERITIES = ("major", "moderate", "minor")
+PLACEMENTS = ("replace", "after", "before")
 
 
 @dataclass
@@ -29,6 +30,9 @@ class Annotation:
     body: str
     status: str = "open"
     in_reply_to: str | None = None
+    severity: str | None = None  # major | moderate | minor: how bad the fault is, not how keen the suggestion
+    payload: str | None = None  # suggested text, previewed and copied by the author; nothing applies it (WQ-27)
+    placement: str | None = None  # replace | after | before, relative to the anchor: a hint for where a viewer shows it
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -41,6 +45,9 @@ class Annotation:
             "body": self.body,
             "status": self.status,
             "in_reply_to": self.in_reply_to,
+            "severity": self.severity,
+            "payload": self.payload,
+            "placement": self.placement,
         }
 
     @classmethod
@@ -58,77 +65,35 @@ class Annotation:
             body=str(d.get("body", "")),
             status=str(d.get("status", "open")),
             in_reply_to=d.get("in_reply_to"),
+            severity=d.get("severity"),
+            payload=d.get("payload"),
+            placement=d.get("placement"),
         )
 
 
 @dataclass
 class Record:
-    path: Path  # absolute
-    rel: str  # quilt-relative
+    """One run's or one author's annotations, replayed from the log; `rel` is the run directory or `comments/<author>`."""
+
+    path: Path  # the log the record was replayed from
+    rel: str  # the grouping key: ai/runs/<run>, or comments/<author-slug>
     discarded: bool = False
     annotations: list[Annotation] = field(default_factory=list)
-    schema: int = 1
 
     @property
     def is_run(self) -> bool:
         return self.rel.startswith("ai/runs/")
 
-    def write(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        data = {
-            "schema": self.schema,
-            "discarded": self.discarded,
-            "annotations": [a.to_dict() for a in self.annotations],
-        }
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        tmp.replace(self.path)
-
-
-def record_paths(root: Path) -> list[Path]:
-    out = sorted(root.glob("comments/*/*.json")) + sorted(root.glob("ai/runs/*/annotations.json"))
-    return [p for p in out if not p.name.endswith(".tmp")]
-
-
-def load_record(root: Path, path: Path) -> Record | str:
-    """A Record, or an error string when the file is not a valid record."""
-    rel = path.relative_to(root).as_posix()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return f"{rel}: {exc}"
-    if not isinstance(data, dict) or data.get("schema") != 1 or not isinstance(data.get("annotations"), list):
-        return f"{rel}: not a schema-1 annotations file"
-    rec = Record(path=path, rel=rel, discarded=bool(data.get("discarded", False)))
-    try:
-        rec.annotations = [Annotation.from_dict(a) for a in data["annotations"]]
-    except (KeyError, TypeError, AttributeError) as exc:
-        return f"{rel}: malformed annotation ({exc})"
-    return rec
-
 
 def load_records(root: Path) -> tuple[list[Record], list[str]]:
-    records: list[Record] = []
-    problems: list[str] = []
-    for p in record_paths(root):
-        r = load_record(root, p)
-        if isinstance(r, str):
-            problems.append(r)
-        else:
-            records.append(r)
-    return records, problems
+    """Every record in the quilt, replayed from `annotations/log.jsonl`, plus one problem per unreadable line."""
+    from loom.records.log import replay
+
+    return replay(root)
 
 
 def author_slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "anonymous"
-
-
-def person_record_path(root: Path, author: str, date: str) -> Path:
-    return root / "comments" / author_slug(author) / f"{date}.json"
-
-
-def run_record_path(run_dir: Path) -> Path:
-    return run_dir / "annotations.json"
 
 
 def next_id(records: list[Record], date: str) -> str:
