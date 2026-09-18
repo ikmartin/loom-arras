@@ -10,7 +10,7 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
 - Exit codes: `0` success; `1` a content problem (lint errors, a failed identity test, a failed compile, a refused write that the author can fix in the source); `2` a usage or environment problem (bad arguments, missing tools, no author name, refused destination).
 - `--json`: machine output on stdout, one JSON document, nothing else on stdout; diagnostics and progress go to stderr.
 - `--yes`: skip confirmations that would otherwise be asked on a terminal. Commands that would ask and have no terminal and no `--yes` exit 2.
-- `--run DIR`: on `bundle`, `comment`, `status`, `search`, `deps`, `unravel`, `lint`, and `ai orient`: append the invocation to `DIR/run.log` (`LOOM_RUN` is the default); on `bundle`, also copy the output into `DIR`; on `comment`, make the run the author (refusing `--author`) and write to `DIR/annotations.json`; `ai promote` logs its move to the run the file came from (M6, M7).
+- `--run RUN`: on `source`, `compile`, `comment`, `status`, `search`, `deps`, `unravel`, `lint`, `ai orient` and `ai findings`: append the invocation to the run's `run.log` (`LOOM_RUN` is the default). **[decided]** `RUN` is a run's name, a prefix of one, or its path; an ambiguous prefix names its matches and refuses. On `comment` it also makes the run the author, refusing `--author`; `ai promote` logs its move to the run the file came from (M6, M7, 11.4).
 - `--author NAME`: on `accept` and `comment`, the author name, overriding the user config.
 - `--quiet` / `-q` and `--verbose` / `-v` were planned and are not implemented; diagnostics go to stderr, summaries to stdout (M7).
 - Keys are written as ids (`rl-0004`), proof keys (`rl-0004/proof`, `rl-0004/proof/2`), qualified keys (`rl-0004#eq:main`, `drafting/main.tex#section:3`), or master paths. Aliases are accepted wherever an id is and resolved. An **address** adds a step: `rl-0004@3`, or `rl-0004@paper-v2` naming the landmark instead of the number (17.4).
@@ -35,7 +35,7 @@ Every command except `init` and `doctor` runs against the nearest quilt, found b
 |---|---|
 | `--version`, `-V` | Show the version and exit. |
 
-### `loom accept`
+#### `loom accept`
 
 `loom accept [OPTIONS] [KEYS]...`
 
@@ -70,7 +70,9 @@ Report files outside RUN, comments/, and build/ modified since the run started (
 
 `loom ai discard [OPTIONS] [RUN]`
 
-Flag a run's or a comment session's records ignored (or unflag with --undo). Nothing is deleted.
+Flag a run's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
+
+Discarding appends an event like any other change, so a run's findings can be dismissed and brought back without anything being rewritten or lost.
 
 | option | description |
 |---|---|
@@ -78,6 +80,20 @@ Flag a run's or a comment session's records ignored (or unflag with --undo). Not
 | `--author` | Discard every record whose author matches. |
 | `--target` | Discard every record with an annotation on this key. |
 | `--undo` | Reverse: mark matching records not discarded. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai findings`
+
+`loom ai findings [OPTIONS]`
+
+What this run has annotated: id, target, kind, status, and the quoted text.
+
+An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it.
+
+| option | description |
+|---|---|
+| `--run` `RUN` | The run to report on. |
+| `--json` | Print the findings as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai init`
@@ -92,15 +108,28 @@ Write ai/ (orientation, modes, runs/) and the vendor files CLAUDE.md and AGENTS.
 | `--skills` | Also write skill stubs and slash commands for Claude Code. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+#### `loom ai name`
+
+`loom ai name [OPTIONS] NEW_NAME`
+
+Rename a run. The directory keeps the name it was created under, which is its address.
+
+| option | description |
+|---|---|
+| `--run` `RUN` | The run to rename. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 #### `loom ai orient`
 
 `loom ai orient [OPTIONS]`
 
-Print the orientation document followed by the quilt's live state (and a run's journal with --run).
+Print the orientation document followed by the quilt's live state, and with --run a run's own journal.
+
+This is also how an agent attaches to a run it did not start: `loom ai orient --run <name>` prints the orientation, the quilt's live state, and that run's thread.md and run.log, which is the scrollback a later session resumes from.
 
 | option | description |
 |---|---|
-| `--run` `RUN` | Also print this run's thread.md and run.log. |
+| `--run` `RUN` | Attach to this run: also print its thread.md and run.log. A name, a prefix of one, or a path. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai promote`
@@ -114,15 +143,27 @@ Copy a digest out of a run into digests/; lint runs on the result. A drafted nod
 | `--replace` | Overwrite an existing digest after showing the diff. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-#### `loom ai start`
+#### `loom ai runs`
 
-`loom ai start [OPTIONS] [SLUG]`
+`loom ai runs [OPTIONS]`
 
-Create a run directory under ai/runs/, print its path, and launch [ai] agent from config.toml if set.
+List this quilt's runs, newest last, as `YYYY-MM-DD: name`.
 
 | option | description |
 |---|---|
-| `--no-launch` | Create the run without launching [ai] agent. |
+| `--all` | Include discarded runs, marked. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai start`
+
+`loom ai start [OPTIONS] [NAME]`
+
+Create a run directory under ai/runs/ named NAME, and print its path.
+
+Loom does not launch your agent. `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`, so starting a session is `claude`, and this is the command it runs when you ask it to begin a run.
+
+| option | description |
+|---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom atomize`
@@ -155,20 +196,6 @@ Rendering is cached per fragment by its inputs, which include loom's own version
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
 | `--force` | Render every fragment again, ignoring the cache. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-### `loom bundle`
-
-`loom bundle [OPTIONS] [KEY]`
-
-Write build/bundles/<key>.tex: the statements KEY depends on, in dependency order, then KEY itself.
-
-| option | description |
-|---|---|
-| `--to` `FILE` | Write here instead of build/bundles/. |
-| `--run` `DIR` | Also copy into the run directory and log the call. |
-| `--with` `FILE` | Substitute a unified diff or a .tex file for the key's text. |
-| `--draft` `FILE` | Bundle a node file that is not yet in the quilt. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom canonicalize`
@@ -238,22 +265,31 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 |---|---|
 | `--quote` | Anchor to this exact text, which must occur once in the target's own text. |
 | `--kind` |  |
-| `--run` | Write into this run directory's annotations.json; the run is the author. |
+| `--run` | Write as this run: a name, a prefix of one, or a path. The run is the author. |
 | `--author` |  |
 | `--reply` `ID` |  |
 | `--resolve` `ID` |  |
-| `--batch` | Read JSON lines from stdin: {target, message, quote, kind, reply, resolve}. |
+| `--edit` `ID` | Supersede an annotation's body; the history stays in the log. |
+| `--severity` | How bad the fault is, not how keen you are. |
+| `--payload` | Suggested text the author may preview and copy. |
+| `--placement` | Where the payload goes, as a hint. |
+| `--batch` | Read JSON lines from stdin: {target, message, quote, kind, reply, resolve, severity, payload, placement}. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom compile`
 
 `loom compile [OPTIONS] [TARGET]`
 
-Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a bundle by key.
+Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.
+
+Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing before it names the error.
 
 | option | description |
 |---|---|
 | `--engine` | Override the engine (pdflatex, lualatex, xelatex). |
+| `--with` `FILE` | Substitute a unified diff or a .tex file for KEY's text; the quilt is not touched. |
+| `--draft` `FILE` | Compile a node file not yet in the quilt. |
+| `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom delete`
@@ -492,6 +528,24 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 | `--force` | Replace an artifact that is already there. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+#### `loom refs note`
+
+`loom refs note [OPTIONS]`
+
+Accept or reject an agent's citation suggestion.
+
+Accepting appends to `reference-notes.jsonl` and resolves the annotation; rejecting resolves it and records nothing, the reason riding on the resolve event. Neither touches `refs.bib`: a candidate becomes a work's identity when your own bibliography entry says so, and nothing else (DR-122). This is the breadcrumb for the day you add it.
+
+| option | description |
+|---|---|
+| `--from` `RUN` | The run whose suggestion this is. |
+| `--accept` `ID` | Record this citation suggestion and resolve it. |
+| `--reject` `ID` | Resolve the suggestion without recording it. |
+| `--reason` | Why, optionally; it rides on the resolve event. |
+| `--author` | Who accepted, when the user config and git do not say. |
+| `--list` | Print what has been accepted. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 #### `loom refs path`
 
 `loom refs path [OPTIONS] CITEKEY`
@@ -553,6 +607,20 @@ Watch, republish, and serve arras at / and build/ at /build/ until interrupted.
 | `--port` | Port to listen on; fails if busy. |
 | `--open` | Open the browser. |
 | `--no-compile` | Never run latexmk after a change. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom source`
+
+`loom source [OPTIONS] KEY`
+
+Print KEY's own LaTeX source; with --closure, the statements it depends on first.
+
+This is how a reader or an agent gets the text of a result. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+
+| option | description |
+|---|---|
+| `--closure` | Everything KEY depends on, in dependency order, then KEY itself. |
+| `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom stamp`
@@ -625,4 +693,4 @@ Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedite
 
 ## 12.11 Withdrawn commands
 
-For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into runs having no lifecycle, `ai orient --run`, `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `init --ai` is `ai init`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai promote` of a drafted node is gone, such a node being previewed in arras and pasted by the author with an id from `loom id --next` (DR-140). `loom refs crawl plan`, `fetch` and `status` went to weft with the rest of the crawl, and the `[crawl]` table with them (8.13, DR-144). There has never been a `loom label`: the command that writes ids is `loom id`.
+For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into runs having no lifecycle, `ai orient --run`, `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `init --ai` is `ai init`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai promote` of a drafted node is gone, such a node being previewed in arras and pasted by the author with an id from `loom id --next` (DR-140). `loom refs crawl plan`, `fetch` and `status` went to weft with the rest of the crawl, and the `[crawl]` table with them (8.13, DR-144). `loom bundle` is gone: reading a key and its dependencies is `loom source KEY --closure`, which prints, and checking that a proposal compiles is `loom compile KEY --with FILE`; the document itself is still written under `build/bundles/` by the compile that needs it (DR-148). `loom ai start` no longer launches an agent and `[ai] agent` and `--no-launch` are withdrawn with it (DR-149). There has never been a `loom label`: the command that writes ids is `loom id`.

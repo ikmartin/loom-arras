@@ -12,7 +12,7 @@ The workbench is not built, so there is no shared allocator for the ai quilt to 
 
 ## Rough design
 
-An ordinary quilt inside the author's, at `ai/quilt/`, which the author's scan already skips because it is under `ai/`. It gives an agent what the author has: ids, `\uses` edges, closures, `loom lint`, `loom bundle`, `loom compile`, and a manifest arras can serve — so an agent can check its own lemma's self-containedness, compile its own proof's closure, build on last week's scaffold, and try "split this lemma in three and reorder the section" at full size where the author can look at the result rather than read a description of it. Moving a node into the author's quilt is a copy.
+An ordinary quilt inside the author's, at `ai/quilt/`, which the author's scan already skips because it is under `ai/`. It gives an agent what the author has: ids, `\uses` edges, closures, `loom lint`, `loom source`, `loom compile`, and a manifest arras can serve — so an agent can check its own lemma's self-containedness, compile its own proof's closure, build on last week's scaffold, and try "split this lemma in three and reorder the section" at full size where the author can look at the result rather than read a description of it. Moving a node into the author's quilt is a copy.
 
 **Context is shared by position.** `preamble.tex` in the ai quilt is one line, `\input{../../preamble.tex}`; `refs.bib` is the author's by path. The scaffolding command writes both, so an agent cannot drift from the author's macros and bibliography.
 

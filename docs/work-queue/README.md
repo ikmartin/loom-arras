@@ -32,12 +32,12 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-23](WQ-23-agent-review.md) | reviewing agent runs in arras: the split view, severity, run-scoped notation, citation candidates | loom, arras | the author resumes the design, paused on 2026-09-16 — a decision, not an observation |
 | [WQ-24](WQ-24-ai-quilt.md) | an agent's own quilt under `ai/`, sharing the author's id space | loom, arras | the workbench has landed, and a run leaves three or more draft nodes that reference one another |
 | [WQ-25](WQ-25-history-view.md) | the history view in arras: landmarks, stamps, versions per node, the graph at a step | arras, loom | a quilt's ledger holds three or more canonize steps |
-| [WQ-26](WQ-26-annotation-surfaces.md) | annotation surfaces in arras: input, payloads inline, reference notes, whole-document comments | arras, loom | the author decides to answer a review in arras rather than in the chat |
 | [WQ-27](WQ-27-applying-suggestions.md) | applying a suggestion: patches, `bundle --with`, editor code actions | loom, editors | one run leaves ten or more payloads |
 | [WQ-28](WQ-28-annotated-export.md) | an annotated view exported as LaTeX and PDF | loom, arras | a review has to reach someone who cannot run arras |
 | [WQ-29](WQ-29-node-manager.md) | the node manager: fork from history, retire, merge, rename (absorbs WQ-11) | loom, arras, loom-lsp | ten or more forks, or a fork or rename by hand goes wrong once |
 | [WQ-30](WQ-30-history-gc.md) | `loom history gc` | loom | `.loom/history/texts/` exceeds a few thousand files or fifty megabytes |
 | [WQ-31](WQ-31-host-split.md) | the host split: the core behind a component API and a token contract a person can use by hand | arras, loom-arras | a second host exists or is wanted |
+| [WQ-32](WQ-32-modes-against-the-cli.md) | rewrite every mode against loom's CLI, and let the gaps name the missing commands | loom | 0.10 has landed, so the annotation log is the modes' output contract |
 
 Eighteen active, twenty-seven slots of headroom.
 

@@ -23,7 +23,7 @@ Every mode file refers to this file. Read it once per session.
 2. Admit ignorance when uncertain; never bluff. A step you cannot complete
    is marked, not glossed.
 3. Every mathematical claim carries an epistemic label:
-   - `file-verified`: checked against a bundle, a digest node, or a file in
+   - `file-verified`: checked against printed source, a digest node, or a file in
      the quilt; name which.
    - `memory-grade`: from your own knowledge; say so.
    - `proved-here`: proved in this run; the proof is in the notes.
@@ -33,9 +33,9 @@ Every mode file refers to this file. Read it once per session.
    `rl-0004/proof`); a fact from a cited paper as its digest node id with
    the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12).
    Quote exact source text only when wording matters, and then from the
-   bundle.
+   closure.
 5. Search order for anything about a cited paper: the digest
-   (`loom search CITEKEY --json`), then `refs/pdf/CITEKEY.pdf`, then the
+   (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the
    web. Say which you used. If none, write "unlocated".
 6. Distinguish what the author asked for from what you noticed on the way.
    Report both; do not act on the second.
@@ -46,18 +46,18 @@ Every mode file refers to this file. Read it once per session.
 ## Inputs
 
 1. Inputs come from loom commands, never from reading directories.
-   - A key: `loom bundle KEY --run $LOOM_RUN` writes `bundle-KEY.tex` in
-     your run: the statement, its proofs, and the statements of everything
-     it depends on, in dependency order. This is the complete context; you
-     may assume nothing outside it.
+   - A key: `loom source KEY --closure --run $LOOM_RUN` prints the
+     statement, its proofs, and the statements of everything it depends
+     on, in dependency order. This is the complete context; you may assume
+     nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`.
      The graph: `loom deps KEY --closure`, `loom unravel ID`.
-   - A cited result: its digest node's statement is in the bundle when the
-     citation resolved. Otherwise see standing rule 5.
+   - A cited result: its digest node's statement is in the closure when
+     the citation resolved. Otherwise see standing rule 5.
 2. `$LOOM_RUN` is your run directory. Pass `--run $LOOM_RUN` on every
    command that accepts it; loom logs the call there.
 3. If you need a dependency's *proof* rather than its statement, request
-   it (`loom bundle DEP/proof --run $LOOM_RUN`) and record in your findings
+   it (`loom source DEP/proof --closure --run $LOOM_RUN`) and record in your findings
    that the argument relies on something inside another proof; that is a
    candidate for extraction into a statement of its own.
 
@@ -67,7 +67,7 @@ Every mode file refers to this file. Read it once per session.
    target. Never write anywhere else.
 2. LaTeX outputs (`draft-ID.tex`, `proposal-KEY.diff`,
    `ingest-CITEKEY.tex`) must compile with the quilt's preamble: use the
-   environment names and macros as they appear in the bundle;
+   environment names and macros as they appear in the source;
    `\ref{ID}` and `\uses{ID, ...}` for dependencies; `\incomplete{...}` for
    anything you could not do; `\label{ID}` when an id was given. This is
    real LaTeX; no chat restrictions apply.
@@ -76,10 +76,10 @@ Every mode file refers to this file. Read it once per session.
    name blocks: `## [hypothesis-ledger]`. Every notes file begins with
    `## [summary]` and ends with the mode's checklist, ticked.
 4. Verification you can do: to check that a proposal or a draft compiles,
-   build a bundle with your file in place of the quilt's text
-   (`loom bundle KEY --with proposal-KEY.diff --run $LOOM_RUN` or
-   `loom bundle --draft draft-ID.tex --run $LOOM_RUN`) and compile it
-   (`loom compile build/bundles/...`). Report the result in the notes.
+   compile it with your text in place of the quilt's
+   (`loom compile KEY --with proposal-KEY.diff --run $LOOM_RUN` or
+   `loom compile --draft draft-ID.tex --run $LOOM_RUN`). Nothing in the
+   quilt changes. Report the result in the notes.
 
 ## Findings
 
@@ -87,7 +87,7 @@ Every mode file refers to this file. Read it once per session.
    `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question --run $LOOM_RUN`
    One finding per call; `--batch` (JSON lines on stdin) for many.
 2. The quote is a substring of the key's own text, copied exactly from the
-   bundle, long enough to be unique and no longer. If loom reports it
+   source, long enough to be unique and no longer. If loom reports it
    ambiguous, lengthen it; if not found, you copied it wrong. A finding
    about the whole key takes no `--quote`.
 3. The message states the problem and, where you have one, the fix, in at
@@ -95,11 +95,26 @@ Every mode file refers to this file. Read it once per session.
    the annotation by the id loom printed.
 4. Kinds: `objection` for anything that must change; `suggestion` for
    anything that could; `question` for anything you could not decide;
-   `ok` for a clean read with nothing to report.
-5. After the author revises, resolve your own annotations that are met
-   (`loom comment KEY --resolve ID "reason" --run $LOOM_RUN`), leave the
-   rest open with a reply saying why, and record a clean re-read with
-   `--kind ok`.
+   `ok` for a clean read with nothing to report; `citation` for a work
+   worth citing that the bibliography does not have.
+5. `--severity major|moderate|minor` grades the fault a finding names, not
+   how strongly you feel about it: a grammar note is minor because the
+   fault is small. Review mode requires one on every item; elsewhere give
+   one only when something is actually wrong.
+6. `--payload` carries text you are proposing -- a proof, a paragraph, a
+   rewritten passage -- and `--placement replace|after|before` says where
+   it would go relative to the anchor. It is preview and copy: the author
+   reads it and pastes it if they want it. Nothing applies it for them.
+7. On a re-check, the event says what you found:
+   - the fault is met: `--resolve ID "reason"`;
+   - the fault stands and you would put it better:
+     `--edit ID "the restated finding"`. One finding, restated. Do not
+     reply to yourself; a reply is for talking to the author, and three
+     passes of replies leave one finding wearing three copies of itself;
+   - you were wrong to raise it: `--discard`, since resolved would claim
+     the author addressed something;
+   - it has become a different fault: resolve this one and make a new one.
+   Record a clean re-read with `--kind ok`.
 
 ## Sequential applications
 
@@ -115,7 +130,7 @@ starting list is audit's [patch-list] when one exists in the run.
 - Never edit a file outside your run directory.
 - Never write `annotations.json` by hand; `loom comment` writes it.
 - Never run `loom accept`, `loom atomize`, `loom inline`, `loom import`,
-  or `loom ai promote`; those are the author's.
+  or paste a node; those are the author's.
 - Never delete anything.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
@@ -190,7 +205,7 @@ Write each block under a heading with its name in brackets.
   nodes), and `\uses` entries the argument never consumes. Each finding is
   an annotation anchored to the invoking sentence.
 - [self-containedness] Every theorem, lemma, and definition that fails to
-  parse standalone in its bundle: undefined symbols, back-references,
+  parse standalone in its closure: undefined symbols, back-references,
   invisible standing hypotheses, notation introduced after first use.
 - [sharpenings] Places where the proof gives more than the statement
   claims, or where a hypothesis can be weakened without touching the
@@ -212,7 +227,7 @@ Write each block under a heading with its name in brackets.
 - [rejected] Simplifications considered and not made, with reasons. If
   nothing was rejected, name the areas examined and found already tight.
 - [revised] The revised text as `proposal-KEY.diff`, a unified diff
-  against the node's file, and the result of compiling the bundle with it
+  against the node's file, and the result of compiling with it
   applied.
 - [meaning-drift-check] For each modified passage, compare against the
   original and confirm the meaning is unchanged. If it has changed, flag
@@ -232,6 +247,7 @@ Write each block under a heading with its name in brackets.
   fix).
 ```
 
+
 ## `ai/modes/audit.md`
 
 ```markdown
@@ -250,14 +266,14 @@ stated and what is used. If an error surfaces incidentally, flag it in
 referee mode.
 
 ## Input
-- `loom bundle KEY --run $LOOM_RUN`.
+- `loom source KEY --closure --run $LOOM_RUN`.
 - `loom deps KEY --closure --json` for the closure and edge kinds.
 - `loom status --json` for the states of the closure.
-- Digest nodes for cited results are in the bundle when the citation
+- Digest nodes for cited results are in the closure when the citation
   resolved; otherwise standing rule 5.
 
 ## Procedure
-Read the bundle once completely. Then build the six ledgers in order.
+Read the closure once completely. Then build the six ledgers in order.
 Search digests before declaring anything unlocated; search the web only
 if no digest exists and say so. For the uses-ledger, read each proof
 sentence by sentence and ask what fact it invokes; if the fact is not
@@ -287,7 +303,6 @@ met; otherwise reply saying what remains. If nothing remains, record
 - [ ] Nothing was written outside `$LOOM_RUN`.
 ```
 
----
 
 ## `ai/modes/referee.md`
 
@@ -309,7 +324,7 @@ a wrong step is an objection even if it is fixable.
 As audit. You can run code: save every trial per standing rule 7.
 
 ## Procedure
-Read the bundle. Produce the six blocks in order. Every gap, error, or
+Read the closure. Produce the six blocks in order. Every gap, error, or
 unjustified step is an objection anchored to the exact sentence; every
 improvement a suggestion; every doubt a question. If an earlier audit
 notes file exists in this run, read it first and do not repeat its
@@ -322,8 +337,8 @@ findings.
 2. Annotations for every item of [gaps-and-ambiguities] and
    [referee-review], ids listed in the notes.
 3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result
-   of `loom bundle KEY --with proposal-KEY.diff --run $LOOM_RUN` followed
-   by `loom compile` on it.
+   of `loom compile KEY --with proposal-KEY.diff --run $LOOM_RUN`, which
+   compiles your text in place of the quilt's without changing it.
 4. `referee-KEY.check.py` with its output, for every trial.
 5. An entry in `thread.md`.
 
@@ -336,11 +351,80 @@ Then a fresh [decision] in a new notes file `referee-KEY.2.notes.md`, and
 - [ ] At least two worked examples with exact outputs.
 - [ ] Every objection is anchored and its id is in the notes.
 - [ ] [decision] cites the blocks above.
-- [ ] The diff, if any, compiles in a bundle.
+- [ ] The diff, if any, compiles.
 - [ ] Nothing was written outside `$LOOM_RUN`.
 ```
 
----
+
+## `ai/modes/review.md`
+
+```markdown
+# Mode: review
+
+## Before you begin
+- Write only under `$LOOM_RUN`. Never edit source. Never run `loom accept`.
+- Findings are `loom comment ... --run $LOOM_RUN` calls, quote-anchored,
+  every one carrying `--severity`.
+- Read `ai/modes/blocks.md` once this session.
+
+## Purpose
+A referee aiming to improve the source rather than to reject it. Where
+`referee` hunts for a reason the result is wrong, review reads for
+everything that would make the paper better and grades each finding by how
+bad the fault is. The author reaches for this most.
+
+## Input
+As audit. You can run code: save every trial per standing rule 7.
+
+## Procedure
+Read the closure. Work through the source in order, and look for each of
+these in turn:
+
+- **new citations**: an argument that a citation could replace. Verify the
+  source. If you are citing from memory, say so in the finding and mark
+  the citation ledger entry `memory-grade`; propose it with
+  `--kind citation` so the author can accept or reject it.
+- **bad citations**: a citation that is wrong, or that does not cover the
+  use made of it.
+- **unnecessary hypotheses**: a hypothesis no step consumes.
+- **merge-or-delete**: redundant lemmas, duplicated arguments, scaffolding.
+- **sharpenings**: a proof that gives more than the statement claims, or a
+  hypothesis that weakens without touching the argument.
+- **self-containedness**: a theorem, lemma or definition that does not
+  parse standalone.
+- **mathematical errors**: a false statement or an incorrect claim. Always
+  say *why* it is false, and attempt a fix.
+- **grammar and wording**: grammar, punctuation, awkward phrasing.
+- **clarity**: unclear writing, with a suggested fix.
+
+Errors and prose both go in [referee-review], which already groups by
+severity and carries a location, a fix and an annotation id per item.
+
+## Output
+1. `review-KEY.notes.md`: [summary], [referee-review], [citation-ledger],
+   [self-containedness], [sharpenings], [simplifications].
+2. An annotation per item, every one with `--severity`, and a `--payload`
+   wherever you are proposing text. Ids listed in the notes.
+3. `review-KEY.check.py` with its output, for every trial.
+4. An entry in `thread.md`.
+
+There is no compiled LaTeX or PDF pair. The annotations carry the findings
+and the viewer renders them in place; an exported annotated document is a
+separate feature the author has not asked for yet.
+
+## On a re-check
+Per `blocks.md` rule 7: resolve what is met, edit what still stands,
+discard what you should not have raised. The fresh report goes in a new
+numbered notes file, `review-KEY.2.notes.md`, so each pass stays readable
+as what you thought at the time.
+
+## Checklist
+- [ ] Every one of the nine kinds above was looked for.
+- [ ] Every finding is anchored, graded, and its id is in the notes.
+- [ ] Every citation proposed from memory says so.
+- [ ] Nothing was written outside `$LOOM_RUN`.
+```
+
 
 ## `ai/modes/simplify.md`
 
@@ -361,7 +445,7 @@ surfaces incidentally, flag it in [summary] and as an objection, and leave
 that passage unsimplified rather than propagating it.
 
 ## Input
-- `loom bundle KEY --run $LOOM_RUN`.
+- `loom source KEY --closure --run $LOOM_RUN`.
 - If `audit-KEY.notes.md` exists in this run, its [patch-list] is your
   starting list.
 - Digest nodes for candidate citations (standing rule 5).
@@ -369,16 +453,16 @@ that passage unsimplified rather than propagating it.
 ## Procedure
 For each candidate change: classify it; for a new-citation, verify against
 a digest node or record it under [rejected]; for an unnecessary
-hypothesis, confirm no step in the bundle consumes it; make the change in
+hypothesis, confirm no step in the closure consumes it; make the change in
 a copy of the node's text; check meaning. Then produce the diff and
-compile a bundle with it applied.
+compile it with the change applied.
 
 ## Output
 1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected],
    [revised], [meaning-drift-check].
 2. `proposal-KEY.diff`: a unified diff against the node's file (path from
    `loom search KEY --json`); the result of
-   `loom bundle KEY --with proposal-KEY.diff --run $LOOM_RUN` and
+   `loom compile KEY --with proposal-KEY.diff --run $LOOM_RUN` and
    `loom compile` recorded under [revised].
 3. One suggestion annotation per simplification, anchored to the old text.
 4. An entry in `thread.md`.
@@ -386,12 +470,11 @@ compile a bundle with it applied.
 ## Checklist
 - [ ] Every new-citation names a digest node id and is marked verified.
 - [ ] Every removed hypothesis has an absence-of-use demonstration.
-- [ ] The diff applies cleanly and the bundle compiles.
+- [ ] The diff applies cleanly and the result compiles.
 - [ ] [meaning-drift-check] covers every modified passage.
 - [ ] Nothing was written outside `$LOOM_RUN`.
 ```
 
----
 
 ## `ai/modes/question.md`
 
@@ -407,7 +490,7 @@ Answer a question about a key or about the quilt, thoroughly, with the
 five blocks.
 
 ## Input
-The bundle of the key concerned, or `loom status --json` for quilt-level
+The closure of the key concerned, or `loom status --json` for quilt-level
 questions; anything further through loom commands.
 
 ## Output
@@ -423,7 +506,6 @@ questions; anything further through loom commands.
 - [ ] Nothing was written outside `$LOOM_RUN`.
 ```
 
----
 
 ## `ai/modes/quick.md`
 
@@ -434,19 +516,25 @@ questions; anything further through loom commands.
 - Write only under `$LOOM_RUN`. Never edit source. Never run `loom accept`.
 
 ## Purpose
-A brief answer. Prioritize brevity, clarity, and accuracy, in that order.
-Double-check the answer for accuracy before writing it.
+A short, durable answer. Use quick when the author asks something in
+passing that is worth re-reading in a week but does not deserve a
+document: a definition recalled, a step explained, a constant checked.
+Prioritize brevity, clarity and accuracy, in that order, and double-check
+the answer before writing it.
+
+If the answer needs worked examples, edge cases or a stress test, that is
+`question`. If it turns up a defect, annotate it and say so.
 
 ## Output
-`quick-SLUG.notes.md`: [summary], [answer], [follow-up]. No annotations
-unless a defect was found. An entry in `thread.md`.
+`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no
+[summary], because a summary of a quick answer is longer than the answer.
+An entry in `thread.md`.
 
 ## Checklist
-- [ ] The answer was checked once against the bundle or a digest.
+- [ ] The answer was checked once against the source or a digest.
 - [ ] Nothing was written outside `$LOOM_RUN`.
 ```
 
----
 
 ## `ai/modes/draft.md`
 
@@ -455,7 +543,7 @@ unless a defect was found. An entry in `thread.md`.
 
 ## Before you begin
 - Write only under `$LOOM_RUN`. Never edit source. Never run
-  `loom ai promote`; the author promotes.
+  paste it; the author decides, with an id from `loom id --next`.
 - Read `ai/modes/blocks.md` once this session.
 
 ## Purpose
@@ -470,15 +558,15 @@ say so in the notes and stop at that step with `\incomplete`.
   ask for it and stop.
 - `loom new TAXON "Title" --print` for the skeleton in the quilt's
   environment names, or the id of a skeleton file the author created.
-- `loom bundle DEP --run $LOOM_RUN` for each intended dependency, so the
+- `loom source DEP --closure --run $LOOM_RUN` for each intended dependency, so the
   statements you rely on are in front of you.
 
 ## Procedure
 Write the statement first and check it against the plan. Then the proof:
 cite each fact used by `\ref{ID}` and list all dependencies in `\uses`;
 mark every step you could not complete with `\incomplete{...}`. Then
-`loom bundle --draft draft-ID.tex --run $LOOM_RUN` and `loom compile` on
-the result; fix compile errors; record the result.
+`loom compile --draft draft-ID.tex --run $LOOM_RUN` compiles it against
+the quilt's preamble; fix compile errors; record the result.
 
 ## Output
 1. `draft-ID.tex`: one complete node obeying the source contract
@@ -493,11 +581,10 @@ the result; fix compile errors; record the result.
 - [ ] Every fact used is a `\ref` or `\uses` to an existing id or a
       digest node.
 - [ ] Every incomplete step is marked `\incomplete`.
-- [ ] The draft compiles in a bundle.
+- [ ] The draft compiles.
 - [ ] Nothing was written outside `$LOOM_RUN`.
 ```
 
----
 
 ## `ai/modes/ingest.md`
 
@@ -505,7 +592,7 @@ the result; fix compile errors; record the result.
 # Mode: ingest
 
 ## Before you begin
-- Write only under `$LOOM_RUN`. Never edit `refs/`; the author promotes.
+- Write only under `$LOOM_RUN`. Never edit `digests/`; the author promotes.
 - Read `ai/modes/blocks.md` once this session and the digest rules below.
 
 ## Purpose
@@ -533,13 +620,13 @@ intuition in the overview; be exact in the statements.
 - Every `\label` and `\eqref` inside the digest is prefixed with the citekey's slug (its letters and digits only) and a hyphen, `SLUG-`, the same prefix the ids carry.
 
 ## Case A: no digest exists
-Input: `refs/pdf/CITEKEY.pdf` (or its extracted text) or fetched source
-under `refs/src/CITEKEY/`. Output: `ingest-CITEKEY.tex`, a complete digest
+Input: the PDF or unpacked source of the work, which
+`loom refs path CITEKEY` locates. Output: `ingest-CITEKEY.tex`, a complete digest
 whose overview contains [overview], [proof-basics], [dependencies],
 [reconstruction-plan] as prose and a [notation] table.
 
 ## Case B: an extracted digest exists
-Input: `refs/CITEKEY.tex` with `method: extract`, and the paper. Output:
+Input: `digests/CITEKEY.tex` with `method: extract`, and the paper. Output:
 `proposal-CITEKEY.diff` filling the `-setup` node, the overview and
 [notation], missing `\uses` (a proof invokes lemmas it never `\ref`s), and
 locators the extractor left as `\incomplete`.
@@ -560,6 +647,7 @@ locators the extractor left as `\incomplete`.
 - [ ] Nothing was written outside `$LOOM_RUN`.
 ```
 
+
 ## `ai/modes/brainstorm.md`
 
 ```markdown
@@ -567,7 +655,7 @@ locators the extractor left as `\incomplete`.
 
 ## Before you begin
 - Write only under `$LOOM_RUN`. Never edit source. Never run `loom accept`
-  or `loom ai promote`; the author promotes.
+  or paste it; the author decides.
 - Read `ai/modes/blocks.md` once this session.
 
 ## Purpose
@@ -581,9 +669,9 @@ one sentence under [open-questions] and do not pursue it unless asked.
 
 ## Input
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
-- `loom bundle ID --run $LOOM_RUN` for each definition or result the
+- `loom source ID --closure --run $LOOM_RUN` for each definition or result the
   topic touches.
-- The overview sections of the relevant digests (`refs/CITEKEY.tex`,
+- The overview sections of the relevant digests (`digests/CITEKEY.tex`,
   which are designed to be read whole); `loom search --kind digest`.
 - If the author has an outline master, `loom linearize drafting/outline.tex --to
   $LOOM_RUN/outline.tex` for the plan as it stands.

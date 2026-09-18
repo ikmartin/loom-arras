@@ -20,4 +20,4 @@ Anchors are frozen on edit, only for texts an annotation points at, and deduplic
 
 ## Related
 
-[WQ-26](WQ-26-annotation-surfaces.md), whose discard action is what creates the garbage.
+[[WQ-26]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), whose discard action is what creates the garbage.

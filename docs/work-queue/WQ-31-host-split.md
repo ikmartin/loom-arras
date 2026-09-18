@@ -26,6 +26,8 @@ The requirement that fixes the shape: **a person must be able to build a site wi
 
 R1 has already done the part this depends on: every URL the core emits is composed from a base path and a data root rather than written (10.8.1, DR-143), and `tests/unit/host-neutrality.spec.ts` keeps it that way.
 
+**What [0.11](../plans/0.11-run-review-view.md) adds to the surface this must expose** (design session, 2026-09-18): a report pane rendering an agent's parsed blocks, a stacked closure view at depth 1 or 2 on the node page, navigation within the local graph, and whole-document annotations. Each is a *core derivation* — like `badges.ts` and `reached.ts`, computed from the manifest and not drawn by the publisher — so this item relocates them rather than rewriting them, and each is a component a second host would plausibly want on its own. They also sharpen the "why deferred" argument above: the view set grew again in 0.11, which is exactly why extracting the API before it settles would mean extracting it twice.
+
 ## Blast radius
 
 Everything under `arras/src/lib/` and both shells; the packaging (`package.json` exports, the bundle loom vendors); Chapters 10.1, 10.8.1 and 15; a decision record for the API's shape.
@@ -36,4 +38,4 @@ The one that will otherwise be quietly dropped: a single hand-written HTML file 
 
 ## Related
 
-[WQ-26](WQ-26-annotation-surfaces.md), which adds surfaces a second host would also want; [plan 0.9.5](../plans/0.9.5-arras-refactor-interjection.md) §§1–3, 8, which this item does not restate.
+[[WQ-26]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), which adds surfaces a second host would also want; [plan 0.9.5](../plans/0.9.5-arras-refactor-interjection.md) §§1–3, 8, which this item does not restate.

@@ -41,7 +41,7 @@ Demonstrated 2026-09-15; see `docs/work-queue/closed/M1.md`: `loom lint` on the 
 
 - The converter for the LaTeX contract (9.4) with the SVG fallback, the tikz route, macro extraction, `data-src` on blocks.
 - The manifest, atomic publish, `loom build`.
-- Numbering from the `.aux`; `loom compile`; `loom bundle`.
+- Numbering from the `.aux`; `loom compile` (which builds and compiles a key's closure document).
 - arras: node page, master view, digest view (empty until M5), problems page, graph, tags, taxa, search, live reload, static prerender.
 - `loom serve`.
 - The fixture generated from the synthetic quilt and vendored into both repositories.

@@ -7,9 +7,7 @@ The static orientation document `loom ai init` writes and `loom ai orient` print
 ```markdown
 # Orientation: working in a quilt
 
-You are working inside a quilt: a LaTeX paper managed by `loom`, a tool for
-atomized mathematical development. Read this document once. Then run
-`loom status` and propose what to do from what it reports.
+You are working inside a quilt: a LaTeX paper managed by `loom`, a tool for atomized mathematical development. Read this document once. Then run `loom status` and propose what to do from what it reports.
 
 ## 1. What a quilt is
 
@@ -28,7 +26,7 @@ review what they wrote, digest what they cite, answer what they ask.
 ## 2. Layout, and what you may write
 
 - `config.toml` — quilt configuration. Read only.
-- `drafting/` — masters, the compilable documents. `config.toml [quilt] main`
+- `drafting/` — the working documents, every one live. `config.toml [quilt] main`
   names the default. Read only.
 - `nodes/` — one node per file, by convention. Read only.
 - `digests/` — cited papers' results as external nodes, one file per
@@ -91,16 +89,16 @@ ledger and never run `loom accept`.
   `--json` for tools. This is the to-do list.
 - `loom search QUERY --json`: find ids by title, alias, tag, citekey; get
   a node's file.
-- `loom bundle KEY --run $LOOM_RUN`: the standalone document for a key,
-  containing exactly the statements it depends on. Read this, not the
-  directories. It is the whole context a review needs.
-- `loom bundle KEY --with proposal.diff`, `loom bundle --draft draft-ID.tex`:
-  a bundle with your proposed text in place of the quilt's, to compile
-  before the author promotes or applies; nothing in the quilt changes.
+- `loom source KEY --closure --run $LOOM_RUN`: prints a key with exactly
+  the statements it depends on. Read this, not the directories. It is the
+  whole context a review needs, and it writes no file to go stale.
+- `loom compile KEY --with proposal.diff`, `loom compile --draft draft-ID.tex`:
+  compiles your proposed text in place of the quilt's, to check it before
+  the author promotes or applies; nothing in the quilt changes.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
 - `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`: a whole master flattened
   into one file, for when a plan or a paper is the context. Masters are
-  not keys and `bundle` does not apply to them.
+  not keys, so `loom source` does not apply to them.
 - `loom comment KEY "message" --quote "exact text" --kind objection|
   suggestion|question|ok --run $LOOM_RUN`: leave a finding anchored to the
   sentence it concerns. This is how every review result is recorded.
@@ -132,22 +130,29 @@ Follow the template exactly; tick its checklist in your notes file.
 
 - audit: hypothesis, citation, uses, and self-containedness ledgers.
 - referee: hostile review, worked examples, counterexamples, verdict.
+- review: a referee reading to improve rather than to reject; citations,
+  hypotheses, errors and wording, each finding graded by severity.
 - simplify: shorter text, identical mathematics, as a diff.
-- question / quick: answers, thorough or brief.
+- question / quick: answers, thorough or brief. If the author would want
+  to re-read it next week it is quick; if it is a clarification of
+  something you just said, it is chat and nothing is written.
 - draft: a complete node from the author's plan.
 - ingest: a digest of a cited paper.
 - brainstorm: explore a topic before anything is proved; candidates,
   dead ends, what the digests already say.
 
-Findings are annotations. Drafts and digests wait in your run for
-`loom ai promote`. Proposals are diffs the author applies.
+Findings are annotations, graded with `--severity` and carrying a
+`--payload` when you are proposing text. On a re-check you edit a finding
+that still stands rather than replying to yourself (`blocks.md` rule 7).
+Drafts and digests wait in your run for
+`loom ai promote` for a digest; a drafted node is previewed and pasted by the author. Proposals are diffs the author applies.
 
 ## 8. Context economy
 
-Read bundles, not directories. A bundle is complete by construction. Use
+Read a key's closure, not directories. It is complete by construction. Use
 `loom search` to find ids and `loom status --json` for the quilt's state.
 Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`.
-When you need a cited result, its digest node's statement is in the bundle;
+When you need a cited result, its digest node's statement is in the closure;
 if there is no digest, say so and propose an ingest.
 
 ## 9. What you never do
@@ -161,6 +166,6 @@ anything. Never claim a result is proved when a step is missing; mark it
 ## 10. When you are done
 
 Update `thread.md`, list your outputs, and tell the author which ones are
-drafts to promote, which are diffs to apply, and which annotations need
+drafted nodes to paste, which are diffs to apply, and which annotations need
 their decision.
 ```

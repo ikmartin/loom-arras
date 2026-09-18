@@ -242,12 +242,20 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "anchored": true,
   "detached": false,
   "quote": "the inclusion is open by the rigidity lemma",
-  "record": "ai/runs/2026-09-16T14-02-referee/annotations.json",
+  "severity": "major",
+  "payload": "\\begin{lemma}\\label{rl-0021}...",
+  "placement": "after",
+  "run": "ai/runs/2026-09-16T14-02-referee",
+  "record": "ai/runs/2026-09-16T14-02-referee",
   "discarded": false
 }
 ```
 
 `body_html` is the Markdown body rendered by the publisher into the dialect's inline subset.
+
+**[decided]** `severity` grades the fault a finding names — `major`, `moderate`, `minor` — and is null where the annotation names no fault. It is unrelated to a diagnostic's `severity`, which grades a message. `payload` is text the annotation proposes and `placement` (`replace`, `after`, `before`) is a hint for where a viewer shows it relative to the anchor; a viewer previews a payload and never applies one.
+
+**[decided]** `run` is the run or comment session the annotation belongs to, and is the key a viewer groups by. `record` carries the same string and is deprecated: it once named the file an annotation lived in, and annotations now live in one append-only log per corpus, so a path would name the same file for every one of them. A viewer that treated `record` as an opaque grouping key needs no change.
 
 ## 10. Threads
 
@@ -266,16 +274,16 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
      "body_html": "<p>Refereed rl-0004; three objections.</p>"}
   ],
   "attachments": [
-    {"name": "bundle-rl-0004.tex", "kind": "bundle", "path": "ai/runs/.../bundle-rl-0004.tex"},
+    {"name": "referee-rl-0004.notes.md", "kind": "notes", "path": "ai/runs/.../referee-rl-0004.notes.md"},
     {"name": "draft-rl-0019.tex", "kind": "draft", "path": "..."},
     {"name": "referee-rl-0004.annotations", "kind": "annotations", "count": 3}
   ],
-  "log": [{"time": "...", "command": "loom bundle rl-0004"}],
+  "log": [{"time": "...", "command": "loom source rl-0004 --closure"}],
   "discarded": false
 }
 ```
 
-`messages` comes from `thread.md` (rendered) or, later, from the write API; `log` from `run.log`. As published by loom (M6): every run under `ai/runs/` is a thread of `kind` `run` with `path` (the run directory), `title` from the first heading of `thread.md` or the slug, `participants` from `run.toml`'s agent and the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `bundle`, `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`; every comment session under `comments/` is a thread of `kind` `comments` whose messages are its annotations. Each thread also has a `search` entry with `kind` `thread`.
+`messages` comes from `thread.md` (rendered) or, later, from the write API; `log` from `run.log`. As published by loom (M6): every run under `ai/runs/` is a thread of `kind` `run` with `path` (the run directory), `title` from the first heading of `thread.md` or the run's name, `participants` from the run's name and the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`; every comment session — one author on one day, replayed from the annotation log — is a thread of `kind` `comments` whose messages are its annotations. Each thread also has a `search` entry with `kind` `thread`.
 
 ## 11. Diagnostics
 

@@ -15,7 +15,7 @@ The author chose preview-and-copy on 2026-09-17 for exactly its intentionality. 
 Three pieces, in order:
 
 1. `loom suggest show <annotation>` prints the payload as a patch against the target's current text, refusing when the annotation's hash no longer matches — the stronger form of `git apply --check`. Loom never applies it.
-2. `loom bundle KEY --with <annotation>` compiles the node as if the suggestion were taken: the existing `--with` preview generalised from a proposal diff to a payload with a placement.
+2. `loom compile KEY --with <annotation>` compiles the node as if the suggestion were taken: the existing `--with` preview generalised from a proposal diff to a payload with a placement; `payload` and `placement` landed in 0.10 (DR-147), so this item's inputs now exist.
 3. Proposals as editor code actions: the language server returns a `WorkspaceEdit` carrying the hash it was written against, marked `needsConfirmation` so VS Code previews it; loom-nvim shows the diff itself. Promoting a draft node is a `CreateFile` edit. Then hand-offs between arras and the editor (`vscode://file/PATH:LINE`; `nvim --listen` and `--remote`), and the AI commands in the editor clients.
 
 Accepting a suggestion resolves its annotation as applied with the resulting hash, so the next stamp or canonize records what changed and why.
@@ -26,4 +26,4 @@ Accepting a suggestion resolves its annotation as applied with the resulting has
 
 ## Related
 
-[WQ-23](WQ-23-agent-review.md), whose build order this is; [WQ-26](WQ-26-annotation-surfaces.md).
+[WQ-23](WQ-23-agent-review.md), whose build order this is; [[WQ-26]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), which builds the surfaces a suggestion is applied from.

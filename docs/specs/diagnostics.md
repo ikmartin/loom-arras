@@ -81,7 +81,7 @@ Review:
 - `loom:retired-ledger-key` (info): a ledger row whose key no longer exists.
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
-- `loom:foreign-annotations` (warning): a file in a record location (`comments/*/*.json`, `ai/runs/*/annotations.json`) that is not a valid schema-1 annotations file (book 11.6).
+- `loom:foreign-annotations` (warning): a line of `annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads (book 7.4.1).
 - `loom:agent-wrote-outside-run` (error): reported by `loom ai check`: a file outside the run, `comments/`, and `build/` changed after the run started (book 11.8).
 
 References and digests:

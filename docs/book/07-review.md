@@ -75,14 +75,15 @@ snapshots: 5 written, 2 already present
 
 ## 7.4 Review records
 
-### 7.4.1 Files
+### 7.4.1 The log
 
-**[decided]** A review record is a JSON file named `annotations.json` in one of two places:
+**[decided]** Every review event is one line of `annotations/log.jsonl` at the quilt root, appended and never rewritten. A *record* is what replay produces: one run's or one author's annotations as they now stand. There is no file per run and none per author; a line that cannot be read is reported as `loom:foreign-annotations` (warning) and skipped, and the rest of the log still loads.
 
-- `ai/runs/<run>/annotations.json` for annotations written inside a run (author is the run);
-- `comments/<author-slug>/<YYYY-MM-DD>.json` for annotations by a person, one file per author per day; the slug is the name lowercased with every run of other characters replaced by a hyphen.
+**[decided]** The events are `created`, `replied`, `edited`, `resolved` and `discarded`, and an annotation's current state is their replay. `edited` supersedes a body: the earlier one stays in the log, one current body is shown. That is what lets a re-check restate a finding that still stands instead of replying to itself, which is how a single finding used to end up wearing one copy per pass.
 
-Both are written only by `loom comment`. The scanner finds them by these paths; nothing else is a review record, and a file at one of these paths that is not a schema-1 record is reported as `loom:foreign-annotations` (warning) and ignored. **[decided]** The directory names are part of the contract: `comments/` and `ai/runs/` are the two places, so the core model depends on the file schema, not on the AI layer's existence.
+**[decided]** `run` and `author` are separate columns, so "everything from this run" and "everything any agent said about `rl-0002`" are both filters rather than string parsing. A run's record is keyed by its directory; a person's by `comments/<author-slug>/<YYYY-MM-DD>`, because "what the author said on the 16th" is a session a reader looks for where everything one person has ever written is not. The slug is the name lowercased with every run of other characters replaced by a hyphen.
+
+**[decided]** Two people appending in parallel merge as two lines, which is why this is JSONL and not a database, and the reason the log is written by `loom comment` and `loom refs note` alone.
 
 ### 7.4.2 Schema
 
@@ -118,11 +119,13 @@ Fields:
 - `author.kind`: `run` or `person`; `author.id`: the run directory name or the person's name.
 - `target.key`: a key, an equation's qualified key, or a master path (7.5.4). `target.hash`: the hash of the target's own text when the annotation was written.
 - `selector`: null for an annotation on the whole target; otherwise the text-quote selector (7.5).
-- `kind`: `objection`, `suggestion`, `question`, `ok`.
+- `kind`: `objection`, `suggestion`, `question`, `ok`, `citation`.
 - `body`: Markdown; the manifest carries it rendered as CommonMark.
-- `status`: `open` or `resolved`.
+- `severity`: **[decided]** `major`, `moderate` or `minor`, grading the *fault a finding names* rather than the enthusiasm of the suggestion — a grammar note is minor because the fault is small. Required by review mode, where every item is grouped by it; optional elsewhere, and absent where nothing is wrong.
+- `payload`: **[decided]** text the annotation proposes — a proof, a paragraph, a rewritten passage — with `placement` (`replace`, `after`, `before`) as a hint for where a viewer shows it relative to the anchor. Everything is preview and copy: the author reads it and pastes it where they decide, and nothing in loom applies one.
+- `status`: `open`, `resolved` or `discarded`.
 - `in_reply_to`: an annotation id or null.
-- `discarded` at file level: set by `loom ai discard` on run records and by the same command on comment sessions; a discarded file's annotations are hidden everywhere.
+- `discarded`: **[decided]** an event, set by `loom ai discard` against a whole run or session, or against one annotation; a discarded record's annotations are hidden everywhere. Nothing is deleted and `--undo` reverses it.
 
 ### 7.4.3 `loom comment`
 
@@ -131,7 +134,8 @@ Fields:
 1. `TARGET` is a key, an equation's qualified key, or a master path. It must exist.
 2. `--quote TEXT`: the annotation anchors to `TEXT`, which must occur exactly once in the target's own text (whitespace-normalized). Zero occurrences: exit 1 with "quote not found in TARGET". More than one: exit 1 with "quote is ambiguous (n occurrences); give a longer quote". Loom extracts prefix and suffix itself, **[decided]** 32 characters each, clipped at the target's boundaries (settled at M3).
 3. `--kind` defaults to `objection` when a message is given and to `ok` when none is; `ok` records that the author read the target and found nothing, and may carry a message.
-4. `--run DIR`: author is the run, named by its directory; the record is `DIR/annotations.json`; the command is also appended to `DIR/run.log`. `--run` defaults from `LOOM_RUN`, so an agent inside a run need not pass it. Otherwise `--author NAME` or the resolution order of 4.3; the record is `comments/<author-slug>/<date>.json`. `--run` and `--author` together are refused.
+4. `--run RUN`: author is the run, named by its directory; the command is also appended to `RUN/run.log`. **[decided]** `RUN` is a run's name, a prefix of one, or its path, resolved as 11.4 describes, and defaults from `LOOM_RUN` so an agent inside a run need not pass it. Otherwise `--author NAME` or the resolution order of 4.3. `--run` and `--author` together are refused.
+5. **[decided]** `--edit ID` supersedes an annotation's body, and is what a re-check uses on a finding that still stands. A reply is dialogue; an edit is restatement. `--severity`, `--payload` and `--placement` carry the fields of 7.4.2.
 5. `--reply ID`: `in_reply_to` set; `target`, its hash, and the selector are copied from the parent, so the reply is anchored where the parent is; the kind defaults to `question`; no `TARGET` is needed.
 6. `--resolve ID`: sets the parent's `status` to `resolved` and, if a message is given, records it as a reply with status `resolved` (kind `ok` unless given). **[decided]** Resolution is an edit to an existing annotation's `status` field, the one field loom rewrites in place; it is loom's file.
 7. `--batch`: read JSON lines from stdin, each an object with the keys `target`, `message`, `quote`, `kind`, `reply`, `resolve`, so an agent can write many comments in one process; all go into the same record, and an error names its line number.
@@ -221,7 +225,7 @@ sy-0002/proof (Proof)  accepted, stale   dependency-changed sy-0001 (2026-09-16)
 
 ## 7.8 Discard
 
-**[decided]** `loom ai discard RUN` sets `discarded = true` in `RUN/annotations.json` (and in `RUN/run.toml` when present, Chapter 11); every annotation in it disappears from the panel, the margins, and every count; the directory remains. `--before DATE` (records whose earliest annotation predates the date), `--author NAME`, `--target KEY` discard every run or comment session matching; `--undo` reverses. Comment sessions are discarded the same way, by path (`loom ai discard comments/tom/2026-09-16.json`). Discard is a flag, never a deletion, and never touches the ledger.
+**[decided]** `loom ai discard RUN` appends a `discarded` event naming the run (and sets `discarded = true` in `RUN/run.toml` when present, Chapter 11); every annotation in it disappears from the panel, the margins, and every count; the directory remains. `--before DATE` (records whose earliest annotation predates the date), `--author NAME`, `--target KEY` discard every run or comment session matching; `--undo` reverses. Comment sessions are discarded the same way, by `--author`. Discard is a flag, never a deletion, and never touches the ledger.
 
 Two further defences against garbage: annotations carry kinds, and the panel filters by kind; and no annotation creates an obligation, since states never depend on annotation counts.
 
@@ -245,7 +249,7 @@ Two further defences against garbage: annotations carry kinds, and the panel fil
 
 Day 1. The author writes `nodes/rl-0004.tex`, a lemma with its proof. `status`: both keys `draft`, never reviewed.
 
-Day 1. `loom ai start referee-rl-0004`; in the run, the agent runs `loom bundle rl-0004`, reads it, and issues three `loom comment --run ...` calls: one objection on a hypothesis in the statement, two on the proof. `status`: statement `draft, 1 open objection (run, today)`; proof `draft, 2 open objections`. The node page shows three margin marks.
+Day 1. `loom ai start referee-rl-0004`; in the run, the agent runs `loom source rl-0004 --closure`, reads it, and issues three `loom comment --run ...` calls: one objection on a hypothesis in the statement, two on the proof. `status`: statement `draft, 1 open objection (run, today)`; proof `draft, 2 open objections`. The node page shows three margin marks.
 
 Day 2. The author fixes the proof. Its hash changes; the two proof annotations no longer find their quotes and show as detached. The author asks the agent to look again; it issues `loom comment rl-0004/proof --kind ok --run ...`. `status`: proof `draft, reviewed clean (run, today), 2 detached`.
 

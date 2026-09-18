@@ -67,7 +67,7 @@ All entries are **[decided]** unless marked.
 - ledger : `.loom/state.toml`. Holds acceptance rows and nothing else. Written only by `loom accept`. Never edited.
 - acceptance row : one entry in the ledger: key, author, date, hash of the key's text, hashes of the closure's statements and the preamble closure, references to snapshots.
 - snapshot : the normalized text of a key or preamble at the time of an acceptance, stored content-addressed under `.loom/history/texts/`, the same store the versions use. What lets a stale acceptance be explained with a diff.
-- review record : an `annotations.json` file under a run directory or a comments directory, written only by `loom comment`. Contains annotations.
+- review record : one run's or one author's annotations as they now stand, replayed from `annotations/log.jsonl`. Not a file: the log is the only store, written only by `loom comment` and `loom refs note`.
 - annotation : one comment: id, author (person or run), target key, target hash, selector, kind, body, status, reply-to.
 - selector : the text-quote selector: the exact quoted text with prefix and suffix context, resolved within the target's own text.
 - detached : an annotation whose selector no longer matches its target's current text.
@@ -106,7 +106,7 @@ All entries are **[decided]** unless marked.
 
 - orientation document : `ai/orientation.md`, the file that tells an agent what a quilt is and how to work in it. Printed with live state by `loom ai orient`.
 - run : one chat thread with an agent; one directory under `ai/runs/`. Re-enterable. Not tied to a mode.
-- mode : one of the review procedures (audit, referee, simplify, question, quick, draft, ingest) as a prompt template with input and output contracts, under `ai/modes/`.
+- mode : one of the review procedures (audit, referee, review, simplify, question, quick, draft, ingest, brainstorm) as a prompt template with input and output contracts, under `ai/modes/`.
 - application : one use of a mode on one target inside a run, producing named output files in the run directory.
 - `run.log` : automatic log of every loom command invoked with `--run`, in the run directory.
 - `thread.md` : voluntary journal the agent appends to, in the run directory.

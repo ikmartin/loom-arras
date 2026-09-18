@@ -27,8 +27,7 @@ ai/
       run.toml             created, slug, discarded, agent (when one is configured), agent session id if known
       run.log              every loom command invoked with --run (automatic)
       thread.md            the agent's journal (requested)
-      annotations.json     written by loom comment --run
-      bundle-rl-0004.tex   copied by loom bundle --run (gitignored: regenerable)
+      (annotations go to annotations/log.jsonl at the quilt root)
       plan-rl-0019.md      the author's plan for a draft
       referee-rl-0004.notes.md
       referee-rl-0004.check.py
@@ -57,13 +56,13 @@ AGENTS.md                  generated at the quilt root; see 11.3
 
 **[decided]**
 
-1. A run is a directory under `ai/runs/`, created by `loom ai start [SLUG] [--no-launch]`, named `<timestamp>-<slug>` (with a counter suffix if that name exists); `SLUG` defaults to `run`. `loom ai start` writes `run.toml` and prints the path. If `[ai] agent` is set in `config.toml`, it then launches that command in the quilt root with `LOOM_RUN` set to the run's path and a one-sentence prompt naming `loom ai orient --run RUN` and the run directory as the only place to write files; the agent reads the orientation and the live state through that command, which keeps them current rather than frozen at launch (DR-72). `--no-launch` creates the run without launching. A configured command that is not on `PATH` is refused with the command named, the run having been created (M6).
+1. A run is a directory under `ai/runs/`, created by `loom ai start "NAME"`, named `<timestamp>-<slug>` with the slug derived from the name and truncated to 48 characters (a counter suffix if that name exists). `run.toml` records exactly what nothing can derive: `created`, `name` and `discarded`. **[decided]** The name is the author's own words, holds spaces, and is mutable with `loom ai name`; the directory keeps the name it was created under, because that is its address. **[decided]** Loom does not launch the agent. `loom ai init` writes the one line in `CLAUDE.md` and `AGENTS.md` that tells an agent to run `loom ai orient`, so a session starts by typing the agent's own command, and `loom ai start` is what the agent runs when the author asks it to begin a run. Launching it from loom meant owning a vendor's argv convention and holding the process tree for a whole session, which is the runner declined as WQ-15 in miniature (DR-149, retiring DR-72).
 2. A run is one chat thread with an agent and nothing more. It has no mode, no state, no lifecycle. Modes are applied inside it, any number, in any order.
 3. Everything the run produces lives in its directory, named by mode and target: `referee-rl-0004.notes.md`, `draft-rl-0019.tex`, `proposal-rl-0004.diff`, `ingest-Man12.tex`.
 4. `run.log` is written by loom: every command invoked with `--run DIR` (`LOOM_RUN` is the default) appends a line, time then command; `bundle`, `comment`, `status`, `search`, `deps`, `unravel`, `lint`, `ai orient`, and `ai promote` log themselves (M6). `thread.md` is written by the agent: a dated entry per significant exchange (what was asked, what it did, what it decided, what remains). The orientation document asks for `thread.md`; loom guarantees `run.log`.
-5. `loom ai orient --run RUN` reopens a run for a new session; `run.toml` records the agent's name when one is configured (DR-72) and may record the agent's own session identifier so the thread can be resumed in the agent as well.
+5. **[decided]** `loom ai orient --run RUN` reopens a run for a new session: it prints the orientation, the live state, and that run's `thread.md` and `run.log`, which is the scrollback a later session resumes from. There is no separate attach command, because that is what attaching is. `RUN` is a run's name, a prefix of one, or its path; an ambiguous prefix names its matches and refuses rather than guessing, as `refs resolve` does with candidates. **[decided]** `loom ai runs [--all]` lists them as `YYYY-MM-DD: name`, undiscarded by default, and `loom ai findings --run RUN` prints what a run has annotated, which is what a re-check needs in order to resolve and edit its own findings by id.
 6. Discard (7.8) marks the run's records ignored without deleting anything.
-7. Runs publish as threads in the manifest (specs/manifest.md §10): every run under `ai/runs/` becomes a thread with `thread.md` rendered as messages (one per `##` heading, dated from the heading when it carries a date, the text before the first heading as an opening message), `run.log` as the log, attachments by file name and kind, participants from `run.toml`'s agent and the annotations' authors, and targets from the annotations; every comment session under `comments/` is a thread too, its annotations as messages. Each thread has a search entry (M6).
+7. Runs publish as threads in the manifest (specs/manifest.md §10): every run under `ai/runs/` becomes a thread with `thread.md` rendered as messages (one per `##` heading, dated from the heading when it carries a date, the text before the first heading as an opening message), `run.log` as the log, attachments by file name and kind, participants from the run's name and the annotations' authors, and targets from the annotations; every comment session under `comments/` is a thread too, its annotations as messages. Each thread has a search entry (M6).
 
 ## 11.5 Modes
 
@@ -71,30 +70,31 @@ A mode is a prompt template in `ai/modes/` with an input contract (what loom han
 
 **[decided]** The modes, their inputs, and their outputs:
 
-| mode | purpose | input (via `loom bundle KEY --run DIR` and context) | required output in the run |
+| mode | purpose | input (via `loom source KEY --closure --run RUN` and context) | required output in the run |
 |---|---|---|---|
-| audit | load-bearing audit: hypothesis ledger, citation ledger, self-containedness, sharpenings, uses-ledger | bundle; ledger states of the closure; digest entries for cited results | `audit-<key>.notes.md` with the ledgers; annotations via `loom comment --run` for each finding |
-| referee | hostile review: gaps, worked examples, counterexamples, verdict | bundle; same context | `referee-<key>.notes.md`; annotations via `loom comment --run` |
-| simplify | shorter text with identical mathematics | bundle | `proposal-<key>.diff` (unified diff against the node file) plus `simplify-<key>.notes.md` listing each change with its license |
-| question | answer a question about a key or the quilt | bundle or `status --json` | `question-<slug>.md` |
-| quick | brief answer, brevity first | as question | `quick-<slug>.md` |
-| draft | write a complete node from a plan the author supplies | the plan, the closure statements (`loom bundle` of the intended dependencies), the skeleton from `loom new --print` | `draft-<id>.tex`, a complete node file obeying the source contract |
+| audit | load-bearing audit: hypothesis ledger, citation ledger, self-containedness, sharpenings, uses-ledger | the closure; ledger states of the closure; digest entries for cited results | `audit-<key>.notes.md` with the ledgers; annotations via `loom comment --run` for each finding |
+| referee | hostile review: gaps, worked examples, counterexamples, verdict | the closure; same context | `referee-<key>.notes.md`; annotations via `loom comment --run` |
+| review | a referee reading to improve rather than reject: citations, hypotheses, errors, wording, each finding graded by severity | the closure; same context | `review-<key>.notes.md`; annotations with `--severity`, and `--payload` where text is proposed |
+| simplify | shorter text with identical mathematics | the closure | `proposal-<key>.diff` (unified diff against the node file) plus `simplify-<key>.notes.md` listing each change with its license |
+| question | answer a question about a key or the quilt | the closure or `status --json` | `question-<slug>.md` |
+| quick | a short, durable answer: worth re-reading in a week, not worth a document | as question | `quick-<slug>.notes.md`, `[answer]` alone |
+| draft | write a complete node from a plan the author supplies | the plan, the closure statements (`loom source --closure` of the intended dependencies), the skeleton from `loom new --print` | `draft-<id>.tex`, a complete node file obeying the source contract |
 | ingest | produce or complete a digest | the work's PDF, which `loom refs path CITEKEY --pdf` locates (or its text), or an extracted digest to complete, plus the digest chapter's format | `ingest-<citekey>.tex` (a complete digest) or `proposal-<citekey>.diff` |
-| brainstorm | explore a topic before anything is proved: make the author's idea precise, compute small cases, search the digests, record what was tried | `status --json`, `search --json`, bundles of the definitions the topic touches, digest overviews, the outline master via `assemble` | `brainstorm-<slug>.notes.md` with `[summary]`, `[candidates]`, `[dead-ends]`, `[known-results]`, `[open-questions]`; `draft-cand-*.tex` per candidate; `brainstorm-<slug>.check.py` |
+| brainstorm | explore a topic before anything is proved: make the author's idea precise, compute small cases, search the digests, record what was tried | `status --json`, `search --json`, the closures of the definitions the topic touches, digest overviews, the outline master via `assemble` | `brainstorm-<slug>.notes.md` with `[summary]`, `[candidates]`, `[dead-ends]`, `[known-results]`, `[open-questions]`; `draft-cand-*.tex` per candidate; `brainstorm-<slug>.check.py` |
 
 Rules common to every mode:
 
-1. **[decided]** The agent obtains context through loom commands, not by reading directories wholesale: `loom bundle` for a key, `loom status --json` for the quilt, `loom search` for ids, `loom deps` and `loom unravel` for the graph. The orientation document says so.
+1. **[decided]** The agent obtains context through loom commands, not by reading directories wholesale: `loom source KEY --closure` for a key, `loom status --json` for the quilt, `loom search` for ids, `loom deps` and `loom unravel` for the graph. The orientation document says so.
 2. **[decided]** Review findings are annotations, one `loom comment --run` call per finding (or one `--batch`), anchored by `--quote` to the sentence they concern; the notes file summarizes. This is the mode's output contract, and it is what makes findings appear in the margin.
 3. **[decided]** The audit mode's uses-ledger: for each proof, list facts the argument invokes that no `\ref`, `\uses`, or matched citation names (candidates for `\uses` entries or new nodes), and `\uses` entries the argument never consumes. Each is an annotation anchored to the invoking sentence.
 4. **[decided]** Nothing a mode produces is applied. A digest is promoted by a person and a drafted node is pasted by one (11.7); proposals are applied by a person with their own tools.
 5. **[decided]** Every mode file begins with a "Before you begin" block stating the write policy, every notes file begins with a `[summary]` block, and every mode file ends with the output contract as a checklist the agent copies into the notes and ticks.
-6. **[decided]** Proposals and drafts are compiled before promotion with `loom bundle KEY --with FILE` and `loom bundle --draft FILE` (12.5); a mode that produces LaTeX reports the compile result in its notes.
+6. **[decided]** Proposals and drafts are compiled before promotion with `loom compile KEY --with FILE` and `loom compile --draft FILE` (12.5); a mode that produces LaTeX reports the compile result in its notes.
 7. **[decided]** An agent that needs a whole master in context uses `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`; masters are not keys and `bundle` does not apply to them.
 
 ## 11.6 Comments from agents
 
-**[decided]** `loom comment TARGET "message" --quote TEXT --kind KIND --run DIR` is the only way an agent records a finding. Loom computes the anchor, records the target hash, writes `DIR/annotations.json` with the run as the author, and appends to `run.log`. An agent never writes `annotations.json` by hand; a hand-written file is not a review record (`loom lint` and `loom check` report `loom:foreign-annotations`, warning, for a file in the record locations that fails validation, **[decided]** DR-52 and DR-61). `--batch` reads JSON lines (`target`, `message`, `quote`, `kind`, `reply`, `resolve`) from stdin so forty findings are one process.
+**[decided]** `loom comment TARGET "message" --quote TEXT --kind KIND --run DIR` is the only way an agent records a finding. Loom computes the anchor, records the target hash, appends a `created` event to `annotations/log.jsonl` with the run as the author, and appends to `run.log`. An agent never writes the log by hand; a hand-written line is not a review record (`loom lint` and `loom check` report `loom:foreign-annotations`, warning, for a file in the record locations that fails validation, **[decided]** DR-52 and DR-61). `--batch` reads JSON lines (`target`, `message`, `quote`, `kind`, `reply`, `resolve`, `severity`, `payload`, `placement`) from stdin so forty findings are one process.
 
 An agent may `--resolve` its own earlier annotations after a re-check, and may reply to a person's.
 
@@ -123,12 +123,10 @@ After any run, `loom ai check RUN` (**[decided]** a command of its own, M6) repo
 ## 11.11 An example session
 
 ```
-$ loom ai start referee-rl-0004
-ai/runs/2026-09-16T14-02-referee-rl-0004
-(launching: claude)
+$ claude
 ```
 
-In the agent: it runs `loom ai orient --run ai/runs/2026-09-16T14-02-referee-rl-0004`, reads the orientation and the status summary, sees `rl-0004` is draft and never reviewed, and is asked to referee it. It runs `loom bundle rl-0004 --run ...`, reads `bundle-rl-0004.tex`, applies the referee template, and issues:
+The agent reads `CLAUDE.md`, whose one line tells it to run `loom ai orient`. That prints the orientation, the quilt's live state and the open runs. The author asks for a referee pass on `rl-0004`, so the agent runs `loom ai start "Referee of rl-0004"` and works in the directory that prints; from the live state it sees `rl-0004` is draft and never reviewed. It runs `loom source rl-0004 --closure --run ...`, reads it, applies the referee template, and issues:
 
 ```
 loom comment rl-0004 "The hypothesis 'quasi-compact' is not stated; rl-0002 assumes it." \

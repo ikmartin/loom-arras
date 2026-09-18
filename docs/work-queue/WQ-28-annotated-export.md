@@ -8,7 +8,7 @@ A review has to reach someone who cannot run arras — a coauthor or a referee r
 
 ## Why deferred
 
-The author's review mode grew out of a chat pattern that produced a LaTeX/PDF pair with criticisms inlined in red. In loom the durable form is annotations on the text, and arras renders them live, which the author prefers; the compiled pair was declined as a run artifact on 2026-09-17. Some readers will want it, and it is cheap once the annotations carry severity and payloads.
+The author's review mode grew out of a chat pattern that produced a LaTeX/PDF pair with criticisms inlined in red. In loom the durable form is annotations on the text, and arras renders them live, which the author prefers; the compiled pair was declined as a run artifact on 2026-09-17. Some readers will want it, and it is cheap now that annotations carry severity and payloads (0.10, DR-147).
 
 ## Rough design
 
@@ -20,4 +20,4 @@ The author's review mode grew out of a chat pattern that produced a LaTeX/PDF pa
 
 ## Related
 
-[WQ-26](WQ-26-annotation-surfaces.md); the review mode of plan 0.10.
+[[WQ-26]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)); the review mode of plan 0.10.
