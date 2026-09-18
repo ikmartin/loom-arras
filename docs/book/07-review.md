@@ -137,13 +137,13 @@ Fields:
 
 1. `TARGET` is a key, an equation's qualified key, or a master path. It must exist.
 2. `--quote TEXT`: the annotation anchors to `TEXT`, which must occur exactly once in the target's own text (whitespace-normalized). Zero occurrences: exit 1 with "quote not found in TARGET". More than one: exit 1 with "quote is ambiguous (n occurrences); give a longer quote". Loom extracts prefix and suffix itself, **[decided]** 32 characters each, clipped at the target's boundaries (settled at M3).
-3. `--kind` defaults to `objection` when a message is given and to `ok` when none is; `ok` records that the author read the target and found nothing, and may carry a message.
+3. `--kind` defaults to `objection` when a message is given and to `ok` when none is; `ok` records that the author read the target and found nothing, and may carry a message. **[decided]** `--severity` with `--kind ok` is refused: severity grades a fault and `ok` names none, so the pair says two contradictory things and was being stored as though it said one (DR-169).
 4. `--run RUN`: author is the run, named by its directory; the command is also appended to `RUN/run.log`. **[decided]** `RUN` is a run's name, a prefix of one, or its path, resolved as 11.4 describes, and defaults from `LOOM_RUN` so an agent inside a run need not pass it. Otherwise `--author NAME` or the resolution order of 4.3. `--run` and `--author` together are refused.
 5. **[decided]** `--edit ID` supersedes an annotation's body, and is what a re-check uses on a finding that still stands. A reply is dialogue; an edit is restatement. `--severity`, `--payload` and `--placement` carry the fields of 7.4.2.
-5. `--reply ID`: `in_reply_to` set; `target`, its hash, and the selector are copied from the parent, so the reply is anchored where the parent is; the kind defaults to `question`; no `TARGET` is needed.
-6. `--resolve ID`: sets the parent's `status` to `resolved` and, if a message is given, records it as a reply with status `resolved` (kind `ok` unless given). **[decided]** Resolution is an edit to an existing annotation's `status` field, the one field loom rewrites in place; it is loom's file.
-7. `--batch`: read JSON lines from stdin, each an object with the keys `target`, `message`, `quote`, `kind`, `reply`, `resolve`, so an agent can write many comments in one process; all go into the same record, and an error names its line number.
-8. Every annotation records `target.hash` at the moment of writing.
+6. `--reply ID`: `in_reply_to` set; `target`, its hash, and the selector are copied from the parent, so the reply is anchored where the parent is; the kind defaults to `question`; no `TARGET` is needed.
+7. `--resolve ID`: sets the parent's `status` to `resolved` and, if a message is given, records it as a reply with status `resolved` (kind `ok` unless given). **[decided]** Resolution is an edit to an existing annotation's `status` field, the one field loom rewrites in place; it is loom's file.
+8. `--batch`: read JSON lines from stdin, one annotation or one change per line, so an agent can write a whole pass in one process; an error names its line number. **[decided]** The accepted keys are `target`, `message`, `quote`, `kind`, `reply`, `resolve`, `edit`, `discard`, `severity`, `payload` and `placement`, and **an unknown key is an error** (DR-169) — a batch is written by a program that cannot see the result, so a misspelled `messsage` that silently files an empty annotation is a fault its writer never learns about. A line carries at most one of `reply`, `resolve`, `edit` and `discard`; two is an error naming both.
+9. Every annotation records `target.hash` at the moment of writing.
 
 Examples:
 
