@@ -397,6 +397,12 @@ class Records:
                 "anchored": a.selector is not None and not res.detached,
                 "detached": res.detached,
                 "quote": a.selector.exact if a.selector else None,
+                "severity": a.severity,
+                "payload": a.payload,
+                "placement": a.placement,
+                # the run or comment session this belongs to; with one log it is the grouping key a viewer needs,
+                # which a file path no longer is
+                "run": res.record.rel,
                 "record": res.record.rel,
                 "discarded": res.record.discarded,
             }
