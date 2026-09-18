@@ -159,8 +159,11 @@ def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
             assert text.startswith("# Blocks and standing rules") and "## Never" in text
             continue
         assert text.startswith(f"# Mode: {mode}\n\n## Before you begin\n")
-        assert "$LOOM_RUN" in text and "## Checklist" in text
-        assert re.search(r"^- \[ \] Nothing was written outside `\$LOOM_RUN`\.", text, re.M)
+        assert "## Checklist" in text
+        # the write policy is stated in every template, so a mode read without the orientation still carries it.
+        # It says "your run directory" rather than $LOOM_RUN: nothing sets that variable since the launcher went.
+        assert re.search(r"^- \[ \] Nothing was written outside your run directory\.", text, re.M)
+        assert "$LOOM_RUN" not in text  # nothing sets it; blocks.md is the one file that explains that
         if mode not in ("quick",):
             assert "## Output" in text and "thread.md" in text
 
