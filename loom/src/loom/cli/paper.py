@@ -11,7 +11,7 @@ import click
 
 from loom.cli._common import EXIT_CONTENT, EXIT_USAGE, ContentError, EnvError, emit_json, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
-from loom.cli.build_cmds import engine_for
+from loom.cli.build_cmds import engine_for, log_run
 from loom.history.ledger import actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, text_hash, write_step
 from loom.reshape.anchoring import anchoring_violations
@@ -37,6 +37,7 @@ from loom.tex.identity import IdentityResult, identity_test
 @click.option("--prefix", default=None)
 @click.option("--next", "next_only", is_flag=True, help="Print the next free id and nothing else; inserts nothing.")
 @click.option("--json", "as_json", is_flag=True, help="With --next: print it as JSON.")
+@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="Log this call to the run.")
 @quilt_option
 @click.pass_context
 def id_command(
@@ -48,11 +49,13 @@ def id_command(
     prefix: str | None,
     next_only: bool,
     as_json: bool,
+    run_dir: str | None,
     quilt_path: str | None,
 ) -> None:
     """Print a patch (or write a copy with --to) inserting \\label{<id>} on every untagged theorem-like environment and section in FILE, or with --next the next free id. Never modifies FILE."""
     result = open_scan(quilt_path)
     root = result.quilt.root
+    log_run(run_dir, "loom id" + (" --next" if next_only else f" {file}" if file else ""), root)
     pre_next = prefix or result.quilt.config.prefix
     if next_only:
         allocated = f"{pre_next}-{next_local(visible_locals(result, pre_next))}"

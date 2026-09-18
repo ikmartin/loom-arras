@@ -232,6 +232,8 @@ def _one_comment(
         raise EnvError(f"kind must be one of {', '.join(KINDS)}")
     if severity is not None and severity not in SEVERITIES:
         raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
+    if severity is not None and kind == "ok":
+        raise EnvError("--severity grades a fault and --kind ok names none; drop one of them")
     if placement is not None and placement not in PLACEMENTS:
         raise EnvError(f"placement must be one of {', '.join(PLACEMENTS)}")
     if placement and not payload:
@@ -296,6 +298,60 @@ def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str]
     return f"edited {ann_id}"
 
 
+BATCH_KEYS = (
+    "target",
+    "message",
+    "quote",
+    "kind",
+    "reply",
+    "resolve",
+    "edit",
+    "discard",
+    "severity",
+    "payload",
+    "placement",
+)
+BATCH_VERBS = ("reply", "resolve", "edit", "discard")
+
+
+def _batch_line(result: ScanResult, writer: tuple[str | None, str, str], item: dict[str, Any]) -> str:
+    """One line of `--batch`: a new annotation, or one change to an existing one, named by exactly one verb.
+
+    An unknown key is refused rather than ignored. A batch is written by a program that cannot see the result, so a misspelled `messsage` that silently files an empty annotation is a fault the writer never learns about — and every verb `loom comment` has on the command line is available here, so there is no reason to fall back to one call per change.
+    """
+    unknown = sorted(set(item) - set(BATCH_KEYS))
+    if unknown:
+        raise EnvError(f"unknown key(s) {', '.join(unknown)}; accepted: {', '.join(BATCH_KEYS)}")
+    verbs = [v for v in BATCH_VERBS if item.get(v)]
+    if len(verbs) > 1:
+        raise EnvError(f"one verb per line; this one gives {' and '.join(verbs)}")
+    root = result.quilt.root
+    if item.get("discard"):
+        return discard_annotation(root, str(item["discard"]), writer, item.get("message"))
+    if item.get("edit"):
+        return edit_annotation(
+            root,
+            str(item["edit"]),
+            writer,
+            body=item.get("message"),
+            severity=item.get("severity"),
+            payload=item.get("payload"),
+        )
+    return _one_comment(
+        result,
+        writer,
+        item.get("target"),
+        item.get("message"),
+        item.get("quote"),
+        item.get("kind"),
+        item.get("reply"),
+        item.get("resolve"),
+        item.get("severity"),
+        item.get("payload"),
+        item.get("placement"),
+    )
+
+
 @click.command()
 @click.argument("target", required=False, default=None)
 @click.argument("message", required=False, default=None)
@@ -333,7 +389,7 @@ def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str]
 @click.option(
     "--batch",
     is_flag=True,
-    help="Read JSON lines from stdin: {target, message, quote, kind, reply, resolve, severity, payload, placement}.",
+    help="Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
 )
 @quilt_option
 def comment(
@@ -375,21 +431,7 @@ def comment(
             except json.JSONDecodeError as exc:
                 raise ContentError(f"batch line {lineno}: {exc}") from exc
             try:
-                click.echo(
-                    _one_comment(
-                        result,
-                        writer,
-                        item.get("target"),
-                        item.get("message"),
-                        item.get("quote"),
-                        item.get("kind"),
-                        item.get("reply"),
-                        item.get("resolve"),
-                        item.get("severity"),
-                        item.get("payload"),
-                        item.get("placement"),
-                    )
-                )
+                click.echo(_batch_line(result, writer, item))
             except (ContentError, EnvError) as exc:
                 raise ContentError(f"batch line {lineno}: {exc.message}") from exc
         return

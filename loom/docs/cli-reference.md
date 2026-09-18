@@ -257,7 +257,7 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 | `--severity` | How bad the fault is, not how keen you are. |
 | `--payload` | Suggested text the author may preview and copy. |
 | `--placement` | Where the payload goes, as a hint. |
-| `--batch` | Read JSON lines from stdin: {target, message, quote, kind, reply, resolve, severity, payload, placement}. |
+| `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom compile`
@@ -271,7 +271,7 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 | option | description |
 |---|---|
 | `--engine` | Override the engine (pdflatex, lualatex, xelatex). |
-| `--with` `FILE` | Substitute a unified diff or a .tex file for KEY's text; the quilt is not touched. |
+| `--with` `FILE` | Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched. |
 | `--draft` `FILE` | Compile a node file not yet in the quilt. |
 | `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -403,6 +403,7 @@ Print a patch (or write a copy with --to) inserting \label{<id>} on every untagg
 | `--prefix` |  |
 | `--next` | Print the next free id and nothing else; inserts nothing. |
 | `--json` | With --next: print it as JSON. |
+| `--run` `RUN` | Log this call to the run. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom import`
@@ -491,6 +492,7 @@ Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
 |---|---|
 | `--prefix` | Allocate under this prefix instead of [quilt] prefix. |
 | `--print` | Print the skeleton without allocating an id or writing a file. |
+| `--run` `RUN` | Log this call to the run. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom refs`

@@ -31,10 +31,26 @@ class CompileResult:
     pdf: Path | None = None
     aux: Path | None = None
     log: Path | None = None
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def first_error(self) -> str:
-        return self.errors[0] if self.errors else (self.stdout.strip().splitlines() or ["latexmk failed"])[-1]
+        """The first `! ` line of the log, which is what LaTeX calls an error; latexmk's closing advice is not one."""
+        if self.errors:
+            return self.errors[0]
+        if self.log is not None:
+            return f"latexmk exited {self.returncode} with no error line in {self.log.name}"
+        return (self.stdout.strip().splitlines() or ["latexmk failed"])[-1]
+
+    @property
+    def usable(self) -> str:
+        """`ok`, `warnings` when a PDF was produced and the log holds no error, or `failed`.
+
+        latexmk exits nonzero on an undefined reference, which produces a perfectly readable PDF. Reporting that as a failure is the difference between a check a reader can act on and one they must ignore, so the middle case is named rather than collapsed into either end.
+        """
+        if self.ok:
+            return "ok"
+        return "warnings" if self.pdf is not None and not self.errors else "failed"
 
 
 def which_latexmk() -> str | None:
@@ -74,9 +90,12 @@ def compile_tex(
         return CompileResult(False, engine, outdir, 124, errors=[f"latexmk timed out after {timeout}s"])
     stem = Path(tex_rel).stem
     log = outdir / f"{stem}.log"
-    errors = []
+    errors: list[str] = []
+    warnings: list[str] = []
     if log.exists():
-        errors = re.findall(r"^! .*$", log.read_text(encoding="utf-8", errors="replace"), re.M)
+        text = log.read_text(encoding="utf-8", errors="replace")
+        errors = re.findall(r"^! .*$", text, re.M)
+        warnings = re.findall(r"^(?:LaTeX|Package \w+|Class \w+) Warning: .*$", text, re.M)
     pdf = outdir / f"{stem}.pdf"
     aux = outdir / f"{stem}.aux"
     ok = proc.returncode == 0 and pdf.exists()
@@ -90,4 +109,5 @@ def compile_tex(
         pdf if pdf.exists() else None,
         aux if aux.exists() else None,
         log if log.exists() else None,
+        warnings,
     )

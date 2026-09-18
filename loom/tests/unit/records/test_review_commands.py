@@ -636,3 +636,42 @@ def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
 
     only_major = json.loads(run("ai", "findings", "--run", run_name, "--severity", "major", "--json", cwd=d).output)
     assert [f["id"] for f in only_major["findings"]] == [live[0]["id"]]
+
+
+def test_batch_refuses_an_unknown_key(tmp_path: Path) -> None:
+    """A batch is written by a program that cannot see the result, so a misspelled key must not file an empty annotation."""
+    d = demo(tmp_path)
+    line = json.dumps({"target": "dm-0002", "messsage": "typo"})
+    r = run("comment", "--batch", *AUTHOR, cwd=d, stdin=line + "\n")
+    assert r.exit_code != 0
+    assert "unknown key(s) messsage" in r.output and "accepted:" in r.output
+    assert events(d) == []
+
+
+def test_batch_carries_every_verb_one_to_a_line(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    first = run("comment", "dm-0002", "Which orbits?", *AUTHOR, cwd=d)
+    assert first.exit_code == 0, first.output
+    ann = first.output.split()[0]
+
+    lines = [
+        json.dumps({"edit": ann, "message": "Which orbits exactly?"}),
+        json.dumps({"target": "dm-0003", "message": "A second", "payload": "\\begin{lemma}\\end{lemma}"}),
+        json.dumps({"resolve": ann, "message": "fixed"}),
+    ]
+    r = run("comment", "--batch", *AUTHOR, cwd=d, stdin="\n".join(lines) + "\n")
+    assert r.exit_code == 0, r.output
+    assert [e["event"] for e in events(d)] == ["created", "edited", "created", "resolved"]
+
+    both = json.dumps({"edit": ann, "discard": ann, "message": "?"})
+    r2 = run("comment", "--batch", *AUTHOR, cwd=d, stdin=both + "\n")
+    assert r2.exit_code != 0 and "one verb per line" in r2.output
+
+
+def test_a_clean_read_takes_no_severity(tmp_path: Path) -> None:
+    """`--severity` grades a fault; `--kind ok` says there is none, and the pair was accepted and stored (H9)."""
+    d = demo(tmp_path)
+    r = run("comment", "dm-0002", "--kind", "ok", "--severity", "major", *AUTHOR, cwd=d)
+    assert r.exit_code != 0
+    assert "drop one of them" in r.output
+    assert events(d) == []

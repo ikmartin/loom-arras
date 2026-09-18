@@ -73,7 +73,15 @@ def build_bundle(result: ScanResult, key: str, master: str | None = None, overri
         raise ValueError("the quilt has no master to take a preamble from")
     n = result.nodes[key]
     stmt_key = n.of if n.kind == "proof" and n.of else key
-    closure = [k for k in result.graph.closure(key) if k != stmt_key]
+    # The closure covers what is printed. A statement bundle prints the statement AND its proofs, and a proof's
+    # dependencies are usually declared inside the argument, so the statement's own closure leaves every `\ref` the
+    # proof makes undefined -- which a reader cannot resolve and latexmk will not compile.
+    wanted = [key, *n.proofs] if n.kind != "proof" else [key]
+    closure: list[str] = []
+    for w in wanted:
+        for k in result.graph.closure(w):
+            if k != stmt_key and k not in closure:
+                closure.append(k)
     parts = [HEADER, _preamble(result, master), "\\begin{document}\n", f"\\section*{{Bundle for {key}}}\n\n"]
     missing: list[str] = []
     for dep in closure:
@@ -134,11 +142,16 @@ def apply_unified_diff(original: str, diff_text: str) -> str:
 
 def substituted_region(result: ScanResult, key: str, with_file: Path) -> str:
     """The key's region text after applying `with_file` (a unified diff against the node's file, or a .tex replacement)."""
+    return substituted_region_text(
+        result, key, with_file.read_text(encoding="utf-8"), diff=with_file.suffix in (".diff", ".patch")
+    )
+
+
+def substituted_region_text(result: ScanResult, key: str, raw: str, diff: bool = False) -> str:
+    """The same substitution from text already in hand: an annotation's payload is a proposal with no file behind it."""
     n = result.nodes[key]
-    src = result.files[n.file]
-    raw = with_file.read_text(encoding="utf-8")
-    if with_file.suffix in (".diff", ".patch") or raw.lstrip().startswith(("---", "@@", "diff ")):
-        patched = apply_unified_diff(src.text, raw)
+    if diff or raw.lstrip().startswith(("---", "@@", "diff ")):
+        patched = apply_unified_diff(result.files[n.file].text, raw)
     else:
         patched = raw
     return _region_from_text(result, key, patched, n)

@@ -54,10 +54,16 @@ def resolve_taxon(result: ScanResult, name: str) -> str:
 @click.option(
     "--print", "print_only", is_flag=True, help="Print the skeleton without allocating an id or writing a file."
 )
+@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="Log this call to the run.")
 @quilt_option
-def new(taxon: str, title: str | None, prefix: str | None, print_only: bool, quilt_path: str | None) -> None:
+def new(
+    taxon: str, title: str | None, prefix: str | None, print_only: bool, run_dir: str | None, quilt_path: str | None
+) -> None:
     """Allocate an id and write nodes/<id>.tex with a skeleton for TAXON."""
+    from loom.cli.build_cmds import log_run
+
     result = open_scan(quilt_path)
+    log_run(run_dir, f"loom new {taxon}" + (f" {title!r}" if title else ""), result.quilt.root)
     env = resolve_taxon(result, taxon)
     try:
         author, _ = resolve_author(None, result.quilt.root)

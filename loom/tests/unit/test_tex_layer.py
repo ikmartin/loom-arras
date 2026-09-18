@@ -204,3 +204,66 @@ def test_search_json_still_single_document(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = run("search", "widget", "--json", cwd=d)
     json.loads(r.output)
+
+
+def test_a_statements_closure_covers_the_proof_it_prints(tmp_path: Path) -> None:
+    """The bundle printed the proof and excluded the lemmas that proof invokes, so an agent told the bundle was complete context saw undefined references (F2)."""
+    d = demo(tmp_path)
+    r = run("source", "dm-0003", "--closure", cwd=d)
+    assert r.exit_code == 0, r.output
+    ids = [ln.split()[-1] for ln in r.output.splitlines() if ln.startswith("% id:") or ln.startswith("% proof:")]
+    assert "dm-0002" in ids  # used by dm-0003's proof, which this bundle prints
+    assert ids[-1] == "dm-0003/proof" and ids.index("dm-0002") < ids.index("dm-0003")
+
+
+def test_with_names_a_file_first_and_then_an_annotation(tmp_path: Path) -> None:
+    """`--with` gave a bare FileNotFoundError traceback, and an annotation's payload is the proposal it could not take (F15)."""
+    d = demo(tmp_path)
+    missing = run("compile", "dm-0002", "--with", "nope.tex", cwd=d)
+    assert missing.exit_code != 0
+    assert "no such file, and no annotation has that id" in missing.output
+    assert "Traceback" not in missing.output
+
+    text = (d / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
+    c = run("comment", "dm-0002", "Tighten it", "--payload", text, "--author", "Tom", cwd=d)
+    assert c.exit_code == 0, c.output
+    ann = c.output.split()[0]
+    r = run("compile", "dm-0002", "--with", ann, cwd=d)
+    assert r.exit_code == 0, r.output
+    assert "at most two points" in (d / "build" / "bundles" / "dm-0002.tex").read_text()
+
+    wrong = run("compile", "dm-0003", "--with", ann, cwd=d)
+    assert wrong.exit_code != 0 and "is on dm-0002, not dm-0003" in wrong.output
+
+
+def test_a_readable_pdf_is_not_a_failure(tmp_path: Path) -> None:
+    """latexmk exits nonzero on an undefined reference and still writes a PDF; FAILED there is a verdict an agent has to ignore (F16)."""
+    from loom.tex.runner import CompileResult
+
+    pdf = tmp_path / "b.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    log = tmp_path / "b.log"
+    log.write_text("LaTeX Warning: Reference `rl-000D' on page 1 undefined on input line 12.\n")
+
+    warned = CompileResult(False, "pdflatex", tmp_path, 12, "", [], pdf, None, log, ["LaTeX Warning: ..."])
+    assert warned.usable == "warnings"
+    assert CompileResult(True, "pdflatex", tmp_path, 0, "", [], pdf, None, log).usable == "ok"
+    broken = CompileResult(False, "pdflatex", tmp_path, 12, "", ["! Undefined control sequence."], None, None, log)
+    assert broken.usable == "failed" and broken.first_error == "! Undefined control sequence."
+
+    # the old fallback took the last line of latexmk's closing advice, which reads as a mangled sentence
+    quiet = CompileResult(
+        False, "pdflatex", tmp_path, 12, "latexmk after you've corrected the files.", [], None, None, log
+    )
+    assert quiet.first_error == "latexmk exited 12 with no error line in b.log"
+
+
+def test_id_and_new_log_themselves_to_the_run(tmp_path: Path) -> None:
+    """The orientation lists both among an agent's commands and says every command that takes --run logs the call (F7)."""
+    d = demo(tmp_path)
+    rel = run("ai", "start", "Drafting", cwd=d).output.strip()
+    run_dir = d / rel
+    assert run("id", "--next", "--run", rel, cwd=d).exit_code == 0
+    assert run("new", "lemma", "Rigidity", "--run", rel, cwd=d).exit_code == 0
+    log = (run_dir / "run.log").read_text()
+    assert "loom id --next" in log and "loom new lemma" in log

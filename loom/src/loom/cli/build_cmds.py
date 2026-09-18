@@ -11,8 +11,16 @@ from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.clock import stamp
 from loom.reshape.linearize import flatten
 from loom.scan.scan import ScanResult
-from loom.tex.bundle import Bundle, build_bundle, bundle_filename, draft_bundle, region_text, substituted_region
-from loom.tex.runner import compile_tex, normalise_engine
+from loom.tex.bundle import (
+    Bundle,
+    build_bundle,
+    bundle_filename,
+    draft_bundle,
+    region_text,
+    substituted_region,
+    substituted_region_text,
+)
+from loom.tex.runner import CompileResult, compile_tex, normalise_engine
 
 
 def engine_for(result: ScanResult, master: str, override: str | None = None) -> str:
@@ -54,7 +62,7 @@ def write_bundle(result: ScanResult, b: Bundle) -> Path:
     "with_file",
     default=None,
     metavar="FILE",
-    help="Substitute a unified diff or a .tex file for KEY's text; the quilt is not touched.",
+    help="Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched.",
 )
 @click.option("--draft", "draft_file", default=None, metavar="FILE", help="Compile a node file not yet in the quilt.")
 @click.option("--run", "run_dir", default=None, metavar="DIR", envvar="LOOM_RUN", help="Log this call to DIR/run.log.")
@@ -94,10 +102,8 @@ def compile(  # noqa: A001
             root / "build" / "bundles" / out.stem,
             engine_for(result, result.default_master or result.masters[0], engine),
         )
-        if res.ok:
-            click.echo(f"compiled {out.stem} -> {res.outdir.relative_to(root)}/ ({res.engine})")
+        if report_compile(res, out.stem, root):
             return
-        click.echo(f"FAILED {out.stem}: {res.first_error}", err=True)
         ctx.exit(EXIT_CONTENT)
     if target is None or target in result.masters or (root / target).is_file() and target.endswith(".tex"):
         if with_file:
@@ -114,10 +120,7 @@ def compile(  # noqa: A001
             raise ContentError("the quilt has no master; compiling a key needs a preamble")
         override = None
         if with_file:
-            try:
-                override = substituted_region(result, key, Path(with_file).expanduser())
-            except ValueError as exc:
-                raise ContentError(f"--with {with_file}: {exc}") from exc
+            override = substitution_for(result, key, with_file)
         b = build_bundle(result, key, override_text=override)
         out = write_bundle(result, b)
         stem = out.stem
@@ -128,14 +131,57 @@ def compile(  # noqa: A001
             engine_for(result, result.default_master or result.masters[0], engine),
         )
         label = f"bundle {key}"
-    if res.ok:
-        click.echo(f"compiled {label} -> {res.outdir.relative_to(root)}/ ({res.engine})")
-    else:
-        if label.startswith("bundle "):
-            for line in missing_package_notes(result, b.closure + [key]):
-                click.echo(line, err=True)
-        click.echo(f"FAILED {label}: {res.first_error}", err=True)
+    if res.usable == "failed" and label.startswith("bundle "):
+        for line in missing_package_notes(result, b.closure + [key]):
+            click.echo(line, err=True)
+    if not report_compile(res, label, root):
         ctx.exit(EXIT_CONTENT)
+
+
+def substitution_for(result: ScanResult, key: str, with_file: str) -> str:
+    """Resolve `--with`: a file on disk, else an annotation id whose payload is the proposal it names.
+
+    A file is tried first, because a path is what the option has always taken and a filename could otherwise be shadowed by an id. An annotation is accepted because the payload **is** the proposal — it is what `loom comment --payload` was for — and asking an agent to copy its own suggestion into a file before compiling it is a step with nothing in it.
+    """
+    from loom.records.annotations import find_annotation
+    from loom.records.store import Records
+
+    root = result.quilt.root
+    p = Path(with_file).expanduser()
+    try:
+        if p.is_file():
+            return substituted_region(result, key, p)
+        found = find_annotation(Records(root, result.quilt.history_dir).records, with_file)
+        if found is None:
+            raise EnvError(f"--with {with_file}: no such file, and no annotation has that id")
+        _, ann = found
+        if not ann.payload:
+            raise ContentError(f"--with {with_file}: that annotation proposes no text")
+        if ann.target_key != key:
+            raise ContentError(f"--with {with_file}: that annotation is on {ann.target_key}, not {key}")
+        return substituted_region_text(result, key, ann.payload)
+    except OSError as exc:
+        raise EnvError(f"--with {with_file}: {exc.strerror or exc}") from exc
+    except ValueError as exc:
+        raise ContentError(f"--with {with_file}: {exc}") from exc
+
+
+def report_compile(res: CompileResult, label: str, root: Path) -> bool:
+    """Print the outcome of one compile; True when it produced a PDF, whether or not the log carried warnings.
+
+    A nonzero exit with a readable PDF and no `!` line is reported as warnings, not as a failure: latexmk exits nonzero on an undefined reference, and an agent told FAILED cannot tell its own proposal from a document that was already like that.
+    """
+    state = res.usable
+    if state == "ok":
+        click.echo(f"compiled {label} -> {res.outdir.relative_to(root)}/ ({res.engine})")
+        return True
+    if state == "warnings":
+        click.echo(f"compiled {label} with warnings -> {res.outdir.relative_to(root)}/ ({res.engine})")
+        for w in res.warnings:
+            click.echo(f"  {w}", err=True)
+        return True
+    click.echo(f"FAILED {label}: {res.first_error}", err=True)
+    return False
 
 
 def missing_package_notes(result: ScanResult, keys: list[str]) -> list[str]:
@@ -174,8 +220,9 @@ def check(ctx: click.Context, no_compile: bool, bundles: str, quilt_path: str | 
     if not no_compile:
         for master in result.masters:
             res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master))
-            click.echo(("ok      " if res.ok else "FAILED  ") + master + ("" if res.ok else f": {res.first_error}"))
-            failed = failed or not res.ok
+            bad = res.usable == "failed"
+            click.echo(("FAILED  " if bad else "ok      ") + master + (f": {res.first_error}" if bad else ""))
+            failed = failed or bad
         keys: list[str] = []
         if bundles == "all":
             keys = [k for k, n in result.nodes.items() if n.kind == "environment" and n.digest is None]
@@ -190,12 +237,13 @@ def check(ctx: click.Context, no_compile: bool, bundles: str, quilt_path: str | 
                 root / "build" / "bundles" / out.stem,
                 engine_for(result, result.default_master or result.masters[0]),
             )
+            bad = res.usable == "failed"
             click.echo(
-                ("ok      " if res.ok else "error   loom:bundle-failed  ")
+                ("error   loom:bundle-failed  " if bad else "ok      ")
                 + f"bundle {key}"
-                + ("" if res.ok else f": {res.first_error}")
+                + (f": {res.first_error}" if bad else "")
             )
-            failed = failed or not res.ok
+            failed = failed or bad
     click.echo("check: " + ("FAILED" if failed else "ok"))
     if failed:
         ctx.exit(EXIT_CONTENT)
