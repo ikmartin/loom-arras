@@ -18,7 +18,7 @@ def test_taxa_newtheorem_forms(tmp_path: Path) -> None:
     srcs = _quilt(
         tmp_path,
         {
-            "drafts/main.tex": r"""
+            "drafting/main.tex": r"""
 \documentclass{amsart}
 \usepackage{amsthm}
 \theoremstyle{plain}
@@ -36,7 +36,7 @@ def test_taxa_newtheorem_forms(tmp_path: Path) -> None:
 """
         },
     )
-    m = srcs["drafts/main.tex"]
+    m = srcs["drafting/main.tex"]
     c = build_closure(m, tmp_path, dict(srcs), parse_directives(m))
     t = c.taxa
     assert (t["thm"].name, t["thm"].style, t["thm"].numbered, t["thm"].within) == ("Theorem", "plain", True, "section")
@@ -52,7 +52,7 @@ def test_taxa_declaretheorem_and_directive(tmp_path: Path) -> None:
     srcs = _quilt(
         tmp_path,
         {
-            "drafts/main.tex": r"""
+            "drafting/main.tex": r"""
 \documentclass{article}
 \usepackage{thmtools}
 \usepackage{loom}
@@ -65,7 +65,7 @@ def test_taxa_declaretheorem_and_directive(tmp_path: Path) -> None:
 """
         },
     )
-    m = srcs["drafts/main.tex"]
+    m = srcs["drafting/main.tex"]
     c = build_closure(m, tmp_path, dict(srcs), parse_directives(m))
     assert (c.taxa["prop"].name, c.taxa["prop"].style) == ("Proposition", "definition")
     assert c.taxa["corollary"].name == "Corollary"
@@ -77,15 +77,15 @@ def test_taxa_transitive_sty_chain(tmp_path: Path) -> None:
     srcs = _quilt(
         tmp_path,
         {
-            "drafts/main.tex": "\\documentclass{amsart}\n\\input{preamble.tex}\n\\begin{document}\n\\end{document}\n",
+            "drafting/main.tex": "\\documentclass{amsart}\n\\input{preamble.tex}\n\\begin{document}\n\\end{document}\n",
             "preamble.tex": "\\usepackage{base-macros,math-env,\n  quiver}\n",
             "base-macros.sty": "\\usepackage{math-env}\n\\newcommand{\\Res}{\\mathrm{Res}}\n",
             "math-env.sty": "\\theoremstyle{theorem}\n\\newtheorem{thm}{Theorem}[section]\n\\newtheorem{math-example}[thm]{Example}\n\\newtheorem*{thm*}{Theorem}\n\\newtheorem*{predefn}{Preliminary-Definition}\n",
         },
     )
-    m = srcs["drafts/main.tex"]
+    m = srcs["drafting/main.tex"]
     c = build_closure(m, tmp_path, dict(srcs), parse_directives(m))
-    assert c.files == ["drafts/main.tex", "preamble.tex", "base-macros.sty", "math-env.sty"]
+    assert c.files == ["drafting/main.tex", "preamble.tex", "base-macros.sty", "math-env.sty"]
     assert set(c.taxa) == {"thm", "math-example", "thm*", "predefn"}
     assert c.taxa["thm"].style == "plain"
     assert c.taxa["predefn"].name == "Preliminary-Definition"
@@ -98,7 +98,7 @@ def test_taxa_display_name_macro(tmp_path: Path) -> None:
     srcs = _quilt(
         tmp_path,
         {
-            "drafts/main.tex": r"""
+            "drafting/main.tex": r"""
 \documentclass{amsart}
 \newtheorem*{namedtheorem}{\theoremname}
 \newcommand{\theoremname}{testing}
@@ -110,7 +110,7 @@ def test_taxa_display_name_macro(tmp_path: Path) -> None:
 """
         },
     )
-    m = srcs["drafts/main.tex"]
+    m = srcs["drafting/main.tex"]
     c = build_closure(m, tmp_path, dict(srcs), parse_directives(m))
     assert c.taxa["lem"].name == "Lemma"
     assert c.taxa["namedtheorem"].name == "Namedtheorem"
@@ -121,10 +121,10 @@ def test_taxa_conflict_between_masters(tmp_path: Path) -> None:
     srcs = _quilt(
         tmp_path,
         {
-            "drafts/main.tex": "\\documentclass{amsart}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\\end{document}\n",
-            "drafts/talk.tex": "\\documentclass{beamer}\n\\theoremstyle{definition}\\newtheorem{thm}{Theorem}\n\\begin{document}\\end{document}\n",
+            "drafting/main.tex": "\\documentclass{amsart}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\\end{document}\n",
+            "drafting/talk.tex": "\\documentclass{beamer}\n\\theoremstyle{definition}\\newtheorem{thm}{Theorem}\n\\begin{document}\\end{document}\n",
         },
     )
-    cs = [build_closure(srcs[p], tmp_path, dict(srcs), []) for p in ("drafts/main.tex", "drafts/talk.tex")]
+    cs = [build_closure(srcs[p], tmp_path, dict(srcs), []) for p in ("drafting/main.tex", "drafting/talk.tex")]
     assert taxa_union(cs)["thm"].style == "plain"
     assert [env for env, _ in taxa_conflicts(cs)] == ["thm"]

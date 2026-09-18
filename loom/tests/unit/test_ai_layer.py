@@ -70,7 +70,7 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     data = json.loads((q / ".claude" / "settings.json").read_text())
     deny = data["permissions"]["deny"]
     allow = data["permissions"]["allow"]
-    for d in ("nodes", "drafts", "digests", "refs", "comments", ".loom", "ai/modes"):
+    for d in ("nodes", "drafting", "digests", "refs", "comments", ".loom", "ai/modes"):
         assert f"Edit(/{d}/**)" in deny and f"Write(/{d}/**)" in deny, d
     assert "Edit(/ai/runs/**)" in allow and "Write(/build/**)" in allow
     assert any(rule.startswith("Bash(loom accept") for rule in deny) and any("promote" in rule for rule in deny)
@@ -223,36 +223,19 @@ def test_run_launch_agent_if_configured(tmp_path: Path) -> None:
     assert r2.exit_code == 2 and "not on PATH" in r2.output and "ai/runs/" in r2.output  # refused, path printed
 
 
-def test_promote_draft_allocates_or_checks_id(tmp_path: Path) -> None:
+def test_promote_refuses_a_node_and_names_the_pattern(tmp_path: Path) -> None:
+    """The node case is retired (DR-140): a drafted node is previewed in arras and pasted by the author, who takes an id from `loom id --next`."""
     q = demo(tmp_path)
     rel = run("ai", "start", "draft", cwd=q, env=FIXED).output.strip()
     draft = q / rel / "draft-lemma.tex"
     draft.write_text(
-        "% !LOOM author: agent\n\\begin{lemma}[Drafted]\n\\uses{dm-0001}\nEvery gadget is a widget.\n\\end{lemma}\n\\begin{proof}\nBy definition.\n\\end{proof}\n"
+        "% !LOOM author: agent\n\\begin{lemma}[Drafted]\n\\uses{dm-0001}\nEvery gadget is a widget.\n\\end{lemma}\n"
     )
     before = draft.read_text()
     r = run("ai", "promote", str(draft), cwd=q)
-    assert r.exit_code == 0, r.output
-    m = re.search(r"promoted draft-lemma.tex -> nodes/(dm-[0-9A-Z]{4}).tex \(allocated (dm-[0-9A-Z]{4})\)", r.output)
-    assert m and m.group(1) == m.group(2), r.output
-    nid = m.group(1)
-    node = (q / "nodes" / f"{nid}.tex").read_text()
-    assert f"\\begin{{lemma}}[Drafted]\\label{{{nid}}}\n" in node
-    assert draft.read_text() == before  # the run's file is never modified
-    # a draft carrying an id that is already allocated is refused
-    taken = q / rel / "draft-dm-0001.tex"
-    taken.write_text("\\begin{definition}\\label{dm-0001}\nClash.\n\\end{definition}\n")
-    r2 = run("ai", "promote", str(taken), cwd=q)
-    assert r2.exit_code == 1 and "already allocated" in r2.output
-    # a draft carrying the id of a skeleton the author created with loom new replaces the skeleton
-    assert run("new", "lemma", "Planned", cwd=q).exit_code == 0
-    skel = next(p for p in (q / "nodes").glob("dm-*.tex") if "Planned" in p.read_text())
-    sid = skel.stem
-    planned = q / rel / f"draft-{sid}.tex"
-    planned.write_text(f"\\begin{{lemma}}[Planned]\\label{{{sid}}}\nNow written.\n\\end{{lemma}}\n")
-    r3 = run("ai", "promote", str(planned), cwd=q)
-    assert r3.exit_code == 0, r3.output
-    assert "replaced the author's skeleton" in r3.output and "Now written." in skel.read_text()
+    assert r.exit_code == 1, r.output
+    assert "digests only" in r.output and "loom id --next" in r.output
+    assert draft.read_text() == before and not list((q / "nodes").glob("dm-000[89A-Z].tex"))
 
 
 def test_promote_digest_refuses_existing(tmp_path: Path) -> None:
@@ -292,13 +275,13 @@ def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
     assert node.read_text().endswith("% touched by an agent\n")  # reported, never reverted
     node.write_text(node.read_text().replace("% touched by an agent\n", ""))
     os.utime(node, (started - 100, started - 100))
-    draft = q / rel / "draft-x.tex"
-    draft.write_text("\\begin{lemma}[Promoted]\nP.\n\\end{lemma}\n")
+    draft = q / rel / "ingest-Har77.tex"
+    draft.write_text("% !LOOM digest: Har77\n% !LOOM method: ingest\n\\section*{Overview}\nHartshorne.\n")
     p = run("ai", "promote", str(draft), cwd=q)
     assert p.exit_code == 0, p.output
-    assert "loom ai promote draft-x.tex -> nodes/" in (q / rel / "run.log").read_text()
+    assert "loom ai promote ingest-Har77.tex -> digests/" in (q / rel / "run.log").read_text()
     after = run("ai", "check", rel, cwd=q)
-    assert after.exit_code == 0, after.output  # the promoted node is the author's move, not an agent write
+    assert after.exit_code == 0, after.output  # the promoted digest is the author's move, not an agent write
 
 
 def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> None:

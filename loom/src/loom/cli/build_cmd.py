@@ -16,12 +16,16 @@ from loom.render.build import build
     multiple=True,
     help="Limit rendering to these keys and their masters; the manifest is always complete.",
 )
+@click.option("--force", is_flag=True, help="Render every fragment again, ignoring the cache.")
 @quilt_option
 @click.pass_context
-def build_command(ctx: click.Context, keys: tuple[str, ...], quilt_path: str | None) -> None:
-    """Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published)."""
+def build_command(ctx: click.Context, keys: tuple[str, ...], force: bool, quilt_path: str | None) -> None:
+    """Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
+
+    Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless.
+    """
     quilt = open_quilt(quilt_path)
-    report = build(quilt, list(keys) or None)
+    report = build(quilt, list(keys) or None, force=force)
     errors = sum(1 for d in report.diagnostics if d.severity == "error")
     click.echo(
         f"rendered {len(report.rendered)} fragment(s), {len(report.skipped)} unchanged; {len(report.manifest['nodes'])} nodes, {len(report.manifest['keys'])} keys; {errors} error(s)"

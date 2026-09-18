@@ -55,6 +55,10 @@ class NodeRec:
     claimants: list[str] = field(
         default_factory=list
     )  # direct child claimants (nodes, proofs, sections) in offset order
+    conflict: list[str] = field(
+        default_factory=list
+    )  # kind "conflict": the files that each define this id (book 5.3.5)
+    conflict_of: str | None = None  # a demoted definition: the id it claimed, which a placeholder now holds
 
 
 @dataclass
@@ -136,8 +140,10 @@ def assemble(
         # a file no master reaches is sectioned on its own (book 5.9.2.3); the file path stands in for the master
         solo = Expansion(master=path, text=src.clean, segments=[Segment(path, 0, len(src.clean), 0, 0)])
         asm.sections[path] = find_sections(solo, files)
-    _statement_nodes(asm, files, taxa, slugs, masters)
-    _section_nodes(asm, files, slugs, masters, default_master)
+    conflicted = _conflicted_ids(asm, files, slugs)
+    _statement_nodes(asm, files, taxa, slugs, masters, conflicted)
+    _section_nodes(asm, files, slugs, masters, default_master, conflicted)
+    _placeholders(asm, files, conflicted)
     _container_nodes(asm, files, masters)
     _proof_nodes(asm, files, slugs, expansions, default_master)
     _partition(asm, files)
@@ -154,8 +160,78 @@ def _order(exp: Expansion | None, file: str, offset: int, files: dict[str, Sourc
     return 1e12 + idx * 1e9 + offset
 
 
+def _conflicted_ids(asm: Assembly, files: dict[str, SourceFile], slugs: set[str]) -> dict[str, list[str]]:
+    """Ids defined by more than one file -> the files, in path order. A node is defined once and included many times (book 5.3.5); a second definition of an id leaves it with no text rather than a winner, so the decision is made here before any record exists."""
+    defs: dict[str, dict[str, int]] = {}
+    for path, fe in asm.envs.items():
+        src = files[path]
+        for env in fe.theorem_envs:
+            found = labels_in(src.clean, env.own_ranges())
+            first = found[0][0] if found else None
+            if first and is_id_shaped(first, slugs):
+                defs.setdefault(first, {}).setdefault(path, env.start)
+    for units in asm.sections.values():
+        for u in units:
+            first = u.labels[0] if u.labels else None
+            if first and is_id_shaped(first, slugs):
+                defs.setdefault(first, {}).setdefault(u.file, u.offset)
+    return {i: sorted(fs) for i, fs in defs.items() if len(fs) > 1}
+
+
+def _placeholders(asm: Assembly, files: dict[str, SourceFile], conflicted: dict[str, list[str]]) -> None:
+    """One record of kind `conflict` per doubly-defined id, holding the id and every alias its definitions carry, with no text of its own; and one `duplicate-id` per id naming every file."""
+    from loom.scan.model import Fix
+
+    for node_id, paths in sorted(conflicted.items()):
+        demoted = [n for n in asm.nodes.values() if n.conflict_of == node_id]
+        first: NodeRec | None = next((n for n in demoted if n.file == paths[0]), demoted[0] if demoted else None)
+        aliases: list[str] = []
+        for n in demoted:
+            for lab in n.label_offsets:
+                if lab != node_id and lab not in aliases:
+                    aliases.append(lab)
+        rec = NodeRec(
+            key=node_id,
+            kind="conflict",
+            file=paths[0],
+            start=first.start if first else 0,
+            end=first.start if first else 0,
+            id=node_id,
+            env=first.env if first else None,
+            taxon=first.taxon if first else None,
+            style=first.style if first else None,
+            level=first.level if first else None,
+            title=first.title if first else None,
+            labels=[node_id, *aliases],
+            aliases=aliases,
+            conflict=list(paths),
+        )
+        asm.nodes[node_id] = rec
+        locations = []
+        for path in paths:
+            at = next((d.start for d in demoted if d.file == path), None)
+            locations.append(Location(path, files[path].line_of(at) if at is not None else 1))
+        fixes = [Fix(f"fork the copy in {path}", f"loom fork {node_id} --in {path}") for path in paths]
+        fixes.append(Fix("give one copy a fresh id by hand", "loom id --next"))
+        asm.diagnostics.append(
+            Diagnostic(
+                "error",
+                "duplicate-id",
+                f"{node_id} is defined by {' and '.join(paths)}; it has no text until one definition remains",
+                locations,
+                [node_id],
+                fixes=fixes,
+            )
+        )
+
+
 def _statement_nodes(
-    asm: Assembly, files: dict[str, SourceFile], taxa: dict[str, Taxon], slugs: set[str], masters: list[str]
+    asm: Assembly,
+    files: dict[str, SourceFile],
+    taxa: dict[str, Taxon],
+    slugs: set[str],
+    masters: list[str],
+    conflicted: dict[str, list[str]],
 ) -> None:
     for path, fe in asm.envs.items():
         src = files[path]
@@ -167,6 +243,9 @@ def _statement_nodes(
             labels = [lab for lab, _ in found]
             first = labels[0] if labels else None
             node_id = first if first and is_id_shaped(first, slugs) else None
+            conflict_of = node_id if node_id in conflicted else None
+            if conflict_of:
+                node_id = None  # demoted: the placeholder holds the id and claims every label; this record claims none
             key = node_id or f"{path}#{env.name}:{counts[env.name]}"
             taxon = taxa.get(env.name)
             rec = NodeRec(
@@ -180,9 +259,10 @@ def _statement_nodes(
                 taxon=taxon.name if taxon else env.name.capitalize(),
                 style=taxon.style if taxon else "plain",
                 title=env.optarg.strip() if env.optarg else None,
-                labels=labels,
+                labels=[] if conflict_of else labels,
                 label_offsets={lab: off for lab, off in found},
-                aliases=[lab for lab in labels if lab != node_id],
+                aliases=[] if conflict_of else [lab for lab in labels if lab != node_id],
+                conflict_of=conflict_of,
             )
             has_cite = bool(env.optarg and _CITE_IN_TITLE.search(env.optarg)) or first_body_token_is_cite(
                 src.clean, env
@@ -190,7 +270,7 @@ def _statement_nodes(
             rec.external = rec.style == "plain" and has_cite
             asm.nodes[key] = rec
             asm._env_keys[(path, env.start)] = key
-            if node_id is None:
+            if node_id is None and conflict_of is None:
                 asm.diagnostics.append(
                     Diagnostic(
                         "info",
@@ -203,7 +283,12 @@ def _statement_nodes(
 
 
 def _section_nodes(
-    asm: Assembly, files: dict[str, SourceFile], slugs: set[str], masters: list[str], default_master: str | None
+    asm: Assembly,
+    files: dict[str, SourceFile],
+    slugs: set[str],
+    masters: list[str],
+    default_master: str | None,
+    conflicted: dict[str, list[str]],
 ) -> None:
     ordered = ([default_master] if default_master in asm.sections else []) + [
         m for m in asm.sections if m != default_master
@@ -214,6 +299,9 @@ def _section_nodes(
         for u in units:
             first = u.labels[0] if u.labels else None
             node_id = first if first and is_id_shaped(first, slugs) else None
+            conflict_of = node_id if node_id in conflicted else None
+            if conflict_of:
+                node_id = None
             if node_id:
                 key = node_id
             elif first:
@@ -234,10 +322,11 @@ def _section_nodes(
                     taxon=LEVEL_NAMES.get(u.level, u.name).capitalize(),
                     level=u.level,
                     title=u.title,
-                    labels=list(u.labels),
+                    labels=[] if conflict_of else list(u.labels),
                     # a section's definition site is its sectioning command, not the \label beside it, so every label points there
                     label_offsets=dict.fromkeys(u.labels, u.offset),
-                    aliases=[lab for lab in u.labels if lab != node_id],
+                    aliases=[] if conflict_of else [lab for lab in u.labels if lab != node_id],
+                    conflict_of=conflict_of,
                 )
                 asm.nodes[key] = rec
             rec.exp_ranges[master] = (u.exp_start, u.exp_end)
@@ -367,6 +456,8 @@ def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
     """Own ranges: each claimant's range minus its direct children's ranges, per file."""
     by_file: dict[str, list[NodeRec]] = {}
     for n in asm.nodes.values():
+        if n.kind == "conflict":
+            continue  # no text of its own, so it claims nothing
         by_file.setdefault(n.file, []).append(n)
     for recs in by_file.values():
         recs.sort(key=lambda r: (r.start, -r.end, 0 if r.kind in ("master", "file") else 1))
@@ -402,6 +493,9 @@ def _regions_and_details(
             reached.setdefault(path, []).append(master)
     for n in asm.nodes.values():
         src = files[n.file]
+        if n.kind == "conflict":
+            n.reached_by = sorted({m for f in n.conflict for m in reached.get(f, [])})
+            continue
         n.reached_by = reached.get(n.file, []) if n.kind != "master" else [n.file]
         if n.kind in ("environment", "proof") and not n.order:
             n.order = _order(exp, n.file, n.start, files)
@@ -448,7 +542,9 @@ def _collect_labels(asm: Assembly, files: dict[str, SourceFile]) -> None:
     seen: dict[str, tuple[str, str, int]] = {}
     for key, n in sorted(asm.nodes.items(), key=lambda kv: (kv[1].file, kv[1].start)):
         src = files[n.file]
-        heading = set(n.labels)
+        heading = set(n.labels) | set(
+            n.label_offsets
+        )  # a demoted definition's heading labels belong to the placeholder, not to a region
         for lab in n.labels:
             _claim(asm, files, seen, lab, key, n.file, n.start)
         where = "statement" if n.kind == "environment" else (f"proof:{key}" if n.kind == "proof" else "prose")

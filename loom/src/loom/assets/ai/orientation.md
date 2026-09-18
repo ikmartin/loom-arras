@@ -21,7 +21,7 @@ review what they wrote, digest what they cite, answer what they ask.
 ## 2. Layout, and what you may write
 
 - `config.toml` — quilt configuration. Read only.
-- `drafts/` — masters, the compilable documents. `config.toml [quilt] main`
+- `drafting/` — the working documents, every one live. `config.toml [quilt] main`
   names the default. Read only.
 - `nodes/` — one node per file, by convention. Read only.
 - `digests/` — cited papers' results as external nodes, one file per
@@ -91,7 +91,7 @@ ledger and never run `loom accept`.
   a bundle with your proposed text in place of the quilt's, to compile
   before the author promotes or applies; nothing in the quilt changes.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
-- `loom assemble MASTER $LOOM_RUN/<name>.tex`: a whole master flattened
+- `loom linearize MASTER --to $LOOM_RUN/<name>.tex --no-check`: a whole master flattened
   into one file, for when a plan or a paper is the context. Masters are
   not keys and `bundle` does not apply to them.
 - `loom comment KEY "message" --quote "exact text" --kind objection|
@@ -133,7 +133,7 @@ Follow the template exactly; tick its checklist in your notes file.
   dead ends, what the digests already say.
 
 Findings are annotations. Drafts and digests wait in your run for
-`loom ai promote`. Proposals are diffs the author applies.
+`loom ai promote` for a digest; a drafted node is previewed and pasted by the author. Proposals are diffs the author applies.
 
 ## 8. Context economy
 
@@ -154,5 +154,5 @@ anything. Never claim a result is proved when a step is missing; mark it
 ## 10. When you are done
 
 Update `thread.md`, list your outputs, and tell the author which ones are
-drafts to promote, which are diffs to apply, and which annotations need
+drafted nodes to paste, which are diffs to apply, and which annotations need
 their decision.

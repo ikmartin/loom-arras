@@ -15,7 +15,7 @@ def test_blank_comments_preserves_offsets() -> None:
 def test_scan_all_tex_recursively_skips_build(tmp_path: Path) -> None:
     """Nothing under refs/ is the quilt's text: it holds fetched works, and a digest lives in digests/ (DR-108)."""
     for rel in [
-        "drafts/main.tex",
+        "drafting/main.tex",
         "nodes/a.tex",
         "digests/Kre99.tex",
         "build/x.tex",
@@ -25,7 +25,7 @@ def test_scan_all_tex_recursively_skips_build(tmp_path: Path) -> None:
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("x", encoding="utf-8")
-    assert discover_files(tmp_path) == ["digests/Kre99.tex", "drafts/main.tex", "nodes/a.tex"]
+    assert discover_files(tmp_path) == ["digests/Kre99.tex", "drafting/main.tex", "nodes/a.tex"]
 
 
 def test_non_utf8_source_decoded(tmp_path: Path) -> None:
@@ -52,10 +52,10 @@ def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
     from tests.unit.scan.helpers import DEFAULT_CONFIG, PREAMBLE
 
     root = tmp_path / "q"
-    (root / "drafts").mkdir(parents=True)
+    (root / "drafting").mkdir(parents=True)
     (root / "nodes").mkdir()
     (root / "config.toml").write_text(DEFAULT_CONFIG, encoding="utf-8")
-    (root / "drafts" / "main.tex").write_text(
+    (root / "drafting" / "main.tex").write_text(
         PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0001}\n\\end{document}\n", encoding="utf-8"
     )
     (root / "nodes" / "ab-0001.tex").write_text(
@@ -77,9 +77,9 @@ def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
         quilt,
         {
             "nodes/ab-0002.tex": "\\begin{lemma}[New]\\label{ab-0002}\nUnsaved.\n\\end{lemma}\n",
-            "drafts/main.tex": PREAMBLE
+            "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\input{nodes/ab-0001}\n\\input{nodes/ab-0002}\n\\end{document}\n",
         },
     )
     assert created.nodes["ab-0002"].title == "New"
-    assert created.nodes["ab-0002"].reached_by == ["drafts/main.tex"]
+    assert created.nodes["ab-0002"].reached_by == ["drafting/main.tex"]

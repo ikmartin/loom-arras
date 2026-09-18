@@ -389,6 +389,59 @@ def number_of(ctx: RenderContext, label: str) -> str | None:
     return n.number if n else None
 
 
+TEXT_SAFE_CMDS = frozenset(
+    {"text", "textrm", "textbf", "textit", "textsc", "textsf", "texttt", "textup", "emph", "mbox"}
+)
+
+
+def math_only(body: str) -> bool:
+    """Whether a macro's body is something only math mode accepts: a superscript, a subscript, or any command outside the few that text mode has."""
+    if re.search(r"[\^_]", body):
+        return True
+    return any(name not in TEXT_SAFE_CMDS for name in re.findall(r"\\([A-Za-z@]+)", body))
+
+
+def _dollars_in_body(body: str, macros: dict[str, Macro]) -> str:
+    """One `\\text{…}` body with each math-only macro of the author's, and its arguments, written between dollars."""
+    out: list[str] = []
+    i = 0
+    for m in re.finditer(r"\\([A-Za-z@]+)", body):
+        if m.start() < i or body.count("$", 0, m.start()) % 2:  # already written inside math
+            continue
+        macro = macros.get(m.group(1))
+        if macro is None or not math_only(macro.body):
+            continue
+        _, _, after = read_args(body, m.end(), "m" * macro.args)
+        out.append(body[i : m.start()])
+        out.append("$" + body[m.start() : after] + "$")
+        i = after
+    out.append(body[i:])
+    return "".join(out)
+
+
+def dollars_in_text(tex: str, macros: dict[str, Macro]) -> str:
+    """Inside every `\\text{…}`, write a macro whose body only math mode accepts between dollars.
+
+    LaTeX runs `\\text{nodes of \\ul C}` because `\\ul` opens math itself; MathJax's text mode has no `\\underline` and refuses the whole formula, which is what showed the ACGS proof as its source. `\\text{nodes of $\\ul C$}` is the same document to LaTeX and renders in both.
+    """
+    if not macros or "\\text" not in tex and "\\mbox" not in tex:
+        return tex
+    out: list[str] = []
+    i = 0
+    for m in re.finditer(r"\\(?:text|mbox)\s*\{", tex):
+        if m.start() < i:
+            continue
+        opening = m.end() - 1
+        close = match_group(tex, opening, "{", "}")
+        if close <= 0:
+            continue
+        out.append(tex[i : opening + 1])
+        out.append(_dollars_in_body(tex[opening + 1 : close - 1], macros))
+        i = close - 1
+    out.append(tex[i:])
+    return "".join(out)
+
+
 class Converter:
     def __init__(self, ctx: RenderContext) -> None:
         self.ctx = ctx
@@ -444,6 +497,21 @@ class Converter:
             para.clear()
             fallback_reason[0] = None
 
+        def emit_text(value: str, start: int) -> None:
+            parts = re.split(r"(\n[ \t]*\n\s*)", value)
+            offset = start
+            for k, part in enumerate(parts):
+                if k % 2 == 1:
+                    flush(offset)
+                    offset += len(part)
+                    pstart[0] = offset
+                    continue
+                if part:
+                    if not para and not part.strip():
+                        pstart[0] = offset + len(part)
+                    para.append(esc(ligatures(part)))
+                offset += len(part)
+
         i = 0
         n = len(toks)
         while i < n:
@@ -451,19 +519,7 @@ class Converter:
             if not para:
                 pstart[0] = t.start
             if t.kind == "text":
-                parts = re.split(r"(\n[ \t]*\n\s*)", t.value)
-                offset = t.start
-                for k, part in enumerate(parts):
-                    if k % 2 == 1:
-                        flush(offset)
-                        offset += len(part)
-                        pstart[0] = offset
-                        continue
-                    if part:
-                        if not para and not part.strip():
-                            pstart[0] = offset + len(part)
-                        para.append(esc(ligatures(part)))
-                    offset += len(part)
+                emit_text(t.value, t.start)
                 i += 1
                 continue
             if t.kind == "begin":
@@ -585,20 +641,28 @@ class Converter:
                     level = SECTIONING[name.rstrip("*")]
                     h = min(max(level, 1), 6)
                     title_html = self.inline_text(title or "", spans[1][0]) if title is not None else ""
-                    out.append(f'<h{h} data-src="{ctx.src(t.start, after)}">{title_html}</h{h}>')
-                    i = self._skip_to(toks, i, after)
+                    lm = re.match(r"\s*\\label\s*\{([^}]*)\}", clean[after:])
+                    hid = f' id="{slug(norm_label(lm.group(1)))}"' if lm else ""
+                    out.append(f'<h{h}{hid} data-src="{ctx.src(t.start, after)}">{title_html}</h{h}>')
+                    i, tail = self._resume(toks, i, after)
+                    if tail:
+                        emit_text(ctx.text[tail[0] : tail[1]], tail[0])
                     continue
                 if name in ("input", "include", "nest"):
                     flush(t.start)
                     (arg,), spans, after = read_args(clean, t.end, "m")
                     out.append(ctx.include_html(arg or ""))
-                    i = self._skip_to(toks, i, after)
+                    i, tail = self._resume(toks, i, after)
+                    if tail:
+                        emit_text(ctx.text[tail[0] : tail[1]], tail[0])
                     continue
                 if name == "includegraphics":
                     flush(t.start)
                     (opts, arg), spans, after = read_args(clean, t.end, "om")
                     out.append(ctx.include_html("graphics:" + (arg or "")))
-                    i = self._skip_to(toks, i, after)
+                    i, tail = self._resume(toks, i, after)
+                    if tail:
+                        emit_text(ctx.text[tail[0] : tail[1]], tail[0])
                     continue
                 if name == "item":
                     i += 1
@@ -608,7 +672,12 @@ class Converter:
                     para.append(piece)
                 if reason and not fallback_reason[0]:
                     fallback_reason[0] = reason
-                i = self._skip_to(toks, i, after) if after > t.end else i + 1
+                if after > t.end:
+                    i, tail = self._resume(toks, i, after)
+                    if tail:
+                        emit_text(ctx.text[tail[0] : tail[1]], tail[0])
+                else:
+                    i += 1
                 continue
             i += 1
         flush(b)
@@ -659,6 +728,17 @@ class Converter:
         while k < len(toks) and toks[k].start < pos:
             k += 1
         return k
+
+    def _resume(self, toks: list[Tok], i: int, pos: int) -> tuple[int, tuple[int, int] | None]:
+        """Where to carry on after a command's arguments, and the text they ended in the middle of.
+
+        An argument written without braces — the `e` of `\\'etale`, the path of `\\input file.tex` — is taken from inside the text that follows the command, and the rest of that text (`tale topology…`) is still text. Returns the next token's index and the span of any such remainder.
+        """
+        k = self._skip_to(toks, i, pos)
+        prev = toks[k - 1] if k - 1 > i else None
+        if prev is not None and prev.kind == "text" and prev.start < pos < prev.end:
+            return k, (pos, prev.end)
+        return k, None
 
     # ---- inline ----------------------------------------------------------------
 
@@ -714,7 +794,9 @@ class Converter:
                     out.append(piece)
                 reason = reason or r
                 if after > t.end:
-                    i = self._skip_to(toks, i, after)
+                    i, tail = self._resume(toks, i, after)
+                    if tail:
+                        out.append(esc(ligatures(rawslice(*tail))))
                     continue
             elif t.kind in ("begin", "end"):
                 reason = reason or f"environment {t.value} inside a paragraph"
@@ -956,8 +1038,9 @@ class Converter:
     # ---- math -------------------------------------------------------------------
 
     def math_text(self, tex: str) -> str:
-        """TeX math left for the viewer: labels removed, references replaced by their numbers or labels so MathJax never sees \\ref."""
+        """TeX math left for the viewer: labels removed, references replaced by their numbers or labels so MathJax never sees \\ref, and a macro of the author's written between dollars where it sits in text."""
         tex = re.sub(r"\\label\s*\{[^}]*\}", "", tex)
+        tex = dollars_in_text(tex, self.ctx.macros)
 
         def ref_repl(m: re.Match[str]) -> str:
             lab = re.sub(r"\s+", " ", m.group(2)).strip()
@@ -1138,8 +1221,11 @@ class Converter:
             parts.append(f' <span class="number">{esc(num)}</span>')
         if title:
             parts.append(f' <span class="title">({self.inline_text(title, spans[0][0])})</span>')
+        # an unclaimed environment carries no identity (DR-86) but still needs an anchor, or no link into a canon document can land
+        first_label = next((norm_label(m.group(1)) for m in _LABEL_IN_ENV.finditer(ctx.clean, t.start, body_end)), None)
+        ident = f' id="{slug(first_label)}"' if first_label else ""
         attrs = (
-            f'class="env env-{slug(name)}" data-taxon="{html.escape(name, quote=True)}" '
+            f'class="env env-{slug(name)}"{ident} data-taxon="{html.escape(name, quote=True)}" '
             f'data-style="{html.escape(style, quote=True)}" data-src="{data_src}"'
         )
         return f'<div {attrs}><p class="env-label">{"".join(parts)}</p>{body}</div>'

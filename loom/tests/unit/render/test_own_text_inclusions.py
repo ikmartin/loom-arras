@@ -32,9 +32,9 @@ def test_moving_a_node_out_of_a_draft_changes_no_hash(tmp_path: Path) -> None:
     root = tmp_path / "synthetic"
     shutil.copytree(QUILTS / "synthetic", root)
     before_result = _scan(root)
-    key = "sy-0001"  # a definition inside a labelled section of drafts/main.tex
+    key = "sy-0001"  # a definition inside a labelled section of drafting/main.tex
     section = before_result.assembly.nodes[key]
-    assert section.file == "drafts/main.tex"
+    assert section.file == "drafting/main.tex"
     before = {k: key_hash(before_result, k) for k, n in before_result.assembly.nodes.items() if n.kind != "file"}
 
     _move_out(root, before_result, key)

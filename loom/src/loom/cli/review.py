@@ -10,7 +10,7 @@ from typing import Any
 import click
 
 from loom.cli._common import ContentError, EnvError, emit_json
-from loom.cli._quilt import describe, open_scan, quilt_option, resolve_key
+from loom.cli._quilt import describe, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for, log_run
 from loom.clock import stamp, today
 from loom.records.annotations import (
@@ -98,6 +98,7 @@ def accept(
         targets = stale
     for k in keys:
         key = resolve_key(result, k)
+        require_text(result, key)
         n = result.nodes[key]
         if n.kind not in ("environment", "proof"):
             raise EnvError(f"{key} is not a statement or proof key")
@@ -118,17 +119,18 @@ def accept(
     master = result.default_master or (result.masters[0] if result.masters else "")
     closure_obj = result.closures.get(master)
     pre_text = closure_obj.raw_text() if closure_obj else ""
-    pre_hash, w = write_snapshot(root, pre_text)
+    hist = result.quilt.history_dir
+    pre_hash, w = write_snapshot(root, pre_text, hist)
     written += w
     present += not w
     for key in targets:
-        text_hash, w = write_snapshot(root, own_text(result, result.nodes[key]))
+        text_hash, w = write_snapshot(root, own_text(result, result.nodes[key]), hist)
         written += w
         present += not w
         closure: dict[str, str] = {}
         for dep, h in Records.closure_hashes(result, key).items():
             closure[dep] = h
-            _, w2 = write_snapshot(root, own_text(result, result.nodes[dep]))
+            _, w2 = write_snapshot(root, own_text(result, result.nodes[dep]), hist)
             written += w2
             present += not w2
         assert text_hash == key_hash(result, key)
@@ -148,6 +150,7 @@ def _target_text(result: ScanResult, target: str) -> tuple[str, str]:
     key = resolve_key(result, target)
     region = result.assembly.regions.get(key)
     node_key = region.container if region else key
+    require_text(result, node_key)
     n = result.nodes[node_key]
     text, _ = Records.own_pieces(result, n)
     return key, text

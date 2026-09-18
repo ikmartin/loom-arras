@@ -13,6 +13,7 @@ import pytest
 from click.testing import CliRunner
 
 from loom.cli import main
+from loom.render import build as build_mod
 from loom.render import publish as publish_mod
 from loom.render.build import build
 from loom.scan.quilt import load_quilt
@@ -87,8 +88,8 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     master = m["masters"][0]
     assert master["default"] and master["numbering_known"] and master["fragment"] == "fragments/masters/main.html"
     n = m["nodes"]["dm-0003"]
-    assert n["taxon"] == "Theorem" and n["title"] == "Main" and n["numbers"]["drafts/main.tex"]["number"] == "2.1"
-    assert n["parent"]["drafts/main.tex"] == "dm-0011" and n["proofs"] == ["dm-0003/proof"]
+    assert n["taxon"] == "Theorem" and n["title"] == "Main" and n["numbers"]["drafting/main.tex"]["number"] == "2.1"
+    assert n["parent"]["drafting/main.tex"] == "dm-0011" and n["proofs"] == ["dm-0003/proof"]
     k = m["keys"]["dm-0003/proof"]
     assert k["kind"] == "proof" and k["hash"].startswith("sha256:")
     assert set(k["closure"]) == {
@@ -98,9 +99,9 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
         "Man12-setup",
     }  # the postnote edge brings the digest nodes in (book 8.11)
     assert m["keys"]["dm-0005/proof"]["state"] == "incomplete"
-    assert m["regions"]["dm-0001#eq:fix"]["numbers"]["drafts/main.tex"]["number"] == "1.1"
+    assert m["regions"]["dm-0001#eq:fix"]["numbers"]["drafting/main.tex"]["number"] == "1.1"
     assert any(e["from"] == "dm-0003/proof" and e["to"] == "dm-0002" for e in m["edges"])
-    tree = m["inclusion"]["drafts/main.tex"]
+    tree = m["inclusion"]["drafting/main.tex"]
     assert [c["key"] for c in tree["children"]] == ["dm-0010", "dm-0011"]
     assert [c["key"] for c in tree["children"][0]["children"]] == ["nodes/dm-0001.tex", "nodes/dm-0002.tex"]
     assert m["references"]["Man12"]["digest"]["nodes"] == ["Man12-setup", "Man12-prop-3.2"]
@@ -151,16 +152,36 @@ def test_build_incremental_by_hash(tmp_path: Path) -> None:
     node = d / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().replace("one or two points", "one or two points at most"))
     third = build(load_quilt(d))
-    assert "dm-0002" in third.rendered and "drafts/main.tex" in third.rendered and "dm-0001" not in third.rendered
+    assert "dm-0002" in third.rendered and "drafting/main.tex" in third.rendered and "dm-0001" not in third.rendered
     for name in ("dm-0001", "dm-0003"):
         f = d / "nodes" / f"{name}.tex"
         f.write_text(f.read_text() + "\n% touched\n")
     fourth = build(load_quilt(d), keys=["dm-0003"])
-    assert set(fourth.rendered) == {"dm-0003", "drafts/main.tex"}
+    assert set(fourth.rendered) == {"dm-0003", "drafting/main.tex"}
     fifth = build(load_quilt(d))
     assert "dm-0001" in fifth.rendered and "dm-0003" not in fifth.rendered
     m = json.loads((d / "build" / "manifest.json").read_text())
     assert len(m["nodes"]) == len(first.manifest["nodes"])
+
+
+def test_a_change_in_looms_own_code_re_renders_everything(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # a checkout's version never moves, so the cache would otherwise keep publishing the HTML an edited converter was meant to replace
+    d = demo(tmp_path)
+    first = build(load_quilt(d))
+    assert build(load_quilt(d)).rendered == []
+    monkeypatch.setattr(build_mod, "_code_hash", lambda: "another converter")
+    after = build(load_quilt(d))
+    assert set(after.rendered) == set(first.rendered) and after.skipped == []
+
+
+def test_force_renders_every_fragment_again(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    first = build(load_quilt(d))
+    assert build(load_quilt(d)).rendered == []
+    forced = build(load_quilt(d), force=True)
+    assert set(forced.rendered) == set(first.rendered) and forced.skipped == []
+    r = run("build", "--force", cwd=d)
+    assert r.exit_code == 0 and ", 0 unchanged" in r.output
 
 
 def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

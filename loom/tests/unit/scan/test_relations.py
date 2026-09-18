@@ -13,7 +13,7 @@ def _master(body: str) -> str:
 
 def _quilt(tmp_path: Path, nodes: dict[str, str], inputs: list[str] | None = None):  # type: ignore[no-untyped-def]
     lines = "\n".join(f"\\input{{{rel[:-4]}}}" for rel in (inputs if inputs is not None else sorted(nodes)))
-    files = {"drafts/main.tex": _master(lines), **nodes}
+    files = {"drafting/main.tex": _master(lines), **nodes}
     return make_quilt(tmp_path, files)
 
 

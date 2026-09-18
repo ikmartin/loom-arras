@@ -61,6 +61,17 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:main-not-found": ("warning", False),
     "loom:foreign-annotations": ("warning", False),
     "loom:agent-wrote-outside-run": ("error", False),
+    # the workbench and the record (book chapter 17; docs/specs/diagnostics.md §3)
+    "loom:deprecated-config-key": ("warning", False),
+    "loom:superseded-file": ("info", False),
+    "loom:canon-edited": ("warning", False),
+    "loom:history-missing": ("error", False),
+    "loom:history-edited": ("error", False),
+    "loom:history-corrupt": ("error", False),
+    "loom:dangling-ancestry": ("warning", False),
+    "loom:id-reused": ("error", False),
+    "loom:node-recovered": ("info", False),
+    "loom:no-live-document": ("info", False),
 }
 
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}

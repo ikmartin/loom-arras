@@ -1,0 +1,3 @@
+The synthetic quilt: invented mathematics about widgets and gadgets that exercises every construct of the source contract and every diagnostic code. It is loom's main test fixture and the source of the conformance fixture in the workspace. EXPECTED-LINT.txt lists the diagnostics `loom lint` must report, one `severity code` per line, sorted.
+
+The review records under `.loom/`, `comments/`, and `ai/runs/` were produced by running loom's own commands on a copy of this quilt with `LOOM_FIXED_TIME=2026-09-16T00:00:00Z` (`accept`, `comment` with and without `--run`, `ai discard`), then editing the definition `sy-0001` so that its dependents went stale and deleting the lemma `sy-000F` so that its ledger rows retired; they are not hand-written.

@@ -1,4 +1,4 @@
-"""`loom compile`, `loom assemble`, `loom bundle`, `loom check` (book 12.5). `loom build` and `loom serve` live in render/ once the converter exists."""
+"""`loom compile`, `loom bundle`, `loom check` (book 12.5). `loom build` and `loom serve` live in render/; `loom linearize` (17.13) replaced `loom assemble`."""
 
 from __future__ import annotations
 
@@ -8,10 +8,9 @@ from pathlib import Path
 import click
 
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note, resolve_run
-from loom.cli._quilt import open_scan, quilt_option, resolve_key
+from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.clock import stamp
 from loom.scan.scan import ScanResult
-from loom.tex.assemble import assemble as assemble_text
 from loom.tex.bundle import Bundle, build_bundle, bundle_filename, draft_bundle, substituted_region
 from loom.tex.runner import compile_tex, normalise_engine
 
@@ -92,6 +91,7 @@ def bundle(
         if key is None:
             raise EnvError("give a KEY, or --draft FILE")
         key = resolve_key(result, key)
+        require_text(result, key)
         if result.nodes[key].kind not in ("environment", "proof", "section"):
             raise EnvError(f"{key} is not a statement or proof key")
         override = None
@@ -124,6 +124,7 @@ def compile(ctx: click.Context, target: str | None, engine: str | None, quilt_pa
         label = master
     else:
         key = resolve_key(result, target)
+        require_text(result, key)
         b = build_bundle(result, key)
         out = write_bundle(result, b, None, None)
         stem = out.stem
@@ -152,23 +153,6 @@ def missing_package_notes(result: ScanResult, keys: list[str]) -> list[str]:
         if d.code == "loom:missing-package" and any(loc.file in files for loc in d.locations):
             out.append(f"{d.code}: {d.message}")
     return out
-
-
-@click.command()
-@click.argument("master")
-@click.argument("dest")
-@quilt_option
-def assemble(master: str, dest: str, quilt_path: str | None) -> None:
-    """Write DEST: MASTER flattened with every \\input, \\nest (levels shifted), and \\include expanded, for arXiv or latexdiff."""
-    result = open_scan(quilt_path)
-    if master not in result.masters:
-        raise EnvError(f"{master} is not a master of this quilt ({', '.join(result.masters) or 'none'})")
-    out = Path(dest).expanduser()
-    if out.exists():
-        raise EnvError(f"{dest} exists; assemble never overwrites")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(assemble_text(result.quilt.root, master), encoding="utf-8")
-    click.echo(str(out))
 
 
 @click.command()

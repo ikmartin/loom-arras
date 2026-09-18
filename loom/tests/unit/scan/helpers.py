@@ -7,7 +7,7 @@ from pathlib import Path
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import ScanResult, scan
 
-DEFAULT_CONFIG = '[quilt]\nmain = "drafts/main.tex"\ndrafts = "drafts"\nprefix = "ab"\nengine = "pdflatex"\n'
+DEFAULT_CONFIG = '[quilt]\nmain = "drafting/main.tex"\ndrafting = "drafting"\nprefix = "ab"\nengine = "pdflatex"\n'
 
 PREAMBLE = r"""\documentclass{amsart}
 \usepackage{amsthm}

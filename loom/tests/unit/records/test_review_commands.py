@@ -83,8 +83,8 @@ def test_accept_writes_closure_hashes_and_proofs_flag(tmp_path: Path) -> None:
     rows = {r.key: r for r in read_ledger(d)}
     assert set(rows["dm-0002/proof"].closure) == {"dm-0001", "dm-0002"}
     assert rows["dm-0002"].closure == {}
-    assert rows["dm-0002"].preamble.startswith("sha256:") and rows["dm-0002"].master == "drafts/main.tex"
-    snaps = list((d / ".loom" / "snapshots").glob("*.tex"))
+    assert rows["dm-0002"].preamble.startswith("sha256:") and rows["dm-0002"].master == "drafting/main.tex"
+    snaps = list((d / ".loom" / "history" / "texts").glob("*.tex"))
     assert len(snaps) >= 3
     s = status_json(d)
     assert s["keys"]["dm-0002"]["state"] == "accepted" and s["keys"]["dm-0002"]["acceptance"]["fresh"]
@@ -122,7 +122,7 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     kinds = {c["kind"] for c in s["keys"]["dm-0003"]["acceptance"]["causes"]}
     assert {"own-text-changed", "dependency-added"} <= kinds
     # preamble-changed
-    m = d / "drafts" / "main.tex"
+    m = d / "drafting" / "main.tex"
     m.write_text(
         m.read_text().replace("\\newcommand{\\Fix}{\\operatorname{Fix}}", "\\newcommand{\\Fix}{\\operatorname{Fixed}}")
     )
@@ -130,8 +130,8 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     assert "preamble-changed" in {c["kind"] for c in s["keys"]["dm-0003"]["acceptance"]["causes"]}
     # dependency-removed
     f.unlink()
-    (d / "drafts" / "main.tex").write_text(
-        (d / "drafts" / "main.tex").read_text().replace("\\input{nodes/dm-0001}\n", "")
+    (d / "drafting" / "main.tex").write_text(
+        (d / "drafting" / "main.tex").read_text().replace("\\input{nodes/dm-0001}\n", "")
     )
     s = status_json(d)
     assert "dependency-removed" in {c["kind"] for c in s["keys"]["dm-0002/proof"]["acceptance"]["causes"]}
@@ -273,7 +273,7 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
 def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
     d = demo(tmp_path)
     assert run("accept", "dm-0004", "dm-0002", "--proofs", *AUTHOR, cwd=d).exit_code == 0
-    m = d / "drafts" / "main.tex"
+    m = d / "drafting" / "main.tex"
     text = m.read_text()
     remark = text[text.index("\\begin{remark}\\label{dm-0004}") : text.index("\\end{remark}") + len("\\end{remark}")]
     m.write_text(text.replace(remark + "\n", ""))
@@ -314,7 +314,7 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
         ["--unmatched-cites"],
         ["--retired"],
         ["--runs"],
-        ["--master", "drafts/main.tex"],
+        ["--master", "drafting/main.tex"],
         ["--tag", "orbits"],
     ):
         r = run("status", *flags, cwd=q)

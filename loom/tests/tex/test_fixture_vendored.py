@@ -47,9 +47,9 @@ def test_fixture_matches_vendored(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-16T00:00:00Z")
     q = tmp_path / "synthetic"
     shutil.copytree(REPO / "tests" / "quilts" / "synthetic", q)
-    r = _run("compile", "drafts/main.tex", cwd=q)
+    r = _run("compile", "drafting/main.tex", cwd=q)
     assert r.exit_code == 0, r.output
-    assert _run("compile", "drafts/talk.tex", cwd=q).exit_code == 0
+    assert _run("compile", "drafting/talk.tex", cwd=q).exit_code == 0
     _run("build", cwd=q)
     ours = json.loads((q / "build" / "manifest.json").read_text())
     theirs = json.loads((FIXTURE / "manifest.json").read_text())

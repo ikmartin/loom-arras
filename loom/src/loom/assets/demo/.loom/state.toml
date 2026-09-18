@@ -7,7 +7,7 @@ author = "The loom demo"
 date = 2026-09-16T00:00:00Z
 text = "sha256:85937d118b76ff4a0180631929ae406341223152cc763a0205131e076ccf3273"
 preamble = "sha256:3536adcdd34d946abd14b06e2f4d95dffeb8e11b94df6c38fb5495fc477de81f"
-master = "drafts/main.tex"
+master = "drafting/main.tex"
 [accept.closure]
 
 [[accept]]
@@ -16,7 +16,7 @@ author = "The loom demo"
 date = 2026-09-16T00:00:00Z
 text = "sha256:f61ebff4fab345f0088dcc3f282d13e3fe9871e719640cd9abb5a527ee6d44c6"
 preamble = "sha256:3536adcdd34d946abd14b06e2f4d95dffeb8e11b94df6c38fb5495fc477de81f"
-master = "drafts/main.tex"
+master = "drafting/main.tex"
 [accept.closure]
-"dm-0001" = "sha256:51f5512a6ef343aea8f8cba819924a1e88d8d8b7acfc146cce13e6c656341898"
+"dm-0001" = "sha256:899cefd4eca64c9b89165d1e0609201ed2102affaa0ec868f88353926a788e29"
 "dm-0002" = "sha256:85937d118b76ff4a0180631929ae406341223152cc763a0205131e076ccf3273"

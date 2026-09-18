@@ -10,7 +10,7 @@ from loom.scan.scan import ScanResult
 
 
 def visible_locals(result: ScanResult, prefix: str) -> set[str]:
-    """Every local part under `prefix` that anything can point at: ids in source, ledger keys, annotation targets, references anywhere (dangling included), and git history."""
+    """Every local part under `prefix` that anything can point at: ids in source, the acceptance ledger's keys, the history ledger's keys and every file name under its steps (an id the history has recorded is never allocated again, book 17.14), annotation targets, references anywhere (dangling included), and git history."""
     pat = re.compile(r"\b" + re.escape(prefix) + r"-([0-9A-Z]{4})\b")
     found: set[str] = set()
     for src in result.files.values():
@@ -19,6 +19,12 @@ def visible_locals(result: ScanResult, prefix: str) -> set[str]:
     ledger = root / ".loom" / "state.toml"
     if ledger.is_file():
         found.update(pat.findall(ledger.read_text(encoding="utf-8", errors="replace")))
+    history = result.quilt.history_dir
+    if (history / "ledger.jsonl").is_file():
+        found.update(pat.findall((history / "ledger.jsonl").read_text(encoding="utf-8", errors="replace")))
+        for step in history.iterdir():
+            if step.is_dir() and step.name != "texts":
+                found.update(pat.findall(" ".join(p.name for p in step.iterdir())))
     for rec in list(root.glob("comments/*/*.json")) + list(root.glob("ai/runs/*/annotations.json")):
         found.update(pat.findall(rec.read_text(encoding="utf-8", errors="replace")))
     try:

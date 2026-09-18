@@ -9,16 +9,17 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from loom.history.ledger import load_history
 from loom.scan.bib import BibEntry, parse_bib
 from loom.scan.edges import EdgeResult, find_edges
 from loom.scan.expand import Expansion, expand_master
 from loom.scan.graph import Graph
-from loom.scan.model import Diagnostic, Location, SourceFile, Taxon
+from loom.scan.model import Diagnostic, Fix, Location, SourceFile, Taxon
 from loom.scan.nodes import Assembly, assemble
 from loom.scan.preamble import PreambleClosure, build_closure, taxa_conflicts, taxa_union
 from loom.scan.quilt import Quilt
 from loom.scan.relations import RelationRec, find_relations
-from loom.scan.source import SKIP_DIRS, discover_files, read_source
+from loom.scan.source import IGNORE_RE, SKIP_DIRS, SKIP_PREFIXES, discover_files, read_source
 
 _DOCCLASS = re.compile(r"\\documentclass\b")
 
@@ -29,6 +30,9 @@ class ScanResult:
     files: dict[str, SourceFile] = field(default_factory=dict)
     masters: list[str] = field(default_factory=list)
     default_master: str | None = None
+    canon_files: list[str] = field(
+        default_factory=list
+    )  # the canon documents, never scanned; the renderer draws them on its own
     closures: dict[str, PreambleClosure] = field(default_factory=dict)
     expansions: dict[str, Expansion] = field(default_factory=dict)
     taxa: dict[str, Taxon] = field(default_factory=dict)
@@ -45,14 +49,41 @@ class ScanResult:
         return self.assembly.nodes
 
 
-def find_bib_files(root: Path) -> list[str]:
+def find_bib_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
+    """The quilt's bibliography files.
+
+    A `.bib` inside a fetched or crawled work's source under `refs/`, or inside a run under `ai/`, is someone else's bibliography, not the quilt's; reading it would merge a whole library's references into the author's. The canon directory and `retired/` (`skip_top`) hold nothing that is source.
+    """
     out: list[str] = []
     for path in root.rglob("*.bib"):
         rel = path.relative_to(root)
         if any(part in SKIP_DIRS for part in rel.parts[:-1]):
             continue
+        if rel.as_posix().startswith(SKIP_PREFIXES):
+            continue
+        if len(rel.parts) > 1 and rel.parts[0] in skip_top:
+            continue
         out.append(rel.as_posix())
     return sorted(out)
+
+
+def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
+    """Top-level directories the scan never enters: the canon directory and `retired/` (book 4.1.2)."""
+    return (quilt.config.canon, "retired")
+
+
+def canon_documents(quilt: Quilt) -> list[str]:
+    """The `.tex` files directly under the canon directory, sorted; `% !LOOM ignore` in the first twenty lines is honoured."""
+    d = quilt.canon_dir
+    if not d.is_dir():
+        return []
+    out: list[str] = []
+    for p in sorted(d.glob("*.tex")):
+        head = "\n".join(p.read_text(encoding="utf-8", errors="replace").split("\n", 20)[:20])
+        if IGNORE_RE.search(head):
+            continue
+        out.append(p.relative_to(quilt.root).as_posix())
+    return out
 
 
 def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
@@ -60,12 +91,32 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
     root = quilt.root
     result = ScanResult(quilt=quilt)
     overlay = overlay or {}
-    paths = list(discover_files(root))
+    skip = skipped_dirs(quilt)
+    paths = list(discover_files(root, skip))
     for extra in sorted(overlay):
-        if extra not in paths:
+        if extra not in paths and not extra.startswith(tuple(f"{d}/" for d in skip)):
             paths.append(extra)
+    result.canon_files = canon_documents(quilt)
     for rel in paths:
         result.files[rel] = read_source(root, rel, overlay.get(rel))
+    history = load_history(quilt.history_dir)
+    for rel, entry in sorted(history.superseded_paths().items()):
+        src = result.files.get(rel)
+        if src is None:
+            continue
+        # a conversion recorded that its output replaced this document, so it defines nothing until `loom live` says otherwise (book 17.12)
+        src.ignored = True
+        src.superseded = entry.action
+        result.diagnostics.append(
+            Diagnostic(
+                "info",
+                "loom:superseded-file",
+                f"{rel} was superseded by {', '.join(str(t) for t in _targets(entry))} ({entry.action}, {entry.when[:10]}); it defines nothing",
+                [Location(rel, 1)],
+                subject="record",
+                fixes=[Fix("make it live again", f"loom live {rel}")],
+            )
+        )
     for rel, src in result.files.items():
         if src.encoding != "utf-8":
             result.diagnostics.append(
@@ -76,18 +127,18 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                     [Location(rel, 1)],
                 )
             )
-    drafts = quilt.config.drafts.strip("/")
+    drafting = quilt.config.drafting
     for rel, src in result.files.items():
         if src.ignored or not _DOCCLASS.search(src.clean):
             continue
-        if Path(rel).parent.as_posix() == drafts:
+        if Path(rel).parent.as_posix() == drafting:
             result.masters.append(rel)
         else:
             result.diagnostics.append(
                 Diagnostic(
                     "info",
                     "loom:documentclass-outside-drafts",
-                    f"{rel} has \\documentclass but is outside {drafts}/; it is scanned as an ordinary file",
+                    f"{rel} has \\documentclass but is outside the drafting directory {drafting}/; it is scanned as an ordinary file",
                     [Location(rel, 1)],
                 )
             )
@@ -104,7 +155,7 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                 [],
             )
         )
-    for rel in find_bib_files(root):
+    for rel in find_bib_files(root, skip):
         result.bib.update(parse_bib(read_source(root, rel).text))
     from loom.scan.directives import parse_directives
 
@@ -150,3 +201,12 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
 
     result.lint = _lint(result, result.edges, result.graph)
     return result
+
+
+def _targets(entry) -> list[str]:  # type: ignore[no-untyped-def]
+    to = entry.get("to")
+    if isinstance(to, list):
+        return [str(t) for t in to]
+    if isinstance(to, dict):
+        return [str(to.get("path", ""))]
+    return [str(to)] if to else []

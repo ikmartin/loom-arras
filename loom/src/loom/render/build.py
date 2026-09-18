@@ -1,6 +1,6 @@
 """`loom build` (book 9.1): scan, read records, read numbering, render, write the manifest, publish.
 
-Rendering is cached by an input hash per fragment (the text of the files it draws on plus the numbering), so a build after a one-line edit re-renders one node and its masters.
+Rendering is cached by an input hash per fragment (the text of the files it draws on plus the numbering), so a build after a one-line edit re-renders one node and its masters. The hash carries loom's version, and in a checkout — whose version does not move between edits — a fingerprint of loom's own code, so changing the converter does not leave yesterday's HTML on disk. `--force` renders everything regardless.
 """
 
 from __future__ import annotations
@@ -8,10 +8,13 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
 from typing import Any
 
+from loom.history.ledger import load_history
 from loom.records.store import Records
+from loom.render.canon import CanonRenderer, canon_fragment_path, load_canon
 from loom.render.fragments import FragmentRenderer, RenderPlan
 from loom.render.manifest import build_manifest
 from loom.render.marks import MarkEntry, place_marks
@@ -49,10 +52,25 @@ def fragment_path(result: ScanResult, key: str) -> str:
     return f"fragments/keys/{quote(key, safe='')}.html"
 
 
+@cache
+def _code_hash() -> str:
+    """A fingerprint of loom's own rendering code, or '' for a released version, which its version string already identifies.
+
+    In a checkout the version stays `0.1.0.dev0` across every edit, so a changed converter would otherwise hit the cache and republish the HTML it was meant to replace. Read once per process, since a served quilt rebuilds on every keystroke.
+    """
+    if "dev" not in __version__:
+        return ""
+    h = hashlib.sha256()
+    for path in sorted((Path(__file__).resolve().parent.parent).rglob("*.py")):
+        h.update(path.read_bytes())
+    return h.hexdigest()[:16]
+
+
 def _input_hash(result: ScanResult, key: str, numbers: dict[str, dict[str, AuxNumber]]) -> str:
     n = result.nodes[key]
     h = hashlib.sha256()
     h.update(__version__.encode())
+    h.update(_code_hash().encode())
     files = {n.file}
     if n.kind in ("master", "file"):
         for exp in result.expansions.values():
@@ -66,6 +84,19 @@ def _input_hash(result: ScanResult, key: str, numbers: dict[str, dict[str, AuxNu
     for m in sorted(numbers):
         for lab, num in sorted(numbers[m].items()):
             h.update(f"{m}|{lab}|{num.number}|{num.page}".encode())
+    return h.hexdigest()
+
+
+def _canon_hash(doc, root: Path) -> str:  # type: ignore[no-untyped-def]
+    """The cache key of a canon fragment: loom's version and code, the document's text, and its closure's."""
+    h = hashlib.sha256()
+    h.update(__version__.encode())
+    h.update(_code_hash().encode())
+    h.update(doc.path.encode())
+    h.update(doc.src.text.encode("utf-8", errors="replace"))
+    h.update(doc.closure.raw_text().encode("utf-8", errors="replace"))
+    for p in sorted((root / "build").glob(f"{doc.stem}/*.aux")):
+        h.update(p.read_bytes())
     return h.hexdigest()
 
 
@@ -103,7 +134,9 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
     return out
 
 
-def build(quilt: Quilt, keys: list[str] | None = None, records: Records | None = None) -> BuildReport:
+def build(
+    quilt: Quilt, keys: list[str] | None = None, records: Records | None = None, force: bool = False
+) -> BuildReport:
     root = quilt.root
     build_dir = root / "build"
     cache_dir = build_dir / "cache"
@@ -115,7 +148,7 @@ def build(quilt: Quilt, keys: list[str] | None = None, records: Records | None =
     renderer = FragmentRenderer(plan)
     index_path = cache_dir / "fragments.json"
     index: dict[str, str] = {}
-    if index_path.exists():
+    if index_path.exists() and not force:
         try:
             index = json.loads(index_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
@@ -162,8 +195,27 @@ def build(quilt: Quilt, keys: list[str] | None = None, records: Records | None =
         files[rel] = html_out
         index[rel] = digest
         report.rendered.append(key)
+    history = load_history(quilt.history_dir)
+    canon_docs = load_canon(quilt, result, history)
+    canon_renderer = CanonRenderer(renderer)
+    canon_entries: list[dict[str, Any]] = []
+    from loom.render.canon import canon_entry
+
+    for doc in canon_docs:
+        rel = canon_fragment_path(doc)
+        digest = _canon_hash(doc, root)
+        if (wanted is not None) or (index.get(rel) == digest and (build_dir / rel).exists()):
+            report.skipped.append(f"canon:{doc.path}")
+        else:
+            files[rel] = canon_renderer.fragment(doc)
+            index[rel] = digest
+            report.rendered.append(f"canon:{doc.path}")
+        fragments[f"canon:{doc.path}"] = rel
+        canon_entries.append(canon_entry(doc, rel, digest))
     report.diagnostics = list(result.lint) + plan.diagnostics
-    manifest = build_manifest(result, numbers, fragments, report.diagnostics)
+    manifest = build_manifest(
+        result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
+    )
     records.apply(result, manifest, build_dir)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]

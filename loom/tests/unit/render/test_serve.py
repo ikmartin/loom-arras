@@ -65,7 +65,7 @@ def test_serve_static_routes(session) -> None:  # type: ignore[no-untyped-def]
     status, headers, body = get(s.url + "build/manifest.json")
     assert status == 200 and headers["Content-Type"].startswith("application/json")
     manifest = json.loads(body)
-    assert manifest["corpus"]["name"] == "demo"
+    assert manifest["corpus"]["name"] == "The loom demo"  # [quilt] name, not the directory
     etag = headers["ETag"]
     status, _, _ = get(s.url + "build/manifest.json", {"If-None-Match": etag})
     assert status == 304

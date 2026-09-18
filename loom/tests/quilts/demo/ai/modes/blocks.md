@@ -24,7 +24,7 @@ Every mode file refers to this file. Read it once per session.
    Quote exact source text only when wording matters, and then from the
    bundle.
 5. Search order for anything about a cited paper: the digest
-   (`loom search CITEKEY --json`), then `refs/pdf/CITEKEY.pdf`, then the
+   (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the
    web. Say which you used. If none, write "unlocated".
 6. Distinguish what the author asked for from what you noticed on the way.
    Report both; do not act on the second.
@@ -104,7 +104,7 @@ starting list is audit's [patch-list] when one exists in the run.
 - Never edit a file outside your run directory.
 - Never write `annotations.json` by hand; `loom comment` writes it.
 - Never run `loom accept`, `loom atomize`, `loom inline`, `loom import`,
-  or `loom ai promote`; those are the author's.
+  or paste a node; those are the author's.
 - Never delete anything.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
@@ -207,3 +207,15 @@ Write each block under a heading with its name in brackets.
   original and confirm the meaning is unchanged. If it has changed, flag
   the drift explicitly and explain the reason. If preservation is
   non-obvious, say why it holds.
+- [candidates] One entry per candidate statement produced in this run:
+  its draft file name, its taxon, a one-line statement, the hypotheses
+  the author must still decide, and what it would depend on (ids).
+- [dead-ends] One entry per approach tried and abandoned: what it was,
+  why it fails (a computation, a counterexample, a known obstruction with
+  a digest node id), and whether anything was salvaged.
+- [known-results] What the digests already say about the topic: digest
+  node ids with locators, each with one line on how it bears on the
+  candidates (gives it, contradicts it, gives it under other hypotheses).
+- [open-questions] What could not be decided in this run and what would
+  decide it (a computation to run, a paper to digest, a definition to
+  fix).

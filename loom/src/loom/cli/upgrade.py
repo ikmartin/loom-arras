@@ -7,13 +7,14 @@ from importlib import resources
 import click
 
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.history.migrate import migrate_history
 from loom.refs.migrate import migrate
 
 
 @click.command()
 @quilt_option
 def upgrade(quilt_path: str | None) -> None:
-    """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones."""
+    """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones. Also brings the records to the current layout: snapshots into the history's texts/, `drafts` renamed `drafting` in config.toml."""
     from loom.ai.layout import upgrade_layer
 
     quilt = open_quilt(quilt_path)
@@ -47,5 +48,10 @@ def upgrade(quilt_path: str | None) -> None:
         )
     if not refs_rep.done:
         click.echo("references are current")
-    if not refs_rep.retired:
+    hist_rep = migrate_history(root, quilt.history_dir)
+    if hist_rep.moved:
+        click.echo(f"moved {len(hist_rep.moved)} snapshots into {quilt.config.history}/texts/")
+    if hist_rep.renamed:
+        click.echo("renamed [quilt] drafts to drafting in config.toml (nothing moved)")
+    if not refs_rep.retired and not hist_rep.done:
         click.echo("config.toml and the ledger need no migration")

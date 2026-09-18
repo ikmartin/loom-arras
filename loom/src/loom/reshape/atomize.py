@@ -90,6 +90,37 @@ def _directive_start(result: ScanResult, node: NodeRec, region_start: int) -> in
     return start
 
 
+@dataclass
+class Region:
+    """A node's whole-line region in its file: directive lines above it, the environment, and the adjacent unlabelled proofs that travel with it."""
+
+    start: int
+    end: int
+    text: str
+    proofs: list[str] = field(default_factory=list)
+
+
+def node_region(result: ScanResult, n: NodeRec, proofs: str = "attached") -> Region:
+    src = result.files[n.file]
+    text = src.text
+    region_start = _directive_start(result, n, n.start)
+    region_end = n.end
+    claimed: list[str] = []
+    if n.kind == "environment":
+        attached = []
+        for pk in n.proofs:
+            p = result.assembly.nodes[pk]
+            if p.file == n.file and p.attach_via == "adjacent" and p.start >= n.end and not p.id:
+                if proofs == "attached" and text[n.end : p.start].strip() == "":
+                    attached.append(p)
+        for p in sorted(attached, key=lambda x: x.start):
+            if text[region_end : p.start].strip() == "":
+                region_end = p.end
+                claimed.append(p.key)
+    ls, le = _line_bounds(text, region_start, region_end)
+    return Region(ls, le, text[ls:le].rstrip("\n") + "\n", claimed)
+
+
 def plan_atomize(
     result: ScanResult,
     src_rel: str,
@@ -131,19 +162,9 @@ def plan_atomize(
                 continue
             if _inside_moved(n, nodes_here, claimed):
                 continue
-            region_start = _directive_start(result, n, n.start)
-            region_end = n.end
-            attached = []
-            for pk in n.proofs:
-                p = asm.nodes[pk]
-                if p.file == src_rel and p.attach_via == "adjacent" and p.start >= n.end and not p.id:
-                    if proofs == "attached" and text[n.end : p.start].strip() == "":
-                        attached.append(p)
-            for p in sorted(attached, key=lambda x: x.start):
-                if text[region_end : p.start].strip() == "":
-                    region_end = p.end
-                    claimed.add(p.key)
-            ls, le = _line_bounds(text, region_start, region_end)
+            region = node_region(result, n, proofs)
+            claimed.update(region.proofs)
+            ls, le = region.start, region.end
             if re.search(r"\\include\s*\{", src.clean[ls:le]):
                 plan.refusals.append(
                     f"{n.key} contains \\include, which cannot move into a node file (\\include forces a page break and its own .aux)"

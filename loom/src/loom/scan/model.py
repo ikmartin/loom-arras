@@ -32,6 +32,9 @@ class SourceFile:
     encoding: str
     ignored: bool
     line_starts: list[int] = field(default_factory=list)
+    superseded: str | None = (
+        None  # the ledger action whose output replaced this document, which then defines nothing (book 17.12)
+    )
 
     def line_of(self, offset: int) -> int:
         """1-based line containing `offset`."""
@@ -58,6 +61,14 @@ class Location:
     column: int | None = None
 
 
+@dataclass(frozen=True)
+class Fix:
+    """A command that would resolve a diagnostic, offered to be copied; nothing runs it (docs/specs/diagnostics.md §1)."""
+
+    label: str
+    command: str
+
+
 @dataclass
 class Diagnostic:
     severity: str
@@ -65,9 +76,11 @@ class Diagnostic:
     message: str
     locations: list[Location] = field(default_factory=list)
     keys: list[str] = field(default_factory=list)
+    fixes: list[Fix] = field(default_factory=list)
+    subject: str | None = None  # "source" (the default when absent) or "record": what the diagnostic is about
 
     def to_dict(self) -> dict[str, object]:
-        return {
+        out: dict[str, object] = {
             "severity": self.severity,
             "code": self.code,
             "message": self.message,
@@ -77,6 +90,11 @@ class Diagnostic:
             ],
             "keys": list(self.keys),
         }
+        if self.fixes:
+            out["fixes"] = [{"label": f.label, "command": f.command} for f in self.fixes]
+        if self.subject:
+            out["subject"] = self.subject
+        return out
 
 
 @dataclass(frozen=True)

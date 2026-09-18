@@ -1,0 +1,227 @@
+\documentclass{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{macros}
+% !LOOM begin loom-macros
+% loom.sty is MIT-licensed so that it can travel with a paper; see the LICENSE beside it in the loom distribution.
+
+% Dependencies the text does not express as \ref or a matchable \cite.
+% Prints nothing.
+\providecommand{\uses}[1]{}
+
+% Marks a statement or proof as mathematically incomplete.
+% Prints nothing; an author may \renewcommand it to print in draft builds.
+\providecommand{\incomplete}[1]{}
+
+% Inputs a file with every sectioning command inside it shifted one level down.
+% Composes when nested files nest files.
+\providecommand{\nest}[1]{\begingroup
+  \let\chapter\section
+  \let\section\subsection
+  \let\subsection\subsubsection
+  \let\subsubsection\paragraph
+  \let\paragraph\subparagraph
+  \input{#1}\endgroup}
+% !LOOM end loom-macros
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem*{mainthm}{Main Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Widgets, gadgets, and their fixed loci}
+\author{The synthetic quilt}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}\label{sy-0100}
+
+This paper studies widgets. The basic identity is
+\begin{equation}\label{eq:prose}
+\sigma^2 = \mathrm{id},
+\end{equation}
+which we use throughout.\footnote{The name comes from nowhere.} The \GW{} theory of gadgets is not touched. See \cite[Chapter II]{Har77} for schemes and \cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\ref{sy-9999}.
+
+\begin{definition}[Widget]\label{sy-0001}
+A \emph{widget} is a pair $(X,\sigma)$ with $\sigma\colon X\to X$ satisfying \eqref{eq:prose}. Its fixed locus is
+\begin{equation}\label{eq:fix}
+\Fix(\sigma) = \{x \in X : \sigma x = x\}.
+\end{equation}
+\end{definition}
+
+% !LOOM author: The synthetic quilt
+% !LOOM created: 2026-09-16
+% !LOOM tags: orbits, setup
+
+\begin{lemma}[Orbits]\label{sy-0002}
+Every orbit of a widget has one or two points; compare \eqref{eq:fix} in Definition~\ref{sy-0001}.
+\end{lemma}
+\begin{proof}
+The orbit of $x$ is $\{x, \sigma x\}$ because
+\begin{equation}\label{eq:step}
+\sigma(\sigma x) = x
+\end{equation}
+by \eqref{eq:prose}.
+\end{proof}
+
+
+\begin{itemize}
+\item widgets,
+\item gadgets.
+\end{itemize}
+
+\begin{tabular}{ll}
+object & involution \\
+widget & yes \\
+gadget & no
+\end{tabular}
+
+\begin{center}
+\begin{tikzcd}
+X \arrow[r, "\sigma"] \arrow[d] & X \arrow[d] \\
+Y \arrow[r] & Y
+\end{tikzcd}
+\end{center}
+
+\includegraphics[width=3cm]{figures/fig.pdf}
+
+\parbox{5cm}{A boxed paragraph the converter renders as an image.}
+
+\red{This sentence is in red.}
+
+% !LOOM author: The synthetic quilt
+% !LOOM tags: results
+
+\section{Results}\label{sy-0200}
+
+The main results, with one proof deferred to the end of the section.
+
+% !LOOM author: The synthetic quilt
+% !LOOM created: 2026-09-16
+% !LOOM tags: main
+
+\begin{theorem}[Parity]\label{sy-0003}
+Let $(X,\sigma)$ be a finite widget. Then $|X| \equiv |\Fix(\sigma)| \pmod 2$.
+\end{theorem}
+\begin{proof}[First proof]\label{sy-0004}
+\uses{sy-0002}
+By Lemma~\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.
+\end{proof}
+\begin{proof}[Second proof]\label{sy-0005}
+\uses{sy-0002, sy-0001}
+Count fixed points of the permutation $\sigma$ directly, using \eqref{eq:step} from the proof of Lemma~\ref{sy-0002} and Definition~\ref{sy-0001}.
+\end{proof}
+
+
+\subsection{Consequences}\label{sy-0201}
+
+\begin{proposition}[Two arguments]\label{sy-0006}
+A widget with $|X| = 1$ has a fixed point.
+\end{proposition}
+\begin{proof}
+The only point is fixed.
+\end{proof}
+\begin{proof}
+Apply Theorem~\ref{sy-0003} with $|X|$ odd.
+\end{proof}
+
+
+% !LOOM tags: deferred
+
+\begin{lemma}[Deferred]\label{sy-0007}
+The composite of two widget maps is a widget map.
+\end{lemma}
+
+
+% !LOOM see: sy-7777, def:gadget
+\begin{definition}[Gadget]\label{sy-0008}\label{def:gadget}\label{defn:gadget-old}
+A \emph{gadget} is a widget whose involution has no fixed point.
+\end{definition}
+
+
+\begin{proof}[Proof of Lemma~\ref{sy-0007}]
+\uses{sy-0001}
+Both maps commute with the involutions, so their composite does. Here we use Definition~\ref{def:gadget} only for notation.
+\end{proof}
+
+\begin{lemma}\label{sy-0202}
+% !LOOM author: A Coauthor
+A lemma written by a coauthor, so its author directive overrides the file's.
+\end{lemma}
+\begin{proof}
+Trivial.
+\end{proof}
+
+
+\subsection{Appendix: an incomplete argument}\label{sy-0300}
+
+This file is nested, so its section renders one level down.
+
+\begin{lemma}[Incomplete]\label{sy-000C}
+Every gadget has even order.
+\end{lemma}
+\begin{proof}
+\uses{sy-0008}
+Orbits have size two. \incomplete{Show that there are no fixed points using Definition~\ref{sy-0008}.}
+\end{proof}
+
+\begin{lemma}[No proof yet]\label{sy-000D}
+Every widget map preserves orbit sizes.
+\end{lemma}
+
+\begin{remark}
+An unlabelled remark: gadgets never have odd order.
+\end{remark}
+
+\begin{definition}[Half-gadget]\label{sy-000E}
+A widget with exactly one fixed point.
+\end{definition}
+\begin{proof}
+Definitions need no proof; this one has a stray proof anyway.
+\end{proof}
+
+% !LOOM priority: high
+
+\begin{proof}[Proof of Lemma~\ref{sy-000D} and Lemma~\ref{sy-0007}]
+A proof naming two results attaches to the first.
+\end{proof}
+
+
+% A missing \input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \iffalse, which LaTeX skips and the scanner does not interpret.
+\iffalse
+\input{nodes/missing}
+\fi
+
+\begin{remark}\label{sy-000A}
+Gadgets exist: take $X = \{1,2\}$ with the swap. Compare \cite[Theorem 2.1]{Kre99}.
+\end{remark}
+
+
+\begin{mainthm}\label{sy-000B}
+\uses{sy-0003, sy-0006}
+Every finite widget of odd order has a fixed point, and the fixed locus is functorial.
+\end{mainthm}
+\begin{proof}
+Combine Theorem~\ref{sy-0003} and Proposition~\ref{sy-0006}.
+\end{proof}
+
+
+\begin{lemma}[Retired]\label{sy-000F}
+This lemma is accepted and then deleted, so its ledger rows retire.
+\end{lemma}
+\begin{proof}
+Trivial.
+\end{proof}
+
+\bibliographystyle{amsplain}
+\bibliography{refs}
+
+\end{document}

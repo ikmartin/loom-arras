@@ -67,8 +67,9 @@ class ResolvedAnnotation:
 
 
 class Records:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, history_dir: Path | None = None) -> None:
         self.root = root
+        self.history_dir = history_dir
         self.rows = read_ledger(root)
         self.latest = latest_rows(self.rows)
         self.records, self.problems = load_records(root)
@@ -321,7 +322,7 @@ class Records:
     def diff_for(self, result: ScanResult, cause: Cause, key: str) -> str | None:
         if not cause.before:
             return None
-        before = read_snapshot(self.root, cause.before)
+        before = read_snapshot(self.root, cause.before, self.history_dir)
         if before is None:
             return None
         target = cause.id or key

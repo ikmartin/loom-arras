@@ -46,10 +46,12 @@ loom serve                  # http://127.0.0.1:8791, re-renders whenever a file 
 Then, on your own paper:
 
 ```
-loom init mypaper --from ~/papers/draft.tex     # copies the paper's closure, inserts ids, runs the identity test
+loom init mypaper --from ~/papers/draft.tex     # the paper arrives as one flat landmark in canon/
 cd mypaper
+loom draft canon/draft.tex --to drafting/main.tex   # a working copy, with an id on every node
 loom status                                     # every key, its state, and its open comments
-loom atomize drafts/draft.tex drafts/main.tex --sections   # one file per node, a spine of \input lines
+loom atomize drafting/main.tex drafting/spine.tex --sections   # one file per node, a spine of \input lines
+loom canonize drafting/spine.tex -m "Submitted"  # a landmark, and a record of what every key was
 loom accept rl-0004 --proofs                    # record what you have checked; later edits show up as stale
 loom comment rl-0004/proof "Why closed?" --quote "the diagonal is closed" --kind question
 loom digest extract Man12 ~/papers/manolache/virtual6.tex  # a cited paper's results as nodes; \cite[Theorem 4.1]{Man12} becomes an edge
@@ -60,12 +62,13 @@ Every command is described in [docs/cli-reference.md](docs/cli-reference.md), ge
 
 ## What a quilt is
 
-An ordinary LaTeX project loom can read: masters in `drafts/`, one node per file in `nodes/` by convention, digests of cited papers in `refs/`, and three macros from `loom.sty` that print nothing (`\uses`, `\incomplete`, `\nest`). The paper compiles with plain `pdflatex` from the quilt root and on Overleaf. loom never edits your files: its own data lives in `.loom/` (the acceptance ledger), `comments/` and `ai/runs/` (review records), and `build/` (everything derived). `loom init` writes `CONTRACT.md` into every quilt with the full contract.
+An ordinary LaTeX project loom can read: the documents you are working on in `drafting/`, one node per file in `nodes/` by convention, digests of cited papers in `digests/`, landmarks in `canon/` (flat, self-contained copies of a document as it stood, never scanned), and three macros from `loom.sty` that print nothing (`\uses`, `\incomplete`, `\nest`). The paper compiles with plain `pdflatex` from the quilt root and on Overleaf. loom never edits your files: its own data lives in `.loom/` (the acceptance ledger and the history of every key), `comments/` and `ai/runs/` (review records), and `build/` (everything derived). `loom init` writes `CONTRACT.md` into every quilt with the full contract.
 
 ## Layout of this repository
 
 - `src/loom/scan/` reads a quilt (files, macros, environments, sections, ids, edges, lint, hashing).
-- `src/loom/records/` holds the ledger, snapshots, annotations, and the computed states.
+- `src/loom/records/` holds the acceptance ledger, snapshots, annotations, and the computed states.
+- `src/loom/history/` holds the history: the ledger of steps, the versions of every key, and the checks over them.
 - `src/loom/render/` publishes the build directory arras reads (fragments, manifest, threads, serve).
 - `src/loom/tex/` wraps latexmk, reads `.aux` files, builds bundles, and runs the identity test.
 - `src/loom/reshape/` is `id`, `import`, `atomize`, and `inline`; `src/loom/digest/` extracts, imports, and fetches digests; `src/loom/ai/` is the AI layer.

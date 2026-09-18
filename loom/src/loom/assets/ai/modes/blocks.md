@@ -104,7 +104,7 @@ starting list is audit's [patch-list] when one exists in the run.
 - Never edit a file outside your run directory.
 - Never write `annotations.json` by hand; `loom comment` writes it.
 - Never run `loom accept`, `loom atomize`, `loom inline`, `loom import`,
-  or `loom ai promote`; those are the author's.
+  or paste a node; those are the author's.
 - Never delete anything.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.

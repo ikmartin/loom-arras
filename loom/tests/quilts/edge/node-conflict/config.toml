@@ -1,0 +1,4 @@
+[quilt]
+name = "node conflict"
+main = "drafting/main.tex"
+prefix = "ed"

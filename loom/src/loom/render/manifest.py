@@ -28,6 +28,7 @@ STATE_LABELS = {
         "accepted": {"label": "accepted", "color": "positive"},
         "stale": {"label": "stale", "color": "warning", "modifier": True},
         "incomplete": {"label": "incomplete", "color": "negative"},
+        "conflicted": {"label": "conflicted", "color": "negative"},
     },
     "derived": {
         "proved": {"label": "proved", "color": "positive"},
@@ -142,9 +143,12 @@ def build_manifest(
     fragments: dict[str, str],
     diagnostics: list[Diagnostic],
     records: Any | None = None,
+    canon: list[Any] | None = None,
+    canon_entries: list[dict[str, Any]] | None = None,
+    history: Any | None = None,
 ) -> dict[str, Any]:
     asm = result.assembly
-    root_name = result.quilt.root.name
+    root_name = result.quilt.name
     dm = result.default_master
     corpus_label = (master_title(result, dm) if dm else None) or root_name
     manifest: dict[str, Any] = {
@@ -153,6 +157,7 @@ def build_manifest(
         "generated": _stamp(),
         "corpus": {"name": root_name, "root_label": corpus_label},
         "masters": [],
+        "canon": list(canon_entries or []),
         "nodes": {},
         "keys": {},
         "regions": {},
@@ -186,6 +191,10 @@ def build_manifest(
         entry["numbering_known"] = aux_known
         manifest["masters"].append(entry)
     for key, n in asm.nodes.items():
+        if n.kind == "conflict":
+            manifest["nodes"][key] = _conflict_entry(n)
+            manifest["keys"][key] = _conflict_key(n)
+            continue
         if n.kind not in ("environment", "section") and not (n.kind == "proof" and n.id):
             continue
         tags = list_value(n.directives.get("tags", ""))
@@ -320,6 +329,16 @@ def build_manifest(
                     }
                     for c in found
                 ]
+    for doc, entry in zip(canon or [], manifest["canon"], strict=False):
+        from loom.render.canon import macro_set
+
+        published = macro_set(doc)
+        if published:
+            manifest["macros"]["sets"][f"canon:{doc.stem}"] = published
+            entry["macros"] = f"canon:{doc.stem}"
+        manifest["search"].append({"key": doc.path, "title": doc.title, "kind": "canon", "aliases": [], "tags": []})
+    if history is not None:
+        _versions(result, manifest, history)
     closure = result.closures.get(dm) if dm else None
     mathjax_macros = {
         k: v
@@ -349,6 +368,66 @@ def build_manifest(
     for tid, t in manifest["threads"].items():
         manifest["search"].append({"key": tid, "title": t["title"], "kind": "thread", "aliases": [], "tags": []})
     return manifest
+
+
+def _conflict_entry(n: NodeRec) -> dict[str, Any]:
+    """A doubly-defined id: published with the state `conflicted` and no text, so every view shows the id and none shows a winner (book 5.3.5)."""
+    return {
+        "id": n.key,
+        "kind": "environment",
+        "taxon": n.taxon or "",
+        "style": n.style or "plain",
+        "title": None,
+        "aliases": list(n.aliases),
+        "author": [],
+        "created": None,
+        "tags": [],
+        "file": "",
+        "src": [0, 0],
+        "fragment": "",
+        "numbers": {},
+        "reached_by": list(n.reached_by),
+        "parent": {},
+        "children": [],
+        "proofs": [],
+        "external": False,
+        "digest": None,
+        "incomplete": [],
+        "state": "conflicted",
+        "derived": {"proved": False, "settled": False},
+        "conflict": list(n.conflict),
+    }
+
+
+def _conflict_key(n: NodeRec) -> dict[str, Any]:
+    return {
+        "key": n.key,
+        "node": n.key,
+        "kind": "statement",
+        "file": "",
+        "src": [0, 0],
+        "hash": "",
+        "incomplete": [],
+        "state": "conflicted",
+        "reviews": {"latest_current": None, "latest_any": None, "open": {}, "detached": 0},
+        "uses": [],
+        "closure": [n.key],
+        "previous_key_match": None,
+        "conflict": list(n.conflict),
+    }
+
+
+def _versions(result: ScanResult, manifest: dict[str, Any], history: Any) -> None:
+    """`keys[k].version` when a key's current text is one the history recorded: what the viewer shows as "text of @3" (book 17.5)."""
+    from loom.history.versions import matching_version
+
+    for key, entry in manifest["keys"].items():
+        h = entry.get("hash")
+        if not h:
+            continue
+        v = matching_version(history, key, h)
+        if v is not None:
+            entry["version"] = {"step": f"{v.step:04d}", "name": v.name}
 
 
 def _key_entry(result: ScanResult, n: NodeRec) -> dict[str, Any]:

@@ -43,7 +43,7 @@ def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
 def quilt(tmp_path: Path) -> Path:
     q = tmp_path / "q"
     assert run("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path).exit_code == 0
-    (q / "drafts" / "main.tex").write_text(MASTER, encoding="utf-8")
+    (q / "drafting" / "main.tex").write_text(MASTER, encoding="utf-8")
     return q
 
 
@@ -62,7 +62,7 @@ def test_inline_environment_renders_as_html_not_a_picture(tmp_path: Path) -> Non
 
 def test_failed_fallback_is_cached_and_not_recompiled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     q = quilt(tmp_path)
-    node = q / "drafts" / "main.tex"
+    node = q / "drafting" / "main.tex"
     node.write_text(
         MASTER.replace("\\section{Setup}", "\\section{Setup}\n\\begin{oddity}\nx\n\\end{oddity}"), encoding="utf-8"
     )

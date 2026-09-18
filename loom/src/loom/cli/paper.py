@@ -1,4 +1,4 @@
-"""`loom id`, `loom import`, `loom atomize`, `loom inline` (book 12.3) and the identity test they share."""
+"""`loom id`, `loom import`, `loom atomize`, `loom inline` (book 6, 12.3) and the identity test they share."""
 
 from __future__ import annotations
 
@@ -12,16 +12,18 @@ import click
 from loom.cli._common import EXIT_CONTENT, EXIT_USAGE, ContentError, EnvError, emit_json, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.cli.build_cmds import engine_for
+from loom.history.ledger import actor_for, append_entry, load_history
+from loom.history.steps import FreezePlan, text_hash, write_step
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.atomize import inline as inline_text
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
+from loom.reshape.canon import apply_import, plan_import
 from loom.reshape.ids import apply_insertions, plan_insertions, unified_diff
-from loom.reshape.importer import apply_import, plan_import, report_counts, set_main
+from loom.reshape.importer import set_main_forced
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
 from loom.scan.quilt import Quilt
-from loom.scan.scan import ScanResult, scan
-from loom.scan.source import IGNORE_RE
+from loom.scan.scan import ScanResult
 from loom.tex.identity import IdentityResult, identity_test
 
 
@@ -94,33 +96,22 @@ def _rel(root: Path, file: str) -> str:
         return file
 
 
-def run_import(
-    quilt: Quilt, paper: Path, yes: bool, fix_anchors: bool, prefix: str | None = None
-) -> IdentityResult | None:
-    """The import flow of 6.2; returns the identity result (None when skipped)."""
+def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> IdentityResult | None:
+    """The import of 6.1: one flat canon document, the assets at the root, the identity test, and step 0001. Returns the identity result (None when skipped)."""
     if not paper.is_file():
         raise EnvError(f"{paper} is not a file")
-    plan = plan_import(quilt, paper, fix_anchors, prefix)
-    note(f"Resolving closure of {paper.name} ... {len(plan.files)} files")
-    # the arrows are what would be copied, not what was: everything below is a plan until "Wrote N files" at the end
+    root = quilt.root
+    plan = plan_import(quilt, paper)
+    note(f"Resolving closure of {paper.name} ... {len(plan.assets) + len(plan.inlined) + 1} files")
+    # the arrows are what would be written, not what was: everything below is a plan until "Wrote N files" at the end
     note("Plan, nothing written yet:")
-    for dest, src in plan.files.items():
-        if Path(src).name != Path(dest).name or not dest.startswith(quilt.config.drafts):
-            note(f"  {Path(src).relative_to(plan.paper_dir).as_posix()} -> {dest}")
-        else:
-            note(f"  {Path(src).name} -> {dest}")
+    note(f"  {plan.master_rel} -> {plan.canon_rel} (linearized, {len(plan.inlined)} files inlined)")
+    for dest, src in plan.assets.items():
+        note(f"  {Path(src).relative_to(plan.paper_dir).as_posix()} -> {dest}")
     for name in plan.outside:
         note(f"  {name} -> not copied; it lies outside the paper directory (loom:import-outside-tree)")
-    if plan.violations:
-        note(f"Nothing was written. {paper.name} has {len(plan.violations)} line-anchoring violation(s):")
-        for v in plan.violations[:20]:
-            note(f"  line {v.line}: \\{v.kind}{{{v.env}}} is not alone on its line")
-        raise ContentError(
-            "loom needs a theorem-like \\begin and \\end alone on their lines to find a node's exact span. "
-            "Fix them in the paper, or pass --fix-anchoring to rewrite loom's copy and leave your original alone."
-        )
-    if plan.spans:
-        raise ContentError("an environment spans files: " + "; ".join(plan.spans))
+    if plan.exists:
+        raise ContentError(f"{plan.canon_rel} exists; import never overwrites a canon document")
     scratch = Path(tempfile.mkdtemp(prefix="loom-identity-"))
     from loom.tex.runner import compile_tex
 
@@ -130,46 +121,52 @@ def run_import(
             f"the original does not compile in its own directory ({before.first_error}); fix it before importing"
         )
     note(f"Compiling original in {plan.paper_dir} ... ok")
-    if plan.diff:
-        note(
-            f"Proposed edits ({plan.diff.count(chr(10) + '+') - plan.diff.count(chr(10) + '+++')} lines in {sum(1 for _ in set(i.file for i in plan.insertions))} file(s)):"
-        )
-        click.echo(plan.diff, nl=False)
-    else:
-        note("Proposed edits: none (every node already carries an id)")
     if not yes:
         if not sys.stdin.isatty():
             raise EnvError("import needs confirmation; pass --yes")
         click.confirm("Apply?", abort=True)
     written = apply_import(quilt, plan)
-    changed = set_main(quilt, plan.master_quilt_rel)
-    note(f"Wrote {len(written)} files." + (f" main = {plan.master_quilt_rel}" if changed else ""))
-    result = scan(open_quilt(str(quilt.root)))
-    note(report_counts(result))
-    engine = engine_for(result, plan.master_quilt_rel)
-    ident = identity_test(plan.paper_dir, plan.master_rel, quilt.root, plan.master_quilt_rel, scratch, engine)
-    note(ident.summary())
+    note(f"Wrote {len(written)} files.")
+    ident: IdentityResult | None = None
+    if check:
+        ident = identity_test(plan.paper_dir, plan.master_rel, root, plan.canon_rel, scratch, quilt.config.engine)
+        note(ident.summary())
+        if not ident.passed and not ident.skipped:
+            (root / plan.canon_rel).unlink(missing_ok=True)
+            raise ContentError(
+                f"the flat copy does not typeset as the original; {plan.canon_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway."
+            )
+    history = load_history(quilt.history_dir)
+    original = (plan.paper_dir / plan.master_rel).read_text(encoding="utf-8", errors="replace")
+    entry = write_step(
+        history,
+        "import",
+        Path(plan.canon_rel).stem,
+        FreezePlan(),
+        actor_for(root),
+        extra={
+            "from": {"name": plan.master_rel, "hash": text_hash(original)},
+            "to": {"path": plan.canon_rel, "hash": text_hash(plan.text)},
+            "inlined": list(plan.inlined),
+        },
+        document_text=plan.text,
+        document_name=Path(plan.canon_rel).name,
+    )
+    note(f"Recorded: import as step {entry.step:04d} ({entry.dir})")
+    note(f"next: loom draft {plan.canon_rel}")
     return ident
 
 
 @click.command(name="import")
 @click.argument("file")
 @click.option("--yes", "-y", is_flag=True)
-@click.option(
-    "--fix-anchoring",
-    "fix_anchors",
-    is_flag=True,
-    help="Rewrite the copy so every theorem-like \\begin and \\end is alone on its line.",
-)
-@click.option("--prefix", default=None)
+@click.option("--no-check", "no_check", is_flag=True, help="Skip the identity test.")
 @quilt_option
 @click.pass_context
-def import_command(
-    ctx: click.Context, file: str, yes: bool, fix_anchors: bool, prefix: str | None, quilt_path: str | None
-) -> None:
-    """Copy a paper and everything it reaches into the quilt, inserting ids into the copies and changing nothing else."""
+def import_command(ctx: click.Context, file: str, yes: bool, no_check: bool, quilt_path: str | None) -> None:
+    """Copy a paper into the quilt as one flat canon document, its styles, bibliography and figures at the root, changing nothing else; step 0001 of the history."""
     quilt = open_quilt(quilt_path)
-    ident = run_import(quilt, Path(file).expanduser(), yes, fix_anchors, prefix)
+    ident = run_import(quilt, Path(file).expanduser(), yes, check=not no_check)
     if ident is not None and not ident.passed and not ident.skipped:
         ctx.exit(EXIT_CONTENT)
 
@@ -193,9 +190,9 @@ def import_command(
 )
 @click.option("--to-dir", default=None, metavar="DIR")
 @click.option(
-    "--ignore-src",
+    "--retire",
     is_flag=True,
-    help="Add `% !LOOM ignore` to SRC's first line, so the quilt keeps one definition of each node.",
+    help="Move SRC into retired/ once DEST is written, instead of leaving it superseded in place.",
 )
 @quilt_option
 @click.pass_context
@@ -210,10 +207,10 @@ def atomize(
     sections: bool,
     all_files: bool,
     to_dir: str | None,
-    ignore_src: bool,
+    retire: bool,
     quilt_path: str | None,
 ) -> None:
-    """Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC's text is not modified (with --ignore-src, a directive line is added above it)."""
+    """Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC is not modified; the history records that DEST superseded it, so it defines nothing until `loom live`."""
     result = open_scan(quilt_path)
     root = result.quilt.root
     if keys:
@@ -227,6 +224,8 @@ def atomize(
     src_rel = _rel(root, src)
     if src_rel not in result.files:
         raise EnvError(f"{src} is not a scanned file of this quilt")
+    if result.files[src_rel].superseded:
+        raise ContentError(f"{src_rel} is superseded and defines nothing; loom live {src_rel} first")
     if all_files:
         if not to_dir:
             raise EnvError("--all needs --to-dir DIR")
@@ -239,6 +238,10 @@ def atomize(
             click.echo("ERROR: specify a destination file after the source, or with --to", err=True)
             ctx.exit(2)
         targets = [(src_rel, _rel(root, target))]
+    if retire:
+        for s_rel, _ in targets:
+            if (root / "retired" / s_rel).exists():
+                raise EnvError(f"retired/{s_rel} exists; atomize never overwrites")
     plans = []
     for s_rel, d_rel in targets:
         if (root / d_rel).exists():
@@ -266,17 +269,35 @@ def atomize(
     ident = _identity_for(result, root, plan.src, plan.dest)
     if ident is not None:
         note(ident.summary())
-    if ignore_src:
-        for pl in plans:
-            p_src = root / pl.src
-            text = p_src.read_text(encoding="utf-8")
-            if not IGNORE_RE.search(text[:400]):
-                p_src.write_text("% !LOOM ignore\n" + text, encoding="utf-8")
-            note(f"Wrote `% !LOOM ignore` above {pl.src}: the quilt now has one definition of each node.")
-    else:
-        note(
-            f"Note: {plan.src} still defines its ids inline, so the quilt has two copies of every node it moved. Pass --ignore-src, delete it, or move it out of the quilt."
-        )
+    retired: list[str] = []
+    superseded: list[str] = []
+    for pl in plans:
+        if retire:
+            target_path = root / "retired" / pl.src
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(root / pl.src), str(target_path))
+            retired.append(f"retired/{pl.src}")
+            note(f"Moved {pl.src} to retired/{pl.src}")
+        else:
+            superseded.append(pl.src)
+    entry = append_entry(
+        result.quilt.history_dir,
+        "atomize",
+        {
+            "from": [pl.src for pl in plans],
+            "to": [pl.dest for pl in plans],
+            "keys": sorted({m.key for pl in plans for m in pl.moves}),
+            "superseded": superseded,
+            "retired": retired,
+        },
+        actor_for(root),
+    )
+    for rel in superseded:
+        note(f"{rel} is now superseded: it defines nothing until `loom live {rel}` says otherwise")
+    for pl in plans:
+        if result.quilt.config.main in (pl.src, f"retired/{pl.src}") and set_main_forced(result.quilt, pl.dest):
+            note(f"main = {pl.dest}")
+    note(f"Recorded: atomize (ledger line {entry.line})")
     if ident is not None and not ident.passed and not ident.skipped:
         ctx.exit(EXIT_CONTENT)
 
@@ -358,7 +379,7 @@ def _atomize_keys(
         click.echo(f"Wrote {path}")
     click.echo(unified_diff(result.files[src_rel].text, plan.spine, src_rel), nl=False)
     note(
-        f"{src_rel} is yours to change: apply the patch above, or let your editor do it. Until then lint reports duplicate ids."
+        f"{src_rel} is yours to change: apply the patch above, or let your editor do it. Until then the moved nodes are conflicted: defined by two files, with no text."
     )
 
 

@@ -84,6 +84,13 @@ def test_scoring_is_by_title_then_author_then_year() -> None:
     assert R.score(q, "Equivariant intersection theory", ["Edidin, Dan"], "1998") < R.POSSIBLE
 
 
+def test_a_formatted_reference_is_scored_by_what_it_contains() -> None:
+    text = "A. Arabia, Cycles de Schubert et cohomologie equivariante de K/T, Invent. Math. 85 (1986), 39-52."
+    q = R.Query(text, (), "1986", text)
+    assert R.score(q, "Cycles de Schubert et cohomologie équivariante de K/T", ["Arabia, Alberto"], "1986") == 1.0
+    assert R.score(q, "Equivariant cohomology", ["Brion, M."], "1986") < R.POSSIBLE
+
+
 def test_zbmath_answers_with_a_doi_and_the_preprint_it_knows() -> None:
     http = Recorded("zbmath_edidin_graham")
     found = R.Resolver(http=http).candidates(R.query_for(EDIDIN))

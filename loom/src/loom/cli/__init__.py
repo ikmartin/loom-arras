@@ -6,10 +6,11 @@ import click
 
 from loom.cli.ai import ai
 from loom.cli.build_cmd import build_command
-from loom.cli.build_cmds import assemble, bundle, check, compile
+from loom.cli.build_cmds import bundle, check, compile
 from loom.cli.digest import digest
 from loom.cli.doctor import doctor
 from loom.cli.graph import deps, unravel
+from loom.cli.history_cmds import canonicalize, canonise, canonize, draft, fork, history, linearize, live, revert, stamp
 from loom.cli.lint_cmd import lint_command
 from loom.cli.nodes import delete, new, search
 from loom.cli.paper import atomize, id_command, import_command, inline_command
@@ -53,7 +54,6 @@ main.add_command(refs)
 main.add_command(build_command)
 main.add_command(bundle)
 main.add_command(compile)
-main.add_command(assemble)
 main.add_command(check)
 main.add_command(serve)
 main.add_command(accept)
@@ -62,5 +62,15 @@ main.add_command(status)
 main.add_command(ai)
 main.add_command(digest)
 main.add_command(upgrade)
+main.add_command(draft)
+main.add_command(canonize)
+main.add_command(canonicalize)
+main.add_command(canonise)
+main.add_command(stamp)
+main.add_command(fork)
+main.add_command(revert)
+main.add_command(live)
+main.add_command(linearize)
+main.add_command(history)
 
 __all__ = ["main"]

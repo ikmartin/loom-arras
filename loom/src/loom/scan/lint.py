@@ -6,16 +6,17 @@ Everything here reads the scan result and emits; nothing is stored. `[lint] disa
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from loom.refs.identity import declared, parse
 from loom.refs.resolve import load as load_candidates
 from loom.scan.bib import citekey_slug
 from loom.scan.diagnostics import can_disable
 from loom.scan.digests import digest_header, extracted_from, missing_packages, published_as, source_version
-from loom.scan.directives import KNOWN_KEYS
+from loom.scan.directives import KNOWN_KEYS, REGION_KEYS
 from loom.scan.edges import EdgeResult
 from loom.scan.graph import Graph
-from loom.scan.model import Diagnostic, Location
+from loom.scan.model import Diagnostic, Fix, Location
 from loom.scan.nodes import Assembly, NodeRec
 from loom.scan.scan import ScanResult
 
@@ -60,11 +61,35 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     diags: list[Diagnostic] = list(result.diagnostics) + list(edges.diagnostics)
     for w in result.quilt.config.warnings:
         diags.append(Diagnostic("warning", "loom:unknown-config-key", w, [Location("config.toml", 1)]))
+    for w in result.quilt.config.deprecations:
+        diags.append(Diagnostic("warning", "loom:deprecated-config-key", w, [Location("config.toml", 1)]))
+    from loom.history.checks import quick_checks
+    from loom.history.ledger import load_history
+
+    diags.extend(quick_checks(result, load_history(result.quilt.history_dir)))
+    if not result.masters and result.canon_files:
+        # every view that is about nodes is empty until a landmark is drafted; the viewer shows that, and this says how to end it
+        newest = result.canon_files[-1]
+        drafting = result.quilt.config.drafting
+        diags.append(
+            Diagnostic(
+                "info",
+                "loom:no-live-document",
+                f"nothing is being worked on: {drafting}/ holds no document, so the quilt defines no nodes",
+                [],
+                fixes=[
+                    Fix(
+                        f"start from the newest landmark, {newest}",
+                        f"loom draft {newest} --to {drafting}/{Path(newest).name}",
+                    )
+                ],
+            )
+        )
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
     # proofs owed and unexpected
     for key, n in asm.nodes.items():
-        if n.kind != "environment":
+        if n.kind != "environment" or n.conflict_of:
             continue
         if n.style == "plain" and not n.proofs and not n.incomplete and not n.external and n.digest is None:
             diags.append(
@@ -151,7 +176,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
             if (
                 d.form == "unknown"
                 or (d.form == "kv" and d.key not in KNOWN_KEYS)
-                or (d.form in ("begin", "end") and d.key != "macros")
+                or (d.form in ("begin", "end") and d.key not in REGION_KEYS)
             ):
                 diags.append(
                     Diagnostic(

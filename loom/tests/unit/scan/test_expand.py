@@ -20,15 +20,15 @@ def test_inclusion_input_include_nest_and_span_map(tmp_path: Path) -> None:
     srcs = _files(
         tmp_path,
         {
-            "drafts/main.tex": "\\begin{document}\n\\section{A}\n\\input{nodes/x}\n\\nest{nodes/sec}\n\\subsection{B}\nend\n\\end{document}\n",
+            "drafting/main.tex": "\\begin{document}\n\\section{A}\n\\input{nodes/x}\n\\nest{nodes/sec}\n\\subsection{B}\nend\n\\end{document}\n",
             "nodes/x.tex": "\\begin{lemma}\\label{q-0001}\nX\n\\end{lemma}\n",
             "nodes/sec.tex": "\\section{Nested}\ninner\n\\input{nodes/y.tex}\n",
             "nodes/y.tex": "deep\n",
         },
     )
-    exp = expand_master(srcs["drafts/main.tex"], tmp_path, srcs)
+    exp = expand_master(srcs["drafting/main.tex"], tmp_path, srcs)
     assert exp.diagnostics == []
-    assert set(exp.reached) == {"drafts/main.tex", "nodes/x.tex", "nodes/sec.tex", "nodes/y.tex"}
+    assert set(exp.reached) == {"drafting/main.tex", "nodes/x.tex", "nodes/sec.tex", "nodes/y.tex"}
     assert [i.child for i in exp.inclusions] == ["nodes/x.tex", "nodes/sec.tex", "nodes/y.tex"]
     assert [i.shift for i in exp.inclusions] == [0, 1, 1]
     for rel, src in srcs.items():
@@ -51,11 +51,11 @@ def test_inclusion_exact_extension_braceless_and_system(tmp_path: Path) -> None:
     srcs = _files(
         tmp_path,
         {
-            "drafts/main.tex": "\\input xy\n\\input{fig.pspdftex}\n\\input{missing-file}\n\\begin{document}\n\\end{document}\n",
+            "drafting/main.tex": "\\input xy\n\\input{fig.pspdftex}\n\\input{missing-file}\n\\begin{document}\n\\end{document}\n",
         },
     )
     (tmp_path / "fig.pspdftex").write_text("\\begin{picture}(1,1)\\end{picture}\n", encoding="utf-8")
-    exp = expand_master(srcs["drafts/main.tex"], tmp_path, srcs)
+    exp = expand_master(srcs["drafting/main.tex"], tmp_path, srcs)
     problems = {i.name: i.problem for i in exp.inclusions}
     assert problems == {"xy": "system", "fig.pspdftex": "opaque", "missing-file": "missing"}
     assert [d.code for d in exp.diagnostics] == ["missing-include"]
@@ -66,13 +66,13 @@ def test_inclusion_double_and_cycle(tmp_path: Path) -> None:
     srcs = _files(
         tmp_path,
         {
-            "drafts/main.tex": "\\begin{document}\n\\input{a}\n\\input{a}\n\\input{b}\n\\end{document}\n",
+            "drafting/main.tex": "\\begin{document}\n\\input{a}\n\\input{a}\n\\input{b}\n\\end{document}\n",
             "a.tex": "A\n",
             "b.tex": "B\\input{c}\n",
             "c.tex": "C\\input{b}\n",
         },
     )
-    exp = expand_master(srcs["drafts/main.tex"], tmp_path, srcs)
+    exp = expand_master(srcs["drafting/main.tex"], tmp_path, srcs)
     codes = sorted(d.code for d in exp.diagnostics)
     assert codes == ["double-inclusion", "inclusion-cycle"]
     assert exp.text.count("A\n") == 1

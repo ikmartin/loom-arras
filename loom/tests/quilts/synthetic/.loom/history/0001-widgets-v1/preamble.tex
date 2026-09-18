@@ -1,0 +1,49 @@
+\documentclass{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{macros}
+\usepackage{loom}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem*{mainthm}{Main Theorem}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{Widgets, gadgets, and their fixed loci}
+\author{The synthetic quilt}
+
+
+\ProvidesPackage{macros}
+\newcommand{\Hom}{\operatorname{Hom}}
+\newcommand{\GW}{Gromov--Witten}
+\DeclareMathOperator{\Fix}{Fix}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{loom}[2026/09/16 v0.1 loom macros]
+% loom.sty is MIT-licensed so that it can travel with a paper; see the LICENSE beside it in the loom distribution.
+
+% Dependencies the text does not express as \ref or a matchable \cite.
+% Prints nothing.
+\providecommand{\uses}[1]{}
+
+% Marks a statement or proof as mathematically incomplete.
+% Prints nothing; an author may \renewcommand it to print in draft builds.
+\providecommand{\incomplete}[1]{}
+
+% Inputs a file with every sectioning command inside it shifted one level down.
+% Composes when nested files nest files.
+\providecommand{\nest}[1]{\begingroup
+  \let\chapter\section
+  \let\section\subsection
+  \let\subsection\subsubsection
+  \let\subsubsection\paragraph
+  \let\paragraph\subparagraph
+  \input{#1}\endgroup}

@@ -12,13 +12,15 @@ import click
 
 from loom.cli._common import EXIT_CONTENT, EnvError, note
 from loom.scan.labels import PREFIX
-from loom.scan.quilt import is_quilt_root, user_config_path
+from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
 ASSETS = resources.files("loom") / "assets"
 
 CONFIG_TEMPLATE = """[quilt]
-main = "drafts/main.tex"    # default master
-drafts = "drafts"           # masters directory
+name = "{name}"
+main = "{drafting}/main.tex"    # default master
+drafting = "{drafting}"           # working documents, every one live
+canon = "{canon}"              # landmarks: flat, self-contained, never scanned
 prefix = "{prefix}"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 
@@ -84,15 +86,31 @@ GITIGNORE_NOTE = """wrote .gitignore, ignores:
   all stray LaTeX files (.aux, .log, .bbl and the rest)"""
 
 
+def _user_dirs() -> tuple[str, str]:
+    """The drafting and canon directory names a person's user config asks for, else the defaults; init writes them into the quilt so the layout is explicit there."""
+    uq = load_user_config().get("quilt", {})
+    uq = uq if isinstance(uq, dict) else {}
+    drafting = str(uq.get("drafting", "drafting")).strip("/") or "drafting"
+    canon = str(uq.get("canon", "canon")).strip("/") or "canon"
+    return drafting, canon
+
+
 def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> list[Path]:
     """Write the skeleton of a quilt into `target`.
 
     Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
     """
     made: list[Path] = []
+    drafting, canon = _user_dirs()
 
     def mkdir(path: Path) -> None:
-        if not path.exists():
+        # every directory this call brings into being is recorded, parents included, so undo_minimal_quilt leaves nothing behind
+        for p in [path, *path.parents]:
+            if p == target or target not in p.parents:
+                break
+            if not p.exists() and p not in made:
+                made.append(p)
+        if not path.exists() and path not in made:
             made.append(path)
         path.mkdir(parents=True, exist_ok=True)
 
@@ -101,14 +119,21 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
             made.append(path)
         path.write_text(text, encoding="utf-8")
 
-    mkdir(target / "drafts")
+    mkdir(target / drafting)
+    mkdir(target / canon)
     for d in ("nodes", "digests", "refs", "comments"):
         mkdir(target / d)
-    write(target / "config.toml", CONFIG_TEMPLATE.format(prefix=prefix))
+    mkdir(target / ".loom" / "history")
+    write(
+        target / "config.toml",
+        CONFIG_TEMPLATE.format(name=target.resolve().name, prefix=prefix, drafting=drafting, canon=canon),
+    )
     write(target / "loom.sty", (ASSETS / "loom.sty").read_text(encoding="utf-8"))
     if minimal_master:
-        write(target / "drafts" / "main.tex", (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"))
-    write(target / ".gitignore", (ASSETS / "init" / "gitignore").read_text(encoding="utf-8"))
+        write(target / drafting / "main.tex", (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"))
+    write(target / ".loom" / "history" / "ledger.jsonl", "")
+    gitignore = (ASSETS / "init" / "gitignore").read_text(encoding="utf-8").replace("drafting/", f"{drafting}/")
+    write(target / ".gitignore", gitignore)
     write(target / "README.md", (ASSETS / "readme-contract.md").read_text(encoding="utf-8"))
     return sorted(made, key=lambda q: len(q.parts), reverse=True)
 
@@ -152,12 +177,6 @@ def write_demo_quilt(target: Path) -> None:
 @click.option("--prefix", default=None, help="Id prefix for new nodes.")
 @click.option("--git", "git_init", is_flag=True, help="Also run git init. A quilt is files; loom reads no history.")
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
-@click.option(
-    "--fix-anchoring",
-    "fix_anchors",
-    is_flag=True,
-    help="With --from: rewrite the copies so theorem-like environments are line-anchored.",
-)
 @click.pass_context
 def init(
     ctx: click.Context,
@@ -167,9 +186,8 @@ def init(
     prefix: str | None,
     git_init: bool,
     yes: bool,
-    fix_anchors: bool,
 ) -> None:
-    """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it."""
+    """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it as its first canon document (then: loom draft)."""
     here = directory is None  # the message says so: "<path> is not empty" reads oddly when the path was never typed
     target = Path(directory).expanduser() if directory else Path.cwd()
     if is_quilt_root(target) or any(is_quilt_root(p) for p in target.resolve().parents):
@@ -217,7 +235,7 @@ def init(
         from loom.scan.quilt import load_quilt
 
         try:
-            ident = run_import(load_quilt(target), paper, yes, fix_anchors, prefix)
+            ident = run_import(load_quilt(target), paper, yes)
         except BaseException:
             # the import writes nothing into the quilt until it says "Wrote N files", so a failure before that leaves only the skeleton above; leaving that behind would refuse the obvious retry -- the same command with --fix-anchoring -- as "already inside a quilt"
             undo_minimal_quilt(target, existed, made)

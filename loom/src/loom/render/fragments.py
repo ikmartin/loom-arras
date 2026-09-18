@@ -41,6 +41,45 @@ class RenderPlan:
     fallback_preamble: dict[str, str] = field(default_factory=dict)
 
 
+PREPARED: dict[str, str] = {}
+
+
+def prepare_preamble(text: str) -> str:
+    """A document's own preamble made safe for a standalone box: the class stripped, page-layout packages neutralised, title-matter gobbled, and what the class provided restored."""
+    text_in = text
+    if text_in not in PREPARED:
+        text = re.sub(r"\\documentclass(\[[^\]]*\])?\{[^}]*\}", "", text)
+        # page-layout packages have nothing to do in a snippet and microtype's protrusion breaks the box it is measured in
+        text = re.sub(r"\\usepackage(\[[^\]]*\])?\{(microtype|geometry|fancyhdr|titlesec|setspace|lineno)\}", "", text)
+        text = re.sub(r"^\s*%.*$", "", text, flags=re.M)
+        # \loomgobble, not \@gobble: a preamble that loads xypic with `\input xy` restores @ to a non-letter, and every fallback compile then dies on the gobbler
+        text = re.sub(
+            r"\\(title|author|date|address|email|thanks|subjclass|keywords)\s*(\[[^\]]*\])?\{",
+            r"\\loomgobble{",
+            text,
+        )
+        # \makeatletter for the author's own internals; standalone's preamble is not inside a package
+        # geometry and microtype may be loaded from an \input preamble; `pass` and no protrusion neutralise them in the standalone box
+        guard = (
+            "\\PassOptionsToPackage{pass}{geometry}\n"
+            "\\PassOptionsToPackage{protrusion=false,expansion=false}{microtype}\n"
+            "\\newcommand{\\loomgobble}[1]{}\n"
+        )
+        # the class is stripped, and with it what the class provided: amsart's amsmath (a preamble calling \numberwithin needs it) and the names a bibliography or a float caption uses
+        for pkg in ("amsmath", "amsthm"):
+            if not re.search(r"\\usepackage\s*(\[[^\]]*\])?\s*\{[^}]*\b" + pkg + r"\b[^}]*\}", text):
+                guard += f"\\usepackage{{{pkg}}}\n"
+        guard += (
+            "\\providecommand{\\bibname}{Bibliography}\n"
+            "\\providecommand{\\refname}{References}\n"
+            "\\providecommand{\\abstractname}{Abstract}\n"
+            "\\providecommand{\\figurename}{Figure}\n"
+            "\\providecommand{\\tablename}{Table}\n"
+        )
+        PREPARED[text_in] = guard + "\\makeatletter\n" + text + "\n\\makeatother\n"
+    return PREPARED[text_in]
+
+
 class FragmentRenderer:
     def __init__(self, plan: RenderPlan) -> None:
         self.plan = plan
@@ -75,39 +114,24 @@ class FragmentRenderer:
             closure = self.result.closures.get(master)
             # the master's own preamble only: it loads preamble.tex and the local .sty files itself when compiled from the quilt root, and copying their text too would define every macro twice
             first = closure.fragments[0] if closure and closure.fragments else None
-            text = first.src.text[first.start : first.end] if first else ""
-            text = re.sub(r"\\documentclass(\[[^\]]*\])?\{[^}]*\}", "", text)
-            # page-layout packages have nothing to do in a snippet and microtype's protrusion breaks the box it is measured in
-            text = re.sub(
-                r"\\usepackage(\[[^\]]*\])?\{(microtype|geometry|fancyhdr|titlesec|setspace|lineno)\}", "", text
+            self.plan.fallback_preamble[master] = prepare_preamble(
+                first.src.text[first.start : first.end] if first else ""
             )
-            text = re.sub(r"^\s*%.*$", "", text, flags=re.M)
-            # \loomgobble, not \@gobble: a preamble that loads xypic with `\input xy` restores @ to a non-letter, and every fallback compile then dies on the gobbler
-            text = re.sub(
-                r"\\(title|author|date|address|email|thanks|subjclass|keywords)\s*(\[[^\]]*\])?\{",
-                r"\\loomgobble{",
-                text,
-            )
-            # \makeatletter for the author's own internals; standalone's preamble is not inside a package
-            # geometry and microtype may be loaded from an \input preamble; `pass` and no protrusion neutralise them in the standalone box
-            guard = (
-                "\\PassOptionsToPackage{pass}{geometry}\n"
-                "\\PassOptionsToPackage{protrusion=false,expansion=false}{microtype}\n"
-                "\\newcommand{\\loomgobble}[1]{}\n"
-            )
-            # the class is stripped, and with it what the class provided: amsart's amsmath (a preamble calling \numberwithin needs it) and the names a bibliography or a float caption uses
-            for pkg in ("amsmath", "amsthm"):
-                if not re.search(r"\\usepackage\s*(\[[^\]]*\])?\s*\{[^}]*\b" + pkg + r"\b[^}]*\}", text):
-                    guard += f"\\usepackage{{{pkg}}}\n"
-            guard += (
-                "\\providecommand{\\bibname}{Bibliography}\n"
-                "\\providecommand{\\refname}{References}\n"
-                "\\providecommand{\\abstractname}{Abstract}\n"
-                "\\providecommand{\\figurename}{Figure}\n"
-                "\\providecommand{\\tablename}{Table}\n"
-            )
-            self.plan.fallback_preamble[master] = guard + "\\makeatletter\n" + text + "\n\\makeatother\n"
         return self.plan.fallback_preamble[master]
+
+    def _fallback_for_preamble(self, preamble_text: str, key: str) -> Callable[[str, str, str], str]:
+        """The SVG fallback for a document that is not a master: a canon file, closed over its own preamble (book 9.3)."""
+        preamble = prepare_preamble(preamble_text)
+
+        def render(latex: str, css: str, data_src: str) -> str:
+            res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=self.result.quilt.root)
+            if res.svg is None:
+                self.plan.diagnostics.append(
+                    Diagnostic("warning", "loom:converter-fallback", f"SVG fallback failed in {key}: {res.error}", [])
+                )
+            return fallback_figure(latex, res, css, data_src)
+
+        return render
 
     def _fallback(
         self, master: str | None, file: str | None = None, key: str | None = None

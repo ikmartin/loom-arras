@@ -5,9 +5,9 @@ from tests.unit.scan.helpers import PREAMBLE, SINGLE_FILE, make_quilt
 
 
 def test_example_single_file_paper(tmp_path: Path) -> None:
-    r = make_quilt(tmp_path, {"drafts/main.tex": SINGLE_FILE})
+    r = make_quilt(tmp_path, {"drafting/main.tex": SINGLE_FILE})
     nodes = r.nodes
-    assert r.masters == ["drafts/main.tex"] and r.default_master == "drafts/main.tex"
+    assert r.masters == ["drafting/main.tex"] and r.default_master == "drafting/main.tex"
     sections = {k: n for k, n in nodes.items() if n.kind == "section"}
     assert set(sections) == {"ab-0010", "ab-0011"}
     assert [n.title for n in sections.values()] == ["Setup", "Results"]
@@ -21,9 +21,9 @@ def test_example_single_file_paper(tmp_path: Path) -> None:
     assert proofs["ab-0002/proof"].attach_via == "adjacent"
     assert proofs["ab-0003/proof"].attach_via == "ref" and proofs["ab-0003/proof"].of == "ab-0003"
     assert nodes["ab-0003"].proofs == ["ab-0003/proof"]
-    master = nodes["drafts/main.tex"]
+    master = nodes["drafting/main.tex"]
     assert master.kind == "master"
-    src = r.files["drafts/main.tex"]
+    src = r.files["drafting/main.tex"]
     own = "".join(src.clean[a:b] for a, b in master.own)
     assert "\\documentclass" in own and "\\begin{definition}" not in own and "Closedness" not in own
     results_own = "".join(src.clean[a:b] for a, b in nodes["ab-0011"].own)
@@ -38,7 +38,7 @@ def test_env_node_without_id_qualified_key_and_regions(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
         {
-            "drafts/main.tex": PREAMBLE
+            "drafting/main.tex": PREAMBLE
             + r"""\begin{document}
 \section{Intro}
 \begin{lemma}\label{lem:human}
@@ -53,11 +53,11 @@ Second, unlabelled.
         },
     )
     nodes = r.nodes
-    assert "drafts/main.tex#lemma:1" in nodes and "drafts/main.tex#lemma:2" in nodes
-    assert nodes["drafts/main.tex#lemma:1"].aliases == ["lem:human"]
-    assert "drafts/main.tex#section:1" in nodes
-    assert r.assembly.regions["drafts/main.tex#lemma:1#eq:main"].where == "statement"
-    assert r.assembly.labels["eq:main"] == "drafts/main.tex#lemma:1#eq:main"
+    assert "drafting/main.tex#lemma:1" in nodes and "drafting/main.tex#lemma:2" in nodes
+    assert nodes["drafting/main.tex#lemma:1"].aliases == ["lem:human"]
+    assert "drafting/main.tex#section:1" in nodes
+    assert r.assembly.regions["drafting/main.tex#lemma:1#eq:main"].where == "statement"
+    assert r.assembly.labels["eq:main"] == "drafting/main.tex#lemma:1#eq:main"
     infos = [d for d in r.diagnostics if d.code == "loom:unlabelled-node"]
     assert len(infos) == 2
 
@@ -66,7 +66,7 @@ def test_example_two_proofs_and_positional_keys(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
         {
-            "drafts/main.tex": PREAMBLE
+            "drafting/main.tex": PREAMBLE
             + r"""\begin{document}
 \begin{theorem}\label{ab-0040}
 T
@@ -107,7 +107,7 @@ def test_statement_nested_in_proof_and_enclosure_keys(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
         {
-            "drafts/main.tex": PREAMBLE
+            "drafting/main.tex": PREAMBLE
             + r"""\begin{document}
 \begin{theorem}\label{ab-0001}
 M
@@ -135,7 +135,7 @@ Of the example.
     nodes = r.nodes
     assert nodes["ab-0002/proof"].of == "ab-0002" and nodes["ab-0001/proof"].of == "ab-0001"
     assert nodes["ab-0003/proof"].attach_via == "enclosure"
-    src = r.files["drafts/main.tex"]
+    src = r.files["drafting/main.tex"]
     outer_own = "".join(src.clean[a:b] for a, b in nodes["ab-0001/proof"].own)
     assert (
         "Outer." in outer_own
@@ -151,14 +151,14 @@ def test_directives_file_and_node_level(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
         {
-            "drafts/main.tex": PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0004}\n\\end{document}\n",
+            "drafting/main.tex": PREAMBLE + "\\begin{document}\n\\input{nodes/ab-0004}\n\\end{document}\n",
             "nodes/ab-0004.tex": "% !LOOM author: Markas Hecht\n% !LOOM created: 2026-09-15\n% !LOOM tags: localization, residue\n\n\\begin{lemma}[Residue]\\label{ab-0004}\n% !LOOM tags: only-this\nL\n\\end{lemma}\n\\begin{proof}\nP\n\\end{proof}\n",
         },
     )
     n = r.nodes["ab-0004"]
     assert n.directives == {"author": "Markas Hecht", "created": "2026-09-15", "tags": "only-this"}
     assert r.nodes["ab-0004/proof"].directives["author"] == "Markas Hecht"
-    assert n.reached_by == ["drafts/main.tex"]
+    assert n.reached_by == ["drafting/main.tex"]
     assert hash_text("".join(r.files["nodes/ab-0004.tex"].text[a:b] for a, b in n.own)).startswith("sha256:")
 
 
@@ -166,7 +166,7 @@ def test_duplicate_id_and_label_errors(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
         {
-            "drafts/main.tex": PREAMBLE
+            "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\begin{lemma}\\label{ab-0001}\nA\n\\end{lemma}\n\\input{nodes/dup}\n\\begin{lemma}\\label{ab-0002}\n\\begin{equation}\\label{eq:x} 1 \\end{equation}\n\\end{lemma}\n\\begin{lemma}\\label{ab-0003}\n\\begin{equation}\\label{eq:x} 2 \\end{equation}\n\\end{lemma}\n% \\begin{lemma}\\label{ab-0001}\n\\end{document}\n",
             "nodes/dup.tex": "\\begin{lemma}\\label{ab-0001}\nB\n\\end{lemma}\n",
         },
@@ -174,14 +174,14 @@ def test_duplicate_id_and_label_errors(tmp_path: Path) -> None:
     codes = sorted(d.code for d in r.diagnostics if d.severity == "error")
     assert codes == ["duplicate-id", "loom:duplicate-label"]
     dup = next(d for d in r.diagnostics if d.code == "duplicate-id")
-    assert {loc.file for loc in dup.locations} == {"drafts/main.tex", "nodes/dup.tex"}
+    assert {loc.file for loc in dup.locations} == {"drafting/main.tex", "nodes/dup.tex"}
 
 
 def test_external_node_and_digest_file(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
         {
-            "drafts/main.tex": PREAMBLE
+            "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\begin{theorem}[{\\cite[Theorem 2]{K}}]\\label{ab-0001}\nT\n\\end{theorem}\n\\begin{definition}\\cite[Def 1]{K}\n\\label{ab-0002}\nD\n\\end{definition}\n\\end{document}\n",
             "digests/Man12.tex": "% !LOOM digest: Man12\n% !LOOM source: arXiv:0805.2065v2\n% !LOOM method: extract\n\\section*{Overview}\n\\section{Preliminaries}\\label{Man12-sec-2}\n\\begin{theorem}[{\\cite[Theorem 4.1, p.~12]{Man12}}]\\label{Man12-thm-4.1}\nStatement.\n\\end{theorem}\n",
             "refs.bib": "@article{Man12, title={Virtual pull-backs}}\n@misc{K, title={K}}\n",
@@ -205,7 +205,7 @@ def test_declared_prefix_carries_the_id_grammar(tmp_path: Path) -> None:
     r = make_quilt(
         tmp_path,
         {
-            "drafts/main.tex": PREAMBLE
+            "drafting/main.tex": PREAMBLE
             + "\\begin{document}\n\\begin{lemma}\\label{ab-0001}\n\\uses{Man12-thm-4.1}\nL\n\\end{lemma}\n\\end{document}\n",
             "digests/paper.tex": f"% !LOOM digest: {long_key}\n% !LOOM prefix: Man12\n"
             "% !LOOM extracted-from: arXiv:0805.2065v2\n% !LOOM method: extract\n"

@@ -105,21 +105,35 @@ def query_for(entry: BibEntry) -> Query:
     return Query(_plain(entry.fields.get("title", "")), tuple(surnames), year)
 
 
+def _surname(name: str) -> str:
+    """A name's surname, folded: what precedes the comma in `Arabia, Alberto`, the last word in `Alberto Arabia`."""
+    folded = _fold(name.split(",")[0] if "," in name else name).split()
+    return folded[-1] if folded else ""
+
+
 def score(q: Query, title: str, authors: list[str], year: str) -> float:
     """How likely a returned record is the queried work, from 0 to 1.
 
     The title carries most of the weight, compared as folded words; the first author's surname appearing among the record's authors and a year within one each add a little, since a reprint or an online-first date moves the year and a transliteration moves the name. A title alone that matches exactly still reaches `possible`, never `strong`.
+
+    A query that is only a formatted reference — `A. Arabia, Cycles de Schubert…, Invent. Math. 85 (1986)`, with no title known apart from the text — is scored by the record's title appearing within the text and an author's surname appearing in it, which is what a person checking the match would look for.
     """
     qt, rt = _fold(q.title), _fold(title)
     if not qt or not rt:
         return 0.0
-    ratio = difflib.SequenceMatcher(None, qt, rt).ratio()
-    # a subtitle one side omits should not sink an otherwise exact title
-    if rt.startswith(qt) or qt.startswith(rt):
-        ratio = max(ratio, 0.92)
+    free_text = bool(q.text) and q.title == q.text
+    if free_text:
+        ratio = 1.0 if len(rt) >= 12 and f" {rt} " in f" {qt} " else difflib.SequenceMatcher(None, qt, rt).ratio()
+    else:
+        ratio = difflib.SequenceMatcher(None, qt, rt).ratio()
+        # a subtitle one side omits should not sink an otherwise exact title
+        if rt.startswith(qt) or qt.startswith(rt):
+            ratio = max(ratio, 0.92)
     s = 0.75 * ratio
     folded = " ".join(_fold(a) for a in authors)
     if q.surnames and _fold(q.surnames[0]) and _fold(q.surnames[0]) in folded:
+        s += 0.15
+    elif free_text and any(len(sn) > 1 and f" {sn} " in f" {qt} " for sn in (_surname(a) for a in authors)):
         s += 0.15
     if q.year[:4].isdigit() and str(year)[:4].isdigit() and abs(int(q.year[:4]) - int(str(year)[:4])) <= 1:
         s += 0.10

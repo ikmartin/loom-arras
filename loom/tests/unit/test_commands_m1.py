@@ -30,7 +30,7 @@ def test_init_creates_layout(tmp_path: Path) -> None:
     for rel in (
         "config.toml",
         "loom.sty",
-        "drafts/main.tex",
+        "drafting/main.tex",
         "nodes",
         "digests",
         "refs",
@@ -40,7 +40,7 @@ def test_init_creates_layout(tmp_path: Path) -> None:
     ):
         assert (q / rel).exists(), rel
     assert 'prefix = "zz"' in (q / "config.toml").read_text()
-    assert "\\usepackage{loom}" in (q / "drafts/main.tex").read_text()
+    assert "\\usepackage{loom}" in (q / "drafting/main.tex").read_text()
     lint = run("lint", cwd=q)
     assert lint.exit_code == 0, lint.output
 
@@ -99,7 +99,7 @@ def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path:
     # nothing a node is made of is ignored: only derived directories and LaTeX's own leavings
     ignored = [ln for ln in (tmp_path / "n" / ".gitignore").read_text().splitlines() if ln and not ln.startswith("#")]
     assert "build/" in ignored and "refs/" in ignored
-    assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafts/", "digests/", "comments/") for ln in ignored)
+    assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafting/", "digests/", "comments/") for ln in ignored)
 
 
 def test_init_demo_writes_demo_and_lints_clean(tmp_path: Path) -> None:
@@ -118,7 +118,7 @@ def test_init_demo_writes_demo_and_lints_clean(tmp_path: Path) -> None:
 def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
     """A quilt is usable for planning from the first minute: `conjecture` owes a proof and shows as a gap, `question` owes nothing (plan 0.2 §4)."""
     assert run("init", str(tmp_path / "q"), "--yes").exit_code == 0
-    main = (tmp_path / "q" / "drafts" / "main.tex").read_text()
+    main = (tmp_path / "q" / "drafting" / "main.tex").read_text()
     assert "\\newtheorem{conjecture}[theorem]{Conjecture}" in main
     assert "\\newtheorem{question}[theorem]{Question}" in main
 
@@ -131,7 +131,7 @@ def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
 
 
 def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
-    """`--from` adopts a paper as it is; loom does not edit an author's preamble to add its own taxa."""
+    """`--from` adopts a paper as it is: one flat canon document, no package line, no ids, nothing added to the author's preamble."""
     src = tmp_path / "paper.tex"
     src.write_text(
         "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\nHello.\n\\end{document}\n",
@@ -139,40 +139,49 @@ def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
     )
     r = run("init", str(tmp_path / "q"), "--from", str(src), "--yes")
     assert r.exit_code == 0, r.output
-    main = (tmp_path / "q" / "drafts" / "paper.tex").read_text()
-    assert "conjecture" not in main and "question" not in main
+    q = tmp_path / "q"
+    canon = q / "canon" / "paper.tex"
+    assert canon.read_text() == src.read_text()  # verbatim: the paper has nothing to inline
+    assert "conjecture" not in canon.read_text() and "usepackage{loom}" not in canon.read_text()
+    assert not any((q / "drafting").iterdir())  # work begins with loom draft
+    assert "next: loom draft canon/paper.tex" in r.output
 
 
-def test_init_from_leaves_nothing_behind_when_the_import_fails(tmp_path: Path) -> None:
-    """A failed import is not half a quilt. The instinct after the anchoring refusal is to re-run the same command with --fix-anchoring, and a surviving skeleton refuses that as "already inside a quilt"."""
+def test_init_from_leaves_nothing_behind_when_the_import_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failed import is not half a quilt. The instinct after a refusal is to fix the paper and re-run the same command, and a surviving skeleton refuses that as "already inside a quilt"."""
     src = tmp_path / "paper.tex"
     src.write_text(
-        "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\n\\begin{thm} Inline.\\end{thm}\n\\end{document}\n",
+        "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\nHello.\n\\end{document}\n",
         encoding="utf-8",
     )
 
+    monkeypatch.setenv("FAKE_TEX_FAIL", "1")
     bad = run("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes")
-    assert bad.exit_code == 1 and "line-anchoring" in bad.output
+    assert bad.exit_code == 1 and "does not compile in its own directory" in bad.output
     assert not (tmp_path / "q").exists()
     assert "created quilt" not in bad.output  # nothing is announced that does not outlive the command
 
-    again = run("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes", "--fix-anchoring")
+    monkeypatch.delenv("FAKE_TEX_FAIL")
+    again = run("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes")
     assert again.exit_code == 0, again.output
-    assert (tmp_path / "q" / "drafts" / "paper.tex").is_file() and "created quilt" in again.output
+    assert (tmp_path / "q" / "canon" / "paper.tex").is_file() and "created quilt" in again.output
 
 
-def test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fails(tmp_path: Path) -> None:
+def test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Undoing the skeleton removes what init wrote and nothing else: the author's own directory is not init's to delete."""
     paper = tmp_path / "paper"
     paper.mkdir()
     (paper / "main.tex").write_text(
-        "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\n\\begin{thm} Inline.\\end{thm}\n\\end{document}\n",
+        "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\nHello.\n\\end{document}\n",
         encoding="utf-8",
     )
     (paper / "notes.txt").write_text("mine\n", encoding="utf-8")
 
+    monkeypatch.setenv("FAKE_TEX_FAIL", "1")
     r = run("init", str(paper), "--from", str(paper / "main.tex"), "--prefix", "pp", "--yes")
-    assert r.exit_code == 1 and "line-anchoring" in r.output
+    assert r.exit_code == 1 and "does not compile" in r.output
     assert sorted(x.name for x in paper.iterdir()) == ["main.tex", "notes.txt"]
 
 
@@ -180,12 +189,12 @@ def test_demo_has_outline_master(tmp_path: Path) -> None:
     """The demo shows the outline pattern: a second master reaching one conjecture and one question, so a candidate is reached rather than loose while it is being considered (plan 0.2 §1.2, book 4.4)."""
     assert run("init", str(tmp_path / "demo"), "--demo").exit_code == 0
     demo = tmp_path / "demo"
-    outline = demo / "drafts" / "outline.tex"
+    outline = demo / "drafting" / "outline.tex"
     assert outline.exists()
-    r = run("status", "--master", "drafts/outline.tex", "--json", cwd=demo)
+    r = run("status", "--master", "drafting/outline.tex", "--json", cwd=demo)
     assert r.exit_code == 0, r.output
     keys = json.loads(r.output)["keys"]
-    reached = {k for k, v in keys.items() if "drafts/outline.tex" in v["reached_by"]}
+    reached = {k for k, v in keys.items() if "drafting/outline.tex" in v["reached_by"]}
     assert {"dm-0006", "dm-0007"} <= reached  # the candidates are reached, not loose, while they are being considered
     taxa = {n["key"]: n.get("taxon") for n in json.loads(run("search", "dm-000", "--json", cwd=demo).output)}
     assert taxa.get("dm-0006") == "Conjecture" and taxa.get("dm-0007") == "Question"
@@ -268,7 +277,7 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
     assert {x["key"] for x in up["dependents"]} == {"dm-0002/proof", "dm-0005/proof", "dm-0003/proof"} or {
         x["key"] for x in up["dependents"]
     } >= {"dm-0002/proof", "dm-0005/proof"}
-    assert any(i["file"] == "drafts/main.tex" for i in up["inclusions"])
+    assert any(i["file"] == "drafting/main.tex" for i in up["inclusions"])
     pop = run("pop", "dm-0001", cwd=demo)
     assert pop.exit_code == 0 and "nothing is changed" in pop.output
     de = run("delete", "dm-0001", cwd=demo)
@@ -295,7 +304,7 @@ def test_documentclass_outside_drafts_and_bundle_failed(tmp_path: Path, monkeypa
     assert "loom:documentclass-outside-drafts" in lint and "sections/stray.tex" in lint
     monkeypatch.setenv("FAKE_TEX_FAIL_MATCH", "bundles/")  # the master compiles; every bundle fails
     r = run("check", "--bundles", "all", cwd=q)
-    assert r.exit_code == 1 and "loom:bundle-failed" in r.output and "ok      drafts/main.tex" in r.output
+    assert r.exit_code == 1 and "loom:bundle-failed" in r.output and "ok      drafting/main.tex" in r.output
 
 
 def test_remaining_codes_have_a_test(tmp_path: Path) -> None:
@@ -305,14 +314,14 @@ def test_remaining_codes_have_a_test(tmp_path: Path) -> None:
     (q / "comments" / "someone" / "2026-01-01.json").write_text("{not json")
     cfg = q / "config.toml"
     cfg.write_text(
-        cfg.read_text().replace('main = "drafts/main.tex"', 'main = "drafts/missing.tex"', 1)
+        cfg.read_text().replace('main = "drafting/main.tex"', 'main = "drafting/missing.tex"', 1)
         + "\n[colour]\nscheme = 1\n"
     )
     lint = run("lint", cwd=q).output
     assert "loom:foreign-annotations" in lint and "loom:main-not-found" in lint and "loom:unknown-config-key" in lint
-    cfg.write_text(cfg.read_text().replace('main = "drafts/missing.tex"', 'main = "drafts/main.tex"', 1))
+    cfg.write_text(cfg.read_text().replace('main = "drafting/missing.tex"', 'main = "drafting/main.tex"', 1))
     (q / "nodes" / "dm-0004.tex").write_text("% a file already sits where the inline node dm-0004 would move\n")
-    r = run("atomize", "drafts/main.tex", "drafts/spine.tex", cwd=q)
+    r = run("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
     assert r.exit_code == 1 and "loom:atomize-target-exists" in r.output, r.output
 
 

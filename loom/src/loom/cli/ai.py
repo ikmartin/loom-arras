@@ -155,12 +155,11 @@ def ai_start(ctx: click.Context, slug: str | None, no_launch: bool, quilt_path: 
 
 @ai.command(name="promote")
 @click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option("--prefix", default=None, help="Allocate a new id under this prefix instead of [quilt] prefix.")
 @click.option("--replace", is_flag=True, help="Overwrite an existing digest after showing the diff.")
 @quilt_option
 @click.pass_context
-def ai_promote(ctx: click.Context, path: Path, prefix: str | None, replace: bool, quilt_path: str | None) -> None:
-    """Copy a draft node (to nodes/<id>.tex, allocating an id if it has none) or a digest (to refs/) out of a run; lint runs on the result."""
+def ai_promote(ctx: click.Context, path: Path, replace: bool, quilt_path: str | None) -> None:
+    """Copy a digest out of a run into digests/; lint runs on the result. A drafted node is previewed in arras and pasted by hand."""
     import difflib
 
     from loom.ai.promote import plan_promotion, write_promotion
@@ -172,7 +171,7 @@ def ai_promote(ctx: click.Context, path: Path, prefix: str | None, replace: bool
     result = open_scan(quilt_path)
     root = result.quilt.root
     try:
-        plan = plan_promotion(result, path.resolve(), prefix)
+        plan = plan_promotion(result, path.resolve())
     except ValueError as exc:
         raise ContentError(str(exc)) from exc
     dest = root / plan.target
@@ -190,10 +189,7 @@ def ai_promote(ctx: click.Context, path: Path, prefix: str | None, replace: bool
         write_promotion(root, plan, replace)
     except FileExistsError:
         raise ContentError(f"{plan.target} exists") from None
-    what = f"{plan.target}" + (f" (allocated {plan.node_id})" if plan.allocated else "")
-    if plan.replaced_skeleton:
-        what += " (replaced the author's skeleton)"
-    click.echo(f"promoted {path.name} -> {what}")
+    click.echo(f"promoted {path.name} -> {plan.target}")
     run_dir = path.resolve().parent
     if (run_dir / "run.toml").is_file():
         from loom.cli.build_cmds import log_run

@@ -1,4 +1,4 @@
-"""TeX layer on the shim: aux parsing, compile, assemble, bundles with --with and --draft, check."""
+"""TeX layer on the shim: aux parsing, compile, linearize, bundles with --with and --draft, check."""
 
 from __future__ import annotations
 
@@ -51,27 +51,31 @@ def test_compile_master_and_numbers_from_aux(tmp_path: Path) -> None:
     n = parse_aux(aux.read_text())
     assert n["dm-0001"].number == "1.1" and n["dm-0003"].number == "2.1"
     log = Path(os.environ["FAKE_TEX_LOG"]).read_text()
-    assert "-outdir=" in log and "drafts/main.tex" in log
+    assert "-outdir=" in log and "drafting/main.tex" in log
 
 
-def test_assemble_flattens_with_nest_shift(tmp_path: Path) -> None:
+def test_linearize_flattens_with_nest_shift(tmp_path: Path) -> None:
     root = tmp_path / "q"
-    (root / "drafts").mkdir(parents=True)
+    (root / "drafting").mkdir(parents=True)
     (root / "sections").mkdir()
-    (root / "config.toml").write_text('[quilt]\nmain = "drafts/main.tex"\n')
-    (root / "drafts" / "main.tex").write_text(
+    (root / "config.toml").write_text('[quilt]\nmain = "drafting/main.tex"\n')
+    (root / "drafting" / "main.tex").write_text(
         "\\documentclass{article}\n\\begin{document}\n\\section{A}\n\\input{sections/one}\n\\nest{sections/two}\n\\end{document}\n"
     )
     (root / "sections" / "one.tex").write_text("one % comment kept\n")
     (root / "sections" / "two.tex").write_text("\\section{Two}\n\\subsection{Deeper}\n")
-    text = assemble(root, "drafts/main.tex")
+    text = assemble(root, "drafting/main.tex")
     assert "\\input{" not in text and "\\nest{" not in text
     assert "one % comment kept" in text
     assert "\\subsection{Two}" in text and "\\subsubsection{Deeper}" in text
     assert shift_sectioning("\\subparagraph{x}", 1) == "\\subparagraph{x}"
-    r = run("assemble", "drafts/main.tex", str(tmp_path / "flat.tex"), cwd=root)
-    assert r.exit_code == 0 and (tmp_path / "flat.tex").exists()
-    assert run("assemble", "drafts/main.tex", str(tmp_path / "flat.tex"), cwd=root).exit_code == 2
+    r = run("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--no-check", cwd=root)
+    assert r.exit_code == 0, r.output
+    flat = (root / "drafting" / "flat.tex").read_text()
+    assert "\\input{" not in flat and "\\subsection{Two}" in flat
+    assert run("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--no-check", cwd=root).exit_code == 2
+    # the spine and everything it inlined are now superseded: they define nothing until loom live
+    assert "superseded" in r.output
 
 
 def test_bundle_contents_and_order(tmp_path: Path) -> None:
@@ -152,7 +156,7 @@ def test_check_lints_and_compiles(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = run("check", cwd=d)
     assert r.exit_code == 0, r.output
-    assert "ok      drafts/main.tex" in r.output and r.output.strip().endswith("check: ok")
+    assert "ok      drafting/main.tex" in r.output and r.output.strip().endswith("check: ok")
     r2 = run("check", "--bundles", "all", cwd=d)
     assert r2.exit_code == 0 and "bundle dm-0003" in r2.output
     (d / "nodes" / "dup.tex").write_text("\\begin{lemma}\\label{dm-0001}\n\\end{lemma}\n")

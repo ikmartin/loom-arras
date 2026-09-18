@@ -20,14 +20,16 @@ _VERB_RE = re.compile(r"\\verb\*?(\S)(.*?)\1")
 _VERBATIM_RE = re.compile(r"\\begin\{(verbatim\*?|lstlisting|comment|filecontents\*?)\}.*?\\end\{\1\}", re.S)
 
 
-def discover_files(root: Path) -> list[str]:
-    """Quilt-relative posix paths of every .tex file under root, sorted, skipping build/ and tool directories."""
+def discover_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
+    """Quilt-relative posix paths of every .tex file under root, sorted, skipping build/ and tool directories and the top-level directories in `skip_top` (the canon directory and `retired/`, whose files are never source)."""
     found: list[str] = []
     for path in root.rglob("*.tex"):
         rel = path.relative_to(root)
         if any(part in SKIP_DIRS for part in rel.parts[:-1]):
             continue
         if rel.as_posix().startswith(SKIP_PREFIXES):
+            continue
+        if len(rel.parts) > 1 and rel.parts[0] in skip_top:
             continue
         found.append(rel.as_posix())
     return sorted(found)

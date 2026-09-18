@@ -86,11 +86,10 @@ Print the orientation document followed by the quilt's live state (and a run's j
 
 `loom ai promote [OPTIONS] PATH`
 
-Copy a draft node (to nodes/<id>.tex, allocating an id if it has none) or a digest (to refs/) out of a run; lint runs on the result.
+Copy a digest out of a run into digests/; lint runs on the result. A drafted node is previewed in arras and pasted by hand.
 
 | option | description |
 |---|---|
-| `--prefix` | Allocate a new id under this prefix instead of [quilt] prefix. |
 | `--replace` | Overwrite an existing digest after showing the diff. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -105,21 +104,11 @@ Create a run directory under ai/runs/, print its path, and launch [ai] agent fro
 | `--no-launch` | Create the run without launching [ai] agent. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-## `loom assemble`
-
-`loom assemble [OPTIONS] MASTER DEST`
-
-Write DEST: MASTER flattened with every \input, \nest (levels shifted), and \include expanded, for arXiv or latexdiff.
-
-| option | description |
-|---|---|
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 ## `loom atomize`
 
 `loom atomize [OPTIONS] [SRC] [DEST]`
 
-Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC's text is not modified (with --ignore-src, a directive line is added above it).
+Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inclusion lines in their place. SRC is not modified; the history records that DEST superseded it, so it defines nothing until `loom live`.
 
 | option | description |
 |---|---|
@@ -130,7 +119,7 @@ Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inc
 | `--sections` | Also move labelled sections and subsections to nodes/. |
 | `--all` | Act on SRC and every file it reaches, writing spines under --to-dir. |
 | `--to-dir` `DIR` |  |
-| `--ignore-src` | Add `% !LOOM ignore` to SRC's first line, so the quilt keeps one definition of each node. |
+| `--retire` | Move SRC into retired/ once DEST is written, instead of leaving it superseded in place. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom build`
@@ -139,9 +128,12 @@ Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inc
 
 Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
 
+Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless.
+
 | option | description |
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
+| `--force` | Render every fragment again, ignoring the cache. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom bundle`
@@ -156,6 +148,51 @@ Write build/bundles/<key>.tex: the statements KEY depends on, in dependency orde
 | `--run` `DIR` | Also copy into the run directory and log the call. |
 | `--with` `FILE` | Substitute a unified diff or a .tex file for the key's text. |
 | `--draft` `FILE` | Bundle a node file that is not yet in the quilt. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom canonicalize`
+
+`loom canonicalize [OPTIONS] DOCUMENT`
+
+The same as canonize.
+
+| option | description |
+|---|---|
+| `--to` `FILE` | The canon file (default: <canon>/<stem>.tex). |
+| `--message`, `-m` | What this landmark is. |
+| `--no-check` | Skip the identity test. |
+| `--parent` | The step this one continues. |
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom canonise`
+
+`loom canonise [OPTIONS] DOCUMENT`
+
+The same as canonize.
+
+| option | description |
+|---|---|
+| `--to` `FILE` | The canon file (default: <canon>/<stem>.tex). |
+| `--message`, `-m` | What this landmark is. |
+| `--no-check` | Skip the identity test. |
+| `--parent` | The step this one continues. |
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom canonize`
+
+`loom canonize [OPTIONS] DOCUMENT`
+
+Write DOCUMENT as one flat, self-contained canon file and record a step: every key's text at this moment, quilt-wide, with what the document reaches named.
+
+| option | description |
+|---|---|
+| `--to` `FILE` | The canon file (default: <canon>/<stem>.tex). |
+| `--message`, `-m` | What this landmark is. |
+| `--no-check` | Skip the identity test. |
+| `--parent` | The step this one continues. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom check`
@@ -268,6 +305,49 @@ Report Python, the TeX toolchain, git, the arras bundle, the resolved author nam
 |---|---|
 | `--json` | Machine-readable report on stdout. |
 
+## `loom draft`
+
+`loom draft [OPTIONS] CANON`
+
+Copy a canon document into the drafting directory as a working draft, with \usepackage{loom} and an id on every node; the canon file is not touched.
+
+| option | description |
+|---|---|
+| `--to` `FILE` | The draft to write (default: <drafting>/<stem>.tex). |
+| `--no-ids` | Copy without inserting ids. |
+| `--fix-anchoring` | Rewrite the copy so every theorem-like \begin and \end is alone on its line. |
+| `--prefix` | Id prefix for the ids inserted. |
+| `--no-check` | Skip the identity test. |
+| `--yes`, `-y` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom fork`
+
+`loom fork [OPTIONS] NODE_ID`
+
+Give FILE its own copy of a node under a new id: a node file when FILE includes the node, else the copy inline; printed as a patch for FILE, with its references rewritten. Nothing outside FILE changes.
+
+| option | description |
+|---|---|
+| `--in` `FILE` | The document that gets its own copy. |
+| `--from` `@N` | Copy the text the key had at step N instead of the head. |
+| `--as` `ID` | The new id (default: the next free one). |
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom history`
+
+`loom history [OPTIONS] [KEY]`
+
+The steps and stamps of this quilt, one per line; with KEY, that key's versions and whether the head equals one. `loom history verify` walks every step directory against the ledger.
+
+KEY is an id, a proof key, or the word `verify`.
+
+| option | description |
+|---|---|
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## `loom id`
 
 `loom id [OPTIONS] [FILE]`
@@ -288,20 +368,19 @@ Print a patch (or write a copy with --to) inserting \label{<id>} on every untagg
 
 `loom import [OPTIONS] FILE`
 
-Copy a paper and everything it reaches into the quilt, inserting ids into the copies and changing nothing else.
+Copy a paper into the quilt as one flat canon document, its styles, bibliography and figures at the root, changing nothing else; step 0001 of the history.
 
 | option | description |
 |---|---|
 | `--yes`, `-y` |  |
-| `--fix-anchoring` | Rewrite the copy so every theorem-like \begin and \end is alone on its line. |
-| `--prefix` |  |
+| `--no-check` | Skip the identity test. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom init`
 
 `loom init [OPTIONS] [DIRECTORY]`
 
-Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it.
+Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it as its first canon document (then: loom draft).
 
 | option | description |
 |---|---|
@@ -310,7 +389,6 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--prefix` | Id prefix for new nodes. |
 | `--git` | Also run git init. A quilt is files; loom reads no history. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
-| `--fix-anchoring` | With --from: rewrite the copies so theorem-like environments are line-anchored. |
 
 ## `loom inline`
 
@@ -324,6 +402,21 @@ Write DEST, a copy of SRC with every \input of a node file replaced by its conte
 | `--all` | Inline recursively. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+## `loom linearize`
+
+`loom linearize [OPTIONS] SPINE`
+
+Write FILE: SPINE with every \input, \include and \nest (levels shifted) expanded in place. The spine and every file it inlined are then superseded.
+
+| option | description |
+|---|---|
+| `--to` `FILE` | The flat document to write. |
+| `--fork` | Give this document its own copy of every node another document shares. |
+| `--keep-shared` | Leave shared node files as inclusions, marked. |
+| `--no-check` | Skip the identity test. |
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## `loom lint`
 
 `loom lint [OPTIONS]`
@@ -333,7 +426,18 @@ Scan and print every diagnostic. Fast; no LaTeX runs.
 | option | description |
 |---|---|
 | `--json` |  |
+| `--nodes` | One block per node id: what is wrong with its identity, and the superseded files. |
 | `--run` `DIR` | Log this call to DIR/run.log. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom live`
+
+`loom live [OPTIONS] FILE`
+
+Make a superseded document live again: it defines its nodes once more.
+
+| option | description |
+|---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom new`
@@ -352,7 +456,7 @@ Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
 
 `loom refs [OPTIONS] COMMAND [ARGS]...`
 
-Fetched works: where their artifacts are, how to add one by hand, and identifiers for works that state none.
+Fetched works: where their artifacts are, how to add one by hand, identifiers for works that state none, and a library crawled from the bibliography.
 
 ### `loom refs add`
 
@@ -365,6 +469,48 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 | option | description |
 |---|---|
 | `--force` | Replace an artifact that is already there. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs crawl`
+
+`loom refs crawl [OPTIONS] COMMAND [ARGS]...`
+
+Build a library from the bibliography: plan by depth and subject from metadata, then fetch under a cap (book 8.13).
+
+#### `loom refs crawl fetch`
+
+`loom refs crawl fetch [OPTIONS]`
+
+Download what the plan selected, shallowest and most cited first, until [crawl] cap downloads are on disk. Resumable. Requires [refs] fetch = true and a plan made from the current settings and bibliography.
+
+| option | description |
+|---|---|
+| `--json` | Print the report as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom refs crawl plan`
+
+`loom refs crawl plan [OPTIONS]`
+
+Plan a crawl from metadata alone: identify the cited works, follow references to [crawl] depth, keep the works in [crawl] subjects and categories, and say what fetch would download. Downloads nothing. Requires [refs] resolve = true.
+
+Without [crawl] subjects, and deeper than depth 1, it surveys instead: it counts the works the cited works cite by MSC family and arXiv category, to choose subjects and categories from, and makes no plan.
+
+| option | description |
+|---|---|
+| `--refresh` | Ask the services again instead of using recorded answers. |
+| `--json` | Print the plan as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom refs crawl status`
+
+`loom refs crawl status [OPTIONS]`
+
+What the plan's library holds: its works, how many are downloaded or failed, how many are still to fetch under the cap and beyond it, and whether the plan is current.
+
+| option | description |
+|---|---|
+| `--json` | Print the status as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs path`
@@ -393,6 +539,17 @@ Asks zbMATH Open, then Crossref, and prints candidates with how well each matche
 | `--json` | Print the candidates as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+## `loom revert`
+
+`loom revert [OPTIONS] ADDRESS`
+
+Print the patch that puts KEY@N's recorded text back in place of the head's; the file is the author's to change. Reverting materializes a version, it never points at one.
+
+| option | description |
+|---|---|
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## `loom search`
 
 `loom search [OPTIONS] QUERY`
@@ -417,6 +574,19 @@ Watch, republish, and serve arras at / and build/ at /build/ until interrupted.
 | `--port` | Port to listen on; fails if busy. |
 | `--open` | Open the browser. |
 | `--no-compile` | Never run latexmk after a change. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom stamp`
+
+`loom stamp [OPTIONS]`
+
+Record every key whose text moved since the last step, quilt-wide (or within one document with --in), without writing a canon file.
+
+| option | description |
+|---|---|
+| `--message`, `-m` | What this stamp marks. |
+| `--in` `FILE` | Only the keys this document reaches. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom status`
@@ -458,7 +628,7 @@ Everything downstream of ID: dependents, reference and inclusion sites, ledger r
 
 `loom upgrade [OPTIONS]`
 
-Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones.
+Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones. Also brings the records to the current layout: snapshots into the history's texts/, `drafts` renamed `drafting` in config.toml.
 
 | option | description |
 |---|---|

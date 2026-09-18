@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from loom.render.convert import Converter, RenderContext
 from loom.scan.macros import parse_macros
@@ -135,3 +136,32 @@ def test_convert_conditionals_definitions_starred_sections() -> None:
     assert "After." in out and "missing" not in out and "mystery" not in out
     assert calls == [] and ctx.diagnostics == []
     assert "paragraph." in out
+
+
+def test_an_accent_without_braces_keeps_the_text_that_follows_it() -> None:
+    # `\'e` takes its argument from the middle of the text after it; the rest of that text is still text (ACGS, acgs-002P). An accent is written as its combining character, so the comparison is on composed text.
+    out, ctx, _ = make("branches at $q$ in the \\'etale topology. Then there exist lifts $s_x$ such that\n")
+    assert "in the étale topology. Then there exist lifts" in unicodedata.normalize("NFC", out)
+    assert ctx.diagnostics == []
+
+
+def test_an_accent_without_braces_keeps_the_paragraph_it_starts() -> None:
+    out, _, _ = make("\\'Etale descent is proved below.\n\nThe \\v{c}ech complex follows.\n")
+    composed = unicodedata.normalize("NFC", out)
+    assert "Étale descent is proved below." in composed and "čech complex follows." in composed
+    assert out.count("<p ") == 2
+
+
+def test_a_macro_inside_text_is_written_between_dollars() -> None:
+    # MathJax's text mode has no \underline, so `\text{nodes of \ul C}` cost the whole formula (ACGS, acgs-002P)
+    macros = "\\newcommand\\ul[1]{\\underline{#1}}\n\\newcommand\\NN{\\mathbb{N}}\n\\newcommand\\etc{etc.}\n"
+    out, _, _ = make("$\\bigoplus_{\\text{nodes of \\ul C}} \\NN$ and $x + \\text{and so on, \\etc}$\n", macros=macros)
+    assert "\\text{nodes of $\\ul C$}" in out
+    assert "\\text{and so on, \\etc}" in out  # a macro whose body is words is left as it is
+
+
+def test_a_macro_already_inside_math_within_text_is_left_alone() -> None:
+    macros = "\\newcommand\\ul[1]{\\underline{#1}}\n"
+    # the outer math is written \(…\), since a $ inside \text{} would close a $-delimited formula
+    out, _, _ = make("\\(\\text{already $\\ul C$ here}\\)\n", macros=macros)
+    assert out.count("$\\ul C$") == 1
