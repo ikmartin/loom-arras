@@ -24,6 +24,14 @@ export interface Publisher {
   version: string;
 }
 
+/** What a corpus has, never what to draw (manifest.md §1). A publisher declares it; `normalise` derives it from the data when a manifest omits it, so everything downstream reads it as present. */
+export interface Publishes {
+  documents: boolean;
+  review: boolean;
+  bibliography: boolean;
+  discussions: boolean;
+}
+
 export interface Corpus {
   name: string;
   root_label: string;
@@ -298,6 +306,7 @@ export interface SearchEntry {
 export interface Manifest {
   interface_version: number;
   publisher: Publisher;
+  publishes: Publishes;
   generated: string;
   corpus: Corpus;
   masters: Master[];

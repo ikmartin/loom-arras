@@ -106,7 +106,7 @@
 						<p class="faint">
 							<code>{master.path}</code>{master.numbering_known
 								? ''
-								: ' · not yet compiled: ids shown without numbers'}
+								: ' · not yet numbered: ids shown without numbers'}
 							{#if master.pdf}· <a href={dataUrl(master.pdf)}>PDF</a>{/if}
 						</p>
 					</header>

@@ -84,7 +84,7 @@
 				<IdChip id={node.id} aliases={node.aliases} />
 				<Badge parts={nodeBadge(m, node)} facts={reviewFacts(stmt)} />
 				{#if versionLabel(stmt)}<span class="version" data-testid="version">{versionLabel(stmt)}</span>{/if}
-				{#if !number}<span class="muted">not yet compiled</span>{/if}
+				{#if !number && m.publishes.documents}<span class="muted">not yet numbered</span>{/if}
 				{#each node.tags as t (t)}<a class="tag" href={tagUrl(t)}>#{t}</a>{/each}
 				{#if node.external && node.digest}<span class="muted">from <a href={digestUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
@@ -140,7 +140,7 @@
 				</p>
 			</RailList>
 		{:else}
-			<RailList label="in" empty="loose: no document reaches this node" />
+			{#if m.publishes.documents}<RailList label="in" empty="no document includes this node" />{/if}
 		{/each}
 
 		{#if deps.length}
@@ -174,7 +174,7 @@
 					{#each items as k (k)}
 						<li>
 							<a href={keyUrl(m, k)}>{label(k)}</a>
-							<span class="faint">{m.nodes[k]?.reached_by?.length ? m.nodes[k].reached_by.join(', ') : 'loose'}</span>
+							<span class="faint">{m.nodes[k]?.reached_by?.length ? m.nodes[k].reached_by.join(', ') : m.publishes.documents ? 'no document' : ''}</span>
 						</li>
 					{/each}
 				</ul>

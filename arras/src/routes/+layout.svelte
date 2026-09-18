@@ -9,7 +9,7 @@
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import PdfViewer from '$lib/components/PdfViewer.svelte';
 	import NavShell from '$lib/shell/NavShell.svelte';
-	import { viewsOf, viewOf } from '$lib/shell/views';
+	import { indexesOf, viewsOf, viewOf } from '$lib/shell/views';
 	import { contentsOf } from '$lib/contents';
 	import { followReading, reading, sectionIds } from '$lib/reading.svelte';
 	import { prefs, type Shell } from '$lib/prefs.svelte';
@@ -88,6 +88,7 @@
 <NavShell
 	label={m ? m.corpus.name : 'arras'}
 	views={viewsOf(m)}
+	indexes={indexesOf(m)}
 	currentView={viewOf(page.url.pathname)}
 	masters={m?.masters ?? []}
 	canon={m?.canon ?? []}

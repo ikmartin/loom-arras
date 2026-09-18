@@ -18,7 +18,7 @@ const routes: [string, string][] = [
 	['/taxa', 'Taxa'],
 	['/taxon/lemma', 'Lemma'],
 	['/references', 'References'],
-	['/loose', 'Loose']
+	['/loose', 'Not in any document']
 ];
 
 for (const [path, heading] of routes) {
@@ -69,7 +69,7 @@ test('interface version mismatch shows one diagnostic and nothing else', async (
 	});
 	await page.goto('/node/sy-0003');
 	await expect(page.locator('main h1')).toHaveText('Problems');
-	await expect(page.locator('main code', { hasText: 'loom:interface-version' })).toBeVisible();
+	await expect(page.locator('main code', { hasText: 'arras:interface-version' })).toBeVisible();
 	await expect(page.locator('.fragment')).toHaveCount(0);
 });
 
@@ -162,7 +162,7 @@ test('see also lists both directions and says where each node is reached', async
 
 	await page.goto('/node/sy-0008'); // the relation is declared on the other node and shows here too
 	await expect(page.getByTestId('relations-see').getByRole('link', { name: /Loose/ })).toBeVisible();
-	await expect(page.getByTestId('relations-see')).toContainText('loose');
+	await expect(page.getByTestId('relations-see')).toContainText('no document'); // where a node is reached, or that nothing reaches it
 });
 
 test('an unknown relation kind renders as a labelled list of links', async ({ page }) => {

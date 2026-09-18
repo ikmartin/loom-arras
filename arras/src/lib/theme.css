@@ -2,14 +2,17 @@
    The names are drawn from print and are deliberately not the names used in the design documents or in any other product's system: arras renders a page of mathematics, not application chrome.
    Every colour, measure and typeface is a variable; no component hardcodes a value. */
 
+/* Everything below is scoped to `.arras`, the class a host puts on the element it wants arras to live in -- `<html>` for the app served with loom, which is why the preference attributes `prefs.svelte.ts` writes to that same element still key these rules. Declaring on `.arras` would have arras defining `--ink` and `--paper` across a page it does not own, and resetting `box-sizing` on elements that are not its own; a host with its own design system should be able to embed a corpus without either happening to it. Restyling is then an ordinary stylesheet at ordinary specificity: `.arras { --paper: #111 }`. */
+
 /* Padding and borders count inside a declared size. Without this a rail of `height: 100vh` with 12px of padding is 24px taller than the window, which puts the settings control and the counts line below the fold. */
-*,
-*::before,
-*::after {
+.arras,
+.arras *,
+.arras *::before,
+.arras *::after {
 	box-sizing: border-box;
 }
 
-:root {
+.arras {
 	/* surfaces */
 	--paper: #fbfaf8;
 	--leaf: #f4f2ed;
@@ -71,7 +74,7 @@
 
 /* Dark mode: the light set inverted, washes as low-alpha overlays over the paper rather than tinted solids (15.6). */
 @media (prefers-color-scheme: dark) {
-	:root:not([data-theme='light']) {
+	.arras:not([data-theme='light']) {
 		--paper: #17171a;
 		--leaf: #1e1e22;
 		--sheet: #202025;
@@ -97,7 +100,7 @@
 		color-scheme: dark;
 	}
 }
-:root[data-theme='dark'] {
+.arras[data-theme='dark'] {
 	--paper: #17171a;
 	--leaf: #1e1e22;
 	--sheet: #202025;
@@ -122,14 +125,14 @@
 }
 
 /* The four preferences of 15.7, applied as attributes on <html> by the layout. */
-:root[data-size='s'] { --body-size: 11px; }
-:root[data-size='m'] { --body-size: 13.5px; }
-:root[data-size='l'] { --body-size: 16px; }
-:root[data-width='narrow'] { --measure: 36rem; }
-:root[data-width='mid'] { --measure: 44rem; }
-:root[data-width='wide'] { --measure: 52rem; }
-:root[data-face='serif'] { --body-face: var(--serif); }
-:root[data-face='sans'] { --body-face: var(--sans); }
+.arras[data-size='s'] { --body-size: 11px; }
+.arras[data-size='m'] { --body-size: 13.5px; }
+.arras[data-size='l'] { --body-size: 16px; }
+.arras[data-width='narrow'] { --measure: 36rem; }
+.arras[data-width='mid'] { --measure: 44rem; }
+.arras[data-width='wide'] { --measure: 52rem; }
+.arras[data-face='serif'] { --body-face: var(--serif); }
+.arras[data-face='sans'] { --body-face: var(--sans); }
 
 html,
 body {

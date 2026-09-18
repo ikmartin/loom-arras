@@ -3,11 +3,12 @@
 import type { Snippet } from 'svelte';
 import type { ContentsEntry } from '$lib/contents';
 import type { CanonDoc, Master } from '$lib/manifest/types';
-import type { View } from './views';
+import type { Index, View } from './views';
 
 export interface ShellProps {
 	label: string;
 	views: View[];
+	indexes: Index[];
 	currentView: string;
 	masters: Master[];
 	canon: CanonDoc[];

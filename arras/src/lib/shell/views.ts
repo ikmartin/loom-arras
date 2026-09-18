@@ -4,6 +4,11 @@ import type { Manifest } from '$lib/manifest/types';
 import { canonUrl, masterUrl } from '$lib/nav';
 import { route } from '$lib/paths';
 
+export interface Index {
+	label: string;
+	href: string;
+}
+
 export interface View {
 	id: string;
 	label: string;
@@ -17,14 +22,19 @@ export function viewsOf(m: Manifest | null): View[] {
 	// a corpus whose drafting directory is empty is still worth reading: the newest landmark stands in for the document
 	const newest = m?.canon?.length ? m.canon[m.canon.length - 1] : undefined;
 	const read = master ? masterUrl(master.path) : newest ? canonUrl(newest.path) : route('/');
+	const has = m?.publishes;
+	// `undefined` keeps a view: before the manifest loads there is nothing to go on, and a shell that draws six items
+	// and then removes two is worse than one that never had them. A declared `false` is the only thing that removes.
 	return [
-		{ id: 'home', label: 'home', href: route('/'), icon: 'home' },
-		{ id: 'read', label: 'read', href: read, icon: 'read' },
-		{ id: 'graph', label: 'graph', href: route('/graph'), icon: 'graph' },
-		{ id: 'review', label: 'review', href: route('/review'), icon: 'review' },
-		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems' },
-		{ id: 'references', label: 'references', href: route('/references'), icon: 'references' }
-	];
+		{ id: 'home', label: 'home', href: route('/'), icon: 'home', when: true },
+		{ id: 'read', label: 'read', href: read, icon: 'read', when: has?.documents },
+		{ id: 'graph', label: 'graph', href: route('/graph'), icon: 'graph', when: true },
+		{ id: 'review', label: 'review', href: route('/review'), icon: 'review', when: has?.review },
+		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems', when: true },
+		{ id: 'references', label: 'references', href: route('/references'), icon: 'references', when: has?.bibliography }
+	]
+		.filter((v) => v.when !== false)
+		.map(({ when: _when, ...v }) => v);
 }
 
 /** Which view a path belongs to, for marking the current item. */
@@ -39,10 +49,15 @@ export function viewOf(path: string): string {
 	return '';
 }
 
-/** The indexes, which every shell offers below its main list. */
-export const INDEXES = [
-	{ label: 'threads', href: route('/threads') },
-	{ label: 'tags', href: route('/tags') },
-	{ label: 'taxa', href: route('/taxa') },
-	{ label: 'loose', href: route('/loose') }
-];
+/** The indexes, which every shell offers below its main list. A function rather than a constant: the list depends on the corpus, and `route()` should not run at import time. */
+export function indexesOf(m: Manifest | null): Index[] {
+	const has = m?.publishes;
+	return [
+		{ label: 'threads', href: route('/threads'), when: has?.discussions },
+		{ label: 'tags', href: route('/tags'), when: true },
+		{ label: 'taxa', href: route('/taxa'), when: true },
+		{ label: 'not in a document', href: route('/loose'), when: has?.documents }
+	]
+		.filter((x) => x.when !== false)
+		.map(({ when: _when, ...x }) => x);
+}

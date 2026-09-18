@@ -15,7 +15,7 @@
 				['stale', 'the text was accepted and has changed since, or something it depends on has'],
 				['draft', 'nothing has been recorded about this text'],
 				['incomplete', 'the text marks a gap in itself, so it is not a finished argument'],
-				['loose', 'no document reaches this node, so nothing depends on it yet']
+				['not in a document', 'no document includes this node, so nothing depends on it yet']
 			],
 			command: 'accept'
 		},

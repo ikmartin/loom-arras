@@ -16,8 +16,6 @@ import { describe, expect, it } from 'vitest';
 
 /** `src/lib/paths.ts` is where the exceptions live: it is the one module that may name the defaults. */
 const OWNS_PATHS = 'src/lib/paths.ts';
-/** The token file declares the palette; `:root` there is the declaration a host overrides, not a write by the core. */
-const OWNS_TOKENS = 'src/lib/theme.css';
 
 interface Rule {
 	name: string;
@@ -29,13 +27,15 @@ const RULES: Rule[] = [
 	{
 		name: 'writes to the document root',
 		re: /documentElement/,
-		// prefs applies the host's chosen theme to the root it was given; until seam 2 it is the app's own root
+		// prefs applies the host's chosen theme to the root the host owns, which for the app served with loom is
+		// `documentElement` -- the same element carrying `.arras`. This is not debt: seam 2 was declined (0.9.5 §8),
+		// the app is a host, and a host owning its own root is the arrangement, not a step towards another one.
 		exempt: (f) => f === 'src/lib/prefs.svelte.ts'
 	},
 	{
+		// No exemption: the tokens live on `.arras`, the class a host applies to the element it owns (0.11 Part I).
 		name: 'declares tokens on :root',
-		re: /:root/,
-		exempt: (f) => f === OWNS_TOKENS
+		re: /:root/
 	},
 	{
 		name: 'hard-codes the build directory',
@@ -56,14 +56,15 @@ const RULES: Rule[] = [
 	{
 		name: "names a publisher's URL scheme",
 		re: /['"`]loom:/,
-		// The scheme is a publisher's name compiled into the core and belongs in `manifest.publisher`; moving it is
-		// R2b's, in the plan that follows. These three are the whole of it as of 2026-09-17, named so that the guard
-		// catches a fourth and so that emptying this list is the visible end of the job.
-		exempt: (f) => PENDING_R2B.includes(f)
+		// `loom:` is the INTERFACE's scheme, specified `[decided]` at specs/dialect.md §2.13, not a publisher's name
+		// arras happens to know -- so naming it here is arras implementing the format, and taking it from
+		// `manifest.publisher` would break conformance for any other publisher. What is actually wrong is that the
+		// interface named its own URI scheme after one publisher; that is a seam 1 question, open as of 2026-09-18.
+		exempt: (f) => NAMES_THE_INTERFACE_SCHEME.includes(f)
 	}
 ];
 
-const PENDING_R2B = ['src/lib/worklink.ts', 'src/lib/manifest/loader.ts', 'src/lib/components/PdfViewer.svelte'];
+const NAMES_THE_INTERFACE_SCHEME = ['src/lib/worklink.ts', 'src/lib/components/PdfViewer.svelte'];
 
 function walk(dir: string, out: string[] = []): string[] {
 	for (const name of readdirSync(dir)) {
@@ -93,9 +94,10 @@ describe('host neutrality', () => {
 		expect(rule.re.test(`fetch(dataUrl(path))`)).toBe(false);
 	});
 
-	it('fails when a token is declared on the document root outside the token file', () => {
+	it('fails when a token is declared on the document root, with nothing exempt', () => {
 		const rule = RULES.find((r) => r.name === 'declares tokens on :root')!;
 		expect(rule.re.test(':root { --ink: black; }')).toBe(true);
-		expect(rule.exempt!(OWNS_TOKENS)).toBe(true);
+		expect(rule.re.test('.arras { --ink: black; }')).toBe(false);
+		expect(rule.exempt).toBeUndefined();
 	});
 });

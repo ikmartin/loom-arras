@@ -1,15 +1,14 @@
 <script lang="ts">
-	// Shell C, the default (book 15.2.3): a 44px icon strip of the six views, search and the settings control, beside a panel holding the page's own panel when it has one and the document's contents otherwise.
-	// The strip carries no separate home mark: home is one of the six views, and a second control going to the same place is a puzzle, not a shortcut.
+	// Shell C, the default (book 15.2.3): a 44px icon strip of the views this corpus has, search and the settings control, beside a panel holding the page's own panel when it has one and the document's contents otherwise.
+	// The strip carries no separate home mark: home is one of the views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Settings from './Settings.svelte';
-	import { INDEXES } from './views';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
-	let { label, views, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
+	let { label, views, indexes, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 </script>
 
 <div class="shell-c">
@@ -50,7 +49,7 @@
 		{/if}
 		<p class="rail-label">Indexes</p>
 		<ul class="plain">
-			{#each INDEXES as x (x.href)}
+			{#each indexes as x (x.href)}
 				<li><a href={x.href}>{x.label}</a></li>
 			{/each}
 		</ul>

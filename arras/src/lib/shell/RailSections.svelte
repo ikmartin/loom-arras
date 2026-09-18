@@ -4,11 +4,10 @@
 	import Contents from './Contents.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Settings from './Settings.svelte';
-	import { INDEXES } from './views';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
-	let { label, views, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
+	let { label, views, indexes, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 </script>
 
 <div class="shell-a">
@@ -56,7 +55,7 @@
 		<section>
 			<p class="rail-label">Indexes</p>
 			<ul class="views small">
-				{#each INDEXES as x (x.href)}
+				{#each indexes as x (x.href)}
 					<li><a href={x.href}>{x.label}</a></li>
 				{/each}
 			</ul>

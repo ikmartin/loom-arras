@@ -3,6 +3,7 @@
 	// Home (book 15.3.4): four metric cards, then what needs attention, what is blocked, and where to go. Every line links, and each card opens the table of exactly what it counts.
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, keyUrl, masterUrl, nodeUrl } from '$lib/nav';
+	import { route } from '$lib/paths';
 	import { toneClass } from '$lib/state';
 
 	const m = $derived(store.manifest!);
@@ -49,7 +50,7 @@
 			{#each m.masters as master (master.path)}
 				<li>
 					<a href={masterUrl(master.path)}>{master.title || master.path}</a>
-					<span class="faint">{master.path}{master.default ? ' · default' : ''}{master.numbering_known ? '' : ' · not yet compiled'}</span>
+					<span class="faint">{master.path}{master.default ? ' · default' : ''}{master.numbering_known ? '' : ' · not yet numbered'}</span>
 				</li>
 			{/each}
 		</ul>
@@ -92,9 +93,9 @@
 		<p class="faint">nothing is blocked</p>
 	{/if}
 
-	{#if loose.length}
-		<h2>Loose</h2>
-		<p><a href="/loose">{loose.length} nodes no document reaches</a></p>
+	{#if loose.length && m.publishes.documents}
+		<h2>Not in any document</h2>
+		<p><a href={route('/loose')}>{loose.length} nodes that no document includes</a></p>
 	{/if}
 
 	<h2>Recent</h2>

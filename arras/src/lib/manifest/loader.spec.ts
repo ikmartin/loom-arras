@@ -13,6 +13,24 @@ describe('manifest loader', () => {
 		expect(a.startsWith('sha256:')).toBe(true);
 	});
 
+	it('believes a declared capability, and derives one that is absent', async () => {
+		// The whole point of the field: a corpus with no annotations YET and one that will never have them look
+		// identical in the data, and only a declaration tells them apart.
+		const declared = await parseManifest(
+			JSON.stringify({ ...minimal, publishes: { documents: false, review: true }, annotations: {} })
+		);
+		expect(declared.manifest?.publishes.documents).toBe(false);
+		expect(declared.manifest?.publishes.review).toBe(true); // declared true although `annotations` is empty
+		expect(declared.manifest?.publishes.bibliography).toBe(false); // undeclared, and no references: derived
+
+		const derived = await parseManifest(
+			JSON.stringify({ ...minimal, masters: [{ path: 'main.tex' }], threads: { t: {} } })
+		);
+		expect(derived.manifest?.publishes.documents).toBe(true);
+		expect(derived.manifest?.publishes.discussions).toBe(true);
+		expect(derived.manifest?.publishes.review).toBe(false);
+	});
+
 	it('accepts interface version 1', async () => {
 		const result = await parseManifest(JSON.stringify(minimal));
 		expect(result.manifest?.corpus.name).toBe('x');
@@ -20,8 +38,8 @@ describe('manifest loader', () => {
 
 	it('rejects a version it does not accept with a single diagnostic', () => {
 		const d = checkVersion({ interface_version: 99 });
-		expect(d?.code).toBe('loom:interface-version');
-		expect(checkVersion({})?.code).toBe('loom:interface-version');
+		expect(d?.code).toBe('arras:interface-version');
+		expect(checkVersion({})?.code).toBe('arras:interface-version');
 	});
 
 	it('rejects unreadable JSON', async () => {

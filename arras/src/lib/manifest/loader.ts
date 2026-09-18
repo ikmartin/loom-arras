@@ -1,7 +1,7 @@
 // Fetch and validate a manifest. The viewer's only trigger for re-rendering is this file's hash changing (spec README, viewer obligation 3); a version it does not accept yields exactly one diagnostic and nothing else (obligation 4).
 
 import { dataUrl } from '$lib/paths';
-import { ACCEPTED_INTERFACE_VERSIONS, type Diagnostic, type Manifest } from './types';
+import { ACCEPTED_INTERFACE_VERSIONS, type Diagnostic, type Manifest, type Publishes } from './types';
 
 export interface Loaded {
 	manifest: Manifest;
@@ -29,7 +29,7 @@ export async function hashText(text: string): Promise<string> {
 export function versionDiagnostic(found: unknown): Diagnostic {
 	return {
 		severity: 'error',
-		code: 'loom:interface-version',
+		code: 'arras:interface-version',
 		message: `this viewer accepts interface version ${ACCEPTED_INTERFACE_VERSIONS.join(', ')}; the manifest declares ${String(found)}`,
 		locations: [],
 		keys: []
@@ -60,6 +60,17 @@ export function normalise(data: Record<string, unknown>): Manifest {
 	if (m.corpus === undefined || m.corpus === null) m.corpus = { name: '', root_label: '' };
 	if (m.publisher === undefined || m.publisher === null) m.publisher = { name: '', version: '' };
 	if (typeof m.generated !== 'string') m.generated = '';
+	// A publisher that declares `publishes` is believed; one that does not gets the best the data can say. The two are
+	// not the same answer -- declared `false` means never, an empty section means only "not right now" -- which is why
+	// the field exists. Resolving it here means nothing downstream has to know which of the two it is looking at.
+	const declared = m.publishes as Partial<Publishes> | undefined | null;
+	const some = (v: unknown) => Object.keys((v ?? {}) as object).length > 0;
+	m.publishes = {
+		documents: declared?.documents ?? ((m.masters as unknown[]).length > 0 || (m.canon as unknown[]).length > 0),
+		review: declared?.review ?? some(m.annotations),
+		bibliography: declared?.bibliography ?? some(m.references),
+		discussions: declared?.discussions ?? some(m.threads)
+	};
 	return m as unknown as Manifest;
 }
 

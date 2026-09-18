@@ -41,11 +41,9 @@ for (const path of ROUTES) {
 	});
 }
 
-// Check 2 of §11. These phrases belong to one publisher's workflow and arras renders them in its own copy; moving them
-// behind the manifest is 4(b), which is R2b's and lands in 0.11. Naming them here rather than writing the test later
-// means the list is visible and emptying it is the end of that job -- the pattern tests/unit/host-neutrality.spec.ts
-// established for the `loom:` scheme. Every phrase NOT in this list is asserted absent today.
-const PENDING_R2B = ['not yet compiled', 'loose'];
+// Check 2 of §11, and R2b is done: the list of phrases awaiting it is gone rather than empty, because an empty list
+// invites a fifth entry. "not yet compiled" became "not yet numbered" and is shown only where the corpus declares it
+// has documents; "loose" became "not in a document" everywhere it was copy. Every phrase below is asserted absent.
 const FORBIDDEN = ['not yet compiled', 'loose', 'quilt', 'loom'];
 
 for (const path of ROUTES) {
@@ -54,7 +52,6 @@ for (const path of ROUTES) {
 		await expect(page.locator('main')).toBeVisible();
 		const text = ((await page.locator('main').textContent()) ?? '').toLowerCase();
 		for (const word of FORBIDDEN) {
-			if (PENDING_R2B.includes(word)) continue;
 			expect(text, `${path} contains "${word}"`).not.toContain(word);
 		}
 		// Note what is NOT asserted: the home page renders `manifest.publisher.name`, and that is correct. A name read
