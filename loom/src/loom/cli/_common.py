@@ -57,25 +57,32 @@ def resolve_run(root: Path, run_dir: str | None) -> Path | None:
     return p if p.is_absolute() else root / p
 
 
+def under_runs(root: Path, p: Path) -> bool:
+    """Whether a resolved `--run` path is inside `ai/runs/`, which is the only place an agent may write."""
+    try:
+        return p.resolve().is_relative_to((root / "ai" / "runs").resolve())
+    except (OSError, ValueError):
+        return False
+
+
 def find_run(root: Path, run: str | None) -> Path:
     """Locate a run by name, by a prefix of its name, or by its path; with nothing, the most recent undiscarded one.
 
     A run directory is `2026-09-17T01-43-review-main`, so addressing one by path means remembering the minute it started. The name is what the author remembers, so that is what this accepts. An ambiguous prefix names its matches and refuses rather than guessing, as `refs resolve` does with candidates.
+
+    **Names are matched before paths, and a path must be under `ai/runs/`.** Both orderings used to be the other way round, and the consequence was severe: an unmatched `--run` was created as a directory at the quilt root, and that directory then satisfied the path test on every later command, so the run the author had named was never reached and every annotation was filed under a run that did not exist.
     """
     from loom.ai.orient import open_runs
 
-    if run:
-        p = resolve_run(root, run)
-        if p is not None and p.is_dir():
-            return p
-        if p is not None and ("/" in run or Path(run).is_absolute()):
-            raise EnvError(f'no run at {run}; loom ai start "a name" makes one')
     runs = open_runs(root, include_discarded=True)
     if not run:
         live = [r for r in runs if not r[3]]
         if not live:
             raise EnvError('no runs yet; loom ai start "a name" makes one')
         return root / live[-1][0]
+    if not runs:
+        raise EnvError('no runs yet; loom ai start "a name" makes one')
+
     want = run.strip().lower()
 
     def slug(rel: str) -> str:
@@ -85,9 +92,16 @@ def find_run(root: Path, run: str | None) -> Path:
 
     exact = [r for r in runs if r[1].lower() == want or slug(r[0]) == want]
     hits = exact or [r for r in runs if want in r[1].lower() or want in slug(r[0])]
-    if not hits:
-        raise EnvError(f"no run matches {run!r}; loom ai runs lists them")
     if len(hits) > 1:
         named = "\n".join(f"  {r[2][:10]}: {r[1]}" for r in hits)
         raise EnvError(f"{run!r} matches {len(hits)} runs:\n{named}\ngive more of the name")
-    return root / hits[0][0]
+    if hits:
+        return root / hits[0][0]
+
+    # Only then a path, and only one that exists inside ai/runs/. Nothing here creates a directory.
+    p = resolve_run(root, run)
+    if p is not None and p.is_dir() and under_runs(root, p):
+        return p
+    if p is not None and p.is_dir():
+        raise EnvError(f"{run} is not under ai/runs/; an agent writes only in its own run directory")
+    raise EnvError(f"no run matches {run!r}; loom ai runs lists them")

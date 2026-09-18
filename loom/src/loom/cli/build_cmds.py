@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note, resolve_run
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, find_run, note
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.clock import stamp
 from loom.reshape.linearize import flatten
@@ -24,8 +24,10 @@ def log_run(run_dir: str | None, command: str, root: Path | None = None) -> None
     """Append `command` to the run's run.log; a relative run directory is the quilt's (`root`) when `root` is given."""
     if not run_dir:
         return
-    p = resolve_run(root, run_dir) if root is not None else Path(run_dir)
-    assert p is not None
+    # The same resolver every other `--run` uses. It never creates: an unmatched value used to be mkdir'd at the quilt
+    # root, and the directory that left behind then shadowed the real run for every later command, so a whole session's
+    # annotations were filed under a run that did not exist.
+    p = find_run(root, run_dir) if root is not None else Path(run_dir)
     p.mkdir(parents=True, exist_ok=True)
     with (p / "run.log").open("a", encoding="utf-8") as fh:
         fh.write(f"{stamp()}  {command}\n")
