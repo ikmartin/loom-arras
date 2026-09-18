@@ -175,7 +175,7 @@
     "kind": "person",
     "label": "The synthetic quilt"
    },
-   "body_html": "",
+   "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discard_reason": null,
@@ -203,7 +203,7 @@
     "kind": "person",
     "label": "The synthetic quilt"
    },
-   "body_html": "",
+   "body_html": "<p>Done in the next revision.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discard_reason": null,
@@ -284,7 +284,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "ea60fe8d106c22bdc92900eae9ef8459c88b1e81145e6a15c8a2ea08718133f7",
+   "hash": "b4d0b317b1adfa3636110fd6516ca52a127ee989a40d6ddc9f9664d89d9e91cf",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -296,7 +296,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "499d001ba20d2e309cdf8ba668651a74a610edafe8bc104c0dd94e4e76872cfd",
+   "hash": "03b9516e3716b7dd176be1feaefd52af0204fd3907941c95784e6c4eb13c3538",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -308,7 +308,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "c3fcb68ff878e3ec554a9c3189f1af8b3eea10921442166d06466e9d17c750ea",
+   "hash": "34ae3d10c29347e0e89a7283937a5e3fb5436ccfff0285c870fa1ce8643a05a6",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -2633,7 +2633,7 @@
     388,
     581
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [],
    "taxon": "Section",
@@ -2666,7 +2666,7 @@
     581,
     836
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [],
    "taxon": "Section",
@@ -2759,7 +2759,7 @@
     229,
     388
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [],
    "taxon": "Section",
@@ -3494,7 +3494,7 @@
     576,
     2113
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [],
    "taxon": "Section",
@@ -3536,7 +3536,7 @@
     59,
     673
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [
     "results"
@@ -3582,7 +3582,7 @@
     186,
     673
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [
     "results"
@@ -3674,7 +3674,7 @@
     0,
     870
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [],
    "taxon": "Subsection",
@@ -3714,7 +3714,7 @@
     517,
     1002
    ],
-   "state": "draft",
+   "state": "",
    "style": null,
    "tags": [],
    "taxon": "Section",
@@ -4574,12 +4574,12 @@
     },
     {
      "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0003</code>:</p>",
+     "body_html": "<p><strong>question</strong> on <code>sy-0003</code>: Agreed; I will add the hypothesis to the statement.</p>",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0004</code>:</p>",
+     "body_html": "<p><strong>question</strong> on <code>sy-0004</code>: Done in the next revision.</p>",
      "time": "2026-09-16T00:00:00Z"
     },
     {

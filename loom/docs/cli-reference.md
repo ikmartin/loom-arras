@@ -115,17 +115,6 @@ This is also how an agent attaches to a run it did not start: `loom ai orient --
 | `--run` `RUN` | Attach to this run: also print its thread.md and run.log. A name, a prefix of one, or a path. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-### `loom ai promote`
-
-`loom ai promote [OPTIONS] PATH`
-
-Copy a digest out of a run into digests/; lint runs on the result. A drafted node is previewed in arras and pasted by hand.
-
-| option | description |
-|---|---|
-| `--replace` | Overwrite an existing digest after showing the diff. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 ### `loom ai runs`
 
 `loom ai runs [OPTIONS]`
@@ -646,6 +635,7 @@ Every key with its computed state, cause if stale, and review facts. Never exits
 | `--kind` | Keys carrying an annotation of this kind. |
 | `--status` | Keys carrying an annotation in this state. |
 | `--detached` | Keys whose annotations no longer find their quoted text. |
+| `--include-digests` | Also list the digest keys nothing in this quilt depends on; they are left out by default. |
 | `--explain` `KEY` |  |
 | `--json` |  |
 | `--run` |  |

@@ -1,7 +1,7 @@
 # Mode: draft
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept` or `loom ai promote`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
+- Write only under your run directory. Never edit source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose

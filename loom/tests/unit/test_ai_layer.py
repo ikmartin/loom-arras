@@ -85,7 +85,7 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     for d in ("nodes", "drafting", "digests", "refs", "annotations", ".loom", "ai/modes"):
         assert f"Edit(/{d}/**)" in deny and f"Write(/{d}/**)" in deny, d
     assert "Edit(/ai/runs/**)" in allow and "Write(/build/**)" in allow
-    assert any(rule.startswith("Bash(loom accept") for rule in deny) and any("promote" in rule for rule in deny)
+    assert any(rule.startswith("Bash(loom accept") for rule in deny) and any("upgrade" in rule for rule in deny)
 
 
 def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
@@ -114,10 +114,12 @@ def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
 
 
 def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path: Path) -> None:
-    """The deny list is a deny list, so a new write command is agent-accessible the day it ships unless someone adds it.
+    """The deny list is now the complement of one allow-list, so a command added later is the author's until it is admitted.
 
     A habit fails the first time a command lands at 2am; this does not. The allow list gives an agent `ai/runs/` and
-    `build/`, so every command that writes anywhere else is the author's and must appear here by name.
+    `build/`, so every command that writes anywhere else is the author's and must appear here by name. It held: the
+    hand-written list this replaced was missing seven, `upgrade` and both spellings of `canonize` among them, so
+    `loom canonise` walked straight through the deny on `loom canonize` (DR-173).
     """
     from loom.ai.layout import settings_deny_paths
 
@@ -137,8 +139,13 @@ def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path
         "revert",
         "live",
         "linearize",
-        "ai promote",
         "refs note",
+        "upgrade",
+        "canonise",
+        "canonicalize",
+        "refs add",
+        "digest import",
+        "ai init",
     }
     missing = sorted(writes_outside_a_run - commands)
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
@@ -328,40 +335,6 @@ def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
     assert commands[-1] == "loom search gadget"
 
 
-def test_promote_refuses_a_node_and_names_the_pattern(tmp_path: Path) -> None:
-    """The node case is retired (DR-140): a drafted node is previewed in arras and pasted by the author, who takes an id from `loom id --next`."""
-    q = demo(tmp_path)
-    rel = run("ai", "start", "draft", cwd=q, env=FIXED).output.strip()
-    draft = q / rel / "draft-lemma.tex"
-    draft.write_text(
-        "% !LOOM author: agent\n\\begin{lemma}[Drafted]\n\\uses{dm-0001}\nEvery gadget is a widget.\n\\end{lemma}\n"
-    )
-    before = draft.read_text()
-    r = run("ai", "promote", str(draft), cwd=q)
-    assert r.exit_code == 1, r.output
-    assert "digests only" in r.output and "loom id --next" in r.output
-    assert draft.read_text() == before and not list((q / "nodes").glob("dm-000[89A-Z].tex"))
-
-
-def test_promote_digest_refuses_existing(tmp_path: Path) -> None:
-    q = demo(tmp_path)
-    rel = run("ai", "start", "ingest", cwd=q, env=FIXED).output.strip()
-    ingest = q / rel / "ingest-Man12.tex"
-    ingest.write_text((q / "digests" / "Man12.tex").read_text().replace("method: manual", "method: ingest"))
-    r = run("ai", "promote", str(ingest), cwd=q)
-    assert r.exit_code == 1 and "digests/Man12.tex exists" in r.output and "--replace" in r.output
-    r2 = run("ai", "promote", str(ingest), "--replace", cwd=q)
-    assert r2.exit_code == 0, r2.output
-    assert "-% !LOOM method: manual" in r2.output and "+% !LOOM method: ingest" in r2.output  # the diff was shown
-    assert "method: ingest" in (q / "digests" / "Man12.tex").read_text()
-    new = q / rel / "ingest-Har77.tex"
-    new.write_text(
-        "% !LOOM digest: Har77\n% !LOOM source: manual\n% !LOOM method: ingest\n\\section*{Overview}\nHartshorne.\n"
-    )
-    r3 = run("ai", "promote", str(new), cwd=q)
-    assert r3.exit_code == 0 and (q / "digests" / "Har77.tex").is_file()
-
-
 def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = run("ai", "start", "audit", cwd=q)  # the real clock: the check compares mtimes with the run's created time
@@ -380,13 +353,16 @@ def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
     assert node.read_text().endswith("% touched by an agent\n")  # reported, never reverted
     node.write_text(node.read_text().replace("% touched by an agent\n", ""))
     os.utime(node, (started - 100, started - 100))
-    draft = q / rel / "ingest-Har77.tex"
-    draft.write_text("% !LOOM digest: Har77\n% !LOOM method: ingest\n\\section*{Overview}\nHartshorne.\n")
-    p = run("ai", "promote", str(draft), cwd=q)
-    assert p.exit_code == 0, p.output
-    assert "loom ai promote ingest-Har77.tex -> digests/" in (q / rel / "run.log").read_text()
     after = run("ai", "check", rel, cwd=q)
-    assert after.exit_code == 0, after.output  # the promoted digest is the author's move, not an agent write
+    assert after.exit_code == 0, after.output
+
+    # a digest the agent wrote itself is a write outside the run like any other: `loom digest extract` makes digests
+    # and `ingest` mode checks them, so nothing copies a typed one in (DR-173)
+    assert run("ai", "promote", "anything", cwd=q).exit_code != 0
+    (q / "digests" / "Har77.tex").write_text("% !LOOM digest: Har77\n\\section*{Overview}\nHartshorne.\n")
+    os.utime(q / "digests" / "Har77.tex", (started + 60, started + 60))
+    caught = run("ai", "check", rel, cwd=q)
+    assert caught.exit_code == 1 and "digests/Har77.tex" in caught.output
 
 
 def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> None:
@@ -481,3 +457,24 @@ def test_ai_check_does_not_flag_the_annotations_the_agent_was_told_to_write(tmp_
     os.utime(node, (later, later))
     bad = run("ai", "check", "Referee", cwd=q)
     assert bad.exit_code == 1 and "nodes/dm-0002.tex" in bad.output  # a real write outside the run still reports
+
+
+def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) -> None:
+    """Two hand-maintained lists of one fact drifted once already; both are now the same table (DR-173)."""
+    from loom.ai.layout import AGENT_COMMANDS, author_commands, command_tree, permissions_json, settings_deny_paths
+
+    every = set(command_tree())
+    assert AGENT_COMMANDS < every, "the allow-list names commands loom does not have"
+    assert set(author_commands()) == every - AGENT_COMMANDS  # derived, never listed
+
+    denied = {
+        d.removeprefix("Bash(loom ").removesuffix("*)") for d in settings_deny_paths() if d.startswith("Bash(loom ")
+    }
+    assert denied == every - AGENT_COMMANDS
+
+    q = demo(tmp_path, "--permissions")
+    assert (q / ".claude" / "settings.json").read_text() == permissions_json()
+    rules = (q / "ai" / "rules.md").read_text()
+    for c in sorted(AGENT_COMMANDS):
+        assert f"`loom {c}`" in rules, c  # the prose is the same table
+    assert "{allowed_commands}" not in rules

@@ -129,13 +129,21 @@ class Records:
 
     def key_states(self, result: ScanResult) -> dict[str, KeyState]:
         states: dict[str, KeyState] = {}
-        current_hashes = {k: key_hash(result, k) for k, n in result.nodes.items() if n.kind in ("environment", "proof")}
+        kinds = ("environment", "proof", "section")
+        current_hashes = {k: key_hash(result, k) for k, n in result.nodes.items() if n.kind in kinds}
         pre = self.preamble_hash(result, result.default_master)
         for key, n in result.nodes.items():
-            if n.kind not in ("environment", "proof"):
+            if n.kind not in kinds:
                 continue
             row = self.latest.get(key)
             ks = KeyState(key=key, state="draft", row=row)
+            if n.kind == "section":
+                # A section is a container, not a claim: no state, and `loom accept` refuses one. It is carried here
+                # only so that its review facts are computed, because `loom comment` accepts a section as a target
+                # and a finding filed on one was stored and then shown nowhere (DR-172).
+                ks.state = ""
+                states[key] = ks
+                continue
             if n.incomplete:
                 ks.state = "incomplete"
             if row is not None:
@@ -143,7 +151,10 @@ class Records:
                 current = current_hashes[key]
                 closure_now = self.closure_hashes(result, key)
                 if row.text != current:
-                    ks.causes.append(Cause("own-text-changed", before=row.text, after=current, when=_when(result, n)))
+                    # What moved under an external node is loom's copy of somebody else's theorem, not the author's
+                    # own text, and the cause is the useful half of the seal: the transcription you checked has moved.
+                    moved = "transcription-changed" if n.external else "own-text-changed"
+                    ks.causes.append(Cause(moved, before=row.text, after=current, when=_when(result, n)))
                 for dep, h in row.closure.items():
                     if dep not in result.nodes:
                         ks.causes.append(Cause("dependency-removed", id=dep, before=h))

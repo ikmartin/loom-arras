@@ -100,7 +100,7 @@ The author asks for a mode by name. Each has a template in `ai/modes/` with an i
 
 Findings are annotations. Review mode grades every one with `--severity`; elsewhere you give a severity only when something is actually wrong, and a `--payload` only when you are proposing text. On a re-check you edit a finding that still stands rather than replying to yourself. `ai/rules.md` rules 5 to 7 are the full contract; where this summary and those rules disagree, the rules win.
 
-A digest you produce waits in your run for the author to run `loom ai promote`. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
+A digest is not something you produce: `loom digest extract` makes one from the cited paper's source and ingest mode checks it, so what waits in your run is the extractor's output and a diff of your corrections. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
 
 ## 8. Context economy
 

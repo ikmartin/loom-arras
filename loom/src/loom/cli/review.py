@@ -139,7 +139,14 @@ def accept(
         )
     append_rows(root, rows)
     for row in rows:
-        click.echo(f"accepted {describe(result, row.key):<40} by {row.author}  {row.date[:10]}")
+        # A digest node is the cited paper's text; accepting one claims the copy is faithful, not that the author
+        # proved the theorem, and printing it as `accepted` read identically to accepting their own lemma (DR-172).
+        n = result.nodes.get(row.key)
+        verb = "verified" if n is not None and n.external else "accepted"
+        note_ = (
+            f" as a faithful transcription of {n.digest}" if verb == "verified" and n is not None and n.digest else ""
+        )
+        click.echo(f"{verb} {describe(result, row.key):<40} by {row.author}  {row.date[:10]}{note_}")
     click.echo(f"snapshots: {written} written, {present} already present")
 
 
@@ -475,10 +482,12 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         )
     for key, ks in states.items():
         n = result.nodes[key]
+        if n.kind == "section" and not live.get(key):
+            continue  # a section is a row only when it carries a finding; otherwise it is structure, not work
         entry: dict[str, Any] = {
             "key": key,
             "node": n.of if n.kind == "proof" and n.of else key,
-            "kind": "proof" if n.kind == "proof" else "statement",
+            "kind": n.kind if n.kind == "section" else ("proof" if n.kind == "proof" else "statement"),
             "taxon": n.taxon or "",
             "title": n.title or "",
             "state": ks.state,
@@ -539,7 +548,11 @@ STATUSES = ("open", "resolved")
 
 
 def summarise(result: ScanResult, rows: dict[str, Any]) -> dict[str, int]:
-    """The counting line, over the rows it is printed under — a filtered list is summarised by what it holds, not by the quilt."""
+    """The counting line, over the author's own keys among the rows it is printed under.
+
+    A filtered list is summarised by what it holds, not by the quilt, and external keys are never in the arithmetic: a digest's results are permanently draft, permanently loose, and settled as a dependency, so counting them answers this line's questions about somebody else's paper (DR-172).
+    """
+    rows = {k: e for k, e in rows.items() if not result.nodes[k].external}
     acc = [e for e in rows.values() if e.get("acceptance")]
     return {
         "keys": len(rows),
@@ -551,6 +564,34 @@ def summarise(result: ScanResult, rows: dict[str, Any]) -> dict[str, int]:
         "proved": sum(1 for e in rows.values() if e.get("derived", {}).get("proved")),
         "settled": sum(1 for e in rows.values() if e.get("derived", {}).get("settled")),
     }
+
+
+def state_label(result: ScanResult, key: str, state: str) -> str:
+    """What a state is called for this key: accepting an external node claims its transcription is faithful, not that the author settled the theorem (DR-172)."""
+    n = result.nodes.get(key)
+    if n is None or not n.external or not state.startswith("accepted"):
+        return state
+    return state.replace("accepted", "transcription verified", 1)  # keeps a trailing ", stale"
+
+
+def reached_external(result: ScanResult, rows: dict[str, Any]) -> set[str]:
+    """Which external keys the corpus actually leans on: one is reached when something the author wrote depends on it, transitively.
+
+    Mirrors arras's `reached.ts`, which the review panel has used since 0.9. Digesting one paper wholesale brings in a hundred external nodes of which two or three carry weight, and reachedness is the difference; depth is the wrong test, since a cited result you lean on needs checking whoever cited it and one you never use needs nothing.
+    """
+    external = {k for k, n in result.nodes.items() if n.external}
+    out: set[str] = set()
+    for key, e in rows.items():
+        if key in external:
+            continue  # only what the corpus itself wrote reaches
+        for dep in e.get("closure", []):
+            if dep not in external:
+                continue
+            out.add(dep)
+            for inner in rows.get(dep, {}).get("closure", []):
+                if inner in external:
+                    out.add(inner)
+    return out
 
 
 def filter_keys(
@@ -567,6 +608,7 @@ def filter_keys(
     kind: str | None = None,
     status: str | None = None,
     detached: bool = False,
+    hide: set[str] | None = None,
 ) -> dict[str, Any]:
     """Every row filter `loom status` offers, in one place, so the text form and `--json` answer the same question.
 
@@ -574,6 +616,8 @@ def filter_keys(
     """
     out: dict[str, Any] = {}
     for key, e in rows.items():
+        if hide and key in hide:
+            continue
         n = result.nodes[key]
         anns = e["reviews"]["annotations"]
         if stale and not (e.get("acceptance") and not e["acceptance"]["fresh"]):
@@ -627,6 +671,12 @@ def filter_keys(
     help="Keys carrying an annotation in this state.",
 )
 @click.option("--detached", "f_detached", is_flag=True, help="Keys whose annotations no longer find their quoted text.")
+@click.option(
+    "--include-digests",
+    "f_digests",
+    is_flag=True,
+    help="Also list the digest keys nothing in this quilt depends on; they are left out by default.",
+)
 @click.option("--explain", default=None, metavar="KEY")
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--run", "run_dir", default=None, envvar="LOOM_RUN")
@@ -646,6 +696,7 @@ def status(
     f_kind: str | None,
     f_status: str | None,
     f_detached: bool,
+    f_digests: bool,
     explain: str | None,
     as_json: bool,
     run_dir: str | None,
@@ -656,9 +707,20 @@ def status(
     records = Records(result.quilt.root)
     log_run(run_dir, "loom status", result.quilt.root)
     payload = status_payload(result, records)
+    # A digest holds every result of a cited paper; the handful the author's own arguments reach are work, and the
+    # rest are the literature. Reachedness is the line arras's review panel has drawn since 0.9 (DR-172).
+    reached = reached_external(result, payload["keys"])
+    external = {k for k in payload["keys"] if result.nodes[k].external}
+    hidden = set() if f_digests else external - reached
+    payload["digests"] = {
+        "shown": len(external - hidden),
+        "reached": len(external & reached),
+        "not_counted": len(hidden),
+    }
     payload["keys"] = filter_keys(
         result,
         payload["keys"],
+        hide=hidden,
         stale=f_stale,
         draft=f_draft,
         incomplete=f_incomplete,
@@ -679,12 +741,15 @@ def status(
         states = records.key_states(result)
         ks = states.get(key)
         if ks is None:
-            raise EnvError(f"{key} is not a statement or proof key")
-        click.echo(f"{describe(result, key)}  {ks.label}")
+            raise EnvError(f"{key} is not a statement, proof or section key")
+        section = result.nodes[key].kind == "section"
+        click.echo(f"{describe(result, key)}  {state_label(result, key, ks.label)}".rstrip())
         click.echo(f"  in {result.nodes[key].file}")
-        if not ks.causes:
+        if section:
+            click.echo("  a section: it carries findings and takes no acceptance")
+        elif not ks.causes:
             click.echo("  no causes: the acceptance is fresh" if ks.row else "  never accepted")
-        e = payload["keys"][key]
+        e = payload["keys"].get(key) or {"reviews": {"open": dict(ks.open), "detached": ks.detached}}
         opened = {k: v for k, v in e["reviews"]["open"].items() if v}
         if opened:
             click.echo("  " + ", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()))
@@ -726,7 +791,9 @@ def status(
                 )
         return
     for key, e in payload["keys"].items():
-        state = e["state"] + (", stale" if e.get("acceptance") and not e["acceptance"]["fresh"] else "")
+        state = state_label(result, key, e["state"]) + (
+            ", stale" if e.get("acceptance") and not e["acceptance"]["fresh"] else ""
+        )
         cause = ""
         if e.get("acceptance") and e["acceptance"]["causes"]:
             cause = "; ".join(
@@ -748,6 +815,12 @@ def status(
         inc = f"  incomplete: {'; '.join(e['incomplete'])}" if e["incomplete"] else ""
         click.echo(f"{describe(result, key):<40} {e['title'][:38]:<40} {state:<18} {cause:<40} {'; '.join(facts)}{inc}")
     s = payload["summary"]
-    click.echo(
-        f"{s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"
-    )
+    d = payload["digests"]
+    line = f"{s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"
+    if f_digests and d["shown"]:
+        line += f" · {d['shown']} digest keys shown"
+    elif d["reached"]:
+        line += f" · {d['reached']} digest keys you depend on"
+    if d["not_counted"]:
+        line += f" · {d['not_counted']} digest keys not counted"
+    click.echo(line)

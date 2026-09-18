@@ -25,6 +25,22 @@ TRIGGERS = {
     "ingest": "when the user asks to digest a cited paper into digests/",
     "brainstorm": "when the user wants to explore, brainstorm, or plan a topic before proving anything",
 }
+# The one list: every loom command an agent may run, by its full path in the command tree. Everything else loom
+# offers is the author's, so a command added later is denied until it is named here -- which an enumeration of
+# forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
+AGENT_COMMANDS = frozenset(
+    {
+        "build", "check", "comment", "compile", "deps", "doctor", "history", "id", "lint",
+        "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
+        "ai check", "ai discard", "ai findings", "ai name", "ai orient", "ai runs", "ai start",
+        "digest extract", "digest fetch",
+        "refs path", "refs resolve",
+    }
+)  # fmt: skip
+AGENT_WRITES = ("ai/runs", "build")  # the only places an agent may write
+AGENT_READONLY = ("nodes", "drafting", "canon", "retired", "digests", "refs", "annotations", ".loom", "ai/modes")
+AGENT_READONLY_FILES = ("ai/orientation.md", "ai/rules.md", "config.toml", "reference-notes.jsonl")
+
 CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under `ai/runs/`."
 VERSION_FILE = ".loom-modes-version"
 
@@ -33,12 +49,38 @@ def _asset(*parts: str) -> str:
     return resources.files("loom").joinpath("assets", "ai", *parts).read_text(encoding="utf-8")
 
 
+def command_tree() -> list[str]:
+    """Every leaf command loom offers, as the path a person types: `accept`, `ai promote`, `refs note`."""
+    import click
+
+    from loom.cli import main
+
+    out: list[str] = []
+
+    def walk(cmd: object, prefix: str = "") -> None:
+        for name, sub in sorted(getattr(cmd, "commands", {}).items()):
+            path = f"{prefix} {name}".strip()
+            walk(sub, path) if isinstance(sub, click.Group) else out.append(path)
+
+    walk(main)
+    return out
+
+
+def author_commands() -> list[str]:
+    """Every command that is not an agent's, derived rather than listed, so a new one is the author's until it is admitted."""
+    return [c for c in command_tree() if c not in AGENT_COMMANDS]
+
+
 def tracked_docs() -> dict[str, str]:
     """Quilt-relative path -> shipped text for every file whose edits `loom upgrade` preserves.
 
     The orientation is here because it is the first thing an author tailors -- a standing rule about this quilt, a mode the agent should not reach for -- and `loom upgrade` overwrote it without a word until it was.
     """
-    out = {f"ai/{RULES}": _asset(RULES), "ai/orientation.md": _asset("orientation.md")}
+    allowed = "\n".join(f"  - `loom {c}`" for c in sorted(AGENT_COMMANDS))
+    out = {
+        f"ai/{RULES}": _asset(RULES).replace("{allowed_commands}", allowed),
+        "ai/orientation.md": _asset("orientation.md"),
+    }
     out.update({f"ai/modes/{m}.md": _asset("modes", f"{m}.md") for m in MODES})
     return out
 
@@ -63,11 +105,27 @@ def write_versions(root: Path, texts: dict[str, str]) -> None:
     (root / "ai" / VERSION_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def permissions_json() -> str:
+    """`.claude/settings.json`, generated from the one table rather than written by hand.
+
+    Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71), so the file still enumerates what is refused -- but it enumerates the complement of `AGENT_COMMANDS` rather than a list somebody remembered to extend. The hand-written one had drifted by seven commands, `loom upgrade` and both spellings of `loom canonize` among them, so `loom canonise` walked through the deny on `loom canonize`.
+    """
+    import json
+
+    allow = [f"{verb}(/{d}/**)" for d in AGENT_WRITES for verb in ("Edit", "Write")]
+    deny = [f"{verb}(/{d}/**)" for d in AGENT_READONLY for verb in ("Edit", "Write")]
+    deny += [f"{verb}(/{f})" for f in AGENT_READONLY_FILES for verb in ("Edit", "Write")]
+    deny += [f"{verb}(/*.{ext})" for ext in ("tex", "sty", "bib") for verb in ("Edit", "Write")]
+    deny += [f"Bash(loom {c}*)" for c in author_commands()]
+    deny.append("Bash(rm *)")
+    return json.dumps({"permissions": {"allow": allow, "deny": deny}}, indent=2) + "\n"
+
+
 def vendor_files(permissions: bool, skills: bool) -> dict[str, str]:
     """Quilt-relative path -> text for the files loom owns whole; the agent root files are not among them (see `ensure_root_line`)."""
     out: dict[str, str] = {}
     if permissions:
-        out[".claude/settings.json"] = _asset("vendor", "claude", "settings.json")
+        out[".claude/settings.json"] = permissions_json()
     if skills:
         skill = _asset("vendor", "claude", "SKILL.md")
         command = _asset("vendor", "claude", "command.md")
@@ -204,6 +262,6 @@ def upgrade_layer(root: Path) -> LayerReport:
 
 
 def settings_deny_paths() -> list[str]:
-    """The Edit/Write patterns the shipped settings deny, for tests and doctor."""
-    data = json.loads(_asset("vendor", "claude", "settings.json"))
+    """The Edit/Write patterns and commands the generated settings deny, for tests and doctor."""
+    data = json.loads(permissions_json())
     return [str(r) for r in data["permissions"]["deny"]]

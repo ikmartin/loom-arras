@@ -72,10 +72,42 @@ Two things do not change. **The standing rules, the Inputs and Outputs contracts
 
 ## Never
 
-- Never edit a file outside your run directory.
+- Never edit a file outside your run directory, including any scratch directory your harness provides: the run directory is your scratch directory. The exception is a file this quilt's own orientation names.
 - Never write `annotations/log.jsonl` by hand; `loom comment` appends to it.
-- Never run `loom accept`, `loom atomize`, `loom inline`, `loom import`, or paste a node; those are the author's.
-- Never delete anything.
+- **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written:
+
+  - `loom ai check`
+  - `loom ai discard`
+  - `loom ai findings`
+  - `loom ai name`
+  - `loom ai orient`
+  - `loom ai runs`
+  - `loom ai start`
+  - `loom build`
+  - `loom check`
+  - `loom comment`
+  - `loom compile`
+  - `loom deps`
+  - `loom digest extract`
+  - `loom digest fetch`
+  - `loom doctor`
+  - `loom downstream`
+  - `loom history`
+  - `loom id`
+  - `loom lint`
+  - `loom new`
+  - `loom pop`
+  - `loom reach`
+  - `loom refs path`
+  - `loom refs resolve`
+  - `loom search`
+  - `loom serve`
+  - `loom source`
+  - `loom status`
+  - `loom unravel`
+
+  `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your run.
+- Never delete anything outside your own run directory. Inside it, you may remove what you created.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
 

@@ -479,7 +479,7 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
     assert "sy-0009" in run("status", "--loose", cwd=q).output
     assert run("status", "--undigested", cwd=q).output.strip() == "Har77"
     j = status_json(q)
-    assert set(j) == {"summary", "keys", "runs", "undigested", "retired"}
+    assert set(j) == {"summary", "keys", "runs", "undigested", "retired", "digests"}
     assert j["summary"]["incomplete"] == 1
 
 
@@ -737,3 +737,77 @@ def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:
     # and the batch path is guarded the same way
     r = run("comment", "--batch", *AUTHOR, cwd=d, stdin=json.dumps({"edit": ann}) + "\n")
     assert r.exit_code != 0 and "nothing to change" in r.output
+
+
+def test_a_finding_on_a_section_is_visible_where_the_author_looks(tmp_path: Path) -> None:
+    """`loom comment` accepts a section, stores the annotation, and `status` showed nothing: a major finding filed through the sanctioned command was invisible in the only place the author is told to look (H19)."""
+    q = synthetic(tmp_path)
+    r = run("comment", "sy-0100", "Never defines the torus T that Results uses", "--severity", "major", *AUTHOR, cwd=q)
+    assert r.exit_code == 0, r.output
+
+    js = json.loads(run("status", "--json", cwd=q).output)
+    assert js["keys"]["sy-0100"]["kind"] == "section"
+    assert js["keys"]["sy-0100"]["state"] == ""  # a section is a container, not a claim
+    assert js["keys"]["sy-0100"]["reviews"]["open"] == {"objection": 1}
+
+    line = next(ln for ln in run("status", cwd=q).output.splitlines() if ln.startswith("sy-0100 "))
+    assert "Introduction" in line and "1 open objection" in line
+    assert "1 open objection" in run("status", "--explain", "sy-0100", cwd=q).output
+    assert list(json.loads(run("status", "--severity", "major", "--json", cwd=q).output)["keys"]) == [
+        "sy-0003",
+        "sy-0100",
+    ]
+
+    # it takes no acceptance row, and a section nobody annotated is structure rather than work
+    assert run("accept", "sy-0100", *AUTHOR, cwd=q).exit_code != 0
+    assert not any(ln.startswith("sy-0200 ") for ln in run("status", cwd=q).output.splitlines())
+
+
+def test_status_is_the_authors_to_do_list_not_the_literatures(tmp_path: Path) -> None:
+    """A digest holds every result of a cited paper; relloc printed 150 rows of which 92 were Manolache's, and the summary counted his one `incomplete` and his 92 `loose` as the author's (F4, A3, A4)."""
+    q = synthetic(tmp_path)
+    # a result of the cited paper that nothing in this quilt uses, which is most of a real digest
+    digest = q / "digests" / "Kre99.tex"
+    digest.write_text(
+        digest.read_text()
+        + "\n\\begin{theorem}[{\\cite[Theorem 9.9, p.~40]{Kre99}}]\\label{Kre99-thm-9.9}\n"
+        + "An unrelated result nobody here leans on.\n\\end{theorem}\n"
+    )
+    all_rows = json.loads(run("status", "--include-digests", "--json", cwd=q).output)
+    shown = json.loads(run("status", "--json", cwd=q).output)
+
+    external = {k for k in all_rows["keys"] if k.startswith("Kre99")}
+    assert "Kre99-thm-9.9" in external
+    kept = external & set(shown["keys"])
+    assert kept and kept < external  # the ones the author's own arguments reach, and no more
+    assert "Kre99-thm-9.9" not in kept and "Kre99-thm-2.1" in kept
+    assert shown["digests"] == {"shown": len(kept), "reached": len(kept), "not_counted": len(external - kept)}
+
+    # the summary counts the author's keys in both forms, so the flag changes the rows and never the arithmetic
+    assert shown["summary"] == all_rows["summary"]
+    assert all(not k.startswith("Kre99") for k in shown["summary"])  # it is a tally, not a key list
+    line = run("status", cwd=q).output.splitlines()[-1]
+    assert f"{len(kept)} digest keys you depend on" in line
+    assert f"{len(external - kept)} digest keys not counted" in line
+
+
+def test_accepting_a_digest_says_what_it_claims(tmp_path: Path) -> None:
+    """Accepting an external node claims loom's copy of the cited paper is faithful, never that this quilt proved the theorem; both printed `accepted` (H22)."""
+    q = synthetic(tmp_path)
+    r = run("accept", "Kre99-thm-2.1", *AUTHOR, cwd=q)
+    assert r.exit_code == 0, r.output
+    assert r.output.startswith("verified Kre99-thm-2.1")
+    assert "as a faithful transcription of Kre99" in r.output
+
+    line = next(ln for ln in run("status", cwd=q).output.splitlines() if ln.startswith("Kre99-thm-2.1 "))
+    assert "transcription verified" in line and "accepted" not in line
+
+    # and what moved is the transcription, not the author's own text
+    p = q / "digests" / "Kre99.tex"
+    p.write_text(p.read_text().replace("is well defined", "is well-defined", 1))
+    e = run("status", "--explain", "Kre99-thm-2.1", cwd=q).output
+    assert "transcription verified, stale" in e and "transcription-changed" in e
+    assert "own-text-changed" not in e
+
+    # the author's own keys are untouched by any of it
+    assert run("accept", "sy-0002", *AUTHOR, cwd=q).output.startswith("accepted sy-0002")

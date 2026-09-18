@@ -1,4 +1,4 @@
-"""`loom ai ...` (book 12.8). M3 ships `discard`; init, orient, start, promote, and check arrive at M6."""
+"""`loom ai ...` (book 12.8). M3 ships `discard`; init, orient, start and check arrive at M6."""
 
 from __future__ import annotations
 
@@ -249,56 +249,6 @@ def ai_findings(
         click.echo(f"{r['id']}  {r['target']}  {r['kind']}{sev}{mark}{quote}")
         if r["discarded"]:
             click.echo(f"      withdrawn: {r['discard_reason'] or 'no reason given'}")
-
-
-@ai.command(name="promote")
-@click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option("--replace", is_flag=True, help="Overwrite an existing digest after showing the diff.")
-@quilt_option
-@click.pass_context
-def ai_promote(ctx: click.Context, path: Path, replace: bool, quilt_path: str | None) -> None:
-    """Copy a digest out of a run into digests/; lint runs on the result. A drafted node is previewed in arras and pasted by hand."""
-    import difflib
-
-    from loom.ai.promote import plan_promotion, write_promotion
-    from loom.cli._quilt import open_scan
-    from loom.cli.lint_cmd import all_diagnostics
-    from loom.scan.quilt import load_quilt
-    from loom.scan.scan import scan
-
-    result = open_scan(quilt_path)
-    root = result.quilt.root
-    try:
-        plan = plan_promotion(result, path.resolve())
-    except ValueError as exc:
-        raise ContentError(str(exc)) from exc
-    dest = root / plan.target
-    if dest.exists() and plan.kind == "digest":
-        if not replace:
-            raise ContentError(f"{plan.target} exists; pass --replace to overwrite it")
-        diff = difflib.unified_diff(
-            dest.read_text(encoding="utf-8").splitlines(keepends=True),
-            plan.text.splitlines(keepends=True),
-            fromfile=plan.target,
-            tofile=plan.target,
-        )
-        click.echo("".join(diff), nl=False)
-    try:
-        write_promotion(root, plan, replace)
-    except FileExistsError:
-        raise ContentError(f"{plan.target} exists") from None
-    click.echo(f"promoted {path.name} -> {plan.target}")
-    run_dir = path.resolve().parent
-    if (run_dir / "run.toml").is_file():
-        from loom.cli.build_cmds import log_run
-
-        log_run(str(run_dir), f"loom ai promote {path.name} -> {plan.target}")  # so ai check knows the author moved it
-    rescan = scan(load_quilt(root))
-    problems = [d for d in all_diagnostics(rescan) if any(loc.file == plan.target for loc in d.locations)]
-    for d in problems:
-        click.echo(f"  {d.severity:<8}{d.code:<34}{d.message}")
-    if any(d.severity == "error" for d in problems):
-        ctx.exit(1)
 
 
 @ai.command(name="check")
