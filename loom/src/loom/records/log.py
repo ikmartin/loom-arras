@@ -139,7 +139,10 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 if f in event:
                     setattr(ann, f, event[f])
         elif kind == "resolved":
-            ann.status = "resolved"
+            # A status change is reversed by appending its undo, never by removing the event that made it. Discarding
+            # has always replayed this way; resolving did not, so a resolution was the one state nothing could take
+            # back -- and `--resolve` is the verb a run can apply to its own finding (DR-174).
+            ann.status = "open" if event.get("undo") else "resolved"
         elif kind == "discarded":
             undo = bool(event.get("undo"))
             ann.status = "open" if undo else "discarded"

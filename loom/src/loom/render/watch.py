@@ -1,6 +1,6 @@
 """Poll file mtimes every second and rebuild when something the build depends on changed (book 9.8), the skeleton of the site generator's watcher with the roots parameterised.
 
-Watched: every .tex, .sty, .cls, .bib under the quilt root outside build/, config.toml, the ledger and snapshots, review records, and run journals. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
+Watched: every .tex, .sty, .cls, .bib under the quilt root outside build/, config.toml, the ledger and snapshots, the annotation log, the reference notes, and run journals. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 SKIP = {"build", ".git", "node_modules", ".svelte-kit"}
-SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".md", ".log"}
+SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", ".log"}
 
 
 def snapshot(root: Path) -> dict[Path, float]:
@@ -23,10 +23,14 @@ def snapshot(root: Path) -> dict[Path, float]:
         rel = p.relative_to(root)
         if any(part in SKIP for part in rel.parts[:-1]):
             continue
+        # `annotations/log.jsonl` is where every comment, reply and finding lands, and `reference-notes.jsonl` is
+        # where an accepted citation does. Neither was watched -- the directory list still said `comments/`, the name
+        # the log replaced in 0.10, and `.jsonl` was not a watched suffix -- so a write through `loom serve`'s own API
+        # appended to the log and the page it came from never changed (DR-174).
         if (
-            rel.parts[0] in ("ai", "comments", ".loom")
+            rel.parts[0] in ("ai", "annotations", "comments", ".loom")
             or p.suffix in (".tex", ".sty", ".cls", ".bib")
-            or rel.as_posix() == "config.toml"
+            or rel.as_posix() in ("config.toml", "reference-notes.jsonl")
         ):
             try:
                 seen[p] = p.stat().st_mtime

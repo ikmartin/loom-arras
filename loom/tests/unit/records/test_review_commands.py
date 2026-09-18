@@ -823,3 +823,25 @@ def test_an_annotations_display_math_is_a_block_not_a_div_inside_a_paragraph(tmp
     assert before.rstrip().endswith("</p>")  # the paragraph is closed before the equation, not around it
     assert out.index('<span class="math inline">') < out.index('<div class="math display">')
     assert out.rstrip().endswith("<p>follows.</p>")
+
+
+def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> None:
+    """Discarding always replayed an `undo`; resolving did not, so a resolution was the one state nothing could take back — and `--resolve` is the verb a run can apply to its own finding (DR-174)."""
+    d = demo(tmp_path)
+    ann = run("comment", "dm-0002", "Which orbits?", *AUTHOR, cwd=d).output.split()[0]
+
+    assert run("comment", "--resolve", ann, *AUTHOR, cwd=d).output.startswith("resolved")
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
+    assert run("comment", "--resolve", ann, "--undo", *AUTHOR, cwd=d).output.startswith("reopened")
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
+
+    assert run("comment", "--discard", ann, "raised in error", *AUTHOR, cwd=d).output.startswith("discarded")
+    assert run("comment", "--discard", ann, "--undo", *AUTHOR, cwd=d).output.startswith("reopened")
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
+
+    # nothing was removed: every act is still in the log, undos included
+    kinds = [e["event"] for e in events(d)]
+    assert kinds == ["created", "resolved", "resolved", "discarded", "discarded"]
+    assert [e.get("undo") for e in events(d)] == [None, None, True, None, True]
+
+    assert run("comment", "--undo", *AUTHOR, cwd=d).exit_code != 0  # --undo needs a verb to undo

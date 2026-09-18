@@ -88,8 +88,13 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("no-such-run", str(exc)) from exc
 
     try:
+        # `undo` puts a withdrawn or resolved finding back by appending another event; the viewer offers it in place
+        # of the verb that fired, so a wrong click is one click back (DR-174).
+        undo = bool(body.get("undo"))
         if endpoint == "discard":
-            return discard_annotation(root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"))
+            return discard_annotation(
+                root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"), undo
+            )
         if endpoint == "edit":
             fields = {k: _str(body, k) for k in ("message", "severity", "payload", "placement")}
             return edit_annotation(root, _str(body, "annotation", required=True) or "", writer, **fields)
@@ -113,7 +118,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return _one_comment(
                 result, writer, None, _str(body, "message", required=True), None, None, annotation, None
             )
-        return _one_comment(result, writer, None, _str(body, "message"), None, None, None, annotation)
+        return _one_comment(result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo)
     except ContentError as exc:
         raise ApiError("refused", str(exc)) from exc
     except EnvError as exc:

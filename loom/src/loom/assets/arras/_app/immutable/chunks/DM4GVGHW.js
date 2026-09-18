@@ -1,0 +1,1 @@
+import{V as e,nt as t,rt as n}from"./Bi3D8Tsm.js";var r=new class{#e=n(null);get snippet(){return e(this.#e)}set snippet(e){t(this.#e,e,!0)}};export{r as t};

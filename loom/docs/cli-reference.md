@@ -246,6 +246,7 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 | `--severity` | How bad the fault is, not how keen you are. |
 | `--payload` | Suggested text the author may preview and copy. |
 | `--placement` | Where the payload goes, as a hint. |
+| `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

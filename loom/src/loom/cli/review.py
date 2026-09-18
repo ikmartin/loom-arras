@@ -183,6 +183,7 @@ def _one_comment(
     severity: str | None = None,
     payload: str | None = None,
     placement: str | None = None,
+    undo: bool = False,
 ) -> str:
     """Append one review event to the log and describe it; the only writer of review records."""
     root = result.quilt.root
@@ -196,8 +197,11 @@ def _one_comment(
         if found is None:
             raise ContentError(f"no annotation {resolve}")
         _, parent = found
-        append(root, {**base, "event": "resolved", "id": resolve, "body": message or ""})
-        return f"resolved {resolve}"
+        event: dict[str, Any] = {**base, "event": "resolved", "id": resolve, "body": message or ""}
+        if undo:
+            event["undo"] = True
+        append(root, event)
+        return f"{'reopened' if undo else 'resolved'} {resolve}"
 
     if reply:
         if not (message or "").strip():
@@ -268,28 +272,30 @@ def _one_comment(
     return f"{ann_id}  {key}  {kind}{sev}  ({aid}{' run' if akind == 'run' else ''})"
 
 
-def discard_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str], reason: str | None) -> str:
-    """Withdraw one finding: it was raised in error and should not stand.
+def discard_annotation(
+    root: Path, ann_id: str, writer: tuple[str | None, str, str], reason: str | None, undo: bool = False
+) -> str:
+    """Withdraw one finding: it was raised in error and should not stand; with `undo`, put it back.
 
-    Distinct from resolving, which says the author addressed it, and from `loom ai discard`, which sets a whole run aside. Nothing is deleted, so the finding and its reason stay in the log.
+    Distinct from resolving, which says the author addressed it, and from `loom ai discard`, which sets a whole run aside. Nothing is deleted, so the finding and its reason stay in the log, and an undo is another event rather than the removal of one.
     """
     records = Records(root).records
     if find_annotation(records, ann_id) is None:
         raise ContentError(f"no annotation {ann_id}")
     run, akind, aid = writer
-    append(
-        root,
-        {
-            "event": "discarded",
-            "id": ann_id,
-            "when": stamp(),
-            "author": aid,
-            "kind": "agent" if akind == "run" else "human",
-            "run": run,
-            "body": reason or "",
-        },
-    )
-    return f"discarded {ann_id}"
+    event: dict[str, Any] = {
+        "event": "discarded",
+        "id": ann_id,
+        "when": stamp(),
+        "author": aid,
+        "kind": "agent" if akind == "run" else "human",
+        "run": run,
+        "body": reason or "",
+    }
+    if undo:
+        event["undo"] = True
+    append(root, event)
+    return f"{'reopened' if undo else 'discarded'} {ann_id}"
 
 
 def check_edit(body: str | None, severity: str | None, payload: str | None) -> None:
@@ -405,6 +411,11 @@ def _batch_line(result: ScanResult, writer: tuple[str | None, str, str], item: d
     "--placement", type=click.Choice(list(PLACEMENTS)), default=None, help="Where the payload goes, as a hint."
 )
 @click.option(
+    "--undo",
+    is_flag=True,
+    help="With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
+)
+@click.option(
     "--batch",
     is_flag=True,
     help="Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
@@ -424,6 +435,7 @@ def comment(
     severity: str | None,
     payload: str | None,
     placement: str | None,
+    undo: bool,
     batch: bool,
     quilt_path: str | None,
 ) -> None:
@@ -457,14 +469,18 @@ def comment(
     # `--edit` and `--discard` did this; `--reply` and `--resolve` read it as a target and filed an empty body.
     if (reply or resolve or edit or discard_id) and message is None:
         message, target = target, None
+    if undo and not (discard_id or resolve):
+        raise EnvError("--undo applies to --resolve or --discard")
     if discard_id:
-        click.echo(discard_annotation(root, discard_id, writer, message))
+        click.echo(discard_annotation(root, discard_id, writer, message, undo))
         return
     if edit:
         check_edit(message, severity, payload)
         click.echo(edit_annotation(root, edit, writer, body=message, severity=severity, payload=payload))
         return
-    click.echo(_one_comment(result, writer, target, message, quote, kind, reply, resolve, severity, payload, placement))
+    click.echo(
+        _one_comment(result, writer, target, message, quote, kind, reply, resolve, severity, payload, placement, undo)
+    )
 
 
 def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:

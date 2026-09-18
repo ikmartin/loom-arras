@@ -268,3 +268,21 @@ def test_rejecting_a_citation_writes_no_breadcrumb(session) -> None:  # type: ig
     assert status == 200
     after = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
     assert after == before  # the reason rides on the resolve event; nothing is filed for a work nobody wanted
+
+
+def test_the_watcher_watches_what_the_write_api_writes(tmp_path: Path) -> None:
+    """A write through `loom serve`'s own API appended to the log and the page it came from never changed: the watcher's directory list still said `comments/`, the name the log replaced in 0.10, and `.jsonl` was not a watched suffix (DR-174)."""
+    from loom.render.watch import snapshot
+
+    q = tmp_path / "q"
+    (q / "annotations").mkdir(parents=True)
+    (q / "nodes").mkdir()
+    (q / "config.toml").write_text('[quilt]\nname = "q"\n', encoding="utf-8")
+    (q / "annotations" / "log.jsonl").write_text('{"event": "created"}\n', encoding="utf-8")
+    (q / "reference-notes.jsonl").write_text('{"work": "doi:10/x"}\n', encoding="utf-8")
+    (q / "nodes" / "n.tex").write_text("\\begin{lemma}\\end{lemma}\n", encoding="utf-8")
+
+    watched = {p.relative_to(q).as_posix() for p in snapshot(q)}
+    assert "annotations/log.jsonl" in watched
+    assert "reference-notes.jsonl" in watched
+    assert {"config.toml", "nodes/n.tex"} <= watched

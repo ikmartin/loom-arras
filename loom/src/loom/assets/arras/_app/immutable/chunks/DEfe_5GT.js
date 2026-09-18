@@ -1,0 +1,1 @@
+function e(e,t){if(!e||!t)return`var(--rule-strong)`;if(e.taxa?.[t]?.style===`remark`)return`var(--taxon-remark)`;let n=Object.keys(e.taxa??{}).filter(t=>e.taxa[t]?.style!==`remark`).sort().indexOf(t);return n<0?`var(--rule-strong)`:`var(--taxon-${n%8+1})`}export{e as t};
