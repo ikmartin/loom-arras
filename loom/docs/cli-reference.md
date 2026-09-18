@@ -249,6 +249,7 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 | `--reply` `ID` |  |
 | `--resolve` `ID` |  |
 | `--edit` `ID` | Supersede an annotation's body; the history stays in the log. |
+| `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
 | `--severity` | How bad the fault is, not how keen you are. |
 | `--payload` | Suggested text the author may preview and copy. |
 | `--placement` | Where the payload goes, as a hint. |

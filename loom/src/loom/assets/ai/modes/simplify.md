@@ -18,9 +18,12 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 
 ## Output
 1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected], [revised], [meaning-drift-check].
-2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --run RUN` and `loom compile` recorded under [revised].
+2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --run RUN` recorded under [revised].
 3. One suggestion annotation per simplification, anchored to the old text.
 4. An entry in `thread.md`.
+
+## On a re-check
+Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.
 
 ## Checklist
 - [ ] Every new-citation names a digest node id and is marked verified.

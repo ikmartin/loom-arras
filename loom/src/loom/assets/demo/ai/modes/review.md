@@ -32,7 +32,7 @@ Errors and prose both go in [referee-review], which already groups by severity a
 3. `review-KEY.check.py` with its output, for every trial.
 4. An entry in `thread.md`.
 
-There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; an exported annotated document is a separate feature the author has not asked for yet.
+There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; exporting an annotated document for a reader who cannot open the viewer is a separate feature, and not this mode's job.
 
 ## On a re-check
 Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. The fresh report goes in a new numbered notes file, `review-KEY.2.notes.md`, so each pass stays readable as what you thought at the time.

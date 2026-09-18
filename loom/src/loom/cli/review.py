@@ -257,6 +257,30 @@ def _one_comment(
     return f"{ann_id}  {key}  {kind}{sev}  ({aid}{' run' if akind == 'run' else ''})"
 
 
+def discard_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str], reason: str | None) -> str:
+    """Withdraw one finding: it was raised in error and should not stand.
+
+    Distinct from resolving, which says the author addressed it, and from `loom ai discard`, which sets a whole run aside. Nothing is deleted, so the finding and its reason stay in the log.
+    """
+    records = Records(root).records
+    if find_annotation(records, ann_id) is None:
+        raise ContentError(f"no annotation {ann_id}")
+    run, akind, aid = writer
+    append(
+        root,
+        {
+            "event": "discarded",
+            "id": ann_id,
+            "when": stamp(),
+            "author": aid,
+            "kind": "agent" if akind == "run" else "human",
+            "run": run,
+            "body": reason or "",
+        },
+    )
+    return f"discarded {ann_id}"
+
+
 def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str], **fields: str | None) -> str:
     """Supersede an annotation's body or payload; the history stays in the log and one current body is shown.
 
@@ -293,6 +317,13 @@ def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str]
     "--edit", default=None, metavar="ID", help="Supersede an annotation's body; the history stays in the log."
 )
 @click.option(
+    "--discard",
+    "discard_id",
+    default=None,
+    metavar="ID",
+    help="Withdraw a finding you should not have raised; resolving would claim the author addressed it.",
+)
+@click.option(
     "--severity", type=click.Choice(list(SEVERITIES)), default=None, help="How bad the fault is, not how keen you are."
 )
 @click.option("--payload", default=None, help="Suggested text the author may preview and copy.")
@@ -315,6 +346,7 @@ def comment(
     reply: str | None,
     resolve: str | None,
     edit: str | None,
+    discard_id: str | None,
     severity: str | None,
     payload: str | None,
     placement: str | None,
@@ -360,6 +392,9 @@ def comment(
                 )
             except (ContentError, EnvError) as exc:
                 raise ContentError(f"batch line {lineno}: {exc.message}") from exc
+        return
+    if discard_id:
+        click.echo(discard_annotation(root, discard_id, writer, message if message is not None else target))
         return
     if edit:
         # `loom comment --edit ID "the new body"` takes no target, so the one positional given is the body

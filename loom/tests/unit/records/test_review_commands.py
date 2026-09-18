@@ -313,6 +313,26 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
     assert run("comment", "--edit", "a-nope-0001", "x", "--run", str(run_dir), cwd=d).exit_code == 1
 
 
+def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> None:
+    """Resolving claims the author addressed it. An agent that misread wants to say the opposite (blocks.md rule 7)."""
+    d = demo(tmp_path)
+    run_dir = d / "ai" / "runs" / "r1"
+    run_dir.mkdir(parents=True)
+    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--run", str(run_dir), cwd=d)
+    assert made.exit_code == 0, made.output
+    ann = made.output.split()[0]
+
+    gone = run("comment", "--discard", ann, "I misread the definition.", "--run", str(run_dir), cwd=d)
+    assert gone.exit_code == 0 and gone.output.strip() == f"discarded {ann}"
+
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
+    events_for = [e for e in events(d) if e.get("id") == ann]
+    assert [e["event"] for e in events_for] == ["created", "discarded"]
+    assert events_for[1]["body"] == "I misread the definition."  # the reason is kept, not thrown away
+
+    assert run("comment", "--discard", "a-nope-0001", "x", "--run", str(run_dir), cwd=d).exit_code == 1
+
+
 def test_severity_and_placement_are_checked(tmp_path: Path) -> None:
     d = demo(tmp_path)
     assert run("comment", "dm-0002", "x", "--severity", "catastrophic", *AUTHOR, cwd=d).exit_code == 2

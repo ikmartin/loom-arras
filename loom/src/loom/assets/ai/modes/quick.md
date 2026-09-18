@@ -4,8 +4,7 @@
 - Write only under your run directory. Never edit source. Never run `loom accept`.
 
 ## Purpose
-A short, durable answer. Use quick when the author asks something in passing that is worth re-reading in a week but does not deserve a
-document: a definition recalled, a step explained, a constant checked. Prioritize brevity, clarity and accuracy, in that order, and double-check the answer before writing it.
+A short, durable answer. Use quick when the author asks something in passing that is worth re-reading in a week but does not deserve a document: a definition recalled, a step explained, a constant checked. Prioritize brevity, clarity and accuracy, in that order, and double-check the answer before writing it.
 
 If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a defect, annotate it and say so.
 

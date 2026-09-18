@@ -9,8 +9,10 @@ Every mode file refers to this file. Read it once per session.
 3. Every mathematical claim carries an epistemic label:
    - `file-verified`: checked against printed source, a digest node, or a file in the quilt; name which.
    - `memory-grade`: from your own knowledge; say so.
-   - `proved-here`: proved in this run; the proof is in the notes. Never present a memory-grade claim as verified. When a digest for a cited paper exists, prefer it to memory for anything about that paper.
-4. Cite by id. A fact from the quilt is cited as its key (`rl-0002`, `rl-0004/proof`); a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters, and then from the closure.
+   - `proved-here`: proved in this run; the proof is in the notes.
+
+   Never present a memory-grade claim as verified. When a digest for a cited paper exists, prefer it to memory for anything about that paper.
+4. Cite by id. A fact from the quilt is cited as its key — `<prefix>-0002`, `<prefix>-0004/proof`, where the prefix is this quilt's from `[quilt] prefix` — and a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters, and then from the closure.
 5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the web. Say which you used. If none, write "unlocated".
 6. Distinguish what the author asked for from what you noticed on the way. Report both; do not act on the second.
 7. Report every numerical or symbolic trial you run: inputs, intermediate steps, exact outputs. Save scripts as `MODE-TARGET.check.py` in the run directory with the output appended as a comment block.
@@ -21,6 +23,7 @@ Every mode file refers to this file. Read it once per session.
    - A key: `loom source KEY --closure --run RUN` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
+   - The one exception: a digest's `\section*{Overview}` is written to be read whole and no command prints it, so open `digests/CITEKEY.tex` when you want the overview. Read the overview, not the file.
 2. `RUN` above is your run: its name, a prefix of one, or its path. Nothing sets `$LOOM_RUN` for you, so pass `--run` explicitly on every command that accepts it; loom logs the call to that run's `run.log`.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --run RUN`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
@@ -28,12 +31,12 @@ Every mode file refers to this file. Read it once per session.
 
 1. Every output is a file in your run directory, named by mode and target. Never write anywhere else.
 2. LaTeX outputs (`draft-ID.tex`, `proposal-KEY.diff`, `ingest-CITEKEY.tex`) must compile with the quilt's preamble: use the environment names and macros as they appear in the source; `\ref{ID}` and `\uses{ID, ...}` for dependencies; `\incomplete{...}` for anything you could not do; `\label{ID}` when an id was given. This is real LaTeX; no chat restrictions apply.
-3. Notes files (`MODE-TARGET.notes.md`) are Markdown with `$...$` and `$$...$$` math; the viewer renders them, so keep math in TeX. Headings name blocks: `## [hypothesis-ledger]`. Every notes file begins with `## [summary]` and ends with the mode's checklist, ticked.
+3. Notes files (`MODE-TARGET.notes.md`) are Markdown with `$...$` and `$$...$$` math; the viewer renders them, so keep math in TeX. Headings name blocks: `## [hypothesis-ledger]`. A notes file begins with `## [summary]` and ends with the mode's checklist, ticked — except quick's, which is `[answer]` alone, a summary of it being longer than the answer.
 4. Verification you can do: to check that a proposal or a draft compiles, compile it with your text in place of the quilt's (`loom compile KEY --with proposal-KEY.diff --run RUN` or `loom compile --draft draft-ID.tex --run RUN`). Nothing in the quilt changes. Report the result in the notes.
 
 ## Findings
 
-1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question --run RUN`. One finding per call; `--batch` (JSON lines on stdin) for many.
+1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind KIND --run RUN`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
 2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The notes file holds the reasoning and refers to the annotation by the id loom printed.
 4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `ok` for a clean read with nothing to report; `citation` for a work worth citing that the bibliography does not have.
@@ -49,10 +52,18 @@ Every mode file refers to this file. Read it once per session.
 
 Modes are applied one at a time inside a run and each writes its own files. When a second mode is applied to the same target, read the earlier notes file first, refer to its annotations by id, and do not repeat findings already recorded. Do not insert dividers; the files are the divisions. The intended pipeline audit → simplify holds: simplify's starting list is audit's [patch-list] when one exists in the run.
 
+## When no mode is named
+
+Most work is not a mode. The author asks a question, thinks aloud, wants a calculation checked, or asks for something no template covers — and a mode applied because one had to be applied fits the answer to the form instead of the other way round.
+
+The blocks below are the vocabulary, not furniture belonging to the templates. When no mode is named and none is plainly meant, **choose the blocks that fit what was asked and compose them yourself.** A question about whether a hypothesis is load-bearing wants `[hypothesis-ledger]` and nothing else; a claim you doubt wants `[counterexample]` and `[worked-examples]`; a suggestion for a citation wants one `[citation-ledger]` row. Name them the same way, under their bracketed headings, so the output reads like every other and a later session can scan it. Where nothing in the catalogue fits, answer in plain prose rather than forcing a block; the blocks are for structure that exists, not structure imposed.
+
+Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, a run directory for every file, `loom comment` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
+
 ## Never
 
 - Never edit a file outside your run directory.
-- Never write `annotations.json` by hand; `loom comment` writes it.
+- Never write `annotations/log.jsonl` by hand; `loom comment` appends to it.
 - Never run `loom accept`, `loom atomize`, `loom inline`, `loom import`, or paste a node; those are the author's.
 - Never delete anything.
 - Never claim a result is proved when a step is missing.
@@ -71,7 +82,7 @@ Write each block under a heading with its name in brackets.
 - [gaps-and-ambiguities] List missing definitions, ambiguous statements, unproven claims, or circular references. For each, give the exact citation where the issue arises. Each item is also an annotation.
 - [worked-examples] Run at least two concrete test cases that exercise non-trivial equations/algorithms. Show inputs, intermediate steps, and exact outputs. Scripts saved per standing rule 7.
 - [counterexample] Numerically test each equation on reasonable small test cases. Walk through nontrivial algebraic transformations line-by-line looking for symbolic manipulation error. State any theoretical or numerical counterexamples you found.
-- [referee-review] A structured critique with Major Issues, Minor Issues, Clarity/Exposition, and Reproducibility. Each item gets (a) severity, (b) location, (c) proposed fix, and (d) the id of its annotation.
+- [referee-review] A structured critique with Major Issues, Minor Issues, Clarity/Exposition, and Reproducibility. Each item gets (a) the severity you gave its annotation, (b) location, (c) proposed fix, and (d) the annotation's id. The grades are the annotations' own; do not keep a second scale here.
 - [referee-revised] A revised proof/derivation (only the parts you changed), rewritten for rigor and consistency with the quilt's notation, as `proposal-KEY.diff`. Never applied by you.
 - [decision] Final recommendation: Reject / Major Revision / Minor Revision / Accept, with a one-paragraph justification tied to the blocks above. Recorded in the notes; the ledger is the author's.
 - [definition] Give formal definitions of all related mathematical concepts. Then include motivation, and history.

@@ -15,7 +15,7 @@ A load-bearing audit of one key. Assume the mathematics is correct; do not hunt 
 - Digest nodes for cited results are in the closure when the citation resolved; otherwise standing rule 5.
 
 ## Procedure
-Read the closure once completely. Then build the six ledgers in order. Search digests before declaring anything unlocated; search the web only if no digest exists and say so. For the uses-ledger, read each proof sentence by sentence and ask what fact it invokes; if the fact is not named by a `\ref`, `\uses`, or matched citation, it is a finding.
+Read the closure once completely. Then build the six blocks in order, beginning with the three ledgers. Search digests before declaring anything unlocated; search the web only if no digest exists and say so. For the uses-ledger, read each proof sentence by sentence and ask what fact it invokes; if the fact is not named by a `\ref`, `\uses`, or matched citation, it is a finding.
 
 ## Output
 1. `audit-KEY.notes.md`: [summary], [hypothesis-ledger], [citation-ledger], [uses-ledger], [self-containedness], [sharpenings], [patch-list].
@@ -23,7 +23,7 @@ Read the closure once completely. Then build the six ledgers in order. Search di
 3. An entry in `thread.md`.
 
 ## On a re-check
-For each of your earlier annotations: resolve it with the reason if it is met; otherwise reply saying what remains. If nothing remains, record `--kind ok`.
+Per `blocks.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind ok`.
 
 ## Checklist (copy into the notes and tick)
 - [ ] Every hypothesis has a verdict.

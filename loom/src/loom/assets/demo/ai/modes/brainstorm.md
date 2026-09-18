@@ -5,14 +5,13 @@
 - Read `ai/modes/blocks.md` once this session.
 
 ## Purpose
-Help the author explore a topic before anything is proved. Your job is to make the author's ideas precise and testable quickly, not to supply
-strategy: restate what they want as a candidate statement with explicit hypotheses before evaluating it; compute the small cases before opining; search the digests before claiming anything is new or known; record what was tried and why it failed. If you have an idea of your own, offer it in one sentence under [open-questions] and do not pursue it unless asked.
+Help the author explore a topic before anything is proved. Your job is to make the author's ideas precise and testable quickly, not to supply strategy: restate what they want as a candidate statement with explicit hypotheses before evaluating it; compute the small cases before opining; search the digests before claiming anything is new or known; record what was tried and why it failed. If you have an idea of your own, offer it in one sentence under [open-questions] and do not pursue it unless asked.
 
 ## Input
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
 - `loom source ID --closure --run RUN` for each definition or result the topic touches.
 - The overview sections of the relevant digests (`digests/CITEKEY.tex`, which are designed to be read whole); `loom search --kind digest`.
-- If the author has an outline master, `loom linearize drafting/outline.tex --to <your run>/outline.tex` for the plan as it stands.
+- If the author has an outline master, `loom linearize drafting/outline.tex --to <your run>/outline.tex --no-check` for the plan as it stands; an outline rarely passes the identity test, and you are reading it rather than replacing anything.
 
 ## Procedure
 1. Ask what the author is after and restate it precisely. Stop until they confirm.

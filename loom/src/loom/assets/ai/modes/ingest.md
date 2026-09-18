@@ -1,14 +1,14 @@
 # Mode: ingest
 
 ## Before you begin
-- Write only under your run directory. Never edit `digests/`; the author promotes.
+- Write only under your run directory. Never edit source. Never run `loom accept`. Never edit `digests/`; the author promotes.
 - Read `ai/modes/blocks.md` once this session and the digest rules below.
 
 ## Purpose
 Produce or complete a digest of a cited paper: its results as external nodes in the quilt's format, so that citations become edges and the paper need not be reread. Read the paper thoroughly once. Focus on verbal intuition in the overview; be exact in the statements.
 
 ## Digest rules (from the digests chapter)
-- File header: `% !LOOM digest: CITEKEY`, `% !LOOM source: IDENT`, `% !LOOM method: ingest`, `% !LOOM created: DATE`, `% !LOOM requires: pkg, pkg`.
+- File header: `% !LOOM digest: CITEKEY`, `% !LOOM extracted-from: IDENT` (the artifact you read: `arXiv:0805.2065v2`, `doi:10.1090/...`, `work:<hash>` or `local:<file>`), `% !LOOM published-as: IDENT` when the work a reader would open differs from it, `% !LOOM method: ingest`, `% !LOOM created: DATE`, `% !LOOM requires: pkg, pkg`. They are two facts, not two spellings of one: the statements and their numbers come from what you parsed, and the bibliography cites what a reader opens. `source:` is the pre-0.5 spelling of `extracted-from:` and is read but never written.
 - `\section*{Overview}` in your words; then the paper's sections as `\section{Title}\label{CITEKEY-sec-N}` in the paper's order.
 - Every numbered result is an external node: the quilt's environment for its taxon; title `{\cite[LOCATOR]{CITEKEY}}` with the paper's own number and page; `\label{SLUG-abbrev-number}` (`thm`, `lem`, `prop`, `cor`, `def`, `rem`, `ex`, `constr`, `conj`); the full statement with every hypothesis (verbatim where you have the source, faithful where only the PDF); `\uses{...}` listing the results its proof invokes; no proof.
 - One `\label{SLUG-setup}` node for standing assumptions, conventions, and notation stated outside numbered results.
