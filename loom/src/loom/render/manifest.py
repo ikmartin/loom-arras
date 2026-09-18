@@ -6,6 +6,7 @@ Every section of the specification is produced here; the states vocabulary is fi
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 from loom.refs.identity import declared, identify, primary
@@ -137,6 +138,23 @@ def _locator(node: NodeRec) -> str | None:
     return m.group(1).strip() if m else None
 
 
+def _published_notes(root: Path) -> list[dict[str, Any]]:
+    """Reference notes as the manifest carries them, with `from.run` spelled as the thread's id.
+
+    The file records the run's path because that is what the command was given; a manifest has one grouping key for runs and every annotation already uses it, so a note that spelled it differently could not be joined to the run that proposed it.
+    """
+    from loom.ai.runs import thread_id
+    from loom.refs.notes import read_notes
+
+    out: list[dict[str, Any]] = []
+    for note in read_notes(root):
+        came = note.get("from")
+        if isinstance(came, dict) and isinstance(came.get("run"), str):
+            note = {**note, "from": {**came, "run": thread_id(came["run"])}}
+        out.append(note)
+    return out
+
+
 # What a quilt has, never what a viewer should draw (specs/manifest.md §2, plan 0.9.5 §9). Every value is a property of
 # loom, not of this quilt's current contents: a quilt with no documents yet is still a project that assembles into
 # them, and "empty because not yet" is exactly what a viewer cannot tell from the data alone. A publisher whose corpora
@@ -175,6 +193,7 @@ def build_manifest(
         "states": STATE_LABELS,
         "annotations": {},
         "threads": build_threads(result.quilt.root),
+        "reference_notes": _published_notes(result.quilt.root),
         "diagnostics": [d.to_dict() for d in diagnostics],
         "tags": {},
         "taxa": {},

@@ -245,6 +245,26 @@ def build_synthetic(dest: Path) -> None:
         "--run",
         referee,
     )
+    # Two citation suggestions: one the author accepts, which leaves a breadcrumb in reference-notes.jsonl, and one
+    # left open, so the viewer has both a decided suggestion and an undecided one to show.
+    g.run(
+        "comment",
+        "sy-0003",
+        "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.",
+        "--kind",
+        "citation",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sy-0002",
+        "The orbit decomposition is standard; a textbook reference would do.",
+        "--kind",
+        "citation",
+        "--run",
+        referee,
+    )
     g.write(
         f"{referee}/thread.md",
         "# Thread: referee sy-0003\n\n## 2026-09-16 00:00 referee of sy-0003\n\n"
@@ -263,7 +283,10 @@ def build_synthetic(dest: Path) -> None:
         "--author",
         AUTHOR,
     )
-    objection, suggestion, document = _annotation_ids(dest, referee)[:3]
+    objection, suggestion, document, cited, _open = _annotation_ids(dest, referee)[:5]
+    g.at("2026-09-16T09:00:00Z")
+    g.run("refs", "note", "--from", referee, "--accept", cited, "--reason", "worth citing", "--author", AUTHOR)
+    g.at("2026-09-16T00:00:00Z")
     g.write(f"{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
     g.run("comment", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--author", AUTHOR)
     g.run("comment", "--reply", suggestion, "Done in the next revision.", "--author", AUTHOR)
