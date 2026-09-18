@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.ai.layout import MODES
-from loom.ai.runs import read_run_toml
+from loom.ai.runs import read_run_toml, thread_id
 from loom.records.annotations import Record
 
 _HEADING = re.compile(r"^##\s+(.*)$", re.M)
@@ -112,7 +112,7 @@ def run_thread(root: Path, run_dir: Path, record: Record | None = None) -> dict[
             if m:
                 log.append({"time": m.group(1), "command": m.group(2)})
     return {
-        "id": run_dir.name,
+        "id": thread_id(rel),
         "kind": "run",
         "title": title,
         "created": created,

@@ -53,6 +53,26 @@ def test_every_finding_is_an_anchor() -> None:
     assert r.html.count("data-annotation-id=") == 2
 
 
+def test_the_readers_view_is_free_of_the_agents_syntax() -> None:
+    """The brackets classify a block and the trailing id names an annotation; both are carried as attributes, so neither belongs in the prose a person reads."""
+    r = parse_report(SAMPLE, src="x.md")
+    assert "[summary]" not in r.html and "[referee-review]" not in r.html
+    assert '<h2 data-src="x.md:0:12">summary</h2>' in r.html
+    assert ">Major and minor</h2>" in r.html  # what the agent wrote after the brackets wins
+    assert "(a-2026-09-17-0001)" not in r.html  # but the anchor for it is still there
+    assert 'data-annotation-id="a-2026-09-17-0001"' in r.html
+
+
+def test_every_offset_lies_inside_the_file() -> None:
+    """A `data-src` past the end of its file is a source map that cannot be followed."""
+    import re as _re
+
+    r = parse_report(SAMPLE, src="x.md")
+    spans = [(int(a), int(b)) for a, b in _re.findall(r'data-src="x\.md:(\d+):(\d+)"', r.html)]
+    assert spans
+    assert all(0 <= a <= b <= len(SAMPLE) for a, b in spans)
+
+
 def test_blocks_carry_offsets_into_the_notes_file() -> None:
     src = "ai/runs/r-1/referee-dm-0003.notes.md"
     r = parse_report(SAMPLE, src=src)

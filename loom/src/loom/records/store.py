@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from loom.ai.runs import thread_id
 from loom.records.annotations import Annotation, Record, load_records
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
@@ -402,8 +403,8 @@ class Records:
                 "payload": a.payload,
                 "placement": a.placement,
                 # the run or comment session this belongs to; with one log it is the grouping key a viewer needs,
-                # which a file path no longer is
-                "run": res.record.rel,
+                # which a file path no longer is, and it is the thread's own id so the two can be joined
+                "run": thread_id(res.record.rel),
                 "record": res.record.rel,
                 "discarded": res.record.discarded,
             }

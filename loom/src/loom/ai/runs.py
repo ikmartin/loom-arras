@@ -23,6 +23,17 @@ def run_dir_name(name: str) -> str:
     return f"{now().strftime('%Y-%m-%dT%H-%M')}-{run_slug(name)}"
 
 
+RUNS_DIR = "ai/runs"
+
+
+def thread_id(rel: str) -> str:
+    """The id a run or comment session is published under, from its quilt-relative path.
+
+    A run is published by its directory name, which is what its URL and its `--run` argument both use; a comment session has no directory of its own and is published by its path. This is the value an annotation carries as its `run`, so that grouping annotations by run and looking a thread up by id are the same key (specs/manifest.md §9, §10).
+    """
+    return rel.rsplit("/", 1)[-1] if rel.startswith(RUNS_DIR + "/") else rel
+
+
 def start_run(root: Path, name: str | None) -> Path:
     """Create `ai/runs/<timestamp>-<slug>/run.toml` and return the directory; the timestamp leads so the names sort chronologically."""
     name = (name or "run").strip() or "run"

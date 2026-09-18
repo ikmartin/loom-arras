@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from html import escape
 from typing import Any
 
 from loom.records.store import render_markdown
 
 #: A block heading: any level, the block's name in brackets, and whatever the agent wrote after it.
-HEADING = re.compile(r"^#{1,6}[ \t]*\[(?P<name>[a-z][a-z0-9-]*)\][ \t]*(?P<rest>.*)$", re.M)
+HEADING = re.compile(r"^(?P<hashes>#{1,6})[ \t]*\[(?P<name>[a-z][a-z0-9-]*)\][ \t]*(?P<rest>.*)$", re.M)
 
 #: The elements a finding can be: a list item or a paragraph, with whatever attributes the renderer gave it.
 OPENING = re.compile(r"<(li|p)(\s[^>]*)?>")
@@ -64,13 +65,16 @@ def _anchor_findings(html: str) -> tuple[str, list[str]]:
     for pos in sorted(marks, reverse=True):
         (start, stop, tag, attrs), aid = marks[pos]
         html = html[:start] + f'<{tag} id="finding-{aid}" data-annotation-id="{aid}"{attrs}>' + html[stop:]
-    return html, [marks[pos][1] for pos in sorted(marks)]
+    # The trailing `(a-...-0001)` is how an agent says which annotation a finding is; the element now carries that as an
+    # attribute, so leaving the id in the prose shows the reader a machine's bookkeeping.
+    html = ANNOTATION.sub("", html)
+    return re.sub(r"[ \t]+(?=</(?:li|p)>)", "", html), [marks[pos][1] for pos in sorted(marks)]
 
 
-def _section(name: str, body_html: str, src: str, start: int, end: int) -> str:
+def _section(name: str, heading: str, body_html: str, src: str, start: int, end: int) -> str:
     # `data-block` and no class: the dialect's class vocabulary is fixed, and a name is what this needs to carry.
     attr = f' data-block="{name}"' if name else ""
-    return f'<section{attr} data-src="{src}:{start}:{end}">{body_html}</section>'
+    return f'<section{attr} data-src="{src}:{start}:{end}">{heading}{body_html}</section>'
 
 
 def parse_report(text: str, run: str = "", src: str = "") -> Report:
@@ -99,17 +103,24 @@ def parse_report(text: str, run: str = "", src: str = "") -> Report:
     if preamble.strip():
         html, found = _anchor_findings(render_markdown(preamble.rstrip(), src=src or None))
         blocks.append(Block(name="", title="", findings=found))
-        pieces.append(_section("", html, src, 0, cut))
+        pieces.append(_section("", "", html, src, 0, cut))
 
     for i, m in enumerate(matches):
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         name = m.group("name")
         title = (m.group("rest") or "").strip() or name
         # The heading is rendered with the body so the agent's own wording survives; only the name is lifted out.
-        chunk = text[m.start() : end]
-        html, found = _anchor_findings(render_markdown(chunk.rstrip(), src=src or None, offset=m.start()))
+        # The brackets are the agent's way of naming a block, and the name is carried as `data-block`; a reader should
+        # see the heading, not the syntax that classified it. Whatever the agent wrote after the brackets wins, because
+        # it is the more specific thing they chose to say.
+        level = len(m.group("hashes"))
+        body = text[m.end() : end]
+        # The offset moves with what `strip` removes, or every element after a blank line points a line too early.
+        lead = len(body) - len(body.lstrip())
+        html, found = _anchor_findings(render_markdown(body.strip(), src=src or None, offset=m.end() + lead))
+        head = f'<h{level} data-src="{src}:{m.start()}:{m.end()}">{escape(title)}</h{level}>'
         blocks.append(Block(name=name, title=title, findings=found))
-        pieces.append(_section(name, html, src, m.start(), end))
+        pieces.append(_section(name, head, html, src, m.start(), end))
 
     attr = f' data-run="{run}"' if run else ""
     root = f'<section data-fragment="report"{attr} data-src="{src}:0:{len(text)}">{"".join(pieces)}</section>'

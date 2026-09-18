@@ -210,6 +210,8 @@ def build_synthetic(dest: Path) -> None:
         "The hypothesis 'finite' is essential for the parity count; say so in the statement.",
         "--kind",
         "objection",
+        "--severity",
+        "major",
         "--quote",
         "finite widget",
         "--run",
@@ -221,17 +223,34 @@ def build_synthetic(dest: Path) -> None:
         "Cite the orbit lemma by number here.",
         "--kind",
         "suggestion",
+        "--severity",
+        "minor",
         "--quote",
         "disjoint union of orbits",
+        "--payload",
+        "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
+        "--placement",
+        "replace",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "drafting/main.tex",
+        "The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "moderate",
         "--run",
         referee,
     )
     g.write(
         f"{referee}/thread.md",
         "# Thread: referee sy-0003\n\n## 2026-09-16 00:00 referee of sy-0003\n\n"
-        "Asked: hostile review of the parity theorem. Did: read `bundle-sy-0003.tex`, left one objection on the "
-        "statement and one suggestion on the first proof. Decided: nothing; the author decides. Remains: the second "
-        "proof was not reviewed.\n",
+        "Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on "
+        "the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: "
+        "nothing; the author decides. Remains: the second proof was not reviewed.\n",
     )
     g.run(
         "comment",
@@ -244,7 +263,8 @@ def build_synthetic(dest: Path) -> None:
         "--author",
         AUTHOR,
     )
-    objection, suggestion = _annotation_ids(dest, referee)
+    objection, suggestion, document = _annotation_ids(dest, referee)[:3]
+    g.write(f"{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
     g.run("comment", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--author", AUTHOR)
     g.run("comment", "--reply", suggestion, "Done in the next revision.", "--author", AUTHOR)
     g.run("comment", "--resolve", suggestion, "--author", AUTHOR)
@@ -287,6 +307,27 @@ def build_synthetic(dest: Path) -> None:
         fh.write("% A landmark edited after the fact, so loom:canon-edited has something to report.\n")
 
     _write_expected_lint(g)
+
+
+def _synthetic_report(objection: str, suggestion: str, document: str) -> str:
+    """The conformance fixture's referee report: several named blocks, findings that resolve to real annotations, and math in the prose, so the report pane has something with structure to render."""
+    return f"""## [summary]
+The parity theorem is correct as stated but leans on finiteness without saying so. One citation is missing a number. The document as a whole does not say which conventions it inherits.
+
+## [referee-review] Major and minor issues
+
+### Major Issues
+- The count $|X| = |\\Fix(\\sigma)| + 2k$ needs $X$ finite, and the statement does not say it. Everything after it is fine. ({objection})
+
+### Minor Issues
+- The orbit decomposition is used by name rather than by number; a replacement sentence is attached. ({suggestion})
+
+### Clarity/Exposition
+- The paper inherits conventions from the setup section without saying so. ({document})
+
+## [decision]
+Minor Revision.
+"""
 
 
 def _demo_report(*, suggestion: str, objection: str, document: str) -> str:
