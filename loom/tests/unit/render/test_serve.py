@@ -73,7 +73,7 @@ def test_serve_static_routes(session) -> None:  # type: ignore[no-untyped-def]
     assert status == 200 and b'data-id="dm-0003"' in body
     assert get(s.url + "build/../config.toml")[0] == 404
     assert get(s.url + "missing.css")[0] == 404
-    assert get(s.url + "_api")[0] == 404
+    assert get(s.url + "_api")[0] == 200  # the write API answers here now; 404 is what a read-only publisher sends
 
 
 def test_serve_republishes_on_change(session) -> None:  # type: ignore[no-untyped-def]
@@ -155,3 +155,116 @@ def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignor
 
     status, _, _ = get(s.url + "refs/../config.toml")
     assert status in (400, 404)  # nothing outside refs/ is reachable through it
+
+
+def post(url: str, body: dict):  # type: ignore[no-untyped-def]
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status, json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read() or b"{}")
+
+
+def test_the_write_api_binds_to_loopback_only(session) -> None:  # type: ignore[no-untyped-def]
+    """specs/write-api.md §3 has no authentication and says so, resting entirely on the socket never leaving this machine. That was an assumption until this test."""
+    s, _ = session
+    assert s.httpd is not None
+    assert s.httpd.server_address[0] == "127.0.0.1"
+
+
+def test_discovery_lists_what_this_publisher_serves(session) -> None:  # type: ignore[no-untyped-def]
+    s, _ = session
+    status, body = get(s.url + "/_api")[0], json.loads(get(s.url + "/_api")[2])
+    assert status == 200
+    assert body["write_api"] == 1
+    assert "comment" in body["capabilities"] and "discard" in body["capabilities"]
+    # an endpoint outside the list is a 404, which is what lets a viewer hide the affordance
+    assert post(s.url + "/_api/accept", {"keys": ["dm-0003"]})[0] == 404
+
+
+def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # type: ignore[no-untyped-def]
+    """One implementation of what a comment is: the endpoint calls the function the CLI calls, so the two cannot drift."""
+    s, d = session
+    status, body = post(
+        s.url + "/_api/comment",
+        {
+            "target": "dm-0003",
+            "message": "Written from the viewer.",
+            "kind": "question",
+            "severity": "minor",
+            "author": "A Reader",
+        },
+    )
+    assert status == 200, body
+    log = (d / "annotations" / "log.jsonl").read_text(encoding="utf-8").splitlines()
+    written = [json.loads(x) for x in log if x.strip()]
+    mine = [e for e in written if e.get("body") == "Written from the viewer."]
+    assert len(mine) == 1
+    assert mine[0]["kind"] == "human" and mine[0]["author"] == "A Reader"
+    assert mine[0]["severity"] == "minor"
+
+    # and it can be answered, restated and withdrawn over the same surface
+    ann = mine[0]["id"]
+    assert post(s.url + "/_api/reply", {"annotation": ann, "message": "Noted.", "author": "A Reader"})[0] == 200
+    assert post(s.url + "/_api/edit", {"annotation": ann, "message": "Restated.", "author": "A Reader"})[0] == 200
+    assert post(s.url + "/_api/discard", {"annotation": ann, "reason": "mine", "author": "A Reader"})[0] == 200
+    events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
+    assert {e["event"] for e in events if e.get("id") == ann} >= {"created", "edited", "discarded"}
+
+
+def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ignore[no-untyped-def]
+    s, _ = session
+    status, body = post(s.url + "/_api/comment", {"message": "no target"})
+    assert status == 400 and body["error"]["code"] == "missing-field"
+    status, body = post(s.url + "/_api/comment", {"target": "nope-9999", "message": "x"})
+    assert status in (400, 404) and "error" in body
+    status, body = post(s.url + "/_api/discard", {"annotation": "a-1999-01-01-0001"})
+    assert status in (400, 404) and "error" in body
+
+
+def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> None:  # type: ignore[no-untyped-def]
+    """0.10 shipped reference notes as a command only; this is where they become something a reader can answer."""
+    s, d = session
+    _, made = post(
+        s.url + "/_api/comment",
+        {"target": "dm-0003", "message": "Cite Manolache, Prop 3.2.", "kind": "citation", "author": "A Reader"},
+    )
+    ann = [
+        json.loads(x)
+        for x in (d / "annotations" / "log.jsonl").read_text().splitlines()
+        if x.strip() and "Manolache" in x
+    ][0]["id"]
+
+    status, body = post(s.url + "/_api/refs-note", {"annotation": ann, "decision": "accept", "author": "A Reader"})
+    assert status == 200, body
+    notes = [json.loads(x) for x in (d / "reference-notes.jsonl").read_text().splitlines() if x.strip()]
+    assert notes[-1]["for"] == ["dm-0003"]
+    assert notes[-1]["identifier"] == {"verified": False}  # a breadcrumb, never a second source of identity truth
+    # accepting also closes the finding, so the same suggestion is not answered twice
+    events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
+    assert any(e.get("id") == ann and e["event"] == "resolved" for e in events)
+
+    status, body = post(s.url + "/_api/refs-note", {"annotation": ann, "decision": "sideways"})
+    assert status == 400 and body["error"]["code"] == "bad-field"
+
+
+def test_rejecting_a_citation_writes_no_breadcrumb(session) -> None:  # type: ignore[no-untyped-def]
+    s, d = session
+    post(
+        s.url + "/_api/comment",
+        {"target": "dm-0002", "message": "Cite something else.", "kind": "citation", "author": "R"},
+    )
+    ann = [
+        json.loads(x)
+        for x in (d / "annotations" / "log.jsonl").read_text().splitlines()
+        if x.strip() and "something else" in x
+    ][0]["id"]
+    before = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
+    status, _ = post(
+        s.url + "/_api/refs-note", {"annotation": ann, "decision": "reject", "reason": "already cited", "author": "R"}
+    )
+    assert status == 200
+    after = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
+    assert after == before  # the reason rides on the resolve event; nothing is filed for a work nobody wanted

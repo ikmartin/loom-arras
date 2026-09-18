@@ -6,6 +6,7 @@ Serves the arras bundle at / (with index.html as the fallback for any path that 
 from __future__ import annotations
 
 import hashlib
+import json
 import mimetypes
 import os
 import sys
@@ -47,6 +48,9 @@ class LoomHandler(SimpleHTTPRequestHandler):
     bundle_dir: Path = Path(".")
     build_dir: Path = Path(".")
     refs_dir: Path = Path(".")
+    #: The quilt to write into. `None` serves the corpus read-only and answers `/_api` with 404, which is the
+    #: discovery mechanism working: a viewer that gets 404 shows no editing affordances.
+    quilt_root: Path | None = None
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
@@ -65,8 +69,8 @@ class LoomHandler(SimpleHTTPRequestHandler):
             rel = unquote(path[len("/refs/") :])
             target = (self.refs_dir / rel).resolve()
             return target if str(target).startswith(str(self.refs_dir.resolve())) and target.is_file() else None
-        if path == "/_api":
-            return None
+        if path == "/_api" or path.startswith("/_api/"):
+            return None  # answered by do_GET and do_POST, never from the file tree
         rel = path.lstrip("/")
         target = (self.bundle_dir / rel).resolve() if rel else self.bundle_dir / "index.html"
         if str(target).startswith(str(self.bundle_dir.resolve())):
@@ -80,7 +84,52 @@ class LoomHandler(SimpleHTTPRequestHandler):
             self.bundle_dir / "index.html"
         )  # every other path is a viewer route, dots included (`/node/ro-thm-1.0.1`)
 
+    def _json(self, status: HTTPStatus | int, payload: dict[str, object]) -> None:
+        data = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_POST(self) -> None:  # noqa: N802
+        """The write API (specs/write-api.md). Localhost only, like everything else this server does."""
+        from loom.render.api import ApiError, handle
+
+        path = self.path.split("?", 1)[0]
+        if not path.startswith("/_api/") or self.quilt_root is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        raw = self.rfile.read(length) if length else b"{}"
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}")
+            if not isinstance(body, dict):
+                raise ValueError("body must be an object")
+        except (UnicodeDecodeError, ValueError) as exc:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": {"code": "bad-json", "message": str(exc)}})
+            return
+        try:
+            self._json(HTTPStatus.OK, handle(self.quilt_root, path[len("/_api/") :], body))
+        except ApiError as exc:
+            self._json(exc.status, {"error": {"code": exc.code, "message": exc.message}})
+        except Exception as exc:  # noqa: BLE001
+            # A write that failed for a reason nobody anticipated is still the publisher's answer, not a dead socket.
+            self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"code": "failed", "message": str(exc)}})
+
     def do_GET(self) -> None:  # noqa: N802
+        if self.path.split("?", 1)[0] == "/_api":
+            from loom.render.api import discovery
+
+            if self.quilt_root is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            self._json(HTTPStatus.OK, discovery())
+            return
         target = self._resolve()
         if target is None or not target.is_file():
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -173,6 +222,8 @@ class ServeSession:
                 "bundle_dir": self.bundle_dir,
                 "build_dir": self.quilt.root / "build",
                 "refs_dir": self.quilt.root / "refs",
+                # The write API is served for the quilt being served, and only ever over this loopback socket.
+                "quilt_root": self.quilt.root,
             },
         )
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
