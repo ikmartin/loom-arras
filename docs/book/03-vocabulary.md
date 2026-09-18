@@ -23,7 +23,7 @@ All entries are **[decided]** unless marked.
 - spine : a file consisting of prose, sectioning, and inclusion lines, produced by `atomize`. Not a distinct kind to the scanner; the word is descriptive.
 - `nodes/` : the directory `loom new` and `atomize` write node files to. A convention, not a rule.
 - `digests/` : the directory of digests. `refs/` holds fetched works, named by identifier, and is gitignored.
-- `comments/<author>/` : human review records.
+- `comments/<author-slug>/<date>` : the grouping key for what one person wrote on one day. A path-shaped **name**, not a directory: every annotation lives in `annotations/log.jsonl`, and nothing is written under `comments/`.
 - `ai/` : the optional AI layer: `orientation.md`, `modes/`, `runs/`.
 - `.loom/` : loom's own durable data: `state.toml` (the acceptance ledger) and `history/` (the history ledger, the step directories, and the content-addressed text store).
 - `retired/` : where `atomize --retire` moves a converted file at the author's request. Never scanned.

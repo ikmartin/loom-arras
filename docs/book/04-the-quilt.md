@@ -31,7 +31,6 @@ relloc/
     arxiv/0805.2065v2/
       src/                 the unpacked e-print
       paper.pdf
-  comments/                human review records, per author
     markas/2026-09-16.json
   ai/                      optional AI layer; see Chapter 11
     orientation.md
@@ -172,7 +171,7 @@ Rules:
 6. Everything a master needs is reachable from the root by `\input`, `\usepackage`, and `\bibliography`.
 7. `loom compile` mirrors Overleaf: `latexmk` from the root with an output directory and a clean environment.
 
-Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.loom/`, `ai/`, and `comments/` are harmless), set `drafting/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
+Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.loom/`, `ai/`, and `annotations/` are harmless), set `drafting/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
 
 ## 4.7 What `loom init` creates
 
@@ -181,7 +180,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.lo
 - `config.toml` with the keys of 4.2, `name` taken from the directory, and `main = "drafting/main.tex"`; `prefix` is taken from `--prefix`, otherwise asked for once when a terminal is attached and `--yes` is absent, otherwise the default `q` is taken.
 - `loom.sty`.
 - `drafting/main.tex`, a minimal amsart master: `\documentclass{amsart}`, `\usepackage{amsmath,amssymb,amsthm}`, `\usepackage{loom}`, a `\newtheorem` block declaring theorem, lemma, proposition, corollary (plain), definition, example (definition), and remark (remark), numbered within section through the theorem counter, `\title{Untitled}`, `\begin{document}`, `\maketitle`, `\section{Introduction}`, `\end{document}`. With `--from`, no minimal master is written and the drafting directory starts empty: the paper arrives in the canon directory, and work begins with `loom draft` (6.3).
-- `nodes/` (empty), `digests/` (empty), `refs/` (empty), `comments/` (empty), the canon directory (empty), and `.loom/history/` with an empty ledger, so that the allocator has a record to consult from the first day.
+- `nodes/` (empty), `digests/` (empty), `refs/` (empty), the canon directory (empty), and `.loom/history/` with an empty ledger, so that the allocator has a record to consult from the first day. **[decided]** No `comments/` directory: annotations have lived in `annotations/log.jsonl` since 0.10 and an empty directory carrying the old name told a reader review records were somewhere they are not (DR-170). No empty `[ai]` table either.
 - `.gitignore` containing `build/`, `refs/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.bcf *.run.xml *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf`), each anchored to the root and to the drafting directory so that a node file's neighbours are never matched. It is written whether or not the quilt is a repository, because it costs nothing and is right the day it becomes one, and `init` says what it ignores and why.
 - `README.md` containing the contract page (the same text as the loom README's contract section).
 - the user config of 4.3, with a commented template, if it does not exist.
@@ -195,7 +194,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.lo
 
 **[decided]** These promises hold for every command and are enforced by tests:
 
-1. Loom never modifies a file the author wrote. It writes new files at destinations the user names — including the canon directory on `canonize` and the drafting directory on `draft` — writes new files in `nodes/` and `digests/` on `new` and `promote`, writes into `.loom/`, `comments/`, `ai/runs/`, and `build/`, writes `ai/`, `CLAUDE.md`, `AGENTS.md`, and `.claude/` on `ai init` and `upgrade` (DR-71), moves a converted file into `retired/` when `atomize --retire` asks for it, and prints patches. `import` and `draft` edit only the copies they make. `[quilt] main` is loom's own line: `init`, `import`, `draft`, and a conversion that supersedes the default master may move it, and nothing else in `config.toml` is ever rewritten.
+1. Loom never modifies a file the author wrote. It writes new files at destinations the user names — including the canon directory on `canonize` and the drafting directory on `draft` — writes new files in `nodes/` and `digests/` on `new` and `promote`, writes into `.loom/`, `annotations/`, `ai/runs/`, and `build/`, writes `ai/`, `CLAUDE.md`, `AGENTS.md`, and `.claude/` on `ai init` and `upgrade` (DR-71), moves a converted file into `retired/` when `atomize --retire` asks for it, and prints patches. `import` and `draft` edit only the copies they make. `[quilt] main` is loom's own line: `init`, `import`, `draft`, and a conversion that supersedes the default master may move it, and nothing else in `config.toml` is ever rewritten.
 2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal. The one exception is inside loom's own directory: `loom upgrade` moves `.loom/snapshots/` into the history's `texts/`, where the files are content-addressed and every reference still resolves.
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.
@@ -210,7 +209,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.lo
 
 ## 4.10 Coauthors
 
-**[decided]** Coauthors clone the quilt. `config.toml`, `.loom/` (the history included: the versions and the snapshots are the record), the canon directory, `comments/`, `digests/`, and everything the author wrote are shared; `build/`, `refs/`, and personal files are not. Acceptance rows carry the accepting author's name from their own user config. Two coauthors allocating ids on separate branches can collide (both get `rl-0011`); the merge leaves the id defined by two files, and loom publishes it as conflicted rather than choosing between them — `loom fork` gives one of them a fresh id and rewrites the references in its own document (5.3.5, 17.10). The allocator consults the history as well as the files, so an id either of them has ever recorded is not handed out again; per-author prefixes avoid the collision entirely.
+**[decided]** Coauthors clone the quilt. `config.toml`, `.loom/` (the history included: the versions and the snapshots are the record), the canon directory, `annotations/`, `digests/`, and everything the author wrote are shared; `build/`, `refs/`, and personal files are not. Acceptance rows carry the accepting author's name from their own user config. Two coauthors allocating ids on separate branches can collide (both get `rl-0011`); the merge leaves the id defined by two files, and loom publishes it as conflicted rather than choosing between them — `loom fork` gives one of them a fresh id and rewrites the references in its own document (5.3.5, 17.10). The allocator consults the history as well as the files, so an id either of them has ever recorded is not handed out again; per-author prefixes avoid the collision entirely.
 
 **[decided]** Loom's whole relationship with version control is this: it writes a `.gitignore`, it makes a repository when `--git` asks, `loom doctor` notices whether git is installed, and the ledger is written as one table per key so that two people accepting different keys merge cleanly. It reads no history and writes none. The snapshots under `.loom/` exist because loom cannot assume the quilt is versioned, not as a substitute for versioning it.
 
