@@ -26,6 +26,7 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
   "states": { "labels": { ... } },
   "annotations": { "a-2026-09-16-0007": { ... } },
   "threads": { "2026-09-16T14-02-referee": { ... } },
+  "reference_notes": [ ... ],
   "diagnostics": [ ... ],
   "tags": { "localization": ["rl-0004", "rl-0012"] },
   "taxa": { "Lemma": {"style": "plain", "slug": "lemma", "count": 14} },
@@ -36,6 +37,8 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 ```
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it.
+
+**[decided]** `reference_notes` lists works an agent proposed citing and a person accepted: `{"work": "…as the agent described it", "for": ["rl-0004"], "claim": "…", "identifier": {"verified": false}, "accepted": {"when": "…", "who": "…"}, "from": {"run": "…", "annotation": "a-…"}}`. It is a **breadcrumb and never a second source of identity truth**: `identifier.verified` is false until a person confirms it in the bibliography, and nothing here enters `references`, the bibliography, or any closure. A viewer shows them on the keys in `for`. Optional, like every other section.
 
 **[decided]** Beside `manifest.json` and `fragments/`, a publisher may write **`source/<key>.tex`**: one file per key holding that key's own source text before macro expansion, which a viewer fetches lazily for a verbatim view. It is beside the manifest rather than inside it because the manifest is loaded whole on every poll and already runs to hundreds of kilobytes, while source is wanted one key at a time and only when a reader asks. Optional: a viewer that finds nothing there shows the rendered form and no toggle.
 
