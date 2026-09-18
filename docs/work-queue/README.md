@@ -29,7 +29,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-17](WQ-17-external-user.md) | acceptance criterion 10: an external user | — | someone outside the project has a paper to bring in |
 | [WQ-19](WQ-19-publishing.md) | publishing to PyPI and npm | loom, arras | the author decides to release |
 | [WQ-22](WQ-22-extraction-node-model.md) | digest extraction shares the node model | loom | extraction and atomize disagree about what a node is |
-| [WQ-23](WQ-23-agent-review.md) | reviewing agent runs in arras: the split view, severity, run-scoped notation, citation candidates | loom, arras | the author resumes the design, paused on 2026-09-16 — a decision, not an observation |
 | [WQ-24](WQ-24-ai-quilt.md) | an agent's own quilt under `ai/`, sharing the author's id space | loom, arras | the workbench has landed, and a run leaves three or more draft nodes that reference one another |
 | [WQ-25](WQ-25-history-view.md) | the history view in arras: landmarks, stamps, versions per node, the graph at a step | arras, loom | a quilt's ledger holds three or more canonize steps |
 | [WQ-27](WQ-27-applying-suggestions.md) | applying a suggestion: patches, `bundle --with`, editor code actions | loom, editors | one run leaves ten or more payloads |
@@ -38,7 +37,9 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-30](WQ-30-history-gc.md) | `loom history gc` | loom | `.loom/history/texts/` exceeds a few thousand files or fifty megabytes |
 | [WQ-31](WQ-31-host-split.md) | the host split: the core behind a component API and a token contract a person can use by hand | arras, loom-arras | a second host exists or is wanted |
 | [WQ-32](WQ-32-modes-against-the-cli.md) | rewrite every mode against loom's CLI, and let the gaps name the missing commands | loom | 0.10 has landed, so the annotation log is the modes' output contract |
+| [WQ-33](WQ-33-the-proposed-document.md) | the proposed document: an agent assembling a revision | loom, arras | an agent proposes reordering a section and a per-node diff cannot show the result |
+| [WQ-34](WQ-34-write-surfaces.md) | writing through the editor and the viewer | loom, editors, arras | the author works a review without the terminal |
 
-Eighteen active, twenty-seven slots of headroom.
+Nineteen active, twenty-six slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

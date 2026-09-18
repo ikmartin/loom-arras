@@ -13,7 +13,7 @@ Read this document once. Then run `loom status` and propose what to do from what
 
 ## 1. What a quilt is
 
-The project is a graph. Every theorem-like environment and every section is a node with a permanent id written as a LaTeX label, e.g. `\label{rl-0004}`. Dependencies between nodes are read from the `\ref`, `\cite[postnote]` and `\uses` the author writes. The LaTeX compiles exactly as an ordinary paper, with or without loom. Loom reads the text, computes the graph, keeps a ledger of what the author has accepted, and checks whether accepted text has changed since.
+The project is a graph. A theorem-like environment or a section becomes a node when it carries a permanent id, written as a LaTeX label, e.g. `\label{rl-0004}`; an untagged one is not yet a node, and `loom id` is what tags it. Dependencies between nodes are read from the `\ref`, `\cite[postnote]` and `\uses` the author writes. The LaTeX compiles exactly as an ordinary paper, with or without loom. Loom reads the text, computes the graph, keeps a ledger of what the author has accepted, and checks whether accepted text has changed since.
 
 A quilt may hold several documents at once — a paper, a talk, a survey — drawing on one body of results, and it may hold none at all if the work is still being developed. Do not assume there is one paper, or that there is a paper yet.
 
@@ -66,7 +66,7 @@ Working in the quilt:
 - `loom source KEY [--closure]`: prints a key's own text, and with `--closure` exactly the statements it depends on first. Read this, not the directories. It writes no file, so nothing you read can go stale behind you.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
 - `loom linearize SPINE --to <file> --no-check`: a whole master flattened into one file, for when a plan or a paper is the context. Masters are not keys, so `loom source` does not apply to them.
-- `loom lint`: what is structurally wrong. `loom check`: lint, then compile every master, then every key's closure.
+- `loom lint`: what is structurally wrong. `loom check`: lint, then compile every master; with `--bundles all` it also compiles every key's closure, which the default does not.
 - `loom compile KEY --with proposal.diff`, `loom compile --draft draft-ID.tex`: compiles your proposed text in place of the quilt's, so you can check it before the author applies anything. Nothing in the quilt changes.
 - `loom new TAXON "Title" --print`: a skeleton for a node you will draft, printed rather than written. `loom id --next` prints the next free id alone.
 - `loom refs path CITEKEY [--pdf]`: where a cited work's fetched artifacts are.
@@ -88,7 +88,7 @@ Your run:
 
 A run is one conversation with you and nothing more. It has no mode, no state and no lifecycle: it is never concluded, and you rejoin one by passing `--run` again. Write in its directory:
 
-- outputs named by mode and target: `referee-rl-0004.notes.md`, `draft-rl-0019.tex`, `proposal-rl-0004.diff`, `ingest-Man12.tex`. A second pass over the same target is numbered: `referee-rl-0004.2.notes.md`.
+- outputs named by mode and target: `referee-rl-0004.notes.md`, `draft-rl-0019.tex`, `proposal-rl-0004.diff`, `ingest-Man12.tex`. Where a mode's template says a second pass is numbered, as referee's and review's do, it is: `referee-rl-0004.2.notes.md`.
 - `thread.md`: after each significant exchange, append a dated entry saying what was asked, what you did, what you decided and what remains. Keep it; a later session, yours or another agent's, resumes from it.
 
 Loom writes `run.log` there for you, and `run.toml`, which holds the run's name and nothing you need to edit.
@@ -106,7 +106,7 @@ The author asks for a mode by name. Each has a template in `ai/modes/` with an i
 - **ingest**: a digest of a cited paper.
 - **brainstorm**: explore a topic before anything is proved — candidates, dead ends, what the digests already say.
 
-Findings are annotations, graded with `--severity` and carrying a `--payload` when you are proposing text. On a re-check you edit a finding that still stands rather than replying to yourself; `blocks.md` rule 7 has the full rule.
+Findings are annotations. Review mode grades every one with `--severity`; elsewhere you give a severity only when something is actually wrong, and a `--payload` only when you are proposing text. On a re-check you edit a finding that still stands rather than replying to yourself. `blocks.md` rules 5 to 7 are the full contract; where this summary and those rules disagree, the rules win.
 
 A digest you produce waits in your run for the author to run `loom ai promote`. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
 

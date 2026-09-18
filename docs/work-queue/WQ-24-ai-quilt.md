@@ -30,4 +30,4 @@ An ordinary quilt inside the author's, at `ai/quilt/`, which the author's scan a
 
 ## Related
 
-[WQ-03](WQ-03-reference-libraries.md): this is a quilt that depends on another, which is that item's subject, and the first real instance of it. [WQ-23](WQ-23-agent-review.md): a proposed revision as a document in a quilt answers its open question about the form of a proposed document.
+[WQ-03](WQ-03-reference-libraries.md): this is a quilt that depends on another, which is that item's subject, and the first real instance of it. [[WQ-23]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)): a proposed revision as a document in a quilt answers its open question about the form of a proposed document.

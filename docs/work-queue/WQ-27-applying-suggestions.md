@@ -26,4 +26,4 @@ Accepting a suggestion resolves its annotation as applied with the resulting has
 
 ## Related
 
-[WQ-23](WQ-23-agent-review.md), whose build order this is; [[WQ-26]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), which builds the surfaces a suggestion is applied from.
+[[WQ-23]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), whose build order this is; [[WQ-26]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), which builds the surfaces a suggestion is applied from.

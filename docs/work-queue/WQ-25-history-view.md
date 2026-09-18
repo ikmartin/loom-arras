@@ -28,4 +28,4 @@ The "text of @2" badge on a node is built with the workbench plan and is the see
 
 ## Related
 
-[WQ-23](WQ-23-agent-review.md) for the split view, whose left pane is a versioned text; [WQ-29](WQ-29-node-manager.md), which forks from this view.
+[[WQ-23]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)) for the split view, whose left pane is a versioned text; [WQ-29](WQ-29-node-manager.md), which forks from this view.
