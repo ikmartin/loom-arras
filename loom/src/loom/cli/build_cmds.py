@@ -9,6 +9,7 @@ import click
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note, resolve_run
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.clock import stamp
+from loom.reshape.linearize import flatten
 from loom.scan.scan import ScanResult
 from loom.tex.bundle import Bundle, build_bundle, bundle_filename, draft_bundle, region_text, substituted_region
 from loom.tex.runner import compile_tex, normalise_engine
@@ -198,18 +199,36 @@ def check(ctx: click.Context, no_compile: bool, bundles: str, quilt_path: str | 
         ctx.exit(EXIT_CONTENT)
 
 
+def document_rel(result: ScanResult, target: str) -> str | None:
+    """The quilt-relative path when TARGET names a scanned document rather than a key, else None."""
+    if not target.endswith(".tex"):
+        return None
+    p = Path(target)
+    rel = str(p.resolve().relative_to(result.quilt.root)) if p.is_absolute() else target
+    return rel if rel in result.files else None
+
+
 @click.command()
-@click.argument("key")
-@click.option("--closure", is_flag=True, help="Everything KEY depends on, in dependency order, then KEY itself.")
+@click.argument("target", metavar="TARGET")
+@click.option("--closure", is_flag=True, help="Everything TARGET depends on, in dependency order, then TARGET itself.")
 @click.option("--run", "run_dir", default=None, metavar="DIR", envvar="LOOM_RUN", help="Log this call to DIR/run.log.")
 @quilt_option
-def source(key: str, closure: bool, run_dir: str | None, quilt_path: str | None) -> None:
-    """Print KEY's own LaTeX source; with --closure, the statements it depends on first.
+def source(target: str, closure: bool, run_dir: str | None, quilt_path: str | None) -> None:
+    """Print TARGET's LaTeX source: a key's own text, or a document flattened with every inclusion expanded in place.
 
-    This is how a reader or an agent gets the text of a result. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+    This is how a reader or an agent gets the text of a result or of a whole paper. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+
+    With --closure, a key is preceded by exactly the statements it depends on, in dependency order. A document is already whole, so --closure does not apply to one.
     """
     result = open_scan(quilt_path)
-    key = resolve_key(result, key)
+    doc = document_rel(result, target)
+    if doc is not None:
+        if closure:
+            raise EnvError(f"--closure is for a key; {doc} is a document and already carries what it includes")
+        log_run(run_dir, f"loom source {doc}", result.quilt.root)
+        click.echo(flatten(result.quilt.root, doc).text.rstrip("\n"))
+        return
+    key = resolve_key(result, target)
     require_text(result, key)
     log_run(run_dir, f"loom source {key}" + (" --closure" if closure else ""), result.quilt.root)
     if not closure:

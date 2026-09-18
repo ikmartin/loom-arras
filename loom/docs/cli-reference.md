@@ -591,15 +591,17 @@ Watch, republish, and serve arras at / and build/ at /build/ until interrupted.
 
 ## `loom source`
 
-`loom source [OPTIONS] KEY`
+`loom source [OPTIONS] TARGET`
 
-Print KEY's own LaTeX source; with --closure, the statements it depends on first.
+Print TARGET's LaTeX source: a key's own text, or a document flattened with every inclusion expanded in place.
 
-This is how a reader or an agent gets the text of a result. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+This is how a reader or an agent gets the text of a result or of a whole paper. It writes nothing: there is no file to clean up, none to keep out of version control, and none to go stale against the author's next edit.
+
+With --closure, a key is preceded by exactly the statements it depends on, in dependency order. A document is already whole, so --closure does not apply to one.
 
 | option | description |
 |---|---|
-| `--closure` | Everything KEY depends on, in dependency order, then KEY itself. |
+| `--closure` | Everything TARGET depends on, in dependency order, then TARGET itself. |
 | `--run` `DIR` | Log this call to DIR/run.log. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

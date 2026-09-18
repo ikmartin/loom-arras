@@ -11,7 +11,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
 - `loom source ID --closure --run RUN` for each definition or result the topic touches.
 - The overview sections of the relevant digests (`digests/CITEKEY.tex`, which are designed to be read whole); `loom search --kind digest`.
-- If the author has an outline master, `loom linearize drafting/outline.tex --to <your run>/outline.tex --no-check` for the plan as it stands; an outline rarely passes the identity test, and you are reading it rather than replacing anything.
+- If the author has an outline master, `loom source drafting/outline.tex --run RUN` prints the plan as it stands, flattened.
 
 ## Procedure
 1. Ask what the author is after and restate it precisely. Stop until they confirm.

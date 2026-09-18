@@ -116,6 +116,28 @@ def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
     assert "\\usepackage{loom}" in c.output
 
 
+def test_source_prints_a_whole_document_flattened(tmp_path: Path) -> None:
+    """An agent asked about a paper rather than a result needs the document; `loom linearize` would do it by superseding the master, and is denied to agents, so `loom source` takes a path (DR-155)."""
+    d = demo(tmp_path)
+    run_dir = d / "ai" / "runs" / "t"
+    r = run("source", "drafting/main.tex", "--run", str(run_dir), cwd=d)
+    assert r.exit_code == 0, r.output
+    assert "\\documentclass" in r.output  # the document, preamble and all
+    assert "\\input{" not in r.output  # every inclusion expanded in place
+    assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in r.output  # including the node files it pulls in
+    assert "loom source drafting/main.tex" in (run_dir / "run.log").read_text()
+
+    before = sorted(p.relative_to(d) for p in d.rglob("*.tex"))
+    assert run("source", "drafting/main.tex", cwd=d).exit_code == 0
+    assert sorted(p.relative_to(d) for p in d.rglob("*.tex")) == before  # nothing written, nothing superseded
+
+    c = run("source", "drafting/main.tex", "--closure", cwd=d)
+    assert c.exit_code != 0
+    assert "already carries what it includes" in c.output  # --closure is a key's option
+
+    assert run("source", "ai/runs/t/nope.tex", cwd=d).exit_code != 0  # a path loom does not scan is not a document
+
+
 def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     d = demo(tmp_path)
     node = d / "nodes" / "dm-0002.tex"
