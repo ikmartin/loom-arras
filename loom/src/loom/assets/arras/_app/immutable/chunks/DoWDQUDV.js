@@ -1,0 +1,1 @@
+function e(e,t){if(!e||!t)return`var(--rule-strong)`;let n=e.taxa?.[t]?.style;return n===void 0?`var(--rule-strong)`:n===`remark`?`var(--taxon-aside)`:n===`definition`?`var(--taxon-definition)`:`var(--taxon-result)`}export{e as t};
