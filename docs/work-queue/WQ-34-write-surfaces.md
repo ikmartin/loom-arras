@@ -10,7 +10,9 @@ The author works a review without using the terminal — which means answering a
 
 Carried out of [[WQ-23]] when that item graduated into [plan 0.11](../plans/0.11-run-review-view.md). The author's intent, settled there: **the editor clients supersede the CLI for people, further work passes to arras, and the CLI stays as the interface for GUIs and agents.** A few setup commands stay terminal-only — `init`, `upgrade`, `doctor`, `import`, `digest fetch`. The division is source changes in the editor, reading and discussion in arras, conversation in the agent session, the CLI underneath all three.
 
-Two of the five pieces are already spoken for: the write API is built in 0.11, and proposals as editor code actions are [[WQ-27]]. What is left is the rest of the surface, and it waits until those two show what the shape actually is.
+Two of the five pieces are already spoken for: the write API **was built in 0.11** (DR-161) and proposals as editor code actions are [[WQ-27]]. What is left is the rest of the surface, and it waits until those two show what the shape actually is.
+
+What 0.11 settled that this item inherits: the API is **detected, never assumed** — `GET /_api` answers with the capabilities the publisher serves, and a client that gets 404 offers nothing. An editor client speaks the same six endpoints arras does, over the same library functions, so `--json` on write commands is for clients that would rather run a command than open a socket, not for clients that have no other way in. There is no `message` endpoint and nothing wakes an agent.
 
 ## Rough design
 

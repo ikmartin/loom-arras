@@ -27,7 +27,7 @@ Markers as elsewhere. The chapter was written before the viewer was built and it
 
 ![Shell A](figures/shell-a-rail-sections.png)
 
-**[decided]** A 267px rail, `--leaf`, hairline right border, holding stacked sections separated by 10px and small-caps 9px muted labels: the corpus label (13px, no label) with the settings control beside it; `VIEW` (the six views as 13px rows with a 15px leading icon, the current one on `--link-wash` with `--link` text, and search below them); the page's own panel when it has registered one; `DOCUMENT` (a select, full rail width minus 2×14px); `CONTENTS` (the heading tree of the current document, indent 10px per level, the current section marked by a 2px `--link` bar on the left edge and `--ink` text, always showing and following the reader's scroll rather than the URL fragment (DR-112)); `INDEXES`; and the counts. No top bar.
+**[decided]** A 267px rail, `--leaf`, hairline right border, holding stacked sections separated by 10px and small-caps 9px muted labels: the corpus label (13px, no label) with the settings control beside it; `VIEW` (the views this corpus has, as 13px rows with a 15px leading icon, the current one on `--link-wash` with `--link` text, and search below them); the page's own panel when it has registered one; `DOCUMENT` (a select, full rail width minus 2×14px); `CONTENTS` (the heading tree of the current document, indent 10px per level, the current section marked by a 2px `--link` bar on the left edge and `--ink` text, always showing and following the reader's scroll rather than the URL fragment (DR-112)); `INDEXES`; and the counts. No top bar.
 
 ### 15.2.2 Retired
 
@@ -73,6 +73,10 @@ Shell B, a top bar with view tabs, was retired (DR-113). The number is kept so t
 
 **[decided]** Header: title and number, id (mono, 9px), state badge (a 14px pill, tinted background, state-coloured text, 9px), tags (muted). A title that carries mathematics is typeset (DR-96). A key with no page of its own — an unlabelled proof, a file container a diagnostic names — is not linked; where the key belongs to a node, the page points at that node instead of reporting an unknown key (DR-94). Body: statement; then each proof as its own block with its own state line, in manifest order, the detailed proof (reached by another master) included and labelled with the master that reaches it; marks rendered inline on `--mark`. Left panel in shell C shows an on-this-page list. Right rail sections in this order: the local graph (15.5.1), in `<master>` (the inclusion breadcrumb, one per master that reaches it), depends on, used by, see also, comments (objection cards on the `--state-incomplete` wash, others on `--sheet`), detached comments, diagnostics.
 
+**[decided]** The node page answers both closure questions without leaving it (DR-160). The local graph is navigable: its nodes are links. Beside it, **what this rests on** stacks the closure in dependency order with the result last, at depth 1 or 2, seeded from the result *and its proofs* — in most quilts a statement's own dependencies are all declared inside its argument. The stack is built only when opened.
+
+**[decided]** A **verbatim toggle** in the box's upper right flips a node between its rendering and its own source, fetched from `source/<key>.tex` when the publisher wrote any, with **copy** and **copy for chat** beside it; the second prefixes the key in the author's tag syntax, so an agent reading it can resolve the key rather than guess. A suggestion's **payload** is shown in red beneath its anchor, placed by its `placement` hint, with the same tools. Preview and copy only: nothing in the viewer applies anything.
+
 ### 15.3.3 Graph
 
 ![Graph, Dots](figures/page-graph-dots.png)
@@ -106,6 +110,24 @@ See 15.5.
 **[decided]** One dialog, mounted once by the layout, that anything linking into a cited work opens: a comment's `loom:` link (10.4.1), or a digest result's page in its locator. The paper is shown in the browser's own PDF renderer in an `iframe` at `/refs/<dir>/paper.pdf#page=N`, under a header with the work's title, its identifier and the page, a link to open the file in a tab, and a close control; it is 90% of the window, `--sheet` on a dimmed backdrop, and closes on a press outside it or Escape (DR-121). A `#quote=` anchor is shown above the paper as "look for …", since finding text needs a text layer the browser's renderer does not expose. When no copy of that artifact is on file, the dialog explains that fetched papers are not in version control and links to the identifier's own service; when a copy of a different version is, it says the pages may not match and offers to open it anyway (DR-123). Safari's handling of `#page=` is not verified; opening the file in a tab is the fallback.
 
 **[decided]** The problems page carries two more things: a heading per **subject** — *The source* and *The record* — shown only when both are present, with a filter beside severity and code; and, under any diagnostic that carries them, its **fixes**, each the command as the publisher wrote it with a button that copies it. The button says `copy`, then `copied`; the command is always on screen, so a browser that refuses the clipboard costs nothing. Nothing in arras runs a command.
+
+### 15.3.6 Reviewing a run
+
+![The split view](figures/page-split-view.png)
+
+**[decided]** A thread of kind `run` is rendered as two panes: the document on the left, the run on the right, scrolling independently. The right pane has two tabs, **Report** and **Journal**, and a run picker when more than one run touched this document. A thread of kind `comments` keeps the list it has always had; one route, two renderings (DR-159).
+
+**[decided]** The panes point at each other, and that is what makes them one page: clicking a finding scrolls the document to the sentence it is about, clicking a mark in the document scrolls the report to the finding that made it. Marks belonging to a run other than the one being read are dimmed rather than removed, because the picker changes what you are reading and not what exists.
+
+**[decided]** Findings whose target is the document rather than a key come first, in a section of their own, before the report's parsed blocks: they are about the thing the left pane is showing as a whole, where every other finding is about one node inside it. A finding written against a text that has since moved says so; the publisher records the hash it was written against and the key's hash now, but not which recorded version the old hash was, so the note names the version the text is at and not the one it was.
+
+**[decided]** The **Report** tab renders the run's notes files as the publisher parsed them (DR-158), one block per bracketed heading, with the mathematics typeset. The **Journal** tab is `thread.md`, which is an agent-to-agent handoff and is shown under its real name. There is no transcript: loom cannot see a chat and does not transcribe one.
+
+**[decided]** A **notation panel** lists the symbols the run declared in its `[notation]` block, with what each was said to mean, and flags a symbol given two meanings inside one run — nothing downstream can tell which one a formula meant. Notation belongs to an agent's prose and never to the quilt's own text, so the panel is on the run and not on any node.
+
+### 15.3.7 Writing, where a publisher is serving
+
+**[decided]** Every editing affordance is detected and not assumed (DR-161): with no write API there is no composer, no accept and reject on a citation suggestion, and no sign that there might have been. Where the API is served, a reader may write a finding from a selection — the quote is editable, because a selection that crosses a formula picks up more than was meant — choose its kind and severity, answer a citation suggestion, and comment on a document as a whole. The publisher is allowed to refuse, and its own words are shown: "quote not found" means something different from "no such key".
 
 ## 15.4 Rails by view
 

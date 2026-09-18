@@ -24,6 +24,8 @@ Accepting a suggestion resolves its annotation as applied with the resulting has
 
 `loom/src/loom/ai/`, `loom/src/loom/cli/`, `loom/src/loom/tex/bundle.py`, `loom-lsp/` and both editor clients, Chapter 16.
 
+**What 0.11 already built and this item must not rebuild** (checked 2026-09-18): a suggestion's payload is shown in red beneath its anchor, placed by its `placement` hint, with copy and copy-for-chat beside it. Everything up to applying is therefore done, and what is missing is exactly the act this item is named for. The write API is served and has five review endpoints; applying is not one of them, because applying edits the author's source and nothing in the write API touches a source file.
+
 ## Related
 
 [[WQ-23]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), whose build order this is; [[WQ-26]] (closed; absorbed into [plan 0.11](../plans/0.11-run-review-view.md)), which builds the surfaces a suggestion is applied from.
