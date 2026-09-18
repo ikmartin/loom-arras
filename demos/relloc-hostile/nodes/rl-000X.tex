@@ -1,0 +1,44 @@
+\begin{lemma}[(Existence of embedding data.)]\label{rl-000X}\label{lem:existence-of-pot-for-fixed-locus-map}
+  Let \(\mathcal X\) be an algebraic stack finite type over \(k\) with a \(T\)-action and suppose that \(\mathcal X^T\) is algebraic. Let \(\mathcal Z\subseteq \mathcal X^T\) be an open and closed substack which is finite type over \(k\) and has the resolution property (every coherent sheaf on \(\mathcal Z\) is a quotient of finite-rank locally free sheaves). Then there exists a \(T\)-equivariant perfect obstruction theory
+  \begin{align*}
+    \phi:E^\bullet = [E^{-1} \to E^0] \to \tau = \tau_{\geq -1} L_\eta|_{\mathcal Z}
+  \end{align*}
+  with \(E^{-1}\), \(E^0\) finite-rank moving \(T\)-equivariant locally free sheaves on \(\mathcal Z\). Consequently
+  \begin{align*}
+    \mathfrak E := h^1/h^0\big((E^\bullet)^\vee\big) = [E^1/E^0]
+  \end{align*}
+  is a vector bundle stack over \(\mathcal Z\), globally presented by finite-rank moving locally free sheaves, and there is a \(T\)-equivariant closed embedding of cone stacks
+  \begin{align*}
+    j:\mathfrak C_{\mathcal Z/\mathcal X} \hookrightarrow \mathfrak E.
+  \end{align*}
+  In particular, if every connected component of \(\mathcal X^T\) is finite type over \(k\) and has the resolution property, then the conclusion holds over all of \(\mathcal X^T\) componentwise. 
+\end{lemma}
+\begin{proof} 
+  Since \(\eta\) is representable by algebraic spaces it is DM-type (\ref{lem:torus-actions-are-nice}), so the intrinsic normal sheaf and cone \(\mathfrak C_{\mathcal Z/\mathcal X}\subseteq \mathfrak N_{\mathcal Z/\mathcal X}\) are defined and the cone is a subcone of the sheaf \cite[Prop. 2.33]{manolache_VirtualPullbacks2012}. Moreover \(h^1(L_\eta) = 0\) (by \cite[Remark 2.3]{manolache_VirtualPullbacks2012} or \cite[Proposition 2.24]{aranha-pstragowski_IntrinsicNormalCone2024} or \cite[Prop. 2.24]{aranha-pstragowski_IntrinsicNormalCone2024}) so \(\tau\) has cohomology only in degrees \(-1\) and \(0\), and
+  \begin{align*}
+    \mathfrak N_{\mathcal Z/\mathcal X} = h^1/h^0(\tau^\vee).
+  \end{align*}
+
+  \bigskip
+  
+  \noindent\emph{Step 1: coherent representative for \(\tau\).}~We now argue that \(\tau\) is quasi-isomorphic to a moving complex \([A^{-1}\to A^0]\) with \(A^{-1}\) and \(A^0\) coherent. A quasi-coherent \(T\)-equivariant sheaf on \(\mathcal Z\) is the same as a quasi-coherent sheaf on \(\mathcal Z\times BT\), so all sheaves in this step are taken to live on the Noetherian algebraic stack \(\mathcal Z\times BT\).
+  
+  Note first that \(h^{-1}\) and \(h^0\) are coherent. Indeed, coherence can be checked locally, and since Olsson's cotangent complex is compatible with restriction along smooth charts, we can reduce this claim to a morphism of algebraic spaces locally of finite type over \(BT\). Here, \(\tau_{\geq -1}L\) is computed by the naive cotangent complex \cite[08RB]{stacks-project}, whose \(h^0\) and \(h^{-1}\) are coherent \cite[0D0U]{stacks-project}.
+
+  Next, because \(\mathcal Z\times BT\) is Noetherian and \(\tau\) is bounded with quasi-coherent cohomology, be can find a representative \(B^\bullet = [B^{-1}\xrightarrow{d} B^0]\) for \(\tau\). Choose \(A^0 \subseteq B^0\) to be a coherent subsheaf surjecting onto \(h^0(\tau)\) under \(B^0\to h^0(\tau)\), this must exist by the coherence of \(h^0(\tau)\). The submodule \(d^{-1}(A^0)\subseteq B^{-1}\) is only quasi-coherent a priori, but the restriction of \(d\) to \(d^{-1}(A^0)\) gives us the exact sequence
+  \begin{align*}
+    0 \to \ker(d) \to d^{-1}(A^0) \to \img(d)\cap A^0 \to 0,
+  \end{align*}
+  and since the left and right terms are coherent by the coherence of \(h^0\) and \(h^{-1}\), the middle term is as well. Thus \(A^{-1}:= d^{-1}(A^0)\) is coherent and the inclusion \([A^{-1}\to A^0]\hookrightarrow [B^{-1}\to B^0]\) is a quasi-isomorphism. By Lemma~\ref{lem:two-term-truncation-of-fixed-locus-cotangent-complex-no-fixed-part}, \(L_{\mathcal Z/\mathcal X}\) is entirely moving, and hence we can choose \(A^\bullet\) to have no fixed part.
+
+  \bigskip
+  
+  \noindent\emph{Step 2: resolve.}~We now resolve \(A^\bullet\) with finite-rank locally free sheaves, and because we assumed the resolution property on \(\mathcal Z\), we once again take our sheaves to live on \(\mathcal Z\) rather than on \(\mathcal Z\times BT\). To ensure the resolution of \(A^\bullet\) is also moving, do this weight by weight: if \(F\) is any coherent moving sheaf on \(\mathcal Z\), then it can be decomposed as \(F = F_{\chi_1}\oplus \cdots \oplus F_{\chi_i}\) for finitely many non-zero weights \(\chi_i\). Then let \(W_i\twoheadrightarrow F_{\chi_i}\) be a resolution of \(F_{\chi_i}\), and let \(T\) act on \(W_i\) with pure weight \(\chi_i\). Then \(\bigoplus_i W_i\to F\) is equivariant, finite-rank and moving.
+
+  We can therefore choose a moving finite-rank locally free surjection \(q_0:E^0\twoheadrightarrow A^0\). Then take
+  \begin{align*}
+    P := E^0\times_{A^0}A^{-1} = \{(e,a)~\mid~q_0(e) = d(a)\} \subseteq E^0\oplus A^{-1},
+  \end{align*}
+  which is also moving and coherent, and choose \(q_{-1}:E^{-1}\twoheadrightarrow P\) to be another moving-finite rank locally free surjection. This gives us a complex \(E^\bullet = [E^{-1}\xrightarrow{d_E} E^0]\) and a map \(\phi:E^\bullet \to A^\bullet\) so that \(h^0(\phi)\) is an isomorphism and \(h^{-1}(\phi)\) is a surjection, hence a $T$-equivariant moving perfect obstruction theory for \(\eta\). By Remark~\ref{rmk:embedding-data-is-POT}, this is the same as moving \(T\)-equivariant embedding data for \(\eta\).
+
+\end{proof}

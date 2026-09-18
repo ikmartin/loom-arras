@@ -1,0 +1,24 @@
+\subsection{Fixed stacks for torus actions}\label{rl-000C}
+\input{nodes/rl-000D}
+\input{nodes/rl-000E}
+Furthermore, the hypothesis that \(\mathcal X\) have affine diagonal cannot simply be dropped. Example \ref{example:affine-diagonal-is-necessary} is a reconstruction of an example mentioned by Romagny following~\cite[Theorem 1.2.2]{romagny_AlgebraicitySmoothnessFixed2022} found in \cite[Exp. IX, Rem. 7.4]{SGA3-2},~ illustrating that \(\mathcal X^T\) may indeed fail to be algebraic when \(\mathcal X\) does not have affine diagonal. We do not know what minimal hypotheses are necessary, but affine stabilizers are sufficient by \cite[Theorem A.20]{aranha-khan-latyntsev-etal_VirtualLocalizationRevisited2025}.
+\input{nodes/rl-000F}
+\red{This is the proof nearly verbatim from Tom's original notes. NOT COMPLETED (obviously)}
+\begin{proof}
+  Let \(L = \tau_{\geq -1}L_{\mathcal X^T/\mathcal X}\). First we show the vanishing \(h^0(L^f) = \Omega^f_{\mathcal X^T/\mathcal X}\), for which it suffices to check geometric points. Given \(p\in \mathcal X(k')\), the fiber of \(\mathcal X^T\) over \(p\) is the space of splittings of 
+\end{proof}
+\red{The following ``proof'' is something I hacked together with Claude after looking at \cite[Corollary A.31]{aranha-khan-latyntsev-etal_VirtualLocalizationRevisited2025}. It's not vetted -- it's an alternate idea which needs verification. Abandoning is also viable.}
+\begin{proof}
+  This may be proven directly using a Picard-stack argument, but instead we appeal to \cite[Cor. A.31]{aranha-khan-latyntsev-etal_VirtualLocalizationRevisited2025}, translating their derived stack results to classical Artin stacks.
+  Let \(\varepsilon:\mathcal X^{hT}\to \mathcal X\) be the derived homotopy fixed stack \cite[Def. A.14, Rem A.15]{aranha-khan-latyntsev-etal_VirtualLocalizationRevisited2025} which is \(T\)-equivariant for the trivial action on the source. For a classical \(S\)-scheme \(U\), one has
+  \begin{align*}
+    \operatorname{Maps}_S(U,\mathcal X^{hT}) = \operatorname{Maps}_S^T(U, \mathcal X) = \Hom_{T-\St}(\iota(U), \mathcal X) = \mathcal X^T(U),
+  \end{align*}
+  so the classical truncation of \(\mathcal X^{hT}\) is \(\mathcal X^T\) and \(\eta = \varepsilon \circ \iota\) with \(\iota:\mathcal X^T\to \mathcal X^{hT}\) the classical truncation morphism. By \cite[Rem. A.19]{aranha-khan-latyntsev-etal_VirtualLocalizationRevisited2025} \(BT\) is formally proper over \(S\) and hence we may apply \cite[Cor. A.31]{aranha-khan-latyntsev-etal_VirtualLocalizationRevisited2025} to obtain \(L_{\mathcal X^{hT}/\mathcal X}\simeq (\varepsilon^*L_{\mathcal X})^{mov}[1]\), whose fixed part vanishes. Decomposition of \(D_{qc}(-\times BT)\) into weight-spaces is functorial for base change, so pullback along \(i\) commutes with the fixed/moving decomposition and thus \((i^*L_{\mathcal X^{hT}/\mathcal X})^{f} = 0\). The transitivity triangle for \(\mathcal X^T\xrightarrow{i}\mathcal X^{hT}\xrightarrow{\varepsilon}\mathcal X\) is
+  \begin{align*}
+    i^*L_{\mathcal X^{hT}/\mathcal X} \to L_\eta \to L_{\mathcal X^T/\mathcal X^{hT}} \xrightarrow{+1},
+  \end{align*}
+  which is a triangle in \(D_{qc}(\mathcal X^{T}\times_SBT)\). Since \(i\) is the inclusion of the classical truncation, \(L_{\mathcal X^T/\mathcal X^{hT}}\) is 2-connective, meaning \(h^j(\mathcal X^T/\mathcal X^{hT}) = 0\) for \(j \geq -1\). The long exact sequence in cohomology therefore gives \(h^0(i^*L_{\mathcal X^{hT}/\mathcal X}) \simeq h^0(L_\eta)\) and a surjection \(h^{-1}(L_{\mathcal X^{hT}/\mathcal X}) \twoheadrightarrow h^0(L_\eta)\). Taking fixed parts yields the claim.
+\end{proof}
+We end this section describing how, given an obstruction theory for \(\pi:M\to \mathcal X\), we obtain a canonical obstruction theory for \(M^T\to \mathcal X^T\).
+\input{nodes/rl-000G}

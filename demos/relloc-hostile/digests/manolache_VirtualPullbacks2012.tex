@@ -1,0 +1,707 @@
+% !LOOM digest: manolache_VirtualPullbacks2012
+% !LOOM prefix: manolacheVirtualPullbacks2012
+% !LOOM extracted-from: doi:10.1090/S1056-3911-2011-00606-1
+% !LOOM method: extract
+% !LOOM created: 2026-09-18
+% !LOOM requires: latexsym, mathrsfs, xy
+
+\section*{Overview}
+Given a regular embedding of schemes $i:X\to Y$ one can construct a ``well-behaved'' morphism  (i.e. a bivariant class) $i^!:A_*(Y)\to A_*(X)$ by applying the Fulton-MacPherson construction (see \cite{f}, Chapter 6). The construction of this morphism can be generalized to the following setting. If $i:X\to Y$ is a closed embedding of schemes and $C_{X/Y}\subset E$ is a closed embedding of the normal cone of $i$ into a rank-$r$ vector bundle, then these data determine a ``well-behaved'' morphism $i^!:A_*(Y)\to A_{(*-r)}(X)$ (see Example 17.6.4 in \cite{f}).
+\\The main result of this paper generalizes Fulton's example to stacks and to a larger class of morphisms. These generalizations allow us to view virtual classes (see \cite{lt}, \cite{bf}) as generalized pull-backs. This approach will allow us to deduce certain relations between Gromov-Witten invariants, which were the initial reasons for doing this work.
+\\It should be said that the idea is not entirely new, although we did not find this approach in the literature. The main inspiration point was the ``functoriality property of the Behrend-Fantechi class'' of Kim, Kresch and Pantev in \cite{K:01}. Also, a similar situation appears in Jun Li's $[M,N]^{\mathrm{virt}}$-construction (see \cite{Li:01}).
+\\When this paper was in an advanced state, we have been informed of Hsin-Hong Lai's paper on ``Gromov-Witten invariants of blow-ups along manifolds with convex normal bundle'' (\cite{h}). The ideas there are basically the same, with a slightly different flavor. We hope, however, that our point of view will contribute to a clear understanding of this subject.
+\\
+\\In the first section we recall the notions of normal cones of Behrend-Fantechi and Kresch and prove that these two notions are canonically isomorphic. This allows us to use Kresch's ``deformation to the normal cone'' in the context of ``intrinsic normal cones''.
+\\The main idea of the second section is to replace the normal sheaf $N_{F/G}$ of a morphism of stacks $f:F\to G$ with a ``virtual normal bundle''. The appropriate context for this is given by obstruction theories. Precisely, if $f$ is a DM-type morphism of Artin stacks (see Definition \ref{manolacheVirtualPullbacks2012-def-2.1}) which admits a perfect relative obstruction theory $E_{F/G}^{\bullet}$ (see \cite{bf}), then we take the virtual normal bundle to be $h^1/h^0((E_{F/G}^{\vee})^{\bullet})$. Using this, we obtain a well-defined morphism $f^!:A_*(G)\to A_*(F)$, that we call a virtual pull-back. As a byproduct of our construction we obtain a generalized notion of virtual fundamental class which applies to some examples of Artin stacks.
+\\In Section 3 we show that the virtual pull-back satisfies the usual compatibility conditions. Moreover, when we deal with stacks possessing virtual classes we prove that subject to a very natural compatibility relation between obstructions (see Definition \ref{manolacheVirtualPullbacks2012-def-4.5}) the construction gives a map that sends the virtual class of $G$ to the virtual class of $F$. The statement may also be seen as a generalization of the functoriality property in \cite{bf} and \cite{K:01}.
+\\As an application we provide the answer to a very natural question. Given a smooth projective variety $X$ and its blow-up $p:\tilde{X}\to X$ along some smooth projective subvariety, we would like to know when do certain Gromov-Witten invariants of $X$ and $\tilde{X}$ agree. More precisely, if we start with a given homology class $\beta\in A_1(X)$ and a collection of cohomology classes $\gamma_i\in A^*(X)$, then we can associate a ``lifted'' homology class in $A_1(\tilde{X})$ (see Definition \ref{manolacheVirtualPullbacks2012-def-5.10} for a precise statement) and cohomology classes $p^*\gamma_i\in A^*(\tilde{X})$. One could expect that the Gromov-Witten invariants associated to these data should be equal. This was first analyzed by Gathmann (\cite{G:01}) where $X$ was a convex space and $Y$ a point and by Hu (\cite{H:00}, \cite{H:02}) where it was treated the blow-up along points, curves and surfaces. Recently, it was shown and by Lai (\cite{h}) that (subject to a minor condition) the expectation is true  for genus zero Gromov-Witten invariants of blow-ups along subvarieties with convex normal bundles. Our idea is to show the equality of rational Gromov-Witten invariants for $X$ convex and then ``pull the relation back'' to an arbitrary $X$ (see Proposition \ref{manolacheVirtualPullbacks2012-prop-5.14}). The statement we get should be compared with Theorem 1.6 in \cite{h}.
+\\The second application concerns rational Gromov-Witten invariants of projective bundles $p_X:\mathbb{P}_X(V)\to X$. These were studied by Ruan and Qin (\cite{ru}) where $X$ was taken to be a projective space and by Elezi (\cite{e1}, \cite{e2}) when $V$ is a split bundle and $X$ is a toric variety. Here, we analyze the map induced by $p_X$ between the corresponding moduli spaces of stable maps to $\mathbb{P}_X(V)$ and $X$.
+\\We also show that a particular case of Costello's push-forward formula follows as an easy consequence of our formalism.
+\paragraph{Notation and conventions.}
+We work over a fixed ground field.
+\\An Artin stack is an algebraic stack in the sense of \cite{lau} of finite type over the ground field. For simplicity we will call Deligne --Mumford stacks DM stacks.
+\\Unless otherwise specified we will try to respect the following convention: we will usually denote schemes by $X,\ Y,\ Z$, etc, Artin stacks by $F,\ G,\ H$, etc. and Artin stacks for which we know that they are not Deligne-Mumford stacks (such as the moduli space of genus-$g$ curves or vector bundle stacks) by gothic letters $\mathfrak{M}_{g},\ \mathfrak{E},\ \mathfrak{F}$, etc.
+\\By a commutative diagram of stacks we mean a 2-commutative diagram of stacks and by a cartesian diagram of stacks we mean a 2-cartesian diagram of stacks.
+\\Chow groups for schemes are defined in the sense of \cite{f}; this definition has been extended to DM stacks (with $\mathbb{Q}$-coefficients) by Vistoli (\cite{v}) and to algebraic stacks (with $\mathbb{Z}$-coefficients) by Kresch (\cite{k}). We will consider Chow groups (of schemes/stacks) with $\mathbb{Q}$-coefficients.
+\\For a fixed stack $F$ we denote by $\mathcal{D}_F$ the derived category of quasicoherent $\mathcal{O}_F$ modules. Unless otherwise specified, we will denote the derived functors ${\bf{L}}f^*$, ${\bf{R}}f_*$, ${\bf{R}}Hom$, etc. by $f^*$, $f_*$, $Hom$, etc.
+\\For a fixed stack $F$ we denote by $L_F$ its cotangent complex defined in \cite{ol}.
+
+\paragraph{Acknowledgments.} I would like to thank Dan Abramovich, Claudio Fontanari, Lothar G\"{o}ttsche, Andrew Kresch, Hsin-Hong Lai and Ravi Vakil for useful discussions.
+\\I am grateful to my advisors Ionu\c{t} Ciocan-Fontanine and Barbara Fantechi for helpful discussions and suggestions. Special thanks are due to Ionu\c{t} for many helpful conversations and hospitality during a one month stay at the University of Minnesota. I am mostly grateful to Barbara and the anonymous referee for their huge amount of suggestions which led to a major improvement of the exposure.
+\\I learned a lot during the Moduli Spaces program at the Mittag-Leffler Institute and at the University of Minnesota. It is a pleasure to thank both institutions for the wonderful research environment and support.
+\\I was partially supported by an ENIGMA grant.
+
+\begin{theorem}[{\cite[Standing assumptions]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-setup}
+\incomplete{Standing assumptions not extracted; see the paper.}
+\end{theorem}
+
+\section{Preliminaries}\label{manolacheVirtualPullbacks2012-sec-2}
+
+\subsection{Intrinsic normal cones to DM-type morphisms}\label{manolacheVirtualPullbacks2012-sec-2.1}
+
+\begin{definition}[{\cite[Definition 2.1, p.~4]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.1}
+\label{manolacheVirtualPullbacks2012-dm}
+ A morphism $f:F\to G$ of Artin stacks is called of Deligne-Mumford type (or shortly of DM-type) if for any morphism $V\to G$, with $V$ a scheme, $F\times_GV$ is a Deligne-Mumford stack.
+\end{definition}
+
+\begin{remark}[{\cite[Remark 2.2]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.2}
+Let us consider the following Cartesian diagram
+\begin{equation}
+ \xymatrix {F^{\prime} \ar[r]^{f^{\prime}}\ar[d] & G^{\prime}\ar[d]\\
+             F\ar[r]^f& G.}
+\end{equation}
+If $f$ is a DM-type morphism, then $f^{\prime}$ is a DM-type morphism.
+\end{remark}
+
+\begin{remark}[{\cite[Remark 2.3]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.3}
+Let $f:F\to G$ be morphism of stacks and let $L_f$ be the relative cotangent complex. Then $f$ is of DM-type if and only if $L_f\in \mathcal{D}^{\leq0}_F$
+\end{remark}
+
+\begin{definition}[{\cite[Definition 2.4]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.4}
+Let $E^{\bullet}\in\mathcal{D}^{\leq0}_F$. $E^{\bullet}$ is said to be of perfect amplitude if there exists $n\geq0$ such that $E^{\bullet}$ is locally isomorphic to $[E^{-n}\to...\to E^{0}]$, where $\forall i\in\{-n,...,0\}$, $E^i$ is a locally free sheaf.
+\end{definition}
+
+\begin{definition}[{\cite[Definition 2.5]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.5}
+Let $E^{\bullet}\in\mathcal{D}^{\leq0}_X$. Then a homomorphism $\Phi: E^{\bullet}\to L^{\bullet}$ in $\mathcal{D}_F$ is called an obstruction theory if $h^0(\Phi)$ is an isomorphism and $h^{-1}(\Phi)$ is surjective. If moreover, $E^{\bullet}$ is of perfect amplitude, then $E^{\bullet}$ is called a perfect obstruction theory.
+\end{definition}
+
+\begin{convention}[{\cite[Convention 2.6]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-convention-2.6}
+Unless otherwise stated by a perfect obstruction theory we will always mean of perfect amplitude  contained in $[-1,0]$.
+\end{convention}
+
+\begin{definition}[{\cite[Definition 2.7]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.7}
+Let $X$ be a scheme and $\mathcal{F}$ be a coherent sheaf on $X$. We call $C(\mathcal{F}):=Spec Sym(\mathcal{F})$ an abelian cone over $X$.
+\end{definition}
+
+\begin{definition}[{\cite[Definition 2.8]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.8}
+ An $\mathbb{A}^1$-invariant subscheme of $C(\mathcal{F})$ that contains the zero section is called a cone over $X$.
+\end{definition}
+
+\begin{definition}[{\cite[Definition 2.9]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.9}
+Let $F$ be a stack and let $E^{\bullet}:=[E^0\to E^1]$ be an element in $\mathcal{D}_F$ such that $E^{i}$ is an abelian sheaf for $i=0,1$ and $h^i({E^{\bullet}})$ is coherent for $i=0,1$. We call the stack quotient $[E^1/E^0]$ (in the sense of \cite{bf} Section 2) an abelian cone stack over stack $F$ .
+\\A cone stack is a closed substack of an abelian cone stack invariant under the action of $\mathbb{A}^1$ and containing the zero section.
+\end{definition}
+
+\begin{convention}[{\cite[Convention 2.10, p.~6]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-convention-2.10}
+\label{manolacheVirtualPullbacks2012-stack}From now on, unless otherwise stated, by cones we will mean cone-stacks.
+\end{convention}
+
+\begin{example}[{\cite[Example 2.11]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-2.11}
+(i) Let $i:X\to Y$ be a closed embedding of schemes. If $\mathcal{I}$ denotes the ideal sheaf of $X$ in $Y$, then $N_{X/Y}=Spec Sym\ \mathcal{I}/\mathcal{I}^2$ is called the normal sheaf of $X$ in $Y$ and $C_{X/Y}:=Spec\oplus_{k\geq 0} \mathcal{I}^k/\mathcal{I}^{k+1}\hookrightarrow N_{X/Y}$ is called the normal cone of $X$ in $Y$.
+\\(ii) If $f:F\to G$ is a local immersion of DM-stacks, then Vistoli defines (see \cite{v}, Definition 1.20) the normal cone to $f$ as described below. Let us consider a commutative diagram
+\begin{equation}\label{manolacheVirtualPullbacks2012-vi}
+ \xymatrix {U \ar[r]^{\tilde{f}}\ar[d] & V\ar[d]\\
+             F\ar[r]^f& G}
+\end{equation}
+with $U$, $V$ schemes, the upper horizontal arrow a closed immersion and the vertical arrows \'{e}tale. Then $C_{F/G}$ is the cone obtained by descent from $C_{U/V}$.
+\\Note that $C_{F/G}\hookrightarrow N_{F/G}=SpecSym\ h^{-1}(L_{F/G})$.
+\end{example}
+
+\begin{definition}[{\cite[Definition 2.12, p.~6]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.12}
+\label{manolacheVirtualPullbacks2012-normsheaf}
+ Let $f:F\to G$ be a DM-type morphism and let $L_{F/G}\in$ ob $\mathcal{D}(\mathcal{O}_{F})$ be the cotangent complex. Then we denote the stack $$h^1/h^0(L_{F/G}^{\vee}):=h^1/h^0(\tau_{[0,1]}(L_{F/G}^{\vee}))$$ (see \cite{bf}) by $\mathfrak{N}_{F/G}$ and we call it the \emph{intrinsic normal sheaf}.
+\end{definition}
+
+\begin{proposition}[{\cite[Proposition 2.13]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-2.13}
+(Behrend-Fantechi) Let us consider diagram (\ref{manolacheVirtualPullbacks2012-vi}) with $F$ a Deligne-Mumford stack, the upper horizontal arrow a closed immersion, $U\to F$ an \'{e}tale morphism and $V\to G$ a smooth morphism. Then for any $U$ and $V$ as above, there exists a unique cone-stack $\mathfrak{C}_{F/G}\subset\mathfrak{N}_{F/G}$ such that $\mathfrak{C}_{F/G}\times_FU=[C_{U/V}/\tilde{f}^*T_{V/G}]$.
+\end{proposition}
+
+\begin{definition}[{\cite[Definition 2.14, p.~6]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.14}
+\label{manolacheVirtualPullbacks2012-befa}We call $\mathfrak{C}_{F/G}$ the \emph{intrinsic normal cone to $f$}.
+\end{definition}
+
+\begin{remark}[{\cite[Remark 2.15]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.15}
+ The notion of intrinsic normal cone to a morphism $F\to G$ from a Deligne-Mumford stack to an Artin stack has been introduced in \cite{bf} under the hypothesis $G$ is smooth. However, this hypothesis is not used in the construction of the cone. This restriction is only needed in \cite{bf} in order to define a virtual class (see \ref{manolacheVirtualPullbacks2012-cor-3.12} in the next section).
+\end{remark}
+
+\begin{lemma}[{\cite[Lemma 2.16, p.~7]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-lem-2.16}
+\label{manolacheVirtualPullbacks2012-seqcones}
+ Let \begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]^{f^{\prime}}\ar[d]_{p} & G^{\prime}\ar[d]^q\\
+             F\ar[r]^f & G}
+\end{equation*}
+be a commutative diagram of Artin stacks with $f$ and $f^{\prime}$ of DM-type. Then, the natural morphism $p^*L_{F/G}\to L_{F^{\prime}/G^{\prime}}$ in \cite{ol} induces morphism of abelian cone stacks $$\beta:\mathfrak{N}_{F^{\prime}/G^{\prime}}\rightarrow p^*\mathfrak{N}_{F/G}.$$
+\end{lemma}
+
+\begin{remark}[{\cite[Remark 2.17, p.~7]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.17}
+\label{manolacheVirtualPullbacks2012-etale} In notations as in \ref{manolacheVirtualPullbacks2012-lem-2.16} let $p:F^{\prime}\to F$ be an \'etale morphism, $G^{\prime}=G$ and $q$ the identity morphism. Then, $\beta:\mathfrak{N}_{F^{\prime}/G}\rightarrow p^*\mathfrak{N}_{F/G}$ is an isomorphism. To see this let us consider the distinguished triangle $$p^*L_{F/G}\to L_{F^{\prime}/F}\to L_{F^{\prime}/G}\to p^*L_{F/G}[1].$$ The claim follows from the fact that $L_{F^{\prime}/F}=0$.
+\end{remark}
+
+\begin{proposition}[{\cite[Proposition 2.18, p.~7]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-2.18}
+\uses{manolacheVirtualPullbacks2012-lem-2.16}
+\label{manolacheVirtualPullbacks2012-dmincl}
+ Let \begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]^{f^{\prime}}\ar[d]_{p} & G^{\prime}\ar[d]^q\\
+             F\ar[r]^f & G}
+\end{equation*}
+be a commutative diagram with $F$, $F^{\prime}$ DM-stacks stacks. Then, the morphism of Lemma \ref{manolacheVirtualPullbacks2012-lem-2.16} induces a morphism of cone stacks $\alpha:\mathfrak{C}_{F^{\prime}/G^{\prime}}\rightarrow p^*\mathfrak{C}_{F/G}$. If the diagram is cartesian, then $\alpha$ is a closed immersion. If moreover, $q$ is flat, then $\alpha$ is an isomorphism.
+\end{proposition}
+
+\begin{remark}[{\cite[Remark 2.19, p.~9]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.19}
+\label{manolacheVirtualPullbacks2012-injsurj}
+Let us consider diagram 5. By  \cite{bf} a morphism of cones $C_{U^{\prime}/V^{\prime}}\to s^*C_{U/V}$ is a closed immersion if and only if the induced morphism $N_{U^{\prime}/V^{\prime}}\to s^*N_{U/V}$ is a closed immersion. This shows that $\mathfrak{C}_{U^{\prime}/G^{\prime}}\rightarrow p^*\mathfrak{C}_{U/G}$ is a closed immersion if and only if $\mathfrak{N}_{U^{\prime}/G^{\prime}}\rightarrow p^*\mathfrak{N}_{U/G}$ is a closed immersion. As being a closed immersion can be checked (\'etale) locally we see that $\mathfrak{C}_{F^{\prime}/G^{\prime}}\rightarrow p^*\mathfrak{C}_{F/G}$ is a closed immersion if and only if $\mathfrak{N}_{F^{\prime}/G^{\prime}}\rightarrow p^*\mathfrak{N}_{F/G}$ is a closed immersion.
+\end{remark}
+
+\begin{construct}[{\cite[Construction 2.20, p.~9]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-constr-2.20}
+\label{manolacheVirtualPullbacks2012-locart} Let us consider the following commutative diagram
+\begin{equation}\label{manolacheVirtualPullbacks2012-artincones}
+ \xymatrix {U\ar[d]_r\ar[rd]\\
+             F\ar[r]^f& G}
+\end{equation}
+with $f$ a DM-type morphism, $U$ a scheme and $r$ a smooth morphism. By Lemma \ref{manolacheVirtualPullbacks2012-lem-2.16} we have a morphism
+\begin{equation}
+\gamma:\mathfrak{N}_{U/G}\to r^*\mathfrak{N}_{F/G}.
+\end{equation}
+Let us consider the restriction $\tilde{\gamma}:\mathfrak{C}_{U/G}\to r^*\mathfrak{N}_{F/G}$. We denote the image of $\tilde{\gamma}$ by $\mathfrak{C}_{F/G}|_U$ and we call it the local normal cone on $U$ of $F$ to $G$ .
+\end{construct}
+
+\begin{lemma}[{\cite[Lemma 2.21]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-lem-2.21}
+ Let us consider the following commutative diagram
+\begin{equation*}
+ \xymatrix {U^{\prime}\ar[d]_{r^{\prime}}\ar[rdd]\\U\ar[d]_r\ar[rd]\\
+             F\ar[r]^f& G}
+\end{equation*}
+with $r$ and $r^{\prime}$ smooth morphisms. Then $\mathfrak{C}_{F/G}|_U\times_UU^{\prime}$ is naturally isomorphic to $\mathfrak{C}_{F/G}|_{U^{\prime}}$.
+\end{lemma}
+
+\begin{definition}[{\cite[Definition 2.22, p.~10]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.22}
+\label{manolacheVirtualPullbacks2012-coneartinstack}
+The cone $C_{F/G}$ is called the intrinsic normal cone of $f$, or when there is no risk of confusion the intrinsic normal cone of $F$ to $G$.
+\end{definition}
+
+\begin{remark}[{\cite[Remark 2.23]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.23}
+Let us consider diagram (\ref{manolacheVirtualPullbacks2012-artincones}) with $F$ a DM-stack and $r:U\to F$ an \'etale morphism.  By restricting the natural isomorphism $\mathfrak{N}_{U/G}\to r^*\mathfrak{N}_{F/G}$ to $\mathfrak{C}_{U/G}$ (see Remark \ref{manolacheVirtualPullbacks2012-rem-2.17}) we obtain an isomorphism of cones $\mathfrak{C}_{U/G}\to r^*\mathfrak{C}_{F/G}$. This shows that when $F$ is a DM-stack $C_f$ of Definition \ref{manolacheVirtualPullbacks2012-def-2.22} is canonically isomorphic to $C_f$ of Definition \ref{manolacheVirtualPullbacks2012-def-2.14}.
+\end{remark}
+
+\begin{remark}[{\cite[Remark 2.24]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.24}
+ Let us consider diagram (\ref{manolacheVirtualPullbacks2012-artincones}), with $r$ a smooth morphism. By Proposition \ref{manolacheVirtualPullbacks2012-prop-2.18} and Remark \ref{manolacheVirtualPullbacks2012-rem-2.19} we obtain a closed embedding $\mathfrak{C}_{U/F}\to\mathfrak{C}_{U/G}$. This shows that the sequence $0\to\mathfrak{N}_{U/F}\to\mathfrak{N}_{U/G}\to\mathfrak{N}_{F/G}|_U\to 0$ induces the exact sequence of cones (in the sense of Definition 1.12 in \cite{bf})
+\begin{equation}\label{manolacheVirtualPullbacks2012-artco}
+0\to\mathfrak{N}_{U/F}\to\mathfrak{C}_{U/G}\to\mathfrak{C}_{F/G}|_U\to 0.
+\end{equation}
+\end{remark}
+
+\begin{remark}[{\cite[Remark 2.25]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.25}
+ Alternatively to Construction \ref{manolacheVirtualPullbacks2012-constr-2.20} one can define $\mathfrak{C}_{F/G}|_U$ by the sequence \ref{manolacheVirtualPullbacks2012-artco}.
+\end{remark}
+
+\begin{proposition}[{\cite[Proposition 2.26, p.~11]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-2.26}
+\uses{manolacheVirtualPullbacks2012-prop-2.18}
+\label{manolacheVirtualPullbacks2012-pullbackofcones}
+ Let \begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]^{f^{\prime}}\ar[d]_{p} & G^{\prime}\ar[d]^q\\
+             F\ar[r]^f & G}
+\end{equation*}
+be a commutative diagram of Artin stacks with $f$ of DM-type. Then, there is an induced morphism of cone stacks $\alpha:\mathfrak{C}_{F^{\prime}/G^{\prime}}\rightarrow p^*\mathfrak{C}_{F/G}$. If moreover, the diagram is cartesian, then $\alpha$ is a closed immersion. If $q$ is flat, then $\alpha$ is an isomorphism.
+\end{proposition}
+
+\subsection{Normal cones to DM-type morphisms}\label{manolacheVirtualPullbacks2012-sec-2.2}
+
+\begin{lemma}[{\cite[Lemma 2.27, p.~12]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-lem-2.27}
+\label{manolacheVirtualPullbacks2012-reducetoincl}Let $f:F\to G$ be a DM-type morphism of Artin stacks. Then one can construct a commutative diagram (not unique)
+\begin{equation}
+ \xymatrix {U \ar[r]^{\tilde{f}}\ar[d]& V\ar[d]\\
+             F\ar[r]^f& G}
+\end{equation}
+where $U$ and $V$ are schemes, the vertical arrows are smooth surjective and the top arrow $U\to V$ is  a closed immersion.
+\end{lemma}
+
+\begin{lemma}[{\cite[Lemma 2.28]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-lem-2.28}
+\uses{manolacheVirtualPullbacks2012-prop-2.26}
+Let $R:=U\times_{F}U$ and $S:=V\times_{G}V$, where $U$ and $V$ are defined in the proof of the previous Lemma. Then the natural map $R\to S$ is a locally closed immersion.
+\end{lemma}
+
+\begin{proposition}[{\cite[Proposition 2.29]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-2.29}
+ (Kresch) Let us consider the cone $C_{R/S}$. There are natural morphisms making $C_{R/S}\rightrightarrows C_{U/V}$ into a smooth groupoid in the category of schemes.
+\end{proposition}
+
+\begin{definition}[{\cite[Definition 2.30, p.~13]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-2.30}
+\label{manolacheVirtualPullbacks2012-kresch}
+ Let $C_{F/G}$ be the stack associated to the groupoid $[C_{R/S}\rightrightarrows C_{U/V}]$ and $N_{F/G}$ the stack associated to the groupoid $[N_{R/S}\rightrightarrows N_{U/V}]$. We call $C_{F/G}$ the normal cone of $f$ and $N_{F/G}$ the normal sheaf of $f$.
+\end{definition}
+
+\begin{theorem}[{\cite[Theorem 2.31, p.~13]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-thm-2.31}
+\uses{manolacheVirtualPullbacks2012-lem-2.27}
+\label{manolacheVirtualPullbacks2012-family} (Kresch)
+ Let $f:F\to G$ be a DM-type morphism of Artin stacks. One can define a deformation space, i.e. a flat morphism $M^{\circ}_FG\to\mathbb{P}^1$ with general fibre $G$ and special fibre the normal cone $C_{F/G}$. Moreover, for any cartesian diagram
+\begin{equation*}
+\xymatrix{F^{\prime}\ar[r]^{f^{\prime}}\ar[d]&G^{\prime}\ar[d]\\
+F\ar[r]^f&G}
+\end{equation*}
+there exists an induced morphism $M^{\circ}_{F^{\prime}}G^{\prime}\to M^{\circ}_FG$ that fits into a cartesian diagram
+\begin{equation*}
+\xymatrix{C_{F^{\prime}/G^{\prime}}\ar[r]\ar[d]&M^{\circ}_{F^{\prime}}G^{\prime}\ar[d]\\
+C_{F/G}\ar[r]&M^{\circ}_FG}
+\end{equation*}
+\end{theorem}
+
+\begin{remark}[{\cite[Remark 2.32]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.32}
+From Theorem \ref{manolacheVirtualPullbacks2012-thm-2.31} it follows that whenever $G$ is of pure dimension $r$, then $C_{F/G}$ is again of pure dimension $r$.
+\end{remark}
+
+\begin{proposition}[{\cite[Proposition 2.33, p.~14]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-2.33}
+\label{manolacheVirtualPullbacks2012-inc}
+ If $f: F\to G$ is a DM-type morphism, then the cone stack $N_{F/G}$ of Definition \ref{manolacheVirtualPullbacks2012-def-2.30} is canonically isomorphic to the intrinsic normal sheaf $\mathfrak{N}_{F/G}$ of Definition \ref{manolacheVirtualPullbacks2012-def-2.12} and $C_{F/G}$ is canonically isomorphic to the intrinsic normal cone $\mathfrak{C}_{F/G}$ of Definition \ref{manolacheVirtualPullbacks2012-def-2.14}.
+\end{proposition}
+
+\begin{remark}[{\cite[Remark 2.34]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-2.34}
+ By the above Lemma we are allowed to identify the normal cone to a morphism with the intrinsic normal cone. In particular, the above Lemma shows that Definition \ref{manolacheVirtualPullbacks2012-def-2.30} is independent of the choice of $U$ and $V$ in diagram (11). Although normal cones are cone stacks, we will use for simplicity the notation $C_{F/G}$ instead of $\mathfrak{C}_{F/G}$.
+\end{remark}
+
+\begin{example}[{\cite[Example 2.35]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-2.35}
+Let $G$ be a DM-stack, $E$ a vector bundle on $G$ and $G\to E$ the zero section. Then $C_{G/E}$ is canonically isomorphic to $E$.
+\end{example}
+
+\begin{example}[{\cite[Example 2.36]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-2.36}
+Let $F\stackrel{f}\rightarrow G$ be a DM-type morphism and $p:E\to G$ a vector bundle on $G$. Let $i:G\to E$ be the zero section, and let $g:F\to E$ be $g:=i\circ f$. Then $C_{F/E}$ is canonically isomorphic to $C_{F/G}\times_Ff^*E$.
+\end{example}
+
+\begin{example}[{\cite[Example 2.37, p.~17]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-2.37}
+\label{manolacheVirtualPullbacks2012-vb}Let $F\stackrel{f}\rightarrow G$ be DM-type morphism, $\mathfrak{E}:=E^1/E^0$ a vector bundle stack on $G$. Let $G\stackrel{i}{\rightarrow}\mathfrak{E}$ denote the zero section. If $g:F\to G $ is the composition $F\stackrel{f}{\rightarrow}G\stackrel{i}{\rightarrow}\mathfrak{E}$, then $C_{F/G}$ is naturally isomorphic to $C_{F/G}\times_Ff^*\mathfrak{E}$
+\end{example}
+
+\begin{example}[{\cite[Example 2.38, p.~17]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-2.38}
+ \label{manolacheVirtualPullbacks2012-flat} Let $F\to G$ be a smooth morphism of DM-stacks. Then $C_{F/G}$ is isomorphic to $[F/T_{F/G}]$, hence it is a vector bundle stack.
+\end{example}
+
+\begin{example}[{\cite[Example 2.39]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-2.39}
+Let $X\stackrel{f}\rightarrow Y$ be a morphism of smooth schemes. Then, $U$ and $V$ above can be taken to be $X$ and $X\times Y$ as below
+\begin{equation*}
+\xymatrix{X\ar[r]^-{id\times f}\ar[d]&{X\times Y}\ar[d]^{\pi_2}\\
+X\ar[r]&Y}
+\end{equation*}
+where $\pi_2$ is the projection on $Y$. It is then easy to see that the normal cone is $[N_{X/X\times Y}/T_{X}]$ that is a vector bundle stack.
+\end{example}
+
+\section{Construction}\label{manolacheVirtualPullbacks2012-sec-3}
+
+\begin{proposition}[{\cite[Proposition 3.1, p.~18]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-3.1}
+(\cite{K:03}, Proposition 5.3.2)\label{manolacheVirtualPullbacks2012-stratif}
+Let $F$ admit a stratification by global quotients  (see \cite{K:03}, Definition 3.5.3). Then, for any \emph{vector bundle stack} $\mathfrak{E}$, we have a canonical isomorphism $s^*:A_*(F)\to A_*(\mathfrak{E})$ .
+\end{proposition}
+
+\begin{remark}[{\cite[Remark 3.2]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-3.2}
+Every DM-stack admits a stratification by global quotients.
+\\If $G$ admits a stratification by global quotients and $F\to G$ is a DM-type morphism then $F$ admits a stratification by global quotients.
+\end{remark}
+
+\subsection{Definition of virtual pull-backs}\label{manolacheVirtualPullbacks2012-sec-3.1}
+
+\begin{condition}[{\cite[Condition 3.3]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-condition-3.3}
+ We say that a morphism $f:F\to G$ of algebraic stacks and a vector bundle stack $\mathfrak{E}\to F$ satisfy condition ($\star$) if
+\begin{enumerate}
+\item $f$ is of DM-type,
+\item we have fixed a closed embedding $i:C_{f}\hookrightarrow \mathfrak{E}$.
+\end{enumerate}
+\end{condition}
+
+\begin{convention}[{\cite[Convention 3.4]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-convention-3.4}
+Will say in short that the pair $(f,\mathfrak{E})$ satisfies condition ($\star$).
+\end{convention}
+
+\begin{remark}[{\cite[Remark 3.5]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-3.5}
+Let us consider a Cartesian diagram
+\begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]\ar[d]_{p} & G^{\prime}\ar[d]^q\\
+             F\ar[r]^f & G.}
+\end{equation*}
+If $\mathfrak{E}$ is a vector bundle on $F$ such that $C_{F/G}\hookrightarrow \mathfrak{E}$ is a closed embedding, then $C_{F^{\prime}/G^{\prime}}\hookrightarrow p^*\mathfrak{E}$ is a closed embedding.
+\end{remark}
+
+\begin{construct}[{\cite[Construction 3.6]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-constr-3.6}
+Let $F$ be an Artin stack which admits a stratification by global quotient stacks and $\mathfrak{E}$ a vector bundle stack of (virtual) rank $n$ on $F$ such that $(f,\mathfrak{E})$ that satisfies condition $(\star)$ for $f$, we construct a pull-back map $f^{!}_\mathfrak{E}:A_*(G)\to A_{*-n}(F)$ as the composition
+\begin{equation*}
+ A_*(G)\stackrel{\sigma}\rightarrow A_*(C_{F/G})\stackrel{i_*}{\rightarrow}A_*(\mathfrak{E})\stackrel{s^*}{\rightarrow} A_{*-n}(F).
+\end{equation*}
+where
+\begin{enumerate}
+\item $\sigma$ is defined on the level of cycles by $\sigma(\sum n_i[V_i])=\sum n_i [C_{V_i\times_GF/V_i}]$
+\item $i_*$ is the push-forward via the closed immersion $i$
+\item $s^*$ is the morphism of Proposition \ref{manolacheVirtualPullbacks2012-prop-3.1}.
+\end{enumerate}
+By Proposition \ref{manolacheVirtualPullbacks2012-prop-2.26} we have a closed embedding of cones $$C_{V_i\times_GF/V_i}\hookrightarrow C_{F/G}.$$ The fact that $\sigma$ is well defined is a consequence of Theorem \ref{manolacheVirtualPullbacks2012-thm-2.31} (see \cite{K:03} Section 3 for local immersions and Section 5 for the general case).
+ \\Going further, for any cartesian diagram
+\begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]^{f^{\prime}}\ar[d]_{p} & G^{\prime}\ar[d]^q\\
+             F\ar[r]^f & G}
+\end{equation*}
+such that $F^{\prime}$ admits a stratification by global quotient stacks and $\mathfrak{E}\to F$ satisfies condition $(\star)$ for $f$, let $f^{!}_{\mathfrak{E}}:A_*(G^{\prime})\to A_{*-n}(F^{\prime})$ be the composition
+\begin{equation*}
+ A_*(G^{\prime})\stackrel{\sigma}\rightarrow A_*(C_{F^{\prime}/G^{\prime}})\stackrel{\alpha}{\rightarrow} A_*(C_{F/G}\times_FF^{\prime})\stackrel{i_*}{\rightarrow}A_*(p^*\mathfrak{E})\stackrel{s^*}{\rightarrow}A_{*-n}(F^{\prime})
+\end{equation*}
+where $\alpha$ is the morphism from Proposition \ref{manolacheVirtualPullbacks2012-prop-2.26}.
+\end{construct}
+
+\begin{definition}[{\cite[Definition 3.7, p.~19]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-3.7}
+\label{manolacheVirtualPullbacks2012-vp}
+In the notation above, we call $f_{\mathfrak{E}}^!: A_*(G)\to A_*(F)$ a \textit{virtual pull-back}. When there is no risk of confusion we will omit the index.
+\end{definition}
+
+\begin{remark}[{\cite[Remark 3.8]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-3.8}
+In this remark we do not respect Convention \ref{manolacheVirtualPullbacks2012-convention-2.10}. If $E$ is a \emph{vector bundle} such that $(f,E)$ satisfies $(\star)$, then the above construction can be applied to any Artin stack $F$.  It is clear that in order to have $E$ a vector bundle $N_f$ must necessarily be a cone.
+\\If $f$ is a locally closed embedding, then $N_f$ is a cone. Under this assumption if $E$ is a \emph{vector bundle} such that $(f,E)$ satisfies $(\star)$, then it is not necessary to ask $F$ to admit a stratification by global quotient stacks (see \cite{K:02}, Theorem 2.1.12 (vi)).
+\end{remark}
+
+\begin{remark}[{\cite[Remark 3.9]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-3.9}
+Note that in case $X$, $Y$ are schemes such that $X$ is regularly embedded in $Y$, then the normal bundle of $X$ in $Y$ satisfies condition $\star$ and $i^!_{N_{X/Y}}$ is precisely the refined Gysin pull-back of \cite{f}, Section 6.2. We remark that the pull-back depends on the chosen bundle. For example, if $(i,E)$ satisfies condition $(\star)$ we can construct $i^!_{E\oplus E^{\prime}}$, where $E^{\prime}$ is any other vector bundle. These morphisms will be obviously different from each other.
+\end{remark}
+
+\begin{remark}[{\cite[Remark 3.10, p.~20]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-3.10}
+\label{manolacheVirtualPullbacks2012-fultflat}
+ If $f:X\to Y$ is a smooth morphism of schemes, then by Example \ref{manolacheVirtualPullbacks2012-ex-2.38} $C_{X/Y}$ is a vector bundle stack and hence we can construct the  associated virtual pull-back $f^!_{C_{X/Y}}:A_*(Y)\to A_*(X)$. This has already been defined in \cite{K:03} and it is proved that the definition agrees with the usual flat pull-back (see e.g. \cite{f}).
+\end{remark}
+
+\begin{proposition}[{\cite[Proposition 3.11]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-3.11}
+\uses{manolacheVirtualPullbacks2012-prop-2.33}
+If $F\stackrel{f}\rightarrow G$ is a DM-type morphism and there exists a perfect relative obstruction theory $E_{F/G}^{\bullet}$, then condition $(\star)$ is fulfilled.
+\\Conversely, if $F\stackrel{f}\rightarrow G$ is a morphism that satisfies condition ($\star$), then there exists a perfect obstruction theory $E^{\bullet}_{F/G}\to L_{F/G}$ such that $\mathfrak{E}=h^1/h^0({E^{\bullet}_{F/G}}^{\vee})$ which is unique up to quasi-isomorphism.
+\end{proposition}
+
+\begin{corollary}[{\cite[Corollary 3.12, p.~20]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-cor-3.12}
+\label{manolacheVirtualPullbacks2012-extrasmooth}
+If $F\stackrel{f}\rightarrow G$ is a DM-type morphism such that there exists a perfect relative obstruction theory $E^{\bullet}_{F/G}$ and $G$ is a stack of pure dimension, then $f^!_{E^{\bullet}_{F/G}}([G])$ is a virtual class of $F$ in the sense of \cite{bf}.
+\end{corollary}
+
+\subsection{A fundamental example of Obstruction Theory}\label{manolacheVirtualPullbacks2012-sec-3.2}
+
+\begin{construct}[{\cite[Construction 3.13, p.~21]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-constr-3.13}
+\label{manolacheVirtualPullbacks2012-constr}
+ Let $f:F\to G$ be a DM-type morphism and let $F$ and $G$ be DM-stacks having relative obstruction theories with respect to some smooth Artin stack $\mathfrak{M}$. Let us denote them by $E_{F/\mathfrak{M}}^{\bullet}$ and $E_{G/\mathfrak{M}}^{\bullet}$ respectively. Given a morphism $\varphi: f^*E_{G/\mathfrak{M}}^{\bullet}\to E_{F/\mathfrak{M}}^{\bullet}$ commuting with $f^*L_{G/\mathfrak{M}}\to L_{F/\mathfrak{M}}$, we construct a relative obstruction theory $E_{F/G}^{\bullet}$.
+\\The morphism $f:F\to G$ induces a distinguished triangle of cotangent complexes
+\begin{equation*}
+ f^*L_{G/\mathfrak{M}}\to L_{F/\mathfrak{M}}\to L_{F/G}\to f^*L_{G/\mathfrak{M}}[1].
+\end{equation*}
+Similarly, $\varphi$ gives rise to a distinguished triangle
+\begin{equation}\label{manolacheVirtualPullbacks2012-obstr}
+ f^*E_{G/\mathfrak{M}}^{\bullet}\stackrel{\varphi}{\rightarrow} E_{F/\mathfrak{M}}^{\bullet}\to E_{F/G}^{\bullet}\to f^*E_{G/\mathfrak{M}}[1]
+\end{equation}
+
+hence we have a morphism of distinguished triangles that induces the following morphism in cohomology
+\begin{equation*}
+\scriptsize
+\xymatrix@C=0.43cm{h^{-1}(f^*E_{G/\mathfrak{M}}^{\bullet}) \ar[r]\ar[d] & h^{-1}(E_{F/\mathfrak{M}}^{\bullet})\ar[d]\ar[r]\ar[d] & h^{-1}(E_{F/G}^{\bullet})\ar[r]\ar[d] & h^0(f^*E_{G/\mathfrak{M}}^{\bullet}) \ar[r]\ar[d] & h^0(E_{F/\mathfrak{M}}^{\bullet})\ar[d]\ar[r]\ar[d] & h^0(E_{F/G}^{\bullet})\ar[d]\\h^{-1}(f^*L_{G/\mathfrak{M}}^{\bullet}) \ar[r] & h^{-1}(L_{F/\mathfrak{M}}^{\bullet})\ar[r] & h^{-1}(L_{F/G}^{\bullet})\ar[r]& h^0(f^*L_{G/\mathfrak{M}}^{\bullet}) \ar[r] & h^0(L_{F/\mathfrak{M}}^{\bullet})\ar[r] & h^0(L_{F/G}^{\bullet})}
+\end{equation*}
+We know that the first two vertical arrows are surjective and by the definition of obstruction theories we get by a simple diagram chase that $E_{F/G}^{\bullet}$ is also an obstruction theory.
+\end{construct}
+
+\begin{remark}[{\cite[Remark 3.14]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-3.14}
+ Let us note that the morphism of mapping cones $E_{F/G}^{\bullet}\to L_{F/G}$ is not unique in $\mathcal{D}^{\leq0}_F$ and therefore this procedure gives many \emph{different} relative obstruction theories.
+\end{remark}
+
+\begin{remark}[{\cite[Remark 3.15, p.~21]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-3.15}
+\label{manolacheVirtualPullbacks2012-smooth}
+ If $G$ is smooth over $\mathfrak{M}$ and $E_{G/\mathfrak{M}}^{\bullet}$ is trivial (i.e. $E_{G/\mathfrak{M}}^{\bullet}=L_{G/\mathfrak{M}}^{\bullet}$), then the above diagram shows that $E_{F/G}$ is perfect in $[-1,0]$.
+\end{remark}
+
+\begin{example}[{\cite[Example 3.16, p.~21]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-3.16}
+\label{manolacheVirtualPullbacks2012-easyfunct} A special case of this construction is when $F\to G$ is a locally closed immersion and $G$ is taken to be smooth over $\mathfrak{M}$. Taking $h^{-1}(f^*E_{G/\mathfrak{M}}^{\bullet})=0$ we obtain that $h^{-2}(E_{F/G}^{\bullet})=0$. This makes $E_{F/G}^{\bullet}$ into a perfect obstruction theory concentrated in degree $-1$ and consequently $\mathfrak{E}$ into a vector bundle.
+\end{example}
+
+\begin{example}[{\cite[Example 3.17]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-3.17}
+ The basic case.
+\\In the notation above, let us suppose $G$ is smooth and $F\stackrel{i}{\hookrightarrow}G$ is a closed substack and there exists a morphism $f^*L_G\stackrel{\varphi}{\rightarrow}E_{F}^{\bullet}$. Suppose $\mathfrak{M}$ has pure dimension. Let $E_{F/G}^{\bullet}$ be the cone of $\varphi$. By Construction \ref{manolacheVirtualPullbacks2012-constr-3.13} it is a perfect obstruction theory for $i$. Then we have
+\\(i) $(C_{F/G},E_{F/G}^{\bullet})$ induces the same virtual class on $F$ as $(C_{F/\mathfrak{M}},E_{F/\mathfrak{M}}^{\bullet})$.
+\\(ii) The pull back defined by $E_{F/G}^{\bullet}$ respects the relation $$i^![G]=[F]^{\mathrm{virt}}.$$
+\end{example}
+
+\section{Basic properties}\label{manolacheVirtualPullbacks2012-sec-4}
+
+\begin{theorem}[{\cite[Theorem 4.1, p.~23]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-thm-4.1}
+\uses{manolacheVirtualPullbacks2012-prop-2.26}
+ \label{manolacheVirtualPullbacks2012-relations}Consider a fibre diagram of Artin stacks
+\begin{equation*}
+ \xymatrix {F^{\prime\prime}\ar[r]\ar[d]_{q} & G^{\prime\prime}\ar[d]^p\\
+F^{\prime} \ar[r]^{f^{\prime}}\ar[d]_{g} & G^{\prime}\ar[d]^h\\
+             F\ar[r]^f & G}
+\end{equation*}
+and let us assume
+\begin{enumerate}
+\item $F^{\prime}$, $F^{\prime\prime}$ admit stratifications by global quotient stacks,
+\item ${\mathfrak{E}}$ is a vector bundle stack of rank $d$ such that $(f,{\mathfrak{E}})$ satisfies condition $(\star)$ for $f$.
+\item $\mathfrak{E}$ is isomorphic to a global quotient $[E^1/E^0]$, with $E^1$, $E^0$ vector bundles on $F$.
+
+\end{enumerate}
+(i) (Push-forward) If $p$ is either a projective morphism of Artin stacks or a proper morphism of DM-stacks and $\alpha\in A_k(G^{\prime\prime})$, then $f^!_{\mathfrak{E}}p_*(\alpha)=q_*f^!_{\mathfrak{E}}\alpha$ in $A_{k-d}(F^{\prime})$.\\
+(ii)\ (Pull-back) If $p$ is flat of relative dimension $n$ and $\alpha\in A_k(G^{\prime})$, then $f^!_{\mathfrak{E}}p^*(\alpha)=q^*f^!_{\mathfrak{E}}\alpha$ in $A_{k+n-d}(F^{\prime\prime})$\\
+(iii)(Compatibility) If $\alpha\in A_k(G^{\prime\prime})$, then $f^{!}_{\mathfrak{E}}\alpha=f^{\prime!}_{g^*{\mathfrak{E}}}\alpha$ in $A_{k-d}(F^{\prime\prime})$.
+\end{theorem}
+
+\begin{remark}[{\cite[Remark 4.2]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-4.2}
+ If $p$ is projective we do not need $\mathfrak{E}$ to be a global quotient. The complication in Step 2 of the proof of Theorem \ref{manolacheVirtualPullbacks2012-thm-4.1} (i) is due to the fact that push-forwards along proper morphisms  of \emph{Artin stacks} cannot be defined unless the morphism is projective. Concretely, if $q$ is proper but not projective, we do not know how to define $Q_*$ in diagram (19).
+\\On the contrary, if $f$ is a local embedding of DM stacks and $q$ is proper then, the deformation spaces are DM stacks and $P$ is proper; this implies that we can push-forward cycles along $P$ and $Q$.
+\end{remark}
+
+\begin{theorem}[{\cite[Theorem 4.3]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-thm-4.3}
+\uses{manolacheVirtualPullbacks2012-thm-4.1}
+(Commutativity)
+Consider a fiber diagram of Artin stacks
+\begin{equation*}
+\xymatrix{F^{\prime\prime}\ar[d]_q\ar[r]^v&G^{\prime\prime}\ar[d]\ar[r]^u&H\ar[d]^g\\
+F^{\prime}\ar[d]_p\ar[r]&G{^\prime}\ar[d]\ar[r]&K\\
+F\ar[r]^f&G}
+\end{equation*}such that $F^{\prime}$ and $G^{\prime\prime}$ admit stratifications by global quotients. Let us assume $f$ and $g$ are morphisms of DM-type and let ${\mathfrak{E}}$ and ${\mathfrak{F}}$ be vector bundle stacks of rank $d$ and $e$ respectively such that $(f,{\mathfrak{E}})$ and $(g,{\mathfrak{F}})$ satisfy condition $(\star)$. Then for all $\alpha\in A_k(G^{\prime})$,
+\begin{equation*}
+ g^!_{\mathfrak{F}}f^!_{\mathfrak{E}}(\alpha)= f^!_{\mathfrak{E}}g^!_{\mathfrak{F}}(\alpha)
+\end{equation*}
+in $A_{k-d-e}(F^{\prime\prime})$.
+\end{theorem}
+
+\begin{theorem}[{\cite[Theorem 4.4, p.~27]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-thm-4.4}
+\label{manolacheVirtualPullbacks2012-bivar}
+Let $F$ be an Artin stacks which admits a stratification by global quotients, let $f:F\to G$ be a morphism and $\mathfrak{E}\to F$ be a rank-$n$ vector bundle stack on $F$ such that $(f,\mathfrak{E})$ satisfies  Condition ($\star$). Then $f_{\mathfrak{E}}^!$ defines a bivariant class in $A^{n}(F\to G)$ in the sense of \cite{f}, Definition 17.1.
+\end{theorem}
+
+\begin{definition}[{\cite[Definition 4.5, p.~27]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-4.5}
+\label{manolacheVirtualPullbacks2012-compatib}
+ Let $F\stackrel{f}\rightarrow G\stackrel{g}\rightarrow \mathfrak{M}$ be DM-type morphisms of stacks. If we are given a distinguished triangle of relative obstruction theories which are perfect in $[-1,0]$ $$g^*E^{\bullet}_{G/\mathfrak{M}}\stackrel{\varphi}\rightarrow E^{\bullet}_{F/\mathfrak{M}}\to E^{\bullet}_{F/G}\to g^*E^{\bullet}_{G/\mathfrak{M}}[1]$$ with a morphism to the distinguished triangle $$g^*L_{G/\mathfrak{M}}\to L_{F/\mathfrak{M}}\to L_{F/G}\to g^*L_{G/\mathfrak{M}}[1],$$ then we call $(E^{\bullet}_{F/G},E^{\bullet}_{G/\mathfrak{M}},E^{\bullet}_{F/\mathfrak{M}})$ a compatible triple.
+\end{definition}
+
+\begin{remark}[{\cite[Remark 4.6]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-4.6}
+ As in Construction \ref{manolacheVirtualPullbacks2012-constr-3.13}, if there is a morphism $E^{\bullet}_{F/G}\stackrel{\psi}\rightarrow g^*E^{\bullet}_{G/\mathfrak{M}}[1]$ compatible with the corresponding morphism between the cotangent complexes, then $\psi$ determines a complex $E^{\bullet}_{F/\mathfrak{M}}$ which fits in a distinguished triangle as above. Moreover, $E^{\bullet}_{F/\mathfrak{M}}$ defines a relative obstruction theory. If $E^{\bullet}_{F/G}$ and $E^{\bullet}_{G/\mathfrak{M}}$ are perfect, then $E^{\bullet}_{F/\mathfrak{M}}$ is perfect.
+\end{remark}
+
+\begin{lemma}[{\cite[Lemma 4.7]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-lem-4.7}
+\uses{manolacheVirtualPullbacks2012-ex-2.37, manolacheVirtualPullbacks2012-thm-4.1}
+Consider a fibre diagram
+\begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]^{f^{\prime}}\ar[d]_{p} & G^{\prime}\ar[d]^q\ar[r]^{0}&\mathfrak{F}^{\prime}\ar[d]^r\\
+             F\ar[r]^f & G\ar[r]^0&\mathfrak{F}.}
+\end{equation*}
+with $F^{\prime}$ an Artin stack which admits a stratification by global quotients, $\pi:\mathfrak{F}\to G$ a vector bundle stack of rank $e$ on $G$ and $\pi^{\prime}:\mathfrak{F}^{\prime}\to G^{\prime}$ its pullback to $G^{\prime}$. Let us assume $\mathfrak{E}^{\prime}$ is a vector bundle stack on $F$ such that $(f,\mathfrak{E}^{\prime})$ satisfies condition $(\star)$. Then we have a natural map $$C_{F/\mathfrak{F}}\to\mathfrak{E}:=\mathfrak{E}^{\prime}\oplus f^*\mathfrak{F}$$ which is a closed embedding and for any $\alpha\in A_k(\mathfrak{F}^{\prime})$ $$(0\circ f)_{\mathfrak{E}}^!(\alpha)=f^!_{\mathfrak{E}^{\prime}}(0^!_{\mathfrak{F}}(\alpha)).$$
+\end{lemma}
+
+\begin{theorem}[{\cite[Theorem 4.8, p.~29]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-thm-4.8}
+\uses{manolacheVirtualPullbacks2012-constr-3.13, manolacheVirtualPullbacks2012-def-4.5}
+\label{manolacheVirtualPullbacks2012-functoriality}
+(Functoriality)
+ Consider a fibre diagram
+\begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]^{f^{\prime}}\ar[d]_{p} & G^{\prime}\ar[d]^q\ar[r]^{g^{\prime}}&\mathfrak{M}^{\prime}\ar[d]^r\\
+             F\ar[r]^f & G\ar[r]^g&\mathfrak{M}.}
+\end{equation*}
+Let us assume $f$, $g$ and $g\circ f$ are DM-type morphisms and have perfect relative obstruction theories $E^{\prime\bullet}$, $E^{\prime\prime\bullet}$ and $E^{\bullet}$ respectively and let us denote the associated vector bundle stacks by $\mathfrak{E}^{\prime}$, $\mathfrak{E}^{\prime\prime}$ and $\mathfrak{E}$ respectively. If $F^{\prime},\ F^{\prime}$ admit stratifications by global quotients and $(E^{\prime\bullet}, E^{\prime\prime\bullet},E^{\bullet})$ is a compatible triple, then for any $\alpha\in A_k(\mathfrak{M}^{\prime})$ $$(g\circ f)_{\mathfrak{E}}^!(\alpha)=f^!_{\mathfrak{E}^{\prime}}(g^!_{\mathfrak{E}^{\prime\prime}}(\alpha)).$$
+\end{theorem}
+
+\begin{corollary}[{\cite[Corollary 4.9, p.~31]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-cor-4.9}
+\uses{manolacheVirtualPullbacks2012-thm-4.8}
+\label{manolacheVirtualPullbacks2012-virtual}
+Let us assume we have a commutative diagram
+\begin{equation*}
+ \xymatrix{F\ar[rr]^f\ar[rd]_{\epsilon_F}&&G\ar[ld]^{\epsilon_{G}}\\
+&\mathfrak{M}}
+\end{equation*}
+with $\mathfrak{M}$ of pure dimension. If $F$ and $G$ admit stratifications by global quotients and  $(E^{\bullet}_{F/G},E^{\bullet}_{G/\mathfrak{M}},E^{\bullet}_{F/\mathfrak{M}})$ a compatible triple, then $$f_{\mathfrak{E}_{F/G}}^![G]^{\mathrm{virt}}=[F]^{\mathrm{virt}}.$$
+\end{corollary}
+
+\begin{remark}[{\cite[Remark 4.10]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-4.10}
+Let us consider a cartesian diagram of DM stacks
+\begin{equation*}
+ \xymatrix {F^{\prime} \ar[r]\ar[d]_{g} & G^{\prime}\ar[d]^f\\
+             F\ar[r]^i & G}
+\end{equation*}
+with obstruction theories $E_{F}^{\bullet}$, $E_{G}^{\bullet}$, $E_{F^{\prime}}^{\bullet}$, $E_{G^{\prime}}^{\bullet}$. Let us assume we have perfect obstruction theories $E_{F/G}^{\bullet}$ and $E_{F^{\prime}/G^{\prime}}^{\bullet}$ compatible with  $E_{F}^{\bullet}$, $E_{G}^{\bullet}$ and $E_{F^{\prime}}^{\bullet}$, $E_{G^{\prime}}^{\bullet}$. If $g^*\mathfrak{E}_{F/G}=\mathfrak{E}_{F^{\prime}/G^{\prime}}$, then $i^![G^{\prime}]^{\mathrm{virt}}=[F^{\prime}]^{\mathrm{virt}}$.
+\\This generalizes Proposition 5.10 in \cite{bf} and Theorem 1 in \cite{K:01}.
+\end{remark}
+
+\section{Applications}\label{manolacheVirtualPullbacks2012-sec-5}
+
+\subsection{Preliminaries}\label{manolacheVirtualPullbacks2012-sec-5.1}
+
+\begin{remark}[{\cite[Remark 5.1]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.1}
+Let $f: X\to Y$ be a morphism of smooth algebraic varieties. Let $\beta\in A_1(X)$ and $g,\ n$ be any natural numbers. Then $f$ induces a morphism of stacks $\bar{f}: \overline{M}_{g,n}(X,\beta)\to \overline{M}_{g,n}(Y,f_*\beta)$.
+\\Convention: Given a morphism of smooth algebraic varieties $f:X\to Y$, we will indicate the induced morphism between moduli spaces of stable maps by the same letter with a bar.
+\end{remark}
+
+\begin{theorem}[{\cite[Theorem 5.2, p.~33]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-thm-5.2}
+ (Cohomology and Base Change)\label{manolacheVirtualPullbacks2012-grothmaps} Let $G^{\prime}\stackrel{p}{\rightarrow}G$ be a flat morphism of separated DM stacks and $E^{\bullet}$ a finite bounded of locally free sheaf on $G^{\prime}$. Then for any base change
+\begin{equation*}
+ \xymatrix{F^{\prime}\ar[r]^{g}\ar[d]_q&G^{\prime}\ar[d]^p\\
+F\ar[r]^f&G}
+\end{equation*}
+we have a canonical isomorphism in $\mathcal{D}_F$ $$Lf^*Rp_*E^{\bullet}\simeq Rq_*Lg^*E^{\bullet}.$$
+\end{theorem}
+
+\begin{proposition}[{\cite[Proposition 5.3, p.~33]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-5.3}
+\uses{manolacheVirtualPullbacks2012-thm-5.2, manolacheVirtualPullbacks2012-rem-3.15}
+\label{manolacheVirtualPullbacks2012-cbg}
+ Let $f:X\rightarrow \mathbb{P}$ be a morphism of smooth projective varieties and let $T_{X/\mathbb{P}}$ be the dual of the cotangent complex of $X$ to $\mathbb{P}$. Then, in notations as above
+\\(i) The map $\bar{f}:\overline{M}_{g,n}(X,\beta)\to \overline{M}_{g,n}(\mathbb{P},f_*\beta)$ has a dual obstruction theory $E_{\overline{M}_{g,n}(X,\beta)/\overline{M}_{g,n}(\mathbb{P},f_*\beta)}^{\bullet}$ isomorphic to $\mathcal{R}^{\bullet}{\pi_X}_*ev_X^*T_{X/\mathbb{P}}$ in $\mathcal{D}_{\overline{M}_{g,n}(X,\beta)}$.
+\\(ii) If $f=i$ is an embedding and $N_{X/\mathbb{P}}$ denotes the normal bundle of $X$ in $\mathbb{P}$, then $\bar{i}:\overline{M}_{g,n}(X,\beta)\to \overline{M}_{g,n}(\mathbb{P},f_*\beta)$ has a dual obstruction theory $(E_{\overline{M}_{g,n}(X,\beta)/\overline{M}_{g,n}(\mathbb{P},i*\beta)}^{\bullet})^{\vee}$ $$[0\to\mathcal{R}^0{\pi_X}_*ev_X^* N_{X/\mathbb{P}}\to \mathcal{R}^1{\pi_X}_*ev_X^* N_{X/\mathbb{P}}]$$ in $[0,2]$.
+\\(iii) If $g=0$ and $\mathbb{P}$ is convex, then $E_{\overline{M}_{g,n}(X,\beta)/\overline{M}_{g,n}(\mathbb{P},f_*\beta)}^{\bullet}$ is perfect.
+\end{proposition}
+
+\begin{proposition}[{\cite[Proposition 5.4, p.~34]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-5.4}
+\uses{manolacheVirtualPullbacks2012-prop-5.3, manolacheVirtualPullbacks2012-thm-5.2}
+\label{manolacheVirtualPullbacks2012-cartesian}
+Let
+\begin{equation}\label{manolacheVirtualPullbacks2012-hopefullycart}
+ \xymatrix{X^{\prime}\ar[r]^j\ar[d]^p&\mathbb{P}^{\prime}\ar[d]^q
+\\X\ar[r]^i&\mathbb{P}}
+\end{equation}
+be a cartesian diagram of smooth projective varieties and let $\beta\in A_1(X^{\prime})$ be any homology class of a curve.
+\\(i) Then the induced diagram of moduli spaces of stable maps
+\begin{equation*}
+ \xymatrix{\overline{M}_{g,n}(X^{\prime},\beta)\ar[r]^{\bar{j}}\ar[d]^{\bar{p}}&\overline{M}_{g,n}(\mathbb{P}^{\prime},j_*\beta)\ar[d]^{\bar{q}}
+\\\overline{M}_{g,n}(X,p_*\beta)\ar[r]^{\bar{i}}&\overline{M}_{g,n}(\mathbb{P}, (i\circ p)_*\beta)}
+\end{equation*}
+is commutative. If $i$ is a closed embedding, then it induces an open and closed embedding of $\overline{M}_{g,n}(X^{\prime},\beta)$ in the fiber product $\overline{M}_{g,n}(X,p_*\beta)\times_{\overline{M}_{g,n}(\mathbb{P}, (i\circ p)_*\beta)}\overline{M}_{g,n}(\mathbb{P}^{\prime},j_*\beta)$.
+\\(ii)If the natural map $p^*L_{X/\mathbb{P}}\to L_{X^{\prime}/\mathbb{P}^{\prime}}$ is an isomorphism, then it induces an isomorphism $$E_{\overline{M}_{g,n}(X^{\prime},\beta)/\overline{M}_{g,n}(\mathbb{P}^{\prime},j_*\beta)}^{\bullet}\simeq\bar{p}^*E_{\overline{M}_{g,n}(X,p_*\beta)/\overline{M}_{g,n}(\mathbb{P},(i\circ p)_*\beta)}^{\bullet}.$$ If moreover, $g=0$ and $\mathbb{P}$ is convex then, $E_{\overline{M}_{g,n}(X^{\prime},\beta)/\overline{M}_{g,n}(\mathbb{P}^{\prime},j_*\beta)}^{\bullet}$ is perfect.
+\end{proposition}
+
+\begin{example}[{\cite[Example 5.5]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-5.5}
+Let us consider a cartesian diagram of smooth projective varieties as above. The induced commutative diagram of moduli spaces of stable maps will not be cartesian in general. One counterexample is the case of $\mathbb{P}$ is a point $P:=Spec\ k$, $\mathbb{P}^{\prime}:=Y$ and $X^{\prime}:=X\times Y$. The diagram
+\begin{equation*}
+ \xymatrix{\overline{M}_{g,n}(X\times Y,(\beta_1, \beta_2))\ar[r]^-{\bar{p_2}}\ar[d]^{\bar{p_1}}&\overline{M}_{g,n}(Y,\beta_2)\ar[d]
+\\\overline{M}_{g,n}(X,\beta_1)\ar[r]&\overline{M}_{g,n}(P, 0)}
+\end{equation*}
+is \emph{not} cartesian. Let $M$ be the cartesian product $\overline{M}_{g,n}(Y,\beta_2)\times_{\overline{M}_{g,n}(P, 0)}\overline{M}_{g,n}(X,\beta_1)$. Then, we still have a nice relation between the virtual class of $M$ and the virtual class of $\overline{M}_{g,n}(X\times Y,(\beta_1, \beta_2))$. This was studied by Behrend (see \cite{b2}, Theorem 1).
+\end{example}
+
+\begin{example}[{\cite[Example 5.6]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-5.6}
+Let
+\begin{equation*}
+ \xymatrix{X^{\prime}\ar[r]^j\ar[d]^p&\mathbb{P}^{\prime}\ar[d]^q
+\\X\ar[r]^i&\mathbb{P}}
+\end{equation*}
+be a cartesian diagram of smooth projective varieties as in the above proposition. Let us moreover suppose that $i$ and $j$ induce injective morphisms of groups $i_*:A_1(X)\to A_1(\mathbb{P})$, respectively $j_*:A_1(X^{\prime})\to A_1(\mathbb{P}^{\prime})$ (but $i$ is not supposed to be injective!). Then, the corresponding commutative diagram between moduli spaces of stable maps is cartesian.
+\end{example}
+
+\begin{remark}[{\cite[Remark 5.7, p.~36]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.7}
+\label{manolacheVirtualPullbacks2012-condand}
+ If $i$ is a closed embedding and the natural map $A_1(X^{\prime})\to A_1(\mathbb{P}^{\prime})\oplus A_1(X)$ is injective then diagram (\ref{manolacheVirtualPullbacks2012-hopefullycart}) is cartesian. This follows from the fact that the above condition implies that the natural map  $$\overline{M}_{g,n}(X^{\prime},\beta)\to\overline{M}_{g,n}(X,p_*\beta)\times_{\overline{M}_{g,n}(\mathbb{P}, (i\circ p)_*\beta)}\overline{M}_{g,n}(\mathbb{P}^{\prime},j_*\beta)$$ is surjective.
+\end{remark}
+
+\begin{example}[{\cite[Example 5.8]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-ex-5.8}
+Let us now look at an example where our construction of virtual pull-backs does not apply. If we consider $\overline{M}_{g,n}(X,\beta)\stackrel{\bar{i}}{\rightarrow}\overline{M}_{g,n}(\mathbb{P}, i_*\beta)$ with $\mathbb{P}$ a convex space, then the construction applies without further conditions only in genus zero. In general (higher genus or non-convex $\mathbb{P}$) $h^{-2}(E_{\overline{M}_{g,n}(X,\beta)/\overline{M}_{g,n}(\mathbb{P}, i_*\beta)})$ might not vanish.
+\\To see an example, let us consider $i:\mathbb{P}^r\hookrightarrow\mathbb{P}^r\times\mathbb{P}^s$, the inclusion into the first factor. Then we have an induced map $\overline{M}_{g,n}(\mathbb{P}^r,d_1)\hookrightarrow\overline{M}_{g,n}(\mathbb{P}^r\times\mathbb{P}^s,(d_1,0))$. From Corollary 5.3 we obtain that the dual relative obstruction theory of $\\bar{i}$ is $\mathcal{R}^{\bullet}\pi_*ev^*N_{\mathbb{P}^r/\mathbb{P}^r\times\mathbb{P}^s}$. We have that the normal bundle $N_{\mathbb{P}^r/\mathbb{P}^r\times\mathbb{P}^s}$ is isomorphic to $\mathcal{O}_{\mathbb{P}^r}^{\oplus s}$. Since $\mathcal{R}^{1}\pi_*f^*(\mathcal{O}_{\mathbb{P}^r}^{\oplus s})$ is non-zero for $g\geq1$, the (dual) relative obstruction theory will never be perfect.
+\end{example}
+
+\subsection{Pulling back divisors}\label{manolacheVirtualPullbacks2012-sec-5.2}
+
+\begin{remark}[{\cite[Remark 5.9]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.9}
+One could na\"ively hope to obtain new relations between the rational GW invariants of $X$ by pulling back the WDVV relations in $\mathbb{P}$. The above shows that for any $X\hookrightarrow\mathbb{P}$ pulling-back the WDVV equations in $\overline{M}_{0,n}(\mathbb{P},d)$ gives the WDVV equations in $\overline{M}_{0,n}(X,d)$.
+\end{remark}
+
+\subsection{Blow-ups}\label{manolacheVirtualPullbacks2012-sec-5.3}
+
+\begin{definition}[{\cite[Definition 5.10, p.~38]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-5.10}
+ \label{manolacheVirtualPullbacks2012-lifting}
+For a blow up $p_X:\tilde{X}\to X$ and a class $\beta\in A_1(X)$ we call the class $p_X^!\beta$ the lifting of $\beta$ and we denote it by $\tilde{\beta}$, where $p_X^!$ is the refined intersection product of \cite{f}, Chapter 8.
+\end{definition}
+
+\begin{remark}[{\cite[Remark 5.11]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.11}
+ The lifting of $\beta$ satisfies two basic properties that follow trivially from the projection formula, namely $(p_X)_*\tilde{\beta}=\beta$ and $\tilde{\beta}\cdot E=0$.
+\end{remark}
+
+\begin{lemma}[{\cite[Lemma 5.12]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-lem-5.12}
+The moduli space of stable maps to $\tilde{X}$ of class $\tilde{\beta}$ and the moduli space of stable maps to $X$ of class $\beta$ have the same virtual dimension.
+\end{lemma}
+
+\begin{lemma}[{\cite[Lemma 5.13, p.~38]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-lem-5.13}
+\label{manolacheVirtualPullbacks2012-andreas}
+ In notations as before, the natural projection $p_{X}:\tilde{X}\to X$ induces a morphism $\bar{p}_{X}:\overline{M}_{0,n}(\tilde{X},\tilde{\beta})\to\overline{M}_{0,n}(X,\beta)$. If $X=\mathbb{P}$ is a homogeneous space and $\tilde{X}=\tilde{\mathbb{P}}$ the blow up of $\mathbb{P}$, then $$({\bar{p}}_{\mathbb{P}})_*[\overline{M}_{0,n}(\tilde{\mathbb{P}},\tilde{\beta})]^{\mathrm{virt}}=[\overline{M}_{0,n}(\mathbb{P},\beta)]^{\mathrm{virt}}.$$
+\end{lemma}
+
+\begin{proposition}[{\cite[Proposition 5.14, p.~39]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-5.14}
+\uses{manolacheVirtualPullbacks2012-thm-4.1, manolacheVirtualPullbacks2012-rem-5.7, manolacheVirtualPullbacks2012-constr-3.13, manolacheVirtualPullbacks2012-cor-4.9, manolacheVirtualPullbacks2012-prop-5.4, manolacheVirtualPullbacks2012-lem-5.13}
+\label{manolacheVirtualPullbacks2012-main} Let $X$ be a smooth projective subvariety of some homogeneous space $\mathbb{P}$ and let us assume that there exists $Z$ a smooth subvariety of $\mathbb{P}$, such that $X$ and $Z$ intersect transversely. Let $Y:=X\cap Z$ and $\tilde{X}$ be the blow-up of $X$ along $Y$. Then for any non-negative integer $n$ and any $\beta\in A_1(X)$ with lifting $\tilde{\beta}\in A_*(\tilde{X})$ $$(\bar{p}_{X})_*[\overline{M}_{0,n}(\tilde{X},\tilde{\beta})]^{\mathrm{virt}}=[\overline{M}_{0,n}(X,\beta)]^{\mathrm{virt}}.$$
+\end{proposition}
+
+\begin{corollary}[{\cite[Corollary 5.15]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-cor-5.15}
+ Let $X$ and $Y$ as above, and let $\gamma\in  A^*(X)^{\otimes n}$ be any $n$-tuple of classes such that $\sum codim(\gamma_i)=vdim\overline{M}_{0,n}(X,\beta)$. Then, $I_{0,n,\tilde{\beta}}^{\tilde{X}}(p_X^*\gamma)={I}_{0,n,\beta}^{X}(\gamma)$.
+\end{corollary}
+
+\begin{remark}[{\cite[Remark 5.16]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.16}
+ The equality in the statement of proposition \ref{manolacheVirtualPullbacks2012-prop-5.14} was obtained in \cite{h} in a more general context, namely under the assumption $N_{Y/X}$ is convex with an extra minor assumption. Lai analyzes the map  $\bar{p}_X:\overline{M}_{0,n}(\tilde{X},\tilde{\beta})\rightarrow\overline{M}_{0,n}(X,\beta)$ and he uses \textit{absolute} obstruction theories (see [ibid.], Section 2). These induce a perfect relative obstruction to $\bar{p}$. Lai analyzes the normal cones of $\overline{M}_{0,n}(\tilde{X},\tilde{\beta})$ and $\overline{M}_{0,n}(X,\beta)$ and he uses the relation between them in order to obtain that $(\bar{p}_X)_*[\overline{M}_{0,n}(\tilde{X}, \tilde{\beta})]^{\mathrm{virt}}=[\overline{M}_{0,n}(X,\beta)]^{\mathrm{virt}}$ (see \cite{h} Theorem 4.11). In our language Lai's assumptions imply that $\bar{p}_X$ admits a virtual pull-back. We should stress however, that we cannot use the usual relative obstruction theories to $\mathfrak{M}_{0,n}$ in order to deduce $\bar{p}^![\overline{M}_{0,n}(X,\beta)]^{\mathrm{virt}}=[\overline{M}_{0,n}(\tilde{X},\tilde{\beta})]^{\mathrm{virt}}$. More precisely, the following diagram
+\begin{equation*}  \xymatrix{\overline{M}_{0,n}(\tilde{X},\tilde{\beta})\ar[rr]^{\bar{p}}\ar[rd]_{\epsilon_{\tilde{X}}}&&\overline{M}_{0,n}(X,\beta)\ar[ld]^{\epsilon_{X}}\\
+&\mathfrak{M}_{0,n}}
+\end{equation*}
+is not commutative. To see this, one can take a map $(C,x_1,...,x_n, f)\in \overline{M}_{0,n}(\tilde{X},\tilde{\beta})$, with $C$ a reducible curve with two components $C_1$ and $C_2$ intersecting in one point and such that $C_1$ has no marked points and it is contracted by $p\circ f$. We have that $$\epsilon_{\tilde{X}}(C,x_1,...,x_n, f)=C$$ while $$\epsilon_X\circ\bar{p}(C,x_1,...,x_n, f)=C_2.$$ This shows that Corollary \ref{manolacheVirtualPullbacks2012-cor-4.9} does not apply to the above diagram.
+\end{remark}
+
+\begin{remark}[{\cite[Remark 5.17]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.17}
+ If $X$ is the zero-locus of a section $s\in H^0(\mathbb{P}, V)$, for some convex vector bundle $V$ on $\mathbb{P}$ and $Y$ respects the hypothesis of Proposition \ref{manolacheVirtualPullbacks2012-cor-4.9}, then the equality $(\bar{p}_X)_*[\overline{M}_{0,n}(\tilde{X}, \tilde{\beta})]^{\mathrm{virt}}=[\overline{M}_{0,n}(X,\beta)]^{\mathrm{virt}}$ follows from the ``Conjecture'' proved in \cite{K:01} as described below. In notations of [ibid.] we have
+\begin{equation*}
+ \bar{i}_*[\overline{M}_{0,n}(X,\beta)]^{\mathrm{virt}}=c_{top}(\mathcal{R}^0(\pi_{\mathbb{P}})_*ev_{\mathbb{P}}^*V )\cdot[\overline{M}_{0,n}(\mathbb{P},i_*\beta)]^{\mathrm{virt}}.
+\end{equation*}
+Again, using the isomorphism in Proposition \ref{manolacheVirtualPullbacks2012-prop-5.4} (ii) we get the same relation with blow-ups, namely,
+\begin{equation*}
+ \bar{j}_*[\overline{M}_{0,n}(\tilde{X},\tilde{\beta})]^{\mathrm{virt}}=c_{top}(\bar{p}^*\mathcal{R}^0(\pi_{\tilde{\mathbb{P}}})_*ev_{\tilde{\mathbb{P}}}^*V)\cdot [\overline{M}_{0,n}(\tilde{\mathbb{P}},\widetilde{i_*\beta})]^{\mathrm{virt}}.
+\end{equation*}
+Now, the equality follows from the projection formula.
+\end{remark}
+
+\subsection{Projective bundles}\label{manolacheVirtualPullbacks2012-sec-5.4}
+
+\begin{definition}[{\cite[Definition 5.18]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-5.18}
+Let $\beta\in A_1(X)$, then we call $\tilde{\beta}:=s(\beta)$ the lifting of $\beta$.
+\end{definition}
+
+\begin{remark}[{\cite[Remark 5.19, p.~42]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.19}
+\label{manolacheVirtualPullbacks2012-smirr}
+Let $X$ be a convex variety, $\beta\in A_1(X)$, $W$ a rank-$(r-1)$ vector bundle on $X$, $q\in\mathbb{Z}$ and $\alpha\in A^*(\overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{\beta}+qf_X))$ satisfying condition (37). Let $Z_1,...Z_k$ be the connected components of $\overline{M}_{0,n}(X,\beta)$. As $X$ is convex, by dimensional reasons $$(\bar{p}_X)_* \left(\alpha\cdot[\overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{\beta}+qf_X)]^{\mathrm{virt}}\right)=\sum_{i=1}^k N_i[Z_i],$$ for some $N_i\in\mathbb{Q}$, possibly zero.
+\\In particular, if $X=\mathbb{P}^1$, then $\overline{M}_{0,n}(X,\beta)$ is smooth, irreducible (and unobstructed) and therefore $$(\bar{p}_X)_*\left(\alpha\cdot[\overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{\beta}+qf_X)]^{\mathrm{virt}}\right)=N[\overline{M}_{0,n}(X,\beta)]^{\mathrm{virt}}$$ for some $N\in\mathbb{Q}$.
+\end{remark}
+
+\begin{definition}[{\cite[Definition 5.20, p.~43]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-5.20}
+\label{manolacheVirtualPullbacks2012-locconst}(i) In notations as above, we consider the locally constant function
+\begin{equation*}
+N_{X,W,\beta,q}(\alpha):\overline{M}_{0,n}(X,\beta)\to\mathbb{Q}
+\end{equation*}
+defined  by $N_{X,W,\beta,q}(\alpha)=N_i$ on $Z_i$.
+\\(ii) Let $X=\mathbb{P}^1$, $d=(d_1,...,d_{r-1})\in\mathbb{Z}^{r-1}$, $V=\mathcal{O}\oplus \mathcal{O}_{\mathbb{P}^1}(d_1)\oplus...\oplus\mathcal{O}_{\mathbb{P}^1}(d_{r-1})$,  and $k=(k_1,...,k_n)\in \mathbb{N}^n$. Let $\xi_{\mathbb{P}_X(V)}=c_1(\mathcal{O}_{\mathbb{P}_X(V)}(1))$ and assume that $\alpha=ev^*_i\xi^{k_i}$ satisfies the dimension condition (37). We define $N(q,d,k)\in \mathbb{Q}$ by the formula $$(\bar{p}_X)_*\left(\alpha\cdot[\overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{1}+qf_X)]^{\mathrm{virt}}\right)=N(q,d, k)[\overline{M}_{0,n}(X,1)].$$
+\end{definition}
+
+\begin{remark}[{\cite[Remark 5.21]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.21}
+Let $X$ and $Y$ be smooth projective varieties, let $f:Y\to X$ be a morphism and $\beta_Y\in A_1(Y)$ such that $f_*\beta_Y=\beta$. Let $W$ be a vector bundle on $X$. Then there exists an induced map $h:\mathbb{P}_Y(f^*V)\to\mathbb{P}_X(V)$. This induces a map $\bar{h}:\overline{M}_{0,n}(\mathbb{P}_Y(f^*V),\tilde{\beta}_Y+qf_Y)\to \overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{\beta}+qf_X)$
+\end{remark}
+
+\begin{proposition}[{\cite[Proposition 5.22, p.~43]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-5.22}
+\uses{manolacheVirtualPullbacks2012-prop-5.4, manolacheVirtualPullbacks2012-def-5.20, manolacheVirtualPullbacks2012-thm-4.1, manolacheVirtualPullbacks2012-cor-4.9}
+\label{manolacheVirtualPullbacks2012-projb} Let $X$ be smooth convex projective varieties and let $f:Y\to X$ be a morphism of smooth projective varieties such that $$f_*:A_1(Y)\to A_1(X)$$ is injective. Let $W$ be a vector bundle on $X$ and $$\alpha\in A^*(\overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{\beta}+qf_X))$$ which satisfies the dimension condition (37). Then
+\\(i) $(\beta_Y, f^*W,q, \bar{h}^*\alpha)$ satisfies condition 37.
+\\(ii)Let $Z_1,...,Z_k$ be the connected components of $\overline{M}_{0,n}(X,\beta)$. For any $i\in\{1,...,k\}$ let $N_{X,W,\beta,q}(\alpha)|_{Z_i}$ be the number from definition \ref{manolacheVirtualPullbacks2012-def-5.20} which corresponds to $Z_i$. Then, we have an equality
+\begin{equation*}
+
+(\bar{p}_Y)_*\left((\bar{h}^*\alpha)\cdot[\overline{M}_{0,n}(\mathbb{P}_{Y}(f^*V),\tilde{\beta_Y}+qf_Y)]^{\mathrm{virt}}\right)=\sum_{i=1}^kN_{X,W,\beta,q}(\alpha)|_{Z_i}[Z_i]
+\end{equation*}
+\end{proposition}
+
+\begin{corollary}[{\cite[Corollary 5.23, p.~44]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-cor-5.23}
+\uses{manolacheVirtualPullbacks2012-prop-5.22}
+\label{manolacheVirtualPullbacks2012-convexbdl} We follow the notations of Proposition \ref{manolacheVirtualPullbacks2012-prop-5.22}. Let $X$ be a homogeneous space, $Y$ a rational curve. Let $$\alpha:=\prod_{i=1}^nev_i^*\xi^{k_i}\in A^*(\overline{M}_{0,n}(\mathbb{P}_{X}(V),\tilde{\beta}+qf_{X}))$$ satisfy condition (37). Suppose $f^*V\simeq \mathcal{O}\oplus\mathcal{O}(d_1)\oplus...\oplus\mathcal{O}(d_{r-1})$. Then $$(\bar{p}_{X})_* \left(\alpha\cdot[\overline{M}_{0,n}(\mathbb{P}_{X}(V),\tilde{\beta}+qf_{X})]^{\mathrm{virt}}\right)=N(q,d, k)[\overline{M}_{0,n}(Y,\beta)]^{\mathrm{virt}}.$$
+\end{corollary}
+
+\begin{corollary}[{\cite[Corollary 5.24, p.~45]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-cor-5.24}
+\uses{manolacheVirtualPullbacks2012-prop-5.22, manolacheVirtualPullbacks2012-cor-5.23}
+\label{manolacheVirtualPullbacks2012-jump} Let $d=(d_1,...,d_{r-1})$, $e=(e_1,...,e_{r-1})$ with $d_i,\ e_i\geq 0$, $\forall\ 0\leq i\leq r$ and $\sum_{i=1}^{r-1} d_i=\sum_{i=1}^{r-1} e_i$. Then $N(q,d,k)=N(q,e,k)$.
+\end{corollary}
+
+\begin{setting}[{\cite[Setting 5.25, p.~45]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-setting-5.25}
+\label{manolacheVirtualPullbacks2012-notatii}We consider a homogeneous space space $\mathbb{P}$ and $g:X\to\mathbb{P}$ be a closed embedding of a smooth projective variety $X$ in $\mathbb{P}$. Let $V$ be a vector bundle on $X$ such that there exists a vector bundle $W\oplus \mathbb{C}_{\mathbb{P}}$ on $\mathbb{P}$ with $V=g^*(W\oplus \mathbb{C}_{\mathbb{P}})$ and let $p:\mathbb{P}_X(V)\to X$ be the associated projective bundle. In notations as above we have an induced map $\bar{p}_X:\overline{M}_{0,n}(\mathbb{P}_{X}(V),\tilde{\beta}+qf_X)\to\overline{M}_{0,n}(X,\beta)$.
+\end{setting}
+
+\begin{definition}[{\cite[Definition 5.26]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-def-5.26}
+ Let $V$ be a vector bundle on a smooth projective variety $X$ and let $i:\mathbb{P}^1\to X$ be a closed embedding of a projective line in $X$. Let $i^*V\simeq\mathcal{O}(d_1)\oplus...\oplus\mathcal{O}(d_{r-1})$ for some $d_1,...,d_{r-1}\in\mathbb{Z}$. We say that $i^*V$ is positive if $d_i\geq0$, $\forall\ 0\leq i\leq r-1$.
+\end{definition}
+
+\begin{corollary}[{\cite[Corollary 5.27, p.~45]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-cor-5.27}
+\uses{manolacheVirtualPullbacks2012-prop-5.22, manolacheVirtualPullbacks2012-cor-5.23, manolacheVirtualPullbacks2012-cor-5.24}
+\label{manolacheVirtualPullbacks2012-genbdl} In notations as in \ref{manolacheVirtualPullbacks2012-setting-5.25}, let $$\alpha:=\prod_{i=1}^nev_i^*\xi^{k_i}\in A^*(\overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{\beta}+qf_X))$$ satisfy condition (37). Suppose moreover that the restriction of $V$ to any curve of class $\beta$ is positive. Then we have that $$(\bar{p}_X)_* \left(\alpha\cdot[\overline{M}_{0,n}(\mathbb{P}_X(V),\tilde{\beta}+qf_X)]^{\mathrm{virt}}\right)=N(q,d, k)[\overline{M}_{0,n}(X,\beta)]^{\mathrm{virt}},$$
+for some $d=(d_1,...,d_n)$ which satisfies $\sum_id_i=\beta\cdot c_1(V)$.
+\end{corollary}
+
+\begin{remark}[{\cite[Remark 5.28]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.28}
+ In Corollary \ref{manolacheVirtualPullbacks2012-cor-5.27} we have shown that we can compute GW invariants of projective bundles in terms of GW invariants of the base $X$ and GW invariants of a projective bundle over $\mathbb{P}^1$. The latter can be analyzed using toric methods (see \cite{e1}, \cite{e2}). More precisely, we can compute in this way GW-invariants of $\mathbb{P}_X(V)$ with at least $\mathrm{vdim} \overline{M}_{0,n}(X,\beta)$ insertions that are pull-backs from $X$.
+\end{remark}
+
+\subsection{Costello's push-forward formula}\label{manolacheVirtualPullbacks2012-sec-5.5}
+
+\begin{proposition}[{\cite[Proposition 5.29, p.~46]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-prop-5.29}
+\uses{manolacheVirtualPullbacks2012-thm-4.1}
+\label{manolacheVirtualPullbacks2012-costello} Under the assumptions above, if moreover $g$ is projective, then $f_*[F]^{\mathrm{virt}}=d[G]^{\mathrm{virt}}$.
+\end{proposition}
+
+\begin{remark}[{\cite[Remark 5.30]{manolache_VirtualPullbacks2012}}]\label{manolacheVirtualPullbacks2012-rem-5.30}
+ In \cite{c}, Theorem 5.0.1 $g$ is not assumed to be projective. We impose this condition in order to be able to push-forward along $g$ and apply Theorem \ref{manolacheVirtualPullbacks2012-thm-4.1}. If $\mathfrak{M}_1$ and $\mathfrak{M}_2$ are DM-stacks then it is enough to assume $g$ is proper. The proof of Proposition \ref{manolacheVirtualPullbacks2012-prop-5.29} applies unchanged to this case.
+\\More generally, Theorem 5.0.1 in \cite{c} follows from the proof of Theorem \ref{manolacheVirtualPullbacks2012-thm-4.1} (i) which is very similar to Costello's proof.
+\end{remark}

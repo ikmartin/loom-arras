@@ -1,0 +1,73 @@
+\begin{proposition}\label{rl-0018}\label{prop:compatible-triples-for-main-proof}
+  In the above notation,
+  \begin{itemize}[(i)]
+    \item \(\check \phi\) is a \(T\)-equivariant relative perfect obstruction theory for \(\pi^T:M^T\to \mathcal Z\)
+    \item (First triple) ~ \((j^*\widetilde{\mathbb E)}, \check {\mathbb E}, N^\vee_0[1]\) is a compatible triple.
+    \item (Second Triple) ~ \((\mathbb E^f, \check{\mathbb E}, N_1^\vee[1])\) is a compatible triple.
+  \end{itemize}
+\end{proposition}
+\begin{proof}
+$ $
+
+  \noindent \emph{(i)} \quad \(\check{\mathbb E}\) is the direct sum of two complexes each of perfect amplitude \([-1,0]\), so it is of perfect amplitude \([-1,0]\) as well. Since \(h^0(N^\vee_1[1]) = 0\) we get \(h^0(\check \phi) = h^0(\phi^f)\) and \(h^{-1}(\check \phi)\) restricted to the summand \(h^{-1}(\mathbb E^f)\) is \(h^{-1}(\phi^f)\), hence \(h^0(\check \phi)\) and \(h^{-1}(\check \phi)\) are an isomorphism and a surjection respectively by \ref{lem:obstruction-theory-for-the-fixed-locus}.
+
+  \bigskip
+
+  \noindent \emph{(ii)} \quad The diagram for the first compatible triple is
+  \begin{center}
+    \begin{tikzcd}[row sep = large, column sep = large]
+      j^*\widetilde{\mathbb E} = \mathbb E^f\oplus \mathbb E^m
+        \arrow[r, "\beta"]
+        \arrow[d, "j^*\phi"']
+      & \check{\mathbb{E}} = \mathbb{E}^f \oplus N_1^\vee[1]
+        \arrow[r, "\check\rho"]
+        \arrow[d, "\check\phi"]
+      & N_0^\vee[1]
+        \arrow[r, "+1"]
+        \arrow[d, "\mathfrak f"]
+      & {} \\
+      j^* L_{\widetilde{M}/\mathcal{Y}^T}
+        \arrow[r]
+      & L_{M^T/\mathcal{Y}^T}
+        \arrow[r]
+      & L_{M^T/\widetilde{M}}
+        \arrow[r, "+1"]
+      & {}
+    \end{tikzcd}
+  \end{center}
+  Here
+  \begin{align*}
+    \beta = \id_{\mathbb E^f}\oplus q, \quad q:[N_1^\vee \xrightarrow{d^\vee} N^\vee_0] \twoheadrightarrow [N^\vee_{1}\to 0] = N^\vee_1[1]
+  \end{align*}
+  and \(\check \rho = (0,d^\vee [1])\).
+
+  The top row is a compatible triple because it is the direct sum of the compatible triples \(\mathbb E^F\xrightarrow{\id_{\mathbb E^f}} \mathbb E^f \xrightarrow{0}0\) and \(\mathbb E^m \xrightarrow{q} N_1^\vee[1] \xrightarrow{d^\vee[1]} N_1^\vee[1]\).
+
+  The map \(\mathfrak f\) exists by axiom (TR3) completing the two rows to a morphism of triangles. Fix any such map. We are then in exactly the situation of \cite[Construction 3.13]{manolache_VirtualPullbacks2012} and the diagram chase there shows \(\mathfrak f\) is a perfect obstruction theory.
+
+  \bigskip
+  
+  \noindent \emph{(iii)} \quad The diagram for the second compatible triple is
+  \begin{center}
+    \begin{tikzcd}[row sep = large, column sep = large]
+      \mathbb{E}^f
+        \arrow[r, "{(\mathrm{id},\,0)}"]
+        \arrow[d, "\phi^f"']
+      & \check{\mathbb{E}} = \mathbb{E}^f \oplus N_1^\vee[1]
+        \arrow[r, "{(0,\,\mathrm{id})}"]
+        \arrow[d, "\check\phi"]
+      & N_1^\vee[1]
+        \arrow[r, "0"]
+        \arrow[d, "0"]
+      & {} \\
+      L_{M^T/\mathcal{Y}^T}
+        \arrow[r, "\mathrm{id}"]
+      & L_{M^T/\mathcal{Y}^T}
+        \arrow[r]
+      & L_{\mathrm{id}_{M^T}} = 0
+        \arrow[r, "+1"]
+      & {}
+    \end{tikzcd}
+  \end{center}
+  Checking that each vertical map is a perfect obstruction theory and that the whole thing commutes is routine.
+\end{proof}

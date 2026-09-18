@@ -1,0 +1,39 @@
+\section{The residue map for Artin stacks}\label{rl-000Q}
+
+Consider the absolute situation for a moment, where \(M\) is a Deligne-Mumford stack over a field \(k\), \(T = (\mathbb G_{m,k}^n)\) is an algebraic torus acting on \(M\) and trivially on \(\Spec k\), and \(E\) is a \(T\)-equivariant perfect obstruction theory for the map \(\pi:M\to \Spec k\). From this data one can write down a perfect obstruction theory \(E^f\) for \(M^T\) over \(\Spec k\), allowing one to form both \([M]^{vir}\) and \([M^T]^{vir}\) via virtual pullback over \(\pi\) and \(\pi^T\) respectively. The content of virtual localization is then in studying the pushforward of \(\iota:M^T\to M\) in (localized) equivariant Chow groups together with its inverse \(\Res:A^T_*(M)\otimes Q_T\to A^T_*(M^T)\otimes Q_T\).
+
+\red{recount the standard Edidin-Graham localization story here, end with the following proposition that expresses \(\Res\) in terms of Gysin pullback and inverse of top Euler class cap product}
+
+\input{nodes/rl-000R}
+
+Now consider the relative situation. We start with a \(T\)-equivariant map \(\pi:M\to \mathcal Y\) from a Deligne-Mumford stack \(M\) to an Artin stack \(\mathcal Y\) together with a relative perfect obstruction theory \(E\) for \(\pi\). We can still form a corresponding canonical perfect obstruction theory \(E^f\) for \(\pi^T:M^T\to \mathcal Y^T\) by Lemma~\ref{lem:obstruction-theory-for-the-fixed-locus}, but crucially, the bases of these two obstruction theories are different. This means that before studying \(\iota:M^T\to M\), we must relate classes in \(\mathcal Y\) to classes in \(\mathcal Y^T\). At a glance this is exactly the role of the residue map, but there is a problem: the main localization theorem fails spectacularly for Artin stacks. Consider Example~\ref{example:BGm-and-its-fixed-stack}~for instance. If \(\mathcal Y = B\mathbb G_m\) with the trivial \(T = \mathbb G_m\) action, then \(\mathcal Y^T = \coprod_{\chi\in \mathbb Z}B\mathbb G_m\) and \(A^T_*(\mathcal Y^T)\cong \bigoplus_{\chi\in \mathbb Z} A^T_*(\mathcal Y)\), hence \(i_*\) fails to become an isomorphism after \emph{any} localization.
+
+Rearranging the identity~\ref{eqn:residue-identity}~from Proposition~\ref{prop:edidin-graham-residue-identity}~gives us
+\begin{equation}\label{eqn:residue-identity-with-residue-isolated}
+  \Res_{Z/X}(\alpha) = e_T(V)^{-1}\cap (s^*_V\circ j_*\circ \sigma)(\alpha).
+\end{equation}
+Supposing we can make sense of all terms on the right hand side, we can take this as the definition for \(\Res\). The scheme \(X\) becomes an Artin stack \(\mathcal Y\), \(Z\) becomes the fixed stack \(\mathcal Y^T\), the cone \(C\) is replaced by the intrinsic normal cone stack \(\mathfrak C_{\mathcal Y^T/\mathcal Y}\) of \(\eta\) (\cite[Definition 2.30]{manolache_VirtualPullbacks2012}) and \(V\) becomes a vector bundle stack \(\mathfrak E\) over \(\mathcal Y^T\). We then have two problems, and they are the subject of this section.
+
+\bigskip
+
+\noindent\textbf{Problem 1:} (The Euler class \(e^{-1}_T(\mathfrak E)\) and its inverse.) Suppose we have a finite-type scheme \(X\) fixed pointwise by the action of \(T = \mathbb G_m\), so that \(A^*_T(\pt) = \mathbb Q[t]\) and, the action being trivial, \(A^*_T(X) = A^*_T(\pt)\otimes A^*(X)\) by the projective bundle formula applied to \(X\times \mathbb P^N\). The equivariant Euler class of a moving line bundle \(L\) on \(X\) is then
+\begin{align*}
+  e_T(L) = c_1^T(L) = wt + c
+\end{align*}
+where \(w\in \mathbb Z\setminus\{0\}\) is the weight of the \(T\)-action on \(L\) and \(c = c_1(L)\in A^1(X)\) is the ordinary first Chern class of \(L\) acting on \(A_*(X)\). The formal inverse is then
+\begin{align*}
+  e_T^{-1}(L) = (wt)^{-1} - c(wt)^{-2} + c^2(wt)^{-3} - \dots
+\end{align*}
+When \(X\) is a scheme, \(A_n(X) = 0\) for \(n < 0\). This means \(c\) acts nilpotently on \(A_*(X)\), so this sum is actually finite. To invert \(e_T(L)\) it therefore suffices to invert \(t\), which is why \(e^{-1}_T(L)\) acts on \(A^T_*(X)_{Q_T}\).
+
+However if \(\mathcal X\) is instead an algebraic stack it is no longer the case that \(c\) acts nilpotently; \(A_n(\mathcal X)\) can be nonzero for arbitrarily negative \(n\). When \(T\) is rank 1, we can solve this by working in the ring of formal Laurent series in \(t^{-1}\), namely,
+\[A^*_T(\mathcal X)_{\loc} := A^*_T(\mathcal X)_{Q_T}[\hspace{-2pt}[t^{-1}]\hspace{-2.5pt}].\]
+It is more complicated to give a neat presentation of these groups for higher rank tori. For our purposes it will suffice to take \( A^*_T(\mathcal X)_{\loc}\) to be \(A^*_T(\mathcal X)_{Q_T}\) with ``all necessary Euler classes inverted''. We will give a more precise description in the following section (\S~\ref{sec:euler-classes-of-vector-bundle-stacks}).
+
+
+\bigskip
+
+\noindent\textbf{Problem 2:} (Dependence on the embedding \(\mathfrak C\hookrightarrow \mathfrak E\).) If \(\eta\) is DM-type and we fix an embedding \(j:\mathfrak C_{\mathcal Y^T/\mathcal Y}\hookrightarrow \mathfrak E\), then the composition \(s^*_{\mathfrak E}\circ j_*\circ \sigma\) is simply Manolache's virtual pullback \(\eta^!\). The existence of data \(j:\mathfrak C_{\mathcal Y^T/\mathcal Y}\hookrightarrow \mathfrak E\) is equivalent to the existence of a perfect relative obstruction theory \(E^\bullet_{\mathcal Y^T/\mathcal Y} \to L_{\mathcal Y^T/\mathcal Y}\), in which case \(\mathfrak E = h^1/h^0(E^\bullet_{\mathcal Y^T/\mathcal Y})\) \cite[Proposition 3.11]{manolache_VirtualPullbacks2012}. There is no canonical choice of perfect obstruction theory for \(\eta\), which is a problem since \(\eta^!\) depends on this choice. We solve this problem in \S~\ref{sec:the-residue-map}.
+
+\input{nodes/rl-000S}
+\input{nodes/rl-000V}

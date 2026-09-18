@@ -1,0 +1,29 @@
+\begin{example}\label{rl-000I}\label{example:affine-diagonal-is-necessary}
+  Let \(R = \mathbb C[\hspace{-2pt}[q]\hspace{-2pt}]\), $K = \mathbb C(\hspace{-2pt}(q)\hspace{-2pt})$ \(S = \Spec R\) and let \(W \to S\) be the Weierstrass model
+  \begin{align*}
+    y^2 + xy = x^3 + a_4x + a_6
+  \end{align*}
+  of the Tate curve \cite{silverman_AdvancedTopicsArithmetic1999}. Now let \(E\) be the smooth locus of \(W\). Then \(E\) is a quasi-compact open subscheme of the projective \(S\)-scheme \(W\), hence \(E\to S\) is separated, finitely presented and smooth. Its generic fiber is an elliptic curve and its central fiber is the smooth locus of a nodal cubic, so \(E_{\mathbb C} = \mathbb G_m\).
+
+  Set \(\mathcal X = BE = [S/E]\) and let \(\mathbb G_m\) act trivially on \(\mathcal X\). Then of the hypotheses in \cite[Theorem 1.2.1]{romagny_AlgebraicitySmoothnessFixed2022}, \(\mathcal X\) only fails the affine diagonal requirement. Indeed, \(\mathcal X\) is an algebraic stack by \cite[06PL]{stacks-project} and the group \(\mathbb G_m\) is reductive. However, if we base change \(\Delta_{BE}:BE\to BE_SBE\) along \(S\to BE\times_SBE\) given in each component by the trivial torsor \(S\to BE\), then we get
+  \begin{align*}
+    BE\times_{BE\times_SBE} S \cong E.
+  \end{align*}
+  The fiber of $E$ over the generic point of \(S\) is the proper curve \(E_K\to \Spec K\), so \(E_K\) is not affine and neither is \(\Delta_{BE}\).
+  
+  We claim that \((BE)^{\mathbb G_m}\) is not algebraic. The Romagny fixed stack is
+  \begin{align*}
+    X^{\mathbb G_m} \cong BE\times_S F, \hspace{1em} F = \underline{Hom}_{S-gp}(\mathbb G_m, E),
+  \end{align*}
+  and \(\eta:X^{\mathbb G_m}\to X\) is the projection to the first factor by the description at the end of Remark \ref{rmk:description-of-homotopy-fixed-stack}. Since \(\eta\) is faithful (Remark \ref{rmk:algebraicity-is-representability}) it is representable by algebraic spaces by \cite[\href{https://stacks.math.columbia.edu/tag/04Y5}{Tag 04Y5}]{stacks-project}, so if \(\mathcal X^{\mathbb G_m}\) were algebraic then its base change \(F = S\times_{BE}\mathcal X^{\mathbb G_m}\) along the trivial torsor would be an algebraic space over \(S\). We show that no algebraic space can have the values \(F\) has by exhibiting a compatible family \(f_n \in F(A_n)\) for \(A_n \in R/(q^n)\) with \(f_1 \neq 0\), while \(F(R) = 0\).
+  
+  This is straightforward. Observe first that any group homomorphism \(f:\mathbb G_{m,R}\to E\) must induce a group homomorphism \(f_K:\mathbb G_{m,K}\to E_K\). This extends to a morphism \(\mathbb P^1_K\to E_K\), but the only such morphism is constant, hence \(f_K\) is trivial and \(F(R) = 0\). If we instead reduce to \(\mathbb C = R/(q)\), then we get
+  \[F(\mathbb C) = \Hom(\mathbb G_m, \mathbb G_m) = \mathbb Z.\]
+  Next we need to show there exists some non-trivial element in \(\lim \Hom(\mathbb G_{m,A_n}, E_{A_n})\) for \(A_n = R/(q^n)\). One can do this directly by showing the identity morphism \(f_1:\mathbb G_{m,\mathbb C} \to \mathbb G_{m,\mathbb C}=E_{\mathbb C}\) lifts to a morphism \(f_n:\mathbb G_{m,A_n}\to E_{A_n}\) where \(A_n = R/(q^n)\). In homogeneous coordinates, it's given by
+  \begin{align*}
+    f_n(t) = \big[t(1-t) + (1 - t)^3P_n(t,q) ~ : ~ t^2 + (1 - t)^3 Q_n(t,q) ~ : ~ (1 - t)^3\big]
+  \end{align*}
+  for certain Laurent polynomials \(P_n,Q_n \in qA_n[t,t^{-1}]\) obtained by truncating the Tate series modulo \(q^{n}\).
+
+  Suppose now that $\mathcal{X}^{\mathbb{G}_m}$ is algebraic, so that $F$ is an algebraic space over $S$, and choose an \'etale surjection $p:V\to F$ from a scheme. The $\mathbb{C}$-point $f_1\in F(A_1)$ lifts to a $\mathbb{C}$-point $v$ of $V$, since $p$ is surjective and $\mathbb C$ is algebraically closed. As $p$ is \'etale, hence formally \'etale, and $\Spec A_{n-1}\subset \Spec A_n$ is a nilpotent thickening, the maps $f_n:\Spec A_n\to F$ lift uniquely and compatibly to $\lambda_n:\Spec A_n\to V$ with $\lambda_1=v$. A local Artinian scheme lands in every open neighbourhood of its closed point, so all $\lambda_n$ factor through a single affine open $\Spec B\ni v$ of $V$; they are then given by compatible ring maps $B\to A_n$, that is, by a ring map $B\to\varprojlim A_n=R$. The resulting composite $\Spec R\to V\to F$ is an element $f\in F(R)$ with $f|_{A_n}=f_n$ for every $n$. But $F(R)=0$, so $f_1=0$, contradicting $f_1=\mathrm{id}_{\mathbb{G}_m}$. Hence $\mathcal{X}^{\mathbb{G}_m}=(BE)^{\mathbb{G}_m}$ is not algebraic.
+\end{example}

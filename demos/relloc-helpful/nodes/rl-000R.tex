@@ -1,0 +1,12 @@
+\begin{prop}[\cite{edidin-graham_LocalizationEquivariantIntersection1998}]\label{rl-000R}\label{prop:edidin-graham-residue-identity}
+  Suppose \(X\) is a scheme of finite type over \(k\) with a \(T\)-action and let \(\iota:Z\hookrightarrow X\) be the inclusion of an open and closed subscheme of \(X^T\). Write \(\Res_{Z/X}:A^T_*(X)_{Q_T}\to A^T_*(Z)_{Q_T}\) for the \(Z\)-component of the inverse of the isomorphism \(i_*:A^T_*(X^T)_{Q^T}\to A^T_*(X)_{Q^T}\). Suppose the normal cone \(C_{X/Z}\) admits a \(T\)-equivariant embedding \(j:C\to V\) into a moving vector bundle over \(Z\), then we have two maps \(A^T_*(X) \to A^T_*(Z)_{Q}\):
+  \begin{equation*}
+    \begin{tikzcd}
+      A_*^T(X)_{Q} \arrow[rrr, bend left=30,"\Res_{Z/X}"]\arrow[r,"\sigma"] & A^T_*(C)_{Q} \arrow[r, "j_*"] & A^T_*(V)_{Q} \arrow[r,"s^*_V"] & A^T_*(Z)_Q
+    \end{tikzcd}
+  \end{equation*}
+  The composite of the specialization map \(\sigma\), the pushforward \(j_*\) and the Gysin pullback \(s^*_V\) of the zero section satisfy the following identity with \(\Res_{Z/X}\):
+  \begin{equation}\label{eqn:residue-identity}
+    e(V) \cap \Res_{Z/X}(\alpha) = (s^*_V\circ j_*\circ \sigma)(\alpha).
+  \end{equation}
+\end{prop}

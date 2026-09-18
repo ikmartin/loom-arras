@@ -1,0 +1,27 @@
+\begin{lemma}\label{rl-0013}\label{lem:torsor-lemma}
+  Suppose
+  \begin{align*}
+    0 \to F\to D\xrightarrow {p} \mathfrak C\to 0
+  \end{align*}
+  is an exact sequence of moving cone stacks over \(\mathcal Z\) where \(F\) is a finite rank moving vector bundle, \(D\) is a moving cone and \(\mathfrak C\) is a moving cone stack. Then
+  \begin{align*}
+    S_C(\beta) = e_T(F)\cap S_D(p^*\beta).
+  \end{align*}
+\end{lemma}
+\begin{proof}
+  If \(j:D\hookrightarrow G\) is an embedding of \(D\) into a finite rank moving vector bundle stack over \(\mathcal Z\), then we get a diagram
+  \begin{center}
+    \begin{tikzcd}[column sep={1.5cm,between origins},
+      row sep={1.5cm,between origins}]
+      0 \arrow[r] & F \arrow[r] & G \arrow[r, "p'"] & \mathfrak E \arrow[r] & 0 \\
+      0 \arrow[r] & F \arrow[u, hook, "\id"] \arrow[r] & D \arrow[u, hook, "j"] \arrow[r,"p"] & \mathfrak C \arrow[u, hook, "j'"] \arrow[r] & 0
+    \end{tikzcd}.
+  \end{center}
+  The properties of Gysin morphisms and flat pullback mean that for any \(\beta\in A^T_*(C)\) we have \(jp^*(\beta) = p'^*j'_*(\beta)\) and \(0^!_G\circ p'^* = 0^!_E\), so
+  \begin{align*}
+    S_C(\beta) &= e_T(\mathfrak E)^{-1} \cap 0^!_{E}j_*(\beta) \\
+           &= e_T(F)\cdot e_T(F)^{-1}\cdot e_T(\mathfrak E)^{-1}~\cap~ 0^!_Gp'^*j_*(\beta) \\
+           &= e_T(F)\cdot e_T(G)^{-1} ~\cap~ 0^!_Gj'_*(p^*\beta) \\
+    &= e_T(F)\cap S_D(p^*\beta).
+  \end{align*}
+\end{proof}

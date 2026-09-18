@@ -1,0 +1,46 @@
+\begin{lemma}\label{rl-000G}\label{lem:obstruction-theory-for-the-fixed-locus}
+  Suppose \(E\) is a \(T\)-equivariant relative perfect obstruction theory for \(\pi:M\to \mathcal X\) where \(M\) is a Deligne-Mumford stack and \(\mathcal X\) is an algebraic stack. That is, \(E\) is an element in the \(T\)-equivariant derived category of \(M\) of perfect amplitude \([-1,0]\) together with a \(T\)-equivariant morphism \(\phi: E\to L_{M/\mathcal X}\) which is an obstruction theory in the sense of \cite[Definition 4.4]{behrend-fantechi_IntrinsicNormalCone1997}. If \(\mathcal X^T\) is an algebraic stack, then \((E|_{M^T})^f\) is a canonical relative perfect obstruction theory for \(M^T\) over \(\mathcal X^T\).
+\end{lemma}
+\begin{proof}
+  We have a commutative square (not Cartesian)
+  \begin{center}
+    \begin{tikzcd}
+      M^T \arrow[r, "\iota"] \arrow[d, "\pi^T"] & M \arrow[d, "\pi"] \\
+      \mathcal X^T \arrow[r, "\eta"] & \mathcal X
+    \end{tikzcd}.
+  \end{center}
+  Traversing from \(M^T\) to \(\mathcal X\) through \(M\) and through \(\mathcal X^T\) each gives us a transitivity triangle of cotangent complexes, and pulling back \(\phi\) by \(\iota^*\) gives us a morphism \(\iota^*\phi:\iota^*E\to \iota^*L_{M/\mathcal X}\). We can arrange this data as follows:
+  \begin{center}
+    \begin{tikzcd}
+      \iota^*E \arrow[d,"\iota^*\phi "] & & & \\
+    \iota^*L_{M/\mathcal X} \arrow[r,"\alpha"] & L_{M^T/\mathcal X} \arrow[r] \arrow[d, equal] & L_{M^T/M} \arrow[r, "+1"] & \dots\\
+    (\pi^T)^* L_{\mathcal X^T/\mathcal X} \arrow[r] & L_{M^T/\mathcal X} \arrow[r, "\beta"] & L_{M^T/\mathcal X^T} \arrow[r, "+1"] & \dots
+  \end{tikzcd}
+  \end{center}
+  where the middle equality follows from the commutativity of the diagram. Write \(\iota^*E\) as \(E|_{M^T}\) to match the notation in the statement and define \(\psi\) to be the composition of \(\iota^*\phi\), \(\alpha\) and \(\beta\) after taking fixed parts:
+  \begin{align*}
+    \psi: \left(E|_{M^T}\right)^f\xrightarrow{\iota^*\phi^f} \left(\iota^*L_{M/\mathcal X}\right)^f \xrightarrow{\alpha^f} \left(L_{M^T/\mathcal X}\right)^f \xrightarrow{\beta^f} \left(L_{M^T/\mathcal X^T}\right)^f.
+  \end{align*}
+  We show that \(\psi\) is a perfect obstruction theory. First consider the map \(\iota^*\phi\). Right exactness of derived pullback implies that \(h^0(\iota^*E) = \iota^*h^0(E)\) and \(h^0(\iota^*L_{M/\mathcal X}) = \iota^*h^0(L_{M/\mathcal X})\), and \(\iota^*\) preserves isomorphisms, so \(h^0(\iota^*\phi)\) is an isomorphism. For \(h^{-1}(-)\), we get a Tor correction and a diagram with exact rows:
+  \begin{center}
+  \begin{tikzcd}
+    \iota^*h^{-1}(E) \arrow[r] \arrow[d,"\iota^*h^{-1}(\phi)"] & h^{-1}(\iota^*E) \arrow[r]\arrow[d,"h^{-1}(\iota^*\phi)"] & \Tor_1(h^0(E)) \arrow[r] \arrow[d,"\Tor_1(h^0(\phi))"] & 0 \arrow[d] \\
+    \iota^*h^{-1}(L_{M/\mathcal X}) \arrow[r] & h^{-1}(\iota^*L_{M/\mathcal X}) \arrow[r] & \Tor_1(h^0(L_{M/\mathcal X})) \arrow[r] & 0 \\
+  \end{tikzcd}
+  \end{center}
+  \(\Tor\) preserves isomorphisms so \(\Tor_1(h^0(\phi))\) is an isomorphism. The morphism \(h^{-1}(\phi)\) is surjective by assumption and \(\iota^*(-)\) is right exact, so \(\iota^*h^{-1}(\phi)\) is also surjective. Applying \cite[Lemma 05QA]{stacks-project} then gives us that \(h^{-1}\iota^*\phi\) is surjective as well.
+
+  Now consider the map \(\alpha\). The fixed portion of the long exact sequence of the transitivity triangle involving \(\alpha\) reads
+  \begin{align*}
+    &h^{-1}(\iota^*L_{M/\mathcal X})^f \xrightarrow{h^{-1}(\alpha^f)}h^{-1}(L_{M^T/\mathcal X})^f \to h^{-1}(L_{M^T/M})^f \to \dots\\\dots \to ~& h^{0}(\iota^*L_{M/\mathcal X})^f \xrightarrow{h^{0}(\alpha^f)}h^{0}(L_{M^T/\mathcal X})^f \to h^{0}(L_{M^T/M})^f \to 0
+  \end{align*}
+  
+
+  Since \(\iota\) is a closed immersion (Lemma \ref{lem:torus-actions-are-nice}) \(h^0(L_{M^T/M}) = \Omega_{M^T/M} = 0\), and applying Lemma \ref{lem:two-term-truncation-of-fixed-locus-cotangent-complex-no-fixed-part} to \(\mathcal M\) gives us \(h^{-1}(L_{M^T/M})^f = 0\). This implies \(h^0(\alpha^f)\) is an isormophism and \(h^{-1}(\alpha^f)\) is surjective.
+
+  Finally consider \(\beta\). Because \(T\) acts trivially on \(\mathcal M^T\) and \(\mathcal X^T\), \(L_{\mathcal M^T/\mathcal X^T}\) is of pure weight zero and the weight-zero part of the long exact sequence of the bottom triangle reads
+  \begin{align*}
+    &h^{-1}(\iota^*L_{\mathcal X^T/\mathcal X})^f \to h^{-1}(L_{M^T/\mathcal X})^f \xrightarrow{h^{-1}(\beta^f)} h^{-1}(L_{M^T/\mathcal X^T})^f \to \dots\\\dots \to ~& h^{0}(\iota^*L_{\mathcal X^T/\mathcal X})^f \to h^{0}(L_{M^T/\mathcal X})^f \xrightarrow{h^{0}(\beta^f)} h^{0}(L_{M^T/\mathcal X^T})^f \to 0.
+  \end{align*}
+  Since \((\pi^T)^*\) is right \(t\)-exact and compatible with weights, \(h^0((\pi^T)^*L_{\mathcal X^T/\mathcal X})^f = (\pi^T)^*(\Omega^f_{\mathcal X^T/\mathcal X}) = 0\) by Lemma \ref{lem:two-term-truncation-of-fixed-locus-cotangent-complex-no-fixed-part}. Hence \(h^0(\beta^f)\) is an isomorphism and \(h^{-1}(\beta^f)\) is surjective. Thus \(h^0(\psi)\) is the composite of isomorphisms and \(h^{-1}(\psi)\) is the composite of surjections, so we conclude that \(\psi\) is a perfect obstruction theory.
+\end{proof}

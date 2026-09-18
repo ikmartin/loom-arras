@@ -1,0 +1,44 @@
+\subsection{Preliminaries}\label{rl-0003}
+Group actions on algebraic stacks are subtle, and there are several distinct notions of ``the fixed stack'' for a group acting on a stack. We make no attempt at a comprhensive treatment here; instead, we review 
+
+We begin by reviewing group actions on stacks as defined by Romagny \cite{romagny_GroupActionsStacks2005} and four distinct notions of ``the fixed stack of a group action on a stack''. Throughout the main body of this paper we use the Romagny fixed stack
+
+\input{nodes/rl-0004}
+\input{nodes/rl-0005}
+
+Consider for a moment the fixed locus \(X^G\) of a scheme \(X\) with a group action \(G\). A map \(U\to X^G \in X^G(U)\) from some scheme \(U\) is exactly the same data as a \(G\)-equivariant map \(U\to X\) where \(U\) is endowed with the trivial action of \(G\). Romagny defines the fixed stack analogously to this functor of points description of \(X^G\). 
+\input{nodes/rl-0006}
+\input{nodes/rl-0007}
+
+When there are many choices of \(\alpha_g\) for a single \(x\in \mathcal X(U)\) we get multiple points in \(\mathcal X^G(U)\) mapping to a single point in \(\mathcal X\). This means that \(\eta:\mathcal X^G\to \mathcal X\) is, in general, not a monomorphism.
+
+\input{nodes/rl-0008}
+
+\input{nodes/rl-0009}
+
+The stack \(\mathcal X^G\) also admits a description via something called the \emph{universal stabilizer} of the action of $G$ on $\mathcal X$, denoted \(\St_{X,G}\) \cite[Section 4.1]{romagny_AlgebraicitySmoothnessFixed2022}. It is the fiber product
+\begin{equation}\label{eqn:universal-stabilizer-diagram}
+\begin{tikzcd}
+  \St_{\mathcal X,G} \arrow[d]\arrow[r]& \mathcal X \arrow[d,"\Delta"] \\
+  G\times_S \mathcal X\arrow[r,swap,"\text{act}\times \pr_2"]&\mathcal X\times \mathcal X
+\end{tikzcd}.
+\end{equation}
+Over a point \(x:U\to \mathcal X\) its objects are
+\begin{align*}
+  \St_{\mathcal X,G}(U) = \{(g,\alpha) ~\mid~ g\in G(U), \alpha:gx\xrightarrow{\sim} x\},
+\end{align*}
+with multiplication law \((g,\alpha) \cdot (h,\beta) = (gh, \alpha \circ g\beta)\) and identity element \((1,\id_x)\). The leftmost vertical arrow in diagram \eqref{eqn:universal-stabilizer-diagram} is given by \((g,\alpha) \mapsto g\) over \(x:U\to \mathcal X\) and is a morphism of \(\mathcal X\)-group stacks. Its kernel is the inertia stack \(I_{\mathcal X} := \mathcal X\times_{\mathcal X\times \mathcal X}\mathcal X,\) and thus we get an exact sequence
+\begin{equation}
+  \label{eqn:inertia-stack-sequence}
+  1 \to I_{\mathcal X/S} \to \St_{\mathcal X,G} \to G\times_S \mathcal X
+\end{equation}
+where over \(x:U\to \mathcal X\) the map \(I_{\mathcal X/S}\to \St_{\mathcal X, G}\) is
+\begin{align*}
+  (\alpha:x\xrightarrow{\sim} x) \mapsto (1, \alpha).
+\end{align*}
+We call the cokernel of \(I_{\mathcal X/S}(x)\hookrightarrow \St_{\mathcal X, G}(x)\) the \emph{\(G\)-stabilizer} of \(x\). As an aside, the rightmost map in \eqref{eqn:inertia-stack-sequence} admits a section over \(U\) if and only if \(x\) is in the image of \(\eta(U):\mathcal X^G(U)\to \mathcal X(U)\), and \(x:U\to \mathcal X\) in the image of \(\eta\).
+\input{nodes/rl-000A}
+
+
+\input{nodes/rl-000B}
+The fixed stack \(\mathcal X^G\) and the map \(\eta:\mathcal X^G\to \mathcal X\) can be arbitrarily bad, but crucially, it is controllable for algebraic tori acting on algebraic stacks.
