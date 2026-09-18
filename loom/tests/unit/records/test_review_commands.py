@@ -811,3 +811,15 @@ def test_accepting_a_digest_says_what_it_claims(tmp_path: Path) -> None:
 
     # the author's own keys are untouched by any of it
     assert run("accept", "sy-0002", *AUTHOR, cwd=q).output.startswith("accepted sy-0002")
+
+
+def test_an_annotations_display_math_is_a_block_not_a_div_inside_a_paragraph(tmp_path: Path) -> None:
+    """A sentence, a newline, `$$…$$`, a newline and another sentence is how an annotation is written; the equation landed inside the paragraph's `<p>`, which a browser fixes by closing the paragraph early."""
+    from loom.records.store import render_markdown
+
+    out = render_markdown("The bound $n \\le 2$ needs it, and then\n$$\\int_0^1 f$$\nfollows.")
+    assert out.count("<p>") == out.count("</p>") == 2
+    before, after = out.split('<div class="math display">')
+    assert before.rstrip().endswith("</p>")  # the paragraph is closed before the equation, not around it
+    assert out.index('<span class="math inline">') < out.index('<div class="math display">')
+    assert out.rstrip().endswith("<p>follows.</p>")

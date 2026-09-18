@@ -419,6 +419,32 @@ def _dollars_in_body(body: str, macros: dict[str, Macro]) -> str:
     return "".join(out)
 
 
+_REF = re.compile(r"\\(eqref|ref|cref|Cref|autoref)\s*\{([^}]*)\}")
+_TEXT_ARG = re.compile(r"\\(tag|text|mbox|textrm|textit|textbf|intertext|shortintertext)\s*\*?\s*\{")
+
+
+def _sub_refs_in_text_arguments(tex: str, repl: Callable[[re.Match[str], bool], str]) -> str:
+    """Replace every reference inside a text-mode argument with its bare number, leaving the rest of the formula alone.
+
+    `\\tag{Equation \\eqref{eqn:9}}` is an ordinary thing to write and its argument is already text, so the `\\text{…}` that keeps a label upright everywhere else is an error there. Brace-matched rather than regexed, because these arguments nest.
+    """
+    out: list[str] = []
+    pos = 0
+    while True:
+        m = _TEXT_ARG.search(tex, pos)
+        if m is None:
+            out.append(tex[pos:])
+            return "".join(out)
+        depth = 1
+        i = m.end()
+        while i < len(tex) and depth:
+            depth += {"{": 1, "}": -1}.get(tex[i], 0)
+            i += 1
+        out.append(tex[pos : m.end()])
+        out.append(_REF.sub(lambda r: repl(r, False), tex[m.end() : i]))
+        pos = i
+
+
 def dollars_in_text(tex: str, macros: dict[str, Macro]) -> str:
     """Inside every `\\text{…}`, write a macro whose body only math mode accepts between dollars.
 
@@ -1042,13 +1068,18 @@ class Converter:
         tex = re.sub(r"\\label\s*\{[^}]*\}", "", tex)
         tex = dollars_in_text(tex, self.ctx.macros)
 
-        def ref_repl(m: re.Match[str]) -> str:
+        def ref_repl(m: re.Match[str], upright: bool = True) -> str:
             lab = re.sub(r"\s+", " ", m.group(2)).strip()
-            num = number_of(self.ctx, lab)
-            shown = num or lab
-            return f"\\text{{({shown})}}" if m.group(1) == "eqref" else f"\\text{{{shown}}}"
+            shown = number_of(self.ctx, lab) or lab
+            if m.group(1) == "eqref":
+                shown = f"({shown})"
+            # `\text{…}` keeps a label upright, and inside an argument LaTeX already reads as text it is an error:
+            # MathJax refuses the whole formula with "\text is only supported in math mode", which is how
+            # `\tag{Equation \eqref{…}}` published as its own source on a yellow ground.
+            return f"\\text{{{shown}}}" if upright else shown
 
-        tex = re.sub(r"\\(eqref|ref|cref|Cref|autoref)\s*\{([^}]*)\}", ref_repl, tex)
+        tex = _sub_refs_in_text_arguments(tex, ref_repl)
+        tex = re.sub(_REF, ref_repl, tex)
         return tex.strip()
 
     def display_env(self, env: str, start: int, end: int) -> str:

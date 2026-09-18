@@ -165,3 +165,17 @@ def test_a_macro_already_inside_math_within_text_is_left_alone() -> None:
     # the outer math is written \(…\), since a $ inside \text{} would close a $-delimited formula
     out, _, _ = make("\\(\\text{already $\\ul C$ here}\\)\n", macros=macros)
     assert out.count("$\\ul C$") == 1
+
+
+def test_a_reference_inside_a_text_argument_is_not_wrapped_in_text() -> None:
+    """`\\tag{Equation \\eqref{…}}` is ordinary to write and its argument is already text, so the `\\text{…}` that keeps a label upright everywhere else made MathJax refuse the whole formula — "\\text is only supported in math mode" — and the aligned chain published as its own source on a yellow ground."""
+    text = (
+        "\\begin{align*}\na &= b \\tag{Lemma~\\ref{lem:a}}\\\\\nc &= d \\tag{Equation \\eqref{eq:b}}\\\\\n"
+        "e &= f \\tag{by hand}\n\\end{align*}\nIn prose, \\(g = \\ref{lem:a}\\) still wants it.\n"
+    )
+    labels = {"lem:a": "k-0002", "eq:b": "k-0003"}
+    out, _, _ = make(text, labels=labels, numbers={"lem:a": AuxNumber("2.1", 1), "eq:b": AuxNumber("7", 2)})
+    assert "\\tag{Lemma~2.1}" in out and "\\tag{Equation (7)}" in out
+    assert "\\tag{by hand}" in out  # a tag with no reference is untouched
+    assert "\\tag{Lemma~\\text{" not in out and "\\tag{Equation \\text{" not in out
+    assert "\\text{2.1}" in out  # and a reference in math mode keeps its upright wrapper

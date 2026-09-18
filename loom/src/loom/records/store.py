@@ -509,9 +509,34 @@ def _restore_math(html_text: str, spans: list[tuple[bool, str]]) -> str:
             else f'<span class="math inline">\\({tex}\\)</span>'
         )
         html_text = html_text.replace(_HOLE.format(i), block)
-    # A display equation alone in its paragraph is a block, and Commonmark wrapped the placeholder that stood for it in
-    # a <p>; leaving it there nests a div inside a p, which no dialect check should have to tolerate.
-    return re.sub(r'<p>\s*(<div class="math display">.*?</div>)\s*</p>', r"\1", html_text, flags=re.S)
+    return _lift_display_math(html_text)
+
+
+def _lift_display_math(html_text: str) -> str:
+    """Take every display equation out of the paragraph Commonmark wrapped it in, splitting the paragraph around it.
+
+    The dialect writes display math as a `div` (specs/dialect.md §2.6) and Commonmark wraps a paragraph's content in a `p`, so an equation that is not separated by blank lines lands inside one -- which is invalid, and which a browser fixes by closing the paragraph early and leaving the prose after the equation outside it. Writing a sentence, a newline, `$$...$$`, a newline and another sentence is how annotations are actually written, so this is the ordinary case rather than the edge one.
+    """
+    div = re.compile(r'<div class="math display">.*?</div>', re.S)
+
+    def split(m: re.Match[str]) -> str:
+        inner = m.group(1)
+        if not div.search(inner):
+            return m.group(0)
+        out: list[str] = []
+        pos = 0
+        for d in div.finditer(inner):
+            before = inner[pos : d.start()].strip()
+            if before:
+                out.append(f"<p>{before}</p>")
+            out.append(d.group(0))
+            pos = d.end()
+        rest = inner[pos:].strip()
+        if rest:
+            out.append(f"<p>{rest}</p>")
+        return "\n".join(out)
+
+    return re.sub(r"<p>(.*?)</p>", split, html_text, flags=re.S)
 
 
 def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
