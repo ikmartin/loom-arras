@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SourceToggle from './SourceToggle.svelte';
 	import type { Annotation } from '$lib/manifest/types';
 	import { shortDate } from '$lib/badges';
 	import { ui } from '$lib/ui.svelte';
@@ -11,6 +12,7 @@
 <article class="box kind-{annotation.kind}" class:active class:discarded={annotation.discarded} id={anchor ? 'ann-' + annotation.id : undefined} data-annotation-id={annotation.id}>
 	<header>
 		<span class="kind">{annotation.kind}</span>
+		{#if annotation.severity}<span class="sev sev-{annotation.severity}" data-testid="severity">{annotation.severity}</span>{/if}
 		<span class="date">{shortDate(annotation.created)}</span>
 		<span class="status">{annotation.status}</span>
 		<span class="author" title={annotation.author.id}>{annotation.author.label ?? annotation.author.id}</span>
@@ -19,6 +21,16 @@
 	</header>
 	{#if annotation.quote}<blockquote class="quote">{annotation.quote}</blockquote>{/if}
 	<div class="body">{@html annotation.body_html}</div>
+	{#if annotation.payload}
+		<!-- Text the annotation proposes, shown where its `placement` says it would go. Preview and copy only: nothing here applies anything, and the toggle is the same one a node's own source gets. -->
+		<div class="payload" data-testid="payload" data-placement={annotation.placement ?? 'replace'}>
+			<p class="payload-head">
+				proposed {annotation.placement === 'after' ? 'after' : annotation.placement === 'before' ? 'before' : 'in place of'} the quoted text
+				<SourceToggle sourceKey={annotation.target.key} text={annotation.payload} />
+			</p>
+			<pre>{annotation.payload}</pre>
+		</div>
+	{/if}
 	{#if replies.length}
 		<div class="replies">
 			{#each replies as r (r.id)}
@@ -59,6 +71,25 @@
 	}
 	.sev-minor {
 		color: var(--muted);
+	}
+	.payload-head {
+		display: flex;
+		gap: 0.6em;
+		align-items: baseline;
+		justify-content: space-between;
+		margin: 0 0 0.3em;
+		font-family: var(--sans);
+		font-size: 0.72em;
+		color: var(--ink-faint);
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+	.payload pre {
+		white-space: pre-wrap;
+		margin: 0;
+		font-size: 0.9em;
+		/* Red, because a suggestion's text is what would replace what you are reading, and the eye should not mistake one for the other. */
+		color: var(--state-incomplete, var(--ink));
 	}
 	.payload {
 		margin: 0.4em 0 0;

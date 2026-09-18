@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anyMoved, documentOf, findingsOf, isDocument, runsOn, versionNote } from './run';
+import { ambiguous, anyMoved, documentOf, findingsOf, isDocument, notationOf, runsOn, versionNote } from './run';
 import type { Annotation, Manifest, Thread } from '$lib/manifest/types';
 
 const ann = (id: string, over: Partial<Annotation> = {}): Annotation =>
@@ -66,6 +66,33 @@ describe('what a run says about a document', () => {
 		expect(anyMoved({ ...m, annotations: { a: ann('a') } } as unknown as Manifest, thread())).toBe(false);
 	});
 
+	it('collects declared notation and catches a symbol given two meanings', () => {
+		const t2 = thread({
+			pipeline: [
+				{
+					mode: 'referee',
+					target: 'sy-0003',
+					report: 'r.md',
+					blocks: [
+						{
+							name: 'notation',
+							title: 'notation',
+							symbols: [
+								{ tex: '\\Fix(\\sigma)', means: 'the fixed locus' },
+								{ tex: 'k', means: 'the number of orbits' },
+								{ tex: '\\Fix(\\sigma)', means: 'the fixed locus on orbits' }
+							]
+						}
+					]
+				}
+			]
+		});
+		expect(notationOf(t2).map((d) => d.tex)).toEqual(['\\Fix(\\sigma)', 'k']); // sorted, and the repeat merged
+		expect(ambiguous(t2).map((d) => d.tex)).toEqual(['\\Fix(\\sigma)']);
+		expect(ambiguous(t2)[0].means).toHaveLength(2);
+		expect(notationOf(thread())).toEqual([]); // a run with no pipeline declares nothing
+	});
+
 	it('finds the runs that touched a document, newest first', () => {
 		const mm = {
 			...m,
@@ -78,5 +105,53 @@ describe('what a run says about a document', () => {
 		} as unknown as Manifest;
 		expect(runsOn(mm, 'drafting/main.tex').map((t) => t.id)).toEqual(['r2', 'r1']);
 		expect(runsOn(mm, null)).toEqual([]);
+	});
+});
+
+describe('what a result rests on', () => {
+	const mm = {
+		keys: {
+			a: { node: 'a', uses: [] },
+			'a/proof': { node: 'a', uses: ['b', 'c'] },
+			b: { node: 'b', uses: ['d'] },
+			c: { node: 'c', uses: [] },
+			d: { node: 'd', uses: [] },
+			e: { node: 'e', uses: [] }
+		},
+		nodes: {
+			a: { proofs: ['a/proof'] },
+			b: { proofs: [] },
+			c: { proofs: [] },
+			d: { proofs: [] },
+			e: { proofs: [] }
+		}
+	} as unknown as Manifest;
+
+	it('rests on what its proof rests on, deepest first, the result last', async () => {
+		const { stack } = await import('./closure');
+		// the statement's own `uses` is empty -- every dependency is inside the argument, which is the ordinary case
+		expect(stack(mm, 'a', 1)).toEqual(['b', 'c', 'a']);
+		expect(stack(mm, 'a', 2)).toEqual(['d', 'b', 'c', 'a']); // what b uses comes before b
+		expect(stack(mm, 'e', 2)).toEqual(['e']); // rests on nothing
+		expect(stack(mm, 'missing', 1)).toEqual([]);
+	});
+});
+
+describe('the stack agrees with the publisher', () => {
+	it('reaches exactly the closure loom wrote, given enough depth', async () => {
+		// Viewer obligation 2 (plan 0.9.5 §1): a back end never re-derives what the front end knew. Depth is genuinely
+		// not in the manifest -- `uses` is one step and `closure` is all of them -- so walking `uses` is allowed, but
+		// walking it far enough must land on the publisher's own answer or one of us is wrong.
+		const { stack } = await import('./closure');
+		const mm = {
+			keys: {
+				a: { node: 'a', uses: ['b'], closure: ['b', 'c'] },
+				b: { node: 'b', uses: ['c'], closure: ['c'] },
+				c: { node: 'c', uses: [], closure: [] }
+			},
+			nodes: { a: { proofs: [] }, b: { proofs: [] }, c: { proofs: [] } }
+		} as unknown as Manifest;
+		const deep = stack(mm, 'a', 99).filter((k) => k !== 'a');
+		expect(deep.sort()).toEqual([...mm.keys['a'].closure].sort());
 	});
 });

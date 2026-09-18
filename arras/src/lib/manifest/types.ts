@@ -222,10 +222,18 @@ export interface Attachment {
 }
 
 /** One named section of a rendered report, and the findings inside it. */
+export interface Symbol {
+  /** The TeX as the agent wrote it. */
+  tex: string;
+  means: string;
+}
+
 export interface ReportBlock {
   name: string;
   title: string;
   findings?: string[];
+  /** Declared symbols, on a `notation` block. */
+  symbols?: Symbol[];
 }
 
 /** One mode a run applied. Derived by the publisher from what the run wrote; a corpus whose publisher has no modes emits none. */

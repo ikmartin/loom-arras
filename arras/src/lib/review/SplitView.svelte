@@ -7,7 +7,8 @@
 	import type { CommentSlot } from '$lib/fragments/mount';
 	import type { Annotation, Thread } from '$lib/manifest/types';
 	import { anchorId, keyUrl, threadUrl } from '$lib/nav';
-	import { documentOf, findingsOf, runsOn, versionNote } from './run';
+	import Tex from '$lib/math/Tex.svelte';
+	import { ambiguous, documentOf, findingsOf, notationOf, runsOn, versionNote } from './run';
 
 	let { thread }: { thread: Thread } = $props();
 
@@ -17,6 +18,8 @@
 	const findings = $derived(findingsOf(m, thread));
 	const others = $derived(runsOn(m, doc));
 	const steps = $derived(thread.pipeline ?? []);
+	const notation = $derived(notationOf(thread));
+	const clashes = $derived(new Set(ambiguous(thread).map((d) => d.tex)));
 
 	let tab = $state<'report' | 'journal'>('report');
 	/** Which run the document's marks are showing. Empty means this one, so the pane follows the thread it was given rather than remembering the first it ever saw. */
@@ -123,6 +126,21 @@
 		{/if}
 
 		{#if tab === 'report'}
+			{#if notation.length}
+				<!-- Notation is the run's, never the quilt's: a symbol an agent introduced to explain something is not a symbol the paper uses. Collapsed, because it is a reference you consult rather than prose you read. -->
+				<details class="notation" data-testid="notation">
+					<summary>Notation ({notation.length}){#if clashes.size}<span class="clash-count"> · {clashes.size} with two meanings</span>{/if}</summary>
+					<dl>
+						{#each notation as d (d.tex)}
+							<dt class:clash={clashes.has(d.tex)}><Tex text={'$' + d.tex + '$'} /></dt>
+							<dd>
+								{#each d.means as mean, i (i)}<p>{mean}</p>{/each}
+								{#if clashes.has(d.tex)}<p class="clash-note">declared twice in this run with different meanings</p>{/if}
+							</dd>
+						{/each}
+					</dl>
+				</details>
+			{/if}
 			{#if findings.document.length}
 				<!-- First and in a section of its own: these are about the thing the left pane is showing as a whole, where every other finding is about one node inside it. -->
 				<section class="doc-findings" data-testid="document-findings">
@@ -212,6 +230,41 @@
 		margin-left: auto;
 		font-size: 0.85em;
 		color: var(--ink-soft);
+	}
+	.notation {
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-card);
+		padding: var(--gap-tight) var(--gap);
+		margin-bottom: var(--gap-wide);
+		font-size: 0.9em;
+	}
+	.notation summary {
+		cursor: pointer;
+		color: var(--ink-soft);
+		font-family: var(--sans);
+		font-size: 0.8em;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.notation dl {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.3em var(--gap);
+		margin: var(--gap-tight) 0 0;
+	}
+	.notation dt.clash {
+		color: var(--state-incomplete, var(--ink));
+	}
+	.notation dd {
+		margin: 0;
+	}
+	.notation dd p {
+		margin: 0;
+	}
+	.clash-note,
+	.clash-count {
+		color: var(--state-incomplete, var(--ink-faint));
+		font-size: 0.85em;
 	}
 	.doc-findings {
 		border: 1px solid var(--rule);

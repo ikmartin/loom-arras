@@ -78,3 +78,32 @@ export function runsOn(m: Manifest, doc: string | null): Thread[] {
 		.filter((t) => touched.has(t.id) && !t.discarded)
 		.sort((a, b) => b.created.localeCompare(a.created));
 }
+
+export interface Declared {
+	tex: string;
+	means: string[];
+}
+
+/**
+ * The symbols a run declared, and which of them it gave more than one meaning.
+ *
+ * Notation belongs to an agent's prose and never to the quilt's own text, so this is a property of the run and not of any node. A symbol that picked up a second meaning inside one run is the thing worth catching: the reader has no way to tell which one a given formula meant.
+ */
+export function notationOf(thread: Thread): Declared[] {
+	const seen = new Map<string, string[]>();
+	for (const step of thread.pipeline ?? []) {
+		for (const block of step.blocks ?? []) {
+			for (const s of block.symbols ?? []) {
+				const means = seen.get(s.tex) ?? [];
+				if (s.means && !means.includes(s.means)) means.push(s.means);
+				seen.set(s.tex, means);
+			}
+		}
+	}
+	return [...seen.entries()].map(([tex, means]) => ({ tex, means })).sort((a, b) => a.tex.localeCompare(b.tex));
+}
+
+/** A symbol given two meanings in one run: nothing downstream can tell which one a formula meant. */
+export function ambiguous(thread: Thread): Declared[] {
+	return notationOf(thread).filter((d) => d.means.length > 1);
+}

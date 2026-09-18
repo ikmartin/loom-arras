@@ -44,3 +44,33 @@ test('a run reviewed', async ({ page }) => {
 	await page.waitForTimeout(900);
 	await page.screenshot({ path: `${OUT}/split-view-linked.png` });
 });
+
+test('a node read three ways', async ({ page }) => {
+	// Plan 0.11 Parts D, E and F: what a result rests on, what it says as written, and what an agent proposed for it.
+	await page.goto('/');
+	await page.evaluate(() => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'margin' })));
+
+	await page.goto('/node/sy-0003');
+	await page.waitForSelector('main h1');
+	await page.getByTestId('closure-open').locator('> summary').click();
+	await page.getByTestId('closure-depth-2').click();
+	await page.waitForTimeout(900);
+	await page.screenshot({ path: `${OUT}/closure-stack.png` });
+
+	await page.goto('/node/sy-0003');
+	await page.waitForSelector('main h1');
+	await page.getByTestId('source-toggle').first().click();
+	await page.waitForTimeout(400);
+	await page.screenshot({ path: `${OUT}/verbatim.png` });
+
+	await page.goto('/node/sy-0004');
+	await page.waitForSelector('[data-testid="payload"]');
+	await page.waitForTimeout(700);
+	await page.screenshot({ path: `${OUT}/payload.png` });
+
+	await page.goto('/thread/2026-09-16T00-00-referee');
+	await page.waitForSelector('[data-testid="notation"]');
+	await page.getByTestId('notation').locator('summary').click();
+	await page.waitForTimeout(800);
+	await page.screenshot({ path: `${OUT}/notation.png` });
+});

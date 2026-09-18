@@ -12,10 +12,14 @@
 	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
 	import Locator from '$lib/components/Locator.svelte';
 	import Tex from '$lib/math/Tex.svelte';
+	import SourceToggle from '$lib/components/SourceToggle.svelte';
+	import ClosurePanel from '$lib/review/ClosurePanel.svelte';
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
 	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
+	let verbatim = $state(false);
+	let restsOpen = $state(false);
 	const key = $derived(keyFromParam(page.params.key ?? ''));
 	const node = $derived(m.nodes[key]);
 	const stmt = $derived(m.keys[key]);
@@ -96,7 +100,11 @@
 				text until one definition moves or is forked — see <a href="/problems?code=duplicate-id">problems</a>.
 			</p>
 		{:else}
-			<Fragment path={node.fragment} macroSet={node.digest ?? ''} />
+			<!-- The toggle is the node's own text before macro expansion, fetched only when a reader asks; a corpus that publishes no source shows no control (plan 0.11 Part E). -->
+			<div class="verbatim-head"><SourceToggle sourceKey={key} bind:open={verbatim} /></div>
+			{#if !verbatim}
+				<Fragment path={node.fragment} macroSet={node.digest ?? ''} />
+			{/if}
 		{/if}
 
 		{#if node.proofs.length}
@@ -110,6 +118,13 @@
 				{/each}
 			</div>
 		{/if}
+
+		<!-- The graph answers "what would this disturb"; the stack answers "what does this rest on". Neither is a route: a closure is a way of looking at a node, not a place to go. -->
+		<details class="closure-open" data-testid="closure-open" bind:open={restsOpen}>
+			<summary>What this rests on</summary>
+			<!-- Built only once opened: the stack renders other results in full, and a closed panel that still mounted them would put six statements and their annotation marks on a page that shows one. -->
+			{#if restsOpen}<ClosurePanel center={key} />{/if}
+		</details>
 
 		{#if node.children.length}
 			<h2>On this page</h2>
@@ -127,7 +142,8 @@
 {#if node}
 	<PageRail>
 		<RailList label="local graph">
-			<LocalGraphPanel center={key} />
+			<!-- The graph could always be read and never entered; `hrefFor` is the whole of what it lacked (plan 0.11 Part D). -->
+			<LocalGraphPanel center={key} hrefFor={(id) => nodeUrl(id)} />
 		</RailList>
 
 		{#each node.reached_by as mp (mp)}

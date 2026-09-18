@@ -229,3 +229,58 @@ test('an unknown relation kind renders as a labelled list of links', async ({ pa
 	await expect(list).toBeVisible();
 	await expect(list.getByRole('link').first()).toHaveAttribute('href', '/node/sy-0001');
 });
+
+test('a node can be read as it was written', async ({ page }) => {
+	// Plan 0.11 Part E: the source is fetched one key at a time from build/source/, only when asked.
+	await page.goto('/node/sy-0003');
+	await expect(page.locator('.fragment .env').first()).toBeVisible();
+	const toggle = page.getByTestId('source-toggle').first();
+	await expect(toggle).toHaveText('source');
+	await toggle.click();
+	const verbatim = page.getByTestId('verbatim').first();
+	await expect(verbatim).toBeVisible();
+	await expect(verbatim).toContainText('\\begin{theorem}'); // the LaTeX, not the rendering
+	await expect(page.locator('.fragment .env')).toHaveCount(0); // and the rendering stands aside
+	await expect(toggle).toHaveText('rendered');
+	await toggle.click();
+	await expect(page.locator('.fragment .env').first()).toBeVisible();
+});
+
+test("a suggestion shows the text it proposes, and says where it would go", async ({ page }) => {
+	await page.goto('/node/sy-0004');
+	const payload = page.getByTestId('payload').first();
+	await expect(payload).toBeVisible();
+	await expect(payload).toHaveAttribute('data-placement', 'replace');
+	await expect(payload).toContainText('disjoint union of orbits');
+	await expect(page.getByTestId('severity').first()).toBeVisible();
+});
+
+test('a run lists the notation it introduced, and flags a symbol used twice', async ({ page }) => {
+	// Plan 0.11 Part F. Notation belongs to an agent's prose, never to the quilt's own text, so the panel is on the run.
+	await page.goto('/thread/2026-09-16T00-00-referee');
+	const panel = page.getByTestId('notation');
+	await expect(panel).toBeVisible();
+	await expect(panel).toContainText('with two meanings');
+	await panel.locator('summary').click();
+	await expect(panel).toContainText('the number of two-element orbits');
+	await expect(panel).toContainText('declared twice in this run with different meanings');
+});
+
+test('a node page answers both closure questions without leaving it', async ({ page }) => {
+	// Plan 0.11 Part D: the graph says what this would disturb, the stack says what it rests on. Neither is a route.
+	await page.goto('/node/sy-0003');
+	// the graph could always be read and never entered
+	const graphLink = page.locator('[data-testid="local-graph"] a, .rail a[href*="/node/"]').first();
+	await expect(graphLink).toBeVisible();
+
+	const opener = page.getByTestId('closure-open');
+	await opener.locator('> summary').click();
+	const panel = page.getByTestId('closure-panel');
+	await expect(panel).toBeVisible();
+	const shallow = await panel.locator('ol.stack > li').count();
+	expect(shallow).toBeGreaterThan(1);
+	await expect(panel.locator('ol.stack > li').last()).toHaveClass(/centre/); // the result read is last
+
+	await page.getByTestId('closure-depth-2').click();
+	expect(await panel.locator('ol.stack > li').count()).toBeGreaterThanOrEqual(shallow);
+});
