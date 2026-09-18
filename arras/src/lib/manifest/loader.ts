@@ -1,5 +1,6 @@
 // Fetch and validate a manifest. The viewer's only trigger for re-rendering is this file's hash changing (spec README, viewer obligation 3); a version it does not accept yields exactly one diagnostic and nothing else (obligation 4).
 
+import { dataUrl } from '$lib/paths';
 import { ACCEPTED_INTERFACE_VERSIONS, type Diagnostic, type Manifest } from './types';
 
 export interface Loaded {
@@ -61,7 +62,7 @@ export async function parseManifest(text: string, etag: string | null = null): P
 	return { manifest: data as Manifest, hash: await hashText(text), etag };
 }
 
-export async function loadManifest(url = '/build/manifest.json', etag: string | null = null): Promise<LoadResult | 'unchanged'> {
+export async function loadManifest(url = dataUrl('manifest.json'), etag: string | null = null): Promise<LoadResult | 'unchanged'> {
 	const headers: Record<string, string> = etag ? { 'If-None-Match': etag } : {};
 	const res = await fetch(url, { headers, cache: 'no-cache' });
 	if (res.status === 304) return 'unchanged';

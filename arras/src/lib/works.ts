@@ -1,4 +1,5 @@
 // A cited work's way out of the viewer: its identifiers as links to the services that resolve them, and a fetched copy when there is one. Also the one place a bibliography's TeX markup is made readable.
+import { artifactUrl } from '$lib/paths';
 
 import type { Reference } from '$lib/manifest/types';
 
@@ -49,7 +50,7 @@ export function workLinks(ref: Reference): WorkLink[] {
 	for (const id of ids) add(resolve(id));
 	const url = typeof ref.bib.url === 'string' ? ref.bib.url.trim() : '';
 	if (/^https?:\/\//.test(url)) add({ label: 'link', href: url, id: url });
-	if (ref.artifacts?.pdf) add({ label: 'PDF', href: '/' + ref.artifacts.dir.replace(/^\/+|\/+$/g, '') + '/paper.pdf', id: ref.artifacts.dir });
+	if (ref.artifacts?.pdf) add({ label: 'PDF', href: artifactUrl(ref.artifacts.dir), id: ref.artifacts.dir });
 	return out;
 }
 

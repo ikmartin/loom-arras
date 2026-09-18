@@ -1,4 +1,5 @@
 // The manifest store: one loaded manifest, its hash, and a poll that re-fetches with If-None-Match. Re-rendering follows the hash; nothing else ever triggers it (spec README, viewer obligation 3).
+import { dataUrl } from '$lib/paths';
 import { loadManifest, type Loaded } from './loader';
 import type { Diagnostic, Manifest } from './types';
 
@@ -10,11 +11,16 @@ class ManifestStore {
 	polls = $state(0);
 	#etag: string | null = null;
 	#timer: ReturnType<typeof setInterval> | null = null;
-	url = '/build/manifest.json';
+	/** The manifest to poll. Follows the configured data root unless a host sets it outright. */
+	url = '';
+
+	get manifestUrl(): string {
+		return this.url || dataUrl('manifest.json');
+	}
 
 	async refresh(): Promise<void> {
 		try {
-			const r = await loadManifest(this.url, this.#etag);
+			const r = await loadManifest(this.manifestUrl, this.#etag);
 			this.polls += 1;
 			if (r === 'unchanged') return;
 			if (r.manifest === null) {

@@ -3,6 +3,7 @@
 	// The advice on how to start one is the publisher's, and arrives as a diagnostic with its own commands; this says only what is true of the corpus. The landmarks are still worth naming: a reader who arrives at an empty graph should be told where the mathematics is.
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl } from '$lib/nav';
+	import { route } from '$lib/paths';
 
 	let { what = 'results' }: { what?: string } = $props();
 	const m = $derived(store.manifest);
@@ -17,7 +18,7 @@
 			The corpus's landmarks are still here: <a href={canonUrl(landmarks[0].path)}>{landmarks[0].title || landmarks[0].stem}</a
 			>{#if landmarks.length > 1}, and {landmarks.length - 1} older{/if}.
 		{/if}
-		<a href="/problems">Problems</a> says how to start one.
+		<a href={route('/problems')}>Problems</a> says how to start one.
 	</p>
 </div>
 

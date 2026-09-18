@@ -1,5 +1,6 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
 import { anchorId, digestUrl, keyUrl, nodeUrl } from '$lib/nav';
+import { dataUrl } from '$lib/paths';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
 
@@ -70,7 +71,7 @@ export function wire(
 	}
 	for (const img of root.querySelectorAll<HTMLImageElement>('img[src]')) {
 		const src = img.getAttribute('src') ?? '';
-		if (!/^(\/|https?:)/.test(src)) img.src = '/build/' + src;
+		if (!/^(\/|https?:)/.test(src)) img.src = dataUrl(src);
 	}
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
 		if (mark.dataset.wiredMark) continue;

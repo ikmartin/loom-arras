@@ -14,6 +14,7 @@
 	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
+	import { dataUrl } from '$lib/paths';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -106,7 +107,7 @@
 							<code>{master.path}</code>{master.numbering_known
 								? ''
 								: ' · not yet compiled: ids shown without numbers'}
-							{#if master.pdf}· <a href={'/build/' + master.pdf}>PDF</a>{/if}
+							{#if master.pdf}· <a href={dataUrl(master.pdf)}>PDF</a>{/if}
 						</p>
 					</header>
 					<Fragment

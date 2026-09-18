@@ -4,6 +4,8 @@ import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const [buildDir = 'tests/fixture', outDir = 'site'] = process.argv.slice(2);
+// the app's own prefix, matching the bundle it was built for; the routes below are written under it
+const base = (process.env.ARRAS_BASE ?? '').replace(/\/+$/, '');
 if (!existsSync(join(buildDir, 'manifest.json'))) {
 	console.error(`${buildDir} has no manifest.json`);
 	process.exit(2);
@@ -23,13 +25,17 @@ for (const t of Object.keys(manifest.tags)) routes.add('/tag/' + encodeURICompon
 for (const t of Object.values(manifest.taxa)) routes.add('/taxon/' + encodeURIComponent(t.slug));
 for (const id of Object.keys(manifest.threads)) routes.add('/thread/' + encodeURIComponent(id));
 rmSync(outDir, { recursive: true, force: true });
-cpSync('build', outDir, { recursive: true });
+// With a base, the whole site lives under it: the assets the shell names are `<base>/_app/...`, so the built files
+// and the prerendered routes have to sit in the same place or every asset 404s. The directory is then served at the
+// origin root and the app answers under its prefix.
+const siteRoot = base ? join(outDir, base.slice(1)) : outDir;
+cpSync('build', siteRoot, { recursive: true });
 const shell = readFileSync(join('build', 'index.html'), 'utf8');
 for (const route of routes) {
 	if (route === '/') continue;
-	const dir = join(outDir, decodeURIComponent(route));
+	const dir = join(siteRoot, decodeURIComponent(route));
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, 'index.html'), shell);
 }
-writeFileSync(join(outDir, 'routes.json'), JSON.stringify([...routes].sort(), null, 1));
+writeFileSync(join(outDir, 'routes.json'), JSON.stringify([...routes].map((r) => base + r).sort(), null, 1));
 console.log(`prerendered ${routes.size} routes into ${outDir}/`);

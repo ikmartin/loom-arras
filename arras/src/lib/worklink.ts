@@ -1,4 +1,5 @@
 // Links into a cited work (book 10.4.1): `loom:<scheme>:<value>#page=N` or `#quote=TEXT` in a comment names a place in a paper by the work's global identifier, never by a citekey, so it survives a bibliography re-export and means the same thing to a collaborator whose citekeys differ.
+import { artifactUrl } from '$lib/paths';
 // The link form is the interface's (specs/dialect.md §2.13); nothing here knows the publisher.
 
 import type { Manifest, Reference } from '$lib/manifest/types';
@@ -74,7 +75,7 @@ export function locate(m: Manifest, link: WorkLink): WorkTarget {
 	const ref = Object.values(m.references).find((r) => (r.works ?? (r.work ? [r.work] : [])).some((w) => normalId(w) === link.id));
 	const out: WorkTarget = { ref, external: externalUrl(link) };
 	if (ref?.artifacts?.pdf && ref.work) {
-		const url = '/' + ref.artifacts.dir.replace(/^\/+|\/+$/g, '') + '/paper.pdf';
+		const url = artifactUrl(ref.artifacts.dir);
 		if (normalId(ref.work) === link.id) out.local = url + (link.page ? `#page=${link.page}` : '');
 		else out.otherCopy = { id: ref.work, url };
 	}

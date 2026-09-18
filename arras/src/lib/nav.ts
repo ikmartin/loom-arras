@@ -1,6 +1,8 @@
 // Routes. Keys may contain / and #; they travel in the rest segment of /node/, with # percent-encoded.
+// Every route is composed from the configured base path, never written origin-absolute (plan 0.9.5 R1).
+import { route } from '$lib/paths';
 export function nodeUrl(key: string): string {
-	return '/node/' + key.split('/').map(encodeURIComponent).join('/');
+	return route('/node/' + key.split('/').map(encodeURIComponent).join('/'));
 }
 
 export function keyFromParam(param: string): string {
@@ -9,7 +11,7 @@ export function keyFromParam(param: string): string {
 
 export function masterUrl(path: string): string {
 	const stem = path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
-	return '/master/' + encodeURIComponent(stem);
+	return route('/master/' + encodeURIComponent(stem));
 }
 
 export function masterStem(path: string): string {
@@ -18,7 +20,7 @@ export function masterStem(path: string): string {
 
 export function canonUrl(path: string): string {
 	const stem = path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
-	return '/canon/' + encodeURIComponent(stem);
+	return route('/canon/' + encodeURIComponent(stem));
 }
 
 /** The read route for a document, whichever kind it is: a landmark has a page of its own. */
@@ -27,19 +29,19 @@ export function docUrl(m: { masters: { path: string }[]; canon?: { path: string 
 }
 
 export function digestUrl(citekey: string): string {
-	return '/digest/' + encodeURIComponent(citekey);
+	return route('/digest/' + encodeURIComponent(citekey));
 }
 
 export function tagUrl(tag: string): string {
-	return '/tag/' + encodeURIComponent(tag);
+	return route('/tag/' + encodeURIComponent(tag));
 }
 
 export function taxonUrl(slug: string): string {
-	return '/taxon/' + encodeURIComponent(slug);
+	return route('/taxon/' + encodeURIComponent(slug));
 }
 
 export function threadUrl(id: string): string {
-	return '/thread/' + encodeURIComponent(id);
+	return route('/thread/' + encodeURIComponent(id));
 }
 
 /**

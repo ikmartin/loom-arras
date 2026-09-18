@@ -2,6 +2,7 @@
 
 import type { Manifest } from '$lib/manifest/types';
 import { canonUrl, masterUrl } from '$lib/nav';
+import { route } from '$lib/paths';
 
 export interface View {
 	id: string;
@@ -15,14 +16,14 @@ export function viewsOf(m: Manifest | null): View[] {
 	const master = m?.masters.find((x) => x.default) ?? m?.masters[0];
 	// a corpus whose drafting directory is empty is still worth reading: the newest landmark stands in for the document
 	const newest = m?.canon?.length ? m.canon[m.canon.length - 1] : undefined;
-	const read = master ? masterUrl(master.path) : newest ? canonUrl(newest.path) : '/';
+	const read = master ? masterUrl(master.path) : newest ? canonUrl(newest.path) : route('/');
 	return [
-		{ id: 'home', label: 'home', href: '/', icon: 'home' },
+		{ id: 'home', label: 'home', href: route('/'), icon: 'home' },
 		{ id: 'read', label: 'read', href: read, icon: 'read' },
-		{ id: 'graph', label: 'graph', href: '/graph', icon: 'graph' },
-		{ id: 'review', label: 'review', href: '/review', icon: 'review' },
-		{ id: 'problems', label: 'problems', href: '/problems', icon: 'problems' },
-		{ id: 'references', label: 'references', href: '/references', icon: 'references' }
+		{ id: 'graph', label: 'graph', href: route('/graph'), icon: 'graph' },
+		{ id: 'review', label: 'review', href: route('/review'), icon: 'review' },
+		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems' },
+		{ id: 'references', label: 'references', href: route('/references'), icon: 'references' }
 	];
 }
 
@@ -40,8 +41,8 @@ export function viewOf(path: string): string {
 
 /** The indexes, which every shell offers below its main list. */
 export const INDEXES = [
-	{ label: 'threads', href: '/threads' },
-	{ label: 'tags', href: '/tags' },
-	{ label: 'taxa', href: '/taxa' },
-	{ label: 'loose', href: '/loose' }
+	{ label: 'threads', href: route('/threads') },
+	{ label: 'tags', href: route('/tags') },
+	{ label: 'taxa', href: route('/taxa') },
+	{ label: 'loose', href: route('/loose') }
 ];

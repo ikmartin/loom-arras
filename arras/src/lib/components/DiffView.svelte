@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dataUrl } from '$lib/paths';
 	// A unified diff shown as two tinted columns (book 15.3.5): what was accepted on the left, what is there now on the right.
 	let { path }: { path: string } = $props();
 
@@ -41,7 +42,7 @@
 	}
 
 	$effect(() => {
-		const url = '/build/' + path;
+		const url = dataUrl(path);
 		void fetch(url)
 			.then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
 			.then((t) => {
