@@ -11,6 +11,8 @@ export interface InlineComments {
 	/** Open the comments `ids` beneath `trigger`, or close them when they are already open there. */
 	toggle(trigger: HTMLElement, ids: string[]): void;
 	close(): void;
+	/** The comments the open box shows, or null; a re-wire reads it to open the same comments again. */
+	current(): string[] | null;
 	destroy(): void;
 }
 
@@ -31,8 +33,17 @@ export function leadComments(manifest: Manifest, ids: string[]): Annotation[] {
 	return out;
 }
 
+/** The mark or count in `root` that stands for any of `ids`, so comments open before a re-wire can be opened again after it. */
+export function triggerFor(root: HTMLElement, ids: string[]): HTMLElement | null {
+	for (const el of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation], button.comment-count[data-comments]')) {
+		const has = (el.dataset.annotation ?? el.dataset.comments ?? '').split(/\s+/);
+		if (ids.some((i) => has.includes(i))) return el;
+	}
+	return null;
+}
+
 export function inlineComments(manifest: Manifest, floating = false): InlineComments {
-	let open: { trigger: HTMLElement; host: HTMLElement; made: Record<string, unknown>[] } | null = null;
+	let open: { trigger: HTMLElement; host: HTMLElement; made: Record<string, unknown>[]; ids: string[] } | null = null;
 
 	/**
 	 * Put a floating box at the mark: below it when there is room, above it when there is not, never off either edge.
@@ -86,7 +97,7 @@ export function inlineComments(manifest: Manifest, floating = false): InlineComm
 		);
 		trigger.classList.add('expanded');
 		trigger.setAttribute('aria-expanded', 'true');
-		open = { trigger, host, made };
+		open = { trigger, host, made, ids: lead.map((a) => a.id) };
 		if (floating) place(host, trigger);
 	};
 
@@ -106,6 +117,7 @@ export function inlineComments(manifest: Manifest, floating = false): InlineComm
 	return {
 		toggle,
 		close,
+		current: () => open?.ids ?? null,
 		destroy() {
 			close();
 			document.removeEventListener('pointerdown', down, true);

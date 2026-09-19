@@ -53,3 +53,41 @@ test('a citation suggestion can be accepted, and leaves a breadcrumb', async ({ 
 	expect(written).toContain('a textbook reference would do');
 	expect(written).toContain('"verified": false'); // never a second source of identity truth
 });
+
+/** Comments shown in place (`inline` beneath the block, `hover` floating at the mark), with the reply written inside the box that is showing them. */
+function inPlace(where: 'inline' | 'hover') {
+	return async ({ page }: { page: import('@playwright/test').Page }) => {
+		await page.addInitScript(
+			(c) => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: c })),
+			where
+		);
+		await page.goto('/node/sy-0003');
+		const mark = page.locator('.fragment mark.annotation').first();
+		await mark.waitFor();
+		const box = page.locator('[data-testid="comment-expanded"]'); // one host, however many comments the mark carries by now
+		await mark.click();
+		await expect(box).toHaveCount(1);
+
+		const body = `a reply written in the ${where} box`;
+		await page.locator('[data-testid="comment-expanded"] [data-testid="verb-reply"]').first().click();
+		await page.locator('[data-testid="comment-expanded"] [data-testid="verb-text"]').first().fill(body);
+		await page.locator('[data-testid="comment-expanded"] [data-testid="verb-send"]').first().click();
+
+		// The write changes the manifest, and the re-wire that follows it must leave the box where the reply was written open, now showing the reply.
+		await expect(page.locator('[data-testid="comment-expanded"] .reply').filter({ hasText: body })).toHaveCount(1);
+		await page.waitForTimeout(2500); // several polls: a publisher rebuilding once a second closed it again within the second
+		await expect(box).toHaveCount(1);
+		expect(log().filter((e) => e.body === body)).toHaveLength(1);
+
+		// And the mark still toggles: one click closes it, the next opens it, and it stays open.
+		await mark.click();
+		await expect(box).toHaveCount(0);
+		await mark.click();
+		await expect(box).toHaveCount(1);
+		await page.waitForTimeout(600); // in `hover` the pointer's own beat falls inside the click, and must not shut what the click opened
+		await expect(box).toHaveCount(1);
+	};
+}
+
+test('a reply written in an inline comment box leaves the box open', inPlace('inline'));
+test('a reply written in a floating comment box leaves the box open', inPlace('hover'));

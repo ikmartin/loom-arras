@@ -8,7 +8,7 @@
 	import { ui } from '$lib/ui.svelte';
 	import { page } from '$app/state';
 	import { prefs } from '$lib/prefs.svelte';
-	import { inlineComments, type InlineComments } from './expand';
+	import { inlineComments, triggerFor, type InlineComments } from './expand';
 
 	let {
 		path,
@@ -81,6 +81,8 @@
 	 */
 	function wireComments(root: HTMLElement) {
 		root.dataset.commentsWired = prefs.comments;
+		// a manifest refresh re-wires, and the one that follows a reply must not shut the box the reply was written in
+		const was = inline?.current() ?? null;
 		inline?.destroy();
 		const inPlace = prefs.comments === 'inline' || prefs.comments === 'hover';
 		inline = inPlace && store.manifest ? inlineComments(store.manifest, prefs.comments === 'hover') : null;
@@ -94,6 +96,8 @@
 			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined,
 			hover: prefs.comments === 'hover'
 		});
+		const trigger = was && opened ? triggerFor(root, was) : null;
+		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? trigger.dataset.comments ?? '').split(/\s+/).filter(Boolean));
 	}
 
 	// Changing where comments stand used to re-key the fragment, which re-rendered the HTML and re-typeset every

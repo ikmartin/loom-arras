@@ -284,7 +284,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "af33650bd996f8260b856e6232bf846a616b878a117ddfcaa265624fc7277b14",
+   "hash": "c8782627c51180c37276d9c6f89b86e97d426bb680427e3528d05cd9f278e897",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -296,7 +296,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "7fad867e1526a5dcb9dee018ee6445e460e50f57196f2514bb539695c412453c",
+   "hash": "9f84645498b149900a80c22cb6783948adcd28cdbe7980241ddb66bf9e16d467",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -308,7 +308,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "f4a00110ef18b0fcb09f708ae54340279393c464f0b3dd559faef58cd1e08f1f",
+   "hash": "601040217ab3e84e85f4639bc7884f561a0657c92ecec6bec47eeee86c0aebd6",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -2489,6 +2489,36 @@
   "default": [
    {
     "args": 0,
+    "body": "\\acute",
+    "name": "Acute"
+   },
+   {
+    "args": 0,
+    "body": "\\bar",
+    "name": "Bar"
+   },
+   {
+    "args": 0,
+    "body": "\\breve",
+    "name": "Breve"
+   },
+   {
+    "args": 0,
+    "body": "\\check",
+    "name": "Check"
+   },
+   {
+    "args": 0,
+    "body": "\\ddot",
+    "name": "Ddot"
+   },
+   {
+    "args": 0,
+    "body": "\\dot",
+    "name": "Dot"
+   },
+   {
+    "args": 0,
     "body": "\\operatorname{Fix}",
     "name": "Fix"
    },
@@ -2499,8 +2529,28 @@
    },
    {
     "args": 0,
+    "body": "\\grave",
+    "name": "Grave"
+   },
+   {
+    "args": 0,
+    "body": "\\hat",
+    "name": "Hat"
+   },
+   {
+    "args": 0,
     "body": "\\operatorname{Hom}",
     "name": "Hom"
+   },
+   {
+    "args": 0,
+    "body": "\\tilde",
+    "name": "Tilde"
+   },
+   {
+    "args": 0,
+    "body": "\\vec",
+    "name": "Vec"
    },
    {
     "args": 1,
@@ -2519,6 +2569,36 @@
    "canon:widgets-v1": [
     {
      "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Fix}",
      "name": "Fix"
     },
@@ -2529,8 +2609,28 @@
     },
     {
      "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Hom}",
      "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
     },
     {
      "args": 1,
@@ -2541,6 +2641,36 @@
    "canon:widgets-v2": [
     {
      "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Fix}",
      "name": "Fix"
     },
@@ -2551,8 +2681,28 @@
     },
     {
      "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Hom}",
      "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
     },
     {
      "args": 1,
@@ -2563,6 +2713,36 @@
    "canon:widgets-v3": [
     {
      "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Fix}",
      "name": "Fix"
     },
@@ -2573,8 +2753,28 @@
     },
     {
      "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Hom}",
      "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
     },
     {
      "args": 1,
@@ -3836,7 +4036,7 @@
  "references": {
   "Har77": {
    "artifacts": {
-    "dir": "refs/work/5ac32442",
+    "dir": "digests/storage/work/5ac32442",
     "pdf": false,
     "source": false
    },
@@ -3861,7 +4061,7 @@
   },
   "Kre99": {
    "artifacts": {
-    "dir": "refs/arxiv/math_9810166v2",
+    "dir": "digests/storage/arxiv/math_9810166v2",
     "pdf": false,
     "source": false
    },
@@ -3900,7 +4100,7 @@
   },
   "Man12": {
    "artifacts": {
-    "dir": "refs/arxiv/0805.2065v2",
+    "dir": "digests/storage/arxiv/0805.2065v2",
     "pdf": false,
     "source": false
    },

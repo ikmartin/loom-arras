@@ -117,16 +117,23 @@ export function wire(
 			select(lead);
 			document.getElementById('ann-' + lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		};
-		mark.addEventListener('click', go);
-		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go());
 		// In hover mode the pointer opens it after a beat, so passing over a line of marked text does not flash a box
 		// per mark; a click still opens one, and every dismissal is the same as inline's.
+		//
+		// The beat only ever opens, and a click cancels it: `go` toggles, and a click inside the beat has already
+		// opened the box that the timer would otherwise shut.
 		let timer: ReturnType<typeof setTimeout> | undefined;
+		const click = () => {
+			clearTimeout(timer);
+			go();
+		};
+		mark.addEventListener('click', click);
+		mark.addEventListener('keydown', (e) => e.key === 'Enter' && click());
 		mark.addEventListener('pointerenter', () => {
 			const now = LIVE.get(root) ?? opts;
 			if (!now.hover || !now.expand) return;
 			clearTimeout(timer);
-			timer = setTimeout(go, 120);
+			timer = setTimeout(() => mark.getAttribute('aria-expanded') !== 'true' && go(), 120);
 		});
 		mark.addEventListener('pointerleave', () => clearTimeout(timer));
 	}
@@ -170,6 +177,7 @@ export function wire(
 				btn.textContent = counted.length === 1 ? '1 comment' : `${counted.length} comments`;
 				btn.setAttribute('aria-expanded', 'false');
 				btn.dataset.countFor = key;
+				btn.dataset.comments = counted.join(' ');
 				btn.addEventListener('click', (e) => {
 					e.preventDefault(); // inside a proof's summary a click would also fold the proof
 					opts.expand!(btn, counted);
