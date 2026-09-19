@@ -51,6 +51,41 @@ def _master_compiles(result: ScanResult) -> tuple[bool, str]:
     return res.ok, res.first_error
 
 
+def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[list[AcceptRow], int, int]:
+    """Record acceptance rows and the snapshots they name; returns (rows, snapshots written, snapshots already present).
+
+    The one writer of the ledger, shared by `loom accept` and `loom refs verify`. They make different claims -- the author's own mathematics against a faithful copy of someone else's -- but the record is the same shape, and a second implementation would drift in exactly the way that makes `stale` stop meaning anything.
+    """
+    root = result.quilt.root
+    rows: list[AcceptRow] = []
+    written = present = 0
+    master = result.default_master or (result.masters[0] if result.masters else "")
+    closure_obj = result.closures.get(master)
+    pre_text = closure_obj.raw_text() if closure_obj else ""
+    hist = result.quilt.history_dir
+    pre_hash, w = write_snapshot(root, pre_text, hist)
+    written += w
+    present += not w
+    for key in keys:
+        text_hash, w = write_snapshot(root, own_text(result, result.nodes[key]), hist)
+        written += w
+        present += not w
+        closure: dict[str, str] = {}
+        for dep, h in Records.closure_hashes(result, key).items():
+            closure[dep] = h
+            _, w2 = write_snapshot(root, own_text(result, result.nodes[dep]), hist)
+            written += w2
+            present += not w2
+        assert text_hash == key_hash(result, key)
+        rows.append(
+            AcceptRow(
+                key=key, author=author, date=stamp(), text=text_hash, preamble=pre_hash, master=master, closure=closure
+            )
+        )
+    append_rows(root, rows)
+    return rows, written, present
+
+
 @click.command()
 @click.argument("keys", nargs=-1)
 @click.option("--proofs", is_flag=True, help="Also accept every proof attached to each statement given.")
@@ -74,6 +109,9 @@ def accept(
     quilt_path: str | None,
 ) -> None:
     """Record acceptance rows and snapshots for KEYS; the only writer of the ledger."""
+    from loom.cli._common import refuse_under_agent
+
+    refuse_under_agent("loom accept", "Accepting is you saying the mathematics holds; run it in your own terminal.")
     result = open_scan(quilt_path)
     root = result.quilt.root
     name = _author(author, root)
@@ -100,6 +138,15 @@ def accept(
         n = result.nodes[key]
         if n.kind not in ("environment", "proof"):
             raise EnvError(f"{key} is not a statement or proof key")
+        # Two claims, two commands. `loom accept` says "I have proved this, or I am satisfied it holds" and is about
+        # the author's own mathematics; a digest node's is "this copy is faithful to the paper it came from", which
+        # settles nothing mathematical and is not the author's to settle. DR-172 relabelled the output where the
+        # command needed splitting, and this finishes it (plan 0.12 §5.6).
+        if n.external:
+            raise EnvError(
+                f"{key} is a digest node: someone else's theorem, which is not yours to accept.\n"
+                f"To record that the copy is faithful: loom refs verify {key}"
+            )
         targets.append(key)
         if proofs:
             targets.extend(n.proofs)
@@ -112,41 +159,9 @@ def accept(
         ok, err = _master_compiles(result)
         if not ok:
             raise ContentError(f"the default master does not compile ({err}); fix it or pass --force")
-    rows: list[AcceptRow] = []
-    written = present = 0
-    master = result.default_master or (result.masters[0] if result.masters else "")
-    closure_obj = result.closures.get(master)
-    pre_text = closure_obj.raw_text() if closure_obj else ""
-    hist = result.quilt.history_dir
-    pre_hash, w = write_snapshot(root, pre_text, hist)
-    written += w
-    present += not w
-    for key in targets:
-        text_hash, w = write_snapshot(root, own_text(result, result.nodes[key]), hist)
-        written += w
-        present += not w
-        closure: dict[str, str] = {}
-        for dep, h in Records.closure_hashes(result, key).items():
-            closure[dep] = h
-            _, w2 = write_snapshot(root, own_text(result, result.nodes[dep]), hist)
-            written += w2
-            present += not w2
-        assert text_hash == key_hash(result, key)
-        rows.append(
-            AcceptRow(
-                key=key, author=name, date=stamp(), text=text_hash, preamble=pre_hash, master=master, closure=closure
-            )
-        )
-    append_rows(root, rows)
+    rows, written, present = write_acceptance(result, targets, name)
     for row in rows:
-        # A digest node is the cited paper's text; accepting one claims the copy is faithful, not that the author
-        # proved the theorem, and printing it as `accepted` read identically to accepting their own lemma (DR-172).
-        n = result.nodes.get(row.key)
-        verb = "verified" if n is not None and n.external else "accepted"
-        note_ = (
-            f" as a faithful transcription of {n.digest}" if verb == "verified" and n is not None and n.digest else ""
-        )
-        click.echo(f"{verb} {describe(result, row.key):<40} by {row.author}  {row.date[:10]}{note_}")
+        click.echo(f"accepted {describe(result, row.key):<40} by {row.author}  {row.date[:10]}")
     click.echo(f"snapshots: {written} written, {present} already present")
 
 
@@ -549,7 +564,13 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         for r in records.records
     ]
     digested = set(result.assembly.digest_files.values())
-    undigested = sorted({c.citekey for c in result.edges.cites if c.postnote and c.citekey not in digested})
+    undigested = sorted(
+        {
+            c.citekey
+            for c in result.edges.cites
+            if c.postnote and c.citekey not in digested and c.file not in result.assembly.digest_files
+        }
+    )
     retired = sorted(k for k in records.latest if k not in result.nodes and k not in result.assembly.labels)
     return {
         "summary": summarise(result, keys),

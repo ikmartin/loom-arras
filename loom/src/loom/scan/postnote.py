@@ -208,6 +208,19 @@ def postnote_edges(asm: Assembly, res: EdgeResult) -> None:
         if hits:
             for to in hits:
                 res.edges.append(EdgeRec(c.src, to, kind, "postnote", c.file, c.line, f"{c.citekey}|{c.postnote}"))
+            # Citing a result nobody has vouched for is a normal intermediate state of drafting, so this is a
+            # warning: the node is in no bundle, so the compile already tells the truth (plan 0.12 §8).
+            pending = [k for k in hits if asm.nodes[k].file.endswith(".proposed.tex")]
+            if pending:
+                res.diagnostics.append(
+                    Diagnostic(
+                        "warning",
+                        "loom:cites-proposed-node",
+                        f"\\cite[{c.postnote}]{{{c.citekey}}} names {pending[0]}, which is proposed and not yet verified",
+                        [Location(c.file, c.line)],
+                        [c.src],
+                    )
+                )
         else:
             res.diagnostics.append(
                 Diagnostic(

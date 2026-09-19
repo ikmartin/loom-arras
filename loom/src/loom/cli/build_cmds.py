@@ -279,6 +279,14 @@ def source(target: str, closure: bool, run_dir: str | None, quilt_path: str | No
         click.echo(flatten(result.quilt.root, doc).text.rstrip("\n"))
         return
     key = resolve_key(result, target)
+    region = result.assembly.regions.get(key)
+    if region is not None:
+        # an equation's label names a point inside a node, not a node: print the node that holds it, and say so,
+        # rather than index a region as if it were one -- which crashed with a KeyError on a digest's display equation
+        note(
+            f"{region.label} labels {'an equation' if region.where != 'prose' else 'a line'} inside {region.container}; printing that"
+        )
+        key = region.container
     require_text(result, key)
     log_run(run_dir, f"loom source {key}" + (" --closure" if closure else ""), result.quilt.root)
     if not closure:

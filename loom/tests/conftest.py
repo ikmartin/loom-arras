@@ -77,6 +77,11 @@ def isolated_env(
         monkeypatch.setenv(var, str(texmf))
     for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS", "LOOM_QUILT", "LOOM_RUN", "LOOM_ARRAS_BUNDLE", "FAKE_TEX_FAIL"):
         monkeypatch.delenv(var, raising=False)
+    # an agent running the suite must not make loom refuse the author's verbs in every test that uses them
+    from loom.cli._common import AGENT_MARKERS
+
+    for var in AGENT_MARKERS:
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("FAKE_TEX_LOG", str(tmp_path / "fake-tex.log"))
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(home / ".gitconfig-none"))
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")

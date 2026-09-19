@@ -11,7 +11,7 @@ from loom.scan.source import blank_comments
 from loom.tex.aux import AuxNumber
 
 
-def make(text: str, *, labels=None, numbers=None, macros="", children=None):  # type: ignore[no-untyped-def]
+def make(text: str, *, labels=None, numbers=None, macros="", children=None, cite_labels=None):  # type: ignore[no-untyped-def]
     calls: list[tuple[str, str]] = []
 
     def fallback(latex: str, css: str, src: str) -> str:
@@ -33,6 +33,7 @@ def make(text: str, *, labels=None, numbers=None, macros="", children=None):  # 
         include_html=lambda arg: f'<div class="include" data-key="{arg}"></div>',
         fallback=fallback,
         cite_target=lambda ck, post: "Man12-thm-4.1" if (ck, post) == ("Man12", "Theorem 4.1") else None,
+        cite_labels=cite_labels or {},
     )
     conv = Converter(ctx)
     return conv.render_range(0, len(text)), ctx, calls
@@ -179,3 +180,11 @@ def test_a_reference_inside_a_text_argument_is_not_wrapped_in_text() -> None:
     assert "\\tag{by hand}" in out  # a tag with no reference is untouched
     assert "\\tag{Lemma~\\text{" not in out and "\\tag{Equation \\text{" not in out
     assert "\\text{2.1}" in out  # and a reference in math mode keeps its upright wrapper
+
+
+def test_a_citation_prints_the_compiled_label() -> None:
+    """A citation reads as the compiled paper prints it, `[GP99, Theorem 1]`; the citekey stays in `data-citekey`, and an uncompiled document shows the key rather than a guess."""
+    text = "\\cite[Theorem 1]{graber-pandharipande_Localization1999} and \\cite{Har77}."
+    out, _, _ = make(text, cite_labels={"graber-pandharipande_Localization1999": "GP99"})
+    assert 'data-citekey="graber-pandharipande_Localization1999"' in out
+    assert ">[GP99, Theorem 1]</span>" in out and ">[Har77]</span>" in out

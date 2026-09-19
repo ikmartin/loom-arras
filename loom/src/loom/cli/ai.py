@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -178,6 +179,31 @@ def ai_name(new_name: str, run_dir: str | None, quilt_path: str | None) -> None:
     click.echo(f"{d.relative_to(quilt.root).as_posix()}: {new_name}")
 
 
+def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
+    """Every digest proposal a run made, with the author's decision on it: state, the edit as diff lines, and the reason for a discard."""
+    from loom.refs.proposals import edit_diff, load_results, read_events
+
+    out: list[dict[str, Any]] = []
+    for path in sorted((root / "digests").glob("*.results.json")):
+        ck = path.name[: -len(".results.json")]
+        reasons = {e.get("id"): e.get("reason", "") for e in read_events(root, ck) if e.get("event") == "discarded"}
+        for rid, r in sorted(load_results(root, ck).items()):
+            if not any(o.get("act") == "proposed" and Path(str(o.get("by", ""))).name == run for o in r.origin):
+                continue
+            out.append(
+                {
+                    "id": rid,
+                    "work": ck,
+                    "state": "transcription verified" if r.state == "verified" else r.state,
+                    "edited": any(o.get("act") == "edited" for o in r.origin),
+                    "edit": edit_diff(r),
+                    "renamed_from": next((str(o.get("was")) for o in r.origin if o.get("act") == "renamed"), ""),
+                    "reason": reasons.get(rid, "") if r.state == "discarded" else "",
+                }
+            )
+    return out
+
+
 @ai.command(name="findings")
 @click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="The run to report on.")
 @click.option("--severity", "f_severity", default=None, help="Only findings of this severity.")
@@ -236,9 +262,27 @@ def ai_findings(
         and (not f_kind or r["kind"] == f_kind)
         and (not f_status or r["status"] == f_status)
     ]
+    proposals = run_proposals(root, d.name)
     if as_json:
-        click.echo(json.dumps({"run": rel, "findings": rows}, indent=2))
+        click.echo(json.dumps({"run": rel, "findings": rows, "proposals": proposals}, indent=2))
         return
+    if proposals:
+        # what the author did with this run's proposals: a reattaching agent otherwise ran `refs why` on each id it
+        # happened to know from the run's thread, which is how it learned the author's decisions three times over
+        click.echo(f"{rel}: {len(proposals)} proposal(s)")
+        for pr in proposals:
+            extra = (
+                f" -- {pr['reason']}"
+                if pr.get("reason")
+                else (" (edited by the author first)" if pr.get("edited") else "")
+            )
+            if pr.get("renamed_from"):
+                extra += f" (renamed by the author from {pr['renamed_from']})"
+            click.echo(f"  {pr['id']}  {pr['state']}{extra}")
+            # the edit itself: a reattached agent that could not see it diffed its own scratch script against the digest
+            for line in pr.get("edit") or []:
+                click.echo(f"      {line}")
+        click.echo("")
     if not rows:
         click.echo(f"{rel}: no findings yet")
         return

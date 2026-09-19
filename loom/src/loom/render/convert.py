@@ -358,6 +358,7 @@ class RenderContext:
     include_html: Callable[[str], str]  # for \input{...} lines: html for the included file's nodes
     fallback: Callable[[str, str, str], str]  # (latex, css_class, data_src) -> html
     cite_target: Callable[[str, str | None], str | None]
+    cite_labels: dict[str, str] = field(default_factory=dict)  # citekey -> the label the compiled document prints
     diagnostics: list[Diagnostic] = field(default_factory=list)
     footnotes: int = 0
     region_ids: dict[str, str] = field(default_factory=dict)  # label -> element id
@@ -1057,7 +1058,11 @@ class Converter:
                 attrs += f' data-postnote="{html.escape(postnote, quote=True)}"'
             if target:
                 attrs += f' data-target="{html.escape(target, quote=True)}"'
-            label = f"[{ck}" + (f", {self.inline_text(postnote, 0, MAX_MACRO_DEPTH)}" if postnote else "") + "]"
+            label = (
+                f"[{esc(ctx.cite_labels.get(ck, ck))}"
+                + (f", {self.inline_text(postnote, 0, MAX_MACRO_DEPTH)}" if postnote else "")
+                + "]"
+            )
             out.append(f'<span class="cite"{attrs}>{label}</span>')
         return " ".join(out)
 

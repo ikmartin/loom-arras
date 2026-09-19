@@ -305,3 +305,12 @@ def test_id_and_new_log_themselves_to_the_run(tmp_path: Path) -> None:
     assert run("new", "lemma", "Rigidity", "--run", rel, cwd=d).exit_code == 0
     log = (run_dir / "run.log").read_text()
     assert "loom id --next" in log and "loom new lemma" in log
+
+
+def test_citation_labels_come_from_the_compile() -> None:
+    """BibTeX's `\\bibcite` (plain and natbib), and biblatex's `labelalpha` with `extraalpha` as a letter."""
+    from loom.tex.aux import parse_cite_labels
+
+    aux = "\\bibcite{b}{1}\n\\bibcite{nat}{{7}{2008}{{Manolache}}{{}}}\n\\bibcite{al}{ABC{\\etalchar{+}}99}\n"
+    bbl = "\\entry{gp}{article}{}\n\\field{labelalpha}{GP99}\n\\field{extraalpha}{2}\n\\endentry\n\\entry{x}{book}{}\n\\endentry\n"
+    assert parse_cite_labels(aux, bbl) == {"b": "1", "nat": "7", "al": "ABC+99", "gp": "GP99b"}

@@ -106,3 +106,25 @@ def find_run(root: Path, run: str | None) -> Path:
     if p is not None and p.is_dir():
         raise EnvError(f"{run} is not under ai/runs/; an agent writes only in its own run directory")
     raise EnvError(f"no run matches {run!r}; loom ai runs lists them")
+
+
+#: Environment variables an agent's shell carries. `AI_AGENT` is the generic one; the rest name a particular tool.
+#: Loom reads them only to refuse the author's verbs, never to change what any other command does.
+AGENT_MARKERS = ("AI_AGENT", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CODEX_SANDBOX", "CURSOR_AGENT", "GEMINI_CLI")
+
+
+def agent_marker() -> str | None:
+    """The marker variable set in this environment, or None when no agent is running the shell."""
+    import os
+
+    return next((v for v in AGENT_MARKERS if os.environ.get(v)), None)
+
+
+def refuse_under_agent(verb: str, how: str) -> None:
+    """Refuse one of the author's verbs when an agent is running the shell.
+
+    An agent verified its own proposal in the first study run and loom recorded the author as the verifier, because the author's name comes from git, which an agent's shell shares. The claim these verbs make -- *I checked this* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. The permission file that already denies these to an agent is Claude's alone, and is not inherited by an agent started outside the quilt.
+    """
+    marker = agent_marker()
+    if marker:
+        raise EnvError(f"{verb} is the author's, and an agent is running this shell ({marker} is set).\n{how}")

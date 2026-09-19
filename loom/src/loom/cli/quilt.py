@@ -25,7 +25,7 @@ prefix = "{prefix}"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 
 [refs]
-fetch = false               # may loom fetch from arXiv for digest fetch
+fetch = false               # may loom fetch sources and PDFs from arXiv (loom refs fetch)
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
@@ -79,7 +79,8 @@ def ask_prefix(default: str, yes: bool) -> str:
 
 GITIGNORE_NOTE = """wrote .gitignore, ignores:
   build/ (everything loom can rebuild)
-  refs/ (outside papers which are fetched not written; your digests are in digests/)
+  refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)
+  but not refs/**/pages/ or sections.json: the page text an anchor names is committed
   all stray LaTeX files (.aux, .log, .bbl and the rest)"""
 
 
@@ -154,9 +155,17 @@ def undo_minimal_quilt(target: Path, existed: bool, made: list[Path]) -> None:
 
 
 def write_demo_quilt(target: Path) -> None:
+    """Copy the demo's content over the skeleton `write_minimal_quilt` just wrote.
+
+    `.gitignore` comes from `assets/init/`, never from the demo's own copy. The demo is a quilt like any other and has nothing of its own to ignore -- and when it carried a copy, that copy named `refs/pdf/` and `refs/src/` for three plans after DR-108 moved the artifacts into `refs/<work-id>/`, so a demo quilt ignored two directories that no longer existed and committed the PDFs that did.
+    """
     demo = ASSETS / "demo"
     target.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(str(demo), str(target), dirs_exist_ok=True, ignore=shutil.ignore_patterns("build", "__pycache__"))
+    shutil.copytree(
+        str(demo), str(target), dirs_exist_ok=True, ignore=shutil.ignore_patterns("build", "__pycache__", ".gitignore")
+    )
+    # written from the one source, never from the demo's copy of it
+    (target / ".gitignore").write_text((ASSETS / "init" / "gitignore").read_text(encoding="utf-8"), encoding="utf-8")
     for cache in target.rglob("__pycache__"):
         shutil.rmtree(cache, ignore_errors=True)
 

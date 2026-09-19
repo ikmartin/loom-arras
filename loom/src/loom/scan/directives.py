@@ -22,6 +22,7 @@ KNOWN_KEYS = {
     "published-as",
     "source",
     "method",
+    "proofs",
     "requires",
     "numbering",
     "shared",

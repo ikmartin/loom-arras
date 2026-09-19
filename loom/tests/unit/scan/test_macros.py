@@ -82,3 +82,12 @@ def test_compatibility_macros_are_published_only_when_a_body_needs_them() -> Non
     assert {k: (v.args, v.body) for k, v in got.items()} == {"ensuremath": (1, "#1"), "scalebox": (2, "#2")}
 
     assert compatibility_macros(parse_macros(r"\newcommand{\Z}{\mathbb{Z}}")) == {}
+
+
+def test_package_commands_are_published_only_when_the_package_is_loaded() -> None:
+    """`old-arrows` defines `\\longhookrightarrow`, which the renderer lacks; a loaded package gets its stand-in, and a preamble without it gets nothing, since the command is not LaTeX there either."""
+    from loom.scan.macros import package_macros
+
+    got = package_macros({"amsmath", "old-arrows"})
+    assert got["longhookrightarrow"].body == r"\xhookrightarrow{}"
+    assert package_macros({"amsmath"}) == {}

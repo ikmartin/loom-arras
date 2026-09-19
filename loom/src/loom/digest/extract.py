@@ -129,6 +129,8 @@ class ExtractReport:
     citekey: str
     slug: str
     numbering: str = "aux"
+    # results whose number came from counting rather than from the .aux, however the paper compiled
+    emulated: int = 0
     compile_error: str | None = None
     by_taxon: dict[str, int] = field(default_factory=dict)
     sections: int = 0
@@ -153,7 +155,11 @@ class ExtractReport:
         lines.append(
             "Packages required: " + (", ".join(self.requires) if self.requires else "none beyond amsmath, amsthm")
         )
-        if self.numbering == "aux":
+        if self.numbering == "aux" and self.emulated:
+            lines.append(
+                f"Numbering: from the paper's .aux, except {self.emulated} unlabelled result(s) counted by emulation"
+            )
+        elif self.numbering == "aux":
             lines.append("Numbering: from the paper's .aux")
         else:
             lines.append(
@@ -193,6 +199,22 @@ def _body_text(env: Env, clean: str) -> str:
     return "\n".join(lines)
 
 
+# Primitives that make a definition a program rather than an abbreviation. A macro whose body uses any of them is
+# kept as written: expanding it textually runs the program badly. Behrend-Fantechi's `\\Bbb` is one, and eight passes
+# of expansion unrolled it into its own error-message trap in the middle of two statements.
+_NOT_SIMPLE = re.compile(
+    r"\\(ifmmode|if[a-z@]*|let|def|edef|gdef|xdef|errmessage|expandafter|csname|relax|next|Err@|futurelet)(?![A-Za-z@])"
+)
+
+
+def is_simple(mac: Macro) -> bool:
+    """Whether a macro is an abbreviation that textual expansion reproduces faithfully: no control flow, no definitions, and no reference to itself."""
+    body = mac.body or ""
+    if _NOT_SIMPLE.search(body):
+        return False
+    return not re.search(r"\\" + re.escape(mac.name) + r"(?![A-Za-z@])", body)
+
+
 def expand_macros(text: str, macros: dict[str, Macro], max_passes: int = 8) -> tuple[str, set[str]]:
     """Textually expand the paper's simple macros in `text`; returns the text and the names expanded."""
     expanded: set[str] = set()
@@ -206,7 +228,7 @@ def expand_macros(text: str, macros: dict[str, Macro], max_passes: int = 8) -> t
                 out.append(text[pos:])
                 break
             mac = macros.get(m.group(1))
-            if mac is None:
+            if mac is None or not is_simple(mac):
                 out.append(text[pos : m.end()])
                 pos = m.end()
                 continue
@@ -318,8 +340,11 @@ def _provenance(result: ScanResult, citekey: str, src: Path) -> tuple[str, str |
     if "refs" in parts:
         i = len(parts) - 1 - parts[::-1].index("refs")
         if len(parts) > i + 2:
-            wid = WorkId(parts[i + 1], parts[i + 2])
-            return str(wid), published
+            from loom.refs.fetch import recorded_source
+
+            # the directory names the work; what was fetched into it may be another version of it (src.json)
+            fetched = recorded_source(Path(*parts[: i + 3]))
+            return fetched or str(WorkId(parts[i + 1], parts[i + 2])), published
     if entry is not None:
         eprint = next((str(w) for w in identify(entry) if w.preprint), None)
         if eprint:
@@ -345,7 +370,7 @@ def extract_digest(
     if master_rel not in files:
         files[master_rel] = read_source(paper_dir, master_rel)
     master = files[master_rel]
-    closure = build_closure(master, paper_dir, files, parse_directives(master))
+    closure = build_closure(master, paper_dir, files, parse_directives(master), foreign=True)
     taxa = closure.taxa
     exp = expand_master(master, paper_dir, files)
     units = find_sections(exp, files)
@@ -408,15 +433,20 @@ def extract_digest(
             clean = files[rel].clean
             labels = [lab for lab, _ in labels_in(clean, env.own_ranges())]
             page = None
+            from_aux = False
             for lab in labels:
                 an = aux_numbers.get(lab)
                 if an is not None and an.number and n is not None:
                     n = an.number
                     num.resync(taxon, n)
                     page = an.page
+                    from_aux = True
                     break
                 if an is not None and an.page is not None:
                     page = an.page
+            if n is not None and not from_aux:
+                # an unlabelled result keeps the number the emulation gave it, even when the paper compiled
+                report.emulated += 1
             abbrev = ABBREV.get(taxon.name.lower(), re.sub(r"[^a-z0-9]", "", taxon.env.lower()) or "res")
             if n is None:
                 starred += 1
@@ -511,6 +541,11 @@ def extract_digest(
     out.append(f"% !LOOM created: {_today()}")
     if report.numbering == "emulated":
         out.append("% !LOOM numbering: emulated")
+    elif report.emulated:
+        # A compile that succeeded does not mean every number was read from it. A digest that says nothing claims
+        # compiled numbers throughout, and Behrend-Fantechi's said nothing while every result after its first
+        # definition was counted -- and counted wrongly (contract §2.9).
+        out.append("% !LOOM numbering: mixed")
     dm = result.default_master
     quilt_loaded = loaded_packages(result.closures[dm]) if dm and dm in result.closures else set()
     report.requires = sorted(loaded_packages(closure) - ALWAYS_LOADED - PRESENTATION - quilt_loaded)
@@ -523,7 +558,8 @@ def extract_digest(
     body_lines.append("")
     setup_env = quilt_env_by_name.get("theorem", "theorem")
     body_lines.append(f"\\begin{{{setup_env}}}[{{\\cite[Standing assumptions]{{{citekey}}}}}]\\label{{{slug}-setup}}")
-    body_lines.append("\\incomplete{Standing assumptions not extracted; see the paper.}")
+    conventions = _conventions(exp, rewrite)
+    body_lines.append(conventions or "\\incomplete{Standing assumptions not extracted; see the paper.}")
     body_lines.append(f"\\end{{{setup_env}}}")
     body_lines.append("")
     written_units: set[int] = set()
@@ -593,6 +629,74 @@ def extract_digest(
     if header_end == 0:
         raise AssertionError("no header")
     return text, report
+
+
+_CONVENTIONS_HEADING = re.compile(
+    r"\\(?:(?:sub)*section|(?:sub)?paragraph)\*?\s*(?:\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}"
+)
+_CONVENTIONS_TITLE = re.compile(r"convention|notation|standing assumption|terminology", re.I)
+_NEXT_HEADING = re.compile(
+    r"\\(?:(?:sub)*section|(?:sub)?paragraph|chapter)\*?\s*[\[{]|\\begin\{proof\}|\\end\{document\}"
+)
+# A standing assumption stated as one sentence inside an ordinary paragraph, which is how Edidin and Graham state that
+# every Chow group in their paper has rational coefficients. A sentence scoped to a section or a proof is not standing.
+_STANDING = re.compile(
+    r"\bThroughout\b|\bFor the (?:remainder|rest) of (?:the|this) (?:paper|article|note)\b"
+    r"|\bWe (?:always |will )?work over\b|\bUnless (?:otherwise )?(?:stated|specified|mentioned|noted|indicated)\b"
+    r"|\b(?:All|all|Every|every)\b[^.]{0,60}?\b(?:is|are) (?:always )?(?:assumed|supposed|taken|defined over)\b"
+    r"|\bwe (?:always )?assume (?:throughout|that all|all)\b"
+)
+_SCOPED = re.compile(r"\bthis (?:section|subsection|proof|example|chapter|remark)\b", re.I)
+# proofs under the names this corpus gives them: Romagny 2005's is `proo`
+_PROOF = re.compile(r"\\begin\{(pro+f?|pf|dem\w*|preuve)\*?\}.*?\\end\{\1\*?\}", re.S)
+_ENV_MARK = re.compile(r"\\(?:begin|end)\{[^{}]*\}(?:\{[^{}]*\})?\s*")
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[A-Z\\$])")
+STANDING_MAX = 6  # sentences, when they are gathered from the body rather than found under a heading
+CONVENTIONS_CAP = 1500  # characters: a conventions section can run to pages, and the node is read on every hover
+
+
+def _conventions(exp: Expansion, rewrite: object) -> str:
+    """The paper's standing assumptions for the `-setup` node, verbatim, or '' when it states none where a machine can find them.
+
+    A heading that names conventions, notation, terminology or standing assumptions (its first three paragraphs), else every sentence outside a proof that states one -- "Throughout", "For the remainder of the paper", "We work over", "Unless otherwise stated", "All schemes are assumed" -- unless it is scoped to a section or a proof. Five study sightings: every answer about a result's hypotheses named the empty stub as its limit, and the text was usually in the paper a few lines from where the agent looked.
+    """
+    begin = exp.text.find("\\begin{document}")
+    body = re.sub(r"(?<!\\)%[^\n]*", "", exp.text[begin:] if begin >= 0 else exp.text)
+    chosen = ""
+    for m in _CONVENTIONS_HEADING.finditer(body):
+        if _CONVENTIONS_TITLE.search(m.group(1)):
+            rest = body[m.end() :]
+            stop = _NEXT_HEADING.search(rest)
+            paras = [p.strip() for p in re.split(r"\n\s*\n", rest[: stop.start() if stop else len(rest)]) if p.strip()]
+            chosen = "\n\n".join(paras[:3])
+            if chosen:
+                break
+    if not chosen:
+        found: list[str] = []
+        for para in re.split(r"\n\s*\n", _PROOF.sub(" ", body)):
+            for sentence in _SENTENCE_END.split(" ".join(_ENV_MARK.sub(" ", para).split())):
+                if _STANDING.search(sentence) and not _SCOPED.search(sentence) and sentence not in found:
+                    found.append(sentence)
+        if found:
+            # gathered, not found under a heading: a sentence can be scoped more narrowly than it reads, and the reader is told so
+            chosen = "\n\n".join(
+                [
+                    "\\emph{Sentences of the paper that state an assumption, gathered by the extractor; check each one's scope.}"
+                ]
+                + found[:STANDING_MAX]
+            )
+    if not chosen:
+        return ""
+    assert callable(rewrite)
+    # a heading's own label rides in with the text after it, and would name the -setup node a second time
+    text = re.sub(r"\\label\{[^{}]*\}\s*", "", str(rewrite(chosen))).strip()
+    if len(text) > CONVENTIONS_CAP:
+        cut = text.rfind(". ", 0, CONVENTIONS_CAP)
+        text = (
+            text[: cut + 1 if cut > 0 else CONVENTIONS_CAP]
+            + "\n\\emph{The paper's conventions continue beyond this; see the paper.}"
+        )
+    return text
 
 
 def _overview(units: list[SectionUnit], exp: Expansion, rewrite: object) -> str:

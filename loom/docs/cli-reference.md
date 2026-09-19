@@ -289,7 +289,9 @@ What KEY depends on: direct statement-edges and proof-edges, grouped.
 
 `loom digest [OPTIONS] COMMAND [ARGS]...`
 
-Digests of cited papers: extract one from a paper's source, port one in, or fetch a source.
+Digests of cited papers: extract one from a paper's source, or port one in.
+
+To search what the digests hold, see `loom refs find` (statements) and `loom refs grep` (page text); to read a page, `loom refs page`; for the whole mechanical pass over every cited work, `loom refs build`.
 
 ### `loom digest extract`
 
@@ -302,17 +304,6 @@ Produce digests/CITEKEY.tex mechanically from the reference paper whose main fil
 | `--to` `PATH` | Write here instead of digests/<citekey>.tex. |
 | `--engine` | Engine for compiling the reference (default: its magic comment or pdflatex). |
 | `--no-compile` | Skip compiling the reference; number results by emulation. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-### `loom digest fetch`
-
-`loom digest fetch [OPTIONS] CITEKEY`
-
-Fetch the arXiv e-print source for CITEKEY into its directory under refs/ (gitignored). Requires [refs] fetch = true.
-
-| option | description |
-|---|---|
-| `--pdf` | Also fetch the PDF alongside the source. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom digest import`
@@ -504,6 +495,201 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 | `--force` | Replace an artifact that is already there. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom refs build`
+
+`loom refs build [OPTIONS] [CITEKEYS]...`
+
+Make everything about this quilt's cited works that a machine can make: resolve, fetch, extract, report.
+
+The one command that starts a digest. Each step is a no-op where its work is done, so running it again after editing `refs.bib` resolves, fetches and extracts the new entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two lines say what is left for a person and what is left for an agent.
+
+| option | description |
+|---|---|
+| `--refresh` | Ask the lookup services again where an answer is recorded. |
+| `--no-candidates` | Fetch only on identifiers an entry declares itself. |
+| `--force` | Re-extract digests that are already present. |
+| `--only` `STEP[,STEP]` | Run only these steps: resolve, fetch, extract, map. |
+| `--json` | Print the report as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs coverage`
+
+`loom refs coverage [OPTIONS] [CITEKEYS]...`
+
+What the quilt knows about each cited work: source, PDF, page text, digest, and proposals waiting on the author.
+
+A search over a partly digested corpus is a search over silence, so this is the line every other answer should be read against. Each argument is a citekey or a fragment of an author's name or a title -- `romagny`, `intrinsic normal cone` -- and a fragment that matches several works lists them all, because two papers by the same authors in the same year is exactly when guessing goes wrong.
+
+| option | description |
+|---|---|
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs discard`
+
+`loom refs discard [OPTIONS] TARGET`
+
+Discard a proposed result, with a reason.
+
+The reason is not a courtesy. `loom refs propose` refuses a discarded work-and-local-id and returns it, so the agent that proposed the thing learns why in the turn it fails rather than proposing it again next session. Nothing is deleted: the log keeps it and `loom refs why` reports it.
+
+| option | description |
+|---|---|
+| `--reason` | Why it should not stand; the agent that proposed it is shown this. |
+| `--author` | Who discarded, when the user config and git do not say. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs drop`
+
+`loom refs drop [OPTIONS]`
+
+Remove recorded results. The store is safe to delete: dropping it costs re-reading, never correctness.
+
+A verified node already written into `digests/<citekey>.tex` is the author's file and is never touched here; only the records and the proposals are removed.
+
+| option | description |
+|---|---|
+| `--work` | Everything recorded for this work. |
+| `--run` | Everything proposed by this run. |
+| `--unverified` | Every result not yet verified, in every work. |
+| `--yes`, `-y` | Do not ask. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs fetch`
+
+`loom refs fetch [OPTIONS] [CITEKEYS]...`
+
+Fetch sources and PDFs for cited works into refs/, checking on arrival that each is the work its entry names.
+
+Fetches on an identifier the entry declares, or on a strong candidate a lookup proposed (plan 0.12 §4.3): a candidate is enough to fetch with and never enough to be an identity, because fetching is reversible and checkable and identifying is neither. A source whose own title does not match the entry is discarded rather than filed. With no CITEKEYS, every cited work that has no artifact yet.
+
+| option | description |
+|---|---|
+| `--no-pdf` | Take the source only; the PDF is fetched by default. |
+| `--no-candidates` | Fetch only on identifiers an entry declares itself. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs find`
+
+`loom refs find [OPTIONS] TEXT`
+
+Search the statements this corpus has digested.
+
+**Every answer carries how much of the corpus it could have searched**, because a search over a partly digested corpus is a search over silence and a result set that does not say so reads like a finding. When nothing matches, the fallback is named.
+
+| option | description |
+|---|---|
+| `--work` | Limit to these citekeys. |
+| `--limit` | Stop showing after this many. |
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs grep`
+
+`loom refs grep [OPTIONS] TEXT`
+
+Search the raw page text of every mapped work for TEXT, a literal phrase (not a pattern).
+
+The cold-start path: before anything is digested this is the only thing that can answer, and it answers with pages to read rather than with statements. **Page text is mathematics that has been through a text layer**, so a hit is a pointer and never a quotable statement — read the page with `loom refs page`, and quote from that.
+
+| option | description |
+|---|---|
+| `--work` | Limit to these citekeys. |
+| `--limit` | Stop after this many hits. |
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs ingest`
+
+`loom refs ingest [OPTIONS] DIRECTORY`
+
+Match every PDF under DIRECTORY to a bibliography entry and file the ones that are unambiguous.
+
+Three signals: an identifier in the text of the first pages, the paper's own title, and the filename. **Two agreeing signals attach**, and an identifier read off the page attaches on its own. Everything else is listed by `loom refs match` with its evidence, because a wrong PDF filed against the right entry is worse than an unfiled one — the corpus this was built against has 25 files for 22 entries, eleven of which match nothing at all.
+
+| option | description |
+|---|---|
+| `--dry-run` | Say what would be filed and file nothing. |
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs link`
+
+`loom refs link [OPTIONS]`
+
+Assert a typed relation between two results, with a reason.
+
+**Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; a link is an assertion, attributed to whoever made it. Links are never citable, never enter a closure, and are never written into a digest — they are navigation, not mathematics.
+
+| option | description |
+|---|---|
+| `--from` `ID` | The result the claim is about. |
+| `--to` `ID` | The result it relates to. |
+| `--kind` | same-notion, generalises, specialises, depends-on, contradicts. |
+| `--why` | One or two sentences. This is what you read six months later. |
+| `--run` | The run asserting it; an agent must say which. |
+| `--author` | Who asserted it, when the user config and git do not say. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs links`
+
+`loom refs links [OPTIONS] [TARGET]`
+
+Links touching TARGET, out to --depth hops, or every link when TARGET is omitted.
+
+An agent walking a chain of results called this once per node; --depth walks it in one.
+
+| option | description |
+|---|---|
+| `--depth` | Follow links this many hops out from TARGET. |
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs locate`
+
+`loom refs locate [OPTIONS] CITEKEY TEXT`
+
+Print the region of CITEKEY's page PAGE that TEXT occupies, so an anchor need not compute geometry.
+
+Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk.
+
+| option | description |
+|---|---|
+| `--page` | The page the text is on. |
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs map`
+
+`loom refs map [OPTIONS] [CITEKEYS]...`
+
+Write page text and the section map for cited works that have a PDF.
+
+Deterministic, eager and cheap: no model, nothing to review, and re-running costs nothing where the artifact has not changed. The page text is committed, which is what lets a coauthor who holds no PDF re-check an anchor; the token geometry an anchor's quad needs is written per page by `loom refs locate`, on demand, because it is thirty times the size.
+
+| option | description |
+|---|---|
+| `--force` | Re-map even where the recorded map matches the PDF on disk. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs match`
+
+`loom refs match [OPTIONS]`
+
+The cited works a person has to look at: no artifact and no identifier, or a source discarded on arrival.
+
+Reads disk only; it never fetches and never asks a service. This is the list `loom refs build` counts on its `needs you` line.
+
+| option | description |
+|---|---|
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom refs note`
 
 `loom refs note [OPTIONS]`
@@ -522,6 +708,33 @@ Accepting appends to `reference-notes.jsonl` and resolves the annotation; reject
 | `--list` | Print what has been accepted. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom refs overview`
+
+`loom refs overview [OPTIONS] CITEKEY`
+
+Print a digest's Overview: the paper's own framing, which is prose and so is no result.
+
+Agents read it from the digest's `.tex` by hand in every study iteration -- it is where a paper says which results it considers main and what it assumes throughout, and no other command reaches it.
+
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs page`
+
+`loom refs page [OPTIONS] CITEKEY PAGES`
+
+Print CITEKEY's page text for PAGES (`12` or `10-14`), with the section each page falls in.
+
+The sanctioned read. A quotation an agent proposes must come from here, because this is the text the anchor is checked against; anything quoted from elsewhere may be right and cannot be verified.
+
+| option | description |
+|---|---|
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
 ### `loom refs path`
 
 `loom refs path [OPTIONS] CITEKEY`
@@ -532,6 +745,43 @@ Print where CITEKEY's fetched artifacts live. Nothing under refs/ is meant to be
 |---|---|
 | `--pdf` | The PDF rather than the directory. |
 | `--src` | The unpacked source rather than the directory. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs propose`
+
+`loom refs propose [OPTIONS] CITEKEY`
+
+Propose one result of CITEKEY, its quotation checked against the page or source file it claims to come from.
+
+The only write an agent makes to the reference layer. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
+
+| option | description |
+|---|---|
+| `--local` | The paper's own name for the result: thm-4.1, cor-2.3.1, eq-1, thm-star-2. |
+| `--page` | The page the statement is on, or 353-354 if it runs over. |
+| `--source-file` `FILE` | Quote the work's LaTeX source instead of a page: a file under the directory `loom refs path` prints. |
+| `--source-text` | The paper's own words, verbatim; checked against the page or file. |
+| `--statement` | The same result as LaTeX, in the paper's words only; the author verifies it. |
+| `--taxon` | theorem, lemma, definition, equation, …; read off --local when omitted. |
+| `--number` | The paper's numbers when it states several results together: '3.2, 3.3'. |
+| `--level` | 1 is a main result. |
+| `--supersedes` `ID` | Re-propose something discarded, recording the chain. |
+| `--run` | The run proposing this. |
+| `--json` | Print the stored record as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs recheck`
+
+`loom refs recheck [OPTIONS] [CITEKEYS]...`
+
+Re-read every verified result's anchor and report what moved. It does not re-check extraction: a mis-numbered or missing result in a mechanical digest is invisible to it.
+
+This is what makes `transcription verified` a claim a command can falsify. It re-reads the page the anchor names and compares it to the stored `source_text`; it never re-verifies anything by itself, because re-verifying is a person saying the copy is still faithful, which is `loom refs verify`. **A verified node's LaTeX is never re-checked** — that rendering was judged by a person once, and re-judging it mechanically would claim a check that does not exist.
+
+| option | description |
+|---|---|
+| `--json` | Print as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs resolve`
@@ -547,6 +797,47 @@ Asks zbMATH Open, then Crossref, and prints candidates with how well each matche
 | `--refresh` | Ask again even where an answer is recorded. |
 | `--json` | Print the candidates as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs unlink`
+
+`loom refs unlink [OPTIONS] LINK_ID`
+
+Remove a link.
+
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs verify`
+
+`loom refs verify [OPTIONS] TARGET`
+
+Record that a transcription is faithful: promote a proposal into the digest, or re-verify one already there.
+
+Two claims must not share a word. `loom accept` says *I have proved this, or I am satisfied it holds* and is about your own mathematics; this says *this copy is faithful to the paper it came from*, and settles nothing mathematical. With --statement you fix the rendering first: you are editing `statement`, never `source_text`, so the anchor is untouched and the result stays re-checkable — and both parties are recorded, because a record that credits an agent with a sentence you wrote cannot be audited.
+
+| option | description |
+|---|---|
+| `--statement` | Your own rendering, replacing the proposed one before verifying. |
+| `--local` | The paper's own name for it, correcting the proposal's: cor-3.2.1. |
+| `--taxon` | The environment, when --local does not imply it. |
+| `--author` | Who verified, when the user config and git do not say. |
+| `--yes`, `-y` | Skip the question; you have read both texts. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs why`
+
+`loom refs why [OPTIONS] TARGET`
+
+Where a result came from, what state it is in, and who changed it.
+
+Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited.
+
+| option | description |
+|---|---|
+| `--json` | Print as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--run` `RUN` | Log this call to RUN's run.log. |
 
 ## `loom revert`
 

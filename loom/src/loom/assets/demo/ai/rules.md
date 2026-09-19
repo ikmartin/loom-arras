@@ -25,7 +25,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
    - A key: `loom source KEY --closure --run RUN` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
-   - The one exception: a digest's `\section*{Overview}` is written to be read whole and no command prints it, so open `digests/CITEKEY.tex` when you want the overview. Read the overview, not the file.
+   - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
 2. `RUN` above is your run: its name, a prefix of one, or its path. Nothing sets `$LOOM_RUN` for you, so pass `--run` explicitly on every command that accepts it; loom logs the call to that run's `run.log`.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --run RUN`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
@@ -89,7 +89,6 @@ Two things do not change. **The standing rules, the Inputs and Outputs contracts
   - `loom compile`
   - `loom deps`
   - `loom digest extract`
-  - `loom digest fetch`
   - `loom doctor`
   - `loom downstream`
   - `loom history`
@@ -98,8 +97,24 @@ Two things do not change. **The standing rules, the Inputs and Outputs contracts
   - `loom new`
   - `loom pop`
   - `loom reach`
+  - `loom refs build`
+  - `loom refs coverage`
+  - `loom refs fetch`
+  - `loom refs find`
+  - `loom refs grep`
+  - `loom refs ingest`
+  - `loom refs link`
+  - `loom refs links`
+  - `loom refs locate`
+  - `loom refs map`
+  - `loom refs match`
+  - `loom refs page`
   - `loom refs path`
+  - `loom refs propose`
+  - `loom refs recheck`
   - `loom refs resolve`
+  - `loom refs unlink`
+  - `loom refs why`
   - `loom search`
   - `loom serve`
   - `loom source`

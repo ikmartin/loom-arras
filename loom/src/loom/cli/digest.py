@@ -1,4 +1,4 @@
-"""`loom digest extract | import | fetch` (book 8.5, 8.9, 8.10)."""
+"""`loom digest extract | import` (book 8.5, 8.10). Fetching moved to `loom refs fetch`, which fetches on a candidate as well as a declared identifier and checks the title on arrival (plan 0.12 §4.3)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ import click
 from loom.cli._common import ContentError, EnvError, note
 from loom.cli._quilt import open_scan, quilt_option
 from loom.digest.extract import extract_digest
-from loom.digest.fetch import FetchRefused, fetch
 from loom.digest.importer import plan_digest_import, write_digest_import
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
@@ -17,7 +16,10 @@ from loom.scan.scan import scan
 
 @click.group(name="digest")
 def digest() -> None:
-    """Digests of cited papers: extract one from a paper's source, port one in, or fetch a source."""
+    """Digests of cited papers: extract one from a paper's source, or port one in.
+
+    To search what the digests hold, see `loom refs find` (statements) and `loom refs grep` (page text); to read a page, `loom refs page`; for the whole mechanical pass over every cited work, `loom refs build`.
+    """
 
 
 @digest.command(name="extract")
@@ -53,10 +55,17 @@ def extract(
     text, report = extract_digest(result, citekey, src, engine=engine, compile=not no_compile)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8")
-    click.echo(f"Wrote {target.relative_to(root)}")
+    click.echo(f"Wrote {target.relative_to(root) if target.is_relative_to(root) else target}")
     click.echo(report.summary())
     rescan = scan(load_quilt(root))
-    rel = target.relative_to(root).as_posix()
+    # mechanical extraction and an agent's reading end in the same place, or half the digest is invisible to
+    # every surface that reads results (contract §1.4)
+    from loom.refs.proposals import record_extracted
+
+    recorded = record_extracted(rescan, citekey)
+    if recorded:
+        click.echo(f"recorded {recorded} result(s) in digests/{citekey}.results.json")
+    rel = target.relative_to(root).as_posix() if target.is_relative_to(root) else target.as_posix()
     hits = [d for d in rescan.lint if any(loc.file == rel for loc in d.locations) or citekey in d.message]
     if hits:
         click.echo("Lint on the digest:")
@@ -98,24 +107,3 @@ def import_digest(ctx: click.Context, path: Path, as_citekey: str | None, quilt_
         note(f"environments not declared in this quilt: {', '.join(plan.undeclared_envs)} (loom:unknown-environment)")
     if plan.citekey not in result.bib:
         note(f"{plan.citekey} is not in the bibliography (loom:digest-without-bib)")
-
-
-@digest.command(name="fetch")
-@click.argument("citekey")
-@click.option("--pdf", is_flag=True, help="Also fetch the PDF alongside the source.")
-@quilt_option
-@click.pass_context
-def fetch_command(ctx: click.Context, citekey: str, pdf: bool, quilt_path: str | None) -> None:
-    """Fetch the arXiv e-print source for CITEKEY into its directory under refs/ (gitignored). Requires [refs] fetch = true."""
-    result = open_scan(quilt_path)
-    try:
-        written = fetch(result.quilt, citekey, result.bib.get(citekey), pdf=pdf)
-    except FetchRefused as exc:
-        raise EnvError(str(exc)) from exc
-    for p in written:
-        click.echo(f"Wrote {p.relative_to(result.quilt.root)}")
-    # the next command names a real file, not a shape: the work's directory is named by its identifier, which the author never typed and should not have to guess
-    tex = sorted(p for p in written if p.suffix == ".tex" and p.parent.name == "src")
-    main = next((p for p in tex if p.stem == "main"), tex[0] if tex else None)
-    where = main.relative_to(result.quilt.root) if main else "<the unpacked source>"
-    click.echo(f"{len(written)} file(s); run loom digest extract {citekey} {where} next")

@@ -791,12 +791,26 @@ def test_status_is_the_authors_to_do_list_not_the_literatures(tmp_path: Path) ->
     assert f"{len(external - kept)} digest keys not counted" in line
 
 
-def test_accepting_a_digest_says_what_it_claims(tmp_path: Path) -> None:
-    """Accepting an external node claims loom's copy of the cited paper is faithful, never that this quilt proved the theorem; both printed `accepted` (H22)."""
+def test_accept_refuses_a_digest_node_and_names_the_command_that_does_it(tmp_path: Path) -> None:
+    """Two claims, two commands (plan 0.12 §5.6). `loom accept` is the author's own mathematics; someone else's theorem is not theirs to accept, and DR-172 relabelled the output where the command needed splitting."""
     q = synthetic(tmp_path)
     r = run("accept", "Kre99-thm-2.1", *AUTHOR, cwd=q)
+    assert r.exit_code != 0
+    assert "not yours to accept" in r.output and "loom refs verify Kre99-thm-2.1" in r.output
+
+    # the author's own keys are untouched by any of it
+    assert run("accept", "sy-0002", *AUTHOR, cwd=q).output.startswith("accepted sy-0002")
+
+
+def test_verifying_a_digest_node_says_what_it_claims(tmp_path: Path) -> None:
+    """Verifying an external node claims loom's copy of the cited paper is faithful, never that this quilt proved the theorem; both printed `accepted` (H22)."""
+    q = synthetic(tmp_path)
+    # a digest extracted before the reference layer existed gains its records from one `refs build` (contract §1.4)
+    assert run("refs", "build", "--only", "extract", cwd=q).exit_code == 0
+    r = run("refs", "verify", "Kre99-thm-2.1", "--author", "A. Author", "--yes", cwd=q)
     assert r.exit_code == 0, r.output
-    assert r.output.startswith("verified Kre99-thm-2.1")
+    assert "verified Kre99-thm-2.1" in r.output
+    assert "--- the source ---" in r.output, "a mechanical result's anchor is its LaTeX, and it says so"
     assert "as a faithful transcription of Kre99" in r.output
 
     line = next(ln for ln in run("status", cwd=q).output.splitlines() if ln.startswith("Kre99-thm-2.1 "))
@@ -808,9 +822,6 @@ def test_accepting_a_digest_says_what_it_claims(tmp_path: Path) -> None:
     e = run("status", "--explain", "Kre99-thm-2.1", cwd=q).output
     assert "transcription verified, stale" in e and "transcription-changed" in e
     assert "own-text-changed" not in e
-
-    # the author's own keys are untouched by any of it
-    assert run("accept", "sy-0002", *AUTHOR, cwd=q).output.startswith("accepted sy-0002")
 
 
 def test_an_annotations_display_math_is_a_block_not_a_div_inside_a_paragraph(tmp_path: Path) -> None:

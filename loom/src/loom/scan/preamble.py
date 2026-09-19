@@ -79,9 +79,17 @@ def _load(root: Path, rel: str, files: dict[str, SourceFile]) -> SourceFile:
 
 
 def build_closure(
-    master: SourceFile, root: Path, files: dict[str, SourceFile], directives: list[Directive]
+    master: SourceFile,
+    root: Path,
+    files: dict[str, SourceFile],
+    directives: list[Directive],
+    *,
+    foreign: bool = False,
 ) -> PreambleClosure:
-    """Collect the closure, then parse taxa and macros over it in inclusion order."""
+    """Collect the closure, then parse taxa and macros over it in inclusion order.
+
+    `foreign` is for someone else's paper, read by `loom digest extract`: it also takes theorem environments declared in the body and environments defined as wrappers around theorem-like ones. A quilt's own scan does not, deliberately -- an author is asked to declare in the preamble so a node file describes itself -- but a cited paper cannot be asked, and missing either idiom cost three of sixteen real papers their results or their numbering.
+    """
     closure = PreambleClosure(master=master.path)
     seen: set[str] = set()
     doc = document_start(master)
@@ -95,6 +103,10 @@ def build_closure(
         if d.form == "tex" and d.key == "program" and d.file == master.path:
             closure.engine = d.value
     _parse_taxa(closure)
+    if foreign:
+        if doc is not None:
+            _parse_body_taxa(closure, master, doc)
+        _parse_wrappers(closure, master, doc)
     for d in directives:
         if d.form == "kv" and d.key == "environment" and d.file == master.path:
             m = re.match(r"([^=]+)=\s*([^,]+)(?:,\s*(\w+))?\s*$", d.value)
@@ -227,6 +239,64 @@ def _parse_taxa(closure: PreambleClosure) -> None:
                     numbered = kv.get("numbered", "yes").strip() != "no"
                     closure.taxa[env_name] = Taxon(env_name, disp, _style_class(st), numbered, frag.file, m.start())
             pos = max(after, m.end())
+
+
+def _parse_body_taxa(closure: PreambleClosure, master: SourceFile, doc: int) -> None:
+    """Theorem environments declared after `\\begin{document}`, which the preamble closure cannot see.
+
+    Legal, and common in older papers: Totaro 2004 declares `theorem`, `lemma`, `corollary` and `proposition` on the four lines after `\\begin{document}`, and an extractor that read only the preamble found no theorem-like environment at all and extracted nothing from it. A declaration already made in the preamble wins; the body adds, it never overrides.
+    """
+    before = dict(closure.taxa)
+    body = PreambleClosure(master=closure.master, fragments=[Fragment(master.path, doc, len(master.clean), master)])
+    body.macros = closure.macros
+    body.custom_styles = set(closure.custom_styles)
+    _parse_taxa(body)
+    for env, taxon in body.taxa.items():
+        closure.taxa.setdefault(env, taxon)
+    closure.taxa.update(before)
+
+
+_WRAPPER = re.compile(r"\\(?:re)?newenvironment\s*\*?\s*\{([^{}]+)\}")
+_BOLD_NAME = re.compile(r"(?:\{\\bf\s+|\\textbf\s*\{|\{\\bfseries\s+)([A-Z][A-Za-z ]{1,30}?)\.?\s*\}")
+
+
+def _parse_wrappers(closure: PreambleClosure, master: SourceFile, doc: int | None) -> None:
+    """Environments defined as a wrapper around a theorem-like one are theorem-like, on the same counter.
+
+    `\\newtheorem{defnp}[prop]{Definition}` then `\\newenvironment{defn}{\\begin{defnp}\\rm}{\\end{defnp}}` is how a paper written without amsthm's `\\theoremstyle` sets a definition upright, and the body then uses only `defn`. Missing it does worse than lose the definitions: they share the `prop` counter, so every result after them is numbered wrongly. Behrend-Fantechi's digest read `lem-3.6` for the paper's Lemma 3.8 this way, and Romagny 2022, which builds every environment as a wrapper around one `\\newtheorem{counter}`, extracted one result of twenty-seven.
+
+    The wrapper takes the wrapped environment's counter, so the two step together. Its display name is the wrapped one's, unless that is empty or not a word -- Romagny's counter is named `$\\!\\!$` -- in which case it is read from the `{\\bf Name.}` the wrapper prints.
+    """
+    frags = list(closure.fragments)
+    if doc is not None:
+        frags.append(Fragment(master.path, doc, len(master.clean), master))
+    for frag in frags:
+        text = frag.src.clean
+        for m in _WRAPPER.finditer(text, frag.start, frag.end):
+            env = m.group(1).strip()
+            if not env or env in closure.taxa:
+                continue
+            (_nargs, _default, begin, _end), _, _after = read_args(text, m.end(), "oomm")
+            if not begin:
+                continue
+            inner = re.search(r"\\begin\s*\{([^{}]+)\}", begin)
+            if not inner or inner.group(1).strip() not in closure.taxa:
+                continue
+            wrapped = closure.taxa[inner.group(1).strip()]
+            name = wrapped.name if re.search(r"[A-Za-z]{2,}", wrapped.name or "") else ""
+            if not name:
+                bold = _BOLD_NAME.search(begin)
+                name = bold.group(1).strip() if bold else env.split("-")[0].capitalize()
+            closure.taxa[env] = Taxon(
+                env,
+                name,
+                wrapped.style,
+                wrapped.numbered,
+                frag.file,
+                m.start(),
+                wrapped.counter or wrapped.env,
+                None,
+            )
 
 
 def _style_class(style: str) -> str:

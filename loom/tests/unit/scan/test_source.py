@@ -83,3 +83,19 @@ def test_scan_reads_an_unsaved_buffer_from_an_overlay(tmp_path: Path) -> None:
     )
     assert created.nodes["ab-0002"].title == "New"
     assert created.nodes["ab-0002"].reached_by == ["drafting/main.tex"]
+
+
+def test_notes_is_the_authors_reference_material_and_never_scanned(tmp_path: Path) -> None:
+    """A colleague's `.tex` in `notes/` carries its own labels; scanning it would define nodes the author never wrote (book 4.1.2)."""
+    from tests.unit.scan.helpers import PREAMBLE, make_quilt
+
+    result = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE + "\\begin{document}\n\\end{document}\n",
+            "notes/colleague.tex": "\\begin{lemma}\\label{ab-0001}\nTheirs.\n\\end{lemma}\n",
+            "notes/reading.md": "what I took from the seminar\n",
+        },
+    )
+    assert "ab-0001" not in result.nodes
+    assert not any(f.startswith("notes/") for f in result.files)

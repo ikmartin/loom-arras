@@ -33,8 +33,10 @@ AGENT_COMMANDS = frozenset(
         "build", "check", "comment", "compile", "deps", "doctor", "history", "id", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
         "ai check", "ai discard", "ai findings", "ai name", "ai orient", "ai runs", "ai start",
-        "digest extract", "digest fetch",
-        "refs path", "refs resolve",
+        "digest extract",
+        "refs build", "refs coverage", "refs fetch", "refs grep", "refs link", "refs links", "refs locate",
+        "refs find", "refs ingest", "refs map", "refs match", "refs page", "refs path", "refs propose", "refs recheck",
+        "refs resolve", "refs unlink", "refs why",
     }
 )  # fmt: skip
 AGENT_WRITES = ("ai/runs", "build")  # the only places an agent may write

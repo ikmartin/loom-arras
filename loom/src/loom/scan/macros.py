@@ -127,9 +127,16 @@ def parse_macros(text: str) -> dict[str, Macro]:
 
 
 def expand(macro: Macro, args: list[str]) -> str:
+    """The macro's body with its parameters substituted.
+
+    A parameter that follows a control word with no space between them -- `0\\longrightarrow#1` -- would glue the argument onto the command's name, and `\\longrightarrowE` is a different, undefined command. Behrend-Fantechi's exact-sequence macro is written that way, and every sequence it drew rendered as an error. A space is inserted exactly where TeX would have ended the control word.
+    """
     body = macro.body
     for i in range(macro.args, 0, -1):
         val = args[i - 1] if i - 1 < len(args) else (macro.default or "")
+        glued = re.compile(r"(\\[A-Za-z@]+)#" + str(i))
+        if val[:1].isalpha():
+            body = glued.sub(r"\1 #" + str(i), body)
         body = body.replace(f"#{i}", val)
     return body
 
@@ -196,6 +203,14 @@ COMPATIBILITY: dict[str, tuple[int, str]] = {  # name -> (argument count, body)
     "hbox": (1, r"\text{#1}"),
 }
 
+# Commands a package defines that a viewer's mathematics renderer does not implement, with the closest form it does, keyed by the package that defines them. Published only when the preamble loads that package, since without it the command is not LaTeX either.
+PACKAGE_COMMANDS: dict[str, dict[str, tuple[int, str]]] = {
+    "old-arrows": {
+        "longhookrightarrow": (0, r"\xhookrightarrow{}"),
+        "longhookleftarrow": (0, r"\xhookleftarrow{}"),
+    },
+}
+
 # `\DeclareMathAlphabet{\name}{encoding}{family}{series}{shape}` declares a font a renderer does not have. The family is mapped to the nearest alphabet the renderer does have; an unrecognised family becomes upright roman, which is legible and honest, rather than an error.
 _ALPHABET = re.compile(r"\\DeclareMathAlphabet\s*\{\s*\\([A-Za-z@]+)\s*\}\s*\{[^}]*\}\s*\{([^}]*)\}")
 _FAMILY_ALPHABET = {
@@ -227,6 +242,15 @@ def compatibility_macros(used: dict[str, Macro]) -> dict[str, Macro]:
         name: Macro(name=name, args=args, body=body)
         for name, (args, body) in COMPATIBILITY.items()
         if re.search(r"\\" + name + r"(?![A-Za-z@])", bodies)
+    }
+
+
+def package_macros(packages: set[str]) -> dict[str, Macro]:
+    """The renderer's stand-ins for commands the loaded `packages` define and it lacks; see PACKAGE_COMMANDS."""
+    return {
+        name: Macro(name=name, args=args, body=body)
+        for pkg in sorted(packages & PACKAGE_COMMANDS.keys())
+        for name, (args, body) in PACKAGE_COMMANDS[pkg].items()
     }
 
 

@@ -14,7 +14,7 @@ from loom.clock import stamp
 
 #: What this publisher serves. A viewer reads this rather than assuming the specification's table, so an endpoint that
 #: is not here answers 404 and a viewer that hides the affordance is right to.
-CAPABILITIES = ["comment", "reply", "resolve", "edit", "discard", "refs-note"]
+CAPABILITIES = ["comment", "reply", "resolve", "edit", "discard", "refs-note", "digest-verify", "digest-discard"]
 
 WRITE_API_VERSION = 1
 
@@ -66,7 +66,31 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         raise ApiError("unknown-endpoint", f"no endpoint {endpoint}", status=404)
     if endpoint == "refs-note":
         return {"ok": True, "result": _refs_note(root, body)}
+    if endpoint in ("digest-verify", "digest-discard"):
+        return {"ok": True, "result": _digest(root, endpoint, body)}
     return {"ok": True, "result": _review(root, endpoint, body)}
+
+
+def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
+    """Verify or discard a proposed digest node, through the same functions `loom refs verify|discard` call.
+
+    `digest-verify` with a `statement` is edit-then-verify: the author's own rendering replaces the proposed one and both parties are recorded. It never touches `source_text`, so the anchor survives and the node stays re-checkable (plan 0.12 §5.4).
+    """
+    from loom.cli._quilt import open_scan
+    from loom.refs.proposals import discard_result, verify_result
+    from loom.scan.quilt import resolve_author
+
+    node = _str(body, "node", required=True) or ""
+    result = open_scan(str(root))
+    who = resolve_author(_str(body, "author"), root)[0]
+    try:
+        if endpoint == "digest-discard":
+            return discard_result(result, node, _str(body, "reason", required=True) or "", who)
+        return verify_result(
+            result, node, _str(body, "statement"), who, local=_str(body, "local"), taxon=_str(body, "taxon")
+        )[0]
+    except LookupError as exc:
+        raise ApiError("no-such-node", str(exc), status=404) from exc
 
 
 def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:

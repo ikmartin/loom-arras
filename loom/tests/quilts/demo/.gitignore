@@ -1,6 +1,12 @@
 build/
-refs/pdf/
-refs/src/
+# Other people's files: fetched or added by hand, never written by you, never committed.
+refs/**/paper.pdf
+refs/**/src/
+refs/cache/
+# But `refs/**/pages/` and `refs/**/sections.json` ARE committed. They are the page text an
+# anchor names, which is what lets a coauthor who holds no PDF re-check a transcription.
+# loom's cache of the last text it saw for every key: one copy of the quilt, rebuilt on demand
+last-seen.json
 # LaTeX artifacts a hand compile scatters at the root or in drafting/; loom's own outputs all land under build/
 /*.aux
 /*.log

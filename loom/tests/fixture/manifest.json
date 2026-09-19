@@ -284,7 +284,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "a6307b3e3c585be5dc285ee4242bdf9273cd78d23b73bca03725e94fa9941955",
+   "hash": "af33650bd996f8260b856e6232bf846a616b878a117ddfcaa265624fc7277b14",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -296,7 +296,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "fed5dea990c11f8ee18e2d2d4a6a27e0fc3445606a1f9b28f008a2a09c0cc50e",
+   "hash": "7fad867e1526a5dcb9dee018ee6445e460e50f57196f2514bb539695c412453c",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -308,7 +308,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "30f945f28a3da0debc9692156d36c3878fad41c92db95d64a8d816aca31a6037",
+   "hash": "f4a00110ef18b0fcb09f708ae54340279393c464f0b3dd559faef58cd1e08f1f",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -2484,6 +2484,7 @@
    "uses": []
   }
  },
+ "links": [],
  "macros": {
   "default": [
    {
@@ -2617,14 +2618,15 @@
     "proved": false,
     "settled": false
    },
-   "digest": null,
-   "external": false,
+   "digest": "Kre99",
+   "external": true,
    "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-sec-1.html",
    "id": "Kre99-sec-1",
    "incomplete": [],
    "kind": "section",
    "level": 1,
+   "locator": null,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -2650,14 +2652,15 @@
     "proved": false,
     "settled": false
    },
-   "digest": null,
-   "external": false,
+   "digest": "Kre99",
+   "external": true,
    "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-sec-2.html",
    "id": "Kre99-sec-2",
    "incomplete": [],
    "kind": "section",
    "level": 1,
+   "locator": null,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -2743,14 +2746,15 @@
     "proved": false,
     "settled": false
    },
-   "digest": null,
-   "external": false,
+   "digest": "Kre99",
+   "external": true,
    "file": "digests/Kre99.tex",
    "fragment": "fragments/keys/digests%2FKre99.tex%23section%3A1.html",
    "id": "digests/Kre99.tex#section:1",
    "incomplete": [],
    "kind": "section",
    "level": 1,
+   "locator": null,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -3846,6 +3850,8 @@
    ],
    "citekey": "Har77",
    "digest": null,
+   "proposed": null,
+   "results": {},
    "slug": "Har77",
    "version_mismatch": false,
    "work": "work:5ac32442",
@@ -3867,8 +3873,6 @@
     "year": 1999
    },
    "cited_by": [
-    "Kre99-setup",
-    "Kre99-thm-2.1",
     "sy-000A",
     "sy-0100"
    ],
@@ -3885,6 +3889,8 @@
     "published_as": "",
     "source": "arXiv:math/9810166v2"
    },
+   "proposed": null,
+   "results": {},
    "slug": "Kre99",
    "version_mismatch": false,
    "work": "arXiv:math/9810166v2",
@@ -3907,6 +3913,8 @@
    "cited_by": [],
    "citekey": "Man12",
    "digest": null,
+   "proposed": null,
+   "results": {},
    "slug": "Man12",
    "version_mismatch": false,
    "work": "arXiv:0805.2065v2",
@@ -4353,6 +4361,10 @@
    "incomplete": {
     "color": "negative",
     "label": "incomplete"
+   },
+   "proposed": {
+    "color": "info",
+    "label": "proposed"
    },
    "stale": {
     "color": "warning",

@@ -14,14 +14,15 @@ from loom.history.ledger import Entry, History
 from loom.render.assets import publish_graphic
 from loom.render.convert import Converter, RenderContext, esc
 from loom.render.fragments import FragmentRenderer, plain_text
+from loom.scan.digests import loaded_packages
 from loom.scan.envtree import norm_label
-from loom.scan.macros import compatibility_macros, declared_alphabets, to_mathjax
+from loom.scan.macros import compatibility_macros, declared_alphabets, package_macros, to_mathjax
 from loom.scan.model import Diagnostic, Location, SourceFile
 from loom.scan.preamble import PreambleClosure, build_closure, document_start
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult
 from loom.scan.source import read_source
-from loom.tex.aux import read_numbers
+from loom.tex.aux import read_cite_labels, read_numbers
 
 _LABEL = re.compile(r"\\label\s*\{([^}]*)\}")
 
@@ -82,6 +83,8 @@ def macro_set(doc: CanonDoc) -> list[dict[str, Any]]:
     }
     for name, macro in declared_alphabets(doc.closure.clean_text()).items():
         macros.setdefault(name, macro)
+    for name, macro in package_macros(loaded_packages(doc.closure)).items():
+        macros.setdefault(name, macro)
     macros.update(compatibility_macros(macros))
     return to_mathjax(macros)
 
@@ -131,6 +134,7 @@ class CanonRenderer:
             labels=doc.labels,
             regions={},
             numbers=read_numbers(self.root, doc.path),
+            cite_labels=read_cite_labels(self.root, doc.path),
             macros=doc.closure.macros,
             taxa=doc.closure.taxa,
             child_at={},
@@ -152,7 +156,7 @@ class CanonRenderer:
         end = end_m.start() if end_m else len(doc.src.clean)
         conv = Converter(ctx)
         body = conv.render_range(start, end)
-        self.renderer.plan.diagnostics.extend(ctx.diagnostics)
+        self.renderer._sink.extend(ctx.diagnostics)
         head = f'<h1 data-src="{doc.path}:0:0">{esc(doc.title)}</h1>'
         return _stamp(head + body, doc)
 

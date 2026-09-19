@@ -44,12 +44,17 @@ class Gen:
     def at(self, when: str) -> None:
         self.time = when
 
-    def env(self) -> dict[str, str]:
+    def env(self) -> dict[str, str | None]:
+        from loom.cli._common import AGENT_MARKERS
+
+        # The generator plays the author -- it accepts, verifies and discards to build the demo's history -- so an agent
+        # running it must not make loom refuse the author's verbs. A value of None unsets the variable for the call.
         return {
             "LOOM_FIXED_TIME": self.time,
             "XDG_CONFIG_HOME": str(self.config),
             "GIT_CONFIG_GLOBAL": str(self.config / "gitconfig-none"),
             "GIT_CONFIG_NOSYSTEM": "1",
+            **{marker: None for marker in AGENT_MARKERS},
         }
 
     def run(self, *args: str, expect: int = 0) -> str:

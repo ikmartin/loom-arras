@@ -8,7 +8,7 @@ Applied to every tagged release of loom (book 13.5). Publishing is the maintaine
 4. The book's reference figures regenerated from the viewer (`npm run shots` in `arras/`, which writes `docs/book/figures/*.png` in the workspace) whenever the chrome changed since the last release, and the new images committed.
 5. The arras bundle re-vendored from an arras build at the commit the release notes name (`uv run python scripts/vendor_arras.py ../arras/build`), and `loom doctor` reports that bundle and interface version 1.
 6. Every command in `README.md` and `docs/cli-reference.md` exists in this release (`scripts/gen_cli_reference.py --check`).
-7. The Overleaf manual test on the demo quilt (book 14.5): zip the demo without `build/`, `refs/pdf/`, and `refs/src/`; upload; set `drafts/main.tex` as the main document; compile; compare with the local PDF; record Overleaf's TeX Live version and the result in the release notes.
+7. The Overleaf manual test on the demo quilt (book 14.5): zip the demo without `build/`, `refs/**/paper.pdf`, and `refs/**/src/`; upload; set `drafts/main.tex` as the main document; compile; compare with the local PDF; record Overleaf's TeX Live version and the result in the release notes.
 8. `loom doctor` on a clean machine with a fresh TeX Live, following `README.md` literally (`pipx install git+...` and the `uv sync` path).
 9. Versions: bump `src/loom/version.py` and `pyproject.toml` together (semantic versioning, independent of arras); record the interface version in the release notes; tag `vX.Y.Z`.
 10. Publish: `uv build && uv publish` for `loomtex`. This step is the maintainer's; nothing before it publishes anything.

@@ -146,7 +146,7 @@ def compile_svg(
                     ln.strip() for ln in after[:2] if ln.strip()
                 )  # the `<recently read> \\foo` and `l.N` lines
             message = "latex failed: " + (err.group(0) + (" " + detail if detail else "") if err else out[-500:])
-            failed.write_text(message, encoding="utf-8")
+            _atomic_write(failed, message, encoding="utf-8")
             return SvgResult(None, key, False, message)
         try:
             proc = subprocess.run(
@@ -162,11 +162,11 @@ def compile_svg(
             return SvgResult(None, key, False, "dvisvgm timed out")
         if not (d / "d.svg").exists():
             message = "dvisvgm failed: " + (proc.stderr or "")[-500:]
-            failed.write_text(message, encoding="utf-8")
+            _atomic_write(failed, message, encoding="utf-8")
             return SvgResult(None, key, False, message)
         svg = _strip_prolog((d / "d.svg").read_text(encoding="utf-8"))
     svg = resize_svg(namespace_ids(svg, f"lm{key}-"))
-    cached.write_text(svg, encoding="utf-8")
+    _atomic_write(cached, svg, encoding="utf-8")
     return SvgResult(svg, key, False)
 
 
@@ -178,3 +178,11 @@ def fallback_figure(latex: str, svg: SvgResult, css_class: str, data_src: str) -
         error = html.escape(svg.error or "the block could not be compiled", quote=True)
         return f'<figure class="{css_class} failed" data-src="{data_src}" data-src-text="{src_text}" data-error="{error}"><pre>{html.escape(latex)}</pre></figure>'
     return f'<figure class="{css_class}" data-src="{data_src}" data-src-text="{src_text}">{svg.svg}</figure>'
+
+
+def _atomic_write(path: Path, text: str, encoding: str = "utf-8") -> None:
+    """Write a cache entry so no reader sees it half-written: fragments are rendered on a pool, and one thread can find a
+    cache file by `exists()` while another is still writing it."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{id(text)}.tmp")
+    tmp.write_text(text, encoding=encoding)
+    os.replace(tmp, path)

@@ -52,7 +52,7 @@ class ScanResult:
 def find_bib_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
     """The quilt's bibliography files.
 
-    A `.bib` inside a fetched work's source under `refs/`, or inside a run under `ai/`, is someone else's bibliography, not the quilt's; reading it would merge a whole library's references into the author's. The canon directory and `retired/` (`skip_top`) hold nothing that is source.
+    A `.bib` inside a fetched work's source under `refs/`, or inside a run under `ai/`, is someone else's bibliography, not the quilt's; reading it would merge a whole library's references into the author's. The canon directory, `retired/` and `notes/` (`skip_top`) hold nothing that is source.
     """
     out: list[str] = []
     for path in root.rglob("*.bib"):
@@ -68,8 +68,8 @@ def find_bib_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
-    """Top-level directories the scan never enters: the canon directory and `retired/` (book 4.1.2)."""
-    return (quilt.config.canon, "retired")
+    """Top-level directories the scan never enters: the canon directory, `retired/`, and `notes/`, the author's reference material (book 4.1.2)."""
+    return (quilt.config.canon, "retired", "notes")
 
 
 def canon_documents(quilt: Quilt) -> list[str]:

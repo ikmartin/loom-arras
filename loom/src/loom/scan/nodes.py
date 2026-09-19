@@ -506,7 +506,10 @@ def _regions_and_details(
         for d in node_dirs:
             if d.form == "kv":
                 n.directives[d.key] = d.value
-        if n.file in asm.digest_files and n.kind == "environment":
+        if n.file in asm.digest_files and n.kind in ("environment", "section", "proof"):
+            # Every node a digest defines is someone else's, sections included. Only statements used to be marked,
+            # so the 226 section nodes of sixteen real digests reached the author's graph: `\cite[Section 3.6]{Kresch}`
+            # resolves to one, and nothing that filters on `external` could tell it from the author's own work.
             n.digest = asm.digest_files[n.file]
             n.external = True
     for path, src in files.items():

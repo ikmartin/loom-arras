@@ -46,6 +46,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:detached-annotation": ("info", False),
     "loom:previous-key-match": ("info", False),
     "loom:unmatched-postnote": ("warning", False),
+    "loom:cites-proposed-node": ("warning", False),
     "loom:undigested-citekey": ("info", False),
     "loom:version-mismatch": ("warning", False),
     "loom:unresolved-work": ("info", False),

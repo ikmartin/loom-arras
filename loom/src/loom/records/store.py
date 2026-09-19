@@ -146,6 +146,13 @@ class Records:
                 continue
             if n.incomplete:
                 ks.state = "incomplete"
+            if n.file.endswith(".proposed.tex"):
+                # A proposal: read from a page and rendered by an agent, and not yet vouched for by anyone. It lives
+                # in a file no bundle inputs, so it cannot be cited or compiled; `loom refs verify` moves it into the
+                # digest and records the row that makes it verified (plan 0.12 §5.1, digest contract §9.9).
+                ks.state = "proposed"
+                states[key] = ks
+                continue
             if row is not None:
                 ks.state = "incomplete" if n.incomplete else "accepted"
                 current = current_hashes[key]

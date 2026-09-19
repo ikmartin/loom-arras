@@ -8,7 +8,9 @@ from __future__ import annotations
 import dataclasses
 import html
 import re
-from collections.abc import Callable
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,6 +39,7 @@ class RenderPlan:
     numbers: dict[str, dict[str, AuxNumber]]  # per master
     svg_cache: Path
     svg_out: Path
+    cite_labels: dict[str, dict[str, str]] = field(default_factory=dict)  # per master: citekey -> printed label
     diagnostics: list[Diagnostic] = field(default_factory=list)
     fallback_preamble: dict[str, str] = field(default_factory=dict)
 
@@ -90,11 +93,36 @@ class FragmentRenderer:
             for env in fe.all_envs():
                 self.env_at[(path, env.start)] = env
         self.master_titles = {m: master_title(self.result, m) for m in self.result.masters}
-        # The files currently being expanded, innermost last. An inclusion cycle is already an error the scanner
-        # reports (`inclusion-cycle`), and before this the renderer followed the cycle anyway until Python stopped it
-        # with a RecursionError -- a traceback where loom had already written the message. A file that is being
-        # expanded is not expanded again; the diagnostic stands and the document renders around the missing inclusion.
-        self._expanding: list[str] = []
+        # Per thread: `loom build` renders on a pool, and a stack or a diagnostic list shared between renders made one
+        # thread's expansion of sections/results.tex look like a cycle to another thread rendering a different node.
+        self._local = threading.local()
+
+    @property
+    def _expanding(self) -> list[str]:
+        """The files this thread's render is expanding, innermost last.
+
+        An inclusion cycle is already an error the scanner reports (`inclusion-cycle`); a file being expanded is not expanded again, so the document renders around the missing inclusion rather than recursing until Python stops it.
+        """
+        stack: list[str] | None = getattr(self._local, "expanding", None)
+        if stack is None:
+            stack = self._local.expanding = []
+        return stack
+
+    @property
+    def _sink(self) -> list[Diagnostic]:
+        """Where this thread's diagnostics go: the job's own list inside `collecting`, else the plan's."""
+        sink: list[Diagnostic] | None = getattr(self._local, "sink", None)
+        return self.plan.diagnostics if sink is None else sink
+
+    @contextmanager
+    def collecting(self) -> Iterator[list[Diagnostic]]:
+        """Collect this thread's diagnostics apart, so a pool's renders are reported in job order rather than in the order they finish."""
+        sink: list[Diagnostic] = []
+        self._local.sink = sink
+        try:
+            yield sink
+        finally:
+            self._local.sink = None
 
     # ---- contexts -----------------------------------------------------------
 
@@ -106,6 +134,16 @@ class FragmentRenderer:
             if m in self.plan.numbers:
                 return self.plan.numbers[m]
         return self.plan.numbers.get(dm, {}) if dm else {}
+
+    def _cite_labels_for(self, node: NodeRec) -> dict[str, str]:
+        """The printed citation labels of the master whose numbers the node shows (see _numbers_for)."""
+        dm = self.result.default_master
+        if dm and dm in self.plan.cite_labels and (dm in node.reached_by or node.kind == "master"):
+            return self.plan.cite_labels[dm]
+        for m in node.reached_by:
+            if m in self.plan.cite_labels:
+                return self.plan.cite_labels[m]
+        return self.plan.cite_labels.get(dm, {}) if dm else {}
 
     def _macros_for(self, node: NodeRec) -> dict[str, Macro]:
         dm = self.result.default_master
@@ -131,7 +169,7 @@ class FragmentRenderer:
         def render(latex: str, css: str, data_src: str) -> str:
             res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=self.result.quilt.root)
             if res.svg is None:
-                self.plan.diagnostics.append(
+                self._sink.append(
                     Diagnostic("warning", "loom:converter-fallback", f"SVG fallback failed in {key}: {res.error}", [])
                 )
             return fallback_figure(latex, res, css, data_src)
@@ -175,7 +213,7 @@ class FragmentRenderer:
             if res.svg is None:
                 res.error = " || ".join(f"attempt {i + 1}: {e}" for i, e in enumerate(errors))
             if res.svg is None:
-                self.plan.diagnostics.append(
+                self._sink.append(
                     Diagnostic(
                         "warning",
                         "loom:converter-fallback",
@@ -211,6 +249,7 @@ class FragmentRenderer:
             labels=self.asm.labels,
             regions={k: r.container for k, r in self.asm.regions.items()},
             numbers=self._numbers_for(node),
+            cite_labels=self._cite_labels_for(node),
             macros=self._macros_for(node),
             taxa=self.result.taxa,
             child_at=child_at,
@@ -231,7 +270,7 @@ class FragmentRenderer:
         if arg.startswith("graphics:"):
             rel, err = publish_graphic(root, arg[len("graphics:") :], self.plan.svg_out)
             if rel is None:
-                self.plan.diagnostics.append(
+                self._sink.append(
                     Diagnostic(
                         "warning",
                         "loom:converter-fallback",
@@ -305,7 +344,7 @@ class FragmentRenderer:
         env = self._env_of(node)
         conv = Converter(ctx)
         body = conv.render_range(env.body_start, env.body_end) if env else ""
-        self.plan.diagnostics.extend(ctx.diagnostics)
+        self._sink.extend(ctx.diagnostics)
         attrs = [f'class="env env-{slug(node.taxon or node.env or "env")}"']
         attrs.append(
             f'id="{slug(node.key)}"'
@@ -326,7 +365,7 @@ class FragmentRenderer:
         env = self._env_of(node)
         conv = Converter(ctx)
         body = conv.render_range(env.body_start, env.body_end) if env else ""
-        self.plan.diagnostics.extend(ctx.diagnostics)
+        self._sink.extend(ctx.diagnostics)
         title = ""
         if node.title:
             base = _title_base(env, node)
@@ -358,7 +397,7 @@ class FragmentRenderer:
         h = min(max(level, 1), 6)
         number_html = f'<span class="number">{esc(num)}</span> ' if num else ""
         body = conv.render_range(heading_end, node.end)
-        self.plan.diagnostics.extend(ctx.diagnostics)
+        self._sink.extend(ctx.diagnostics)
         ident = (
             f'data-id="{html.escape(node.id, quote=True)}"'
             if node.id
@@ -378,7 +417,7 @@ class FragmentRenderer:
             start = bm.end() if bm else 0
         conv = Converter(ctx)
         body = conv.render_range(start, end)
-        self.plan.diagnostics.extend(ctx.diagnostics)
+        self._sink.extend(ctx.diagnostics)
         return body
 
     # ---- fragments -----------------------------------------------------------

@@ -98,7 +98,10 @@ def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path:
 
     # nothing a node is made of is ignored: only derived directories and LaTeX's own leavings
     ignored = [ln for ln in (tmp_path / "n" / ".gitignore").read_text().splitlines() if ln and not ln.startswith("#")]
-    assert "build/" in ignored and "refs/" in ignored
+    assert "build/" in ignored
+    # the artifacts are ignored and the page text is not: an anchor stays re-checkable by a coauthor with no PDF
+    assert "refs/**/paper.pdf" in ignored and "refs/**/src/" in ignored
+    assert "refs/" not in ignored
     assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafting/", "digests/", "comments/") for ln in ignored)
 
 

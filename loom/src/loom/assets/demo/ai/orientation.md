@@ -22,6 +22,7 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 - `nodes/` — one node per file, by convention rather than by rule; a node may equally live inline in a document. Read only.
 - `digests/` — cited papers' results as external nodes, one file per citekey. Read only.
 - `refs/` — what was fetched for each cited work: its source and PDF, under a directory named by the work's identifier. `loom refs path CITEKEY` prints it. Read only, and not in version control.
+- `notes/` — the author's reference material, if the quilt has one: files, excerpts and research notes that are not cited works and not in any digest. Read it when it bears on the task; it is context, not a source to cite, digest or propose from. Never scanned, in version control. Read only.
 - `annotations/log.jsonl` — every review event, appended. Written only by `loom comment` and `loom refs note`; never edit it by hand, and never read it directly when `loom ai findings` or `loom status` will answer the question.
 - `.loom/` — the acceptance ledger, the history of steps and the texts they froze, and loom's caches. Never touch.
 - `build/` — derived; ignore.
@@ -63,6 +64,20 @@ Working in the quilt:
 - `loom new TAXON "Title" --print`: a skeleton for a node you will draft, printed rather than written. `loom id --next` prints the next free id alone.
 - `loom refs path CITEKEY [--pdf]`: where a cited work's fetched artifacts are.
 
+Reading the literature the quilt cites. **Ask the digest before you read a paper, and read a paper through loom rather than directly** — what you quote must be checkable against the page it came from.
+
+- `loom refs coverage [FRAGMENT]`: what is known about each cited work — whether it has a source, a PDF, page text and a digest. Read this first; a search over a partly digested corpus is a search over silence. An author or title fragment (`loom refs coverage brion`) narrows it to the works it matches and is how you find a citekey.
+- `loom refs find TEXT`: search the statements already digested. Every answer says how much of the corpus it could search, and a miss names the fallback.
+- `loom refs grep TEXT`: search the raw page text of every cited PDF for a phrase — a literal phrase, not a pattern. The cold-start path. A hit is a page to read, never a quotation: page text is mathematics after a text layer.
+- `loom refs page CITEKEY N[-M]`: a page's text and the section it falls in. **The sanctioned read.** Quote only from this.
+- `loom refs propose CITEKEY --local thm-4.1 --page N --source-text "…" --statement "…" [--level 1]`: record a result you read. `--source-text` must be the page's own words — **the whole statement, not the first clause**, because it is what the author reads your rendering against; if the statement runs onto the next page, give `--page 353-354` — and it is checked against the page; `--statement` is your LaTeX rendering and is never checked for faithfulness — loom names any of its words the quotation does not contain, and those are usually yours: **the body only** (loom writes the environment, the locator and the label, and refuses a statement that carries its own), and **the paper's words only** — no gloss, no "Equivalently…", no definition of a symbol the statement does not define, no note about which page something is on. Those go in your run; in the second study run five of six corrections an author had to make were an agent's additions. A proposal is not verified by passing the page check: only the author verifies it, and until then call it a proposal, waiting for the author. Refused with the page attached if the quotation is not there. A work needs its main results (`--level 1`) before anything deeper. `--local` is the paper's own number — `thm-4.1`, `cor-2.3.1` for the first corollary under 2.3, `eq-1` for a numbered display the paper calls a result, `thm-star-1` for an unnumbered one — and a name that is not one is refused.
+- **A work with a LaTeX source** (`coverage` says `src yes`) has a mechanical digest; read that first. A result the extractor missed is quoted from the source, not the PDF: `--source-file main.tex` in place of `--page`, with `--source-text` the LaTeX itself, because the PDF's text layer has lost the mathematics — a formula there is often control bytes.
+- `loom refs link --from ID --to ID --kind same-notion|generalises|specialises|depends-on|contradicts --why "…" --run RUN`: **record a relation between two results, with a reason.** When you work out how two papers' results relate, record it here rather than in a notes file: a link is drawn in the author's digest view and found from either end, and prose in your run is found by nobody. A link is an assertion, never checked, never citable.
+- `loom refs why ID`, `loom refs links ID`: where a result came from, and what it has been related to.
+- `loom refs overview CITEKEY`: a digest's overview, which is written to be read whole.
+
+`loom refs --help` lists the rest; the author runs `loom refs build`, `verify` and `discard`.
+
 Recording what you found:
 
 - `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question|ok|citation --run RUN`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
@@ -73,7 +88,7 @@ Your run:
 - `loom ai runs [--all]`: the quilt's runs, as `YYYY-MM-DD: name`.
 - `loom ai start "A name"`: open a new run and print its directory. Name it for what you were asked to do.
 - `loom ai orient --run RUN`: this document, the quilt's live state, and that run's journal — how you resume a run, yours or another agent's.
-- `loom ai findings --run RUN [--json]`: what that run has annotated, with ids, so a re-check can resolve and edit its own findings.
+- `loom ai findings --run RUN [--json]`: what that run has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a run.
 - `loom ai name "A better name" --run RUN`: rename a run once you know what it turned into.
 
 ## 6. Your run
@@ -100,11 +115,11 @@ The author asks for a mode by name. Each has a template in `ai/modes/` with an i
 
 Findings are annotations. Review mode grades every one with `--severity`; elsewhere you give a severity only when something is actually wrong, and a `--payload` only when you are proposing text. On a re-check you edit a finding that still stands rather than replying to yourself. `ai/rules.md` rules 5 to 7 are the full contract; where this summary and those rules disagree, the rules win.
 
-A digest is not something you produce: `loom digest extract` makes one from the cited paper's source and ingest mode checks it, so what waits in your run is the extractor's output and a diff of your corrections. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
+You never write a digest. `loom refs build` extracts one mechanically from every cited paper whose source can be fetched, and that is most of them. For a work with only a PDF you may **propose** a result with `loom refs propose`: it is verified against the page, held in a file nothing inputs, and enters the digest only when the author compares both texts and verifies it. A proposal that was discarded is refused if you make it again, and the refusal says why — read it, and pass `--supersedes` only if you are answering it. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
 
 ## 8. Context economy
 
-Read a key's closure, not directories: it is complete by construction. Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`, and do not read the annotation log when `loom ai findings` answers the question. `ai/rules.md` §Inputs is the contract, including the one exception — a digest's overview, which no command prints.
+Read a key's closure, not directories: it is complete by construction. Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`, and do not read the annotation log when `loom ai findings` answers the question. `ai/rules.md` §Inputs is the contract; a digest's overview is `loom refs overview CITEKEY`.
 
 ## 9. What you never do
 

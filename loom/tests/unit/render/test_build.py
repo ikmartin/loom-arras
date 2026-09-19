@@ -203,6 +203,39 @@ def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.Mo
     assert not list((d / "build").rglob("*.tmp"))
 
 
+def test_publish_skips_identical_bytes_and_keeps_named_files(tmp_path: Path) -> None:
+    """A file whose bytes are already on disk is not rewritten, and a `keep` path survives the prune without being passed as content."""
+    b = tmp_path / "build"
+    publish_mod.publish(b, {"fragments/a.html": "<p>a</p>", "fragments/b.html": "<p>b</p>"}, {})
+    a_stat = (b / "fragments" / "a.html").stat()
+    os.utime(b / "fragments" / "a.html", ns=(a_stat.st_atime_ns, a_stat.st_mtime_ns - 10**9))
+    before = (b / "fragments" / "a.html").stat().st_mtime_ns
+    publish_mod.publish(
+        b,
+        {"fragments/a.html": "<p>a</p>", "fragments/c.html": "<p>c</p>"},
+        {},
+        ("fragments/",),
+        keep={"fragments/b.html"},
+    )
+    assert (b / "fragments" / "a.html").stat().st_mtime_ns == before
+    assert (b / "fragments" / "b.html").read_text() == "<p>b</p>"
+    assert (b / "fragments" / "c.html").read_text() == "<p>c</p>"
+    publish_mod.publish(b, {"fragments/a.html": "<p>A</p>"}, {}, ("fragments/",))
+    assert (b / "fragments" / "a.html").read_text() == "<p>A</p>"
+    assert sorted(p.name for p in (b / "fragments").iterdir()) == ["a.html"]
+
+
+def test_warm_build_leaves_skipped_fragments_in_place(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    build(load_quilt(d))
+    frags = sorted((d / "build" / "fragments").rglob("*.html"))
+    stamps = {p: p.stat().st_mtime_ns for p in frags}
+    texts = {p: p.read_text() for p in frags}
+    assert build(load_quilt(d)).rendered == []
+    assert sorted((d / "build" / "fragments").rglob("*.html")) == frags
+    assert all(p.stat().st_mtime_ns == stamps[p] and p.read_text() == texts[p] for p in frags)
+
+
 def test_build_exit_1_on_errors_still_publishes(tmp_path: Path) -> None:
     d = demo(tmp_path)
     (d / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
@@ -261,3 +294,28 @@ def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> N
         return int(bool(node.get("cycle"))) + sum(cycles(c) for c in node.get("children", []))
 
     assert cycles(m["inclusion"]["drafting/main.tex"]) == 2  # each cycle named where it closes
+
+
+def test_a_render_on_one_thread_does_not_see_another_threads_inclusions(tmp_path: Path) -> None:
+    """`loom build` renders on a pool; a shared expansion stack made one thread's sections/results.tex a "cycle" in another thread's fragment, and the fixture refreshed with a false data-cycle."""
+    import threading
+
+    from loom.render.fragments import FragmentRenderer, RenderPlan
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+
+    assert CliRunner().invoke(main, ["init", str(tmp_path / "q"), "--demo"]).exit_code == 0
+    renderer = FragmentRenderer(
+        RenderPlan(
+            result=scan(load_quilt(tmp_path / "q")), numbers={}, svg_cache=tmp_path / "c", svg_out=tmp_path / "s"
+        )
+    )
+    renderer._expanding.append("sections/results.tex")
+    seen: list[list[str]] = []
+    t = threading.Thread(target=lambda: seen.append(list(renderer._expanding)))
+    t.start()
+    t.join()
+    assert seen == [[]] and renderer._expanding == ["sections/results.tex"]
+    with renderer.collecting() as mine:
+        renderer._sink.append("d")  # type: ignore[arg-type]
+    assert mine == ["d"] and "d" not in renderer.plan.diagnostics

@@ -13,10 +13,10 @@ from loom.refs.identity import declared, identify, primary
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
-from loom.scan.digests import extracted_from, published_as, source_version
+from loom.scan.digests import extracted_from, loaded_packages, published_as, source_version
 from loom.scan.directives import list_value
 from loom.scan.hashing import child_marker, hash_text
-from loom.scan.macros import compatibility_macros, declared_alphabets, to_mathjax
+from loom.scan.macros import compatibility_macros, declared_alphabets, package_macros, to_mathjax
 from loom.scan.model import Diagnostic
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
@@ -26,6 +26,7 @@ from loom.version import INTERFACE_VERSION, __version__
 STATE_LABELS = {
     "labels": {
         "draft": {"label": "draft", "color": "neutral"},
+        "proposed": {"label": "proposed", "color": "info"},
         "accepted": {"label": "accepted", "color": "positive"},
         "stale": {"label": "stale", "color": "warning", "modifier": True},
         "incomplete": {"label": "incomplete", "color": "negative"},
@@ -36,6 +37,48 @@ STATE_LABELS = {
         "settled": {"label": "settled", "color": "positive-strong"},
     },
 }
+
+
+def _results_for(root: Path, citekey: str) -> dict[str, dict[str, Any]]:
+    """The work's recorded results, as the viewer needs them (digest contract §9).
+
+    `source_text` travels for every result read off a page, verified or not: it is what a link's two endpoints are compared by eye against (§7), and a verified transcription is exactly the case where that comparison is worth making. It does **not** travel for a mechanically extracted result, whose `source_text` is its own LaTeX and is already in the digest fragment -- carrying it would put the whole literature in the manifest twice.
+
+    `statement` travels only for a proposal, because that is the one claim a person is being asked to make and the surface that must show both texts together (§5.3).
+    """
+    from loom.refs.proposals import PROPOSED, load_results, page_context
+    from loom.refs.search import words_not_on_page
+
+    out: dict[str, dict[str, Any]] = {}
+    for rid, r in load_results(root, citekey).items():
+        row: dict[str, Any] = {
+            "state": r.state,
+            "level": r.level,
+            "class": r.cls,
+            "page": r.anchor.page,
+            "artifact": r.anchor.sha256[:12],
+            "origin": r.origin,
+        }
+        if r.cls != "mechanical":
+            row["source_text"] = r.source_text
+        if r.anchor.kind == "tex" and r.cls != "mechanical":
+            row["source_file"] = r.anchor.path
+        if r.state == PROPOSED:
+            row["statement"] = r.statement
+            row["local"] = r.local
+            row["taxon"] = r.taxon
+            # what the rendering is judged against: the page around the quote, because an agent quotes only as much
+            # as the anchor check needs, and a ten-line rendering beside one clause cannot be judged (§5.3)
+            context, found = page_context(root, r)
+            if found:
+                row["page_text"] = context
+            added = words_not_on_page(r.statement, r.source_text)
+            if added:
+                row["not_on_page"] = added
+            if r.supersedes:
+                row["supersedes"] = r.supersedes
+        out[rid] = row
+    return out
 
 
 def _provided_by(result: ScanResult, file: str) -> list[str]:
@@ -293,9 +336,18 @@ def build_manifest(
         manifest["taxa"][taxon_name] = group
     cited_by: dict[str, list[str]] = {}
     for c in result.edges.cites:
+        if c.file in asm.digest_files:
+            continue  # cited by another paper's digest is not cited by the author: Brion read "cited 8" and was cited 0
         cited_by.setdefault(c.citekey, []).append(c.src)
-    digests = {ck: f for f, ck in asm.digest_files.items()}
-    for ck in sorted(set(result.bib) | set(digests)):
+    # A work can have two files claiming it: the digest a bundle inputs, and the shadow file holding proposals that
+    # nothing inputs (plan 0.12 §4.1). They must not be confused -- a `{ck: f}` comprehension keeps whichever came
+    # last, so `digest.fragment` would sometimes have pointed at the proposals.
+    digests = {ck: f for f, ck in asm.digest_files.items() if not f.endswith(".proposed.tex")}
+    proposals = {ck: f for f, ck in asm.digest_files.items() if f.endswith(".proposed.tex")}
+    from loom.refs.links import read_links
+
+    manifest["links"] = [x.to_json() for x in read_links(result.quilt.root)]
+    for ck in sorted(set(result.bib) | set(digests) | set(proposals)):
         bib = result.bib.get(ck)
         fields = {
             k: v
@@ -323,6 +375,17 @@ def build_manifest(
             if bib and bib.version and sv and bib.version != sv:
                 version_mismatch = True
             manifest["macros"]["sets"][ck] = digest_macro_set(result, f)
+        # Proposals ride in the same reference record, flagged, so the viewer meets them among the verified nodes
+        # rather than in a queue of their own (§5.2). They are in no bundle and no closure.
+        proposed_entry = None
+        if ck in proposals:
+            pf = proposals[ck]
+            proposed_entry = {
+                "file": pf,
+                "fragment": fragments.get(f"digest:{pf}", ""),
+                "nodes": [k for k, n in asm.nodes.items() if n.file == pf and n.kind == "environment"],
+            }
+            manifest["macros"]["sets"].setdefault(ck, digest_macro_set(result, pf))
         # what is on disk for this work, so the viewer can offer a PDF or say it has not been fetched.
         # Additive: the interface version is unchanged, as `relations` was in 0.2.
         wid = primary(bib) if bib else None
@@ -339,6 +402,8 @@ def build_manifest(
                 "source": bool(home and (home / "src").is_dir()),
             },
             "digest": digest_entry,
+            "proposed": proposed_entry,
+            "results": _results_for(result.quilt.root, ck),
             "version_mismatch": version_mismatch,
             "cited_by": sorted(set(cited_by.get(ck, []))),
         }
@@ -375,6 +440,8 @@ def build_manifest(
     # an alphabet declared with \DeclareMathAlphabet is a font the renderer has never heard of, and a body may use commands it does not implement; both are published as the nearest thing it can draw, so an author's own macro renders rather than reaching the page in error colour
     if closure is not None:
         for name, macro in declared_alphabets(closure.clean_text()).items():
+            mathjax_macros.setdefault(name, macro)
+        for name, macro in package_macros(loaded_packages(closure)).items():
             mathjax_macros.setdefault(name, macro)
     mathjax_macros.update(compatibility_macros(mathjax_macros))
     manifest["macros"]["default"] = to_mathjax(mathjax_macros)

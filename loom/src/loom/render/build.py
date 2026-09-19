@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -24,7 +25,7 @@ from loom.render.publish import publish
 from loom.scan.model import Diagnostic
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult, scan
-from loom.tex.aux import AuxNumber, read_numbers
+from loom.tex.aux import AuxNumber, read_cite_labels, read_numbers
 from loom.version import __version__
 
 
@@ -59,6 +60,30 @@ def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, s
             files[rel] = parsed.html
             entry["fragment"] = rel
             entry["blocks"] = [b.to_dict() for b in parsed.blocks]
+
+
+def _attach_page_images(root: Path, manifest: dict[str, Any], build_dir: Path) -> None:
+    """Render the anchor page of every pending proposal and name it on the result's manifest row (plan 0.12 §5.3).
+
+    Pending proposals only: they are the one place a person is asked to judge a rendering, and the text layer beside them has lost the notation the judgement is about. A handful of pages, cached by artifact hash and page under `build/pages/`; a work whose PDF is not on this machine gets no image and the viewer says so.
+    """
+    from loom.refs.images import anchor_focus, anchor_images
+    from loom.refs.proposals import PROPOSED, load_results
+
+    for citekey, ref in manifest.get("references", {}).items():
+        rows = ref.get("results") or {}
+        pending = [rid for rid, row in rows.items() if row.get("state") == PROPOSED]
+        if not pending:
+            continue
+        recorded = load_results(root, citekey)
+        for rid in pending:
+            if rid in recorded:
+                images = anchor_images(root, build_dir, recorded[rid])
+                if images:
+                    rows[rid]["page_images"] = images
+                    focus = anchor_focus(root, recorded[rid])
+                    if focus is not None:
+                        rows[rid]["page_focus"] = focus
 
 
 def _write_source(result: ScanResult, fragments: dict[str, str], files: dict[str, Any]) -> None:
@@ -107,7 +132,23 @@ def _code_hash() -> str:
     return h.hexdigest()[:16]
 
 
-def _input_hash(result: ScanResult, key: str, numbers: dict[str, dict[str, AuxNumber]]) -> str:
+def _aux_bytes(numbers: dict[str, dict[str, AuxNumber]], cite_labels: dict[str, dict[str, str]]) -> bytes:
+    """Every master's number table and citation labels as the byte stream `_input_hash` feeds its digest.
+
+    Quilt-wide and the same for every fragment, so `build` serialises it once rather than once per node.
+    """
+    parts: list[str] = []
+    for m in sorted(numbers):
+        for lab, num in sorted(numbers[m].items()):
+            parts.append(f"{m}|{lab}|{num.number}|{num.page}")
+    for m in sorted(cite_labels):
+        for ck, lab in sorted(cite_labels[m].items()):
+            parts.append(f"{m}|cite|{ck}|{lab}")
+    return "".join(parts).encode()
+
+
+def _input_hash(result: ScanResult, key: str, aux: bytes) -> str:
+    """The cache key of a node, master or digest fragment: loom's version and code, the text of every file it draws on, and `aux` from `_aux_bytes`."""
     n = result.nodes[key]
     h = hashlib.sha256()
     h.update(__version__.encode())
@@ -122,9 +163,7 @@ def _input_hash(result: ScanResult, key: str, numbers: dict[str, dict[str, AuxNu
     for f in sorted(files):
         h.update(f.encode())
         h.update(result.files[f].text.encode("utf-8", errors="replace"))
-    for m in sorted(numbers):
-        for lab, num in sorted(numbers[m].items()):
-            h.update(f"{m}|{lab}|{num.number}|{num.page}".encode())
+    h.update(aux)
     return h.hexdigest()
 
 
@@ -136,7 +175,7 @@ def _canon_hash(doc, root: Path) -> str:  # type: ignore[no-untyped-def]
     h.update(doc.path.encode())
     h.update(doc.src.text.encode("utf-8", errors="replace"))
     h.update(doc.closure.raw_text().encode("utf-8", errors="replace"))
-    for p in sorted((root / "build").glob(f"{doc.stem}/*.aux")):
+    for p in sorted([*(root / "build").glob(f"{doc.stem}/*.aux"), *(root / "build").glob(f"{doc.stem}/*.bbl")]):
         h.update(p.read_bytes())
     return h.hexdigest()
 
@@ -187,7 +226,10 @@ def build(
     freeze_moved(result, records.records, quilt.history_dir)
     marks = _marks_by_node(result, records)
     numbers = {m: read_numbers(root, m) for m in result.masters}
-    plan = RenderPlan(result=result, numbers=numbers, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg")
+    cite_labels = {m: read_cite_labels(root, m) for m in result.masters}
+    plan = RenderPlan(
+        result=result, numbers=numbers, cite_labels=cite_labels, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg"
+    )
     renderer = FragmentRenderer(plan)
     index_path = cache_dir / "fragments.json"
     index: dict[str, str] = {}
@@ -217,31 +259,34 @@ def build(
             targets.append((key, "master"))
         elif n.kind == "file" and key in result.assembly.digest_files:
             targets.append((key, "digest"))
+
+    def render_one(key: str, kind: str) -> str:
+        if kind == "node":
+            return place_marks(renderer.node_fragment(key), marks.get(key, []))
+        if kind == "master":
+            return place_marks(
+                renderer.master_fragment(key),
+                [m for k, ms in marks.items() for m in ms if key in result.nodes[k].reached_by],
+            )
+        return renderer.digest_fragment(key)
+
+    jobs: list[tuple[str, str, str, str]] = []
+    aux = _aux_bytes(numbers, cite_labels)
     for key, kind in targets:
         rel = fragment_path(result, key)
         label = key if kind == "node" else f"{kind}:{key}"
         fragments[label] = rel
-        digest = _input_hash(result, key, numbers) + _marks_hash(marks, key, result)
+        digest = _input_hash(result, key, aux) + _marks_hash(marks, key, result)
         existing = build_dir / rel
         if (wanted is not None and key not in wanted) or (index.get(rel) == digest and existing.exists()):
             report.skipped.append(key)
             continue
-        if kind == "node":
-            html_out = place_marks(renderer.node_fragment(key), marks.get(key, []))
-        elif kind == "master":
-            html_out = place_marks(
-                renderer.master_fragment(key),
-                [m for k, ms in marks.items() for m in ms if key in result.nodes[k].reached_by],
-            )
-        else:
-            html_out = renderer.digest_fragment(key)
-        files[rel] = html_out
-        index[rel] = digest
-        report.rendered.append(key)
+        jobs.append((key, kind, rel, digest))
     history = load_history(quilt.history_dir)
     canon_docs = load_canon(quilt, result, history)
     canon_renderer = CanonRenderer(renderer)
     canon_entries: list[dict[str, Any]] = []
+    canon_jobs: list[tuple[Any, str, str]] = []
     from loom.render.canon import canon_entry
 
     for doc in canon_docs:
@@ -250,16 +295,41 @@ def build(
         if (wanted is not None) or (index.get(rel) == digest and (build_dir / rel).exists()):
             report.skipped.append(f"canon:{doc.path}")
         else:
-            files[rel] = canon_renderer.fragment(doc)
-            index[rel] = digest
-            report.rendered.append(f"canon:{doc.path}")
+            canon_jobs.append((doc, rel, digest))
         fragments[f"canon:{doc.path}"] = rel
         canon_entries.append(canon_entry(doc, rel, digest))
+    # Rendered on a pool, assembled in order. The expensive part is waiting on LaTeX -- a diagram the converter cannot draw is compiled to SVG, twice through latex and once through dvisvgm, up to three times with different preambles -- and with sixteen real digests carrying 74 diagrams the first build of the study quilt took 454 seconds on one thread. Waiting on a subprocess releases the GIL, so threads overlap exactly that.
+    # Canon documents share the pool and are submitted first: each is one long job that compiles its own preamble's diagrams one after another, so started last it would run alone after every node had finished.
+    from concurrent.futures import ThreadPoolExecutor
+    from functools import partial
+
+    tasks = [partial(canon_renderer.fragment, doc) for doc, _rel, _digest in canon_jobs]
+    tasks += [partial(render_one, key, kind) for key, kind, _rel, _digest in jobs]
+
+    def render_job(task: Any) -> tuple[str, list[Any]]:
+        with renderer.collecting() as diags:
+            return task(), diags
+
+    with ThreadPoolExecutor(max_workers=max(1, os.cpu_count() or 1)) as pool:
+        done = list(pool.map(render_job, tasks))
+    canon_done, node_done = done[: len(canon_jobs)], done[len(canon_jobs) :]
+    # every job's diagnostics, nodes then canon, each in job order: the order a single thread would have produced, whatever order they finished
+    for _, diags in node_done + canon_done:
+        plan.diagnostics.extend(diags)
+    for (key, _kind, rel, digest), (html_out, _) in zip(jobs, node_done, strict=True):
+        files[rel] = html_out
+        index[rel] = digest
+        report.rendered.append(key)
+    for (doc, rel, digest), (html_out, _) in zip(canon_jobs, canon_done, strict=True):
+        files[rel] = html_out
+        index[rel] = digest
+        report.rendered.append(f"canon:{doc.path}")
     report.diagnostics = list(result.lint) + plan.diagnostics
     manifest = build_manifest(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
     records.apply(result, manifest, build_dir)
+    _attach_page_images(result.quilt.root, manifest, build_dir)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [
@@ -271,10 +341,8 @@ def build(
         for rel in list(index):
             if rel not in fragments.values():
                 index.pop(rel)
-        for rel in fragments.values():
-            if rel not in files and (build_dir / rel).exists():
-                files[rel] = (build_dir / rel).read_text(encoding="utf-8")
-    publish(build_dir, files, manifest, prune)
+    # a fragment the cache skipped is already on disk as it should be: kept from the prune, not read back and rewritten
+    publish(build_dir, files, manifest, prune, keep={rel for rel in fragments.values() if rel not in files})
     cache_dir.mkdir(parents=True, exist_ok=True)
     index_path.write_text(json.dumps(index, indent=0, sort_keys=True), encoding="utf-8")
     return report
