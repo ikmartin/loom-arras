@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 
 from loom.scan.tokenize import match_group
 
+#: The quilt's bibliography, which `loom refs scan` appends to from the canon documents; the only `.bib` loom reads for references (book 8.15).
+BIBLIOGRAPHY = "digests/bibliography.bib"
+
 _ENTRY = re.compile(r"@(\w+)\s*[{(]")
 _FIELD = re.compile(r"\s*([A-Za-z][\w-]*)\s*=\s*")
 
@@ -100,6 +103,20 @@ def parse_bib(text: str) -> dict[str, BibEntry]:
             pos = nxt + 1
         entries[entry.key] = entry
     return entries
+
+
+def raw_entries(text: str) -> dict[str, str]:
+    """Every entry's verbatim BibTeX, key -> `@type{key, ...}`, for copying an entry without losing anything the reader ignores."""
+    out: dict[str, str] = {}
+    for m in _ENTRY.finditer(text):
+        if m.group(1).lower() in ("comment", "preamble", "string"):
+            continue
+        open_ch = text[m.end() - 1]
+        end = match_group(text, m.end() - 1, open_ch, "}" if open_ch == "{" else ")")
+        key_m = re.match(r"\s*([^,]+?)\s*,", text[m.end() : end]) if end > 0 else None
+        if key_m:
+            out.setdefault(key_m.group(1), text[m.start() : end])
+    return out
 
 
 def citekey_slug(key: str) -> str:

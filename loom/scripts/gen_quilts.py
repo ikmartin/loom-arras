@@ -3,7 +3,7 @@
 
 `tests/quilts/sources/<name>/` holds what an author wrote; every record -- the acceptance ledger, the history, the runs and the comments -- is made here by the commands that make one, under a fixed clock, so nothing in a fixture is hand-written and `--check` proves the checked-in copy is this script's output.
 
-    python scripts/gen_quilts.py [demo|synthetic|all] [--check]
+    python scripts/gen_quilts.py [demo|synthetic|showcase|all] [--check]
 """
 
 from __future__ import annotations
@@ -136,6 +136,15 @@ def _copy_sources(name: str, dest: Path) -> None:
     if not src.is_dir():
         raise SystemExit(f"{src} is missing")
     shutil.copytree(src, dest)
+
+
+def _later(name: str, rel: str, dest: Path) -> None:
+    """Copy one file from `sources/<name>-later/` into the quilt: an author file written partway through the story, after the command that makes its targets exist."""
+    src = SOURCES / f"{name}-later" / rel
+    if not src.is_file():
+        raise SystemExit(f"{src} is missing")
+    (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src, dest / rel)
 
 
 def build_synthetic(dest: Path) -> None:
@@ -500,6 +509,651 @@ def build_demo(dest: Path) -> None:
     _write_expected_lint(g)
 
 
+SHOWCASE = "The loom showcase"
+#: The invented cited works, compiled by `sources/showcase-works/build.sh` and committed beside their LaTeX. They are copied into the quilt's seed space and filed by `loom refs scan`, so that generating the showcase needs no TeX distribution and writes the same bytes on every machine.
+WORKS = SOURCES / "showcase-works"
+
+
+def build_showcase(dest: Path) -> None:
+    """The showcase quilt: one invented paper, two invented cited works, and every record loom writes, so that a fresh clone opens the viewer on a quilt that has been lived in.
+
+    Read it as a tour rather than a fixture: the synthetic quilt exercises the source contract and this one exercises the *records* -- the reference layer, annotations of every kind, severity and state, a run, a landmark history, and the three faults a quilt can be left in. It is regenerated after a feature lands, so what it shows is what loom does today.
+    """
+    _copy_sources("showcase", dest)
+    g = Gen(dest, SHOWCASE)
+
+    # ---- The paper arrives, is atomized, and becomes the first landmark. --------------------------------
+    g.at("2026-09-14T09:00:00Z")
+    g.run("atomize", "drafting/main.tex", "drafting/main-atomic.tex", "--sections")
+    g.at("2026-09-14T09:05:00Z")
+    g.run(
+        "canonize",
+        "drafting/main-atomic.tex",
+        "--to",
+        "canon/flows-v1.tex",
+        "-m",
+        "The paper as it arrived",
+        "--no-check",
+    )
+
+    # ---- The seed space, and loom's store. --------------------------------------------------------------
+    # The author drops the two PDFs they hold into `refs/`; `refs scan` reads the canon document's
+    # bibliography and files each document under the identifier it states on its own first page.
+    (dest / "refs").mkdir(exist_ok=True)
+    for pdf in sorted(WORKS.glob("*.pdf")):
+        shutil.copy(pdf, dest / "refs" / pdf.name)
+    g.at("2026-09-14T09:10:00Z")
+    g.run("refs", "scan")
+    g.at("2026-09-14T09:15:00Z")
+    g.run("digest", "extract", "Arden24", str(WORKS / "arden-cycle-spaces.tex"), "--no-compile")
+    g.at("2026-09-14T09:20:00Z")
+    g.run("ai", "init", "--skills", "--permissions")
+
+    # ---- A run reads the work loom could not extract, and proposes its results. -------------------------
+    # Bellamy19 is a PDF and nothing else, so every result is read off a page and anchored to it. The run
+    # proposes; only the author may verify, which is the whole of DR-177 in two commands.
+    g.at("2026-09-15T10:00:00Z")
+    survey = g.run("ai", "start", "survey-bellamy").strip().splitlines()[-1].strip()
+    g.run(
+        "refs",
+        "propose",
+        "Bellamy19",
+        "--local",
+        "thm-2.3",
+        "--page",
+        "2",
+        "--level",
+        "1",
+        "--run",
+        survey,
+        "--source-text",
+        "The median orders of a weighted digraph are in bijection with the vertices of a rational polytope M (D) "
+        "⊆ RA cut out by the exchange inequalities of Lemma 2.2, and M (D) is bounded.",
+        "--statement",
+        "The median orders of a weighted digraph are in bijection with the vertices of a rational polytope "
+        "$M(D) \\subseteq \\mathbb{R}^{A}$ cut out by the exchange inequalities of Lemma~2.2, and $M(D)$ is bounded.",
+    )
+    g.run(
+        "refs",
+        "propose",
+        "Bellamy19",
+        "--local",
+        "thm-3.2",
+        "--page",
+        "2",
+        "--level",
+        "1",
+        "--run",
+        survey,
+        "--source-text",
+        "Let D be a weighted digraph whose weight function is balanced at every vertex. Then the counting function "
+        "of the median polytope of D agrees with a polynomial of degree equal to the dimension of that polytope for "
+        "every nonnegative integer dilation factor, and the leading coefficient of that polynomial is the relative "
+        "volume of the polytope.",
+        "--statement",
+        "Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting function "
+        "of the median polytope of $D$ agrees with a polynomial of degree equal to the dimension of that polytope, "
+        "and the leading coefficient of that polynomial is the relative volume.",
+    )
+    g.run(
+        "refs",
+        "propose",
+        "Bellamy19",
+        "--local",
+        "prop-3.1",
+        "--page",
+        "2",
+        "--run",
+        survey,
+        "--source-text",
+        "The function L is a quasi-polynomial in k of degree equal to the dimension of M (D), with a period dividing "
+        "the least common multiple of the denominators of the vertices of M (D).",
+        "--statement",
+        "The function $L$ is a quasi-polynomial in $k$ of degree equal to the dimension of $M(D)$, with a period "
+        "dividing the least common multiple of the denominators of the vertices of $M(D)$.",
+    )
+    g.run(
+        "refs",
+        "propose",
+        "Bellamy19",
+        "--local",
+        "def-4.1",
+        "--page",
+        "2",
+        "--run",
+        survey,
+        "--source-text",
+        "The defect of a weighted digraph is the least common multiple of the denominators of the vertices of its "
+        "median polytope.",
+        "--statement",
+        "The \\emph{defect} of a weighted digraph is the least common multiple of the denominators of the vertices "
+        "of its median polytope.",
+    )
+    g.run(
+        "refs",
+        "link",
+        "--from",
+        "Bellamy19-thm-3.2",
+        "--to",
+        "Arden24-thm-3.1",
+        "--kind",
+        "depends-on",
+        "--why",
+        "Bellamy's counting theorem needs the polytope to be full-dimensional, and its dimension is Arden's rank.",
+        "--run",
+        survey,
+    )
+    g.run(
+        "refs",
+        "link",
+        "--from",
+        "Bellamy19-thm-2.3",
+        "--to",
+        "Bellamy19-thm-3.2",
+        "--kind",
+        "specialises",
+        "--why",
+        "2.3 is the polytope; 3.2 counts its lattice points. The second is the one this quilt cites.",
+        "--run",
+        survey,
+    )
+    g.write(
+        f"{survey}/thread.md",
+        "# Thread: survey Bellamy19\n\n## 2026-09-15 10:00 survey-bellamy\n\n"
+        "Asked: find in Bellamy19 whatever the counting argument of Section 3 could rest on. Did: read pages 1 to 3, "
+        "proposed four results, and asserted two links. Decided: nothing; the four proposals wait for the author. "
+        "Remains: the examples of Section 4 are not proposed, since the paper states no result there beyond the "
+        "definition of the defect.\n",
+    )
+    g.write(
+        f"{survey}/survey-bellamy.notes.md",
+        _showcase_survey_report(),
+    )
+
+    # ---- The author decides on each proposal. ------------------------------------------------------------
+    # Verified, verified with the rendering corrected, left pending, and discarded with a reason: the four
+    # states 8.14 gives a proposal, all four visible in the digest view at once.
+    g.at("2026-09-16T09:00:00Z")
+    g.run("refs", "verify", "Bellamy19-thm-2.3", "--yes")
+    g.run(
+        "refs",
+        "verify",
+        "Bellamy19-thm-3.2",
+        "--yes",
+        "--statement",
+        "Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting "
+        "function of the median polytope of $D$ agrees with a polynomial $L_{D}$ of degree $\\dim M(D)$ for every "
+        "$k \\geq 0$, and the leading coefficient of $L_{D}$ is the relative volume of $M(D)$.",
+    )
+    g.run(
+        "refs",
+        "discard",
+        "Bellamy19-def-4.1",
+        "--reason",
+        "The defect is defined in the sequel, not here; this paper only names it. Nothing in the quilt uses it.",
+    )
+
+    # ---- The author accepts what they are satisfied with. ------------------------------------------------
+    # --force skips the compile check: the rows it writes do not depend on it, and the generator must write
+    # the same bytes with or without a TeX distribution.
+    g.at("2026-09-16T10:00:00Z")
+    for key in ("sh-0001", "sh-0002", "sh-0003", "sh-0004", "sh-0005"):
+        g.run("accept", key, "--force")
+    for key in ("sh-0006", "sh-0007", "sh-0009"):
+        g.run("accept", key, "--proofs", "--force")
+
+    # ---- A referee run: one annotation of every kind, severity and state the model has. ------------------
+    g.at("2026-09-16T11:00:00Z")
+    referee = g.run("ai", "start", "referee-sh-0009").strip().splitlines()[-1].strip()
+    g.run(
+        "comment",
+        "sh-0009",
+        "The rank formula is stated for the underlying graph's component count, but nothing in the statement says "
+        "that a loop counts as an arrow and contributes to the rank. Arden is explicit about it on "
+        "[page 2](cited:arxiv:2504.01234v1#page=2); say so here too.",
+        "--kind",
+        "objection",
+        "--severity",
+        "major",
+        "--quote",
+        "underlying graph has $c$ connected components",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0009/proof",
+        "The kernel--image count is right but compressed into one clause. A reader checking it has to supply the "
+        "rank--nullity step and the saturation step themselves. A replacement is attached.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "moderate",
+        "--quote",
+        "the rank of the kernel is the rank of the source less the rank of the image",
+        "--payload",
+        "the sequence $0 \\to \\Zcyc(\\quiv) \\to W(\\quiv) \\to \\operatorname{im} \\bd \\to 0$ is exact and "
+        "$\\operatorname{im} \\bd$ is free, so it splits and the ranks add",
+        "--placement",
+        "replace",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-000C/proof",
+        "Integrality of the vertices of $\\Pi$ does not follow from saturation of the cycle lattice: saturation is "
+        "about the lattice, integrality is about the polytope's vertices, and Bellamy assumes the second "
+        "([the balancing hypothesis](cited:doi:10.4171/showcase/19-2#quote=balanced%20at%20every%20vertex)). This is "
+        "the gap Lemma~sh-000E is meant to close, and it is not closed.",
+        "--kind",
+        "objection",
+        "--severity",
+        "major",
+        "--quote",
+        "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0006/proof",
+        "Is the walk required to be a walk in the quiver, or only in the support? The two differ when an arrow of "
+        "weight zero joins two arrows of the support.",
+        "--kind",
+        "question",
+        "--quote",
+        "we obtain an infinite walk inside $\\supp(w)$",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0004",
+        "Worth naming the quotient here: it is the group the divergence map lands in, and it is used twice later.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "minor",
+        "--payload",
+        "The quotient $W(\\quiv)/\\Zcyc(\\quiv)$ is the \\emph{boundary lattice} of $\\quiv$.",
+        "--placement",
+        "after",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "drafting/main-atomic.tex",
+        "The paper never says whether quivers are assumed connected. Convention~sh-0001 says finite and says nothing "
+        "about connectedness, and the rank formula is the only place it would matter.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "moderate",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0200",
+        "This section introduces the divergence map twice, once in prose and once as Definition sh-0003. Keep the "
+        "definition.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "minor",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0009#eq:rank",
+        "The formula is right, and it is the one place the component count $c$ appears without being defined in the "
+        "same breath.",
+        "--kind",
+        "objection",
+        "--severity",
+        "minor",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "Arden24-prop-2.1",
+        "The transcription drops Arden's hypothesis that the quiver is finite, which is in his standing assumptions "
+        "and not in the proposition. It is harmless here and would not be in a quilt that cited him for an infinite "
+        "quiver.",
+        "--kind",
+        "objection",
+        "--severity",
+        "moderate",
+        "--quote",
+        "whose underlying graph has $c$ connected components",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0005",
+        "Both examples check out, and the second is the smallest quiver with trivial cycle lattice.",
+        "--kind",
+        "ok",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-000F",
+        "The infinite case has a standard reference; cite it rather than pointing at a survey.",
+        "--kind",
+        "citation",
+        "--payload",
+        "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0008",
+        "The remark asserts that no index creeps in, which is what Proposition sh-0007 says; the remark is redundant.",
+        "--kind",
+        "objection",
+        "--severity",
+        "minor",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-000B",
+        "Height is defined for every weighting but only used for balanced ones.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "minor",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "sh-0007/proof",
+        "This proof uses that the target of the divergence map is torsion-free, which is true of $\\ZZ^{V}$ and is "
+        "never said. One clause fixes it.",
+        "--kind",
+        "objection",
+        "--severity",
+        "major",
+        "--quote",
+        "a homomorphism into a torsion-free group",
+        "--run",
+        referee,
+    )
+    (
+        formula,
+        expand,
+        integrality,
+        walk,
+        boundary,
+        document,
+        section,
+        equation,
+        transcription,
+        clean,
+        citation,
+        redundant,
+        height,
+        torsion,
+    ) = _annotation_ids(dest, referee)[:14]
+    g.write(
+        f"{referee}/thread.md",
+        "# Thread: referee sh-0009\n\n## 2026-09-16 11:00 referee-sh-0009\n\n"
+        "Asked: referee the rank theorem and everything its proof reaches. Did: read the closure of sh-0009 and of "
+        "sh-000C, and left fourteen findings -- three major, four moderate, five minor, one question and one clean "
+        "read. Decided: nothing; every one of them is the author's to answer. Remains: the appendix (sh-0400) was "
+        "not read, and Lemma sh-000E is marked incomplete, so there was nothing there to referee.\n",
+    )
+    g.write(
+        f"{referee}/referee-sh-0009.notes.md",
+        _showcase_referee_report(formula=formula, expand=expand, integrality=integrality, document=document),
+    )
+    # The run withdraws one finding of its own and restates another: a discard is not a resolution, and an
+    # edit is not a reply (DR-171, DR-174).
+    g.at("2026-09-16T11:40:00Z")
+    g.run(
+        "comment",
+        "--discard",
+        redundant,
+        "Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
+        "--run",
+        referee,
+    )
+    g.run(
+        "comment",
+        "--edit",
+        height,
+        "Height is defined for every weighting but only used for balanced ones, and $N_{\\quiv}(k)$ silently "
+        "restricts to them. Say so in the definition rather than in the theorem that uses it.",
+        "--run",
+        referee,
+    )
+
+    # ---- The author answers. ------------------------------------------------------------------------------
+    g.at("2026-09-16T15:00:00Z")
+    g.run(
+        "comment",
+        "--reply",
+        formula,
+        "A loop contributes an arrow and no divergence, so it adds one to the rank. I will say it in Convention sh-0001 rather than in the theorem.",
+    )
+    g.at("2026-09-16T15:05:00Z")
+    g.run(
+        "comment",
+        "--reply",
+        formula,
+        "Then the convention is the right place, and this finding can stand until it is there.",
+        "--run",
+        referee,
+    )
+    g.at("2026-09-16T15:10:00Z")
+    g.run("comment", "--resolve", expand, "Taken, with the exact sequence written out.")
+    g.run("comment", "--resolve", walk, "The walk is a walk in the support, which is a subquiver.")
+    g.run("comment", "--resolve", walk, "--undo")
+    g.run(
+        "refs",
+        "note",
+        "--from",
+        referee,
+        "--accept",
+        citation,
+        "--reason",
+        "worth citing when the infinite case is written up",
+    )
+    g.run(
+        "comment",
+        "sh-000A",
+        "Does this need the quiver to be connected, or does the component count handle it?",
+        "--kind",
+        "question",
+        "--quote",
+        "A quiver whose underlying graph is a forest",
+    )
+    g.run("comment", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "ok")
+
+    # A second person, so the viewer has two comment sessions and not one.
+    g.at("2026-09-17T09:00:00Z")
+    g.run(
+        "comment",
+        "sh-000C",
+        "I would split this: the polynomiality and the degree are two claims and only the first needs Bellamy.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "moderate",
+        "--author",
+        "Wren Halloway",
+    )
+    g.run(
+        "comment",
+        "--reply",
+        integrality,
+        "Agreed that this is the gap. I will not accept sh-000C until sh-000E is proved.",
+        "--author",
+        "Wren Halloway",
+    )
+
+    # ---- A run the author threw away. ---------------------------------------------------------------------
+    g.at("2026-09-17T09:30:00Z")
+    quick = g.run("ai", "start", "quick-pass").strip().splitlines()[-1].strip()
+    g.run(
+        "comment",
+        "sh-0002",
+        "A quiver should be required to be connected.",
+        "--kind",
+        "objection",
+        "--severity",
+        "major",
+        "--run",
+        quick,
+    )
+    g.run(
+        "comment",
+        "sh-0005",
+        "The bouquet is not a quiver.",
+        "--kind",
+        "objection",
+        "--severity",
+        "major",
+        "--run",
+        quick,
+    )
+    g.run("ai", "discard", quick)
+
+    # ---- The author edits, which is what makes states move. -----------------------------------------------
+    # Editing the convention makes its dependents stale; editing the first proof of sh-0007 detaches the
+    # annotation that quoted it. Neither is corrected and neither is hidden.
+    g.at("2026-09-17T10:00:00Z")
+    g.edit(
+        "nodes/sh-0001.tex",
+        "Every quiver in this paper is finite: both $V(\\quiv)$ and $A(\\quiv)$ are finite sets, and loops and parallel arrows are allowed.",
+        "Every quiver in this paper is finite: both $V(\\quiv)$ and $A(\\quiv)$ are finite sets, and loops and parallel arrows are allowed, a loop counting as one arrow and contributing no divergence.",
+    )
+    g.edit(
+        "nodes/sh-0007.tex",
+        "The divergence map is a homomorphism into a torsion-free group, so $\\bd(n w) = n \\, \\bd w = 0$ forces $\\bd w = 0$.",
+        "The divergence map is a homomorphism into $\\ZZ^{V}$, which is torsion-free, so $\\bd(n w) = n \\, \\bd w = 0$ forces $\\bd w = 0$.",
+    )
+    g.at("2026-09-17T10:05:00Z")
+    g.run("stamp", "-m", "Referee points answered")
+    g.at("2026-09-17T10:10:00Z")
+    g.run("canonize", "drafting/main-atomic.tex", "--to", "canon/flows-v2.tex", "-m", "After the referee", "--no-check")
+
+    # An edit the author thinks better of: revert puts the recorded text back.
+    g.at("2026-09-17T11:00:00Z")
+    g.edit("nodes/sh-0008.tex", "an honest dimension count", "a dimension count one can trust")
+    g.at("2026-09-17T11:05:00Z")
+    out = g.run("revert", "sh-0008@1")
+    g.apply_patch(out[out.index("--- nodes/sh-0008.tex") :])
+
+    # ---- A second master, and a node forked for it. -------------------------------------------------------
+    _later("showcase", "drafting/talk.tex", dest)
+    g.at("2026-09-17T12:00:00Z")
+    out = g.run("fork", "sh-0006", "--in", "drafting/talk.tex")
+    g.apply_patch(out[out.index("--- drafting/talk.tex") :])
+    forked = re.search(r"Wrote nodes/(sh-[0-9A-Z]{4})\.tex", out)
+    assert forked, out
+    # The talk's copy is shortened for the slide, and loses the reference the slide cannot show.
+    g.edit(
+        f"nodes/{forked.group(1)}.tex",
+        "Then the support $\\supp(w)$ contains a directed cycle of $\\quiv$.",
+        "Then $\\supp(w)$ contains a directed cycle.",
+    )
+    g.edit(f"nodes/{forked.group(1)}.tex", "\\uses{sh-0001}\n", "")
+    g.edit(
+        f"nodes/{forked.group(1)}.tex",
+        "which is a finite set by Convention~\\ref{sh-0001}, so some vertex repeats",
+        "which is finite, so some vertex repeats",
+    )
+    g.at("2026-09-17T12:05:00Z")
+    g.run("stamp", "-m", "Talk prepared", "--in", "drafting/talk.tex")
+
+    # ---- A lemma the author started and has not placed. ---------------------------------------------------
+    g.at("2026-09-18T09:00:00Z")
+    out = g.run("new", "lemma", "Integral vertices of the flow polytope")
+    fresh = re.search(r"nodes/(sh-[0-9A-Z]{4})\.tex", out)
+    assert fresh, out
+    g.write(
+        f"nodes/{fresh.group(1)}.tex",
+        f"% !LOOM created: 2026-09-18\n"
+        f"% !LOOM tags: outlook\n"
+        f"% !LOOM see: sh-000E\n\n"
+        f"\\begin{{lemma}}[Integral vertices of the flow polytope]\\label{{{fresh.group(1)}}}\n"
+        "Every vertex of $\\Pi$ is the indicator weighting of a directed cycle of $\\quiv$, up to sign.\n"
+        "\\end{lemma}\n",
+    )
+
+    # ---- The last fault: one id defined twice. ------------------------------------------------------------
+    # The author atomized a sketch, changed their mind, and made the original live again without removing the
+    # node file the conversion wrote. Both files now define sh-0020, so it is conflicted: no text, no winner.
+    _later("showcase", "drafting/sketch.tex", dest)
+    g.at("2026-09-18T10:00:00Z")
+    g.run("atomize", "drafting/sketch.tex", "drafting/sketch-atomic.tex")
+    g.at("2026-09-18T10:05:00Z")
+    g.run("live", "drafting/sketch.tex")
+
+    _write_expected_lint(g)
+    # The seed space is the author's and is not in version control (8.16), so the committed quilt is what a
+    # coauthor's clone looks like: loom's store, and no `refs/`. The copy ledger keeps a second `refs scan`
+    # from filing the same documents again.
+    shutil.rmtree(dest / "refs")
+
+
+def _showcase_referee_report(*, formula: str, expand: str, integrality: str, document: str) -> str:
+    """The referee run's report, in the shape `ai/rules.md` asks for: named blocks, findings ending in the id of the annotation that carries them, and a notation block for the panel."""
+    return f"""## [summary]
+The rank theorem is correct and its proof is complete. The counting theorem is not: it takes integrality of the polytope's vertices from a saturation statement that does not give it, and the lemma meant to close that gap is marked incomplete. Everything else here is exposition.
+
+## [notation]
+- $\\Zcyc(\\quiv)$ is the cycle lattice, written $\\mathcal{{Z}}(Q)$ in Arden24.
+- $\\Pi$ is the flow polytope of sh-000C; Bellamy's $M(D)$ is a different polytope over the same arc set.
+- $c$ is the number of connected components of the underlying graph.
+
+## [referee-review] Major and minor issues
+
+### Major Issues
+- Integrality of the vertices of $\\Pi$ is asserted from saturation of $\\Zcyc(\\quiv)$, and saturation is a statement about the lattice rather than about the polytope. Bellamy's theorem assumes the second. ({integrality})
+- The rank formula does not say how a loop is counted, and the answer changes the rank. ({formula})
+
+### Minor Issues
+- The kernel--image step of the rank proof is one clause doing three things; a replacement is attached. ({expand})
+
+### Clarity/Exposition
+- Connectedness is never assumed and never excluded, and the rank formula is the one statement where it would matter. ({document})
+
+## [decision]
+Minor Revision for the rank theorem; the counting theorem needs the integrality lemma before it can be accepted.
+"""
+
+
+def _showcase_survey_report() -> str:
+    """The survey run's report, written the way `ai/rules.md` asks: named blocks, and a notation block the panel can read."""
+    return """## [summary]
+Bellamy19 is a PDF with no source, so every result here was read off a page and anchored to it. Four results proposed: the polytope theorem (2.3), the counting theorem (3.2), the quasi-polynomial proposition (3.1) and the definition of the defect (4.1). The two theorems are the paper's main results and are proposed at level 1.
+
+## [notation]
+- $M(D)$ is the median polytope of the weighted digraph $D$; the paper writes it $M (D)$, which is the PDF's spacing and not a product.
+- $L(k)$ counts lattice points of the dilate $kM(D)$.
+
+## [findings]
+- Theorem 3.2 is the one this quilt should cite. Theorem 2.3 is what makes its hypothesis checkable, and the two are linked `specialises`.
+- Proposition 3.1 is the quasi-polynomial version and is proposed without a level: it is the general statement, and the quilt uses only the balanced case.
+- Definition 4.1 is a forward reference to the sequel and carries nothing this quilt needs.
+
+## [decision]
+Nothing verified here; four proposals wait for the author.
+"""
+
+
 def _write_expected_lint(g: Gen) -> None:
     """The diagnostics the quilt is meant to report, as `loom lint` reports them: the fixture's own expectation, never typed by hand."""
     import json
@@ -517,7 +1171,7 @@ def _write_expected_lint(g: Gen) -> None:
     (g.root / "EXPECTED-LINT.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-BUILDERS = {"synthetic": build_synthetic, "demo": build_demo}
+BUILDERS = {"synthetic": build_synthetic, "demo": build_demo, "showcase": build_showcase}
 
 
 def _sync(src: Path, dest: Path) -> None:

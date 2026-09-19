@@ -16,6 +16,7 @@ from loom.cli import main
 from loom.render import build as build_mod
 from loom.render import publish as publish_mod
 from loom.render.build import build
+from loom.scan.macros import PACKAGE_COMMANDS
 from loom.scan.quilt import load_quilt
 
 REPO = Path(__file__).resolve().parents[3]
@@ -107,7 +108,8 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     assert m["references"]["Man12"]["digest"]["nodes"] == ["Man12-setup", "Man12-prop-3.2"]
     assert m["taxa"]["Lemma"]["count"] == 1 and "setup" in m["tags"]
     assert any(s["key"] == "dm-0002" and "lem:orbits" in s["aliases"] for s in m["search"])
-    assert {x["name"] for x in m["macros"]["default"]} == {"Fix"}
+    # the author's own macro, plus the stand-ins amsmath's presence in the preamble publishes (loom.scan.macros.PACKAGE_COMMANDS)
+    assert {x["name"] for x in m["macros"]["default"]} == {"Fix"} | set(PACKAGE_COMMANDS["amsmath"])
 
 
 def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:

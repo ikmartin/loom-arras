@@ -315,7 +315,9 @@ def record_path(root: Path, entry: BibEntry) -> Path:
 
     The synthetic identifier is a hash of the entry's authors, title and year, so editing any of them names a different directory and an answer about the old entry is never shown for the new one.
     """
-    return root / "refs" / synthetic(entry).path / "resolved.json"
+    from loom.refs.pages import storage_root
+
+    return storage_root(root) / synthetic(entry).path / "resolved.json"
 
 
 def save(root: Path, entry: BibEntry, found: list[Candidate]) -> Path:

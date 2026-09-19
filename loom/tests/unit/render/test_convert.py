@@ -188,3 +188,20 @@ def test_a_citation_prints_the_compiled_label() -> None:
     out, _, _ = make(text, cite_labels={"graber-pandharipande_Localization1999": "GP99"})
     assert 'data-citekey="graber-pandharipande_Localization1999"' in out
     assert ">[GP99, Theorem 1]</span>" in out and ">[Har77]</span>" in out
+
+
+def test_a_comment_inside_a_formula_does_not_reach_the_renderer() -> None:
+    r"""MathJax reads `%` as TeX does, to the end of the line, so a commented-out line of an `align` swallowed the `\end{align*}` after it and the block reached the page as an error; the commented-out `\label` also claimed the block's number (seen on the mZK paper, where every deleted line was kept in a comment)."""
+    text = "\\begin{align}\nx &= y \\label{eq:real}\\\\\n%z &= w \\label{eq:dead}\n\\end{align}\n"
+    out, _, _ = make(text, numbers={"eq:real": AuxNumber("2.1", 1), "eq:dead": AuxNumber("9.9", 1)})
+    assert "%" not in out and "\\end{align*}" in out
+    assert 'data-label="eq:real" data-number="2.1"' in out and "eq:dead" not in out and "9.9" not in out
+
+    inline, _, _ = make("Take $x % the good one\n+ y$ here.\n")
+    assert re.search(r"\\\(x\s+\+ y\\\)", inline) and "the good one" not in inline
+
+
+def test_qedhere_is_dropped_from_a_formula() -> None:
+    """`\\qedhere` moves amsthm's tombstone into the last display; the viewer has no tombstone to move and the renderer has no such command, so the whole formula reached the page in error colour (seen on the 10/8 paper)."""
+    out, _, _ = make("\\[ a = b. \\qedhere \\]\n")
+    assert "qedhere" not in out and "a = b." in out

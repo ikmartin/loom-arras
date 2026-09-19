@@ -67,10 +67,14 @@ def _wanted(result: ScanResult, src_rel: str, keys: list[str], plan: AtomizePlan
 
 
 def _line_bounds(text: str, start: int, end: int) -> tuple[int, int]:
-    """Widen [start, end) to whole lines; an end that already sits at a line start (a section's span ends where the next heading begins) does not pull that next line in."""
+    """Widen [start, end) to whole lines; an end that already sits at a line start (a section's span ends where the next heading begins) does not pull that next line in.
+
+    Indentation before the next heading counts as the line start: ` \\section{…}` would otherwise pull its heading into the section before it, the two moves overlap, and the rest of the document is lost from the spine.
+    """
     ls = text.rfind("\n", 0, start) + 1
-    if end > start and text[end - 1] == "\n":
-        return ls, end - 1
+    end_ls = text.rfind("\n", 0, end) + 1
+    if end > start and end_ls > ls and not text[end_ls:end].strip():
+        return ls, end_ls - 1
     le = text.find("\n", end)
     le = len(text) if le < 0 else le
     return ls, le

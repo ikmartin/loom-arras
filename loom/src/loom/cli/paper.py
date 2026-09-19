@@ -159,6 +159,10 @@ def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> Iden
         document_name=Path(plan.canon_rel).name,
     )
     note(f"Recorded: import as step {entry.step:04d} ({entry.dir})")
+    from loom.refs.scan import scan_bibliography
+
+    for line in scan_bibliography(quilt).lines():
+        note(line)
     note(f"next: loom draft {plan.canon_rel}")
     return ident
 

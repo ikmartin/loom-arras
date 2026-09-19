@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from loom.history.ledger import load_history
-from loom.scan.bib import BibEntry, parse_bib
+from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib
 from loom.scan.edges import EdgeResult, find_edges
 from loom.scan.expand import Expansion, expand_master
 from loom.scan.graph import Graph
@@ -19,7 +19,7 @@ from loom.scan.nodes import Assembly, assemble
 from loom.scan.preamble import PreambleClosure, build_closure, taxa_conflicts, taxa_union
 from loom.scan.quilt import Quilt
 from loom.scan.relations import RelationRec, find_relations
-from loom.scan.source import IGNORE_RE, SKIP_DIRS, SKIP_PREFIXES, discover_files, read_source
+from loom.scan.source import IGNORE_RE, discover_files, read_source
 
 _DOCCLASS = re.compile(r"\\documentclass\b")
 
@@ -47,24 +47,6 @@ class ScanResult:
     @property
     def nodes(self):  # type: ignore[no-untyped-def]
         return self.assembly.nodes
-
-
-def find_bib_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
-    """The quilt's bibliography files.
-
-    A `.bib` inside a fetched work's source under `refs/`, or inside a run under `ai/`, is someone else's bibliography, not the quilt's; reading it would merge a whole library's references into the author's. The canon directory, `retired/` and `notes/` (`skip_top`) hold nothing that is source.
-    """
-    out: list[str] = []
-    for path in root.rglob("*.bib"):
-        rel = path.relative_to(root)
-        if any(part in SKIP_DIRS for part in rel.parts[:-1]):
-            continue
-        if rel.as_posix().startswith(SKIP_PREFIXES):
-            continue
-        if len(rel.parts) > 1 and rel.parts[0] in skip_top:
-            continue
-        out.append(rel.as_posix())
-    return sorted(out)
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
@@ -155,8 +137,9 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                 [],
             )
         )
-    for rel in find_bib_files(root, skip):
-        result.bib.update(parse_bib(read_source(root, rel).text))
+    # the quilt's own bibliography, gathered from the canon documents by `loom refs scan`; an author's `.bib` reaches it only through a canon document that names it (book 8.2)
+    if (root / BIBLIOGRAPHY).is_file():
+        result.bib.update(parse_bib(read_source(root, BIBLIOGRAPHY).text))
     from loom.scan.directives import parse_directives
 
     for m in result.masters:

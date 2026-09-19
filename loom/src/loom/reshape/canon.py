@@ -14,7 +14,7 @@ from loom.history.ledger import Entry, History
 from loom.history.steps import file_hash, text_hash
 from loom.reshape.anchoring import Violation, anchoring_violations, fix_anchoring
 from loom.reshape.ids import Insertion, apply_insertions, plan_insertions, unified_diff
-from loom.reshape.importer import _insert_usepackage, _mirror_quilt, _read, closure_of
+from loom.reshape.importer import _insert_usepackage, _mirror_quilt, _read, closure_of, inline_bbl
 from loom.reshape.linearize import flatten, from_canon
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
@@ -43,8 +43,8 @@ def plan_import(quilt: Quilt, paper_file: Path) -> ImportPlan:
     files, outside = closure_of(paper_dir, paper_file)
     plan.outside = outside
     flat = flatten(paper_dir, plan.master_rel)
-    plan.text = flat.text
-    plan.inlined = flat.inlined
+    plan.text, bbl = inline_bbl(paper_dir, plan.master_rel, flat.text)
+    plan.inlined = [*flat.inlined, *([bbl] if bbl else [])]
     for rel, src in files.items():
         if rel == plan.master_rel or rel in flat.inlined:
             continue

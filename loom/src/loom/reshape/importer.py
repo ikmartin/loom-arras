@@ -97,6 +97,26 @@ def closure_of(paper_dir: Path, master: Path) -> tuple[dict[str, Path], list[str
     return found, outside
 
 
+def inline_bbl(paper_dir: Path, master_rel: str, text: str) -> tuple[str, str | None]:
+    """The master's text with `\\bibliography{...}` replaced by the compiled `.bbl` beside it, when no named `.bib` exists.
+
+    arXiv ships a paper's `<stem>.bbl` and not its `.bib`. The `.bbl` is found only by the master's own stem, so once the paper is a canon copy or a draft under another name every citation would print `[?]`; inlining it keeps the flat copy self-contained. Returns the new text and the `.bbl` inlined, or None when nothing changed.
+    """
+    bbl = paper_dir / (Path(master_rel).stem + ".bbl")
+    if not bbl.is_file():
+        return text, None
+    clean = blank_comments(text)
+    for t in tokenize(clean):
+        if t.kind != "cmd" or t.value != "bibliography":
+            continue
+        (names,), _, end = read_args(clean, t.end, "m")
+        if names is None or any(_resolve(paper_dir, n, (".bib",)) for n in names.split(",")):
+            continue
+        body = _read(bbl)
+        return text[: t.start] + body.rstrip("\n") + text[end:], bbl.name
+    return text, None
+
+
 _LOADS_LOOM = re.compile(r"\\(usepackage|RequirePackage)\s*(\[[^\]]*\])?\s*\{[^}]*\bloom\b[^}]*\}")
 
 

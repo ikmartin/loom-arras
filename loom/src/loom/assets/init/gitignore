@@ -1,10 +1,15 @@
 build/
-# Other people's files: fetched or added by hand, never written by you, never committed.
-refs/**/paper.pdf
-refs/**/src/
-refs/cache/
-# But `refs/**/pages/` and `refs/**/sections.json` ARE committed. They are the page text an
-# anchor names, which is what lets a coauthor who holds no PDF re-check a transcription.
+# Your seed space: the reference PDFs and .bib files you drop in. Loom reads it, never writes it,
+# and copies what it has not seen into the store below; the entries it reads are committed there.
+refs/
+# Loom's store of other people's documents, keyed by the work's identifier: fetched or copied,
+# never written by you.
+digests/storage/**/paper.pdf
+digests/storage/**/src/
+digests/storage/cache/
+# But `digests/storage/**/pages/`, `sections.json` and `copied.json` ARE committed. They are the
+# page text an anchor names, which is what lets a coauthor who holds no PDF re-check a
+# transcription, and the record of every document ever copied, which is what stops a second copy.
 # loom's cache of the last text it saw for every key: one copy of the quilt, rebuilt on demand
 last-seen.json
 # LaTeX artifacts a hand compile scatters at the root or in drafting/; loom's own outputs all land under build/

@@ -255,6 +255,10 @@ def _run_canonize(
         if plan.skipped:
             note(f"skipped (conflicted): {', '.join(plan.skipped)}")
     note(f"Recorded: canonize as step {entry.step:04d} ({entry.dir})")
+    from loom.refs.scan import scan_bibliography
+
+    for line in scan_bibliography(result.quilt).lines():
+        note(line)
 
 
 @click.command()

@@ -14,7 +14,8 @@ SKIP_DIRS = {"build", ".git", "node_modules", ".loom", ".svelte-kit", ".claude"}
 SKIP_PREFIXES = (
     "ai/",
     "refs/",
-)  # run outputs and fetched works are not the quilt's text. Nothing under refs/ is ever authored: digests live in digests/ (book 11.2, 8.9, DR-108)
+    "digests/storage/",
+)  # run outputs, the author's seed space and loom's store of other people's documents are not the quilt's text: a fetched e-print under the store is a whole paper carrying its own labels, and a digest lives in digests/ itself (book 11.2, 8.16, DR-108, DR-192)
 IGNORE_RE = re.compile(r"^\s*%\s*!LOOM\s+ignore\s*$", re.M)
 _VERB_RE = re.compile(r"\\verb\*?(\S)(.*?)\1")
 _VERBATIM_RE = re.compile(r"\\begin\{(verbatim\*?|lstlisting|comment|filecontents\*?)\}.*?\\end\{\1\}", re.S)

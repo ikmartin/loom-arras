@@ -17,21 +17,22 @@ from typing import Any, TypeVar, cast
 import click
 
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
-from loom.cli._quilt import open_scan, quilt_option
+from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.clock import stamp
 from loom.refs.identity import declared, primary
+from loom.refs.pages import storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, query_for, save
 from loom.scan.scan import ScanResult
 
 
 def _home(result: ScanResult, citekey: str) -> Path:
-    """The work's directory under `refs/`, or a refusal naming what is missing."""
+    """The work's directory in loom's store, or a refusal naming what is missing."""
     entry = result.bib.get(citekey)
     if entry is None:
         raise EnvError(f"{citekey} is not in the bibliography, so it has no identity to file under")
     wid = primary(entry)
     assert wid is not None  # identify() always yields at least a synthetic id for a real entry
-    return result.quilt.root / "refs" / wid.path
+    return storage_root(result.quilt.root) / wid.path
 
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -73,7 +74,7 @@ def refs() -> None:
 @click.pass_context
 @logged("path")
 def path_command(ctx: click.Context, citekey: str, want: str | None, quilt_path: str | None) -> None:
-    """Print where CITEKEY's fetched artifacts live. Nothing under refs/ is meant to be navigated by hand."""
+    """Print where CITEKEY's artifacts live, under digests/storage. Nothing there is meant to be navigated by hand; the author's own pile goes in refs/ (book 8.16)."""
     result = open_scan(quilt_path)
     home = _home(result, citekey)
     target = home if want is None else (home / "paper.pdf" if want == "pdf" else home / "src")
@@ -91,7 +92,7 @@ def path_command(ctx: click.Context, citekey: str, want: str | None, quilt_path:
 @quilt_option
 @click.pass_context
 def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt_path: str | None) -> None:
-    """File FILE as CITEKEY's PDF under refs/.
+    """File FILE as CITEKEY's PDF in loom's store.
 
     A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing.
     """
@@ -105,27 +106,34 @@ def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(file, dest)
     click.echo(f"Wrote {dest.relative_to(result.quilt.root)}")
-    note("refs/ is not in version control: a collaborator cloning the quilt fetches or adds their own copy")
+    note("the PDF is not in version control: a collaborator cloning the quilt fetches or adds their own copy")
 
 
 @refs.command(name="resolve")
 @click.argument("citekeys", nargs=-1)
 @click.option("--refresh", is_flag=True, help="Ask again even where an answer is recorded.")
 @click.option("--json", "as_json", is_flag=True, help="Print the candidates as JSON.")
+@click.option("--resolve", "allow_resolve", is_flag=True, help="Allow looking up for this run, without setting [refs] resolve in config.toml.")
 @quilt_option
 @click.pass_context
 def resolve_command(
-    ctx: click.Context, citekeys: tuple[str, ...], refresh: bool, as_json: bool, quilt_path: str | None
+    ctx: click.Context,
+    citekeys: tuple[str, ...],
+    refresh: bool,
+    as_json: bool,
+    allow_resolve: bool,
+    quilt_path: str | None,
 ) -> None:
-    """Look up identifiers for cited works whose bibliography entry states none. Requires [refs] resolve = true.
+    """Look up identifiers for cited works whose bibliography entry states none. Requires [refs] resolve = true, or --resolve for one run.
 
-    Asks zbMATH Open, then Crossref, and prints candidates with how well each matched. Nothing is changed: a candidate becomes the work's identity when you add the field to your own bibliography entry. Answers are kept under refs/, so `loom lint` can name them and a second run asks nothing. With no CITEKEYS, every cited entry that states no identifier.
+    Asks zbMATH Open, then Crossref, and prints candidates with how well each matched. Nothing is changed: a candidate becomes the work's identity when you add the field to your own bibliography entry. Answers are kept in the store, so `loom lint` can name them and a second run asks nothing. With no CITEKEYS, every cited entry that states no identifier.
     """
     result = open_scan(quilt_path)
     cfg = result.quilt.config
+    cfg.resolve = cfg.resolve or allow_resolve  # this run's consent, written nowhere (DR-193)
     if not cfg.resolve:
         raise EnvError(
-            "looking up is off: set resolve = true under [refs] in config.toml to allow it (it sends bibliography titles and authors to zbMATH Open and Crossref)"
+            "looking up is off: set resolve = true under [refs] in config.toml to allow it, or pass --resolve for this run (it sends bibliography titles and authors to zbMATH Open and Crossref)"
         )
     root = result.quilt.root
     if citekeys:
@@ -136,7 +144,7 @@ def resolve_command(
     else:
         cited = {c.citekey for c in result.edges.cites}
         wanted = sorted(ck for ck in cited if ck in result.bib and not declared(result.bib[ck]))
-    resolver = Resolver(cache=root / "refs" / "cache" / "resolve", contact=cfg.contact, refresh=refresh)
+    resolver = Resolver(cache=storage_root(root) / "cache" / "resolve", contact=cfg.contact, refresh=refresh)
     report: dict[str, object] = {}
     failures = 0
     for ck in wanted:
@@ -263,11 +271,27 @@ def note_command(
     click.echo(f"{'accepted' if accept_id else 'rejected'} {ann_id}" + (f": {reason}" if reason else ""))
 
 
+@refs.command(name="scan")
+@click.option("--dry-run", is_flag=True, help="Report what would be added and write nothing.")
+@quilt_option
+def scan_command(dry_run: bool, quilt_path: str | None) -> None:
+    """Add every bibliography entry the canon documents carry to digests/bibliography.bib.
+
+    Reads each canon document's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
+    """
+    from loom.refs.scan import scan_bibliography
+
+    for line in scan_bibliography(open_quilt(quilt_path), write=not dry_run).lines():
+        click.echo(line + (" (dry run)" if dry_run and line.startswith("digests/") else ""))
+
+
 @refs.command(name="build")
 @click.argument("citekeys", nargs=-1)
 @click.option("--refresh", is_flag=True, help="Ask the lookup services again where an answer is recorded.")
 @click.option("--no-candidates", is_flag=True, help="Fetch only on identifiers an entry declares itself.")
 @click.option("--force", is_flag=True, help="Re-extract digests that are already present.")
+@click.option("--fetch", "allow_fetch", is_flag=True, help="Allow fetching for this run, without setting [refs] fetch in config.toml.")
+@click.option("--resolve", "allow_resolve", is_flag=True, help="Allow looking identifiers up for this run, without setting [refs] resolve in config.toml.")
 @click.option(
     "--only",
     "only_steps",
@@ -282,17 +306,27 @@ def build_command(
     refresh: bool,
     no_candidates: bool,
     force: bool,
+    allow_fetch: bool,
+    allow_resolve: bool,
     only_steps: str | None,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Make everything about this quilt's cited works that a machine can make: resolve, fetch, extract, report.
 
-    The one command that starts a digest. Each step is a no-op where its work is done, so running it again after editing `refs.bib` resolves, fetches and extracts the new entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two lines say what is left for a person and what is left for an agent.
+    The one command that starts a digest. It runs `loom refs scan` first, and each step is a no-op where its work is done, so running it again after a new entry reaches the bibliography resolves, fetches and extracts that entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two lines say what is left for a person and what is left for an agent.
     """
     from loom.refs.build import build_refs
+    from loom.refs.scan import scan_bibliography
 
+    report = scan_bibliography(open_quilt(quilt_path))
+    if not as_json:
+        for line in report.lines():
+            note(line)
     result = open_scan(quilt_path)
+    # the flags are this run's consent, and are not written anywhere: the config is the standing answer (DR-193)
+    result.quilt.config.fetch = result.quilt.config.fetch or allow_fetch
+    result.quilt.config.resolve = result.quilt.config.resolve or allow_resolve
     steps = tuple(s.strip() for s in only_steps.split(",")) if only_steps else ("resolve", "fetch", "extract", "map")
     unknown = [s for s in steps if s not in ("resolve", "fetch", "extract", "map")]
     if unknown:
@@ -300,12 +334,12 @@ def build_command(
     missing = [ck for ck in citekeys if ck not in result.bib]
     if missing:
         raise EnvError(f"not in the bibliography: {', '.join(missing)}")
-    report = build_refs(result, only=citekeys, refresh=refresh, candidates=not no_candidates, force=force, steps=steps)
+    built = build_refs(result, only=citekeys, refresh=refresh, candidates=not no_candidates, force=force, steps=steps)
     if as_json:
         click.echo(
             json.dumps(
                 {
-                    "looked_up": report.looked_up,
+                    "looked_up": built.looked_up,
                     "works": [
                         {
                             "citekey": w.citekey,
@@ -321,16 +355,16 @@ def build_command(
                             "refused": w.fetched.refused if w.fetched else "",
                             "extract_error": w.extract_error,
                         }
-                        for w in report.works
+                        for w in built.works
                     ],
                 },
                 indent=2,
             )
         )
         return
-    for line in report.lines():
+    for line in built.lines():
         click.echo(line)
-    for err in report.lookup_errors[:5]:
+    for err in built.lookup_errors[:5]:
         note(err)
 
 
@@ -338,12 +372,18 @@ def build_command(
 @click.argument("citekeys", nargs=-1)
 @click.option("--no-pdf", is_flag=True, help="Take the source only; the PDF is fetched by default.")
 @click.option("--no-candidates", is_flag=True, help="Fetch only on identifiers an entry declares itself.")
+@click.option("--fetch", "allow_fetch", is_flag=True, help="Allow fetching for this run, without setting [refs] fetch in config.toml.")
 @quilt_option
 @click.pass_context
 def fetch_command(
-    ctx: click.Context, citekeys: tuple[str, ...], no_pdf: bool, no_candidates: bool, quilt_path: str | None
+    ctx: click.Context,
+    citekeys: tuple[str, ...],
+    no_pdf: bool,
+    no_candidates: bool,
+    allow_fetch: bool,
+    quilt_path: str | None,
 ) -> None:
-    """Fetch sources and PDFs for cited works into refs/, checking on arrival that each is the work its entry names.
+    """Fetch sources and PDFs for cited works into loom's store, checking on arrival that each is the work its entry names.
 
     Fetches on an identifier the entry declares, or on a strong candidate a lookup proposed (plan 0.12 §4.3): a candidate is enough to fetch with and never enough to be an identity, because fetching is reversible and checkable and identifying is neither. A source whose own title does not match the entry is discarded rather than filed. With no CITEKEYS, every cited work that has no artifact yet.
     """
@@ -351,6 +391,7 @@ def fetch_command(
     from loom.refs.fetch import fetch_work
 
     result = open_scan(quilt_path)
+    result.quilt.config.fetch = result.quilt.config.fetch or allow_fetch  # this run's consent, written nowhere (DR-193)
     missing = [ck for ck in citekeys if ck not in result.bib]
     if missing:
         raise EnvError(f"not in the bibliography: {', '.join(missing)}")

@@ -1,0 +1,136 @@
+# .loom/state.toml -- written by `loom accept`. Do not edit.
+schema = 1
+
+[[accept]]
+key = "Bellamy19-thm-2.3"
+author = "The loom showcase"
+date = 2026-09-16T09:00:00Z
+text = "sha256:98198fa8e2344b6233ddc3e6d3233603b7971c8da57f984b9ad24a5ca4016570"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "Bellamy19-thm-3.2"
+author = "The loom showcase"
+date = 2026-09-16T09:00:00Z
+text = "sha256:7c88fb798f78dacefc25f7ff1fd82085e36f96c86d6e7309cd6ea5022419c945"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0001"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:3ad8b0a76f465efc722544e398a4644312409e80b1476d2c47b0b16bab60d885"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0002"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:06698eb6d2496b14749e2612bf3705c3d9afa9aa8b60cf6bddd1e33896a29e21"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0003"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:7a13f29d92e1b306349a48f7942e67e7dafd4d3fd8dfe31d5e752eb1b3765e70"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0004"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:44c1a17ba8b394b65c3a3519440683aa394f7e58ee54769ab47266a0d17df1e8"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0005"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:e6cef97b64a4e18f0b5a13564b27aab10073954773559d6bafa61ace481ddd2e"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0006"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:d3b875d19d39794407a41056c2354e415ac209ebeb86fd633b328bd4454cdca6"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0006/proof"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:17231756d6ea952166e92cb47fd3854bba2e9e45388b2b2c225b42ac2224cb65"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+"sh-0001" = "sha256:3ad8b0a76f465efc722544e398a4644312409e80b1476d2c47b0b16bab60d885"
+"sh-0006" = "sha256:d3b875d19d39794407a41056c2354e415ac209ebeb86fd633b328bd4454cdca6"
+
+[[accept]]
+key = "sh-0007"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0007/proof"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:253a819d593a35dc08126221b93aadbaaf3d6b35dc3ef6dbb19abc5ca1ff21c4"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+"sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
+
+[[accept]]
+key = "sh-0010"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:14804ce3dbb6139362f836e89d8b2e1e6a0ae57bed5dbfc3d09349a85b7fab61"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+"sh-0004" = "sha256:44c1a17ba8b394b65c3a3519440683aa394f7e58ee54769ab47266a0d17df1e8"
+"sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
+
+[[accept]]
+key = "sh-0009"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+
+[[accept]]
+key = "sh-0009/proof"
+author = "The loom showcase"
+date = 2026-09-16T10:00:00Z
+text = "sha256:e60b5d6ad28aceb027699b4efad421dbb678bf281fb316480b0404fff5e75bc5"
+preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
+master = "drafting/main-atomic.tex"
+[accept.closure]
+"sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
+"Arden24-prop-2.1" = "sha256:7ca2f9d49ecdb83e9bac600502dff56fc857db0a7d3cbb8e5325050280173db2"
+"sh-0009" = "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150"

@@ -67,7 +67,7 @@ def run(*args: str, cwd: Path, env: dict[str, str] | None = None):  # type: igno
 def demo(tmp_path: Path) -> Path:
     assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
-    with (q / "refs.bib").open("a") as fh:
+    with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@misc{Ref20, title={Widgets}, author={Ref, A.}, year={2020}, eprint={2001.00001v2}}\n")
     (tmp_path / "paper").mkdir()
     (tmp_path / "paper" / "ref.tex").write_text(REF)
@@ -124,7 +124,7 @@ def test_postnote_match_edge_unmatched_and_no_postnote(tmp_path: Path) -> None:
 
 def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    bib = q / "refs.bib"
+    bib = q / "digests" / "bibliography.bib"
     bib.write_text(bib.read_text().replace("eprint  = {0805.2065v2}", "eprint  = {0805.2065v3}", 1))
     assert "0805.2065v3" in bib.read_text()
     digest = q / "digests" / "Man12.tex"
@@ -246,8 +246,8 @@ def test_fetch_writes_gitignored_dirs(tmp_path: Path) -> None:
         pytest.skip("set LOOM_NETWORK=1 to fetch from arXiv")
     q = demo(tmp_path)
     cfg = q / "config.toml"
-    cfg.write_text(cfg.read_text() + "\n[refs]\nfetch = true\n")
-    bib = q / "refs.bib"
+    cfg.write_text(cfg.read_text().replace("fetch = false", "fetch = true"))
+    bib = q / "digests" / "bibliography.bib"
     bib.write_text(bib.read_text().replace("eprint={2001.00001v2}", "eprint={0805.2065v2}"))
     r = run("refs", "fetch", "Ref20", cwd=q)
     assert r.exit_code == 0, r.output
@@ -273,8 +273,9 @@ def test_unverified_locators_when_the_artifact_and_the_cited_work_differ(tmp_pat
     q = demo(tmp_path)
     d = q / "digests" / "Split.tex"
     d.parent.mkdir(parents=True, exist_ok=True)
-    (q / "refs.bib").write_text(
-        (q / "refs.bib").read_text() + "\n@article{Split, title={S}, doi={10.1090/S1}, eprint={2001.00002v1}}\n",
+    (q / "digests" / "bibliography.bib").write_text(
+        (q / "digests" / "bibliography.bib").read_text()
+        + "\n@article{Split, title={S}, doi={10.1090/S1}, eprint={2001.00002v1}}\n",
         encoding="utf-8",
     )
     head = "% !LOOM digest: Split\n% !LOOM prefix: Split\n% !LOOM method: extract\n"
@@ -355,7 +356,7 @@ def _extract(tmp_path: Path, src: str, key: str) -> str:
     q = demo(tmp_path)
     paper = tmp_path / f"{key}.tex"
     paper.write_text(src)
-    with (q / "refs.bib").open("a") as fh:
+    with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write(f"\n@misc{{{key}, title={{X}}, author={{Y, Z.}}, year={{2000}}}}\n")
     r = run("digest", "extract", key, str(paper), "--no-compile", cwd=q)
     assert r.exit_code == 0, r.output
@@ -484,3 +485,12 @@ def test_standing_assumptions_stated_as_sentences_are_found(tmp_path: Path) -> N
     assert "algebraically closed" not in setup, "a sentence scoped to a section is not a standing assumption"
     assert "widgets are assumed small" not in setup, "nor is one inside a proof"
     assert "check each one's scope" in setup, "gathered sentences say they were gathered"
+
+
+def test_a_step_that_is_off_with_work_waiting_says_how_to_turn_it_on(tmp_path: Path) -> None:
+    """Both switches are false in a new quilt's config, so a build that could fetch or look up says which line to change and which flag does it for one run (DR-193)."""
+    q = demo(tmp_path)
+    r = run("refs", "build", cwd=q)
+    assert r.exit_code == 0, r.output
+    assert "could be looked up: set resolve = true under [refs] in config.toml, or pass --resolve" in r.output
+    assert "could be fetched: set fetch = true under [refs] in config.toml, or pass --fetch" in r.output

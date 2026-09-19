@@ -334,11 +334,11 @@ def _provenance(result: ScanResult, citekey: str, src: Path) -> tuple[str, str |
     """
     entry = result.bib.get(citekey)
     published = next((str(w) for w in identify(entry) if w.published), None) if entry else None
-    # the artifact is decided by where the source actually sits: a path inside refs/ names its own work
+    # the artifact is decided by where the source actually sits: a path inside the store names its own work
     resolved = src.resolve()
     parts = resolved.parts
-    if "refs" in parts:
-        i = len(parts) - 1 - parts[::-1].index("refs")
+    if "storage" in parts:
+        i = len(parts) - 1 - parts[::-1].index("storage")
         if len(parts) > i + 2:
             from loom.refs.fetch import recorded_source
 

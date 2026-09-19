@@ -1,0 +1,131 @@
+{
+  "record": 1,
+  "citekey": "Bellamy19",
+  "results": [
+    {
+      "id": "Bellamy19-def-4.1",
+      "local": "def-4.1",
+      "taxon": "definition",
+      "number": "4.1",
+      "locator": "",
+      "statement": "The \\emph{defect} of a weighted digraph is the least common multiple of the denominators of the vertices of its median polytope.",
+      "source_text": "The defect of a weighted digraph is the least common multiple of the denominators of the vertices of its median polytope.",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45",
+        "page": 2
+      },
+      "level": 3,
+      "state": "discarded",
+      "origin": [
+        {
+          "act": "proposed",
+          "by": "2026-09-15T10-00-survey-bellamy",
+          "when": "2026-09-15T10:00:00Z"
+        },
+        {
+          "act": "discarded",
+          "by": "The loom showcase",
+          "when": "2026-09-16T09:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "definition",
+      "class": "anchored"
+    },
+    {
+      "id": "Bellamy19-prop-3.1",
+      "local": "prop-3.1",
+      "taxon": "proposition",
+      "number": "3.1",
+      "locator": "",
+      "statement": "The function $L$ is a quasi-polynomial in $k$ of degree equal to the dimension of $M(D)$, with a period dividing the least common multiple of the denominators of the vertices of $M(D)$.",
+      "source_text": "The function L is a quasi-polynomial in k of degree equal to the dimension of M (D), with a period dividing the least common multiple of the denominators of the vertices of M (D).",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45",
+        "page": 2
+      },
+      "level": 3,
+      "state": "proposed",
+      "origin": [
+        {
+          "act": "proposed",
+          "by": "2026-09-15T10-00-survey-bellamy",
+          "when": "2026-09-15T10:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "proposition",
+      "class": "anchored"
+    },
+    {
+      "id": "Bellamy19-thm-2.3",
+      "local": "thm-2.3",
+      "taxon": "theorem",
+      "number": "2.3",
+      "locator": "",
+      "statement": "The median orders of a weighted digraph are in bijection with the vertices of a rational polytope $M(D) \\subseteq \\mathbb{R}^{A}$ cut out by the exchange inequalities of Lemma~2.2, and $M(D)$ is bounded.",
+      "source_text": "The median orders of a weighted digraph are in bijection with the vertices of a rational polytope M (D) \u2286 RA cut out by the exchange inequalities of Lemma 2.2, and M (D) is bounded.",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45",
+        "page": 2
+      },
+      "level": 1,
+      "state": "verified",
+      "origin": [
+        {
+          "act": "proposed",
+          "by": "2026-09-15T10-00-survey-bellamy",
+          "when": "2026-09-15T10:00:00Z"
+        },
+        {
+          "act": "verified",
+          "by": "The loom showcase",
+          "when": "2026-09-16T09:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "theorem",
+      "class": "anchored"
+    },
+    {
+      "id": "Bellamy19-thm-3.2",
+      "local": "thm-3.2",
+      "taxon": "theorem",
+      "number": "3.2",
+      "locator": "",
+      "statement": "Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting function of the median polytope of $D$ agrees with a polynomial $L_{D}$ of degree $\\dim M(D)$ for every $k \\geq 0$, and the leading coefficient of $L_{D}$ is the relative volume of $M(D)$.",
+      "source_text": "Let D be a weighted digraph whose weight function is balanced at every vertex. Then the counting function of the median polytope of D agrees with a polynomial of degree equal to the dimension of that polytope for every nonnegative integer dilation factor, and the leading coefficient of that polynomial is the relative volume of the polytope.",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45",
+        "page": 2
+      },
+      "level": 1,
+      "state": "verified",
+      "origin": [
+        {
+          "act": "proposed",
+          "by": "2026-09-15T10-00-survey-bellamy",
+          "when": "2026-09-15T10:00:00Z"
+        },
+        {
+          "act": "edited",
+          "by": "The loom showcase",
+          "when": "2026-09-16T09:00:00Z",
+          "was": "Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting function of the median polytope of $D$ agrees with a polynomial of degree equal to the dimension of that polytope, and the leading coefficient of that polynomial is the relative volume."
+        },
+        {
+          "act": "verified",
+          "by": "The loom showcase",
+          "when": "2026-09-16T09:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "theorem",
+      "class": "anchored"
+    }
+  ]
+}

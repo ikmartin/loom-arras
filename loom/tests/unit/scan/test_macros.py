@@ -90,4 +90,29 @@ def test_package_commands_are_published_only_when_the_package_is_loaded() -> Non
 
     got = package_macros({"amsmath", "old-arrows"})
     assert got["longhookrightarrow"].body == r"\xhookrightarrow{}"
-    assert package_macros({"amsmath"}) == {}
+    assert package_macros({"graphicx"}) == {}
+
+
+def test_a_paired_delimiter_is_published_as_the_declaration_itself() -> None:
+    r"""`\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}` gives `\ceil{x}`, `\ceil*{x}` and `\ceil[\big]{x}`, which no fixed-arity macro reproduces. MathJax's mathtools implements the declaration, so the published macro runs it and then calls the command it just defined; the scanner's own copy stays a one-argument macro."""
+    m = parse_macros(
+        r"\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}" + "\n" + r"\DeclarePairedDelimiter\abs\lvert\rvert"
+    )
+    assert m["ceil"].args == 1 and m["ceil"].body == r"\lceil#1\rceil" and m["ceil"].kind == "delimiter"
+    assert m["abs"].body == r"\lvert#1\rvert"
+    assert is_math_macro(m["ceil"])
+    assert to_mathjax({"ceil": m["ceil"]}) == [
+        {"name": "ceil", "args": 0, "body": r"\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}\ceil"}
+    ]
+
+
+def test_package_commands_cover_the_fonts_accents_and_integrals_a_renderer_lacks() -> None:
+    r"""Each was an error or a red command on the mZK paper: `\bm` from bm, `\mathbbm` from bbm (reached through the author's `\1`), `\mathds` from dsfont and amsmath's capitalised `\Tilde`. mathtools loads amsmath, so a preamble naming only mathtools gets the accents too."""
+    from loom.scan.macros import package_macros
+
+    got = package_macros({"bm", "bbm", "dsfont", "esint", "mathtools"})
+    assert got["bm"].args == 1 and got["bm"].body == r"\boldsymbol{#1}"
+    assert got["mathbbm"].body == r"\mathbb{#1}" and got["mathds"].body == r"\mathbb{#1}"
+    assert got["Tilde"].body == r"\tilde" and got["Vec"].body == r"\vec"  # amsmath, through mathtools
+    assert got["fint"].body == r"\mathop{\unicode{x2A0F}}\nolimits"
+    assert "bm" not in package_macros({"amsmath"}) and "Tilde" in package_macros({"amsmath"})

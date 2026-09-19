@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from click.testing import CliRunner
@@ -100,8 +101,8 @@ def test_init_writes_gitignore_always_and_a_repository_only_when_asked(tmp_path:
     ignored = [ln for ln in (tmp_path / "n" / ".gitignore").read_text().splitlines() if ln and not ln.startswith("#")]
     assert "build/" in ignored
     # the artifacts are ignored and the page text is not: an anchor stays re-checkable by a coauthor with no PDF
-    assert "refs/**/paper.pdf" in ignored and "refs/**/src/" in ignored
-    assert "refs/" not in ignored
+    assert "digests/storage/**/paper.pdf" in ignored and "digests/storage/**/src/" in ignored
+    assert "refs/" in ignored  # the seed space is the author's pile of other people's PDFs
     assert not any(ln.endswith(".tex") or ln in ("nodes/", "drafting/", "digests/", "comments/") for ln in ignored)
 
 
@@ -131,6 +132,55 @@ def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
 
     assert style_of("conjecture") == "plain"
     assert style_of("question") == "remark"
+
+
+def test_init_readme_orients_the_author_in_this_quilts_own_names(tmp_path: Path, home: Path) -> None:
+    """The README init writes is an orientation for the author: what each directory holds, the promise that a canon file is only ever copied, the draft-canonize loop with a worked example, and the contract page as its last section. Its paths and ids are this quilt's own, so a quilt that renamed its directories reads its own names back and nothing in the example has to be translated."""
+    cfg = home / ".config" / "loom"
+    cfg.mkdir(parents=True, exist_ok=True)
+    (cfg / "config.toml").write_text('[quilt]\ndrafting = "work"\ncanon = "fixed"\n', encoding="utf-8")
+    assert run("init", str(tmp_path / "q"), "--prefix", "ab", "--yes").exit_code == 0
+    text = (tmp_path / "q" / "README.md").read_text()
+
+    for heading in ("**`work/`**", "**`fixed/`**", "**`nodes/`**", "**`refs/`**"):
+        assert heading in text, heading
+    assert "at the quilt root" in text and "Created empty" in text  # refs/ is the author's seed space, not canon/refs/
+    assert "is never touched" in text and "only ever read and copied somewhere else" in text
+    assert "$ loom draft fixed/paper.tex --to work/main.tex" in text
+    assert '$ loom canonize work/main.tex --to fixed/paper-v2.tex -m "Referee revisions"' in text
+    assert "## The contract" in text
+    assert "\\label{ab-0004}" in text  # the example id carries this quilt's prefix, not one to be copied blindly
+    assert "drafting/" not in text and "canon/" not in text and "q-0" not in text
+
+
+def test_init_asks_for_an_author_name_and_writes_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`[author] name` comes from `--author`, or is asked for once when a terminal is attached and `--yes` is absent, or is written empty for the author to fill in (book 4.2, 4.3, 4.7). An agent or a script sees no question."""
+    from loom.cli import quilt as quilt_cli
+
+    assert run("init", str(tmp_path / "given"), "--prefix", "ab", "--author", "Markas Hecht", "--yes").exit_code == 0
+    assert 'name = "Markas Hecht"' in (tmp_path / "given" / "config.toml").read_text()
+
+    # no terminal under the runner: nothing is asked and the key waits, rather than naming the machine
+    assert run("init", str(tmp_path / "quiet"), "--prefix", "ab").exit_code == 0
+    assert 'name = ""' in (tmp_path / "quiet" / "config.toml").read_text()
+
+    asked: list[str] = []
+
+    def prompt(text: str, **kwargs: object) -> str:
+        asked.append(text)
+        return "  Markas Hecht  "
+
+    monkeypatch.setattr(quilt_cli, "sys", SimpleNamespace(stdin=SimpleNamespace(isatty=lambda: True)))
+    monkeypatch.setattr(quilt_cli.click, "prompt", prompt)
+    assert run("init", str(tmp_path / "asked"), "--prefix", "ab").exit_code == 0
+    assert len(asked) == 1 and "Author name" in asked[0]
+    assert 'name = "Markas Hecht"' in (tmp_path / "asked" / "config.toml").read_text()  # trimmed
+
+    # the flag is an answer, an empty one included: a quilt told to have no name is not asked for one
+    asked.clear()
+    assert run("init", str(tmp_path / "flagged"), "--prefix", "ab", "--author", "").exit_code == 0
+    assert asked == [] and 'name = ""' in (tmp_path / "flagged" / "config.toml").read_text()
+    assert quilt_cli.ask_author("", yes=True) == "" and asked == []  # --yes never asks
 
 
 def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:

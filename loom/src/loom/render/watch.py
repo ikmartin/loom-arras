@@ -1,6 +1,6 @@
 """Poll file mtimes every second and rebuild when something the build depends on changed (book 9.8), the skeleton of the site generator's watcher with the roots parameterised.
 
-Watched: every .tex, .sty, .cls, .bib under the quilt root outside build/, config.toml, the ledger and snapshots, the annotation log, the reference notes, and run journals. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
+Watched: every .tex, .sty, .cls, .bib under the quilt root outside build/, config.toml, the ledger and snapshots, the annotation log, the reference notes, and run journals. Not the last-seen cache: every build rewrites it, so watching it rebuilds once a second forever after the first change. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from loom.records.lastseen import CACHE
+
 SKIP = {"build", ".git", "node_modules", ".svelte-kit"}
 SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", ".log"}
 
@@ -18,7 +20,7 @@ SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", "
 def snapshot(root: Path) -> dict[Path, float]:
     seen: dict[Path, float] = {}
     for p in root.rglob("*"):
-        if not p.is_file() or p.suffix not in SUFFIXES:
+        if not p.is_file() or p.suffix not in SUFFIXES or p.name == CACHE:
             continue
         rel = p.relative_to(root)
         if any(part in SKIP for part in rel.parts[:-1]):

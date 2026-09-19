@@ -59,6 +59,7 @@
       "Bash(loom refs drop*)",
       "Bash(loom refs note*)",
       "Bash(loom refs overview*)",
+      "Bash(loom refs scan*)",
       "Bash(loom refs verify*)",
       "Bash(loom remove*)",
       "Bash(loom revert*)",

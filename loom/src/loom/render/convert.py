@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from loom.scan.envtree import norm_label
 from loom.scan.macros import expand
 from loom.scan.model import Diagnostic, Location, Macro, Taxon
+from loom.scan.source import blank_comments
 from loom.scan.tokenize import Tok, match_group, read_args, tokenize
 from loom.tex.aux import AuxNumber
 
@@ -1069,8 +1070,13 @@ class Converter:
     # ---- math -------------------------------------------------------------------
 
     def math_text(self, tex: str) -> str:
-        """TeX math left for the viewer: labels removed, references replaced by their numbers or labels so MathJax never sees \\ref, and a macro of the author's written between dollars where it sits in text."""
+        """TeX math left for the viewer: comments and labels removed, `\\qedhere` dropped, references replaced by their numbers or labels so MathJax never sees \\ref, and a macro of the author's written between dollars where it sits in text.
+
+        A comment inside a formula is what the author sees as deleted mathematics; leaving it in ends the formula at the first `%` for MathJax, which is how a commented-out line of an `align` swallowed its own `\\end{align*}`.
+        """
+        tex = blank_comments(tex)
         tex = re.sub(r"\\label\s*\{[^}]*\}", "", tex)
+        tex = re.sub(r"\\qedhere(?![A-Za-z@])", "", tex)  # amsthm places the tombstone; the viewer has none to place
         tex = dollars_in_text(tex, self.ctx.macros)
 
         def ref_repl(m: re.Match[str], upright: bool = True) -> str:
@@ -1089,7 +1095,9 @@ class Converter:
 
     def display_env(self, env: str, start: int, end: int) -> str:
         ctx = self.ctx
-        raw = ctx.text[start:end]
+        raw = blank_comments(
+            ctx.text[start:end]
+        )  # a commented-out line carries a commented-out \label, which is not the block's number
         m = re.match(r"\\begin\s*\{" + re.escape(env) + r"\}(.*)\\end\s*\{" + re.escape(env) + r"\}\s*$", raw, re.S)
         inner = m.group(1) if m else raw
         labels = re.findall(r"\\label\s*\{([^}]*)\}", inner)

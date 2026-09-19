@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 
 ALWAYS_LOADED = {"amsmath", "amsthm", "loom"}
 _PACKAGE = re.compile(r"\\(?:usepackage|RequirePackage)\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
+_CLASS = re.compile(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
+#: Document classes that load a package themselves, so a paper using its commands never names it. An `amsart` paper writing `\\Tilde` is the common case.
+CLASS_PACKAGES = {"amsart": {"amsmath"}, "amsproc": {"amsmath"}, "amsbook": {"amsmath"}}
 
 
 def digest_header(asm: Assembly, file: str) -> dict[str, str]:
@@ -40,9 +43,12 @@ def published_as(header: dict[str, str]) -> str:
 
 
 def loaded_packages(closure: PreambleClosure) -> set[str]:
-    """Package names the closure loads with \\usepackage or \\RequirePackage."""
+    """Package names the closure loads with \\usepackage or \\RequirePackage, and those its document class loads for it."""
     out: set[str] = set()
-    for m in _PACKAGE.finditer(closure.clean_text()):
+    text = closure.clean_text()
+    for m in _CLASS.finditer(text):
+        out |= CLASS_PACKAGES.get(m.group(1).strip(), set())
+    for m in _PACKAGE.finditer(text):
         for name in m.group(1).split(","):
             name = name.strip()
             if name:

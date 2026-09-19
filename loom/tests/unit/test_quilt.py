@@ -54,3 +54,20 @@ def test_a_retired_table_is_accepted_and_ignored() -> None:
     """A quilt still carrying `[crawl]` (DR-144) must not start reporting it as unknown; `loom upgrade` removes it."""
     cfg = QuiltConfig.from_dict({"crawl": {"depth": 3, "subjects": ["14N"], "categories": ["math.AG"], "cap": 50}})
     assert cfg.warnings == []
+
+
+def test_the_quilts_own_config_settles_the_author(tmp_path: Path) -> None:
+    """A quilt that states an `[author]` table answers for itself, so a command records that name rather than the git identity of whatever machine or agent shell it ran in; empty means ask, and a quilt with no table falls back as before."""
+    from loom.scan.quilt import NoAuthorError, no_author_in_quilt, resolve_author
+
+    root = tmp_path / "q"
+    root.mkdir()
+    cfg = root / "config.toml"
+    cfg.write_text('[quilt]\nprefix = "ab"\n\n[author]\nname = "Markas Hecht"\n', encoding="utf-8")
+    assert resolve_author(None, root) == ("Markas Hecht", str(cfg))
+    assert resolve_author("Someone Else", root) == ("Someone Else", "--author")  # the flag still wins
+
+    cfg.write_text('[quilt]\nprefix = "ab"\n\n[author]\nname = ""\n', encoding="utf-8")
+    with pytest.raises(NoAuthorError) as exc:
+        resolve_author(None, root)
+    assert str(exc.value) == no_author_in_quilt(root)

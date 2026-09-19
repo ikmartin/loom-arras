@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from loom.refs.fetch import Fetched, fetch_work, identifier_for, work_dir
-from loom.refs.pages import read_map
+from loom.refs.pages import read_map, storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, load, query_for, save
 from loom.scan.bib import BibEntry
 from loom.scan.scan import ScanResult
@@ -78,6 +78,11 @@ class BuildReport:
         return sum(1 for w in self.works if not w.declared and w.candidate)
 
     @property
+    def fetchable(self) -> int:
+        """Works a fetch would actually go and get: an identifier of their own, and no source on disk yet."""
+        return sum(1 for w in self.works if not w.source and (w.declared or w.candidate))
+
+    @property
     def unresolved(self) -> int:
         return sum(1 for w in self.works if not w.declared and not w.candidate)
 
@@ -124,6 +129,15 @@ class BuildReport:
             f"extracted  {self.digests} digests" + (f", {self.recorded} results recorded" if self.recorded else ""),
             f"mapped     {self.mapped} works from PDF text; {self.pages} pages; sections found for {sum(1 for w in self.works if w.sections)}",
         ]
+        # a step that was off and had nothing to do says nothing; one that was off with work waiting says how to turn it on
+        if self.resolve_off and self.unresolved:
+            out.append(
+                f"           {self.unresolved} entries could be looked up: set resolve = true under [refs] in config.toml, or pass --resolve, and run again"
+            )
+        if self.fetch_off and self.fetchable:
+            out.append(
+                f"           {self.fetchable} works could be fetched: set fetch = true under [refs] in config.toml, or pass --fetch, and run again"
+            )
         thin = [w for w in self.works if w.thin]
         if thin:
             out.append(
@@ -217,7 +231,7 @@ def _resolve_step(result: ScanResult, works: list[WorkState], report: BuildRepor
         report.resolve_off = True
         return
     root = result.quilt.root
-    resolver = Resolver(cache=root / "refs" / "cache" / "resolve", contact=cfg.contact, refresh=refresh)
+    resolver = Resolver(cache=storage_root(root) / "cache" / "resolve", contact=cfg.contact, refresh=refresh)
     for w in works:
         entry = result.bib[w.citekey]
         # A PDF on disk is not a reason to stop looking. A source is strictly better -- verbatim statements, real

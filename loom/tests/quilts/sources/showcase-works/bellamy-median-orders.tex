@@ -1,0 +1,93 @@
+% An invented paper, written for the showcase quilt so that it can cite, digest and anchor into a
+% work whose bytes this repository is free to publish. Nobody named here exists.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1.15in]{geometry}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\DeclareMathOperator{\med}{med}
+\newcommand{\ZZ}{\mathbb{Z}}
+\newcommand{\RR}{\mathbb{R}}
+
+\title{Median orders on weighted digraphs}
+\author{Rosalind Bellamy}
+\date{Ann.\ Fict.\ Math.\ \textbf{19} (2019), 203--241. \\ doi:10.4171/showcase/19-2}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A median order of a weighted digraph is a linear order of its vertices minimising the total weight of the arrows that run backwards. We show that the median orders of a digraph are the vertices of a rational polytope, that the counting function of that polytope is a quasi-polynomial, and that it is an honest polynomial whenever the weights are balanced. The last statement is the one intended for use elsewhere.
+\end{abstract}
+
+\section{Introduction}
+
+Let $D$ be a finite digraph with an integer weight on each arrow. A linear order of the vertices of $D$ splits the arrows into those that agree with the order and those that run backwards against it, and the \emph{cost} of the order is the total weight of the second group. An order of least cost is called a median order. Median orders are classical for tournaments and have been studied for weighted digraphs whenever a counting problem could be reduced to them.
+
+This paper is written as a reference. Section 2 fixes the definitions and proves the basic exchange lemma. Section 3 contains the counting theorem, which is what we expect to be cited: it says that the number of lattice points of a dilated median polytope is given by a polynomial once the weights balance at every vertex. Section 4 collects examples in which the hypothesis fails and the count is only quasi-polynomial.
+
+We make no attempt at the algorithmic question. Finding a median order is hard in the usual senses, and nothing below is constructive.
+
+\section{Median orders}
+
+Throughout this section $D$ is a finite digraph with vertex set $V$, arc set $A$, and a weight function $w \colon A \to \ZZ$. We write $a \colon u \to v$ for an arc with source $u$ and target $v$.
+
+\begin{definition}\label{def:median}
+Let $\prec$ be a linear order of $V$. The \emph{cost} of $\prec$ is the sum of $w(a)$ over the arcs $a \colon u \to v$ with $v \prec u$. A linear order of least cost is a \emph{median order} of the weighted digraph $D$.
+\end{definition}
+
+\begin{lemma}\label{lem:exchange}
+Let $\prec$ be a median order and let $u$ and $v$ be consecutive in $\prec$, with $u$ immediately preceding $v$. Then the total weight of the arcs from $u$ to $v$ is at least the total weight of the arcs from $v$ to $u$.
+\end{lemma}
+
+\begin{proof}
+Transposing two consecutive vertices changes the cost by the difference of those two totals and by nothing else, since no other pair of vertices changes its relative order. If the difference were negative the transposed order would be cheaper, contradicting minimality.
+\end{proof}
+
+\begin{theorem}\label{thm:polytope}
+The median orders of a weighted digraph are in bijection with the vertices of a rational polytope $M(D) \subseteq \RR^{A}$ cut out by the exchange inequalities of Lemma~\ref{lem:exchange}, and $M(D)$ is bounded.
+\end{theorem}
+
+\begin{proof}
+Associate to a linear order the indicator vector of the set of arcs that run backwards. The exchange inequalities are satisfied by every median order, and conversely a vertex of the polytope they define is integral because the constraint matrix is an incidence matrix of a digraph and therefore totally unimodular. Boundedness holds because every coordinate lies in the interval $[0,1]$.
+\end{proof}
+
+\section{Counting}
+
+We now count. The dilate $kM(D)$ of the median polytope is the set of points $kx$ with $x$ in $M(D)$, and $L(k)$ denotes the number of points of $\ZZ^{A}$ in it.
+
+\begin{proposition}\label{prop:quasi}
+The function $L$ is a quasi-polynomial in $k$ of degree equal to the dimension of $M(D)$, with a period dividing the least common multiple of the denominators of the vertices of $M(D)$.
+\end{proposition}
+
+\begin{proof}
+This is Ehrhart's theorem for a rational polytope, applied to $M(D)$, together with the observation that the dimension of the dilate is the dimension of the polytope.
+\end{proof}
+
+\begin{theorem}\label{thm:count}
+Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting function of the median polytope of $D$ agrees with a polynomial of degree equal to the dimension of that polytope for every nonnegative integer dilation factor, and the leading coefficient of that polynomial is the relative volume of the polytope.
+\end{theorem}
+
+\begin{proof}
+By Theorem~\ref{thm:polytope} the polytope is the convex hull of integral vertices, so its Ehrhart quasi-polynomial has period one, and Proposition~\ref{prop:quasi} then gives a polynomial of the stated degree. The statement about the leading coefficient is the standard interpretation of the Ehrhart polynomial's top term as the relative volume, and the balancing hypothesis is used only to ensure integrality of the vertices.
+\end{proof}
+
+\section{Examples where the hypothesis fails}
+
+The balancing hypothesis in Theorem~\ref{thm:count} cannot be dropped. Consider the digraph on two vertices with three parallel arcs from the first to the second and one arc back, all of weight one. The divergence at each vertex is $\pm 2$, the median polytope has a vertex with coordinates in halves, and the counting function has period two: it takes one value on even dilations and another on odd ones.
+
+A second example, on four vertices, shows that the period can be made arbitrarily large by adding parallel arcs of increasing multiplicity, so no uniform bound on the period is available in terms of the number of vertices alone. We leave the verification to the reader, who will find that the divergences grow with the multiplicities and that the vertex denominators grow with them.
+
+\begin{definition}\label{def:defect}
+The \emph{defect} of a weighted digraph is the least common multiple of the denominators of the vertices of its median polytope. A weighted digraph is balanced exactly when its defect is one, by Theorem~\ref{thm:count}.
+\end{definition}
+
+The defect is the invariant that measures how far a weighted digraph is from the situation of Theorem~\ref{thm:count}, and it is the subject of the sequel.
+
+\end{document}

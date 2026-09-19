@@ -8,6 +8,7 @@ engine = "pdflatex"         # default engine; % !TEX program in a master overrid
 
 [refs]
 fetch = false
+resolve = false
 
 [lint]
 disable = []

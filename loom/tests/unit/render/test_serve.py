@@ -141,20 +141,20 @@ def test_serve_spa_fallback_for_dotted_routes(session) -> None:  # type: ignore[
 
 
 def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignore[no-untyped-def]
-    """The viewer opens a reference at the place a comment points to, so the server offers what was fetched -- the first thing it serves that it did not generate (DR-110). Localhost, read only, and confined to refs/ by the same prefix check the build tree gets."""
+    """The viewer opens a reference at the place a comment points to, so the server offers what was fetched -- the first thing it serves that it did not generate (DR-110). Localhost, read only, and confined to the store by the same prefix check the build tree gets."""
     s, d = session
-    home = d / "refs" / "arxiv" / "0805.2065v2"
+    home = d / "digests" / "storage" / "arxiv" / "0805.2065v2"
     home.mkdir(parents=True, exist_ok=True)
     (home / "paper.pdf").write_bytes(b"%PDF-1.4\nfetched\n")
 
-    status, headers, body = get(s.url + "refs/arxiv/0805.2065v2/paper.pdf")
+    status, headers, body = get(s.url + "digests/storage/arxiv/0805.2065v2/paper.pdf")
     assert status == 200 and body.startswith(b"%PDF") and headers["Content-Type"] == "application/pdf"
 
-    status, _, _ = get(s.url + "refs/arxiv/0805.2065v2/absent.pdf")
+    status, _, _ = get(s.url + "digests/storage/arxiv/0805.2065v2/absent.pdf")
     assert status == 404  # a missing artifact is a 404, never the app shell
 
-    status, _, _ = get(s.url + "refs/../config.toml")
-    assert status in (400, 404)  # nothing outside refs/ is reachable through it
+    status, _, _ = get(s.url + "digests/storage/../../config.toml")
+    assert status in (400, 404)  # nothing outside the store is reachable through it
 
 
 def post(url: str, body: dict):  # type: ignore[no-untyped-def]
@@ -286,3 +286,22 @@ def test_the_watcher_watches_what_the_write_api_writes(tmp_path: Path) -> None:
     assert "annotations/log.jsonl" in watched
     assert "reference-notes.jsonl" in watched
     assert {"config.toml", "nodes/n.tex"} <= watched
+
+
+def test_the_watcher_does_not_chase_its_own_build(session) -> None:  # type: ignore[no-untyped-def]
+    """Every build rewrites `.loom/last-seen.json`, so a watcher that watches it rebuilds once a second for ever after the first change: the manifest gets a new `generated` each time, and the viewer, which re-renders on a new hash, closed every comment box a second after it was opened."""
+    from loom.render.watch import snapshot
+
+    s, d = session
+    assert not [p for p in snapshot(d) if p.name == "last-seen.json"]
+
+    node = d / "nodes" / "dm-0002.tex"
+    time.sleep(0.3)
+    node.write_text(node.read_text().replace("[Orbits]", "[Orbits, again]"))
+    deadline = time.time() + 6
+    while s.builds < 2 and time.time() < deadline:
+        time.sleep(0.1)
+    assert s.builds >= 2, "the change was not picked up"
+    settled = s.builds
+    time.sleep(2)  # ten watcher intervals with nothing changing
+    assert s.builds == settled

@@ -1,0 +1,17 @@
+2026-09-16T11:00:00Z  loom comment sh-0009 --quote --kind objection
+2026-09-16T11:00:00Z  loom comment sh-0009/proof --quote --kind suggestion
+2026-09-16T11:00:00Z  loom comment sh-000C/proof --quote --kind objection
+2026-09-16T11:00:00Z  loom comment sh-0006/proof --quote --kind question
+2026-09-16T11:00:00Z  loom comment sh-0004 --kind suggestion
+2026-09-16T11:00:00Z  loom comment drafting/main-atomic.tex --kind suggestion
+2026-09-16T11:00:00Z  loom comment sh-0200 --kind suggestion
+2026-09-16T11:00:00Z  loom comment sh-0009#eq:rank --kind objection
+2026-09-16T11:00:00Z  loom comment Arden24-prop-2.1 --quote --kind objection
+2026-09-16T11:00:00Z  loom comment sh-0005 --kind ok
+2026-09-16T11:00:00Z  loom comment sh-000F --kind citation
+2026-09-16T11:00:00Z  loom comment sh-0008 --kind objection
+2026-09-16T11:00:00Z  loom comment sh-000B --kind suggestion
+2026-09-16T11:00:00Z  loom comment sh-0007/proof --quote --kind objection
+2026-09-16T11:40:00Z  loom comment Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.
+2026-09-16T11:40:00Z  loom comment Height is defined for every weighting but only used for balanced ones, and $N_{\quiv}(k)$ silently restricts to them. Say so in the definition rather than in the theorem that uses it.
+2026-09-16T15:05:00Z  loom comment Then the convention is the right place, and this finding can stand until it is there.

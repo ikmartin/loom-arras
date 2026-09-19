@@ -160,7 +160,7 @@ def test_contact_goes_to_crossref_only_when_set() -> None:
 def test_candidates_are_kept_with_the_entry_they_answer_and_forgotten_when_it_changes(tmp_path: Path) -> None:
     found = R.Resolver(http=Recorded("zbmath_edidin_graham")).candidates(R.query_for(EDIDIN))
     path = R.save(tmp_path, EDIDIN, found)
-    assert path == tmp_path / "refs" / identify(EDIDIN)[0].path / "resolved.json"
+    assert path == tmp_path / "digests" / "storage" / identify(EDIDIN)[0].path / "resolved.json"
     assert [c.id for c in R.load(tmp_path, EDIDIN)] == ["doi:10.1353/ajm.1998.0020"]
     edited = BibEntry(EDIDIN.key, EDIDIN.type, {**EDIDIN.fields, "year": "1999"})
     assert R.load(tmp_path, edited) == []
@@ -182,7 +182,7 @@ def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
 def demo(tmp_path: Path) -> Path:
     assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
     q = tmp_path / "q"
-    with (q / "refs.bib").open("a") as fh:
+    with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write(
             "\n@article{Edi98,\n  title = {Localization in Equivariant Intersection Theory and the Bott Residue Formula},\n  author = {Edidin, Dan and Graham, William},\n  year = {1998},\n}\n"
         )
@@ -203,8 +203,8 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
 ) -> None:
     q = demo(tmp_path)
     cfg = q / "config.toml"
-    cfg.write_text(cfg.read_text().replace("fetch = false", "fetch = false\nresolve = true"))
-    before = (q / "refs.bib").read_text()
+    cfg.write_text(cfg.read_text().replace("resolve = false", "resolve = true"))
+    before = (q / "digests" / "bibliography.bib").read_text()
     lint = run("lint", cwd=q)
     assert "Edi98 states no identifier" in lint.output and "loom refs resolve" in lint.output
 
@@ -212,7 +212,9 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
     r = run("refs", "resolve", cwd=q)
     assert r.exit_code == 0, r.output
     assert "Edi98: doi:10.1353/ajm.1998.0020" in r.output and "strong" in r.output
-    assert (q / "refs.bib").read_text() == before  # the bibliography is the author's, and is never written
+    assert (
+        q / "digests" / "bibliography.bib"
+    ).read_text() == before  # resolve records candidates elsewhere and never writes the bibliography
 
     r = run("refs", "resolve", "--json", cwd=q)
     data = json.loads(r.output[r.output.index("{") :])
@@ -233,3 +235,21 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
         "title": "Localization in equivariant intersection theory and the Bott residue formula",
     }
     assert ref["work"].startswith("work:")  # a candidate is never the work's identity
+
+
+def test_the_resolve_flag_is_one_runs_consent_and_writes_no_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--resolve` allows the lookup for this run without touching `config.toml`, which stays the standing answer and stays false (DR-193)."""
+    q = demo(tmp_path)
+    before = (q / "config.toml").read_text()
+    assert "resolve = false" in before
+
+    refused = run("refs", "resolve", cwd=q)
+    assert refused.exit_code == 2 and "--resolve" in refused.output
+
+    monkeypatch.setattr(R, "http_get", Recorded("zbmath_edidin_graham"))
+    r = run("refs", "resolve", "--resolve", cwd=q)
+    assert r.exit_code == 0, r.output
+    assert "Edi98: doi:10.1353/ajm.1998.0020" in r.output
+    assert (q / "config.toml").read_text() == before

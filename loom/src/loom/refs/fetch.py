@@ -98,14 +98,16 @@ def identifier_for(root: Path, entry: BibEntry) -> tuple[str | None, str]:
 
 
 def work_dir(root: Path, entry: BibEntry | None) -> Path:
-    """The directory under `refs/` holding everything fetched for one work.
+    """The directory in the store holding everything loom has for one work.
 
     Named by the work's primary global identifier, never by the citekey: two quilts citing one paper name one directory, which is what lets a shared cache be a hardlink rather than a mapping (DR-108).
     """
+    from loom.refs.pages import storage_root
+
     wid = primary(entry)
     if wid is None:
         raise FetchRefused("the work has no bibliography entry, so it has no identity to file under")
-    return root / "refs" / wid.path
+    return storage_root(root) / wid.path
 
 
 def _get(url: str, attempts: int = 3) -> bytes:
@@ -257,7 +259,7 @@ def fetch_work(
     """
     out = Fetched(citekey=citekey)
     if not quilt.config.fetch:
-        out.refused = "fetching is off: set fetch = true under [refs] in config.toml to allow it"
+        out.refused = "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
         return out
     if entry is None:
         out.refused = f"{citekey} is not in the bibliography"

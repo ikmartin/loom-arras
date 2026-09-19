@@ -97,7 +97,7 @@ def parse_cite_labels(aux: str, bbl: str = "") -> dict[str, str]:
     entries = list(_ENTRY.finditer(bbl))
     for i, m in enumerate(entries):
         block = bbl[m.end() : entries[i + 1].start() if i + 1 < len(entries) else len(bbl)]
-        fields = dict(f.groups() for f in _FIELD.finditer(block))
+        fields: dict[str, str] = {f.group(1): f.group(2) for f in _FIELD.finditer(block)}
         if "labelalpha" in fields:
             extra = fields.get("extraalpha", "")
             suffix = chr(ord("a") + int(extra) - 1) if extra.isdigit() and 0 < int(extra) <= 26 else ""

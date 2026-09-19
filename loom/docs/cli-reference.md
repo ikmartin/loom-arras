@@ -410,6 +410,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--from` `FILE` | Import an existing paper: FILE is its main .tex file, anywhere on disk. |
 | `--demo` | Write the demo quilt instead of a minimal master. |
 | `--prefix` | Id prefix for new nodes. |
+| `--author` `NAME` | Who this quilt's records name; written to config.toml. Asked for when not given, and left empty when nobody answers. |
 | `--git` | Also run git init. A quilt is files; loom reads no history. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
 
@@ -486,7 +487,7 @@ Fetched works: where their artifacts are, how to add one by hand, and identifier
 
 `loom refs add [OPTIONS] CITEKEY FILE`
 
-File FILE as CITEKEY's PDF under refs/.
+File FILE as CITEKEY's PDF in loom's store.
 
 A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing.
 
@@ -501,13 +502,15 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 
 Make everything about this quilt's cited works that a machine can make: resolve, fetch, extract, report.
 
-The one command that starts a digest. Each step is a no-op where its work is done, so running it again after editing `refs.bib` resolves, fetches and extracts the new entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two lines say what is left for a person and what is left for an agent.
+The one command that starts a digest. It runs `loom refs scan` first, and each step is a no-op where its work is done, so running it again after a new entry reaches the bibliography resolves, fetches and extracts that entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two lines say what is left for a person and what is left for an agent.
 
 | option | description |
 |---|---|
 | `--refresh` | Ask the lookup services again where an answer is recorded. |
 | `--no-candidates` | Fetch only on identifiers an entry declares itself. |
 | `--force` | Re-extract digests that are already present. |
+| `--fetch` | Allow fetching for this run, without setting [refs] fetch in config.toml. |
+| `--resolve` | Allow looking identifiers up for this run, without setting [refs] resolve in config.toml. |
 | `--only` `STEP[,STEP]` | Run only these steps: resolve, fetch, extract, map. |
 | `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -560,7 +563,7 @@ A verified node already written into `digests/<citekey>.tex` is the author's fil
 
 `loom refs fetch [OPTIONS] [CITEKEYS]...`
 
-Fetch sources and PDFs for cited works into refs/, checking on arrival that each is the work its entry names.
+Fetch sources and PDFs for cited works into loom's store, checking on arrival that each is the work its entry names.
 
 Fetches on an identifier the entry declares, or on a strong candidate a lookup proposed (plan 0.12 §4.3): a candidate is enough to fetch with and never enough to be an identity, because fetching is reversible and checkable and identifying is neither. A source whose own title does not match the entry is discarded rather than filed. With no CITEKEYS, every cited work that has no artifact yet.
 
@@ -568,6 +571,7 @@ Fetches on an identifier the entry declares, or on a strong candidate a lookup p
 |---|---|
 | `--no-pdf` | Take the source only; the PDF is fetched by default. |
 | `--no-candidates` | Fetch only on identifiers an entry declares itself. |
+| `--fetch` | Allow fetching for this run, without setting [refs] fetch in config.toml. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs find`
@@ -739,7 +743,7 @@ The sanctioned read. A quotation an agent proposes must come from here, because 
 
 `loom refs path [OPTIONS] CITEKEY`
 
-Print where CITEKEY's fetched artifacts live. Nothing under refs/ is meant to be navigated by hand.
+Print where CITEKEY's artifacts live, under digests/storage. Nothing there is meant to be navigated by hand; the author's own pile goes in refs/ (book 8.16).
 
 | option | description |
 |---|---|
@@ -788,14 +792,28 @@ This is what makes `transcription verified` a claim a command can falsify. It re
 
 `loom refs resolve [OPTIONS] [CITEKEYS]...`
 
-Look up identifiers for cited works whose bibliography entry states none. Requires [refs] resolve = true.
+Look up identifiers for cited works whose bibliography entry states none. Requires [refs] resolve = true, or --resolve for one run.
 
-Asks zbMATH Open, then Crossref, and prints candidates with how well each matched. Nothing is changed: a candidate becomes the work's identity when you add the field to your own bibliography entry. Answers are kept under refs/, so `loom lint` can name them and a second run asks nothing. With no CITEKEYS, every cited entry that states no identifier.
+Asks zbMATH Open, then Crossref, and prints candidates with how well each matched. Nothing is changed: a candidate becomes the work's identity when you add the field to your own bibliography entry. Answers are kept in the store, so `loom lint` can name them and a second run asks nothing. With no CITEKEYS, every cited entry that states no identifier.
 
 | option | description |
 |---|---|
 | `--refresh` | Ask again even where an answer is recorded. |
 | `--json` | Print the candidates as JSON. |
+| `--resolve` | Allow looking up for this run, without setting [refs] resolve in config.toml. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs scan`
+
+`loom refs scan [OPTIONS]`
+
+Add every bibliography entry the canon documents carry to digests/bibliography.bib.
+
+Reads each canon document's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
+
+| option | description |
+|---|---|
+| `--dry-run` | Report what would be added and write nothing. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs unlink`

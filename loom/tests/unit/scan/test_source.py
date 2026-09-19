@@ -99,3 +99,12 @@ def test_notes_is_the_authors_reference_material_and_never_scanned(tmp_path: Pat
     )
     assert "ab-0001" not in result.nodes
     assert not any(f.startswith("notes/") for f in result.files)
+
+
+def test_the_seed_space_and_the_store_are_not_the_quilts_text(tmp_path: Path) -> None:
+    """A fetched e-print is a whole paper carrying its own labels, and the author's seed space holds other people's files; neither is scanned (book 8.16)."""
+    for rel in ["drafting/main.tex", "refs/theirs.tex", "digests/storage/arxiv/1/src/paper.tex", "digests/Kre99.tex"]:
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x", encoding="utf-8")
+    assert discover_files(tmp_path) == ["digests/Kre99.tex", "drafting/main.tex"]

@@ -489,3 +489,27 @@ def test_atomize_key_moves_an_attached_proof_with_its_statement(tmp_path: Path) 
     assert r.exit_code == 0, r.output
     moved = (q / "nodes" / f"{key}.tex").read_text()
     assert "\\begin{proof}" in moved and "\\begin{definition}" in moved, "the statement carries its proof"
+
+
+def test_an_indented_heading_ends_the_section_before_it() -> None:
+    """A section's span ends where the next heading begins; one space before `\\section` must not pull that heading into the previous section, which made the two moves overlap and dropped the rest of the Kenig-Pavlović-Staffilani-Velasco paper from its spine."""
+    from loom.reshape.atomize import _line_bounds
+
+    text = "\\section{A}\\label{x-1}\nbody\n \\section{B}\\label{x-2}\nmore\n"
+    end = text.index("\\section{B}")
+    ls, le = _line_bounds(text, 0, end)
+    assert text[ls:le] == "\\section{A}\\label{x-1}\nbody"
+
+
+def test_import_inlines_an_arxiv_bbl_when_the_bib_is_absent(tmp_path: Path) -> None:
+    """arXiv ships `<stem>.bbl` and not the `.bib`; the flat copy carries the bibliography itself, so it still cites under another name."""
+    from loom.reshape.importer import inline_bbl
+
+    (tmp_path / "paper.bbl").write_text("\\begin{thebibliography}{1}\n\\bibitem{a} A.\n\\end{thebibliography}\n")
+    text = "\\bibliographystyle{plain}\n\\bibliography{topology}\n\\end{document}\n"
+    out, bbl = inline_bbl(tmp_path, "paper.tex", text)
+    assert bbl == "paper.bbl" and "\\bibliography{" not in out and "\\bibitem{a}" in out
+    assert out.endswith("\\end{thebibliography}\n\\end{document}\n")
+
+    (tmp_path / "topology.bib").write_text("@book{a, title={A}}\n")
+    assert inline_bbl(tmp_path, "paper.tex", text) == (text, None)  # a real .bib wins

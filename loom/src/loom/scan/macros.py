@@ -1,6 +1,6 @@
 """Macro definitions from the preamble closure (book 9.4.3, 8.3.1), replacing the sitegen regexes with brace matching.
 
-Forms: \\newcommand{\\x}[n][default]{body}, \\newcommand\\x{body}, \\renewcommand, \\providecommand, \\def\\x#1#2{body}, \\DeclareMathOperator*{\\x}{body}, \\let\\a\\b, \\NewDocumentCommand\\x{argspec}{body}. Later definitions win. Expansion substitutes #n and is used for text-mode macros and macro display names.
+Forms: \\newcommand{\\x}[n][default]{body}, \\newcommand\\x{body}, \\renewcommand, \\providecommand, \\def\\x#1#2{body}, \\DeclareMathOperator*{\\x}{body}, \\DeclarePairedDelimiter{\\x}{left}{right}, \\let\\a\\b, \\NewDocumentCommand\\x{argspec}{body}. Later definitions win. Expansion substitutes #n and is used for text-mode macros and macro display names.
 """
 
 from __future__ import annotations
@@ -12,9 +12,10 @@ from loom.scan.tokenize import match_group, read_optional, skip_space
 
 _HEAD = re.compile(
     r"\\(newcommand|renewcommand|providecommand|DeclareRobustCommand|NewDocumentCommand|RenewDocumentCommand"
-    r"|ProvideDocumentCommand|DeclareMathOperator|def|let)(\*?)"
+    r"|ProvideDocumentCommand|DeclareMathOperator|DeclarePairedDelimiter(?![A-Za-z])|def|let)(\*?)"
 )
 _NAME = re.compile(r"\\([A-Za-z@]+|.)")
+_TOKEN = re.compile(r"\\(?:[A-Za-z@]+|.)|[^\s{}%]")
 
 
 def _read_name(text: str, pos: int) -> tuple[str | None, int]:
@@ -35,6 +36,16 @@ def _read_body(text: str, pos: int) -> tuple[str | None, int]:
         if q > 0:
             return text[p + 1 : q - 1], q
     return None, pos
+
+
+def _read_token(text: str, pos: int) -> tuple[str | None, int]:
+    """A braced group's contents or a single unbraced token: a delimiter argument may be either."""
+    body, q = _read_body(text, pos)
+    if body is not None:
+        return body, q
+    p = skip_space(text, pos)
+    m = _TOKEN.match(text, p)
+    return (m.group(0), m.end()) if m else (None, pos)
 
 
 _ALIAS = re.compile(
@@ -98,6 +109,13 @@ def parse_macros(text: str) -> dict[str, Macro]:
             if name and body is not None:
                 op = "\\operatorname*" if star else "\\operatorname"
                 macros[name] = Macro(name, 0, f"{op}{{{body}}}", kind="operator")
+            continue
+        if head == "DeclarePairedDelimiter":
+            name, pos = _read_name(text, pos)
+            left, pos = _read_token(text, pos)
+            right, pos = _read_token(text, pos)
+            if name and left is not None and right is not None:
+                macros[name] = Macro(name, 1, f"{left}#1{right}", kind="delimiter")
             continue
         if head.endswith("DocumentCommand"):
             name, pos = _read_name(text, pos)
@@ -209,7 +227,35 @@ PACKAGE_COMMANDS: dict[str, dict[str, tuple[int, str]]] = {
         "longhookrightarrow": (0, r"\xhookrightarrow{}"),
         "longhookleftarrow": (0, r"\xhookleftarrow{}"),
     },
+    # amsmath's capitalised accents, kept for old documents; each is its lower-case accent
+    "amsmath": {
+        name: (0, "\\" + name.lower())
+        for name in ("Hat", "Check", "Tilde", "Acute", "Grave", "Dot", "Ddot", "Breve", "Bar", "Vec")
+    },
+    "bm": {"bm": (1, r"\boldsymbol{#1}")},
+    "bbm": {"mathbbm": (1, r"\mathbb{#1}"), "mathbbmss": (1, r"\mathbb{#1}"), "mathbbmtt": (1, r"\mathbb{#1}")},
+    "dsfont": {"mathds": (1, r"\mathbb{#1}")},
+    # the renderer's fonts have none of these integrals; each is its Unicode character, at text size
+    "esint": {
+        name: (0, rf"\mathop{{\unicode{{x{code}}}}}\nolimits")
+        for name, code in (
+            ("fint", "2A0F"),
+            ("oiint", "222F"),
+            ("oiiint", "2230"),
+            ("sqint", "2A16"),
+            ("ointclockwise", "2232"),
+            ("ointctrclockwise", "2233"),
+            ("varointclockwise", "2232"),
+            ("varointctrclockwise", "2233"),
+        )
+    },
+    "stmaryrd": {"llbracket": (0, r"\mathopen{\unicode{x27E6}}"), "rrbracket": (0, r"\mathclose{\unicode{x27E7}}")},
+    "mathtools": {"vcentcolon": (0, r"\mathrel{:}")},
+    "nicefrac": {"nicefrac": (2, r"{}^{#1}\!/\!{}_{#2}")},
+    "xfrac": {"sfrac": (2, r"{}^{#1}\!/\!{}_{#2}")},
 }
+# packages that load others, so a preamble naming only the outer one still gets the inner one's stand-ins
+_LOADS = {"mathtools": {"amsmath"}, "empheq": {"mathtools", "amsmath"}}
 
 # `\DeclareMathAlphabet{\name}{encoding}{family}{series}{shape}` declares a font a renderer does not have. The family is mapped to the nearest alphabet the renderer does have; an unrecognised family becomes upright roman, which is legible and honest, rather than an error.
 _ALPHABET = re.compile(r"\\DeclareMathAlphabet\s*\{\s*\\([A-Za-z@]+)\s*\}\s*\{[^}]*\}\s*\{([^}]*)\}")
@@ -245,21 +291,37 @@ def compatibility_macros(used: dict[str, Macro]) -> dict[str, Macro]:
     }
 
 
+def _with_loaded(packages: set[str]) -> set[str]:
+    out = set(packages)
+    for pkg in packages:
+        out |= _LOADS.get(pkg, set())
+    return out
+
+
 def package_macros(packages: set[str]) -> dict[str, Macro]:
     """The renderer's stand-ins for commands the loaded `packages` define and it lacks; see PACKAGE_COMMANDS."""
     return {
         name: Macro(name=name, args=args, body=body)
-        for pkg in sorted(packages & PACKAGE_COMMANDS.keys())
+        for pkg in sorted(_with_loaded(packages) & PACKAGE_COMMANDS.keys())
         for name, (args, body) in PACKAGE_COMMANDS[pkg].items()
     }
 
 
 def to_mathjax(macros: dict[str, Macro]) -> list[dict[str, object]]:
     """The manifest's macro list: {name, args, body}, sorted by name (book specs/manifest.md §14)."""
-    return [
-        {"name": m.name, "args": m.args, "body": resolve_conditionals(m.body)}
-        for m in sorted(macros.values(), key=lambda x: x.name)
-    ]
+    return [_published(m) for m in sorted(macros.values(), key=lambda x: x.name)]
+
+
+def _published(m: Macro) -> dict[str, object]:
+    """One manifest entry. A paired delimiter is published as its own declaration followed by the name: MathJax's mathtools redefines the command on first use, so the starred and sized forms work as in LaTeX, which no fixed-arity macro can do."""
+    if m.kind == "delimiter":
+        left, _, right = m.body.partition("#1")
+        return {
+            "name": m.name,
+            "args": 0,
+            "body": f"\\DeclarePairedDelimiter{{\\{m.name}}}{{{left}}}{{{right}}}\\{m.name}",
+        }
+    return {"name": m.name, "args": m.args, "body": resolve_conditionals(m.body)}
 
 
 MATH_ONLY_HINTS = re.compile(
@@ -269,4 +331,4 @@ MATH_ONLY_HINTS = re.compile(
 
 def is_math_macro(macro: Macro) -> bool:
     """Heuristic: a macro whose body only makes sense in math mode is left to MathJax; the converter expands the others in text."""
-    return bool(MATH_ONLY_HINTS.search(macro.body)) or macro.kind == "operator"
+    return bool(MATH_ONLY_HINTS.search(macro.body)) or macro.kind in ("operator", "delimiter")

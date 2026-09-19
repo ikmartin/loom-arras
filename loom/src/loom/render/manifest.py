@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.refs.identity import declared, identify, primary
+from loom.refs.pages import STORAGE, storage_root
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
@@ -389,7 +390,7 @@ def build_manifest(
         # what is on disk for this work, so the viewer can offer a PDF or say it has not been fetched.
         # Additive: the interface version is unchanged, as `relations` was in 0.2.
         wid = primary(bib) if bib else None
-        home = result.quilt.root / "refs" / wid.path if wid else None
+        home = storage_root(result.quilt.root) / wid.path if wid else None
         manifest["references"][ck] = {
             "citekey": ck,
             "slug": asm.prefix_of(ck),
@@ -397,7 +398,7 @@ def build_manifest(
             "work": str(wid) if wid else "",
             "works": [str(w) for w in identify(bib)] if bib else [],
             "artifacts": {
-                "dir": f"refs/{wid.path}" if wid else "",
+                "dir": f"{STORAGE}/{wid.path}" if wid else "",
                 "pdf": bool(home and (home / "paper.pdf").is_file()),
                 "source": bool(home and (home / "src").is_dir()),
             },

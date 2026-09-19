@@ -582,10 +582,12 @@ def edit_diff(r: Result) -> list[str]:
 
 
 def home_of(root: Path, r: Result) -> Path | None:
-    """The `refs/<kind>/<id>/` directory holding the artifact a PDF anchor names, found by its hash rather than the citekey."""
+    """The `<kind>/<id>/` directory in the store holding the artifact a PDF anchor names, found by its hash rather than the citekey."""
+    from loom.refs.pages import storage_root
+
     if not r.anchor.sha256:
         return None
-    for d in (root / "refs").glob("*/*"):
+    for d in storage_root(root).glob("*/*"):
         sections = d / "sections.json"
         if sections.is_file() and r.anchor.sha256 in sections.read_text(encoding="utf-8"):
             return d

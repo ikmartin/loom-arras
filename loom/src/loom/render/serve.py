@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from loom.arras_bundle import find_bundle
+from loom.refs.pages import STORAGE, storage_root
 from loom.render.build import BuildReport, build
 from loom.render.watch import Watcher
 from loom.scan.quilt import Quilt
@@ -62,11 +63,11 @@ class LoomHandler(SimpleHTTPRequestHandler):
             rel = path[len("/build/") :]
             target = (self.build_dir / rel).resolve()
             return target if str(target).startswith(str(self.build_dir.resolve())) and target.is_file() else None
-        if path.startswith("/refs/"):
+        if path.startswith("/" + STORAGE + "/"):
             # the first thing the server offers that it did not generate: a work's fetched PDF or source, so the
             # viewer can open a reference at the place a comment points to. Localhost only, read only, and still
             # confined to one directory by the same prefix check the build tree gets (DR-110).
-            rel = unquote(path[len("/refs/") :])
+            rel = unquote(path[len("/" + STORAGE + "/") :])
             target = (self.refs_dir / rel).resolve()
             return target if str(target).startswith(str(self.refs_dir.resolve())) and target.is_file() else None
         if path == "/_api" or path.startswith("/_api/"):
@@ -221,7 +222,7 @@ class ServeSession:
             {
                 "bundle_dir": self.bundle_dir,
                 "build_dir": self.quilt.root / "build",
-                "refs_dir": self.quilt.root / "refs",
+                "refs_dir": storage_root(self.quilt.root),
                 # The write API is served for the quilt being served, and only ever over this loopback socket.
                 "quilt_root": self.quilt.root,
             },

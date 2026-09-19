@@ -78,6 +78,15 @@ class PageMap:
         return found
 
 
+#: Loom's own store of other people's documents (book 8.16): everything it fetched or copied, keyed by the work's identifier. The author's seed space is `refs/` at the quilt root, which loom reads and never writes.
+STORAGE = "digests/storage"
+
+
+def storage_root(root: Path) -> Path:
+    """The quilt's document store."""
+    return root / STORAGE
+
+
 def sha256_of(path: Path) -> str:
     """The artifact's content hash, which is what an anchor names (digest contract §9.2)."""
     h = hashlib.sha256()

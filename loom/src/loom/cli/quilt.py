@@ -25,10 +25,14 @@ prefix = "{prefix}"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 
 [refs]
-fetch = false               # may loom fetch sources and PDFs from arXiv (loom refs fetch)
+fetch = false               # may loom fetch sources and PDFs for cited works (loom refs fetch); --fetch allows one run
+resolve = false             # may loom look identifiers up at zbMATH Open and Crossref (loom refs resolve); --resolve allows one run
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
+
+[author]
+name = "{author}"{author_pad}# who this quilt's records name; empty until you write it here or pass --author
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.
@@ -77,6 +81,19 @@ def ask_prefix(default: str, yes: bool) -> str:
     return str(value).strip()
 
 
+def ask_author(default: str, yes: bool) -> str:
+    """The name this quilt's records will carry, written to `[author] name` (book 4.2).
+
+    Asked under the same rule as the prefix: once, when a terminal is attached and `--yes` is absent. An empty answer is a fine one -- the key is then written empty and the author fills it in, which is what a quilt with no terminal and no `--author` gets.
+    """
+    if yes or not sys.stdin.isatty():
+        return default
+    value = click.prompt(
+        "Author name for this quilt's records (empty to fill in later)", default=default, show_default=False
+    )
+    return str(value).strip()
+
+
 GITIGNORE_NOTE = """wrote .gitignore, ignores:
   build/ (everything loom can rebuild)
   refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)
@@ -93,7 +110,7 @@ def _user_dirs() -> tuple[str, str]:
     return drafting, canon
 
 
-def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> list[Path]:
+def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, author: str = "") -> list[Path]:
     """Write the skeleton of a quilt into `target`.
 
     Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
@@ -124,7 +141,14 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
     mkdir(target / ".loom" / "history")
     write(
         target / "config.toml",
-        CONFIG_TEMPLATE.format(name=target.resolve().name, prefix=prefix, drafting=drafting, canon=canon),
+        CONFIG_TEMPLATE.format(
+            name=target.resolve().name,
+            prefix=prefix,
+            drafting=drafting,
+            canon=canon,
+            author=author,
+            author_pad=" " * max(1, 22 - len(author)),
+        ),
     )
     write(target / "loom.sty", (ASSETS / "loom.sty").read_text(encoding="utf-8"))
     if minimal_master:
@@ -132,7 +156,15 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
     write(target / ".loom" / "history" / "ledger.jsonl", "")
     gitignore = (ASSETS / "init" / "gitignore").read_text(encoding="utf-8").replace("drafting/", f"{drafting}/")
     write(target / ".gitignore", gitignore)
-    write(target / "README.md", (ASSETS / "readme-contract.md").read_text(encoding="utf-8"))
+    # the orientation is written with this quilt's own directory names and id prefix, so nothing in it is an example the author has to translate
+    readme = (
+        (ASSETS / "init" / "readme.md")
+        .read_text(encoding="utf-8")
+        .replace("drafting/", f"{drafting}/")
+        .replace("canon/", f"{canon}/")
+        .replace("q-0", f"{prefix}-0")
+    )
+    write(target / "README.md", readme)
     return sorted(made, key=lambda q: len(q.parts), reverse=True)
 
 
@@ -181,6 +213,12 @@ def write_demo_quilt(target: Path) -> None:
 )
 @click.option("--demo", is_flag=True, help="Write the demo quilt instead of a minimal master.")
 @click.option("--prefix", default=None, help="Id prefix for new nodes.")
+@click.option(
+    "--author",
+    default=None,
+    metavar="NAME",
+    help="Who this quilt's records name; written to config.toml. Asked for when not given, and left empty when nobody answers.",
+)
 @click.option("--git", "git_init", is_flag=True, help="Also run git init. A quilt is files; loom reads no history.")
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
 @click.pass_context
@@ -190,6 +228,7 @@ def init(
     from_file: str | None,
     demo: bool,
     prefix: str | None,
+    author: str | None,
     git_init: bool,
     yes: bool,
 ) -> None:
@@ -226,7 +265,9 @@ def init(
         chosen = prefix or ask_prefix("q", yes)
         if not PREFIX.match(chosen):
             raise EnvError(f"prefix {chosen!r} must be letters and digits without hyphens")
-        made = write_minimal_quilt(target, chosen, minimal_master=paper is None)
+        # `--author ""` is an answer, so the prompt is offered only when the flag was absent altogether
+        named = author.strip() if author is not None else ask_author("", yes)
+        made = write_minimal_quilt(target, chosen, minimal_master=paper is None, author=named)
     _write_user_config_template()
 
     def announce() -> None:

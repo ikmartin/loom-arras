@@ -1,0 +1,59 @@
+\documentclass[11pt]{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{flows}
+\usepackage{loom}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{convention}[theorem]{Convention}
+\newtheorem{example}[theorem]{Example}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% A theorem-like environment the preamble does not declare with \newtheorem, so the directive below is what
+% makes it a taxon: this is the one taxon configuration the source contract offers (book 5.5.1).
+\newenvironment{caveat}{\par\medskip\noindent\textbf{Caveat.}\begingroup\itshape}{\endgroup\par\medskip}
+% !LOOM environment: caveat = Caveat, remark
+
+\title{Balanced flows on finite quivers}
+\author{The loom showcase}
+
+
+\ProvidesPackage{flows}[2026/09/19 macros for the showcase quilt]
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\rank}{rank}
+\newcommand{\ZZ}{\mathbb{Z}}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\Zcyc}{\mathcal{Z}}
+\newcommand{\bd}{\partial}
+\newcommand{\quiv}{Q}
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{loom}[2026/09/16 v0.1 loom macros]
+% loom.sty is MIT-licensed so that it can travel with a paper; see the LICENSE beside it in the loom distribution.
+
+% Dependencies the text does not express as \ref or a matchable \cite.
+% Prints nothing.
+\providecommand{\uses}[1]{}
+
+% Marks a statement or proof as mathematically incomplete.
+% Prints nothing; an author may \renewcommand it to print in draft builds.
+\providecommand{\incomplete}[1]{}
+
+% Inputs a file with every sectioning command inside it shifted one level down.
+% Composes when nested files nest files.
+\providecommand{\nest}[1]{\begingroup
+  \let\chapter\section
+  \let\section\subsection
+  \let\subsection\subsubsection
+  \let\subsubsection\paragraph
+  \let\paragraph\subparagraph
+  \input{#1}\endgroup}

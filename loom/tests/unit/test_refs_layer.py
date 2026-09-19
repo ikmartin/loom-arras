@@ -192,8 +192,10 @@ def test_the_page_text_is_committed_and_the_pdf_is_not(tmp_path: Path) -> None:
     """Plan 0.12 §4.2: an anchor is re-checkable by a coauthor who holds no PDF, which only works if the text is in the repository."""
     q = quilt(tmp_path)
     ignored = (q / ".gitignore").read_text()
-    assert "refs/**/paper.pdf" in ignored and "refs/**/src/" in ignored
-    assert "\nrefs/\n" not in ignored, "ignoring refs/ wholesale would drop the page text too"
+    assert "digests/storage/**/paper.pdf" in ignored and "digests/storage/**/src/" in ignored
+    assert "\nrefs/\n" in ignored, "the seed space is the author's pile of other people's PDFs"
+    rules = [ln for ln in ignored.splitlines() if ln and not ln.startswith("#")]
+    assert not any("pages" in ln for ln in rules), "the page text an anchor is checked against is committed"
     assert "refs/pdf/" not in ignored, "DR-108 moved the artifacts into refs/<work-id>/ three plans ago"
 
 
@@ -205,7 +207,7 @@ def test_the_demo_gitignore_agrees_with_the_one_init_writes() -> None:
     canonical = assets.joinpath("init", "gitignore").read_text(encoding="utf-8")
     demo = assets.joinpath("demo", ".gitignore")
     if demo.is_file():
-        refs = [ln for ln in canonical.splitlines() if ln.startswith("refs/")]
+        refs = [ln for ln in canonical.splitlines() if ln.startswith(("refs/", "digests/storage"))]
         assert refs and all(ln in demo.read_text(encoding="utf-8") for ln in refs), "the demo's copy has drifted"
 
 
@@ -282,7 +284,7 @@ def mapped(tmp_path: Path) -> tuple[Path, str]:
 
     q = quilt(tmp_path)
     ck = "Vir12"  # not Man12: the demo quilt already ships a digest under that key
-    with (q / "refs.bib").open("a") as fh:
+    with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@article{Vir12, title={Virtual pull-backs}, author={Manolache, C.}, year={2012}}\n")
     home = work_dir(
         q,
@@ -758,7 +760,7 @@ def test_a_statement_over_a_page_break_is_anchored_to_both_pages(tmp_path: Path)
     from loom.refs.proposals import load_results, page_context
 
     q, ck = mapped(tmp_path)
-    pages = next(q.glob("refs/*/*/pages"))
+    pages = next(q.glob("digests/storage/*/*/pages"))
     (pages / "0012.txt").write_text("Theorem 4.1. Every widget is a gadget when\n")
     (pages / "0013.txt").write_text("the theory is perfect, and every gadget is a widget.\nProof. Clear.\n")
     one = propose(q, ck, "thm-4.1", 12, "Every widget is a gadget when the theory is perfect", "X")
@@ -855,7 +857,7 @@ def test_a_book_length_map_with_almost_no_sections_says_it_is_a_guess() -> None:
 
 
 def _home(q: Path) -> Path:
-    return next(p for p in (q / "refs").glob("*/*") if (p / "sections.json").is_file())
+    return next(p for p in (q / "digests" / "storage").glob("*/*") if (p / "sections.json").is_file())
 
 
 def test_a_folio_number_at_a_page_join_is_not_part_of_the_text(tmp_path: Path) -> None:
