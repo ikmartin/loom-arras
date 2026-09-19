@@ -27,10 +27,10 @@ Given `PAPER`, whose directory is called the paper directory:
 3. **[decided]** Copy the rest of the closure — the styles, the class, the bibliography, the style file, the figures — into the quilt at their paper-relative paths, so that the flat document compiles from the quilt root exactly as the original compiled from the paper directory. The `.tex` files that were inlined are not copied: their text is in the canon document.
 4. **[decided]** Insert nothing. No `\usepackage{loom}`, no ids, no directives. A landmark is the paper as it arrived.
 5. **[decided]** Print the plan and require confirmation on a terminal; `--yes` skips it for scripts, and without a terminal or `--yes` the import stops with `import needs confirmation; pass --yes`.
-6. **[decided]** Run the identity test (6.7) between the original, compiled in its own directory, and the flat copy, compiled from the quilt root. A failure removes the copy and refuses, because a landmark that does not typeset as the paper is worse than no landmark; `--no-check` keeps it anyway. A skipped test (no `pdftotext`) is reported and does not fail the command.
+6. **[decided]** Run the identity test (6.7) between the original, compiled from a clean copy of the paper directory, and the flat copy, compiled from the quilt root. A failure removes the copy and refuses, because a landmark that does not typeset as the paper is worse than no landmark; `--no-check` keeps it anyway. A skipped test (no `pdftotext`) is reported and does not fail the command.
 7. **[decided]** Record step `0001-<name>`: the ledger line names the paper and its hash, the canon path and its hash, and the files that were inlined; the step's directory holds the canon document as written (17.6).
 
-**[decided]** `import` never: splits files, moves proofs, renames labels, reorders anything, rewrites `\ref`s, inserts anything at all, or writes metadata headers. It refuses only on a paper that does not compile from its own directory — checked by compiling it there first, so that a broken input paper is not mistaken for a loom problem — and on a canon document of that name already existing. Line anchoring is not its business: nothing is inserted, so nothing needs a line to itself. That check belongs to `draft`.
+**[decided]** `import` never: splits files, moves proofs, renames labels, reorders anything, rewrites `\ref`s, inserts anything at all, or writes metadata headers. It refuses only on a paper that does not compile from its own directory — checked first, in a copy of that directory without its build products (DR-186), so that a broken input paper is not mistaken for a loom problem — and on a canon document of that name already existing. Line anchoring is not its business: nothing is inserted, so nothing needs a line to itself. That check belongs to `draft`.
 
 Example session, with the relative localization paper:
 
@@ -42,7 +42,7 @@ Plan, nothing written yet:
   math-env.sty -> math-env.sty
   base-macros.sty -> base-macros.sty
   refs.bib -> refs.bib
-Compiling original in /home/mh/papers/relloc ... ok
+Compiling original from a clean copy of /home/mh/papers/relloc ... ok
 Apply? [y/N]: y
 Wrote 4 files.
 Identity test: pass (pdftotext identical)
@@ -171,7 +171,7 @@ The author then edits the spine: reordering inclusion lines, deleting some, rewr
 
 | command | before | after |
 |---|---|---|
-| `import` | the paper, in its own directory | the flat canon document, from the quilt root |
+| `import` | the paper, from a clean copy of its directory | the flat canon document, from the quilt root |
 | `draft` | the canon document | the working copy |
 | `atomize`, `inline` | `SRC`, or the first master reaching it | `DEST` in its place |
 | `linearize` | the spine | the flat document |
@@ -179,7 +179,7 @@ The author then edits the spine: reordering inclusion lines, deleting some, rewr
 
 Procedure:
 
-1. Compile the "before" document with `latexmk` into a scratch output directory, using the document's engine (`% !TEX program`, else `[quilt] engine`): the original paper in its own directory for `import`; `SRC` itself when it is a master, or the first master that reaches it otherwise (DR-65), for `atomize` and `inline`.
+1. Compile the "before" document with `latexmk` into a scratch output directory, using the document's engine (`% !TEX program`, else `[quilt] engine`): for `import`, the original paper in a scratch copy of its directory that leaves out the build products (`.aux`, `.bbl`, `.fdb_latexmk` and the like; a `.bbl` stays when the directory has no `.bib`) and hidden directories, with any file the paper reaches outside its directory at the same relative position (DR-186); `SRC` itself when it is a master, or the first master that reaches it otherwise (DR-65), for `atomize` and `inline`.
 2. Compile the "after" document the same way: from the quilt root for `import`, `draft`, `linearize`, `canonize`, and for a master `SRC`; for a non-master `SRC`, the same master from a scratch copy of the quilt in which `DEST`'s text stands at `SRC`'s path (DR-65).
 3. Compare `pdftotext -layout` outputs after collapsing runs of whitespace within each line and dropping empty lines. Equal: pass. Unequal: report the first differing line pair.
 4. Additionally compare the `.aux` label tables for the labels present in both; any label whose number changed is reported, and the test fails.
