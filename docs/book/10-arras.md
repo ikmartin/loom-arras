@@ -54,7 +54,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.3 Digest view
 
-**[decided]** `/digest/<citekey>`: the page for a cited work, digested or not. Its title and authors with BibTeX's braces and accent commands made readable; its outward links — each identifier at the service that resolves it (`doi:` at doi.org, `arXiv:` at arxiv.org, `mr:` at MathSciNet, `zbl:` at zbMATH), the bibliography's `url`, and the fetched PDF under `/refs/` when the manifest says it is there (DR-119), or, for a work stating no identifier, a lookup's candidate marked as unconfirmed (DR-122); then the digest fragment as a document (the reference's table of results), with provenance from the manifest's `references` entry, `requires`, version mismatch if any, and the list of keys in the quilt that cite each result. A result's page, in its locator (`Theorem 2.1, p. 4`), opens the fetched paper at that page when the copy on file is the version the digest was extracted from (10.4.1).
+**[decided]** `/digest`: the seventh view (DR-184), every cited work with what is known of it — cited by how many of the author's keys, results, proposals waiting on the author — filtered in the URL (`?show=proposed`, `digested`, `unread`); the list of proposals is this view filtered, not another page. **[decided]** `/digest/<citekey>`: the page for a cited work, digested or not. Its title and authors with BibTeX's braces and accent commands made readable; its outward links — each identifier at the service that resolves it (`doi:` at doi.org, `arXiv:` at arxiv.org, `mr:` at MathSciNet, `zbl:` at zbMATH), the bibliography's `url`, and the fetched PDF under `/refs/` when the manifest says it is there (DR-119), or, for a work stating no identifier, a lookup's candidate marked as unconfirmed (DR-122); then the digest fragment as a document (the reference's table of results), with provenance from the manifest's `references` entry, `requires`, version mismatch if any, and the list of keys in the quilt that cite each result. A result's page, in its locator (`Theorem 2.1, p. 4`), opens the fetched paper at that page when the copy on file is the version the digest was extracted from (10.4.1).
 
 ### 10.2.4 Review panel
 
@@ -70,7 +70,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.7 Graph
 
-**[decided]** `/graph`: the dependency graph in four drawings — Dots (force-directed), Box (results in layers), Sections (a card per section) and Reading Order (the document with dependency arcs) — chosen by one control that keeps the selection, the filters and the scope (15.5). In Box, what a result rests on sits above it; in Sections, a line between two cards carries every dependency behind it; in Reading Order, an arc reaches back from a result to what it rests on (DR-129).
+**[decided]** `/graph` draws what the author wrote: a node in a digest and in no document of the quilt is not drawn, since a hundred results from one wholesale extraction bury the author's forty (DR-184). **[decided]** `/graph`: the dependency graph in four drawings — Dots (force-directed), Box (results in layers), Sections (a card per section) and Reading Order (the document with dependency arcs) — chosen by one control that keeps the selection, the filters and the scope (15.5). In Box, what a result rests on sits above it; in Sections, a line between two cards carries every dependency behind it; in Reading Order, an arc reaches back from a result to what it rests on (DR-129).
 
 ### 10.2.8 Threads
 

@@ -1,0 +1,908 @@
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom init demos/mmp --from /Users/isaac/dev/loom-arras/tests/fixtures/2012.12270/slice4D.tex --prefix mmp --yes
+Resolving closure of slice4D.tex ... 13 files
+Plan, nothing written yet:
+  slice4D.tex -> canon/slice4D.tex (linearized, 1 files inlined)
+  custom.bst -> custom.bst
+  figures/DVhor.pdf_tex -> figures/DVhor.pdf_tex
+  figures/DVhor.pdf -> figures/DVhor.pdf
+  figures/slideK3.pdf_tex -> figures/slideK3.pdf_tex
+  figures/slideK3.pdf -> figures/slideK3.pdf
+  figures/NFT.pdf_tex -> figures/NFT.pdf_tex
+  figures/NFT.pdf -> figures/NFT.pdf
+  figures/K3.pdf_tex -> figures/K3.pdf_tex
+  figures/K3.pdf -> figures/K3.pdf
+  figures/RHTinCP.pdf_tex -> figures/RHTinCP.pdf_tex
+  figures/RHTinCP.pdf -> figures/RHTinCP.pdf
+Compiling original from a clean copy of /Users/isaac/dev/loom-arras/tests/fixtures/2012.12270 ... ok
+Wrote 12 files.
+Identity test: pass (pdftotext identical)
+Recorded: import as step 0001 (0001-slice4D)
+next: loom draft canon/slice4D.tex
+created quilt demos/mmp with prefix mmp
+wrote .gitignore, ignores:
+  build/ (everything loom can rebuild)
+  refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)
+  but not refs/**/pages/ or sections.json: the page text an anchor names is committed
+  all stray LaTeX files (.aux, .log, .bbl and the rest)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom draft canon/slice4D.tex --to drafting/main.tex --fix-anchoring --yes --quilt demos/mmp
+Plan, nothing written yet:
+  canon/slice4D.tex -> drafting/main.tex (68 ids)
+--- drafting/main.tex
++++ drafting/main.tex
+@@ -1,4 +1,5 @@
+ \documentclass[11pt]{amsart}
++\usepackage{loom}
+ \usepackage{amssymb}
+ \usepackage{graphicx}
+ %\usepackage{pinlabel}
+@@ -261,7 +262,7 @@
+ \maketitle
+ % ----------------------------------------------------------------
+ 
+-\section{Introduction}
++\section{Introduction}\label{mmp-0001}
+ A fundamental problem in four-dimensional topology is to find the minimal genus of embedded surfaces in a four-manifold, in a given homology class. For example, the Thom conjecture \cite{KM-thom} and the symplectic Thom conjecture \cite{os-thom} were problems of this type; their solutions rank among the major successes of gauge theory.
+ A relative version of the same problem concerns bounding the genus of properly embedded surfaces $\Sigma$ in a four-manifold $W$ with boundary, when $\del \Sigma$ is a given knot $K \subset \del W$ and the relative homology class of $\Sigma$ is fixed. 
+ 
+@@ -287,7 +288,7 @@
+ (See Theorem~\ref{thm:adjunction-g4} below.) Here and throughout the paper, $[\Sigma]^2$ is defined by identifying the two homology groups $H_2(\Xo, \del\Xo) \cong H_2(X)$; that is, $[\Sigma]^2 = [\Sigma \cup F]^2.$ 
+ 
+ A stronger bound can be obtained by taking $Z$ to be the cobordism associated to some surgery on $K$, and letting $F$ be the core of the $2$-handle. This improves the inequality \eqref{eq:adjunction-g4} to one involving the concordance invariant $\nu^+$ from knot Floer homology \cite{HW}. We obtain the following relative adjunction inequality (see Section \ref{sec:adj} for an introduction to $\Phi_{X, \s}$ and manifolds of Ozsv\'ath-Szab\'o simple type):
+-\begin{theorem}
++\begin{theorem}\label{mmp-0002}
+ \label{thm:adjunction-nu+}
+ Let $X$ be a closed 4-manifold, with $b_2^+(X)>1$. Let $\Sigma \subset \Xo$ be a smooth, properly embedded surface with $g(\Sigma) > 0$ and $\del \Sigma = K$, and let $\mK$ denote the mirror of $K$. Suppose that either  $[\Sigma]^2 \geq 2\nu^+(\mK)$ or $X$ is of Ozsv\'ath-Szab\'o simple type. Then, for every \spinc structure $\s \in \Spinc(X)$ for which the mixed invariant $\Phi_{X, \s}$ is non-zero, we have
+ \[
+@@ -295,7 +296,7 @@
+ \]
+ \end{theorem}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-0003}
+ A different relative adjunction inequality, in terms of the concordance invariant $\tau$, was proved by Ozsv\'ath and Szab\'o \cite[Theorem 1.1]{os-tau}. Theirs applies to surfaces in negative definite $4$-manifolds, whereas ours is for $4$-manifolds with $b_2^+(X) > 1$. 
+ \end{remark}
+ 
+@@ -305,14 +306,14 @@
+ 
+ Theorem~\ref{thm:adjunction-nu+} gives non-trivial obstructions for surfaces $\Sigma$ of positive genus and with $[\Sigma]\neq 0$, but does not say anything about H-sliceness in $X$. Instead, we can get constraints on H-sliceness by filling $\Xo$ with suitable symplectic manifolds, and using adjunction inequalities based on the Bauer-Furuta invariants:
+ 
+-\begin{theorem}
++\begin{theorem}\label{mmp-0004}
+ \label{thm:symp}
+ Let $X$ and $X'$ be closed symplectic $4$-manifolds satisfying $b_2^+(X) \equiv b_2^+(X') \equiv 3 \!\! \pmod{4}$. Suppose that a knot $K \subset S^3$ is such that the mirror $\mK$ bounds a smooth, properly embedded disk $\Delta \subset \Xo$ with $[\Delta]^2 \geq 0$ and $[\Delta] \neq 0$. Then $K$ is not H-slice in $X'$.
+ \end{theorem}
+ 
+ From here we obtain the following application.
+ 
+-\begin{corollary}
++\begin{corollary}\label{mmp-0005}
+ \label{cor:exotica}
+ There exist smooth, homeomorphic four-manifolds $X$ and $X'$ and a knot $K \subset S^3$ that is H-slice in $X$ but not in $X'$. For example, one can take $$X=\#3\CP \# 20 \bCP, \ \ X' = K3 \# \bCP,$$ and $K$ to be the right-handed trefoil. 
+ \end{corollary}
+@@ -325,7 +326,7 @@
+ 
+ The same techniques can be used to obstruct H-sliceness in other $4$-manifolds. We obtain:
+ 
+-\begin{theorem}
++\begin{theorem}\label{mmp-0006}
+ \label{thm:DV}
+ Let $K \subset S^3$ be an $H$-slice knot in a closed spin 4-manifold $X$, and let $W$ be a spin 2-handlebody with $\de W = S^3_0(K)$. If $b_2(X) + b_2(W) \neq 1, 3, 23$, then
+ \[
+@@ -335,7 +336,7 @@
+ 
+ In \cite[Section 3.2]{DonaldVafaee}, Donald and Vafaee applied their methods to show that a certain topologically slice knot, which we call $\KDV$ and reproduce in Figure \ref{fig:DV}, is not smoothly slice. Theorem~\ref{thm:DV} implies the following.
+ 
+-\begin{corollary}
++\begin{corollary}\label{mmp-0007}
+ \label{cor:DV}
+ The topologically slice knot $\KDV$ is not $H$-slice in the K3 surface.
+ \end{corollary}
+@@ -343,25 +344,25 @@
+ Note that this example is qualitatively different from that of the trefoil in $X'=K3 \# \bCP$, because $\KDV$ bounds a locally flat disk in a neighborhood of the boundary, i.e., in $S^3 \times [0,1]$. In the terminology of \cite{KlugRuppik}, $\KDV$ is topologically shallow slice in the K3 surface, whereas the trefoil is topologically deep slice in $X'$.
+ 
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-0008}
+ In unpublished work, Anthony Conway and Oliver Singh used the same technique to investigate topological versus smooth H-sliceness in $\#^n (S^2\times S^2)$. 
+ \end{remark}
+ 
+-\subsection{Conventions} All manifolds will be assumed to be compact and oriented. We also assume the manifolds and the embeddings of surfaces to be smooth unless otherwise stated.
+-
+-\subsection{Organization of the paper} In Section~\ref{sec:slice} we discuss the notions of slice and H-slice knots in four-manifolds, and give some examples. In Section~\ref{sec:top} we review several topological constraints on the existence of surfaces with boundary inside four-manifolds. In Section~\ref{sec:adj} we prove the relative adjunction inequality, Theorem~\ref{thm:adjunction-nu+}, along with Theorem~\ref{thm:symp} and Corollary~\ref{cor:exotica}. In Section~\ref{sec:DVT} we present the relative Donald-Vafaee obstruction, Theorem~\ref{thm:DV}, and prove Corollary~\ref{cor:DV}. Finally, in Section~\ref{sec:open} we list a few open problems.
+-
+-\subsection{Acknowledgments} We are grateful to Matt Hedden, Michael Klug, Maggie Miller, Benjamin Ruppik, and Ian Zemke for helpful conversations. We also thank Gordana Mati{\'c}, Anubhav Mukherjee, Kouichi Yasui, and the referee for comments on a previous version of the paper.
+-
+-
+-
+-
+-\section{Slice and H-slice knots}
++\subsection{Conventions}\label{mmp-0009} All manifolds will be assumed to be compact and oriented. We also assume the manifolds and the embeddings of surfaces to be smooth unless otherwise stated.
++
++\subsection{Organization of the paper}\label{mmp-000A} In Section~\ref{sec:slice} we discuss the notions of slice and H-slice knots in four-manifolds, and give some examples. In Section~\ref{sec:top} we review several topological constraints on the existence of surfaces with boundary inside four-manifolds. In Section~\ref{sec:adj} we prove the relative adjunction inequality, Theorem~\ref{thm:adjunction-nu+}, along with Theorem~\ref{thm:symp} and Corollary~\ref{cor:exotica}. In Section~\ref{sec:DVT} we present the relative Donald-Vafaee obstruction, Theorem~\ref{thm:DV}, and prove Corollary~\ref{cor:DV}. Finally, in Section~\ref{sec:open} we list a few open problems.
++
++\subsection{Acknowledgments}\label{mmp-000B} We are grateful to Matt Hedden, Michael Klug, Maggie Miller, Benjamin Ruppik, and Ian Zemke for helpful conversations. We also thank Gordana Mati{\'c}, Anubhav Mukherjee, Kouichi Yasui, and the referee for comments on a previous version of the paper.
++
++
++
++
++\section{Slice and H-slice knots}\label{mmp-000C}
+ \label{sec:slice}
+  Let $X$ be a closed, connected, smooth four-manifold, and consider properly embedded surfaces in 
+ $\Xo := X\setminus \intB.$
+ 
+-\begin{definition}
++\begin{definition}\label{mmp-000D}
+ (a) We say that a knot $K$ in $S^3 \cong \del \Xo$ is {\em slice in $X$} if it bounds a smoothly, properly embedded disk $\Delta  \subset \Xo$. 
+ 
+ (b) If $K$ is slice in $X$ and the disk $\Delta$ can be taken so that $[\Delta]=0 \in H_2(\Xo, \del \Xo) \cong H_2(X),$ we say that $K$ is {\em $H$-slice in $X$.} 
+@@ -384,12 +385,12 @@
+ 
+ Invariants from Floer homology and Khovanov homology can be used to obstruct H-sliceness in definite four-manifolds \cite{os-tau, km, MMSW, HR}.
+ 
+-\begin{example}
++\begin{example}\label{mmp-000E}
+ \label{ex:t1}
+ The left hand trefoil (LHT) is not H-slice in $\CP$, for example by the adjunction inequality for $\tau$ or $s$~\cite{os4, MMSW}.
+ \end{example}
+ 
+-\begin{example}
++\begin{example}\label{mmp-000F}
+ \label{ex:RHT}
+ On the other hand, the right-handed trefoil (RHT) is H-slice in $\CP$. One way to see this is to consider the standard handle diagram for $\CP$. After we remove the 0-handle and the 4-handle, we get a cobordism $\CP\setminus(\intB \sqcup \intB)$ from $S^3$ to $S^3$. Observe that there is a null-homologous annulus in $\CP\setminus(\intB \sqcup \intB)$ from LHT in $\partial^-(\CP\setminus(\intB \sqcup \intB))$ to the curve $\gamma$ in $\partial^+(\CP\setminus (\intB \sqcup \intB))$ shown in the left frame of Figure \ref{fig:RHTinCP}. The annulus is null-homologous because $\gamma$ has vanishing linking number with the 2-handle. Now observe that when we identify $\partial^+(\CP\setminus(\intB \sqcup \intB))$ with the standard diagram of $S^3$, as in the right of Figure \ref{fig:RHTinCP}, we can identify $\gamma$ as the unknot. Since the unknot bounds a disk in the 4-handle, we have found a nullhomologous disk in $\CP\setminus \intB$ with boundary LHT in $\partial^-(\CP\setminus \intB)$. Adjusting for the standard outward-normal-first orientation on boundaries, the claim follows.
+ \begin{figure}
+@@ -400,7 +401,7 @@
+ \end{example}
+ 
+ 
+-\begin{example}
++\begin{example}\label{mmp-000G}
+ \label{ex:t3}
+ Note that the red $+1$ framed unknot in Figure \ref{fig:RHTinCP} encircles a crossing of LHT, with linking number $0$. If we had instead considered a $-1$ framed unknot encircling a crossing of LHT, with linking number $\pm 2$, then we could argue exactly as in Example \ref{ex:RHT} that there is a cobordism in $\bCP\setminus(\intB \sqcup \intB)$ from LHT to the unknot, hence proving that RHT bounds a disk in $\bCP$. However in this setting the disk is in  homology class $\pm 2H$, where $H$ is a generator of $H_2(\bCP; \Z)$ (the $\pm$ ambiguity is depends on choices of strand orientation and generators of $H_2$, and is inconsequential for this discussion).  After a global change of orientation, we see that LHT bounds a disk in $\CP$ with homology class $\pm 2H$, where $H$ is a generator of $H_2(\CP; \Z)$.
+ \end{example}
+@@ -414,7 +415,7 @@
+ \label{fig:K3}
+ \end{figure}
+ 
+-\begin{example}
++\begin{example}\label{mmp-000H}
+ \label{ex:LHTinK3}
+ The left-handed trefoil LHT bounds a disk $\Delta \subset \KT \setminus \intB$ with $[\Delta]^2=0$ and $[\Delta] \neq 0$. To see this, as in Example \ref{ex:RHT}, we locate RHT in $\partial^-$ of the standard handle diagram of $\KT$ with the 0-handle removed. The core of the trefoil-shaped 2-handle in Figure \ref{fig:K3} is a disk in $\KT$ with boundary this RHT. Thus after correcting for outward normal first orientation we see that LHT bounds the desired disk in K3.  There are many ways to see that this disk is nullhomologous, for example after capping it with a Seifert surface one obtains a torus in $K3$ which has non-zero algebraic intersection with a $-2$ framed sphere embedded in $K3$. 
+ \end{example}
+@@ -441,7 +442,7 @@
+ The next lemma implies that the family $\Slice(\KT)$ of knots that are slice in $\KT$ is quite large.
+ We start by giving a definition.
+ 
+-\begin{definition}
++\begin{definition}\label{mmp-000I}
+ A knot $K_2$ is said to be obtained from a knot $K_1$ by adding a negative twist along $k$ strands if $K_1$ and $K_2$ admit knot diagrams that agree everywhere except in a small region where they appear as shown in Figure \ref{fig:NFT}.
+ \end{definition}
+ 
+@@ -453,7 +454,7 @@
+ 
+ 
+ 
+-\begin{lemma}
++\begin{lemma}\label{mmp-000J}
+ \label{lem:untwistingK3}
+ Let $K_0$, $K_1$, and $K_2$ be knots such that $K_{i}$ is obtained from $K_{i+1}$ by adding a negative full twist along $k_i$ strands, and suppose that $k_i \leq 5$. Then, there exists a smooth, connected, properly embedded surface $\Sigma \subset \KT\setminus\intB$ with $\de\Sigma = K_2$ and
+ \[
+@@ -476,7 +477,7 @@
+ \label{fig:slideK3}
+ \end{figure}
+ 
+-\begin{corollary}\label{cor:unknotting}
++\begin{corollary}\label{mmp-000K}\label{cor:unknotting}
+ Any knot $K$ with unknotting number $u(K) \leq 2$ is slice in $\KT$.
+ \end{corollary}
+ \begin{proof}
+@@ -484,13 +485,13 @@
+ Note that any crossing change can be realized by adding a negative full twist along 2 strands. By applying Lemma \ref{lem:untwistingK3}, we obtain a slice disk $\Sigma$ for $K$.
+ \end{proof}
+ 
+-\begin{example}
++\begin{example}\label{mmp-000L}
+ From Corollary \ref{cor:unknotting} we see that both trefoils are slice in K3. (See also Example \ref{ex:LHTinK3}.) However, note that neither trefoil is H-slice in K3; see Example~\ref{ex:torus} below.
+ \end{example}
+ 
+ The following lemma illustrates a way to construct H-slice knots in a general 4-manifold.
+ 
+-\begin{lemma}
++\begin{lemma}\label{mmp-000M}
+ \label{lem:Wh}
+ Let $X$ be a 4-manifold and let $K$ be a knot in $S^3$ which bounds a surface $\Sigma$ of genus $g$  in $\Xo$.
+ Then $\Wh^{\pm}_{-[\Sigma]^2}(K)$ bounds a homologically trivial embedded surface $\Wh^{\pm}_{-[\Sigma]^2}(\Sigma)$ of genus $2g$ in $\Xo$.
+@@ -500,7 +501,7 @@
+ We can remove these intersections by introducing twists into the cable; thus, we get a 2-component embedded surface with boundary $C_{2, -2[\Sigma]^2}(K)$, i.e.~so that the linking number of the two components is equal to $[\Sigma]^2$. By adding a twisted band to connect the two components we get a null-homologous embedded surface $\Wh^\pm_{-[\Sigma]^2}(\Sigma)$ with boundary $\Wh^\pm_{-[\Sigma]^2}(K)$.
+ \end{proof}
+ 
+-\begin{example}
++\begin{example}\label{mmp-000N}
+ By Lemma \ref{lem:Wh} applied to Example \ref{ex:LHTinK3}, we see that $\Wh^{\pm}_0($LHT) is H-slice in K3.
+ %\begin{itemize}
+ %\item $\Wh^{\pm}_0(LHT)$;
+@@ -511,11 +512,11 @@
+ 
+ 
+ 
+-\section{Topological obstructions}
++\section{Topological obstructions}\label{mmp-000O}
+ \label{sec:top}
+ We review here some constraints on the homology classes of surfaces embedded in topological four-manifolds.
+ 
+-\subsection{The Arf invariant}
++\subsection{The Arf invariant}\label{mmp-000P}
+ The Kirby-Siebenmann invariant $\ks(X) \in H^4(X; \Z/2)$ is an obstruction to smoothing topological manifolds; see \cite[p. 252]{KS}. When $X$ is a closed oriented topological $4$-manifold, then $\ks(X)$ is valued in $\Z/2$ and given by the formula 
+ \begin{equation}
+ \label{eq:ks}
+@@ -531,7 +532,7 @@
+ 
+ There is also a relative version of \eqref{eq:ks}, as follows.
+ 
+-\begin{theorem}
++\begin{theorem}\label{mmp-000Q}
+ \label{thm:FK}
+ Let $X$ be a  closed, connected, topological $4$-manifold. If $\Sigma \subset \Xo$ is a properly embedded, locally flat characteristic surface with boundary a knot $K$, then
+ \begin{equation}
+@@ -543,12 +544,12 @@
+ 
+ 
+ When $X$ is smooth, spin, and $\Sigma$ is a null-homologous disk, we have $\sigma(X) \equiv 0\!\! \pmod{16}$ by Rokhlin's theorem. We also have $\Arf(X, \Sigma)=0$, because $H_1(\Sigma; \Z/2)=0$. From \eqref{eq:ArfSigma}, we recover an old result of Robertello~\cite[p.~1-2]{robertello}:
+- \begin{theorem}[Robertello \cite{robertello}] 
++ \begin{theorem}[Robertello \cite{robertello}]\label{mmp-000R} 
+ \label{thm:Arf}
+ If a knot $K$ is topologically H-slice in a spin smooth $4$-manifold, then $\Arf(K)=0$.
+ \end{theorem}
+ 
+-\begin{example}
++\begin{example}\label{mmp-000S}
+ \label{ex:torus}
+ Recall that the Arf invariant of a knot $K$ can be read from the determinant $D(K) = |\Delta_K(-1)|$: we have $\Arf(K)=0 \iff D(K) \equiv \pm 1 \ \ \pmod{8}.$ For example, the torus knot $T_{2, 2k+1}$ has $D(T_{2, 2k+1}) = 2k+1$ and therefore $\Arf(T_{2, 2k+1})=0 \iff k \equiv 0$ or $3 \pmod{4}$. Thus, torus knots of the form $T_{2, 8k+3}$ and $T_{2,8k+5}$ are not H-slice in smooth spin $4$-manifolds.
+ \end{example}
+@@ -556,13 +557,13 @@
+ 
+   
+ 
+-\subsection{Levine-Tristram signatures} Given a knot $K \subset S^3$ and a value $\omega \in S^1$, the Levine-Tristram signature $\sigma_K(\omega)$ is defined as the signature of $(1-\omega)A + (1 -\overline{\omega}) A^T$, where $A$ is a Seifert matrix for $K$; see \cite{Tristram}, \cite{Levine}, or \cite{ConwaySurvey}.
++\subsection{Levine-Tristram signatures}\label{mmp-000T} Given a knot $K \subset S^3$ and a value $\omega \in S^1$, the Levine-Tristram signature $\sigma_K(\omega)$ is defined as the signature of $(1-\omega)A + (1 -\overline{\omega}) A^T$, where $A$ is a Seifert matrix for $K$; see \cite{Tristram}, \cite{Levine}, or \cite{ConwaySurvey}.
+ 
+ Following \cite{NP}, we denote by $\Se$ the set of unit complex numbers that are not zeros of any integral Laurent polynomial $p$ with $p(1)=1$. Note that $\Se$ includes, for example, roots of unity of order a prime power. The evaluations $\sigma_K(\omega)$ for $\omega \in \Se$ are knot concordance invariants; see \cite{NP}. In particular, for $\omega=-1$, we obtain the usual knot signature $$\sigma(K) :=\sigma_K(-1).$$
+ 
+ The following result is a special case of Theorem 3.8 in \cite{ConwayNagel}. 
+ 
+-\begin{theorem}[Conway-Nagel \cite{ConwayNagel}]
++\begin{theorem}[Conway-Nagel \cite{ConwayNagel}]\label{mmp-000U}
+ \label{thm:CN}
+ Let $X$ be a closed topological $4$-manifold with $H_1(X; \Z)=0$ and signature $\sigma(X)$. If the knot $K \subset S^3$ bounds a locally flat, properly embedded, null-homologous surface in $\Xo$ of genus $g$, then 
+ \begin{equation}
+@@ -576,14 +577,14 @@
+ $$\sigma_K(\omega) \in [-2b_2^+(X)-2g, 2b_2^-(X)+2g].$$
+ 
+ One case of interest is when $g=0$: 
+-\begin{corollary}[Corollary 4.7 in \cite{KlugRuppik}]
++\begin{corollary}[Corollary 4.7 in \cite{KlugRuppik}]\label{mmp-000V}
+ \label{cor:KR}
+ Let $X$ be a closed topological $4$-manifold with $H_1(X; \Z)=0$. If a knot $K$ is topologically H-slice in $X$, and $\omega \in \Se$, then $\sigma_K(\omega) \in [-2b_2^+(X), 2b_2^-(X)]$. 
+ \end{corollary}
+  As an application of this, Klug and Ruppik showed in \cite[Theorem 4.4]{KlugRuppik} that for every closed oriented topological $4$-manifold $X$, there exists a knot $K \subset S^3$ that is not topologically H-slice in $X$.
+ 
+ 
+-\subsection{Relative Rokhlin-type inequalities} 
++\subsection{Relative Rokhlin-type inequalities}\label{mmp-000W} 
+ Rokhlin \cite{Rokhlin} gave constraints on the homology classes of closed embedded surfaces inside $4$-manifolds, provided these homology classes are divisible by a prime. (Note that this includes the null-homologous case.) Rokhlin's results were used by Yasuhara in \cite{YasuharaExample, yasuhara} to prove the existence of non-slice knots in $\CP$. Rokhlin's results were also used by Klug and Ruppik in \cite{KlugRuppik} to show that every closed $2$-handlebody $X \neq S^4$ admits knots that are slice in $X$ but not slice in $S^4$.
+ 
+ 
+@@ -592,7 +593,7 @@
+ 
+ 
+ 
+-\begin{theorem}[Viro \cite{Viro2}, Gilmer \cite{Gilmer4}]
++\begin{theorem}[Viro \cite{Viro2}, Gilmer \cite{Gilmer4}]\label{mmp-000X}
+ \label{thm:rokhlin}
+ Let $X$ be a topological closed oriented $4$-manifold with $H_1(X; \Z)=0$ and with signature $\sigma(X)$. Let $\Sigma \subset \Xo$ be a locally flat, properly embedded surface of genus $g$, with boundary a knot $K\subset S^3$. If the homology class $[\Sigma] \in H_2(\Xo, \del \Xo) \cong H_2(X)$ is divisible by a prime power $m=p^k$, then 
+ \begin{equation}
+@@ -603,7 +604,7 @@
+ \end{theorem}
+ 
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-000Y}
+ When $[\Sigma]$ is $2$-divisible, taking $m=2$ in Theorem~\ref{thm:rokhlin} we get:
+ \begin{equation}
+ \label{eq:signature}
+@@ -611,20 +612,20 @@
+ \end{equation}
+ \end{remark}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-000Z}
+ Suppose $K$ is the unknot. After capping $K$ with a disk in $B^4$, the inequality \eqref{eq:Gsignature} for $r = \lfloor m/2 \rfloor$ gives Rokhlin's main theorem from \cite{Rokhlin}. 
+ \end{remark}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-0010}
+ When $\Sigma$ is null-homologous, Theorem~\ref{thm:rokhlin} reduces to the Conway-Nagel result (Theorem~\ref{thm:CN}) for $\omega=e^{2\pi r i/m}$.
+ \end{remark}
+ 
+ 
+ 
+-\section{Adjunction inequalities}
++\section{Adjunction inequalities}\label{mmp-0011}
+ \label{sec:adj}
+ 
+-\subsection{The adjunction inequality for closed surfaces in closed $4$-manifolds}
++\subsection{The adjunction inequality for closed surfaces in closed $4$-manifolds}\label{mmp-0012}
+ 
+ We start by reviewing the adjunction inequality from Seiberg-Witten theory, which gives genus bounds on smoothly embedded surfaces in $4$-manifolds.
+ 
+@@ -633,7 +634,7 @@
+ $$ d(\s) = \frac{c_1(\s)^2 - (2\chi(X) +3 \sigma(X))}{4},$$
+ is nonzero. It is known that complex projective surfaces and, more generally, symplectic $4$-manifolds are of simple type; cf.~\cite{Taubes1}, \cite{Taubes2}.
+ 
+-\begin{theorem}[\cite{KM-thom}, \cite{MST}, \cite{os-thom}]
++\begin{theorem}[\cite{KM-thom}, \cite{MST}, \cite{os-thom}]\label{mmp-0013}
+ \label{thm:SW-adjunction}
+ Let $X$ be a closed $4$-manifold with $b_2^+(X)>1$. Let $\Sigma \subset X$ be a smoothly embedded surface of genus $g(\Sigma) > 0$. Suppose that either
+ \begin{enumerate}[(a)]
+@@ -652,7 +653,7 @@
+ We say that $X$ is {\em of Ozsv\'ath-Szab\'o simple type} if $\Phi_{X,\s}=0$ whenever $d(\s) \neq 0$. 
+  It is expected that symplectic 4-manifolds are of Ozsv\'ath-Szab\'o simple type; see ~\cite[Conjecture 1.3]{JabukaMark}. In any case, we know that the K3 surface is of Ozsv\'ath-Szab\'o simple type by the calculation in \cite[Section 4]{os-symp}; see \cite{JabukaMark} for other examples.
+ 
+-\begin{theorem}[Ozsv\'ath-Szab\'o \cite{os4, os-symp}]
++\begin{theorem}[Ozsv\'ath-Szab\'o \cite{os4, os-symp}]\label{mmp-0014}
+ \label{thm:OSz-adjunction}
+ Let $X$ be a closed $4$-manifold with $b_2^+(X)>1$. Let $\Sigma \subset X$ be a smoothly embedded surface of genus $g(\Sigma) > 0$. Suppose that either
+ \begin{enumerate}[(a)]
+@@ -670,12 +671,12 @@
+ 
+ 
+ In Seiberg-Witten theory, there is also an adjunction inequality for embedded spheres:
+-\begin{theorem}[Fintushel-Stern \cite{FSimmersed}]
++\begin{theorem}[Fintushel-Stern \cite{FSimmersed}]\label{mmp-0015}
+ \label{thm:FS}
+ Let $X$ be a closed $4$-manifold with $b_2^+(X)>1$. Suppose that there exists a \spinc structure $\s$ with $SW_{X, \s} \neq 0$. Then, there exist no smoothly embedded spheres $\Sigma \subset X$ such that $[\Sigma]^2 \geq 0$ and $[\Sigma]\neq 0$.
+ \end{theorem}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-0016}
+ The proof of Theorem~\ref{thm:FS} involves the blow-up formula and the finiteness of basic classes. Since the same results also hold in the Heegaard Floer setting (cf.~\cite[Theorems 1.4 and 3.3]{os4}), the adjunction inequality for spheres also holds if we replace the condition $SW_{X, \s} \neq 0$ with $\Phi_{X, \s} \neq 0$.
+ \end{remark}
+ 
+@@ -684,13 +685,13 @@
+ Intuitively, via the Pontryagin-Thom construction, this captures the framed cobordism class of the Seiberg-Witten moduli space. Unlike the Seiberg-Witten invariant, it can be nonzero even when $b_2^+(X)$ is even; see \cite{BF}, \cite{Bauer} for more details.
+ 
+ The following theorem was independently proved by Yasui \cite[Theorem 2.8]{Yasui} using Fr{\o}yshov's work \cite[Theorem 1.1]{Froyshov}, and by Khandhawit-Lin-Sasahira in \cite[Corollary 1.9]{KLS}.
+-\begin{theorem}[\cite{Yasui}, \cite{KLS}]
++\begin{theorem}[\cite{Yasui}, \cite{KLS}]\label{mmp-0017}
+ \label{thm:BFadj}
+ Let $X$ be a closed $4$-manifold with $b_2^+(X)>1$. Suppose that there exists a \spinc structure with $\BF_{X, \s} \neq 0$. Then, there exist no smoothly embedded spheres $\Sigma \subset X$ such that $[\Sigma]^2 \geq 0$ and $[\Sigma]\neq 0$.
+ \end{theorem}
+ 
+ 
+-\subsection{The adjunction inequality for closed surfaces in 4-manifolds with boundary}
++\subsection{The adjunction inequality for closed surfaces in 4-manifolds with boundary}\label{mmp-0018}
+ \label{sec:adj-bdy}
+ An inequality of this form was proved by Zemke \cite[Theorem 1.6]{ZemkeAdj}, assuming the map on $\mathit{CFL}^-$ is nonzero. Here we will prove a similar inequality involving mixed invariants.
+ 
+@@ -719,7 +720,7 @@
+ where $W = X \setminus \intB$ is seen as a cobordism from $S^3$ to $Y$.
+ 
+ 
+-\begin{definition}
++\begin{definition}\label{mmp-0019}
+ \label{def:relsimple}
+ Let $X$ be a smooth 4-manifold $X$ with $\de X = Y$ and $b_2^+(X)>1$.
+ We say that $X$ is \emph{of relative Ozsv\'ath-Szab\'o simple type} if $Y$ is a rational homology sphere and $\Phi_{X,\s}=0$ whenever $d(\s) \neq d(Y, \s|_Y)$. 
+@@ -729,7 +730,7 @@
+ Note that when $X$ is closed, then $X$ being of Ozsv\'ath-Szab\'o simple type (in the usual sense) is equivalent to $\Xo = X \setminus \intB$ being of relative Ozsv\'ath-Szab\'o simple type as in Definition~\ref{def:relsimple}.
+ 
+ 
+-\begin{theorem}
++\begin{theorem}\label{mmp-001A}
+ \label{thm:OSz-adjunction-bdy}
+ Let $X$ be a smooth $4$-manifold (possibly with boundary) and $b_2^+(X)>1$. Let $\Sigma \subset \Int(X)$ be a smoothly embedded closed connected surface of genus $g(\Sigma) > 0$. Suppose that either
+ 
+@@ -793,10 +794,10 @@
+ 
+ 
+ 
+-\subsection{Relative adjunction inequalities}
++\subsection{Relative adjunction inequalities}\label{mmp-001B}
+ We will be interested in surfaces with boundary in $4$-manifolds of the form $\Xo=X \setminus \intB$, where $X$ is closed. The adjunction inequality for closed surfaces (Theorem \ref{thm:OSz-adjunction}) has the following immediate consequence.
+ 
+-\begin{theorem}
++\begin{theorem}\label{mmp-001C}
+ \label{thm:adjunction-g4}
+ Let $\Sigma \subset \Xo$ be a properly embedded surface with $g(\Sigma) + g_4(K) >0$, where $X$ is a closed 4-manifold with $b_2^+(X)>1$. 
+ Suppose that either
+@@ -831,7 +832,7 @@
+ 
+ {
+ \renewcommand{\thethm}{\ref{thm:adjunction-nu+}}
+-\begin{theorem}
++\begin{theorem}\label{mmp-001D}
+ Let $X$ be a closed 4-manifold, with $b_2^+(X)>1$. Let $\Sigma \subset \Xo$ be a properly embedded surface with $g(\Sigma) > 0$ and $\del \Sigma = K$, and let $\mK$ denote the mirror of $K$. Suppose that either  $[\Sigma]^2 \geq 2\nu^+(\mK)$ or $X$ is of Ozsv\'ath-Szab\'o simple type. Then, for every \spinc structure $\s \in \Spinc(X)$ for which the mixed invariant $\Phi_{X, \s}$ is non-zero, we have
+ \begin{equation}
+ \label{eq:adjunction-nu+}
+@@ -973,7 +974,7 @@
+ \]
+ so the inequality \eqref{eq:adjunction-nu+} is stronger than \eqref{eq:adj-g4}. On the other hand,  the inequality \eqref{eq:adjunction-nu+} says nothing about null-homologous surfaces, because $\nu^+(\mK) \geq 0$ is already automatic.
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-001E}
+ Theorem~\ref{thm:adjunction-nu+} should be compared to another relative adjunction inequality, due to Hedden and Raoux \cite{HR}. They proved that, if $X$ is a smooth, oriented four-manifold with boundary $Y$ and $\Sigma \subset X$ a properly smoothly embedded surface such that the relative element $F_{X, \s} \in \widehat{HF}(Y)$ is nontrivial, then
+ $$2 \tau(K) + \langle c_1(\s), [\Sigma]\rangle + [\Sigma]^2\leq 2g(\Sigma).$$
+ When $Y=S^3$, the hypotheses are only satisfied for negative definite $4$-manifolds, and we get the inequality 
+@@ -981,7 +982,7 @@
+ which was previously proved by Ozsv\'ath and Szab\'o \cite{os-tau}. 
+ \end{remark}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-001F}
+ \label{rem:mr}
+ In \cite{MR}, Mrowka and Rollin proved a genus bound for surfaces in four-manifolds with contact boundary. Specializing to the case when the boundary is $S^3$ (with its standard tight contact structure $\xi$), their result says that if $\Xo$ has non-trivial Seiberg-Witten invariant in the \spinc structure $\s$, relative to $\xi$, and $\Sigma \subset \Xo$ is a smoothly, properly embedded surface, then
+ \begin{equation}
+@@ -991,13 +992,14 @@
+ where $\slbar(K)$ is the maximal self-linking number of transverse knots in the isotopy class of $K$.
+ However, the Seiberg-Witten invariant of $\Xo$ is different from that of $X$. The Seiberg-Witten invariant of $X$ is conjectured to be the same as the Ozsv\'ath-Szab\'o mixed invariant. The Seiberg-Witten invariant of $\Xo$  is expected to correspond to the image of the cobordism map on $\HFp$ rather than the mixed map, and therefore should be non-trivial only when $X$ is negative definite. In fact, a version of \eqref{eq:MR} using the map on $\HFp$ was proved by Wu \cite{Wu}.
+ 
+-We note that the work in \cite{MR} was preceded by genus bounds in Stein manifolds \cite{AM, LM}. Another related result is a version of the symplectic Thom conjecture for manifolds with boundary, which was proved in \cite[Theorem 7.2.3]{Bowden} and \cite[Theorem 1.2]{GK}: If $X$ is a symplectic four-manifold with convex boundary, and $\Sigma \subset X$ is a symplectic surface with boundary a transverse knot $K \subset \del X$, then $\Sigma$ is genus minimizing in its relative homology class.\end{remark}
+-
+-
+-
+-\subsection{Applications}
+-
+-\begin{corollary}
++We note that the work in \cite{MR} was preceded by genus bounds in Stein manifolds \cite{AM, LM}. Another related result is a version of the symplectic Thom conjecture for manifolds with boundary, which was proved in \cite[Theorem 7.2.3]{Bowden} and \cite[Theorem 1.2]{GK}: If $X$ is a symplectic four-manifold with convex boundary, and $\Sigma \subset X$ is a symplectic surface with boundary a transverse knot $K \subset \del X$, then $\Sigma$ is genus minimizing in its relative homology class.
++\end{remark}
++
++
++
++\subsection{Applications}\label{mmp-001G}
++
++\begin{corollary}\label{mmp-001H}
+ \label{cor:spinsymp}
+ Let $X$ be the $\KT$ surface. If $\nu^+(\mK) = 0$, then the knot $K$ does not bound a positive self-intersection surface with genus $g(\Sigma)\leq1$ in $\Xo$.
+ \end{corollary}
+@@ -1006,7 +1008,7 @@
+ The $\KT$ surface has one basic class, namely  the \spinc structure satisfying $c_1(\s)=0$. If $g(\Sigma) = 1$, we can apply \eqref{eq:adjunction-nu+} to this case. If $g(\Sigma) = 0$, we stabilize $\Sigma$ once before applying \eqref{eq:adjunction-nu+}.
+ \end{proof} 
+ 
+-\begin{example}
++\begin{example}\label{mmp-001I}
+ By Theorem \ref{thm:adjunction-g4}, if $K$ is one of the trefoils or the figure-eight knot, then $K$ does not bound a disk $\Delta$ with $[\Delta]^2 > 0$ in the $\KT$ surface. 
+ 
+ Since the left-handed trefoil and the figure-eight knots have $\nu^+=0$, we get better bounds from Theorem \ref{thm:adjunction-nu+}. Indeed, by Corollary \ref{cor:spinsymp}, the right-handed trefoil or the figure-eight knot do not even bound a genus-1 surface $\Sigma$ with $[\Sigma]^2 > 0$ in $\KT$.
+@@ -1014,16 +1016,16 @@
+ More generally, by Theorem \ref{thm:adjunction-g4} we see that for $p,q>0$ and coprime, if the torus knot $T_{p,q}$ bounds a surface $\Sigma$ of genus $g$ inside $\KT$, then $[\Sigma]^2 \leq 2g-2+(p-1)(q-1)$. However, by Theorem \ref{thm:adjunction-nu+} we get a better bound, namely $[\Sigma]^2 \leq 2g-2$ (provided $g > 0$).
+ \end{example}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-001J}
+ The applications in this section were stated for the $\KT$ surface, but they apply just as well to any $4$-manifold with $b_2^+ > 0$ that admits a basic class $\mathfrak{s}$ with $c_1(\mathfrak{s}) = 0$; e.g. to any homotopy $\KT$ surface (see \cite{MorganSzabo}). 
+ \end{remark}
+ 
+ 
+ 
+ 
+-\subsection{An application using the Bauer-Furuta invariants}
+-
+-\begin{proposition}
++\subsection{An application using the Bauer-Furuta invariants}\label{mmp-001K}
++
++\begin{proposition}\label{mmp-001L}
+ \label{prop:bf}
+ Let $X$ be a smooth closed $4$-manifold with $b_2^+(X) \equiv 3 \!\! \pmod{4}$, admitting a \spinc structure $\s$ such that $d(\s)=0$ and $SW_{X,\s}$ odd. Let $X'$ be another $4$-manifold with the same properties. Suppose that a knot $K \subset S^3$ is such that the mirror $\mK$ bounds a smooth, properly embedded disk $\Delta \subset \Xo$ with $[\Delta]^2 \geq 0$ and $[\Delta] \neq 0$. Then $K$ is not H-slice in $X'$.
+ \end{proposition}
+@@ -1042,7 +1044,7 @@
+ 
+ {
+ \renewcommand{\thethm}{\ref{thm:symp}}
+-\begin{theorem}
++\begin{theorem}\label{mmp-001M}
+ Let $X$ and $X'$ be closed symplectic $4$-manifolds satisfying $b_2^+(X) \equiv b_2^+(X') \equiv 3 \!\! \pmod{4}$. Suppose that a knot $K \subset S^3$ is such that the mirror $\mK$ bounds a smooth, properly embedded disk $\Delta \subset \Xo$ with $[\Delta]^2 \geq 0$ and $[\Delta] \neq 0$. Then $K$ is not H-slice in $X'$.
+ \end{theorem}
+ \addtocounter{thm}{-1}
+@@ -1055,7 +1057,7 @@
+ 
+ {
+ \renewcommand{\thethm}{\ref{cor:exotica}}
+-\begin{corollary}
++\begin{corollary}\label{mmp-001N}
+ There exist smooth, homeomorphic four-manifolds $X$ and $X'$ and a knot $K \subset S^3$ that is H-slice in $X$ but not in $X'$. For example, one can take $$X=\#3\CP \# 20 \bCP, \ \ X' = K3 \# \bCP,$$ and $K$ to be the right-handed trefoil. 
+ \end{corollary}
+ \addtocounter{thm}{-1}
+@@ -1070,14 +1072,14 @@
+ Recall from Example~\ref{ex:LHTinK3} that the left-handed trefoil $\mK$ bounds a slice disk $\Delta$ in K3 with $[\Delta]^2 =0$ and $[\Delta] \neq 0$. Since both K3 and its blow-up $X'=K3 \# \bCP$ are complex projective surfaces (hence symplectic), we can apply Theorem \ref{thm:symp} to deduce that $K$ is not H-slice in $X'$.
+ \end{proof}
+ 
+-\section{Relative Donald-Vafaee obstructions}
++\section{Relative Donald-Vafaee obstructions}\label{mmp-001O}
+ \label{sec:DVT}
+ The following theorem is a generalization of the results of \cite{DonaldVafaee} and \cite{Truong} (who did the case $X=S^3$) to spin 4-manifolds.
+ 
+ 
+ {
+ \renewcommand{\thethm}{\ref{thm:DV}}
+-\begin{theorem}
++\begin{theorem}\label{mmp-001P}
+ Let $K \subset S^3$ be an $H$-slice knot in a closed spin 4-manifold $X$, and let $W$ be a spin 2-handlebody with $\de W = S^3_0(K)$. If $b_2(X) + b_2(W) \neq 1, 3, 23$, then
+ \[
+ b_2(X) + b_2(W) \geq \frac{10}{8} \cdot |\sigma(X) - \sigma(W)| + 5.
+@@ -1133,7 +1135,7 @@
+ \label{fig:DV}
+ \end{figure}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-001Q}
+ A version of Theorem~\ref{thm:DV} still holds if we allow $W$ to be any spin $4$-manifold with $\del W = S^3_0(K)$ instead of a $2$-handlebody. In that case, we obtain the weaker inequality
+ \[
+ b_2(X) + b_2(W) \geq \frac{10}{8} \cdot |\sigma(X) - \sigma(W)| + 4.
+@@ -1145,7 +1147,7 @@
+ 
+ {
+ \renewcommand{\thethm}{\ref{cor:DV}}
+-\begin{corollary}
++\begin{corollary}\label{mmp-001R}
+ Let $\KDV$ be the topologically slice knot in \cite[Figure 3]{DonaldVafaee}, which is the closure of the braid in Figure \ref{fig:DV}. Then $\KDV$ is not $H$-slice in the $\KT$ surface.
+ \end{corollary}
+ \addtocounter{thm}{-1}
+@@ -1160,7 +1162,7 @@
+ which is false.
+ \end{proof}
+ 
+-\begin{remark}
++\begin{remark}\label{mmp-001S}
+ What is really needed for Corollary~\ref{cor:DV} is the non-existence of a smooth, closed, simply connected $4$-manifold with intersection form $4(-E_8) \oplus 5 \left(\begin{smallmatrix}
+  0 & 1 \\ 1 & 0  \end{smallmatrix}\right)$. This does not quite follow from Furuta's $10/8 + 2$ theorem \cite{Furuta}, but it was known before the general $10/8 + 4$ theorem from \cite{HLSX}. Indeed, it is due to Furuta, Kametani and Matsue \cite{FKM2}.
+ \end{remark}
+@@ -1168,24 +1170,24 @@
+ 
+ 
+ 
+-\section{Open problems}
++\section{Open problems}\label{mmp-001T}
+ \label{sec:open}
+ 
+ Theorems~\ref{thm:Arf}, \ref{thm:CN}, \ref{thm:symp} and \ref{thm:DV} provide obstructions for a knot to be H-slice in an indefinite $4$-manifold. For example, H-slice knots $K$ in the K3 surface must satisfy $\Arf(K)=0$ and $\sigma_K(\omega) \in [-6, 38]$ for all $\omega \in \Se$. Theorems~\ref{thm:FK}, \ref{thm:rokhlin} and \ref{thm:adjunction-nu+} give additional constraints on the homology class of a slice disk in such a four-manifold. One can ask whether, by these and other methods, one can rule out all homology classes for a slice disk for a knot $K$ in an indefinite $4$-manifold, in the spirit of Yasuhara's proof that $T_{2,-15}$ is not slice in $\CP$ \cite{YasuharaExample}. In particular, we raise the following:  
+ 
+-\begin{question}
++\begin{question}\label{mmp-001U}
+ Is there a knot that is not slice in the K3 surface?
+ \end{question}
+ 
+ Also, we can ask whether the analogue of Corollary~\ref{cor:exotica} holds for slice knots (instead of H-slice knots).
+ 
+-\begin{question}
++\begin{question}\label{mmp-001V}
+ Can the set of slice knots detect exotic smooth structures? In other words, do there exist smooth, homeomorphic four-manifolds $X$ and $X'$ and a knot $K \subset S^3$ that is slice in $X$ but not in $X'$?
+ \end{question}
+ 
+ Finally, in view of Corollaries~\ref{cor:exotica} and \ref{cor:DV}, we propose the following problem.
+ 
+-\begin{question}
++\begin{question}\label{mmp-001W}
+ Is it true that for every closed $4$-manifold $X$, there is a knot $K$ that is topologically but not smoothly H-slice in $X$?
+ \end{question}
+ 
+Wrote drafting/main.tex
+Identity test: pass (pdftotext identical)
+Nodes: 16 Theorem, 11 Remark, 8 Example, 7 Corollary, 3 Definition, 3 Question, 2 Lemma, 1 Proposition; 6 sections, 11 subsections
+Proofs: 7 adjacent, 0 by reference, 0 by enclosure, 5 unattached
+References: 0 dangling; 30 citations with locators but no digest
+Recorded: draft (ledger line 2)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom atomize drafting/main.tex drafting/main-atomic.tex --sections --quilt demos/mmp
+Moved 68 nodes and 0 deferred proofs to nodes/
+Wrote drafting/main-atomic.tex (spine, 272 lines, was 1545)
+Identity test: pass (pdftotext identical)
+drafting/main.tex is now superseded: it defines nothing until `loom live drafting/main.tex` says otherwise
+main = drafting/main-atomic.tex
+Recorded: atomize (ledger line 3)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom canonize drafting/main-atomic.tex --to canon/slice4D-v1.tex -m Atomized --quilt demos/mmp
+Identity test: pass (pdftotext identical)
+Wrote canon/slice4D-v1.tex (flat, 1597 lines)
+step 0002 froze 58 keys (58 reached by drafting/main-atomic.tex, 0 elsewhere), 0 unchanged, parent unknown
+Recorded: canonize as step 0002 (0002-slice4D-v1)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom compile --quilt demos/mmp
+compiled drafting/main-atomic.tex -> build/main-atomic/ (pdflatex)
+wrote demos/mmp
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom init demos/kpsv --from /Users/isaac/dev/loom-arras/tests/fixtures/2605.29265/mZK_paper.tex --prefix kpsv --yes
+Resolving closure of mZK_paper.tex ... 1 files
+Plan, nothing written yet:
+  mZK_paper.tex -> canon/mZK_paper.tex (linearized, 0 files inlined)
+Compiling original from a clean copy of /Users/isaac/dev/loom-arras/tests/fixtures/2605.29265 ... ok
+Wrote 1 files.
+Identity test: pass (pdftotext identical)
+Recorded: import as step 0001 (0001-mZK_paper)
+next: loom draft canon/mZK_paper.tex
+created quilt demos/kpsv with prefix kpsv
+wrote .gitignore, ignores:
+  build/ (everything loom can rebuild)
+  refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)
+  but not refs/**/pages/ or sections.json: the page text an anchor names is committed
+  all stray LaTeX files (.aux, .log, .bbl and the rest)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom draft canon/mZK_paper.tex --to drafting/main.tex --fix-anchoring --yes --quilt demos/kpsv
+Plan, nothing written yet:
+  canon/mZK_paper.tex -> drafting/main.tex (29 ids)
+--- drafting/main.tex
++++ drafting/main.tex
+@@ -1,4 +1,5 @@
+ \documentclass[reqno, 10pt]{amsart}
++\usepackage{loom}
+ \usepackage{amssymb,amsmath,amsfonts,bm, mathtools,dsfont}
+ \usepackage{epsfig}
+ \usepackage{graphicx}
+@@ -128,7 +129,7 @@
+ \maketitle
+ \tableofcontents
+ 
+-\section{Introduction}\label{sec:intro}
++\section{Introduction}\label{kpsv-0001}\label{sec:intro}
+ 
+ In this work we will study the local well-posedness of the equation 
+ \begin{align}\label{eq:mZK}
+@@ -170,7 +171,7 @@
+ 
+ 
+ 
+-\subsection{Local Theory}
++\subsection{Local Theory}\label{kpsv-0002}
+  
+ 
+ Recently, Kenig, Nahmod, Pavlović, Staffilani, and Visciglia \cite{Kenig2025}, studied the well-posedness of the complex-valued mKdV \eqref{eq:mKdV}. 
+@@ -179,7 +180,7 @@
+ 
+ 
+ In order to state our result, we first define our notion of solution. 
+-\begin{definition}\label{def:strong solution}
++\begin{definition}\label{kpsv-0003}\label{def:strong solution}
+     We say that $u \in C([-T,T], H^s)$, $s > 0$ is a \textit{strong solution} of \eqref{eq:mZK} if 
+     \begin{align}
+         u(t) = W(t)u_0 + \int W(t- \tau)|u|^2\partial_{x_1}u(\tau)d\tau.
+@@ -189,7 +190,7 @@
+ 
+ Now, we can state the main local well-posedness result.
+ 
+-\begin{theorem}[Local well-posedness]\label{thm:lwp}
++\begin{theorem}[Local well-posedness]\label{kpsv-0004}\label{thm:lwp}
+     Assume $u_0 \in H^s(\T^2)$ for $s > \frac{5}{3}$. Then there exists a $T > 0$ and a unique strong solution $u \in C([-T,T],H^s)$ to the initial value problem for \eqref{eq:mZK} corresponding to $u_0$.
+ \end{theorem}
+ 
+@@ -213,10 +214,10 @@
+ 
+ Based on the results that are obtained for the real and complex valued KdV, we expect that the real valued version of the equation \eqref{eq:mZK} can be addressed using similar arguments. In fact, we expect potentially better behavior, including well-posedness at lower regularity via $X_{s,b}$-type spaces.
+ 
+-\subsection{Failure of Uniform Continuity for the mZK equation}
++\subsection{Failure of Uniform Continuity for the mZK equation}\label{kpsv-0005}
+ Lastly, inspired by the work of Linares, Panthee, Robert, and Tzvetkov \cite{Linares2019} on the ZK equation and the work of Herr \cite{Herr2006} on the derivative nonlinear Schr\"odinger equation, we show the failure of uniform continuity of solutions of \eqref{eq:mZK}. This is the content of Section \ref{sec:fail_unif_cont}.
+ 
+-\begin{theorem}\label{thm:failure}
++\begin{theorem}\label{kpsv-0006}\label{thm:failure}
+     Let $s > 5/3$. There exist two positive constants $c, C$ and two sequences $\{u_m\}$ and $\{v_m\}$ solutions to \eqref{eq:mZK} in $C([0,1]: H^s(\T^2))$ such that 
+     \begin{align}
+         \sup_{t \in [0,1]}\|u_m(t)\|_{H^s} + \|v_m(t)\|_{H^s} \leq C
+@@ -250,7 +251,7 @@
+ the Simons Laufer Mathematical Sciences Institute in Berkeley, California during the Fall 2025 semester.
+ The authors would like to thank the Simons Laufer Mathematical Institute for their kind hospitality.
+ 
+-\section{Local Theory}\label{sec:lwp}
++\section{Local Theory}\label{kpsv-0007}\label{sec:lwp}
+ 
+ In this section, we will prove Theorem \ref{thm:lwp}. First, we introduce and address the finite dimensional problem obtained by truncating in frequency. That is, for $N \in \N$, we consider the following Cauchy problem:
+ \begin{align}\label{eq:fin dim}
+@@ -273,7 +274,7 @@
+     \Pi_{> N}\left(\sum\limits_{n \in \Z^2}u_ne^{in\cdot x}\right) = \sum\limits_{|n| > N}u_ne^{in\cdot x}.
+ \end{align*}
+ 
+-\begin{remark}\label{rem:ODE wellposed}
++\begin{remark}\label{kpsv-0008}\label{rem:ODE wellposed}
+     For each $N,$ the Cauchy problem \eqref{eq:fin dim} is well-posed in $H^s$ for $s \geq 0$. This can be seen if we recognize that the solution $u_N$ can be expressed as 
+     \begin{align}
+         u_N = \Pi_Nu_N + \Pi_{> N}u_N,
+@@ -298,7 +299,7 @@
+ 
+ 
+  Next we show a local in time energy estimate that is uniform in $N$ for the flow $\Phi_N$ corresponding to \eqref{eq:fin dim}. 
+-\begin{lemma}\label{lem:energy bound}
++\begin{lemma}\label{kpsv-0009}\label{lem:energy bound}
+ Let $s > 1$. Then there exists $C > 0$ such that 
+ \begin{align}\label{eq:lem3.3}
+     \frac{d}{dt}\|J^s u_N\|_{L^2}^2 = \frac{d}{dt}\|J^s \Pi_N u_N\|_{L^2}^2 \leq C\left(\|J^s \Pi_Nu_N\|_{L^2}^3\|\nabla \Pi_Nu_N\|_{L^\infty} + \|J^s\Pi_Nu_N\|_{L^2}^4\right)
+@@ -396,7 +397,7 @@
+ 
+ Now we state a Strichartz estimate from \cite{Linares2019} which will be used below.
+ 
+-\begin{lemma}\label{lem:strichartz}
++\begin{lemma}\label{kpsv-000A}\label{lem:strichartz}
+     Let \[W(t)u_0 = \int_{\R}\sum\limits_{\mathbf{k} \in \Z^d} e^{i(\mathbf{k}\cdot \mathbf{x} + ( k_1^3 + k_1k_2^2)t)}\hat{u}_0(\mathbf{k})\] and 
+     \begin{align*}
+             \widehat{Q^0g(\mathbf{k})}: = \1_{[0, 1)}(|\mathbf{k}|)\hat{g}(\mathbf{k}), \quad &\widehat{Q^jg(\mathbf{k})}:=\1_{[2^{j-1},2^j)}(|\mathbf{k}|)\hat{g}(\mathbf{k})
+@@ -407,7 +408,7 @@
+ Lemma \ref{lem:strichartz} follows from Lemma 2.1 in \cite{Linares2019} by taking $N = 2^j$.  
+ 
+ We now leverage the integration in time with the Strichartz estimate given in Lemma \ref{lem:strichartz} in order to obtain a bound on $\nabla u_N$ in $L^1_tL^\infty(\T^2)$. 
+-\begin{proposition} \label{lem:lower s}
++\begin{proposition}\label{kpsv-000B} \label{lem:lower s}
+ Let $s > \frac{5}{3}$. Then for $0 < T \leq 1$,
+ \begin{align}
+     \|\nabla \Pi_Nu_N\|_{L^1([0,T];L^\infty_x)}\leq CT^{1/2}\left[\sup_{[0,T]}\|J^s\Pi_Nu_N(t)\|_{L^2_x} + T\sup_{[0,T]}\|J^s\Pi_Nu_N(t)\|_{L^2_x}^3\right].
+@@ -415,7 +416,8 @@
+ with $u_N = \Phi_Nu_0$ where $\Phi_N$ is the flow corresponding to \eqref{eq:fin dim}. 
+ \end{proposition}
+ 
+-\begin{proof} Let $s > \frac{5}{3}$.  
++\begin{proof}
++Let $s > \frac{5}{3}$.  
+ Since the goal is the estimate $\|\nabla \Pi_Nu_N\|_{L^1([0,T];L^\infty_x)}$ we introduce $v_N: = \nabla \Pi_N u_N$ and $f_N := \Pi_N(|\Pi_Nu_N|^2\partial_{x_1} \Pi_Nu_N)$. Then, thanks to \eqref{eq:fin dim}, we can write the equation for $v_N$ as follows: 
+ \begin{align}\label{eq:v equation}
+     \partial_t v_N + \partial_{x_1}\Delta v_N = \nabla f_N.
+@@ -502,7 +504,7 @@
+ for $s > \frac{5}{3}.$
+ \end{proof}
+ 
+-\begin{remark}
++\begin{remark}\label{kpsv-000C}
+     We note that in the proof of Lemma \ref{lem:lower s} we did not make use of the truncation of the finite dimensional problem \eqref{eq:fin dim}. Thus, we can use an identical argument for $u$ that solves the mZK equation \eqref{eq:mZK}, to show that 
+     \begin{align}\label{eq:L1Linf for mZK}
+         \|\nabla u\|_{L^1([0,T];L^\infty_x)} \leq CT^{1/2}\Big[\sup\limits_{[0,T]}\|J^su(t)\|_{L^2_x} + T\sup\limits_{[0,T]}\|J^su(t)\|_{L^2_x}^3\Big].
+@@ -511,7 +513,7 @@
+ 
+ 
+ 
+-\begin{lemma} \label{lem:local time}
++\begin{lemma}\label{kpsv-000D} \label{lem:local time}
+    Let $s > \frac{5}{3}$. Then there exists a $T > 0$ depending on $s$ and $\|J^su_0\|_{L^2}$ such that 
+     \begin{align}\label{eq:N apriori bound}
+             \sup_{[0,T]}\|J^s\Pi_Nu_N(t)\|_{L^2} \leq 2\|J^s \Pi_Nu_0\|_{L^2}.
+@@ -562,7 +564,7 @@
+ 
+ 
+ We obtain the following as an immediate corollary of the previous lemma.
+-\begin{corollary} \label{cor:local time}
++\begin{corollary}\label{kpsv-000E} \label{cor:local time}
+    Let $s > \frac{5}{3}$. Then there exists a $T > 0$ depending on $s$ and $\|J^su_0\|_{L^2}$ such that 
+     \begin{align}\label{eq:apriori bound}
+             \sup_{[0,T]}\|J^s\Pi_Nu_N(t)\|_{L^2} < 2\|J^s u_0\|_{L^2}.
+@@ -571,7 +573,7 @@
+ \end{corollary}
+ 
+ 
+-\subsection{Towards the proof of Theorem \ref{thm:lwp} and the proof itself}
++\subsection{Towards the proof of Theorem \ref{thm:lwp} and the proof itself}\label{kpsv-000F}
+ 
+ 
+ 
+@@ -581,7 +583,7 @@
+ We wish to pass to the limit of the finite dimensional problem. To do this we will need the following lemma. We are motivated by the work \cite{Kenig2025}. 
+ 
+ 
+-\begin{lemma}\label{lem: towards existence}
++\begin{lemma}\label{kpsv-000G}\label{lem: towards existence}
+ Let $\{u_{N,0}\}$ be a sequence in $H^s$, with $s > \frac{5}{3}$, such that 
+ \begin{align}
+     u_{N,0} \overset{N\to \infty}{\longrightarrow} u_0\text{ in $L^2$ and }\sup_{N}\|u_{N,0}\|_{H^s} = S < \infty.
+@@ -645,7 +647,7 @@
+ With this lemma in hand, we can prove the local existence of a strong solution! 
+ 
+ 
+-\begin{proposition}[Existence]\label{prop:existence}
++\begin{proposition}[Existence]\label{kpsv-000H}\label{prop:existence}
+     Let $s > \frac{5}{3}$. Then for every $u_0 \in H^s$ there exists a strong solution $u \in C([-T,T], H^s)$ to \eqref{eq:mZK} where $T$ is given in Lemma \ref{lem:local time}. 
+ \end{proposition}
+ 
+@@ -753,7 +755,7 @@
+         To prove this, replace the initial data of the truncated initial value problem with $u_N(\overline{t}) = u(\overline{t})$ and repeat the argument for Claim 2. 
+     \end{enumerate}
+ \end{proof}
+-\begin{proposition}[Uniqueness]
++\begin{proposition}[Uniqueness]\label{kpsv-000I}
+ Let $s > \frac{5}{3}$ and $T > 0$. Suppose $u,v \in C([0,T],L^2)\cap L^\infty([0,T],H^s)$ are two solutions of \eqref{eq:mZK} with $u(0) = v(0)$. Then $u(t)= v(t)~\forall~ t\in [-T,T]$.    
+ \end{proposition}
+ 
+@@ -829,7 +831,7 @@
+ \end{proof}
+ 
+ 
+-\section{Failure of uniform continuity}\label{sec:fail_unif_cont}
++\section{Failure of uniform continuity}\label{kpsv-000J}\label{sec:fail_unif_cont}
+ 
+ 
+ 
+@@ -1083,9 +1085,9 @@
+ \end{proof}
+ 
+ \appendix
+-\section{An auxiliary lemma}
+-
+-\begin{lemma}\label{lem:sq}
++\section{An auxiliary lemma}\label{kpsv-000K}
++
++\begin{lemma}\label{kpsv-000L}\label{lem:sq}
+ If $s > 1$ then \[\|J^s(|f|^2)\|_{L^2(\T^2)} \leq \|J^s f\|_{L^2(\T^2)}^2.\]
+ \end{lemma}
+ 
+@@ -1269,18 +1271,18 @@
+ 
+  \end{proof}
+ 
+- \section{Kato-Ponce Estimate on $\T^d$} \label{sec:apB}
++ \section{Kato-Ponce Estimate on $\T^d$}\label{kpsv-000M} \label{sec:apB}
+ 
+ 
+ 
+ This section is devoted to the Kato-Ponce estimate \cite{KatoPonce} on $\T^d = \R^d\backslash (2\pi \Z)^d$ expressed in terms of the multiplier $J^s$ \eqref{eq:Js on torus} for $s > \frac{d}{2}$, (see Lemma \ref{lem:KP}). As mentioned in the introduction, our approach is inspired by the proof of the Kato-Ponce estimate on $\T$ obtained by Kenig and Ionescu \cite{IoKe2007} and a transference principle formulated and proved by Roncal and Stinga \cite{RoncalStinga} for the fractional laplacian. However, since we prove the Kato-Ponce estimate for the multiplier $J^s$, we will first formulate and prove a transference formula for $J^s$. 
+ 
+ 
+- \subsection{Transference Formula for $J^s$}
++ \subsection{Transference Formula for $J^s$}\label{kpsv-000N}
+     The point $(e^{iz_1},\dots, e^{iz_d}) \in \T^d$ is uniquely identified with $z = (z_1,\dots, z_d) \in Q_d : = (-\pi,\pi]^d$. 
+  Following the example of Roncal and Stinga \cite{RoncalStinga} we define two operators. 
+ 
+- \begin{definition}\label{def:rep and period}
++ \begin{definition}\label{kpsv-000O}\label{def:rep and period}
+      For a function $v$ on $\T^d$ we define its \textit{repetition} $Rv:\R^d \to \R$ by 
+      \begin{align}
+          (Rv)(x) = \sum\limits_{k \in \Z^d}v(x - 2\pi k)\1_{Q_d}(x - 2\pi k), \qquad x \in \R^d.
+@@ -1293,7 +1295,8 @@
+      \end{align}
+  \end{definition}
+ Now we are ready to state the Transference Formula on $\T^d$. 
+- \begin{proposition}[Transference Formula] \label{prop:transference} Let $J^s_{\T^d}$ be as defined in \eqref{eq:Js on torus} and 
++ \begin{proposition}[Transference Formula]\label{kpsv-000P} \label{prop:transference}
++Let $J^s_{\T^d}$ be as defined in \eqref{eq:Js on torus} and 
+  \begin{align*}
+      \widehat{J^s_{\R^d}g}(\xi) = (1 + |\xi|^2)^{s/2}\hat{g}(\xi).
+  \end{align*}
+@@ -1309,8 +1312,9 @@
+      That is, when evaluated on periodizations of Schwartz functions, the periodic distribution of $J^s_{\T^d}v$ coincides with $J^s_{\R^d}(Rv)$ in the sense of distributions. 
+  \end{enumerate} 
+  \end{proposition}
+-\begin{remark}
+-  In the above proposition we show a transference formula analogous to the one of Roncal and Stinga for the fractional laplacian \cite{RoncalStinga}. However, in the case of $J^s$ for $s \geq 1$ rather than the fractional laplacian, Proposition \ref{prop:transference} does not require an assumption on the decay of the Fourier coefficients of $v$. \end{remark}
++\begin{remark}\label{kpsv-000Q}
++  In the above proposition we show a transference formula analogous to the one of Roncal and Stinga for the fractional laplacian \cite{RoncalStinga}. However, in the case of $J^s$ for $s \geq 1$ rather than the fractional laplacian, Proposition \ref{prop:transference} does not require an assumption on the decay of the Fourier coefficients of $v$.
++\end{remark}
+  \begin{proof}
+ 
+ \begin{enumerate}[label = (\alph*)]
+@@ -1367,7 +1371,7 @@
+ \end{enumerate}
+  \end{proof}
+ 
+-\begin{lemma}\label{lem:periodization}
++\begin{lemma}\label{kpsv-000R}\label{lem:periodization}
+      Let $h \in \mathcal{S}(\R^d)$. 
+      \begin{align}
+          \|p_\Sigma h\|_{L^2(\T^d)} \lesssim \|h\|_{L^2(\R^d)}
+@@ -1391,8 +1395,8 @@
+          & \leq \|h\|_{L^2(\R^d)}
+      \end{align*}
+ \end{proof}
+-\subsection{Statement and proof of Kato-Ponce estimate on $\T^d$}
+- \begin{lemma}[Kato-Ponce Inequality for $\T^d$]\label{lem:KP}
++\subsection{Statement and proof of Kato-Ponce estimate on $\T^d$}\label{kpsv-000S}
++ \begin{lemma}[Kato-Ponce Inequality for $\T^d$]\label{kpsv-000T}\label{lem:KP}
+     Let $s \geq 1$ and $f,g \in H^s(\T^d)$. Then 
+     \begin{align}\label{eq:KP for period}
+         \|J^s_{\T^d}(fg) - fJ_{\T^d}^sg\|_{L^2(\T^d)} \leq c\Big\{\|J^s_{\T^d}f\|_{L^2(\T^d)}\|g\|_{L^\infty(\T^d)} + (\|f\|_{L^\infty(\T^d)} + \|\nabla f\|_{L^\infty(\T^d)})\|J^{s-1}_{\T^d}g\|_{L^2(\T^d)}\Big\}.
+Wrote drafting/main.tex
+Identity test: pass (pdftotext identical)
+Nodes: 7 Lemma, 4 Proposition, 3 Remark, 2 Definition, 2 Theorem, 1 Corollary; 5 sections, 5 subsections
+Proofs: 10 adjacent, 1 by reference, 0 by enclosure, 0 unattached
+References: 0 dangling; 1 citations with locators but no digest
+Recorded: draft (ledger line 2)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom atomize drafting/main.tex drafting/main-atomic.tex --sections --quilt demos/kpsv
+Moved 29 nodes and 1 deferred proofs to nodes/
+Wrote drafting/main-atomic.tex (spine, 136 lines, was 1786)
+Identity test: pass (pdftotext identical)
+drafting/main.tex is now superseded: it defines nothing until `loom live drafting/main.tex` says otherwise
+main = drafting/main-atomic.tex
+Recorded: atomize (ledger line 3)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom canonize drafting/main-atomic.tex --to canon/mZK_paper-v1.tex -m Atomized --quilt demos/kpsv
+Identity test: pass (pdftotext identical)
+Wrote canon/mZK_paper-v1.tex (flat, 1829 lines)
+step 0002 froze 30 keys (30 reached by drafting/main-atomic.tex, 0 elsewhere), 0 unchanged, parent unknown
+Recorded: canonize as step 0002 (0002-mZK_paper-v1)
+$ /Users/isaac/dev/loom-arras/loom/.venv/bin/loom compile --quilt demos/kpsv
+compiled drafting/main-atomic.tex -> build/main-atomic/ (pdflatex)
+wrote demos/kpsv
+demos rebuilt

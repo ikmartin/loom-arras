@@ -284,7 +284,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "a6307b3e3c585be5dc285ee4242bdf9273cd78d23b73bca03725e94fa9941955",
+   "hash": "c8782627c51180c37276d9c6f89b86e97d426bb680427e3528d05cd9f278e897",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -296,7 +296,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "fed5dea990c11f8ee18e2d2d4a6a27e0fc3445606a1f9b28f008a2a09c0cc50e",
+   "hash": "9f84645498b149900a80c22cb6783948adcd28cdbe7980241ddb66bf9e16d467",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -308,7 +308,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "30f945f28a3da0debc9692156d36c3878fad41c92db95d64a8d816aca31a6037",
+   "hash": "601040217ab3e84e85f4639bc7884f561a0657c92ecec6bec47eeee86c0aebd6",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -2484,8 +2484,39 @@
    "uses": []
   }
  },
+ "links": [],
  "macros": {
   "default": [
+   {
+    "args": 0,
+    "body": "\\acute",
+    "name": "Acute"
+   },
+   {
+    "args": 0,
+    "body": "\\bar",
+    "name": "Bar"
+   },
+   {
+    "args": 0,
+    "body": "\\breve",
+    "name": "Breve"
+   },
+   {
+    "args": 0,
+    "body": "\\check",
+    "name": "Check"
+   },
+   {
+    "args": 0,
+    "body": "\\ddot",
+    "name": "Ddot"
+   },
+   {
+    "args": 0,
+    "body": "\\dot",
+    "name": "Dot"
+   },
    {
     "args": 0,
     "body": "\\operatorname{Fix}",
@@ -2498,8 +2529,28 @@
    },
    {
     "args": 0,
+    "body": "\\grave",
+    "name": "Grave"
+   },
+   {
+    "args": 0,
+    "body": "\\hat",
+    "name": "Hat"
+   },
+   {
+    "args": 0,
     "body": "\\operatorname{Hom}",
     "name": "Hom"
+   },
+   {
+    "args": 0,
+    "body": "\\tilde",
+    "name": "Tilde"
+   },
+   {
+    "args": 0,
+    "body": "\\vec",
+    "name": "Vec"
    },
    {
     "args": 1,
@@ -2518,6 +2569,36 @@
    "canon:widgets-v1": [
     {
      "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Fix}",
      "name": "Fix"
     },
@@ -2528,8 +2609,28 @@
     },
     {
      "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Hom}",
      "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
     },
     {
      "args": 1,
@@ -2540,6 +2641,36 @@
    "canon:widgets-v2": [
     {
      "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Fix}",
      "name": "Fix"
     },
@@ -2550,8 +2681,28 @@
     },
     {
      "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Hom}",
      "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
     },
     {
      "args": 1,
@@ -2562,6 +2713,36 @@
    "canon:widgets-v3": [
     {
      "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Fix}",
      "name": "Fix"
     },
@@ -2572,8 +2753,28 @@
     },
     {
      "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
      "body": "\\operatorname{Hom}",
      "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
     },
     {
      "args": 1,
@@ -2617,14 +2818,15 @@
     "proved": false,
     "settled": false
    },
-   "digest": null,
-   "external": false,
+   "digest": "Kre99",
+   "external": true,
    "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-sec-1.html",
    "id": "Kre99-sec-1",
    "incomplete": [],
    "kind": "section",
    "level": 1,
+   "locator": null,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -2650,14 +2852,15 @@
     "proved": false,
     "settled": false
    },
-   "digest": null,
-   "external": false,
+   "digest": "Kre99",
+   "external": true,
    "file": "digests/Kre99.tex",
    "fragment": "fragments/nodes/Kre99-sec-2.html",
    "id": "Kre99-sec-2",
    "incomplete": [],
    "kind": "section",
    "level": 1,
+   "locator": null,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -2743,14 +2946,15 @@
     "proved": false,
     "settled": false
    },
-   "digest": null,
-   "external": false,
+   "digest": "Kre99",
+   "external": true,
    "file": "digests/Kre99.tex",
    "fragment": "fragments/keys/digests%2FKre99.tex%23section%3A1.html",
    "id": "digests/Kre99.tex#section:1",
    "incomplete": [],
    "kind": "section",
    "level": 1,
+   "locator": null,
    "numbers": {},
    "parent": {},
    "proofs": [],
@@ -3832,7 +4036,7 @@
  "references": {
   "Har77": {
    "artifacts": {
-    "dir": "refs/work/5ac32442",
+    "dir": "digests/storage/work/5ac32442",
     "pdf": false,
     "source": false
    },
@@ -3846,6 +4050,8 @@
    ],
    "citekey": "Har77",
    "digest": null,
+   "proposed": null,
+   "results": {},
    "slug": "Har77",
    "version_mismatch": false,
    "work": "work:5ac32442",
@@ -3855,7 +4061,7 @@
   },
   "Kre99": {
    "artifacts": {
-    "dir": "refs/arxiv/math_9810166v2",
+    "dir": "digests/storage/arxiv/math_9810166v2",
     "pdf": false,
     "source": false
    },
@@ -3867,8 +4073,6 @@
     "year": 1999
    },
    "cited_by": [
-    "Kre99-setup",
-    "Kre99-thm-2.1",
     "sy-000A",
     "sy-0100"
    ],
@@ -3885,6 +4089,8 @@
     "published_as": "",
     "source": "arXiv:math/9810166v2"
    },
+   "proposed": null,
+   "results": {},
    "slug": "Kre99",
    "version_mismatch": false,
    "work": "arXiv:math/9810166v2",
@@ -3894,7 +4100,7 @@
   },
   "Man12": {
    "artifacts": {
-    "dir": "refs/arxiv/0805.2065v2",
+    "dir": "digests/storage/arxiv/0805.2065v2",
     "pdf": false,
     "source": false
    },
@@ -3907,6 +4113,8 @@
    "cited_by": [],
    "citekey": "Man12",
    "digest": null,
+   "proposed": null,
+   "results": {},
    "slug": "Man12",
    "version_mismatch": false,
    "work": "arXiv:0805.2065v2",
@@ -4353,6 +4561,10 @@
    "incomplete": {
     "color": "negative",
     "label": "incomplete"
+   },
+   "proposed": {
+    "color": "info",
+    "label": "proposed"
    },
    "stale": {
     "color": "warning",

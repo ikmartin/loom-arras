@@ -125,7 +125,7 @@ What became of them since is in `docs/work-queue/`, and three were not merely cu
 
 ## 13.4 Repositories and workspace
 
-**[decided]** The layouts as built. The workspace repository tracks `docs/`, `demos/` (the two committed quilts), and the files at its root; the tool repositories and the paper sources are gitignored.
+**[decided]** The layouts as built. The workspace repository tracks `docs/`, `demos/` (the three committed quilts), and the files at its root; the tool repositories and the paper sources are gitignored.
 
 ```
 loom-arras/                 workspace; a git repository tracking docs/, demos/, and the root files
@@ -149,6 +149,7 @@ loom-arras/                 workspace; a git repository tracking docs/, demos/, 
     README.md, build.py     build.py regenerates every quilt here, in an isolated environment
     demo/                   exactly what loom init --demo writes; committed
     synthetic/              the quilt the fixture is generated from, copied from loom/tests/quilts/synthetic; committed
+    showcase/               the quilt to open to see what loom does, copied from loom/tests/quilts/showcase; committed, its store PDFs included (DR-194)
     relloc/ man12/ acgs/    quilts built from the paper sources by build.py; gitignored
   loom/                     separate clone; own repository
   arras/                    separate clone; own repository
@@ -171,8 +172,8 @@ loom/                       GPL-3.0-or-later; NOTICE names the files ported from
     digest/                 extract, counters, importer, fetch
     ai/                     layout, orient, runs, promote, check
     assets/                 MIT-licensed shipped files, with their LICENSE
-      loom.sty  readme-contract.md
-      init/                 main.tex and the .gitignore template that loom init writes
+      loom.sty
+      init/                 main.tex, the .gitignore template and the README orientation that loom init writes
       demo/                 the demo quilt, with its AI layer initialised and one finished run
       ai/                   orientation.md  README.md  modes/ (blocks.md and the seven mode files)  vendor/ (root.md, claude/settings.json, claude/SKILL.md, claude/command.md)
       arras/                the vendored viewer bundle: index.html, _app/, robots.txt, README.md, VERSION naming the arras commit and interface version
@@ -181,7 +182,7 @@ loom/                       GPL-3.0-or-later; NOTICE names the files ported from
   tests/
     conftest.py             the shim on PATH, or the real toolchain for tex-marked tests; empty HOME and TeX trees for every test
     fake_latex/fake_tex.py  the shim
-    quilts/                 demo/, synthetic/, edge/<eight cases>/, each with EXPECTED-LINT.txt
+    quilts/                 demo/, synthetic/, showcase/, edge/<eight cases>/, each with EXPECTED-LINT.txt; sources/ holds what an author wrote, sources/showcase-works/ the invented cited works and the script that compiles them
     fixture/                vendored conformance snapshot with VERSION
     unit/                   scan/, records/, render/, and the command tests, all on the shim
     tex/                    the real toolchain, isolated

@@ -39,7 +39,13 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-33](WQ-33-the-proposed-document.md) | the proposed document: an agent assembling a revision | loom, arras | an agent proposes reordering a section and a per-node diff cannot show the result |
 | [WQ-34](WQ-34-write-surfaces.md) | writing through the editor and the viewer | loom, editors, arras | the author works a review without the terminal |
 | [WQ-36](WQ-36-annotation-bodies-beside-the-manifest.md) | annotation bodies beside the manifest rather than inside it | loom, arras | a manifest crosses a few megabytes because of annotation prose |
+| [WQ-37](WQ-37-digest-version-where-it-is-read.md) | a digest's version shown where an agent reads it | loom | fired 2026-09-19: an agent filed as a bug what `loom:unverified-locators` explained |
+| [WQ-38](WQ-38-digest-blocks-in-their-own-preamble.md) | a digest block rendered against the paper's own preamble | loom | a digest block the author needs shows a raw-TeX error box |
+| [WQ-39](WQ-39-mechanical-version-check.md) | a mechanical version check for extracted digests | loom | the author cites, with a locator, a result in a flagged digest that the cited version numbers differently |
+| [WQ-40](WQ-40-page-image-for-verified-results.md) | the page image beside a verified result | loom, arras | a verified result is found wrong and the PDF has to be opened to settle it |
+| [WQ-41](WQ-41-ranked-find.md) | ranking for `loom refs find` | loom | an agent reruns `refs find` three or more times in one query to narrow it |
+| [WQ-42](WQ-42-the-gradient-with-orientation-held.md) | measure the gradient with orientation held fixed | — | before the layer is claimed to make later questions cheaper outside the project |
 
-Nineteen active, twenty-six slots of headroom.
+Twenty-five active, twenty slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

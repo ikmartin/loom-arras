@@ -8,6 +8,7 @@ engine = "pdflatex"
 
 [refs]
 fetch = false
+resolve = false
 
 [lint]
 disable = []

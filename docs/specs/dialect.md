@@ -87,7 +87,7 @@ A labelled proof node carries `data-id` as well. `open` is a hint the viewer may
 <a class="ref ref-dangling" data-target="rl-0099">??</a>
 ```
 
-`href` values are hints for in-page anchors; the viewer resolves `data-target` through the manifest. `data-target` on `cite` is present only when a postnote resolved.
+`href` values are hints for in-page anchors; the viewer resolves `data-target` through the manifest. `data-target` on `cite` is present only when a postnote resolved. A `cite`'s text is the label the compiled document prints for the key (`[GP99]` for `graber-pandharipande_LocalizationVirtualClasses1999` under an alphabetic style), or the citekey when no compile records one; `data-citekey` is always the key.
 
 ### 2.9 Marks
 

@@ -22,7 +22,7 @@ All entries are **[decided]** unless marked.
 - default master : the master named by `config.toml [quilt] main`.
 - spine : a file consisting of prose, sectioning, and inclusion lines, produced by `atomize`. Not a distinct kind to the scanner; the word is descriptive.
 - `nodes/` : the directory `loom new` and `atomize` write node files to. A convention, not a rule.
-- `digests/` : the directory of digests. `refs/` holds fetched works, named by identifier, and is gitignored.
+- `digests/` : the directory of digests, with loom's store of other people's documents under `digests/storage/`, named by identifier. `refs/` is the author's seed space: the PDFs and `.bib` files they drop in for loom to read (8.16), and is gitignored.
 - `comments/<author-slug>/<date>` : the grouping key for what one person wrote on one day. A path-shaped **name**, not a directory: every annotation lives in `annotations/log.jsonl`, and nothing is written under `comments/`.
 - `ai/` : the optional AI layer: `orientation.md`, `modes/`, `runs/`.
 - `.loom/` : loom's own durable data: `state.toml` (the acceptance ledger) and `history/` (the history ledger, the step directories, and the content-addressed text store).
@@ -80,14 +80,14 @@ All entries are **[decided]** unless marked.
 
 ## 3.6 Digests
 
-- digest : a LaTeX file under `refs/` holding one cited paper's results as external nodes under the paper's outline, with a provenance header.
+- digest : a LaTeX file under `digests/` holding one cited paper's results as external nodes under the paper's outline, with a provenance header.
 - extraction : producing a digest mechanically from the reference paper's LaTeX source (`loom digest extract`).
 - ingest : the AI mode in which an agent produces or completes a digest from a PDF, or checks an extracted digest for missing dependencies.
 - postnote : the optional argument of `\cite`, as in `\cite[Theorem 4.1]{Man12}`.
 - postnote edge : an edge created by matching a postnote against a digest node's locator.
 - locator : the reference's own address for a result, recorded in the external node's title: `Theorem 4.1, p. 12`.
 - macro block : a `% !LOOM begin macros` ... `% !LOOM end macros` region in a digest holding the reference paper's macro definitions, applied inside a TeX group wherever the digest's text is used.
-- library quilt : a quilt with no masters, holding only `refs/`. The place digests are kept once per paper.
+- library quilt : a quilt with no masters, holding only digests and the store. The place digests are kept once per paper.
 
 ## 3.7 Build and interface
 

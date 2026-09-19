@@ -1,0 +1,17 @@
+\section{Markup that wants out}\label{hx-0100}
+
+Every fragment arras renders is injected with \verb|{@html}|. Anything below that survives conversion as markup rather than as text is a hole.
+
+\begin{theorem}[A title that closes its own tag: </h1><script>window.__pwned=1</script>]\label{hx-0001}
+The body closes the element it is in: </div></section><img src=x onerror="window.__pwned=2">
+and then opens one nobody asked for: <iframe src="https://example.invalid"></iframe>
+\end{theorem}
+
+% !LOOM tags: quote"inside, <b>bold</b>, javascript:alert(1)
+\begin{lemma}[An attribute that escapes its quotes]\label{hx-0002}
+The directive above puts a double quote and a tag inside a tag value. If a tag reaches an HTML attribute unescaped, the attribute ends early.
+\end{lemma}
+
+\begin{definition}[A link that is not http]\label{hx-0003}
+\href{javascript:window.__pwned=3}{a link}, and a work link to a scheme nobody serves: \href{loom:javascript:alert(1)}{another}.
+\end{definition}

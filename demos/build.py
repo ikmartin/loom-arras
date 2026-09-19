@@ -6,7 +6,7 @@ conformance fixture is made from; the quilts built from real papers are rebuilt 
 would run, in an environment that can read nothing but the fixture directory, TeX Live and poppler, so that a macro
 defined elsewhere on this machine can never make one of them work.
 
-    python demos/build.py [--skip-papers]
+    python demos/build.py [--skip-papers] [--papers NAME ...]
 """
 
 from __future__ import annotations
@@ -29,6 +29,8 @@ PAPERS = [
     ("relloc", "relloc", "draft3.tex", "rl", True),
     ("man12", "0805.2065", "virtual6.tex", "man", True),
     ("acgs", "1709.09864", "decomposition-formula.tex", "acgs", False),
+    ("mmp", "2012.12270", "slice4D.tex", "mmp", True),
+    ("kpsv", "2605.29265", "mZK_paper.tex", "kpsv", True),
 ]
 
 
@@ -59,25 +61,43 @@ def run(*args: str, env: dict[str, str] | None = None, cwd: Path = WS) -> None:
 
 def build_committed() -> None:
     run(str(VENV / "python"), str(LOOM / "scripts" / "gen_quilts.py"), "all", cwd=LOOM)
-    for name in ("demo", "synthetic"):
+    for name in ("demo", "synthetic", "showcase"):
         dest = HERE / name
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(LOOM / "tests" / "quilts" / name, dest)
-        if name == "demo":
-            # demos/demo is exactly what `loom init --demo` writes; the expected-lint file belongs to the test fixture
+        if name in ("demo", "showcase"):
+            # demos/demo is exactly what `loom init --demo` writes, and demos/showcase is a quilt to open rather
+            # than a fixture; the expected-lint file belongs to the test copy under loom/tests/quilts/
             (dest / "EXPECTED-LINT.txt").unlink(missing_ok=True)
         print(f"wrote demos/{name}")
+    _publish_showcase()
     run("sh", str(WS / "docs" / "specs" / "tools" / "refresh-fixture.sh"))
 
 
-def build_papers() -> None:
+def _publish_showcase() -> None:
+    """Compile and publish the showcase, so that a fresh clone opens the viewer on it with citation labels and page numbers.
+
+    Nothing this writes is committed -- `build/` is gitignored by the quilt -- so it is skipped where TeX is absent, and `loom build` runs anyway: the manifest, the fragments and the page images of a pending proposal need no TeX distribution.
+    """
+    env = isolated_env()
+    loom = str(VENV / "loom")
+    if shutil.which("latexmk"):
+        run(loom, "compile", "--quilt", "demos/showcase", env=env)
+    else:
+        print("latexmk is absent: the showcase is published without a compile, so citations show their keys", file=sys.stderr)
+    run(loom, "build", "--quilt", "demos/showcase", env=env)
+
+
+def build_papers(only: list[str] | None = None) -> None:
     if not FIXTURES.is_dir():
         print(f"{FIXTURES} is absent (the paper sources are uncommitted): skipping the paper quilts", file=sys.stderr)
         return
     env = isolated_env()
     loom = str(VENV / "loom")
     for name, fixture, master, prefix, sections in PAPERS:
+        if only and name not in only:
+            continue
         quilt = HERE / name
         if quilt.exists():
             shutil.rmtree(quilt)
@@ -95,17 +115,24 @@ def build_papers() -> None:
         run(loom, "compile", "--quilt", rel, env=env)
         print(f"wrote demos/{name}")
     digest = FIXTURES / "0805.2065" / "virtual6.tex"
-    if (HERE / "relloc").is_dir() and digest.is_file():
+    if (not only or "relloc" in only) and (HERE / "relloc").is_dir() and digest.is_file():
         run(loom, "digest", "extract", "manolache_VirtualPullbacks2012", str(digest), "--quilt", "demos/relloc", env=env)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--skip-papers", action="store_true", help="Only the two committed quilts and the fixture.")
+    ap.add_argument("--papers", nargs="+", metavar="NAME", help="Only these paper quilts; the committed quilts are left alone.")
     args = ap.parse_args()
-    build_committed()
-    if not args.skip_papers:
-        build_papers()
+    if args.papers:
+        unknown = sorted(set(args.papers) - {p[0] for p in PAPERS})
+        if unknown:
+            ap.error(f"no paper quilt named {', '.join(unknown)}")
+        build_papers(args.papers)
+    else:
+        build_committed()
+        if not args.skip_papers:
+            build_papers()
     print("demos rebuilt")
     return 0
 

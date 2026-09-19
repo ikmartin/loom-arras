@@ -2,9 +2,12 @@
 
 - `demo/`: exactly what `loom init --demo` writes in the current release. Committed.
 - `synthetic/`: the quilt that exercises every construct of the source contract and generates the conformance fixture in `docs/specs/fixture/`. Committed.
-- `relloc/`, `man12/`, `acgs/`: quilts built from real papers. Gitignored, because they contain the paper sources.
+- `showcase/`: the quilt to open when you want to see what loom does. An invented paper about balanced flows on finite quivers, two invented cited works with committed PDFs, a digest extracted from a source and a second built from verified proposals, annotations of every kind, severity and state, two runs and one discarded, a landmark history with a stamp, a fork and a revert, and the three faults a quilt can be left in. Committed, PDFs and all. Regenerate it after a feature lands: that is what keeps it a picture of loom today.
+- `relloc/`, `man12/`, `acgs/`, `mmp/`, `kpsv/`: quilts built from real papers. Gitignored, because they contain the paper sources.
 
-`build.py` rebuilds all of them. The two committed quilts come from `loom/scripts/gen_quilts.py`, which writes them by running loom's own commands on the source files under `loom/tests/quilts/sources/` — so they are what loom ships, and a test proves it (book 14.3). It then refreshes the conformance fixture and vendors it into both tool repositories.
+`build.py` rebuilds all of them. The three committed quilts come from `loom/scripts/gen_quilts.py`, which writes them by running loom's own commands on the source files under `loom/tests/quilts/sources/` — so they are what loom ships, and a test proves it (book 14.3). It then compiles and publishes the showcase, so that `demos/showcase/build/` is there to open, and refreshes the conformance fixture and vendors it into both tool repositories.
+
+The showcase alone commits the PDFs in its store (DR-194). Every cited work in it is invented and compiled from LaTeX in this repository by `loom/tests/quilts/sources/showcase-works/build.sh`, so the bytes are ours to publish, and committing them is what lets a fresh clone open the viewer with every `cited:` locator resolving to the page it names. Its own `.gitignore` carries the negation that makes that possible; no other quilt should.
 
 The paper quilts are rebuilt by running the commands an author runs:
 
@@ -20,4 +23,4 @@ Every one of them runs with an empty `HOME`, empty TeX trees, and a `PATH` holdi
 
 Each quilt holds **one definition of each node**. `nodes/` has the nodes, `drafting/main-atomic.tex` is the spine that includes them, and the history records that the spine superseded `drafting/main.tex`, so that file defines nothing until `loom live` says otherwise (book 17.12). Several documents in `drafting/` are welcome — they are different arrangements over the same nodes, as `synthetic/` shows with `main.tex` and `talk.tex` — but two live files defining one id leave that id conflicted, with no text, and `loom lint` says so.
 
-`python demos/build.py --skip-papers` stops after the committed quilts and the fixture, which is what a machine without the paper sources can do.
+`python demos/build.py --skip-papers` stops after the committed quilts and the fixture, which is what a machine without the paper sources can do. The showcase needs poppler, because `loom refs scan` reads the page text of the two PDFs it files; it does not need TeX, and without TeX it is published uncompiled, with citations showing their keys rather than `[Ard24]`.

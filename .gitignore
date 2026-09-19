@@ -9,5 +9,7 @@ demos/relloc-helpful/
 demos/relloc-hostile/
 demos/man12/
 demos/acgs/
+demos/mmp/
+demos/kpsv/
 .DS_Store
 ai/

@@ -27,16 +27,22 @@ relloc/
     rl-0004.proof.tex      a deferred proof moved by atomize
   digests/                 cited papers' results, written or extracted
     Man12.tex
-  refs/                    what was fetched for each cited work; gitignored, never scanned
-    arxiv/0805.2065v2/
-      src/                 the unpacked e-print
-      paper.pdf
+    bibliography.bib       the quilt's bibliography, gathered from the canon documents (8.15)
+  refs/                    the author's seed space: reference PDFs and .bib files they drop in; read, never written, gitignored (8.16)
+  digests/
+    storage/               loom's store of other people's documents (8.16); page text committed, PDFs not
+      arxiv/0805.2065v2/
+        src/               the unpacked e-print
+        paper.pdf
+        pages/
+      copied.json          every document ever copied, by content hash
     markas/2026-09-16.json
   ai/                      optional AI layer; see Chapter 11
     orientation.md
     modes/
     runs/
   retired/                 where atomize --retire moves a converted file, if asked; never scanned
+  notes/                   the author's reference material, not cited works; never scanned, committed
   .loom/                   loom's durable data
     state.toml             the acceptance ledger
     history/               the record of every key (Chapter 17)
@@ -52,10 +58,11 @@ relloc/
 Rules:
 
 1. **[decided]** A directory is a quilt if and only if it contains `config.toml` with a `[quilt]` table. Every loom command locates the quilt by walking up from the current directory (or from `--quilt PATH`, or from `$LOOM_QUILT`) to the nearest such file.
-2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/`, `.loom/`, `.claude/`, or a version-control or tooling directory (`.git/`, `node_modules/`, `.svelte-kit/`) at any depth, those under `ai/`, `refs/`, the canon directory, or `retired/` at the root, and those whose first twenty lines contain `% !LOOM ignore`. A document a conversion superseded is also not scanned, and that is recorded rather than written into the file (17.12). Run outputs and fetched sources are complete documents carrying the quilt's ids, not the quilt's text (DR-70).
-3. **[decided]** The scanner never infers anything from a file's location. `nodes/`, `digests/`, and the drafting directory are conventions: `loom new` writes to `nodes/`; digests are expected in `digests/` but are recognized by their `% !LOOM digest:` header wherever they sit; masters are recognized by `\documentclass`, but only within the drafting directory (rule 4.4.1). `refs/` and the canon directory are the exceptions, and both are exclusions rather than inferences: nothing under either is scanned at all, because nothing under either is authored — `refs/` holds what was fetched (DR-108), and the canon holds copies loom itself wrote of documents that are already in the quilt (DR-132).
+2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/`, `.loom/`, `.claude/`, or a version-control or tooling directory (`.git/`, `node_modules/`, `.svelte-kit/`) at any depth, those under `ai/`, `refs/`, `digests/storage/`, the canon directory, `retired/`, or `notes/` at the root, and those whose first twenty lines contain `% !LOOM ignore`. A document a conversion superseded is also not scanned, and that is recorded rather than written into the file (17.12). Run outputs and fetched sources are complete documents carrying the quilt's ids, not the quilt's text (DR-70).
+3. **[decided]** The scanner never infers anything from a file's location. `nodes/`, `digests/`, and the drafting directory are conventions: `loom new` writes to `nodes/`; digests are expected in `digests/` but are recognized by their `% !LOOM digest:` header wherever they sit; masters are recognized by `\documentclass`, but only within the drafting directory (rule 4.4.1). `refs/`, the canon directory and `notes/` are the exceptions, and all three are exclusions rather than inferences: nothing under any of them is scanned at all, because nothing under them is the quilt's source — `refs/` holds what was fetched (DR-108), the canon holds copies loom itself wrote of documents that are already in the quilt (DR-132), and `notes/` holds whatever the author keeps beside the project (DR-187).
 4. **[decided]** Local style files, class files, and preamble fragments live at the quilt root, because masters compile from the root and LaTeX resolves `\usepackage{base-macros}` and `\input{preamble}` against the current directory.
-5. **[decided]** The author's other files (figures, bibliography, data) live wherever they did in the original paper; `import` preserves the original layout except that the master itself arrives as one flat document in the canon directory (6.1).
+5. **[decided]** `notes/` is where the author keeps reference material that is not a cited work and belongs in no digest: a colleague's draft, an excerpt, a research note, in any format. It is in version control, loom never writes to it, and the orientation tells an agent to read it as context and never to cite, digest or propose from it (DR-187). Loom does not create it; the author does, when there is something to keep.
+6. **[decided]** The author's other files (figures, bibliography, data) live wherever they did in the original paper; `import` preserves the original layout except that the master itself arrives as one flat document in the canon directory (6.1).
 
 Example: a single-file author's quilt has `config.toml`, `loom.sty`, `refs.bib`, `drafting/main.tex`, and nothing else. It is a complete, valid quilt.
 
@@ -74,8 +81,8 @@ engine = "pdflatex"         # default engine; % !TEX program in a master overrid
 # history = ".loom/history" # where the record lives; read if written, never written by init
 
 [refs]
-fetch = false               # may loom fetch from arXiv for digest fetch
-resolve = false             # may loom look up identifiers at zbMATH Open and Crossref (8.9.1)
+fetch = false               # may loom fetch sources and PDFs of cited works (loom refs fetch, refs build); --fetch allows one run
+resolve = false             # may loom look up identifiers at zbMATH Open and Crossref (8.9.1); --resolve allows one run
 contact = ""                # optional address sent to Crossref, which routes lookups to its polite pool
 
 [lint]
@@ -83,11 +90,14 @@ disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched
 
 [ai]
 agent = ""                  # command loom ai start launches, if any
+
+[author]
+name = "Markas Hecht"       # who this quilt's records name; init asks for it, and writes it empty when nobody answers
 ```
 
 Rules:
 
-1. **[decided]** These are all the keys. Adding a key is a decision-record event and must pass principle P6 (config only for what the preamble cannot say). `history` is the one key `loom init` does not write: a quilt that never moves its record does not need a line saying where it is, and one that does can say so.
+1. **[decided]** `[author] name` is the one key here that is a person's: a quilt is usually one person's, and a record must not be signed by whichever machine or agent shell ran the command (DR-189). These are all the keys. Adding a key is a decision-record event and must pass principle P6 (config only for what the preamble cannot say). `history` is the one key `loom init` does not write: a quilt that never moves its record does not need a line saying where it is, and one that does can say so.
 2. **[decided]** `main` must name a file inside `drafting`. `drafts` is read as `drafting` in a quilt written before 0.9, with `loom:deprecated-config-key` (warning) and nothing moved; `drafting` wins when both are present, and `loom upgrade` renames the key in place. `prefix` must match the prefix grammar (Chapter 5). `engine` is one of the engines `latexmk` knows; it applies to a master only when the master has no `% !TEX program` line.
 3. **[decided]** `[lint] disable` accepts diagnostic codes from `specs/diagnostics.md`. Reserved codes cannot be disabled; publisher codes can.
 4. **[decided]** Unknown keys produce a warning, not an error, so that a newer quilt opens in an older loom.
@@ -104,8 +114,8 @@ name = "Markas Hecht"
 
 Rules:
 
-1. **[decided]** `loom accept` and `loom comment` need an author name. The resolution order is: `--author` on the command line; `[author] name` in the user config; `git config user.name` if git is present and configured; otherwise the command exits with code 2 and the message: `no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --author`.
-2. **[decided]** No interactive prompt, because agents run these commands.
+1. **[decided]** `loom accept` and `loom comment` need an author name. The resolution order is: `--author` on the command line; `[author] name` in the quilt's own `config.toml`; `[author] name` in the user config; `git config user.name` if git is present and configured; otherwise the command exits with code 2 and the message: `no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --author`. A quilt that states an `[author]` table settles the question by itself: an empty name there refuses, naming that file rather than the user config, and never falls through to git (DR-189). `loom init` writes the table, with `--author`'s value, or with the answer to the question it asks when a terminal is attached and `--yes` is absent, or empty (4.7, DR-191).
+2. **[decided]** No command that *needs* an author name asks for one, because agents run these commands: the order above either answers or refuses. `loom init` is the other case — it is setting the name, not spending it — and it asks once, under the rule of 4.7 that also governs the prefix (DR-191).
 3. **[decided]** `loom doctor` prints the resolved author name and its source. `loom init` creates the user config with a commented template if it does not exist and does not fail if it cannot.
 4. **[decided]** The user config may also set `[quilt] name`, `drafting`, `canon`, and `history`, which are a person's convention for their own directories rather than a quilt's contract; the quilt's own value wins wherever both say something. It has no other keys.
 
@@ -171,18 +181,18 @@ Rules:
 6. Everything a master needs is reachable from the root by `\input`, `\usepackage`, and `\bibliography`.
 7. `loom compile` mirrors Overleaf: `latexmk` from the root with an output directory and a clean environment.
 
-Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.loom/`, `ai/`, and `annotations/` are harmless), set `drafting/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
+Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/` and `digests/storage/`; `.loom/`, `ai/`, and `annotations/` are harmless), set `drafting/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
 
 ## 4.7 What `loom init` creates
 
 **[decided]** `loom init [DIR]` creates, in an empty or nonexistent `DIR` (default: the current directory):
 
-- `config.toml` with the keys of 4.2, `name` taken from the directory, and `main = "drafting/main.tex"`; `prefix` is taken from `--prefix`, otherwise asked for once when a terminal is attached and `--yes` is absent, otherwise the default `q` is taken.
+- `config.toml` with the keys of 4.2, `name` taken from the directory, and `main = "drafting/main.tex"`; `prefix` is taken from `--prefix`, otherwise asked for once when a terminal is attached and `--yes` is absent, otherwise the default `q` is taken. `[author] name` is taken from `--author` and asked for under the same rule, one question after the prefix; an empty answer, `--yes`, `--author ""` and a command with no terminal all write the key empty, which is a quilt waiting to be told rather than one signed by whichever machine ran `init` (DR-191). `--demo` asks neither question.
 - `loom.sty`.
 - `drafting/main.tex`, a minimal amsart master: `\documentclass{amsart}`, `\usepackage{amsmath,amssymb,amsthm}`, `\usepackage{loom}`, a `\newtheorem` block declaring theorem, lemma, proposition, corollary (plain), definition, example (definition), and remark (remark), numbered within section through the theorem counter, `\title{Untitled}`, `\begin{document}`, `\maketitle`, `\section{Introduction}`, `\end{document}`. With `--from`, no minimal master is written and the drafting directory starts empty: the paper arrives in the canon directory, and work begins with `loom draft` (6.3).
 - `nodes/` (empty), `digests/` (empty), `refs/` (empty), the canon directory (empty), and `.loom/history/` with an empty ledger, so that the allocator has a record to consult from the first day. **[decided]** No `comments/` directory: annotations have lived in `annotations/log.jsonl` since 0.10 and an empty directory carrying the old name told a reader review records were somewhere they are not (DR-170). No empty `[ai]` table either.
 - `.gitignore` containing `build/`, `refs/`, and the usual LaTeX artifact patterns (`*.aux *.log *.out *.bbl *.blg *.bcf *.run.xml *.toc *.fls *.fdb_latexmk *.synctex.gz *.pdf`), each anchored to the root and to the drafting directory so that a node file's neighbours are never matched. It is written whether or not the quilt is a repository, because it costs nothing and is right the day it becomes one, and `init` says what it ignores and why.
-- `README.md` containing the contract page (the same text as the loom README's contract section).
+- `README.md`, an orientation for the author (DR-190): what the drafting directory, the canon directory, `nodes/` and `refs/` each hold; the promise that a canon file is never edited, annotated or re-identified and is only ever read and copied somewhere else; the draft–canonize loop in three sentences with a worked example of the two commands; and the contract page as its last section, so the one-page summary of Chapter 5 is still in the quilt. It is written in this quilt's own directory names and id prefix, so nothing in it has to be translated.
 - the user config of 4.3, with a commented template, if it does not exist.
 - `git init`, **only** when `--git` is given, and then only if git is installed and the directory is not already inside a work tree; `init` says so when it happens. Loom uses version control for nothing: it never stages, commits, branches, tags, or reads history, and no command requires a quilt to be a repository. Making one is therefore the author's act, not the tool's (DR-105).
 
@@ -198,7 +208,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/` and `refs/`; `.lo
 2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal. The one exception is inside loom's own directory: `loom upgrade` moves `.loom/snapshots/` into the history's `texts/`, where the files are content-addressed and every reference still resolves.
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.
-5. Loom never touches the network unless the author has allowed it: `[refs] fetch = true` for `loom digest fetch`, `[refs] resolve = true` for `loom refs resolve` (DR-122). No other command does, `loom lint` included.
+5. Loom never touches the network unless the author has allowed it, in the config or on the command line: `[refs] fetch = true` or `--fetch` for `loom refs fetch` and the fetching step of `loom refs build`, `[refs] resolve = true` or `--resolve` for `loom refs resolve` and its step (DR-122, DR-176, DR-193). Both keys are written `false` by `loom init`, and a flag is one run's consent that changes no file. No other command does, `loom lint` included.
 6. Loom never runs a model.
 
 ## 4.9 Ignoring a file
