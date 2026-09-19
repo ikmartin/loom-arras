@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -161,3 +162,32 @@ def test_identity_reports_first_diff_and_label_numbers(tmp_path: Path) -> None:
     res2 = identity_test(p, "main.tex", renumbered, "main.tex", tmp_path / "scratch2")
     assert not res2.passed and res2.changed_numbers.get("lem:a") == ("2.1", "3.1")
     assert "lem:a: 2.1 -> 3.1" in res2.summary()
+
+
+BIBLATEX_PAPER = r"""\documentclass{article}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{refs.bib}
+\begin{document}
+See \cite{x}.
+\printbibliography
+\end{document}
+"""
+
+
+@pytest.mark.tex
+def test_import_neither_reads_nor_writes_the_authors_build_files(tmp_path: Path) -> None:
+    """latexmk under -outdir still reads and rewrites the .bbl its working directory holds, so an editor's leftovers decided the import check and were rewritten in the author's directory."""
+    if shutil.which("biber") is None:
+        pytest.skip("TeX tier: no biber on PATH")
+    p = tmp_path / "paper"
+    p.mkdir()
+    (p / "main.tex").write_text(BIBLATEX_PAPER)
+    (p / "refs.bib").write_text("@misc{x, title={X}, author={A. Author}, year={2000}}\n")
+    subprocess.run(["latexmk", "-dvi", "-interaction=nonstopmode", "main.tex"], cwd=p, capture_output=True, check=False)
+    (p / "main.bbl").write_text("")  # what a failed bibliography run leaves behind
+    before = {f.name: f.read_bytes() for f in p.iterdir()}
+    assert "main.fdb_latexmk" in before
+
+    r = run("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
+    assert r.exit_code == 0, r.output
+    assert {f.name: f.read_bytes() for f in p.iterdir()} == before

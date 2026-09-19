@@ -110,6 +110,23 @@ def test_import_writes_one_flat_canon_document(tmp_path: Path) -> None:
     assert (q / ".loom" / "history" / "0001-main" / "main.tex").read_text() == canon
 
 
+def test_import_leaves_the_paper_directory_and_no_scratch_behind(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """The check compiled the author's directory in place, and every identity test left its scratch directory in $TMPDIR."""
+    import tempfile
+
+    scratch = tmp_path / "tmp"
+    scratch.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+    p = paper_dir(tmp_path)
+    (p / "main.aux").write_text("stale")
+    (p / "main.fdb_latexmk").write_text("stale")
+    before = {f: f.read_bytes() for f in p.rglob("*") if f.is_file()}
+    r = run("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
+    assert r.exit_code == 0, r.output
+    assert {f: f.read_bytes() for f in p.rglob("*") if f.is_file()} == before
+    assert list(scratch.iterdir()) == []
+
+
 def test_import_refuses_an_existing_canon_document(tmp_path: Path) -> None:
     q = imported(tmp_path)
     p = tmp_path / "paper"

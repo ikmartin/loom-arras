@@ -122,8 +122,8 @@ def draft(
     dest.write_text(plan.text, encoding="utf-8")
     note(f"Wrote {dest_rel}")
     if not no_check:
-        scratch = Path(tempfile.mkdtemp(prefix="loom-identity-"))
-        ident = identity_test(root, canon_rel, root, dest_rel, scratch, quilt.config.engine)
+        with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
+            ident = identity_test(root, canon_rel, root, dest_rel, Path(tmp), quilt.config.engine)
         note(ident.summary())
         if not ident.passed and not ident.skipped:
             dest.unlink(missing_ok=True)
@@ -202,8 +202,8 @@ def _run_canonize(
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(text, encoding="utf-8")
     if not no_check:
-        scratch = Path(tempfile.mkdtemp(prefix="loom-identity-"))
-        ident = identity_test(root, doc_rel, root, to_rel, scratch, engine_for(result, doc_rel))
+        with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
+            ident = identity_test(root, doc_rel, root, to_rel, Path(tmp), engine_for(result, doc_rel))
         note(ident.summary())
         if not ident.passed and not ident.skipped:
             dest.unlink(missing_ok=True)
@@ -570,8 +570,8 @@ def linearize(
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(text, encoding="utf-8")
     if not no_check and spine_rel in result.masters:
-        scratch = Path(tempfile.mkdtemp(prefix="loom-identity-"))
-        ident = identity_test(root, spine_rel, root, to_rel, scratch, engine_for(result, spine_rel))
+        with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
+            ident = identity_test(root, spine_rel, root, to_rel, Path(tmp), engine_for(result, spine_rel))
         note(ident.summary())
         if not ident.passed and not ident.skipped:
             dest.unlink(missing_ok=True)

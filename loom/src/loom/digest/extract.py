@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import tempfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -30,7 +29,7 @@ from loom.scan.sections import SectionUnit, find_sections
 from loom.scan.source import read_source
 from loom.scan.tokenize import match_group, read_args
 from loom.tex.aux import AuxNumber, parse_aux
-from loom.tex.runner import compile_tex
+from loom.tex.runner import compile_tex, stage_sources
 
 ABBREV = {
     "theorem": "thm",
@@ -338,7 +337,7 @@ def extract_digest(
     report = ExtractReport(citekey=citekey, slug=slug)
     paper_dir = src.resolve().parent
     master_rel = src.name
-    found, _outside = closure_of(paper_dir, src.resolve())
+    found, outside = closure_of(paper_dir, src.resolve())
     files: dict[str, SourceFile] = {}
     for rel, path in found.items():
         if path.suffix.lower() in TEXT_EXTS:
@@ -361,14 +360,15 @@ def extract_digest(
 
     aux_numbers: dict[str, AuxNumber] = {}
     if compile:
-        outdir = Path(tempfile.mkdtemp(prefix="loom-extract-"))
-        res = compile_tex(paper_dir, master_rel, outdir, engine or closure.engine or "pdflatex", halt_on_error=False)
-        if res.aux is not None and res.aux.exists():
-            aux_numbers = parse_aux(res.aux.read_text(errors="replace"))
+        with tempfile.TemporaryDirectory(prefix="loom-extract-") as tmp:
+            staged = stage_sources(paper_dir, Path(tmp) / "src", outside)
+            eng = engine or closure.engine or "pdflatex"
+            res = compile_tex(staged, master_rel, Path(tmp) / "out", eng, halt_on_error=False)
+            if res.aux is not None and res.aux.exists():
+                aux_numbers = parse_aux(res.aux.read_text(errors="replace"))
         if not aux_numbers:
             report.numbering = "emulated"
             report.compile_error = res.errors[0] if res.errors else ("latexmk produced no .aux" if not res.ok else None)
-        shutil.rmtree(outdir, ignore_errors=True)
     else:
         report.numbering = "emulated"
 

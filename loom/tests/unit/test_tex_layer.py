@@ -257,6 +257,44 @@ def test_a_readable_pdf_is_not_a_failure(tmp_path: Path) -> None:
     )
     assert quiet.first_error == "latexmk exited 12 with no error line in b.log"
 
+    # a failing biber leaves no `! ` line; latexmk's own summary names it
+    stdout = "Collected error summary (may duplicate other messages):\n  biber out/b: Command for 'biber out/b' gave return code 2\n\nLatexmk: Sometimes, the -f option can be used\n"
+    biber = CompileResult(False, "pdflatex", tmp_path, 12, stdout, [], pdf, None, log)
+    assert biber.first_error == "latexmk exited 12: biber out/b: Command for 'biber out/b' gave return code 2"
+
+
+def test_stage_sources_leaves_the_build_products_behind(tmp_path: Path) -> None:
+    """A compile of the author's directory reads their editor's .bbl and .fdb_latexmk and rewrites them; the staged copy carries sources only."""
+    from loom.tex.runner import stage_sources
+
+    p = tmp_path / "shared" / "paper"
+    (p / "figs").mkdir(parents=True)
+    (p / ".git").mkdir()
+    for name in (
+        "main.tex",
+        "refs.bib",
+        "figs/a.pdf",
+        "main.aux",
+        "main.bbl",
+        "main.fdb_latexmk",
+        "main.synctex.gz",
+        ".git/HEAD",
+    ):
+        (p / name).write_text("x")
+    (tmp_path / "shared" / "macros.sty").write_text("x")
+
+    root = stage_sources(p, tmp_path / "stage", [str(p / ".." / "macros.sty")])
+    assert root == tmp_path / "stage" / "paper"
+    assert sorted(f.relative_to(root).as_posix() for f in root.rglob("*") if f.is_file()) == [
+        "figs/a.pdf",
+        "main.tex",
+        "refs.bib",
+    ]
+    assert (root / ".." / "macros.sty").is_file()  # ../macros still resolves from the copy
+
+    (p / "refs.bib").unlink()  # an arXiv-style source ships its .bbl and no .bib
+    assert (stage_sources(p, tmp_path / "stage2") / "main.bbl").is_file()
+
 
 def test_id_and_new_log_themselves_to_the_run(tmp_path: Path) -> None:
     """The orientation lists both among an agent's commands and says every command that takes --run logs the call (F7)."""

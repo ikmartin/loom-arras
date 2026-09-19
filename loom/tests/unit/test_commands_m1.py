@@ -157,7 +157,7 @@ def test_init_from_leaves_nothing_behind_when_the_import_fails(tmp_path: Path, m
 
     monkeypatch.setenv("FAKE_TEX_FAIL", "1")
     bad = run("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes")
-    assert bad.exit_code == 1 and "does not compile in its own directory" in bad.output
+    assert bad.exit_code == 1 and "does not compile from a clean copy" in bad.output
     assert not (tmp_path / "q").exists()
     assert "created quilt" not in bad.output  # nothing is announced that does not outlive the command
 

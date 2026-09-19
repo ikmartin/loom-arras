@@ -115,30 +115,33 @@ def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> Iden
         note(f"  {name} -> not copied; it lies outside the paper directory (loom:import-outside-tree)")
     if plan.exists:
         raise ContentError(f"{plan.canon_rel} exists; import never overwrites a canon document")
-    scratch = Path(tempfile.mkdtemp(prefix="loom-identity-"))
-    from loom.tex.runner import compile_tex
+    from loom.tex.runner import compile_tex, stage_sources
 
-    before = compile_tex(plan.paper_dir, plan.master_rel, scratch / "before", quilt.config.engine, halt_on_error=False)
-    if not before.ok:
-        raise ContentError(
-            f"the original does not compile in its own directory ({before.first_error}); fix it before importing"
-        )
-    note(f"Compiling original in {plan.paper_dir} ... ok")
-    if not yes:
-        if not sys.stdin.isatty():
-            raise EnvError("import needs confirmation; pass --yes")
-        click.confirm("Apply?", abort=True)
-    written = apply_import(quilt, plan)
-    note(f"Wrote {len(written)} files.")
     ident: IdentityResult | None = None
-    if check:
-        ident = identity_test(plan.paper_dir, plan.master_rel, root, plan.canon_rel, scratch, quilt.config.engine)
-        note(ident.summary())
-        if not ident.passed and not ident.skipped:
-            (root / plan.canon_rel).unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
+        scratch = Path(tmp)
+        # a copy without the author's build products: latexmk would otherwise read and rewrite them
+        staged = stage_sources(plan.paper_dir, scratch / "original", plan.outside)
+        before = compile_tex(staged, plan.master_rel, scratch / "before", quilt.config.engine, halt_on_error=False)
+        if not before.ok:
             raise ContentError(
-                f"the flat copy does not typeset as the original; {plan.canon_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway."
+                f"the original does not compile from a clean copy of {plan.paper_dir} ({before.first_error}); fix it before importing"
             )
+        note(f"Compiling original from a clean copy of {plan.paper_dir} ... ok")
+        if not yes:
+            if not sys.stdin.isatty():
+                raise EnvError("import needs confirmation; pass --yes")
+            click.confirm("Apply?", abort=True)
+        written = apply_import(quilt, plan)
+        note(f"Wrote {len(written)} files.")
+        if check:
+            ident = identity_test(staged, plan.master_rel, root, plan.canon_rel, scratch, quilt.config.engine)
+            note(ident.summary())
+            if not ident.passed and not ident.skipped:
+                (root / plan.canon_rel).unlink(missing_ok=True)
+                raise ContentError(
+                    f"the flat copy does not typeset as the original; {plan.canon_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway."
+                )
     history = load_history(quilt.history_dir)
     original = (plan.paper_dir / plan.master_rel).read_text(encoding="utf-8", errors="replace")
     entry = write_step(
@@ -388,16 +391,18 @@ def _atomize_keys(
 
 def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -> IdentityResult | None:
     """Identity test for a rewrite of SRC into DEST: a master SRC is compiled directly; otherwise the first master reaching SRC is compiled in a scratch copy of the quilt where DEST's text stands at SRC's path. None when no master reaches SRC."""
-    scratch = Path(tempfile.mkdtemp(prefix="loom-identity-"))
     if src_rel in result.masters:
-        return identity_test(root, src_rel, root, dest_rel, scratch, engine_for(result, src_rel))
+        with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
+            return identity_test(root, src_rel, root, dest_rel, Path(tmp), engine_for(result, src_rel))
     node = result.nodes.get(src_rel)
     masters = node.reached_by if node else []
     if not masters:
         note(f"Identity test: skipped (no master reaches {src_rel})")
         return None
     master = masters[0]
-    after = scratch / "quilt"
-    shutil.copytree(root, after, ignore=shutil.ignore_patterns("build", ".git", ".loom"))
-    (after / src_rel).write_text((root / dest_rel).read_text(encoding="utf-8"), encoding="utf-8")
-    return identity_test(root, master, after, master, scratch, engine_for(result, master))
+    with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
+        scratch = Path(tmp)
+        after = scratch / "quilt"
+        shutil.copytree(root, after, ignore=shutil.ignore_patterns("build", ".git", ".loom"))
+        (after / src_rel).write_text((root / dest_rel).read_text(encoding="utf-8"), encoding="utf-8")
+        return identity_test(root, master, after, master, scratch, engine_for(result, master))

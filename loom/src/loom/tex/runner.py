@@ -38,6 +38,9 @@ class CompileResult:
         """The first `! ` line of the log, which is what LaTeX calls an error; latexmk's closing advice is not one."""
         if self.errors:
             return self.errors[0]
+        summary = latexmk_summary(self.stdout)
+        if summary:
+            return f"latexmk exited {self.returncode}: {summary[0]}"
         if self.log is not None:
             return f"latexmk exited {self.returncode} with no error line in {self.log.name}"
         return (self.stdout.strip().splitlines() or ["latexmk failed"])[-1]
@@ -51,6 +54,73 @@ class CompileResult:
         if self.ok:
             return "ok"
         return "warnings" if self.pdf is not None and not self.errors else "failed"
+
+
+def latexmk_summary(stdout: str) -> list[str]:
+    """The lines under latexmk's "Collected error summary", which name a failing tool (biber, bibtex, makeindex) that leaves no `! ` line in the log."""
+    lines = stdout.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith("Collected error summary"):
+            out = []
+            for ln in lines[i + 1 :]:
+                if not ln[:1].isspace() or not ln.strip():
+                    break
+                out.append(ln.strip())
+            return out
+    return []
+
+
+BUILD_PRODUCTS = (
+    ".aux",
+    ".bbl",
+    ".bcf",
+    ".blg",
+    ".dvi",
+    ".fdb_latexmk",
+    ".fls",
+    ".idx",
+    ".ilg",
+    ".ind",
+    ".lof",
+    ".log",
+    ".lot",
+    ".nav",
+    ".out",
+    ".run.xml",
+    ".snm",
+    ".synctex.gz",
+    ".toc",
+    ".xdv",
+)
+
+
+def stage_sources(paper_dir: Path, dest: Path, outside: list[str] | tuple[str, ...] = ()) -> Path:
+    """Copy a paper directory into `dest` without its build products; returns the copy of `paper_dir`, the root to compile.
+
+    latexmk reads and rewrites a .bbl or .fdb_latexmk in its working directory even under -outdir, so compiling the author's directory in place both depends on their editor's leftovers and writes into it. Hidden directories are skipped; a .bbl is kept when the tree has no .bib, since an arXiv-style source ships only that. Files the paper reaches outside its directory (`outside`, as `closure_of` lists them) land at the same relative position, so `../macros` still resolves.
+    """
+    paper_dir = paper_dir.resolve()
+    reached = [Path(o).resolve() for o in outside if Path(o).is_file()]
+    anchor = Path(os.path.commonpath([paper_dir, *reached])) if reached else paper_dir
+    root = dest / paper_dir.relative_to(anchor)
+    has_bib = any(paper_dir.rglob("*.bib"))
+
+    def ignore(folder: str, names: list[str]) -> set[str]:
+        skip = set()
+        for n in names:
+            if n.startswith(".") and (Path(folder) / n).is_dir():
+                skip.add(n)
+            elif n.endswith(BUILD_PRODUCTS) and not (n.endswith(".bbl") and not has_bib):
+                skip.add(n)
+        return skip
+
+    shutil.copytree(paper_dir, root, ignore=ignore, symlinks=False)
+    for f in reached:
+        target = dest / f.relative_to(anchor)
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(f, target)
+    return root
 
 
 def which_latexmk() -> str | None:
