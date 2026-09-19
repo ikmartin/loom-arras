@@ -42,6 +42,11 @@
 		<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
 		<path d="M12 9v4" />
 		<path d="M12 17h.01" />
+	{:else if name === 'digest'}
+		<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H16l4 4v9" />
+		<path d="M16 2v4h4" />
+		<circle cx="11" cy="16" r="4" />
+		<path d="m20 22-2.5-2.5" />
 	{:else if name === 'references'}
 		<path d="m16 6 4 14" />
 		<path d="M12 6v14" />

@@ -201,15 +201,15 @@ test('the panes point at each other', async ({ page }) => {
 	await page.locator('.pane.left').evaluate((el) => (el.scrollTop = el.scrollHeight));
 	await page.waitForTimeout(200);
 	await finding.click();
-	await page.waitForTimeout(900); // smooth scrolling
-	expect(await mark.evaluate(inPane)).toBe(true);
+	// polled, not slept: smooth scrolling takes as long as the machine's load makes it take, and a fixed 900 ms passed
+	// alone and failed under the parallel suite
+	await expect.poll(() => mark.evaluate(inPane), { timeout: 5000 }).toBe(true);
 
 	// and a mark scrolls the report to its finding
 	await page.locator('.pane.right').evaluate((el) => (el.scrollTop = el.scrollHeight));
 	await page.waitForTimeout(200);
 	await mark.click();
-	await page.waitForTimeout(900);
-	expect(await finding.evaluate(inPane)).toBe(true);
+	await expect.poll(() => finding.evaluate(inPane), { timeout: 5000 }).toBe(true);
 });
 
 test('a comment session keeps the shape it had', async ({ page }) => {

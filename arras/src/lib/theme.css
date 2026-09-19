@@ -645,10 +645,20 @@ a.heading-link:focus {
 	content-visibility: auto;
 	contain-intrinsic-size: auto 1.2em;
 }
+/* Inline math is an inline box, which cannot be contained, so the rule above skips only displays: 30,000 of a whole paper's 37,000 math elements were still restyled by every settings click. The svg inside can be contained on its own. It keeps its size from its own width and height, so skipping it moves nothing, and it is aria-hidden, so nothing is lost to a screen reader. The clip margin is for the glyphs MathJax lets overhang the svg's box by a few pixels, which paint containment would otherwise cut. */
+.fragment mjx-container > svg {
+	content-visibility: auto;
+	overflow-clip-margin: 1em;
+}
+/* The hidden MathML beside it is what a screen reader reads, so it is never skipped: clipped to a pixel it is never on screen, and `auto` would drop every formula from the accessibility tree. It is invisible and out of flow, so its type can be fixed instead, and a change of face or size then stops at it rather than restyling and relaying 13,000 MathML elements. */
+.fragment mjx-assistive-mml {
+	font: 16px serif;
+}
 @media print {
 	.fragment > section,
 	.fragment .included,
-	.fragment mjx-container {
+	.fragment mjx-container,
+	.fragment mjx-container > svg {
 		content-visibility: visible;
 	}
 }

@@ -306,6 +306,38 @@ export interface Taxon {
   count: number;
 }
 
+export interface ResultRecord {
+  /** `proposed` (written, not yet vouched for) or `verified` (a person compared the rendering to the source text and accepted it). */
+  state: string;
+  level: number;
+  /** `mechanical` (parsed from a source), `anchored` (read from a page, re-checkable) or `declared` (no check available). */
+  class: string;
+  /** The page the statement was read from; 0 for a result parsed out of LaTeX. */
+  page: number;
+  /** The first twelve characters of the artifact's sha256, which is what the anchor names. */
+  artifact: string;
+  /** Every party who made or changed this result, in order. A record that credits an agent with a sentence a person wrote cannot be audited. */
+  origin: { act: string; by: string; when: string }[];
+  /** The page's own words, verbatim. Present for every result read off a page, verified or not: it is what a link's two endpoints are judged against by eye. Absent for a mechanically extracted result, whose source is its own LaTeX. */
+  source_text?: string;
+  /** The same result rendered as LaTeX, which is never claimed to be verbatim. Present for a proposal. */
+  statement?: string;
+  /** The page around the quoted span, for a proposal: what the rendering is judged against. The quote alone is not enough -- an agent quotes only as much as the anchor check needs. */
+  page_text?: string;
+  /** The anchor's page(s) rendered as images, build-relative, for a proposal whose PDF is on the publishing machine. The text layer drops script, bold, sub- and superscripts, so a symbol is judged here and never from `page_text`. */
+  page_images?: string[];
+  /** How far down the first anchored page the quotation starts, 0 to 1; absent when it could not be placed. */
+  page_focus?: number;
+  /** Words of `statement`'s prose that the quoted source text does not contain: an agent's gloss, or a word the page spells differently. */
+  not_on_page?: string[];
+  /** For a result quoted from the paper's LaTeX rather than a page: the file, relative to the corpus root. `page` is then 0. */
+  source_file?: string;
+  /** A proposal's local name (`thm-4.1`) and environment, which the author may correct when verifying. */
+  local?: string;
+  taxon?: string;
+  supersedes?: string;
+}
+
 export interface Reference {
   citekey: string;
   slug?: string;
@@ -324,6 +356,10 @@ export interface Reference {
     method: string;
     nodes: string[];
   } | null;
+  /** Proposals: results read off a page and rendered by an agent, which nobody has vouched for yet. They live in a file no bundle inputs, so nothing here can be cited or compiled until it is verified. */
+  proposed?: { file: string; fragment: string; nodes: string[] } | null;
+  /** What is recorded for each of the work's results (digest contract §9). Both texts travel only for a proposal, because that is the one claim a person is being asked to make. */
+  results?: Record<string, ResultRecord>;
   version_mismatch: boolean;
   cited_by: string[];
   /** Identifiers a lookup proposed for a work whose entry states none. Unconfirmed: never the work's identity, which changes only when the bibliography states it. */
@@ -344,6 +380,18 @@ export interface SearchEntry {
   aliases?: string[];
   tags?: string[];
   excerpt?: string;
+}
+
+export interface AssertedLink {
+  id: string;
+  from: string;
+  to: string;
+  /** `same-notion`, `generalises`, `specialises`, `depends-on` or `contradicts`. A closed vocabulary: a viewer can only draw what it can name. */
+  kind: string;
+  /** Why, in a sentence or two. Never optional: an unexplained edge is noise. */
+  why: string;
+  by?: string;
+  when?: string;
 }
 
 export interface Manifest {
@@ -368,6 +416,8 @@ export interface Manifest {
   tags: Record<string, string[]>;
   taxa: Record<string, Taxon>;
   references: Record<string, Reference>;
+  /** Asserted relations between two results, each with a reason. Nobody verifies these and every surface that shows one says so: they are navigation, not mathematics, and are never citable and never in a closure. */
+  links?: AssertedLink[];
   macros: { default: Macro[]; sets: Record<string, Macro[]> };
   search: SearchEntry[];
 }

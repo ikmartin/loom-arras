@@ -121,6 +121,12 @@
 		top = y;
 	}
 
+	/** Start fetching a node's fragment while the pointer waits out the delay, so the card's body is on hand when it opens rather than a request later. `fetchFragment` caches per manifest, so `show` gets the same promise. */
+	function prefetch(t: Target) {
+		const n = t.kind === 'node' ? m?.nodes[t.key] : undefined;
+		if (n && n.kind !== 'section') void fetchFragment(n.fragment, store.hash).catch(() => '');
+	}
+
 	async function show(a: Element, t: Target) {
 		if (!m) return;
 		anchor = a;
@@ -161,6 +167,7 @@
 			const t = resolve(a);
 			if (!t) return;
 			pending = a;
+			prefetch(t);
 			clearTimeout(showTimer);
 			showTimer = setTimeout(() => {
 				pending = null;

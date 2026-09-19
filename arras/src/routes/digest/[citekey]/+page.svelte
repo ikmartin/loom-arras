@@ -8,6 +8,8 @@
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
 	import { bibText } from '$lib/works';
 	import Locator from '$lib/components/Locator.svelte';
+	import ProposalBox from '$lib/review/ProposalBox.svelte';
+	import LinkList from '$lib/review/LinkList.svelte';
 
 	const m = $derived(store.manifest!);
 	const citekey = $derived(decodeURIComponent(page.params.citekey ?? ''));
@@ -19,6 +21,13 @@
 	const used = $derived((ref?.digest?.nodes ?? []).filter((id) => reached.has(id)));
 	const rest = $derived((ref?.digest?.nodes ?? []).filter((id) => !reached.has(id)));
 	let showAll = $state(false);
+	// Proposals are merged into the page they are about rather than queued somewhere else: an author meets one while
+	// already thinking about the subject it pertains to, which is when they are best placed to judge it (§5.2).
+	const proposals = $derived(
+		(ref?.proposed?.nodes ?? [])
+			.map((id) => ({ id, record: ref?.results?.[id] }))
+			.filter((x): x is { id: string; record: NonNullable<typeof x.record> } => !!x.record)
+	);
 </script>
 
 <main class="page">
@@ -32,6 +41,20 @@
 			{#if ref.digest}· digest from {ref.digest.source} ({ref.digest.method}){/if}
 			{#if ref.version_mismatch}<span class="problem"> · version mismatch between the digest's source and the bibliography</span>{/if}
 		</p>
+		<!-- above the digest, not below it: under a 45-result paper the one link on the page was never seen -->
+		<LinkList heading="Links touching this paper" forKeys={Object.keys(ref.results ?? {})} />
+		{#if proposals.length}
+			<section class="proposals" data-testid="proposals">
+				<h2>Proposed — {proposals.length} statement{proposals.length === 1 ? '' : 's'} nobody has vouched for</h2>
+				<p class="muted">
+					Read off the page by an agent and rendered into LaTeX. Neither the digest nor any bundle contains these:
+					until you say a copy is faithful, it cannot be cited or compiled.
+				</p>
+				{#each proposals as p (p.id)}
+					<ProposalBox id={p.id} record={p.record} {citekey} />
+				{/each}
+			</section>
+		{/if}
 		{#if ref.digest}
 			<Fragment path={ref.digest.fragment} macroSet={citekey} />
 			<h2>Results used here</h2>
@@ -58,7 +81,7 @@
 					</ul>
 				{/if}
 			{/if}
-		{:else}
+		{:else if !proposals.length}
 			<p>No digest yet. Cited by: {#each ref.cited_by as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">nothing</span>{/each}</p>
 		{/if}
 	{/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
 	import { resetComments, wire, type CommentSlot } from '$lib/fragments/mount';
@@ -136,8 +136,11 @@
 		if (target) target.scrollIntoView({ block: 'start' });
 	}
 
+	// Mounting reads the comments setting, and an effect that tracked it re-mounted the whole fragment on every change of placement: a second wiring, a pass of MathJax over every formula, and a jump back to the URL's anchor. The effect above answers that setting; this one follows the markup and what the wiring is built from.
 	$effect(() => {
-		if (html && el) void mount(el);
+		void [store.manifest, macroSet, master, headingLinks, margins, standalone, comments];
+		const root = el;
+		if (html && root) untrack(() => void mount(root));
 	});
 
 	// A contents entry on the page already changes only the hash, so nothing re-mounts and the browser will not scroll to an element the fragment created after navigation.

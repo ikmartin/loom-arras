@@ -30,6 +30,7 @@ export function viewsOf(m: Manifest | null): View[] {
 		{ id: 'read', label: 'read', href: read, icon: 'read', when: has?.documents },
 		{ id: 'graph', label: 'graph', href: route('/graph'), icon: 'graph', when: true },
 		{ id: 'review', label: 'review', href: route('/review'), icon: 'review', when: has?.review },
+		{ id: 'digest', label: 'digest', href: route('/digest'), icon: 'digest', when: has?.bibliography },
 		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems', when: true },
 		{ id: 'references', label: 'references', href: route('/references'), icon: 'references', when: has?.bibliography }
 	]
@@ -41,7 +42,8 @@ export function viewsOf(m: Manifest | null): View[] {
 export function viewOf(path: string): string {
 	if (path === '/') return 'home';
 	if (path.startsWith('/master') || path.startsWith('/canon')) return 'read';
-	if (path.startsWith('/node') || path.startsWith('/digest')) return 'read';
+	if (path.startsWith('/digest')) return 'digest';
+	if (path.startsWith('/node')) return 'read';
 	if (path.startsWith('/graph')) return 'graph';
 	if (path.startsWith('/review')) return 'review';
 	if (path.startsWith('/problems')) return 'problems';

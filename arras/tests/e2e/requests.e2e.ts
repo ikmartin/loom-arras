@@ -67,6 +67,40 @@ test.describe('comments as expandable highlights', () => {
 		await expect(page.locator('html')).toHaveAttribute('data-comments', 'inline');
 		await expect(page.locator('aside.comment-slot.gutter')).toHaveCount(0);
 	});
+
+	test('changing the placement re-wires the document without typesetting it again', async ({ page }) => {
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment[data-comments-wired="margin"] mjx-container');
+		await page.waitForFunction(() => document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
+		await page.evaluate(() => {
+			const w = window as unknown as { MathJax: { typesetPromise: (els: Element[]) => Promise<void> }; ofDocument: number };
+			const real = w.MathJax.typesetPromise.bind(w.MathJax);
+			w.ofDocument = 0;
+			// a comment card typesets its own body; what must not happen is the document's text going through MathJax again
+			w.MathJax.typesetPromise = (els) => {
+				if (els.some((e) => e.closest('.fragment') && !e.closest('aside.comment-slot'))) w.ofDocument++;
+				return real(els);
+			};
+		});
+		await page.getByTestId('settings-toggle').click();
+		await page.getByTestId('comments-inline').click();
+		await page.waitForSelector('.fragment[data-comments-wired="inline"]');
+		await page.getByTestId('comments-margin').click();
+		await page.waitForSelector('.fragment[data-comments-wired="margin"] aside.comment-slot.gutter');
+		await page.waitForTimeout(300);
+		expect(await page.evaluate(() => (window as unknown as { ofDocument: number }).ofDocument)).toBe(0);
+	});
+
+	test('the drawing of a formula may be skipped off screen, and its MathML never is', async ({ page }) => {
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment mjx-container mjx-assistive-mml');
+		const cv = await page.evaluate(() => {
+			const c = document.querySelector('.fragment mjx-container')!;
+			return [getComputedStyle(c.querySelector(':scope > svg')!).contentVisibility, getComputedStyle(c.querySelector('mjx-assistive-mml')!).contentVisibility];
+		});
+		// a skipped MathML is dropped from the accessibility tree, and clipped to a pixel it is never on screen to be un-skipped
+		expect(cv).toEqual(['auto', 'visible']);
+	});
 });
 
 test.describe('the Box drawing', () => {
@@ -396,9 +430,15 @@ test.describe('the four verbs on an annotation', () => {
 		await row.getByTestId('verb-reply').click();
 		const panel = row.getByTestId('verb-panel');
 		await expect(panel).toBeVisible();
-		const pb = (await panel.boundingBox())!;
-		const rb = (await row.boundingBox())!;
-		expect(pb.y + pb.height).toBeLessThanOrEqual(rb.y + 2);
+		// polled: the geometry is read after the row has settled. Read the instant the panel appeared, the row could still
+		// be reflowing as its verbs arrived, and this failed about one run in three
+		await expect
+			.poll(async () => {
+				const pb = await panel.boundingBox();
+				const rb = await row.boundingBox();
+				return !!pb && !!rb && pb.y + pb.height <= rb.y + 2;
+			}, { timeout: 5000 })
+			.toBe(true);
 
 		// it says nothing until it has something to say
 		await expect(panel.getByTestId('verb-send')).toBeDisabled();

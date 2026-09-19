@@ -11,7 +11,6 @@
 	import RailList from '$lib/components/RailList.svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import { nodeBadge } from '$lib/badges';
-	import { reachedExternal } from '$lib/reached';
 	import { digestUrl, keyUrl, nodeUrl } from '$lib/nav';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
 	import { bibText } from '$lib/works';
@@ -24,7 +23,10 @@
 	let taxon = $state('');
 	let tag = $state('');
 	let stateFilter = $state('');
-	let external = $state<'reached' | 'all' | 'none' | 'papers'>('reached');
+	// The graph is what the author wrote and how it hangs together. Digesting one cited paper brings in a hundred
+	// external nodes of which two or three carry weight, and even filtered to the reached ones they crowded out the
+	// thing the view exists to show. They have their own place now: the digest view (plan 0.12 §9.2).
+	const external = 'none' as const;
 	let selected = $state('');
 	let depth = $state(0);
 	let highlight = $state<'downstream' | 'closure'>('downstream');
@@ -44,8 +46,7 @@
 	let seed = new Map<string, { x: number; y: number }>();
 	let moved = $state(new Map<string, { x: number; y: number }>());
 
-	const reached = $derived(reachedExternal(m));
-	const filters = $derived({ master: master || undefined, taxon: taxon || undefined, tag: tag || undefined, external, reached });
+	const filters = $derived({ master: master || undefined, taxon: taxon || undefined, tag: tag || undefined, external, reached: new Set<string>() });
 
 	const related = $derived.by(() => {
 		if (!selected || !m) return new Set<string>();
@@ -252,7 +253,7 @@
 		<p class="faint">Laying out…</p>
 	{:else}
 		<p class="faint">
-			{counts} · solid statement, dashed proof, dotted prose · {external === 'papers' ? 'a box is a cited paper, dash-dot a citation · ' : ''}{caption}{laidMode === 'reading' ? '' : ' · drag to pan, scroll to zoom'}, click to select, double-click to open
+			{counts} · solid statement, dashed proof, dotted prose · {caption}{laidMode === 'reading' ? '' : ' · drag to pan, scroll to zoom'}, click to select, double-click to open
 		</p>
 		{#if laidMode === 'reading' && reading}
 			<div class="canvas scrolls" data-testid="reading-canvas">
@@ -422,7 +423,6 @@
 		<label>state<select bind:value={stateFilter}><option value="">all</option>{#each states as t (t)}<option value={t}>{t}</option>{/each}</select></label>
 		<label>depth around selection<select bind:value={depth}><option value={0}>whole scope</option><option value={1}>1</option><option value={2}>2</option><option value={3}>3</option></select></label>
 		<label>highlight<select bind:value={highlight}><option value="downstream">what rests on it</option><option value="closure">what it rests on</option></select></label>
-		<label>cited results<select bind:value={external} data-testid="filter-cited"><option value="reached">used here</option><option value="all">all</option><option value="papers">as papers</option><option value="none">none</option></select></label>
 	</div>
 </PagePanel>
 
