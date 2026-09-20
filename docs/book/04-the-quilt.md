@@ -209,7 +209,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/` and `dig
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.
 5. Loom never touches the network unless the author has allowed it, in the config or on the command line: `[refs] fetch = true` or `--fetch` for `loom refs fetch` and the fetching step of `loom refs build`, `[refs] resolve = true` or `--resolve` for `loom refs resolve` and its step (DR-122, DR-176, DR-193). Both keys are written `false` by `loom init`, and a flag is one run's consent that changes no file. No other command does, `loom lint` included.
-6. Loom never runs a model.
+6. Loom holds no credentials and calls no model provider: it never runs a model itself. It may dispatch a message to a local agent the author is already running, which is a message reaching a process they started, not loom becoming a client of anyone's API (DR-195).
 
 ## 4.9 Ignoring a file
 

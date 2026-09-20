@@ -35,7 +35,7 @@ Every successful write triggers a republish; the viewer sees the change through 
 
 ## 4. No model behaviour, and no bridge
 
-**[decided]** Nothing in this API wakes an agent, and version 1 has no `message` endpoint. An earlier draft routed a reply through "the bridge": a component that watched threads and invoked the runner. The runner was declined as WQ-15 and `specs/runner.md` is kept only as a declined design, so the bridge had nothing left to invoke.
+**[decided]** Version 1 has no `message` endpoint, and nothing in it wakes an agent. An earlier draft routed a reply through "the bridge": a component that watched threads and invoked the runner. The runner was declined as WQ-15 and `specs/runner.md` is kept only as a declined design, so the bridge had nothing left to invoke. **[decided]** A later version may carry one, for a different reason than the bridge had: not loom invoking a model, but the viewer handing a message to a local agent session the author is already running, so that writing in the browser and writing in the terminal are the same conversation (DR-195). What version 1 says is that the API as it stands does not, and a client detects the endpoint rather than assuming it.
 
 **[decided]** The direction is the other way round, and it already works: an agent **pulls**. It reads open findings with `loom status` and `loom ai findings`, and answers with `loom comment --reply`. That needs no server, no credentials held by loom, and no tracking of vendor flags that churn. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends, which is what the log was for.
 
