@@ -14,7 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0          # the split walks the whole history
+          fetch-depth: 0             # the split walks the whole history
+          persist-credentials: false # checkout's stored header authenticates every github.com push, overriding the token below
       - name: Split loom-nvim/ and push it
         env:
           TOKEN: ${{ secrets.MIRROR_TOKEN }}
