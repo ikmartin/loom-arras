@@ -1,0 +1,17 @@
+[quilt]
+name = "The loom showcase"
+main = "drafting/main-atomic.tex"    # default master
+drafting = "drafting"           # working documents, every one live
+canon = "canon"              # landmarks: flat, self-contained, never scanned
+prefix = "sh"               # default id prefix for loom new
+engine = "pdflatex"         # default engine; % !TEX program in a master overrides
+
+[refs]
+fetch = false               # may loom fetch sources and PDFs for cited works (loom refs fetch); --fetch allows one run
+resolve = false             # may loom look identifiers up at zbMATH Open and Crossref (loom refs resolve); --resolve allows one run
+
+[lint]
+disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
+
+[author]
+name = "The loom showcase"  # who this quilt's records name; empty until you write it here or pass --author

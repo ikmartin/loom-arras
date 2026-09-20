@@ -1,0 +1,41 @@
+% An outline master: a second view of the same nodes (book 4.4). It reaches what is settled and what is only being considered, so a candidate is reached rather than loose while the author thinks about it. Moving an \input line from here to main.tex is the whole transition from plan to paper.
+\documentclass{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{loom}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{question}[theorem]{Question}
+
+\newcommand{\Fix}{\operatorname{Fix}}
+
+\title{Widgets: what is settled and what is not}
+\author{The loom demo}
+
+\begin{document}
+\maketitle
+
+\section{What the paper rests on}
+
+These are settled and already in the paper; the candidates below build on them.
+
+\input{nodes/dm-0001}
+
+\input{nodes/dm-0002}
+
+\section{What is being considered}
+
+Neither of these is proved. The conjecture owes a proof and appears among the blockers until it is proved or refuted; the question owes nothing.
+
+\input{nodes/dm-0006}
+
+\input{nodes/dm-0007}
+
+\end{document}

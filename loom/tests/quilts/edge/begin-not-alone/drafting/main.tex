@@ -1,0 +1,11 @@
+\documentclass{amsart}
+\usepackage{amsthm}
+\usepackage{loom}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\begin{document}
+\begin{lemma}\label{ed-0001} Body on the begin line.
+\end{lemma}
+\begin{proof} Proof body on the begin line. \end{proof}
+\begin{theorem}[T]\label{ed-0002}All on one line. \end{theorem} Trailing prose. \begin{proof}P\end{proof}
+\end{document}

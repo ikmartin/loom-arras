@@ -1,0 +1,4819 @@
+{
+ "annotations": {
+  "a-2026-09-16-0001": {
+   "anchored": true,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0001",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": "finite widget",
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "recorded": true,
+   "run": "2026-09-16T00-00-referee",
+   "severity": "major",
+   "status": "open",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003"
+   }
+  },
+  "a-2026-09-16-0002": {
+   "anchored": true,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>Cite the orbit lemma by number here.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0002",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
+   "placement": "replace",
+   "quote": "disjoint union of orbits",
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "recorded": true,
+   "run": "2026-09-16T00-00-referee",
+   "severity": "minor",
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+    "key": "sy-0004"
+   }
+  },
+  "a-2026-09-16-0003": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0003",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "recorded": false,
+   "run": "2026-09-16T00-00-referee",
+   "severity": "moderate",
+   "status": "open",
+   "target": {
+    "hash": "sha256:c2c3814a51416f1f58bd87e0e76b99dd8a05d76486962c1adc81a5cbc887bbc3",
+    "key": "drafting/main.tex"
+   }
+  },
+  "a-2026-09-16-0004": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0004",
+   "in_reply_to": null,
+   "kind": "citation",
+   "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
+   "placement": null,
+   "quote": null,
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "recorded": true,
+   "run": "2026-09-16T00-00-referee",
+   "severity": null,
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003"
+   }
+  },
+  "a-2026-09-16-0005": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-16T00-00-referee",
+    "kind": "run",
+    "label": "2026-09-16T00-00-referee (run)"
+   },
+   "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0005",
+   "in_reply_to": null,
+   "kind": "citation",
+   "payload": "any standard text on group actions",
+   "placement": null,
+   "quote": null,
+   "record": "ai/runs/2026-09-16T00-00-referee",
+   "recorded": true,
+   "run": "2026-09-16T00-00-referee",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002"
+   }
+  },
+  "a-2026-09-16-0006": {
+   "anchored": true,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "<p>Is the orbit of a fixed point counted as one point or two?</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0006",
+   "in_reply_to": null,
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "one or two points",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "recorded": true,
+   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002"
+   }
+  },
+  "a-2026-09-16-0007": {
+   "anchored": true,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0007",
+   "in_reply_to": "a-2026-09-16-0001",
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "finite widget",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "recorded": true,
+   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+    "key": "sy-0003"
+   }
+  },
+  "a-2026-09-16-0008": {
+   "anchored": true,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "<p>Done in the next revision.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0008",
+   "in_reply_to": "a-2026-09-16-0002",
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "disjoint union of orbits",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "recorded": true,
+   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+    "key": "sy-0004"
+   }
+  },
+  "a-2026-09-16-0009": {
+   "anchored": false,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": true,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0009",
+   "in_reply_to": null,
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "an involution $\\sigma$ of $X$",
+   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "recorded": false,
+   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
+    "key": "sy-0001"
+   }
+  },
+  "a-2026-09-16-0010": {
+   "anchored": false,
+   "author": {
+    "id": "2026-09-15T10-00-quick",
+    "kind": "run",
+    "label": "2026-09-15T10-00-quick (run)"
+   },
+   "body_html": "<p>Gadgets of odd order cannot exist.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": true,
+   "id": "a-2026-09-16-0010",
+   "in_reply_to": null,
+   "kind": "ok",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "ai/runs/2026-09-15T10-00-quick",
+   "recorded": true,
+   "run": "2026-09-15T10-00-quick",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
+    "key": "sy-000A"
+   }
+  }
+ },
+ "canon": [
+  {
+   "fragment": "fragments/canon/widgets-v1.html",
+   "hash": "c8782627c51180c37276d9c6f89b86e97d426bb680427e3528d05cd9f278e897",
+   "macros": "canon:widgets-v1",
+   "message": "First landmark",
+   "name": "widgets-v1",
+   "path": "canon/widgets-v1.tex",
+   "stem": "widgets-v1",
+   "step": "0001",
+   "title": "Widgets, gadgets, and their fixed loci",
+   "when": "2026-09-13T09:00:00Z"
+  },
+  {
+   "fragment": "fragments/canon/widgets-v2.html",
+   "hash": "9f84645498b149900a80c22cb6783948adcd28cdbe7980241ddb66bf9e16d467",
+   "macros": "canon:widgets-v2",
+   "message": "After the referee",
+   "name": "widgets-v2",
+   "path": "canon/widgets-v2.tex",
+   "stem": "widgets-v2",
+   "step": "0003",
+   "title": "Widgets, gadgets, and their fixed loci",
+   "when": "2026-09-15T13:00:00Z"
+  },
+  {
+   "fragment": "fragments/canon/widgets-v3.html",
+   "hash": "601040217ab3e84e85f4639bc7884f561a0657c92ecec6bec47eeee86c0aebd6",
+   "macros": "canon:widgets-v3",
+   "message": "Third landmark",
+   "name": "widgets-v3",
+   "path": "canon/widgets-v3.tex",
+   "stem": "widgets-v3",
+   "step": "0005",
+   "title": "Widgets, gadgets, and their fixed loci",
+   "when": "2026-09-15T16:00:00Z"
+  }
+ ],
+ "corpus": {
+  "name": "The synthetic quilt",
+  "root_label": "Widgets, gadgets, and their fixed loci"
+ },
+ "diagnostics": [
+  {
+   "code": "dangling-link",
+   "keys": [
+    "sy-0100"
+   ],
+   "locations": [
+    {
+     "column": 294,
+     "file": "drafting/main.tex",
+     "line": 31
+    }
+   ],
+   "message": "\\ref{sy-9999} refers to no node or label",
+   "severity": "error"
+  },
+  {
+   "code": "dangling-link",
+   "keys": [
+    "sy-0008"
+   ],
+   "locations": [
+    {
+     "column": 1,
+     "file": "nodes/sy-0008.tex",
+     "line": 1
+    }
+   ],
+   "message": "% !LOOM see: sy-7777 refers to no node or label",
+   "severity": "error"
+  },
+  {
+   "code": "double-inclusion",
+   "keys": [
+    "nodes/sy-0002.tex"
+   ],
+   "locations": [
+    {
+     "file": "drafting/talk.tex",
+     "line": 28
+    }
+   ],
+   "message": "nodes/sy-0002.tex is included twice in drafting/talk.tex",
+   "severity": "error"
+  },
+  {
+   "code": "duplicate-id",
+   "fixes": [
+    {
+     "command": "loom fork sy-999B --in drafting/talk.tex",
+     "label": "fork the copy in drafting/talk.tex"
+    },
+    {
+     "command": "loom fork sy-999B --in nodes/sy-999B.tex",
+     "label": "fork the copy in nodes/sy-999B.tex"
+    },
+    {
+     "command": "loom id --next",
+     "label": "give one copy a fresh id by hand"
+    }
+   ],
+   "keys": [
+    "sy-999B"
+   ],
+   "locations": [
+    {
+     "file": "drafting/talk.tex",
+     "line": 32
+    },
+    {
+     "file": "nodes/sy-999B.tex",
+     "line": 1
+    }
+   ],
+   "message": "sy-999B is defined by drafting/talk.tex and nodes/sy-999B.tex; it has no text until one definition remains",
+   "severity": "error"
+  },
+  {
+   "code": "missing-include",
+   "keys": [],
+   "locations": [
+    {
+     "file": "drafting/main.tex",
+     "line": 72
+    }
+   ],
+   "message": "\\input{nodes/missing} names no file",
+   "severity": "error"
+  },
+  {
+   "code": "loom:canon-edited",
+   "fixes": [
+    {
+     "command": "cp .loom/history/0001-widgets-v1/widgets-v1.tex canon/widgets-v1.tex",
+     "label": "restore the landmark"
+    },
+    {
+     "command": "loom draft canon/widgets-v1.tex --to drafting/widgets-v1.tex",
+     "label": "work on it as a draft instead"
+    }
+   ],
+   "keys": [],
+   "locations": [
+    {
+     "file": "canon/widgets-v1.tex",
+     "line": 1
+    }
+   ],
+   "message": "canon/widgets-v1.tex is not the text step 0001 recorded; the landmark's copy is .loom/history/0001-widgets-v1/widgets-v1.tex",
+   "severity": "warning",
+   "subject": "record"
+  },
+  {
+   "code": "loom:equation-in-proof-referenced",
+   "keys": [
+    "sy-0005",
+    "sy-0002/proof"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-0003.tex",
+     "line": 14
+    }
+   ],
+   "message": "sy-0005 references eq:step, which lies inside the proof sy-0002/proof",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:multi-target-proof",
+   "keys": [],
+   "locations": [
+    {
+     "file": "sections/appendix.tex",
+     "line": 30
+    }
+   ],
+   "message": "proof names several results (sy-000D, sy-0007); attached to the first",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:taxon-conflict",
+   "keys": [],
+   "locations": [],
+   "message": "environment proposition declared differently: drafting/main.tex: Proposition/plain; drafting/talk.tex: Proposition/definition",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:unknown-directive",
+   "keys": [],
+   "locations": [
+    {
+     "file": "sections/appendix.tex",
+     "line": 28
+    }
+   ],
+   "message": "unknown directive priority",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:unmatched-postnote",
+   "keys": [
+    "sy-0100"
+   ],
+   "locations": [
+    {
+     "file": "drafting/main.tex",
+     "line": 31
+    }
+   ],
+   "message": "\\cite[Lemma 9]{Kre99} names no result in the digest of Kre99",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:positional-proof-key",
+   "keys": [
+    "sy-0006"
+   ],
+   "locations": [],
+   "message": "sy-0006 has 2 unlabelled proofs; consider labelling them",
+   "severity": "info"
+  },
+  {
+   "code": "loom:see-redundant",
+   "keys": [
+    "sy-0008"
+   ],
+   "locations": [
+    {
+     "column": 1,
+     "file": "nodes/sy-0008.tex",
+     "line": 1
+    }
+   ],
+   "message": "% !LOOM see: def:gadget names the node it is written in",
+   "severity": "info"
+  },
+  {
+   "code": "loom:undigested-citekey",
+   "keys": [
+    "sy-0100"
+   ],
+   "locations": [],
+   "message": "Har77 is cited with a locator but has no digest",
+   "severity": "info"
+  },
+  {
+   "code": "loom:unexpected-proof",
+   "keys": [
+    "sy-000E"
+   ],
+   "locations": [
+    {
+     "file": "sections/appendix.tex",
+     "line": 21
+    }
+   ],
+   "message": "sy-000E (Definition) has a proof",
+   "severity": "info"
+  },
+  {
+   "code": "loom:unlabelled-node",
+   "keys": [
+    "sections/appendix.tex#remark:1"
+   ],
+   "locations": [
+    {
+     "file": "sections/appendix.tex",
+     "line": 17
+    }
+   ],
+   "message": "remark without an id",
+   "severity": "info"
+  },
+  {
+   "code": "loom:unresolved-work",
+   "keys": [
+    "Har77"
+   ],
+   "locations": [],
+   "message": "Har77 states no identifier, so loom cannot name the work the same way on another machine; add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom refs resolve",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-missing",
+   "keys": [
+    "sy-0002/proof"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-0002.tex",
+     "line": 8
+    }
+   ],
+   "message": "sy-0002/proof references sy-0100 but its \\uses does not list it",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-missing",
+   "keys": [
+    "sy-0006/proof/2"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-0006.tex",
+     "line": 7
+    }
+   ],
+   "message": "sy-0006/proof/2 references sy-0003 but its \\uses does not list it",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-missing",
+   "keys": [
+    "sy-000B/proof"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-000B.tex",
+     "line": 5
+    }
+   ],
+   "message": "sy-000B/proof references sy-0003 but its \\uses does not list it",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-missing",
+   "keys": [
+    "sy-000B/proof"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-000B.tex",
+     "line": 5
+    }
+   ],
+   "message": "sy-000B/proof references sy-0006 but its \\uses does not list it",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-missing",
+   "keys": [
+    "sy-000D/proof"
+   ],
+   "locations": [
+    {
+     "file": "sections/appendix.tex",
+     "line": 30
+    }
+   ],
+   "message": "sy-000D/proof references sy-0007 but its \\uses does not list it",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-missing",
+   "keys": [
+    "sy-0007/proof"
+   ],
+   "locations": [
+    {
+     "file": "sections/results.tex",
+     "line": 18
+    }
+   ],
+   "message": "sy-0007/proof references sy-0008 but its \\uses does not list it",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-unused",
+   "keys": [
+    "sy-0009/proof"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-0009.tex",
+     "line": 7
+    }
+   ],
+   "message": "sy-0009/proof lists sy-0002 in \\uses but never references it",
+   "severity": "info"
+  },
+  {
+   "code": "loom:uses-unused",
+   "keys": [
+    "sy-0007/proof"
+   ],
+   "locations": [
+    {
+     "file": "sections/results.tex",
+     "line": 18
+    }
+   ],
+   "message": "sy-0007/proof lists sy-0001 in \\uses but never references it",
+   "severity": "info"
+  },
+  {
+   "code": "unreachable",
+   "keys": [
+    "sy-0009"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-0009.tex",
+     "line": 1
+    }
+   ],
+   "message": "no master reaches nodes/sy-0009.tex",
+   "severity": "info"
+  },
+  {
+   "code": "loom:converter-fallback",
+   "keys": [
+    "sy-0100"
+   ],
+   "locations": [
+    {
+     "file": "drafting/main.tex",
+     "line": 0
+    }
+   ],
+   "message": "unknown command \\parbox in sy-0100; rendered as SVG",
+   "severity": "info"
+  },
+  {
+   "code": "loom:converter-fallback",
+   "keys": [
+    "sy-0100"
+   ],
+   "locations": [
+    {
+     "file": "drafting/main.tex",
+     "line": 0
+    }
+   ],
+   "message": "unknown command \\parbox in sy-0100; rendered as SVG",
+   "severity": "info"
+  },
+  {
+   "code": "loom:converter-fallback",
+   "keys": [
+    "canon/widgets-v1.tex"
+   ],
+   "locations": [
+    {
+     "file": "canon/widgets-v1.tex",
+     "line": 0
+    }
+   ],
+   "message": "unknown command \\parbox in canon/widgets-v1.tex; rendered as SVG",
+   "severity": "info"
+  },
+  {
+   "code": "loom:converter-fallback",
+   "keys": [
+    "canon/widgets-v2.tex"
+   ],
+   "locations": [
+    {
+     "file": "canon/widgets-v2.tex",
+     "line": 0
+    }
+   ],
+   "message": "unknown command \\parbox in canon/widgets-v2.tex; rendered as SVG",
+   "severity": "info"
+  },
+  {
+   "code": "loom:converter-fallback",
+   "keys": [
+    "canon/widgets-v3.tex"
+   ],
+   "locations": [
+    {
+     "file": "canon/widgets-v3.tex",
+     "line": 0
+    }
+   ],
+   "message": "unknown command \\parbox in canon/widgets-v3.tex; rendered as SVG",
+   "severity": "info"
+  },
+  {
+   "code": "loom:detached-annotation",
+   "keys": [
+    "sy-0001"
+   ],
+   "locations": [],
+   "message": "1 annotation(s) on sy-0001 no longer match its text",
+   "severity": "info"
+  },
+  {
+   "code": "loom:retired-ledger-key",
+   "keys": [
+    "sy-000F"
+   ],
+   "locations": [],
+   "message": "the ledger has rows for sy-000F, which no longer exists",
+   "severity": "info"
+  },
+  {
+   "code": "loom:retired-ledger-key",
+   "keys": [
+    "sy-000F/proof"
+   ],
+   "locations": [],
+   "message": "the ledger has rows for sy-000F/proof, which no longer exists",
+   "severity": "info"
+  },
+  {
+   "code": "loom:previous-key-match",
+   "keys": [
+    "sy-0202/proof"
+   ],
+   "locations": [],
+   "message": "acceptance recorded under sy-000F/proof matches the text of sy-0202/proof; re-accept to confirm",
+   "severity": "info"
+  }
+ ],
+ "edges": [
+  {
+   "from": "Kre99-thm-2.1",
+   "kind": "statement",
+   "src": {
+    "file": "digests/Kre99.tex",
+    "line": 24
+   },
+   "to": "Kre99-setup",
+   "via": "uses"
+  },
+  {
+   "from": "sy-0001",
+   "kind": "statement",
+   "src": {
+    "file": "drafting/main.tex",
+    "line": 34
+   },
+   "to": "sy-0100",
+   "via": "eqref"
+  },
+  {
+   "from": "sy-0002",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sy-0002.tex",
+    "line": 6
+   },
+   "to": "sy-0001",
+   "via": "eqref"
+  },
+  {
+   "from": "sy-0002",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sy-0002.tex",
+    "line": 6
+   },
+   "to": "sy-0001",
+   "via": "ref"
+  },
+  {
+   "from": "sy-0009",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sy-0009.tex",
+    "line": 5
+   },
+   "to": "sy-0002",
+   "via": "ref"
+  },
+  {
+   "from": "sy-000B",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sy-000B.tex",
+    "line": 2
+   },
+   "to": "sy-0003",
+   "via": "uses"
+  },
+  {
+   "from": "sy-000B",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sy-000B.tex",
+    "line": 2
+   },
+   "to": "sy-0006",
+   "via": "uses"
+  },
+  {
+   "from": "sy-0002/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0002.tex",
+    "line": 13
+   },
+   "to": "sy-0100",
+   "via": "eqref"
+  },
+  {
+   "from": "sy-0004",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0003.tex",
+    "line": 9
+   },
+   "to": "sy-0002",
+   "via": "uses"
+  },
+  {
+   "from": "sy-0004",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0003.tex",
+    "line": 10
+   },
+   "to": "sy-0002",
+   "via": "ref"
+  },
+  {
+   "from": "sy-0005",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0003.tex",
+    "line": 13
+   },
+   "to": "sy-0002",
+   "via": "uses"
+  },
+  {
+   "from": "sy-0005",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0003.tex",
+    "line": 13
+   },
+   "to": "sy-0001",
+   "via": "uses"
+  },
+  {
+   "from": "sy-0005",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0003.tex",
+    "line": 14
+   },
+   "to": "sy-0002/proof",
+   "via": "eqref"
+  },
+  {
+   "from": "sy-0005",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0003.tex",
+    "line": 14
+   },
+   "to": "sy-0002",
+   "via": "ref"
+  },
+  {
+   "from": "sy-0005",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0003.tex",
+    "line": 14
+   },
+   "to": "sy-0001",
+   "via": "ref"
+  },
+  {
+   "from": "sy-0006/proof/2",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0006.tex",
+    "line": 8
+   },
+   "to": "sy-0003",
+   "via": "ref"
+  },
+  {
+   "from": "sy-0009/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-0009.tex",
+    "line": 8
+   },
+   "to": "sy-0002",
+   "via": "uses"
+  },
+  {
+   "from": "sy-000B/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-000B.tex",
+    "line": 6
+   },
+   "to": "sy-0003",
+   "via": "ref"
+  },
+  {
+   "from": "sy-000B/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sy-000B.tex",
+    "line": 6
+   },
+   "to": "sy-0006",
+   "via": "ref"
+  },
+  {
+   "from": "sy-000C/proof",
+   "kind": "proof",
+   "src": {
+    "file": "sections/appendix.tex",
+    "line": 9
+   },
+   "to": "sy-0008",
+   "via": "uses"
+  },
+  {
+   "from": "sy-000C/proof",
+   "kind": "proof",
+   "src": {
+    "file": "sections/appendix.tex",
+    "line": 10
+   },
+   "to": "sy-0008",
+   "via": "ref"
+  },
+  {
+   "from": "sy-000D/proof",
+   "kind": "proof",
+   "src": {
+    "file": "sections/appendix.tex",
+    "line": 30
+   },
+   "to": "sy-0007",
+   "via": "ref"
+  },
+  {
+   "from": "sy-0007/proof",
+   "kind": "proof",
+   "src": {
+    "file": "sections/results.tex",
+    "line": 19
+   },
+   "to": "sy-0001",
+   "via": "uses"
+  },
+  {
+   "from": "sy-0007/proof",
+   "kind": "proof",
+   "src": {
+    "file": "sections/results.tex",
+    "line": 20
+   },
+   "to": "sy-0008",
+   "via": "ref"
+  },
+  {
+   "from": "sy-000A",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sy-000A.tex",
+    "line": 2
+   },
+   "to": "Kre99-thm-2.1",
+   "via": "postnote"
+  },
+  {
+   "from": "sy-0100",
+   "kind": "prose",
+   "src": {
+    "file": "drafting/main.tex",
+    "line": 31
+   },
+   "to": "Kre99-thm-2.1",
+   "via": "postnote"
+  }
+ ],
+ "generated": "2026-09-16T00:00:00Z",
+ "inclusion": {
+  "drafting/main.tex": {
+   "children": [
+    {
+     "children": [
+      {
+       "children": [],
+       "key": "sy-0001",
+       "shift": 0,
+       "via": "nested-env"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sy-0002",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-0002.tex",
+       "key": "nodes/sy-0002.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [
+          {
+           "children": [
+            {
+             "children": [],
+             "key": "sy-0003",
+             "shift": 0,
+             "via": "nested-env"
+            },
+            {
+             "children": [],
+             "key": "sy-0004",
+             "shift": 0,
+             "via": "nested-env"
+            },
+            {
+             "children": [],
+             "key": "sy-0005",
+             "shift": 0,
+             "via": "nested-env"
+            }
+           ],
+           "file": "nodes/sy-0003.tex",
+           "key": "nodes/sy-0003.tex",
+           "shift": 0,
+           "via": "input"
+          },
+          {
+           "children": [
+            {
+             "children": [
+              {
+               "children": [],
+               "key": "sy-0006",
+               "shift": 0,
+               "via": "nested-env"
+              }
+             ],
+             "file": "nodes/sy-0006.tex",
+             "key": "nodes/sy-0006.tex",
+             "shift": 0,
+             "via": "input"
+            },
+            {
+             "children": [
+              {
+               "children": [],
+               "key": "sy-0007",
+               "shift": 0,
+               "via": "nested-env"
+              }
+             ],
+             "file": "nodes/sy-0007.tex",
+             "key": "nodes/sy-0007.tex",
+             "shift": 0,
+             "via": "input"
+            },
+            {
+             "children": [
+              {
+               "children": [],
+               "key": "sy-0008",
+               "shift": 0,
+               "via": "nested-env"
+              }
+             ],
+             "file": "nodes/sy-0008.tex",
+             "key": "nodes/sy-0008.tex",
+             "shift": 0,
+             "via": "input"
+            },
+            {
+             "children": [],
+             "key": "sy-0202",
+             "shift": 0,
+             "via": "nested-env"
+            }
+           ],
+           "key": "sy-0201",
+           "shift": 0,
+           "via": "section"
+          }
+         ],
+         "key": "sy-0200",
+         "shift": 0,
+         "via": "section"
+        }
+       ],
+       "file": "sections/results.tex",
+       "key": "sections/results.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sy-000C",
+           "shift": 1,
+           "via": "nested-env"
+          },
+          {
+           "children": [],
+           "key": "sy-000D",
+           "shift": 1,
+           "via": "nested-env"
+          },
+          {
+           "children": [],
+           "key": "sections/appendix.tex#remark:1",
+           "shift": 1,
+           "via": "nested-env"
+          },
+          {
+           "children": [],
+           "key": "sy-000E",
+           "shift": 1,
+           "via": "nested-env"
+          }
+         ],
+         "key": "sy-0300",
+         "shift": 1,
+         "via": "section"
+        }
+       ],
+       "file": "sections/appendix.tex",
+       "key": "sections/appendix.tex",
+       "shift": 1,
+       "via": "nest"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sy-000A",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-000A.tex",
+       "key": "nodes/sy-000A.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sy-000B",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-000B.tex",
+       "key": "nodes/sy-000B.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "nodes/sy-999B.tex#lemma:1",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-999B.tex",
+       "key": "nodes/sy-999B.tex",
+       "shift": 0,
+       "via": "input"
+      }
+     ],
+     "key": "sy-0100",
+     "shift": 0,
+     "via": "section"
+    }
+   ],
+   "key": "drafting/main.tex"
+  },
+  "drafting/talk.tex": {
+   "children": [
+    {
+     "children": [
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sy-0008",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-0008.tex",
+       "key": "nodes/sy-0008.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sy-0002",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-0002.tex",
+       "key": "nodes/sy-0002.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sy-0002",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-0002.tex",
+       "key": "nodes/sy-0002.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [],
+       "key": "drafting/talk.tex#lemma:1",
+       "shift": 0,
+       "via": "nested-env"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sy-999A",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sy-999A.tex",
+       "key": "nodes/sy-999A.tex",
+       "shift": 0,
+       "via": "input"
+      }
+     ],
+     "key": "sy-0400",
+     "shift": 0,
+     "via": "section"
+    }
+   ],
+   "key": "drafting/talk.tex"
+  }
+ },
+ "interface_version": 1,
+ "keys": {
+  "Kre99-setup": {
+   "closure": [
+    "Kre99-setup"
+   ],
+   "file": "digests/Kre99.tex",
+   "hash": "sha256:b3e1d390ba41d48a8f3fb1caf1c16d78dd7e7ff8bdaea2df3c1aa5a5b351a592",
+   "incomplete": [],
+   "key": "Kre99-setup",
+   "kind": "statement",
+   "node": "Kre99-setup",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    424,
+    579
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "Kre99-thm-2.1": {
+   "closure": [
+    "Kre99-setup",
+    "Kre99-thm-2.1"
+   ],
+   "file": "digests/Kre99.tex",
+   "hash": "sha256:02714f87b2e495507ba11d0acddc82902fb21d315b23a4dd74aa2c24b76bbcfa",
+   "incomplete": [],
+   "key": "Kre99-thm-2.1",
+   "kind": "statement",
+   "node": "Kre99-thm-2.1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    624,
+    835
+   ],
+   "state": "draft",
+   "uses": [
+    "Kre99-setup"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "drafting/talk.tex#lemma:1": {
+   "closure": [
+    "drafting/talk.tex#lemma:1"
+   ],
+   "file": "drafting/talk.tex",
+   "hash": "sha256:dbafc4ed9f644714be590c66c51d43613d24fb04c3301123562e144da98d554a",
+   "incomplete": [],
+   "key": "drafting/talk.tex#lemma:1",
+   "kind": "statement",
+   "node": "drafting/talk.tex#lemma:1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    782,
+    924
+   ],
+   "state": "draft",
+   "uses": []
+  },
+  "nodes/sy-999B.tex#lemma:1": {
+   "closure": [
+    "nodes/sy-999B.tex#lemma:1"
+   ],
+   "file": "nodes/sy-999B.tex",
+   "hash": "sha256:dbafc4ed9f644714be590c66c51d43613d24fb04c3301123562e144da98d554a",
+   "incomplete": [],
+   "key": "nodes/sy-999B.tex#lemma:1",
+   "kind": "statement",
+   "node": "nodes/sy-999B.tex#lemma:1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    142
+   ],
+   "state": "draft",
+   "uses": []
+  },
+  "sections/appendix.tex#remark:1": {
+   "closure": [
+    "sections/appendix.tex#remark:1"
+   ],
+   "file": "sections/appendix.tex",
+   "hash": "sha256:c724707ee5682e97b2645e844f752bd43603ea4aeef3f07ca642fb04ae9519db",
+   "incomplete": [],
+   "key": "sections/appendix.tex#remark:1",
+   "kind": "statement",
+   "node": "sections/appendix.tex#remark:1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    443,
+    522
+   ],
+   "state": "draft",
+   "uses": []
+  },
+  "sy-0001": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0001-own-text-changed.diff",
+      "kind": "own-text-changed",
+      "when": "2026-09-16"
+     },
+     {
+      "diff": "diffs/sy-0001-dependency-changed-sy-0100.diff",
+      "id": "sy-0100",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-14T09:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sy-0100",
+    "sy-0001"
+   ],
+   "file": "drafting/main.tex",
+   "hash": "sha256:a308f063f3bae5f540c9ef1a510785a6988ff89fa71a760b47d9cfaab863717c",
+   "incomplete": [],
+   "key": "sy-0001",
+   "kind": "statement",
+   "node": "sy-0001",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 1,
+    "latest_any": {
+     "author": {
+      "id": "The synthetic quilt",
+      "kind": "person"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "latest_current": null,
+    "open": {
+     "question": 1
+    }
+   },
+   "src": [
+    1046,
+    1304
+   ],
+   "state": "accepted",
+   "uses": [
+    "sy-0100"
+   ]
+  },
+  "sy-0002": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0002-dependency-changed-sy-0100.diff",
+      "id": "sy-0100",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     },
+     {
+      "diff": "diffs/sy-0002-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-14T09:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sy-0100",
+    "sy-0001",
+    "sy-0002"
+   ],
+   "file": "nodes/sy-0002.tex",
+   "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+   "incomplete": [],
+   "key": "sy-0002",
+   "kind": "statement",
+   "node": "sy-0002",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "open": {
+     "citation": 1,
+     "question": 1
+    }
+   },
+   "src": [
+    93,
+    240
+   ],
+   "state": "accepted",
+   "uses": [
+    "sy-0001"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0002/proof": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0002_proof-dependency-changed-sy-0100.diff",
+      "id": "sy-0100",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     },
+     {
+      "diff": "diffs/sy-0002_proof-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-14T09:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sy-0100",
+    "sy-0001",
+    "sy-0002"
+   ],
+   "file": "nodes/sy-0002.tex",
+   "hash": "sha256:57e15b9a88a2cb06719fc7d1dc7e1599e042189b955244fecd419d9e3497e57c",
+   "incomplete": [],
+   "key": "sy-0002/proof",
+   "kind": "proof",
+   "node": "sy-0002",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    241,
+    401
+   ],
+   "state": "accepted",
+   "uses": [
+    "sy-0100"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0003": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "date": "2026-09-14T09:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sy-0003"
+   ],
+   "file": "nodes/sy-0003.tex",
+   "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
+   "incomplete": [],
+   "key": "sy-0003",
+   "kind": "statement",
+   "node": "sy-0003",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "open": {
+     "objection": 1
+    }
+   },
+   "src": [
+    84,
+    215
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0004": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0004-dependency-changed-sy-0100.diff",
+      "id": "sy-0100",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     },
+     {
+      "diff": "diffs/sy-0004-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-14T09:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sy-0100",
+    "sy-0001",
+    "sy-0002",
+    "sy-0003"
+   ],
+   "file": "nodes/sy-0003.tex",
+   "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
+   "incomplete": [],
+   "key": "sy-0004",
+   "kind": "proof",
+   "node": "sy-0003",
+   "ordinal": 0,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "2026-09-16T00-00-referee",
+      "kind": "run"
+     },
+     "date": "2026-09-16T00:00:00Z"
+    },
+    "open": {}
+   },
+   "src": [
+    216,
+    369
+   ],
+   "state": "accepted",
+   "uses": [
+    "sy-0002"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0005": {
+   "acceptance": {
+    "author": "The synthetic quilt",
+    "causes": [
+     {
+      "diff": "diffs/sy-0005-dependency-changed-sy-0100.diff",
+      "id": "sy-0100",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     },
+     {
+      "diff": "diffs/sy-0005-dependency-changed-sy-0001.diff",
+      "id": "sy-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-16"
+     }
+    ],
+    "date": "2026-09-14T09:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sy-0100",
+    "sy-0001",
+    "sy-0002",
+    "sy-0003"
+   ],
+   "file": "nodes/sy-0003.tex",
+   "hash": "sha256:facfa8fd5344b1ccec44ce7b29ccb7a7ab832789095a309373c5a09328cbd7a1",
+   "incomplete": [],
+   "key": "sy-0005",
+   "kind": "proof",
+   "node": "sy-0003",
+   "ordinal": 0,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    370,
+    595
+   ],
+   "state": "accepted",
+   "uses": [
+    "sy-0002",
+    "sy-0001"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0006": {
+   "closure": [
+    "sy-0006"
+   ],
+   "file": "nodes/sy-0006.tex",
+   "hash": "sha256:cba9191a047c10fd2aa674bccb9aeda7fb2448c35eb4ef8ca1d5155e7c9e4d54",
+   "incomplete": [],
+   "key": "sy-0006",
+   "kind": "statement",
+   "node": "sy-0006",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    110
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0006/proof": {
+   "closure": [
+    "sy-0006"
+   ],
+   "file": "nodes/sy-0006.tex",
+   "hash": "sha256:6cbefc2a75d69966fab85f20d70e3b1b96f916e48ddd1e1b1f4062c327aa7c87",
+   "incomplete": [],
+   "key": "sy-0006/proof",
+   "kind": "proof",
+   "node": "sy-0006",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    111,
+    161
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0006/proof/2": {
+   "closure": [
+    "sy-0003",
+    "sy-0006"
+   ],
+   "file": "nodes/sy-0006.tex",
+   "hash": "sha256:d3b02c3df966ee98a0ab087667a26a2f9ede66695cb5bd7673c418632ef356f1",
+   "incomplete": [],
+   "key": "sy-0006/proof/2",
+   "kind": "proof",
+   "node": "sy-0006",
+   "ordinal": 2,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    162,
+    231
+   ],
+   "state": "draft",
+   "uses": [
+    "sy-0003"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0007": {
+   "closure": [
+    "sy-0007"
+   ],
+   "file": "nodes/sy-0007.tex",
+   "hash": "sha256:28ee0b6075e61a0cc4d6393644d351e1a884f05548eb44203ab8110971ba027d",
+   "incomplete": [],
+   "key": "sy-0007",
+   "kind": "statement",
+   "node": "sy-0007",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    24,
+    124
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0007/proof": {
+   "closure": [
+    "sy-0100",
+    "sy-0001",
+    "sy-0008",
+    "sy-0007"
+   ],
+   "file": "sections/results.tex",
+   "hash": "sha256:8290f0a7296c1ec6b88b9a3ea66936caf6f5a6790966a711d6f7c649ca2794d1",
+   "incomplete": [],
+   "key": "sy-0007/proof",
+   "kind": "proof",
+   "node": "sy-0007",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    297,
+    491
+   ],
+   "state": "draft",
+   "uses": [
+    "sy-0001",
+    "sy-0008"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0008": {
+   "closure": [
+    "sy-0008"
+   ],
+   "file": "nodes/sy-0008.tex",
+   "hash": "sha256:0dc54f2a1ba940176c36ba5787f42ee257751af4a3873125fe6a64bb538b67a1",
+   "incomplete": [],
+   "key": "sy-0008",
+   "kind": "statement",
+   "node": "sy-0008",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    33,
+    197
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0009": {
+   "closure": [
+    "sy-0100",
+    "sy-0001",
+    "sy-0002",
+    "sy-0009"
+   ],
+   "file": "nodes/sy-0009.tex",
+   "hash": "sha256:2ae3972ff9dc3ff2a6b35f72165247f031529192109d7797d9cd2b54f753d02a",
+   "incomplete": [],
+   "key": "sy-0009",
+   "kind": "statement",
+   "node": "sy-0009",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    21,
+    266
+   ],
+   "state": "draft",
+   "uses": [
+    "sy-0002"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0009/proof": {
+   "closure": [
+    "sy-0100",
+    "sy-0001",
+    "sy-0002",
+    "sy-0009"
+   ],
+   "file": "nodes/sy-0009.tex",
+   "hash": "sha256:d0aca8e44184ab1d0548e9f73ac483d799176efa6bb6063c6fca59a005f41702",
+   "incomplete": [],
+   "key": "sy-0009/proof",
+   "kind": "proof",
+   "node": "sy-0009",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    267,
+    318
+   ],
+   "state": "draft",
+   "uses": [
+    "sy-0002"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000A": {
+   "closure": [
+    "Kre99-setup",
+    "Kre99-thm-2.1",
+    "sy-000A"
+   ],
+   "file": "nodes/sy-000A.tex",
+   "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
+   "incomplete": [],
+   "key": "sy-000A",
+   "kind": "statement",
+   "node": "sy-000A",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    126
+   ],
+   "state": "draft",
+   "uses": [
+    "Kre99-thm-2.1"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000B": {
+   "closure": [
+    "sy-0003",
+    "sy-0006",
+    "sy-000B"
+   ],
+   "file": "nodes/sy-000B.tex",
+   "hash": "sha256:f0317517ed76d93d697ad2bdde148168abdd443ce83cc0326124e046f56c66fc",
+   "incomplete": [],
+   "key": "sy-000B",
+   "kind": "statement",
+   "node": "sy-000B",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    155
+   ],
+   "state": "draft",
+   "uses": [
+    "sy-0003",
+    "sy-0006"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000B/proof": {
+   "closure": [
+    "sy-0003",
+    "sy-0006",
+    "sy-000B"
+   ],
+   "file": "nodes/sy-000B.tex",
+   "hash": "sha256:72e0a7ff1431d69ae3002cde5ab57b1bbf4dc01d55d6121e91d435544e984722",
+   "incomplete": [],
+   "key": "sy-000B/proof",
+   "kind": "proof",
+   "node": "sy-000B",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    156,
+    242
+   ],
+   "state": "draft",
+   "uses": [
+    "sy-0003",
+    "sy-0006"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000C": {
+   "closure": [
+    "sy-000C"
+   ],
+   "file": "sections/appendix.tex",
+   "hash": "sha256:cc31920c84f7c9c9d71b8463e4feda5e205baa4385dec612b5b86eafd1706229",
+   "incomplete": [],
+   "key": "sy-000C",
+   "kind": "statement",
+   "node": "sy-000C",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    120,
+    201
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000C/proof": {
+   "closure": [
+    "sy-0008",
+    "sy-000C"
+   ],
+   "file": "sections/appendix.tex",
+   "hash": "sha256:0184b54714a55be3529b9e28d6d618219da220ad711a61f3b85330566bcbd498",
+   "incomplete": [
+    "Show that there are no fixed points using Definition~\\ref{sy-0008}."
+   ],
+   "key": "sy-000C/proof",
+   "kind": "proof",
+   "node": "sy-000C",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    202,
+    345
+   ],
+   "state": "incomplete",
+   "uses": [
+    "sy-0008"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000D": {
+   "closure": [
+    "sy-000D"
+   ],
+   "file": "sections/appendix.tex",
+   "hash": "sha256:86437dfaaa8c6fedeca7aad5b4b8fa2f01780c8cdb7b1ecd4614befde8488ad3",
+   "incomplete": [],
+   "key": "sy-000D",
+   "kind": "statement",
+   "node": "sy-000D",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    347,
+    441
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000D/proof": {
+   "closure": [
+    "sy-0007",
+    "sy-000D"
+   ],
+   "file": "sections/appendix.tex",
+   "hash": "sha256:2eded515fe360e21bb7a94a3b12b33d4c982746b5ede8f55d30076199c9f1036",
+   "incomplete": [],
+   "key": "sy-000D/proof",
+   "kind": "proof",
+   "node": "sy-000D",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    740,
+    869
+   ],
+   "state": "draft",
+   "uses": [
+    "sy-0007"
+   ],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000E": {
+   "closure": [
+    "sy-000E"
+   ],
+   "file": "sections/appendix.tex",
+   "hash": "sha256:f3d078831dd78bc2b5c77c5ba402712fa7b408724f4e954582b82a89100a8eca",
+   "incomplete": [],
+   "key": "sy-000E",
+   "kind": "statement",
+   "node": "sy-000E",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    524,
+    626
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-000E/proof": {
+   "closure": [
+    "sy-000E"
+   ],
+   "file": "sections/appendix.tex",
+   "hash": "sha256:81da139027186924ca9a2ea23235007959775a7f907b030c0c1a82cb482dac3a",
+   "incomplete": [],
+   "key": "sy-000E/proof",
+   "kind": "proof",
+   "node": "sy-000E",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    627,
+    714
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0202": {
+   "closure": [
+    "sy-0202"
+   ],
+   "file": "sections/results.tex",
+   "hash": "sha256:758281804f1d7265d09be46d4bd4621b7b72eddc56423a06e735b52397607654",
+   "incomplete": [],
+   "key": "sy-0202",
+   "kind": "statement",
+   "node": "sy-0202",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    493,
+    637
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-0202/proof": {
+   "closure": [
+    "sy-0202"
+   ],
+   "file": "sections/results.tex",
+   "hash": "sha256:ea642431f360d0d3227e6cce804ea09c1e0b6e29e2d4ee3767db4111bd83a007",
+   "incomplete": [],
+   "key": "sy-0202/proof",
+   "kind": "proof",
+   "node": "sy-0202",
+   "ordinal": 1,
+   "previous_key_match": "sy-000F/proof",
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    638,
+    672
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v1",
+    "step": "0001"
+   }
+  },
+  "sy-999A": {
+   "closure": [
+    "sy-999A"
+   ],
+   "file": "nodes/sy-999A.tex",
+   "hash": "sha256:43fe66048e8df8f77523b2b8769641147d667b96679b04c24cc74afc2580aa2e",
+   "incomplete": [],
+   "key": "sy-999A",
+   "kind": "statement",
+   "node": "sy-999A",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    110
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-talk-prepared",
+    "step": "0004"
+   }
+  },
+  "sy-999A/proof": {
+   "closure": [
+    "sy-999A"
+   ],
+   "file": "nodes/sy-999A.tex",
+   "hash": "sha256:6cbefc2a75d69966fab85f20d70e3b1b96f916e48ddd1e1b1f4062c327aa7c87",
+   "incomplete": [],
+   "key": "sy-999A/proof",
+   "kind": "proof",
+   "node": "sy-999A",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    111,
+    161
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "widgets-v2",
+    "step": "0003"
+   }
+  },
+  "sy-999B": {
+   "closure": [
+    "sy-999B"
+   ],
+   "conflict": [
+    "drafting/talk.tex",
+    "nodes/sy-999B.tex"
+   ],
+   "file": "",
+   "hash": "",
+   "incomplete": [],
+   "key": "sy-999B",
+   "kind": "statement",
+   "node": "sy-999B",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    0
+   ],
+   "state": "conflicted",
+   "uses": []
+  }
+ },
+ "links": [],
+ "macros": {
+  "default": [
+   {
+    "args": 0,
+    "body": "\\acute",
+    "name": "Acute"
+   },
+   {
+    "args": 0,
+    "body": "\\bar",
+    "name": "Bar"
+   },
+   {
+    "args": 0,
+    "body": "\\breve",
+    "name": "Breve"
+   },
+   {
+    "args": 0,
+    "body": "\\check",
+    "name": "Check"
+   },
+   {
+    "args": 0,
+    "body": "\\ddot",
+    "name": "Ddot"
+   },
+   {
+    "args": 0,
+    "body": "\\dot",
+    "name": "Dot"
+   },
+   {
+    "args": 0,
+    "body": "\\operatorname{Fix}",
+    "name": "Fix"
+   },
+   {
+    "args": 0,
+    "body": "Gromov--Witten",
+    "name": "GW"
+   },
+   {
+    "args": 0,
+    "body": "\\grave",
+    "name": "Grave"
+   },
+   {
+    "args": 0,
+    "body": "\\hat",
+    "name": "Hat"
+   },
+   {
+    "args": 0,
+    "body": "\\operatorname{Hom}",
+    "name": "Hom"
+   },
+   {
+    "args": 0,
+    "body": "\\tilde",
+    "name": "Tilde"
+   },
+   {
+    "args": 0,
+    "body": "\\vec",
+    "name": "Vec"
+   },
+   {
+    "args": 1,
+    "body": "\\textcolor{red}{#1}",
+    "name": "red"
+   }
+  ],
+  "sets": {
+   "Kre99": [
+    {
+     "args": 0,
+     "body": "\\mathrm{Hom}",
+     "name": "Hom"
+    }
+   ],
+   "canon:widgets-v1": [
+    {
+     "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Fix}",
+     "name": "Fix"
+    },
+    {
+     "args": 0,
+     "body": "Gromov--Witten",
+     "name": "GW"
+    },
+    {
+     "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Hom}",
+     "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
+    },
+    {
+     "args": 1,
+     "body": "\\textcolor{red}{#1}",
+     "name": "red"
+    }
+   ],
+   "canon:widgets-v2": [
+    {
+     "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Fix}",
+     "name": "Fix"
+    },
+    {
+     "args": 0,
+     "body": "Gromov--Witten",
+     "name": "GW"
+    },
+    {
+     "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Hom}",
+     "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
+    },
+    {
+     "args": 1,
+     "body": "\\textcolor{red}{#1}",
+     "name": "red"
+    }
+   ],
+   "canon:widgets-v3": [
+    {
+     "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Fix}",
+     "name": "Fix"
+    },
+    {
+     "args": 0,
+     "body": "Gromov--Witten",
+     "name": "GW"
+    },
+    {
+     "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Hom}",
+     "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
+    },
+    {
+     "args": 1,
+     "body": "\\textcolor{red}{#1}",
+     "name": "red"
+    }
+   ]
+  }
+ },
+ "masters": [
+  {
+   "compiled": "2026-09-16T00:00:00Z",
+   "default": true,
+   "engine": "pdflatex",
+   "fragment": "fragments/masters/main.html",
+   "numbering_known": true,
+   "path": "drafting/main.tex",
+   "pdf": "main/main.pdf",
+   "title": "Widgets, gadgets, and their fixed loci"
+  },
+  {
+   "compiled": "2026-09-16T00:00:00Z",
+   "default": false,
+   "engine": "pdflatex",
+   "fragment": "fragments/masters/talk.html",
+   "numbering_known": true,
+   "path": "drafting/talk.tex",
+   "pdf": "talk/talk.pdf",
+   "title": "Widgets, in twenty minutes"
+  }
+ ],
+ "nodes": {
+  "Kre99-sec-1": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Kre99-setup"
+   ],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Kre99",
+   "external": true,
+   "file": "digests/Kre99.tex",
+   "fragment": "fragments/nodes/Kre99-sec-1.html",
+   "id": "Kre99-sec-1",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    388,
+    581
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Setup"
+  },
+  "Kre99-sec-2": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Kre99-thm-2.1"
+   ],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Kre99",
+   "external": true,
+   "file": "digests/Kre99.tex",
+   "fragment": "fragments/nodes/Kre99-sec-2.html",
+   "id": "Kre99-sec-2",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    581,
+    836
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Cycle groups"
+  },
+  "Kre99-setup": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Kre99",
+   "external": true,
+   "file": "digests/Kre99.tex",
+   "fragment": "fragments/nodes/Kre99-setup.html",
+   "id": "Kre99-setup",
+   "incomplete": [],
+   "kind": "environment",
+   "locator": "Standing assumptions, Section 1",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    424,
+    579
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": ""
+  },
+  "Kre99-thm-2.1": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Kre99",
+   "external": true,
+   "file": "digests/Kre99.tex",
+   "fragment": "fragments/nodes/Kre99-thm-2.1.html",
+   "id": "Kre99-thm-2.1",
+   "incomplete": [],
+   "kind": "environment",
+   "locator": "Theorem 2.1, p.~4",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    624,
+    835
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": ""
+  },
+  "digests/Kre99.tex#section:1": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Kre99",
+   "external": true,
+   "file": "digests/Kre99.tex",
+   "fragment": "fragments/keys/digests%2FKre99.tex%23section%3A1.html",
+   "id": "digests/Kre99.tex#section:1",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    229,
+    388
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Overview"
+  },
+  "drafting/talk.tex#lemma:1": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/talk.tex",
+   "fragment": "fragments/keys/drafting%2Ftalk.tex%23lemma%3A1.html",
+   "id": "drafting/talk.tex#lemma:1",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/talk.tex": "sy-0400"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/talk.tex"
+   ],
+   "src": [
+    782,
+    924
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Doubly defined"
+  },
+  "nodes/sy-999B.tex#lemma:1": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-999B.tex",
+   "fragment": "fragments/keys/nodes%2Fsy-999B.tex%23lemma%3A1.html",
+   "id": "nodes/sy-999B.tex#lemma:1",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    0,
+    142
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Doubly defined"
+  },
+  "sections/appendix.tex#remark:1": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/appendix.tex",
+   "fragment": "fragments/keys/sections%2Fappendix.tex%23remark%3A1.html",
+   "id": "sections/appendix.tex#remark:1",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    443,
+    522
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [],
+   "taxon": "Remark",
+   "title": null
+  },
+  "sy-0001": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/main.tex",
+   "fragment": "fragments/nodes/sy-0001.html",
+   "id": "sy-0001",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "1.1",
+     "page": 1
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0100"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    1046,
+    1304
+   ],
+   "state": "accepted",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Widget"
+  },
+  "sy-0002": {
+   "aliases": [],
+   "author": [
+    "The synthetic quilt"
+   ],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0002.tex",
+   "fragment": "fragments/nodes/sy-0002.html",
+   "id": "sy-0002",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "1.2",
+     "page": 1
+    },
+    "drafting/talk.tex": {
+     "number": "3",
+     "page": 4
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0100",
+    "drafting/talk.tex": "sy-0400"
+   },
+   "proofs": [
+    "sy-0002/proof"
+   ],
+   "reached_by": [
+    "drafting/main.tex",
+    "drafting/talk.tex"
+   ],
+   "src": [
+    93,
+    240
+   ],
+   "state": "accepted",
+   "style": "plain",
+   "tags": [
+    "orbits",
+    "setup"
+   ],
+   "taxon": "Lemma",
+   "title": "Orbits"
+  },
+  "sy-0003": {
+   "aliases": [],
+   "author": [
+    "The synthetic quilt"
+   ],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0003.tex",
+   "fragment": "fragments/nodes/sy-0003.html",
+   "id": "sy-0003",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.1",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0200"
+   },
+   "proofs": [
+    "sy-0004",
+    "sy-0005"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    84,
+    215
+   ],
+   "state": "accepted",
+   "style": "plain",
+   "tags": [
+    "main"
+   ],
+   "taxon": "Theorem",
+   "title": "Parity"
+  },
+  "sy-0004": {
+   "aliases": [],
+   "author": [
+    "The synthetic quilt"
+   ],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0003.tex",
+   "fragment": "fragments/nodes/sy-0004.html",
+   "id": "sy-0004",
+   "incomplete": [],
+   "kind": "proof",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    216,
+    369
+   ],
+   "state": "accepted",
+   "style": null,
+   "tags": [
+    "main"
+   ],
+   "taxon": "Proof",
+   "title": "First proof"
+  },
+  "sy-0005": {
+   "aliases": [],
+   "author": [
+    "The synthetic quilt"
+   ],
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0003.tex",
+   "fragment": "fragments/nodes/sy-0005.html",
+   "id": "sy-0005",
+   "incomplete": [],
+   "kind": "proof",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    370,
+    595
+   ],
+   "state": "accepted",
+   "style": null,
+   "tags": [
+    "main"
+   ],
+   "taxon": "Proof",
+   "title": "Second proof"
+  },
+  "sy-0006": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0006.tex",
+   "fragment": "fragments/nodes/sy-0006.html",
+   "id": "sy-0006",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.2",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0201"
+   },
+   "proofs": [
+    "sy-0006/proof",
+    "sy-0006/proof/2"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    0,
+    110
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Two arguments"
+  },
+  "sy-0007": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0007.tex",
+   "fragment": "fragments/nodes/sy-0007.html",
+   "id": "sy-0007",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.3",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0201"
+   },
+   "proofs": [
+    "sy-0007/proof"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    24,
+    124
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [
+    "deferred"
+   ],
+   "taxon": "Lemma",
+   "title": "Deferred"
+  },
+  "sy-0008": {
+   "aliases": [
+    "def:gadget",
+    "defn:gadget-old"
+   ],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0008.tex",
+   "fragment": "fragments/nodes/sy-0008.html",
+   "id": "sy-0008",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.4",
+     "page": 2
+    },
+    "drafting/talk.tex": {
+     "number": "1",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0201",
+    "drafting/talk.tex": "sy-0400"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex",
+    "drafting/talk.tex"
+   ],
+   "src": [
+    33,
+    197
+   ],
+   "state": "draft",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Gadget"
+  },
+  "sy-0009": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-0009.tex",
+   "fragment": "fragments/nodes/sy-0009.html",
+   "id": "sy-0009",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {},
+   "parent": {},
+   "proofs": [
+    "sy-0009/proof"
+   ],
+   "reached_by": [],
+   "src": [
+    21,
+    266
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [
+    "loose"
+   ],
+   "taxon": "Lemma",
+   "title": "Loose"
+  },
+  "sy-000A": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-000A.tex",
+   "fragment": "fragments/nodes/sy-000A.html",
+   "id": "sy-000A",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.10",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    0,
+    126
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [],
+   "taxon": "Remark",
+   "title": null
+  },
+  "sy-000B": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-000B.tex",
+   "fragment": "fragments/nodes/sy-000B.html",
+   "id": "sy-000B",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.1",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [
+    "sy-000B/proof"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    0,
+    155
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Main Theorem",
+   "title": null
+  },
+  "sy-000C": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/appendix.tex",
+   "fragment": "fragments/nodes/sy-000C.html",
+   "id": "sy-000C",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.6",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [
+    "sy-000C/proof"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    120,
+    201
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Incomplete"
+  },
+  "sy-000D": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/appendix.tex",
+   "fragment": "fragments/nodes/sy-000D.html",
+   "id": "sy-000D",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.7",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [
+    "sy-000D/proof"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    347,
+    441
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "No proof yet"
+  },
+  "sy-000E": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/appendix.tex",
+   "fragment": "fragments/nodes/sy-000E.html",
+   "id": "sy-000E",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.9",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0300"
+   },
+   "proofs": [
+    "sy-000E/proof"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    524,
+    626
+   ],
+   "state": "draft",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Half-gadget"
+  },
+  "sy-0100": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "sy-0001"
+   ],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/main.tex",
+   "fragment": "fragments/nodes/sy-0100.html",
+   "id": "sy-0100",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "1",
+     "page": 1
+    }
+   },
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    576,
+    2113
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Introduction"
+  },
+  "sy-0200": {
+   "aliases": [],
+   "author": [
+    "The synthetic quilt"
+   ],
+   "children": [
+    "sy-0201"
+   ],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/results.tex",
+   "fragment": "fragments/nodes/sy-0200.html",
+   "id": "sy-0200",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2",
+     "page": 2
+    }
+   },
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    59,
+    673
+   ],
+   "state": "",
+   "style": null,
+   "tags": [
+    "results"
+   ],
+   "taxon": "Section",
+   "title": "Results"
+  },
+  "sy-0201": {
+   "aliases": [],
+   "author": [
+    "The synthetic quilt"
+   ],
+   "children": [
+    "sy-0202"
+   ],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/results.tex",
+   "fragment": "fragments/nodes/sy-0201.html",
+   "id": "sy-0201",
+   "incomplete": [],
+   "kind": "section",
+   "level": 2,
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.1",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    186,
+    673
+   ],
+   "state": "",
+   "style": null,
+   "tags": [
+    "results"
+   ],
+   "taxon": "Subsection",
+   "title": "Consequences"
+  },
+  "sy-0202": {
+   "aliases": [],
+   "author": [
+    "A Coauthor"
+   ],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/results.tex",
+   "fragment": "fragments/nodes/sy-0202.html",
+   "id": "sy-0202",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.5",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0201"
+   },
+   "proofs": [
+    "sy-0202/proof"
+   ],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    493,
+    637
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [
+    "results"
+   ],
+   "taxon": "Lemma",
+   "title": null
+  },
+  "sy-0300": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "sy-000C",
+    "sy-000D",
+    "sections/appendix.tex#remark:1",
+    "sy-000E"
+   ],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "sections/appendix.tex",
+   "fragment": "fragments/nodes/sy-0300.html",
+   "id": "sy-0300",
+   "incomplete": [],
+   "kind": "section",
+   "level": 2,
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2.2",
+     "page": 2
+    }
+   },
+   "parent": {
+    "drafting/main.tex": "sy-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex"
+   ],
+   "src": [
+    0,
+    870
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Subsection",
+   "title": "Appendix: an incomplete argument"
+  },
+  "sy-0400": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "drafting/talk.tex#lemma:1"
+   ],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/talk.tex",
+   "fragment": "fragments/nodes/sy-0400.html",
+   "id": "sy-0400",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {
+    "drafting/talk.tex": {
+     "number": "1",
+     "page": 2
+    }
+   },
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/talk.tex"
+   ],
+   "src": [
+    517,
+    1002
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Widgets"
+  },
+  "sy-999A": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sy-999A.tex",
+   "fragment": "fragments/nodes/sy-999A.html",
+   "id": "sy-999A",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {
+    "drafting/talk.tex": {
+     "number": "1",
+     "page": 6
+    }
+   },
+   "parent": {
+    "drafting/talk.tex": "sy-0400"
+   },
+   "proofs": [
+    "sy-999A/proof"
+   ],
+   "reached_by": [
+    "drafting/talk.tex"
+   ],
+   "src": [
+    0,
+    110
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Two arguments"
+  },
+  "sy-999B": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "conflict": [
+    "drafting/talk.tex",
+    "nodes/sy-999B.tex"
+   ],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "",
+   "fragment": "",
+   "id": "sy-999B",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/main.tex",
+    "drafting/talk.tex"
+   ],
+   "src": [
+    0,
+    0
+   ],
+   "state": "conflicted",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": null
+  }
+ },
+ "publisher": {
+  "name": "loom",
+  "version": "0.1.0.dev0"
+ },
+ "publishes": {
+  "bibliography": true,
+  "discussions": true,
+  "documents": true,
+  "review": true
+ },
+ "reference_notes": [
+  {
+   "accepted": {
+    "when": "2026-09-16T09:00:00Z",
+    "who": "The synthetic quilt"
+   },
+   "claim": "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.",
+   "for": [
+    "sy-0003"
+   ],
+   "from": {
+    "annotation": "a-2026-09-16-0004",
+    "run": "2026-09-16T00-00-referee"
+   },
+   "identifier": {
+    "verified": false
+   },
+   "work": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999"
+  }
+ ],
+ "references": {
+  "Har77": {
+   "artifacts": {
+    "dir": "digests/storage/work/5ac32442",
+    "pdf": false,
+    "source": false
+   },
+   "bib": {
+    "author": "Hartshorne, Robin",
+    "title": "Algebraic Geometry",
+    "year": 1977
+   },
+   "cited_by": [
+    "sy-0100"
+   ],
+   "citekey": "Har77",
+   "digest": null,
+   "proposed": null,
+   "results": {},
+   "slug": "Har77",
+   "version_mismatch": false,
+   "work": "work:5ac32442",
+   "works": [
+    "work:5ac32442"
+   ]
+  },
+  "Kre99": {
+   "artifacts": {
+    "dir": "digests/storage/arxiv/math_9810166v2",
+    "pdf": false,
+    "source": false
+   },
+   "bib": {
+    "author": "Kresch, Andrew",
+    "eprint": "math/9810166v2",
+    "journal": "Invent. Math.",
+    "title": "Cycle groups for Artin stacks",
+    "year": 1999
+   },
+   "cited_by": [
+    "sy-000A",
+    "sy-0100"
+   ],
+   "citekey": "Kre99",
+   "digest": {
+    "extracted_from": "arXiv:math/9810166v2",
+    "file": "digests/Kre99.tex",
+    "fragment": "fragments/digests/Kre99.html",
+    "method": "manual",
+    "nodes": [
+     "Kre99-setup",
+     "Kre99-thm-2.1"
+    ],
+    "published_as": "",
+    "source": "arXiv:math/9810166v2"
+   },
+   "proposed": null,
+   "results": {},
+   "slug": "Kre99",
+   "version_mismatch": false,
+   "work": "arXiv:math/9810166v2",
+   "works": [
+    "arXiv:math/9810166v2"
+   ]
+  },
+  "Man12": {
+   "artifacts": {
+    "dir": "digests/storage/arxiv/0805.2065v2",
+    "pdf": false,
+    "source": false
+   },
+   "bib": {
+    "author": "Manolache, Cristina",
+    "eprint": "0805.2065v2",
+    "title": "Virtual pull-backs",
+    "year": 2012
+   },
+   "cited_by": [],
+   "citekey": "Man12",
+   "digest": null,
+   "proposed": null,
+   "results": {},
+   "slug": "Man12",
+   "version_mismatch": false,
+   "work": "arXiv:0805.2065v2",
+   "works": [
+    "arXiv:0805.2065v2"
+   ]
+  }
+ },
+ "regions": {
+  "sy-0001#eq:fix": {
+   "container": "sy-0001",
+   "in": "statement",
+   "key": "sy-0001#eq:fix",
+   "label": "eq:fix",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "2"
+    }
+   },
+   "src": [
+    1215,
+    1215
+   ]
+  },
+  "sy-0002/proof#eq:step": {
+   "container": "sy-0002/proof",
+   "in": "proof:sy-0002/proof",
+   "key": "sy-0002/proof#eq:step",
+   "label": "eq:step",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "3"
+    },
+    "drafting/talk.tex": {
+     "number": "2"
+    }
+   },
+   "src": [
+    317,
+    317
+   ]
+  },
+  "sy-0100#eq:prose": {
+   "container": "sy-0100",
+   "in": "prose",
+   "key": "sy-0100#eq:prose",
+   "label": "eq:prose",
+   "numbers": {
+    "drafting/main.tex": {
+     "number": "1"
+    }
+   },
+   "src": [
+    681,
+    681
+   ]
+  }
+ },
+ "relations": [
+  {
+   "from": "sy-0009",
+   "kind": "see",
+   "src": {
+    "file": "nodes/sy-0009.tex",
+    "line": 4
+   },
+   "to": "sy-0008"
+  }
+ ],
+ "search": [
+  {
+   "aliases": [],
+   "key": "canon/widgets-v1.tex",
+   "kind": "canon",
+   "tags": [],
+   "title": "Widgets, gadgets, and their fixed loci"
+  },
+  {
+   "aliases": [],
+   "key": "canon/widgets-v2.tex",
+   "kind": "canon",
+   "tags": [],
+   "title": "Widgets, gadgets, and their fixed loci"
+  },
+  {
+   "aliases": [],
+   "key": "canon/widgets-v3.tex",
+   "kind": "canon",
+   "tags": [],
+   "title": "Widgets, gadgets, and their fixed loci"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{Kre99}}] All stacks are algebraic and of finite type over a field.",
+   "key": "Kre99-setup",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Kre99-setup"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{Kre99}}] For every Artin stack $X$ the group $A_*(X)$ is well defined and $\\Hom(A_*(X), \\mathbb{Q})$ is functorial.",
+   "key": "Kre99-thm-2.1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Kre99-thm-2.1"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A \\emph{widget} is a pair of a set and an involution of it, so that \\eqref{eq:prose} holds. Its fixed locus is \\Fix(\\sigma) = \\{x \\in X : \\sigma x = x\\}.",
+   "key": "sy-0001",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Widget"
+  },
+  {
+   "aliases": [],
+   "excerpt": "This lemma is defined twice, so it has no text and loom says so rather than choosing.",
+   "key": "drafting/talk.tex#lemma:1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Doubly defined"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Every orbit of a widget has one or two points; compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}.",
+   "key": "sy-0002",
+   "kind": "environment",
+   "tags": [
+    "orbits",
+    "setup"
+   ],
+   "taxon": "Lemma",
+   "title": "Orbits"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Let $(X,\\sigma)$ be a finite widget. Then $|X| \\equiv |\\Fix(\\sigma)| \\pmod 2$.",
+   "key": "sy-0003",
+   "kind": "environment",
+   "tags": [
+    "main"
+   ],
+   "taxon": "Theorem",
+   "title": "Parity"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A widget with $|X| = 1$ has a fixed point.",
+   "key": "sy-0006",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Two arguments"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The composite of two widget maps is a widget map.",
+   "key": "sy-0007",
+   "kind": "environment",
+   "tags": [
+    "deferred"
+   ],
+   "taxon": "Lemma",
+   "title": "Deferred"
+  },
+  {
+   "aliases": [
+    "def:gadget",
+    "defn:gadget-old"
+   ],
+   "excerpt": "A \\emph{gadget} is a widget whose involution has no fixed point.",
+   "key": "sy-0008",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Gadget"
+  },
+  {
+   "aliases": [],
+   "excerpt": "This lemma is reached by no master; it depends on Lemma~\\ref{sy-0002}. It restates part of the gadget definition at greater length, which is a relation and not ",
+   "key": "sy-0009",
+   "kind": "environment",
+   "tags": [
+    "loose"
+   ],
+   "taxon": "Lemma",
+   "title": "Loose"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Gadgets exist: take $X = \\{1,2\\}$ with the swap. Compare \\cite[Theorem 2.1]{Kre99}.",
+   "key": "sy-000A",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Remark",
+   "title": "sy-000A"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Every finite widget of odd order has a fixed point, and the fixed locus is functorial.",
+   "key": "sy-000B",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Main Theorem",
+   "title": "sy-000B"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A widget with one point has a fixed point.",
+   "key": "sy-999A",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Two arguments"
+  },
+  {
+   "aliases": [],
+   "excerpt": "This lemma is defined twice, so it has no text and loom says so rather than choosing.",
+   "key": "nodes/sy-999B.tex#lemma:1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Doubly defined"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Every gadget has even order.",
+   "key": "sy-000C",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Incomplete"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Every widget map preserves orbit sizes.",
+   "key": "sy-000D",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "No proof yet"
+  },
+  {
+   "aliases": [],
+   "excerpt": "An unlabelled remark: gadgets never have odd order.",
+   "key": "sections/appendix.tex#remark:1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Remark",
+   "title": "sections/appendix.tex#remark:1"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A widget with exactly one fixed point.",
+   "key": "sy-000E",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Half-gadget"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A lemma written by a coauthor, so its author directive overrides the file's.",
+   "key": "sy-0202",
+   "kind": "environment",
+   "tags": [
+    "results"
+   ],
+   "taxon": "Lemma",
+   "title": "sy-0202"
+  },
+  {
+   "aliases": [],
+   "excerpt": "This paper studies widgets. The basic identity is \\sigma^2 = \\mathrm{id}, which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of ga",
+   "key": "sy-0100",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Introduction"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The main results, with one proof deferred to the end of the section. \\input{nodes/sy-0003}",
+   "key": "sy-0200",
+   "kind": "section",
+   "tags": [
+    "results"
+   ],
+   "taxon": "Section",
+   "title": "Results"
+  },
+  {
+   "aliases": [],
+   "excerpt": "\\input{nodes/sy-0006} \\input{nodes/sy-0007} \\input{nodes/sy-0008}",
+   "key": "sy-0201",
+   "kind": "section",
+   "tags": [
+    "results"
+   ],
+   "taxon": "Subsection",
+   "title": "Consequences"
+  },
+  {
+   "aliases": [],
+   "excerpt": "This file is nested, so its section renders one level down.",
+   "key": "sy-0300",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Subsection",
+   "title": "Appendix: an incomplete argument"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{The definition} \\input{nodes/sy-0008} {The lemma} \\input{nodes/sy-0002} {The lemma again} \\input{nodes/sy-0002} {The doubly defined lemma} {Two arguments} \\inp",
+   "key": "sy-0400",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Widgets"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Kresch constructs Chow groups for Artin stacks. This digest holds the standing assumptions and the one theorem the synthetic paper cites.",
+   "key": "digests/Kre99.tex#section:1",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Overview"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Kre99-sec-1",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Setup"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Kre99-sec-2",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Cycle groups"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "sy-999B",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "sy-999B"
+  },
+  {
+   "aliases": [],
+   "excerpt": "By Lemma~\\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.",
+   "key": "sy-0004",
+   "kind": "proof",
+   "tags": [
+    "main"
+   ],
+   "taxon": "Proof",
+   "title": "First proof"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Count fixed points of the permutation $\\sigma$ directly, using \\eqref{eq:step} from the proof of Lemma~\\ref{sy-0002} and Definition~\\ref{sy-0001}.",
+   "key": "sy-0005",
+   "kind": "proof",
+   "tags": [
+    "main"
+   ],
+   "taxon": "Proof",
+   "title": "Second proof"
+  },
+  {
+   "aliases": [],
+   "key": "drafting/main.tex",
+   "kind": "master",
+   "tags": [],
+   "title": "Widgets, gadgets, and their fixed loci"
+  },
+  {
+   "aliases": [],
+   "key": "drafting/talk.tex",
+   "kind": "master",
+   "tags": [],
+   "title": "Widgets, in twenty minutes"
+  },
+  {
+   "aliases": [],
+   "key": "2026-09-15T10-00-quick",
+   "kind": "thread",
+   "tags": [],
+   "title": "quick"
+  },
+  {
+   "aliases": [],
+   "key": "2026-09-16T00-00-referee",
+   "kind": "thread",
+   "tags": [],
+   "title": "referee sy-0003"
+  },
+  {
+   "aliases": [],
+   "key": "comments/the-synthetic-quilt/2026-09-16",
+   "kind": "thread",
+   "tags": [],
+   "title": "The synthetic quilt"
+  }
+ ],
+ "states": {
+  "derived": {
+   "proved": {
+    "color": "positive",
+    "label": "proved"
+   },
+   "settled": {
+    "color": "positive-strong",
+    "label": "settled"
+   }
+  },
+  "labels": {
+   "accepted": {
+    "color": "positive",
+    "label": "accepted"
+   },
+   "conflicted": {
+    "color": "negative",
+    "label": "conflicted"
+   },
+   "draft": {
+    "color": "neutral",
+    "label": "draft"
+   },
+   "incomplete": {
+    "color": "negative",
+    "label": "incomplete"
+   },
+   "proposed": {
+    "color": "info",
+    "label": "proposed"
+   },
+   "stale": {
+    "color": "warning",
+    "label": "stale",
+    "modifier": true
+   }
+  }
+ },
+ "tags": {
+  "deferred": [
+   "sy-0007"
+  ],
+  "loose": [
+   "sy-0009"
+  ],
+  "main": [
+   "sy-0003",
+   "sy-0004",
+   "sy-0005"
+  ],
+  "orbits": [
+   "sy-0002"
+  ],
+  "results": [
+   "sy-0202",
+   "sy-0200",
+   "sy-0201"
+  ],
+  "setup": [
+   "sy-0002"
+  ]
+ },
+ "taxa": {
+  "Definition": {
+   "count": 3,
+   "slug": "definition",
+   "style": "definition"
+  },
+  "Lemma": {
+   "count": 8,
+   "slug": "lemma",
+   "style": "plain"
+  },
+  "Main Theorem": {
+   "count": 1,
+   "slug": "main-theorem",
+   "style": "plain"
+  },
+  "Proposition": {
+   "count": 2,
+   "slug": "proposition",
+   "style": "plain"
+  },
+  "Remark": {
+   "count": 2,
+   "slug": "remark",
+   "style": "remark"
+  },
+  "Theorem": {
+   "count": 3,
+   "slug": "theorem",
+   "style": "plain"
+  }
+ },
+ "threads": {
+  "2026-09-15T10-00-quick": {
+   "attachments": [
+    {
+     "count": 1,
+     "kind": "annotations",
+     "name": "annotations"
+    }
+   ],
+   "created": "2026-09-15T10:00:00Z",
+   "discarded": true,
+   "id": "2026-09-15T10-00-quick",
+   "kind": "run",
+   "log": [
+    {
+     "command": "loom comment sy-000A --kind ok",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "messages": [],
+   "participants": [
+    {
+     "id": "quick",
+     "kind": "agent"
+    }
+   ],
+   "path": "ai/runs/2026-09-15T10-00-quick",
+   "pipeline": [],
+   "targets": [
+    "sy-000A"
+   ],
+   "title": "quick"
+  },
+  "2026-09-16T00-00-referee": {
+   "attachments": [
+    {
+     "count": 5,
+     "kind": "annotations",
+     "name": "annotations"
+    },
+    {
+     "kind": "notes",
+     "name": "referee-sy-0003.notes.md",
+     "path": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md"
+    }
+   ],
+   "created": "2026-09-16T00:00:00Z",
+   "discarded": false,
+   "id": "2026-09-16T00-00-referee",
+   "kind": "run",
+   "log": [
+    {
+     "command": "loom comment sy-0003 --quote --kind objection",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0004 --quote --kind suggestion",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment drafting/main.tex --kind suggestion",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0003 --kind citation",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0002 --kind citation",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "messages": [
+    {
+     "author": {
+      "id": "referee",
+      "kind": "agent"
+     },
+     "body_html": "<p><strong>2026-09-16 00:00 referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "participants": [
+    {
+     "id": "referee",
+     "kind": "agent"
+    }
+   ],
+   "path": "ai/runs/2026-09-16T00-00-referee",
+   "pipeline": [
+    {
+     "blocks": [
+      {
+       "name": "summary",
+       "title": "summary"
+      },
+      {
+       "name": "notation",
+       "symbols": [
+        {
+         "means": "is the fixed locus of the involution.",
+         "tex": "\\Fix(\\sigma)"
+        },
+        {
+         "means": "is the number of two-element orbits.",
+         "tex": "k"
+        },
+        {
+         "means": "is also used below for the fixed locus of the induced map on orbits.",
+         "tex": "\\Fix(\\sigma)"
+        }
+       ],
+       "title": "notation"
+      },
+      {
+       "findings": [
+        "a-2026-09-16-0001",
+        "a-2026-09-16-0002",
+        "a-2026-09-16-0003"
+       ],
+       "name": "referee-review",
+       "title": "Major and minor issues"
+      },
+      {
+       "name": "decision",
+       "title": "decision"
+      }
+     ],
+     "fragment": "fragments/reports/ai%2Fruns%2F2026-09-16T00-00-referee%2Freferee-sy-0003.notes.md.html",
+     "mode": "referee",
+     "report": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md",
+     "target": "sy-0003"
+    }
+   ],
+   "targets": [
+    "sy-0003",
+    "sy-0004",
+    "drafting/main.tex",
+    "sy-0002"
+   ],
+   "title": "referee sy-0003"
+  },
+  "comments/the-synthetic-quilt/2026-09-16": {
+   "attachments": [],
+   "created": "2026-09-16T00:00:00Z",
+   "discarded": false,
+   "id": "comments/the-synthetic-quilt/2026-09-16",
+   "kind": "comments",
+   "log": [],
+   "messages": [
+    {
+     "author": "The synthetic quilt",
+     "body_html": "<p><strong>question</strong> on <code>sy-0002</code>: Is the orbit of a fixed point counted as one point or two?</p>",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "author": "The synthetic quilt",
+     "body_html": "<p><strong>question</strong> on <code>sy-0003</code>: Agreed; I will add the hypothesis to the statement.</p>",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "author": "The synthetic quilt",
+     "body_html": "<p><strong>question</strong> on <code>sy-0004</code>: Done in the next revision.</p>",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "author": "The synthetic quilt",
+     "body_html": "<p><strong>question</strong> on <code>sy-0001</code>: Is the involution required to be a bijection, or does that follow?</p>",
+     "time": "2026-09-16T00:00:00Z"
+    }
+   ],
+   "participants": [
+    {
+     "id": "The synthetic quilt",
+     "kind": "person"
+    }
+   ],
+   "path": "comments/the-synthetic-quilt/2026-09-16",
+   "targets": [
+    "sy-0002",
+    "sy-0003",
+    "sy-0004",
+    "sy-0001"
+   ],
+   "title": "The synthetic quilt"
+  }
+ }
+}

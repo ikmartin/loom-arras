@@ -1,0 +1,2 @@
+error loom:unattached-proof
+warning loom:missing-proof

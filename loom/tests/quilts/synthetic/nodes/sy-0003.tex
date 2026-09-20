@@ -1,0 +1,15 @@
+% !LOOM author: The synthetic quilt
+% !LOOM created: 2026-09-16
+% !LOOM tags: main
+
+\begin{theorem}[Parity]\label{sy-0003}
+Let $(X,\sigma)$ be a finite widget. Then $|X| \equiv |\Fix(\sigma)| \pmod 2$.
+\end{theorem}
+\begin{proof}[First proof]\label{sy-0004}
+\uses{sy-0002}
+By Lemma~\ref{sy-0002} the set $X$ is a disjoint union of orbits of size one or two.
+\end{proof}
+\begin{proof}[Second proof]\label{sy-0005}
+\uses{sy-0002, sy-0001}
+Count fixed points of the permutation $\sigma$ directly, using \eqref{eq:step} from the proof of Lemma~\ref{sy-0002} and Definition~\ref{sy-0001}.
+\end{proof}

@@ -1,0 +1,4 @@
+[quilt]
+name = "superseded"
+main = "drafting/spine.tex"
+prefix = "ed"

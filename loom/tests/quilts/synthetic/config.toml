@@ -1,0 +1,17 @@
+[quilt]
+name = "The synthetic quilt"
+main = "drafting/main.tex"
+drafting = "drafting"
+canon = "canon"
+prefix = "sy"
+engine = "pdflatex"
+
+[refs]
+fetch = false
+resolve = false
+
+[lint]
+disable = []
+
+[ai]
+agent = ""

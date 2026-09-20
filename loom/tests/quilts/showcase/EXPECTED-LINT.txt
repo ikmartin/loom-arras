@@ -1,0 +1,7 @@
+error duplicate-id
+info loom:detached-annotation
+info loom:superseded-file
+info loom:unresolved-work
+info unreachable
+warning loom:missing-proof
+warning loom:unmatched-postnote

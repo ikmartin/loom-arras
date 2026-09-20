@@ -1,0 +1,102 @@
+\documentclass{amsart}
+\usepackage{amsmath,amssymb,amsthm}
+% !LOOM begin loom-macros
+% loom.sty is MIT-licensed so that it can travel with a paper; see the LICENSE beside it in the loom distribution.
+
+% Dependencies the text does not express as \ref or a matchable \cite.
+% Prints nothing.
+\providecommand{\uses}[1]{}
+
+% Marks a statement or proof as mathematically incomplete.
+% Prints nothing; an author may \renewcommand it to print in draft builds.
+\providecommand{\incomplete}[1]{}
+
+% Inputs a file with every sectioning command inside it shifted one level down.
+% Composes when nested files nest files.
+\providecommand{\nest}[1]{\begingroup
+  \let\chapter\section
+  \let\section\subsection
+  \let\subsection\subsubsection
+  \let\subsubsection\paragraph
+  \let\paragraph\subparagraph
+  \input{#1}\endgroup}
+% !LOOM end loom-macros
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\Fix}{\operatorname{Fix}}
+
+\title{Widgets and their fixed loci}
+\author{The loom demo}
+
+\begin{document}
+\maketitle
+
+\section{Setup}\label{dm-0010}
+
+A widget is the simplest object with an involution. We fix conventions here and prove the two results that every later section uses.
+
+% !LOOM author: The loom demo
+% !LOOM created: 2026-09-16
+% !LOOM tags: setup
+
+\begin{definition}[Widget]\label{dm-0001}\label{def:widget}
+A \emph{widget} is a pair $(X,\sigma)$ of a finite set $X$ and a map $\sigma\colon X\to X$ with $\sigma^2=\mathrm{id}$. Its \emph{fixed locus} is
+\begin{equation}\label{eq:fix}
+\Fix(\sigma) = \{x\in X : \sigma x = x\}.
+\end{equation}
+\end{definition}
+
+
+% !LOOM author: The loom demo
+% !LOOM created: 2026-09-16
+% !LOOM tags: setup, orbits
+
+\begin{lemma}[Orbits]\label{dm-0002}\label{lem:orbits}
+Every orbit of a widget has one or two points, and $\Fix(\sigma)$ is the union of the one-point orbits.
+\end{lemma}
+\begin{proof}
+Since $\sigma^2=\mathrm{id}$, the orbit of $x$ is $\{x,\sigma x\}$, which has one point exactly when $\sigma x = x$; compare \eqref{eq:fix}.
+\end{proof}
+
+
+\section{Results}\label{dm-0011}
+
+The main theorem says that the fixed locus is as nice as one could hope.
+
+% !LOOM author: The loom demo
+% !LOOM created: 2026-09-16
+% !LOOM tags: main
+
+\begin{theorem}[Main]\label{dm-0003}
+Let $(X,\sigma)$ be a widget with $X$ a finite set. Then $\Fix(\sigma)$ is nonempty if and only if $|X|$ is odd, and it is closed in every topology on $X$ for which $\sigma$ is continuous and $X$ is Hausdorff.
+\end{theorem}
+\begin{proof}
+\uses{dm-0002}
+By Lemma~\ref{lem:orbits} the set $X$ is a disjoint union of orbits of size one or two, so $|X| \equiv |\Fix(\sigma)| \pmod 2$, which gives the parity statement. For closedness, $\Fix(\sigma)$ is the preimage of the diagonal under $(\mathrm{id},\sigma)\colon X\to X\times X$, and the diagonal is closed when $X$ is Hausdorff; the same argument in the algebraic setting is \cite[Proposition 3.2]{Man12}.
+\end{proof}
+
+
+\begin{remark}\label{dm-0004}
+Closedness is where the involution being an automorphism matters; a merely continuous $\sigma$ can have a fixed locus that is not closed in the constructible topology.
+\end{remark}
+
+\begin{proposition}[Functoriality]\label{dm-0005}
+A map of widgets $f\colon (X,\sigma)\to(Y,\tau)$ with $f\sigma = \tau f$ restricts to a map $\Fix(\sigma)\to\Fix(\tau)$.
+\end{proposition}
+\begin{proof}
+\uses{dm-0001}
+If $\sigma x = x$ then $\tau f(x) = f(\sigma x) = f(x)$. \incomplete{Say why the restriction is continuous when $X$ carries the constructible topology.}
+\end{proof}
+
+\bibliographystyle{amsplain}
+\bibliography{refs}
+
+\end{document}

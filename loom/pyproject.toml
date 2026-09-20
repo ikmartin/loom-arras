@@ -1,0 +1,64 @@
+[project]
+name = "loomtex"
+version = "0.1.0.dev0"
+description = "loom: a tool for atomized mathematical research in LaTeX"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "ikmartin" }]
+keywords = ["latex", "mathematics", "writing", "review"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Programming Language :: Python :: 3",
+  "Topic :: Text Processing :: Markup :: LaTeX",
+]
+dependencies = [
+  "click>=8.1",
+  "markdown-it-py>=3.0",
+]
+
+[project.scripts]
+loom = "loom.cli:main"
+
+[project.urls]
+Repository = "https://github.com/ikmartin/loom"
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/loom"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "mypy>=1.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "tex: needs a real TeX distribution (TeX tier)",
+  "paper: needs LOOM_PAPER_FIXTURES pointing at the arXiv sources (paper tier)",
+  "network: needs network access",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = ["tests/tools"]  # vendored verbatim from the workspace specs
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = ["E501"]  # prose is never hard-wrapped (workspace CLAUDE.md); ruff format governs code width
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]

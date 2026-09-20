@@ -1,0 +1,1 @@
+This directory holds the built arras viewer bundle, copied here by `scripts/vendor_arras.py` from a local arras build so that a clone of this repository is enough for `loom serve`. Never edit it by hand; the VERSION file names the arras commit and the interface version it was built for. Until the first vendoring (milestone M2) it is empty.

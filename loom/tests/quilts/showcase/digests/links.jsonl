@@ -1,0 +1,2 @@
+{"id": "link-0001", "to": "Arden24-thm-3.1", "kind": "depends-on", "why": "Bellamy's counting theorem needs the polytope to be full-dimensional, and its dimension is Arden's rank.", "by": "2026-09-15T10-00-survey-bellamy", "when": "2026-09-15T10:00:00Z", "from": "Bellamy19-thm-3.2"}
+{"id": "link-0002", "to": "Bellamy19-thm-3.2", "kind": "specialises", "why": "2.3 is the polytope; 3.2 counts its lattice points. The second is the one this quilt cites.", "by": "2026-09-15T10-00-survey-bellamy", "when": "2026-09-15T10:00:00Z", "from": "Bellamy19-thm-2.3"}
