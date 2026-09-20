@@ -2,13 +2,13 @@
 
 **[decided]** Three projects exist beside loom and arras: a language server and two editor plugins. They are clients. P8 holds unchanged: no loom command requires any of them, none of them is assumed by anything in this book, and a quilt edited in a plain text editor loses nothing but convenience.
 
-They are separate repositories because they have separate release cycles, separate ecosystems, and separate dependencies, and because a reader who wants only loom should not have to build a TypeScript extension to get it.
+They are directories of this repository, each with its own release cycle, ecosystem and dependencies: a reader who wants only loom builds only `loom/`, and nothing here is built to get it. They were separate repositories until a change crossing the server and both plugins proved to be three pull requests nothing tied together (DR-187). `loom-nvim/` is additionally mirrored to a repository of its own, since a Neovim plugin manager installs from a repository whose root is the plugin.
 
-| project | what it is | repository |
+| project | what it is | directory |
 |---|---|---|
-| `loom-lsp` | a language server over stdio, a Python package depending on `loomtex` and `pygls` | `loom-arras/loom-lsp` |
-| `loom-nvim` | a Lua plugin for lazy.nvim | `loom-arras/loom-nvim` |
-| `loom-vscode` | a TypeScript extension | `loom-arras/loom-vscode` |
+| `loom-lsp` | a language server over stdio, a Python package depending on `loomtex` and `pygls` | `loom-lsp/` |
+| `loom-nvim` | a Lua plugin for lazy.nvim | `loom-nvim/` |
+| `loom-vscode` | a TypeScript extension | `loom-vscode/` |
 
 ## 16.1 What the server does, and what it does not
 

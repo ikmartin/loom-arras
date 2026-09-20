@@ -1,4 +1,4 @@
-name: tex
+name: loom tex
 
 on:
   push:

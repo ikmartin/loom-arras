@@ -1,6 +1,6 @@
 # Agents working in loom-arras
 
-This is the workspace for two tools, `loom` (Python, in `loom/`) and `arras` (Svelte, in `arras/`), both separate git repositories cloned here and ignored by this one. Read in this order:
+This is one repository holding five tools and the documents that govern them: `loom` (Python, in `loom/`), `arras` (Svelte, in `arras/`), and the three editor clients `loom-lsp/`, `loom-nvim/` and `loom-vscode/`. Each keeps its own build, tests and release; a change that crosses them is one branch and one pull request. Read in this order:
 
 1. **`docs/work-queue/README.md`: start here.** What is not done, and the observable trigger that says when each becomes worth doing. It is not an ordered queue — read the triggers, not the order, and act on an item whose trigger has fired. If none has, there is no work waiting and you should ask rather than invent some.
 2. `docs/book/`: the design book. It describes what is implemented, so read it as the specification of what exists rather than a plan. `docs/specs/` is the loom–arras interface and wins over the book where shapes are concerned.

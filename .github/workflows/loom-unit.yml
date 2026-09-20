@@ -1,4 +1,4 @@
-name: unit
+name: loom unit
 
 on:
   push:
