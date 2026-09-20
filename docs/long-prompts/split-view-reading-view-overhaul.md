@@ -1,4 +1,6 @@
-# sketched plans for teach-view and split feature
+# The split view and the reading view: an overhaul
+
+Started as a sketch for a "teach view"; the design that came out of it is the split view, the Library View, sessions shared by a person and an agent, and the dispatch that carries messages between them. Plan: `docs/plans/0.13-plan-reading-layer.md`.
 
 ## Initial brainstorm
 Idea: a split view with a pdf/source on the left, running chat/annotation log on the right.
@@ -198,7 +200,7 @@ The confirmation, with the tombstone wording:
 
 #### 3b. The side panel
 
-The panel is reworked into collapsible sections — **Documents**, **Nodes**, **Contents** (the table of contents) and **Sessions** — and **scrolls**, since everything expanded will not fit. **Documents** holds three groups: working drafts, canon, and **Library**, which lists each work as a *whole document* rather than as nodes, so a work is one click away and one declared unreadable says so in place. A **collapse control** in the panel's header hides the panel Overleaf-style, giving the content and discussion the full width. The **Indexes** group leaves the panel for a development page we keep while building: tags, taxa, threads and loose stay as routes, they are simply not furniture.
+The panel is reworked into collapsible sections — **Documents**, **Nodes**, **Contents** (the table of contents) and **Sessions** — and **scrolls**, since everything expanded will not fit. **Documents** holds three groups: working drafts, canon, and **Library**, which lists each work as a *whole document* rather than as nodes, so a work is one click away and one declared unreadable says so in place. A **collapse control** in the panel's header hides the panel Overleaf-style, giving the content and discussion the full width. The **Indexes** group leaves the panel for a development page we keep while building: tags, taxa, threads and loose stay as routes, they are simply not furniture. Its rail item is deliberately an **obviously weird symbol** — `⚗` — rather than a designed icon, so that nobody mistakes a development shelf for part of the interface, and so it is conspicuous on the day it should be removed.
 
 ```
 ┌──────────────────────────────────────┐
@@ -307,11 +309,13 @@ Records never store such a link: a body keeps `cited:`, which travels, and the p
 
 - **Library** — the collection of other people's documents and its index, whatever their relation to the paper being written. It absorbs today's `/references` and `/digest` listings. *References* was rejected as saying "things I cite" when half the pile is things merely read; *Digest* as naming the container after one optional part of it, since a dropped PDF that was never extracted is a Library entry with no digest; *Works* as colliding with the book's other sense of work; *Corpus* as spoken for by weft, and *Sources* as spoken for by a paper's LaTeX. The collision with "library quilt" (8.10) is benign: such a quilt is all Library.
 - **A work** — one entry in the Library: the bibliography entry, its identifiers, the stored document, the digest if it has one, its results, its annotations and its links. A work may have **no digest**, and a preprint and its published version are **two works**, being two identifiers with two paginations.
-- **Authoring View** and **Reading View** — your own draft rendered from your LaTeX, and someone else's document rendered from its PDF. The old names, read view and document view, said which renderer rather than whose writing.
+- **Authoring View** and **Library View** — your own draft rendered from your LaTeX, and a work's document rendered from its PDF. The old names, read view and document view, said which renderer rather than whose writing; *Reading View* was tried and dropped, because you read your own draft too.
 - **authoring nodes** and **digest nodes** — retiring "external node", which only ever meant "not yours". Here *digest* is exact: those nodes come from a digest file.
 - *Static* stays the word for the property that makes locators durable (item 1); *reference* and *library* describe the role. Where the interface needs a word, it is Library.
 
-**The split is a mode of a route, never a route of its own**, available where there is a single content target: the Authoring View, a node page, a work's Reading View, and a session permalink. It is absent from the graph, the review table, problems and the indexes, which have nothing for the content half to be — clicking a finding there **navigates** to the node with the split open rather than splitting the table.
+**The split is a mode of a route, never a route of its own**, available where there is a single content target: the Authoring View, a node page, a work's Library View, and a session permalink. It is absent from the graph, the review table, problems and the indexes, which have nothing for the content half to be — clicking a finding there **navigates** to the node with the split open rather than splitting the table.
+
+![The split view](images/split-view.png)
 
 **The session keeps a permalink**, `/session/<id>`: an agent ending a run needs something to hand you, a coauthor needs to be given a conversation, and a session spanning five nodes has no single document it could be reached through. Arriving there shows that session in the discussion and puts its most recent target in the content pane; it does **not** change the write target, since item 3's rule is that selecting for viewing never redirects writes, and the pane header offers a one-click *write here*. Selecting a session in the side panel stays non-navigational.
 
@@ -347,27 +351,91 @@ Records never store such a link: a body keeps `cited:`, which travels, and the p
 
 Inferred while writing, and open to correction: **single click selects and double-click travels**, on both sides, so a marker can be picked out without the pane moving; and **Enter travels** when an item has keyboard focus, since double-click is a mouse-only gesture and the rest of the viewer is reachable without one.
 
-### 9. Retiring the gutter
+### 9. Annotations in the content pane
 
-What becomes of the three Comments placements, the stored preference, and how a marker reads in the content pane.
+**Decided.** What retires is the gutter as the **exclusive** home for annotations — one crowded surface, and the only one. In-content display survives, because a reader will not always want the split open, and the reason the gutter was useful is real: a note beside the line it is about.
 
-*Not yet discussed.*
+**The Comments setting stays, and its three values mean better things.** Each is now a choice of where an opened annotation sits, coexisting with the discussion pane rather than substituting for it.
+
+| Value | What it is | Where |
+|---|---|---|
+| **floating box** (default) | a box over the text, free to cross into the margin and out toward the window edge | both views |
+| **margin column** | boxes beside their anchors, several open at once | both views |
+| **inline** | the box in the flow, under its line, pushing the text down | Authoring View only — a PDF page cannot reflow |
+
+![Floating box](images/placement-floating.png) · ![Margin column](images/placement-margin.png) · ![Inline, authoring only](images/placement-inline.png)
+
+**A click opens an annotation; hovering never does.** The hover placement we shipped meant a box hovering *over* the text, not a box triggered by the pointer. The only hover behaviour anywhere is item 5's locator preview, which shows a place in a PDF from a link in a message — a different object.
+
+**Box behaviour.** Every box carries an **×** at its top right. A minimum **4px inset** from the window on every side, applied after placement, so a box anchored near an edge slides rather than being clipped. **Clicking outside backgrounds rather than collapses**: an open box stays open, clamped to two lines with a lighter shadow and a lower z, and clicking it brings it to front and expands it again. The only things that close a box are its ×, Esc on the front-most, and *hide all* — nothing you opened disappears because you looked elsewhere. In the margin column, boxes with close anchors push each other down, so its honest promise is *beside*, not *level with*.
+
+**The session selection governs the page, not only the pane.** Whatever the side panel is showing — this session, or all — is what the content marks; a tick's count is of **visible** annotations, and closed sessions stay hidden per `show_closed_annotations`. Because a page can therefore look lightly annotated when it is not, the content pane's header carries a quiet *N hidden by the session filter*. Following a direct link to an annotation overrides the filter, as item 3 settled for the discussion pane.
+
+**Expand all is a state, not an action.** It opens every annotation in the document **at its own mark**, so scrolling reveals them already open — most useful inline, where the paper reads as an annotated copy of itself. Being a state, it survives virtualisation: a page materialises its boxes when it renders. **Hide all** closes everything open, wherever it is, and is the escape hatch that clicking-outside no longer provides.
+
+**Keys and buttons.** `e` expands all, `h` hides all, `Esc` closes the front-most box, all only while the content pane has focus so they never fight the composer. Because a key nobody has been told about does not exist, the same two sit as **buttons in the content pane's header**, beside the zoom and the selection and box tools, with an annotation count and the keys named in their tooltips.
+
+**The persistent marks** are item 8's: a tinted highlight plus a margin tick carrying a count.
+
+**Rejected: the side sheet** — a narrow overlay listing the page's annotations. It never collides and never misaligns, but it is a small discussion pane wearing another name, and once the real one is a keystroke away it has no job.
+
+Live: https://claude.ai/artifact/25s6dgcGEBRVY9iEjupKEL
 
 ### 10. The dispatch transport
 
-How the chat box reaches a local agent, what happens when none is listening, and how a transcript streams back.
+**Decided.** Loom is a **mailbox, not a caller**. The composer posts through the write API, loom appends to the session, and nothing is launched. No API key is involved anywhere: a key would matter only if loom called a model, which DR-195 forbids; the agent's own harness does the calling, exactly as it does for any other command.
 
-*Not yet discussed.*
+**A post carries the message and the changes with it**, not just their ids. Ids alone would cost the agent a round trip — a call, a wait, and output carrying more than the delta — where a compact delta costs a few hundred tokens once. The delta is **the same text `loom session next` prints**, so the inbox and the message never disagree, and it names events rather than state, each with its id so full context can be pulled when needed:
+
+```
+message: "The counterexample doesn't say why the proof misses it. Make it more detailed."
+
+changed since you last read (3):
+  a-2026-09-16-0001  objection · sh-0009 · edited by you
+      "…nothing in the statement says that a loop counts as an arrow."
+  a-2026-09-16-0004  question · sh-0006/proof · replied by you
+      "Only in the support — the zero-weight case is Remark sh-000D."
+  a-2026-09-20-0002  note · arxiv:2504.01234v1 p.2 · created by you
+      "Arden's convention section is where this is settled."
+```
+
+**Two commands, one mechanism.** `loom session watch` is a **tail for a person**: it prints events as they land so you can sit in a terminal without the browser, and it delivers nothing — it blocks on the log, prints, and keeps a heartbeat. `loom session next --wait 120 --json` is for an **agent**: it parks until something arrives, returns the moment it does, and exits, so each call is a turn. Latency is an append and a wakeup, not a poll interval. `loom session send "…"` is the symmetric verb for talking to a session from the terminal.
+
+**Presence is explicit.** Both commands write `.loom/sessions/<id>/attached.json` — who, pid, heartbeat — which is what lets the selector say *referee ⟨agent⟩ attached* and the composer say honestly whether anyone is listening. A stale heartbeat means detached.
+
+**A message always lands, even with nobody listening.** It waits in the inbox and the composer says *no agent is attached — start one with* `loom session watch s-…`. Refusing would lose what was typed for a reason the browser cannot fix.
+
+**The limit is turn-taking, not transport.** A parked agent sees a post instantly; an agent mid-compile sees it when it finishes and calls `next` again; `--wait` stays under the harness's tool timeout and the agent re-parks. Nothing here is vendor-specific — no flags to track, no IPC tied to one tool's internals.
+
+**One inbox per session, read rather than consumed.** The inbox is append-only and each reader keeps a cursor, so a message survives being read and a crashed agent resumes where it was. It is a **broadcast, not a queue with assignment**: two attached agents both see everything and neither is handed a task, which is the honest behaviour for a tool that is not orchestrating.
+
+**Coming back**: fine events for appends, coarse for everything else, sequence-numbered so a gap makes the client resync the coarse way. A full manifest rebuild per message would reintroduce the re-render that closed open boxes under the reader. The smallest unit loom can stream is **a whole message** — it never sees the model, so a "typing" feel could only come from an agent writing partial messages.
+
+**To do when built: the agent layer's own documents.** `ai/orientation.md` and `ai/rules.md` tell an agent how to work in a quilt, and this changes both — the session vocabulary, `session next` / `watch` / `send`, the attach ritual and the loop it implies, and the fact that a message may be waiting for it. An agent that has not been told will never park.
 
 ### 11. Authorship and the agent guard
 
-Who the writer is on each side of the dispatch, and how DR-185's refusal under an agent marker applies.
+**Decided.** DR-185 refuses `loom accept`, `refs verify` and `refs discard` under an agent marker, because an agent verified its own proposal and loom recorded the author, whose git identity the agent's shell shares. Three things since then press on that: item 3 separates `author` from `session`, the write API is no longer only the author's own click, and a session is now shared by a person and an agent — so the guard cannot key on the session, and it should not key on the environment either.
 
-*Not yet discussed.*
+**Identity is declared, not sniffed.** An agent **names itself** when it attaches, choosing a name that fits the role it was invoked in — Referee Agent, Simplify Agent, Tutor Agent — and is instructed to include **Agent** or **AI** in it. That name rides on every event it writes, and `--as` / `--author` states it explicitly on the command line. Environment markers stay as a **safety net, not an identity**: they distinguish well today, since the author's own shell carries no `CLAUDECODE`, but an author may ask an agent to run a command and a marker can be unset. So the rule is: **an explicit identity wins, and a marker with no explicit identity refuses rather than guesses.**
+
+**A person may write from the terminal during a session**, identified the way they always were — git, the quilt's `[author] name` (DR-189), or `--author`.
+
+**The refusals stay**, because they protect a claim — *this transcription is faithful*, *I accept this mathematics* — rather than a channel. The guard moves from the environment to the identity: refuse the author's verbs when the writer is an agent, whichever door it came through.
+
+**An agent asks through an annotation, not a request object.** Wanting a proposal verified, it writes a `suggestion` targeted at the result, with its reasoning as the body; that surfaces in the proposal box where the author verifies anyway. A first-class request object was rejected: it adds a lifecycle, it can become a queue that nags, and — the real danger — an agent that "requested verification" will summarise itself as having verified, which is the collision DR-183 exists to prevent. A convenience flag may write exactly that annotation so the agent need not compose it.
+
+**The write API grows a token and an Origin check.** It is no longer only the author's click, and the exposure is not the agent — which already has a shell — but any web page: a browser blocks a cross-origin *response*, never the *request*, so a page you happen to be reading can POST to `localhost:8791` and create, resolve or discard in your quilt. Requiring an `X-Loom-Token` header, written into `.loom/serve.json` and embedded in the page arras serves, closes it, because a cross-site form post cannot set custom headers; foreign `Origin` values are rejected and `Content-Type: application/json` is required, which closes the simple-form path. This is CSRF protection, not a login.
+
+**To do when built**: the orientation and rules must carry **the list of commands that refuse under an agent identity**, so an agent learns it from its own documents rather than from a failed call. Needless round trips are the cost of leaving it out.
 
 ### 12. The static build with no PDFs
 
-What a published site shows when the PDFs were never committed.
+**Decided**, and mostly already answered: loom is not aimed at a published static site — the only route there would be reuse of arras through the author's own sitegen, which is not the focus. Item 1 dropped the fresh-clone special case on the same grounds, and item 5 ships PDF.js's fonts and CMaps because package weight is the cheap axis when loom serves locally.
 
-*Not yet discussed.*
+**The reading surfaces require a server and say so rather than degrading.** A build published without PDFs shows a work's record — entry, identifiers, digest nodes, results — and where the document would be it says the document is not available here. No page-text fallback view and no page images: item 5 retired the image pipeline precisely so that there is one renderer.
+
+**Annotations still display**, because their bodies, anchors and geometry live in the per-work sidecar (item 4), so the marks and the discussion survive even where the PDF does not.
+
+**Writing is off**, as it already is: arras detects `/_api` and offers nothing when it gets a 404, which now also means no composer, no dispatch and no annotate gesture.
 
