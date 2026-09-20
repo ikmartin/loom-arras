@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: arras/package-lock.json    # the lock file is not at the repository root
       - run: npm ci
       - run: npm run check
       - run: npm run test:unit -- --run

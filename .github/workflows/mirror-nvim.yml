@@ -16,6 +16,12 @@ jobs:
         with:
           fetch-depth: 0          # the split walks the whole history
       - name: Split loom-nvim/ and push it
+        env:
+          TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: |
-          git push "https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/ikmartin/loom-nvim.git" \
+          if [ -z "$TOKEN" ]; then
+            echo "MIRROR_TOKEN is not set; the mirror is not updated. Add a fine-grained token with contents:write on ikmartin/loom-nvim."
+            exit 0
+          fi
+          git push "https://x-access-token:$TOKEN@github.com/ikmartin/loom-nvim.git" \
             "$(git subtree split --prefix=loom-nvim)":refs/heads/main
