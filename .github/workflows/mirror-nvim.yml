@@ -18,11 +18,15 @@ jobs:
           persist-credentials: false # checkout's stored header authenticates every github.com push, overriding the token below
       - name: Split loom-nvim/ and push it
         env:
-          TOKEN: ${{ secrets.MIRROR_TOKEN }}
+          KEY: ${{ secrets.MIRROR_SSH_KEY }}
         run: |
-          if [ -z "$TOKEN" ]; then
-            echo "MIRROR_TOKEN is not set; the mirror is not updated. Add a fine-grained token with contents:write on ikmartin/loom-nvim."
+          if [ -z "$KEY" ]; then
+            echo "MIRROR_SSH_KEY is not set; the mirror is not updated. Add the private half of a write-enabled deploy key on ikmartin/loom-nvim."
             exit 0
           fi
-          git push "https://x-access-token:$TOKEN@github.com/ikmartin/loom-nvim.git" \
-            "$(git subtree split --prefix=loom-nvim)":refs/heads/main
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/mirror_key
+          chmod 600 ~/.ssh/mirror_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/mirror_key -o IdentitiesOnly=yes" \
+            git push git@github.com:ikmartin/loom-nvim.git "$(git subtree split --prefix=loom-nvim)":refs/heads/main
