@@ -1,0 +1,918 @@
+/* Arras's own token vocabulary and base styles (book 15.6, 15.7).
+   The names are drawn from print and are deliberately not the names used in the design documents or in any other product's system: arras renders a page of mathematics, not application chrome.
+   Every colour, measure and typeface is a variable; no component hardcodes a value. */
+
+/* Everything below is scoped to `.arras`, the class a host puts on the element it wants arras to live in -- `<html>` for the app served with loom, which is why the preference attributes `prefs.svelte.ts` writes to that same element still key these rules. Declaring on `.arras` would have arras defining `--ink` and `--paper` across a page it does not own, and resetting `box-sizing` on elements that are not its own; a host with its own design system should be able to embed a corpus without either happening to it. Restyling is then an ordinary stylesheet at ordinary specificity: `.arras { --paper: #111 }`. */
+
+/* Padding and borders count inside a declared size. Without this a rail of `height: 100vh` with 12px of padding is 24px taller than the window, which puts the settings control and the counts line below the fold. */
+.arras,
+.arras *,
+.arras *::before,
+.arras *::after {
+	box-sizing: border-box;
+}
+
+.arras {
+	/* surfaces */
+	--paper: #fbfaf8;
+	--leaf: #f4f2ed;
+	--sheet: #ffffff;
+	--rule: #d8d5cd;
+	--rule-strong: #b4b2a9;
+
+	/* ink */
+	--ink: #2c2c2a;
+	--ink-soft: #5f5e5a;
+	--ink-faint: #888780;
+
+	/* accent */
+	--link: #185fa5;
+	--link-wash: #e6f1fb;
+	--mark: #faeeda;
+
+	/* states: text and wash, named for the state rather than for a severity role */
+	--state-accepted: #0f6e56;
+	--state-accepted-wash: #e1f5ee;
+	--state-stale: #854f0b;
+	--state-stale-wash: #faeeda;
+	--state-draft: #5f5e5a;
+	--state-draft-wash: #f1efe8;
+	--state-incomplete: #a32d2d;
+	--state-incomplete-wash: #fcebeb;
+	--state-conflicted: #8a2f6b;
+	--state-conflicted-wash: #f8e9f3;
+	--state-loose: #888780;
+	--state-loose-wash: transparent;
+
+	/* spacing, radii, fixed widths */
+	--gap-hair: 4px;
+	--gap-tight: 8px;
+	--gap: 12px;
+	--gap-wide: 20px;
+	--rad-pill: 4px;
+	--rad-control: 8px;
+	--rad-card: 12px;
+	--rail-left: 252px;
+	--rail-right: 236px;
+	--strip: 44px;
+	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
+	--rail-a: 267px;
+
+	/* typefaces: serif for mathematical content, sans for chrome, mono for ids.
+	   The serif is the stack the author's site generator uses, so a corpus page and a note page look like the same publication (15.7). */
+	--serif: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+	--sans: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+	/* set by the size and width preferences below */
+	--body-size: 13.5px;
+	--measure: 44rem;
+	--body-face: var(--serif);
+
+	color-scheme: light;
+}
+
+/* Dark mode: the light set inverted, washes as low-alpha overlays over the paper rather than tinted solids (15.6). */
+@media (prefers-color-scheme: dark) {
+	.arras:not([data-theme='light']) {
+		--paper: #17171a;
+		--leaf: #1e1e22;
+		--sheet: #202025;
+		--rule: #33333a;
+		--rule-strong: #4c4c55;
+		--ink: #e7e5e0;
+		--ink-soft: #a8a69f;
+		--ink-faint: #85837c;
+		--link: #7fb0e8;
+		--link-wash: rgb(127 176 232 / 14%);
+		--mark: rgb(250 238 218 / 18%);
+		--state-conflicted: #d98ac4;
+		--state-conflicted-wash: rgb(217 138 196 / 16%);
+		--state-accepted: #5cc4a3;
+		--state-accepted-wash: rgb(92 196 163 / 14%);
+		--state-stale: #d9a44f;
+		--state-stale-wash: rgb(217 164 79 / 14%);
+		--state-draft: #a8a69f;
+		--state-draft-wash: rgb(168 166 159 / 12%);
+		--state-incomplete: #e8827c;
+		--state-incomplete-wash: rgb(232 130 124 / 14%);
+		--state-loose: #85837c;
+		color-scheme: dark;
+	}
+}
+.arras[data-theme='dark'] {
+	--paper: #17171a;
+	--leaf: #1e1e22;
+	--sheet: #202025;
+	--rule: #33333a;
+	--rule-strong: #4c4c55;
+	--ink: #e7e5e0;
+	--ink-soft: #a8a69f;
+	--ink-faint: #85837c;
+	--link: #7fb0e8;
+	--link-wash: rgb(127 176 232 / 14%);
+	--mark: rgb(250 238 218 / 18%);
+	--state-accepted: #5cc4a3;
+	--state-accepted-wash: rgb(92 196 163 / 14%);
+	--state-stale: #d9a44f;
+	--state-stale-wash: rgb(217 164 79 / 14%);
+	--state-draft: #a8a69f;
+	--state-draft-wash: rgb(168 166 159 / 12%);
+	--state-incomplete: #e8827c;
+	--state-incomplete-wash: rgb(232 130 124 / 14%);
+	--state-loose: #85837c;
+	color-scheme: dark;
+}
+
+/* The four preferences of 15.7, applied as attributes on <html> by the layout. */
+/* The scale starts where the old middle was: 11px was below what anybody reads a paper at, and the old large was
+   what a reader with ordinary eyesight actually chose, so each step moved down one name and a new large was added. */
+.arras[data-size='s'] { --body-size: 13.5px; }
+.arras[data-size='m'] { --body-size: 16px; }
+.arras[data-size='l'] { --body-size: 19px; }
+.arras[data-width='narrow'] { --measure: 36rem; }
+.arras[data-width='mid'] { --measure: 44rem; }
+.arras[data-width='wide'] { --measure: 52rem; }
+.arras[data-face='serif'] { --body-face: var(--serif); }
+.arras[data-face='sans'] { --body-face: var(--sans); }
+
+html,
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: var(--sans);
+	font-size: var(--body-size);
+	line-height: 1.7;
+	-webkit-font-smoothing: antialiased;
+}
+a {
+	color: var(--link);
+	text-decoration: none;
+}
+a:hover {
+	text-decoration: underline;
+}
+code,
+pre {
+	font-family: var(--mono);
+}
+code {
+	padding: 0 0.25em;
+	background: var(--leaf);
+	border-radius: var(--rad-pill);
+}
+pre {
+	padding: var(--gap);
+	background: var(--leaf);
+	border-radius: var(--rad-control);
+	overflow-x: auto;
+}
+h1,
+h2,
+h3,
+h4 {
+	font-family: var(--sans);
+	font-weight: 500;
+	line-height: 1.25;
+}
+h1 { font-size: 15px; }
+h2 { font-size: 13px; }
+h3, h4 { font-size: 13px; }
+
+.muted { color: var(--ink-soft); }
+.faint { color: var(--ink-faint); }
+.problem { color: var(--state-incomplete); }
+.id-chip {
+	font-family: var(--mono);
+	font-size: 9px;
+	color: var(--link);
+}
+
+/* A rail label: 9px uppercase with tracking, the same in every shell. */
+.rail-label {
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--ink-faint);
+	margin: 0 0 var(--gap-hair);
+}
+
+button.as-link {
+	background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+	color: var(--link);
+	cursor: pointer;
+}
+button.as-link:hover {
+	text-decoration: underline;
+}
+
+/* An unadorned list, used wherever a page or a rail lists links (15.3). */
+ul.plain {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+ul.plain li {
+	margin: 2px 0;
+	font-size: 12px;
+	line-height: 1.4;
+}
+.faint {
+	color: var(--ink-faint);
+	font-family: var(--sans);
+	font-size: 10px;
+}
+
+/* The five state tones (15.6). `state.ts` turns a manifest colour class into one of these class names; nothing else maps colours. */
+.tone-accepted { --tone: var(--state-accepted); --tone-wash: var(--state-accepted-wash); }
+.tone-stale { --tone: var(--state-stale); --tone-wash: var(--state-stale-wash); }
+.tone-draft { --tone: var(--state-draft); --tone-wash: var(--state-draft-wash); }
+.tone-incomplete { --tone: var(--state-incomplete); --tone-wash: var(--state-incomplete-wash); }
+.tone-conflicted { --tone: var(--state-conflicted); --tone-wash: var(--state-conflicted-wash); border-style: dashed; }
+.tone-loose { --tone: var(--state-loose); --tone-wash: var(--state-loose-wash); }
+
+/* The content region of every page: the shell owns the chrome, the page owns its own <main> (15.3). */
+main.page {
+	padding: var(--gap-wide) 28px var(--gap-wide) 24px;
+	min-width: 0;
+}
+main.page > h1 {
+	font-family: var(--sans);
+	font-size: 19px;
+	font-weight: 500;
+	margin: 0 0 var(--gap-hair);
+}
+main.page > h2 {
+	font-family: var(--sans);
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--ink-faint);
+	margin: var(--gap-wide) 0 var(--gap-tight);
+}
+
+/* Every rail is a scroll container: a contents tree of 74 sections must scroll inside its own box rather than run off the page (15.2). */
+.rail-scroll {
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	/* The bar is there but invisible until the pointer or the keyboard is in the rail, so a contents tree of 74 entries does not carry a grey stripe down the side of every page. The space is reserved either way, so nothing shifts when it appears. */
+	scrollbar-width: thin;
+	scrollbar-color: transparent transparent;
+}
+.rail-scroll:hover,
+.rail-scroll:focus-within {
+	scrollbar-color: var(--rule-strong) transparent;
+}
+.rail-scroll::-webkit-scrollbar {
+	width: 8px;
+}
+.rail-scroll::-webkit-scrollbar-thumb {
+	background: transparent;
+	border-radius: 4px;
+	border: 2px solid transparent;
+	background-clip: content-box;
+}
+.rail-scroll:hover::-webkit-scrollbar-thumb,
+.rail-scroll:focus-within::-webkit-scrollbar-thumb {
+	background-color: var(--rule-strong);
+}
+
+table.list {
+	border-collapse: collapse;
+	width: 100%;
+}
+table.list th,
+table.list td {
+	text-align: left;
+	padding: var(--gap-hair) var(--gap-tight);
+	border-bottom: 1px solid var(--rule);
+	vertical-align: top;
+}
+table.list th {
+	font-weight: 500;
+	color: var(--ink-faint);
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* ---- the dialect (book 9.4, 15.3.1) ---- */
+
+.fragment {
+	font-family: var(--body-face);
+	font-size: var(--body-size);
+}
+/* `content-visibility: auto` was tried here and withdrawn. It skips layout and paint for the offscreen part of a
+   long document, which is worth having on a 44,000-element paper -- but it brings paint containment with it, and the
+   read view's margin apparatus is built out of children that leave their node's box: a gutter comment sits at
+   `left: 100%` and a margin annotation in the gutter opposite. Both were clipped, which made the gutter unclickable.
+   A node that owns nothing outside itself could take it; a node in the read view is exactly the one that does. */
+
+/* Environments: a per-taxon left accent and no filled background (15.3.1). The colour is the token `$lib/taxonomy`
+   chose for this taxon, set on the element as `--taxon-tone`; the palette itself is declared once above, so changing
+   how a Lemma looks in the document changes how it looks in the graph. The fallback is what an unmarked element gets. */
+.fragment .env {
+	margin: var(--gap-wide) 0;
+	padding: 0 0 0 var(--gap);
+	border-left: var(--env-accent) solid var(--taxon-tone, var(--rule-strong));
+}
+
+.fragment .env-label {
+	margin: 0 0 var(--gap-hair);
+	font-family: var(--sans);
+	font-weight: 500;
+}
+.fragment .env-label .taxon { font-weight: 500; }
+.fragment .env-label .number { color: var(--ink-soft); margin-right: var(--gap-hair); }
+.fragment .env-label .title { color: var(--ink-soft); }
+.fragment .env > :last-child { margin-bottom: 0; }
+
+/* Proofs: collapsed, no box, a left rule and a manual marker (15.3.1). */
+.fragment details.env-proof {
+	border-left: 3px solid var(--rule);
+	padding-left: var(--gap);
+	margin: var(--gap-wide) 0;
+}
+.fragment details.env-proof > summary.env-label {
+	cursor: pointer;
+	font-style: italic;
+	font-weight: 500;
+	list-style: none;
+	margin: 0;
+}
+.fragment details.env-proof > summary.env-label::-webkit-details-marker { display: none; }
+.fragment details.env-proof > summary.env-label::before { content: '▸ '; font-style: normal; }
+.fragment details.env-proof[open] > summary.env-label::before { content: '▾ '; }
+.fragment details.env-proof[open] > summary.env-label { margin-bottom: var(--gap-hair); }
+.fragment details.env-proof > :last-child { margin-bottom: 0; }
+
+/* The gutters (15.3.1), with the site generator's algebra so that a corpus page and a note page are laid out alike.
+   The ideal gutter is half the slack around the measure; these are two thirds of that, and the text column absorbs the third they give up. One knob: change the /3 and the column, the margin annotations and the gutter comments all follow, because each is expressed in terms of these. A viewport too narrow for the measure gets no gutters at all rather than negative ones. */
+.gutters-host {
+	container-type: inline-size;
+}
+.gutters {
+	--gutter: 0px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	align-items: start;
+}
+.gutters > .column {
+	min-width: 0;
+}
+/* The gutter is a container-relative length rather than a percentage, because the margin annotations and the gutter comments are positioned against a node and would otherwise resolve their percentage against that node instead of the page. */
+@supports (container-type: inline-size) {
+	.gutters {
+		--slack: max(0px, calc(100cqw - var(--measure)));
+		--gutter: calc(var(--slack) / 3);
+		grid-template-columns: var(--gutter) minmax(0, 1fr) var(--gutter);
+	}
+	.gutters > .column {
+		grid-column: 2;
+	}
+}
+
+/* The read view's margin annotation (15.3.1): the key in mono beside every node and the state word beneath it, set in the left gutter so that the environment's taxon accent is the boundary between the two and the text column keeps its whole measure. */
+.fragment.read .env[data-key],
+.fragment.read details.env-proof[data-key] {
+	position: relative;
+}
+.fragment.read .env .env[data-key] > .node-margin {
+	display: none;
+}
+.node-margin {
+	position: absolute;
+	/* the containing block is the environment's padding box, which begins inside the accent rule, so the rule's own width is added back to end the gutter at the boundary rather than over it */
+	right: calc(100% + var(--env-accent));
+	top: 0;
+	width: calc(var(--gutter) - var(--gap-wide));
+	padding-right: var(--gap);
+	text-align: right;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 1px;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+.node-margin .mid {
+	font-family: var(--mono);
+	font-size: 9px;
+	color: var(--link);
+}
+.node-margin .mstate {
+	font-family: var(--sans);
+	font-size: 9px;
+	color: var(--tone);
+}
+
+/* Comments in the gutter (15.3.1). A short comment stands in the right gutter beside the node it is about; one with sizeable content stays in the text as a box, because a paragraph squeezed into a gutter is unreadable and a reader who has to hunt for the rest of a sentence would rather have it in the flow. */
+.comment-slot {
+	display: block;
+}
+.comment-slot.gutter {
+	position: absolute;
+	/* Above the grid it overhangs: the slot is positioned out of the text column into the gutter track, and until it
+	   carried buttons nothing needed to be clicked in it, so `.gutters` caught the pointer first. */
+	z-index: 2;
+	left: 100%; /* the content column's right edge */
+	top: 0;
+	width: calc(var(--gutter) - var(--gap-wide));
+	margin-left: var(--gap);
+	font-family: var(--sans);
+}
+.comment-slot.inline {
+	margin: var(--gap) 0 var(--gap-wide);
+	font-family: var(--sans);
+}
+.comment-slot.inline > .box:first-child {
+	margin-top: 0;
+}
+/* The `hover` setting: the same box, floated over the page at the mark rather than opened in the flow, so it is free
+   to overlap the text and the gutter and nothing reflows under the reader as it appears. Placed in viewport
+   coordinates by `expand.ts`, which closes it on a scroll rather than letting it drift. */
+.comment-slot.floating {
+	position: fixed;
+	z-index: 40;
+	font-family: var(--sans);
+	background: var(--sheet);
+	border: 1px solid var(--rule-strong);
+	border-radius: var(--rad-panel, var(--rad-control));
+	box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+	padding: var(--gap-tight);
+	max-height: 60vh;
+	overflow-y: auto;
+}
+.comment-slot.floating > .box {
+	margin: 0;
+	border: none;
+	border-left: 3px solid var(--rule-strong);
+	background: none;
+}
+.comment-slot.floating > .box + .box {
+	margin-top: var(--gap-tight);
+	border-top: 1px solid var(--rule);
+	padding-top: var(--gap-tight);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.comment-slot.floating {
+		animation: comment-appear 90ms ease-out;
+	}
+	@keyframes comment-appear {
+		from {
+			opacity: 0;
+		}
+	}
+}
+/* Below the width the gutters exist at, a gutter comment and a margin annotation have nowhere to stand and rejoin the flow. */
+@media (max-width: 1100px) {
+	.comment-slot.gutter {
+		position: static;
+		width: auto;
+		margin-left: 0;
+	}
+	.node-margin {
+		position: static;
+		width: auto;
+		padding: 0 0 var(--gap-hair);
+		flex-direction: row;
+		align-items: baseline;
+		gap: var(--gap-tight);
+		text-align: left;
+	}
+}
+
+/* `\textcolor{NAME}{...}` in prose. The publisher passes the colour's LaTeX name through; the viewer knows the base names and the dvipsnames an author is most likely to reach for, and anything else inherits the surrounding colour rather than guessing. */
+.tex-color {
+	color: var(--tex-color, inherit);
+}
+.tex-color[data-color='red'],
+.tex-color[data-color='Red'],
+.tex-color[data-color='BrickRed'],
+.tex-color[data-color='Mahogany'],
+.tex-color[data-color='Maroon'] { --tex-color: var(--state-incomplete); }
+.tex-color[data-color='blue'],
+.tex-color[data-color='Blue'],
+.tex-color[data-color='RoyalBlue'],
+.tex-color[data-color='NavyBlue'] { --tex-color: var(--link); }
+.tex-color[data-color='green'],
+.tex-color[data-color='Green'],
+.tex-color[data-color='ForestGreen'],
+.tex-color[data-color='OliveGreen'] { --tex-color: var(--state-accepted); }
+.tex-color[data-color='orange'],
+.tex-color[data-color='Orange'],
+.tex-color[data-color='BurntOrange'],
+.tex-color[data-color='brown'],
+.tex-color[data-color='Brown'] { --tex-color: var(--state-stale); }
+.tex-color[data-color='gray'],
+.tex-color[data-color='grey'],
+.tex-color[data-color='Gray'] { --tex-color: var(--ink-faint); }
+
+/* A diagram the fallback compiled from a numbered display carries the number the document gave it, since the picture itself is compiled without one. */
+.fragment figure.diagram[data-number] {
+	position: relative;
+}
+.fragment figure.diagram[data-number]::after {
+	content: '(' attr(data-number) ')';
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	font-family: var(--body-face);
+	color: var(--ink-soft);
+}
+
+/* The Stacks-project heading affordance: a node's own link, revealed on hover (15.3.1). */
+a.heading-link {
+	margin-left: var(--gap-tight);
+	font-family: var(--sans);
+	font-size: 11px;
+	color: var(--link);
+	opacity: 0;
+	transition: opacity 90ms;
+}
+:is(h1, h2, h3, h4, h5, h6, p.env-label):hover > a.heading-link,
+a.heading-link:focus {
+	opacity: 1;
+	text-decoration: none;
+}
+
+/* An environment inside another drops the panel and keeps the accent. */
+.fragment .env .env { margin: var(--gap) 0; }
+
+/* Document headings: the body face, close to the text, with the number set apart (15.3.1). */
+.fragment > h1[data-fragment] {
+	font-family: var(--body-face);
+	font-size: 24px;
+	font-weight: 500;
+	line-height: 1.25;
+	margin: 0 0 var(--gap-wide);
+}
+.fragment section > h1,
+.fragment section > h2,
+.fragment section > h3,
+.fragment section > h4,
+.fragment section > h5,
+.fragment section > h6 {
+	font-family: var(--body-face);
+	font-weight: 500;
+	margin: var(--gap-wide) 0 var(--gap-tight);
+	line-height: 1.3;
+}
+.fragment section > h1 { font-size: 18px; }
+.fragment section > h2 { font-size: 15px; }
+.fragment section > h3 { font-size: 13px; }
+.fragment section > h4,
+.fragment section > h5,
+.fragment section > h6 { font-size: var(--body-size); }
+.fragment span.number { color: var(--ink-soft); margin-right: var(--gap-hair); }
+/* A formula wider than the column scrolls, and says so: the shadow at an edge appears only when there is content past it, so a reader is never left wondering why a block moves. */
+.fragment .math.display {
+	overflow-x: auto;
+	/* Naming one axis makes the browser compute the other to `auto` as well, and a formula whose rendered height rounds a fraction past its box then grows a vertical scrollbar beside a display that fits perfectly well. A display in normal flow is as tall as its content, so there is nothing to scroll to. */
+	overflow-y: hidden;
+	background:
+		linear-gradient(to right, var(--paper) 30%, transparent) left / 24px 100% no-repeat local,
+		linear-gradient(to left, var(--paper) 30%, transparent) right / 24px 100% no-repeat local,
+		radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 10%), transparent) left / 7px 100% no-repeat scroll,
+		radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 10%), transparent) right / 7px 100% no-repeat scroll;
+}
+.fragment mark.annotation,
+.fragment .annotation-block { background: var(--mark); cursor: pointer; }
+.fragment mark.annotation.active,
+.fragment .annotation-block.active { outline: 2px solid var(--state-stale); }
+.fragment .incomplete {
+	color: var(--state-incomplete);
+	border-bottom: 1px dotted var(--state-incomplete);
+}
+.fragment a.ref-dangling { color: var(--state-incomplete); cursor: not-allowed; }
+
+.fragment div.include {
+	margin: var(--gap-tight) 0;
+	padding: var(--gap-hair) var(--gap-tight);
+	border: 1px dashed var(--rule);
+	border-radius: var(--rad-pill);
+	font-family: var(--sans);
+}
+.fragment div.include button { margin-left: var(--gap-tight); }
+.fragment .included { margin: 0; }
+
+.fragment figure { margin: var(--gap-wide) 0; text-align: center; }
+.fragment figure svg { max-width: 100%; height: auto; }
+.fragment figure.fallback { border: 1px dotted var(--rule); padding: var(--gap-tight); }
+
+/* A block that could not be compiled is a fault, not the paper's text (DR-85). */
+.fragment figure[data-error] {
+	border: 1px solid var(--state-incomplete);
+	border-left-width: 3px;
+	background: var(--state-incomplete-wash);
+	text-align: left;
+}
+.fragment figure[data-error]::before {
+	content: 'this block could not be rendered: ' attr(data-error);
+	display: block;
+	font-family: var(--sans);
+	font-size: 9px;
+	color: var(--state-incomplete);
+	margin-bottom: var(--gap-hair);
+}
+.fragment figure[data-error] pre { text-align: left; background: none; padding: 0; }
+
+/* Skipping what is off screen (running-requests: "many things feel a little slow").
+   Measured on a 145-node corpus: one document page is ~92,000 elements, 85% of them inside typeset math, and changing
+   any inherited token from the settings panel made the browser restyle all of it -- 308 ms before the next paint, which
+   is exactly the lag a settings click has. `content-visibility: auto` lets the browser skip style, layout and paint for
+   subtrees that are off screen, and takes the same flip to 33 ms.
+   `contain-intrinsic-size: auto <n>` is what keeps the scrollbar honest: the browser remembers each block's last real
+   size and uses it while the block is skipped, so scrolling past does not jump. Content inside remains findable by
+   find-in-page and reachable by an in-page anchor -- the browser renders a skipped subtree when it needs to.
+   Printing renders everything, because a printer has no viewport to be outside of. */
+/* Not in the read view. `content-visibility: auto` brings paint containment with it, and the read view's margin
+   apparatus is built out of children that leave their node's box -- a gutter comment at `left: 100%`, a margin
+   annotation in the gutter opposite -- so both were clipped, and a gutter comment could not be clicked at all
+   (DR-174). A node page owns nothing outside itself and keeps the skipping. */
+.fragment:not(.read) > section,
+.fragment:not(.read) .included {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 600px;
+}
+.fragment mjx-container {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 1.2em;
+}
+/* Inline math is an inline box, which cannot be contained, so the rule above skips only displays: 30,000 of a whole paper's 37,000 math elements were still restyled by every settings click. The svg inside can be contained on its own. It keeps its size from its own width and height, so skipping it moves nothing, and it is aria-hidden, so nothing is lost to a screen reader. The clip margin is for the glyphs MathJax lets overhang the svg's box by a few pixels, which paint containment would otherwise cut. */
+.fragment mjx-container > svg {
+	content-visibility: auto;
+	overflow-clip-margin: 1em;
+}
+/* The hidden MathML beside it is what a screen reader reads, so it is never skipped: clipped to a pixel it is never on screen, and `auto` would drop every formula from the accessibility tree. It is invisible and out of flow, so its type can be fixed instead, and a change of face or size then stops at it rather than restyling and relaying 13,000 MathML elements. */
+.fragment mjx-assistive-mml {
+	font: 16px serif;
+}
+@media print {
+	.fragment > section,
+	.fragment .included,
+	.fragment mjx-container,
+	.fragment mjx-container > svg {
+		content-visibility: visible;
+	}
+}
+
+/* The four settings (running-requests: a global toggle, then "the new paper view should be AS FAITHFUL TO THE
+   COMPILED VIEW OF THE PDF AS POSSIBLE"). One switch on the root, so the read view and a node's own page change
+   together — a result should not read as a different kind of thing depending on which page it is standing on.
+   Nothing about the content changes; only how it is set.
+
+   `p1` and `p2` are the compiled page. `b1` is the measured column with a taxon accent at its edge, which is what
+   arras defaulted to before the paper setting existed; `b2` is the same content as a website reads it. */
+
+/* ---- b2: wider, sans heads, environments carried by a tinted panel ---- */
+.arras[data-format='b2'] {
+	--measure: 46rem;
+	--gap-wide: 1.9rem;
+}
+.arras[data-format='b2'] .fragment {
+	line-height: 1.75;
+}
+.arras[data-format='b2'] .fragment h1,
+.arras[data-format='b2'] .fragment h2,
+.arras[data-format='b2'] .fragment h3 {
+	font-family: var(--sans);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+.arras[data-format='b2'] .fragment .env {
+	padding: var(--gap) var(--gap-wide);
+	border-left-width: 0;
+	border-radius: var(--rad-card);
+	background: color-mix(in srgb, var(--taxon-tone, var(--rule)) 7%, var(--sheet));
+}
+.arras[data-format='b2'] .fragment .env-label {
+	font-size: 0.82em;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--taxon-tone, var(--ink-soft));
+}
+/* A number is the paper's way of pointing at a result; a blog points with a link and a name. */
+.arras[data-format='b2'] .fragment .env-label .number {
+	display: none;
+}
+
+/* ---- p1 and p2: the compiled page ----
+
+   Modelled on the PDF this corpus compiles to. `amsart` carries a theorem with weight and shape and nothing else:
+   the head runs into the first line, bold for a result or a definition and italic for a remark, the statement is
+   italic where the class italicises it, and there is no rule, no fill and no colour anywhere on it. That last is the
+   point — with the taxa uncoloured, the only coloured thing on the page is a finding. */
+.arras[data-format='p1'],
+.arras[data-format='p2'] {
+	--measure: 33rem; /* amsart's text block is about 4.6in at 12pt */
+	/* The paper's own face where the reader asked for serif; `--body-face` still decides, so choosing sans still works. */
+	--serif: 'Latin Modern Roman', 'CMU Serif', 'Computer Modern', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+.arras[data-format='p1'] .fragment,
+.arras[data-format='p2'] .fragment {
+	line-height: 1.42;
+	text-align: justify;
+	hyphens: auto;
+}
+.arras[data-format='p1'] .fragment p,
+.arras[data-format='p2'] .fragment p {
+	margin: 0;
+	text-indent: 1.4em;
+}
+/* The paragraph that opens a section, or follows a displayed thing, is not indented — as the class sets it. */
+.arras[data-format='p1'] .fragment :is(h1, h2, h3, h4, h5, h6, .math.display, figure, .env) + p,
+.arras[data-format='p2'] .fragment :is(h1, h2, h3, h4, h5, h6, .math.display, figure, .env) + p {
+	text-indent: 0;
+}
+.arras[data-format='p1'] .fragment :is(h1, h2, h3, h4, h5, h6),
+.arras[data-format='p2'] .fragment :is(h1, h2, h3, h4, h5, h6) {
+	text-align: center;
+	font-variant: small-caps;
+	font-weight: 400;
+	font-size: 1em;
+	letter-spacing: 0.03em;
+	margin: 1.8em 0 0.9em;
+}
+/* Run-in heads: the label and the first paragraph are one line of text, which is what makes a compiled theorem
+   look like prose with a bold opening rather than like a card. */
+.arras[data-format='p1'] .fragment .env,
+.arras[data-format='p2'] .fragment .env {
+	border-left-width: 0;
+	background: none;
+	padding: 0;
+	margin: 0.85em 0;
+}
+.arras[data-format='p1'] .fragment .env > .env-label,
+.arras[data-format='p2'] .fragment .env > .env-label,
+.arras[data-format='p1'] .fragment .env > .env-label + p,
+.arras[data-format='p2'] .fragment .env > .env-label + p {
+	display: inline;
+	text-indent: 0;
+	color: inherit;
+}
+.arras[data-format='p1'] .fragment .env > .env-label,
+.arras[data-format='p2'] .fragment .env > .env-label {
+	font-family: inherit;
+	font-weight: 700;
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: 1em;
+}
+.arras[data-format='p1'] .fragment .env > .env-label .number::after,
+.arras[data-format='p2'] .fragment .env > .env-label .number::after {
+	content: '.';
+}
+.arras[data-format='p1'] .fragment .env > .env-label + p::before,
+.arras[data-format='p2'] .fragment .env > .env-label + p::before {
+	content: ' ';
+}
+/* A plain result is italic and a remark's head is italic rather than bold: amsthm's three styles, as they print. */
+.arras[data-format='p1'] .fragment .env[data-style='plain'] > .env-label + p,
+.arras[data-format='p2'] .fragment .env[data-style='plain'] > .env-label + p {
+	font-style: italic;
+}
+.arras[data-format='p1'] .fragment .env[data-style='remark'] > .env-label,
+.arras[data-format='p2'] .fragment .env[data-style='remark'] > .env-label {
+	font-weight: 400;
+	font-style: italic;
+}
+/* What the viewer adds is not the paper and is not set like it: a comment, a margin key, a composer. They sit inside
+   the fragment and would otherwise inherit its justification and its indent, which at gutter width is unreadable. */
+.arras[data-format='p1'] .fragment :is(.comment-slot, .node-margin, .composer, .verbs),
+.arras[data-format='p2'] .fragment :is(.comment-slot, .node-margin, .composer, .verbs) {
+	text-align: left;
+	text-indent: 0;
+	hyphens: none;
+	font-style: normal;
+}
+.arras[data-format='p1'] .fragment :is(.comment-slot, .composer) p,
+.arras[data-format='p2'] .fragment :is(.comment-slot, .composer) p {
+	text-indent: 0;
+}
+
+/* A proof reads as prose with an italic head and a tombstone, never as a disclosure widget. */
+.arras[data-format='p1'] .fragment details.env-proof > summary,
+.arras[data-format='p2'] .fragment details.env-proof > summary {
+	font-style: italic;
+	font-weight: 400;
+	list-style: none;
+}
+.arras[data-format='p1'] .fragment details.env-proof[open] > summary::after,
+.arras[data-format='p2'] .fragment details.env-proof[open] > summary::after {
+	content: '';
+}
+
+/* The page boundaries of the compiled paper (`p2`). A faint rule with the page's own number set into it, so the
+   number a reader sees is the number they would cite. `$lib/fragments/pages` draws them; only a document has them. */
+.page-break {
+	display: flex;
+	align-items: center;
+	gap: var(--gap);
+	margin: var(--gap-wide) 0;
+	color: var(--ink-faint);
+	font-family: var(--sans);
+	font-size: 0.72em;
+	letter-spacing: 0.06em;
+	text-indent: 0;
+}
+.page-break::before,
+.page-break::after {
+	content: '';
+	flex: 1 1 auto;
+	border-top: 1px solid var(--rule);
+}
+.page-break::after {
+	content: 'page ' attr(data-page);
+	flex: 0 0 auto;
+	border: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The taxon palette: three colours, by style. `$lib/taxonomy` decides which token a taxon gets and never knows a
+   value; these are the values. A result, a definition, an aside — and a fourth register deliberately left free,
+   because the annotation colour has to be one no taxon can wear or a finding has nothing of its own (DR-175). Eight
+   hues, one per taxon, used up every register the page had. */
+.arras {
+	--taxon-result: #3f5c91;
+	--taxon-definition: #2f6f6a;
+	--taxon-aside: var(--ink-faint);
+}
+@media (prefers-color-scheme: dark) {
+	.arras:not([data-theme='light']) {
+		--taxon-result: #8fadde;
+		--taxon-definition: #63c0b8;
+	}
+}
+.arras[data-theme='dark'] {
+	--taxon-result: #8fadde;
+	--taxon-definition: #63c0b8;
+}
+
+/* A kind this viewer has never heard of still has to read as a comment. `kind` is an open string -- a publisher may
+   use one arras was never told about, and 0.10's own `citation` was unstyled for exactly this reason -- so the base
+   rule carries the neutral treatment and the four known kinds override it. Found by a corpus built to break things, whose
+   annotations include a kind of `catastrophe`. */
+.fragment mark.annotation,
+.fragment .annotation-block {
+	background: var(--leaf);
+	box-shadow: inset 0 -2px 0 var(--rule-strong);
+}
+
+/* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. A whole marked block carries the colour down its edge rather than under every line. */
+.fragment mark.annotation.k-objection { background: var(--state-incomplete-wash); box-shadow: inset 0 -2px 0 var(--state-incomplete); }
+.fragment mark.annotation.k-suggestion { background: var(--state-stale-wash); box-shadow: inset 0 -2px 0 var(--state-stale); }
+.fragment mark.annotation.k-question { background: var(--link-wash); box-shadow: inset 0 -2px 0 var(--link); }
+.fragment mark.annotation.k-ok { background: var(--state-accepted-wash); box-shadow: inset 0 -2px 0 var(--state-accepted); }
+.fragment mark.annotation {
+	color: inherit;
+	border-radius: 2px;
+	padding: 0 1px;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+.fragment .annotation-block.k-objection { box-shadow: inset 3px 0 0 var(--state-incomplete); }
+.fragment .annotation-block.k-suggestion { box-shadow: inset 3px 0 0 var(--state-stale); }
+.fragment .annotation-block.k-question { box-shadow: inset 3px 0 0 var(--link); }
+.fragment .annotation-block.k-ok { box-shadow: inset 3px 0 0 var(--state-accepted); }
+.fragment mark.annotation.expanded,
+.fragment .annotation-block.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
+.fragment mark.annotation:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+
+/* A comment opened where it is: in the flow beneath its paragraph, raised just enough to read as something that opened. */
+.comment-slot.expanded {
+	margin: var(--gap-tight) 0 var(--gap);
+	font-family: var(--sans);
+}
+.comment-slot.expanded > .box {
+	margin: 0 0 var(--gap-hair);
+	box-shadow: 0 4px 16px rgb(0 0 0 / 9%);
+}
+
+/* The count beside a node's label for comments that have no mark of their own. */
+.fragment button.comment-count {
+	margin-left: var(--gap-tight);
+	font-family: var(--sans);
+	font-size: 9px;
+	font-style: normal;
+	font-weight: 400;
+	line-height: 14px;
+	padding: 0 6px;
+	border: none;
+	border-radius: var(--rad-pill);
+	cursor: pointer;
+	color: var(--ink-soft);
+	background: var(--leaf);
+	vertical-align: 1px;
+}
+.fragment button.comment-count.k-objection { color: var(--state-incomplete); background: var(--state-incomplete-wash); }
+.fragment button.comment-count.k-suggestion { color: var(--state-stale); background: var(--state-stale-wash); }
+.fragment button.comment-count.k-question { color: var(--link); background: var(--link-wash); }
+.fragment button.comment-count.k-ok { color: var(--state-accepted); background: var(--state-accepted-wash); }
+.fragment button.comment-count.expanded { outline: 2px solid var(--link); outline-offset: 1px; }

@@ -1,0 +1,9 @@
+--- accepted/sy-0001
++++ current/sy-0001
+@@ -1,5 +1,5 @@
+ \begin{definition}[Widget]\label{sy-0001}
+-A \emph{widget} is a pair $(X,\sigma)$ with $\sigma\colon X\to X$ satisfying \eqref{eq:prose}. Its fixed locus is
++A \emph{widget} is a pair of a set and an involution of it, so that \eqref{eq:prose} holds. Its fixed locus is
+ \begin{equation}\label{eq:fix}
+ \Fix(\sigma) = \{x \in X : \sigma x = x\}.
+ \end{equation}
