@@ -2,7 +2,14 @@ name: unit
 
 on:
   push:
+    paths: ['loom/**', '.github/workflows/loom-unit.yml']
   pull_request:
+    paths: ['loom/**', '.github/workflows/loom-unit.yml']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: loom
 
 jobs:
   unit:

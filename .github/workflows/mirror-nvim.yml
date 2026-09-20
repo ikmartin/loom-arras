@@ -1,0 +1,21 @@
+name: mirror loom-nvim
+
+# A Neovim plugin manager installs a plugin from a repository whose root is the plugin, so loom-nvim/ is pushed to ikmartin/loom-nvim whenever it changes. That repository is a mirror: it takes no pull requests, and development happens here.
+
+on:
+  push:
+    branches: [main]
+    paths: ['loom-nvim/**']
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the split walks the whole history
+      - name: Split loom-nvim/ and push it
+        run: |
+          git push "https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/ikmartin/loom-nvim.git" \
+            "$(git subtree split --prefix=loom-nvim)":refs/heads/main

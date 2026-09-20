@@ -2,7 +2,14 @@ name: tex
 
 on:
   push:
+    paths: ['loom/**', '.github/workflows/loom-tex.yml']
   pull_request:
+    paths: ['loom/**', '.github/workflows/loom-tex.yml']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: loom
 
 jobs:
   tex:

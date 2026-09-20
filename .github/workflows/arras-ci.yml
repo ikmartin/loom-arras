@@ -2,7 +2,14 @@ name: ci
 
 on:
   push:
+    paths: ['arras/**', '.github/workflows/arras-ci.yml']
   pull_request:
+    paths: ['arras/**', '.github/workflows/arras-ci.yml']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: arras
 
 jobs:
   build-and-test:
@@ -23,4 +30,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: bundle
-          path: build
+          path: arras/build
