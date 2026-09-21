@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
+const kreschPdf = `/${manifest.references.Kre99.artifacts.dir}/paper.pdf`;
 
 // the smallest PDF a browser accepts, so the viewer has something real to load
 const PDF = `%PDF-1.4
@@ -18,7 +19,7 @@ async function serve(page: Page, edit: (m: typeof manifest) => void) {
 		edit(m);
 		await route.fulfill({ json: m });
 	});
-	await page.route('**/refs/**/paper.pdf', (route) => route.fulfill({ body: PDF, contentType: 'application/pdf' }));
+	await page.route(`**${kreschPdf}`, (route) => route.fulfill({ body: PDF, contentType: 'application/pdf' }));
 }
 
 function linkInComment(m: typeof manifest, href: string) {
@@ -36,7 +37,7 @@ test.describe('links into cited works', () => {
 		await expect(page).toHaveURL(/\/node\/sy-0003$/); // the reader stays where they were
 		const viewer = page.getByTestId('pdf-viewer');
 		await expect(viewer).toBeVisible();
-		await expect(viewer.getByTestId('pdf-frame')).toHaveAttribute('src', '/refs/arxiv/math_9810166v2/paper.pdf#page=4');
+		await expect(viewer.getByTestId('pdf-frame')).toHaveAttribute('src', `${kreschPdf}#page=4`);
 		await expect(viewer).toContainText('Cycle groups for Artin stacks');
 		await expect(viewer).toContainText('page 4');
 		await page.keyboard.press('Escape');
@@ -63,7 +64,7 @@ test.describe('links into cited works', () => {
 		await expect(page.getByTestId('pdf-absent')).toContainText('a different version');
 		await expect(page.getByTestId('pdf-frame')).toHaveCount(0);
 		await page.getByTestId('pdf-open-anyway').click();
-		await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', '/refs/arxiv/math_9810166v2/paper.pdf#page=4');
+		await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', `${kreschPdf}#page=4`);
 	});
 
 	test('a quote anchor is shown to look for', async ({ page }) => {
@@ -82,7 +83,7 @@ test.describe('links into cited works', () => {
 		const link = page.getByTestId('page-link').first();
 		await expect(link).toHaveText('p. 4');
 		await link.click();
-		await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', '/refs/arxiv/math_9810166v2/paper.pdf#page=4');
+		await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', `${kreschPdf}#page=4`);
 		await page.mouse.click(5, 5);
 		await expect(page.getByTestId('pdf-viewer')).toHaveCount(0);
 	});

@@ -143,7 +143,7 @@
 									{#if c.kind === 'own-text-changed'}
 										{#if href}<a {href}>text edit</a>{:else}text edit{/if}
 									{:else if c.kind === 'dependency-changed'}
-										dependency changed: {#if href}<a {href}>{c.id}</a>{:else}{c.id}{/if}{#if c.via} via {c.via}{/if}
+										dependency changed: {#if href}<a {href}>{c.id}</a>{:else}{c.id}{/if}{#if c.via}{' '}via {c.via}{/if}
 									{:else}{c.kind}{c.id ? ' ' + c.id : ''}{/if}{c.when ? ` (${shortDate(c.when)})` : ''}
 									{#if c.diff && !href && !c.via && !redundantProofCause(k, c)}
 										· <button class="as-link" onclick={() => (open = open === k.key ? '' : k.key)} data-testid="expand-{k.key}">{open === k.key ? 'hide details' : 'details'}</button>

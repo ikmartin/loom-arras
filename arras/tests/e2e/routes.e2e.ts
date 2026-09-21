@@ -166,16 +166,16 @@ test('review statement badges agree with proved and settled counts', async ({ pa
 	await page.route('**/build/manifest.json', async (route) => {
 		const m = structuredClone(manifest);
 		m.nodes['sy-0003'].derived = { proved: true, settled: true };
-		m.nodes['sy-0004'].derived = { proved: true, settled: false };
-		m.keys['sy-0004'].acceptance.fresh = true;
+		m.nodes['sy-0002'].derived = { proved: true, settled: false };
+		m.keys['sy-0002'].acceptance.fresh = true;
 		await route.fulfill({ json: m });
 	});
 	await page.goto('/review');
 	const counts = await page.getByTestId('review-counts').innerText();
 	expect(counts).toContain('2 proved');
-	expect(counts).toContain('1 settled');
+	expect(counts).toContain('3 settled');
 	await expect(page.locator('#review-sy-0003 .badge .chip')).toHaveText(['accepted', 'proved', 'settled']);
-	await expect(page.locator('#review-sy-0004 .badge .chip')).toHaveText(['accepted', 'proved']);
+	await expect(page.locator('#review-sy-0002 .badge .chip')).toHaveText(['accepted', 'proved']);
 });
 
 test('missing proof on a block leads to its review row', async ({ page }) => {
