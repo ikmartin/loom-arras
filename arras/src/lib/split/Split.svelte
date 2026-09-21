@@ -40,8 +40,9 @@
 	const narrow = $derived(width > 0 && width < narrowAt);
 	const ratio = $derived(folded === 'content' ? 0 : folded === 'discussion' ? 1 : prefs.divider);
 
-	function set(next: number): void {
-		const snapped = Math.abs(next - SNAP) < NEAR ? SNAP : next;
+	/** Move the divider. The snap is for a pointer, whose aim is approximate; a key names an exact step, and a step from the middle that the snap pulled straight back was a key that did nothing. */
+	function set(next: number, snap = true): void {
+		const snapped = snap && Math.abs(next - SNAP) < NEAR ? SNAP : next;
 		prefs.divider = Math.min(0.8, Math.max(0.2, snapped));
 		folded = '';
 	}
@@ -72,8 +73,8 @@
 	function key(e: KeyboardEvent): void {
 		const back = prefs.swap ? 'ArrowRight' : 'ArrowLeft';
 		const forth = prefs.swap ? 'ArrowLeft' : 'ArrowRight';
-		if (e.key === back) set(prefs.divider - STEP);
-		else if (e.key === forth) set(prefs.divider + STEP);
+		if (e.key === back) set(prefs.divider - STEP, false);
+		else if (e.key === forth) set(prefs.divider + STEP, false);
 		else if (e.key === 'Home') set(SNAP);
 		else return;
 		e.preventDefault();

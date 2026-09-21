@@ -6,6 +6,7 @@
 	import { markPages } from '$lib/fragments/pages';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
+	import { travel } from '$lib/travel/travel';
 	import { page } from '$app/state';
 	import { prefs } from '$lib/prefs.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
@@ -31,7 +32,7 @@
 		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
 		standalone?: boolean;
 		comments?: (key: string) => CommentSlot[];
-		/** Whether this is the quilt's own text. `inline` is the Authoring View's alone (plan 0.13 §7): a cited work's rendering is read, not written, and opens floating under that setting. */
+		/** Whether this is the corpus's own text. `inline` is the Authoring View's alone (plan 0.13 §7): a cited work's rendering is read, not written, and opens floating under that setting. */
 		authoring?: boolean;
 		onmounted?: (root: HTMLElement) => void;
 	} = $props();
@@ -141,6 +142,7 @@
 		// a long document typesets the part the reader lands on first, and everything above it, before revealing and scrolling there
 		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
 		onmounted?.(root);
+		requestAnimationFrame(() => tickAt()); // after typesetting, which is what moves the lines
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
 		counts();
 		if (margins) stackMargins(root);
@@ -174,6 +176,27 @@
 	let marks = $state(0);
 	let concealed = $state(0);
 	let allOpen = $state(false);
+	/** The margin ticks (plan 0.13 §8): one per annotated line, on the discussion side, carrying the count where several share a line. */
+	let ticks = $state<{ top: number; ids: string[]; lead: string }[]>([]);
+
+	function tickAt(): void {
+		if (!el) return;
+		const rows = new Map<number, { top: number; ids: string[]; lead: string }>();
+		for (const mark of el.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
+			const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
+			if (!ids.length) continue;
+			// marks on one line share a tick: the line is the unit a reader's eye finds, not the phrase
+			const line = Math.round(mark.offsetTop / 8) * 8;
+			const row = rows.get(line);
+			if (row) row.ids.push(...ids.filter((i) => !row.ids.includes(i)));
+			else rows.set(line, { top: mark.offsetTop, ids: [...ids], lead: ids[0] });
+		}
+		ticks = [...rows.values()].sort((a, b) => a.top - b.top);
+	}
+
+	function tickTravel(t: { lead: string }, from: HTMLElement): void {
+		travel(el?.querySelector(`[data-annotation~="${CSS.escape(t.lead)}"]`) ?? null, from);
+	}
 
 	function counts(): void {
 		if (!el) return;
@@ -210,6 +233,16 @@
 		counts();
 		// the margin column is laid out against the nodes, so it is restacked whenever what is in it changes
 		if (el && margins) requestAnimationFrame(() => el && stackMargins(el));
+		// and the ticks are laid out against the marks, which typesetting moves
+		requestAnimationFrame(() => tickAt());
+	});
+
+	// the ticks follow the text when its width changes, which reflows every line
+	$effect(() => {
+		if (!el) return;
+		const watch = new ResizeObserver(() => tickAt());
+		watch.observe(el);
+		return () => watch.disconnect();
 	});
 
 	// and whenever the column's own width changes under it, which moves every box in it
@@ -254,15 +287,82 @@
 	{/if}
 	<!-- A focusable region with two shortcut keys: the rule below models a static div, not a labelled region a reader
 	     tabs into deliberately to reach the keys its own header names. -->
-	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<div
-		class="fragment"
-		class:read={margins}
-		class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'}
-		bind:this={el}
-		tabindex="-1"
-		role="region"
-		aria-label="the document"
-		onkeydown={keys}
-	>{@html html}</div>
+	<div class="framed" class:swap={prefs.swap}>
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+		<div
+			class="fragment"
+			class:read={margins}
+			class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'}
+			bind:this={el}
+			tabindex="-1"
+			role="region"
+			aria-label="the document"
+			onkeydown={keys}
+		>{@html html}</div>
+		{#if ticks.length}
+			<!-- The persistent marks' other half (§8): a tick in the margin on the discussion side for every annotated
+			     line, so a page can be scanned for where the discussion is without reading it. Click selects, double-click
+			     travels; the count says how many share the line. -->
+			<div class="ticks" data-testid="ticks" aria-label="annotated lines">
+				{#each ticks as t (t.top + ':' + t.lead)}
+					<button
+						type="button"
+						class="tick"
+						class:many={t.ids.length > 1}
+						style="top: {t.top}px;"
+						data-count={t.ids.length > 1 ? t.ids.length : undefined}
+						data-testid="tick-{t.lead}"
+						title={t.ids.length > 1 ? `${t.ids.length} annotations on this line` : 'an annotation on this line'}
+						aria-label={t.ids.length > 1 ? `${t.ids.length} annotations on this line` : 'an annotation on this line'}
+						onclick={() => (ui.activeAnnotation = t.lead)}
+						ondblclick={(e) => tickTravel(t, e.currentTarget)}
+					></button>
+				{/each}
+			</div>
+		{/if}
+	</div>
 {/if}
+
+<style>
+	.framed {
+		position: relative;
+	}
+	/* the tick column: on the discussion side, following the swap; outside the text, never over it */
+	.ticks {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: -14px;
+		width: 10px;
+		pointer-events: none;
+	}
+	.framed.swap .ticks {
+		right: auto;
+		left: -14px;
+	}
+	.tick {
+		position: absolute;
+		left: 0;
+		width: 10px;
+		height: 3px;
+		margin-top: 0.55em;
+		border: 0;
+		padding: 0;
+		background: var(--annotation, #c05621);
+		opacity: 0.55;
+		cursor: pointer;
+		pointer-events: auto;
+	}
+	.tick:hover,
+	.tick.many {
+		opacity: 0.95;
+	}
+	.tick[data-count]::after {
+		content: attr(data-count);
+		position: absolute;
+		left: 12px;
+		top: -0.55em;
+		font: 600 9px/1 var(--sans, sans-serif);
+		color: var(--annotation, #c05621);
+	}
+</style>

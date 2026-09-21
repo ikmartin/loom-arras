@@ -32,6 +32,7 @@
     "shots:report": "playwright test --config playwright.shots.config.ts tests/shots/report.spec.ts",
     "shots:floor": "playwright test --config playwright.shots-minimal.config.ts",
     "test:write": "playwright test --config playwright.write.config.ts",
+    "test:reading": "playwright test --config playwright.reading.config.ts",
     "pdfjs:assets": "node scripts/pdfjs-assets.mjs"
   },
   "devDependencies": {

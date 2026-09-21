@@ -165,7 +165,7 @@ resolved a-2026-09-16-0007
 
 ### 7.5.1 Model
 
-**[decided]** The text-quote selector of the W3C Web Annotation model: `exact`, `prefix`, `suffix`. Resolved inside the target's own text, never against a file path or line numbers. Consequences: moving text between files (`atomize`, `inline`) does not touch an annotation; an edit elsewhere in the same file cannot shift an anchor.
+**[decided]** The text-quote selector of the W3C Web Annotation model: `exact`, `prefix`, `suffix`. Resolved inside the target's own text, never against a file path or line numbers. **On a page of a cited work the same triple is carried beside a page anchor** (DR-209): `kind: pdf`, the artifact's `sha256`, the `page`, and a `basis` — `text`, with `start`/`end` offsets into the page's committed text, when the quotation located there; `box`, with `quads` (rectangles in points, origin top left), when the reader drew a rectangle or the words could not be found in the text. Rectangles are recorded only for a box, where they are the anchor; a text anchor's are derived at build time from the offsets. Recording never fails: what cannot be found in the text is recorded as geometry, and the words under it as the triple's `exact`, unreliable by construction. Consequences: moving text between files (`atomize`, `inline`) does not touch an annotation; an edit elsewhere in the same file cannot shift an anchor.
 
 ### 7.5.2 Resolution
 
@@ -177,7 +177,9 @@ resolved a-2026-09-16-0007
 
 ### 7.5.4 Targets
 
-**[decided]** Annotations may target: a key; a labelled equation (qualified key); a master (path), whose own text is the region. They may not target rendered-only content, LaTeX comments, the preamble, or a span crossing a node boundary (`loom comment` refuses a quote that crosses out of the target's own text).
+**[decided]** Annotations may target: a key; a labelled equation (qualified key); a master (path), whose own text is the region; and — since plan 0.13 (DR-209) — **a page of a cited work**, named by the work's global identifier (`doi:…`, `arXiv:…`), never by the citekey, with a page anchor (7.5.1) that says where on it. They may not target rendered-only content, LaTeX comments, the preamble, or a span crossing a node boundary (`loom comment` refuses a quote that crosses out of the target's own text).
+
+**[decided]** Both targets stay legal for a cited work: the **digest node** when the annotation is about loom's rendering of a result, the **work** when it is about the page. The two are different claims — the first is about a copy loom made, the second about the paper — and the anchor says which surface the writer was on.
 
 ### 7.5.5 Annotations whose subject is gone
 

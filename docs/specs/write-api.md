@@ -14,7 +14,7 @@ The write API is the HTTP form of the publisher's record-writing commands, so th
 
 | method | path | body | effect |
 |---|---|---|---|
-| `POST` | `/_api/comment` | `{target, message, quote?, kind?, severity?, payload?, placement?, author?, session?}` | writes one finding |
+| `POST` | `/_api/comment` | `{target, message, quote?, kind?, severity?, payload?, placement?, page?, rects?, author?, session?}` | writes one finding; with `page`, a note on that page of the cited work `target` names, anchored by `quote` (text on it) or `rects` (drawn) |
 | `POST` | `/_api/reply` | `{annotation, message, author?, session?}` | answers one |
 | `POST` | `/_api/resolve` | `{annotation, message?, undo?, author?, session?}` | closes one that is met |
 | `POST` | `/_api/edit` | `{annotation, message?, severity?, payload?, placement?, author?, session?}` | restates one that still stands |
@@ -22,13 +22,17 @@ The write API is the HTTP form of the publisher's record-writing commands, so th
 | `POST` | `/_api/refs-note` | `{annotation, decision: "accept" \| "reject", reason?, author?}` | records a citation suggestion's outcome |
 | `POST` | `/_api/digest-verify` | `{node, statement?, local?, taxon?, author?}` | verifies a proposed result, editing the rendering first when `statement` is given |
 | `POST` | `/_api/digest-discard` | `{node, reason, author?}` | discards a proposed result, keeping the reason |
-| `POST` | `/_api/locate` | `{citekey, page, text? , rects?}` | answers with the anchor loom would record; **writes nothing** |
+| `POST` | `/_api/locate` | `{citekey, page, text? , rects?, span?}` | answers with the anchor loom would record; **writes nothing** |
 | `POST` | `/_api/session-use` | `{session, author?}` | makes one session the one writing lands in, resuming it when closed |
 | `POST` | `/_api/session-rename` | `{session, title, author?}` | retitles one; the id does not change, because it is the address |
 | `POST` | `/_api/session-delete` | `{session, reason?, author?}` | tombstones one; its annotations stay in the log |
+| `POST` | `/_api/session-new` | `{title, author?}` | mints a session named on the spot and makes it the one writing lands in |
+| `POST` | `/_api/session-close` | `{session, author?}` | ends the round; a closed session's annotations are hidden until it is shown or resumed |
 | `POST` | `/_api/message` | `{text, session?, as?, author?}` | posts into a session's inbox and answers with who was attached |
 
 **[decided]** `session-purge` is **not** an endpoint and will not become one. Purging rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
+
+**[decided]** `comment` with `page` records a note on a page of a cited work (DR-209) through the same mapping `locate` previews — one function on the publisher, so what the viewer showed is what the log says. `locate` with `span` maps offsets into the page's committed text, which is what a `span=` locator in a URL carries.
 
 **[decided]** `locate` maps a selection to an anchor **on the publisher**, never in the browser. The client's text layer is a third extraction of a page, after the committed page text and the word boxes; only the publisher holds the other two, and only the publisher can say what the page says. The client sends the selected string and never a decision about what the anchor is. Geometry-only anchors are legal and are never refused.
 

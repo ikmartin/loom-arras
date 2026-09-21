@@ -529,6 +529,30 @@ def build_demo(dest: Path) -> None:
 
 
 SHOWCASE = "The loom showcase"
+def _tiny_pdf(path: Path, text: str = "Notes on balanced quivers, for a reader in a hurry.") -> None:
+    """A one-page PDF with a text layer, written by hand: the orphan needs a document nothing else in the showcase names, and generating one needs no TeX."""
+    stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode()
+    objs = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for i, body in enumerate(objs, start=1):
+        offsets.append(len(out))
+        out += f"{i} 0 obj\n".encode() + body + b"\nendobj\n"
+    start = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+    for off in offsets:
+        out += f"{off:010d} 00000 n \n".encode()
+    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{start}\n%%EOF\n".encode()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(bytes(out))
+
+
 #: The invented cited works, compiled by `sources/showcase-works/build.sh` and committed beside their LaTeX. They are copied into the quilt's seed space and filed by `loom refs scan`, so that generating the showcase needs no TeX distribution and writes the same bytes on every machine.
 WORKS = SOURCES / "showcase-works"
 DEMO_WORKS = SOURCES / "demo-works"
@@ -737,7 +761,7 @@ def build_showcase(dest: Path) -> None:
         "sh-0009",
         "The rank formula is stated for the underlying graph's component count, but nothing in the statement says "
         "that a loop counts as an arrow and contributes to the rank. Arden is explicit about it on "
-        "[page 2](cited:arxiv:2504.01234v1#page=2); say so here too.",
+        "[page 2](cited:arxiv:2504.01234v1?page=2); say so here too.",
         "--kind",
         "objection",
         "--severity",
@@ -771,7 +795,7 @@ def build_showcase(dest: Path) -> None:
         "sh-000C/proof",
         "Integrality of the vertices of $\\Pi$ does not follow from saturation of the cycle lattice: saturation is "
         "about the lattice, integrality is about the polytope's vertices, and Bellamy assumes the second "
-        "([the balancing hypothesis](cited:doi:10.4171/showcase/19-2#quote=balanced%20at%20every%20vertex)). This is "
+        "([the balancing hypothesis](cited:doi:10.4171/showcase/19-2?quote=balanced%20at%20every%20vertex)). This is "
         "the gap Lemma~sh-000E is meant to close, and it is not closed.",
         "--kind",
         "objection",
@@ -1092,7 +1116,91 @@ def build_showcase(dest: Path) -> None:
         "--session",
         reading,
     )
+    # Notes on the page itself (plan 0.13 item 2): one anchored to text the reader selected, one to a box drawn
+    # around the display, both recorded against the work by its identifier.
+    g.run(
+        "comment",
+        "Bellamy19",
+        "Is total unimodularity really needed here, or only that the vertices are integral?",
+        "--page",
+        "2",
+        "--quote",
+        "totally unimodular",
+        "--kind",
+        "question",
+        "--session",
+        reading,
+    )
+    g.run(
+        "comment",
+        "Bellamy19",
+        "This is the display we cite; the balanced case is the one that matters.",
+        "--page",
+        "2",
+        "--box",
+        "82,278,529,316",
+        "--kind",
+        "note",
+        "--session",
+        reading,
+    )
+    # The message carries what changed since the last one -- the notes above -- in the same text `session next`
+    # prints, so a parked agent needs no second call to learn what it is being asked about.
     g.run("session", "send", "Have a look at Bellamy's Theorem 3.2 and tell me whether integrality is used.", "--session", reading)
+    # The agent, attached, answers: a reply in the inbox, an edit of its own earlier objection in place, and a
+    # suggestion asking the author for a verification it cannot make itself (DR-185's route).
+    g.at("2026-09-17T11:10:00Z")
+    g.run(
+        "session",
+        "send",
+        "Integrality is used once, in the proof of Theorem 2.3: the vertex is integral because the matrix is totally unimodular. Theorem 3.2 only needs bounded weights.",
+        "--session",
+        reading,
+        "--as",
+        "Referee (Agent)",
+        agent=True,
+    )
+    g.run(
+        "comment",
+        "Bellamy19",
+        "Answered on the page: unimodularity is the mechanism, integrality of the vertices is what is used downstream.",
+        "--page",
+        "2",
+        "--quote",
+        "the constraint matrix is an incidence matrix",
+        "--kind",
+        "note",
+        "--session",
+        reading,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
+    )
+    g.run(
+        "comment",
+        "Bellamy19-thm-3.2",
+        "Please verify the transcription of 3.2 against p.2: the digest says 'integral' where the page says 'bounded'.",
+        "--kind",
+        "suggestion",
+        "--severity",
+        "moderate",
+        "--session",
+        reading,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
+    )
+
+    # ---- An orphan document, healed by the store. -----------------------------------------------------------
+    # A document dropped into `refs/` is filed and offered an entry; the author deletes the entry; the store
+    # outlives the bibliography, and the next scan offers it back (plan 0.13 item 6, `refs scan`'s adoption).
+    g.at("2026-09-17T11:15:00Z")
+    _tiny_pdf(g.root / "refs" / "Halloway - 2026 - Notes on balanced quivers.pdf")
+    g.run("refs", "scan")
+    bib = g.root / "digests" / "bibliography.bib"
+    kept = [block for block in bib.read_text(encoding="utf-8").split("\n@") if "Notes on balanced quivers" not in block]
+    bib.write_text("@".join(kept) if kept[0].startswith("@") else kept[0] + "@".join(kept[1:]), encoding="utf-8")
+    g.run("refs", "scan")  # adopted: the entry is back, from the ledger's record of how the document arrived
 
     # ---- A work with no document to hold, declared rather than inferred. ----------------------------------
     g.at("2026-09-17T11:20:00Z")

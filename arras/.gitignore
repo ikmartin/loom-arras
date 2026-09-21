@@ -35,3 +35,4 @@ static/pdfjs/
 
 # the exploratory browser records where it is listening; it is a running process, not a file to keep
 .drive.json
+.tmp-reading-quilt/

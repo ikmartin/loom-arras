@@ -10,15 +10,20 @@
 	import { keyFromParam } from '$lib/nav';
 	import { nodeBadge } from '$lib/badges';
 	import { bibText } from '$lib/works';
-	import { isWorkLink, locate, parseWorkLink } from '$lib/worklink';
+	import { isWorkLink, locate, parseWorkLink, type WorkLink } from '$lib/worklink';
+	import { artifactUrl } from '$lib/paths';
+	import { can, write, type WriteResult } from '$lib/write';
 	import Badge from './Badge.svelte';
 	import Tex from '$lib/math/Tex.svelte';
 	import WorkLinks from './WorkLinks.svelte';
+	import PdfDoc from '$lib/pdf/PdfDoc.svelte';
 
 	const SHOW_MS = 300;
 	const HIDE_MS = 200;
 
-	type Target = { kind: 'node'; key: string } | { kind: 'ref'; citekey: string };
+	// A `cited:` link with a copy here previews the page itself, at the place (plan 0.13 item 5: the renderer's fourth
+	// mounting context); one without previews the work's record.
+	type Target = { kind: 'node'; key: string } | { kind: 'ref'; citekey: string } | { kind: 'work'; citekey: string; link: WorkLink; url: string };
 
 	// raw, so the identity check after an await compares the object that was hovered rather than a proxy of it
 	let target = $state.raw<Target | null>(null);
@@ -33,7 +38,31 @@
 
 	const m = $derived(store.manifest);
 	const node = $derived(m && target?.kind === 'node' ? m.nodes[target.key] : undefined);
-	const ref = $derived(m && target?.kind === 'ref' ? m.references[target.citekey] : undefined);
+	const ref = $derived(m && (target?.kind === 'ref' || target?.kind === 'work') ? m.references[target.citekey] : undefined);
+	/** The place the link names, mapped by the publisher into rectangles for the card to draw; a box needs no mapping. */
+	let lit = $state<{ page: number; rects: number[][] } | null>(null);
+	$effect(() => {
+		const t = target;
+		lit = null;
+		if (!t || t.kind !== 'work') return;
+		const at = t.link.page ?? 1;
+		if (t.link.box) {
+			lit = { page: at, rects: [[...t.link.box]] };
+			return;
+		}
+		if (!t.link.span && !t.link.quote) return;
+		let dropped = false;
+		void can('locate').then((ok) => {
+			if (!ok || dropped) return;
+			const body = t.link.span ? { citekey: t.citekey, page: at, span: t.link.span } : { citekey: t.citekey, page: at, text: t.link.quote };
+			return write('locate', body).then((res: WriteResult & { anchor?: { quads?: number[][] } }) => {
+				if (!dropped && res.ok && res.anchor?.quads?.length) lit = { page: at, rects: res.anchor.quads };
+			});
+		});
+		return () => {
+			dropped = true;
+		};
+	});
 	const number = $derived.by(() => {
 		if (!node || !m) return '';
 		const master = m.masters.find((x) => x.default)?.path ?? '';
@@ -57,8 +86,11 @@
 		const href = a.getAttribute('href');
 		if (isWorkLink(href)) {
 			const link = parseWorkLink(href!);
-			const found = link ? locate(m, link).ref : undefined;
-			return found ? { kind: 'ref', citekey: found.citekey } : null;
+			const where = link ? locate(m, link) : undefined;
+			if (!link || !where?.ref) return null;
+			// the very artifact the link names, on this machine: the page at the place, not the record
+			if (where.local && where.ref.artifacts?.pdf) return { kind: 'work', citekey: where.ref.citekey, link, url: artifactUrl(where.ref.artifacts.dir) };
+			return { kind: 'ref', citekey: where.ref.citekey };
 		}
 		const refTarget = a.matches('a.ref[data-target]') ? a.getAttribute('data-target') : a.closest<HTMLElement>('span.cite[data-target]')?.dataset.target;
 		if (refTarget) {
@@ -229,6 +261,11 @@
 			{:else}
 				<div class="body fragment" bind:this={body}>{@html html}</div>
 			{/if}
+		{:else if target.kind === 'work' && ref}
+			<p class="head"><span class="title"><Tex text={bibText(ref.bib.title) || ref.citekey} /></span><span class="id">p.{target.link.page ?? 1}</span></p>
+			<div class="page-card" data-testid="preview-page">
+				<PdfDoc url={target.url} page={target.link.page ?? 1} toolbar={false} scale={0.55} window={0} spans={lit ? [{ id: '_locator', page: lit.page, rects: lit.rects, transient: true }] : []} focus={lit ? '_locator' : ''} />
+			</div>
 		{:else if ref}
 			<p class="head"><span class="title"><Tex text={bibText(ref.bib.title) || ref.citekey} /></span></p>
 			<p class="byline">{bibText(ref.bib.author)}{ref.bib.year ? ` · ${ref.bib.year}` : ''}</p>
@@ -310,6 +347,14 @@
 	}
 	.body :global(.math.display) {
 		background: none;
+	}
+	/* the page at the place: a fixed-size window onto the renderer, at a scale a glance can read */
+	.page-card {
+		width: 24rem;
+		height: 16rem;
+		overflow: hidden;
+		border: 1px solid var(--rule);
+		background: var(--sheet);
 	}
 	@media (hover: none) {
 		.link-preview {

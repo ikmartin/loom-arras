@@ -641,3 +641,75 @@ test.describe('the split as a mode of a route', () => {
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Unknown session');
 	});
 });
+
+test.describe('the divider, the panel and the ticks', () => {
+	test('the divider drags, snaps at the middle, resets on double-click, nudges by key, and collapses', async ({ page }) => {
+		await page.goto('/node/sy-0003?beside=1');
+		const divider = page.getByTestId('divider');
+		await expect(divider).toBeVisible();
+		const split = page.getByTestId('split');
+		const frame = (await split.boundingBox())!;
+		const at = async () => Number(await divider.getAttribute('aria-valuenow'));
+		// dragged to a third of the frame, the ratio follows the pointer
+		const handle = (await divider.boundingBox())!;
+		await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(frame.x + frame.width * 0.33, handle.y + handle.height / 2, { steps: 6 });
+		await page.mouse.up();
+		expect(await at()).toBeLessThan(40);
+		// near the middle it snaps to it, and nowhere else
+		await page.mouse.move(frame.x + frame.width * 0.33, handle.y + handle.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(frame.x + frame.width * 0.515, handle.y + handle.height / 2, { steps: 6 });
+		await page.mouse.up();
+		expect(await at()).toBe(50);
+		// the keys nudge, Home recentres, a double-click resets
+		await divider.focus();
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		expect(await at()).toBe(54);
+		await page.keyboard.press('Home');
+		expect(await at()).toBe(50);
+		await page.keyboard.press('ArrowLeft');
+		await divider.dblclick();
+		expect(await at()).toBe(50);
+		// the chevrons collapse either pane and the ratio is remembered
+		await page.getByTestId('fold-discussion').click();
+		await expect(page.getByTestId('pane-discussion')).toBeHidden();
+		await page.getByTestId('fold-discussion').click();
+		await expect(page.getByTestId('pane-discussion')).toBeVisible();
+		expect(await at()).toBe(50);
+		// and below the breakpoint the split is a switch
+		await page.setViewportSize({ width: 640, height: 800 });
+		await expect(page.getByTestId('switch-discussion')).toBeVisible();
+		await page.getByTestId('switch-discussion').click();
+		await expect(page.getByTestId('pane-discussion')).toBeVisible();
+	});
+
+	test('the panel has a Nodes section, folded, narrowed by what is typed', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		await expect(page.getByTestId('nodes-list')).toHaveCount(0); // folded: a corpus of a hundred results would otherwise be the panel
+		await page.getByTestId('nodes-toggle').click();
+		await expect(page.getByTestId('nodes-list')).toBeVisible();
+		await page.getByTestId('nodes-filter').fill('parity');
+		const rows = page.getByTestId('nodes-list').locator('li a');
+		await expect(rows.first()).toContainText('sy-0003');
+		await expect(rows).toHaveCount(1);
+		await page.getByTestId('nodes-filter').fill('zzz');
+		await expect(page.getByTestId('nodes-list')).toContainText('nothing matches');
+	});
+
+	test('a tick stands beside every annotated line, carrying the count where two share one', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		const ticks = page.getByTestId('ticks');
+		await expect(ticks).toBeVisible();
+		const marks = await page.locator('.fragment mark.annotation').count();
+		expect(await ticks.locator('.tick').count()).toBeGreaterThan(0);
+		expect(await ticks.locator('.tick').count()).toBeLessThanOrEqual(marks);
+		// a tick selects its annotation, and double-click travels to the mark
+		const first = ticks.locator('.tick').first();
+		const lead = (await first.getAttribute('data-testid'))!.replace('tick-', '');
+		await first.dblclick();
+		await expect(page.locator(`.fragment [data-annotation~="${lead}"]`)).toBeInViewport();
+	});
+});

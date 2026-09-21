@@ -26,7 +26,8 @@
 		onselect,
 		onbox,
 		onmark,
-		onpage
+		onpage,
+		onlink
 	}: {
 		url: string;
 		/** The page to open at; changing it scrolls there. */
@@ -45,6 +46,8 @@
 		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
 		/** The page the reader is looking at changed, by scrolling or by being sent there. */
 		onpage?: (e: { page: number }) => void;
+		/** A link inside the paper was followed to another of its pages; the document scrolls there and says so. */
+		onlink?: (e: { page: number }) => void;
 	} = $props();
 
 	// The reader's zoom for this kind of renderer, remembered across papers and across visits, unless a caller fixes it.
@@ -116,6 +119,15 @@
 		});
 	});
 
+	/** Sent to a page by a link inside the paper: scroll there and say so, as a scroll would. */
+	function goTo(n: number): void {
+		const target = column?.querySelector(`[data-holder="${n}"]`);
+		if (!target) return;
+		here = n;
+		target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+		onpage?.({ page: n });
+	}
+
 	function scrolled(): void {
 		if (!column) return;
 		const middle = column.scrollTop + column.clientHeight / 2;
@@ -176,6 +188,10 @@
 					{onbox}
 					{onmark}
 					onsized={(e) => (sizes = { ...sizes, [e.page]: { width: e.width, height: e.height } })}
+					onlink={(e) => {
+						goTo(e.page);
+						onlink?.(e);
+					}}
 				/>
 			</div>
 		{/each}

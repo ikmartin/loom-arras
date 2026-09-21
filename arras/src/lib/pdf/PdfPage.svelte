@@ -13,6 +13,7 @@
 	// hash changes, so a pane that re-derived from it would re-render a page a second — the failure `Fragment.svelte`
 	// has been patched for twice.
 	import { untrack } from 'svelte';
+	import { prefs } from '$lib/prefs.svelte';
 	import { asPercent, document_, pdfjs } from './document';
 
 	type Rect = readonly number[];
@@ -28,7 +29,8 @@
 		onselect,
 		onbox,
 		onmark,
-		onsized
+		onsized,
+		onlink
 	}: {
 		url: string;
 		page?: number;
@@ -49,6 +51,8 @@
 		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
 		/** This page's size in points, once known, so a parent can size what it has not drawn. */
 		onsized?: (e: { page: number; width: number; height: number }) => void;
+		/** The reader followed a link inside the paper to another of its pages; a link out of it opens in a new tab and is not reported. */
+		onlink?: (e: { page: number }) => void;
 	} = $props();
 
 	let host: HTMLDivElement;
@@ -60,6 +64,8 @@
 	let drawing = $state<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
 	let empty = $state(false);
 	let drawn = $state(false);
+	/** The paper's own links on this page (plan 0.13 item 5, "link followed"): where each is, and where it goes. */
+	let links = $state<{ left: string; top: string; width: string; height: string; url?: string; page?: number }[]>([]);
 
 	/** Box mode: what the toolbar says, or forced on a page whose text layer has nothing to select. */
 	const boxing = $derived(tool === 'box' || empty);
@@ -96,6 +102,32 @@
 			const layer = new lib.TextLayer({ textContentSource: await p.getTextContent(), container: textLayer, viewport });
 			await layer.render();
 			const t3 = performance.now();
+			// The paper's links, drawn by us rather than by PDF.js's annotation layer, which wants a link service with a
+			// contract of its own; a `Link` annotation is a rectangle and a destination, and that is all a reader needs.
+			const found: typeof links = [];
+			for (const a of await p.getAnnotations()) {
+				if (a.subtype !== 'Link' || !Array.isArray(a.rect)) continue;
+				const r = a.rect as number[];
+				const [x0, y0] = viewport.convertToViewportPoint(r[0], r[1]);
+				const [x1, y1] = viewport.convertToViewportPoint(r[2], r[3]);
+				const at = {
+					left: `${(Math.min(x0, x1) / viewport.width) * 100}%`,
+					top: `${(Math.min(y0, y1) / viewport.height) * 100}%`,
+					width: `${(Math.abs(x1 - x0) / viewport.width) * 100}%`,
+					height: `${(Math.abs(y1 - y0) / viewport.height) * 100}%`
+				};
+				if (typeof a.url === 'string') found.push({ ...at, url: a.url });
+				else if (a.dest) {
+					try {
+						const dest = typeof a.dest === 'string' ? await doc.getDestination(a.dest) : a.dest;
+						const ref = Array.isArray(dest) ? dest[0] : null;
+						if (ref) found.push({ ...at, page: (await doc.getPageIndex(ref)) + 1 });
+					} catch {
+						// a destination the document cannot resolve is a dead link in every viewer
+					}
+				}
+			}
+			links = found;
 			timed('open', t0, t1);
 			timed('render', t1, t2);
 			timed('text', t2, t3);
@@ -144,7 +176,9 @@
 		if (!drags(e)) return;
 		const at = host.getBoundingClientRect();
 		drawing = { x0: e.clientX - at.left, y0: e.clientY - at.top, x1: e.clientX - at.left, y1: e.clientY - at.top };
-		host.setPointerCapture(e.pointerId);
+		// captured on the layer whose handlers these are: capturing on the page redirected every later pointer event
+		// to the page, which listens for none of them, so a drag began and never ended
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	}
 
 	function moveBox(e: PointerEvent): void {
@@ -158,7 +192,7 @@
 		const at = host.getBoundingClientRect();
 		const d = drawing;
 		drawing = null;
-		host.releasePointerCapture(e.pointerId);
+		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
 		const left = Math.min(d.x0, d.x1) + at.left;
 		const top = Math.min(d.y0, d.y1) + at.top;
 		// a click without a drag leaves a point, which is the degenerate span
@@ -197,6 +231,35 @@
 			onpointerup={endBox}
 			role="presentation"
 		></div>
+		{#if links.length}
+			<div class="links" aria-hidden="false">
+				{#each links as l, i (i)}
+					{#if l.url}
+						<a class="link" href={l.url} target="_blank" rel="noopener noreferrer" title={l.url} aria-label="link out of the paper" style="left: {l.left}; top: {l.top}; width: {l.width}; height: {l.height};"></a>
+					{:else if l.page}
+						<button type="button" class="link" title="page {l.page}" aria-label="to page {l.page}" data-testid="pdf-link-{l.page}" style="left: {l.left}; top: {l.top}; width: {l.width}; height: {l.height};" onclick={() => onlink?.({ page: l.page! })}></button>
+					{/if}
+				{/each}
+			</div>
+		{/if}
+		{#if quads.some((q) => q.note)}
+			<!-- the tick column beside the page, on the discussion side (§8): one per note, the count where several share a place -->
+			<div class="ticks" class:swap={prefs.swap} aria-label="annotated places">
+				{#each quads.filter((q) => q.note) as q (q.id)}
+					{@const at = asPercent(q.rects[0] ?? [0, 0, 0, 0], box)}
+					<button
+						type="button"
+						class="tick"
+						style="top: {at.top};"
+						data-count={q.ids && q.ids.length > 1 ? q.ids.length : undefined}
+						data-testid="tick-{q.id}"
+						aria-label={q.ids && q.ids.length > 1 ? `${q.ids.length} notes here` : 'a note here'}
+						onclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: false, note: true, el: e.currentTarget })}
+						ondblclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: true, note: true, el: e.currentTarget })}
+					></button>
+				{/each}
+			</div>
+		{/if}
 		<!-- Marks belong to a drawn page and to nothing else (plan 0.13 item 2): a held page has no box of its own to
 		     position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once. -->
 		<div class="marks" aria-hidden={quads.length === 0}>
@@ -272,6 +335,56 @@
 		inset: 0;
 		pointer-events: none;
 	}
+	.ticks {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: -12px;
+		width: 10px;
+		pointer-events: none;
+	}
+	.ticks.swap {
+		right: auto;
+		left: -12px;
+	}
+	.tick {
+		position: absolute;
+		left: 0;
+		width: 10px;
+		height: 3px;
+		border: 0;
+		padding: 0;
+		background: var(--annotation, #c05621);
+		opacity: 0.6;
+		cursor: pointer;
+		pointer-events: auto;
+	}
+	.tick[data-count]::after {
+		content: attr(data-count);
+		position: absolute;
+		left: 12px;
+		top: -0.5em;
+		font: 600 9px/1 var(--sans, sans-serif);
+		color: var(--annotation, #c05621);
+	}
+	.links {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+	.link {
+		position: absolute;
+		display: block;
+		border: 0;
+		padding: 0;
+		background: transparent;
+		cursor: pointer;
+		pointer-events: auto;
+	}
+	.link:hover {
+		outline: 1px solid var(--link, #35618f);
+		outline-offset: 1px;
+	}
 	.mark {
 		position: absolute;
 		border: 0;
@@ -280,6 +393,13 @@
 		background: var(--annotation-tint, rgb(217 119 87 / 0.22));
 		cursor: pointer;
 		pointer-events: auto;
+	}
+	/* with the box tool, what is under the pointer is the page and nothing on it: a reader drawing over a mark, a
+	   link or a tick is drawing, not clicking, and a mark that took the press would end the box before it began */
+	.page.boxing .mark,
+	.page.boxing .link,
+	.page.boxing .tick {
+		pointer-events: none;
 	}
 	.mark:hover,
 	.mark.on {

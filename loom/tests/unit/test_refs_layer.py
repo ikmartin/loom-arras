@@ -1777,13 +1777,15 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
 
     q = _showcase(tmp_path)
     who = ("--author", "A. Author")
+    # the showcase carries reading notes of its own; what is asserted is what these two add
+    before = sum(1 for line in (q / "annotations" / "log.jsonl").read_text().splitlines() if '"basis"' in line)
     a = run("comment", "Bellamy19", "why unimodular?", "--page", "2", "--quote", "totally unimodular", "--kind", "question", *who, cwd=q).output.split()[0]
     b = run("comment", "Bellamy19", "this display", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q).output.split()[0]
     # exit 1 is a content problem, which the showcase carries on purpose (a duplicate id); the build still writes
     assert run("build", cwd=q).exit_code in (0, 1)
     manifest = _json.loads((q / "build" / "manifest.json").read_text())
     ref = manifest["references"]["Bellamy19"]
-    assert ref["reading"] == {"total": 2, "open": 2}
+    assert ref["reading"]["total"] == before + 2 and ref["reading"]["open"] >= 2
     assert manifest["annotations"][a]["target"] == {"key": "doi:10.4171/showcase/19-2", "hash": manifest["annotations"][a]["target"]["hash"], "work": "Bellamy19", "page": 2}
     assert manifest["annotations"][a]["basis"] == "text" and manifest["annotations"][b]["basis"] == "box"
     assert manifest["annotations"][a]["anchored"] and manifest["annotations"][b]["anchored"]
@@ -1826,3 +1828,45 @@ def test_a_locator_by_offsets_lights_the_same_place_a_selection_would(tmp_path: 
     by_text = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": "totally unimodular"})
     assert by_span["ok"] and by_span["anchor"]["quads"] == by_text["anchor"]["quads"]
     assert by_span["anchor"]["start"] == a and by_span["text"] == "totally unimodular"
+
+
+def test_an_agent_parked_on_session_next_wakes_when_a_message_lands_with_what_changed(tmp_path: Path) -> None:
+    """The dispatch round trip against a fake agent (plan 0.13 §11): a real `loom session next --wait` process parked in the background, a post through the mailbox, and the process returning at once with the message and the changed-annotation block -- not when its wait runs out. The repository's first backgrounded-process test, because the thing under test is that a parked process wakes."""
+    import json as _json
+    import subprocess
+    import sys
+    import time
+
+    from loom.mailbox import changed_since, post
+    from loom.sessions import sessions
+
+    q = quilt(tmp_path)
+    sid = run("session", "new", "reading", cwd=q).output.split()[0]
+    assert run("comment", "dm-0003", "Is this the balanced case?", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q).exit_code == 0
+    env = {**os.environ, "LOOM_FIXED_TIME": "2026-09-21T12:00:00Z"}
+    env.pop("AI_AGENT", None)
+    agent = subprocess.Popen(
+        [sys.executable, "-m", "loom", "session", "next", "--wait", "20", "--json", "--as", "Referee (Agent)", "--session", sid, "--quilt", str(q)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        cwd=q,
+    )
+    try:
+        time.sleep(1.5)  # long enough to be parked; the wait above is what would end it otherwise
+        assert agent.poll() is None, "the agent returned before anything landed: " + (agent.stdout.read() if agent.stdout else "")
+        t0 = time.monotonic()
+        post(q, sid, "Have another look at the balanced case.", "A. Author", kind="message", changed=changed_since(q, sessions(q)[sid]))
+        out, err = agent.communicate(timeout=15)
+    finally:
+        if agent.poll() is None:
+            agent.kill()
+    woke = time.monotonic() - t0
+    assert agent.returncode == 0, err
+    assert woke < 5, f"a parked agent took {woke:.1f}s to wake"
+    got = _json.loads(out)
+    assert "Have another look" in got["text"]
+    event = got["events"][-1] if isinstance(got.get("events"), list) else got
+    changed = event.get("changed") or []
+    assert any("Is this the balanced case" in (c.get("body") or "") for c in changed), got

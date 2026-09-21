@@ -66,24 +66,34 @@ test('a page of a paper renders inside the budget, and an annotated one is not d
 
 test('a page carrying twenty annotations is not dearer to draw than one carrying none', async ({ page }) => {
 	// Twenty on one page is past what any real page carries; the overlay is the cheapest of the three stages and this
-	// is the test that keeps it that way, since a blend mode or a shadow per mark is what would end that.
+	// is the test that keeps it that way, since a blend mode or a shadow per mark is what would end that. Measured on
+	// the real page and the real mark markup, not on bare divs: what the reader sees is what is timed.
 	await page.goto('/');
+	const work = await page.evaluate(async () => {
+		const m = await (await fetch(new URL('/build/manifest.json', location.href))).json();
+		const hit = Object.values(m.references ?? {}).find((r) => (r as { artifacts?: { pdf?: boolean } })?.artifacts?.pdf);
+		return hit ? { citekey: (hit as { citekey: string }).citekey } : null;
+	});
+	test.skip(!work, 'this corpus has no paper on this machine, so there is nothing to draw on');
+	await page.goto(`/library/${work!.citekey}?page=1`);
+	await page.locator('[data-testid="pdf-page-1"] canvas').waitFor();
 	const many = await page.evaluate(() => {
-		const host = document.createElement('div');
-		host.style.cssText = 'position:relative;width:612px;height:792px';
-		document.body.append(host);
+		const marks = document.querySelector('[data-testid="pdf-page-1"] .marks') as HTMLElement | null;
+		if (!marks) return -1;
 		const t0 = performance.now();
 		for (let i = 0; i < 20; i++) {
-			const d = document.createElement('div');
-			d.style.cssText = `position:absolute;left:10%;top:${(i * 4) % 95}%;width:60%;height:1.4%;background:rgb(217 119 87 / .22)`;
-			host.append(d);
+			const b = document.createElement('button');
+			b.className = 'mark note k-question';
+			b.style.cssText = `left:10%;top:${(i * 4) % 95}%;width:60%;height:1.4%`;
+			marks.append(b);
 		}
-		void host.getBoundingClientRect().height;
+		void marks.getBoundingClientRect().height;
 		const cost = performance.now() - t0;
-		host.remove();
+		for (const b of marks.querySelectorAll('button.note.k-question')) if (!b.hasAttribute('data-mark')) b.remove();
 		return cost;
 	});
+	test.skip(many < 0, 'the page had no overlay to draw into');
 	// eslint-disable-next-line no-console
-	console.log(`  twenty overlay rectangles: ${many.toFixed(1)} ms`);
+	console.log(`  twenty marks on the page: ${many.toFixed(1)} ms`);
 	expect(many).toBeLessThan(16); // one frame
 });

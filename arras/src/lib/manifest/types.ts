@@ -188,7 +188,7 @@ export interface Annotation {
   id: string;
   author: Author;
   created: string;
-  /** What it is about. A key in the quilt -- or, for a note on a page of a cited work, the work's identifier, with `work` the citekey the viewer knows it by and `page` where on it (plan 0.13 item 2). */
+  /** What it is about. A key in the corpus -- or, for a note on a page of a cited work, the work's identifier, with `work` the citekey the viewer knows it by and `page` where on it (plan 0.13 item 2). */
   target: { key: string; hash: string; work?: string | null; page?: number | null };
   /** On a note on a page: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. */
   basis?: "text" | "box" | null;

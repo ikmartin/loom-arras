@@ -39,8 +39,9 @@ describe('the display preferences', () => {
 		expect(coerce({ divider: 'wide' }).divider).toBe(DEFAULTS.divider);
 		expect(coerce({ comments: 'hover' }).comments).toBe('floating');
 		// zoom is per renderer kind and remembered, and is clamped for the same reason the divider is
-		expect(coerce({ zoom: 9 }).zoom).toBe(3);
-		expect(coerce({ zoom: 0.1 }).zoom).toBe(0.5);
+		expect(coerce({ zoom: 9 }).zoom).toEqual({ pdf: 3 }); // a number is what this stored before it was per kind
+	expect(coerce({ zoom: { pdf: 0.1, other: 2 } }).zoom).toEqual({ pdf: 0.5, other: 2 });
+		expect(coerce({ zoom: 0.1 }).zoom).toEqual({ pdf: 0.5 });
 	});
 
 	it('reads a stored tabs shell, which is retired, as the default', () => {

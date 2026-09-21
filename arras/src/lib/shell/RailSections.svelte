@@ -5,6 +5,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import SessionPicker from '$lib/sessions/SessionPicker.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
+	import { nodeUrl } from '$lib/nav';
 	import Settings from './Settings.svelte';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
@@ -12,6 +13,21 @@
 	let { label, views, indexes, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 
 	const sessions = $derived(store.manifest?.sessions ?? []);
+	// Nodes (plan 0.13 §7): the corpus's own statements, by id, narrowed by what is typed. Folded by default -- a
+	// corpus of a hundred results would otherwise be the panel -- and never the digests' nodes, which the Library
+	// lists as works.
+	const statements = $derived(
+		Object.values(store.manifest?.nodes ?? {})
+			.filter((n) => n.kind === 'environment' && !n.external)
+			.sort((a, b) => a.id.localeCompare(b.id))
+	);
+	let nodeFilter = $state('');
+	let nodesOpen = $state(false);
+	const NODES_SHOWN = 30;
+	const matching = $derived.by(() => {
+		const q = nodeFilter.trim().toLowerCase();
+		return q ? statements.filter((n) => `${n.id} ${n.taxon} ${n.title ?? ''}`.toLowerCase().includes(q)) : statements;
+	});
 </script>
 
 <div class="shell-a">
@@ -50,6 +66,27 @@
 				{@render panel()}
 			</section>
 		{/if}
+
+		<section>
+			{#if statements.length}
+				<p class="rail-label">
+					<button class="shelf" aria-expanded={nodesOpen} data-testid="nodes-toggle" onclick={() => (nodesOpen = !nodesOpen)}>
+						{nodesOpen ? '▾' : '▸'} Nodes <span class="aside">{statements.length}</span>
+					</button>
+				</p>
+				{#if nodesOpen}
+					<input class="filter" type="search" placeholder="narrow by id, taxon or title" aria-label="Narrow the nodes" bind:value={nodeFilter} data-testid="nodes-filter" />
+					<ul class="plain nodes" data-testid="nodes-list">
+						{#each matching.slice(0, NODES_SHOWN) as n (n.id)}
+							<li><a href={nodeUrl(n.id)}><code>{n.id}</code> {n.taxon}{n.title ? ' · ' + n.title : ''}</a></li>
+						{:else}
+							<li class="aside">nothing matches</li>
+						{/each}
+						{#if matching.length > NODES_SHOWN}<li class="aside">{matching.length - NODES_SHOWN} more; narrow it</li>{/if}
+					</ul>
+				{/if}
+			{/if}
+		</section>
 
 		<section class="contents-section">
 			<p class="rail-label">Contents</p>
@@ -186,5 +223,39 @@
 		position: sticky;
 		top: 0;
 		max-height: 100vh;
+	}
+	.shelf {
+		font: inherit;
+		background: none;
+		border: 0;
+		padding: 0;
+		color: inherit;
+		cursor: pointer;
+	}
+	.filter {
+		width: 100%;
+		box-sizing: border-box;
+		font: inherit;
+		font-size: 11px;
+		padding: 2px 5px;
+		margin: 0 0 var(--gap-hair);
+		border: 1px solid var(--rule);
+		border-radius: 3px;
+		background: var(--sheet);
+		color: var(--ink);
+	}
+	.nodes a {
+		display: block;
+		font-size: 11px;
+		color: var(--ink-soft);
+		line-height: 1.5;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.nodes code {
+		font-size: 9px;
+		background: none;
+		padding: 0;
 	}
 </style>

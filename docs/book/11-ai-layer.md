@@ -98,6 +98,8 @@ Rules common to every mode:
 
 **[decided]** `loom comment TARGET "message" --quote TEXT --kind KIND --run DIR` is the only way an agent records a finding. Loom computes the anchor, records the target hash, appends a `created` event to `annotations/log.jsonl` with the run as the author, and appends to `run.log`. An agent never writes the log by hand; a hand-written line is not a review record (`loom lint` and `loom check` report `loom:foreign-annotations`, warning, for a file in the record locations that fails validation, **[decided]** DR-52 and DR-61). `--batch` reads JSON lines (`target`, `message`, `quote`, `kind`, `reply`, `resolve`, `severity`, `payload`, `placement`) from stdin so forty findings are one process.
 
+**[decided]** An agent annotates **a page of a cited work** the same way it annotates a key (DR-209): `loom comment CITEKEY "message" --page N --quote "exact text from loom refs page"` — the quotation must be on that page, and loom refuses one that is not, naming `loom refs page CITEKEY N` as the text to quote from — or `--box x0,y0,x1,y1` for a rectangle, in points with the origin at the top left, which `loom refs locate` prints for any phrase. The note targets the work by its identifier, lands in the agent's session, and appears in `loom ai findings` with the citekey and the page. It is the reading counterpart of `loom refs propose`: a proposal claims a result is on the page, a note says something about what is there.
+
 An agent may `--resolve` its own earlier annotations after a re-check, and may reply to a person's.
 
 ## 11.7 Nothing an agent writes is copied into the quilt
