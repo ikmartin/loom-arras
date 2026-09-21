@@ -8,6 +8,7 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+basis = "expository"
 [accept.closure]
 "sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
 
@@ -18,6 +19,7 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+basis = "local-proof"
 [accept.closure]
 "sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
 "sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
@@ -41,6 +43,7 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+basis = "local-proof"
 [accept.closure]
 
 [[accept]]
@@ -76,6 +79,7 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:263b1e553735064c0cf0375e991ed3a71d9d451c2e39fb38261e10e225a54fb7"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+basis = "local-proof"
 [accept.closure]
 
 [[accept]]

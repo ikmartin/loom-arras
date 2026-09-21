@@ -162,6 +162,8 @@ class Records:
                     # own text, and the cause is the useful half of the seal: the transcription you checked has moved.
                     moved = "transcription-changed" if n.external else "own-text-changed"
                     ks.causes.append(Cause(moved, before=row.text, after=current, when=_when(result, n)))
+                if row.basis and n.kind == "environment" and row.basis != n.basis:
+                    ks.causes.append(Cause("basis-changed", before=row.basis, after=n.basis, when=_when(result, n)))
                 for dep, h in row.closure.items():
                     if dep not in result.nodes:
                         ks.causes.append(Cause("dependency-removed", id=dep, before=h))
@@ -233,8 +235,9 @@ class Records:
                 states.get(p) and states[p].state == "accepted" and states[p].fresh and not result.nodes[p].incomplete
                 for p in n.proofs
             )
-            owes_proof = n.style == "plain" and not n.external
-            proved[key] = ok and (good_proof or not owes_proof)
+            proved[key] = ok and (
+                (n.basis == "local-proof" and (good_proof or n.inline_proof)) or n.basis in ("expository", "assumption")
+            )
         settled: dict[str, bool] = {}
         visiting: set[str] = set()
 
@@ -244,7 +247,7 @@ class Records:
             n = result.nodes.get(key)
             if n is None:
                 return False
-            if n.external:
+            if n.basis == "cited-result":
                 settled[key] = True
                 return True
             if key in visiting:
@@ -357,6 +360,8 @@ class Records:
     # ---- diffs -------------------------------------------------------------------
 
     def diff_for(self, result: ScanResult, cause: Cause, key: str) -> str | None:
+        if cause.kind == "basis-changed":
+            return None  # a source directive changed; no accepted text snapshot represents the old classification
         if not cause.before:
             return None
         before = read_snapshot(self.root, cause.before, self.history_dir)

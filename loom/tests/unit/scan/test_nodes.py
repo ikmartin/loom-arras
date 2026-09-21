@@ -189,8 +189,8 @@ def test_external_node_and_digest_file(tmp_path: Path) -> None:
     )
     nodes = r.nodes
     assert (
-        nodes["ab-0001"].external and not nodes["ab-0002"].external
-    )  # definition style never owes a proof, so not external
+        nodes["ab-0001"].external and nodes["ab-0002"].external
+    )  # attribution, not TeX style, identifies a cited result
     assert nodes["Man12-thm-4.1"].external and nodes["Man12-thm-4.1"].digest == "Man12"
     assert nodes["Man12-thm-4.1"].reached_by == []
     assert "Man12" in r.bib

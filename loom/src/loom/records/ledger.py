@@ -21,6 +21,7 @@ class AcceptRow:
     preamble: str
     master: str
     closure: dict[str, str] = field(default_factory=dict)
+    basis: str = ""  # absent in pre-DR-198 rows; future choices must be re-accepted when they change
 
     def to_toml(self) -> str:
         lines = [
@@ -31,8 +32,10 @@ class AcceptRow:
             f"text = {_q(self.text)}",
             f"preamble = {_q(self.preamble)}",
             f"master = {_q(self.master)}",
-            "[accept.closure]",
         ]
+        if self.basis:
+            lines.append(f"basis = {_q(self.basis)}")
+        lines.append("[accept.closure]")
         for k, v in self.closure.items():
             lines.append(f"{_q(k)} = {_q(v)}")
         return "\n".join(lines) + "\n"
@@ -65,6 +68,7 @@ def read_ledger(root: Path) -> list[AcceptRow]:
                 preamble=str(r.get("preamble", "")),
                 master=str(r.get("master", "")),
                 closure={str(k): str(v) for k, v in dict(r.get("closure", {})).items()},
+                basis=str(r.get("basis", "")),
             )
         )
     return rows

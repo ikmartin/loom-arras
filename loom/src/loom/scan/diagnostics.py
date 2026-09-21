@@ -33,6 +33,8 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:positional-proof-key": ("info", False),
     "loom:unexpected-proof": ("info", False),
     "loom:missing-proof": ("warning", False),
+    "loom:needs-classification": ("warning", False),
+    "loom:misplaced-basis": ("warning", False),
     "loom:equation-in-proof-referenced": ("warning", False),
     "loom:uses-missing": ("info", False),
     "loom:uses-unused": ("info", False),

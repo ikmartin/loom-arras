@@ -23,6 +23,7 @@ date = 2026-09-16T14:02:11Z
 text = "sha256:9b1c4e..."          # hash of the key's normalized own text
 preamble = "sha256:77aa02..."      # hash of the master's preamble closure
 master = "drafting/main.tex"         # the master whose preamble was hashed
+basis = "local-proof"                # the classified basis of a statement; absent on proof or legacy rows
 [accept.closure]                   # hashes of every statement in the closure
 "rl-0002" = "sha256:3c0e91..."
 "rl-0001" = "sha256:1f2d7b..."
@@ -49,6 +50,7 @@ Rules:
 4. **[decided]** `author` comes from the resolution order in 4.3; the row is refused without one.
 5. **[decided]** `schema = 1`; a future loom migrates on `loom upgrade`.
 6. **[decided]** Git merges of concurrent appends to different keys are clean; concurrent acceptances of the same key produce a textual conflict either resolution of which is consistent, since both rows are valid.
+7. **[decided]** Statement rows written after DR-198 record `basis`. A later classification change makes that acceptance stale until the author re-accepts it; older rows without the field remain readable and are compared by their existing text and context hashes.
 
 ### 7.2.2 Snapshots
 
@@ -56,13 +58,14 @@ Rules:
 
 ## 7.3 `loom accept`
 
-**[decided]** `loom accept KEY [KEY ...] [--proofs] [--stale] [--author NAME] [--force] [--yes]`
+**[decided]** `loom accept [KEY ...] [--proofs] [--stale] [--all-live] [--author NAME] [--force] [--yes]`
 
 1. For each key: compute the current hashes; write one row and the snapshots; print `accepted <key> (<Taxon>) by <author> <date>` per row, then how many snapshots were written and how many were already present.
 2. `--proofs`: for each statement key given, also accept all its attached proofs.
 3. `--stale`: accept every key currently in state accepted-stale, after printing the list with its causes and asking for confirmation on a terminal (`--yes` skips; without a terminal `--yes` is required). This is the command for "I have read the diffs and nothing is affected".
-4. Refusals: no author name (exit 2); a key that does not exist or is not a statement or proof (exit 2); a key with `\incomplete` in it (exit 1; `loom accept` will not accept an incomplete key; remove the mark first); a default master that does not compile (exit 1), since numbers and preamble are then unknown. **[decided]** The compile check is cheap: the master is recompiled only when its PDF under `build/` is older than some scanned file, and `--force` skips the check (settled at M3).
-5. Never enforced: that the closure is accepted. An author may accept a proof whose lemmas are drafts; the viewer shows that honestly through the derived states (7.6.3).
+4. `--all-live`: accept every author-owned statement and proof reached by a live document, excluding sections, cited results and loose nodes. It is mutually exclusive with named keys, `--proofs` and `--stale`. It prints the statement and proof counts and asks for confirmation on a terminal (`--yes` skips; without a terminal `--yes` is required). A live conflicted, incomplete, unclassified, or open claim refuses the entire operation before any rows are written. This is a bulk mathematical assertion, not an automatic consequence of drafting from a canon landmark (DR-197, DR-198).
+5. Refusals: no author name (exit 2); a key that does not exist or is not a statement or proof (exit 2); an open claim, which is not asserted as established; a key with `\incomplete` in it (exit 1; `loom accept` will not accept an incomplete key; remove the mark first); a default master that does not compile (exit 1), since numbers and preamble are then unknown. **[decided]** The compile check is cheap: the master is recompiled only when its PDF under `build/` is older than some scanned file, and `--force` skips the check (settled at M3).
+6. Never enforced: that the closure is accepted. An author may accept a proof whose lemmas are drafts; the viewer shows that honestly through the derived states (7.6.3).
 
 Example:
 
@@ -204,6 +207,7 @@ resolved a-2026-09-16-0007
 3. `dependency-removed <id>`: a closure entry names a node no longer defined.
 4. `preamble-changed`: `preamble` differs. Diff: preamble snapshot against current.
 5. `dependency-added <id>`: the current closure contains a node not in the recorded closure (which implies `own-text-changed`, since a new edge means new text, or `dependency-changed` upstream). Listed for clarity.
+6. `basis-changed`: the source-level classification no longer matches the one the author accepted. It has no text diff because the change may be only a `% !LOOM basis:` directive.
 
 `loom status --explain KEY` prints the key with its state, the file that holds it, its open comment counts and detached count, and each cause with the date of the changed file and the unified diff (`accepted/<id>` against `current/<id>`); `loom build` writes the same diffs under `build/diffs/`, and the review panel shows them (settled at M3).
 
@@ -211,8 +215,8 @@ resolved a-2026-09-16-0007
 
 **[decided]** Display only, never written:
 
-- `proved`: statement accepted (fresh) with no `\incomplete`, and, for a node that owes a proof (plain style and not external), at least one attached proof accepted (fresh) with no `\incomplete`. Definition- and remark-style nodes and external nodes owe no proof and are proved by acceptance alone, so they can be settled and so can what depends on them (DR-59).
-- `settled`: proved, and every node in the statement's closure and in the closure of each fresh accepted proof is settled. External nodes count as settled. **[decided]** A dependency cycle is reported as `loom:dependency-cycle` (warning) and nothing on it is settled (verified at M3; 5.9.4 covers inclusion cycles).
+- `proved`: a `local-proof` statement accepted (fresh) with no `\incomplete` and at least one attached proof accepted (fresh) with no `\incomplete`; an explicitly `local-proof` remark or comment whose argument is inline, accepted as one block; or a freshly accepted `expository` or `assumption` block. For an inline argument, dependencies from the entire block constrain settlement. An assumption is a declared premise, so this word is relative to that premise rather than a claim that it has a proof. `open-claim` and `unclassified` blocks are never proved merely by acceptance. TeX style is irrelevant (DR-198, DR-199).
+- `settled`: proved, and every node in the statement's closure and in the closure of each fresh accepted proof is settled. A `cited-result` is a settled dependency leaf by attribution to another paper, not a locally proved theorem; `loom refs verify` independently seals whether the transcription is faithful. **[decided]** A dependency cycle is reported as `loom:dependency-cycle` (warning) and nothing on it is settled (verified at M3; 5.9.4 covers inclusion cycles).
 
 ### 7.6.4 Review facts
 

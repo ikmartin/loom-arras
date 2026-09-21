@@ -79,7 +79,14 @@ def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[
         assert text_hash == key_hash(result, key)
         rows.append(
             AcceptRow(
-                key=key, author=author, date=stamp(), text=text_hash, preamble=pre_hash, master=master, closure=closure
+                key=key,
+                author=author,
+                date=stamp(),
+                text=text_hash,
+                preamble=pre_hash,
+                master=master,
+                closure=closure,
+                basis=result.nodes[key].basis if result.nodes[key].kind == "environment" else "",
             )
         )
     append_rows(root, rows)
@@ -95,6 +102,9 @@ def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[
     is_flag=True,
     help="Accept every key that is currently accepted-stale, after confirmation.",
 )
+@click.option(
+    "--all-live", is_flag=True, help="Accept every live author-owned statement and proof, after confirmation."
+)
 @click.option("--author", default=None)
 @click.option("--force", is_flag=True, help="Accept even when the master does not compile.")
 @click.option("--yes", "-y", is_flag=True)
@@ -103,6 +113,7 @@ def accept(
     keys: tuple[str, ...],
     proofs: bool,
     accept_stale: bool,
+    all_live: bool,
     author: str | None,
     force: bool,
     yes: bool,
@@ -112,11 +123,45 @@ def accept(
     from loom.cli._common import refuse_under_agent
 
     refuse_under_agent("loom accept", "Accepting is you saying the mathematics holds; run it in your own terminal.")
+    if all_live and (keys or proofs or accept_stale):
+        raise EnvError("--all-live cannot be combined with keys, --proofs, or --stale")
     result = open_scan(quilt_path)
     root = result.quilt.root
     name = _author(author, root)
     records = Records(root, result.quilt.history_dir)
     targets: list[str] = []
+    if all_live:
+        conflicts = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and n.reached_by)
+        if conflicts:
+            raise ContentError(f"live conflicted keys prevent --all-live: {', '.join(conflicts)}")
+        targets = sorted(
+            k for k, n in result.nodes.items() if n.kind in ("environment", "proof") and n.reached_by and not n.external
+        )
+        if not targets:
+            click.echo("no live author-owned statements or proofs to accept")
+            return
+        incomplete = [k for k in targets if result.nodes[k].incomplete]
+        if incomplete:
+            raise ContentError(f"live incomplete keys prevent --all-live: {', '.join(incomplete)}")
+        unclassified = [
+            k for k in targets if result.nodes[k].kind == "environment" and result.nodes[k].basis == "unclassified"
+        ]
+        if unclassified:
+            raise ContentError(f"live unclassified keys prevent --all-live: {', '.join(unclassified)}")
+        open_claims = [
+            k for k in targets if result.nodes[k].kind == "environment" and result.nodes[k].basis == "open-claim"
+        ]
+        if open_claims:
+            raise ContentError(f"open claims cannot be accepted as established: {', '.join(open_claims)}")
+        statements = sum(result.nodes[k].kind == "environment" for k in targets)
+        click.echo(f"--all-live selects {statements} statements and {len(targets) - statements} proofs")
+        if not yes:
+            if not sys.stdin.isatty():
+                raise EnvError("--all-live needs confirmation; pass --yes")
+            click.confirm(
+                f"accept these {len(targets)} keys as mathematically correct in their current dependency contexts?",
+                abort=True,
+            )
     if accept_stale:
         states = records.key_states(result)
         stale = sorted(k for k, s in states.items() if s.state == "accepted" and not s.fresh)
@@ -143,18 +188,25 @@ def accept(
         # settles nothing mathematical and is not the author's to settle. DR-172 relabelled the output where the
         # command needed splitting, and this finishes it (plan 0.12 §5.6).
         if n.external:
+            if n.digest:
+                raise EnvError(
+                    f"{key} is a digest node: someone else's theorem, which is not yours to accept.\n"
+                    f"To record that the copy is faithful: loom refs verify {key}"
+                )
             raise EnvError(
-                f"{key} is a digest node: someone else's theorem, which is not yours to accept.\n"
-                f"To record that the copy is faithful: loom refs verify {key}"
+                f"{key} quotes someone else's result, which is not yours to accept. "
+                "To verify its transcription, represent it as a digest result and use loom refs verify there."
             )
         targets.append(key)
         if proofs:
             targets.extend(n.proofs)
     if not targets:
-        raise EnvError("give at least one KEY, or --stale")
+        raise EnvError("give at least one KEY, --stale, or --all-live")
     for key in targets:
         if result.nodes[key].incomplete:
             raise ContentError(f"{key} contains \\incomplete; remove the mark before accepting")
+        if result.nodes[key].kind == "environment" and result.nodes[key].basis == "open-claim":
+            raise ContentError(f"{key} is an open claim and cannot be accepted as established")
     if not force:
         ok, err = _master_compiles(result)
         if not ok:

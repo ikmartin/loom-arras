@@ -58,8 +58,10 @@ Source and structure:
 - `loom:documentclass-outside-drafts` (info): a file with `\documentclass` outside the masters directory.
 - `loom:unlabelled-node` (info): a theorem-like environment without an id.
 - `loom:positional-proof-key` (info): a node with more than one unlabelled proof.
-- `loom:unexpected-proof` (info): a proof attached to a definition- or remark-style node.
-- `loom:missing-proof` (warning): a plain-style node with no proof, no `\incomplete`, and no citation in its title.
+- `loom:unexpected-proof` (info): a proof attached to a block explicitly classified as definition, assumption, or open claim.
+- `loom:missing-proof` (warning): a local-proof block with no proof and no `\incomplete`, regardless of TeX style.
+- `loom:needs-classification` (warning): a live theorem-like block whose basis is unknown or whose signals conflict; add `% !LOOM basis:` inside it after deciding what the block asserts.
+- `loom:misplaced-basis` (warning): a `% !LOOM basis:` directive outside a theorem-like block; it cannot classify a whole file or a proof.
 - `loom:equation-in-proof-referenced` (warning): another node references an equation inside this node's proof.
 - `loom:uses-missing` (info): a `\ref` in a proof not listed in `\uses`.
 - `loom:uses-unused` (info): a `\uses` entry the proof's text never mentions.

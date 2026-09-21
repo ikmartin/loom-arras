@@ -24,6 +24,7 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 |---|---|
 | `--proofs` | Also accept every proof attached to each statement given. |
 | `--stale` | Accept every key that is currently accepted-stale, after confirmation. |
+| `--all-live` | Accept every live author-owned statement and proof, after confirmation. |
 | `--author` |  |
 | `--force` | Accept even when the master does not compile. |
 | `--yes`, `-y` |  |

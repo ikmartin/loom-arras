@@ -14,7 +14,7 @@
 	import { reachedExternal } from '$lib/reached';
 
 	const m = $derived(store.manifest!);
-	const SHOWS = ['all', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external'] as const;
+	const SHOWS = ['all', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external', 'classification'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
 	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'all');
 	const master = $derived(q('document'));
@@ -30,7 +30,7 @@
 	const keys = $derived(
 		Object.values(m.keys).filter((k) => {
 			const n = m.nodes[k.node];
-			return !n?.external || reached.has(k.node) || filter === 'external';
+			return !n?.external || !!n.reached_by.length || reached.has(k.node) || filter === 'external';
 		})
 	);
 	const isStale = (k: (typeof keys)[number]) => !!k.acceptance && k.acceptance.fresh === false;
@@ -42,6 +42,7 @@
 		proved: Object.values(m.nodes).filter((n) => n.derived?.proved).length,
 		settled: Object.values(m.nodes).filter((n) => n.derived?.settled).length
 	});
+	const needsClassification = $derived(keys.filter((k) => m.nodes[k.node]?.basis === 'unclassified' && m.nodes[k.node]?.reached_by.length).length);
 	const undigested = $derived(Object.values(m.references).filter((r) => !r.digest && r.cited_by.length).map((r) => r.citekey));
 	const rows = $derived(
 		keys.filter((k) => {
@@ -53,6 +54,7 @@
 			if (filter === 'loose' && n?.reached_by.length) return false;
 			if (filter === 'retired' && !k.previous_key_match) return false;
 			if (filter === 'external' && !m.nodes[k.node]?.external) return false;
+			if (filter === 'classification' && (n?.basis !== 'unclassified' || !n.reached_by.length)) return false;
 			if (master && !n?.reached_by.includes(master)) return false;
 			if (author && !(n?.author ?? []).includes(author) && k.acceptance?.author !== author) return false;
 			if (tag && !n?.tags.includes(tag)) return false;
@@ -65,7 +67,7 @@
 	const hasFacts = $derived(rows.some((k) => reviewFacts(k)));
 	const hasIncomplete = $derived(rows.some((k) => k.incomplete.length));
 	const hasCauses = $derived(rows.some((k) => k.acceptance?.causes?.length || k.previous_key_match));
-	const cols = $derived(4 + (hasCauses ? 1 : 0) + (hasFacts ? 1 : 0) + (hasIncomplete ? 2 : 0));
+	const cols = $derived(5 + (hasCauses ? 1 : 0) + (hasFacts ? 1 : 0) + (hasIncomplete ? 2 : 0));
 
 	const authors = $derived([...new Set([...Object.values(m.nodes).flatMap((n) => n.author ?? []), ...keys.map((k) => k.acceptance?.author).filter(Boolean)])].sort() as string[]);
 	const records = $derived([...new Set(Object.values(m.annotations).map((a) => a.run ?? a.record))].sort());
@@ -80,7 +82,8 @@
 		incomplete: 'Each text that marks a gap in itself, and what rests on it. A result whose proof is incomplete is not proved, and neither is anything that uses it.',
 		loose: 'Texts no document reaches, so nothing depends on them yet.',
 		retired: 'Acceptances recorded under an earlier key that now match this one; re-accept to confirm.',
-		external: 'Results stated in digests of cited papers, including the ones nothing here uses.'
+		external: 'Results stated in digests of cited papers, including the ones nothing here uses.',
+		classification: 'Blocks whose basis is unclear. Add % !LOOM basis: expository, local-proof, cited-result, assumption, or open-claim inside the drafting block, then rescan.'
 	};
 	const set = (name: string, fallback = '') => (e: Event) => void setQuery(page.url, name, (e.currentTarget as HTMLSelectElement).value, fallback);
 	const show = (v: string) => void setQuery(page.url, 'show', filter === v ? 'all' : v, 'all');
@@ -97,12 +100,13 @@
 			{#if i}<span class="sep">·</span>{/if}<button class="count" class:on={filter === name} aria-pressed={filter === name} onclick={() => show(name as string)} data-testid="show-{name}">{n} {name}</button>
 		{/each}
 		<span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
+		{#if needsClassification}<span class="sep">·</span><button class="count" class:on={filter === 'classification'} aria-pressed={filter === 'classification'} onclick={() => show('classification')}>{needsClassification} need classification</button>{/if}
 	</p>
 
 	<table class="list">
 		<thead>
 			<tr>
-				<th>key</th><th>state</th><th>since</th>
+				<th>key</th><th>state</th><th>basis</th><th>since</th>
 				{#if hasCauses}<th>cause</th>{/if}
 				{#if hasFacts}<th>review</th>{/if}
 				{#if hasIncomplete}<th>incomplete</th><th>blocks</th>{/if}
@@ -114,6 +118,7 @@
 				<tr>
 					<td><a href={keyUrl(m, k.key)}>{k.key}</a></td>
 					<td><Badge parts={stateBadge(m, k)} /></td>
+					<td>{#if m.nodes[k.node]?.kind === 'environment'}{m.nodes[k.node]?.basis === 'unclassified' ? 'needs classification' : m.nodes[k.node]?.basis}{m.nodes[k.node]?.inline_proof ? ' (inline)' : ''}{#if m.nodes[k.node]?.basis === 'unclassified'}<div class="faint">{m.nodes[k.node]?.basis_reason}</div>{/if}{/if}</td>
 					<td class="faint nowrap">{k.acceptance ? shortDate(k.acceptance.date) : ''}</td>
 					{#if hasCauses}
 						<td>
@@ -187,7 +192,7 @@
 
 <PagePanel label="Filters">
 	<div class="filters">
-		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option></select></label>
+		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option><option value="classification">needs classification</option></select></label>
 		<label>document<select value={master} onchange={set('document')}><option value="">any</option>{#each m.masters as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
 		<label>author<select value={author} onchange={set('author')}><option value="">any</option>{#each authors as a (a)}<option value={a}>{a}</option>{/each}</select></label>
 		<label>tag<select value={tag} onchange={set('tag')}><option value="">any</option>{#each Object.keys(m.tags).sort() as t (t)}<option value={t}>{t}</option>{/each}</select></label>

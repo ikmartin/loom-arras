@@ -119,6 +119,8 @@ The values are properties of the publisher and its corpora, not of this corpus's
   "children": [],
   "proofs": ["rl-0004/proof"],
   "external": false,
+  "basis": "local-proof",
+  "basis_reason": "inferred from environment Lemma",
   "digest": null,
   "incomplete": [],
   "state": "accepted",
@@ -126,7 +128,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 }
 ```
 
-Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for digest nodes, with `digest` naming the citekey and `locator` present; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments.
+Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for cited-result blocks and digest nodes, with `digest` naming the citekey for the latter and `locator` present when available; `basis` on environment nodes is `expository`, `local-proof`, `cited-result`, `assumption`, `open-claim`, or `unclassified`, with `basis_reason` explaining the scan's choice or uncertainty; `inline_proof` is true when an explicitly `local-proof` remark or comment has its whole argument inside the block and no separate attached proof; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments. The basis fields are additive in interface version 1 (DR-198); DR-199 replaces the `definition` value with `expository` and adds `inline_proof`.
 
 ## 4. Keys
 

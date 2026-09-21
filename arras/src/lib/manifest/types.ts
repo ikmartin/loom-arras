@@ -90,6 +90,10 @@ export interface Node {
   children: string[];
   proofs: string[];
   external: boolean;
+  /** Why this block may be relied on; unclassified blocks need an author choice in the drafting source. */
+  basis?: 'expository' | 'local-proof' | 'cited-result' | 'assumption' | 'open-claim' | 'unclassified';
+  basis_reason?: string;
+  inline_proof?: boolean;
   /** The files that each define this id, when two do. The id is then `conflicted`: it has no text, and loom reports both rather than choosing (book 5.3.5). */
   conflict?: string[];
   digest: string | null;

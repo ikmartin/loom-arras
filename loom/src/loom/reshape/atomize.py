@@ -166,6 +166,17 @@ def plan_atomize(
                 continue
             if _inside_moved(n, nodes_here, claimed):
                 continue
+            if any(
+                (p := asm.nodes[pk]).file == src_rel
+                and p.attach_via == "adjacent"
+                and p.start >= n.end
+                and text[n.end : p.start].strip()
+                for pk in n.proofs
+            ):
+                plan.refusals.append(
+                    f"{n.key} has a positional proof separated from its statement; add an explicit \\ref to the proof title before atomizing"
+                )
+                continue
             region = node_region(result, n, proofs)
             claimed.update(region.proofs)
             ls, le = region.start, region.end

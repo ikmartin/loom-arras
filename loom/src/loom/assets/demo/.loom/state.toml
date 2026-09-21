@@ -8,6 +8,7 @@ date = 2026-09-16T00:00:00Z
 text = "sha256:85937d118b76ff4a0180631929ae406341223152cc763a0205131e076ccf3273"
 preamble = "sha256:3536adcdd34d946abd14b06e2f4d95dffeb8e11b94df6c38fb5495fc477de81f"
 master = "drafting/main.tex"
+basis = "local-proof"
 [accept.closure]
 
 [[accept]]

@@ -1,0 +1,1 @@
+import{H as e,it as t,rt as n}from"./DDryqYTl.js";var r=new class{#e=t(null);get snippet(){return e(this.#e)}set snippet(e){n(this.#e,e,!0)}#t=t(``);get label(){return e(this.#t)}set label(e){n(this.#t,e,!0)}};export{r as t};

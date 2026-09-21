@@ -45,6 +45,9 @@ COMMON_THEOREM_ENVS = {
     "construction",
     "convention",
     "assumption",
+    "hypothesis",
+    "axiom",
+    "postulate",
     "fact",
     "observation",
     "setting",
@@ -87,15 +90,39 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         )
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
-    # proofs owed and unexpected
+    for path, directives in asm.directives.items():
+        for d in directives:
+            if d.key == "basis" and not any(
+                n.kind == "environment" and n.file == path and any(a <= d.offset < b for a, b in n.own)
+                for n in asm.nodes.values()
+            ):
+                diags.append(
+                    Diagnostic(
+                        "warning",
+                        "loom:misplaced-basis",
+                        "% !LOOM basis belongs inside one theorem-like block",
+                        [Location(path, d.line)],
+                    )
+                )
+    # The basis is inferred during every live scan; an unresolved basis is a review task, not a proof waiver.
     for key, n in asm.nodes.items():
         if n.kind != "environment" or n.conflict_of:
             continue
-        if n.style == "plain" and not n.proofs and not n.incomplete and not n.external and n.digest is None:
+        if n.basis == "unclassified" and n.reached_by:
+            diags.append(
+                Diagnostic(
+                    "warning",
+                    "loom:needs-classification",
+                    f"{key} needs classification: {n.basis_reason}",
+                    [_loc(result, n)],
+                    [key],
+                )
+            )
+        if n.basis == "local-proof" and not n.proofs and not n.inline_proof and not n.incomplete:
             diags.append(
                 Diagnostic("warning", "loom:missing-proof", f"{key} ({n.taxon}) has no proof", [_loc(result, n)], [key])
             )
-        if n.style in ("definition", "remark") and n.proofs:
+        if n.basis in ("expository", "assumption", "open-claim") and n.proofs:
             diags.append(
                 Diagnostic("info", "loom:unexpected-proof", f"{key} ({n.taxon}) has a proof", [_loc(result, n)], [key])
             )

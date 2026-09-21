@@ -95,6 +95,67 @@ def test_accept_writes_closure_hashes_and_proofs_flag(tmp_path: Path) -> None:
     assert s["summary"]["accepted"] == 2
 
 
+def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    (d / "nodes" / "dm-0099.tex").write_text("\\begin{lemma}\\label{dm-0099}Loose.\\end{lemma}\n")
+    before = run("accept", "--all-live", "--yes", "--force", *AUTHOR, cwd=d)
+    assert before.exit_code == 1 and "dm-0005/proof" in before.output
+    assert not (d / ".loom" / "state.toml").exists()
+
+    master = d / "drafting" / "main.tex"
+    master.write_text(
+        master.read_text()
+        .replace(
+            "\\incomplete{Say why the restriction is continuous when $X$ carries the constructible topology.}",
+            "The restriction is continuous in the constructible topology.",
+        )
+        .replace("\\begin{remark}\\label{dm-0004}", "\\begin{remark}\\label{dm-0004}\n% !LOOM basis: local-proof")
+    )
+    candidate = d / "nodes" / "dm-0006.tex"
+    candidate.write_text(
+        candidate.read_text()
+        .replace(
+            "\\incomplete{Not yet attempted. The first clause should be immediate from the orbit decomposition of Lemma~\\ref{dm-0002}; the invariance clause is the part that needs an argument.}",
+            "The count follows by partitioning into one- and two-point orbits.",
+        )
+        .replace(
+            "\\begin{conjecture}[Orbit counting]\\label{dm-0006}",
+            "\\begin{conjecture}[Orbit counting]\\label{dm-0006}\n% !LOOM basis: local-proof",
+        )
+    )
+    outline = d / "drafting" / "outline.tex"
+    outline.write_text(outline.read_text().replace("\\input{nodes/dm-0007}\n", ""))  # an open question stays loose
+    unconfirmed = run("accept", "--all-live", "--force", *AUTHOR, cwd=d)
+    assert unconfirmed.exit_code == 2 and "--yes" in unconfirmed.output, unconfirmed.output
+    assert not (d / ".loom" / "state.toml").exists()
+
+    accepted = run("accept", "--all-live", "--yes", "--force", *AUTHOR, cwd=d)
+    assert accepted.exit_code == 0, accepted.output
+    assert "statements and" in accepted.output and "proofs" in accepted.output
+    s = status_json(d)
+    assert s["keys"]["dm-0002/proof"]["state"] == "accepted"
+    assert s["keys"]["dm-0005/proof"]["state"] == "accepted"
+    assert s["keys"]["dm-0006"]["state"] == "accepted"  # the outline master also makes this node live
+    assert s["keys"]["dm-0007"]["state"] == "draft"
+    assert s["keys"]["dm-0099"]["state"] == "draft"  # an unreached node is excluded
+
+    upstream = d / "nodes" / "dm-0001.tex"
+    upstream.write_text(
+        upstream.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    )
+    s = status_json(d)
+    assert not s["keys"]["dm-0001"]["acceptance"]["fresh"]
+    assert "dependency-changed" in {c["kind"] for c in s["keys"]["dm-0002/proof"]["acceptance"]["causes"]}
+
+
+@pytest.mark.parametrize("extra", [("dm-0001",), ("--proofs",), ("--stale",)])
+def test_accept_all_live_refuses_other_target_modes(tmp_path: Path, extra: tuple[str, ...]) -> None:
+    d = demo(tmp_path)
+    r = run("accept", "--all-live", *extra, "--yes", "--force", *AUTHOR, cwd=d)
+    assert r.exit_code == 2 and "cannot be combined" in r.output
+    assert not (d / ".loom" / "state.toml").exists()
+
+
 def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> None:
     d = demo(tmp_path)
     assert run("accept", "dm-0002", "--proofs", "dm-0003", *AUTHOR, cwd=d).exit_code == 0
