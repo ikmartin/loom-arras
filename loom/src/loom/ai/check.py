@@ -1,23 +1,25 @@
-"""`loom ai check RUN` (book 11.8): files outside the run, the annotation log, and `build/` modified since the run started."""
+"""`loom ai check SESSION` (book 11.8): files outside the session, the annotation log, and `build/` modified since it opened."""
 
 from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
 
-from loom.ai.runs import read_run_toml
+from loom.sessions import Session, files_dir
 
-# `annotations/` holds the log every `loom comment --run` appends to, which is the agent's own sanctioned write and
-# not a write outside its run; `comments/` is the name that directory had before the log replaced it.
+# `annotations/` holds the log every `loom comment` appends to, which is the agent's own sanctioned write and not a
+# write outside its session; `comments/` is the name that directory had before the log replaced it. `.loom/` is skipped
+# wholesale, which is where the session's own directory lives.
 SKIP = {".git", "build", "annotations", ".loom", "node_modules"}
 
 
-def outside_writes(root: Path, run_dir: Path) -> list[str]:
-    meta = read_run_toml(run_dir)
-    created = meta.get("created")
-    if not created:
-        raise ValueError(f"{run_dir} has no run.toml with a created time")
-    since = datetime.fromisoformat(created.replace("Z", "+00:00")).timestamp()
+def outside_writes(root: Path, session: Session) -> list[str]:
+    """Files changed since the session's current round opened, outside the places it is allowed to write."""
+    run_dir = files_dir(root, session)
+    opened = session.last_opened
+    if not opened:
+        raise ValueError(f"{session.id} has no opening time")
+    since = datetime.fromisoformat(opened.replace("Z", "+00:00")).timestamp()
     out: list[str] = []
     for p in sorted(root.rglob("*")):
         if not p.is_file():
@@ -29,6 +31,6 @@ def outside_writes(root: Path, run_dir: Path) -> list[str]:
             continue
         if (
             p.stat().st_mtime > since + 1.0
-        ):  # run.toml records whole seconds; a file written in the run's first second is not the agent's
+        ):  # the index records whole seconds; a file written in the round's first second is not the agent's
             out.append(rel.as_posix())
     return out

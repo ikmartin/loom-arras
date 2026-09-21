@@ -344,7 +344,7 @@ def test_a_proposal_is_in_no_bundle_and_no_closure(tmp_path: Path) -> None:
 
 def test_verifying_moves_it_into_the_digest_and_records_both_parties(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
-    assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", run="run:A").exit_code == 0
+    assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session="run:A").exit_code == 0
     rid = f"{ck}-thm-1.1"
     r = run("refs", "verify", rid, "--statement", "Z", "--author", "isaac", "--yes", cwd=q)
     assert r.exit_code == 0, r.output
@@ -680,17 +680,13 @@ def test_a_pdf_link_in_the_bibliography_is_fetchable() -> None:
     assert pdf_url(entry()) == ""
 
 
-def test_the_run_is_named_the_same_way_in_every_record(tmp_path: Path) -> None:
-    """Provenance showed one run under two spellings, `ai/runs/X` and `X`."""
+def test_the_session_is_named_the_same_way_in_every_record(tmp_path: Path) -> None:
+    """Provenance showed one run under two spellings, `ai/runs/X` and `X`; the id is one string and has no other form."""
     q, ck = mapped(tmp_path)
-    assert (
-        propose(
-            q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", run="ai/runs/2026-09-19T00-57-fixed-stacks"
-        ).exit_code
-        == 0
-    )
+    sid = run("ai", "start", "fixed stacks", cwd=q).output.strip()
+    assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=sid).exit_code == 0
     origin = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]["origin"]
-    assert origin[0]["by"] == "2026-09-19T00-57-fixed-stacks"
+    assert origin[0]["by"] == sid
 
 
 def test_a_fresh_digest_is_not_called_thin(tmp_path: Path) -> None:
@@ -733,7 +729,7 @@ def test_an_agents_link_is_the_runs_never_the_authors(tmp_path: Path) -> None:
     try:
         mp.setenv("AI_AGENT", "1")
         bare = run("refs", "link", "--from", a, "--to", b, "--kind", "depends-on", "--why", "w", cwd=q)
-        assert bare.exit_code != 0 and "--run" in bare.output
+        assert bare.exit_code != 0 and "--session" in bare.output
         ok = run(
             "refs",
             "link",
@@ -745,8 +741,8 @@ def test_an_agents_link_is_the_runs_never_the_authors(tmp_path: Path) -> None:
             "depends-on",
             "--why",
             "w",
-            "--run",
-            "ai/runs/2026-x",
+            "--session",
+            "2026-x",
             cwd=q,
         )
         assert ok.exit_code == 0, ok.output
@@ -777,16 +773,16 @@ def test_a_statement_over_a_page_break_is_anchored_to_both_pages(tmp_path: Path)
 def test_a_run_may_correct_its_own_unverified_proposal(tmp_path: Path) -> None:
     """Unable to withdraw its own mistake, an agent re-proposed under `-clean` ids: eleven results became twenty-two."""
     q, ck = mapped(tmp_path)
-    assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "first", run="ai/runs/R1").exit_code == 0
+    assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "first", session="R1").exit_code == 0
     again = propose(
-        q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "second", run="ai/runs/R1", supersedes=f"{ck}-thm-1.1"
+        q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "second", session="R1", supersedes=f"{ck}-thm-1.1"
     )
     assert again.exit_code == 0, again.output
     rs = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]
     assert len(rs) == 1 and rs[0]["statement"] == "second", "the same id, corrected -- not a second proposal"
     # another run may not overwrite it: that is not a correction, it is a disagreement for the author
     other = propose(
-        q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "third", run="ai/runs/R2", supersedes=f"{ck}-thm-1.1"
+        q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "third", session="R2", supersedes=f"{ck}-thm-1.1"
     )
     assert other.exit_code != 0
 
@@ -829,11 +825,10 @@ def test_an_authors_edit_is_kept_and_shown(tmp_path: Path) -> None:
 def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> None:
     """A reattaching agent learned the author's decisions by running `refs why` on each id it happened to know, three times over."""
     q, ck = mapped(tmp_path)
-    assert run("ai", "start", "r", cwd=q).exit_code == 0
-    runname = next((q / "ai" / "runs").iterdir()).name
-    assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", run=f"ai/runs/{runname}").exit_code == 0
+    runname = run("ai", "start", "r", cwd=q).output.strip()
+    assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=runname).exit_code == 0
     assert run("refs", "discard", f"{ck}-thm-1.1", "--reason", "wrong theorem", "--author", "i", cwd=q).exit_code == 0
-    out = run("ai", "findings", "--run", runname, cwd=q).output
+    out = run("ai", "findings", "--session", runname, cwd=q).output
     assert f"{ck}-thm-1.1" in out and "discarded -- wrong theorem" in out
 
 
@@ -1089,15 +1084,14 @@ def test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest(tmp_path: Path)
     assert "% !LOOM extracted-from: arxiv:1607.00001" in head
 
 
-def test_a_read_command_logs_to_the_run_it_is_given(tmp_path: Path) -> None:
-    """`loom refs page ... --run` was refused twice in one study run; the orientation says to pass --run wherever it is accepted, and run.log is the record of what an agent read."""
+def test_a_read_command_logs_to_the_session_it_is_given(tmp_path: Path) -> None:
+    """`loom refs page ... --run` was refused twice in one study run; the orientation says to pass --session wherever it is accepted, and the log is the record of what an agent read."""
     q, ck = mapped(tmp_path)
-    assert run("ai", "start", "r", cwd=q).exit_code == 0
-    runname = next((q / "ai" / "runs").iterdir()).name
+    runname = run("ai", "start", "r", cwd=q).output.strip()
     for args in (["refs", "page", ck, "12"], ["refs", "coverage"], ["refs", "grep", "widget"]):
-        got = run(*args, "--run", runname, cwd=q)
+        got = run(*args, "--session", runname, cwd=q)
         assert got.exit_code == 0, got.output
-    log = (q / "ai" / "runs" / runname / "run.log").read_text()
+    log = (q / ".loom" / "sessions" / runname / "run.log").read_text()
     assert f"loom refs page {ck} 12" in log and "loom refs coverage" in log and "loom refs grep widget" in log
 
 

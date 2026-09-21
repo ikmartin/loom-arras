@@ -472,7 +472,7 @@ def comment(
     root = result.quilt.root
     writer = _writer(root, session, author)
     log_run(
-        None,
+        writer[0],
         "loom comment "
         + " ".join(x for x in [target, "--quote" if quote else "", "--kind " + kind if kind else ""] if x),
         root,
@@ -727,7 +727,7 @@ def filter_keys(
 )
 @click.option("--explain", default=None, metavar="KEY")
 @click.option("--json", "as_json", is_flag=True)
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN")
+@click.option("--session", "run_dir", default=None, envvar="LOOM_SESSION")
 @quilt_option
 def status(
     f_stale: bool,

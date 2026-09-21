@@ -17,13 +17,24 @@ REPO = Path(__file__).resolve().parents[3]
 AUTHOR = ["--author", "Markas Hecht"]
 
 
-def run(*args: str, cwd: Path, stdin: str | None = None):  # type: ignore[no-untyped-def]
+def run(*args: str, cwd: Path, stdin: str | None = None, env: dict[str, str] | None = None):  # type: ignore[no-untyped-def]
     old = os.getcwd()
     try:
         os.chdir(cwd)
-        return CliRunner().invoke(main, list(args), input=stdin)
+        return CliRunner().invoke(main, list(args), input=stdin, env=env)
     finally:
         os.chdir(old)
+
+
+AGENT = {"AI_AGENT": "1"}
+
+
+def session(d: Path, title: str = "r1") -> tuple[str, Path]:
+    """A session and its directory, as `loom session new` makes one; commenting into it does not create the directory."""
+    r = run("session", "new", title, "--author", "A. Author", cwd=d)
+    assert r.exit_code == 0, r.output
+    sid = r.output.split()[0]
+    return sid, d / ".loom" / "sessions" / sid
 
 
 def events(root: Path) -> list[dict]:
@@ -43,7 +54,7 @@ def demo(tmp_path: Path, clean: bool = True) -> Path:
     return d
 
 
-def test_demo_ships_two_accepted_one_stale_and_a_finished_run(tmp_path: Path) -> None:
+def test_demo_ships_two_accepted_one_stale_and_a_finished_session(tmp_path: Path) -> None:
     d = demo(tmp_path, clean=False)
     s = status_json(d)
     assert s["summary"]["accepted"] == 1 and s["summary"]["stale"] == 1
@@ -51,9 +62,10 @@ def test_demo_ships_two_accepted_one_stale_and_a_finished_run(tmp_path: Path) ->
     assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {
         "suggestion": 1,
         "objection": 1,
-    }  # the author's suggestion and the run's objection
-    assert s["keys"]["dm-0003"]["reviews"]["open"] == {"suggestion": 1}  # the run's suggestion on the statement
-    assert (d / "ai" / "runs" / "2026-09-16T14-02-referee-dm-0003" / "referee-dm-0003.notes.md").is_file()
+    }  # the author's suggestion and the agent's objection
+    assert s["keys"]["dm-0003"]["reviews"]["open"] == {"suggestion": 1}  # the agent's suggestion on the statement
+    notes = list((d / ".loom" / "sessions").glob("*/referee-dm-0003.notes.md"))
+    assert len(notes) == 1, "the session the agent worked in keeps the notes it wrote"
 
 
 def synthetic(tmp_path: Path) -> Path:
@@ -196,7 +208,8 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
     assert r.exit_code == 0, r.output
     assert r.output.startswith("a-") and "dm-0003/proof  objection  (Markas Hecht)" in r.output
     a = events(d)[0]
-    assert a["event"] == "created" and a["author"] == "Markas Hecht" and a["kind"] == "human" and a["run"] is None
+    assert a["event"] == "created" and a["author"] == "Markas Hecht" and a["kind"] == "human"
+    assert a["session"].startswith("s-")  # writing with nothing active opens a session rather than refusing
     assert a["against"].startswith("sha256:") and a["anchor"]["exact"] == "closedness"
     assert (
         len(a["anchor"]["prefix"]) <= 32 and len(a["anchor"]["suffix"]) <= 32 and a["anchor"]["prefix"].endswith("For ")
@@ -217,25 +230,26 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
 
 def test_comment_run_author_log_reply_resolve_batch(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    run_dir = d / "ai" / "runs" / "2026-09-16T14-02-referee"
-    run_dir.mkdir(parents=True)  # a run is a directory loom ai start makes; commenting into one does not create it
+    sid, run_dir = session(d, "2026-09-16T14-02-referee")
     r = run(
         "comment",
         "dm-0003/proof",
         "Domination is asserted.",
         "--quote",
         "diagonal is closed",
-        "--run",
-        str(run_dir),
+        "--session",
+        sid,
         cwd=d,
+        env=AGENT,
     )
     assert r.exit_code == 0, r.output
     ann_id = r.output.split()[0]
     assert "loom comment dm-0003/proof" in (run_dir / "run.log").read_text()
     assert not (run_dir / "annotations.json").exists()  # one log, not a file per run
     first = events(d)[0]
-    assert first["author"] == "2026-09-16T14-02-referee" and first["kind"] == "agent"
-    assert first["run"] == "ai/runs/2026-09-16T14-02-referee"
+    # the author is who wrote it and the session is where it belongs; the two used to be one field (plan 0.13 §5)
+    assert first["author"] == "agent" and first["kind"] == "agent"
+    assert first["session"] == sid
     r2 = run("comment", "--reply", ann_id, "Agreed, will fix.", *AUTHOR, cwd=d)
     assert r2.exit_code == 0 and "reply to" in r2.output
     r3 = run("comment", "dm-0003/proof", "--resolve", ann_id, "Added the argument.", *AUTHOR, cwd=d)
@@ -244,7 +258,7 @@ def test_comment_run_author_log_reply_resolve_batch(tmp_path: Path) -> None:
     s = status_json(d)
     assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {}
     batch = '{"target": "dm-0002", "message": "one", "quote": "Every orbit", "kind": "suggestion"}\n{"target": "dm-0002", "message": "two", "quote": "NOPE"}\n{"target": "dm-0002", "message": "three"}\n'
-    r4 = run("comment", "--batch", "--run", str(run_dir), cwd=d, stdin=batch)
+    r4 = run("comment", "--batch", "--session", sid, cwd=d, stdin=batch, env=AGENT)
     assert r4.exit_code == 1 and "batch line 2" in r4.output
     made = [e["body"] for e in events(d) if e["event"] == "created"]
     assert made == ["Domination is asserted.", "one"]  # the failing batch line stops the rest
@@ -258,14 +272,13 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
     which is the path that always worked. An append-only log cannot express the bug; this is what says so.
     """
     d = demo(tmp_path)
-    run_dir = d / "ai" / "runs" / "r1"
-    run_dir.mkdir(parents=True)
-    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--run", str(run_dir), cwd=d)
+    sid, run_dir = session(d, "r1")
+    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT)
     assert made.exit_code == 0, made.output
     ann = made.output.split()[0]
 
     # the run resolves the annotation it made itself, writing as the same run
-    got = run("comment", "--resolve", ann, "Fixed in the revision.", "--run", str(run_dir), cwd=d)
+    got = run("comment", "--resolve", ann, "Fixed in the revision.", "--session", sid, cwd=d, env=AGENT)
     assert got.exit_code == 0 and got.output.strip() == f"resolved {ann}"
 
     assert [e["event"] for e in events(d)] == ["created", "resolved"]
@@ -275,8 +288,7 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
 def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
     """The log's point: a finding that still stands is restated, not replied to, so three passes leave one finding."""
     d = demo(tmp_path)
-    run_dir = d / "ai" / "runs" / "r1"
-    run_dir.mkdir(parents=True)
+    sid, run_dir = session(d, "r1")
     r = run(
         "comment",
         "dm-0002",
@@ -291,15 +303,16 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         "Every nonempty orbit...",
         "--placement",
         "replace",
-        "--run",
-        str(run_dir),
+        "--session",
+        sid,
         cwd=d,
+        env=AGENT,
     )
     assert r.exit_code == 0, r.output
     assert "objection major" in r.output
     ann = r.output.split()[0]
 
-    e = run("comment", "--edit", ann, "Still wrong, and the fix is smaller than I said.", "--run", str(run_dir), cwd=d)
+    e = run("comment", "--edit", ann, "Still wrong, and the fix is smaller than I said.", "--session", sid, cwd=d, env=AGENT)
     assert e.exit_code == 0 and e.output.strip() == f"edited {ann}"
 
     kinds = [x["event"] for x in events(d)]
@@ -307,22 +320,21 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
 
     s = status_json(d)
     assert s["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}  # one finding, not two
-    f = json.loads(run("ai", "findings", "--run", str(run_dir), "--json", cwd=d).output)["findings"]
+    f = json.loads(run("ai", "findings", "--session", sid, "--json", cwd=d).output)["findings"]
     assert len(f) == 1 and f[0]["severity"] == "major"  # severity and the anchor survive an edit that names neither
 
-    assert run("comment", "--edit", "a-nope-0001", "x", "--run", str(run_dir), cwd=d).exit_code == 1
+    assert run("comment", "--edit", "a-nope-0001", "x", "--session", sid, cwd=d, env=AGENT).exit_code == 1
 
 
 def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> None:
     """Resolving claims the author addressed it. An agent that misread wants to say the opposite (blocks.md rule 7)."""
     d = demo(tmp_path)
-    run_dir = d / "ai" / "runs" / "r1"
-    run_dir.mkdir(parents=True)
-    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--run", str(run_dir), cwd=d)
+    sid, run_dir = session(d, "r1")
+    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT)
     assert made.exit_code == 0, made.output
     ann = made.output.split()[0]
 
-    gone = run("comment", "--discard", ann, "I misread the definition.", "--run", str(run_dir), cwd=d)
+    gone = run("comment", "--discard", ann, "I misread the definition.", "--session", sid, cwd=d, env=AGENT)
     assert gone.exit_code == 0 and gone.output.strip() == f"discarded {ann}"
 
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
@@ -330,7 +342,7 @@ def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> 
     assert [e["event"] for e in events_for] == ["created", "discarded"]
     assert events_for[1]["body"] == "I misread the definition."  # the reason is kept, not thrown away
 
-    assert run("comment", "--discard", "a-nope-0001", "x", "--run", str(run_dir), cwd=d).exit_code == 1
+    assert run("comment", "--discard", "a-nope-0001", "x", "--session", sid, cwd=d, env=AGENT).exit_code == 1
 
 
 def test_severity_and_placement_are_checked(tmp_path: Path) -> None:
@@ -342,20 +354,24 @@ def test_severity_and_placement_are_checked(tmp_path: Path) -> None:
 
 def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    run_dir = d / "ai" / "runs" / "r1"
-    run_dir.mkdir(parents=True)
+    # two sittings, because discarding one must not take the other with it
+    mine, _ = session(d, "the author's own")
+    sid, run_dir = session(d, "r1")
     assert (
-        run("comment", "dm-0002", "Objection.", "--quote", "Every orbit", "--run", str(run_dir), cwd=d).exit_code == 0
+        run("comment", "dm-0002", "Objection.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT).exit_code
+        == 0
     )
-    assert run("comment", "dm-0002", "Person.", "--quote", "one or two", *AUTHOR, cwd=d).exit_code == 0
+    assert (
+        run("comment", "dm-0002", "Person.", "--quote", "one or two", "--session", mine, *AUTHOR, cwd=d).exit_code == 0
+    )
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
-    r = run("ai", "discard", "ai/runs/r1", cwd=d)
+    r = run("ai", "discard", sid, cwd=d)
     assert r.exit_code == 0, r.output
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
     assert [e["event"] for e in events(d)][-1] == "discarded"  # an event, not a rewritten file
     assert run("ai", "discard", "--author", "Markas Hecht", cwd=d).exit_code == 0
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
-    assert run("ai", "discard", "ai/runs/r1", "--undo", cwd=d).exit_code == 0
+    assert run("ai", "discard", sid, "--undo", cwd=d).exit_code == 0
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
     assert run("ai", "discard", "--target", "dm-0002", "--undo", cwd=d).exit_code == 0
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
@@ -367,8 +383,7 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
 def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
     """An agent proposes a citation; the author accepts or rejects. Neither path touches refs.bib (DR-122)."""
     d = demo(tmp_path)
-    run_dir = d / "ai" / "runs" / "r1"
-    run_dir.mkdir(parents=True)
+    sid, run_dir = session(d, "r1")
     bib_before = (d / "refs.bib").read_text()
 
     good = run(
@@ -381,9 +396,10 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
         "citation",
         "--payload",
         "K. Kreck, Surgery and duality, Ann. of Math. 149 (1999).",
-        "--run",
-        str(run_dir),
+        "--session",
+        sid,
         cwd=d,
+        env=AGENT,
     )
     assert good.exit_code == 0, good.output
     first = good.output.split()[0]
@@ -395,9 +411,10 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
         "with $X$ a finite set",
         "--kind",
         "citation",
-        "--run",
-        str(run_dir),
+        "--session",
+        sid,
         cwd=d,
+        env=AGENT,
     )
     assert bad.exit_code == 0, bad.output
     second = bad.output.split()[0]
@@ -486,8 +503,7 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
 def test_timeline_7_11(tmp_path: Path) -> None:
     d = demo(tmp_path)
     key, proof = "dm-0003", "dm-0003/proof"
-    run_dir = d / "ai" / "runs" / "2026-09-16T14-02-referee"
-    run_dir.mkdir(parents=True)
+    sid, run_dir = session(d, "2026-09-16T14-02-referee")
     # Day 1: draft, never reviewed; a referee run leaves three objections
     s = status_json(d)
     assert s["keys"][key]["state"] == "draft" and s["keys"][key]["reviews"]["latest_any"] is None
@@ -498,9 +514,10 @@ def test_timeline_7_11(tmp_path: Path) -> None:
             "The hypothesis 'finite' is not needed for closedness.",
             "--quote",
             "finite set",
-            "--run",
-            str(run_dir),
+            "--session",
+            sid,
             cwd=d,
+            env=AGENT,
         ).exit_code
         == 0
     )
@@ -511,9 +528,10 @@ def test_timeline_7_11(tmp_path: Path) -> None:
             "Parity needs the orbit count.",
             "--quote",
             "disjoint union of orbits",
-            "--run",
-            str(run_dir),
+            "--session",
+            sid,
             cwd=d,
+            env=AGENT,
         ).exit_code
         == 0
     )
@@ -523,9 +541,10 @@ def test_timeline_7_11(tmp_path: Path) -> None:
         "Diagonal argument needs Hausdorff stated.",
         "--quote",
         "diagonal is closed",
-        "--run",
-        str(run_dir),
+        "--session",
+        sid,
         cwd=d,
+        env=AGENT,
     )
     assert r.exit_code == 0
     s = status_json(d)
@@ -545,9 +564,9 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     f.write_text(new)
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["detached"] == 2
-    assert run("comment", proof, "--kind", "ok", "--run", str(run_dir), cwd=d).exit_code == 0
+    assert run("comment", proof, "--kind", "ok", "--session", sid, cwd=d, env=AGENT).exit_code == 0
     s = status_json(d)
-    assert s["keys"][proof]["reviews"]["latest_current"]["author"]["kind"] == "run"
+    assert s["keys"][proof]["reviews"]["latest_current"]["author"]["kind"] == "agent"
     # Day 3: the author resolves the statement objection and accepts
     ann = next(e["id"] for e in events(d) if e["event"] == "created")
     assert run("comment", key, "--resolve", ann, "Finiteness is used for parity.", *AUTHOR, cwd=d).exit_code == 0
@@ -617,24 +636,24 @@ def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
     d = demo(tmp_path)
     rel = run("ai", "start", "Referee", cwd=d).output.strip()
     run_name = rel.rsplit("/", 1)[-1]
-    assert run("comment", "dm-0002", "Wrong", "--severity", "major", "--run", run_name, cwd=d).exit_code == 0
-    assert run("comment", "dm-0003", "Also wrong", "--run", run_name, cwd=d).exit_code == 0
-    live = json.loads(run("ai", "findings", "--run", run_name, "--json", cwd=d).output)["findings"]
+    assert run("comment", "dm-0002", "Wrong", "--severity", "major", "--session", run_name, cwd=d, env=AGENT).exit_code == 0
+    assert run("comment", "dm-0003", "Also wrong", "--session", run_name, cwd=d, env=AGENT).exit_code == 0
+    live = json.loads(run("ai", "findings", "--session", run_name, "--json", cwd=d).output)["findings"]
     assert len(live) == 2
     assert [f["message"] for f in live] == ["Wrong", "Also wrong"]
 
     assert (
-        run("comment", "--discard", live[1]["id"], "I misread the hypothesis", "--run", run_name, cwd=d).exit_code == 0
+        run("comment", "--discard", live[1]["id"], "I misread the hypothesis", "--session", run_name, cwd=d, env=AGENT).exit_code == 0
     )
-    after = json.loads(run("ai", "findings", "--run", run_name, "--json", cwd=d).output)["findings"]
+    after = json.loads(run("ai", "findings", "--session", run_name, "--json", cwd=d).output)["findings"]
     assert [f["id"] for f in after] == [live[0]["id"]]  # the withdrawn one is out of the way
 
-    every = json.loads(run("ai", "findings", "--run", run_name, "--all", "--json", cwd=d).output)["findings"]
+    every = json.loads(run("ai", "findings", "--session", run_name, "--all", "--json", cwd=d).output)["findings"]
     (gone,) = [f for f in every if f["discarded"]]
     assert gone["discard_reason"] == "I misread the hypothesis"
-    assert "I misread the hypothesis" in run("ai", "findings", "--run", run_name, "--all", cwd=d).output
+    assert "I misread the hypothesis" in run("ai", "findings", "--session", run_name, "--all", cwd=d).output
 
-    only_major = json.loads(run("ai", "findings", "--run", run_name, "--severity", "major", "--json", cwd=d).output)
+    only_major = json.loads(run("ai", "findings", "--session", run_name, "--severity", "major", "--json", cwd=d).output)
     assert [f["id"] for f in only_major["findings"]] == [live[0]["id"]]
 
 

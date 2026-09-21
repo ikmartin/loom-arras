@@ -39,12 +39,17 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def logged(name: str) -> Callable[[F], F]:
-    """Give a read-only `refs` command `--run`, logging the call to that run's run.log as `loom source --run` does."""
+    """Give a read-only `refs` command `--session`, logging the call to that session as `loom source --session` does."""
     import functools
 
     def wrap(f: F) -> F:
         @click.option(
-            "--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="Log this call to RUN's run.log."
+            "--session",
+            "run_dir",
+            default=None,
+            envvar="LOOM_SESSION",
+            metavar="SESSION",
+            help="Log this call to the session.",
         )
         @functools.wraps(f)
         def inner(*args: Any, run_dir: str | None = None, **kwargs: Any) -> Any:
@@ -209,7 +214,7 @@ def resolve_command(
 
 
 @refs.command(name="note")
-@click.option("--from", "run_dir", default=None, metavar="RUN", help="The run whose suggestion this is.")
+@click.option("--from", "run_dir", default=None, metavar="SESSION", help="The session whose suggestion this is.")
 @click.option(
     "--accept", "accept_id", default=None, metavar="ID", help="Record this citation suggestion and resolve it."
 )
@@ -856,7 +861,7 @@ def _find_result(result: ScanResult, target: str) -> tuple[str, str, dict[str, A
 @click.option("--number", default="", help="The paper's numbers when it states several results together: '3.2, 3.3'.")
 @click.option("--level", type=click.Choice(["1", "3"]), default="3", show_default=True, help="1 is a main result.")
 @click.option("--supersedes", default=None, metavar="ID", help="Re-propose something discarded, recording the chain.")
-@click.option("--run", "run_dir", default=None, help="The run proposing this.")
+@click.option("--session", "run_dir", default=None, envvar="LOOM_SESSION", help="The session proposing this.")
 @click.option("--json", "as_json", is_flag=True, help="Print the stored record as JSON.")
 @quilt_option
 @click.pass_context
@@ -1205,7 +1210,7 @@ def why_command(target: str, as_json: bool, quilt_path: str | None) -> None:
 
 @refs.command(name="drop")
 @click.option("--work", "work_ck", default=None, help="Everything recorded for this work.")
-@click.option("--run", "run_id", default=None, help="Everything proposed by this run.")
+@click.option("--session", "run_id", default=None, envvar="LOOM_SESSION", help="Everything proposed in this session.")
 @click.option("--unverified", is_flag=True, help="Every result not yet verified, in every work.")
 @click.option("--yes", "-y", is_flag=True, help="Do not ask.")
 @quilt_option
@@ -1217,7 +1222,7 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
     from loom.refs.proposals import append_event, load_results, results_path, save_results, write_proposed_tex
 
     if sum(map(bool, [work_ck, run_id, unverified])) != 1:
-        raise EnvError("give exactly one of --work, --run or --unverified")
+        raise EnvError("give exactly one of --work, --session or --unverified")
     result = open_scan(quilt_path)
     root = result.quilt.root
     works = (
@@ -1263,7 +1268,9 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
 @click.option("--to", "to", required=True, metavar="ID", help="The result it relates to.")
 @click.option("--kind", required=True, help="same-notion, generalises, specialises, depends-on, contradicts.")
 @click.option("--why", required=True, help="One or two sentences. This is what you read six months later.")
-@click.option("--run", "run_dir", default=None, help="The run asserting it; an agent must say which.")
+@click.option(
+    "--session", "run_dir", default=None, envvar="LOOM_SESSION", help="The session asserting it; an agent must say which."
+)
 @click.option("--author", default=None, help="Who asserted it, when the user config and git do not say.")
 @quilt_option
 def link_command(
@@ -1288,13 +1295,13 @@ def link_command(
     from loom.cli._common import agent_marker
 
     if run_dir:
-        # the run, as `loom comment --run` records it: an assertion is somebody's, and a reader weighs it by whose
+        # who asserted it, as `loom comment` records it: an assertion is somebody's, and a reader weighs it by whose
         who = Path(run_dir).name
     elif agent_marker():
-        # an agent with no --run would otherwise be recorded as the author, by way of git: eleven links in the second
+        # an agent with no --session would otherwise be recorded as the author, by way of git: eleven links in the second
         # study run were, and a reader could not tell the author's assertions from an agent's
         raise EnvError(
-            "an agent is running this shell: pass --run RUN, so the link is attributed to the run that made it"
+            "an agent is running this shell: pass --session SESSION, or --author, so the link says who asserted it"
         )
     else:
         who = resolve_author(author, root)[0]

@@ -10,10 +10,10 @@ Write a complete node from a plan the author supplies. The plan states the inten
 ## Input
 - The plan: `plan-ID.md` in the run, or the author's message; if absent, ask for it and stop.
 - `loom new TAXON "Title" --print` for the skeleton in the quilt's environment names, or the id of a skeleton file the author created.
-- `loom source DEP --closure --run RUN` for each intended dependency, so the statements you rely on are in front of you.
+- `loom source DEP --closure --session SESSION` for each intended dependency, so the statements you rely on are in front of you.
 
 ## Procedure
-Write the statement first and check it against the plan. Then the proof: cite each fact used by `\ref{ID}` and list all dependencies in `\uses`; mark every step you could not complete with `\incomplete{...}`. Then `loom compile --draft draft-ID.tex --run RUN` compiles it against the quilt's preamble; fix compile errors; record the result.
+Write the statement first and check it against the plan. Then the proof: cite each fact used by `\ref{ID}` and list all dependencies in `\uses`; mark every step you could not complete with `\incomplete{...}`. Then `loom compile --draft draft-ID.tex --session SESSION` compiles it against the quilt's preamble; fix compile errors; record the result.
 
 ## Output
 1. `draft-ID.tex`: one complete node obeying the source contract (`% !LOOM author:` and `created:` lines; one environment with the title and `\label{ID}` if an id was given; adjacent proof; `\uses`).

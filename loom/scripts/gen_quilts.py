@@ -44,26 +44,28 @@ class Gen:
     def at(self, when: str) -> None:
         self.time = when
 
-    def env(self) -> dict[str, str | None]:
+    def env(self, agent: bool = False) -> dict[str, str | None]:
         from loom.cli._common import AGENT_MARKERS
 
-        # The generator plays the author -- it accepts, verifies and discards to build the demo's history -- so an agent
-        # running it must not make loom refuse the author's verbs. A value of None unsets the variable for the call.
+        # The generator plays both parties. As the author -- it accepts, verifies and discards to build the history --
+        # an agent running it must not make loom refuse the author's verbs, so the markers are unset (None unsets the
+        # variable for the call). As the agent, `agent=True` sets one, because since plan 0.13 §5 that is what makes a
+        # record say an agent wrote it rather than crediting whoever's git identity the shell carries.
         return {
             "LOOM_FIXED_TIME": self.time,
             "XDG_CONFIG_HOME": str(self.config),
             "GIT_CONFIG_GLOBAL": str(self.config / "gitconfig-none"),
             "GIT_CONFIG_NOSYSTEM": "1",
-            **{marker: None for marker in AGENT_MARKERS},
+            **{marker: ("1" if agent and marker == "AI_AGENT" else None) for marker in AGENT_MARKERS},
         }
 
-    def run(self, *args: str, expect: int = 0) -> str:
+    def run(self, *args: str, expect: int = 0, agent: bool = False) -> str:
         from loom.cli import main
 
         old = os.getcwd()
         try:
             os.chdir(self.root)
-            res = CliRunner().invoke(main, list(args), env=self.env())
+            res = CliRunner().invoke(main, list(args), env=self.env(agent))
         finally:
             os.chdir(old)
         if res.exit_code != expect:
@@ -228,8 +230,9 @@ def build_synthetic(dest: Path) -> None:
         "major",
         "--quote",
         "finite widget",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -245,8 +248,9 @@ def build_synthetic(dest: Path) -> None:
         "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
         "--placement",
         "replace",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -256,8 +260,9 @@ def build_synthetic(dest: Path) -> None:
         "suggestion",
         "--severity",
         "moderate",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     # Two citation suggestions: one the author accepts, which leaves a breadcrumb in reference-notes.jsonl, and one
     # left open, so the viewer has both a decided suggestion and an undecided one to show.
@@ -269,8 +274,9 @@ def build_synthetic(dest: Path) -> None:
         "citation",
         "--payload",  # the work the suggestion names; the message argues for it
         "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -280,11 +286,12 @@ def build_synthetic(dest: Path) -> None:
         "citation",
         "--payload",
         "any standard text on group actions",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.write(
-        f"{referee}/thread.md",
+        f".loom/sessions/{referee}/thread.md",
         "# Thread: referee sy-0003\n\n## 2026-09-16 00:00 referee of sy-0003\n\n"
         "Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on "
         "the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: "
@@ -305,7 +312,7 @@ def build_synthetic(dest: Path) -> None:
     g.at("2026-09-16T09:00:00Z")
     g.run("refs", "note", "--from", referee, "--accept", cited, "--reason", "worth citing", "--author", AUTHOR)
     g.at("2026-09-16T00:00:00Z")
-    g.write(f"{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
+    g.write(f".loom/sessions/{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
     g.run("comment", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--author", AUTHOR)
     g.run("comment", "--reply", suggestion, "Done in the next revision.", "--author", AUTHOR)
     g.run("comment", "--resolve", suggestion, "--author", AUTHOR)
@@ -320,7 +327,7 @@ def build_synthetic(dest: Path) -> None:
         "--author",
         AUTHOR,
     )
-    g.run("comment", "sy-000A", "Gadgets of odd order cannot exist.", "--kind", "ok", "--run", quick)
+    g.run("comment", "sy-000A", "Gadgets of odd order cannot exist.", "--kind", "ok", "--session", quick, agent=True)
     g.run("ai", "discard", quick)
 
     # The definition is revised once more, and the question that quoted the old wording no longer matches it: an annotation loom cannot place is said to be detached, never quietly moved.
@@ -404,8 +411,8 @@ Minor Revision. Nothing here is wrong; the proof is missing one sentence and the
 """
 
 
-def _annotation_ids(root: Path, run: str) -> list[str]:
-    """The ids a run created, read back out of the log so the generator can reply to and resolve them."""
+def _annotation_ids(root: Path, session: str) -> list[str]:
+    """The ids a session created, read back out of the log so the generator can reply to and resolve them."""
     import json
 
     log = root / "annotations" / "log.jsonl"
@@ -414,7 +421,7 @@ def _annotation_ids(root: Path, run: str) -> list[str]:
         if not line.strip():
             continue
         e = json.loads(line)
-        if e.get("event") == "created" and e.get("run") == run:
+        if e.get("event") == "created" and e.get("session") == session:
             out.append(e["id"])
     return out
 
@@ -475,7 +482,7 @@ def build_demo(dest: Path) -> None:
         "Let $(X,\\sigma)$ be a widget. Then $\\Fix(\\sigma)$ is closed in every topology on $X$ for which $\\sigma$ is continuous and $X$ is Hausdorff; if moreover $X$ is finite, $\\Fix(\\sigma)$ is nonempty if and only if $|X|$ is odd.",
         "--placement",
         "replace",
-        "--run",
+        "--session",
         run_dir,
     )
     g.run(
@@ -488,7 +495,7 @@ def build_demo(dest: Path) -> None:
         "major",
         "--quote",
         "the preimage of the diagonal",
-        "--run",
+        "--session",
         run_dir,
     )
     # A whole-document annotation: its target is the master's path, which loom has written since 0.6 and nothing showed.
@@ -500,11 +507,12 @@ def build_demo(dest: Path) -> None:
         "suggestion",
         "--severity",
         "minor",
-        "--run",
+        "--session",
         run_dir,
+        agent=True,
     )
     g.write(
-        f"{run_dir}/thread.md",
+        f".loom/sessions/{run_dir}/thread.md",
         "# Thread: referee dm-0003\n\n## 2026-09-16 14:31 referee\n\n"
         "Refereed dm-0003. One major objection in the proof, one moderate suggestion on the statement "
         "with a proposed replacement, and one minor point about the document as a whole.\n",
@@ -512,7 +520,7 @@ def build_demo(dest: Path) -> None:
     # in creation order: the statement suggestion, the proof objection, the whole-document point
     suggestion, objection, document = _annotation_ids(dest, run_dir)[:3]
     g.write(
-        f"{run_dir}/referee-dm-0003.notes.md",
+        f".loom/sessions/{run_dir}/referee-dm-0003.notes.md",
         _demo_report(suggestion=suggestion, objection=objection, document=document),
     )
     # the edit that leaves an accepted key stale, so a fresh demo shows a state worth looking at
@@ -579,7 +587,7 @@ def build_showcase(dest: Path) -> None:
         "2",
         "--level",
         "1",
-        "--run",
+        "--session",
         survey,
         "--source-text",
         "The median orders of a weighted digraph are in bijection with the vertices of a rational polytope M (D) "
@@ -598,7 +606,7 @@ def build_showcase(dest: Path) -> None:
         "2",
         "--level",
         "1",
-        "--run",
+        "--session",
         survey,
         "--source-text",
         "Let D be a weighted digraph whose weight function is balanced at every vertex. Then the counting function "
@@ -609,6 +617,7 @@ def build_showcase(dest: Path) -> None:
         "Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting function "
         "of the median polytope of $D$ agrees with a polynomial of degree equal to the dimension of that polytope, "
         "and the leading coefficient of that polynomial is the relative volume.",
+        agent=True,
     )
     g.run(
         "refs",
@@ -618,7 +627,7 @@ def build_showcase(dest: Path) -> None:
         "prop-3.1",
         "--page",
         "2",
-        "--run",
+        "--session",
         survey,
         "--source-text",
         "The function L is a quasi-polynomial in k of degree equal to the dimension of M (D), with a period dividing "
@@ -635,7 +644,7 @@ def build_showcase(dest: Path) -> None:
         "def-4.1",
         "--page",
         "2",
-        "--run",
+        "--session",
         survey,
         "--source-text",
         "The defect of a weighted digraph is the least common multiple of the denominators of the vertices of its "
@@ -643,6 +652,7 @@ def build_showcase(dest: Path) -> None:
         "--statement",
         "The \\emph{defect} of a weighted digraph is the least common multiple of the denominators of the vertices "
         "of its median polytope.",
+        agent=True,
     )
     g.run(
         "refs",
@@ -655,8 +665,9 @@ def build_showcase(dest: Path) -> None:
         "depends-on",
         "--why",
         "Bellamy's counting theorem needs the polytope to be full-dimensional, and its dimension is Arden's rank.",
-        "--run",
+        "--session",
         survey,
+        agent=True,
     )
     g.run(
         "refs",
@@ -669,11 +680,12 @@ def build_showcase(dest: Path) -> None:
         "specialises",
         "--why",
         "2.3 is the polytope; 3.2 counts its lattice points. The second is the one this quilt cites.",
-        "--run",
+        "--session",
         survey,
+        agent=True,
     )
     g.write(
-        f"{survey}/thread.md",
+        f".loom/sessions/{survey}/thread.md",
         "# Thread: survey Bellamy19\n\n## 2026-09-15 10:00 survey-bellamy\n\n"
         "Asked: find in Bellamy19 whatever the counting argument of Section 3 could rest on. Did: read pages 1 to 3, "
         "proposed four results, and asserted two links. Decided: nothing; the four proposals wait for the author. "
@@ -681,7 +693,7 @@ def build_showcase(dest: Path) -> None:
         "definition of the defect.\n",
     )
     g.write(
-        f"{survey}/survey-bellamy.notes.md",
+        f".loom/sessions/{survey}/survey-bellamy.notes.md",
         _showcase_survey_report(),
     )
 
@@ -732,7 +744,7 @@ def build_showcase(dest: Path) -> None:
         "major",
         "--quote",
         "underlying graph has $c$ connected components",
-        "--run",
+        "--session",
         referee,
     )
     g.run(
@@ -751,7 +763,7 @@ def build_showcase(dest: Path) -> None:
         "$\\operatorname{im} \\bd$ is free, so it splits and the ranks add",
         "--placement",
         "replace",
-        "--run",
+        "--session",
         referee,
     )
     g.run(
@@ -767,7 +779,7 @@ def build_showcase(dest: Path) -> None:
         "major",
         "--quote",
         "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
-        "--run",
+        "--session",
         referee,
     )
     g.run(
@@ -779,7 +791,7 @@ def build_showcase(dest: Path) -> None:
         "question",
         "--quote",
         "we obtain an infinite walk inside $\\supp(w)$",
-        "--run",
+        "--session",
         referee,
     )
     g.run(
@@ -794,7 +806,7 @@ def build_showcase(dest: Path) -> None:
         "The quotient $W(\\quiv)/\\Zcyc(\\quiv)$ is the \\emph{boundary lattice} of $\\quiv$.",
         "--placement",
         "after",
-        "--run",
+        "--session",
         referee,
     )
     g.run(
@@ -806,8 +818,9 @@ def build_showcase(dest: Path) -> None:
         "suggestion",
         "--severity",
         "moderate",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -818,8 +831,9 @@ def build_showcase(dest: Path) -> None:
         "suggestion",
         "--severity",
         "minor",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -830,8 +844,9 @@ def build_showcase(dest: Path) -> None:
         "objection",
         "--severity",
         "minor",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -845,8 +860,9 @@ def build_showcase(dest: Path) -> None:
         "moderate",
         "--quote",
         "whose underlying graph has $c$ connected components",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -854,8 +870,9 @@ def build_showcase(dest: Path) -> None:
         "Both examples check out, and the second is the smallest quiver with trivial cycle lattice.",
         "--kind",
         "ok",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -865,8 +882,9 @@ def build_showcase(dest: Path) -> None:
         "citation",
         "--payload",
         "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -876,8 +894,9 @@ def build_showcase(dest: Path) -> None:
         "objection",
         "--severity",
         "minor",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -887,8 +906,9 @@ def build_showcase(dest: Path) -> None:
         "suggestion",
         "--severity",
         "minor",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -901,8 +921,9 @@ def build_showcase(dest: Path) -> None:
         "major",
         "--quote",
         "a homomorphism into a torsion-free group",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     (
         formula,
@@ -921,7 +942,7 @@ def build_showcase(dest: Path) -> None:
         torsion,
     ) = _annotation_ids(dest, referee)[:14]
     g.write(
-        f"{referee}/thread.md",
+        f".loom/sessions/{referee}/thread.md",
         "# Thread: referee sh-0009\n\n## 2026-09-16 11:00 referee-sh-0009\n\n"
         "Asked: referee the rank theorem and everything its proof reaches. Did: read the closure of sh-0009 and of "
         "sh-000C, and left fourteen findings -- three major, four moderate, five minor, one question and one clean "
@@ -929,7 +950,7 @@ def build_showcase(dest: Path) -> None:
         "not read, and Lemma sh-000E is marked incomplete, so there was nothing there to referee.\n",
     )
     g.write(
-        f"{referee}/referee-sh-0009.notes.md",
+        f".loom/sessions/{referee}/referee-sh-0009.notes.md",
         _showcase_referee_report(formula=formula, expand=expand, integrality=integrality, document=document),
     )
     # The run withdraws one finding of its own and restates another: a discard is not a resolution, and an
@@ -940,8 +961,9 @@ def build_showcase(dest: Path) -> None:
         "--discard",
         redundant,
         "Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.run(
         "comment",
@@ -949,7 +971,7 @@ def build_showcase(dest: Path) -> None:
         height,
         "Height is defined for every weighting but only used for balanced ones, and $N_{\\quiv}(k)$ silently "
         "restricts to them. Say so in the definition rather than in the theorem that uses it.",
-        "--run",
+        "--session",
         referee,
     )
 
@@ -967,8 +989,9 @@ def build_showcase(dest: Path) -> None:
         "--reply",
         formula,
         "Then the convention is the right place, and this finding can stand until it is there.",
-        "--run",
+        "--session",
         referee,
+        agent=True,
     )
     g.at("2026-09-16T15:10:00Z")
     g.run("comment", "--resolve", expand, "Taken, with the exact sequence written out.")
@@ -1028,8 +1051,9 @@ def build_showcase(dest: Path) -> None:
         "objection",
         "--severity",
         "major",
-        "--run",
+        "--session",
         quick,
+        agent=True,
     )
     g.run(
         "comment",
@@ -1039,8 +1063,9 @@ def build_showcase(dest: Path) -> None:
         "objection",
         "--severity",
         "major",
-        "--run",
+        "--session",
         quick,
+        agent=True,
     )
     g.run("ai", "discard", quick)
 

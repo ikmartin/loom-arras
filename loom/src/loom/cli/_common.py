@@ -49,7 +49,7 @@ def resolve_run(root: Path, run_dir: str | None) -> Path | None:
 
     See Also
     --------
-    find_run : the same, but accepting a run's name or a prefix of it.
+    find_session : a session by id, title or unique suffix.
     """
     if not run_dir:
         return None
@@ -65,47 +65,38 @@ def under_runs(root: Path, p: Path) -> bool:
         return False
 
 
-def find_run(root: Path, run: str | None) -> Path:
-    """Locate a run by name, by a prefix of its name, or by its path; with nothing, the most recent undiscarded one.
+def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
+    """Locate a session by id, by title, or by a unique id suffix; with nothing, the active one (plan 0.13 §5).
 
-    A run directory is `2026-09-17T01-43-review-main`, so addressing one by path means remembering the minute it started. The name is what the author remembers, so that is what this accepts. An ambiguous prefix names its matches and refuses rather than guessing, as `refs resolve` does with candidates.
-
-    **Names are matched before paths, and a path must be under `ai/runs/`.** Both orderings used to be the other way round, and the consequence was severe: an unmatched `--run` was created as a directory at the quilt root, and that directory then satisfied the path test on every later command, so the run the author had named was never reached and every annotation was filed under a run that did not exist.
+    Refuses rather than guessing, and refuses rather than creating: a value that matched nothing used to be made as a directory at the quilt root, and that directory then satisfied every later lookup, so a whole sitting's annotations were filed under a run that did not exist.
     """
-    from loom.ai.orient import open_runs
+    from loom.sessions import active, sessions
 
-    runs = open_runs(root, include_discarded=True)
-    if not run:
-        live = [r for r in runs if not r[3]]
-        if not live:
-            raise EnvError('no runs yet; loom ai start "a name" makes one')
-        return root / live[-1][0]
-    if not runs:
-        raise EnvError('no runs yet; loom ai start "a name" makes one')
-
-    want = run.strip().strip("/").lower()
-
-    def spellings(rel: str, name: str) -> tuple[str, ...]:
-        """Every way of writing this run: its name, its directory, the directory without its leading timestamp, and the path."""
-        dirname = rel.rsplit("/", 1)[-1]
-        slug = dirname.split("-", 4)[-1] if dirname[:4].isdigit() else dirname
-        return (name.lower(), dirname.lower(), slug.lower(), rel.lower())
-
-    exact = [r for r in runs if want in spellings(r[0], r[1])]
-    hits = exact or [r for r in runs if any(want in s for s in spellings(r[0], r[1]))]
-    if len(hits) > 1:
-        named = "\n".join(f"  {r[2][:10]}: {r[1]}" for r in hits)
-        raise EnvError(f"{run!r} matches {len(hits)} runs:\n{named}\ngive more of the name")
-    if hits:
-        return root / hits[0][0]
-
-    # Only then a path, and only one that exists inside ai/runs/. Nothing here creates a directory.
-    p = resolve_run(root, run)
-    if p is not None and p.is_dir() and under_runs(root, p):
-        return p
-    if p is not None and p.is_dir():
-        raise EnvError(f"{run} is not under ai/runs/; an agent writes only in its own run directory")
-    raise EnvError(f"no run matches {run!r}; loom ai runs lists them")
+    if not which:
+        here = active(root)
+        standing = sessions(root)
+        if here and here in standing:
+            return standing[here]
+        raise EnvError('no session is active; loom session new "a name" opens one')
+    standing = sessions(root, deleted=True)
+    if which in standing:
+        return standing[which]
+    want = which.strip().lower()
+    # The title is what a person remembers, so it is what this accepts -- exactly, then as part of one. An id suffix
+    # is here for the same reason: nobody types a date they can see in a listing.
+    for pick in (
+        lambda x: x.title.lower() == want,
+        lambda x: x.id.endswith(want),
+        lambda x: want in x.title.lower(),
+    ):
+        hits = [x for x in standing.values() if pick(x)]
+        if len(hits) == 1:
+            return hits[0]
+        if hits:
+            # naming the matches rather than guessing, as `refs resolve` does with candidates
+            named = ", ".join(f"{x.id} ({x.title})" for x in hits[:4])
+            raise EnvError(f"{which!r} matches {len(hits)} sessions: {named}")
+    raise EnvError(f"no session matches {which!r}; loom session list shows them")
 
 
 #: Environment variables an agent's shell carries. `AI_AGENT` is the generic one; the rest name a particular tool.
@@ -136,6 +127,24 @@ def agent_name() -> str | None:
     """What the agent running this shell is called, or None when a person is."""
     marker = agent_marker()
     return AGENT_NAMES.get(marker, "agent") if marker else None
+
+
+def whoever(root: Path, author: str | None = None) -> str:
+    """Who is running this, for a record that wants provenance and must not refuse for want of it.
+
+    Opening, retitling or closing a session is not an authored claim about anybody's mathematics, so an unconfigured author name costs the record a name and never the command. The verbs that *are* claims -- `accept`, `refs verify`, a comment -- keep asking.
+    """
+    from loom.scan.quilt import NoAuthorError, resolve_author
+
+    if (author or "").strip():
+        return str(author).strip()
+    robot = agent_name()
+    if robot:
+        return robot
+    try:
+        return resolve_author(None, root)[0]
+    except NoAuthorError:
+        return ""
 
 
 def refuse_under_agent(verb: str, how: str) -> None:

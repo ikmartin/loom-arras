@@ -13,13 +13,13 @@
 	const t = $derived(m.threads[id]);
 </script>
 
-<main class="page" class:wide={t?.kind === 'run'}>
+<main class="page" class:wide={t?.kind !== 'comments'}>
 	{#if !t}
 		<h1>Unknown thread</h1>
 	{:else}
 		<h1>{t.title}</h1>
 		<p class="muted">{t.kind} · {t.created} · participants {t.participants.map((p) => p.id).join(', ')}{t.discarded ? ' · discarded' : ''}</p>
-		{#if t.kind === 'run'}
+		{#if t.kind !== 'comments'}
 			<SplitView thread={t} />
 			{#if t.log.length}
 				<details><summary>Run log ({t.log.length})</summary><pre>{t.log.map((l) => `${l.time}  ${l.command}`).join('\n')}</pre></details>

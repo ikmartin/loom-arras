@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --run RUN` calls, quote-anchored, every one carrying `--severity`.
+- Findings are `loom comment ... --session SESSION` calls, quote-anchored, every one carrying `--severity`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose

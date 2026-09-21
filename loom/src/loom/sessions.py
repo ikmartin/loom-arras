@@ -236,15 +236,25 @@ def ensure_active(root: Path, who: str, title: str = "") -> Session:
 
 
 def resolve(root: Path, needle: str) -> Session | None:
-    """A session by id, by exact title, or by a unique id suffix; None when nothing or more than one matches."""
+    """A session by id, by title, or by a unique id suffix; None when nothing or more than one matches.
+
+    See Also
+    --------
+    loom.cli._common.find_session : the same, refusing with the matches named rather than returning None.
+    """
     standing = sessions(root, deleted=True)
     if needle in standing:
         return standing[needle]
-    hits = [s for s in standing.values() if s.title == needle]
-    if len(hits) == 1:
-        return hits[0]
-    hits = [s for s in standing.values() if s.id.endswith(needle)]
-    return hits[0] if len(hits) == 1 else None
+    want = needle.strip().lower()
+    for pick in (
+        lambda s: s.title.lower() == want,
+        lambda s: s.id.endswith(want),
+        lambda s: want in s.title.lower(),
+    ):
+        hits = [s for s in standing.values() if pick(s)]
+        if hits:
+            return hits[0] if len(hits) == 1 else None
+    return None
 
 
 def by_source(root: Path) -> dict[str, str]:
@@ -298,3 +308,16 @@ def migrate(root: Path, who: str) -> list[Session]:
         made.append(s)
         known[rec.rel] = s.id
     return made
+
+
+def files_dir(root: Path, s: Session) -> Path:
+    """Where a session's own files are -- its notes, its thread, its command log.
+
+    `.loom/sessions/<id>/`, except for a session the migration made from a run, whose files are still in the run directory the agent wrote them to. Nothing is moved: the run directory is where those bytes are, and a record that points somewhere they are not is worse than an inconsistent path.
+    """
+    own = s.directory(root)
+    if own.is_dir():
+        return own
+    if s.source and s.source.startswith("ai/runs/") and (root / s.source).is_dir():
+        return root / s.source
+    return own

@@ -5,7 +5,6 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 
-from loom.ai.runs import read_run_toml
 from loom.records.store import Records
 from loom.scan.scan import ScanResult
 
@@ -29,22 +28,16 @@ def static_text(root: Path) -> str:
     return "\n\n---\n\n".join(out) + "\n"
 
 
-def open_runs(root: Path, include_discarded: bool = False) -> list[tuple[str, str, str, bool]]:
-    """(relative path, name, created, discarded) for every run, oldest first; discarded ones only when asked.
+def open_sessions(root: Path, include_closed: bool = False) -> list[tuple[str, str, str, bool]]:
+    """(id, title, created, closed) for every session, oldest first; closed ones only when asked."""
+    from loom.sessions import sessions
 
-    Oldest first falls out of sorting the directory names, which lead with the timestamp for exactly that reason.
-    """
     out: list[tuple[str, str, str, bool]] = []
-    runs = root / "ai" / "runs"
-    if not runs.is_dir():
-        return out
-    for d in sorted(p for p in runs.iterdir() if p.is_dir()):
-        meta = read_run_toml(d)
-        discarded = meta.get("discarded") == "true"
-        if discarded and not include_discarded:
+    for s in sessions(root).values():
+        closed = s.state != "open"
+        if closed and not include_closed:
             continue
-        name = meta.get("name") or meta.get("slug") or d.name
-        out.append((d.relative_to(root).as_posix(), name, meta.get("created", ""), discarded))
+        out.append((s.id, s.title, s.created, closed))
     return out
 
 
@@ -67,28 +60,31 @@ def live_text(result: ScanResult, records: Records, run: Path | None) -> str:
     lines.append(f"- lint: {errors} error(s); run `loom lint` for the list")
     und = payload["undigested"]
     lines.append("- undigested citekeys: " + (", ".join(und) if und else "none"))
-    runs = open_runs(root)
-    if runs:
-        lines.append("- open runs:")
-        for rel, name, created, _ in runs:
-            lines.append(f"  - `{rel}` ({name}, created {created})")
+    from loom.sessions import active
+
+    here = active(root)
+    open_ones = open_sessions(root)
+    if open_ones:
+        lines.append("- open sessions:")
+        for sid, title, created, _ in open_ones:
+            lines.append(f"  - `{sid}` ({title}, opened {created})" + ("  <- active" if sid == here else ""))
     else:
-        lines.append("- open runs: none")
+        lines.append("- open sessions: none")
     if run is not None:
         rel = run.relative_to(root).as_posix() if run.is_absolute() else run.as_posix()
-        lines += ["", f"# Your run: `{rel}`", ""]
-        lines.append(f"Pass `--run {rel}` on every command that accepts it (`export LOOM_RUN={rel}`).")
+        lines += ["", f"# Your session: `{rel}`", ""]
+        lines.append("Writing lands in the active session; `--session` names another one where a command takes it.")
         thread = run / "thread.md"
         lines += ["", "## thread.md", ""]
         lines.append(
             thread.read_text(encoding="utf-8").rstrip("\n") if thread.is_file() else "(no thread.md yet; write one)"
         )
         log = run / "run.log"
-        lines += ["", "## run.log", ""]
+        lines += ["", "## the command log", ""]
         lines.append(log.read_text(encoding="utf-8").rstrip("\n") if log.is_file() else "(empty)")
         outputs = sorted(
             p.name for p in run.iterdir() if p.is_file() and p.name not in ("run.toml", "run.log", "thread.md")
         )
-        lines += ["", "## files in the run", ""]
+        lines += ["", "## files in the session", ""]
         lines.append(", ".join(outputs) if outputs else "(none)")
     return "\n".join(lines) + "\n"

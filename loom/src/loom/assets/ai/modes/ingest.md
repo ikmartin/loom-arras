@@ -27,7 +27,7 @@ For a work with no source the checks below apply to what you propose, and the ou
 1. `ingest-CITEKEY.tex` — the extractor's output, unedited, so the author can see what it produced.
 2. `proposal-CITEKEY.diff` — a unified diff against it carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
 3. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
-4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --run RUN`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
+4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
 5. An entry in `thread.md`.
 
 ## Checklist

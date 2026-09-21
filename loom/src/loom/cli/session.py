@@ -32,10 +32,10 @@ def session() -> None:
 
 
 def _who(quilt_path: str | None, author: str | None) -> tuple[object, str]:
-    from loom.scan.quilt import resolve_author
+    from loom.cli._common import whoever
 
     quilt = open_quilt(quilt_path)
-    return quilt, resolve_author(author, quilt.root)[0]
+    return quilt, whoever(quilt.root, author)
 
 
 @session.command(name="new")

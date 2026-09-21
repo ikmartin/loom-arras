@@ -40,6 +40,25 @@ STATE_LABELS = {
 }
 
 
+def _sessions(root: Path) -> list[dict[str, Any]]:
+    """Every session the index leaves standing, with what the viewer's selector shows: the title, the state, and the round it is on."""
+    from loom.sessions import active, sessions
+
+    here = active(root)
+    return [
+        {
+            "id": s.id,
+            "title": s.title,
+            "state": s.state,
+            "created": s.created,
+            "opened": s.last_opened,
+            "rounds": len(s.rounds),
+            "active": s.id == here,
+        }
+        for s in sessions(root).values()
+    ]
+
+
 def _results_for(root: Path, citekey: str) -> dict[str, dict[str, Any]]:
     """The work's recorded results, as the viewer needs them (digest contract §9).
 
@@ -237,6 +256,8 @@ def build_manifest(
         "states": STATE_LABELS,
         "annotations": {},
         "threads": build_threads(result.quilt.root),
+        # The selector's data (plan 0.13 §5): which sessions exist, which is active, and how much is open in each.
+        "sessions": _sessions(result.quilt.root),
         "reference_notes": _published_notes(result.quilt.root),
         "diagnostics": [d.to_dict() for d in diagnostics],
         "tags": {},

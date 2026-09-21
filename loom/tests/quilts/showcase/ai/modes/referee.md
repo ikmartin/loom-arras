@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --run RUN` calls, quote-anchored.
+- Findings are `loom comment ... --session SESSION` calls, quote-anchored.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -17,7 +17,7 @@ Read the closure. Produce the blocks of the output contract in order. Every gap,
 ## Output
 1. `referee-KEY.notes.md`: [summary], [gaps-and-ambiguities], [worked-examples], [counterexample], [referee-review], [referee-revised], [decision].
 2. Annotations for every item of [gaps-and-ambiguities] and [referee-review], ids listed in the notes.
-3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result of `loom compile KEY --with proposal-KEY.diff --run RUN`, which compiles your text in place of the quilt's without changing it.
+3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result of `loom compile KEY --with proposal-KEY.diff --session SESSION`, which compiles your text in place of the quilt's without changing it.
 4. `referee-KEY.check.py` with its output, for every trial.
 5. An entry in `thread.md`.
 

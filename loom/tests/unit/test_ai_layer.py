@@ -35,9 +35,10 @@ def demo(tmp_path: Path, *flags: str) -> Path:
         for rel in ("CLAUDE.md", "AGENTS.md"):
             (q / rel).unlink(missing_ok=True)
         shutil.rmtree(q / ".claude", ignore_errors=True)
-        # the annotation log lives at the quilt root, not under ai/: a run recreated under the same directory name
-        # would otherwise inherit the shipped run's findings, since a run is addressed by that name in the log
+        # the annotation log lives at the quilt root, not under ai/, and the demo now ships sessions of its own: a
+        # test that starts from a bare quilt must clear both, or it counts the demo's sittings as its own
         shutil.rmtree(q / "annotations", ignore_errors=True)
+        shutil.rmtree(q / ".loom" / "sessions", ignore_errors=True)
     r = run("ai", "init", *flags, cwd=q)
     assert r.exit_code == 0, r.output
     return q
@@ -50,7 +51,7 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     assert (q / "ai" / "runs").is_dir()
     assert {p.stem for p in (q / "ai" / "modes").glob("*.md")} == set(MODES)
     root_text = (q / "CLAUDE.md").read_text()
-    assert root_text == (q / "AGENTS.md").read_text() and "loom ai orient" in root_text and "ai/runs/" in root_text
+    assert root_text == (q / "AGENTS.md").read_text() and "loom ai orient" in root_text and ".loom/sessions/" in root_text
     assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md").read_text()
     assert not (q / ".claude").exists()
     again = run("ai", "init", cwd=q)
@@ -82,9 +83,11 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     data = json.loads((q / ".claude" / "settings.json").read_text())
     deny = data["permissions"]["deny"]
     allow = data["permissions"]["allow"]
-    for d in ("nodes", "drafting", "digests", "refs", "annotations", ".loom", "ai/modes"):
+    # `.loom` is no longer denied wholesale: the session an agent writes in lives under it, so the record's own
+    # parts are named instead (plan 0.13 §5).
+    for d in ("nodes", "drafting", "digests", "refs", "annotations", ".loom/history", "ai"):
         assert f"Edit(/{d}/**)" in deny and f"Write(/{d}/**)" in deny, d
-    assert "Edit(/ai/runs/**)" in allow and "Write(/build/**)" in allow
+    assert "Edit(/.loom/sessions/**)" in allow and "Write(/build/**)" in allow
     assert any(rule.startswith("Bash(loom accept") for rule in deny) and any("upgrade" in rule for rule in deny)
 
 
@@ -116,7 +119,7 @@ def test_ai_init_skills_generated_pointer_only(tmp_path: Path) -> None:
 def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path: Path) -> None:
     """The deny list is now the complement of one allow-list, so a command added later is the author's until it is admitted.
 
-    A habit fails the first time a command lands at 2am; this does not. The allow list gives an agent `ai/runs/` and
+    A habit fails the first time a command lands at 2am; this does not. The allow list gives an agent its session directory and
     `build/`, so every command that writes anywhere else is the author's and must appear here by name. It held: the
     hand-written list this replaced was missing seven, `upgrade` and both spellings of `canonize` among them, so
     `loom canonise` walked straight through the deny on `loom canonize` (DR-173).
@@ -126,7 +129,7 @@ def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path
     denied = settings_deny_paths()
     commands = {d.removeprefix("Bash(loom ").removesuffix("*)") for d in denied if d.startswith("Bash(loom ")}
 
-    # every loom command that writes into the quilt outside ai/runs/ and build/
+    # every loom command that writes into the quilt outside its session and build/
     writes_outside_a_run = {
         "accept",
         "atomize",
@@ -151,7 +154,7 @@ def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
 
     # and the files those commands own, which a direct Write would otherwise reach
-    for path in ("/nodes/**", "/drafting/**", "/canon/**", "/digests/**", "/.loom/**", "/reference-notes.jsonl"):
+    for path in ("/nodes/**", "/drafting/**", "/canon/**", "/digests/**", "/.loom/history/**", "/reference-notes.jsonl"):
         assert f"Write({path})" in denied and f"Edit({path})" in denied, path
 
 
@@ -166,9 +169,9 @@ def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
         assert text.startswith(f"# Mode: {mode}\n\n## Before you begin\n")
         assert "## Checklist" in text
         # the write policy is stated in every template, so a mode read without the orientation still carries it.
-        # It says "your run directory" rather than $LOOM_RUN: nothing sets that variable since the launcher went.
+        # It says "your run directory" rather than $LOOM_SESSION: nothing sets that variable since the launcher went.
         assert re.search(r"^- \[ \] Nothing was written outside your run directory\.", text, re.M)
-        assert "$LOOM_RUN" not in text  # nothing sets it; ai/rules.md is the one file that explains that
+        assert "$LOOM_SESSION" not in text  # nothing sets it; ai/rules.md is the one file that explains that
         if mode not in ("quick",):
             assert "## Output" in text and "thread.md" in text
 
@@ -242,37 +245,39 @@ def test_orient_static_plus_live(tmp_path: Path) -> None:
     assert r.exit_code == 0, r.output
     assert r.output.startswith("# Orientation: working in a quilt")
     assert "# Live state" in r.output and "- status: " in r.output and "prefix `dm`" in r.output
-    assert "- undigested citekeys: " in r.output and "- open runs: none" in r.output
+    assert "- undigested citekeys: " in r.output and "- open sessions: none" in r.output
 
 
-def test_run_start_creates_dir_and_toml_and_orient_run(tmp_path: Path) -> None:
+def test_ai_start_opens_a_session_and_orient_prints_its_journal(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = run("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED)
     assert r.exit_code == 0, r.output
-    rel = r.output.strip().splitlines()[0]
-    assert rel == "ai/runs/2026-09-16T14-02-referee-of-dm-0003"  # the name, slugified and truncated
-    toml = (q / rel / "run.toml").read_text()
-    assert toml == 'created = "2026-09-16T14:02:00Z"\nname = "Referee of dm-0003"\ndiscarded = false\n'
+    sid = r.output.strip().splitlines()[0]
+    assert sid == "s-2026-09-16-0001"  # the id is minted, never slugified from the title
+    index = (q / ".loom" / "sessions" / "index.jsonl").read_text()
+    assert '"title": "Referee of dm-0003"' in index and '"event": "created"' in index
+    rel = f".loom/sessions/{sid}"
+    (q / rel).mkdir(parents=True, exist_ok=True)
     (q / rel / "thread.md").write_text(
         "# Thread: referee dm-0003\n\n## 2026-09-16 14:10 first pass\n\nAsked: referee. Did: read the source.\n"
     )
-    assert run("source", "dm-0003", "--closure", "--run", rel, cwd=q).exit_code == 0
+    assert run("source", "dm-0003", "--closure", "--session", sid, cwd=q).exit_code == 0
     log = (q / rel / "run.log").read_text()
     assert "loom source dm-0003 --closure" in log
-    assert not list((q / rel).glob("*.tex"))  # reading writes nothing into the run
-    o = run("ai", "orient", "--run", rel, cwd=q)
+    assert not list((q / rel).glob("*.tex"))  # reading writes nothing into the session
+    o = run("ai", "orient", "--session", sid, cwd=q)
     assert o.exit_code == 0, o.output
-    assert f"# Your run: `{rel}`" in o.output and "first pass" in o.output
+    assert f"# Your session: `{rel}`" in o.output and "first pass" in o.output
     assert "loom source dm-0003" in o.output
     assert "loom ai orient" in (q / rel / "run.log").read_text()
     second = run("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED).output.strip()
-    assert second == rel + "-2"  # a run started in the same minute under the same name gets a suffix
+    assert second == "s-2026-09-16-0002"  # two sessions may share a title; the id is what distinguishes them
 
 
-def test_runs_listed_by_name_and_addressed_by_prefix(tmp_path: Path) -> None:
-    """A run is addressed by what the author called it; remembering the minute it started is not a workflow."""
+def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -> None:
+    """A session is addressed by what the author called it; remembering the minute it opened is not a workflow."""
     q = demo(tmp_path)
-    assert run("ai", "runs", cwd=q).output.strip() == "no open runs"
+    assert run("ai", "runs", cwd=q).output.strip() == "no open sessions"
     ref = run("ai", "start", "Referee of the parity theorem", cwd=q, env=FIXED).output.strip()
     other = run("ai", "start", "Ingest of Hartshorne", cwd=q, env=FIXED).output.strip()
     assert ref != other
@@ -280,10 +285,10 @@ def test_runs_listed_by_name_and_addressed_by_prefix(tmp_path: Path) -> None:
     assert "2026-09-16: Referee of the parity theorem" in listing
     assert "2026-09-16: Ingest of Hartshorne" in listing
 
-    ambiguous = run("ai", "findings", "--run", "of", cwd=q)  # "Referee **of**…" and "Ingest **of**…"
-    assert ambiguous.exit_code == 2 and "matches 2 runs" in ambiguous.output  # named, not guessed
+    ambiguous = run("ai", "findings", "--session", "of", cwd=q)  # "Referee **of**…" and "Ingest **of**…"
+    assert ambiguous.exit_code == 2 and "matches 2 sessions" in ambiguous.output  # named, not guessed
 
-    named = run("ai", "name", "Parity, revisited", "--run", "parity", cwd=q)
+    named = run("ai", "name", "Parity, revisited", "--session", "parity", cwd=q)
     assert named.exit_code == 0, named.output
     assert "Parity, revisited" in run("ai", "runs", cwd=q).output
 
@@ -295,34 +300,36 @@ def test_runs_listed_by_name_and_addressed_by_prefix(tmp_path: Path) -> None:
         "with $X$ a finite set",
         "--kind",
         "suggestion",
-        "--run",
+        "--session",
         ref,
+        "--author",
+        "An Agent",
         cwd=q,
         env=FIXED,
     )
     assert c.exit_code == 0, c.output
-    # the directory leads with a timestamp, so a slug prefix matches nothing unless the slug is looked at on its own
-    by_slug = run("ai", "findings", "--run", "referee-of-the", cwd=q)
-    assert by_slug.exit_code == 0, by_slug.output
+    # part of a title reaches the session, which is how a person addresses one
+    by_part = run("ai", "findings", "--session", "revisited", cwd=q)
+    assert by_part.exit_code == 0, by_part.output
 
-    f = run("ai", "findings", "--run", "parity", cwd=q)
+    f = run("ai", "findings", "--session", "parity", cwd=q)
     assert f.exit_code == 0, f.output
     assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output
 
     assert run("ai", "discard", ref, cwd=q).exit_code == 0
     assert "Parity, revisited" not in run("ai", "runs", cwd=q).output
-    assert "(discarded)" in run("ai", "runs", "--all", cwd=q).output
+    assert "(closed)" in run("ai", "runs", "--all", cwd=q).output
 
 
 def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    rel = run("ai", "start", cwd=q, env=FIXED).output.strip()
-    assert rel.endswith("-run")
+    sid = run("ai", "start", cwd=q, env=FIXED).output.strip()
+    rel = f".loom/sessions/{sid}"
     for args in (("search", "orbit"), ("deps", "dm-0003"), ("unravel", "dm-0001"), ("lint",), ("status",)):
-        r = run(*args, "--run", rel, cwd=q)
+        r = run(*args, "--session", sid, cwd=q)
         assert r.exit_code in (0, 1), (args, r.output)
-    env = dict(FIXED, LOOM_RUN=rel)
-    assert run("search", "gadget", cwd=q, env=env).exit_code == 0  # LOOM_RUN is the default for --run
+    env = dict(FIXED, LOOM_SESSION=sid)
+    assert run("search", "gadget", cwd=q, env=env).exit_code == 0  # LOOM_SESSION is the default for --session
     log = (q / rel / "run.log").read_text().splitlines()
     commands = [ln.split("  ", 1)[1] for ln in log]
     assert commands[:5] == [
@@ -337,23 +344,25 @@ def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
 
 def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = run("ai", "start", "audit", cwd=q)  # the real clock: the check compares mtimes with the run's created time
-    rel = r.output.strip()
+    r = run("ai", "start", "audit", cwd=q)  # the real clock: the check compares mtimes with when the round opened
+    sid = r.output.strip()
+    rel = f".loom/sessions/{sid}"
     started = time.time()
+    (q / rel).mkdir(parents=True, exist_ok=True)
     (q / rel / "audit-dm-0003.notes.md").write_text("## [summary]\nfine\n")
-    ok = run("ai", "check", rel, cwd=q)
+    ok = run("ai", "check", sid, cwd=q)
     assert ok.exit_code == 0 and "ok" in ok.output, ok.output
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text() + "% touched by an agent\n")
     os.utime(node, (started + 60, started + 60))  # well past the run's first second, whatever the clock's resolution
-    bad = run("ai", "check", rel, cwd=q)
+    bad = run("ai", "check", sid, cwd=q)
     assert bad.exit_code == 1 and "loom:agent-wrote-outside-run" in bad.output and "nodes/dm-0002.tex" in bad.output, (
         bad.output
     )
     assert node.read_text().endswith("% touched by an agent\n")  # reported, never reverted
     node.write_text(node.read_text().replace("% touched by an agent\n", ""))
     os.utime(node, (started - 100, started - 100))
-    after = run("ai", "check", rel, cwd=q)
+    after = run("ai", "check", sid, cwd=q)
     assert after.exit_code == 0, after.output
 
     # a digest the agent wrote itself is a write outside the run like any other: `loom digest extract` makes digests
@@ -361,14 +370,15 @@ def test_ai_check_reports_outside_writes(tmp_path: Path) -> None:
     assert run("ai", "promote", "anything", cwd=q).exit_code != 0
     (q / "digests" / "Har77.tex").write_text("% !LOOM digest: Har77\n\\section*{Overview}\nHartshorne.\n")
     os.utime(q / "digests" / "Har77.tex", (started + 60, started + 60))
-    caught = run("ai", "check", rel, cwd=q)
+    caught = run("ai", "check", sid, cwd=q)
     assert caught.exit_code == 1 and "digests/Har77.tex" in caught.output
 
 
-def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> None:
+def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    rel = run("ai", "start", "referee dm-0003", cwd=q, env=FIXED).output.strip()
-    assert run("source", "dm-0003", "--closure", "--run", rel, cwd=q).exit_code == 0
+    sid = run("ai", "start", "referee dm-0003", cwd=q, env=FIXED).output.strip()
+    rel = f".loom/sessions/{sid}"
+    assert run("source", "dm-0003", "--closure", "--session", sid, cwd=q).exit_code == 0
     r = run(
         "comment",
         "dm-0003/proof",
@@ -377,20 +387,23 @@ def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> N
         "diagonal is closed",
         "--kind",
         "objection",
-        "--run",
-        rel,
+        "--session",
+        sid,
+        "--author",
+        "An Agent",
         cwd=q,
-        env=FIXED,
+        env=dict(FIXED, AI_AGENT="1"),
     )
     assert r.exit_code == 0, r.output
+    (q / rel).mkdir(parents=True, exist_ok=True)
     (q / rel / "thread.md").write_text(
         "# Thread: referee dm-0003\n\nOpening note.\n\n## 2026-09-16 14:31 referee\n\nRefereed dm-0003; one objection.\n"
     )
     (q / rel / "referee-dm-0003.notes.md").write_text("## [summary]\nOne objection.\n")
     assert run("build", cwd=q).exit_code == 0
     m = json.loads((q / "build" / "manifest.json").read_text())
-    t = m["threads"]["2026-09-16T14-02-referee-dm-0003"]
-    assert t["kind"] == "run" and t["title"] == "referee dm-0003" and t["created"] == "2026-09-16T14:02:00Z"
+    t = m["threads"][sid]
+    assert t["kind"] == "session" and t["title"] == "referee dm-0003" and t["created"] == "2026-09-16T14:02:00Z"
     assert t["targets"] == ["dm-0003/proof"] and t["discarded"] is False
     assert [msg["body_html"] for msg in t["messages"]][0] == "<p>Opening note.</p>"
     assert t["messages"][1]["time"] == "2026-09-16T14:31:00Z" and "one objection" in t["messages"][1]["body_html"]
@@ -401,23 +414,31 @@ def test_threads_from_runs_in_manifest_and_runs_not_scanned(tmp_path: Path) -> N
         "loom comment dm-0003/proof --quote --kind objection",
     ]
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
-    # a person's annotations are a thread too, grouped by the day they wrote them
-    assert run("comment", "dm-0002", "Mine.", "--author", "Tom", cwd=q, env=FIXED).exit_code == 0
+    # a person writing in the same session is a participant in the same thread, which is the point of the split
+    assert run("comment", "dm-0002", "Mine.", "--author", "Tom", "--session", sid, cwd=q, env=FIXED).exit_code == 0
     assert run("build", cwd=q).exit_code == 0
     m2 = json.loads((q / "build" / "manifest.json").read_text())
-    session = m2["threads"]["comments/tom/2026-09-16"]
-    assert session["kind"] == "comments" and session["participants"] == [{"kind": "person", "id": "Tom"}]
+    again = m2["threads"][sid]
+    assert {"kind": "person", "id": "Tom"} in again["participants"]
+    assert {"kind": "agent", "id": "An Agent"} in again["participants"]
     # the bundle copied into the run is not a master and none of its ids are duplicates
     lint = run("lint", cwd=q).output
     assert "duplicate-id" not in lint and f"{rel}/bundle-dm-0003.tex" not in lint
 
 
-def test_run_flag_relative_to_quilt_root(tmp_path: Path) -> None:
+def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    rel = run("ai", "start", "sub", cwd=q, env=FIXED).output.strip()
-    assert run("search", "gadget", "--run", rel, cwd=q / "nodes").exit_code == 0  # from a subdirectory
-    assert run("source", "dm-0003", "--run", rel, cwd=q / "nodes").exit_code == 0
-    assert run("comment", "dm-0003", "Fine.", "--kind", "ok", "--run", rel, cwd=q / "nodes", env=FIXED).exit_code == 0
+    sid = run("ai", "start", "sub", cwd=q, env=FIXED).output.strip()
+    rel = f".loom/sessions/{sid}"
+    assert run("search", "gadget", "--session", sid, cwd=q / "nodes").exit_code == 0  # from a subdirectory
+    assert run("source", "dm-0003", "--session", sid, cwd=q / "nodes").exit_code == 0
+    assert (
+        run(
+            "comment", "dm-0003", "Fine.", "--kind", "ok", "--session", sid, "--author", "A. Author",
+            cwd=q / "nodes", env=FIXED,
+        ).exit_code
+        == 0
+    )
     log = (q / rel / "run.log").read_text()
     assert "loom search gadget" in log and "loom source dm-0003" in log and "loom comment dm-0003" in log
     assert (q / "annotations" / "log.jsonl").is_file()  # the record lands in the quilt's one log
@@ -438,19 +459,19 @@ def test_upgrade_keeps_an_edited_orientation(tmp_path: Path) -> None:
 
 
 def test_ai_check_does_not_flag_the_annotations_the_agent_was_told_to_write(tmp_path: Path) -> None:
-    """`loom comment --run` appends to the log; the command that verifies an agent behaved reported that as a violation (H13's stale name)."""
+    """`loom comment` appends to the log; the command that verifies an agent behaved reported that as a violation (H13's stale name)."""
     import os
     import time
 
     q = demo(tmp_path)
-    rel = run("ai", "start", "Referee", cwd=q).output.strip()
-    assert run("comment", "dm-0002", "A finding", "--run", rel, cwd=q).exit_code == 0
-    later = time.time() + 60  # run.toml records whole seconds and check allows the run's first one
+    sid = run("ai", "start", "Referee", cwd=q).output.strip()
+    assert run("comment", "dm-0002", "A finding", "--session", sid, "--author", "A. Author", cwd=q).exit_code == 0
+    later = time.time() + 60  # the index records whole seconds and the check allows the round's first one
     os.utime(q / "annotations" / "log.jsonl", (later, later))
 
     r = run("ai", "check", "Referee", cwd=q)  # by name, like every other run address (DR-167)
     assert r.exit_code == 0, r.output
-    assert "ok: nothing outside the run changed" in r.output
+    assert "ok: nothing outside the session changed" in r.output
 
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text() + "\n% edited\n")

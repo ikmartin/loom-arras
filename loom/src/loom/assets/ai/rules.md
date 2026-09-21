@@ -22,23 +22,23 @@ This file is the contract. Where a mode template, the orientation, or anything e
 ## Inputs
 
 1. Inputs come from loom commands, never from reading directories unless explicitly asked.
-   - A key: `loom source KEY --closure --run RUN` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
+   - A key: `loom source KEY --closure --session SESSION` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
    - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
-2. `RUN` above is your run: its name, a prefix of one, or its path. Nothing sets `$LOOM_RUN` for you, so pass `--run` explicitly on every command that accepts it; loom logs the call to that run's `run.log`.
-3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --run RUN`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
+2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`.
+3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --session SESSION`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
 ## Outputs
 
 1. Every output is a file in your run directory, named by mode and target. Never write anywhere else.
 2. LaTeX outputs (`draft-ID.tex`, `proposal-KEY.diff`, `ingest-CITEKEY.tex`) must compile with the quilt's preamble: use the environment names and macros as they appear in the source; `\ref{ID}` and `\uses{ID, ...}` for dependencies; `\incomplete{...}` for anything you could not do; `\label{ID}` when an id was given. This is real LaTeX; no chat restrictions apply.
 3. Notes files (`MODE-TARGET.notes.md`) are Markdown with `$...$` and `$$...$$` math; the viewer renders them, so keep math in TeX. Headings name blocks: `## [hypothesis-ledger]`. A notes file begins with `## [summary]` and ends with the mode's checklist, ticked — except quick's, which is `[answer]` alone, a summary of it being longer than the answer.
-4. Verification you can do: to check that a proposal or a draft compiles, compile it with your text in place of the quilt's (`loom compile KEY --with proposal-KEY.diff --run RUN` or `loom compile --draft draft-ID.tex --run RUN`). Nothing in the quilt changes. Report the result in the notes.
+4. Verification you can do: to check that a proposal or a draft compiles, compile it with your text in place of the quilt's (`loom compile KEY --with proposal-KEY.diff --session SESSION` or `loom compile --draft draft-ID.tex --session SESSION`). Nothing in the quilt changes. Report the result in the notes.
 
 ## Findings
 
-1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind KIND --run RUN`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
+1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind KIND --session SESSION`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
 2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The notes file holds the reasoning and refers to the annotation by the id loom printed.
 4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `ok` for a clean read with nothing to report; `citation` for a work worth citing that the bibliography does not have.
@@ -62,7 +62,7 @@ The blocks below are the vocabulary, not furniture belonging to the templates. W
 
 **Loom is still how anything durable is recorded, and a question is not a reason to stop using it.** Most of what an agent notices while answering something else is worth keeping, and a chat reply loses it the moment the session ends. So, with no mode named:
 
-- you find a fault in a key while answering a question about something else: annotate it (`loom comment KEY "..." --quote "..." --kind objection --severity ... --run RUN`), and say in your reply that you did;
+- you find a fault in a key while answering a question about something else: annotate it (`loom comment KEY "..." --quote "..." --kind objection --severity ... --session SESSION`), and say in your reply that you did;
 - you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
 - you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs note`;
 - you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;

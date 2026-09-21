@@ -37,7 +37,9 @@ from loom.tex.identity import IdentityResult, identity_test
 @click.option("--prefix", default=None)
 @click.option("--next", "next_only", is_flag=True, help="Print the next free id and nothing else; inserts nothing.")
 @click.option("--json", "as_json", is_flag=True, help="With --next: print it as JSON.")
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="Log this call to the run.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 @click.pass_context
 def id_command(

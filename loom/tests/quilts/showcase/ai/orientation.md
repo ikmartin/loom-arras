@@ -24,12 +24,12 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 - `refs/` — what was fetched for each cited work: its source and PDF, under a directory named by the work's identifier. `loom refs path CITEKEY` prints it. Read only, and not in version control.
 - `notes/` — the author's reference material, if the quilt has one: files, excerpts and research notes that are not cited works and not in any digest. Read it when it bears on the task; it is context, not a source to cite, digest or propose from. Never scanned, in version control. Read only.
 - `annotations/log.jsonl` — every review event, appended. Written only by `loom comment` and `loom refs note`; never edit it by hand, and never read it directly when `loom ai findings` or `loom status` will answer the question.
-- `.loom/` — the acceptance ledger, the history of steps and the texts they froze, and loom's caches. Never touch.
+- `.loom/` — the acceptance ledger, the history of steps and the texts they froze, and loom's caches. Never touch, except your own session's directory below.
 - `build/` — derived; ignore.
 - `ai/orientation.md` — this file. `ai/modes/` — the mode templates. Read only.
-- `ai/runs/<run>/` — YOUR run directory, the only place you write files.
+- `.loom/sessions/<id>/` — YOUR session's directory, the only place you write files.
 
-The rule: you write only under your run directory, and you write records only through loom commands. Everything else is the author's.
+The rule: you write only under your session's directory, and you write records only through loom commands. Everything else is the author's.
 
 ## 3. The source contract in one page
 
@@ -51,7 +51,9 @@ Reviews are not states: a key shows how many open annotations it has and who las
 
 ## 5. Commands you use
 
-Nothing sets `$LOOM_RUN` for you. **Pass `--run` explicitly, naming your run**: a run's name, a prefix of one, or its path all work, and an ambiguous prefix will tell you what it matched rather than guess. Every command below that accepts `--run` logs the call to that run's `run.log`.
+Writing lands in the **active session** — `loom ai orient` names it — so you need not pass anything. **Pass `--session` when you mean another one**: its id, its title, or part of either, and an ambiguous value will tell you what it matched rather than guess. `$LOOM_SESSION` is read where it is set. Every command below that accepts `--session` logs the call to that session's `run.log`.
+
+A session is shared: the author may be working in the one you are in, and their annotations and yours sit together. The record says who wrote each — you are named as the agent you are, never as the author whose git identity this shell happens to carry.
 
 Working in the quilt:
 
@@ -72,7 +74,7 @@ Reading the literature the quilt cites. **Ask the digest before you read a paper
 - `loom refs page CITEKEY N[-M]`: a page's text and the section it falls in. **The sanctioned read.** Quote only from this.
 - `loom refs propose CITEKEY --local thm-4.1 --page N --source-text "…" --statement "…" [--level 1]`: record a result you read. `--source-text` must be the page's own words — **the whole statement, not the first clause**, because it is what the author reads your rendering against; if the statement runs onto the next page, give `--page 353-354` — and it is checked against the page; `--statement` is your LaTeX rendering and is never checked for faithfulness — loom names any of its words the quotation does not contain, and those are usually yours: **the body only** (loom writes the environment, the locator and the label, and refuses a statement that carries its own), and **the paper's words only** — no gloss, no "Equivalently…", no definition of a symbol the statement does not define, no note about which page something is on. Those go in your run; in the second study run five of six corrections an author had to make were an agent's additions. A proposal is not verified by passing the page check: only the author verifies it, and until then call it a proposal, waiting for the author. Refused with the page attached if the quotation is not there. A work needs its main results (`--level 1`) before anything deeper. `--local` is the paper's own number — `thm-4.1`, `cor-2.3.1` for the first corollary under 2.3, `eq-1` for a numbered display the paper calls a result, `thm-star-1` for an unnumbered one — and a name that is not one is refused.
 - **A work with a LaTeX source** (`coverage` says `src yes`) has a mechanical digest; read that first. A result the extractor missed is quoted from the source, not the PDF: `--source-file main.tex` in place of `--page`, with `--source-text` the LaTeX itself, because the PDF's text layer has lost the mathematics — a formula there is often control bytes.
-- `loom refs link --from ID --to ID --kind same-notion|generalises|specialises|depends-on|contradicts --why "…" --run RUN`: **record a relation between two results, with a reason.** When you work out how two papers' results relate, record it here rather than in a notes file: a link is drawn in the author's digest view and found from either end, and prose in your run is found by nobody. A link is an assertion, never checked, never citable.
+- `loom refs link --from ID --to ID --kind same-notion|generalises|specialises|depends-on|contradicts --why "…" --session SESSION`: **record a relation between two results, with a reason.** When you work out how two papers' results relate, record it here rather than in a notes file: a link is drawn in the author's digest view and found from either end, and prose in your session is found by nobody. A link is an assertion, never checked, never citable.
 - `loom refs why ID`, `loom refs links ID`: where a result came from, and what it has been related to.
 - `loom refs overview CITEKEY`: a digest's overview, which is written to be read whole.
 
@@ -80,25 +82,25 @@ Reading the literature the quilt cites. **Ask the digest before you read a paper
 
 Recording what you found:
 
-- `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question|ok|citation --run RUN`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
+- `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question|ok|citation --session SESSION`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
 - `--severity major|moderate|minor` grades the fault; `--payload` carries text you are proposing and `--placement replace|after|before` says where it would go; `--reply ID` answers the author; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
 
 Your run:
 
 - `loom ai runs [--all]`: the quilt's runs, as `YYYY-MM-DD: name`.
 - `loom ai start "A name"`: open a new run and print its directory. Name it for what you were asked to do.
-- `loom ai orient --run RUN`: this document, the quilt's live state, and that run's journal — how you resume a run, yours or another agent's.
-- `loom ai findings --run RUN [--json]`: what that run has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a run.
-- `loom ai name "A better name" --run RUN`: rename a run once you know what it turned into.
+- `loom ai orient --session SESSION`: this document, the quilt's live state, and that session's journal — how you rejoin a session, yours, the author's, or another agent's.
+- `loom ai findings --session SESSION [--json]`: what that session has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a session.
+- `loom ai name "A better title" --session SESSION`: retitle a session once you know what it turned into.
 
-## 6. Your run
+## 6. Your session
 
-A run is one conversation with you and nothing more. It has no mode, no state and no lifecycle: it is never concluded, and you rejoin one by passing `--run` again. Write in its directory:
+A session is a stretch of work on this quilt, and it may be shared with the author. It has no mode: it is opened, worked in, and closed when the work is done, and you rejoin one with `loom session use` or by naming it with `--session`. Write in its directory:
 
 - outputs named by mode and target: `referee-rl-0004.notes.md`, `draft-rl-0019.tex`, `proposal-rl-0004.diff`, `ingest-Man12.tex`. Where a mode's template says a second pass is numbered, as referee's and review's do, it is: `referee-rl-0004.2.notes.md`.
 - `thread.md`: after each significant exchange, append a dated entry saying what was asked, what you did, what you decided and what remains. Keep it; a later session, yours or another agent's, resumes from it.
 
-Loom writes `run.log` there for you, and `run.toml`, which holds the run's name and nothing you need to edit.
+Loom writes `run.log` there for you. The session's title and state live in `.loom/sessions/index.jsonl`, which is loom's to append to and never yours to edit.
 
 ## 7. Modes
 

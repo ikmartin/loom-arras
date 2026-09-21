@@ -2,14 +2,14 @@
 
 ## Before you begin
 - Write only under your run directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --run RUN` calls, quote-anchored.
+- Findings are `loom comment ... --session SESSION` calls, quote-anchored.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
 A load-bearing audit of one key. Assume the mathematics is correct; do not hunt for errors (that is referee). Hunt for mismatch between what is stated and what is used. If an error surfaces incidentally, flag it in [summary] and as an objection, and continue the audit; do not switch into referee mode.
 
 ## Input
-- `loom source KEY --closure --run RUN`.
+- `loom source KEY --closure --session SESSION`.
 - `loom deps KEY --closure --json` for the closure and edge kinds.
 - `loom status --json` for the states of the closure.
 - Digest nodes for cited results are in the closure when the citation resolved; otherwise standing rule 5.
