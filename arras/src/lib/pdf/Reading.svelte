@@ -1,31 +1,49 @@
 <script lang="ts">
-	// Reading mode for one work: the page on the left, what is anchored to it on the right (plan 0.13 step 1, item 5).
+	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the notes on its pages drawn over it, and
+	// the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it
+	// are the Library View's, so there is one frame and not one inside another.
 	//
-	// The slice's shape, not the split view — no divider, no placements, no session, nothing written. What it exists to
-	// prove is that the three load-bearing pieces meet: loom's anchors draw on a real page, a mark travels to the thing
-	// it belongs to, and a selection made in this browser — a third extraction of the page, after the committed text and
-	// the word boxes — comes back from loom as an anchor.
+	// **The session selection governs the page.** What the panel is showing is what the page marks; a note the
+	// selection hides is counted in the header rather than drawn. **Two notes on one place are one mark** carrying
+	// both, as a phrase shared in a fragment is (§8): stacked translucent highlights muddy immediately, and the box that
+	// opens holds every lead comment in place.
+	//
+	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a
+	// link pointed at, lit while the URL carries it and not recorded; `annot=` names a note by id and focuses its mark.
 	import { artifactUrl, dataUrl } from '$lib/paths';
-	import { write, type WriteResult } from '$lib/write';
+	import { store } from '$lib/manifest/client.svelte';
+	import { hidden, visible } from '$lib/sessions/sessions.svelte';
+	import { prefs } from '$lib/prefs.svelte';
+	import { ui } from '$lib/ui.svelte';
+	import { inlineComments, type InlineComments } from '$lib/fragments/expand';
+	import { repliesTo } from '$lib/annotations';
+	import { travel as goTo } from '$lib/travel/travel';
+	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
+	import type { Sidecar } from './sidecar';
 	import type { Reference } from '$lib/manifest/types';
+	import type { WorkLink } from '$lib/worklink';
+	import { write, type WriteResult } from '$lib/write';
 	import PdfDoc from './PdfDoc.svelte';
-	import Split from '$lib/split/Split.svelte';
-	import Composer from '$lib/sessions/Composer.svelte';
-	import Stream from '$lib/sessions/Stream.svelte';
+	import NoteAt from './NoteAt.svelte';
 
-	let { citekey, ref, page }: { citekey: string; ref: Reference; page: number } = $props();
-
-	/** `build/spans/<scheme>/<id>.json`, as `_attach_spans` writes it. */
-	interface Sidecar {
-		artifact: string;
-		pages: Record<string, { width: number; height: number; rotate: number }>;
-		quads: Record<string, number[][]>;
-	}
+	let {
+		citekey,
+		ref,
+		page,
+		locator = null
+	}: {
+		citekey: string;
+		ref: Reference;
+		page: number;
+		/** A place the URL points at: `span`, `box`, `quote` are lit transiently; `annot` focuses a note's mark. */
+		locator?: WorkLink | null;
+	} = $props();
 
 	const url = $derived(ref.artifacts?.pdf ? artifactUrl(ref.artifacts.dir) : '');
 	let spans = $state<Sidecar | null>(null);
 	let active = $state('');
-	let told = $state('');
+	/** The place a note is being written against, while the composer is open. */
+	let noting = $state<{ page: number; text?: string; rects?: number[][]; at: { left: number; top: number; width: number; height: number } } | null>(null);
 
 	// Fetched by the sidecar's own hash rather than derived from the manifest: the manifest is replaced on every poll,
 	// and re-fetching geometry once a second is exactly the re-render this pane must not do. Naming the hash is also
@@ -45,26 +63,59 @@
 		};
 	});
 
-	/** Every anchor's geometry, by the page it is on: the document view draws what belongs to each page it renders. */
-	const drawn = $derived(
-		Object.entries(spans?.quads ?? {})
-			.map(([id, rects]) => ({ id, page: ref.results?.[id]?.page ?? 0, rects }))
-			.filter((s) => s.page > 0)
+	/** The notes on this work's pages, top-level and standing. The session selection governs the page (plan 0.13 §7): what the panel is showing is what the page marks, and a note the selection hides is counted rather than drawn. */
+	const notes = $derived(
+		Object.values(store.manifest?.annotations ?? {}).filter(
+			(a) => a.target.work === citekey && !a.discarded && a.in_reply_to === null && (a.target.page ?? 0) > 0
+		)
 	);
+	const kept = $derived(hidden(store.manifest, notes));
+	/** The place the URL points at, mapped by loom into rectangles, while the URL carries it. */
+	let lit = $state<{ page: number; rects: number[][] } | null>(null);
+	$effect(() => {
+		const l = locator;
+		if (!l || (!l.span && !l.box && !l.quote)) {
+			lit = null;
+			return;
+		}
+		const at = l.page ?? page;
+		if (l.box) {
+			lit = { page: at, rects: [[...l.box]] };
+			return;
+		}
+		let dropped = false;
+		const body: Record<string, unknown> = l.span ? { citekey, page: at, span: l.span } : { citekey, page: at, text: l.quote };
+		void write('locate', body).then((res: WriteResult & { anchor?: { quads?: number[][] } }) => {
+			if (dropped) return;
+			lit = res.ok && res.anchor?.quads?.length ? { page: at, rects: res.anchor.quads } : null;
+		});
+		return () => {
+			dropped = true;
+		};
+	});
+
+	type Drawn = { id: string; page: number; rects: number[][]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean };
+	/** Every anchor's geometry, by the page it is on: the work's results, the notes the selection shows -- stacked where they share a place -- and the lit locator. The document view draws what belongs to each page it renders. */
+	const drawn = $derived.by<Drawn[]>(() => {
+		const out: Drawn[] = Object.entries(spans?.quads ?? {})
+			.map(([id, rects]) => ({ id, page: ref.results?.[id]?.page ?? 0, rects }))
+			.filter((s) => s.page > 0);
+		const stacked = new Map<string, Drawn>();
+		for (const a of notes) {
+			const rects = spans?.marks?.[a.id];
+			if (!rects || !visible(store.manifest, a)) continue;
+			const key = `${a.target.page}:` + rects.map((r) => r.map((v) => Math.round(v)).join(',')).join(';');
+			const same = stacked.get(key);
+			if (same) same.ids!.push(a.id);
+			else stacked.set(key, { id: a.id, ids: [a.id], page: a.target.page ?? 0, rects, note: true, kind: a.kind });
+		}
+		out.push(...stacked.values());
+		if (lit) out.push({ id: '_locator', page: lit.page, rects: lit.rects, transient: true });
+		return out;
+	});
+	const focusOn = $derived(locator?.annot ?? (lit ? '_locator' : active));
 	let at = $state(0);
 	const onPage = $derived(drawn.filter((s) => s.page === (at || page)));
-
-	/** What `locate` answers beside the usual result line: the anchor loom would record, and the line a person reads. */
-	interface Located {
-		anchor?: Record<string, unknown>;
-		text?: string;
-	}
-
-	async function locate(body: Record<string, unknown>): Promise<void> {
-		told = 'asking loom…';
-		const res: WriteResult & Located = await write('locate', { citekey, ...body });
-		told = res.ok ? `${res.result}\n${JSON.stringify(res.anchor)}` : `refused: ${res.error?.message ?? ''}`;
-	}
 
 	// Three states, not two. A work whose LaTeX is in the store but whose PDF is not has a digest worth trusting and no
 	// page to show it against, which is neither "nothing here" nor "we could not get it" — and page-numbered locators
@@ -77,96 +128,127 @@
 				: 'No copy of this paper on this machine.'
 	);
 
-	function travel(e: { id: string; travel: boolean }): void {
+	/** Where a box over the page lives: the content pane, since a mark sits in an overlay that takes no pointer events. */
+	let pane = $state<HTMLElement | null>(null);
+	let boxes: InlineComments | null = null;
+	// One controller for the life of the pane, reading the manifest at the moment a box opens: recreating it on every
+	// poll would shut whatever the reader had open, which is the failure `Fragment.svelte` has been patched for twice.
+	$effect(() => {
+		const host = pane;
+		const placement = prefs.comments;
+		if (!host || placement === 'margin') {
+			boxes?.destroy();
+			boxes = null;
+			return;
+		}
+		// `inline` is the Authoring View's alone: a PDF page cannot reflow, so it opens floating here
+		boxes = inlineComments(() => store.manifest, true, { host });
+		return () => {
+			boxes?.destroy();
+			boxes = null;
+		};
+	});
+
+	/** The notes in the margin column, in the order they stand on the page: by page, then down it. */
+	const inMargin = $derived(
+		prefs.comments === 'margin'
+			? drawn
+					.filter((d) => d.note)
+					.sort((x, y) => x.page - y.page || (x.rects[0]?.[1] ?? 0) - (y.rects[0]?.[1] ?? 0))
+					.map((d) => store.manifest!.annotations[d.id])
+					.filter(Boolean)
+			: []
+	);
+
+	function travel(e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }): void {
 		active = e.id;
-		if (!e.travel) return;
-		document
-			.querySelector(`[data-anchored="${CSS.escape(e.id)}"]`)
-			?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		if (e.note) ui.activeAnnotation = e.id;
+		if (e.travel) {
+			// a note travels to its row in the discussion; a result to its entry beside the page
+			const to = e.note
+				? document.querySelector(`[data-testid="beside-${CSS.escape(e.id)}"]`)
+				: document.querySelector(`[data-anchored="${CSS.escape(e.id)}"]`);
+			goTo(to, e.el);
+			return;
+		}
+		if (e.note && boxes) boxes.toggle(e.el, e.ids);
 	}
 </script>
 
 <section class="reading" data-testid="reading">
-	<Split contentLabel="the paper" discussionLabel="anchored">
-		{#snippet content()}
-			{#if url}
-				<PdfDoc
-					{url}
-					{page}
-					spans={drawn}
-					focus={active}
-					onselect={(e) => locate({ page: e.page, text: e.text })}
-					onbox={(e) => locate({ page: e.page, rects: e.rects })}
-					onmark={travel}
-					onpage={(e) => (at = e.page)}
-				/>
-			{:else}
-				<p class="muted" data-testid="reading-absent">{absent}</p>
+	{#if url}
+		{#if kept}<p class="kept" data-testid="reading-hidden">{kept} note{kept === 1 ? '' : 's'} hidden by the session being shown</p>{/if}
+		<div class="paper" class:with-margin={prefs.comments === 'margin'} bind:this={pane}>
+			<PdfDoc
+				{url}
+				{page}
+				spans={drawn}
+				focus={focusOn}
+				onselect={(e) => (noting = { page: e.page, text: e.text, at: e.client })}
+				onbox={(e) => (noting = { page: e.page, rects: e.rects, at: e.client })}
+				onmark={travel}
+				onpage={(e) => (at = e.page)}
+			/>
+			{#if prefs.comments === 'margin'}
+				<!-- The margin column beside a page: the notes on the drawn pages, in the order they stand, each pushed
+				     below the one before. Its promise is *beside* rather than *level with*, as the fragment's is. -->
+				<aside class="margin" data-testid="reading-margin">
+					{#each inMargin as a (a.id)}
+						<AnnotationBox annotation={a} replies={repliesTo(store.manifest!, a.id)} anchor={false} />
+					{:else}
+						<p class="muted">No notes on the pages in view.</p>
+					{/each}
+				</aside>
 			{/if}
-		{/snippet}
-		{#snippet discussion()}
-			<div class="stack">
-			<aside class="beside">
-				<h2>Anchored to page {at || page}</h2>
-				{#each onPage as q (q.id)}
-					<article data-anchored={q.id} data-testid="anchored-{q.id}" class:active={active === q.id}>
-						<h3>{q.id}</h3>
-						<p>{ref.results?.[q.id]?.source_text ?? ''}</p>
-					</article>
-				{:else}
-					<p class="muted">Nothing is anchored to this page.</p>
-				{/each}
-				{#if told}<pre class="told" data-testid="located">{told}</pre>{/if}
-			</aside>
-			<Stream />
-			<!-- docked in the discussion pane's foot, which is where a reply to what is beside it belongs -->
-			<Composer />
-			</div>
-		{/snippet}
-	</Split>
+		</div>
+	{:else}
+		<p class="muted" data-testid="reading-absent">{absent}</p>
+	{/if}
+	{#if noting}
+		<NoteAt
+			{citekey}
+			page={noting.page}
+			text={noting.text ?? ''}
+			rects={noting.rects}
+			at={noting.at}
+			onwritten={() => {
+				noting = null;
+				store.refresh();
+			}}
+			onclose={() => (noting = null)}
+		/>
+	{/if}
 </section>
 
 <style>
 	.reading {
-		height: 78vh;
-		min-height: 320px;
-		margin: 16px 0;
-		border: 1px solid var(--rule, #ddd9cf);
-	}
-	.stack {
 		display: flex;
 		flex-direction: column;
 		height: 100%;
 		min-height: 0;
 	}
-	.beside {
+	.paper {
+		position: relative;
 		flex: 1 1 auto;
+		min-height: 0;
+		display: flex;
+	}
+	.paper > :global(.doc) {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	.margin {
+		flex: 0 0 300px;
 		overflow: auto;
-		padding: 8px 12px;
-		font-size: 0.9rem;
+		padding: 8px;
+		border-left: 1px solid var(--rule, #ddd9cf);
+		font-size: 0.85rem;
 	}
-	h2 {
+	.kept {
 		margin: 0;
-		font-size: 0.95rem;
-	}
-	article {
-		border-top: 1px solid var(--rule, #ddd9cf);
-		padding: 8px 0;
-	}
-	article.active {
-		background: var(--annotation-tint, rgb(217 119 87 / 0.14));
-	}
-	h3 {
-		margin: 0 0 4px;
-		font-size: 0.8rem;
-	}
-	p {
-		margin: 0;
-	}
-	.told {
-		margin-top: 12px;
-		font-size: 0.72rem;
-		white-space: pre-wrap;
-		word-break: break-all;
+		padding: 2px 8px;
+		font-family: var(--sans);
+		font-size: 11px;
+		color: var(--ink-faint);
 	}
 </style>

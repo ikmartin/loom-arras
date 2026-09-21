@@ -188,7 +188,10 @@ export interface Annotation {
   id: string;
   author: Author;
   created: string;
-  target: { key: string; hash: string };
+  /** What it is about. A key in the quilt -- or, for a note on a page of a cited work, the work's identifier, with `work` the citekey the viewer knows it by and `page` where on it (plan 0.13 item 2). */
+  target: { key: string; hash: string; work?: string | null; page?: number | null };
+  /** On a note on a page: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. */
+  basis?: "text" | "box" | null;
   kind: string;
   body_html: string;
   status: "open" | "resolved" | (string & {});
@@ -367,6 +370,8 @@ export interface Reference {
   unreadable?: { why: string; who: string; when: string };
   /** Where the work's anchor geometry is published, and its hash. Beside the manifest rather than in it: the manifest is loaded whole on every poll, and rectangles are wanted for the one paper being read. Absent when no copy of the paper is on the publishing machine, which is the honest state — the viewer then has nothing to draw. */
   spans?: { path: string; sha256: string };
+  /** The notes on this work's pages: how many, and how many still await an answer. They are in no key's row and count toward no total, so this is where a list says a paper has been read. */
+  reading?: { total: number; open: number };
   digest: {
     file: string;
     fragment: string;

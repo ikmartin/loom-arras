@@ -149,6 +149,36 @@ def token_boxes(pdf: Path, page: int, home: Path | None = None) -> str:
     return xml
 
 
+def page_rotation(pdf: Path, page: int, home: Path | None = None) -> float:
+    """A page's rotation in degrees, from `pdfinfo`, cached beside the word boxes; 0.0 when it cannot be read.
+
+    The `-bbox-layout` output carries no rotation and its page box is already the rotated one, so a viewer drawing against that box needs nothing more; the value is published for one that does not. Read per page because a document may rotate one landscape figure page and no other. Failing soft: geometry is a convenience and a missing `pdfinfo` must not stop a build.
+    """
+    cache = None
+    if home is not None:
+        cache = home.parent.parent / "cache" / "boxes" / home.parent.name / home.name / f"{page:04d}.rot"
+        if cache.is_file():
+            try:
+                return float(cache.read_text(encoding="utf-8").strip() or 0)
+            except ValueError:
+                pass
+    try:
+        proc = subprocess.run(
+            ["pdfinfo", "-f", str(page), "-l", str(page), str(pdf)], capture_output=True, text=True, timeout=60, check=False
+        )
+        m = re.search(r"^Page\s+(?:\d+\s+)?rot:\s*(-?\d+)", proc.stdout, re.M) if proc.returncode == 0 else None
+        rot = float(m.group(1)) if m else 0.0
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        rot = 0.0
+    if cache is not None:
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(f"{rot}\n", encoding="utf-8")
+        except OSError:
+            pass
+    return rot
+
+
 def _clean_title(raw: str) -> str:
     """A heading's own words, with a run-in paragraph and any dot leaders cut off.
 

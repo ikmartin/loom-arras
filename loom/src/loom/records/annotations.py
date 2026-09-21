@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from loom.anchors import Anchor
 from loom.records.selectors import Selector
 
 #: What an annotation is (plan 0.13 §7). `confirmation` replaces `ok`: every other kind is a noun, loom's own prose
@@ -41,12 +42,13 @@ class Annotation:
     author_kind: str  # agent | person: who wrote it, which is not where it belongs (plan 0.13 §5)
     author_id: str
     created: str
-    target_key: str
+    target_key: str  # a key in the quilt, or -- for a note on a page of a cited work -- the work's identifier
     target_hash: str
-    selector: Selector | None
+    selector: Selector | None  # the text triple: what was quoted, and the words either side
     kind: str
     body: str
     status: str = "open"
+    anchor: Anchor | None = None  # the page anchor of a note on a cited work's page; None on a key (plan 0.13 item 2)
     in_reply_to: str | None = None
     severity: str | None = None  # major | moderate | minor: how bad the fault is, not how keen the suggestion
     payload: str | None = None  # suggested text, previewed and copied by the author; nothing applies it (WQ-27)
@@ -62,6 +64,7 @@ class Annotation:
             "created": self.created,
             "target": {"key": self.target_key, "hash": self.target_hash},
             "selector": self.selector.to_dict() if self.selector else None,
+            "anchor": self.anchor.to_dict() if self.anchor else None,
             "kind": self.kind,
             "body": self.body,
             "status": self.status,
@@ -75,6 +78,7 @@ class Annotation:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Annotation:
         sel = d.get("selector")
+        anc = d.get("anchor")
         return cls(
             id=str(d["id"]),
             author_kind=str(d.get("author", {}).get("kind", "person")),
@@ -83,6 +87,7 @@ class Annotation:
             target_key=str(d.get("target", {}).get("key", "")),
             target_hash=str(d.get("target", {}).get("hash", "")),
             selector=Selector.from_dict(sel) if isinstance(sel, dict) else None,
+            anchor=Anchor.from_dict(anc) if isinstance(anc, dict) else None,
             kind=str(d.get("kind", "objection")),
             body=str(d.get("body", "")),
             status=str(d.get("status", "open")),

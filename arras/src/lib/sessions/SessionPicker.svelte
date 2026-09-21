@@ -40,6 +40,28 @@
 		sessionView.showing = id;
 		sessionView.save();
 	}
+
+	let naming = $state(false);
+	let name = $state('');
+
+	/** A session created on the spot and named by the author, made the one writing lands in (§16). */
+	async function make(): Promise<void> {
+		const want = name.trim();
+		naming = false;
+		if (!want) return;
+		busy = 'new';
+		await write('session-new', { title: want });
+		busy = '';
+		name = '';
+		store.refresh();
+	}
+
+	async function shut(id: string): Promise<void> {
+		busy = id;
+		await write('session-close', { session: id });
+		busy = '';
+		store.refresh();
+	}
 </script>
 
 <div class="sessions" data-testid="session-picker">
@@ -49,6 +71,18 @@
 			<strong data-testid="session-active">{here.title}</strong>
 		{:else}
 			<span class="none" data-testid="session-none">nothing yet — the first annotation opens one</span>
+		{/if}
+		{#if naming}
+			<input
+				class="rename"
+				bind:value={name}
+				placeholder="what this sitting is for"
+				aria-label="The new session's title"
+				data-testid="session-new-title"
+				onkeydown={(e) => (e.key === 'Enter' ? make() : e.key === 'Escape' ? (naming = false) : undefined)}
+			/>
+		{:else}
+			<button type="button" class="new" title="Start a new session" data-testid="session-new" onclick={() => (naming = true)}>+ new</button>
 		{/if}
 	</p>
 
@@ -91,6 +125,16 @@
 							<span class="verbs">
 							<!-- The picker chooses what the page shows; the permalink is where the session is read back whole. -->
 							<a href={sessionUrl(s.id)} title="Open this session" aria-label="Open {s.title}" data-testid="session-open-{s.id}">↗</a>
+							{#if s.active}
+								<button
+									type="button"
+									title="Close this session"
+									aria-label="Close {s.title}"
+									disabled={busy === s.id}
+									data-testid="session-close-{s.id}"
+									onclick={() => shut(s.id)}>⏹</button
+								>
+							{/if}
 								<button
 									type="button"
 									title="Rename"
@@ -229,6 +273,17 @@
 		color: var(--ink-faint, #6b6b6b);
 		font-size: 0.9em;
 		white-space: nowrap;
+	}
+	.new {
+		margin-left: auto;
+		font: inherit;
+		font-size: 0.86em;
+		color: var(--ink-faint, #6b6b6b);
+		background: none;
+		border: 1px solid var(--rule, #ddd9cf);
+		border-radius: 3px;
+		padding: 0 5px;
+		cursor: pointer;
 	}
 	.verbs a {
 		color: var(--ink-faint, #6b6b6b);

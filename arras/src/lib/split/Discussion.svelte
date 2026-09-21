@@ -41,6 +41,7 @@
 				{#each shown as a (a.id)}
 					<li data-testid="beside-{a.id}">
 						<button type="button" class="as-link" onclick={(e) => go(a.id, e.currentTarget)}>{a.kind}</button>
+						{#if a.target.page}<span class="page" data-testid="beside-page-{a.id}">p.{a.target.page}{a.basis === 'box' ? ' (box)' : ''}</span>{/if}
 						<span class="who">{a.author.label ?? a.author.id}</span>
 						{#if a.quote}<span class="quote">“{a.quote}”</span>{/if}
 						<Prose html={a.body_html} />
@@ -87,7 +88,8 @@
 	.notes li + li {
 		margin-top: var(--gap-tight);
 	}
-	.who {
+	.who,
+	.page {
 		color: var(--ink-faint);
 	}
 	.quote {

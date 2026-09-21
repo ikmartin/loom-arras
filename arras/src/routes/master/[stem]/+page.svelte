@@ -15,7 +15,8 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	import { dataUrl } from '$lib/paths';
-	import { openOn, repliesTo } from '$lib/annotations';
+	import { repliesTo } from '$lib/annotations';
+	import { commentsOn, slotsFor } from '$lib/fragments/slots';
 	import Composer from '$lib/review/Composer.svelte';
 	import Beside from '$lib/split/Beside.svelte';
 
@@ -23,32 +24,14 @@
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
 	const master = $derived(m.masters.find((x) => masterStem(x.path) === stem));
 
-	/** How much a comment may say before a gutter is the wrong place for it. Measured on the rendered text of the comment and its replies. */
-	const GUTTER_LIMIT = 220;
-
 	/** What the discussion pane beside the document is about: the document itself, and every key it reaches. */
 	const inDocument = $derived(master ? [master.path, ...Object.keys(m.nodes).filter((k) => m.nodes[k].reached_by.includes(master.path))] : []);
 
 	/** Annotations on the document itself, as opposed to on anything inside it. */
-	const onDocument = $derived(master ? commentsOn(master.path) : []);
+	const onDocument = $derived(master ? commentsOn(m, master.path) : []);
 
 	const replies = (id: string) => repliesTo(m, id);
-
-	function plainLength(a: Annotation): number {
-		const own = a.body_html.replace(/<[^>]*>/g, '').trim().length + (a.quote?.length ?? 0);
-		return own + replies(a.id).reduce((n, r) => n + r.body_html.replace(/<[^>]*>/g, '').trim().length, 0);
-	}
-
-	/** The undiscarded top-level comments on exactly this key, in manifest order. A proof has an element of its own, so matching a node's proofs here as well would place the same comment twice. */
-	function commentsOn(key: string): Annotation[] {
-		return openOn(m, key);
-	}
-
-	function slots(key: string): CommentSlot[] {
-		// shown in place, a comment with a mark is reached from its mark; one without gets a count beside its node's label
-		if (prefs.comments !== 'margin') return commentsOn(key).filter((a) => !(a.anchored && a.quote)).map((a) => ({ id: a.id, where: 'count' }));
-		return commentsOn(key).map((a) => ({ id: a.id, where: plainLength(a) > GUTTER_LIMIT ? 'inline' : 'gutter' }));
-	}
+	const slots = slotsFor(() => m);
 
 	// The fragment is injected HTML, so the cards are mounted into the slots its wiring created rather than rendered by this template. They are unmounted whenever the fragment is replaced, so a reload leaves nothing behind.
 	let mounted: Record<string, unknown>[] = [];

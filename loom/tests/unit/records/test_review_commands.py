@@ -496,7 +496,7 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
     assert "sy-0009" in run("status", "--loose", cwd=q).output
     assert run("status", "--undigested", cwd=q).output.strip() == "Har77"
     j = status_json(q)
-    assert set(j) == {"summary", "keys", "runs", "undigested", "retired", "digests"}
+    assert set(j) == {"summary", "keys", "runs", "undigested", "retired", "digests", "reading"}
     assert j["summary"]["incomplete"] == 1
 
 

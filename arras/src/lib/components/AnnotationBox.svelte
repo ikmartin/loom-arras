@@ -14,7 +14,8 @@
 	/** Single click selects, double-click travels to this annotation's place in the text (plan 0.13 §7). */
 	function go(e: MouseEvent): void {
 		e.preventDefault();
-		const mark = document.querySelector(`.fragment mark.annotation[data-annotation~="${CSS.escape(annotation.id)}"]`);
+		// a mark in a fragment, or a note's mark on a PDF page: both carry the id the same way
+		const mark = document.querySelector(`[data-annotation~="${CSS.escape(annotation.id)}"]`);
 		// a detached annotation, or one anchored in another document, has no place here; nothing is invented for it
 		travel(mark, e.currentTarget as Element);
 	}

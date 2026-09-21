@@ -21,7 +21,7 @@ describe('the display preferences', () => {
 			divider: 0.62,
 			swap: false,
 			panel: true,
-			zoom: 1.4,
+			zoom: { pdf: 1.4 },
 			face: 'serif',
 			size: 'm',
 			width: 'mid',

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 from click.testing import CliRunner
@@ -1587,3 +1588,241 @@ def test_a_post_carries_what_changed_since_the_last_one(tmp_path: Path) -> None:
     # and the next post carries only what changed after it, rather than repeating itself
     handle(q, "message", {"text": "Anything?", "author": "A. Author"})
     assert read_events(q, sid)[-1].changed == []
+
+
+# ---- a page of a cited work as a target (plan 0.13 item 2, item 4) -------------------------------------------------
+
+
+def _note_on_page(q: Path, session: str, **fields: Any) -> str:
+    """Append one `created` event for a note on a page of `Calloway14`, whose demo store is `doi/10.4171_demo_14-1`."""
+    import json as _json
+
+    from loom.records.log import append
+    from loom.records.store import Records
+
+    ann_id = fields.pop("id")
+    anchor = {"kind": "pdf", "sha256": fields.pop("sha256"), "page": fields.pop("page", 2), **fields.pop("anchor", {})}
+    append(
+        q,
+        {
+            "when": "2026-09-21T10:00:00Z",
+            "author": "A. Author",
+            "kind": "human",
+            "session": session,
+            "event": "created",
+            "id": ann_id,
+            "target": "doi:10.4171/demo/14-1",
+            "against": "sha256:" + anchor["sha256"],
+            "anchor": anchor,
+            "annotation_kind": fields.pop("kind", "question"),
+            "body": fields.pop("body", "Is this the balanced case?"),
+            **fields,
+        },
+    )
+    Records(q)  # replays: a malformed event would be reported here, and the assertion below is on the shape
+    return _json.dumps(anchor)
+
+
+def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
+    """The log's `anchor` is two shapes under one name: the text triple every annotation carries, and -- on a note against a page -- the page anchor beside it, told apart by `kind`. `Selector.from_dict` used to swallow the page fields without a word."""
+    from loom.records.annotations import load_records
+
+    q = quilt(tmp_path)
+    sid = run("session", "new", "reading", cwd=q).output.split()[0]
+    _note_on_page(
+        q, sid, id="a-2026-09-21-0001", sha256="feed" * 16,
+        anchor={"basis": "text", "start": 12, "end": 36, "exact": "balanced at every vertex", "prefix": "locus is ", "suffix": " of the"},
+    )
+    _note_on_page(
+        q, sid, id="a-2026-09-21-0002", sha256="feed" * 16, kind="note",
+        anchor={"basis": "box", "quads": [[82.8, 278.1, 529.2, 315.7]], "exact": "", "prefix": "", "suffix": ""},
+    )
+    plain_out = run("comment", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
+    assert plain_out.exit_code == 0, plain_out.output
+
+    records, problems = load_records(q)
+    assert problems == []
+    by_id = {a.id: a for r in records for a in r.annotations}
+    text = by_id["a-2026-09-21-0001"]
+    assert text.anchor is not None and (text.anchor.kind, text.anchor.page, text.anchor.basis) == ("pdf", 2, "text")
+    assert (text.anchor.start, text.anchor.end) == (12, 36) and text.anchor.quads is None
+    assert text.selector is not None and text.selector.exact == "balanced at every vertex"
+    assert text.target_key == "doi:10.4171/demo/14-1"
+    box = by_id["a-2026-09-21-0002"]
+    assert box.anchor is not None and box.anchor.basis == "box" and box.anchor.quads == [[82.8, 278.1, 529.2, 315.7]]
+    # and a note on a key is exactly what it was: a selector and no page anchor
+    plain = next(a for a in by_id.values() if a.target_key == "dm-0003")
+    assert plain.anchor is None
+    # the shape survives the dict form the manifest and the API hand around
+    assert text.to_dict()["anchor"]["basis"] == "text" and "quads" not in text.to_dict()["anchor"]
+    assert box.to_dict()["anchor"]["quads"] == [[82.8, 278.1, 529.2, 315.7]]
+
+
+def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_path: Path) -> None:
+    """`recorded` is whether the artifact the anchor names is the one in the store; `detached` is a quotation that no longer locates in the page's committed text; a box is never detached. The target is the work's identifier and the citekey is found through the bibliography, so a renamed citekey changes nothing. None of it touches a key's own text."""
+    import json as _json
+
+    from loom.records.store import Records
+
+    q = quilt(tmp_path)
+    home = q / "digests" / "storage" / "doi" / "10.4171_demo_14-1"
+    sha = "feed" * 16
+    (home / "sections.json").write_text(_json.dumps({"sha256": sha, "pages": 2, "chars": 60, "sections": []}))
+    (home / "pages").mkdir(exist_ok=True)
+    (home / "pages" / "0002.txt").write_text("the fixed locus is balanced at every vertex of the widget\n")
+    sid = run("session", "new", "reading", cwd=q).output.split()[0]
+    _note_on_page(q, sid, id="a-2026-09-21-0001", sha256=sha, anchor={"basis": "text", "start": 19, "end": 43, "exact": "balanced at every vertex", "prefix": "", "suffix": ""})
+    _note_on_page(q, sid, id="a-2026-09-21-0002", sha256=sha, anchor={"basis": "text", "start": 0, "end": 5, "exact": "nowhere on this page", "prefix": "", "suffix": ""})
+    _note_on_page(q, sid, id="a-2026-09-21-0003", sha256="dead" * 16, kind="note", anchor={"basis": "box", "quads": [[1, 2, 3, 4]], "exact": "", "prefix": "", "suffix": ""})
+
+    from loom.cli._quilt import open_scan
+
+    result = open_scan(str(q))
+    by_id = {r.annotation.id: r for r in Records(q).resolved(result)}
+    found = by_id["a-2026-09-21-0001"]
+    assert found.work == "Calloway14" and found.recorded and not found.detached and found.span == (19, 43)
+    lost = by_id["a-2026-09-21-0002"]
+    assert lost.work == "Calloway14" and lost.recorded and lost.detached
+    box = by_id["a-2026-09-21-0003"]
+    assert box.work == "Calloway14" and not box.recorded and not box.detached  # a stale artifact, but the rectangles are the record
+
+    # status: no row, no count, listed by work on request (design §4)
+    j = _json.loads(run("status", "--json", cwd=q).output)
+    assert not any("a-2026-09-21" in _json.dumps(e) for e in j["keys"].values())
+    assert [r["id"] for r in j["reading"]] == ["a-2026-09-21-0001", "a-2026-09-21-0002", "a-2026-09-21-0003"]
+    assert j["reading"][0]["work"] == "Calloway14" and j["reading"][0]["page"] == 2
+    listed = run("status", "--reading", cwd=q).output
+    assert "Calloway14" in listed and "a-2026-09-21-0002" in listed and "detached" in listed and "p.2 (box)" in listed
+    assert "a-2026-09-21" not in run("status", cwd=q).output
+    # and the agent's own list carries the citekey and the page, which is what it can act on
+    mine = _json.loads(run("ai", "findings", "--session", sid, "--json", cwd=q).output)["findings"]
+    assert {(f["work"], f["page"]) for f in mine} == {("Calloway14", 2)}
+
+
+def _showcase(tmp_path: Path) -> Path:
+    """A copy of the one quilt in the repository that carries a PDF; a copy because reading a page caches its word boxes inside it."""
+    import shutil
+
+    q = tmp_path / "showcase"
+    shutil.copytree(Path(__file__).resolve().parents[2] / "tests" / "quilts" / "showcase", q)
+    return q
+
+
+@pytest.mark.tex
+def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibly(tmp_path: Path) -> None:
+    """`loom comment` on a cited work (plan 0.13 item 2): the target may be the citekey the agent knows or the identifier a `cited:` link carries, and the record stores the identifier and the artifact's hash. Text is mapped with `refs locate`'s tolerance and recorded with offsets; a box is recorded as drawn. Each way of getting it wrong says what to do instead."""
+    import json as _json
+
+    q = _showcase(tmp_path)
+    who = ("--author", "A. Author")
+    said = run("comment", "Bellamy19", "Is this needed?", "--page", "2", "--quote", "totally unimodular", "--kind", "question", *who, cwd=q)
+    assert said.exit_code == 0 and "Bellamy19 p.2 (text)  question" in said.output, said.output
+    drawn = run("comment", "Bellamy19", "the polytope", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q)
+    assert drawn.exit_code == 0 and "p.2 (box)  note" in drawn.output, drawn.output
+    by_id = run("comment", "doi:10.4171/showcase/19-2", "by its identifier", "--page", "2", "--quote", "Boundedness holds", *who, cwd=q)
+    assert by_id.exit_code == 0, by_id.output
+
+    events = [_json.loads(line) for line in (q / "annotations" / "log.jsonl").read_text().splitlines()]
+    text, box, ident = events[-3], events[-2], events[-1]  # appended in order, after the showcase's own
+    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    assert text["target"] == "doi:10.4171/showcase/19-2" and text["against"].startswith("sha256:")
+    assert text["anchor"]["basis"] == "text" and page_text[text["anchor"]["start"] : text["anchor"]["end"]] == "totally unimodular"
+    assert text["anchor"]["exact"] == "totally unimodular" and text["anchor"]["prefix"] and "quads" not in text["anchor"]
+    assert box["anchor"]["basis"] == "box" and box["anchor"]["quads"] == [[82.0, 278.0, 529.0, 316.0]]
+    assert "quasi-polynomial" in box["anchor"]["exact"]  # the words under the rectangle, as a hint
+    assert ident["target"] == text["target"]  # the citekey and the identifier name one work
+
+    # the refusals, each naming what to do
+    assert "say which page" in run("comment", "Bellamy19", "no page", "--quote", "x", *who, cwd=q).output
+    assert "is a key in this quilt" in run("comment", "sh-0003", "page on a key", "--page", "2", "--quote", "x", *who, cwd=q).output
+    assert "names none" in run("comment", "doi:10.1/nothing", "unknown", "--page", "2", "--quote", "x", *who, cwd=q).output
+    assert "not both" in run("comment", "Bellamy19", "both", "--page", "2", "--quote", "x", "--box", "1,2,3,4", *who, cwd=q).output
+    assert "loom refs page Bellamy19 2" in run("comment", "Bellamy19", "absent", "--page", "2", "--quote", "zebra crossing", *who, cwd=q).output
+    assert "x0,y0,x1,y1" in run("comment", "Bellamy19", "bad box", "--page", "2", "--box", "1,2,3", *who, cwd=q).output
+
+    # a batch line carries the same two keys
+    batched = CliRunner().invoke(
+        main,
+        ["comment", "--batch", "--author", "A. Author", "--quilt", str(q)],
+        input='{"target":"Bellamy19","message":"batched","page":2,"box":"82,278,529,316","kind":"note"}\n',
+    )
+    assert batched.exit_code == 0 and "(box)" in batched.output, batched.output
+
+
+@pytest.mark.tex
+def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) -> None:
+    """`locate` answers and writes nothing; `comment` writes. Both call `anchor_on_page`, so what the viewer previewed is what the log says -- one function, one assertion."""
+    import json as _json
+
+    from loom.render.api import handle
+
+    q = _showcase(tmp_path)
+    text = "the constraint matrix is an incidence matrix"
+    preview = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})["anchor"]
+    written = handle(q, "comment", {"target": "Bellamy19", "message": "so it is integral", "page": 2, "quote": text, "kind": "note", "author": "A. Author"})
+    assert written["ok"], written
+    event = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
+    recorded = {k: v for k, v in event["anchor"].items() if k not in ("exact", "prefix", "suffix")}
+    # the preview carries derived quads so the viewer can draw before anything is written; the record does not
+    assert recorded == {k: v for k, v in preview.items() if k != "quads"}
+    # and a box over the API, rectangles and all
+    drawn = handle(q, "comment", {"target": "Bellamy19", "message": "that display", "page": 2, "rects": [[82, 278, 529, 316]], "kind": "note", "author": "A. Author"})
+    assert drawn["ok"] and "(box)" in drawn["result"], drawn
+
+
+@pytest.mark.tex
+def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(tmp_path: Path) -> None:
+    """Geometry beside the manifest, bodies in it (plan 0.13 item 2, the author's decision of 2026-09-21): a text note's rectangles are derived from the word boxes at build time, a box note's are the record read back, both under `marks` beside the results' `quads`; the page table carries a real rotation; and the reference says how many notes its pages carry, since they are in no key's row."""
+    import json as _json
+
+    q = _showcase(tmp_path)
+    who = ("--author", "A. Author")
+    a = run("comment", "Bellamy19", "why unimodular?", "--page", "2", "--quote", "totally unimodular", "--kind", "question", *who, cwd=q).output.split()[0]
+    b = run("comment", "Bellamy19", "this display", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q).output.split()[0]
+    # exit 1 is a content problem, which the showcase carries on purpose (a duplicate id); the build still writes
+    assert run("build", cwd=q).exit_code in (0, 1)
+    manifest = _json.loads((q / "build" / "manifest.json").read_text())
+    ref = manifest["references"]["Bellamy19"]
+    assert ref["reading"] == {"total": 2, "open": 2}
+    assert manifest["annotations"][a]["target"] == {"key": "doi:10.4171/showcase/19-2", "hash": manifest["annotations"][a]["target"]["hash"], "work": "Bellamy19", "page": 2}
+    assert manifest["annotations"][a]["basis"] == "text" and manifest["annotations"][b]["basis"] == "box"
+    assert manifest["annotations"][a]["anchored"] and manifest["annotations"][b]["anchored"]
+    side = _json.loads((q / "build" / ref["spans"]["path"]).read_text())
+    assert a in side["marks"] and len(side["marks"][a]) == 1  # one line
+    assert side["marks"][b] == [[82.0, 278.0, 529.0, 316.0]]  # as drawn
+    assert "Bellamy19-prop-3.1" in side["quads"]  # the results are still there beside them
+    assert side["pages"]["2"]["rotate"] == 0.0 and side["pages"]["2"]["width"] == 612.0
+    # and a work with no notes says so, rather than saying nothing
+    assert manifest["references"]["Arden24"]["reading"] == {"total": 0, "open": 0}
+
+
+def test_a_session_is_named_on_the_spot_and_closed_from_the_page(tmp_path: Path) -> None:
+    """§16: the author names a session where they are and closes it when done, through the same functions `loom session` calls. Closing takes it out of the active slot; a closed one refuses to close again."""
+    from loom.render.api import handle
+    from loom.sessions import active, sessions
+
+    q = quilt(tmp_path)
+    made = handle(q, "session-new", {"title": "reading Calloway", "author": "A. Author"})
+    assert made["ok"] and "(active)" in made["result"], made
+    sid = made["result"].split()[0]
+    assert active(q) == sid and sessions(q)[sid].title == "reading Calloway"
+    shut = handle(q, "session-close", {"session": sid, "author": "A. Author"})
+    assert shut["ok"] and sessions(q)[sid].state == "closed" and active(q) is None
+    from loom.render.api import ApiError
+
+    with pytest.raises(ApiError, match="is closed"):
+        handle(q, "session-close", {"session": sid, "author": "A. Author"})
+
+
+@pytest.mark.tex
+def test_a_locator_by_offsets_lights_the_same_place_a_selection_would(tmp_path: Path) -> None:
+    """`span=A-B` in a link names the page's committed text by offsets (plan 0.13 item 6); `locate` maps it to the rectangles a selection of that text would get, so a link and a selection light one place."""
+    from loom.render.api import handle
+
+    q = _showcase(tmp_path)
+    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    a = page_text.index("totally unimodular")
+    by_span = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "span": [a, a + len("totally unimodular")]})
+    by_text = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": "totally unimodular"})
+    assert by_span["ok"] and by_span["anchor"]["quads"] == by_text["anchor"]["quads"]
+    assert by_span["anchor"]["start"] == a and by_span["text"] == "totally unimodular"

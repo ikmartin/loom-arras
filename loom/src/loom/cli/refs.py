@@ -1066,7 +1066,8 @@ def _source_anchor(
     """A LaTeX anchor for a quotation of the work's source (contract §9.3), or the refusal that says what is there."""
     import hashlib
 
-    from loom.refs.proposals import Anchor, locate_quote
+    from loom.anchors import Anchor
+    from loom.refs.proposals import locate_quote
 
     src = home / "src"
     given = Path(source_file)

@@ -20,6 +20,7 @@
 		margins = false,
 		standalone = false,
 		comments,
+		authoring = true,
 		onmounted
 	}: {
 		path: string;
@@ -30,6 +31,8 @@
 		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
 		standalone?: boolean;
 		comments?: (key: string) => CommentSlot[];
+		/** Whether this is the quilt's own text. `inline` is the Authoring View's alone (plan 0.13 §7): a cited work's rendering is read, not written, and opens floating under that setting. */
+		authoring?: boolean;
 		onmounted?: (root: HTMLElement) => void;
 	} = $props();
 
@@ -90,7 +93,8 @@
 		// own business. `hover` was a third mode and is gone: a box the pointer brought up could not be read without
 		// holding the pointer still, and could not be clicked into at all (plan 0.13 §7).
 		const inPlace = prefs.comments === 'inline' || prefs.comments === 'floating';
-		inline = inPlace && store.manifest ? inlineComments(store.manifest, prefs.comments === 'floating') : null;
+		const floats = prefs.comments === 'floating' || !authoring;
+		inline = inPlace && store.manifest ? inlineComments(store.manifest, floats) : null;
 		const opened = inline;
 		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
 			master,
@@ -99,7 +103,7 @@
 			keyless: standalone,
 			comments,
 			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined,
-			floating: prefs.comments === 'floating'
+			floating: floats
 		});
 		const trigger = was && opened ? triggerFor(root, was) : null;
 		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? trigger.dataset.comments ?? '').split(/\s+/).filter(Boolean));

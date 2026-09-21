@@ -13,6 +13,7 @@
 	import PdfPage from './PdfPage.svelte';
 
 	type Rect = readonly number[];
+	type Box = { left: number; top: number; width: number; height: number };
 
 	let {
 		url,
@@ -30,8 +31,8 @@
 		url: string;
 		/** The page to open at; changing it scrolls there. */
 		page?: number;
-		/** What to draw, by page. */
-		spans?: { id: string; page: number; rects: Rect[] }[];
+		/** What to draw, by page: a work's results, and the notes on its pages, which carry their kind and are marked `note`. */
+		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[];
 		/** The span to scroll to and show as the one being looked at. */
 		focus?: string;
 		/** Overrides the reader's own zoom, for a pane whose size is not theirs to choose (the proposal box). */
@@ -39,15 +40,16 @@
 		/** How many pages either side of the one in view are drawn. */
 		window?: number;
 		toolbar?: boolean;
-		onselect?: (e: { page: number; text: string; rects: number[][] }) => void;
-		onbox?: (e: { page: number; rects: number[][] }) => void;
-		onmark?: (e: { id: string; travel: boolean }) => void;
+		onselect?: (e: { page: number; text: string; rects: number[][]; client: Box }) => void;
+		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
+		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
 		/** The page the reader is looking at changed, by scrolling or by being sent there. */
 		onpage?: (e: { page: number }) => void;
 	} = $props();
 
-	// The reader's zoom, remembered across papers and across visits, unless a caller fixes it.
-	const drawAt = $derived(scale ?? prefs.zoom);
+	// The reader's zoom for this kind of renderer, remembered across papers and across visits, unless a caller fixes it.
+	const drawAt = $derived(scale ?? prefs.zoom.pdf ?? 1.4);
+	const zoomTo = (v: number) => (prefs.zoom = { ...prefs.zoom, pdf: Math.min(3, Math.max(0.5, Math.round(v * 10) / 10)) });
 	let column = $state<HTMLDivElement | null>(null);
 	let count = $state(0);
 	// `page` is the page the parent asked for; `here` is the one the reader is on, which scrolling also moves.
@@ -63,8 +65,8 @@
 	const at = $derived(count ? Math.min(Math.max(here || page, 1), count) : here || page);
 	const shown = $derived(new Set(all.filter((n) => Math.abs(n - at) <= near)));
 	const byPage = $derived.by(() => {
-		const out: Record<number, { id: string; rects: Rect[] }[]> = {};
-		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects });
+		const out: Record<number, { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[]> = {};
+		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects, ids: s.ids, note: s.note, kind: s.kind, transient: s.transient });
 		return out;
 	});
 
@@ -148,9 +150,9 @@
 				onclick={() => (tool = 'box')}>box</button
 			>
 			<span class="zoom" role="group" aria-label="zoom">
-				<button type="button" title="Smaller" aria-label="Smaller" data-testid="zoom-out" onclick={() => (prefs.zoom = Math.max(0.5, Math.round((prefs.zoom - 0.2) * 10) / 10))}>−</button>
+				<button type="button" title="Smaller" aria-label="Smaller" data-testid="zoom-out" onclick={() => zoomTo(drawAt - 0.2)}>−</button>
 				<span class="at" data-testid="zoom-at">{Math.round(drawAt * 100)}%</span>
-				<button type="button" title="Larger" aria-label="Larger" data-testid="zoom-in" onclick={() => (prefs.zoom = Math.min(3, Math.round((prefs.zoom + 0.2) * 10) / 10))}>+</button>
+				<button type="button" title="Larger" aria-label="Larger" data-testid="zoom-in" onclick={() => zoomTo(drawAt + 0.2)}>+</button>
 			</span>
 			<span class="where" data-testid="pdf-where">{count ? `page ${at} of ${count}` : ''}</span>
 		</div>

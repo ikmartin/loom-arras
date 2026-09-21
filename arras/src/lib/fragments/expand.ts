@@ -57,7 +57,7 @@ export function leadComments(manifest: Manifest, ids: string[]): Annotation[] {
 function triggers(root: HTMLElement): HTMLElement[] {
 	return [
 		...root.querySelectorAll<HTMLElement>(
-			'mark.annotation[data-annotation], .annotation-block[data-annotation], button.comment-count[data-comments]'
+			'mark.annotation[data-annotation], .annotation-block[data-annotation], button.comment-count[data-comments], button.mark[data-annotation]'
 		)
 	];
 }
@@ -83,9 +83,16 @@ interface Opened {
 	ids: string[];
 }
 
-export function inlineComments(manifest: Manifest, floating = false): InlineComments {
+export function inlineComments(
+	source: Manifest | (() => Manifest | null),
+	floating = false,
+	opts: { host?: HTMLElement } = {}
+): InlineComments {
 	let boxes: Opened[] = [];
 	let all = false;
+	// A getter, so a controller that outlives one manifest poll reads the current one at the moment a box opens; a
+	// fragment hands the object it was wired with, and re-wires when that changes.
+	const manifestNow = (): Manifest | null => (typeof source === 'function' ? source() : source);
 
 	/**
 	 * Put a floating box at the mark: below it when there is room, above it when there is not, and never within `INSET`
@@ -132,13 +139,17 @@ export function inlineComments(manifest: Manifest, floating = false): InlineComm
 	};
 
 	const openAt = (trigger: HTMLElement, ids: string[]): Opened | null => {
+		const manifest = manifestNow();
+		if (!manifest) return null;
 		const lead = leadComments(manifest, ids);
 		if (!lead.length) return null;
 		const host = document.createElement('aside');
 		host.className = floating ? 'comment-slot expanded floating' : 'comment-slot expanded';
 		host.dataset.testid = 'comment-expanded';
 		if (floating) {
-			(trigger.closest('.fragment') ?? trigger.parentElement ?? trigger).append(host);
+			// into the host a page gave, else the fragment: a mark on a PDF page sits in an overlay that takes no
+			// pointer events, which is no place for a box that must be clicked into
+			(opts.host ?? trigger.closest('.fragment') ?? trigger.parentElement ?? trigger).append(host);
 		} else {
 			// beneath the paragraph, item or display the mark sits in, so the text keeps its line; a count beside a label opens under the label
 			const block = trigger.classList.contains('comment-count')
@@ -198,7 +209,7 @@ export function inlineComments(manifest: Manifest, floating = false): InlineComm
 	const down = (e: PointerEvent) => {
 		if (!boxes.length) return;
 		const t = e.target as Element | null;
-		if (t?.closest?.('.comment-slot.expanded, mark.annotation, .annotation-block, .comment-count')) return;
+		if (t?.closest?.('.comment-slot.expanded, mark.annotation, .annotation-block, .comment-count, .mark[data-annotation]')) return;
 		background();
 	};
 	const key = (e: KeyboardEvent) => {

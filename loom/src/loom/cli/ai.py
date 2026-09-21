@@ -249,6 +249,9 @@ def ai_findings(
         {
             "id": a.annotation.id,
             "target": a.annotation.target_key,
+            # a note on a page of a cited work: the citekey the agent knows it by, and the page (plan 0.13 item 2)
+            "work": a.work or None,
+            "page": a.annotation.anchor.page if a.annotation.anchor else None,
             "kind": a.annotation.kind,
             "severity": a.annotation.severity,
             "status": a.annotation.status,
@@ -301,7 +304,8 @@ def ai_findings(
         sev = f" {r['severity']}" if r["severity"] else ""
         mark = "" if r["status"] == "open" else f" ({r['status']})"
         quote = f"  \u201c{r['quote']}\u201d" if r["quote"] else ""
-        click.echo(f"{r['id']}  {r['target']}  {r['kind']}{sev}{mark}{quote}")
+        where = f"{r['work']} p.{r['page']}" if r["page"] else r["target"]
+        click.echo(f"{r['id']}  {where}  {r['kind']}{sev}{mark}{quote}")
         if r["discarded"]:
             click.echo(f"      withdrawn: {r['discard_reason'] or 'no reason given'}")
 

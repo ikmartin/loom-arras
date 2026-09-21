@@ -19,9 +19,11 @@
 	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
 	import Beside from '$lib/split/Beside.svelte';
+	import { slotsFor } from '$lib/fragments/slots';
 	import { workUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
+	const slots = slotsFor(() => m);
 	let verbatim = $state(false);
 	let restsOpen = $state(false);
 	const key = $derived(keyFromParam(page.params.key ?? ''));
@@ -108,7 +110,8 @@
 			<!-- The toggle is the node's own text before macro expansion, fetched only when a reader asks; a corpus that publishes no source shows no control (plan 0.11 Part E). -->
 			<div class="verbatim-head"><SourceToggle sourceKey={key} bind:open={verbatim} /></div>
 			{#if !verbatim}
-				<Fragment path={node.fragment} macroSet={node.digest ?? ''} />
+				<!-- `comments` so the margin column stands here too; a digest node's text is read, not written, so it is not authoring -->
+				<Fragment path={node.fragment} macroSet={node.digest ?? ''} comments={slots} authoring={!node.external} />
 			{/if}
 		{/if}
 

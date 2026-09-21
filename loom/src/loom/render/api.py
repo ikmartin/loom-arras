@@ -27,6 +27,8 @@ CAPABILITIES = [
     "session-use",
     "session-rename",
     "session-delete",
+    "session-new",
+    "session-close",
     "message",
 ]
 
@@ -101,10 +103,9 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     This endpoint **writes nothing**: it answers, and whether an annotation is made is a separate act.
     """
     from loom.cli._quilt import open_scan
+    from loom.refs.anchoring import anchor_on_page
     from loom.refs.fetch import work_dir
-    from loom.refs.pages import page_box, read_map, read_page, token_boxes
-    from loom.refs.proposals import Anchor
-    from loom.refs.search import locate_offsets, locate_span, words_in_boxes
+    from loom.refs.pages import read_map
 
     citekey = _str(body, "citekey", required=True) or ""
     page = body.get("page")
@@ -112,40 +113,24 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         raise ApiError("bad-field", "page must be a positive integer")
     rects = [[float(v) for v in r] for r in body.get("rects") or []]
     text = _str(body, "text")
-    if not text and not rects:
-        raise ApiError("missing-field", "one of text or rects is required")
+    raw_span = body.get("span")
+    span = (int(raw_span[0]), int(raw_span[1])) if isinstance(raw_span, list) and len(raw_span) == 2 else None
+    if not text and not rects and not span:
+        raise ApiError("missing-field", "one of text, rects or span is required")
 
     result = open_scan(str(root))
     if citekey not in result.bib:
         raise ApiError("no-such-work", f"{citekey} is not in the bibliography", status=404)
     home = work_dir(root, result.bib[citekey])
-    pdf = home / "paper.pdf"
-    m = read_map(home)
-    if m is None or not pdf.is_file():
+    if read_map(home) is None or not (home / "paper.pdf").is_file():
         raise ApiError("not-readable", f"{citekey} has no copy on this machine", status=404)
-    xml = token_boxes(pdf, page, home)
-
-    anchor = Anchor(kind="pdf", sha256=m.sha256, page=page)
-    span = locate_span(xml, text, page) if text else None
-    if span is not None:
-        offsets = locate_offsets(read_page(home, page) or "", text or "")
-        anchor.quads = [list(q) for q in span.lines]
-        if offsets:
-            anchor.basis, anchor.start, anchor.end = "text", offsets[0], offsets[1]
-        else:
-            # found on the page's boxes and not in its committed text: geometry is what can honestly be recorded
-            anchor.basis = "box"
-    else:
-        # a formula, a figure, a scan: what the reader drew is the record, and whatever words it covers are a hint
-        anchor.basis, anchor.quads = "box", rects
-        text = words_in_boxes(xml, rects) or text
-    box = page_box(xml)
-    said = "text" if anchor.basis == "text" else "box"
+    placed = anchor_on_page(home, page, text, rects, span)
+    box = placed.page_box
     return {
         "ok": True,
-        "result": f"{citekey} p.{page} anchored by {said}, {len(anchor.quads or [])} line(s)",
-        "anchor": _anchor_json(anchor),
-        "text": text or "",
+        "result": f"{citekey} p.{page} anchored by {placed.said}, {len(placed.anchor.quads or [])} line(s)",
+        "anchor": _anchor_json(placed.anchor),
+        "text": placed.selector.exact,
         "page_box": {"width": box[0], "height": box[1]} if box else None,
     }
 
@@ -187,13 +172,26 @@ def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     Through the same functions `loom session` calls, so the two surfaces cannot spell a session event differently. **Purging is not here and never will be**: it rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
     """
     from loom.cli._common import whoever
-    from loom.sessions import active, delete, rename, resolve, resume, sessions, set_active
+    from loom.sessions import active, close, create, delete, rename, resolve, resume, sessions, set_active
 
+    who = _str(body, "author") or whoever(root)
+    if endpoint == "session-new":
+        # named by the author on the spot, and made the one writing lands in: what §16's example does from the page
+        title = _str(body, "title", required=True) or ""
+        made = create(root, title, who)
+        set_active(root, made.id)
+        return f"{made.id}  {title}  (active)"
     which = _str(body, "session", required=True) or ""
     found = resolve(root, which)
     if found is None:
         raise ApiError("no-such-session", f"no session matches {which}", status=404)
-    who = _str(body, "author") or whoever(root)
+    if endpoint == "session-close":
+        if found.state != "open":
+            raise ApiError("refused", f"{found.id} is {found.state}")
+        close(root, found.id, who)
+        if active(root) == found.id:
+            set_active(root, None)
+        return f"closed {found.id}; its annotations are hidden until it is shown or resumed"
     if endpoint == "session-rename":
         title = _str(body, "title", required=True) or ""
         rename(root, found.id, title, who)
@@ -284,6 +282,11 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return edit_annotation(root, _str(body, "annotation", required=True) or "", writer, **fields)
         result = open_scan(str(root))
         if endpoint == "comment":
+            # a note on a page of a cited work carries the page and, for a box, the rectangles (plan 0.13 item 2)
+            page = body.get("page")
+            if page is not None and (not isinstance(page, int) or page < 1):
+                raise ApiError("bad-field", "page must be a positive integer")
+            rects = [[float(v) for v in r] for r in body.get("rects") or []] or None
             return _one_comment(
                 result,
                 writer,
@@ -296,6 +299,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 _str(body, "severity"),
                 _str(body, "payload"),
                 _str(body, "placement"),
+                page=page,
+                rects=rects,
             )
         annotation = _str(body, "annotation", required=True)
         if endpoint == "reply":

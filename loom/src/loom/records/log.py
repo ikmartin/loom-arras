@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from loom.anchors import Anchor, is_page_anchor
 from loom.records.annotations import KINDS, Annotation, Record
 from loom.records.selectors import Selector
 
@@ -54,6 +55,10 @@ ID = re.compile(r"^a-\d{4}-\d{2}-\d{2}-\d+$")
 
 
 def _annotation(event: dict[str, Any]) -> Annotation:
+    """One `created` or `replied` event as an annotation.
+
+    `anchor` is one of two shapes under one name: the text triple every annotation has carried since book 7.5, or -- on a note against a page of a cited work -- a page anchor carrying `kind` beside that triple (plan 0.13 item 2). The triple is read in both cases; the page anchor only when `kind` says so, since `Selector.from_dict` would otherwise swallow the page fields without a word.
+    """
     anchor = event.get("anchor")
     return Annotation(
         id=str(event["id"]),
@@ -64,6 +69,7 @@ def _annotation(event: dict[str, Any]) -> Annotation:
         target_key=str(event.get("target", "")),
         target_hash=str(event.get("against", "")),
         selector=Selector.from_dict(anchor) if isinstance(anchor, dict) else None,
+        anchor=Anchor.from_dict(anchor) if is_page_anchor(anchor) else None,
         kind=str(event.get("annotation_kind") or "objection"),
         body=str(event.get("body", "")),
         status="open",

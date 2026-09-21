@@ -31,8 +31,8 @@ export interface Prefs {
 	swap: boolean;
 	/** Whether the side panel is showing. It collapses independently of the split and goes first, because on a narrow window it is the column the reader needs least (plan 0.13 §7). */
 	panel: boolean;
-	/** How large a rendered page is drawn. Per renderer kind rather than per document: a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. */
-	zoom: number;
+	/** How large a rendered page is drawn, per renderer kind (`pdf` today): a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. A second renderer gets its own entry rather than the PDF's number. */
+	zoom: Record<string, number>;
 	face: Face;
 	size: Size;
 	width: Width;
@@ -41,7 +41,7 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { shell: 'c', divider: 0.62, swap: false, panel: true, zoom: 1.4, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { shell: 'c', divider: 0.62, swap: false, panel: true, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
 // A stored `b`, the retired tabs shell, is not in the list, so it falls back to the default like any unknown value.
 // The same carries the format rename: a browser holding `paper` or `blog` gets the default back, which is what the
@@ -60,13 +60,18 @@ export function coerce(raw: unknown): Prefs {
 	const pick = <T extends string>(v: unknown, allowed: T[], fallback: T): T =>
 		typeof v === 'string' && (allowed as string[]).includes(v) ? (v as T) : fallback;
 	const ratio = typeof o.divider === 'number' && Number.isFinite(o.divider) ? o.divider : DEFAULTS.divider;
-	const scale = typeof o.zoom === 'number' && Number.isFinite(o.zoom) ? o.zoom : DEFAULTS.zoom;
+	// a number is what this stored before it was per kind; it was the PDF's
+	const stored = typeof o.zoom === 'number' ? { pdf: o.zoom } : typeof o.zoom === 'object' && o.zoom ? o.zoom : {};
+	const zoom: Record<string, number> = { ...DEFAULTS.zoom };
+	for (const [kind, v] of Object.entries(stored as Record<string, unknown>)) {
+		if (typeof v === 'number' && Number.isFinite(v)) zoom[kind] = Math.min(3, Math.max(0.5, v));
+	}
 	return {
 		shell: pick(o.shell, SHELLS, DEFAULTS.shell),
 		divider: Math.min(0.8, Math.max(0.2, ratio)),
 		swap: o.swap === true,
 		panel: o.panel !== false,
-		zoom: Math.min(3, Math.max(0.5, scale)),
+		zoom,
 		face: pick(o.face, FACES, DEFAULTS.face),
 		size: pick(o.size, SIZES, DEFAULTS.size),
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
@@ -112,7 +117,7 @@ class PrefsState {
 	divider = $state<number>(DEFAULTS.divider);
 	swap = $state<boolean>(DEFAULTS.swap);
 	panel = $state<boolean>(DEFAULTS.panel);
-	zoom = $state<number>(DEFAULTS.zoom);
+	zoom = $state<Record<string, number>>({ ...DEFAULTS.zoom });
 	face = $state<Face>(DEFAULTS.face);
 	size = $state<Size>(DEFAULTS.size);
 	width = $state<Width>(DEFAULTS.width);
@@ -130,7 +135,7 @@ class PrefsState {
 		this.divider = p.divider;
 		this.swap = p.swap;
 		this.panel = p.panel;
-		this.zoom = p.zoom;
+		this.zoom = { ...p.zoom };
 		this.face = p.face;
 		this.size = p.size;
 		this.width = p.width;

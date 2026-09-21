@@ -3,6 +3,7 @@
 	//
 	// The quote is the reader's selection, which is what anchors the finding to a sentence rather than to a node. A selection that crosses converted markup cannot always be recovered exactly, so the publisher is allowed to refuse, and its refusal is shown rather than swallowed: a comment that silently landed on the wrong sentence is worse than one that did not land.
 	import { can, write } from '$lib/write';
+	import { GRADED, KINDS, SEVERITIES } from '$lib/review/kinds';
 
 	let {
 		target,
@@ -12,13 +13,6 @@
 		target: string;
 		onwritten?: () => void;
 	} = $props();
-
-	// Six kinds (plan 0.13 §7). `confirmation` replaced `ok`: every other kind is a noun, and `good` would be praise
-	// where the claim is that something checks out. `note` is the explanation-or-aside kind, and asks nothing.
-	const KINDS = ['objection', 'suggestion', 'question', 'confirmation', 'citation', 'note'];
-	/** Severity grades a fault, and only two kinds claim one; a graded question is a category error. */
-	const GRADED = ['objection', 'suggestion'];
-	const SEVERITIES = ['', 'major', 'moderate', 'minor'];
 
 	let allowed = $state(false);
 	let open = $state(false);

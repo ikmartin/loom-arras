@@ -1,4 +1,5 @@
 <script lang="ts">
+	type Box = { left: number; top: number; width: number; height: number };
 	// One page of a PDF: the canvas, PDF.js's text layer over it, and loom's rectangles over that.
 	//
 	// **A dumb renderer** (plan 0.13 §6). It is given a document, a page and the rectangles to draw, and it reports what
@@ -31,8 +32,8 @@
 	}: {
 		url: string;
 		page?: number;
-		/** Rectangles to draw, in loom's space: points, origin top left, one per line. */
-		quads?: { id: string; rects: Rect[] }[];
+		/** Rectangles to draw, in loom's space: points, origin top left, one per line. A note carries its kind, for colour, and is marked `note`; a result is not. */
+		quads?: { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[];
 		scale?: number;
 		/** Whether to draw at all. False keeps the page's size and releases everything that costs memory. */
 		render?: boolean;
@@ -41,11 +42,11 @@
 		/** The id of the mark to show as the one being looked at. */
 		focus?: string;
 		/** The reader selected text: the page, what they selected, and the rectangles it covers. */
-		onselect?: (e: { page: number; text: string; rects: number[][] }) => void;
+		onselect?: (e: { page: number; text: string; rects: number[][]; client: Box }) => void;
 		/** The reader drew a region where selection was not worth trusting. */
-		onbox?: (e: { page: number; rects: number[][] }) => void;
-		/** The reader acted on an existing mark: one click selects, two travel. */
-		onmark?: (e: { id: string; travel: boolean }) => void;
+		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
+		/** The reader acted on an existing mark: one click selects, two travel. `el` is the mark, for a box to open at. */
+		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
 		/** This page's size in points, once known, so a parent can size what it has not drawn. */
 		onsized?: (e: { page: number; width: number; height: number }) => void;
 	} = $props();
@@ -129,8 +130,9 @@
 		const sel = window.getSelection();
 		const text = sel?.toString().trim() ?? '';
 		if (!sel || !text || sel.rangeCount === 0) return;
-		const rects = [...sel.getRangeAt(0).getClientRects()].map((r) => toPoints(r));
-		onselect?.({ page, text, rects });
+		const client = [...sel.getRangeAt(0).getClientRects()];
+		const rects = client.map((r) => toPoints(r));
+		onselect?.({ page, text, rects, client: union(client) });
 	}
 
 	/** The box tool, or the modifier that reaches it without leaving the select tool. */
@@ -161,7 +163,17 @@
 		const top = Math.min(d.y0, d.y1) + at.top;
 		// a click without a drag leaves a point, which is the degenerate span
 		const rect = { left, top, width: Math.abs(d.x1 - d.x0), height: Math.abs(d.y1 - d.y0) };
-		onbox?.({ page, rects: [toPoints(rect)] });
+		onbox?.({ page, rects: [toPoints(rect)], client: rect });
+	}
+
+	/** One rectangle around several, in client space: where a form beside the selection stands. */
+	function union(rs: { left: number; top: number; width: number; height: number }[]): { left: number; top: number; width: number; height: number } {
+		if (!rs.length) return { left: 0, top: 0, width: 0, height: 0 };
+		const l = Math.min(...rs.map((r) => r.left));
+		const t = Math.min(...rs.map((r) => r.top));
+		const r = Math.max(...rs.map((x) => x.left + x.width));
+		const b = Math.max(...rs.map((x) => x.top + x.height));
+		return { left: l, top: t, width: r - l, height: b - t };
 	}
 </script>
 
@@ -185,26 +197,32 @@
 			onpointerup={endBox}
 			role="presentation"
 		></div>
+		<!-- Marks belong to a drawn page and to nothing else (plan 0.13 item 2): a held page has no box of its own to
+		     position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once. -->
+		<div class="marks" aria-hidden={quads.length === 0}>
+			{#each quads as q (q.id)}
+				{#each q.rects as r, i (i)}
+					{@const at = asPercent(r, box)}
+					<button
+						class="mark {q.kind ? 'k-' + q.kind : ''}"
+						class:note={q.note}
+						class:transient={q.transient}
+						class:on={focus === q.id}
+						data-mark={q.id}
+						data-annotation={q.note ? (q.ids ?? [q.id]).join(' ') : undefined}
+						data-count={q.ids && q.ids.length > 1 ? q.ids.length : undefined}
+						data-testid="mark-{q.id}"
+						aria-label="{q.transient ? 'the place this link points at' : q.note ? `${q.kind ?? 'note'} ${q.id}` : `result ${q.id}`}{q.ids && q.ids.length > 1 ? `, and ${q.ids.length - 1} more` : ''}"
+						style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"
+						onclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: false, note: !!q.note, el: e.currentTarget })}
+						ondblclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: true, note: !!q.note, el: e.currentTarget })}
+					></button>
+				{/each}
+			{/each}
+		</div>
 	{:else}
 		<div class="held" aria-hidden="true"></div>
 	{/if}
-	<div class="marks" aria-hidden={quads.length === 0}>
-		{#each quads as q (q.id)}
-			{#each q.rects as r, i (i)}
-				{@const at = asPercent(r, box)}
-				<button
-					class="mark"
-					class:on={focus === q.id}
-					data-mark={q.id}
-					data-testid="mark-{q.id}"
-					aria-label="annotation {q.id}"
-					style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"
-					onclick={() => onmark?.({ id: q.id, travel: false })}
-					ondblclick={() => onmark?.({ id: q.id, travel: true })}
-				></button>
-			{/each}
-		{/each}
-	</div>
 	{#if drawing}
 		<div
 			class="drawn"
@@ -266,6 +284,38 @@
 	.mark:hover,
 	.mark.on {
 		background: var(--annotation-tint-strong, rgb(217 119 87 / 0.34));
+	}
+	/* a note is coloured by its kind, as a mark in a fragment is (theme.css); a tint only, since a shadow per mark is
+	   what would make the overlay expensive, and a result keeps the neutral tint */
+	.mark.note.k-objection {
+		background: var(--state-incomplete-wash, rgb(196 88 60 / 0.22));
+	}
+	.mark.note.k-suggestion {
+		background: var(--state-stale-wash, rgb(190 140 40 / 0.22));
+	}
+	.mark.note.k-question {
+		background: var(--link-wash, rgb(53 97 143 / 0.18));
+	}
+	/* the place a link points at: lit while the URL carries it, never a record, so it is drawn as an outline */
+	.mark.transient {
+		background: none;
+		outline: 2px solid var(--link, #35618f);
+		outline-offset: 1px;
+		pointer-events: none;
+	}
+	/* several notes on one place are one mark carrying the count, as a shared phrase is in a fragment */
+	.mark[data-count]::after {
+		content: attr(data-count);
+		position: absolute;
+		right: -2px;
+		top: -0.9em;
+		font: 600 9px/1 var(--sans, sans-serif);
+		color: var(--annotation, #c05621);
+	}
+	.mark.note.k-citation,
+	.mark.note.k-note,
+	.mark.note.k-confirmation {
+		background: var(--annotation-tint, rgb(217 119 87 / 0.22));
 	}
 	.drawn {
 		position: absolute;

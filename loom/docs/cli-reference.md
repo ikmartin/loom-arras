@@ -231,11 +231,15 @@ lint, then compile every master, then bundles. Exit 1 on any failure. The CI com
 
 `loom comment [OPTIONS] [TARGET] [MESSAGE]`
 
-Write an annotation on TARGET (a key, an equation's qualified key, or a master path); the only writer of review records.
+Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work.
+
+A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.
 
 | option | description |
 |---|---|
-| `--quote` | Anchor to this exact text, which must occur once in the target's own text. |
+| `--quote` | Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page. |
+| `--page` `N` | A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box. |
+| `--box` `X0,Y0,X1,Y1` | Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. |
 | `--kind` `objection|suggestion|question|confirmation|citation|note` |  |
 | `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
 | `--author` |  |
@@ -1103,6 +1107,8 @@ Record every key whose text moved since the last step, quilt-wide (or within one
 
 Every key with its computed state, cause if stale, and review facts. Never exits nonzero.
 
+Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
+
 | option | description |
 |---|---|
 | `--stale` |  |
@@ -1120,6 +1126,7 @@ Every key with its computed state, cause if stale, and review facts. Never exits
 | `--status` | Keys carrying an annotation in this state. |
 | `--detached` | Keys whose annotations no longer find their quoted text. |
 | `--include-digests` | Also list the digest keys nothing in this quilt depends on; they are left out by default. |
+| `--reading` | List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise. |
 | `--explain` `KEY` |  |
 | `--json` |  |
 | `--session` |  |

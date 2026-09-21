@@ -66,51 +66,99 @@ def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, s
             entry["blocks"] = [b.to_dict() for b in parsed.blocks]
 
 
+class _PageTable:
+    """The word boxes of one work's pages, read once each, and the page table the sidecar publishes for them."""
+
+    def __init__(self, home: Path) -> None:
+        self.home = home
+        self.boxes: dict[int, str] = {}
+        self.pages: dict[str, dict[str, float]] = {}
+
+    def boxes_of(self, page: int) -> str:
+        from loom.refs.pages import page_box, page_rotation, token_boxes
+
+        if page not in self.boxes:
+            try:
+                self.boxes[page] = token_boxes(self.home / "paper.pdf", page, self.home)
+            except Exception:  # noqa: BLE001 -- geometry is a convenience; a page without it still reads
+                self.boxes[page] = ""
+        if self.boxes[page] and str(page) not in self.pages:
+            box = page_box(self.boxes[page])
+            if box:
+                self.pages[str(page)] = {
+                    "width": box[0],
+                    "height": box[1],
+                    "rotate": page_rotation(self.home / "paper.pdf", page, self.home),
+                }
+        return self.boxes[page]
+
+
 def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -> None:
     """One sidecar per work holding the geometry of its anchors, and a pointer to it on the reference (plan 0.13 item 2).
 
     Beside the manifest for the reason `_write_source` gives: the manifest is loaded whole on every poll, and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, which is what lets a viewer notice a stale copy while `loom serve` rebuilds under it.
 
-    Quads are derived, never recorded: an anchor says where it is in the page's text, and the rectangles to draw it with are computed here from the word boxes. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the notes on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+
+    Runs after `Records.apply`, so it reads the published annotations and writes each reference's `reading` count.
     """
-    from loom.refs.pages import page_box, read_map, token_boxes
+    from loom.records.annotations import load_records
+    from loom.refs.pages import read_map
     from loom.refs.proposals import load_results
     from loom.refs.search import locate_span
 
+    published = manifest.get("annotations", {})
+    # the box anchors' own rectangles, which the manifest does not carry
+    drawn: dict[str, list[list[float]]] = {}
+    if any(a.get("basis") == "box" for a in published.values()):
+        for record in load_records(root)[0]:
+            for a in record.annotations:
+                if a.anchor is not None and a.anchor.basis == "box" and a.anchor.quads:
+                    drawn[a.id] = a.anchor.quads
+
     for citekey, ref in manifest.get("references", {}).items():
+        notes = [a for a in published.values() if a["target"].get("work") == citekey and not a["discarded"]]
+        ref["reading"] = {
+            "total": len(notes),
+            "open": sum(1 for a in notes if a["status"] == "open" and a["in_reply_to"] is None),
+        }
         artifacts = ref.get("artifacts") or {}
         home = root / str(artifacts.get("dir", ""))
         if not artifacts.get("pdf") or not (home / "paper.pdf").is_file():
             continue
-        recorded = {
+        results = {
             rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page
         }
-        if not recorded:
+        if not results and not notes:
             continue
-        pages: dict[str, dict[str, float]] = {}
+        table = _PageTable(home)
         quads: dict[str, list[list[float]]] = {}
-        boxes: dict[int, str] = {}
-        for rid, r in recorded.items():
-            page = r.anchor.page
-            if page not in boxes:
-                try:
-                    boxes[page] = token_boxes(home / "paper.pdf", page, home)
-                except Exception:  # noqa: BLE001 -- geometry is a convenience; a page without it still reads
-                    boxes[page] = ""
-            if not boxes[page]:
+        marks: dict[str, list[list[float]]] = {}
+        for rid, r in results.items():
+            xml = table.boxes_of(r.anchor.page)
+            span = locate_span(xml, r.source_text, r.anchor.page) if xml else None
+            if span is not None:
+                quads[rid] = [list(q) for q in span.lines]
+        for a in notes:
+            page = int(a["target"].get("page") or 0)
+            if not page:
                 continue
-            span = locate_span(boxes[page], r.source_text, page)
-            if span is None:
+            if a.get("basis") == "box":
+                if a["id"] in drawn:
+                    marks[a["id"]] = drawn[a["id"]]
+                    table.boxes_of(page)  # for the page table
                 continue
-            quads[rid] = [list(q) for q in span.lines]
-            if str(page) not in pages:
-                box = page_box(boxes[page])
-                if box:
-                    pages[str(page)] = {"width": box[0], "height": box[1], "rotate": 0.0}
-        if not quads:
+            xml = table.boxes_of(page)
+            span = locate_span(xml, a.get("quote") or "", page) if xml and a.get("quote") else None
+            if span is not None:
+                marks[a["id"]] = [list(q) for q in span.lines]
+        pages = table.pages
+        if not quads and not marks:
             continue
         m = read_map(home)
-        body = json.dumps({"artifact": m.sha256 if m else "", "pages": pages, "quads": quads}, indent=1, sort_keys=True)
+        body = json.dumps(
+            {"artifact": m.sha256 if m else "", "pages": pages, "quads": quads, "marks": marks}, indent=1, sort_keys=True
+        )
         rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
         files[rel] = body
         ref["spans"] = {"path": rel, "sha256": hashlib.sha256(body.encode()).hexdigest()}

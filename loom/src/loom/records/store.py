@@ -60,13 +60,22 @@ class KeyState:
         return self.state
 
 
+def wid_path(target: str) -> str:
+    """The store directory of a work identifier, or '' when the target is not one."""
+    from loom.refs.identity import parse
+
+    wid = parse(target)
+    return wid.path if wid else ""
+
+
 @dataclass
 class ResolvedAnnotation:
     annotation: Annotation
     record: Record
-    span: tuple[int, int] | None  # in the target's own text (concatenated pieces)
+    span: tuple[int, int] | None  # in the target's own text (concatenated pieces); on a page, offsets into its text
     detached: bool
     recorded: bool = True  # the text this was written against is still recoverable: it is the current text, or frozen
+    work: str = ""  # the citekey, when the target is a page of a cited work rather than a key (plan 0.13 item 2)
 
 
 class Records:
@@ -277,8 +286,12 @@ class Records:
             return self._resolved_cache[1]
         out: list[ResolvedAnnotation] = []
         texts: dict[str, str] = {}
+        works: dict[str, str] = {}
         for rec in self.records:
             for a in rec.annotations:
+                if a.anchor is not None:
+                    out.append(self._on_page(result, a, rec, works))
+                    continue
                 n = result.nodes.get(a.target_key)
                 if n is None:
                     region = result.assembly.regions.get(a.target_key)
@@ -296,6 +309,36 @@ class Records:
                 out.append(ResolvedAnnotation(a, rec, span, span is None, kept))
         self._resolved_cache = (result, out)
         return out
+
+    def _on_page(self, result: ScanResult, a: Annotation, rec: Record, works: dict[str, str]) -> ResolvedAnnotation:
+        """A note on a page of a cited work, resolved against the store rather than against a key's text.
+
+        `recorded` is whether the artifact the anchor names is the one in the store -- copy-once makes that the normal case for ever. `detached` is a text anchor whose quotation no longer locates in the page's committed text; a box is never detached, because the rectangles are the record. The target is the work's identifier, and the citekey is looked up through the bibliography so that a renamed citekey changes nothing.
+        """
+        from loom.refs.identity import identify, parse
+        from loom.refs.pages import read_map, read_page, storage_root
+        from loom.refs.search import locate_offsets
+
+        assert a.anchor is not None
+        if a.target_key not in works:
+            wid = parse(a.target_key)
+            found = ""
+            for ck, entry in result.bib.items():
+                if wid and any((w.scheme, w.value) == (wid.scheme, wid.value) for w in identify(entry)):
+                    found = ck
+                    break
+            works[a.target_key] = found
+        ck = works[a.target_key]
+        if not ck or not wid_path(a.target_key):
+            return ResolvedAnnotation(a, rec, None, True, False, ck)
+        home = storage_root(self.root) / wid_path(a.target_key)
+        m = read_map(home)
+        recorded = m is not None and bool(m.sha256) and m.sha256 == a.anchor.sha256
+        if a.anchor.basis != "text":
+            return ResolvedAnnotation(a, rec, None, False, recorded, ck)
+        page = read_page(home, a.anchor.page)
+        span = locate_offsets(page, a.selector.exact) if page and a.selector and a.selector.exact else None
+        return ResolvedAnnotation(a, rec, span, span is None, recorded, ck)
 
     def _recorded(self, a: Annotation, current: str | None) -> bool:
         """Whether the text `a` was written against can still be shown: it is the current text, or a frozen snapshot.
@@ -427,12 +470,20 @@ class Records:
                 "id": a.id,
                 "author": {"kind": a.author_kind, "id": a.author_id, "label": _author_label(a)},
                 "created": a.created,
-                "target": {"key": a.target_key, "hash": a.target_hash},
+                # a note on a page of a cited work names the work by identifier; the citekey and the page travel
+                # beside it so a viewer needs no lookup to say where it is (plan 0.13 item 2)
+                "target": {
+                    "key": a.target_key,
+                    "hash": a.target_hash,
+                    "work": res.work or None,
+                    "page": a.anchor.page if a.anchor else None,
+                },
+                "basis": a.anchor.basis if a.anchor else None,
                 "kind": a.kind,
                 "body_html": render_markdown(a.body),
                 "status": a.status,
                 "in_reply_to": a.in_reply_to,
-                "anchored": a.selector is not None and not res.detached and res.recorded,
+                "anchored": (a.selector is not None or a.anchor is not None) and not res.detached and res.recorded,
                 "detached": res.detached,
                 "recorded": res.recorded,
                 "quote": a.selector.exact if a.selector else None,

@@ -217,8 +217,13 @@ def _one_comment(
     payload: str | None = None,
     placement: str | None = None,
     undo: bool = False,
+    page: int | None = None,
+    rects: list[list[float]] | None = None,
 ) -> str:
-    """Append one review event to the log and describe it; the only writer of review records."""
+    """Append one review event to the log and describe it; the only writer of review records.
+
+    `page` with `quote` or `rects` makes this a note on a page of a cited work (plan 0.13 item 2): the target is then a citekey or a work identifier, and the event records the identifier, the artifact's hash, and a page anchor beside the usual text triple. Everything else about the event is as it is for a key.
+    """
     root = result.quilt.root
     records = Records(root, result.quilt.history_dir).records
     date = today()
@@ -262,6 +267,9 @@ def _one_comment(
 
     if not target:
         raise EnvError("TARGET is required")
+    work = _work_target(result, target)
+    if work is not None or page is not None or rects:
+        return _note_on_page(result, base, records, date, target, work, message, quote, kind, severity, page, rects)
     key, text = _target_text(result, target)
     node_key = result.assembly.regions[key].container if key in result.assembly.regions else key
     selector = None
@@ -307,6 +315,112 @@ def _one_comment(
     )
     sev = f" {severity}" if severity else ""
     return f"{ann_id}  {key}  {kind}{sev}  ({aid}{' run' if akind == 'run' else ''})"
+
+
+def _work_target(result: ScanResult, target: str) -> tuple[str, Any] | None:
+    """(citekey, WorkId) when `target` names a cited work -- by citekey, or by an identifier any entry states -- else None.
+
+    A key wins over a work: the assembly is asked first, so a citekey that happens to equal a label is still the label. The identifier form is what an agent reading `cited:` links has, and what the record stores.
+    """
+    from loom.refs.identity import identify, parse, primary
+
+    try:
+        resolve_key(result, target)
+        return None
+    except EnvError:
+        pass
+    if target in result.bib:
+        wid = primary(result.bib[target])
+        return (target, wid) if wid is not None else None
+    wid = parse(target)
+    if wid is None:
+        return None
+    for ck, entry in result.bib.items():
+        if any((w.scheme, w.value) == (wid.scheme, wid.value) for w in identify(entry)):
+            return ck, primary(entry) or wid
+    return None
+
+
+def _note_on_page(
+    result: ScanResult,
+    base: dict[str, Any],
+    records: list[Any],
+    date: str,
+    target: str,
+    work: tuple[str, Any] | None,
+    message: str | None,
+    quote: str | None,
+    kind: str | None,
+    severity: str | None,
+    page: int | None,
+    rects: list[list[float]] | None,
+) -> str:
+    """A note on a page of a cited work: the same event as any annotation, with the work as its target and a page anchor."""
+    from loom.refs.anchoring import anchor_on_page
+    from loom.refs.fetch import work_dir
+    from loom.refs.pages import read_map
+    from loom.render.serve import open_url
+
+    if work is None:
+        try:
+            resolve_key(result, target)
+        except EnvError:
+            raise EnvError(
+                f"--page is for a page of a cited work, and {target} names none: give a citekey from the bibliography "
+                "or an identifier one of its entries states (doi:…, arXiv:…)"
+            ) from None
+        raise EnvError(f"--page is for a page of a cited work, and {target} is a key in this quilt")
+    citekey, wid = work
+    if page is None:
+        raise EnvError(f"{citekey} is a cited work: say which page with --page N, and what on it with --quote or --box")
+    if quote and rects:
+        raise EnvError("give --quote for text on the page or --box for a rectangle on it, not both")
+    if not quote and not rects:
+        raise EnvError("a note on a page needs --quote (text on it) or --box (x0,y0,x1,y1 in points, origin top left)")
+    home = work_dir(result.quilt.root, result.bib[citekey])
+    if read_map(home) is None or not (home / "paper.pdf").is_file():
+        raise ContentError(f"{citekey} has no readable copy on this machine; loom refs fetch {citekey} files one")
+    placed = anchor_on_page(home, page, quote, rects)
+    if not placed.found:
+        raise ContentError(
+            f"that text is not on {citekey} p.{page}: quote from `loom refs page {citekey} {page}`, or draw a --box"
+        )
+    if kind is None:
+        kind = "confirmation" if not message else "note"
+    full = full_kind(kind)
+    if full is None:
+        raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
+    kind = full
+    if severity is not None and severity not in SEVERITIES:
+        raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
+    if severity is not None and kind not in GRADED:
+        raise EnvError(
+            f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}"
+        )
+    ann_id = next_id(records, date)
+    # Quads are recorded only for a box, where they are the anchor; for text they are derived at build time from
+    # the offsets, as a result's are, so a record never carries two descriptions that could drift apart.
+    recorded = placed.anchor.to_dict()
+    if placed.anchor.basis == "text":
+        recorded.pop("quads", None)
+    append(
+        result.quilt.root,
+        {
+            **base,
+            "event": "created",
+            "id": ann_id,
+            "target": str(wid),
+            "against": "sha256:" + placed.anchor.sha256,
+            "anchor": {**recorded, **placed.selector.to_dict()},
+            "annotation_kind": kind,
+            "body": message or "",
+            "severity": severity,
+        },
+    )
+    sev = f" {severity}" if severity else ""
+    said = f"{ann_id}  {citekey} p.{page} ({placed.said})  {kind}{sev}  ({base['author']})"
+    where = open_url(result.quilt.root, f"library/{citekey}?page={page}&annot={ann_id}")
+    return said + (f"\nopen: {where}" if where else "")
 
 
 def discard_annotation(
@@ -369,6 +483,8 @@ BATCH_KEYS = (
     "severity",
     "payload",
     "placement",
+    "page",
+    "box",
 )
 BATCH_VERBS = ("reply", "resolve", "edit", "discard")
 
@@ -409,14 +525,47 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
         item.get("severity"),
         item.get("payload"),
         item.get("placement"),
+        page=int(item["page"]) if item.get("page") is not None else None,
+        rects=_rects(str(item["box"])) if item.get("box") else None,
     )
+
+
+def _rects(box: str) -> list[list[float]]:
+    """`x0,y0,x1,y1[;x0,y0,x1,y1…]` as rectangles, in points with the origin at the top left."""
+    out: list[list[float]] = []
+    for part in box.split(";"):
+        nums = [p.strip() for p in part.split(",") if p.strip()]
+        if len(nums) != 4:
+            raise EnvError(f"--box wants x0,y0,x1,y1 (points, origin top left), got {part!r}")
+        try:
+            out.append([float(n) for n in nums])
+        except ValueError as exc:
+            raise EnvError(f"--box wants numbers, got {part!r}") from exc
+    return out
 
 
 @click.command()
 @click.argument("target", required=False, default=None)
 @click.argument("message", required=False, default=None)
 @click.option(
-    "--quote", default=None, help="Anchor to this exact text, which must occur once in the target's own text."
+    "--quote",
+    default=None,
+    help="Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page.",
+)
+@click.option(
+    "--page",
+    "page",
+    type=int,
+    default=None,
+    metavar="N",
+    help="A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box.",
+)
+@click.option(
+    "--box",
+    "box",
+    default=None,
+    metavar="X0,Y0,X1,Y1",
+    help="Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several.",
 )
 # Not a `click.Choice`: the choice would reject a prefix before `full_kind` could resolve one, which is the whole
 # point of accepting them — `confirmation` is long, and `--kind conf` should cost nothing (DR-204).
@@ -463,6 +612,8 @@ def comment(
     target: str | None,
     message: str | None,
     quote: str | None,
+    page: int | None,
+    box: str | None,
     kind: str | None,
     session: str | None,
     author: str | None,
@@ -477,7 +628,10 @@ def comment(
     batch: bool,
     quilt_path: str | None,
 ) -> None:
-    """Write an annotation on TARGET (a key, an equation's qualified key, or a master path); the only writer of review records."""
+    """Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work.
+
+    A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.
+    """
     result = open_scan(quilt_path)
     root = result.quilt.root
     writer = _writer(root, session, author)
@@ -515,7 +669,22 @@ def comment(
         click.echo(edit_annotation(root, edit, writer, body=message, severity=severity, payload=payload))
         return
     click.echo(
-        _one_comment(result, writer, target, message, quote, kind, reply, resolve, severity, payload, placement, undo)
+        _one_comment(
+            result,
+            writer,
+            target,
+            message,
+            quote,
+            kind,
+            reply,
+            resolve,
+            severity,
+            payload,
+            placement,
+            undo,
+            page=page,
+            rects=_rects(box) if box else None,
+        )
     )
 
 
@@ -525,10 +694,33 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
     keys: dict[str, Any] = {}
     assert result.graph is not None
     live: dict[str, list[dict[str, Any]]] = {}
+    # Notes on a page of a cited work have no key, so they have no row and count toward nothing (plan 0.13 item 4):
+    # they are additions to the text and open is their resting state. They are listed on their own, by work.
+    reading: list[dict[str, Any]] = []
     for res in records.resolved(result):
         if res.record.discarded:
             continue
         a = res.annotation
+        if a.anchor is not None:
+            if a.status != "discarded":
+                reading.append(
+                    {
+                        "work": res.work,
+                        "target": a.target_key,
+                        "page": a.anchor.page,
+                        "basis": a.anchor.basis,
+                        "id": a.id,
+                        "kind": a.kind,
+                        "severity": a.severity,
+                        "status": a.status,
+                        "reply_to": a.in_reply_to,
+                        "detached": res.detached,
+                        "recorded": res.recorded,
+                        "quote": a.selector.exact if a.selector else "",
+                        "body": a.body,
+                    }
+                )
+            continue
         live.setdefault(a.target_key, []).append(
             {"id": a.id, "kind": a.kind, "severity": a.severity, "status": a.status, "detached": res.detached}
         )
@@ -599,6 +791,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         "runs": runs,
         "undigested": undigested,
         "retired": retired,
+        "reading": sorted(reading, key=lambda r: (r["work"], r["page"], r["id"])),
     }
 
 
@@ -735,6 +928,12 @@ def filter_keys(
     is_flag=True,
     help="Also list the digest keys nothing in this quilt depends on; they are left out by default.",
 )
+@click.option(
+    "--reading",
+    "f_reading",
+    is_flag=True,
+    help="List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise.",
+)
 @click.option("--explain", default=None, metavar="KEY")
 @click.option("--json", "as_json", is_flag=True)
 @click.option("--session", "run_dir", default=None, envvar="LOOM_SESSION")
@@ -755,12 +954,16 @@ def status(
     f_status: str | None,
     f_detached: bool,
     f_digests: bool,
+    f_reading: bool,
     explain: str | None,
     as_json: bool,
     run_dir: str | None,
     quilt_path: str | None,
 ) -> None:
-    """Every key with its computed state, cause if stale, and review facts. Never exits nonzero."""
+    """Every key with its computed state, cause if stale, and review facts. Never exits nonzero.
+
+    Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
+    """
     result = open_scan(quilt_path)
     records = Records(result.quilt.root)
     log_run(run_dir, "loom status", result.quilt.root)
@@ -793,6 +996,15 @@ def status(
     payload["summary"] = summarise(result, payload["keys"])
     if as_json:
         emit_json(payload)
+        return
+    if f_reading:
+        if not payload["reading"]:
+            click.echo("no notes on any cited work's pages")
+        for r in payload["reading"]:
+            where = f"p.{r['page']}" + (" (box)" if r["basis"] == "box" else "")
+            state = r["status"] + (", detached" if r["detached"] else "") + ("" if r["recorded"] else ", unrecorded")
+            first = r["body"].strip().splitlines()[0] if r["body"].strip() else ""
+            click.echo(f"{r['work'] or r['target']:<16} {where:<10} {r['kind']:<13} {r['id']:<20} {state:<18} {first[:60]}")
         return
     if explain:
         key = resolve_key(result, explain)

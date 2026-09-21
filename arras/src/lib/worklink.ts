@@ -1,4 +1,4 @@
-// Links into a cited work (book 10.4.1): `cited:<scheme>:<value>#page=N` or `#quote=TEXT` in a comment names a place in a paper by the work's global identifier, never by a citekey, so it survives a bibliography re-export and means the same thing to a collaborator whose citekeys differ.
+// Links into a cited work (book 10.4.1, plan 0.13 item 6): `cited:<scheme>:<value>?page=N&span=A-B` names a place in a paper by the work's global identifier, never by a citekey, so it survives a bibliography re-export and means the same thing to a collaborator whose citekeys differ. The keys are the app URL's own -- `page`, `span`, `box`, `annot`, spelled out because agents and authors write them by hand -- so there is one locator syntax with two prefixes. The `#page=`/`#quote=` fragment form is still read, for the links written before the query form was decided.
 import { artifactUrl } from '$lib/paths';
 // The link form is the interface's (specs/dialect.md §2.13); nothing here knows the publisher.
 
@@ -10,6 +10,12 @@ export interface WorkLink {
 	id: string;
 	page?: number;
 	quote?: string;
+	/** Offsets into the page's committed text, `start-end`. */
+	span?: [number, number];
+	/** A rectangle on the page, in points with the origin at the top left. */
+	box?: [number, number, number, number];
+	/** An annotation whose own anchor says where; the form most links should take, since it survives re-anchoring. */
+	annot?: string;
 }
 
 const PREFIX = 'cited:';
@@ -23,19 +29,46 @@ export function isWorkLink(href: string | null | undefined): boolean {
 export function parseWorkLink(href: string): WorkLink | null {
 	if (!isWorkLink(href)) return null;
 	const body = href.slice(PREFIX.length);
-	const [target, fragment = ''] = body.split(/#(.*)/s, 2);
+	// the query is the form; the fragment is read too, for links written before it was decided
+	const [target, rest = ''] = body.split(/[?#](.*)/s, 2);
 	const at = target.indexOf(':');
 	if (at < 1 || at === target.length - 1) return null;
 	const link: WorkLink = { id: normalId(target) };
-	for (const part of fragment.split('&')) {
+	readKeys(link, rest.replace('#', '&'));
+	return link;
+}
+
+/** The place keys, from a `cited:` link's query or an app URL's: the same keys, read the same way. */
+export function readKeys(link: WorkLink, query: string): WorkLink {
+	for (const part of query.split('&')) {
 		const eq = part.indexOf('=');
 		if (eq < 0) continue;
 		const key = part.slice(0, eq);
 		const value = safeDecode(part.slice(eq + 1));
 		if (key === 'page' && /^\d+$/.test(value) && Number(value) > 0) link.page = Number(value);
 		if (key === 'quote' && value.trim()) link.quote = value.trim();
+		if (key === 'span') {
+			const m = value.match(/^(\d+)-(\d+)$/);
+			if (m) link.span = [Number(m[1]), Number(m[2])];
+		}
+		if (key === 'box') {
+			const nums = value.split(',').map(Number);
+			if (nums.length === 4 && nums.every((n) => Number.isFinite(n))) link.box = [nums[0], nums[1], nums[2], nums[3]];
+		}
+		if (key === 'annot' && /^a-\d{4}-\d{2}-\d{2}-\d+$/.test(value)) link.annot = value;
 	}
 	return link;
+}
+
+/** The query string that names a place on a work's page in the app: what a `cited:` link becomes on this machine. */
+export function placeQuery(link: WorkLink): string {
+	const q = new URLSearchParams();
+	if (link.page) q.set('page', String(link.page));
+	if (link.span) q.set('span', `${link.span[0]}-${link.span[1]}`);
+	if (link.box) q.set('box', link.box.join(','));
+	if (link.annot) q.set('annot', link.annot);
+	if (link.quote) q.set('quote', link.quote);
+	return q.toString();
 }
 
 function safeDecode(s: string): string {

@@ -13,8 +13,12 @@
 	import Reading from '$lib/pdf/Reading.svelte';
 	import { setQuery } from '$lib/query';
 	import Beside from '$lib/split/Beside.svelte';
+	import Tabs from '$lib/split/Tabs.svelte';
+	import { readKeys, type WorkLink } from '$lib/worklink';
+	import { slotsFor } from '$lib/fragments/slots';
 
 	const m = $derived(store.manifest!);
+	const slots = slotsFor(() => m);
 	const citekey = $derived(decodeURIComponent(page.params.citekey ?? ''));
 	const ref = $derived(m.references[citekey]);
 	const citers = $derived((id: string) => [...new Set(m.edges.filter((e) => e.to === id).map((e) => e.from))]); // one entry per citing key, however many edges
@@ -39,14 +43,18 @@
 		[...new Set(Object.values(ref?.results ?? {}).map((r) => r.page))].filter((p) => p > 0).sort((a, b) => a - b)
 	);
 	// What a discussion beside this work is about: its digest nodes and its proposals, which is everything on the page.
-	const about = $derived([...(ref?.digest?.nodes ?? []), ...(ref?.proposed?.nodes ?? [])]);
+	const about = $derived([...(ref?.work ? [ref.work] : []), ...(ref?.digest?.nodes ?? []), ...(ref?.proposed?.nodes ?? [])]);
+	// The place the URL points at, in the one locator syntax `cited:` links share (plan 0.13 item 6).
+	const locator = $derived<WorkLink | null>(ref?.work ? readKeys({ id: ref.work }, page.url.search.slice(1)) : null);
+	// Two texts, one pane: the paper and the digest read off it. Tabs belong to the content pane (§7).
+	let tab = $state<'paper' | 'digest'>('paper');
 </script>
 
 <main class="page">
 	{#if !ref}
 		<h1>Unknown reference</h1>
 	{:else}
-		<Beside keys={about} label="this work">
+		<Beside keys={about} label="this work" open={!!reading}>
 		<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
 		<p class="muted">
 			<code>{citekey}</code>{ref.bib.author ? ` · ${bibText(ref.bib.author)}` : ''}{ref.bib.year ? ` · ${ref.bib.year}` : ''}
@@ -74,8 +82,13 @@
 			</p>
 		{/if}
 		{#if reading}
-			<Reading {citekey} {ref} page={reading} />
+			<Tabs tabs={[{ id: 'paper', label: 'Paper' }, { id: 'digest', label: 'Digest' }]} bind:value={tab} />
 		{/if}
+		{#if reading && tab === 'paper'}
+			<div class="reader">
+				<Reading {citekey} {ref} page={reading} {locator} />
+			</div>
+		{:else}
 		{#if proposals.length}
 			<section class="proposals" data-testid="proposals">
 				<h2>Proposed — {proposals.length} statement{proposals.length === 1 ? '' : 's'} nobody has vouched for</h2>
@@ -89,7 +102,7 @@
 			</section>
 		{/if}
 		{#if ref.digest}
-			<Fragment path={ref.digest.fragment} macroSet={citekey} />
+			<Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} />
 			<h2>Results used here</h2>
 			{#if used.length}
 				<ul>
@@ -117,11 +130,18 @@
 		{:else if !proposals.length}
 			<p>No digest yet. Cited by: {#each ref.cited_by as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">nothing</span>{/each}</p>
 		{/if}
+		{/if}
 		</Beside>
 	{/if}
 </main>
 
 <style>
+	/* the reader fills what the pane leaves it, so the page column scrolls and the page does not */
+	.reader {
+		height: calc(80vh - 7rem);
+		min-height: 320px;
+		border: 1px solid var(--rule, #ddd9cf);
+	}
 	.fold {
 		font: inherit;
 		color: inherit;

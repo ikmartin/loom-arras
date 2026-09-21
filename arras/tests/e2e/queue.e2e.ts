@@ -26,21 +26,21 @@ function linkInComment(m: typeof manifest, href: string) {
 }
 
 test.describe('links into cited works', () => {
-	test('a link in a comment opens the fetched paper at its page, and Escape closes it', async ({ page }) => {
+	test('a link in a comment lands in the Library View at its page, and back returns', async ({ page }) => {
+		// Plan 0.13 item 6: a copy on this machine opens where the page is read beside its discussion, not in a modal.
+		// The link is written in the one locator syntax, and the fragment form written before it is still read.
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
-			linkInComment(m, 'cited:arxiv:math/9810166v2#page=4');
+			linkInComment(m, 'cited:arxiv:math/9810166v2?page=4');
 		});
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
-		await expect(page).toHaveURL(/\/node\/sy-0003$/); // the reader stays where they were
-		const viewer = page.getByTestId('pdf-viewer');
-		await expect(viewer).toBeVisible();
-		await expect(viewer.getByTestId('pdf-frame')).toBeVisible();
-		await expect(viewer).toContainText('Cycle groups for Artin stacks');
-		await expect(viewer).toContainText('page 4');
-		await page.keyboard.press('Escape');
-		await expect(viewer).toHaveCount(0);
+		await expect(page).toHaveURL(/\/library\/Kre99\?page=4$/);
+		await expect(page.getByTestId('pdf-doc')).toBeVisible();
+		await expect(page.getByTestId('pdf-viewer')).toHaveCount(0); // no modal for a copy that is here
+		await expect(page.getByTestId('beside')).toBeVisible(); // and it opens split, the paper beside its discussion
+		await page.goBack();
+		await expect(page).toHaveURL(/\/node\/sy-0003$/);
 	});
 
 	test('a paper not fetched on this machine says so and links to its source at the page', async ({ page }) => {
@@ -66,14 +66,17 @@ test.describe('links into cited works', () => {
 		await expect(page.getByTestId('pdf-frame')).toBeVisible();
 	});
 
-	test('a quote anchor is shown to look for', async ({ page }) => {
+	test('a quote anchor travels in the URL, in the same keys the app uses', async ({ page }) => {
+		// The place itself is lit by the publisher mapping the quote onto the page, which the reading suite covers
+		// under `loom serve`; here there is no publisher, so what is checked is that the link carried it whole.
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
 			linkInComment(m, 'cited:arxiv:math/9810166v2#quote=Artin%20stacks');
 		});
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
-		await expect(page.getByTestId('pdf-quote')).toContainText('Look for “Artin stacks”');
+		await expect(page).toHaveURL(/\/library\/Kre99\?page=1&quote=Artin\+stacks$/);
+		await expect(page.getByTestId('pdf-doc')).toBeVisible();
 	});
 
 	test('a digest result links its page into the version it was extracted from, and the viewer closes on an outside press', async ({ page }) => {
