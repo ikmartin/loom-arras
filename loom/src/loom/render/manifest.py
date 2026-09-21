@@ -42,6 +42,7 @@ STATE_LABELS = {
 
 def _sessions(root: Path) -> list[dict[str, Any]]:
     """Every session the index leaves standing, with what the viewer's selector shows: the title, the state, and the round it is on."""
+    from loom.mailbox import attached, last_seq
     from loom.sessions import active, sessions
 
     here = active(root)
@@ -54,6 +55,10 @@ def _sessions(root: Path) -> list[dict[str, Any]]:
             "opened": s.last_opened,
             "rounds": len(s.rounds),
             "active": s.id == here,
+            # who is listening now, by a heartbeat that goes stale rather than being believed forever, so the composer
+            # can say honestly whether anybody is there (plan 0.13 §8)
+            "attached": [{"who": r.get("who", ""), "kind": r.get("kind", "")} for r in attached(root, s.id)],
+            "seq": last_seq(root, s.id),
         }
         for s in sessions(root).values()
     ]

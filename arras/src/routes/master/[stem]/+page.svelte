@@ -17,6 +17,7 @@
 	import { dataUrl } from '$lib/paths';
 	import { openOn, repliesTo } from '$lib/annotations';
 	import Composer from '$lib/review/Composer.svelte';
+	import Beside from '$lib/split/Beside.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -24,6 +25,9 @@
 
 	/** How much a comment may say before a gutter is the wrong place for it. Measured on the rendered text of the comment and its replies. */
 	const GUTTER_LIMIT = 220;
+
+	/** What the discussion pane beside the document is about: the document itself, and every key it reaches. */
+	const inDocument = $derived(master ? [master.path, ...Object.keys(m.nodes).filter((k) => m.nodes[k].reached_by.includes(master.path))] : []);
 
 	/** Annotations on the document itself, as opposed to on anything inside it. */
 	const onDocument = $derived(master ? commentsOn(master.path) : []);
@@ -104,6 +108,7 @@
 		<h1>Unknown document</h1>
 		<p class="muted">No master in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
+		<Beside keys={inDocument} label="the document">
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
@@ -143,6 +148,7 @@
 		{:else if !graphOpen}
 			<button class="local-toggle" onclick={() => setGraph(true)} aria-label="Show the local graph" title="local graph" data-testid="local-graph-open"><Icon name="graph" size={16} /></button>
 		{/if}
+		</Beside>
 	{/if}
 </main>
 

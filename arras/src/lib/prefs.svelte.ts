@@ -29,6 +29,8 @@ export interface Prefs {
 	divider: number;
 	/** Whether the discussion stands on the left. A settings toggle, expected to be deprecated once one side is known to be right. */
 	swap: boolean;
+	/** How large a rendered page is drawn. Per renderer kind rather than per document: a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. */
+	zoom: number;
 	face: Face;
 	size: Size;
 	width: Width;
@@ -37,7 +39,7 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { shell: 'c', divider: 0.62, swap: false, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { shell: 'c', divider: 0.62, swap: false, zoom: 1.4, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
 // A stored `b`, the retired tabs shell, is not in the list, so it falls back to the default like any unknown value.
 // The same carries the format rename: a browser holding `paper` or `blog` gets the default back, which is what the
@@ -56,10 +58,12 @@ export function coerce(raw: unknown): Prefs {
 	const pick = <T extends string>(v: unknown, allowed: T[], fallback: T): T =>
 		typeof v === 'string' && (allowed as string[]).includes(v) ? (v as T) : fallback;
 	const ratio = typeof o.divider === 'number' && Number.isFinite(o.divider) ? o.divider : DEFAULTS.divider;
+	const scale = typeof o.zoom === 'number' && Number.isFinite(o.zoom) ? o.zoom : DEFAULTS.zoom;
 	return {
 		shell: pick(o.shell, SHELLS, DEFAULTS.shell),
 		divider: Math.min(0.8, Math.max(0.2, ratio)),
 		swap: o.swap === true,
+		zoom: Math.min(3, Math.max(0.5, scale)),
 		face: pick(o.face, FACES, DEFAULTS.face),
 		size: pick(o.size, SIZES, DEFAULTS.size),
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
@@ -104,6 +108,7 @@ class PrefsState {
 	shell = $state<Shell>(DEFAULTS.shell);
 	divider = $state<number>(DEFAULTS.divider);
 	swap = $state<boolean>(DEFAULTS.swap);
+	zoom = $state<number>(DEFAULTS.zoom);
 	face = $state<Face>(DEFAULTS.face);
 	size = $state<Size>(DEFAULTS.size);
 	width = $state<Width>(DEFAULTS.width);
@@ -112,7 +117,7 @@ class PrefsState {
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { shell: this.shell, divider: this.divider, swap: this.swap, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { shell: this.shell, divider: this.divider, swap: this.swap, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -120,6 +125,7 @@ class PrefsState {
 		this.shell = p.shell;
 		this.divider = p.divider;
 		this.swap = p.swap;
+		this.zoom = p.zoom;
 		this.face = p.face;
 		this.size = p.size;
 		this.width = p.width;

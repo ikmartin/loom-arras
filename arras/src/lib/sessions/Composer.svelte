@@ -25,6 +25,8 @@
 	let busy = $state(false);
 	let said = $state('');
 	let listening = $state<{ who: string; kind: string }[] | null>(null);
+	/** Docked at two lines; a message worth writing at length gets the pane's full width rather than a scrollbar. */
+	let wide = $state(false);
 
 	$effect(() => {
 		void can('message').then((ok) => (allowed = ok));
@@ -58,15 +60,23 @@
 </script>
 
 {#if allowed}
-	<form class="composer" data-testid="composer" onsubmit={(e) => (e.preventDefault(), send())}>
+	<form class="composer" class:wide data-testid="composer" onsubmit={(e) => (e.preventDefault(), send())}>
 		<textarea
-			rows="2"
+			rows={wide ? 8 : 2}
 			placeholder="say something…"
 			aria-label="Post a message to this session"
 			bind:value={text}
 			onkeydown={keys}
 			data-testid="composer-text"
 		></textarea>
+		<button
+			type="button"
+			class="grow"
+			title={wide ? 'Dock it again' : 'Give it the full pane'}
+			aria-expanded={wide}
+			data-testid="composer-expand"
+			onclick={() => (wide = !wide)}>{wide ? '⌄' : '⌃'}</button
+		>
 		<button type="submit" disabled={busy || !text.trim()} data-testid="composer-send">send</button>
 		{#if said}
 			<p class="said" role="status" data-testid="composer-said">{said}</p>
@@ -77,7 +87,7 @@
 <style>
 	.composer {
 		display: grid;
-		grid-template-columns: 1fr auto;
+		grid-template-columns: 1fr auto auto;
 		gap: 4px;
 		align-items: end;
 		padding: 6px;
@@ -102,6 +112,16 @@
 	button:disabled {
 		opacity: 0.5;
 		cursor: default;
+	}
+	.composer.wide {
+		position: absolute;
+		inset: auto 0 0 0;
+		background: var(--sheet, #fff);
+		box-shadow: 0 -2px 12px rgb(0 0 0 / 10%);
+		z-index: 20;
+	}
+	.grow {
+		padding: 2px 6px;
 	}
 	.said {
 		grid-column: 1 / -1;

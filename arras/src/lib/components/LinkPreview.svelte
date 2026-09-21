@@ -74,8 +74,8 @@
 			if (!n || page.url.pathname === path) return null;
 			return { kind: 'node', key: n };
 		}
-		if (path.startsWith('/digest/')) {
-			const ck = decodeURIComponent(path.slice('/digest/'.length));
+		if (path.startsWith('/library/')) {
+			const ck = decodeURIComponent(path.slice('/library/'.length));
 			return m.references[ck] && page.url.pathname !== path ? { kind: 'ref', citekey: ck } : null;
 		}
 		return null;

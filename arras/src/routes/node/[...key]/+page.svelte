@@ -18,7 +18,8 @@
 	import Composer from '$lib/review/Composer.svelte';
 	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
-	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
+	import Beside from '$lib/split/Beside.svelte';
+	import { workUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	let verbatim = $state(false);
@@ -84,6 +85,7 @@
 		<h1>Unknown key</h1>
 		<p class="muted">The manifest has no node <code>{key}</code>.</p>
 	{:else}
+		<Beside keys={[key, ...node.proofs]} label="this result">
 		<header class="node-head">
 			<h1><Tex text={node.title ?? node.id} />{#if number}<span class="num">{number}</span>{/if}</h1>
 			<p class="meta">
@@ -93,7 +95,7 @@
 				{#if versionLabel(stmt)}<span class="version" data-testid="version">{versionLabel(stmt)}</span>{/if}
 				{#if !number && m.publishes.documents}<span class="muted">not yet numbered</span>{/if}
 				{#each node.tags as t (t)}<a class="tag" href={tagUrl(t)}>#{t}</a>{/each}
-				{#if node.external && node.digest}<span class="muted">from <a href={digestUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
+				{#if node.external && node.digest}<span class="muted">from <a href={workUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
 		</header>
 
@@ -142,6 +144,7 @@
 		{/if}
 
 		<AnnotationPanel manifest={m} keys={[key, ...node.proofs]} />
+		</Beside>
 	{/if}
 </main>
 

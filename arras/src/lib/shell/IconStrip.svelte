@@ -3,6 +3,8 @@
 	// The strip carries no separate home mark: home is one of the views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
+	import { workUrl } from '$lib/nav';
+	import { bibText } from '$lib/works';
 	import SessionPicker from '$lib/sessions/SessionPicker.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -15,6 +17,11 @@
 	// Sessions stand in the panel whenever the corpus has any: which one is being written to is a standing fact about
 	// the corpus, not a property of whichever page is open.
 	const sessions = $derived(store.manifest?.sessions ?? []);
+	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes.
+	const works = $derived(Object.values(store.manifest?.references ?? {}));
+	const library = $derived(works.slice(0, 6));
+	const more = $derived(works.length > 6 ? works.length : 0);
+	let shelf = $state(false);
 </script>
 
 <div class="shell-c">
@@ -53,16 +60,37 @@
 			<p class="rail-label">Contents</p>
 			<Contents entries={contents} masterPath={currentDoc} current={currentSection} />
 		{/if}
+		{#if library.length}
+			<p class="rail-label">Library</p>
+			<ul class="plain library">
+				{#each library as r (r.citekey)}
+					<li>
+						<a href={workUrl(r.citekey)}>{bibText(r.bib.title) || r.citekey}</a>
+						{#if r.unreadable}<span class="aside">unreadable</span>{/if}
+					</li>
+				{/each}
+				{#if more}<li><a href={route('/library')}>all {more} works</a></li>{/if}
+			</ul>
+		{/if}
 		{#if sessions.length}
 			<p class="rail-label">Sessions</p>
 			<SessionPicker />
 		{/if}
-		<p class="rail-label">Indexes</p>
-		<ul class="plain">
-			{#each indexes as x (x.href)}
-				<li><a href={x.href}>{x.label}</a></li>
-			{/each}
-		</ul>
+		<!-- The development shelf. Its symbol is deliberately an odd one rather than a designed icon, so that nobody
+		     mistakes a shelf we keep while building for part of the interface — and so it is conspicuous on the day it
+		     should be taken out. -->
+		<p class="rail-label">
+			<button class="shelf" aria-expanded={shelf} data-testid="dev-shelf" onclick={() => (shelf = !shelf)}>
+				⚗ development
+			</button>
+		</p>
+		{#if shelf}
+			<ul class="plain">
+				{#each indexes as x (x.href)}
+					<li><a href={x.href}>{x.label}</a></li>
+				{/each}
+			</ul>
+		{/if}
 		<p class="counts" data-testid="counts">{counts.nodes} nodes · {counts.errors} errors · {counts.warnings} warnings</p>
 	</div>
 
@@ -192,5 +220,20 @@
 		position: sticky;
 		top: 0;
 		max-height: 100vh;
+	}
+	.shelf {
+		font: inherit;
+		color: inherit;
+		background: none;
+		border: 0;
+		padding: 0;
+		cursor: pointer;
+		text-transform: inherit;
+		letter-spacing: inherit;
+	}
+	.library .aside {
+		margin-left: 0.3em;
+		color: var(--ink-faint);
+		font-size: 0.9em;
 	}
 </style>

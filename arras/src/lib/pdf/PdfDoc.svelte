@@ -8,6 +8,7 @@
 	// Page sizes are per page, not per document: a scan's pages differ by a point or two, and a fixed transform would
 	// creep down a long paper. Page one's size is the placeholder until a page reports its own.
 	import { onMount } from 'svelte';
+	import { prefs } from '$lib/prefs.svelte';
 	import { document_ } from './document';
 	import PdfPage from './PdfPage.svelte';
 
@@ -18,7 +19,7 @@
 		page = 1,
 		spans = [],
 		focus = '',
-		scale = 1.4,
+		scale,
 		window: near = 2,
 		toolbar = true,
 		onselect,
@@ -33,6 +34,7 @@
 		spans?: { id: string; page: number; rects: Rect[] }[];
 		/** The span to scroll to and show as the one being looked at. */
 		focus?: string;
+		/** Overrides the reader's own zoom, for a pane whose size is not theirs to choose (the proposal box). */
 		scale?: number;
 		/** How many pages either side of the one in view are drawn. */
 		window?: number;
@@ -44,6 +46,8 @@
 		onpage?: (e: { page: number }) => void;
 	} = $props();
 
+	// The reader's zoom, remembered across papers and across visits, unless a caller fixes it.
+	const drawAt = $derived(scale ?? prefs.zoom);
 	let column = $state<HTMLDivElement | null>(null);
 	let count = $state(0);
 	// `page` is the page the parent asked for; `here` is the one the reader is on, which scrolling also moves.
@@ -143,6 +147,11 @@
 				data-testid="tool-box"
 				onclick={() => (tool = 'box')}>box</button
 			>
+			<span class="zoom" role="group" aria-label="zoom">
+				<button type="button" title="Smaller" aria-label="Smaller" data-testid="zoom-out" onclick={() => (prefs.zoom = Math.max(0.5, Math.round((prefs.zoom - 0.2) * 10) / 10))}>−</button>
+				<span class="at" data-testid="zoom-at">{Math.round(drawAt * 100)}%</span>
+				<button type="button" title="Larger" aria-label="Larger" data-testid="zoom-in" onclick={() => (prefs.zoom = Math.min(3, Math.round((prefs.zoom + 0.2) * 10) / 10))}>+</button>
+			</span>
 			<span class="where" data-testid="pdf-where">{count ? `page ${at} of ${count}` : ''}</span>
 		</div>
 	{/if}
@@ -152,11 +161,11 @@
 		{/if}
 		{#each all as n (n)}
 			{@const at = sizeOf(n)}
-			<div class="holder" data-holder={n} style="min-height: {at.height * scale}px;">
+			<div class="holder" data-holder={n} style="min-height: {at.height * drawAt}px;">
 				<PdfPage
 					{url}
 					page={n}
-					{scale}
+					scale={drawAt}
 					{tool}
 					{focus}
 					render={shown.has(n)}
@@ -198,8 +207,18 @@
 	.tools button.on {
 		background: var(--annotation-tint, rgb(217 119 87 / 0.18));
 	}
-	.where {
+	.zoom {
 		margin-left: auto;
+		display: inline-flex;
+		align-items: center;
+		gap: 2px;
+	}
+	.zoom .at {
+		min-width: 3.2em;
+		text-align: center;
+		color: var(--muted, #6b6b6b);
+	}
+	.where {
 		color: var(--muted, #6b6b6b);
 	}
 	.column {

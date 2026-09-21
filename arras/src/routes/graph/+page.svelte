@@ -11,7 +11,7 @@
 	import RailList from '$lib/components/RailList.svelte';
 	import Badge from '$lib/components/Badge.svelte';
 	import { nodeBadge } from '$lib/badges';
-	import { digestUrl, keyUrl, nodeUrl } from '$lib/nav';
+	import { workUrl, keyUrl, nodeUrl } from '$lib/nav';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
 	import { bibText } from '$lib/works';
 
@@ -55,7 +55,7 @@
 		return highlight === 'downstream' ? downstream(m, selected) : closureOf(m, selected);
 	});
 	const paper = $derived(selected.startsWith(PAPER) ? m.references[selected.slice(PAPER.length)] : undefined);
-	const open = (id: string) => (id.startsWith(PAPER) ? digestUrl(id.slice(PAPER.length)) : nodeUrl(id));
+	const open = (id: string) => (id.startsWith(PAPER) ? workUrl(id.slice(PAPER.length)) : nodeUrl(id));
 
 	/** Nodes within `depth` steps of the selection in the corpus's dependency graph, ignoring direction; 0 means the whole scope (15.5). */
 	const scope = $derived.by(() => {
@@ -429,7 +429,7 @@
 {#if paper}
 	<PageRail>
 		<RailList label="selected paper">
-			<p class="sel"><a href={digestUrl(paper.citekey)}>{bibText(paper.bib.title) || paper.citekey}</a></p>
+			<p class="sel"><a href={workUrl(paper.citekey)}>{bibText(paper.bib.title) || paper.citekey}</a></p>
 			<p class="faint">{bibText(paper.bib.author)}{paper.bib.year ? ` · ${paper.bib.year}` : ''}</p>
 			<p><WorkLinks ref={paper} /></p>
 			<p class="faint">{related.size} {related.size === 1 ? 'result here uses' : 'results here use'} it{paper.digest ? ` · digest of ${paper.digest.nodes.length}` : ' · no digest'}</p>

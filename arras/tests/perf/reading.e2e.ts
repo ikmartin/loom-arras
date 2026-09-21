@@ -27,7 +27,7 @@ test('a page of a paper renders inside the budget, and an annotated one is not d
 	test.skip(!work, 'this corpus has no paper on this machine, so there is nothing to render');
 
 	const t0 = Date.now();
-	await page.goto(`/digest/${work!.citekey}?page=1`);
+	await page.goto(`/library/${work!.citekey}?page=1`);
 	await page.getByTestId('pdf-doc').waitFor();
 	await page.locator('[data-testid="pdf-page-1"] canvas').waitFor();
 	await expect.poll(() => page.locator('.text span').count()).toBeGreaterThan(0);

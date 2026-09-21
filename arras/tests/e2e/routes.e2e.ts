@@ -7,7 +7,7 @@ const routes: [string, string][] = [
 	['/node/sy-0003', 'Parity'],
 	['/node/sy-0200', 'Results'],
 	['/master/main', 'Widgets, gadgets'],
-	['/digest/Kre99', 'Cycle groups'],
+	['/library/Kre99', 'Cycle groups'],
 	['/review', 'Review'],
 	['/problems', 'Problems'],
 	['/blockers', 'Review'],
@@ -17,7 +17,7 @@ const routes: [string, string][] = [
 	['/tag/orbits', '#orbits'],
 	['/taxa', 'Taxa'],
 	['/taxon/lemma', 'Lemma'],
-	['/references', 'References'],
+	['/library', 'Library'],
 	['/loose', 'Not in any document']
 ];
 
@@ -151,13 +151,15 @@ test('review panel explains itself and names the command behind each state', asy
 	await expect(help).toContainText('accept');
 });
 
-test('digest page lists results with their citers, and the references index counts them', async ({ page }) => {
-	await page.goto('/digest/Kre99');
+test("a work's page lists results with their citers, and the Library counts them", async ({ page }) => {
+	await page.goto('/library/Kre99');
 	const item = page.locator('li:has(> a:first-child[href="/node/Kre99-thm-2.1"])');
 	await expect(item).toContainText('sy-000A'); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
-	await page.goto('/references');
+	await page.goto('/library');
+	// one row per work, carrying what the two indexes carried between them: who cites it, and what has been read of it
 	const row = page.locator('tr', { hasText: 'Kre99' });
-	await expect(row).toContainText('2 results (manual)');
+	await expect(row).toContainText('sy-000A');
+	await expect(row.locator('td.num').first()).toHaveText('2');
 	await page.goto('/problems');
 	await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
 });
@@ -168,15 +170,18 @@ test('a run is read as the document beside the report', async ({ page }) => {
 	await page.goto('/thread/2026-09-16T00-00-referee');
 	await expect(page.getByTestId('split-view')).toBeVisible();
 	// the document on the left, the report on the right, and the report is rendered rather than named
-	await expect(page.locator('.pane.left .fragment').first()).toBeVisible();
+	await expect(page.locator('.pane.content .fragment').first()).toBeVisible();
 	await expect(page.getByTestId('report-step')).toHaveCount(1);
-	await expect(page.locator('.pane.right').getByText('Major Issues')).toBeVisible();
+	await expect(page.locator('.pane.discussion').getByText('Major Issues')).toBeVisible();
 	// a finding about the whole document comes first, in a section of its own
 	await expect(page.getByTestId('document-findings')).toBeVisible();
-	// the journal is thread.md under its real name
+	// the journal is thread.md under its real name, and it is a tab of the CONTENT pane: the report is the discussion
+	// and never folds behind a control (plan 0.13 §7)
 	await page.getByTestId('tab-journal').click();
-	await expect(page.getByTestId('journal').getByText('hostile review of the parity theorem')).toBeVisible();
-	await page.getByTestId('tab-report').click();
+	await expect(page.locator('.pane.content').getByTestId('journal').getByText('hostile review of the parity theorem')).toBeVisible();
+	await expect(page.getByTestId('report-step')).toBeVisible();
+	await expect(page.locator('.pane.discussion [role="tablist"]')).toHaveCount(0);
+	await page.getByTestId('tab-document').click();
 	await expect(page.locator('pre', { hasText: 'loom comment sy-0003' })).toHaveCount(1); // the log, collapsed by default
 });
 
@@ -194,14 +199,14 @@ test('the panes point at each other', async ({ page }) => {
 	};
 
 	await page.goto('/thread/2026-09-16T00-00-referee');
-	const finding = page.locator('.pane.right [data-annotation-id]').first();
+	const finding = page.locator('.pane.discussion [data-annotation-id]').first();
 	await expect(finding).toBeVisible();
 	const id = await finding.getAttribute('data-annotation-id');
-	const mark = page.locator(`.pane.left [data-annotation~="${id}"]`).first();
+	const mark = page.locator(`.pane.content [data-annotation~="${id}"]`).first();
 	await expect(mark).toBeVisible();
 
 	// a finding scrolls the document to its mark
-	await page.locator('.pane.left').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await page.locator('.pane.content').evaluate((el) => (el.scrollTop = el.scrollHeight));
 	await page.waitForTimeout(200);
 	await finding.click();
 	// polled, not slept: smooth scrolling takes as long as the machine's load makes it take, and a fixed 900 ms passed
@@ -209,7 +214,7 @@ test('the panes point at each other', async ({ page }) => {
 	await expect.poll(() => mark.evaluate(inPane), { timeout: 5000 }).toBe(true);
 
 	// and a mark scrolls the report to its finding
-	await page.locator('.pane.right').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await page.locator('.pane.discussion').evaluate((el) => (el.scrollTop = el.scrollHeight));
 	await page.waitForTimeout(200);
 	await mark.click();
 	await expect.poll(() => finding.evaluate(inPane), { timeout: 5000 }).toBe(true);

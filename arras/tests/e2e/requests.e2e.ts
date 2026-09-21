@@ -250,13 +250,13 @@ test.describe('references', () => {
 	test('a citation with no digest result behind it links to its reference', async ({ page }) => {
 		await page.goto('/master/main');
 		const cite = page.locator('.fragment span.cite[data-citekey="Har77"]').first();
-		await expect(cite.locator('a')).toHaveAttribute('href', '/digest/Har77');
+		await expect(cite.locator('a')).toHaveAttribute('href', '/library/Har77');
 		const toResult = page.locator('.fragment span.cite[data-target="Kre99-thm-2.1"]').first();
 		await expect(toResult.locator('a')).toHaveAttribute('href', '/node/Kre99-thm-2.1');
 	});
 
 	test('the references page links each work out by its identifier', async ({ page }) => {
-		await page.goto('/references');
+		await page.goto('/library');
 		const links = page.getByTestId('work-links-Man12').locator('a');
 		await expect(links).toHaveCount(1);
 		await expect(links.first()).toHaveAttribute('href', 'https://arxiv.org/abs/0805.2065v2');
@@ -272,7 +272,7 @@ test.describe('references', () => {
 			m.references.Man12.artifacts.pdf = true;
 			await route.fulfill({ json: m });
 		});
-		await page.goto('/digest/Man12');
+		await page.goto('/library/Man12');
 		await expect(page.getByTestId('work-links-Man12').getByRole('link', { name: 'PDF' })).toHaveAttribute('href', '/digests/storage/arxiv/0805.2065v2/paper.pdf');
 	});
 });
@@ -308,11 +308,15 @@ test.describe('the counts open filtered tables', () => {
 	});
 
 	test('the strip panel never repeats the strip', async ({ page }) => {
-		for (const path of ['/threads', '/tags', '/references', '/loose']) {
+		for (const path of ['/threads', '/tags', '/loose']) {
 			await page.goto(path);
 			await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
 			await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
 		}
+		// the Library fills the panel with its own filters, which is the other half of the same rule
+		await page.goto('/library');
+		await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
+		await expect(page.getByTestId('show-proposed')).toBeVisible();
 	});
 });
 
@@ -585,5 +589,77 @@ test.describe('the session selector', () => {
 		// and back to everything
 		await page.getByTestId('show-all').click();
 		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
+	});
+});
+
+test.describe('the split as a mode of a route', () => {
+	const withSessions = async (page: Page) =>
+		page.route('**/build/manifest.json', async (route) => {
+			const res = await route.fetch();
+			const m = await res.json();
+			m.sessions = [
+				{
+					id: '2026-09-16T00-00-referee',
+					title: 'referee pass',
+					state: 'open',
+					created: '2026-09-16T00:00:00Z',
+					opened: '2026-09-16T00:00:00Z',
+					rounds: 2,
+					active: true,
+					attached: [{ who: 'referee', kind: 'agent' }],
+					seq: 0
+				}
+			];
+			await route.fulfill({ json: m });
+		});
+
+	test('a node page opens a discussion beside it, and the URL is what remembers', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/node/sy-0003');
+		// closed by default: a reader who never wants one carries a single control and no frame
+		await expect(page.getByTestId('beside')).toBeHidden();
+		await page.getByTestId('beside-toggle').click();
+		await expect(page.getByTestId('beside')).toBeVisible();
+		await expect(page).toHaveURL(/beside=1/);
+		// the divider is the same one the reading pane uses, and the discussion says where writing goes
+		await expect(page.getByTestId('divider')).toBeVisible();
+		await expect(page.getByTestId('discussion-into')).toContainText('referee pass');
+		// what is beside it is what is on this result
+		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
+		await page.getByTestId('beside-toggle').click();
+		await expect(page.getByTestId('beside')).toBeHidden();
+	});
+
+	test('the document does too, and it is the same frame', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/master/main?beside=1');
+		await expect(page.getByTestId('beside')).toBeVisible();
+		await expect(page.getByTestId('pane-content').locator('.fragment').first()).toBeVisible();
+		// an annotation on a key inside the document, not only on the document itself
+		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
+	});
+
+	test("a session's permalink opens split, and reads the session back whole", async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/session/2026-09-16T00-00-referee');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('referee pass');
+		await expect(page.getByTestId('session-facts')).toContainText('round 2');
+		await expect(page.getByTestId('session-attached')).toContainText('referee ⟨agent⟩');
+		// it opens split without being asked, because the discussion is what a session is
+		await expect(page.getByTestId('beside')).toBeVisible();
+		// every annotation filed in it, oldest first, each a link to what it is about
+		const filed = page.getByTestId('session-filed').locator('> li');
+		await expect(filed.first()).toHaveAttribute('data-testid', 'filed-a-2026-09-16-0001');
+		await expect(filed).toHaveCount(5);
+		// and closing it leaves the record in place
+		await page.getByTestId('beside-toggle').click();
+		await expect(page.getByTestId('beside')).toBeHidden();
+		await expect(page.getByTestId('session-filed')).toBeVisible();
+	});
+
+	test('an unknown session is reported rather than invented', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/session/nope');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Unknown session');
 	});
 });

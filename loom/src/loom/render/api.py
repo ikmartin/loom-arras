@@ -170,7 +170,7 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     found = resolve(root, which) if which else ensure_active(root, name)
     if found is None:
         raise ApiError("no-such-session", f"no session matches {which}", status=404)
-    event = post(root, found.id, text, name, kind="message")
+    event = post(root, found.id, text, name, kind="message", changed=_changed_since(root, found))
     here = [r for r in attached(root, found.id) if r.get("who") != name]
     return {
         "ok": True,
@@ -179,6 +179,39 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         "seq": event.seq,
         "attached": here,
     }
+
+
+def _changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
+    """The annotations that changed in this session since its last message, carried inline with the next one.
+
+    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Without this, "have another look" arrives with nothing attached and the agent must go and diff the log to learn what moved.
+    """
+    from loom.mailbox import read_events
+    from loom.records.annotations import load_records
+
+    # By id rather than by clock: `stamp()` has second resolution, so a message and an annotation written in the same
+    # second cannot be ordered by their timestamps, and the first post of a session would drop what prompted it.
+    sent = {str(c.get("id", "")) for e in read_events(root, session.id) for c in e.changed}
+    since = session.last_opened
+    records, _ = load_records(root)
+    out: list[dict[str, Any]] = []
+    for record in records:
+        if record.rel not in (session.id, session.source):
+            continue
+        for a in record.annotations:
+            if a.id in sent or a.created < since or a.status == "discarded":
+                continue
+            out.append(
+                {
+                    "id": a.id,
+                    "kind": a.kind,
+                    "target": a.target_key,
+                    "act": "replied" if a.in_reply_to else "created",
+                    "by": a.author_id,
+                    "body": a.body[:200],
+                }
+            )
+    return out
 
 
 def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:

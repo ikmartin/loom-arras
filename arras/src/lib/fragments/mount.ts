@@ -1,5 +1,5 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
-import { anchorId, digestUrl, keyUrl, nodeUrl } from '$lib/nav';
+import { anchorId, workUrl, keyUrl, nodeUrl } from '$lib/nav';
 import { dataUrl } from '$lib/paths';
 import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
@@ -79,7 +79,7 @@ export function wire(
 		if (c.querySelector('a')) continue;
 		const target = c.dataset.target;
 		const citekey = c.dataset.citekey ?? '';
-		const href = target ? nodeUrl(target) : manifest?.references[citekey] ? digestUrl(citekey) : '';
+		const href = target ? nodeUrl(target) : manifest?.references[citekey] ? workUrl(citekey) : '';
 		if (!href) continue;
 		const a = document.createElement('a');
 		a.href = href;

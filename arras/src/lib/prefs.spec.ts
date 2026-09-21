@@ -20,6 +20,7 @@ describe('the display preferences', () => {
 			shell: 'c',
 			divider: 0.62,
 			swap: false,
+			zoom: 1.4,
 			face: 'serif',
 			size: 'm',
 			width: 'mid',
@@ -36,6 +37,9 @@ describe('the display preferences', () => {
 		expect(coerce({ divider: 0.01 }).divider).toBe(0.2);
 		expect(coerce({ divider: 'wide' }).divider).toBe(DEFAULTS.divider);
 		expect(coerce({ comments: 'hover' }).comments).toBe('floating');
+		// zoom is per renderer kind and remembered, and is clamped for the same reason the divider is
+		expect(coerce({ zoom: 9 }).zoom).toBe(3);
+		expect(coerce({ zoom: 0.1 }).zoom).toBe(0.5);
 	});
 
 	it('reads a stored tabs shell, which is retired, as the default', () => {

@@ -1558,3 +1558,22 @@ def test_a_kind_is_named_by_any_unambiguous_prefix_and_severity_only_grades_a_fa
     assert ok.exit_code == 0, ok.output
     bad = run("comment", "dm-0002", "Why?", "--kind", "question", "--severity", "major", "--author", "A. Author", cwd=q)
     assert bad.exit_code != 0 and "belongs on objection or suggestion" in bad.output
+
+
+def test_a_post_carries_what_changed_since_the_last_one(tmp_path: Path) -> None:
+    """A post says what changed and not only what was typed, so a parked agent needs no second call to learn what it is being asked about."""
+    from loom.mailbox import read_events
+    from loom.render.api import handle
+
+    q = quilt(tmp_path)
+    sid = run("session", "new", "referee pass", "--author", "A. Author", cwd=q).output.split()[0]
+    assert run("comment", "dm-0002", "Orbits may be empty.", "--author", "A. Author", cwd=q).exit_code == 0
+    handle(q, "message", {"text": "Have another look.", "author": "A. Author"})
+
+    first = read_events(q, sid)[-1]
+    assert [c["target"] for c in first.changed] == ["dm-0002"]
+    assert first.changed[0]["by"] == "A. Author" and first.changed[0]["act"] == "created"
+
+    # and the next post carries only what changed after it, rather than repeating itself
+    handle(q, "message", {"text": "Anything?", "author": "A. Author"})
+    assert read_events(q, sid)[-1].changed == []

@@ -11,6 +11,7 @@
 	import PdfDoc from './PdfDoc.svelte';
 	import Split from '$lib/split/Split.svelte';
 	import Composer from '$lib/sessions/Composer.svelte';
+	import Stream from '$lib/sessions/Stream.svelte';
 
 	let { citekey, ref, page }: { citekey: string; ref: Reference; page: number } = $props();
 
@@ -117,6 +118,7 @@
 				{/each}
 				{#if told}<pre class="told" data-testid="located">{told}</pre>{/if}
 			</aside>
+			<Stream />
 			<!-- docked in the discussion pane's foot, which is where a reply to what is beside it belongs -->
 			<Composer />
 			</div>

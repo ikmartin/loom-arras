@@ -276,6 +276,10 @@ export interface SessionRow {
   rounds: number;
   /** Whether loom is writing into this one. One is active at a time, for a person and an agent alike. */
   active: boolean;
+  /** Who is listening now, by a heartbeat that goes stale rather than being believed forever. Empty means nobody. */
+  attached?: { who: string; kind: string }[];
+  /** The last event in this session's inbox. A client that has fallen behind knows it has by comparing its own. */
+  seq?: number;
 }
 
 export interface Thread {

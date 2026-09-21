@@ -176,7 +176,44 @@ class LoomHandler(SimpleHTTPRequestHandler):
             # A write that failed for a reason nobody anticipated is still the publisher's answer, not a dead socket.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"code": "failed", "message": str(exc)}})
 
+    def _events(self) -> None:
+        """`GET /_api/events?session=<id>&since=<seq>`: what has landed in a session's inbox since a sequence number.
+
+        **Fine events for appends, coarse for everything else** (plan 0.13 §8). A message is the smallest unit loom can stream -- it never sees the model, so a "typing" feel could only come from an agent writing partial messages -- and everything else a reader needs still arrives through the manifest it already polls. Rebuilding the whole manifest per message would reintroduce the re-render that closed open boxes under the reader.
+
+        The answer carries `seq`, so a client that finds a gap between what it has and what it is given knows it missed some and resyncs the coarse way rather than stitching a stream together from the middle.
+        """
+        from urllib.parse import parse_qs, urlsplit
+
+        from loom.mailbox import last_seq, read_events
+
+        if self.quilt_root is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        query = parse_qs(urlsplit(self.path).query)
+        sid = (query.get("session") or [""])[0]
+        try:
+            since = int((query.get("since") or ["0"])[0])
+        except ValueError:
+            since = 0
+        if not sid:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": {"code": "missing-field", "message": "session is required"}})
+            return
+        events = read_events(self.quilt_root, sid, since)
+        self._json(
+            HTTPStatus.OK,
+            {
+                "session": sid,
+                "from": since,
+                "seq": last_seq(self.quilt_root, sid),
+                "events": [e.to_json() for e in events],
+            },
+        )
+
     def do_GET(self) -> None:  # noqa: N802
+        if self.path.split("?", 1)[0] == "/_api/events":
+            self._events()
+            return
         if self.path.split("?", 1)[0] == "/_api":
             from loom.render.api import discovery
 

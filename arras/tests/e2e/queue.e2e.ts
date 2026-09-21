@@ -78,7 +78,7 @@ test.describe('links into cited works', () => {
 
 	test('a digest result links its page into the version it was extracted from, and the viewer closes on an outside press', async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		const link = page.getByTestId('page-link').first();
 		await expect(link).toHaveText('p. 4');
 		await link.click();
@@ -88,7 +88,7 @@ test.describe('links into cited works', () => {
 	});
 
 	test('with no copy on file a digest page is plain text', async ({ page }) => {
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		await expect(page.locator('main')).toContainText('Theorem 2.1, p. 4');
 		await expect(page.getByTestId('page-link')).toHaveCount(0);
 	});
@@ -108,9 +108,9 @@ test.describe('the work graph', () => {
 
 test.describe('the digest view', () => {
 	test('is the seventh view, and lists the cited works with what has been read of them', async ({ page }) => {
-		await page.goto('/digest');
-		await expect(page.getByTestId('digest-works')).toBeVisible();
-		await expect(page.getByTestId('digest-works')).toContainText('Kre99');
+		await page.goto('/library');
+		await expect(page.getByTestId('library-works')).toBeVisible();
+		await expect(page.getByTestId('library-works')).toContainText('Kre99');
 		await expect(page.locator('nav [aria-current="page"], nav .current').first()).toBeVisible();
 	});
 
@@ -132,7 +132,7 @@ test.describe('the digest view', () => {
 				}
 			};
 		});
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		const box = page.getByTestId('proposal');
 		await expect(box).toHaveCount(1);
 		await expect(page.getByTestId('proposal-flag')).toHaveText('proposed');
@@ -169,7 +169,7 @@ test.describe('the digest view', () => {
 				}
 			};
 		});
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('proposal-paper')).toBeVisible();
 		await expect(page.getByTestId('proposal-paper').getByTestId('pdf-page-1')).toBeVisible();
 		// the quotation is marked on the page, which is what the author's eye is led to
@@ -199,7 +199,7 @@ test.describe('the digest view', () => {
 				}
 			};
 		});
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('proposal-noimage')).toBeVisible();
 		await expect(page.getByTestId('proposal-added')).toHaveCount(0);
 	});
@@ -209,11 +209,11 @@ test.describe('the digest view', () => {
 			const r = m.references.Kre99;
 			r.results = { 'Kre99-thm-9.9': { state: 'proposed', level: 1, class: 'anchored', page: 1, artifact: 'x', origin: [] } };
 		});
-		await page.goto('/digest');
+		await page.goto('/library');
 		await page.getByTestId('show-proposed').click();
 		await expect(page).toHaveURL(/show=proposed/);
 		await expect(page.getByTestId('pending-Kre99')).toHaveText('1');
-		await expect(page.getByTestId('digest-works').locator('tbody tr')).toHaveCount(1);
+		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(1);
 	});
 });
 
@@ -222,7 +222,7 @@ test.describe('identity candidates', () => {
 		await serve(page, (m) => {
 			m.references.Har77.candidates = [{ id: 'doi:10.1007/978-1-4757-3849-0', source: 'zbMATH Open, Crossref', confidence: 1, strength: 'strong', title: 'Algebraic geometry' }];
 		});
-		await page.goto('/references');
+		await page.goto('/library');
 		const c = page.getByTestId('candidate-Har77');
 		await expect(c).toHaveText('doi?');
 		await expect(c).toHaveAttribute('href', 'https://doi.org/10.1007/978-1-4757-3849-0');

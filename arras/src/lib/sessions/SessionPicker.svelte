@@ -9,6 +9,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { active, grouped, sessionView, summary } from './sessions.svelte';
 	import { write } from '$lib/write';
+	import { sessionUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest);
 	const here = $derived(active(m));
@@ -88,6 +89,8 @@
 							/>
 						{:else}
 							<span class="verbs">
+							<!-- The picker chooses what the page shows; the permalink is where the session is read back whole. -->
+							<a href={sessionUrl(s.id)} title="Open this session" aria-label="Open {s.title}" data-testid="session-open-{s.id}">↗</a>
 								<button
 									type="button"
 									title="Rename"
@@ -109,9 +112,11 @@
 								>
 							</span>
 						{/if}
-						{#if it.who.length || it.fresh}
+						{#if it.who.length || it.fresh || s.attached?.length}
 							<p class="who">
-								{it.who.join(', ')}{#if it.fresh}<span class="fresh">{it.fresh} new</span>{/if}
+								{it.who.join(', ')}{#each s.attached ?? [] as a (a.who)}<span class="here" data-testid="attached-{a.who}"
+										>{a.who} ⟨{a.kind}⟩ attached</span
+									>{/each}{#if it.fresh}<span class="fresh">{it.fresh} new</span>{/if}
 							</p>
 						{/if}
 					</li>
@@ -225,6 +230,15 @@
 		font-size: 0.9em;
 		white-space: nowrap;
 	}
+	.verbs a {
+		color: var(--ink-faint, #6b6b6b);
+		text-decoration: none;
+		font-size: 0.9em;
+		padding: 0 2px;
+	}
+	.verbs a:hover {
+		color: var(--ink, #1b1b1b);
+	}
 	.verbs button {
 		font: inherit;
 		font-size: 0.9em;
@@ -246,6 +260,10 @@
 	.fresh {
 		margin-left: 6px;
 		color: var(--annotation, #c05621);
+	}
+	.here {
+		margin-left: 6px;
+		color: var(--link, #35618f);
 	}
 	.rename {
 		font: inherit;
