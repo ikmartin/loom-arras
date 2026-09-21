@@ -21,6 +21,27 @@ async function opened(page: Page): Promise<void> {
 	await page.goto(PAGE2);
 	await page.locator('[data-testid="pdf-page-2"] canvas').waitFor();
 	await expect.poll(() => page.locator('[data-testid="pdf-page-2"] .text span').count()).toBeGreaterThan(50);
+	await intoASession(page);
+}
+
+/**
+ * Choose where the notes will be filed.
+ *
+ * A write names its session and nothing is selected at rest (plan 0.13.1), so this is the first thing a reader does
+ * before annotating — and therefore the first thing these tests do. Opening one when the showcase has none is the same
+ * two clicks the interface asks for.
+ */
+async function intoASession(page: Page): Promise<void> {
+	if ((await page.locator('[data-testid="session-list"] li.selected').count()) === 1) return;
+	const first = page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first();
+	if (await first.count()) {
+		await first.click();
+	} else {
+		await page.getByTestId('session-new').click();
+		await page.getByTestId('session-new-title').fill('reading Bellamy 19');
+		await page.getByTestId('session-new-title').press('Enter');
+	}
+	await expect(page.locator('[data-testid="session-list"] li.selected')).toHaveCount(1);
 }
 
 /** Select a phrase on the page the way a reader does: a Range over the text layer and the release the handler reads. */
@@ -152,8 +173,9 @@ test('the session selection governs the page: a hidden note is counted, not draw
 	await page.getByTestId('session-new').click();
 	await page.getByTestId('session-new-title').fill('an empty sitting');
 	await page.getByTestId('session-new-title').press('Enter');
-	await expect(page.getByTestId('session-active')).toHaveText('an empty sitting', { timeout: 10000 });
-	await page.getByTestId('show-this').click();
+	// `+ new` selects what it opens, since nothing is created automatically any more (plan 0.13.1)
+	await expect(page.locator('[data-testid="session-list"] li.selected')).toContainText('an empty sitting', { timeout: 10000 });
+	await page.getByTestId('show-current').click();
 	await expect(page.getByTestId('reading-hidden')).toContainText('hidden by the session being shown');
 	expect(await page.locator('[data-testid="pdf-page-2"] .mark.note').count()).toBeLessThan(before);
 	const hiddenUnderThis = Number((await page.getByTestId('reading-hidden').textContent())!.match(/\d+/)![0]);
@@ -185,10 +207,13 @@ test('a session is named on the spot and closed from the page', async ({ page })
 	await page.getByTestId('session-new').click();
 	await page.getByTestId('session-new-title').fill('reading Bellamy, closely');
 	await page.getByTestId('session-new-title').press('Enter');
-	await expect(page.getByTestId('session-active')).toHaveText('reading Bellamy, closely', { timeout: 10000 });
+	// it is selected on being opened, and the discussion says so because that is where a reply would land
+	await expect(page.locator('[data-testid="session-list"] li.selected')).toContainText('reading Bellamy, closely', { timeout: 10000 });
 	await expect(page.getByTestId('discussion-into')).toContainText('reading Bellamy, closely');
-	await page.locator('[data-testid^="session-close-"]').click();
-	await expect(page.getByTestId('session-none')).toBeVisible({ timeout: 10000 });
+	// closing the selected session clears the selection, so writing is unavailable until another is chosen
+	await page.locator('[data-testid="session-list"] li.selected [data-testid^="session-close-"]').click();
+	await expect(page.locator('[data-testid="session-list"] li.selected')).toHaveCount(0, { timeout: 10000 });
+	await expect(page.getByTestId('discussion-into')).toContainText('no session selected');
 });
 
 test('two notes on one place are one mark carrying the count, and one box holding both', async ({ page }) => {

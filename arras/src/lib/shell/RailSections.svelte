@@ -132,7 +132,14 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		overflow: hidden;
+		/* **One scroll region, and it is the rail** -- the same rule shell C's panel follows (plan 0.13 §7). The contents
+		   tree used to take every spare pixel with `flex: 1`, so it was whatever the sections below it left over: the
+		   taller session list of plan 0.13.1 squeezed it to four pixels and the tree vanished without anything
+		   overflowing. Sections keep their own height and the column scrolls. */
+		overflow-y: auto;
+	}
+	.rail > * {
+		flex: 0 0 auto;
 	}
 	.corpus {
 		display: flex;
@@ -152,14 +159,11 @@
 		max-height: 40vh;
 	}
 	.contents-section {
-		flex: 1;
-		min-height: 0;
 		display: flex;
 		flex-direction: column;
 	}
 	.contents-section :global(.contents) {
-		flex: 1;
-		min-height: 0;
+		overflow: visible;
 	}
 	.counts {
 		font-size: 10px;

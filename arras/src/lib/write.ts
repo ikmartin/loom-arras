@@ -5,6 +5,11 @@
 // Arras still writes nothing itself. It asks the publisher to, and the publisher writes only to its own record locations.
 
 import { base } from '$app/paths';
+import { store } from '$lib/manifest/client.svelte';
+import { sessionView, writable } from '$lib/sessions/sessions.svelte';
+
+/** The endpoints that record work into a session, and therefore must name one. The session verbs carry their own subject and are not among them, and neither is `locate`, which reads. */
+const SESSIONED = new Set(['comment', 'reply', 'resolve', 'edit', 'discard', 'refs-note', 'digest-verify', 'digest-discard', 'message']);
 
 export interface Capabilities {
 	write_api: number;
@@ -67,6 +72,15 @@ export interface WriteResult {
 /** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused comment is an answer a reader needs to see. */
 export async function write(endpoint: string, body: Record<string, unknown>): Promise<WriteResult> {
 	try {
+		// **Every write names its session, and one place puts it there** (plan 0.13.1). The session travels with the
+		// write from the writer's own context rather than from a pointer the publisher keeps: a call site that forgot
+		// would fall back to that pointer and file work wherever it happened to point. Refusing here rather than at the
+		// publisher makes a mis-wired button fail where it was wired, not somewhere in the log.
+		if (SESSIONED.has(endpoint) && body.session === undefined) {
+			const why = writable(store.manifest);
+			if (why) return { ok: false, error: { code: 'no-session', message: why } };
+			body = { ...body, session: sessionView.selected };
+		}
 		// The token is CSRF protection and not a login: a browser blocks a cross-origin response and never the
 		// request, so any page the author happens to be reading could otherwise POST into the corpus they are
 		// serving. A cross-site form post cannot set a custom header, which is what makes carrying one enough.

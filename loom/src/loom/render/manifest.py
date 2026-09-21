@@ -49,6 +49,8 @@ def _sessions(root: Path) -> list[dict[str, Any]]:
         {
             "id": s.id,
             "title": s.title,
+            # what the sitting is for, in the author's words: a line under the title in the panel, absent when unset
+            "purpose": s.purpose,
             "state": s.state,
             "created": s.created,
             "opened": s.last_opened,

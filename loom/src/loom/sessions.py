@@ -44,6 +44,8 @@ class Session:
     #: `open`, `closed`, or `deleted` -- a tombstone, which hides the session and keeps what was written in it.
     state: str = "open"
     rounds: list[Round] = field(default_factory=list)
+    #: What the sitting is for, in the author's words -- a line under the title, not a second name (plan 0.13.1).
+    purpose: str = ""
     #: For a session made by the migration: the run directory or comment grouping its annotations still carry.
     source: str = ""
 
@@ -111,6 +113,7 @@ def sessions(root: Path, *, deleted: bool = False) -> dict[str, Session]:
                 title=str(e.get("title", "")),
                 created=when,
                 rounds=[Round(opened=when)],
+                purpose=str(e.get("purpose", "")),
                 source=str(e.get("source", "")),
             )
             continue
@@ -119,6 +122,8 @@ def sessions(root: Path, *, deleted: bool = False) -> dict[str, Session]:
             continue
         if kind == "renamed":
             s.title = str(e.get("title", s.title))
+        elif kind == "purposed":
+            s.purpose = str(e.get("purpose", ""))
         elif kind == "closed":
             s.state = "closed"
             if s.rounds and not s.rounds[-1].closed:
@@ -149,7 +154,7 @@ def next_id(root: Path, date: str) -> str:
     return f"{prefix}{n + 1:04d}"
 
 
-def create(root: Path, title: str, who: str, *, source: str = "") -> Session:
+def create(root: Path, title: str, who: str, *, purpose: str = "", source: str = "") -> Session:
     """Mint a session and return it; the directory is not made until something is written into it.
 
     Parameters
@@ -160,6 +165,8 @@ def create(root: Path, title: str, who: str, *, source: str = "") -> Session:
         What to call it; may be changed later and is never an address.
     who : str
         The author creating it.
+    purpose : str, default ''
+        What the sitting is for; shown under the title and changed later with `purposed`.
     source : str, default ''
         For the migration: the run directory or comment grouping whose annotations belong to this session.
 
@@ -172,6 +179,7 @@ def create(root: Path, title: str, who: str, *, source: str = "") -> Session:
     append_event(
         root,
         {"event": "created", "id": sid, "title": title, "who": who, "when": when}
+        | ({"purpose": purpose} if purpose else {})
         | ({"source": source} if source else {}),
     )
     return sessions(root)[sid]
@@ -184,6 +192,11 @@ def _event(root: Path, kind: str, sid: str, who: str, **extra: Any) -> None:
 def rename(root: Path, sid: str, title: str, who: str) -> None:
     """Change what a session is called. Nothing on disk moves: the directory is named by the id, which is an address."""
     _event(root, "renamed", sid, who, title=title)
+
+
+def purpose(root: Path, sid: str, text: str, who: str) -> None:
+    """Say what the sitting is for, or clear it with ''. An event rather than a field, so the index stays a log."""
+    _event(root, "purposed", sid, who, purpose=text)
 
 
 def close(root: Path, sid: str, who: str) -> None:

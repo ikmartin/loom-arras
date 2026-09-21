@@ -3,6 +3,9 @@
 	//
 	// The quote is the reader's selection, which is what anchors the finding to a sentence rather than to a node. A selection that crosses converted markup cannot always be recovered exactly, so the publisher is allowed to refuse, and its refusal is shown rather than swallowed: a comment that silently landed on the wrong sentence is worse than one that did not land.
 	import { can, write } from '$lib/write';
+	import { store } from '$lib/manifest/client.svelte';
+	import NoSession from '$lib/sessions/NoSession.svelte';
+	import { writable } from '$lib/sessions/sessions.svelte';
 	import { GRADED, KINDS, SEVERITIES } from '$lib/review/kinds';
 
 	let {
@@ -58,12 +61,17 @@
 			said = res.error?.message ?? 'the publisher refused it';
 		}
 	}
+	// A write is available only while an open session is selected (plan 0.13.1). The control stays put and greyed
+	// rather than vanishing: a control that disappears leaves the reader wondering whether commenting exists here.
+	let gate = $state<ReturnType<typeof NoSession> | null>(null);
+	const why = $derived(writable(store.manifest));
 </script>
 
 {#if allowed}
 	<div class="composer" data-testid="composer">
+		<NoSession bind:this={gate} />
 		{#if !open}
-			<button class="open" onclick={takeSelection} data-testid="composer-open">
+			<button class="open" class:off={!!why} aria-disabled={!!why} onclick={() => (why ? gate?.say() : takeSelection())} data-testid="composer-open">
 				Comment{#if (window.getSelection()?.toString() ?? '').trim()} on the selection{/if}
 			</button>
 		{:else}
@@ -90,7 +98,7 @@
 							</select>
 						</label>
 					{/if}
-					<button type="submit" disabled={busy || !message.trim()} data-testid="composer-submit">{busy ? 'writing…' : 'write'}</button>
+					<button type="submit" class:off={!!why} aria-disabled={!!why} disabled={busy || !message.trim()} data-testid="composer-submit">{busy ? 'writing…' : 'write'}</button>
 					<button type="button" onclick={() => (open = false)}>cancel</button>
 				</div>
 			</form>
@@ -101,6 +109,7 @@
 
 <style>
 	.composer {
+		position: relative;
 		margin: var(--gap) 0;
 		font-family: var(--sans);
 		font-size: 0.85em;
@@ -117,6 +126,10 @@
 	button[type='submit'] {
 		color: var(--ink);
 		border-color: var(--rule-strong);
+	}
+	button.off {
+		opacity: 0.45;
+		cursor: not-allowed;
 	}
 	button:disabled {
 		opacity: 0.5;

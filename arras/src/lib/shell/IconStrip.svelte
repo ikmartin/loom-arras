@@ -3,10 +3,11 @@
 	// The strip carries no separate home mark: home is one of the views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
-	import { nodeUrl, workUrl } from '$lib/nav';
+	import { canonUrl, masterUrl, nodeUrl, workUrl } from '$lib/nav';
 	import { bibText } from '$lib/works';
 	import SessionPicker from '$lib/sessions/SessionPicker.svelte';
-	import DocumentPicker from './DocumentPicker.svelte';
+	import { openSession } from '$lib/sessions/new';
+	import DevShelf from './DevShelf.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Settings from './Settings.svelte';
 	import { prefs } from '$lib/prefs.svelte';
@@ -37,7 +38,32 @@
 		const q = nodeFilter.trim().toLowerCase();
 		return q ? statements.filter((n) => `${n.id} ${n.taxon} ${n.title ?? ''}`.toLowerCase().includes(q)) : statements;
 	});
-	let shelf = $state(false);
+
+	// Documents: the drafts being worked on and the landmarks recorded, as a list rather than a dropdown, because a
+	// dropdown shows one name at a time and cannot say which draft is conflicted or which landmark a step wrote.
+	// Newest landmark first: the one a reader is most likely to want.
+	const landmarks = $derived([...canon].reverse());
+	const docCount = $derived(masters.length + canon.length);
+	// The file name, not the typeset title: two drafts of one paper share a title and differ only in their path, which
+	// is what the author types and what `--master` and the read view's URL name them by.
+	const filename = (path: string) => path.split('/').pop() || path;
+
+	let naming = $state(false);
+	let newName = $state('');
+
+	async function start(): Promise<void> {
+		const want = newName.trim();
+		naming = false;
+		newName = '';
+		if (want) await openSession(want);
+	}
+
+	let docsOpen = $state(true);
+	// Folded at rest: the contents now hang off the open document, and a disclosure that is already open is a section
+	// with extra steps.
+	let contentsOpen = $state(false);
+	let libraryOpen = $state(true);
+	let sessionsOpen = $state(true);
 </script>
 
 <div class="shell-c">
@@ -56,6 +82,7 @@
 				</li>
 			{/each}
 			<li><button onclick={search} aria-label="Search" title="search"><Icon name="search" /></button></li>
+			<li><DevShelf {indexes} /></li>
 		</ul>
 		<div class="foot"><Settings placement="above" /></div>
 	</nav>
@@ -79,16 +106,62 @@
 			<p class="rail-label">{panelLabel}</p>
 			<div class="page-panel rail-scroll">{@render panel()}</div>
 		{:else}
-			<!-- A page with nothing of its own for the panel gets the document and its contents. The views are already the strip beside it, and listing them a second time made every such page look like a menu. -->
-			{#if masters.length}
-				<p class="rail-label">Document</p>
-				<DocumentPicker {masters} {canon} current={currentDoc} />
+			<!-- A page with nothing of its own for the panel gets the documents and the contents. The views are already the strip beside it, and listing them a second time made every such page look like a menu. -->
+			{#if docCount}
+				<p class="rail-label">
+					<button class="shelf" aria-expanded={docsOpen} data-testid="docs-toggle" onclick={() => (docsOpen = !docsOpen)}>
+						{docsOpen ? '▾' : '▸'} Documents <span class="aside">({docCount})</span>
+					</button>
+				</p>
+				{#if docsOpen}
+					<!-- The contents belong to a document, so they hang off the document rather than standing as a section of
+					     their own: a tree of sections floating below an unrelated list never said whose sections they were,
+					     and on a corpus of several drafts that is the first question. Only the open document has the
+					     disclosure, because it is the only one whose contents this page knows. -->
+					{#snippet doc(path: string, href: string, step?: string)}
+						{@const here = path === currentDoc}
+						<li>
+							<span class="row">
+								<a {href} class:here aria-current={here ? 'page' : undefined}>
+									{filename(path)}{#if step}<span class="aside"> @{Number(step)}</span>{/if}
+								</a>
+								{#if here}
+									<button
+										class="peek"
+										aria-expanded={contentsOpen}
+										aria-label={contentsOpen ? 'Hide the contents' : 'Show the contents'}
+										title={contentsOpen ? 'Hide the contents' : 'Show the contents'}
+										data-testid="contents-toggle"
+										onclick={() => (contentsOpen = !contentsOpen)}
+									>
+										{contentsOpen ? 'hide' : 'show'}<span class="chev" class:down={contentsOpen} aria-hidden="true"></span></button
+									>
+								{/if}
+							</span>
+							{#if here && contentsOpen}
+								<Contents entries={contents} masterPath={currentDoc} current={currentSection} />
+							{/if}
+						</li>
+					{/snippet}
+					{#if masters.length}
+						<p class="group">Working Drafts</p>
+						<ul class="plain docs" data-testid="docs-drafts">
+							{#each masters as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
+						</ul>
+					{/if}
+					{#if landmarks.length}
+						<p class="group">Canon</p>
+						<ul class="plain docs" data-testid="docs-canon">
+							{#each landmarks as c (c.path)}{@render doc(c.path, canonUrl(c.path), c.step)}{/each}
+						</ul>
+					{/if}
+				{/if}
 			{/if}
 		{/if}
 		{#if statements.length}
 			<p class="rail-label">
 				<button class="shelf" aria-expanded={nodesOpen} data-testid="nodes-toggle" onclick={() => (nodesOpen = !nodesOpen)}>
-					{nodesOpen ? '▾' : '▸'} Nodes <span class="aside">{statements.length}</span>
+					{nodesOpen ? '▾' : '▸'} Nodes <span class="aside">({statements.length})</span>
 				</button>
 			</p>
 			{#if nodesOpen}
@@ -103,41 +176,44 @@
 				</ul>
 			{/if}
 		{/if}
-		{#if !panel}
-			<p class="rail-label">Contents</p>
-			<Contents entries={contents} masterPath={currentDoc} current={currentSection} />
-		{/if}
 		{#if library.length}
-			<p class="rail-label">Library</p>
-			<ul class="plain library">
-				{#each library as r (r.citekey)}
-					<li>
-						<a href={workUrl(r.citekey)}>{bibText(r.bib.title) || r.citekey}</a>
-						{#if r.unreadable}<span class="aside">unreadable</span>{/if}
-					</li>
-				{/each}
-				{#if more}<li><a href={route('/library')}>all {more} works</a></li>{/if}
-			</ul>
+			<p class="rail-label">
+				<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
+					{libraryOpen ? '▾' : '▸'} Library <span class="aside">({works.length})</span>
+				</button>
+			</p>
+			{#if libraryOpen}
+				<ul class="plain library">
+					{#each library as r (r.citekey)}
+						<li>
+							<a href={workUrl(r.citekey)}>{bibText(r.bib.title) || r.citekey}</a>
+							{#if r.unreadable}<span class="aside">unreadable</span>{/if}
+						</li>
+					{/each}
+					{#if more}<li><a href={route('/library')}>all {more} works</a></li>{/if}
+				</ul>
+			{/if}
 		{/if}
-		{#if sessions.length}
-			<p class="rail-label">Sessions</p>
-			<SessionPicker />
-		{/if}
-		<!-- The development shelf. Its symbol is deliberately an odd one rather than a designed icon, so that nobody
-		     mistakes a shelf we keep while building for part of the interface — and so it is conspicuous on the day it
-		     should be taken out. -->
 		<p class="rail-label">
-			<button class="shelf" aria-expanded={shelf} data-testid="dev-shelf" onclick={() => (shelf = !shelf)}>
-				⚗ development
+			<button class="shelf" aria-expanded={sessionsOpen} data-testid="sessions-toggle" onclick={() => (sessionsOpen = !sessionsOpen)}>
+				{sessionsOpen ? '▾' : '▸'} Session list <span class="aside">({sessions.length})</span>
 			</button>
+			<!-- Opening a session is the only way to get one, now that the first write no longer opens one behind the
+			     reader, so the control stands in the header where it is always reachable rather than inside the fold. -->
+			{#if naming}
+				<input
+					class="new-title"
+					bind:value={newName}
+					placeholder="what this sitting is for"
+					aria-label="The new session's title"
+					data-testid="session-new-title"
+					onkeydown={(e) => (e.key === 'Enter' ? start() : e.key === 'Escape' ? (naming = false) : undefined)}
+				/>
+			{:else}
+				<button class="new" title="Start a new session" data-testid="session-new" onclick={() => ((naming = true), (sessionsOpen = true))}>+ new</button>
+			{/if}
 		</p>
-		{#if shelf}
-			<ul class="plain">
-				{#each indexes as x (x.href)}
-					<li><a href={x.href}>{x.label}</a></li>
-				{/each}
-			</ul>
-		{/if}
+		{#if sessionsOpen}<SessionPicker />{/if}
 		</div>
 		<p class="counts" data-testid="counts">{counts.nodes} nodes · {counts.errors} errors · {counts.warnings} warnings</p>
 	</div>
@@ -229,6 +305,13 @@
 		flex-direction: column;
 		gap: var(--gap-hair);
 	}
+	/* **A section keeps its own height; the column scrolls.** Flex children shrink by default, and a shrunk box whose
+	   overflow is visible paints its content over whatever follows it — which is what garbled Contents into Library the
+	   moment Nodes was expanded and the panel ran past the window. The page panel is the exception: it is the whole
+	   panel on a route that brings one, so it takes the space. */
+	.sections > *:not(.page-panel) {
+		flex: 0 0 auto;
+	}
 	.panel.away {
 		padding-left: 4px;
 		padding-right: 4px;
@@ -288,7 +371,6 @@
 	   places to look for the same list. The tree keeps its own class for the other shell, where it is the whole rail. */
 	.panel :global(.contents) {
 		overflow: visible;
-		min-height: 0;
 	}
 	.head .name {
 		font-size: 13px;
@@ -346,7 +428,108 @@
 		text-transform: inherit;
 		letter-spacing: inherit;
 	}
-	.library .aside {
+	/* A group inside Documents. Quieter than a section label, because it names a kind within one list rather than a
+	   section of the panel, and the two must not read as peers. */
+	.group {
+		font-size: 9px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--ink-faint);
+		margin: var(--gap-hair) 0 0 6px;
+	}
+	/* The document being read carries the same weight as the current section in the contents, because they are the same
+	   fact told twice: where you are. */
+	.docs a.here {
+		color: var(--ink);
+		font-weight: 600;
+	}
+	/* The name takes the width it needs and the disclosure sits at the far edge, so the chevron is in the same place
+	   whatever the file is called. */
+	.docs .row {
+		display: flex;
+		align-items: baseline;
+		gap: var(--gap-hair);
+	}
+	.docs .row a {
+		flex: 1 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.peek {
+		flex: none;
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font: inherit;
+		font-size: 10px;
+		line-height: 1;
+		color: var(--ink-faint);
+		background: none;
+		border: 0;
+		padding: 2px 4px;
+		cursor: pointer;
+		border-radius: var(--rad-control);
+	}
+	.peek:hover,
+	.peek[aria-expanded='true'] {
+		color: var(--ink);
+	}
+	/* Drawn rather than set: no chevron in the type stack is a true right angle with equal arms, and the ones that come
+	   close carry their font's own weight and side bearings. Two borders on a square rotated 45° are exactly that shape
+	   at any size, and they take the colour of the text they sit beside. */
+	.chev {
+		width: 5px;
+		height: 5px;
+		border-right: 1.5px solid currentColor;
+		border-bottom: 1.5px solid currentColor;
+		transform: rotate(-45deg);
+		/* the arms hang below the box's centre once rotated; this puts the vertex back on the text's midline */
+		margin-bottom: 1px;
+	}
+	.chev.down {
+		transform: rotate(45deg);
+		margin-bottom: 3px;
+	}
+	/* The tree is a child of the row it hangs from, and reads as one: indented under the name, without the section gap
+	   that separates the panel's own groups. */
+	.docs :global(.contents) {
+		margin: var(--gap-hair) 0 var(--gap-tight) 6px;
+	}
+	.new {
+		margin-left: auto;
+		font: inherit;
+		font-size: 10px;
+		text-transform: none;
+		letter-spacing: 0;
+		color: var(--ink-faint);
+		background: none;
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-pill);
+		padding: 1px 6px;
+		cursor: pointer;
+	}
+	.new:hover {
+		color: var(--ink);
+		border-color: var(--rule-strong);
+	}
+	.new-title {
+		margin-left: auto;
+		min-width: 0;
+		flex: 1 1 auto;
+		font-family: var(--sans);
+		font-size: 11px;
+		text-transform: none;
+		letter-spacing: 0;
+		padding: 1px 5px;
+		border: 1px solid var(--rule-strong);
+		border-radius: var(--rad-pill);
+		background: var(--sheet);
+		color: var(--ink);
+	}
+	.library .aside,
+	.docs .aside {
 		margin-left: 0.3em;
 		color: var(--ink-faint);
 		font-size: 0.9em;

@@ -125,7 +125,9 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	// must lift both. Closing a session hides its annotations (plan 0.13 §5), which is what closing one is for.
 	await page.goto('/node/sy-000A');
 	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0);
+	// the closed section unfolds, and the setting inside it is what admits their annotations (plan 0.13.1)
 	await page.getByTestId('show-closed').click();
+	await page.getByTestId('closed-yes').click();
 	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0); // still discarded
 	await page.getByLabel('show discarded').check();
 	await expect(page.getByTestId('annotation-list').locator('article.box.discarded')).toHaveCount(1);

@@ -10,6 +10,9 @@
 	// pane beside would ask the eye to leave the sentence it is about.
 	import { onMount } from 'svelte';
 	import { write, type WriteResult } from '$lib/write';
+	import { store } from '$lib/manifest/client.svelte';
+	import NoSession from '$lib/sessions/NoSession.svelte';
+	import { writable } from '$lib/sessions/sessions.svelte';
 	import { GRADED, KINDS, SEVERITIES } from '$lib/review/kinds';
 
 	let {
@@ -44,6 +47,9 @@
 	let severity = $state('');
 	let busy = $state(false);
 	let said = $state('');
+	// A note is a write, so it needs an open session selected like any other (plan 0.13.1).
+	let gate = $state<ReturnType<typeof NoSession> | null>(null);
+	const why = $derived(writable(store.manifest));
 	let form = $state<HTMLFormElement | null>(null);
 	let body = $state<HTMLTextAreaElement | null>(null);
 
@@ -81,6 +87,10 @@
 
 	async function submit(e: SubmitEvent): Promise<void> {
 		e.preventDefault();
+		if (why) {
+			gate?.say();
+			return;
+		}
 		if (!message.trim() || busy) return;
 		busy = true;
 		said = '';
@@ -127,10 +137,11 @@
 				{#each SEVERITIES as s (s)}<option value={s}>{s || 'severity'}</option>{/each}
 			</select>
 		{/if}
-		<button type="submit" disabled={busy || !message.trim()} data-testid="note-submit">{busy ? 'writing…' : 'note it'}</button>
+		<button type="submit" class:off={!!why} aria-disabled={!!why} disabled={busy || !message.trim()} data-testid="note-submit">{busy ? 'writing…' : 'note it'}</button>
 		<button type="button" onclick={() => onclose?.()}>cancel</button>
 	</div>
 	{#if said}<p class="said" role="status" data-testid="note-said">{said}</p>{/if}
+	<NoSession bind:this={gate} placement="below" />
 </form>
 
 <style>
@@ -208,6 +219,10 @@
 		color: var(--ink);
 		border-color: var(--rule-strong);
 		margin-left: auto;
+	}
+	.row button.off {
+		opacity: 0.45;
+		cursor: not-allowed;
 	}
 	.row button:disabled {
 		opacity: 0.5;

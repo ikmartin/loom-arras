@@ -2,19 +2,36 @@ import { expect, test } from "@playwright/test";
 
 const SHELLS = ["a", "c"] as const;
 
+/** Shell C hangs the contents off the open document behind a `show` disclosure (plan 0.13.1); shell A still lists them outright. */
+async function openContents(page: import("@playwright/test").Page) {
+  const nav = page.getByRole("navigation", { name: "Contents" });
+  const toggle = page.getByTestId("contents-toggle");
+  // Wait for whichever the shell offers before asking after either: shell A has no toggle and shell C has no tree
+  // until the toggle is pressed, so probing one first races hydration and then waits for something that never comes.
+  await page.locator('nav.contents, [data-testid="contents-toggle"]').first().waitFor();
+  if (await nav.isVisible()) return;
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
+  await nav.waitFor();
+}
+
 for (const shell of SHELLS) {
   test(`shell ${shell} contains the same elements as the others`, async ({
     page,
   }) => {
     await page.goto(`/master/main?shell=${shell}`);
     await expect(page.locator("html")).toHaveAttribute("data-shell", shell);
-    // the view switcher, the document picker, the contents tree, the search affordance and the counts are in every arrangement
+    // the view switcher, a way to choose a document, the contents tree, the search affordance and the counts are in
+    // every arrangement -- though not yet in the same form: shell C lists the documents and folds the contents under
+    // the open one (plan 0.13.1), while shell A still carries the dropdown it has always had.
     await expect(
       page.getByRole("link", { name: "graph", exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("combobox", { name: "Document" }),
-    ).toBeVisible();
+    if (shell === "c") {
+      await expect(page.getByTestId("docs-drafts")).toBeVisible();
+    } else {
+      await expect(page.getByRole("combobox", { name: "Document" })).toBeVisible();
+    }
+    await openContents(page);
     await expect(
       page.getByRole("navigation", { name: "Contents" }),
     ).toBeVisible();
@@ -36,6 +53,7 @@ test("the side panel scrolls rather than overflowing, and the contents' last ent
   // off the bottom of a column that could not scroll.
   await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's panel cannot fit
   await page.goto("/master/main");
+  await openContents(page);
   const sections = page.locator(".panel .sections");
   const box = await sections.evaluate((el) => ({
     scroll: el.scrollHeight,
@@ -47,14 +65,15 @@ test("the side panel scrolls rather than overflowing, and the contents' last ent
   const last = page.getByRole("navigation", { name: "Contents" }).locator("a").last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
-  // and the groups below the tree are reachable in the same scroll, which is what the tree's own scrollbar prevented
-  await page.getByTestId("dev-shelf").scrollIntoViewIfNeeded();
-  await expect(page.getByTestId("dev-shelf")).toBeInViewport();
+  // and the sections below the tree are reachable in the same scroll, which is what the tree's own scrollbar prevented
+  await page.getByTestId("session-list").scrollIntoViewIfNeeded();
+  await expect(page.getByTestId("session-list")).toBeInViewport();
 });
 
 test("the side panel collapses, and the column goes with it", async ({ page }) => {
   // It collapses independently of the split and goes first: on a narrow window it is the column a reader needs least.
   await page.goto("/master/main");
+  await openContents(page);
   const panel = page.locator(".panel");
   const wide = (await panel.boundingBox())!.width;
   await page.getByTestId("panel-fold").click();
@@ -70,6 +89,7 @@ test("the contents tree is in document order and stops above paragraph units", a
   page,
 }) => {
   await page.goto("/master/main");
+  await openContents(page);
   const entries = page
     .getByRole("navigation", { name: "Contents" })
     .locator("a");
@@ -83,6 +103,7 @@ test("a contents entry scrolls the document instead of navigating away", async (
   page,
 }) => {
   await page.goto("/master/main");
+  await openContents(page);
   const entry = page
     .getByRole("navigation", { name: "Contents" })
     .getByRole("link", { name: /Results/ });
@@ -97,6 +118,7 @@ test("the contents rail always marks where the reader is, and the mark follows t
   // It used to be driven by location.hash: it appeared only once someone clicked an entry and then never moved,
   // and an entry whose key is not slug-shaped never matched the hash at all.
   await page.goto("/master/main");
+  await openContents(page);
   const contents = page.getByRole("navigation", { name: "Contents" });
   await contents.getByRole("link").first().waitFor();
 

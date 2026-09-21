@@ -29,6 +29,8 @@ CAPABILITIES = [
     "session-delete",
     "session-new",
     "session-close",
+    "session-reopen",
+    "session-purpose",
     "message",
 ]
 
@@ -144,15 +146,17 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     """
     from loom.cli._common import whoever, writer
     from loom.mailbox import attached, changed_since, post, waiting_on
-    from loom.sessions import ensure_active, resolve
+    from loom.sessions import resolve
 
     text = _str(body, "text", required=True) or ""
     said = _str(body, "as")
     # A declared identity is taken as declared; with none, this is the author at their own keyboard, which is what the
     # viewer's composer is. `writer` is what refuses an agent that has not named itself.
     name, kind = writer(root, said) if said else (_str(body, "author") or whoever(root), "person")
-    which = _str(body, "session")
-    found = resolve(root, which) if which else ensure_active(root, name)
+    # A message names its session like every other write (plan 0.13.1): it is addressed to whoever is attached there,
+    # and a message posted to "whatever was last active" would reach the wrong reader.
+    which = _str(body, "session", required=True) or ""
+    found = resolve(root, which)
     if found is None:
         raise ApiError("no-such-session", f"no session matches {which}", status=404)
     event = post(root, found.id, text, name, kind="message", changed=changed_since(root, found))
@@ -173,13 +177,13 @@ def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     Through the same functions `loom session` calls, so the two surfaces cannot spell a session event differently. **Purging is not here and never will be**: it rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
     """
     from loom.cli._common import whoever
-    from loom.sessions import active, close, create, delete, rename, resolve, resume, sessions, set_active
+    from loom.sessions import active, close, create, delete, purpose, rename, resolve, resume, sessions, set_active
 
     who = _str(body, "author") or whoever(root)
     if endpoint == "session-new":
         # named by the author on the spot, and made the one writing lands in: what §16's example does from the page
         title = _str(body, "title", required=True) or ""
-        made = create(root, title, who)
+        made = create(root, title, who, purpose=_str(body, "purpose") or "")
         set_active(root, made.id)
         return f"{made.id}  {title}  (active)"
     which = _str(body, "session", required=True) or ""
@@ -193,6 +197,14 @@ def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         if active(root) == found.id:
             set_active(root, None)
         return f"closed {found.id}; its annotations are hidden until it is shown or resumed"
+    if endpoint == "session-reopen":
+        if found.state == "open":
+            raise ApiError("refused", f"{found.id} is already open")
+        resume(root, found.id, who)
+        return f"reopened {found.id}"
+    if endpoint == "session-purpose":
+        purpose(root, found.id, _str(body, "purpose") or "", who)
+        return f"{found.id} is for {_str(body, 'purpose') or '(nothing stated)'}"
     if endpoint == "session-rename":
         title = _str(body, "title", required=True) or ""
         rename(root, found.id, title, who)
@@ -265,11 +277,20 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     for field in needs:
         _str(body, field, required=True)
 
+    # **A write over the API names its session** (plan 0.13.1). The session travels with the write from the writer's
+    # own context -- the author's from the viewer's selection, an agent's from the session it is attached to -- so
+    # nothing here reads `.loom/active`, which narrows to `loom comment`'s terminal default. A request naming none is
+    # malformed rather than something to paper over: falling back would file work wherever the pointer happened to
+    # point, which is the failure this replaced.
+    which = _str(body, "session") or _str(body, "run")
+    if not which:
+        raise ApiError("no-session", "a write must name the session it belongs to")
+
     try:
         # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's
         # terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped
         # sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
-        writer = _writer(root, _str(body, "run"), _str(body, "author"), sniff=False)
+        writer = _writer(root, which, _str(body, "author"), sniff=False)
     except (EnvError, ContentError) as exc:
         raise ApiError("no-such-run", str(exc)) from exc
 

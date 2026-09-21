@@ -10,6 +10,9 @@ test('the editing surfaces', async ({ page }) => {
 
 	await page.goto('/node/sy-0002');
 	await page.waitForSelector('main h1');
+	// a write names its session, and nothing is selected at rest (plan 0.13.1), so the picture is of a reader who
+	// has chosen where their work goes -- which is the state the composer is usable in
+	await page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first().click();
 	await page.getByTestId('composer-open').click();
 	await page.getByTestId('composer-quote').fill('one or two points');
 	await page.getByTestId('composer-message').fill('Is the singleton orbit counted once or twice here?');

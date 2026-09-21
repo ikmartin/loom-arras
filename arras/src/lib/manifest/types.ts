@@ -271,13 +271,15 @@ export interface ReferenceNote {
 export interface SessionRow {
   id: string;
   title: string;
+  /** What the sitting is for, in the author's words; '' when never stated. */
+  purpose?: string;
   /** `open`, `closed`, or `deleted` — a tombstone, which the publisher does not send. */
   state: "open" | "closed" | (string & {});
   created: string;
   /** When the current round opened: what "changed since last time" is measured from. */
   opened: string;
   rounds: number;
-  /** Whether loom is writing into this one. One is active at a time, for a person and an agent alike. */
+  /** Whether this is the publisher's own default for writes made at a terminal. The viewer never reads it: a write names its session (plan 0.13.1). */
   active: boolean;
   /** Who is listening now, by a heartbeat that goes stale rather than being believed forever. Empty means nobody. */
   attached?: { who: string; kind: string }[];

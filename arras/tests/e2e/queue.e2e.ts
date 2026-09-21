@@ -269,8 +269,13 @@ test.describe('what the reading study found', () => {
 			})
 		);
 		await page.goto('/node/sy-0003');
-		await page.getByTestId('verb-resolve').first().click();
 		const said = page.getByTestId('verb-said').first();
+		// with nothing selected the write never leaves the viewer, and the verb says which condition is unmet
+		await page.getByTestId('verb-resolve').first().click();
+		await expect(said).toContainText('No session selected');
+		// with one selected the request reaches the publisher, and *its* refusal is what gets shown
+		await page.getByTestId('session-s-2026-09-16-0001').click();
+		await page.getByTestId('verb-resolve').first().click();
 		await expect(said).toBeVisible();
 		await expect(said).toContainText('no author name');
 	});

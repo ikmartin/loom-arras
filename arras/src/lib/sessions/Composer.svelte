@@ -9,7 +9,7 @@
 	// for a reason the browser cannot fix; saying nothing would let the author believe it was delivered.
 	import { can, write, type WriteResult } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
-	import { active } from './sessions.svelte';
+	import { selected } from './sessions.svelte';
 
 	let { session = '' }: { session?: string } = $props();
 
@@ -18,7 +18,7 @@
 		attached?: { who: string; kind: string }[];
 	}
 
-	const here = $derived(active(store.manifest));
+	const here = $derived(selected(store.manifest));
 	const into = $derived(session || here?.id || '');
 	let allowed = $state(false);
 	let text = $state('');

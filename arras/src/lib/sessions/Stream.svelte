@@ -11,7 +11,7 @@
 	// rather than to pretend the stream was continuous.
 	import { base } from '$app/paths';
 	import { store } from '$lib/manifest/client.svelte';
-	import { active } from './sessions.svelte';
+	import { selected } from './sessions.svelte';
 
 	let { session = '' }: { session?: string } = $props();
 
@@ -32,7 +32,7 @@
 		changed?: Change[];
 	}
 
-	const here = $derived(active(store.manifest));
+	const here = $derived(selected(store.manifest));
 	const into = $derived(session || here?.id || '');
 	/** What the manifest says the inbox has reached, which is the cheap signal that there is anything to fetch. */
 	const known = $derived((store.manifest?.sessions ?? []).find((s) => s.id === into)?.seq ?? 0);

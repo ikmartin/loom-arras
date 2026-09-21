@@ -311,7 +311,8 @@ test.describe('the counts open filtered tables', () => {
 		for (const path of ['/threads', '/tags', '/loose']) {
 			await page.goto(path);
 			await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
-			await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
+			// the documents stand there instead, with the contents folded under the open one (plan 0.13.1)
+			await expect(page.getByTestId('docs-drafts')).toBeVisible();
 		}
 		// the Library fills the panel with its own filters, which is the other half of the same rule
 		await page.goto('/library');
@@ -554,19 +555,27 @@ test.describe('the session selector', () => {
 			await route.fulfill({ json: m });
 		});
 
-	test('says what is being written to, and the selection governs the page and not only the panel', async ({ page }) => {
+	test('one selection governs the page, and the view filters annotations rather than the list', async ({ page }) => {
 		await withSessions(page);
 		await page.goto('/node/sy-0002');
-		// writing and showing are different things, and the panel says both rather than leaving one to be inferred
-		await expect(page.getByTestId('session-active')).toHaveText('referee');
+		// nothing is selected at rest and the page shows everything (plan 0.13.1)
 		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
+		await expect(page.getByTestId('show-current')).toBeDisabled();
 
-		// sy-0002 is now annotated from both sessions
+		// sy-0002 is now annotated from both sessions. Waited for rather than counted straight away: a bare `count()`
+		// races the first render and reports zero.
+		await expect(page.getByTestId('annotation-list').locator('article.box').first()).toBeVisible();
 		const all = await page.getByTestId('annotation-list').locator('article.box').count();
 		expect(all).toBeGreaterThan(1);
 
-		// choosing one session shows only its annotations: a tick's count is of what is visible
+		// selecting a session does not narrow the page by itself: the selection is the write target, the view is the filter
 		await page.getByTestId('session-s-2026-09-15-0001').click();
+		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
+		// and the list still shows every session, because it is how a reader navigates
+		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
+
+		// narrowing is the toggle's job, and it is available now that something is selected
+		await page.getByTestId('show-current').click();
 		const mine = await page.getByTestId('annotation-list').locator('article.box').count();
 		expect(mine).toBeGreaterThan(0);
 		expect(mine).toBeLessThan(all);
@@ -599,8 +608,11 @@ test.describe('the split as a mode of a route', () => {
 		await page.getByTestId('beside-toggle').click();
 		await expect(page.getByTestId('beside')).toBeVisible();
 		await expect(page).toHaveURL(/beside=1/);
-		// the divider is the same one the reading pane uses, and the discussion says where writing goes
+		// the divider is the same one the reading pane uses, and the discussion says where writing goes -- which,
+		// with nothing selected, is nowhere until the reader picks a session (plan 0.13.1)
 		await expect(page.getByTestId('divider')).toBeVisible();
+		await expect(page.getByTestId('discussion-into')).toContainText('no session selected');
+		await page.getByTestId('session-s-2026-09-16-0001').click();
 		await expect(page.getByTestId('discussion-into')).toContainText('referee');
 		// what is beside it is what is on this result
 		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();

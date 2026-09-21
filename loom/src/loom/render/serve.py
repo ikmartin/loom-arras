@@ -12,6 +12,7 @@ import os
 import sys
 import threading
 import time
+from collections.abc import Callable
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -119,6 +120,10 @@ class LoomHandler(SimpleHTTPRequestHandler):
     #: The quilt to write into. `None` serves the corpus read-only and answers `/_api` with 404, which is the
     #: discovery mechanism working: a viewer that gets 404 shows no editing affordances.
     quilt_root: Path | None = None
+    #: Rebuild the manifest, set when the server owns one. **A write rebuilds before it answers** (plan 0.13.1): the
+    #: watcher's filesystem scan and the viewer's manifest poll are a second each, so a change that costs 40ms to
+    #: build took ~1.3s to appear, and the `refresh()` a viewer runs on the answer raced the rebuild and lost.
+    rebuild: Callable[[], None] | None = None
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
@@ -205,7 +210,12 @@ class LoomHandler(SimpleHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": {"code": "bad-json", "message": str(exc)}})
             return
         try:
-            self._json(HTTPStatus.OK, handle(self.quilt_root, path[len("/_api/") :], body))
+            answer = handle(self.quilt_root, path[len("/_api/") :], body)
+            # The manifest is current when the answer arrives, so the viewer's own refresh finds the write on its
+            # first try rather than after two polling loops.
+            if self.rebuild is not None:
+                self.rebuild()
+            self._json(HTTPStatus.OK, answer)
         except ApiError as exc:
             self._json(exc.status, {"error": {"code": exc.code, "message": exc.message}})
         except Exception as exc:  # noqa: BLE001
@@ -352,6 +362,7 @@ class ServeSession:
                 "refs_dir": storage_root(self.quilt.root),
                 # The write API is served for the quilt being served, and only ever over this loopback socket.
                 "quilt_root": self.quilt.root,
+                "rebuild": self.rebuild,
             },
         )
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)

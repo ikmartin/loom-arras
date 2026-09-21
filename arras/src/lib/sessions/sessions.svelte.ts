@@ -1,72 +1,112 @@
-// Which session the viewer is showing, and what that means for the page (plan 0.13 §5, §7).
+// The session selection, and what it governs (plan 0.13.1).
 //
-// **The selection governs the page, not only the panel.** Whatever the side panel is showing — this session, or all —
-// is what the content marks, so a tick's count is of *visible* annotations. Because a page can therefore look lightly
-// annotated when it is not, the content pane says how many are hidden rather than letting the reader believe the page.
+// **One selection, shared by open and closed sessions alike.** There is no "selected open session" and no separate
+// "selected closed session"; there is a selected session, or none, and it is where writes land. The session travels
+// with the write from the writer's own context — the author's from this selection, an agent's from the session it is
+// attached to — so nothing reads a global pointer, and an agent asked in one session answers into it however the
+// author has since moved.
 //
-// It is a view, never a write target: writing always lands in the session loom says is active, whatever is being shown.
-// A reader looking at everything and writing into the active one is the common case, and a viewer that silently moved
-// the write target when the view changed would be filing work where it was not meant to go.
+// **The view toggle filters annotations, never the list.** `current` draws the selected session's annotations; `all`
+// draws every session the closed setting admits. The panel's list always shows every session, because it is how a
+// reader navigates and hiding rows would only make sessions hard to find.
+//
+// A write is available only while an *open* session is selected. Nothing is created automatically: the courtesy of
+// opening a session so the first note has somewhere to go belongs to the terminal, where there is no selection to
+// consult, and in the viewer it would silently decide where work was filed.
 
 import type { Annotation, Manifest, SessionRow } from '$lib/manifest/types';
 
 const KEY = 'arras.session-view';
 
 class SessionView {
-	/** The session being shown, or `all`. Never where writing goes. */
-	showing = $state<string>('all');
-	/** Whether a closed session's annotations are shown; they are hidden by default, which is what closing one is for. */
-	closed = $state(false);
+	/** The session writes land in, or null when none is selected. Open or closed — one selection covers both. */
+	selected = $state<string | null>(null);
+	/** `current` draws only the selected session's annotations; `all` draws every session `showClosed` admits. */
+	view = $state<'current' | 'all'>('all');
+	/** Whether closed sessions' annotations are drawn at all. Hidden by default, which is what closing one is for. */
+	showClosed = $state(false);
 
 	load(): void {
 		try {
 			const raw = globalThis.localStorage?.getItem(KEY);
 			const o = raw ? JSON.parse(raw) : {};
-			if (typeof o?.showing === 'string') this.showing = o.showing;
-			this.closed = o?.closed === true;
+			this.selected = typeof o?.selected === 'string' ? o.selected : null;
+			this.view = o?.view === 'current' ? 'current' : 'all';
+			this.showClosed = o?.showClosed === true;
 		} catch {
-			// a viewer that cannot read its stored view shows everything, which is the honest default
+			// a viewer that cannot read its stored view shows everything and selects nothing, which is the honest default
 		}
 	}
 
 	save(): void {
 		try {
-			globalThis.localStorage?.setItem(KEY, JSON.stringify({ showing: this.showing, closed: this.closed }));
+			globalThis.localStorage?.setItem(KEY, JSON.stringify({ selected: this.selected, view: this.view, showClosed: this.showClosed }));
 		} catch {
-			// a viewer that cannot store the view still uses it for this session
+			// a viewer that cannot store the view still uses it for this visit
 		}
+	}
+
+	/** Select one, or deselect it when it is already selected — which is how the author detaches from every session. */
+	pick(id: string, m: Manifest | null): void {
+		if (this.selected === id) {
+			this.selected = null;
+		} else {
+			this.selected = id;
+			// A closed session cannot be selected and hidden at once, so selecting one admits the closed.
+			if (row(m, id)?.state !== 'open') this.showClosed = true;
+		}
+		this.save();
+	}
+
+	/** After a session closes or goes: the selection cannot stand, and `current` would have nothing to draw. */
+	dropped(id: string): void {
+		if (this.selected !== id) return;
+		this.selected = null;
+		if (this.view === 'current') this.view = 'all';
+		this.save();
 	}
 }
 
 export const sessionView = new SessionView();
 
-/** The session loom is writing into, or null when it says none is active. */
-export function active(m: Manifest | null): SessionRow | null {
-	return (m?.sessions ?? []).find((s) => s.active) ?? null;
+function row(m: Manifest | null, id: string | null): SessionRow | null {
+	return id ? ((m?.sessions ?? []).find((s) => s.id === id) ?? null) : null;
 }
 
-/** Whether an annotation is visible under the current selection. */
+/** The selected session, or null. */
+export function selected(m: Manifest | null): SessionRow | null {
+	return row(m, sessionView.selected);
+}
+
+/**
+ * Why a write is unavailable, or `''` when it is allowed.
+ *
+ * The two sentences live here and are read by every write surface, so the interface cannot word the same refusal two ways.
+ */
+export function writable(m: Manifest | null): string {
+	const s = selected(m);
+	if (!s) return 'No session selected: either select a session or start a new session.';
+	if (s.state !== 'open') return 'Selected session is closed: either select an open session or reopen the closed session.';
+	return '';
+}
+
+/** Whether an annotation is drawn under the current view. */
 export function visible(m: Manifest | null, a: Annotation): boolean {
-	const showing = sessionView.showing;
-	if (showing !== 'all') return a.run === showing;
-	if (sessionView.closed) return true;
+	if (sessionView.view === 'current') return a.run === sessionView.selected;
+	if (sessionView.showClosed) return true;
 	const shut = new Set((m?.sessions ?? []).filter((s) => s.state !== 'open').map((s) => s.id));
 	return !shut.has(a.run);
 }
 
-/** How many of `list` the selection is hiding, for the quiet notice in the content pane's header. */
+/** How many of `list` the view is hiding, for the quiet notice in the content pane's header. */
 export function hidden(m: Manifest | null, list: readonly Annotation[]): number {
 	return list.filter((a) => !visible(m, a)).length;
 }
 
-/** Sessions grouped the way the panel shows them: the active one, the other open ones, and the closed. */
-export function grouped(m: Manifest | null): { active: SessionRow | null; recent: SessionRow[]; closed: SessionRow[] } {
+/** The one list the panel draws, and the closed ones behind their own section. */
+export function grouped(m: Manifest | null): { open: SessionRow[]; closed: SessionRow[] } {
 	const rows = m?.sessions ?? [];
-	return {
-		active: rows.find((s) => s.active) ?? null,
-		recent: rows.filter((s) => !s.active && s.state === 'open'),
-		closed: rows.filter((s) => s.state !== 'open')
-	};
+	return { open: rows.filter((s) => s.state === 'open'), closed: rows.filter((s) => s.state !== 'open') };
 }
 
 /** What one session holds: how many are open in it, who took part, and how many arrived in the current round. */

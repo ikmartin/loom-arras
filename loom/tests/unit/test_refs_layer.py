@@ -17,6 +17,15 @@ from loom.render.api import CAPABILITIES
 from loom.scan.bib import BibEntry
 
 
+def _sid(root: Path) -> str:
+    """A session to write into. Every write over the API names one (plan 0.13.1); only the CLI still has a default."""
+    from loom.sessions import create, sessions
+
+    have = [s for s in sessions(root).values() if s.state == "open"]
+    return have[0].id if have else create(root, "test sitting", "tester").id
+
+
+
 def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
     old = os.getcwd()
     try:
@@ -1010,7 +1019,7 @@ def test_the_write_api_verifies_renames_and_discards_a_proposal(tmp_path: Path) 
             q, "digest-verify", {"node": f"{ck}-thm-1.1", "statement": "S'", "local": "cor-1.1.1", "author": "i"}
         )
         assert got["ok"] and "renamed from" in got["result"]
-        gone = handle(q, "digest-discard", {"node": f"{ck}-thm-4.1", "reason": "not the paper's", "author": "i"})
+        gone = handle(q, "digest-discard", {"session": _sid(q), "node": f"{ck}-thm-4.1", "reason": "not the paper's", "author": "i"})
         assert gone["ok"]
     finally:
         mp.undo()
@@ -1018,7 +1027,7 @@ def test_the_write_api_verifies_renames_and_discards_a_proposal(tmp_path: Path) 
     assert recs[f"{ck}-cor-1.1.1"]["state"] == "verified" and recs[f"{ck}-cor-1.1.1"]["statement"] == "S'"
     assert recs[f"{ck}-thm-4.1"]["state"] == "discarded"
     with pytest.raises(ApiError):
-        handle(q, "digest-verify", {"node": f"{ck}-thm-9.9", "author": "i"})
+        handle(q, "digest-verify", {"session": _sid(q), "node": f"{ck}-thm-9.9", "author": "i"})
 
 
 def test_a_work_with_a_source_is_quoted_from_its_source(tmp_path: Path) -> None:
@@ -1491,12 +1500,12 @@ def test_the_composer_posts_and_says_whether_anyone_heard(tmp_path: Path) -> Non
 
     q = quilt(tmp_path)
     sid = run("session", "new", "referee pass", "--author", "A. Author", cwd=q).output.split()[0]
-    said = handle(q, "message", {"text": "Look at the proof.", "author": "A. Author"})
+    said = handle(q, "message", {"session": sid, "text": "Look at the proof.", "author": "A. Author"})
     assert said["ok"] and said["session"] == sid and said["attached"] == []
     assert [e.body for e in read_events(q, sid)] == ["Look at the proof."]
 
     attach(q, sid, "Referee Agent", "agent")
-    again = handle(q, "message", {"text": "And the hypothesis.", "author": "A. Author"})
+    again = handle(q, "message", {"session": sid, "text": "And the hypothesis.", "author": "A. Author"})
     assert [r["who"] for r in again["attached"]] == ["Referee Agent"]
 
 
@@ -1579,14 +1588,14 @@ def test_a_post_carries_what_changed_since_the_last_one(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     sid = run("session", "new", "referee pass", "--author", "A. Author", cwd=q).output.split()[0]
     assert run("comment", "dm-0002", "Orbits may be empty.", "--author", "A. Author", cwd=q).exit_code == 0
-    handle(q, "message", {"text": "Have another look.", "author": "A. Author"})
+    handle(q, "message", {"session": sid, "text": "Have another look.", "author": "A. Author"})
 
     first = read_events(q, sid)[-1]
     assert [c["target"] for c in first.changed] == ["dm-0002"]
     assert first.changed[0]["by"] == "A. Author" and first.changed[0]["act"] == "created"
 
     # and the next post carries only what changed after it, rather than repeating itself
-    handle(q, "message", {"text": "Anything?", "author": "A. Author"})
+    handle(q, "message", {"session": sid, "text": "Anything?", "author": "A. Author"})
     assert read_events(q, sid)[-1].changed == []
 
 
@@ -1759,14 +1768,14 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
     q = _showcase(tmp_path)
     text = "the constraint matrix is an incidence matrix"
     preview = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})["anchor"]
-    written = handle(q, "comment", {"target": "Bellamy19", "message": "so it is integral", "page": 2, "quote": text, "kind": "note", "author": "A. Author"})
+    written = handle(q, "comment", {"session": _sid(q), "target": "Bellamy19", "message": "so it is integral", "page": 2, "quote": text, "kind": "note", "author": "A. Author"})
     assert written["ok"], written
     event = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
     recorded = {k: v for k, v in event["anchor"].items() if k not in ("exact", "prefix", "suffix")}
     # the preview carries derived quads so the viewer can draw before anything is written; the record does not
     assert recorded == {k: v for k, v in preview.items() if k != "quads"}
     # and a box over the API, rectangles and all
-    drawn = handle(q, "comment", {"target": "Bellamy19", "message": "that display", "page": 2, "rects": [[82, 278, 529, 316]], "kind": "note", "author": "A. Author"})
+    drawn = handle(q, "comment", {"session": _sid(q), "target": "Bellamy19", "message": "that display", "page": 2, "rects": [[82, 278, 529, 316]], "kind": "note", "author": "A. Author"})
     assert drawn["ok"] and "(box)" in drawn["result"], drawn
 
 
@@ -1921,12 +1930,12 @@ def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(tmp_
     )
     os.environ["AI_AGENT"] = "1"
     try:
-        said = handle(q, "comment", {"target": "dm-0003", "message": "from the browser", "kind": "note"})
+        said = handle(q, "comment", {"session": _sid(q), "target": "dm-0003", "message": "from the browser", "kind": "note"})
         assert said["ok"], said
         written = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
         assert written["author"] != "agent" and written["kind"] == "human", written
         # an agent posting to the same endpoint still says so, and is believed by its name
-        handle(q, "comment", {"target": "dm-0003", "message": "from an agent", "kind": "note", "author": "Referee (Agent)"})
+        handle(q, "comment", {"session": _sid(q), "target": "dm-0003", "message": "from an agent", "kind": "note", "author": "Referee (Agent)"})
         robot = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
         assert robot["author"] == "Referee (Agent)" and robot["kind"] == "agent", robot
         assert written["author"] == "Wren Halloway", written

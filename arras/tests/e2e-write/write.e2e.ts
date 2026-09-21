@@ -4,6 +4,24 @@ import { readFileSync } from 'node:fs';
 
 const QUILT = '.tmp-write-quilt';
 
+/**
+ * Select a session, because a write names one (plan 0.13.1) and nothing is selected at rest.
+ *
+ * This is the setup the interface asks of a reader too: the composer is greyed until an open session is chosen, and
+ * nothing is opened behind their back. Every write test therefore starts by choosing where its work will be filed.
+ */
+async function intoASession(page: import('@playwright/test').Page) {
+	const first = page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first();
+	if (await first.count()) {
+		await first.click();
+	} else {
+		await page.getByTestId('session-new').click();
+		await page.getByTestId('session-new-title').fill('a sitting for the tests');
+		await page.getByTestId('session-new-title').press('Enter');
+	}
+	await expect(page.getByTestId('session-list').locator('li.selected')).toHaveCount(1);
+}
+
 function log(): Record<string, unknown>[] {
 	return readFileSync(`${QUILT}/annotations/log.jsonl`, 'utf8')
 		.split('\n')
@@ -14,6 +32,7 @@ function log(): Record<string, unknown>[] {
 test('a comment written in the browser lands in the log as a person', async ({ page }) => {
 	// The gate of plan 0.11 Part H. Not "the button appeared" -- the file changed.
 	await page.goto('/node/sy-0003');
+	await intoASession(page);
 	await expect(page.getByTestId('composer')).toBeVisible();
 	await page.getByTestId('composer-open').click();
 	await page.getByTestId('composer-quote').fill('finite widget');
@@ -36,6 +55,7 @@ test('a comment written in the browser lands in the log as a person', async ({ p
 test("the publisher's refusal is shown rather than swallowed", async ({ page }) => {
 	// "quote not found" means something different from "no such key", and a reader told only "failed" has to guess.
 	await page.goto('/node/sy-0003');
+	await intoASession(page);
 	await page.getByTestId('composer-open').click();
 	await page.getByTestId('composer-quote').fill('a phrase that appears nowhere in this statement at all');
 	await page.getByTestId('composer-message').fill('This should be refused.');
@@ -48,6 +68,7 @@ test("the publisher's refusal is shown rather than swallowed", async ({ page }) 
 
 test('a citation suggestion can be accepted, and leaves a breadcrumb', async ({ page }) => {
 	await page.goto('/node/sy-0002');
+	await intoASession(page);
 	const notes = page.getByTestId('reference-notes');
 	await expect(notes).toContainText('Suggested citations');
 	await page.getByTestId('refnote-accept').first().click();
@@ -65,6 +86,7 @@ function inPlace(where: 'inline' | 'floating') {
 			where
 		);
 		await page.goto('/node/sy-0003');
+	await intoASession(page);
 		const mark = page.locator('.fragment mark.annotation').first();
 		await mark.waitFor();
 		const box = page.locator('[data-testid="comment-expanded"]'); // one host, however many comments the mark carries by now

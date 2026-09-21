@@ -8,7 +8,7 @@
 	import type { Annotation } from '$lib/manifest/types';
 	import { store } from '$lib/manifest/client.svelte';
 	import { onAny } from '$lib/annotations';
-	import { active, hidden, sessionView } from '$lib/sessions/sessions.svelte';
+	import { hidden, selected, sessionView } from '$lib/sessions/sessions.svelte';
 	import { travel } from '$lib/travel/travel';
 	import Prose from '$lib/math/Prose.svelte';
 	import Stream from '$lib/sessions/Stream.svelte';
@@ -18,7 +18,7 @@
 	let { keys = [], session = '', head }: { keys?: readonly string[]; session?: string; head?: Snippet } = $props();
 
 	const m = $derived(store.manifest);
-	const here = $derived(active(m));
+	const here = $derived(selected(m));
 	const shown = $derived<Annotation[]>(m ? onAny(m, keys).filter((a) => !a.discarded) : []);
 	// What the selection is keeping off the page. Said rather than left to be inferred: a page can look lightly
 	// annotated when it is not, and a reader who does not know that trusts the wrong picture.
@@ -32,9 +32,11 @@
 
 <div class="stack" data-testid="discussion">
 	<div class="body">
-		{#if here}
-			<p class="into" data-testid="discussion-into">writing to <strong>{here.title}</strong></p>
-		{/if}
+		<!-- Where a reply from this pane will land. With nothing selected it says so rather than going quiet, because a
+		     composer that simply refuses is harder to read than one that names its condition (plan 0.13.1). -->
+		<p class="into" data-testid="discussion-into">
+			{#if here}writing to <strong>{here.title}</strong>{:else}no session selected{/if}
+		</p>
 		{#if head}{@render head()}{/if}
 		{#if keys.length}
 			<ul class="plain notes">
@@ -53,7 +55,7 @@
 			{#if kept}
 				<p class="muted" data-testid="beside-hidden">
 					{kept} hidden by the session being shown.
-					<button type="button" class="as-link" onclick={() => ((sessionView.showing = 'all'), sessionView.save())}>Show all</button>
+					<button type="button" class="as-link" onclick={() => ((sessionView.view = 'all'), sessionView.save())}>Show all</button>
 				</p>
 			{/if}
 		{/if}
