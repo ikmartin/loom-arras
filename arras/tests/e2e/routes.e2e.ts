@@ -96,6 +96,9 @@ test('live reload follows the manifest only', async ({ page }) => {
 });
 
 test('marks and boxes on the annotated node; discarded hidden by default', async ({ page }) => {
+	// the margin arrangement, which this test is about: a mark activates the box standing beside the node. The default
+	// placement is `floating`, which opens a box over the text instead (plan 0.13 §7).
+	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'margin' })));
 	await page.goto('/node/sy-0003');
 	// Counted as "every open annotation on this key has a box", not as a literal, so adding one to the fixture does
 	// not fail a test that is about marks and boxes agreeing.
@@ -347,4 +350,27 @@ test('the setting is one switch, applied everywhere', async ({ page }) => {
 	await page.goto('/node/sy-0003');
 	await expect(page.locator('html')).toHaveAttribute('data-format', 'b2');
 	await expect(page.locator('.fragment .env-label .number').first()).toBeHidden();
+});
+
+test('a floating box stays open when the reader looks elsewhere, and only its × closes it', async ({ page }) => {
+	// The default placement. One-at-a-time closed a box whenever the reader clicked away, so a second annotation could
+	// not be read beside the first and a click on the text lost what was open (plan 0.13 §7).
+	await page.goto('/node/sy-0003');
+	const marks = page.locator('.fragment mark.annotation');
+	await expect(marks).toHaveCount(2);
+	await marks.first().click();
+	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
+
+	// a second mark opens a second box rather than replacing the first
+	await marks.nth(1).click();
+	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(2);
+
+	// clicking the text backgrounds them; nothing closes
+	await page.locator('.fragment p').first().click({ position: { x: 4, y: 4 } });
+	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(2);
+	await expect(page.locator('.comment-slot.floating.behind')).toHaveCount(2);
+
+	// and a box's own × is what closes it
+	await page.locator('.comment-slot.expanded.floating').first().locator('.comment-close').click();
+	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
 });

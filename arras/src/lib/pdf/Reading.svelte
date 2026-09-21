@@ -9,6 +9,7 @@
 	import { write, type WriteResult } from '$lib/write';
 	import type { Reference } from '$lib/manifest/types';
 	import PdfDoc from './PdfDoc.svelte';
+	import Split from '$lib/split/Split.svelte';
 
 	let { citekey, ref, page }: { citekey: string; ref: Reference; page: number } = $props();
 
@@ -84,51 +85,49 @@
 </script>
 
 <section class="reading" data-testid="reading">
-	<div class="doc">
-		{#if url}
-			<PdfDoc
-				{url}
-				{page}
-				spans={drawn}
-				focus={active}
-				onselect={(e) => locate({ page: e.page, text: e.text })}
-				onbox={(e) => locate({ page: e.page, rects: e.rects })}
-				onmark={travel}
-				onpage={(e) => (at = e.page)}
-			/>
-		{:else}
-			<p class="muted" data-testid="reading-absent">{absent}</p>
-		{/if}
-	</div>
-	<aside class="beside">
-		<h2>Anchored to page {at || page}</h2>
-		{#each onPage as q (q.id)}
-			<article data-anchored={q.id} data-testid="anchored-{q.id}" class:active={active === q.id}>
-				<h3>{q.id}</h3>
-				<p>{ref.results?.[q.id]?.source_text ?? ''}</p>
-			</article>
-		{:else}
-			<p class="muted">Nothing is anchored to this page.</p>
-		{/each}
-		{#if told}<pre class="told" data-testid="located">{told}</pre>{/if}
-	</aside>
+	<Split contentLabel="the paper" discussionLabel="anchored">
+		{#snippet content()}
+			{#if url}
+				<PdfDoc
+					{url}
+					{page}
+					spans={drawn}
+					focus={active}
+					onselect={(e) => locate({ page: e.page, text: e.text })}
+					onbox={(e) => locate({ page: e.page, rects: e.rects })}
+					onmark={travel}
+					onpage={(e) => (at = e.page)}
+				/>
+			{:else}
+				<p class="muted" data-testid="reading-absent">{absent}</p>
+			{/if}
+		{/snippet}
+		{#snippet discussion()}
+			<aside class="beside">
+				<h2>Anchored to page {at || page}</h2>
+				{#each onPage as q (q.id)}
+					<article data-anchored={q.id} data-testid="anchored-{q.id}" class:active={active === q.id}>
+						<h3>{q.id}</h3>
+						<p>{ref.results?.[q.id]?.source_text ?? ''}</p>
+					</article>
+				{:else}
+					<p class="muted">Nothing is anchored to this page.</p>
+				{/each}
+				{#if told}<pre class="told" data-testid="located">{told}</pre>{/if}
+			</aside>
+		{/snippet}
+	</Split>
 </section>
 
 <style>
 	.reading {
-		display: flex;
-		gap: 20px;
-		align-items: flex-start;
-		margin: 16px 0;
-	}
-	.doc {
-		flex: 0 0 auto;
 		height: 78vh;
 		min-height: 320px;
+		margin: 16px 0;
+		border: 1px solid var(--rule, #ddd9cf);
 	}
 	.beside {
-		flex: 1 1 300px;
-		min-width: 0;
+		padding: 8px 12px;
 		font-size: 0.9rem;
 	}
 	h2 {

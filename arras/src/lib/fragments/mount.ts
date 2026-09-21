@@ -18,8 +18,8 @@ export interface WireOptions {
 	keyless?: boolean;
 	/** Expands comments in place instead of pointing at a card elsewhere: marks and counts call this with the comments they stand for (the `inline` comments preference). */
 	expand?: (trigger: HTMLElement, ids: string[]) => void;
-	/** Open a comment on pointer entry as well as on click (the `hover` setting). */
-	hover?: boolean;
+	/** Where an opened box stands: over the text, anchored to the mark, rather than in place. Nothing about how it opens. */
+	floating?: boolean;
 }
 
 /** One comment and which slot it occupies beside the node it is about.\n *\n * Named `slot` rather than `placement` because an annotation now carries a `placement` of its own, which is a different\n * thing: this is the viewer's layout decision, that is the publisher's hint about where a payload's text would go. */
@@ -117,25 +117,11 @@ export function wire(
 			select(lead);
 			document.getElementById('ann-' + lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		};
-		// In hover mode the pointer opens it after a beat, so passing over a line of marked text does not flash a box
-		// per mark; a click still opens one, and every dismissal is the same as inline's.
-		//
-		// The beat only ever opens, and a click cancels it: `go` toggles, and a click inside the beat has already
-		// opened the box that the timer would otherwise shut.
-		let timer: ReturnType<typeof setTimeout> | undefined;
-		const click = () => {
-			clearTimeout(timer);
-			go();
-		};
-		mark.addEventListener('click', click);
-		mark.addEventListener('keydown', (e) => e.key === 'Enter' && click());
-		mark.addEventListener('pointerenter', () => {
-			const now = LIVE.get(root) ?? opts;
-			if (!now.hover || !now.expand) return;
-			clearTimeout(timer);
-			timer = setTimeout(() => mark.getAttribute('aria-expanded') !== 'true' && go(), 120);
-		});
-		mark.addEventListener('pointerleave', () => clearTimeout(timer));
+		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made
+		// passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be
+		// clicked into at all — a box that appears under the pointer and vanishes when it moves toward the box.
+		mark.addEventListener('click', go);
+		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go());
 	}
 	if (opts.margins) {
 		for (const el of root.querySelectorAll<HTMLElement>('div.env[data-key], details.env-proof[data-key]')) {

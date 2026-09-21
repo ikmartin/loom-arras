@@ -1,17 +1,37 @@
-// Comments shown where they are (book 15.3.1, the `inline` and `hover` comments preferences): a mark on the text, or a count beside a node that has comments with no mark, opens the comments on it. One is open at a time; selecting outside it or pressing Escape closes it.
+// Comments shown where they are (book 15.3.1; plan 0.13 §7): a mark on the text, or a count beside a node whose
+// comments have no mark, opens them at the mark.
 //
-// Two settings share this controller because they differ only in where the box goes. `inline` puts it in the flow beneath the block the mark sits in, so nothing is covered and the text reflows. `hover` floats it over the page at the mark, free to overlap the text and the gutter, and the pointer opens it; both are dismissed the same way, and in both the box is the same `AnnotationBox`.
+// Two placements share this controller because they differ only in where the box goes. `inline` puts it in the flow
+// beneath the block the mark sits in, so nothing is covered and the text reflows. `floating` puts it over the page at
+// the mark, free to overlap the text and the gutter. In both, the box is the same `AnnotationBox`.
+//
+// **A click opens; hovering never does.** The placement we shipped as `hover` meant a box hovering *over* the text, not
+// a box the pointer summons — and a summoned box cannot be read without holding the pointer still, nor clicked into at
+// all, because moving toward it leaves the mark.
+//
+// **Many boxes, and clicking away backgrounds them.** An open box stays open: it is clamped, lightened and put behind,
+// and clicking it brings it forward again. The only things that close one are its own ×, Escape on the front-most, and
+// *hide all*. Nothing a reader opened disappears because they looked elsewhere, which is what one-at-a-time did.
 
 import { mount, unmount, type Component } from 'svelte';
 import AnnotationBox from '$lib/components/AnnotationBox.svelte';
 import { repliesTo } from '$lib/annotations';
 import type { Annotation, Manifest } from '$lib/manifest/types';
 
+/** The gap a box keeps from every edge of the window, applied after placement so one near an edge slides rather than clipping. */
+const INSET = 4;
+
 export interface InlineComments {
-	/** Open the comments `ids` beneath `trigger`, or close them when they are already open there. */
+	/** Open the comments `ids` at `trigger`, or close them when they are already open there. */
 	toggle(trigger: HTMLElement, ids: string[]): void;
+	/** Open every annotation in `root` at its own mark. A state, not an action: what materialises later opens too. */
+	expandAll(root: HTMLElement): void;
+	/** Close everything open, wherever it is. The escape hatch that clicking outside no longer provides. */
+	hideAll(): void;
 	close(): void;
-	/** The comments the open box shows, or null; a re-wire reads it to open the same comments again. */
+	/** Whether expand-all is on, so a fragment re-wired or a page rendered later can honour it. */
+	expanded(): boolean;
+	/** The comments the front-most box shows, or null; a re-wire reads it to open the same comments again. */
 	current(): string[] | null;
 	destroy(): void;
 }
@@ -33,49 +53,87 @@ export function leadComments(manifest: Manifest, ids: string[]): Annotation[] {
 	return out;
 }
 
+/** Every mark and count in `root` that stands for a comment, in document order. */
+function triggers(root: HTMLElement): HTMLElement[] {
+	return [
+		...root.querySelectorAll<HTMLElement>(
+			'mark.annotation[data-annotation], .annotation-block[data-annotation], button.comment-count[data-comments]'
+		)
+	];
+}
+
+/** The ids a trigger stands for. */
+function idsOf(el: HTMLElement): string[] {
+	return (el.dataset.annotation ?? el.dataset.comments ?? '').split(/\s+/).filter(Boolean);
+}
+
 /** The mark or count in `root` that stands for any of `ids`, so comments open before a re-wire can be opened again after it. */
 export function triggerFor(root: HTMLElement, ids: string[]): HTMLElement | null {
-	for (const el of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation], button.comment-count[data-comments]')) {
-		const has = (el.dataset.annotation ?? el.dataset.comments ?? '').split(/\s+/);
+	for (const el of triggers(root)) {
+		const has = idsOf(el);
 		if (ids.some((i) => has.includes(i))) return el;
 	}
 	return null;
 }
 
+interface Opened {
+	trigger: HTMLElement;
+	host: HTMLElement;
+	made: Record<string, unknown>[];
+	ids: string[];
+}
+
 export function inlineComments(manifest: Manifest, floating = false): InlineComments {
-	let open: { trigger: HTMLElement; host: HTMLElement; made: Record<string, unknown>[]; ids: string[] } | null = null;
+	let boxes: Opened[] = [];
+	let all = false;
 
 	/**
-	 * Put a floating box at the mark: below it when there is room, above it when there is not, never off either edge.
+	 * Put a floating box at the mark: below it when there is room, above it when there is not, and never within `INSET`
+	 * of any edge.
 	 *
-	 * Viewport coordinates and `position: fixed`, so the box does not depend on which ancestor happens to be positioned, and it lives inside the fragment rather than in the page's root -- arras is a guest and writes only in its own subtree. Scrolling closes it, which is what a pointer-opened box should do anyway.
+	 * Viewport coordinates and `position: fixed`, so the box does not depend on which ancestor happens to be positioned,
+	 * and it lives inside the fragment rather than in the page's root -- arras is a guest and writes only in its own
+	 * subtree.
 	 */
 	const place = (host: HTMLElement, trigger: HTMLElement) => {
 		const r = trigger.getBoundingClientRect();
-		const width = Math.min(420, window.innerWidth - 32);
+		const width = Math.min(420, window.innerWidth - 2 * INSET);
 		host.style.width = width + 'px';
-		host.style.left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8) + 'px';
+		host.style.left = Math.min(Math.max(INSET, r.left), window.innerWidth - width - INSET) + 'px';
 		host.style.top = r.bottom + 6 + 'px';
 		// measured once it is in the page, because its height depends on the comment
 		const h = host.offsetHeight;
-		if (r.bottom + h + 14 > window.innerHeight && r.top - h - 6 > 0) host.style.top = r.top - h - 6 + 'px';
+		if (r.bottom + h + INSET > window.innerHeight && r.top - h - 6 > INSET) host.style.top = r.top - h - 6 + 'px';
+		const top = parseFloat(host.style.top);
+		host.style.top = Math.min(Math.max(INSET, top), Math.max(INSET, window.innerHeight - h - INSET)) + 'px';
 	};
 
-	const close = () => {
-		if (!open) return;
-		for (const made of open.made) void unmount(made);
-		open.host.remove();
-		open.trigger.classList.remove('expanded');
-		open.trigger.setAttribute('aria-expanded', 'false');
-		open = null;
+	const front = (box: Opened) => {
+		for (const b of boxes) b.host.classList.toggle('behind', b !== box);
+		boxes = [...boxes.filter((b) => b !== box), box];
 	};
 
-	const toggle = (trigger: HTMLElement, ids: string[]) => {
-		const again = open?.trigger === trigger;
-		close();
-		if (again) return;
+	/** Clicking outside every box: they stay open, clamped and behind, because nothing a reader opened should vanish. */
+	const background = () => {
+		for (const b of boxes) b.host.classList.add('behind');
+	};
+
+	const shut = (box: Opened) => {
+		for (const made of box.made) void unmount(made);
+		box.host.remove();
+		box.trigger.classList.remove('expanded');
+		box.trigger.setAttribute('aria-expanded', 'false');
+		boxes = boxes.filter((b) => b !== box);
+	};
+
+	const hideAll = () => {
+		all = false;
+		for (const b of [...boxes]) shut(b);
+	};
+
+	const openAt = (trigger: HTMLElement, ids: string[]): Opened | null => {
 		const lead = leadComments(manifest, ids);
-		if (!lead.length) return;
+		if (!lead.length) return null;
 		const host = document.createElement('aside');
 		host.className = floating ? 'comment-slot expanded floating' : 'comment-slot expanded';
 		host.dataset.testid = 'comment-expanded';
@@ -88,6 +146,13 @@ export function inlineComments(manifest: Manifest, floating = false): InlineComm
 				: trigger.closest<HTMLElement>('p, li, .math.display, .annotation-block, summary');
 			(block ?? trigger).after(host);
 		}
+		const shutter = document.createElement('button');
+		shutter.type = 'button';
+		shutter.className = 'comment-close';
+		shutter.title = 'Close';
+		shutter.setAttribute('aria-label', 'Close this annotation');
+		shutter.textContent = '×';
+		host.append(shutter);
 		const made = lead.map(
 			(a) =>
 				mount(AnnotationBox as unknown as Box, {
@@ -97,33 +162,73 @@ export function inlineComments(manifest: Manifest, floating = false): InlineComm
 		);
 		trigger.classList.add('expanded');
 		trigger.setAttribute('aria-expanded', 'true');
-		open = { trigger, host, made, ids: lead.map((a) => a.id) };
+		const box: Opened = { trigger, host, made, ids: lead.map((a) => a.id) };
+		boxes = [...boxes, box];
+		shutter.addEventListener('click', (e) => {
+			e.stopPropagation();
+			shut(box);
+		});
+		host.addEventListener('pointerdown', () => front(box));
 		if (floating) place(host, trigger);
+		front(box);
+		return box;
+	};
+
+	const toggle = (trigger: HTMLElement, ids: string[]) => {
+		const already = boxes.find((b) => b.trigger === trigger);
+		if (already) {
+			// a backgrounded box is brought forward rather than shut: the reader is reaching for it, not dismissing it
+			if (already.host.classList.contains('behind')) front(already);
+			else shut(already);
+			return;
+		}
+		openAt(trigger, ids);
+	};
+
+	const expandAll = (root: HTMLElement) => {
+		all = true;
+		for (const t of triggers(root)) {
+			if (boxes.some((b) => b.trigger === t)) continue;
+			openAt(t, idsOf(t));
+		}
+		// nothing is in front when everything is open: the reader's eye, not the z-order, is what picks one out
+		for (const b of boxes) b.host.classList.remove('behind');
 	};
 
 	const down = (e: PointerEvent) => {
-		if (!open) return;
+		if (!boxes.length) return;
 		const t = e.target as Element | null;
-		if (open.host.contains(t) || t?.closest?.('mark.annotation, .annotation-block, .comment-count')) return;
-		close();
+		if (t?.closest?.('.comment-slot.expanded, mark.annotation, .annotation-block, .comment-count')) return;
+		background();
 	};
-	const key = (e: KeyboardEvent) => e.key === 'Escape' && close();
-	const away = () => floating && close();
+	const key = (e: KeyboardEvent) => {
+		if (e.key !== 'Escape' || !boxes.length) return;
+		shut(boxes[boxes.length - 1]);
+	};
+	// A floating box is placed against the window, so it follows its mark rather than being abandoned by it. It used to
+	// close on scroll, which was right only while the pointer was what opened it.
+	const again = () => {
+		if (!floating) return;
+		for (const b of boxes) place(b.host, b.trigger);
+	};
 	document.addEventListener('pointerdown', down, true);
 	document.addEventListener('keydown', key);
-	window.addEventListener('scroll', away, true);
-	window.addEventListener('resize', away);
+	window.addEventListener('scroll', again, true);
+	window.addEventListener('resize', again);
 
 	return {
 		toggle,
-		close,
-		current: () => open?.ids ?? null,
+		expandAll,
+		hideAll,
+		close: hideAll,
+		expanded: () => all,
+		current: () => boxes[boxes.length - 1]?.ids ?? null,
 		destroy() {
-			close();
+			hideAll();
 			document.removeEventListener('pointerdown', down, true);
 			document.removeEventListener('keydown', key);
-			window.removeEventListener('scroll', away, true);
-			window.removeEventListener('resize', away);
+			window.removeEventListener('scroll', again, true);
+			window.removeEventListener('resize', again);
 		}
 	};
 }

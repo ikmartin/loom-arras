@@ -84,8 +84,11 @@
 		// a manifest refresh re-wires, and the one that follows a reply must not shut the box the reply was written in
 		const was = inline?.current() ?? null;
 		inline?.destroy();
-		const inPlace = prefs.comments === 'inline' || prefs.comments === 'hover';
-		inline = inPlace && store.manifest ? inlineComments(store.manifest, prefs.comments === 'hover') : null;
+		// `floating` and `inline` both open in the text; only where the box stands differs, which is the controller's
+		// own business. `hover` was a third mode and is gone: a box the pointer brought up could not be read without
+		// holding the pointer still, and could not be clicked into at all (plan 0.13 §7).
+		const inPlace = prefs.comments === 'inline' || prefs.comments === 'floating';
+		inline = inPlace && store.manifest ? inlineComments(store.manifest, prefs.comments === 'floating') : null;
 		const opened = inline;
 		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
 			master,
@@ -94,7 +97,7 @@
 			keyless: standalone,
 			comments,
 			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined,
-			hover: prefs.comments === 'hover'
+			floating: prefs.comments === 'floating'
 		});
 		const trigger = was && opened ? triggerFor(root, was) : null;
 		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? trigger.dataset.comments ?? '').split(/\s+/).filter(Boolean));
@@ -167,5 +170,5 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<div class="fragment" class:read={margins} class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'hover'} bind:this={el}>{@html html}</div>
+	<div class="fragment" class:read={margins} class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'} bind:this={el}>{@html html}</div>
 {/if}

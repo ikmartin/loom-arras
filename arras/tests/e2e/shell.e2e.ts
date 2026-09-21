@@ -202,6 +202,8 @@ test("the graph toggle keeps the selection and both layouts draw their edges", a
 test("the read view has gutters, with the margin annotation in one and the comments in the other", async ({
   page,
 }) => {
+  // this test is about the margin arrangement; `floating` is the default and puts the box over the text instead
+  await page.addInitScript(() => localStorage.setItem("arras.prefs", JSON.stringify({ comments: "margin" })));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/master/main");
   await page.waitForSelector(".fragment .env[data-key]");
@@ -238,6 +240,8 @@ test("the read view has gutters, with the margin annotation in one and the comme
 test("a comment with sizeable content stays in the text as a box", async ({
   page,
 }) => {
+  // the margin arrangement, which is what "stays in the text as a box" is about
+  await page.addInitScript(() => localStorage.setItem("arras.prefs", JSON.stringify({ comments: "margin" })));
   await page.route("**/build/manifest.json", async (route) => {
     const res = await route.fetch();
     const m = await res.json();
