@@ -68,9 +68,16 @@
 			<p class="muted" data-testid="unreadable">
 				Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}. Nothing here can be checked against a page.
 			</p>
-		{:else if ref.artifacts?.pdf && anchored.length}
+		{:else if ref.artifacts?.pdf}
+			<!-- A paper that has been filed can be read, whether or not anything has been anchored to it yet. This was
+			     gated on the pages the work's *results* sit on, so a paper nobody had extracted or proposed from — the
+			     state every newly filed paper is in — offered no way into the reader at all, and the only link left
+			     the viewer for the browser's own renderer. Found in the first minute of the reading study. -->
 			<p class="pages">
 				Read the paper:
+				{#if !anchored.length}
+					<button class="page-link" class:on={reading === 1} data-testid="read-page-1" onclick={() => setQuery(page.url, 'page', reading === 1 ? '' : '1')}>open at page 1</button>
+				{/if}
 				{#each anchored as p (p)}
 					<button
 						class="page-link"

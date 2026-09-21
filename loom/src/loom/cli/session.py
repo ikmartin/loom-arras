@@ -276,7 +276,7 @@ def send_command(text: str, which: str | None, declared: str | None, quilt_path:
 
     The symmetric verb to the composer in the viewer: both append to the same inbox, and a message lands whether or not anybody is listening. Nothing is launched by this -- loom is a mailbox, and a parked reader wakes because a file grew.
     """
-    from loom.mailbox import attached, changed_since, post
+    from loom.mailbox import attached, changed_since, post, waiting_on
 
     root, found, name, kind = _mail(quilt_path, which, declared)
     if not text.strip():
@@ -289,7 +289,7 @@ def send_command(text: str, which: str | None, declared: str | None, quilt_path:
     if here:
         click.echo("listening: " + ", ".join(f"{r.get('who')} ({r.get('kind')})" for r in here))
     else:
-        note(f"nobody is attached; it waits in the inbox. loom session watch {found.id} attaches this terminal.")
+        note(waiting_on(root, found.id, name))
 
 
 @session.command(name="next")

@@ -69,10 +69,14 @@ class ScanReport:
 
     def lines(self) -> list[str]:
         """What a person reads: one line of counts, then each conflict and each missing `.bib`."""
-        heuristic = sum(1 for c in self.added if "loom-parsed" in c.text)
+        # A `\bibitem` and a document dropped in `refs/` both carry `loom-parsed`, and counting them together said
+        # "from \bibitem text" about a PDF that came from no bibliography at all.
+        from_seed = {c.key for c in self.added if c.text and "loom-source" in c.text}
+        heuristic = sum(1 for c in self.added if "loom-parsed" in c.text and c.key not in from_seed)
         out = [
             f"{BIBLIOGRAPHY}: {len(self.added)} added"
             + (f" ({heuristic} from \\bibitem text, parsed heuristically)" if heuristic else "")
+            + (f" ({len(from_seed)} read from the document itself)" if from_seed else "")
             + f", {self.present} already there"
         ]
         out += [f"conflict: {key} differs between {kept} (kept) and {other}" for key, kept, other in self.conflicts]
@@ -181,6 +185,7 @@ def _bibtex(key: str, fields: dict[str, str]) -> str:
         "zbl",
         "loom-text",
         "loom-source",
+        "loom-file",
         "loom-copy-of",
         "loom-parsed",
     ):
@@ -364,7 +369,7 @@ def _own_account(pdf: Path) -> tuple[WorkId | None, dict[str, str]]:
     return None, fields
 
 
-def _entry_for(pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, source: str = "") -> str:
+def _entry_for(pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, source: str = "", filed: str = "") -> str:
     """A bibliography entry for a document that had none, carrying where it came from.
 
     `source` overrides the seed path for a document that did not come from the seed space; it is what a later scan reads to know this entry already names that document.
@@ -376,6 +381,9 @@ def _entry_for(pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, 
         else:
             out[wid.scheme] = wid.value
     out["loom-source"] = source or f"{SEED}/{pdf.name}"
+    # where the document went, when that is not derivable from an identifier it does not state
+    if filed:
+        out["loom-file"] = filed
     out["loom-parsed"] = "heuristic"
     return _bibtex(key, out)
 
@@ -457,7 +465,14 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
             report.forgotten += 1
             continue
         taken.add(key)
-        offers.append(Candidate(key, _entry_for(pdf, wid, said, key, source=came), rel, rel))
+        offers.append(
+            Candidate(
+                key,
+                _entry_for(pdf, wid, said, key, source=came, filed="" if wid else f"{home.parent.name}/{home.name}"),
+                rel,
+                rel,
+            )
+        )
         report.adopted.append((key, rel))
     return offers
 
@@ -501,7 +516,8 @@ def copy_documents(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) -
             home = own  # nothing in the bibliography claims it
             key = _derived_key(pdf, sha, taken)
             taken.add(key)
-            offers.append(Candidate(key, _entry_for(pdf, wid, said, key), rel, rel))
+            here = own.relative_to(storage_root(root)).as_posix()
+            offers.append(Candidate(key, _entry_for(pdf, wid, said, key, filed="" if wid else here), rel, rel))
             (report.derived if wid else report.unnamed).append(key)
         home.mkdir(parents=True, exist_ok=True)
         shutil.copy(pdf, home / "paper.pdf")

@@ -680,7 +680,7 @@ An agent walking a chain of results called this once per node; --depth walks it 
 
 Print the region of CITEKEY's page PAGE that TEXT occupies, so an anchor need not compute geometry.
 
-Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer at that page: a quad is four numbers, and what anyone wants next is to see the page it is on.
+Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer **at the place** -- `?page=4&span=812-871` -- so that following it lights the quotation rather than leaving it to be found by eye.
 
 | option | description |
 |---|---|

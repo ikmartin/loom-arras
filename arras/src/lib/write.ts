@@ -38,10 +38,24 @@ export function capabilities(): Promise<Capabilities | null> {
 	return probe;
 }
 
+/** What the probe answered, once it has; `undefined` until then. Kept so a component mounted after the answer is known does not have to blink while it asks again. */
+let settled: Capabilities | null | undefined;
+
 /** Whether one endpoint is served. An endpoint outside the list answers 404, so asking first is what keeps a button from appearing that cannot work. */
 export async function can(endpoint: string): Promise<boolean> {
 	const caps = await capabilities();
+	settled = caps;
 	return !!caps?.capabilities?.includes(endpoint);
+}
+
+/**
+ * Whether one endpoint is served, from the answer already in hand; `undefined` before the first probe returns.
+ *
+ * The verbs on an annotation are re-mounted whenever its box is re-read, and re-asking asynchronously made the whole
+ * row vanish for a frame each time — most visibly right after a write, which is exactly when a reader is looking at it.
+ */
+export function known(endpoint: string): boolean | undefined {
+	return settled === undefined ? undefined : !!settled?.capabilities?.includes(endpoint);
 }
 
 export interface WriteResult {

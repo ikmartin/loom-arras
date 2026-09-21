@@ -164,6 +164,32 @@ def detach(root: Path, sid: str, who: str) -> None:
         (d / ATTACHED).write_text(json.dumps(rows, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def waiting_on(root: Path, sid: str, name: str = "") -> str:
+    """What to tell somebody who has just posted and nobody was listening.
+
+    Three states, not two. Nobody has ever attached here, and the message waits for whoever comes; somebody *was* attached and their heartbeat has gone quiet, which is what an agent looks like for the whole time it is doing what it was asked, since the beat is written only while parked; or the only reader attached is you.
+
+    The distinction is the one the composer used to get wrong: it told an author whose agent was mid-task that nobody was attached and they should go and start a watcher.
+    """
+    from datetime import datetime
+
+    live = [r for r in attached(root, sid) if r.get("who") != name]
+    if live:
+        return ""
+    ever = [r for r in attached(root, sid, stale=True) if r.get("who") != name]
+    if not ever:
+        return f"nobody is attached — it waits in the inbox. Start one with: loom session watch {sid}"
+    who = ", ".join(sorted({str(r.get("who", "someone")) for r in ever}))
+    when = max((str(r.get("beat", "")) for r in ever), default="")
+    mins = ""
+    try:
+        gap = (datetime.now(UTC) - datetime.fromisoformat(when.replace("Z", "+00:00"))).total_seconds()
+        mins = f" {int(gap // 60)} min ago" if gap >= 60 else " moments ago"
+    except ValueError:
+        pass
+    return f"{who} is not listening this second — last here{mins}, probably working. It waits in the inbox and they will see it when they next look."
+
+
 def attached(root: Path, sid: str, *, stale: bool = False) -> list[dict[str, Any]]:
     """Who is listening now.
 
@@ -206,12 +232,35 @@ def render(events: list[Event]) -> str:
         lines.append(f"{e.when[11:16]} {e.who}: {e.body}" if e.kind == "message" else f"{e.when[11:16]} — {e.body}")
         for c in e.changed:
             who = c.get("by", "")
-            lines.append(
-                f"  {c.get('id', '')}  {c.get('kind', '')} · {c.get('target', '')} · {c.get('act', '')} by {who}"
-            )
+            # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
+            where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
+            lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}")
             if c.get("body"):
                 lines.append(f'      "{c["body"]}"')
     return "\n".join(lines)
+
+
+def work_of(root: Path, annotation: Any) -> str | None:
+    """The citekey a page note's target names, or None when the target is a key in the corpus.
+
+    The record stores the work's identifier, which is what two quilts agree on; every `loom refs` command wants the citekey, which is what this machine calls it. Nothing mapped one to the other, so an agent given a changed-annotation block had an address it could not use.
+    """
+    if annotation.anchor is None:
+        return None
+    from loom.refs.identity import identify, parse
+    from loom.scan.bib import BIBLIOGRAPHY, parse_bib
+
+    wid = parse(annotation.target_key)
+    if wid is None:
+        return None
+    try:
+        bib = parse_bib((root / BIBLIOGRAPHY).read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        return None
+    for ck, entry in bib.items():
+        if any((w.scheme, w.value) == (wid.scheme, wid.value) for w in identify(entry)):
+            return ck
+    return None
 
 
 def changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
@@ -240,6 +289,11 @@ def changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
                     "id": a.id,
                     "kind": a.kind,
                     "target": a.target_key,
+                    # A page note targets the work's identifier, which no `loom refs` command accepts. An agent
+                    # handed only that has to find the citekey by trial -- which is what the reading study watched
+                    # one do. The citekey and the page travel with it, as `ai findings` prints them.
+                    "work": work_of(root, a),
+                    "page": a.anchor.page if a.anchor else None,
                     "act": "replied" if a.in_reply_to else "created",
                     "by": a.author_id,
                     "body": a.body[:200],

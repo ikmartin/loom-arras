@@ -314,7 +314,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "bca918df0c04e03e4049499f58fbeccc77cdf5832a03ac26ccd1b21214819579",
+   "hash": "5c92efa28bda5d1ec29786c972a32f293e88812acaf2b7be56abe93ff71e6b56",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -326,7 +326,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "75d98f9d280533294aab87758a6feeb8103138cbb3578fa837534efd5dccf667",
+   "hash": "6c37eb67ed4b63f1acd6888b9bbf2dd795f8757ecd4ad52e731088e03e9074cd",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -338,7 +338,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "6cf9cbde92681a13a4dec0ca9f165a01c6461d1a0a39632ceb7eed46021e830f",
+   "hash": "16d268b177d49f15f5fd16ae8ad23a603f0bcbf31edad9a4c92f0161d2ac6518",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",

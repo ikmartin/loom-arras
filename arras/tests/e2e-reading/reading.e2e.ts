@@ -206,3 +206,31 @@ test('two notes on one place are one mark carrying the count, and one box holdin
 	await stacked.click();
 	await expect(page.getByTestId('comment-expanded').locator('article.box')).toHaveCount(Number(await stacked.getAttribute('data-count')));
 });
+
+test('a box shows the write it fired, without being closed and reopened', async ({ page }) => {
+	// `openAt` mounted the card with the annotation as it was and nothing updated it, so resolving from a box left the
+	// box saying `open` with the same verbs. In the study the reader clicked twice for that reason and the append-only
+	// log took two `resolved` events for one annotation.
+	await opened(page);
+	// a note of its own, on a phrase no other test in this file uses: sharing one would stack the marks, and a stacked
+	// mark carries the first id rather than the newest
+	await select(page, 'exchange inequalities');
+	await expect(page.getByTestId('note-at')).toBeVisible();
+	await page.getByTestId('note-body').fill('resolve me');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toBeHidden();
+	const id = (log().at(-1) as { id: string }).id;
+	const mark = page.getByTestId(`mark-${id}`);
+	await expect(mark).toBeVisible({ timeout: 15000 });
+	await mark.click();
+	const box = page.getByTestId('comment-expanded');
+	await expect(box.locator('.status').first()).toHaveText('open');
+	await box.getByTestId('verb-resolve').first().click();
+	// the same box, still open, still where the reader put it
+	await expect(box.locator('.status').first()).toHaveText('resolved', { timeout: 10000 });
+	// the button that fired it becomes its own undo, where it stood
+	await expect(box.getByTestId('verb-undo-resolve').first()).toBeVisible();
+	const undo = box.getByTestId('verb-undo-resolve').first();
+	await undo.click();
+	await expect(box.locator('.status').first()).toHaveText('open', { timeout: 10000 });
+});

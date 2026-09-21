@@ -63,6 +63,12 @@
 		};
 	});
 
+	// an open box over the page is re-read when the manifest is, so the surface that fired a write shows it
+	$effect(() => {
+		void store.manifest;
+		boxes?.refresh();
+	});
+
 	/** The notes on this work's pages, top-level and standing. The session selection governs the page (plan 0.13 §7): what the panel is showing is what the page marks, and a note the selection hides is counted rather than drawn. */
 	const notes = $derived(
 		Object.values(store.manifest?.annotations ?? {}).filter(

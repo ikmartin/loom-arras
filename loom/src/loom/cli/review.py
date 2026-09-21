@@ -180,19 +180,26 @@ def _target_text(result: ScanResult, target: str) -> tuple[str, str]:
     return key, text
 
 
-def _writer(root: Path, session: str | None, author: str | None) -> tuple[str, str, str]:
+def _writer(root: Path, session: str | None, author: str | None, *, sniff: bool = True) -> tuple[str, str, str]:
     """(session id, author kind, author name) for whoever is writing (plan 0.13 §5).
 
     The two were one field: an agent's annotation recorded its run directory as its author, so the log could say *who* only by naming a place. Now the session says where the work belongs and the author says who did it -- a person by their name, an agent by what it is called, never by the author's git identity that its shell happens to share (DR-185).
 
     Writing with nothing active opens a session, for a person and an agent alike: refusing would make the first comment of a sitting a two-command ritual.
+
+    The caller says who is writing; the shell is asked only when nobody does, and only where asking it makes sense. `sniff=False` is the API's: a write arriving over HTTP is somebody at a browser, and the shell `loom serve` happens to have been started in says nothing about them. With `loom serve` running in an agent's terminal every note the author wrote in their own browser was recorded `author: "agent"`. Without a name to use it refuses, as a comment from an unnamed author always has, rather than guessing from the environment (plan 0.13 §8).
     """
-    from loom.cli._common import agent_name
+    from loom.cli._common import agent_name, is_agent
     from loom.sessions import ensure_active
     from loom.sessions import resolve as resolve_session
 
-    robot = agent_name()
-    name = (author or "").strip() or robot or _author(author, root)
+    # **An explicit identity wins, in both directions** (plan 0.13 §8). A declared name decides the kind by what it
+    # calls itself, so an agent naming itself is an agent in a person's shell and a person naming themselves is a
+    # person in an agent's; the marker is the safety net for a writer who declared nothing at all.
+    declared = (author or "").strip()
+    robot = agent_name() if sniff else None
+    name = declared or robot or _author(author, root)
+    kind = is_agent(declared) if declared else bool(robot)
     if session:
         s = resolve_session(root, session)
         if s is None:
@@ -201,7 +208,7 @@ def _writer(root: Path, session: str | None, author: str | None) -> tuple[str, s
             raise ContentError(f"{s.id} was deleted; nothing new can be written to it")
     else:
         s = ensure_active(root, name)
-    return s.id, "agent" if robot else "human", name
+    return s.id, "agent" if kind else "human", name
 
 
 def _one_comment(

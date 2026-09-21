@@ -234,3 +234,44 @@ test.describe('identity candidates', () => {
 		await expect(page.getByTestId('candidate-Kre99')).toHaveCount(0);
 	});
 });
+
+test.describe('what the reading study found', () => {
+	test('a filed paper can be opened whether or not anything is anchored to it yet', async ({ page }) => {
+		// The "Read the paper" row was gated on the pages the work's *results* sit on, so a paper that had been filed
+		// and not yet extracted or proposed from — the state every newly filed paper is in — offered no way into the
+		// reader at all, and the only link left the viewer for the browser's own renderer.
+		await serve(page, (m) => {
+			m.references.Kre99.artifacts.pdf = true;
+			m.references.Kre99.results = {};
+			m.references.Kre99.digest = null;
+		});
+		await page.goto('/library/Kre99');
+		const open = page.getByTestId('read-page-1');
+		await expect(open).toBeVisible();
+		await open.click();
+		await expect(page).toHaveURL(/\/library\/Kre99\?page=1$/);
+		await expect(page.getByTestId('pdf-doc')).toBeVisible();
+	});
+
+	test('a verb that needs no panel still shows why it was refused', async ({ page }) => {
+		// `resolve` is one click, so it opens no panel — and the refusal rendered only inside a panel, so the publisher's
+		// reason was dropped. In the study the reader clicked resolve, nothing happened, and the log took the event twice.
+		await serve(page, () => {});
+		// the fixture is served by `vite preview`, which has no write API; the verbs appear only where one is advertised
+		await page.route('**/_api', (route) =>
+			route.fulfill({ json: { write_api: 1, capabilities: ['comment', 'reply', 'resolve', 'edit', 'discard'], token: 't' } })
+		);
+		await page.route('**/_api/resolve', (route) =>
+			route.fulfill({
+				status: 400,
+				contentType: 'application/json',
+				body: JSON.stringify({ error: { code: 'no-such-run', message: 'no author name: add name = "Your Name" under [author]' } })
+			})
+		);
+		await page.goto('/node/sy-0003');
+		await page.getByTestId('verb-resolve').first().click();
+		const said = page.getByTestId('verb-said').first();
+		await expect(said).toBeVisible();
+		await expect(said).toContainText('no author name');
+	});
+});

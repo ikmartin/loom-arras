@@ -18,7 +18,9 @@ test('a comment written in the browser lands in the log as a person', async ({ p
 	await page.getByTestId('composer-open').click();
 	await page.getByTestId('composer-quote').fill('finite widget');
 	await page.getByTestId('composer-message').fill('Does finiteness do any work in the closedness half?');
-	await page.getByTestId('composer-kind').selectOption('question');
+	// an objection, because severity grades a fault and only `objection` and `suggestion` claim one (DR-204); this
+	// test asked for a `minor` question until the six kinds landed, which the publisher would now refuse
+	await page.getByTestId('composer-kind').selectOption('objection');
 	await page.getByTestId('composer-severity').selectOption('minor');
 	await page.getByTestId('composer-submit').click();
 	await expect(page.getByTestId('composer-said')).toHaveText('written');
@@ -26,6 +28,7 @@ test('a comment written in the browser lands in the log as a person', async ({ p
 	const mine = log().filter((e) => String(e.body ?? '').startsWith('Does finiteness'));
 	expect(mine).toHaveLength(1);
 	expect(mine[0].kind).toBe('human'); // written by a person, not by the run whose page it was
+	expect(mine[0].annotation_kind).toBe('objection');
 	expect(mine[0].severity).toBe('minor');
 	expect(JSON.stringify(mine[0])).toContain('finite widget'); // anchored to the sentence, not to the node
 });

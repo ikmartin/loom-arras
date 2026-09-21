@@ -135,8 +135,13 @@ AGENT_WORDS = ("agent", "ai", "bot", "assistant")
 
 
 def is_agent(name: str) -> bool:
-    """Whether a declared identity is an agent's, by the word it was asked to include in its own name."""
-    return any(w in name.lower().split() or w in name.lower().replace("-", " ").split() for w in AGENT_WORDS)
+    """Whether a declared identity is an agent's, by the word it was asked to include in its own name.
+
+    The words are matched however they are punctuated, because the form loom's own documents ask for is `Referee (Agent)` and the showcase writes exactly that. Splitting on whitespace and hyphens made `(agent)` a different word from `agent`, so the name the orientation teaches was read as a person's: the session picker showed a parked agent as `⟨person⟩`, and `refuse_under_agent` let that name run `loom accept` and `loom refs verify`. Found by the reading study, 2026-09-21.
+    """
+    import re
+
+    return any(w in re.findall(r"[a-z0-9]+", name.lower()) for w in AGENT_WORDS)
 
 
 def writer(root: Path, declared: str | None) -> tuple[str, str]:

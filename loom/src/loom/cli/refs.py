@@ -676,7 +676,7 @@ def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, qu
 
     result = open_scan(quilt_path)
     if citekey not in result.bib:
-        raise EnvError(f"{citekey} is not in the bibliography")
+        raise EnvError(f"{citekey} is not in the bibliography; loom refs coverage names the works that are")
     home = work_dir(result.quilt.root, result.bib[citekey])
     m = read_map(home)
     if m is None:
@@ -792,42 +792,51 @@ def locate_command(
 ) -> None:
     """Print the region of CITEKEY's page PAGE that TEXT occupies, so an anchor need not compute geometry.
 
-    Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer at that page: a quad is four numbers, and what anyone wants next is to see the page it is on.
+    Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer **at the place** -- `?page=4&span=812-871` -- so that following it lights the quotation rather than leaving it to be found by eye.
     """
+    from loom.refs.anchoring import anchor_on_page
     from loom.refs.fetch import work_dir
-    from loom.refs.pages import read_map, token_boxes
-    from loom.refs.search import locate_span
+    from loom.refs.pages import read_map
 
     result = open_scan(quilt_path)
     if citekey not in result.bib:
-        raise EnvError(f"{citekey} is not in the bibliography")
+        raise EnvError(f"{citekey} is not in the bibliography; loom refs coverage names the works that are")
     home = work_dir(result.quilt.root, result.bib[citekey])
-    m = read_map(home)
-    pdf = home / "paper.pdf"
-    if m is None or not pdf.is_file():
+    if read_map(home) is None or not (home / "paper.pdf").is_file():
         raise ContentError(f"{citekey} has no mapped PDF; run loom refs map {citekey}")
-    xml = token_boxes(pdf, page_no, home)
-    span = locate_span(xml, text, page_no)
-    if span is None:
+    # The mapping the viewer previews with and `loom comment` records, so the three cannot spell one place
+    # differently -- and so this can print the basis and the offsets, which its own `locate_span` could not.
+    placed = anchor_on_page(home, page_no, text)
+    if not placed.found:
         click.echo(f"not found on {citekey} p.{page_no}")
         ctx.exit(EXIT_CONTENT)
         return
+    anchor = placed.anchor
+    quads = anchor.quads or []
     if as_json:
-        click.echo(
-            json.dumps(
-                {"kind": "pdf", "sha256": m.sha256, "page": span.page, "quads": [list(q) for q in span.lines]},
-                indent=2,
-            )
-        )
+        click.echo(json.dumps(anchor.to_dict(), indent=2))
     else:
-        x0, y0, x1, y1 = span.quad
-        lines = f"{len(span.lines)} line{'s' if len(span.lines) != 1 else ''}"
-        click.echo(f"{citekey} p.{span.page}  {x0:.1f} {y0:.1f} {x1:.1f} {y1:.1f}  ({span.words} words, {lines})")
-        # A quad is four numbers; what anyone wants next is to see the page it is on. The line is printed only when a
-        # server is actually listening, because a dead link is worse than none.
+        xs = [q[0] for q in quads] or [0.0]
+        ys = [q[1] for q in quads] or [0.0]
+        x1s = [q[2] for q in quads] or [0.0]
+        y1s = [q[3] for q in quads] or [0.0]
+        lines = f"{len(quads)} line{'s' if len(quads) != 1 else ''}"
+        words = len(placed.selector.exact.split())
+        click.echo(
+            f"{citekey} p.{page_no}  {anchor.basis}  "
+            f"{min(xs):.1f} {min(ys):.1f} {max(x1s):.1f} {max(y1s):.1f}  ({words} words, {lines})"
+        )
+        # A quad is four numbers; what anyone wants next is to see the place on the page. The line is printed only
+        # when a server is actually listening, because a dead link is worse than none.
         from loom.render.serve import open_url
 
-        where = open_url(result.quilt.root, f"library/{citekey}?page={span.page}")
+        # offsets where the committed page text holds the quotation, else the rectangle that was matched
+        locator = (
+            f"span={anchor.start}-{anchor.end}"
+            if anchor.basis == "text"
+            else "box=" + ",".join(f"{v:.1f}" for v in (quads[0] if quads else []))
+        )
+        where = open_url(result.quilt.root, f"library/{citekey}?page={page_no}&{locator}")
         if where:
             click.echo(f"open: {where}")
 
@@ -836,7 +845,7 @@ def _work_home(result: ScanResult, citekey: str) -> Path:
     from loom.refs.fetch import work_dir
 
     if citekey not in result.bib:
-        raise EnvError(f"{citekey} is not in the bibliography")
+        raise EnvError(f"{citekey} is not in the bibliography; loom refs coverage names the works that are")
     return work_dir(result.quilt.root, result.bib[citekey])
 
 

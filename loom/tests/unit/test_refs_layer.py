@@ -1870,3 +1870,131 @@ def test_an_agent_parked_on_session_next_wakes_when_a_message_lands_with_what_ch
     event = got["events"][-1] if isinstance(got.get("events"), list) else got
     changed = event.get("changed") or []
     assert any("Is this the balanced case" in (c.get("body") or "") for c in changed), got
+
+
+# ---- What the reading study found (2026-09-21) ---------------------------------------------------------------
+
+
+def test_a_declared_agent_is_an_agent_however_its_name_is_punctuated() -> None:
+    """`is_agent` split a name on whitespace and hyphens, so `(agent)` was a different word from `agent` — and `Referee (Agent)` is the form the orientation asks for and the showcase writes.
+
+    Two things followed, both seen in the study: a parked agent showed in the session picker as `⟨person⟩`, and DR-185's guard let that name run the author's own verbs.
+    """
+    from loom.cli._common import is_agent
+
+    for name in ("Referee (Agent)", "Claude (AI)", "Referee [Agent]", "Referee Agent", "referee-agent", "AI", "bot"):
+        assert is_agent(name), name
+    for name in ("A. Author", "Wren Halloway", "Aiden Pearce", "Aimee"):
+        assert not is_agent(name), name
+
+
+@pytest.mark.tex
+def test_the_authors_verbs_refuse_a_declared_agent_whatever_shell_it_is_in(tmp_path: Path) -> None:
+    """The guard is on the identity, not the door (plan 0.13 §8), so the declared name alone must refuse — the markers are unset here to prove it is the name doing the work. In the study `--author "Referee (Agent)"` ran `refs unreadable` and exited 0."""
+    q = _showcase(tmp_path)
+    env = {m: None for m in ("AI_AGENT", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CODEX_SANDBOX")}
+    for verb in (
+        ["refs", "unreadable", "Bellamy19", "--why", "no"],
+        ["refs", "verify", "Bellamy19-prop-3.1"],
+    ):
+        r = CliRunner().invoke(main, [*verb, "--author", "Referee (Agent)", "--quilt", str(q)], env=env)
+        assert r.exit_code != 0, (verb, r.output)
+        assert "is an agent" in r.output, (verb, r.output)
+    # and the author, named, is not refused for the shell they happen to be in
+    ok = CliRunner().invoke(
+        main,
+        ["refs", "unreadable", "Bellamy19", "--why", "a study", "--author", "A. Author", "--quilt", str(q)],
+        env={"AI_AGENT": "1"},
+    )
+    assert ok.exit_code == 0, ok.output
+
+
+def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(tmp_path: Path) -> None:
+    """`_writer` resolved `declared → marker → config`, so with `loom serve` started in an agent's terminal every note written in the author's own browser was recorded `author: "agent"` and shown as such beside the text."""
+    import json as _json
+
+    from loom.render.api import handle
+
+    q = quilt(tmp_path)
+    (q / "config.toml").write_text(
+        (q / "config.toml").read_text() + '\n[author]\nname = "Wren Halloway"\n', encoding="utf-8"
+    )
+    os.environ["AI_AGENT"] = "1"
+    try:
+        said = handle(q, "comment", {"target": "dm-0003", "message": "from the browser", "kind": "note"})
+        assert said["ok"], said
+        written = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
+        assert written["author"] != "agent" and written["kind"] == "human", written
+        # an agent posting to the same endpoint still says so, and is believed by its name
+        handle(q, "comment", {"target": "dm-0003", "message": "from an agent", "kind": "note", "author": "Referee (Agent)"})
+        robot = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
+        assert robot["author"] == "Referee (Agent)" and robot["kind"] == "agent", robot
+        assert written["author"] == "Wren Halloway", written
+    finally:
+        del os.environ["AI_AGENT"]
+
+
+def test_a_reader_who_is_working_is_not_a_reader_who_was_never_here(tmp_path: Path) -> None:
+    """The heartbeat is written only while `session next` is parked, so for the whole time an agent is doing what it was asked it reads as absent. The composer told an author whose agent was mid-task to go and start a watcher."""
+    from loom.mailbox import attach, waiting_on
+    from loom.sessions import create
+
+    q = quilt(tmp_path)
+    sid = create(q, "reading", "A. Author").id
+    never = waiting_on(q, sid, "A. Author")
+    assert "nobody is attached" in never and f"loom session watch {sid}" in never
+
+    attach(q, sid, "Referee (Agent)", "agent")
+    assert waiting_on(q, sid, "A. Author") == ""  # somebody is listening; there is nothing to say
+
+    # the beat goes quiet while they work: still here, not listening this second
+    p = q / ".loom" / "sessions" / sid / "attached.json"
+    rows = json.loads(p.read_text())
+    rows[0]["beat"] = "2020-01-01T00:00:00Z"
+    p.write_text(json.dumps(rows))
+    busy = waiting_on(q, sid, "A. Author")
+    assert "Referee (Agent)" in busy and "probably working" in busy
+    assert "session watch" not in busy  # the advice that was wrong
+
+
+@pytest.mark.tex
+def test_refs_locate_names_the_place_and_not_only_the_page(tmp_path: Path) -> None:
+    """`refs locate` kept its own mapping, so its anchor had no `basis`, `start` or `end`, and the `open:` line could name only the page — design §6 specifies `?page=3&span=1043-1189`, and following what it printed left the quotation to be found by eye."""
+    import json as _json
+
+    from loom.render.serve import write_serve_json
+
+    q = _showcase(tmp_path)
+    got = _json.loads(run("refs", "locate", "Bellamy19", "totally unimodular", "--page", "2", "--json", cwd=q).output)
+    assert got["basis"] == "text" and got["start"] > 0 and got["end"] > got["start"]
+    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    assert page_text[got["start"] : got["end"]] == "totally unimodular"
+
+    write_serve_json(q, 8791)  # this process is alive, so the link is offered
+    said = run("refs", "locate", "Bellamy19", "totally unimodular", "--page", "2", cwd=q).output
+    assert f"span={got['start']}-{got['end']}" in said, said
+    # a box anchor names its rectangle instead
+    drawn = run("refs", "locate", "Bellamy19", "Proposition 3.1", "--page", "2", cwd=q).output
+    assert "span=" in drawn or "box=" in drawn, drawn
+
+
+@pytest.mark.tex
+def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
+    """A page note's target is the work's identifier, which is what two quilts agree on and what no `loom refs` command accepts. The study watched an agent take the changed-annotation block, try `loom refs page arXiv:1809.02027v1 4`, be told it was not in the bibliography, and go hunting for the citekey. It travels with the change now."""
+    from loom.mailbox import changed_since, render
+    from loom.sessions import create, sessions
+
+    q = _showcase(tmp_path)
+    sid = create(q, "reading", "A. Author").id
+    run("comment", "Bellamy19", "why unimodular?", "--page", "2", "--quote", "totally unimodular", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q)
+    run("comment", "sh-0003", "and one on a key, which has no work", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
+
+    changed = changed_since(q, sessions(q)[sid])
+    page_note = next(c for c in changed if c["page"])
+    assert page_note["work"] == "Bellamy19" and page_note["page"] == 2
+    assert page_note["target"].startswith("doi:")  # the identifier is still what was recorded
+    on_key = next(c for c in changed if not c["page"])
+    assert on_key["work"] is None and on_key["target"] == "sh-0003"
+    # and what a parked agent reads names the paper and the page, not an address it must decode
+    said = render([type("E", (), {"who": "A. Author", "when": "now", "kind": "message", "body": "look", "changed": changed})()])
+    assert "Bellamy19 p.2" in said, said

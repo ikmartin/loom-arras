@@ -201,3 +201,36 @@ def test_a_bib_file_in_the_seed_space_is_read_like_one_a_document_names(tmp_path
     report = scan_bibliography(quilt)
     assert "Dropped" in {c.key for c in report.added}
     assert parse_bib((quilt.root / BIBLIOGRAPHY).read_text())["Dropped"].fields["title"] == "Dropped in by hand"
+
+
+def test_a_document_that_states_no_identifier_is_reachable_from_its_own_entry(tmp_path: Path) -> None:
+    """A PDF that prints no DOI or arXiv id — a scan, most older literature — is filed under its content hash, and the entry the scan offers states no identifier either, so `primary` answers with the *synthetic* identifier: a hash of author, title and year. The two disagreed, and the viewer told the reader "No copy of this paper on this machine" about a paper sitting in the store.
+
+    Found in the reading study on an OCR'd 1988 journal scan, which is exactly the character of paper that states nothing about itself.
+    """
+    from loom.refs.fetch import work_dir
+    from loom.refs.identity import primary
+    from loom.scan.bib import parse_bib
+
+    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    seed = quilt.root / "refs"
+    seed.mkdir()
+    _pdf(seed / "Ekedahl - 1988 - The order of the tautological ring.pdf", text="The order of the tautological ring")
+    report = scan_bibliography(quilt)
+    key = report.added[-1].key
+    entry = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())[key]
+
+    filed = quilt.root / report.copied[-1][1]
+    assert (filed / "paper.pdf").is_file()
+    assert entry.fields["loom-file"] == f"{filed.parent.name}/{filed.name}"
+    # the entry's own identifier names somewhere else entirely, and must not be what anyone looks under
+    assert primary(entry) is not None and primary(entry).path != entry.fields["loom-file"]
+    assert work_dir(quilt.root, entry) == filed
+
+    # a document that does state an identifier is filed under it, and carries no `loom-file` to override it
+    _pdf(seed / "stated.pdf", text="arXiv:2504.09999v1 A paper that names itself")
+    again = scan_bibliography(quilt)
+    named = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())[again.added[-1].key]
+    if primary(named) and primary(named).scheme == "arxiv":
+        assert "loom-file" not in named.fields
+        assert work_dir(quilt.root, named) == quilt.root / "digests" / "storage" / primary(named).path

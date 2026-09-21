@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from loom.refs.identity import declared, identify, primary
-from loom.refs.pages import STORAGE, storage_root
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
@@ -230,6 +229,16 @@ def _published_notes(root: Path) -> list[dict[str, Any]]:
 PUBLISHES = {"documents": True, "review": True, "bibliography": True, "discussions": True}
 
 
+def _work_home(root: Path, entry: Any) -> Path | None:
+    """Where this work's documents are, or None when the entry names no identity at all."""
+    from loom.refs.fetch import FetchRefused, work_dir
+
+    try:
+        return work_dir(root, entry)
+    except FetchRefused:
+        return None
+
+
 def build_manifest(
     result: ScanResult,
     numbers: dict[str, dict[str, AuxNumber]],
@@ -418,7 +427,9 @@ def build_manifest(
         # what is on disk for this work, so the viewer can offer a PDF or say it has not been fetched.
         # Additive: the interface version is unchanged, as `relations` was in 0.2.
         wid = primary(bib) if bib else None
-        home = storage_root(result.quilt.root) / wid.path if wid else None
+        # through `work_dir`, so the viewer looks where the document was actually filed: a paper that states no
+        # identifier lives under its content hash, which its entry's synthetic identifier does not name
+        home = _work_home(result.quilt.root, bib) if bib else None
         manifest["references"][ck] = {
             "citekey": ck,
             "slug": asm.prefix_of(ck),
@@ -426,7 +437,7 @@ def build_manifest(
             "work": str(wid) if wid else "",
             "works": [str(w) for w in identify(bib)] if bib else [],
             "artifacts": {
-                "dir": f"{STORAGE}/{wid.path}" if wid else "",
+                "dir": home.relative_to(result.quilt.root).as_posix() if home else "",
                 "pdf": bool(home and (home / "paper.pdf").is_file()),
                 "source": bool(home and (home / "src").is_dir()),
             },

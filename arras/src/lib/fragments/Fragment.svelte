@@ -230,6 +230,8 @@
 	$effect(() => {
 		void store.manifest;
 		void prefs.comments;
+		// a write lands in the log and comes back on the next poll; the boxes already open must show it
+		inline?.refresh();
 		counts();
 		// the margin column is laid out against the nodes, so it is restacked whenever what is in it changes
 		if (el && margins) requestAnimationFrame(() => el && stackMargins(el));

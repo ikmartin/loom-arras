@@ -143,7 +143,7 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     **The message lands whether or not anybody is attached**, and the answer says which. Refusing would lose what the author typed, for a reason the browser cannot fix; saying nothing would let them believe it was delivered.
     """
     from loom.cli._common import whoever, writer
-    from loom.mailbox import attached, changed_since, post
+    from loom.mailbox import attached, changed_since, post, waiting_on
     from loom.sessions import ensure_active, resolve
 
     text = _str(body, "text", required=True) or ""
@@ -163,6 +163,7 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         "session": found.id,
         "seq": event.seq,
         "attached": here,
+        "waiting": waiting_on(root, found.id, name),
     }
 
 
@@ -265,7 +266,10 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         _str(body, field, required=True)
 
     try:
-        writer = _writer(root, _str(body, "run"), _str(body, "author"))
+        # Who is at the browser, not what shell the server was started in: with `loom serve` running in an agent's
+        # terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped
+        # sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
+        writer = _writer(root, _str(body, "run"), _str(body, "author"), sniff=False)
     except (EnvError, ContentError) as exc:
         raise ApiError("no-such-run", str(exc)) from exc
 

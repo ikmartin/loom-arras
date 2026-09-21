@@ -191,7 +191,9 @@ class BuildReport:
             out.append(f"blocked             {len(blocked)}")
             for w in blocked[:8]:
                 missing, how = w.blocked
-                out.append(f"  {w.citekey:<22}{missing:<34}{how}")
+                # padded, never truncated, and always separated: a citekey at or over the column width ran straight
+                # into its reason -- `Atiyah1984Themomentmapanno source to extract from` (reading study, 2026-09-21)
+                out.append(f"  {w.citekey:<22} {missing:<34} {how}".rstrip())
         unreadable = self.unreadable
         if unreadable:
             out.append("")

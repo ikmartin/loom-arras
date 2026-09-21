@@ -24,6 +24,8 @@ const INSET = 4;
 export interface InlineComments {
 	/** Open the comments `ids` at `trigger`, or close them when they are already open there. */
 	toggle(trigger: HTMLElement, ids: string[]): void;
+	/** Re-read every open box from the current manifest, in place. A write lands in the log and comes back on the next poll; the box that fired it must not be the one surface still showing the old state. */
+	refresh(): void;
 	/** Open every annotation in `root` at its own mark. A state, not an action: what materialises later opens too. */
 	expandAll(root: HTMLElement): void;
 	/** Close everything open, wherever it is. The escape hatch that clicking outside no longer provides. */
@@ -164,13 +166,7 @@ export function inlineComments(
 		shutter.setAttribute('aria-label', 'Close this annotation');
 		shutter.textContent = '×';
 		host.append(shutter);
-		const made = lead.map(
-			(a) =>
-				mount(AnnotationBox as unknown as Box, {
-					target: host,
-					props: { annotation: a, replies: repliesTo(manifest, a.id), anchor: false }
-				}) as Record<string, unknown>
-		);
+		const made = fill(host, lead.map((a) => a.id));
 		trigger.classList.add('expanded');
 		trigger.setAttribute('aria-expanded', 'true');
 		const box: Opened = { trigger, host, made, ids: lead.map((a) => a.id) };
@@ -183,6 +179,34 @@ export function inlineComments(
 		if (floating) place(host, trigger);
 		front(box);
 		return box;
+	};
+
+	/** Mount one card per id into `host`, from the manifest as it stands. Returns what was mounted, to unmount later. */
+	function fill(host: HTMLElement, ids: string[]): Record<string, unknown>[] {
+		const manifest = manifestNow();
+		if (!manifest) return [];
+		return leadComments(manifest, ids).map(
+			(a) =>
+				mount(AnnotationBox as unknown as Box, {
+					target: host,
+					props: { annotation: a, replies: repliesTo(manifest, a.id), anchor: false }
+				}) as Record<string, unknown>
+		);
+	}
+
+	/**
+	 * Re-read every open box from the manifest as it now stands, keeping the box where it is.
+	 *
+	 * A card is mounted with the annotation it had when it opened, and nothing updated it: resolving from a box left
+	 * the box saying `open` with the same verbs, so a reader clicked again and the log took two `resolved` events for
+	 * one annotation. Found by the reading study, 2026-09-21. The host and its placement are kept, because the box is
+	 * where the reader put it and a write is not a reason to move it.
+	 */
+	const refresh = () => {
+		for (const box of boxes) {
+			for (const made of box.made) void unmount(made);
+			box.made = fill(box.host, box.ids);
+		}
 	};
 
 	const toggle = (trigger: HTMLElement, ids: string[]) => {
@@ -229,6 +253,7 @@ export function inlineComments(
 
 	return {
 		toggle,
+		refresh,
 		expandAll,
 		hideAll,
 		close: hideAll,
