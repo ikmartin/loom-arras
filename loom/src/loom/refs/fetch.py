@@ -259,7 +259,9 @@ def fetch_work(
     """
     out = Fetched(citekey=citekey)
     if not quilt.config.fetch:
-        out.refused = "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
+        out.refused = (
+            "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
+        )
         return out
     if entry is None:
         out.refused = f"{citekey} is not in the bibliography"

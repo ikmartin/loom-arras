@@ -113,7 +113,12 @@ def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt
 @click.argument("citekeys", nargs=-1)
 @click.option("--refresh", is_flag=True, help="Ask again even where an answer is recorded.")
 @click.option("--json", "as_json", is_flag=True, help="Print the candidates as JSON.")
-@click.option("--resolve", "allow_resolve", is_flag=True, help="Allow looking up for this run, without setting [refs] resolve in config.toml.")
+@click.option(
+    "--resolve",
+    "allow_resolve",
+    is_flag=True,
+    help="Allow looking up for this run, without setting [refs] resolve in config.toml.",
+)
 @quilt_option
 @click.pass_context
 def resolve_command(
@@ -290,8 +295,18 @@ def scan_command(dry_run: bool, quilt_path: str | None) -> None:
 @click.option("--refresh", is_flag=True, help="Ask the lookup services again where an answer is recorded.")
 @click.option("--no-candidates", is_flag=True, help="Fetch only on identifiers an entry declares itself.")
 @click.option("--force", is_flag=True, help="Re-extract digests that are already present.")
-@click.option("--fetch", "allow_fetch", is_flag=True, help="Allow fetching for this run, without setting [refs] fetch in config.toml.")
-@click.option("--resolve", "allow_resolve", is_flag=True, help="Allow looking identifiers up for this run, without setting [refs] resolve in config.toml.")
+@click.option(
+    "--fetch",
+    "allow_fetch",
+    is_flag=True,
+    help="Allow fetching for this run, without setting [refs] fetch in config.toml.",
+)
+@click.option(
+    "--resolve",
+    "allow_resolve",
+    is_flag=True,
+    help="Allow looking identifiers up for this run, without setting [refs] resolve in config.toml.",
+)
 @click.option(
     "--only",
     "only_steps",
@@ -372,7 +387,12 @@ def build_command(
 @click.argument("citekeys", nargs=-1)
 @click.option("--no-pdf", is_flag=True, help="Take the source only; the PDF is fetched by default.")
 @click.option("--no-candidates", is_flag=True, help="Fetch only on identifiers an entry declares itself.")
-@click.option("--fetch", "allow_fetch", is_flag=True, help="Allow fetching for this run, without setting [refs] fetch in config.toml.")
+@click.option(
+    "--fetch",
+    "allow_fetch",
+    is_flag=True,
+    help="Allow fetching for this run, without setting [refs] fetch in config.toml.",
+)
 @quilt_option
 @click.pass_context
 def fetch_command(

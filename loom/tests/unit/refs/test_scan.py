@@ -122,7 +122,10 @@ def test_a_document_in_the_seed_space_is_copied_once_and_offered_an_entry(tmp_pa
     filed = quilt.root / report.copied[0][1]
     assert (filed / "paper.pdf").is_file() and filed.is_relative_to(quilt.root / "digests" / "storage")
     entry = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())["Manolache2012Virtualpull"]
-    assert entry.fields["title"] == "Virtual pull-backs" and entry.fields["loom-source"] == "refs/Manolache - 2012 - Virtual pull-backs.pdf"
+    assert (
+        entry.fields["title"] == "Virtual pull-backs"
+        and entry.fields["loom-source"] == "refs/Manolache - 2012 - Virtual pull-backs.pdf"
+    )
 
     again = scan_bibliography(quilt)
     assert again.copied == [] and again.already == 1
@@ -135,7 +138,9 @@ def test_a_document_in_the_seed_space_is_copied_once_and_offered_an_entry(tmp_pa
 
 
 def test_a_bib_file_in_the_seed_space_is_read_like_one_a_document_names(tmp_path: Path) -> None:
-    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"})
+    quilt = _quilt(
+        tmp_path, {"canon/paper.tex": CANON, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"}
+    )
     report = scan_bibliography(quilt)
     assert "Dropped" in {c.key for c in report.added}
     assert parse_bib((quilt.root / BIBLIOGRAPHY).read_text())["Dropped"].fields["title"] == "Dropped in by hand"

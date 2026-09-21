@@ -127,7 +127,9 @@ def test_section_reference_is_context_not_a_settlement_obligation(tmp_path: Path
 """,
         },
     )
-    write_acceptance(result, ["ab-0002", "ab-0003", "ab-0003/proof", "ab-0004", "ab-0005", "ab-0005/proof"], "Test author")
+    write_acceptance(
+        result, ["ab-0002", "ab-0003", "ab-0003/proof", "ab-0004", "ab-0005", "ab-0005/proof"], "Test author"
+    )
     assert "ab-0001" in result.graph.closure("ab-0002")
     records = Records(result.quilt.root, result.quilt.history_dir)
     derived = records.derived(result, records.key_states(result))

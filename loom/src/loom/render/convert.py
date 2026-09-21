@@ -491,7 +491,7 @@ class Converter:
                 cuts.add(b)
         points = sorted(cuts)
         out: list[str] = []
-        for a, b in zip(points, points[1:]):
+        for a, b in zip(points, points[1:], strict=False):
             if any(lo == hi == a for lo, hi in self.ctx.highlight_spans):
                 out.append('<span class="review-change-point" aria-label="edit point"></span>')
             piece = esc(ligatures(value[a - start : b - start]))
