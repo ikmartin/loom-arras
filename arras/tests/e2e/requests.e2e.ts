@@ -536,3 +536,54 @@ test.describe('the four settings a document is read in', () => {
 		await expect(page.locator('.fragment .env-label .number').first()).toBeHidden();
 	});
 });
+
+test.describe('the session selector', () => {
+	const withSessions = async (page: Page) =>
+		page.route('**/build/manifest.json', async (route) => {
+			const res = await route.fetch();
+			const m = await res.json();
+			m.sessions = [
+				{
+					id: '2026-09-16T00-00-referee',
+					title: 'referee pass',
+					state: 'open',
+					created: '2026-09-16T00:00:00Z',
+					opened: '2026-09-16T00:00:00Z',
+					rounds: 1,
+					active: true
+				},
+				{
+					id: 'comments/the-synthetic-quilt/2026-09-16',
+					title: "the author's own",
+					state: 'open',
+					created: '2026-09-16T09:00:00Z',
+					opened: '2026-09-16T09:00:00Z',
+					rounds: 1,
+					active: false
+				}
+			];
+			await route.fulfill({ json: m });
+		});
+
+	test('says what is being written to, and the selection governs the page and not only the panel', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/node/sy-0002');
+		// writing and showing are different things, and the panel says both rather than leaving one to be inferred
+		await expect(page.getByTestId('session-active')).toHaveText('referee pass');
+		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
+
+		// sy-0002 is annotated from both sessions
+		const all = await page.getByTestId('annotation-list').locator('article.box').count();
+		expect(all).toBeGreaterThan(1);
+
+		// choosing one session shows only its annotations: a tick's count is of what is visible
+		await page.getByTestId('session-comments/the-synthetic-quilt/2026-09-16').click();
+		const mine = await page.getByTestId('annotation-list').locator('article.box').count();
+		expect(mine).toBeGreaterThan(0);
+		expect(mine).toBeLessThan(all);
+
+		// and back to everything
+		await page.getByTestId('show-all').click();
+		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
+	});
+});

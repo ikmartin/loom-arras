@@ -264,6 +264,20 @@ export interface ReferenceNote {
   from?: { run: string; annotation: string };
 }
 
+/** One session as the selector shows it. The id is the address and never changes; the title is the author's and may. */
+export interface SessionRow {
+  id: string;
+  title: string;
+  /** `open`, `closed`, or `deleted` — a tombstone, which the publisher does not send. */
+  state: "open" | "closed" | (string & {});
+  created: string;
+  /** When the current round opened: what "changed since last time" is measured from. */
+  opened: string;
+  rounds: number;
+  /** Whether loom is writing into this one. One is active at a time, for a person and an agent alike. */
+  active: boolean;
+}
+
 export interface Thread {
   id: string;
   /** `session` since plan 0.13 §5; `run` and `comments` are what a thread written before it says. */
@@ -413,6 +427,8 @@ export interface Manifest {
   states: States;
   annotations: Record<string, Annotation>;
   threads: Record<string, Thread>;
+  /** Every session the index leaves standing, for the selector: which exists, which loom is writing into, and what round each is on. */
+  sessions?: SessionRow[];
   reference_notes?: ReferenceNote[];
   diagnostics: Diagnostic[];
   tags: Record<string, string[]>;

@@ -2,12 +2,16 @@
 	// Shell A (book 15.2.1): one 178px rail of stacked labelled sections, no top bar.
 	import Icon from '$lib/components/Icon.svelte';
 	import Contents from './Contents.svelte';
+	import { store } from '$lib/manifest/client.svelte';
+	import SessionPicker from '$lib/sessions/SessionPicker.svelte';
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Settings from './Settings.svelte';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
 	let { label, views, indexes, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
+
+	const sessions = $derived(store.manifest?.sessions ?? []);
 </script>
 
 <div class="shell-a">
@@ -51,6 +55,13 @@
 			<p class="rail-label">Contents</p>
 			<Contents entries={contents} masterPath={currentDoc} current={currentSection} />
 		</section>
+
+		{#if sessions.length}
+			<section>
+				<p class="rail-label">Sessions</p>
+				<SessionPicker />
+			</section>
+		{/if}
 
 		<section>
 			<p class="rail-label">Indexes</p>

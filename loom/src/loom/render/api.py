@@ -24,6 +24,9 @@ CAPABILITIES = [
     "digest-verify",
     "digest-discard",
     "locate",
+    "session-use",
+    "session-rename",
+    "session-delete",
 ]
 
 WRITE_API_VERSION = 1
@@ -80,6 +83,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "result": _digest(root, endpoint, body)}
     if endpoint == "locate":
         return _locate(root, body)
+    if endpoint.startswith("session-"):
+        return {"ok": True, "result": _session(root, endpoint, body)}
     return {"ok": True, "result": _review(root, endpoint, body)}
 
 
@@ -140,6 +145,36 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         "text": text or "",
         "page_box": {"width": box[0], "height": box[1]} if box else None,
     }
+
+
+def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
+    """Change which session is active, retitle one, or tombstone one (plan 0.13 §5).
+
+    Through the same functions `loom session` calls, so the two surfaces cannot spell a session event differently. **Purging is not here and never will be**: it rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
+    """
+    from loom.cli._common import whoever
+    from loom.sessions import active, delete, rename, resolve, resume, sessions, set_active
+
+    which = _str(body, "session", required=True) or ""
+    found = resolve(root, which)
+    if found is None:
+        raise ApiError("no-such-session", f"no session matches {which}", status=404)
+    who = _str(body, "author") or whoever(root)
+    if endpoint == "session-rename":
+        title = _str(body, "title", required=True) or ""
+        rename(root, found.id, title, who)
+        return f"{found.id} is now {title}"
+    if endpoint == "session-delete":
+        delete(root, found.id, who, _str(body, "reason") or "")
+        if active(root) == found.id:
+            set_active(root, None)
+        return f"deleted {found.id}; its annotations stay in the log"
+    if found.state == "deleted":
+        raise ApiError("refused", f"{found.id} was deleted; nothing new can be written to it")
+    if found.state == "closed":
+        resume(root, found.id, who)
+    set_active(root, found.id)
+    return f"writing to {sessions(root)[found.id].title}"
 
 
 def _anchor_json(anchor: Any) -> dict[str, Any]:

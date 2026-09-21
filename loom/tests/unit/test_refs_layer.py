@@ -12,6 +12,7 @@ from click.testing import CliRunner
 from loom.cli import main
 from loom.refs.fetch import ARRIVAL, arrival_score, arxiv_id, identifier_for, source_title
 from loom.refs.resolve import Candidate, query_for, save
+from loom.render.api import CAPABILITIES
 from loom.scan.bib import BibEntry
 
 
@@ -1362,3 +1363,26 @@ def test_source_alone_is_enough_to_extract_from_and_a_work_with_neither_is_block
     work = next(w for w in survey(open_scan(str(q))) if w.citekey == "Calloway14")
     assert work.source and not work.pdf
     assert work.blocked == ("", "")  # source is enough to extract from; the missing page is the lint's business
+
+
+def test_the_viewer_can_switch_retitle_and_tombstone_a_session(tmp_path: Path) -> None:
+    """The panel's selector writes through the same functions `loom session` calls, so the two surfaces cannot spell an event differently."""
+    from loom.render.api import handle
+    from loom.sessions import active, sessions
+
+    q = quilt(tmp_path)
+    first = run("session", "new", "morning", "--author", "A. Author", cwd=q).output.split()[0]
+    second = run("session", "new", "afternoon", "--author", "A. Author", cwd=q).output.split()[0]
+    assert active(q) == second
+
+    assert handle(q, "session-use", {"session": "morning", "author": "A. Author"})["ok"]
+    assert active(q) == first
+    assert handle(q, "session-rename", {"session": first, "title": "early pass", "author": "A. Author"})["ok"]
+    assert sessions(q)[first].title == "early pass"
+
+    # a tombstone leaves the log alone and stops being the write target
+    assert handle(q, "session-delete", {"session": first, "author": "A. Author"})["ok"]
+    assert first not in sessions(q)
+    assert active(q) is None
+    # and purging is not reachable from here at all
+    assert "session-purge" not in CAPABILITIES
