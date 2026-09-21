@@ -38,7 +38,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
 ## Findings
 
-1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind KIND --session SESSION`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
+1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind KIND --session SESSION`, where `KIND` is one of the six below. One finding per call; `--batch` (JSON lines on stdin) for many.
 2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The notes file holds the reasoning and refers to the annotation by the id loom printed.
 4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `ok` for a clean read with nothing to report; `citation` for a work worth citing that the bibliography does not have.

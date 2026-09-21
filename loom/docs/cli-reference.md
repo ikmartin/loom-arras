@@ -676,7 +676,7 @@ An agent walking a chain of results called this once per node; --depth walks it 
 
 Print the region of CITEKEY's page PAGE that TEXT occupies, so an anchor need not compute geometry.
 
-Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk.
+Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer at that page: a quad is four numbers, and what anyone wants next is to see the page it is on.
 
 | option | description |
 |---|---|
@@ -827,6 +827,8 @@ Asks zbMATH Open, then Crossref, and prints candidates with how well each matche
 Add every bibliography entry the canon documents carry to digests/bibliography.bib.
 
 Reads each canon document's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
+
+It also files what the author dropped in `refs/`, and **adopts** any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. Adoption happens once per document; a later scan leaves it alone.
 
 | option | description |
 |---|---|

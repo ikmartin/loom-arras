@@ -134,6 +134,38 @@ def test_a_document_in_the_seed_space_is_copied_once_and_offered_an_entry(tmp_pa
     assert scan_bibliography(quilt).copied == [] and (filed / "paper.pdf").is_file()
 
 
+def test_a_document_the_store_holds_and_no_entry_names_is_adopted_once(tmp_path: Path) -> None:
+    """The store outlives the bibliography (plan 0.13 §12). An entry deleted by hand leaves a directory holding a PDF and its page text that nothing can reach: the viewer lists works by entry, and the ledger will not offer the file again because it remembers copying it. The scan offers an entry for it -- and **once**, which is the half that is easy to get wrong: a hash-named home is not claimed by any identifier, so a scan that checked identifiers alone would adopt the same directory again under a new key every time it ran."""
+    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    seed = quilt.root / "refs"
+    seed.mkdir()
+    _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
+    scan_bibliography(quilt)
+    path = quilt.root / BIBLIOGRAPHY
+
+    # the second and third scans adopt nothing: the document already has its entry
+    assert scan_bibliography(quilt).adopted == []
+    assert scan_bibliography(quilt).adopted == []
+
+    # now the author deletes the entry, and the document is in the store with nothing naming it
+    kept = [block for block in path.read_text().split("\n@") if "Manolache" not in block]
+    path.write_text("@".join(kept) if kept[0].startswith("@") else kept[0] + "@".join(kept[1:]))
+    assert "Manolache" not in path.read_text()
+
+    report = scan_bibliography(quilt)
+    assert len(report.adopted) == 1, report.lines()
+    key, where = report.adopted[0]
+    assert where.startswith("digests/storage/")
+    entry = parse_bib(path.read_text())[key]
+    # what the entry says comes from the document and from the ledger's record of where it was dropped, never a lookup
+    assert entry.fields["title"] == "Virtual pull-backs"
+    assert entry.fields["loom-source"] == "refs/Manolache - 2012 - Virtual pull-backs.pdf"
+    assert "which the bibliography no longer named" in "\n".join(report.lines())
+
+    # and having adopted it, the scan leaves it alone
+    assert scan_bibliography(quilt).adopted == []
+
+
 def test_a_bib_file_in_the_seed_space_is_read_like_one_a_document_names(tmp_path: Path) -> None:
     quilt = _quilt(tmp_path, {"canon/paper.tex": CANON, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"})
     report = scan_bibliography(quilt)

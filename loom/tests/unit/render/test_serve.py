@@ -327,3 +327,26 @@ def test_a_write_without_the_token_is_refused_over_the_wire(session) -> None:  #
     assert json.loads(discovery)["token"]
     # carrying it gets past the gate; whether the write itself is well formed is another test's business
     assert post(s.url + "_api/comment", body)[0] != 403
+
+
+def test_a_link_into_the_running_viewer_is_offered_only_while_one_is_running(tmp_path: Path) -> None:
+    """`serve.json` outlives the process that wrote it, so a command that printed a link from the file alone would send its reader to a tab that never loads (plan 0.13 §9, the `open:` line)."""
+    import json as _json
+
+    from loom.render.serve import SERVE_JSON, open_url, write_serve_json
+
+    root = tmp_path / "quilt"
+    root.mkdir()
+    assert open_url(root) == "", "nothing has ever served this quilt"
+
+    write_serve_json(root, 8791)
+    # this process wrote it and this process is alive, which is the case the check is meant to pass
+    assert open_url(root) == "http://127.0.0.1:8791/"
+    assert open_url(root, "library/Bellamy19?page=2") == "http://127.0.0.1:8791/library/Bellamy19?page=2"
+
+    # a pid nothing holds: the file is stale and the honest answer is no link at all
+    p = root / SERVE_JSON
+    data = _json.loads(p.read_text())
+    data["pid"] = 2**22  # above every pid_max this runs on
+    p.write_text(_json.dumps(data))
+    assert open_url(root) == ""

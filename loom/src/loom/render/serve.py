@@ -76,6 +76,42 @@ def read_serve_json(root: Path) -> dict[str, object]:
     return data if isinstance(data, dict) else {}
 
 
+def open_url(root: Path, path: str = "") -> str:
+    """A link into the running viewer, or '' when nothing is listening.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt root.
+    path : str, default ''
+        Where in the viewer to land, without a leading slash; '' is the home page.
+
+    Returns
+    -------
+    str
+        An absolute `http://127.0.0.1:<port>/...` URL, or '' when no server holds the file's pid.
+
+    Notes
+    -----
+    The pid is checked rather than trusted: `serve.json` outlives the process that wrote it, and a command that printed a dead link would send its reader to a browser tab that never loads. `os.kill(pid, 0)` asks the kernel whether the process exists without touching it.
+
+    See Also
+    --------
+    write_serve_json : What puts the port, the pid and the token there.
+    """
+    import os
+
+    data = read_serve_json(root)
+    port, pid = data.get("port"), data.get("pid")
+    if not isinstance(port, int) or not isinstance(pid, int):
+        return ""
+    try:
+        os.kill(pid, 0)
+    except (OSError, ProcessLookupError):
+        return ""
+    return f"http://127.0.0.1:{port}/{path.lstrip('/')}"
+
+
 class LoomHandler(SimpleHTTPRequestHandler):
     bundle_dir: Path = Path(".")
     build_dir: Path = Path(".")
