@@ -20,7 +20,7 @@ PLACEMENTS = ("replace", "after", "before")
 @dataclass
 class Annotation:
     id: str
-    author_kind: str  # run | person
+    author_kind: str  # agent | person: who wrote it, which is not where it belongs (plan 0.13 §5)
     author_id: str
     created: str
     target_key: str
@@ -81,13 +81,20 @@ class Record:
     """One run's or one author's annotations, replayed from the log; `rel` is the run directory or `comments/<author>`."""
 
     path: Path  # the log the record was replayed from
-    rel: str  # the grouping key: ai/runs/<run>, or comments/<author-slug>
+    rel: str  # the grouping key: a session id, or -- written before sessions -- ai/runs/<run> or comments/<author>/<date>
     discarded: bool = False
     annotations: list[Annotation] = field(default_factory=list)
 
     @property
     def is_run(self) -> bool:
         return self.rel.startswith("ai/runs/")
+
+    @property
+    def is_session(self) -> bool:
+        """Whether this record is grouped by a session, which everything written since plan 0.13 §5 is."""
+        from loom.sessions import ID
+
+        return bool(ID.match(self.rel))
 
 
 def load_records(root: Path) -> tuple[list[Record], list[str]]:

@@ -120,6 +120,24 @@ def agent_marker() -> str | None:
     return next((v for v in AGENT_MARKERS if os.environ.get(v)), None)
 
 
+#: What to call an agent that has not named itself. A record that says "claude-code" is auditable; one that says the
+#: author's git name because the agent's shell inherited it is not, which is what DR-185 found.
+AGENT_NAMES = {
+    "AI_AGENT": "agent",
+    "CLAUDECODE": "claude-code",
+    "CLAUDE_CODE_ENTRYPOINT": "claude-code",
+    "CODEX_SANDBOX": "codex",
+    "CURSOR_AGENT": "cursor",
+    "GEMINI_CLI": "gemini",
+}
+
+
+def agent_name() -> str | None:
+    """What the agent running this shell is called, or None when a person is."""
+    marker = agent_marker()
+    return AGENT_NAMES.get(marker, "agent") if marker else None
+
+
 def refuse_under_agent(verb: str, how: str) -> None:
     """Refuse one of the author's verbs when an agent is running the shell.
 

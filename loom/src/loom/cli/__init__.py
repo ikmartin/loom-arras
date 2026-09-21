@@ -18,6 +18,7 @@ from loom.cli.quilt import init
 from loom.cli.refs import refs
 from loom.cli.review import accept, comment, status
 from loom.cli.serve_cmd import serve
+from loom.cli.session import session
 from loom.cli.upgrade import upgrade
 from loom.version import __version__
 
@@ -34,6 +35,7 @@ def main() -> None:
 
 
 main.add_command(doctor)
+main.add_command(session)
 main.add_command(init)
 main.add_command(new)
 main.add_command(id_command)

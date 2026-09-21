@@ -9,7 +9,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError, emit_json, find_run
+from loom.cli._common import ContentError, EnvError, emit_json
 from loom.cli._quilt import describe, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for, log_run
 from loom.clock import stamp, today
@@ -176,19 +176,33 @@ def _target_text(result: ScanResult, target: str) -> tuple[str, str]:
     return key, text
 
 
-def _writer(root: Path, run_dir: str | None, author: str | None) -> tuple[str | None, str, str]:
-    """(run, author kind, author id) for whoever is writing: a run writes as itself, a person as their name."""
-    if run_dir:
-        rp = find_run(root, run_dir)
-        rel = rp.relative_to(root).as_posix() if rp.is_relative_to(root) else rp.name
-        return rel, "run", rp.name
-    name = _author(author, root)
-    return None, "person", name
+def _writer(root: Path, session: str | None, author: str | None) -> tuple[str, str, str]:
+    """(session id, author kind, author name) for whoever is writing (plan 0.13 §5).
+
+    The two were one field: an agent's annotation recorded its run directory as its author, so the log could say *who* only by naming a place. Now the session says where the work belongs and the author says who did it -- a person by their name, an agent by what it is called, never by the author's git identity that its shell happens to share (DR-185).
+
+    Writing with nothing active opens a session, for a person and an agent alike: refusing would make the first comment of a sitting a two-command ritual.
+    """
+    from loom.cli._common import agent_name
+    from loom.sessions import ensure_active
+    from loom.sessions import resolve as resolve_session
+
+    robot = agent_name()
+    name = (author or "").strip() or robot or _author(author, root)
+    if session:
+        s = resolve_session(root, session)
+        if s is None:
+            raise ContentError(f"no session matches {session!r}; loom session list shows them")
+        if s.state == "deleted":
+            raise ContentError(f"{s.id} was deleted; nothing new can be written to it")
+    else:
+        s = ensure_active(root, name)
+    return s.id, "agent" if robot else "human", name
 
 
 def _one_comment(
     result: ScanResult,
-    writer: tuple[str | None, str, str],
+    writer: tuple[str, str, str],
     target: str | None,
     message: str | None,
     quote: str | None,
@@ -204,8 +218,8 @@ def _one_comment(
     root = result.quilt.root
     records = Records(root, result.quilt.history_dir).records
     date = today()
-    run, akind, aid = writer
-    base = {"when": stamp(), "author": aid, "kind": "agent" if akind == "run" else "human", "run": run}
+    session, akind, aid = writer
+    base = {"when": stamp(), "author": aid, "kind": akind, "session": session}
 
     if resolve:
         found = find_annotation(records, resolve)
@@ -288,7 +302,7 @@ def _one_comment(
 
 
 def discard_annotation(
-    root: Path, ann_id: str, writer: tuple[str | None, str, str], reason: str | None, undo: bool = False
+    root: Path, ann_id: str, writer: tuple[str, str, str], reason: str | None, undo: bool = False
 ) -> str:
     """Withdraw one finding: it was raised in error and should not stand; with `undo`, put it back.
 
@@ -297,14 +311,14 @@ def discard_annotation(
     records = Records(root).records
     if find_annotation(records, ann_id) is None:
         raise ContentError(f"no annotation {ann_id}")
-    run, akind, aid = writer
+    session, akind, aid = writer
     event: dict[str, Any] = {
         "event": "discarded",
         "id": ann_id,
         "when": stamp(),
         "author": aid,
-        "kind": "agent" if akind == "run" else "human",
-        "run": run,
+        "kind": akind,
+        "session": session,
         "body": reason or "",
     }
     if undo:
@@ -321,7 +335,7 @@ def check_edit(body: str | None, severity: str | None, payload: str | None) -> N
         raise EnvError("--edit with nothing to change; give a new body, --severity or --payload")
 
 
-def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str], **fields: str | None) -> str:
+def edit_annotation(root: Path, ann_id: str, writer: tuple[str, str, str], **fields: str | None) -> str:
     """Supersede an annotation's body or payload; the history stays in the log and one current body is shown.
 
     This is what a re-check does to a finding that still stands. A reply is dialogue; an edit is restatement.
@@ -329,9 +343,8 @@ def edit_annotation(root: Path, ann_id: str, writer: tuple[str | None, str, str]
     records = Records(root).records
     if find_annotation(records, ann_id) is None:
         raise ContentError(f"no annotation {ann_id}")
-    run, akind, aid = writer
-    event = {"event": "edited", "id": ann_id, "when": stamp(), "author": aid, "run": run}
-    event["kind"] = "agent" if akind == "run" else "human"
+    session, akind, aid = writer
+    event = {"event": "edited", "id": ann_id, "when": stamp(), "author": aid, "session": session, "kind": akind}
     append(root, {**event, **{k: v for k, v in fields.items() if v is not None}})
     return f"edited {ann_id}"
 
@@ -352,7 +365,7 @@ BATCH_KEYS = (
 BATCH_VERBS = ("reply", "resolve", "edit", "discard")
 
 
-def _batch_line(result: ScanResult, writer: tuple[str | None, str, str], item: dict[str, Any]) -> str:
+def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str, Any]) -> str:
     """One line of `--batch`: a new annotation, or one change to an existing one, named by exactly one verb.
 
     An unknown key is refused rather than ignored. A batch is written by a program that cannot see the result, so a misspelled `messsage` that silently files an empty annotation is a fault the writer never learns about — and every verb `loom comment` has on the command line is available here, so there is no reason to fall back to one call per change.
@@ -399,11 +412,11 @@ def _batch_line(result: ScanResult, writer: tuple[str | None, str, str], item: d
 )
 @click.option("--kind", type=click.Choice(list(KINDS)), default=None)
 @click.option(
-    "--run",
-    "run_dir",
+    "--session",
+    "session",
     default=None,
-    envvar="LOOM_RUN",
-    help="Write as this run: a name, a prefix of one, or a path. The run is the author.",
+    envvar="LOOM_SESSION",
+    help="Write into this session: an id, a title, or a unique id suffix. Default the active one.",
 )
 @click.option("--author", default=None)
 @click.option("--reply", default=None, metavar="ID")
@@ -441,7 +454,7 @@ def comment(
     message: str | None,
     quote: str | None,
     kind: str | None,
-    run_dir: str | None,
+    session: str | None,
     author: str | None,
     reply: str | None,
     resolve: str | None,
@@ -457,11 +470,9 @@ def comment(
     """Write an annotation on TARGET (a key, an equation's qualified key, or a master path); the only writer of review records."""
     result = open_scan(quilt_path)
     root = result.quilt.root
-    if run_dir and author:
-        raise EnvError("give --run or --author, not both")
-    writer = _writer(root, run_dir, author)
+    writer = _writer(root, session, author)
     log_run(
-        run_dir,
+        None,
         "loom comment "
         + " ".join(x for x in [target, "--quote" if quote else "", "--kind " + kind if kind else ""] if x),
         root,
