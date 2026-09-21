@@ -271,7 +271,7 @@ test.describe('references', () => {
 			await route.fulfill({ json: m });
 		});
 		await page.goto('/digest/Man12');
-		await expect(page.getByTestId('work-links-Man12').getByRole('link', { name: 'PDF' })).toHaveAttribute('href', '/refs/arxiv/0805.2065v2/paper.pdf');
+		await expect(page.getByTestId('work-links-Man12').getByRole('link', { name: 'PDF' })).toHaveAttribute('href', '/digests/storage/arxiv/0805.2065v2/paper.pdf');
 	});
 });
 

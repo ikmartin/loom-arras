@@ -911,34 +911,21 @@ def test_a_pending_proposal_carries_the_words_its_page_does_not_have(tmp_path: P
 
 
 @pytest.mark.tex
-def test_a_pending_proposal_carries_its_page_image(tmp_path: Path) -> None:
-    """The verification surface shows the page itself: the text layer has one "X" for a stack and its space."""
-    import hashlib
-    import shutil as _shutil
+def test_a_work_with_no_pdf_gets_no_geometry(tmp_path: Path) -> None:
+    """What `pdftoppm` used to guard, now guarded where geometry is made: a page is drawn from the document that is there, or not at all.
 
-    from loom.render.build import _attach_page_images
+    The image pipeline it replaces rendered the anchor page to PNG and keyed the cache by artifact hash, so a replaced PDF could not show its page under the old name. The sidecar has no cache to go stale -- it is computed from the PDF on disk at build time -- so the property to pin is the other half: no document, no rectangles, and the viewer says so rather than drawing somewhere plausible.
+    """
+    from loom.render.build import _attach_spans
 
-    if _shutil.which("pdftoppm") is None:
-        pytest.skip("pdftoppm (poppler) is not installed")
     q, ck = mapped(tmp_path)
     home = _home(q, ck)
-    pdf = Path(__file__).resolve().parents[1] / "quilts" / "sources" / "synthetic" / "figures" / "fig.pdf"
-    _shutil.copy(pdf, home / "paper.pdf")
-    meta = json.loads((home / "sections.json").read_text())
-    meta["sha256"] = hashlib.sha256(pdf.read_bytes()).hexdigest()
-    (home / "sections.json").write_text(json.dumps(meta))
     assert propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "S").exit_code == 0
-    rid = next(iter(json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]))["id"]
-    manifest = {"references": {ck: {"results": {rid: {"state": "proposed"}}}}}
-    _attach_page_images(q, manifest, q / "build")
-    images = manifest["references"][ck]["results"][rid]["page_images"]
-    assert images and (q / "build" / images[0]).read_bytes()[:4] == b"\x89PNG"
-    # a replaced PDF never shows its page under the old artifact's name
-    (q / "build" / images[0]).unlink()
-    (home / "paper.pdf").write_bytes(b"%PDF-1.4 not the same paper")
-    manifest = {"references": {ck: {"results": {rid: {"state": "proposed"}}}}}
-    _attach_page_images(q, manifest, q / "build")
-    assert "page_images" not in manifest["references"][ck]["results"][rid]
+    manifest = {"references": {ck: {"artifacts": {"dir": home.relative_to(q).as_posix(), "pdf": False}}}}
+    files: dict[str, object] = {}
+    _attach_spans(q, manifest, files)
+    assert "spans" not in manifest["references"][ck]
+    assert not files
 
 
 def test_local_names_are_the_papers_numbering(tmp_path: Path) -> None:

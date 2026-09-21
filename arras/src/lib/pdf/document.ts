@@ -3,6 +3,7 @@
 // offline, and the worker is emitted by the bundler from `import.meta.url` rather than pointed at `static/` — a
 // hand-written path would lose the base prefix, which `tests/e2e/base-path.e2e.ts` exists to catch.
 
+import { base } from '$app/paths';
 import type { PDFDocumentProxy, PageViewport } from 'pdfjs-dist';
 
 type Pdfjs = typeof import('pdfjs-dist');
@@ -22,14 +23,34 @@ export function pdfjs(): Promise<Pdfjs> {
 
 const open = new Map<string, Promise<PDFDocumentProxy>>();
 
-/** One document per URL, shared between everything that draws it: the pane, a preview, the proposal box. */
+/** One document per URL, shared between everything that draws it: the pane, a preview, the proposal box.
+ *
+ * The standard fonts and the CMaps are served from this bundle's own `static/`, staged there by
+ * `scripts/pdfjs-assets.mjs`. Both are fetched per document and only when one needs them — a paper that embeds all its
+ * fonts asks for neither — so they cost package weight and nothing at load. A deployed corpus must render offline, and
+ * a viewer that silently falls back to another font is worse than a larger one, because a reader cannot see which
+ * glyphs moved.
+ */
 export function document_(url: string): Promise<PDFDocumentProxy> {
 	let doc = open.get(url);
 	if (!doc) {
-		doc = pdfjs().then((lib) => lib.getDocument({ url }).promise);
+		doc = pdfjs().then((lib) =>
+			lib.getDocument({
+				url,
+				standardFontDataUrl: `${base}/pdfjs/standard_fonts/`,
+				cMapUrl: `${base}/pdfjs/cmaps/`,
+				cMapPacked: true
+			}).promise
+		);
 		open.set(url, doc);
 	}
 	return doc;
+}
+
+/** Forget a document, so the next call reopens it: for a paper whose bytes changed under the viewer. */
+export function forget(url?: string): void {
+	if (url === undefined) open.clear();
+	else open.delete(url);
 }
 
 /**

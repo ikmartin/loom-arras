@@ -326,10 +326,6 @@ export interface ResultRecord {
   statement?: string;
   /** The page around the quoted span, for a proposal: what the rendering is judged against. The quote alone is not enough -- an agent quotes only as much as the anchor check needs. */
   page_text?: string;
-  /** The anchor's page(s) rendered as images, build-relative, for a proposal whose PDF is on the publishing machine. The text layer drops script, bold, sub- and superscripts, so a symbol is judged here and never from `page_text`. */
-  page_images?: string[];
-  /** How far down the first anchored page the quotation starts, 0 to 1; absent when it could not be placed. */
-  page_focus?: number;
   /** Words of `statement`'s prose that the quoted source text does not contain: an agent's gloss, or a word the page spells differently. */
   not_on_page?: string[];
   /** For a result quoted from the paper's LaTeX rather than a page: the file, relative to the corpus root. `page` is then 0. */

@@ -5,9 +5,10 @@
 	//
 	// Three routes, not two. The common failure is a rendering that is slightly off, not one that is wrong, so `edit` opens the LaTeX for correction and verifies the author's own text. What is edited is `statement`; `source_text` and the anchor it names are untouched, so an edited node stays re-checkable -- and the provenance records both parties, because a record that credits an agent with a sentence a person wrote cannot be audited.
 	import { can, write } from '$lib/write';
-	import { dataUrl } from '$lib/paths';
+	import { artifactUrl, dataUrl } from '$lib/paths';
 	import { store } from '$lib/manifest/client.svelte';
 	import Statement from '$lib/math/Statement.svelte';
+	import PdfDoc from '$lib/pdf/PdfDoc.svelte';
 	import type { ResultRecord } from '$lib/manifest/types';
 
 	let {
@@ -26,24 +27,36 @@
 	let said = $state('');
 	let text = $state('');
 	let name = $state('');
-	let pagesEl: HTMLElement | undefined = $state();
+	/** The work this proposal is about, for the paper itself and the geometry of its anchor. */
+	const ref = $derived(store.manifest?.references?.[citekey]);
+	const paper = $derived(ref?.artifacts?.pdf ? artifactUrl(ref.artifacts.dir) : '');
 
-	/** Open the page at the quotation rather than at the top: page 1 of a paper is its masthead, and the formula being judged was below the fold. */
-	function focusPage() {
-		const img = pagesEl?.querySelector('img');
-		if (record.page_focus == null || !pagesEl || !img || !img.clientHeight) return;
-		pagesEl.scrollTop = Math.max(0, record.page_focus * img.clientHeight - 32);
+	interface Sidecar {
+		quads: Record<string, number[][]>;
 	}
+	let spans = $state<Sidecar | null>(null);
 
-	// An image from the cache can finish loading before an `onload` is attached, so a load handler alone is not a
-	// trigger that can be relied on: scroll now if the image is complete, else when it loads.
+	// Fetched by the sidecar's own hash, not derived from the manifest: the manifest is replaced on every poll, and a
+	// box that re-fetched geometry once a second would re-render the page it is asking the author to read.
 	$effect(() => {
-		const img = pagesEl?.querySelector('img');
-		if (!img) return;
-		if (img.complete) focusPage();
-		else img.addEventListener('load', focusPage, { once: true });
-		return () => img.removeEventListener('load', focusPage);
+		const at = ref?.spans;
+		if (!at || !paper) return;
+		let dropped = false;
+		fetch(dataUrl(at.path))
+			.then((r) => (r.ok ? (r.json() as Promise<Sidecar>) : null))
+			.then((j) => {
+				if (!dropped) spans = j;
+			})
+			.catch(() => {});
+		return () => {
+			dropped = true;
+		};
 	});
+
+	/** The quotation's own rectangles, so the page opens at it rather than at the masthead. */
+	const quoted = $derived(
+		(spans?.quads?.[id] ?? []).length ? [{ id, page: record.page, rects: spans!.quads[id] }] : []
+	);
 
 	$effect(() => {
 		void can('digest-verify').then((ok) => (allowed = ok));
@@ -108,13 +121,18 @@
 		</span>
 	</header>
 
-	<!-- The two texts, side by side. Neither is decoration: the left is what the page says and the right is a claim about it. -->
+	<!-- The page itself beside the rendering. Neither is decoration: the left is the document and the right is a claim
+	     about it, and a surface that offers `verify` without showing both is a bug rather than a shortcut. The text
+	     layer keeps one "X" for both a stack and its coarse space, and a hypothesis that moved between them passed
+	     every text check loom has (DR-179) — which is why the page, and not only its text, is what is shown. -->
 	<div class="texts">
 		<section class="side" data-testid="proposal-source">
 			<h4>{record.page ? 'the page says' : 'the source says'}</h4>
-			{#if record.page_text}
-				<!-- the page around the quote, with the quote marked: an agent quotes only what the anchor needs, and a
-				     rendering cannot be judged against the one clause that passed the check -->
+			{#if paper && record.page}
+				<div class="paper" data-testid="proposal-paper">
+					<PdfDoc url={paper} page={record.page} spans={quoted} focus={id} scale={1.1} window={0} toolbar={false} />
+				</div>
+			{:else if record.page_text}
 				<p class="verbatim" data-testid="proposal-page">{#each marked(record.page_text, record.source_text ?? '') as part, i (i)}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</p>
 			{:else}
 				<p class="verbatim">{record.source_text}</p>
@@ -126,6 +144,14 @@
 		</section>
 	</div>
 
+	{#if paper && record.page && record.page_text}
+		<!-- the page's own words, which is what the anchor check runs against; the page above is what settles a symbol -->
+		<details class="pagetext" data-testid="proposal-pagetext">
+			<summary>the page's text <span class="why">— what the anchor is checked against, with the quotation marked</span></summary>
+			<p class="verbatim" data-testid="proposal-page">{#each marked(record.page_text, record.source_text ?? '') as part, i (i)}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</p>
+		</details>
+	{/if}
+
 	{#if record.not_on_page?.length}
 		<!-- words the rendering has and the quote does not: in the third study run an author comparing thirteen statements by eye let one such gloss through -->
 		<p class="added" data-testid="proposal-added">
@@ -134,23 +160,10 @@
 		</p>
 	{/if}
 
-	{#if record.page_images?.length}
-		<!-- the page itself: the text layer keeps "X" for both a stack and its space, and a hypothesis moved from one to the other passed every text check -->
-		<details class="image" open data-testid="proposal-image">
-			<summary>the page itself <span class="why">— judge symbols here; the text above has lost script, bold and indices</span></summary>
-			<div class="pages" bind:this={pagesEl}>
-				{#each record.page_images as src, i (src)}
-					<div class="sheet">
-						<img src={dataUrl(src)} alt="page {record.page + i} of {citekey}" />
-						{#if i === 0 && record.page_focus != null}
-							<span class="marker" style="top: {record.page_focus * 100}%" data-testid="proposal-focus" aria-hidden="true"></span>
-						{/if}
-					</div>
-				{/each}
-			</div>
-		</details>
-	{:else if record.page_text && record.page}
-		<p class="noimage" data-testid="proposal-noimage">no page image: the PDF is not on the machine that built this, so symbols can be judged only from the text</p>
+	{#if !paper && record.page_text && record.page}
+		<p class="noimage" data-testid="proposal-noimage">
+			no copy of the paper on this machine, so symbols can be judged only from the text above
+		</p>
 	{/if}
 
 	{#if open}
@@ -263,10 +276,16 @@
 		font-size: 0.95em;
 		border-bottom: 1px dotted currentColor;
 	}
-	.image {
+	.paper {
+		height: 46vh;
+		min-height: 260px;
+		border: 1px solid var(--rule);
+		background: var(--sheet);
+	}
+	.pagetext {
 		margin-top: var(--gap-tight);
 	}
-	.image summary {
+	.pagetext summary {
 		cursor: pointer;
 		font-family: var(--sans);
 		font-size: 0.72em;
@@ -274,32 +293,9 @@
 		letter-spacing: 0.05em;
 		color: var(--ink-faint);
 	}
-	.image .why {
+	.pagetext .why {
 		text-transform: none;
 		letter-spacing: 0;
-	}
-	.pages {
-		max-height: 70vh;
-		overflow: auto;
-		margin-top: var(--gap-hair);
-		border: 1px solid var(--rule);
-		background: var(--sheet);
-	}
-	.sheet {
-		position: relative;
-	}
-	.pages img {
-		display: block;
-		max-width: 100%;
-	}
-	/* where the quotation starts, in the margin: the image cannot be marked up, so the eye is led to the line */
-	.marker {
-		position: absolute;
-		left: 0;
-		width: 4px;
-		height: 3em;
-		background: var(--link);
-		border-radius: 0 2px 2px 0;
 	}
 	.noimage {
 		margin: var(--gap-hair) 0 0;

@@ -9,6 +9,7 @@
 	import { dismiss } from '$lib/dismiss';
 	import Tex from '$lib/math/Tex.svelte';
 	import Icon from './Icon.svelte';
+	import PdfDoc from '$lib/pdf/PdfDoc.svelte';
 
 	const m = $derived(store.manifest);
 	const link = $derived(pdf.link);
@@ -36,7 +37,9 @@
 	});
 
 	const title = $derived(target?.ref ? bibText(target.ref.bib.title) || target.ref.citekey : link?.id ?? '');
-	const shown = $derived(target?.local ?? (anyway && target?.otherCopy ? target.otherCopy.url + (link?.page ? `#page=${link.page}` : '') : ''));
+	// The URL without the fragment: the renderer is told which page to open, rather than a browser plugin being asked.
+	const shown = $derived(target?.local?.split('#')[0] ?? (anyway && target?.otherCopy ? target.otherCopy.url : ''));
+	const opensAt = $derived(link?.page ?? 1);
 </script>
 
 {#if link && target}
@@ -54,7 +57,9 @@
 				<p class="look" data-testid="pdf-quote">Look for “{link.quote}”.{link.page ? '' : ' The link names no page, so the paper opens at its start.'}</p>
 			{/if}
 			{#if shown}
-				<iframe src={shown} title="the paper {title}" data-testid="pdf-frame"></iframe>
+				<div class="frame" data-testid="pdf-frame">
+					<PdfDoc url={shown} page={opensAt} />
+				</div>
 			{:else}
 				<div class="absent" data-testid="pdf-absent">
 					{#if target.otherCopy}
@@ -147,10 +152,10 @@
 		color: var(--state-stale);
 		background: var(--state-stale-wash);
 	}
-	iframe {
+	.frame {
 		flex: 1;
 		width: 100%;
-		border: 0;
+		min-height: 0;
 		background: var(--leaf);
 	}
 	.absent {

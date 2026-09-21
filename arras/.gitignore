@@ -31,3 +31,4 @@ test-results
 /static/build
 /site
 .tmp-write-quilt/
+static/pdfjs/

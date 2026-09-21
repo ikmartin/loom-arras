@@ -8,7 +8,7 @@
 	import { artifactUrl, dataUrl } from '$lib/paths';
 	import { write, type WriteResult } from '$lib/write';
 	import type { Reference } from '$lib/manifest/types';
-	import PdfPage from './PdfPage.svelte';
+	import PdfDoc from './PdfDoc.svelte';
 
 	let { citekey, ref, page }: { citekey: string; ref: Reference; page: number } = $props();
 
@@ -42,11 +42,14 @@
 		};
 	});
 
-	const onPage = $derived(
+	/** Every anchor's geometry, by the page it is on: the document view draws what belongs to each page it renders. */
+	const drawn = $derived(
 		Object.entries(spans?.quads ?? {})
-			.filter(([id]) => (ref.results?.[id]?.page ?? 0) === page)
-			.map(([id, rects]) => ({ id, rects }))
+			.map(([id, rects]) => ({ id, page: ref.results?.[id]?.page ?? 0, rects }))
+			.filter((s) => s.page > 0)
 	);
+	let at = $state(0);
+	const onPage = $derived(drawn.filter((s) => s.page === (at || page)));
 
 	/** What `locate` answers beside the usual result line: the anchor loom would record, and the line a person reads. */
 	interface Located {
@@ -83,20 +86,22 @@
 <section class="reading" data-testid="reading">
 	<div class="doc">
 		{#if url}
-			<PdfPage
+			<PdfDoc
 				{url}
 				{page}
-				quads={onPage}
+				spans={drawn}
+				focus={active}
 				onselect={(e) => locate({ page: e.page, text: e.text })}
 				onbox={(e) => locate({ page: e.page, rects: e.rects })}
 				onmark={travel}
+				onpage={(e) => (at = e.page)}
 			/>
 		{:else}
 			<p class="muted" data-testid="reading-absent">{absent}</p>
 		{/if}
 	</div>
 	<aside class="beside">
-		<h2>Anchored to page {page}</h2>
+		<h2>Anchored to page {at || page}</h2>
 		{#each onPage as q (q.id)}
 			<article data-anchored={q.id} data-testid="anchored-{q.id}" class:active={active === q.id}>
 				<h3>{q.id}</h3>
@@ -118,6 +123,8 @@
 	}
 	.doc {
 		flex: 0 0 auto;
+		height: 78vh;
+		min-height: 320px;
 	}
 	.beside {
 		flex: 1 1 300px;

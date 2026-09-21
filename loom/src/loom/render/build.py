@@ -62,30 +62,6 @@ def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, s
             entry["blocks"] = [b.to_dict() for b in parsed.blocks]
 
 
-def _attach_page_images(root: Path, manifest: dict[str, Any], build_dir: Path) -> None:
-    """Render the anchor page of every pending proposal and name it on the result's manifest row (plan 0.12 §5.3).
-
-    Pending proposals only: they are the one place a person is asked to judge a rendering, and the text layer beside them has lost the notation the judgement is about. A handful of pages, cached by artifact hash and page under `build/pages/`; a work whose PDF is not on this machine gets no image and the viewer says so.
-    """
-    from loom.refs.images import anchor_focus, anchor_images
-    from loom.refs.proposals import PROPOSED, load_results
-
-    for citekey, ref in manifest.get("references", {}).items():
-        rows = ref.get("results") or {}
-        pending = [rid for rid, row in rows.items() if row.get("state") == PROPOSED]
-        if not pending:
-            continue
-        recorded = load_results(root, citekey)
-        for rid in pending:
-            if rid in recorded:
-                images = anchor_images(root, build_dir, recorded[rid])
-                if images:
-                    rows[rid]["page_images"] = images
-                    focus = anchor_focus(root, recorded[rid])
-                    if focus is not None:
-                        rows[rid]["page_focus"] = focus
-
-
 def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -> None:
     """One sidecar per work holding the geometry of its anchors, and a pointer to it on the reference (plan 0.13 item 2).
 
@@ -379,7 +355,6 @@ def build(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
     records.apply(result, manifest, build_dir)
-    _attach_page_images(result.quilt.root, manifest, build_dir)
     _attach_spans(result.quilt.root, manifest, files)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
