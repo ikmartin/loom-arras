@@ -346,8 +346,10 @@ def build_manifest(
     digests = {ck: f for f, ck in asm.digest_files.items() if not f.endswith(".proposed.tex")}
     proposals = {ck: f for f, ck in asm.digest_files.items() if f.endswith(".proposed.tex")}
     from loom.refs.links import read_links
+    from loom.refs.unreadable import declarations
 
     manifest["links"] = [x.to_json() for x in read_links(result.quilt.root)]
+    unreadable = declarations(result.quilt.root, "unreadable")
     for ck in sorted(set(result.bib) | set(digests) | set(proposals)):
         bib = result.bib.get(ck)
         fields = {
@@ -408,6 +410,11 @@ def build_manifest(
             "version_mismatch": version_mismatch,
             "cited_by": sorted(set(cited_by.get(ck, []))),
         }
+        # the author's claim that there is no document to hold, so the reading view says so rather than showing an
+        # empty pane and the digest as though it were the paper (plan 0.13 §4)
+        said = unreadable.get(ck)
+        if said is not None:
+            manifest["references"][ck]["unreadable"] = {"why": said.why, "who": said.who, "when": said.when}
         # identifiers a lookup proposed for a work that states none: unconfirmed, and never the work's identity (8.9.1)
         if bib is not None and not declared(bib):
             found = load_candidates(result.quilt.root, bib)

@@ -87,25 +87,40 @@ def path_command(ctx: click.Context, citekey: str, want: str | None, quilt_path:
 
 @refs.command(name="add")
 @click.argument("citekey")
-@click.argument("file", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("file", type=click.Path(exists=True, path_type=Path))
 @click.option("--force", is_flag=True, help="Replace an artifact that is already there.")
 @quilt_option
 @click.pass_context
 def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt_path: str | None) -> None:
-    """File FILE as CITEKEY's PDF in loom's store.
+    """File FILE as CITEKEY's PDF, or its LaTeX source, in loom's store.
 
-    A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing.
+    A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing. A `.tex` file, or a directory of them, is filed as the work's source, which is what `loom digest extract` reads: fetching is the usual way source arrives, and this is the way for a paper that is not on a preprint server.
     """
     result = open_scan(quilt_path)
-    if file.suffix.lower() != ".pdf":
-        raise EnvError(f"{file.name} is not a PDF; only a work's PDF can be added by hand (its source is fetched)")
     home = _home(result, citekey)
+    root = result.quilt.root
+    if file.is_dir() or file.suffix.lower() == ".tex":
+        dest = home / "src"
+        if dest.is_dir() and any(dest.rglob("*.tex")) and not force:
+            raise EnvError(f"{dest.relative_to(root)} already holds source; pass --force to replace it")
+        if force and dest.is_dir():
+            shutil.rmtree(dest)
+        dest.mkdir(parents=True, exist_ok=True)
+        if file.is_dir():
+            shutil.copytree(file, dest, dirs_exist_ok=True)
+        else:
+            shutil.copy(file, dest / file.name)
+        click.echo(f"Wrote {dest.relative_to(root)}/")
+        note(f"loom digest extract {citekey} now reads it; the store is not in version control")
+        return
+    if file.suffix.lower() != ".pdf":
+        raise EnvError(f"{file.name} is neither a PDF nor LaTeX source; loom files those two things")
     dest = home / "paper.pdf"
     if dest.exists() and not force:
-        raise EnvError(f"{dest.relative_to(result.quilt.root)} exists; pass --force to replace it")
+        raise EnvError(f"{dest.relative_to(root)} exists; pass --force to replace it")
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(file, dest)
-    click.echo(f"Wrote {dest.relative_to(result.quilt.root)}")
+    click.echo(f"Wrote {dest.relative_to(root)}")
     note("the PDF is not in version control: a collaborator cloning the quilt fetches or adds their own copy")
 
 
@@ -113,7 +128,12 @@ def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt
 @click.argument("citekeys", nargs=-1)
 @click.option("--refresh", is_flag=True, help="Ask again even where an answer is recorded.")
 @click.option("--json", "as_json", is_flag=True, help="Print the candidates as JSON.")
-@click.option("--resolve", "allow_resolve", is_flag=True, help="Allow looking up for this run, without setting [refs] resolve in config.toml.")
+@click.option(
+    "--resolve",
+    "allow_resolve",
+    is_flag=True,
+    help="Allow looking up for this run, without setting [refs] resolve in config.toml.",
+)
 @quilt_option
 @click.pass_context
 def resolve_command(
@@ -290,8 +310,18 @@ def scan_command(dry_run: bool, quilt_path: str | None) -> None:
 @click.option("--refresh", is_flag=True, help="Ask the lookup services again where an answer is recorded.")
 @click.option("--no-candidates", is_flag=True, help="Fetch only on identifiers an entry declares itself.")
 @click.option("--force", is_flag=True, help="Re-extract digests that are already present.")
-@click.option("--fetch", "allow_fetch", is_flag=True, help="Allow fetching for this run, without setting [refs] fetch in config.toml.")
-@click.option("--resolve", "allow_resolve", is_flag=True, help="Allow looking identifiers up for this run, without setting [refs] resolve in config.toml.")
+@click.option(
+    "--fetch",
+    "allow_fetch",
+    is_flag=True,
+    help="Allow fetching for this run, without setting [refs] fetch in config.toml.",
+)
+@click.option(
+    "--resolve",
+    "allow_resolve",
+    is_flag=True,
+    help="Allow looking identifiers up for this run, without setting [refs] resolve in config.toml.",
+)
 @click.option(
     "--only",
     "only_steps",
@@ -372,7 +402,12 @@ def build_command(
 @click.argument("citekeys", nargs=-1)
 @click.option("--no-pdf", is_flag=True, help="Take the source only; the PDF is fetched by default.")
 @click.option("--no-candidates", is_flag=True, help="Fetch only on identifiers an entry declares itself.")
-@click.option("--fetch", "allow_fetch", is_flag=True, help="Allow fetching for this run, without setting [refs] fetch in config.toml.")
+@click.option(
+    "--fetch",
+    "allow_fetch",
+    is_flag=True,
+    help="Allow fetching for this run, without setting [refs] fetch in config.toml.",
+)
 @quilt_option
 @click.pass_context
 def fetch_command(
@@ -403,6 +438,9 @@ def fetch_command(
     if not wanted:
         click.echo("nothing to fetch: every cited work has an artifact, or names no identifier anyone will serve")
         return
+    if no_pdf:
+        # the source alone extracts, and its digest is checkable against LaTeX; what it lacks is a page (plan 0.13 §4)
+        note("warning: --no-pdf leaves these works with no page to read, and their page locators unverified")
     bad = 0
     for w in wanted:
         got = fetch_work(
@@ -761,12 +799,7 @@ def locate_command(
     pdf = home / "paper.pdf"
     if m is None or not pdf.is_file():
         raise ContentError(f"{citekey} has no mapped PDF; run loom refs map {citekey}")
-    cache = home / "pages" / f"{page_no:04d}.boxes.xml"
-    if cache.is_file():
-        xml = cache.read_text(encoding="utf-8")
-    else:
-        xml = token_boxes(pdf, page_no)
-        cache.write_text(xml, encoding="utf-8")
+    xml = token_boxes(pdf, page_no, home)
     span = locate_span(xml, text, page_no)
     if span is None:
         click.echo(f"not found on {citekey} p.{page_no}")
@@ -774,11 +807,15 @@ def locate_command(
         return
     if as_json:
         click.echo(
-            json.dumps({"kind": "pdf", "sha256": m.sha256, "page": span.page, "quad": list(span.quad)}, indent=2)
+            json.dumps(
+                {"kind": "pdf", "sha256": m.sha256, "page": span.page, "quads": [list(q) for q in span.lines]},
+                indent=2,
+            )
         )
     else:
         x0, y0, x1, y1 = span.quad
-        click.echo(f"{citekey} p.{span.page}  quad {x0:.1f} {y0:.1f} {x1:.1f} {y1:.1f}  ({span.words} words)")
+        lines = f"{len(span.lines)} line{'s' if len(span.lines) != 1 else ''}"
+        click.echo(f"{citekey} p.{span.page}  {x0:.1f} {y0:.1f} {x1:.1f} {y1:.1f}  ({span.words} words, {lines})")
 
 
 def _work_home(result: ScanResult, citekey: str) -> Path:
@@ -1568,3 +1605,94 @@ def overview_command(ctx: click.Context, citekey: str, quilt_path: str | None) -
         ctx.exit(EXIT_CONTENT)
         return
     click.echo(m.group(1).strip())
+
+
+@refs.command(name="unreadable")
+@click.argument("citekey")
+@click.option("--why", default=None, help="Why no document can be held for this work; required unless --undo.")
+@click.option("--undo", is_flag=True, help="Withdraw the declaration; --why then says why it was wrong.")
+@click.option("--author", default=None, help="Who declared it, when the user config and git do not say.")
+@quilt_option
+def unreadable_command(citekey: str, why: str | None, undo: bool, author: str | None, quilt_path: str | None) -> None:
+    """Declare that CITEKEY has no document loom can hold, and stop it being asked for.
+
+    Nothing in a bibliography entry says that the Stacks Project is a living work with no fixed version, so loom would chase a PDF that does not exist on every build. This records the claim -- in loom's own file, never in your `.bib` -- and the invariant's lint goes quiet for the work while `loom refs build` lists it in a section of its own. It is a claim about the world, so it is yours to make and an agent is refused.
+    """
+    from loom.cli._common import refuse_under_agent
+    from loom.refs.unreadable import declarations, declare
+    from loom.scan.quilt import resolve_author
+
+    refuse_under_agent(
+        "loom refs unreadable",
+        "Whether a work can be obtained at all is the author's claim about the world, not something to infer from a "
+        "failed fetch. Report what you could not find, and let the author declare it.",
+    )
+    if not why:
+        raise EnvError("--why is required: the reason is what a reader of this file has to go on")
+    result = open_scan(quilt_path)
+    root = result.quilt.root
+    if citekey not in result.bib:
+        raise ContentError(f"{citekey} is not in the bibliography; this declaration is keyed by citekey")
+    standing = declarations(root, "unreadable").get(citekey)
+    if undo and standing is None:
+        raise ContentError(f"{citekey} is not declared unreadable")
+    if not undo and standing is not None:
+        raise ContentError(f"{citekey} is already declared unreadable ({standing.why}); --undo withdraws it")
+    who = resolve_author(author, root)[0]
+    declare(root, "unreadable", citekey, why, who, undo=undo)
+    click.echo(f"{citekey} is no longer declared unreadable" if undo else f"{citekey} declared unreadable: {why}")
+
+
+@refs.command(name="forget")
+@click.argument("target")
+@click.option("--why", default=None, help="Why the store should stop offering it; required unless --undo.")
+@click.option("--undo", is_flag=True, help="Withdraw the tombstone, so the document is offered again.")
+@click.option("--author", default=None, help="Who forgot it, when the user config and git do not say.")
+@quilt_option
+def forget_command(target: str, why: str | None, undo: bool, author: str | None, quilt_path: str | None) -> None:
+    """Stop the store offering a bibliography entry for TARGET, a citekey or a content hash.
+
+    The store is a seed of last resort: a document nobody's entry names is offered one on the next scan, from the copy ledger's record of how it arrived. That is right until you have deliberately deleted the entry, at which point the offer is loom undoing your decision every time. This is the tombstone that stops it, and like every deletion in loom it removes nothing -- the document stays in the store and the ledger keeps its arrival.
+    """
+    from loom.cli._common import refuse_under_agent
+    from loom.refs.scan import load_ledger
+    from loom.refs.unreadable import declarations, declare
+    from loom.scan.quilt import resolve_author
+
+    refuse_under_agent(
+        "loom refs forget",
+        "A tombstone says the author decided against this document. Say what you found and let them decide.",
+    )
+    if not why:
+        raise EnvError("--why is required: a tombstone with no reason cannot be judged later")
+    result = open_scan(quilt_path)
+    root = result.quilt.root
+    key = _forget_key(root, target, result.bib)
+    standing = declarations(root, "forget").get(key)
+    if undo and standing is None:
+        raise ContentError(f"{key} is not forgotten")
+    if not undo and standing is not None:
+        raise ContentError(f"{key} is already forgotten ({standing.why}); --undo withdraws it")
+    who = resolve_author(author, root)[0]
+    declare(root, "forget", key, why, who, undo=undo)
+    if not undo and key.startswith("sha256:") and key.removeprefix("sha256:") not in load_ledger(root):
+        note("warning: no document with that hash is in the copy ledger, so nothing offers it today")
+    click.echo(f"{key} is remembered again" if undo else f"{key} forgotten: {why}")
+
+
+def _forget_key(root: Path, target: str, bib: dict[str, Any]) -> str:
+    """The key a tombstone is filed under: a citekey as given, or a full hash found from any prefix of one."""
+    from loom.refs.scan import load_ledger
+
+    if target in bib:
+        return target
+    want = target.removeprefix("sha256:").lower()
+    if re.fullmatch(r"[0-9a-f]{6,64}", want):
+        hits = [sha for sha in load_ledger(root) if sha.startswith(want)]
+        if len(hits) > 1:
+            raise ContentError(f"{target} names {len(hits)} documents in the copy ledger; give more of the hash")
+        if hits:
+            return f"sha256:{hits[0]}"
+        if len(want) == 64:
+            return f"sha256:{want}"
+    raise ContentError(f"{target} is neither a citekey in the bibliography nor a hash in the copy ledger")

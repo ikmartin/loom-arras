@@ -32,15 +32,20 @@ class Anchor:
     """Where a statement was read from (contract §9.2, §9.3).
 
     A PDF anchor names a page, and `last` the last page when a statement runs over a break (0 when it does not). A LaTeX anchor names a file by its path under the quilt and its hash, and `bytes` the range the quotation occupies. For a work with a source that is where the mathematics is: in the PDF's text layer Graber and Pandharipande's formula is control bytes, and a quotation of the prose around it anchored everything but the formula.
+
+    A PDF anchor says which of its two descriptions is **of record** (plan 0.13 item 2). `basis` is `text` when `start`/`end` locate the quotation in the committed page text — searchable, listable, and re-findable in another copy of the work — and `box` when they cannot, which is what a display formula does, whose text layer is control bytes. `quads` is one rectangle per line and is always derived: geometry for drawing, never the claim. Recording never fails: what cannot be found in the text is recorded as geometry.
     """
 
     kind: str = "pdf"
     sha256: str = ""
     page: int = 0
-    quad: list[float] | None = None
+    quads: list[list[float]] | None = None
     last: int = 0
     path: str = ""
     bytes: list[int] | None = None
+    basis: str = ""  # pdf only: `text` | `box`
+    start: int = 0  # pdf, basis text: offsets into the committed page text of `page`
+    end: int = 0
 
     @property
     def pages(self) -> range:
@@ -70,17 +75,13 @@ class Result:
         d = asdict(self)
         d["class"] = d.pop("cls")
         a = d["anchor"]
-        # each kind carries only its own keys (contract §9.2 for a page, §9.3 for a file)
-        for key in ("path", "bytes") if a["kind"] == "pdf" else ("page", "quad", "last"):
+        # Each kind carries only its own keys (contract §9.2 for a page, §9.3 for a file). The lists are by name, so a
+        # field added to `Anchor` and not named here lands in both kinds and means nothing in one of them.
+        for key in ("path", "bytes") if a["kind"] == "pdf" else ("page", "quads", "last", "basis", "start", "end"):
             a.pop(key)
-        if a.get("quad", 0) is None:
-            a.pop("quad")
-        if "last" in a and not a["last"]:
-            a.pop("last")
-        if "path" in a and not a["path"]:
-            a.pop("path")
-        if "bytes" in a and not a["bytes"]:
-            a.pop("bytes")
+        for key in ("quads", "last", "path", "bytes", "basis", "start", "end"):
+            if key in a and not a[key]:
+                a.pop(key)
         return d
 
     @classmethod
@@ -98,10 +99,13 @@ class Result:
                 kind=str(a.get("kind", "pdf")),
                 sha256=str(a.get("sha256", "")),
                 page=int(a.get("page", 0) or 0),
-                quad=list(a["quad"]) if a.get("quad") else None,
+                quads=[[float(v) for v in q] for q in a["quads"]] if a.get("quads") else None,
                 last=int(a.get("last", 0) or 0),
                 path=str(a.get("path", "")),
                 bytes=[int(x) for x in a["bytes"]] if a.get("bytes") else None,
+                basis=str(a.get("basis", "")),
+                start=int(a.get("start", 0) or 0),
+                end=int(a.get("end", 0) or 0),
             ),
             level=int(d.get("level", 3) or 3),
             cls=str(d.get("class", d.get("cls", "anchored"))),

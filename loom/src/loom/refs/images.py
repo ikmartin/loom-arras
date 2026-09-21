@@ -5,12 +5,11 @@ The text layer a quotation is checked against keeps words and drops notation: on
 
 from __future__ import annotations
 
-import re
 import shutil
 import subprocess
 from pathlib import Path
 
-from loom.refs.pages import sha256_of
+from loom.refs.pages import page_box, sha256_of
 from loom.refs.proposals import Result, home_of
 
 RESOLUTION = 110  # dpi: a 612pt page is ~935px wide, legible for sub- and superscripts, ~150-250 KB a page
@@ -66,9 +65,6 @@ def anchor_images(root: Path, build_dir: Path, r: Result) -> list[str]:
     return out
 
 
-_PAGE_BOX = re.compile(r'<page\s+width="([\d.]+)"\s+height="([\d.]+)"')
-
-
 def anchor_focus(root: Path, r: Result) -> float | None:
     """How far down its first page a result's quotation starts, as a fraction of the page height; None when it cannot be placed.
 
@@ -85,10 +81,10 @@ def anchor_focus(root: Path, r: Result) -> float | None:
         xml = token_boxes(pdf, r.anchor.page)
     except Exception:  # noqa: BLE001 -- geometry is a convenience; a page without it still shows
         return None
-    box = _PAGE_BOX.search(xml)
+    box = page_box(xml)
     # the quotation's opening words: a whole statement over a text layer's glyph soup rarely places, its start usually does
     words = r.source_text.split()
     span = next((s for n in (24, 8, 4) if (s := locate_span(xml, " ".join(words[:n]), r.anchor.page))), None)
-    if box is None or span is None or float(box.group(2)) <= 0:
+    if box is None or span is None or box[1] <= 0:
         return None
-    return round(max(0.0, min(1.0, span.quad[1] / float(box.group(2)))), 3)
+    return round(max(0.0, min(1.0, span.quad[1] / box[1])), 3)

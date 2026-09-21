@@ -116,7 +116,9 @@ def build_papers(only: list[str] | None = None) -> None:
         print(f"wrote demos/{name}")
     digest = FIXTURES / "0805.2065" / "virtual6.tex"
     if (not only or "relloc" in only) and (HERE / "relloc").is_dir() and digest.is_file():
-        run(loom, "digest", "extract", "manolache_VirtualPullbacks2012", str(digest), "--quilt", "demos/relloc", env=env)
+        # into the store first: extraction is gated on loom holding the document (plan 0.13 §4)
+        run(loom, "refs", "add", "manolache_VirtualPullbacks2012", str(digest), "--quilt", "demos/relloc", env=env)
+        run(loom, "digest", "extract", "manolache_VirtualPullbacks2012", "--quilt", "demos/relloc", env=env)
 
 
 def main() -> int:

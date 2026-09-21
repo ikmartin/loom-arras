@@ -347,6 +347,10 @@ export interface Reference {
   works?: string[];
   /** What has been fetched for the work. `dir` is servable under the viewer's origin; both flags are false until someone fetches or adds a copy, and the fetched material is not in version control, so another reader's copy of the corpus may have neither. */
   artifacts?: { dir: string; pdf: boolean; source: boolean };
+  /** The author's standing claim that no document can be held for this work: the Stacks Project is a living work with no fixed version. Nothing in a bibliography entry says so, so it is declared and never inferred, and the reading view says it rather than showing an empty pane. */
+  unreadable?: { why: string; who: string; when: string };
+  /** Where the work's anchor geometry is published, and its hash. Beside the manifest rather than in it: the manifest is loaded whole on every poll, and rectangles are wanted for the one paper being read. Absent when no copy of the paper is on the publishing machine, which is the honest state — the viewer then has nothing to draw. */
+  spans?: { path: string; sha256: string };
   digest: {
     file: string;
     fragment: string;

@@ -10,6 +10,8 @@
 	import Locator from '$lib/components/Locator.svelte';
 	import ProposalBox from '$lib/review/ProposalBox.svelte';
 	import LinkList from '$lib/review/LinkList.svelte';
+	import Reading from '$lib/pdf/Reading.svelte';
+	import { setQuery } from '$lib/query';
 
 	const m = $derived(store.manifest!);
 	const citekey = $derived(decodeURIComponent(page.params.citekey ?? ''));
@@ -28,6 +30,13 @@
 			.map((id) => ({ id, record: ref?.results?.[id] }))
 			.filter((x): x is { id: string; record: NonNullable<typeof x.record> } => !!x.record)
 	);
+	// The presence of `page` is what opens the reader (0.13 item 6): no separate route, so a page of a paper is a link
+	// into the place the paper is already discussed, and closing it leaves the reader where they were.
+	const reading = $derived(Number(page.url.searchParams.get('page') ?? '') || 0);
+	// The pages anything is anchored to, in order: what there is to open, and nothing when no result was read off a page.
+	const anchored = $derived(
+		[...new Set(Object.values(ref?.results ?? {}).map((r) => r.page))].filter((p) => p > 0).sort((a, b) => a - b)
+	);
 </script>
 
 <main class="page">
@@ -43,6 +52,26 @@
 		</p>
 		<!-- above the digest, not below it: under a 45-result paper the one link on the page was never seen -->
 		<LinkList heading="Links touching this paper" forKeys={Object.keys(ref.results ?? {})} />
+		{#if ref.unreadable}
+			<p class="muted" data-testid="unreadable">
+				Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}. Nothing here can be checked against a page.
+			</p>
+		{:else if ref.artifacts?.pdf && anchored.length}
+			<p class="pages">
+				Read the paper:
+				{#each anchored as p (p)}
+					<button
+						class="page-link"
+						class:on={reading === p}
+						data-testid="read-page-{p}"
+						onclick={() => setQuery(page.url, 'page', reading === p ? '' : String(p))}>page {p}</button
+					>
+				{/each}
+			</p>
+		{/if}
+		{#if reading}
+			<Reading {citekey} {ref} page={reading} />
+		{/if}
 		{#if proposals.length}
 			<section class="proposals" data-testid="proposals">
 				<h2>Proposed — {proposals.length} statement{proposals.length === 1 ? '' : 's'} nobody has vouched for</h2>
@@ -95,5 +124,19 @@
 		border: none;
 		padding: 0;
 		cursor: pointer;
+	}
+	.page-link {
+		font: inherit;
+		font-size: 0.85rem;
+		color: inherit;
+		background: none;
+		border: 1px solid var(--rule, #ddd9cf);
+		border-radius: 3px;
+		padding: 1px 6px;
+		margin-left: 4px;
+		cursor: pointer;
+	}
+	.page-link.on {
+		background: var(--annotation-tint, rgb(217 119 87 / 0.18));
 	}
 </style>

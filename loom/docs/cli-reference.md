@@ -295,9 +295,11 @@ To search what the digests hold, see `loom refs find` (statements) and `loom ref
 
 ### `loom digest extract`
 
-`loom digest extract [OPTIONS] CITEKEY SRC`
+`loom digest extract [OPTIONS] CITEKEY [SRC]`
 
-Produce digests/CITEKEY.tex mechanically from the reference paper whose main file is SRC (proofs dropped, ids prefixed).
+Produce digests/CITEKEY.tex mechanically from the reference paper's source (proofs dropped, ids prefixed).
+
+With no SRC, the source loom holds for CITEKEY: the file in the store declaring `\documentclass`, which is what `loom refs fetch` or `loom refs add` put there. A path may be given instead, and must be inside the store -- a digest made from a file nobody else holds cites pages nobody else can open.
 
 | option | description |
 |---|---|
@@ -487,9 +489,9 @@ Fetched works: where their artifacts are, how to add one by hand, and identifier
 
 `loom refs add [OPTIONS] CITEKEY FILE`
 
-File FILE as CITEKEY's PDF in loom's store.
+File FILE as CITEKEY's PDF, or its LaTeX source, in loom's store.
 
-A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing.
+A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing. A `.tex` file, or a directory of them, is filed as the work's source, which is what `loom digest extract` reads: fetching is the usual way source arrives, and this is the way for a paper that is not on a preprint server.
 
 | option | description |
 |---|---|
@@ -589,6 +591,21 @@ Search the statements this corpus has digested.
 | `--json` | Print as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--run` `RUN` | Log this call to RUN's run.log. |
+
+### `loom refs forget`
+
+`loom refs forget [OPTIONS] TARGET`
+
+Stop the store offering a bibliography entry for TARGET, a citekey or a content hash.
+
+The store is a seed of last resort: a document nobody's entry names is offered one on the next scan, from the copy ledger's record of how it arrived. That is right until you have deliberately deleted the entry, at which point the offer is loom undoing your decision every time. This is the tombstone that stops it, and like every deletion in loom it removes nothing -- the document stays in the store and the ledger keeps its arrival.
+
+| option | description |
+|---|---|
+| `--why` | Why the store should stop offering it; required unless --undo. |
+| `--undo` | Withdraw the tombstone, so the document is offered again. |
+| `--author` | Who forgot it, when the user config and git do not say. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs grep`
 
@@ -824,6 +841,21 @@ Remove a link.
 
 | option | description |
 |---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom refs unreadable`
+
+`loom refs unreadable [OPTIONS] CITEKEY`
+
+Declare that CITEKEY has no document loom can hold, and stop it being asked for.
+
+Nothing in a bibliography entry says that the Stacks Project is a living work with no fixed version, so loom would chase a PDF that does not exist on every build. This records the claim -- in loom's own file, never in your `.bib` -- and the invariant's lint goes quiet for the work while `loom refs build` lists it in a section of its own. It is a claim about the world, so it is yours to make and an agent is refused.
+
+| option | description |
+|---|---|
+| `--why` | Why no document can be held for this work; required unless --undo. |
+| `--undo` | Withdraw the declaration; --why then says why it was wrong. |
+| `--author` | Who declared it, when the user config and git do not say. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs verify`

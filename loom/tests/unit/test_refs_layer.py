@@ -283,7 +283,7 @@ def mapped(tmp_path: Path) -> tuple[Path, str]:
     from loom.refs.pages import write_map
 
     q = quilt(tmp_path)
-    ck = "Vir12"  # not Man12: the demo quilt already ships a digest under that key
+    ck = "Vir12"  # not Calloway14: the demo quilt already ships a digest under that key
     with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write("\n@article{Vir12, title={Virtual pull-backs}, author={Manolache, C.}, year={2012}}\n")
     home = work_dir(
@@ -760,7 +760,7 @@ def test_a_statement_over_a_page_break_is_anchored_to_both_pages(tmp_path: Path)
     from loom.refs.proposals import load_results, page_context
 
     q, ck = mapped(tmp_path)
-    pages = next(q.glob("digests/storage/*/*/pages"))
+    pages = _home(q, ck) / "pages"
     (pages / "0012.txt").write_text("Theorem 4.1. Every widget is a gadget when\n")
     (pages / "0013.txt").write_text("the theory is perfect, and every gadget is a widget.\nProof. Clear.\n")
     one = propose(q, ck, "thm-4.1", 12, "Every widget is a gadget when the theory is perfect", "X")
@@ -840,11 +840,11 @@ def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> N
 def test_source_on_an_equation_label_prints_what_holds_it(tmp_path: Path) -> None:
     """An equation's label resolved to a region, which `source` indexed as a node: a KeyError on a digest's display equation."""
     q = quilt(tmp_path)
-    digest = q / "digests" / "Man12.tex"
+    digest = q / "digests" / "Calloway14.tex"
     digest.write_text(
-        digest.read_text() + "\n\\section*{Overview}\nWe prove\n\\begin{equation}\\label{Man12-eqx}x=y\\end{equation}\n"
+        digest.read_text() + "\n\\section*{Overview}\nWe prove\n\\begin{equation}\\label{Calloway14-eqx}x=y\\end{equation}\n"
     )
-    r = run("source", "Man12-eqx", cwd=q)
+    r = run("source", "Calloway14-eqx", cwd=q)
     assert r.exit_code == 0 and "KeyError" not in r.output and "inside" in r.output, r.output
 
 
@@ -856,8 +856,13 @@ def test_a_book_length_map_with_almost_no_sections_says_it_is_a_guess() -> None:
     assert book.suspect and not paper.suspect
 
 
-def _home(q: Path) -> Path:
-    return next(p for p in (q / "digests" / "storage").glob("*/*") if (p / "sections.json").is_file())
+def _home(q: Path, ck: str = "Vir12") -> Path:
+    """Where the store keeps one work; named rather than globbed, because the demo quilt ships a work of its own."""
+    from loom.refs.fetch import work_dir
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+
+    return work_dir(q, scan(load_quilt(q)).bib[ck])
 
 
 def test_a_folio_number_at_a_page_join_is_not_part_of_the_text(tmp_path: Path) -> None:
@@ -865,7 +870,7 @@ def test_a_folio_number_at_a_page_join_is_not_part_of_the_text(tmp_path: Path) -
     from loom.refs.pages import read_pages
 
     q, ck = mapped(tmp_path)
-    home = _home(q)
+    home = _home(q, ck)
     (home / "pages" / "0005.txt").write_text("Definition 5.1. A morphism is good\nif\n345\n")
     (home / "pages" / "0006.txt").write_text("346\n(1) it is exact, and\nso on\n7\nand on\n(2) widgets exist.\nend\n")
     text = read_pages(home, 5, 6) or ""
@@ -921,7 +926,7 @@ def test_a_pending_proposal_carries_its_page_image(tmp_path: Path) -> None:
     if _shutil.which("pdftoppm") is None:
         pytest.skip("pdftoppm (poppler) is not installed")
     q, ck = mapped(tmp_path)
-    home = _home(q)
+    home = _home(q, ck)
     pdf = Path(__file__).resolve().parents[1] / "quilts" / "sources" / "synthetic" / "figures" / "fig.pdf"
     _shutil.copy(pdf, home / "paper.pdf")
     meta = json.loads((home / "sections.json").read_text())
@@ -1029,8 +1034,8 @@ def test_the_write_api_verifies_renames_and_discards_a_proposal(tmp_path: Path) 
 def test_a_work_with_a_source_is_quoted_from_its_source(tmp_path: Path) -> None:
     """Graber and Pandharipande's formula is control bytes in the PDF's text layer; the quotation stopped before it and the formula was written from memory. Their source has it verbatim."""
     q, ck = mapped(tmp_path)
-    src = _home(q) / "src"
-    src.mkdir()
+    src = _home(q, ck) / "src"
+    src.mkdir(exist_ok=True)
     (src / "main.tex").write_text(
         "The localization formula is then:\n\\begin{equation}\n\\label{exloc} \\Xvir =\n\\iota_* \\sum  \\frac{\\Xivir}{e(N^{\\it{vir}}_i)}\n\\end{equation}\nin $A_*(X)$.\n",
         encoding="latin-1",
@@ -1072,8 +1077,8 @@ def test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest(tmp_path: Path)
     from loom.refs.fetch import record_source
 
     q, ck = mapped(tmp_path)
-    home = _home(q)
-    (home / "src").mkdir()
+    home = _home(q, ck)
+    (home / "src").mkdir(exist_ok=True)
     (home / "src" / "main.tex").write_text(
         "\\documentclass{article}\n\\newtheorem{theorem}{Theorem}\n\\begin{document}\n\\begin{theorem}\\label{t}A.\\end{theorem}\n\\end{document}\n"
     )
@@ -1094,3 +1099,285 @@ def test_a_read_command_logs_to_the_run_it_is_given(tmp_path: Path) -> None:
         assert got.exit_code == 0, got.output
     log = (q / "ai" / "runs" / runname / "run.log").read_text()
     assert f"loom refs page {ck} 12" in log and "loom refs coverage" in log and "loom refs grep widget" in log
+
+
+def test_locate_matches_across_the_two_extractions_of_one_page() -> None:
+    """`pages/NNNN.txt` is plain `pdftotext` and the boxes are `-bbox-layout`: two readings of one page that disagree about spacing around mathematics and about a hyphen a line break left behind. Measured over five documents, matching under `normalize` alone placed 81% of quotations and 47% on a real arXiv paper; dropping spaces and hyphens from both sides placed 100%."""
+    from loom.refs.search import locate_span
+
+    page = (
+        "<html><body><page>"
+        '<word xMin="10.0" yMin="20.0" xMax="30.0" yMax="28.0">polytope</word>'
+        '<word xMin="32.0" yMin="20.0" xMax="44.0" yMax="28.0">M (D)</word>'
+        '<word xMin="46.0" yMin="20.0" xMax="52.0" yMax="28.0">⊆</word>'
+        '<word xMin="54.0" yMin="20.0" xMax="58.0" yMax="28.0">R</word>'
+        '<word xMin="58.0" yMin="16.0" xMax="62.0" yMax="22.0">A</word>'
+        '<word xMin="64.0" yMin="20.0" xMax="78.0" yMax="28.0">cut</word>'
+        '<word xMin="10.0" yMin="40.0" xMax="36.0" yMax="48.0">denom-</word>'
+        '<word xMin="38.0" yMin="40.0" xMax="70.0" yMax="48.0">inators</word>'
+        "</page></body></html>"
+    )
+    # the superscript is its own word box, so the page text's `RA` is `R A` here
+    assert locate_span(page, "polytope M (D) ⊆ RA cut", 2) is not None
+    # and the line break leaves a hyphen the plain extraction has already joined
+    assert locate_span(page, "denominators", 2) is not None
+    assert locate_span(page, "a phrase this page does not carry", 2) is None
+
+
+def test_a_quotation_over_two_lines_is_one_rectangle_per_line() -> None:
+    """A union box over three lines swallows the column between them, so a highlight is drawn from one rectangle per line; the subscript on the first line stays with it rather than becoming a line of its own."""
+    from loom.refs.search import locate_span
+
+    page = (
+        "<html><body><page>"
+        '<word xMin="10.0" yMin="20.0" xMax="30.0" yMax="28.0">the</word>'
+        '<word xMin="32.0" yMin="22.0" xMax="36.0" yMax="26.0">rank</word>'
+        '<word xMin="10.0" yMin="40.0" xMax="48.0" yMax="48.0">is</word>'
+        '<word xMin="50.0" yMin="40.0" xMax="70.0" yMax="48.0">free</word>'
+        "</page></body></html>"
+    )
+    got = locate_span(page, "the rank is free", 1)
+    assert got is not None
+    assert got.quad == (10.0, 20.0, 70.0, 48.0)  # the union is still there for a caller that wants one number
+    assert got.lines == [(10.0, 20.0, 36.0, 28.0), (10.0, 40.0, 70.0, 48.0)]
+
+
+def test_the_anchor_check_stays_strict_while_geometry_is_loose() -> None:
+    """Looseness is for drawing only: a highlight two lines off is visible, and a transcription wrongly called faithful is not."""
+    from loom.refs.search import find_in_page
+
+    assert find_in_page("the rank of the kernel", "rank of the")
+    assert not find_in_page("the rank of the kernel", "rankofthe")
+
+
+def test_an_anchor_carries_only_its_own_kind_of_keys() -> None:
+    """`to_json` strips by name, so a field added to `Anchor` and not named there lands in both kinds: a LaTeX anchor claiming a `basis`, or a page anchor carrying a byte range. Plan 0.13 item 2 adds three such fields at once."""
+    from loom.refs.proposals import Anchor, Result
+
+    pdf = Result(
+        id="X-thm-1",
+        local="thm-1",
+        anchor=Anchor(
+            kind="pdf", sha256="a" * 64, page=7, basis="text", start=1043, end=1189, quads=[[1.0, 2.0, 3.0, 4.0]]
+        ),
+    ).to_json()["anchor"]
+    assert set(pdf) == {"kind", "sha256", "page", "quads", "basis", "start", "end"}
+
+    tex = Result(
+        id="X-thm-2", local="thm-2", anchor=Anchor(kind="tex", sha256="b" * 64, path="digests/X.tex")
+    ).to_json()["anchor"]
+    assert set(tex) == {"kind", "sha256", "path"}, "a file anchor has no page, no geometry and no basis"
+
+    # a box-basis anchor records geometry and no offsets, and survives the round trip
+    box = Anchor(kind="pdf", sha256="c" * 64, page=2, basis="box", quads=[[10.0, 20.0, 30.0, 28.0]])
+    back = Result.from_json(Result(id="X-thm-3", local="thm-3", anchor=box).to_json()).anchor
+    assert back == box and "start" not in Result(id="X-thm-3", local="thm-3", anchor=box).to_json()["anchor"]
+
+
+def test_offsets_and_box_text_come_from_the_page_as_committed() -> None:
+    """A reader's selection arrives from the viewer's own text layer, a third extraction after the committed page text and the word boxes, so the offsets are found under the same tolerance the geometry is; and they index the raw text, which is what a coauthor with no PDF checks against."""
+    from loom.refs.search import locate_offsets, words_in_boxes
+
+    page = "Let Q be a quiver whose\nunderlying graph has c connected components, and let W(Q)\n"
+    got = locate_offsets(page, "underlying graph has c connected components")
+    assert got is not None
+    assert page[got[0] : got[1]] == "underlying graph has c connected components"
+    # spacing around mathematics differs between extractions, and the offsets are still the raw ones
+    spaced = locate_offsets(page, "hasc connected")
+    assert spaced is not None and page[spaced[0] : spaced[1]] == "has c connected"
+    assert locate_offsets(page, "a phrase this page does not carry") is None
+
+    boxes = (
+        "<html><body><page>"
+        '<word xMin="10.0" yMin="20.0" xMax="30.0" yMax="28.0">inside</word>'
+        '<word xMin="32.0" yMin="20.0" xMax="50.0" yMax="28.0">the</word>'
+        '<word xMin="10.0" yMin="90.0" xMax="30.0" yMax="98.0">outside</word>'
+        "</page></body></html>"
+    )
+    assert words_in_boxes(boxes, [[8.0, 18.0, 52.0, 30.0]]) == "inside the"
+
+
+def test_locate_refuses_what_it_cannot_answer(tmp_path: Path) -> None:
+    """The endpoint writes nothing, so its whole contract is the answer and the refusals: a work nobody cites, a work with no copy here, and a request that selected neither text nor a region."""
+    from loom.render.api import ApiError, handle
+
+    q, ck = mapped(tmp_path)  # page text on disk, no PDF beside it
+    for body, code in (
+        ({"citekey": "Nope", "page": 1, "text": "x"}, "no-such-work"),
+        ({"citekey": ck, "page": 1}, "missing-field"),
+        ({"citekey": ck, "page": 0, "text": "x"}, "bad-field"),
+        ({"citekey": ck, "page": 1, "text": "x"}, "not-readable"),
+    ):
+        with pytest.raises(ApiError) as exc:
+            handle(q, "locate", body)
+        assert exc.value.code == code, body
+
+
+@pytest.mark.tex
+def test_a_selection_on_a_real_page_becomes_an_anchor(tmp_path: Path) -> None:
+    """The whole of plan 0.13's slice on the loom side: what a reader selected, mapped against the committed page text and the word boxes of the one PDF this repository carries.
+
+    On a copy, because reading a page caches its word boxes inside the quilt, and the checked-in one is compared to the generator's output file by file.
+    """
+    import shutil
+
+    from loom.render.api import handle
+
+    q = tmp_path / "showcase"
+    shutil.copytree(Path(__file__).resolve().parents[2] / "tests" / "quilts" / "showcase", q)
+    text = "The median orders of a weighted digraph are in bijection with the vertices"
+    got = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})
+    a = got["anchor"]
+    assert a["basis"] == "text" and a["page"] == 2 and a["quads"], got["result"]
+    page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
+    assert page_text[a["start"] : a["end"]] == text
+    assert got["page_box"] == {"width": 612.0, "height": 792.0}
+
+    # a region the reader drew: geometry of record, and the words under it as an unreliable hint
+    box = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "rects": [[82.0, 278.0, 530.0, 292.0]]})
+    assert box["anchor"]["basis"] == "box" and "start" not in box["anchor"]
+    assert "quasi-polynomial" in box["text"]
+
+
+# --- The artifact invariant (plan 0.13 §4) -------------------------------------------------------------------
+#
+# The demo quilt holds a digest and a real document behind it, so each state the invariant is about is made here by
+# taking something away. Constructing it rather than borrowing it is what keeps these tests from moving when the demo
+# does.
+
+
+def _no_copy(tmp_path: Path) -> Path:
+    """The demo quilt with its cited work's document removed: a digest with nothing behind it."""
+    import shutil
+
+    q = quilt(tmp_path)
+    shutil.rmtree(q / "digests" / "storage" / "doi" / "10.4171_demo_14-1")
+    return q
+
+
+def _source_only(tmp_path: Path) -> Path:
+    """The demo quilt with the PDF and page text removed, and the paper's LaTeX left in place."""
+    import shutil
+
+    (tmp_path / "b").mkdir(exist_ok=True)
+    q = quilt(tmp_path / "b")
+    home = q / "digests" / "storage" / "doi" / "10.4171_demo_14-1"
+    (home / "paper.pdf").unlink()
+    (home / "sections.json").unlink()
+    shutil.rmtree(home / "pages")
+    return q
+
+
+def test_extract_refuses_a_source_outside_the_store(tmp_path: Path) -> None:
+    """A digest made from a file on the author's desktop cites pages nobody else can open, so the obligation starts where the digest is born."""
+    q = quilt(tmp_path)
+    loose = tmp_path / "paper.tex"
+    loose.write_text("\\documentclass{article}\\begin{document}\\end{document}\n", encoding="utf-8")
+    r = run("digest", "extract", "Ref20", str(loose), cwd=q)
+    assert r.exit_code != 0
+    assert "not in loom's store" in r.output and "loom refs add" in r.output
+
+
+def test_extract_with_no_source_says_how_to_get_one(tmp_path: Path) -> None:
+    """The refusal names both routes: fetching where an identifier serves it, and adding source already held."""
+    q = _no_copy(tmp_path)
+    (q / "digests" / "Calloway14.tex").unlink()
+    r = run("digest", "extract", "Calloway14", cwd=q)
+    assert r.exit_code != 0
+    assert "holds no source" in r.output and "loom refs fetch Calloway14" in r.output and "loom refs add Calloway14" in r.output
+
+
+def test_a_digest_with_no_readable_copy_warns_and_never_errors(tmp_path: Path) -> None:
+    """Loom cannot fetch without consent, so renderable content nothing can back is reported and never fatal."""
+    q = _no_copy(tmp_path)
+    r = run("lint", "--json", cwd=q)
+    said = [d for d in json.loads(r.output) if d["code"] == "loom:no-readable-copy"]
+    assert [d["severity"] for d in said] == ["warning"]
+    assert r.exit_code == 0
+    assert "loom refs unreadable Calloway14" in said[0]["message"]
+    # and source alone is an info, not a warning: the paper's own LaTeX is what a statement is checked against
+    quieter = [d for d in json.loads(run("lint", "--json", cwd=_source_only(tmp_path)).output) if d["code"] == "loom:no-readable-copy"]
+    assert [d["severity"] for d in quieter] == ["info"]
+    assert "no PDF" in quieter[0]["message"]
+
+
+def test_declaring_a_work_unreadable_suppresses_the_lint_and_undo_restores_it(tmp_path: Path) -> None:
+    """Impossible is declared, never inferred: nothing in a bibliography entry says a work has no fixed document."""
+    q = _no_copy(tmp_path)
+    said = run(
+        "refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "a living work with no fixed version", cwd=q
+    )
+    assert said.exit_code == 0, said.output
+    codes = [d["code"] for d in json.loads(run("lint", "--json", cwd=q).output)]
+    assert "loom:no-readable-copy" not in codes
+    back = run(
+        "refs",
+        "unreadable",
+        "Calloway14",
+        "--author",
+        "A. Author",
+        "--undo",
+        "--why",
+        "a version was published after all",
+        cwd=q,
+    )
+    assert back.exit_code == 0, back.output
+    codes = [d["code"] for d in json.loads(run("lint", "--json", cwd=q).output)]
+    assert "loom:no-readable-copy" in codes
+
+
+def test_the_declaration_is_appended_and_never_edited(tmp_path: Path) -> None:
+    """Every record loom keeps is appended; the standing claim is the fold, so the reversal is still readable."""
+    from loom.refs.unreadable import declarations, load_events
+
+    q = _no_copy(tmp_path)
+    run("refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version", cwd=q)
+    run("refs", "unreadable", "Calloway14", "--author", "A. Author", "--undo", "--why", "wrong", cwd=q)
+    assert len(load_events(q)) == 2
+    assert declarations(q, "unreadable") == {}
+
+
+def test_unreadable_refuses_under_an_agent_and_without_a_reason(tmp_path: Path) -> None:
+    """Whether a work can be obtained at all is a claim about the world, which is the author's to make (DR-185)."""
+    q = quilt(tmp_path)
+    assert "--why is required" in run("refs", "unreadable", "Calloway14", cwd=q).output
+    os.environ["AI_AGENT"] = "1"
+    try:
+        r = run("refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version", cwd=q)
+    finally:
+        del os.environ["AI_AGENT"]
+    assert r.exit_code != 0 and "agent is running this shell" in r.output
+
+
+def test_forget_is_keyed_by_citekey_or_by_a_prefix_of_a_stored_hash(tmp_path: Path) -> None:
+    """The tombstone stops the store re-offering an entry; a document with no entry is named by its content."""
+    from loom.refs.scan import record_copy
+    from loom.refs.unreadable import declarations
+
+    q = quilt(tmp_path)
+    sha = "9f2c" + "0" * 60
+    record_copy(q, sha, "refs/whatever.pdf", "digests/storage/file/9f2c/paper.pdf")
+    assert run("refs", "forget", "9f2c00", "--author", "A. Author", "--why", "a duplicate scan", cwd=q).exit_code == 0
+    assert (
+        run("refs", "forget", "Calloway14", "--author", "A. Author", "--why", "deliberately not cited", cwd=q).exit_code == 0
+    )
+    assert set(declarations(q, "forget")) == {f"sha256:{sha}", "Calloway14"}
+    unknown = run("refs", "forget", "nothing-like-this", "--author", "A. Author", "--why", "x", cwd=q)
+    assert unknown.exit_code != 0 and "neither a citekey" in unknown.output
+
+
+def test_source_alone_is_enough_to_extract_from_and_a_work_with_neither_is_blocked(tmp_path: Path) -> None:
+    """Source is the paper's own LaTeX and better evidence than a page image; what it cannot give is pagination."""
+    from loom.cli._quilt import open_scan
+    from loom.refs.build import survey
+    from loom.refs.fetch import work_dir
+
+    q = _no_copy(tmp_path)
+    (q / "digests" / "Calloway14.tex").unlink()
+    result = open_scan(str(q))
+    src = work_dir(q, result.bib["Calloway14"]) / "src"
+    src.mkdir(parents=True)
+    (src / "main.tex").write_text("\\documentclass{article}\\begin{document}\\end{document}\n", encoding="utf-8")
+    work = next(w for w in survey(open_scan(str(q))) if w.citekey == "Calloway14")
+    assert work.source and not work.pdf
+    assert work.blocked == ("", "")  # source is enough to extract from; the missing page is the lint's business

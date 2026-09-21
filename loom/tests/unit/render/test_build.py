@@ -60,7 +60,7 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     assert (b / "manifest.json").exists()
     assert (b / "fragments" / "nodes" / "dm-0003.html").exists()
     assert (b / "fragments" / "masters" / "main.html").exists()
-    assert (b / "fragments" / "digests" / "Man12.html").exists()
+    assert (b / "fragments" / "digests" / "Calloway14.html").exists()
     m = json.loads((b / "manifest.json").read_text())
     for field in (
         "interface_version",
@@ -96,8 +96,8 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     assert set(k["closure"]) == {
         "dm-0002",
         "dm-0003",
-        "Man12-prop-3.2",
-        "Man12-setup",
+        "Calloway14-prop-3.2",
+        "Calloway14-def-3.1",
     }  # the postnote edge brings the digest nodes in (book 8.11)
     assert m["keys"]["dm-0005/proof"]["state"] == "incomplete"
     assert m["regions"]["dm-0001#eq:fix"]["numbers"]["drafting/main.tex"]["number"] == "1.1"
@@ -105,7 +105,13 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
     tree = m["inclusion"]["drafting/main.tex"]
     assert [c["key"] for c in tree["children"]] == ["dm-0010", "dm-0011"]
     assert [c["key"] for c in tree["children"][0]["children"]] == ["nodes/dm-0001.tex", "nodes/dm-0002.tex"]
-    assert m["references"]["Man12"]["digest"]["nodes"] == ["Man12-setup", "Man12-prop-3.2"]
+    assert m["references"]["Calloway14"]["digest"]["nodes"] == [
+        "Calloway14-setup",
+        "Calloway14-def-3.1",
+        "Calloway14-prop-3.2",
+        "Calloway14-prop-3.3",
+        "Calloway14-thm-3.4",
+    ]
     assert m["taxa"]["Lemma"]["count"] == 1 and "setup" in m["tags"]
     assert any(s["key"] == "dm-0002" and "lem:orbits" in s["aliases"] for s in m["search"])
     # the author's own macro, plus the stand-ins amsmath's presence in the preamble publishes (loom.scan.macros.PACKAGE_COMMANDS)

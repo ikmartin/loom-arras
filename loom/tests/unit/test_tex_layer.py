@@ -84,9 +84,9 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
     b = build_bundle(result, "dm-0003/proof")
     assert set(b.closure) == {
         "dm-0002",
-        "Man12-setup",
-        "Man12-prop-3.2",
-    }  # the proof cites Man12 by postnote (book 8.11)
+        "Calloway14-def-3.1",
+        "Calloway14-prop-3.2",
+    }  # the proof cites Calloway14 by postnote (book 8.11)
     text = b.text
     assert text.index("\\usepackage{loom}") < text.index("\\begin{document}")
     assert text.index("% id: dm-0002") < text.index("% id: dm-0003") < text.index("% proof: dm-0003/proof")

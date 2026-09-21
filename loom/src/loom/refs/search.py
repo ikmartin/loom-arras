@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # What a PDF text layer does to a document, undone. Ligatures are the common case; the rest turn up in older
@@ -150,11 +150,16 @@ def grep_work(home: Path, citekey: str, needle: str) -> list[Hit]:
 
 @dataclass
 class Span:
-    """Where a quotation sits on a page, in PDF user space."""
+    """Where a quotation sits on a page, in points with the origin at the TOP LEFT.
+
+    That is the space `pdftotext -bbox-layout` emits, not PDF user space, whose origin is the bottom left. The two differ by a vertical flip, so a renderer handed these as user-space coordinates draws every highlight mirrored.
+    """
 
     page: int
     quad: tuple[float, float, float, float]
     words: int
+    #: One rectangle per line the quotation covers, in the same space. A single union box over three lines swallows the column between them, so this is what a highlight is drawn from; `quad` remains the union, for a caller that wants one number.
+    lines: list[tuple[float, float, float, float]] = field(default_factory=list)
 
 
 def _words(bbox: str) -> list[tuple[float, float, float, float, str]]:
@@ -183,31 +188,18 @@ def locate_span(bbox_xml: str, needle: str, page: int) -> Span | None:
     Returns
     -------
     Span or None
-        The union of the matched words' boxes, or None when the words are not on the page.
+        The union of the matched words' boxes, one rectangle per line in `lines`, or None when the words are not on the page.
 
     See Also
     --------
     loom.refs.pages.token_boxes : produces the output, one page at a time and on demand.
+    loom.refs.search.find_in_page : the strict comparison, which is what a claim is checked against.
     """
     words = _words(bbox_xml)
     if not words:
         return None
-    # A character-offset map rather than a word-sequence match. A word box carries whatever punctuation touches it,
-    # so matching "perfect obstruction theory" against the tokens `perfect`, `obstruction`, `theory.` fails on the
-    # trailing period -- which is what a real page does to a real quotation.
-    flat: list[str] = []
-    owner: list[int] = []
-    for i, w in enumerate(words):
-        piece = normalize(w[4])
-        if not piece:
-            continue
-        if flat:
-            flat.append(" ")
-            owner.append(i)
-        flat.append(piece)
-        owner.extend([i] * len(piece))
-    text = "".join(flat)
-    want = normalize(needle)
+    text, owner = _flat(words)
+    want = _loose(needle)
     if not want:
         return None
     at = text.find(want)
@@ -221,4 +213,88 @@ def locate_span(bbox_xml: str, needle: str, page: int) -> Span | None:
         page=page,
         quad=(min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)),
         words=len(boxes),
+        lines=_by_line(boxes),
     )
+
+
+#: Dropped from both sides when looking for a quotation's geometry: spaces, and the hyphens a line break leaves behind.
+_LOOSE = {" ", "-", "‐", "‑"}
+
+
+def _loose(s: str) -> str:
+    """A quotation reduced to what two extractions of one page agree on.
+
+    `pages/NNNN.txt` comes from plain `pdftotext` and the word boxes from `-bbox-layout`: two readings of the same page that disagree about spacing around mathematics (`hσ2 i` against `hσ2i`) and about hyphens a line break left behind (`denom-` `inators` against `denominators`). Measured over five documents, matching under `normalize` alone placed 81% of quotations and as little as 47% on a real arXiv paper; dropping spaces and hyphens from both sides placed 100%, with the matched span covering the right number of words in every case.
+
+    This looseness is for **drawing only**. `find_in_page` stays strict, because a highlight two lines off is visible and a transcription wrongly called faithful is not.
+    """
+    return "".join(c for c in normalize(s) if c not in _LOOSE)
+
+
+def _flat(words: list[tuple[float, float, float, float, str]]) -> tuple[str, list[int]]:
+    """The page as one loose string, with the word each character came from.
+
+    A character-offset map rather than a word-sequence match: a word box carries whatever punctuation touches it, so matching "perfect obstruction theory" against the tokens `perfect`, `obstruction`, `theory.` fails on the trailing period -- which is what a real page does to a real quotation.
+    """
+    flat: list[str] = []
+    owner: list[int] = []
+    for i, w in enumerate(words):
+        piece = _loose(w[4])
+        if not piece:
+            continue
+        flat.append(piece)
+        owner.extend([i] * len(piece))
+    return "".join(flat), owner
+
+
+def _by_line(boxes: list[tuple[float, float, float, float, str]]) -> list[tuple[float, float, float, float]]:
+    """One rectangle per line of a matched quotation, from word boxes that overlap vertically.
+
+    The word regex ignores the `<line>` elements on purpose (`_words`), so lines are recovered from the geometry: two words are on one line when their vertical extents overlap by more than half of the shorter one, which holds for subscripts and superscripts and separates a line from the next.
+    """
+    out: list[tuple[float, float, float, float]] = []
+    for b in sorted(boxes, key=lambda w: (w[1], w[0])):
+        if out:
+            x0, y0, x1, y1 = out[-1]
+            overlap = min(y1, b[3]) - max(y0, b[1])
+            if overlap > 0.5 * min(y1 - y0, b[3] - b[1]):
+                out[-1] = (min(x0, b[0]), min(y0, b[1]), max(x1, b[2]), max(y1, b[3]))
+                continue
+        out.append((b[0], b[1], b[2], b[3]))
+    return out
+
+
+def locate_offsets(page_text: str, needle: str) -> tuple[int, int] | None:
+    """Where `needle` sits in a page's committed text, as offsets into that text; None when it is not there.
+
+    The counterpart of `locate_span`, and deliberately the same tolerance: the reader's selection came from a third extraction again -- the viewer's own text layer -- so spacing around mathematics and a hyphen left by a line break must not decide whether an anchor can be recorded. Offsets index the raw text as committed, not a normalised copy of it, because that file is what a coauthor with no PDF checks an anchor against.
+    """
+    keep: list[int] = []
+    flat: list[str] = []
+    for i, ch in enumerate(page_text):
+        piece = _loose(ch)
+        if piece:
+            flat.append(piece)
+            keep.extend([i] * len(piece))
+    text = "".join(flat)
+    want = _loose(needle)
+    if not want:
+        return None
+    at = text.find(want)
+    if at < 0:
+        return None
+    return keep[at], keep[at + len(want) - 1] + 1
+
+
+def words_in_boxes(bbox_xml: str, rects: list[list[float]]) -> str:
+    """The page's own words under a reader's rectangles, in reading order.
+
+    A box anchor records no offsets, so this is the best text it can carry: unreliable by construction, since a box is drawn exactly where the text layer could not be trusted, but enough for a list to show something and for a search to reach it in principle.
+    """
+    out: list[str] = []
+    for w in _words(bbox_xml):
+        for x0, y0, x1, y1 in rects:
+            if w[0] >= x0 - 1 and w[2] <= x1 + 1 and w[1] >= y0 - 1 and w[3] <= y1 + 1:
+                out.append(w[4])
+                break
+    return _SPACE.sub(" ", " ".join(out)).strip()

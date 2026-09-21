@@ -447,6 +447,17 @@ def build_demo(dest: Path) -> None:
         "--no-check",
     )
 
+    # The cited work, the showcase's way: an invented paper this repository compiles, so the demo has a real document
+    # behind its digest rather than prose about a paper nobody holds. The author drops the PDF into the seed space and
+    # `refs scan` files it under the identifier it prints; the source is added beside it, and the digest is extracted by
+    # the command that extracts one.
+    (dest / "refs").mkdir(exist_ok=True)
+    shutil.copy(DEMO_WORKS / "calloway-fixed-loci.pdf", dest / "refs" / "calloway-fixed-loci.pdf")
+    g.run("refs", "scan")
+    g.run("refs", "add", "Calloway14", str(DEMO_WORKS / "calloway-fixed-loci.tex"))
+    g.run("refs", "map", "Calloway14")
+    g.run("digest", "extract", "Calloway14", "--no-compile")
+
     g.at("2026-09-16T14:02:00Z")
     run_dir = g.run("ai", "start", "referee-dm-0003").strip().splitlines()[-1].strip()
     g.at("2026-09-16T14:31:00Z")
@@ -512,6 +523,7 @@ def build_demo(dest: Path) -> None:
 SHOWCASE = "The loom showcase"
 #: The invented cited works, compiled by `sources/showcase-works/build.sh` and committed beside their LaTeX. They are copied into the quilt's seed space and filed by `loom refs scan`, so that generating the showcase needs no TeX distribution and writes the same bytes on every machine.
 WORKS = SOURCES / "showcase-works"
+DEMO_WORKS = SOURCES / "demo-works"
 
 
 def build_showcase(dest: Path) -> None:
@@ -545,7 +557,10 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-14T09:10:00Z")
     g.run("refs", "scan")
     g.at("2026-09-14T09:15:00Z")
-    g.run("digest", "extract", "Arden24", str(WORKS / "arden-cycle-spaces.tex"), "--no-compile")
+    # The source goes into the store before the digest is made: a digest extracted from a file only this machine
+    # holds cites pages nobody else can open, which is the invariant `digest extract` now enforces (plan 0.13 §4).
+    g.run("refs", "add", "Arden24", str(WORKS / "arden-cycle-spaces.tex"))
+    g.run("digest", "extract", "Arden24", "--no-compile")
     g.at("2026-09-14T09:20:00Z")
     g.run("ai", "init", "--skills", "--permissions")
 

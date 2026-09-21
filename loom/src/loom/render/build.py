@@ -86,6 +86,56 @@ def _attach_page_images(root: Path, manifest: dict[str, Any], build_dir: Path) -
                         rows[rid]["page_focus"] = focus
 
 
+def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -> None:
+    """One sidecar per work holding the geometry of its anchors, and a pointer to it on the reference (plan 0.13 item 2).
+
+    Beside the manifest for the reason `_write_source` gives: the manifest is loaded whole on every poll, and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, which is what lets a viewer notice a stale copy while `loom serve` rebuilds under it.
+
+    Quads are derived, never recorded: an anchor says where it is in the page's text, and the rectangles to draw it with are computed here from the word boxes. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+    """
+    from loom.refs.pages import page_box, read_map, token_boxes
+    from loom.refs.proposals import load_results
+    from loom.refs.search import locate_span
+
+    for citekey, ref in manifest.get("references", {}).items():
+        artifacts = ref.get("artifacts") or {}
+        home = root / str(artifacts.get("dir", ""))
+        if not artifacts.get("pdf") or not (home / "paper.pdf").is_file():
+            continue
+        recorded = {
+            rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page
+        }
+        if not recorded:
+            continue
+        pages: dict[str, dict[str, float]] = {}
+        quads: dict[str, list[list[float]]] = {}
+        boxes: dict[int, str] = {}
+        for rid, r in recorded.items():
+            page = r.anchor.page
+            if page not in boxes:
+                try:
+                    boxes[page] = token_boxes(home / "paper.pdf", page, home)
+                except Exception:  # noqa: BLE001 -- geometry is a convenience; a page without it still reads
+                    boxes[page] = ""
+            if not boxes[page]:
+                continue
+            span = locate_span(boxes[page], r.source_text, page)
+            if span is None:
+                continue
+            quads[rid] = [list(q) for q in span.lines]
+            if str(page) not in pages:
+                box = page_box(boxes[page])
+                if box:
+                    pages[str(page)] = {"width": box[0], "height": box[1], "rotate": 0.0}
+        if not quads:
+            continue
+        m = read_map(home)
+        body = json.dumps({"artifact": m.sha256 if m else "", "pages": pages, "quads": quads}, indent=1, sort_keys=True)
+        rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
+        files[rel] = body
+        ref["spans"] = {"path": rel, "sha256": hashlib.sha256(body.encode()).hexdigest()}
+
+
 def _write_source(result: ScanResult, fragments: dict[str, str], files: dict[str, Any]) -> None:
     """One file per key holding its own LaTeX, for the viewer's verbatim toggle (specs/manifest.md §1).
 
@@ -330,13 +380,14 @@ def build(
     )
     records.apply(result, manifest, build_dir)
     _attach_page_images(result.quilt.root, manifest, build_dir)
+    _attach_spans(result.quilt.root, manifest, files)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
     ]
     report.manifest = manifest
-    prune = ("fragments/", "source/") if wanted is None else ()
+    prune = ("fragments/", "source/", "spans/") if wanted is None else ()
     if wanted is None:
         for rel in list(index):
             if rel not in fragments.values():

@@ -121,9 +121,32 @@ def page_texts(pdf: Path) -> list[str]:
     return pages
 
 
-def token_boxes(pdf: Path, page: int) -> str:
-    """The `-bbox-layout` XML for one page, for `loom refs locate`; written per page on demand, never in bulk (§4.2)."""
-    return _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
+_PAGE = re.compile(r'<page\s+width="([\d.]+)"\s+height="([\d.]+)"')
+
+
+def page_box(bbox_xml: str) -> tuple[float, float] | None:
+    """A page's width and height in points, from its `-bbox-layout` output; None when the output names neither.
+
+    Read from the output rather than from the PDF because a scan's pages are not all one size -- Atiyah and Bott's is 533x806 on one page and 535x808 on another -- so a viewer given one page box for the document draws every highlight slightly wrong.
+    """
+    m = _PAGE.search(bbox_xml)
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def token_boxes(pdf: Path, page: int, home: Path | None = None) -> str:
+    """The `-bbox-layout` XML for one page, written per page on demand and never in bulk (§4.2).
+
+    With `home`, the work's directory in the store, the output is cached under `digests/storage/cache/boxes/` — which the shipped `.gitignore` ignores. It used to be written beside the page text as `pages/NNNN.boxes.xml`, which that file **commits**: 60 KB a page of derived geometry entering the repository the first time anyone ran `loom refs locate`.
+    """
+    if home is None:
+        return _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
+    cache = home.parent.parent / "cache" / "boxes" / home.parent.name / home.name / f"{page:04d}.xml"
+    if cache.is_file():
+        return cache.read_text(encoding="utf-8")
+    xml = _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(xml, encoding="utf-8")
+    return xml
 
 
 def _clean_title(raw: str) -> str:

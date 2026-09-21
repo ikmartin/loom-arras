@@ -73,6 +73,8 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:id-reused": ("error", False),
     "loom:node-recovered": ("info", False),
     "loom:no-live-document": ("info", False),
+    # the PDF invariant (plan 0.13 §4): a warning and never an error, because loom cannot fetch without consent
+    "loom:no-readable-copy": ("warning", False),
 }
 
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}

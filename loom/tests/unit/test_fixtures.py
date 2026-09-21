@@ -58,7 +58,10 @@ def test_init_demo_matches_fixture(tmp_path: Path) -> None:
     r = _run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     assert r.exit_code == 0, r.output
     fixture = QUILTS_DIR / "demo"
-    skip = {"EXPECTED-LINT.txt"}
+    # `.gitignore` is written from `assets/init/` and never from the demo's own copy: the fixture negates the store's
+    # PDF so this repository can commit the invented paper behind the demo's digest, and a quilt an author makes must
+    # not inherit that (DR-194, as amended).
+    skip = {"EXPECTED-LINT.txt", ".gitignore"}
     expected = {
         p.relative_to(fixture).as_posix(): p.read_bytes()
         for p in fixture.rglob("*")
@@ -67,7 +70,7 @@ def test_init_demo_matches_fixture(tmp_path: Path) -> None:
     got = {
         p.relative_to(tmp_path / "demo").as_posix(): p.read_bytes()
         for p in (tmp_path / "demo").rglob("*")
-        if p.is_file()
+        if p.is_file() and p.name not in skip
     }
     assert got == expected
 

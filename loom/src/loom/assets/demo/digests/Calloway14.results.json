@@ -1,0 +1,136 @@
+{
+  "record": 1,
+  "citekey": "Calloway14",
+  "results": [
+    {
+      "id": "Calloway14-def-3.1",
+      "local": "def-3.1",
+      "taxon": "definition",
+      "number": "",
+      "locator": "{\\cite[Definition 3.1]{Calloway14}}",
+      "statement": "\\begin{definition}[{\\cite[Definition 3.1]{Calloway14}}]\\label{Calloway14-def-3.1}\n\\label{Calloway14-def:involution}\nAn \\emph{involution} of a space $X$ is a map $\\sigma \\colon X \\to X$ with $\\sigma \\circ \\sigma = \\mathrm{id}_X$. Its \\emph{fixed locus} is $\\operatorname{Fix}(\\sigma) = \\{x \\in X : \\sigma(x) = x\\}$.\n\\end{definition}",
+      "source_text": "\\begin{definition}[{\\cite[Definition 3.1]{Calloway14}}]\\label{Calloway14-def-3.1}\n\\label{Calloway14-def:involution}\nAn \\emph{involution} of a space $X$ is a map $\\sigma \\colon X \\to X$ with $\\sigma \\circ \\sigma = \\mathrm{id}_X$. Its \\emph{fixed locus} is $\\operatorname{Fix}(\\sigma) = \\{x \\in X : \\sigma(x) = x\\}$.\n\\end{definition}",
+      "anchor": {
+        "kind": "tex",
+        "sha256": "6fb485bc4b38e79f5060e9e3605cf29a942462c7977d1613d19a65e04729a0b1",
+        "path": "digests/Calloway14.tex"
+      },
+      "level": 3,
+      "state": "verified",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom digest extract",
+          "when": "2026-09-16T00:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Calloway14-prop-3.2",
+      "local": "prop-3.2",
+      "taxon": "proposition",
+      "number": "",
+      "locator": "{\\cite[Proposition 3.2]{Calloway14}}",
+      "statement": "\\begin{proposition}[{\\cite[Proposition 3.2]{Calloway14}}]\\label{Calloway14-prop-3.2}\n\\label{Calloway14-prop:closed}\nLet $X$ be a Hausdorff space and $\\sigma$ an involution of $X$ in the sense of Definition~\\ref{Calloway14-def-3.1}. Then $\\operatorname{Fix}(\\sigma)$ is closed in $X$.\n\\end{proposition}",
+      "source_text": "\\begin{proposition}[{\\cite[Proposition 3.2]{Calloway14}}]\\label{Calloway14-prop-3.2}\n\\label{Calloway14-prop:closed}\nLet $X$ be a Hausdorff space and $\\sigma$ an involution of $X$ in the sense of Definition~\\ref{Calloway14-def-3.1}. Then $\\operatorname{Fix}(\\sigma)$ is closed in $X$.\n\\end{proposition}",
+      "anchor": {
+        "kind": "tex",
+        "sha256": "6fb485bc4b38e79f5060e9e3605cf29a942462c7977d1613d19a65e04729a0b1",
+        "path": "digests/Calloway14.tex"
+      },
+      "level": 3,
+      "state": "verified",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom digest extract",
+          "when": "2026-09-16T00:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Calloway14-prop-3.3",
+      "local": "prop-3.3",
+      "taxon": "proposition",
+      "number": "",
+      "locator": "{\\cite[Proposition 3.3]{Calloway14}}",
+      "statement": "\\begin{proposition}[{\\cite[Proposition 3.3]{Calloway14}}]\\label{Calloway14-prop-3.3}\n\\label{Calloway14-prop:parity}\nLet $X$ be a finite set and $\\sigma$ an involution of $X$. Then $|X| \\equiv |\\operatorname{Fix}(\\sigma)| \\pmod 2$.\n\\end{proposition}",
+      "source_text": "\\begin{proposition}[{\\cite[Proposition 3.3]{Calloway14}}]\\label{Calloway14-prop-3.3}\n\\label{Calloway14-prop:parity}\nLet $X$ be a finite set and $\\sigma$ an involution of $X$. Then $|X| \\equiv |\\operatorname{Fix}(\\sigma)| \\pmod 2$.\n\\end{proposition}",
+      "anchor": {
+        "kind": "tex",
+        "sha256": "6fb485bc4b38e79f5060e9e3605cf29a942462c7977d1613d19a65e04729a0b1",
+        "path": "digests/Calloway14.tex"
+      },
+      "level": 3,
+      "state": "verified",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom digest extract",
+          "when": "2026-09-16T00:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Calloway14-setup",
+      "local": "setup",
+      "taxon": "theorem",
+      "number": "",
+      "locator": "{\\cite[Standing assumptions]{Calloway14}}",
+      "statement": "\\begin{theorem}[{\\cite[Standing assumptions]{Calloway14}}]\\label{Calloway14-setup}\nThroughout, spaces are topological spaces and no separation axiom is assumed except where it is stated. An involution is not assumed to be non-trivial: the identity is an involution, and its fixed locus is the whole space. All maps are continuous.\n\\end{theorem}",
+      "source_text": "\\begin{theorem}[{\\cite[Standing assumptions]{Calloway14}}]\\label{Calloway14-setup}\nThroughout, spaces are topological spaces and no separation axiom is assumed except where it is stated. An involution is not assumed to be non-trivial: the identity is an involution, and its fixed locus is the whole space. All maps are continuous.\n\\end{theorem}",
+      "anchor": {
+        "kind": "tex",
+        "sha256": "6fb485bc4b38e79f5060e9e3605cf29a942462c7977d1613d19a65e04729a0b1",
+        "path": "digests/Calloway14.tex"
+      },
+      "level": 3,
+      "state": "verified",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom digest extract",
+          "when": "2026-09-16T00:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Calloway14-thm-3.4",
+      "local": "thm-3.4",
+      "taxon": "theorem",
+      "number": "",
+      "locator": "{\\cite[Theorem 3.4]{Calloway14}}",
+      "statement": "\\begin{theorem}[{\\cite[Theorem 3.4]{Calloway14}}]\\label{Calloway14-thm-3.4}\n\\label{Calloway14-thm:both}\nLet $X$ be a finite Hausdorff space and $\\sigma$ an involution of $X$. Then $\\operatorname{Fix}(\\sigma)$ is closed and $|X| \\equiv |\\operatorname{Fix}(\\sigma)| \\pmod 2$.\n\\end{theorem}",
+      "source_text": "\\begin{theorem}[{\\cite[Theorem 3.4]{Calloway14}}]\\label{Calloway14-thm-3.4}\n\\label{Calloway14-thm:both}\nLet $X$ be a finite Hausdorff space and $\\sigma$ an involution of $X$. Then $\\operatorname{Fix}(\\sigma)$ is closed and $|X| \\equiv |\\operatorname{Fix}(\\sigma)| \\pmod 2$.\n\\end{theorem}",
+      "anchor": {
+        "kind": "tex",
+        "sha256": "6fb485bc4b38e79f5060e9e3605cf29a942462c7977d1613d19a65e04729a0b1",
+        "path": "digests/Calloway14.tex"
+      },
+      "level": 3,
+      "state": "verified",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom digest extract",
+          "when": "2026-09-16T00:00:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    }
+  ]
+}

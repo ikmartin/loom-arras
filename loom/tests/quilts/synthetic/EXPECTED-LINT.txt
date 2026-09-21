@@ -25,6 +25,7 @@ info unreachable
 warning loom:canon-edited
 warning loom:equation-in-proof-referenced
 warning loom:multi-target-proof
+warning loom:no-readable-copy
 warning loom:taxon-conflict
 warning loom:unknown-directive
 warning loom:unmatched-postnote

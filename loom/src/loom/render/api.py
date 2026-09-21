@@ -14,7 +14,17 @@ from loom.clock import stamp
 
 #: What this publisher serves. A viewer reads this rather than assuming the specification's table, so an endpoint that
 #: is not here answers 404 and a viewer that hides the affordance is right to.
-CAPABILITIES = ["comment", "reply", "resolve", "edit", "discard", "refs-note", "digest-verify", "digest-discard"]
+CAPABILITIES = [
+    "comment",
+    "reply",
+    "resolve",
+    "edit",
+    "discard",
+    "refs-note",
+    "digest-verify",
+    "digest-discard",
+    "locate",
+]
 
 WRITE_API_VERSION = 1
 
@@ -68,7 +78,76 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "result": _refs_note(root, body)}
     if endpoint in ("digest-verify", "digest-discard"):
         return {"ok": True, "result": _digest(root, endpoint, body)}
+    if endpoint == "locate":
+        return _locate(root, body)
     return {"ok": True, "result": _review(root, endpoint, body)}
+
+
+def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """Turn a reader's selection on a page into the anchor loom would record (plan 0.13 item 2).
+
+    Body: `citekey`, `page`, and either `text` -- what the reader selected -- or `rects`, the rectangles they drew when there was no text worth selecting. The answer carries the anchor and, beside it, the line a person would read.
+
+    **Mapping happens here and not in the viewer.** The client's text layer is a third extraction of the page, after the committed page text and the word boxes; only loom holds the other two, and only loom can say what the committed text says, which is what an anchor is checked against. The client never decides what the anchor is.
+
+    This endpoint **writes nothing**: it answers, and whether an annotation is made is a separate act.
+    """
+    from loom.cli._quilt import open_scan
+    from loom.refs.fetch import work_dir
+    from loom.refs.pages import page_box, read_map, read_page, token_boxes
+    from loom.refs.proposals import Anchor
+    from loom.refs.search import locate_offsets, locate_span, words_in_boxes
+
+    citekey = _str(body, "citekey", required=True) or ""
+    page = body.get("page")
+    if not isinstance(page, int) or page < 1:
+        raise ApiError("bad-field", "page must be a positive integer")
+    rects = [[float(v) for v in r] for r in body.get("rects") or []]
+    text = _str(body, "text")
+    if not text and not rects:
+        raise ApiError("missing-field", "one of text or rects is required")
+
+    result = open_scan(str(root))
+    if citekey not in result.bib:
+        raise ApiError("no-such-work", f"{citekey} is not in the bibliography", status=404)
+    home = work_dir(root, result.bib[citekey])
+    pdf = home / "paper.pdf"
+    m = read_map(home)
+    if m is None or not pdf.is_file():
+        raise ApiError("not-readable", f"{citekey} has no copy on this machine", status=404)
+    xml = token_boxes(pdf, page, home)
+
+    anchor = Anchor(kind="pdf", sha256=m.sha256, page=page)
+    span = locate_span(xml, text, page) if text else None
+    if span is not None:
+        offsets = locate_offsets(read_page(home, page) or "", text or "")
+        anchor.quads = [list(q) for q in span.lines]
+        if offsets:
+            anchor.basis, anchor.start, anchor.end = "text", offsets[0], offsets[1]
+        else:
+            # found on the page's boxes and not in its committed text: geometry is what can honestly be recorded
+            anchor.basis = "box"
+    else:
+        # a formula, a figure, a scan: what the reader drew is the record, and whatever words it covers are a hint
+        anchor.basis, anchor.quads = "box", rects
+        text = words_in_boxes(xml, rects) or text
+    box = page_box(xml)
+    said = "text" if anchor.basis == "text" else "box"
+    return {
+        "ok": True,
+        "result": f"{citekey} p.{page} anchored by {said}, {len(anchor.quads or [])} line(s)",
+        "anchor": _anchor_json(anchor),
+        "text": text or "",
+        "page_box": {"width": box[0], "height": box[1]} if box else None,
+    }
+
+
+def _anchor_json(anchor: Any) -> dict[str, Any]:
+    """An anchor in the shape a result record carries it, so the endpoint and the record cannot spell one differently."""
+    from loom.refs.proposals import Result
+
+    out: dict[str, Any] = Result(id="", local="", anchor=anchor).to_json()["anchor"]
+    return out
 
 
 def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:

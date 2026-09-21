@@ -32,6 +32,8 @@ class WorkState:
     digest: bool = False
     fetched: Fetched | None = None
     extract_error: str = ""
+    #: The author's standing claim that this work has no document to hold, or '' -- `digests/unreadable.json`.
+    unreadable: str = ""
 
     @property
     def needs_a_person(self) -> str:
@@ -53,6 +55,25 @@ class WorkState:
         return self.digest and self.pages >= 8 and self.results * 4 < self.pages
 
     @property
+    def blocked(self) -> tuple[str, str]:
+        """What stands between this work and a digest, and the command that clears it; ('', '') when nothing does.
+
+        Blocked is about entering the digest, so a work with source and no PDF is not blocked -- it extracts, and what it then lacks is a page to read, which the lint reports. A work declared unreadable is never blocked either: the author has said there is nothing to wait for, and it is listed in its own section. Only the first cause is shown, because the second is not yet knowable.
+        """
+        if self.unreadable or self.digest:
+            return ("", "")
+        if not (self.declared or self.candidate or self.pdf or self.source):
+            return ("no identifier", f"loom refs resolve {self.citekey}, or add doi/eprint to the entry")
+        if self.extract_error:
+            return (f"extraction failed: {self.extract_error}", "")
+        if not self.source:
+            return (
+                "no source to extract from",
+                f"loom refs fetch {self.citekey}, or loom refs add {self.citekey} <FILE>",
+            )
+        return ("", "")
+
+    @property
     def needs_an_agent(self) -> bool:
         """Page text and no usable digest: the tail §4.3 leaves to the reading path, and any digest too thin to trust."""
         return self.pages > 0 and (self.thin or (not self.source and not self.digest))
@@ -68,6 +89,8 @@ class BuildReport:
     lookup_errors: list[str] = field(default_factory=list)
     resolve_off: bool = False
     fetch_off: bool = False
+    #: Citekeys whose digest this run wrote; the works already digested are not listed again.
+    entered: list[str] = field(default_factory=list)
 
     @property
     def declared(self) -> int:
@@ -111,6 +134,16 @@ class BuildReport:
         return [w for w in self.works if w.fetched is not None and w.fetched.discarded]
 
     @property
+    def blocked(self) -> list[WorkState]:
+        """Works that did not enter the digest and are waiting on something nameable."""
+        return [w for w in self.works if w.blocked[0]]
+
+    @property
+    def unreadable(self) -> list[WorkState]:
+        """Works the author has declared there is no document for; listed and never retried."""
+        return [w for w in self.works if w.unreadable]
+
+    @property
     def for_a_person(self) -> list[WorkState]:
         return [w for w in self.works if w.needs_a_person]
 
@@ -144,9 +177,27 @@ class BuildReport:
                 f"           {len(thin)} too thin to trust: "
                 + ", ".join(f"{w.citekey} ({w.results} results, {w.pages} pages)" for w in thin[:3])
             )
-        errors = [w for w in self.works if w.extract_error]
+        errors = [w for w in self.works if w.extract_error and not w.blocked[0]]
         if errors:
             out.append(f"           {len(errors)} failed to extract: {', '.join(w.citekey for w in errors[:3])}")
+        # Three sections, because a count says a build happened and a list says what to do next (plan 0.13 §4). A work
+        # the author has declared unreadable is in neither of the first two: it is not waiting for anything.
+        if self.entered:
+            out.append("")
+            out.append(f"entered the digest  {len(self.entered)}: " + ", ".join(sorted(self.entered)[:8]))
+        blocked = self.blocked
+        if blocked:
+            out.append("")
+            out.append(f"blocked             {len(blocked)}")
+            for w in blocked[:8]:
+                missing, how = w.blocked
+                out.append(f"  {w.citekey:<22}{missing:<34}{how}")
+        unreadable = self.unreadable
+        if unreadable:
+            out.append("")
+            out.append(f"declared unreadable {len(unreadable)}, not retried")
+            for w in unreadable:
+                out.append(f"  {w.citekey:<22}{w.unreadable}")
         out.append("")
         person, agent = self.for_a_person, self.for_an_agent
         out.append(f"needs you      {len(person):<3}loom refs match")
@@ -171,7 +222,7 @@ def _has_source(root: Path, entry: BibEntry) -> bool:
     return src.is_dir() and any(src.rglob("*.tex"))
 
 
-def _main_tex(root: Path, entry: BibEntry) -> Path | None:
+def main_tex(root: Path, entry: BibEntry) -> Path | None:
     """The source file to extract from: the one declaring `\\documentclass`, preferring a shallow path and a conventional name."""
     src = work_dir(root, entry) / "src"
     if not src.is_dir():
@@ -193,8 +244,11 @@ def _main_tex(root: Path, entry: BibEntry) -> Path | None:
 
 def survey(result: ScanResult) -> list[WorkState]:
     """What the quilt holds for every cited work, before anything is fetched; reads disk only."""
+    from loom.refs.unreadable import declarations
+
     root = result.quilt.root
     counts = cited_counts(result)
+    declared_unreadable = declarations(root, "unreadable")
     out: list[WorkState] = []
     for ck in sorted(set(result.bib) | set(counts)):
         entry = result.bib.get(ck)
@@ -217,6 +271,7 @@ def survey(result: ScanResult) -> list[WorkState]:
                 source=_has_source(root, entry),
                 pdf=(home / "paper.pdf").is_file(),
                 digest=(root / "digests" / f"{ck}.tex").is_file(),
+                unreadable=(d.why if (d := declared_unreadable.get(ck)) else ""),
             )
         )
     # cited works first, most-cited first: 15 of relloc's 22 are cited, and the other 7 are not worth a page yet
@@ -283,7 +338,7 @@ def _extract_step(result: ScanResult, works: list[WorkState], force: bool) -> li
             continue
         if not w.source:
             continue
-        main = _main_tex(root, result.bib[w.citekey])
+        main = main_tex(root, result.bib[w.citekey])
         if main is None:
             w.extract_error = "no file in the source declares \\documentclass"
             continue
@@ -379,7 +434,8 @@ def build_refs(
     if "fetch" in steps:
         _fetch_step(result, works, report, candidates)
     if "extract" in steps:
-        report.recorded = _record_step(result, works, _extract_step(result, works, force))
+        report.entered = _extract_step(result, works, force)
+        report.recorded = _record_step(result, works, report.entered)
     # Counted after extraction, not by the survey that opened the run: `survey` reads results.json before this run has
     # written it, and a count taken then called every one of sixteen fresh digests "too thin to trust".
     from loom.refs.proposals import load_results
