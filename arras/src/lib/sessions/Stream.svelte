@@ -83,6 +83,8 @@
 					<p class="changed" data-testid="changed-{c.id}">
 						<code>{c.id}</code>
 						{c.kind} · {c.target} · {c.act} by {c.by}
+						<!-- the body too, because `loom session next` prints it and the decision is that both surfaces show the same post -->
+						{#if c.body}<span class="said-body">{c.body}</span>{/if}
 					</p>
 				{/each}
 			</li>
@@ -110,6 +112,10 @@
 		margin: 2px 0 0 12px;
 		font-size: 0.92em;
 		color: var(--ink-faint, #6b6b6b);
+	}
+	.said-body {
+		display: block;
+		color: var(--ink, #1b1b1b);
 	}
 	.gap {
 		color: var(--annotation, #c05621);

@@ -55,7 +55,11 @@ def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, s
             if not src.is_file():
                 continue
             parsed = parse_report(src.read_text(encoding="utf-8", errors="replace"), run=str(tid), src=entry["report"])
-            rel = f"fragments/reports/{quote(entry['report'], safe='')}.html"
+            # A leading dot would make the file invisible to every static host: a session's report lives under
+            # `.loom/sessions/<id>/`, and percent-encoding the path keeps that dot at the front of the name. Vite,
+            # nginx and GitHub Pages all refuse a dotfile, so the fragment 404s wherever the corpus is published.
+            name = quote(entry["report"], safe="").lstrip(".")
+            rel = f"fragments/reports/{name}.html"
             fragments[f"report:{entry['report']}"] = rel
             files[rel] = parsed.html
             entry["fragment"] = rel

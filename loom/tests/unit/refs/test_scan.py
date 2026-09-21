@@ -166,6 +166,36 @@ def test_a_document_the_store_holds_and_no_entry_names_is_adopted_once(tmp_path:
     assert scan_bibliography(quilt).adopted == []
 
 
+def test_a_forgotten_document_is_not_offered_again(tmp_path: Path) -> None:
+    """`loom refs forget` is the tombstone that stops the store undoing a deletion (plan 0.13 §9).
+
+    Without this the command was a report of success and nothing else: it wrote the declaration, nothing read it, and the next scan offered the deleted entry straight back. The tombstone is honoured by the citekey the author typed and by the document's own hash, and `--undo` restores the offer.
+    """
+    from loom.refs.unreadable import declare
+
+    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    seed = quilt.root / "refs"
+    seed.mkdir()
+    _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
+    scan_bibliography(quilt)
+    path = quilt.root / BIBLIOGRAPHY
+
+    # the author deletes the entry the first scan offered, and says they meant it
+    kept = [block for block in path.read_text().split("\n@") if "Manolache" not in block]
+    path.write_text("@".join(kept) if kept[0].startswith("@") else kept[0] + "@".join(kept[1:]))
+    declare(quilt.root, "forget", "Manolache2012Virtualpull", "not worth an entry", "A. Author")
+
+    report = scan_bibliography(quilt)
+    assert report.adopted == [], "a forgotten document was offered an entry again"
+    assert report.forgotten == 1
+    assert "not offered: forgotten" in "\n".join(report.lines())
+    assert "Manolache" not in path.read_text()
+
+    # and withdrawing the tombstone brings the offer back, because nothing was ever removed
+    declare(quilt.root, "forget", "Manolache2012Virtualpull", "changed my mind", "A. Author", undo=True)
+    assert len(scan_bibliography(quilt).adopted) == 1
+
+
 def test_a_bib_file_in_the_seed_space_is_read_like_one_a_document_names(tmp_path: Path) -> None:
     quilt = _quilt(tmp_path, {"canon/paper.tex": CANON, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"})
     report = scan_bibliography(quilt)

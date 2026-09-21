@@ -542,30 +542,15 @@ test.describe('the four settings a document is read in', () => {
 });
 
 test.describe('the session selector', () => {
+	// The fixture's own two sessions, `referee` (active) and `quick` (closed). Only the second annotation on sy-0002 is
+	// moved, and only so that one key carries work from two sessions — which is the state the filter exists for and
+	// which no fixture happens to contain. The sessions themselves are not invented.
 	const withSessions = async (page: Page) =>
 		page.route('**/build/manifest.json', async (route) => {
 			const res = await route.fetch();
 			const m = await res.json();
-			m.sessions = [
-				{
-					id: '2026-09-16T00-00-referee',
-					title: 'referee pass',
-					state: 'open',
-					created: '2026-09-16T00:00:00Z',
-					opened: '2026-09-16T00:00:00Z',
-					rounds: 1,
-					active: true
-				},
-				{
-					id: 'comments/the-synthetic-quilt/2026-09-16',
-					title: "the author's own",
-					state: 'open',
-					created: '2026-09-16T09:00:00Z',
-					opened: '2026-09-16T09:00:00Z',
-					rounds: 1,
-					active: false
-				}
-			];
+			for (const s of m.sessions) if (s.id === 's-2026-09-15-0001') s.state = 'open';
+			m.annotations['a-2026-09-16-0006'].run = 's-2026-09-15-0001';
 			await route.fulfill({ json: m });
 		});
 
@@ -573,15 +558,15 @@ test.describe('the session selector', () => {
 		await withSessions(page);
 		await page.goto('/node/sy-0002');
 		// writing and showing are different things, and the panel says both rather than leaving one to be inferred
-		await expect(page.getByTestId('session-active')).toHaveText('referee pass');
+		await expect(page.getByTestId('session-active')).toHaveText('referee');
 		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
 
-		// sy-0002 is annotated from both sessions
+		// sy-0002 is now annotated from both sessions
 		const all = await page.getByTestId('annotation-list').locator('article.box').count();
 		expect(all).toBeGreaterThan(1);
 
 		// choosing one session shows only its annotations: a tick's count is of what is visible
-		await page.getByTestId('session-comments/the-synthetic-quilt/2026-09-16').click();
+		await page.getByTestId('session-s-2026-09-15-0001').click();
 		const mine = await page.getByTestId('annotation-list').locator('article.box').count();
 		expect(mine).toBeGreaterThan(0);
 		expect(mine).toBeLessThan(all);
@@ -593,23 +578,16 @@ test.describe('the session selector', () => {
 });
 
 test.describe('the split as a mode of a route', () => {
+	// Presence and the round count are what a heartbeat and a resumed session produce at runtime; a checked-in fixture
+	// has neither, so they are added to the fixture's own active session rather than to an invented one.
 	const withSessions = async (page: Page) =>
 		page.route('**/build/manifest.json', async (route) => {
 			const res = await route.fetch();
 			const m = await res.json();
-			m.sessions = [
-				{
-					id: '2026-09-16T00-00-referee',
-					title: 'referee pass',
-					state: 'open',
-					created: '2026-09-16T00:00:00Z',
-					opened: '2026-09-16T00:00:00Z',
-					rounds: 2,
-					active: true,
-					attached: [{ who: 'referee', kind: 'agent' }],
-					seq: 0
-				}
-			];
+			const here = m.sessions.find((s: { id: string }) => s.id === 's-2026-09-16-0001');
+			here.rounds = 2;
+			here.attached = [{ who: 'referee', kind: 'agent' }];
+			here.seq = 0;
 			await route.fulfill({ json: m });
 		});
 
@@ -623,7 +601,7 @@ test.describe('the split as a mode of a route', () => {
 		await expect(page).toHaveURL(/beside=1/);
 		// the divider is the same one the reading pane uses, and the discussion says where writing goes
 		await expect(page.getByTestId('divider')).toBeVisible();
-		await expect(page.getByTestId('discussion-into')).toContainText('referee pass');
+		await expect(page.getByTestId('discussion-into')).toContainText('referee');
 		// what is beside it is what is on this result
 		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
 		await page.getByTestId('beside-toggle').click();
@@ -641,8 +619,8 @@ test.describe('the split as a mode of a route', () => {
 
 	test("a session's permalink opens split, and reads the session back whole", async ({ page }) => {
 		await withSessions(page);
-		await page.goto('/session/2026-09-16T00-00-referee');
-		await expect(page.getByRole('heading', { level: 1 })).toHaveText('referee pass');
+		await page.goto('/session/s-2026-09-16-0001');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('referee');
 		await expect(page.getByTestId('session-facts')).toContainText('round 2');
 		await expect(page.getByTestId('session-attached')).toContainText('referee ⟨agent⟩');
 		// it opens split without being asked, because the discussion is what a session is
@@ -650,7 +628,7 @@ test.describe('the split as a mode of a route', () => {
 		// every annotation filed in it, oldest first, each a link to what it is about
 		const filed = page.getByTestId('session-filed').locator('> li');
 		await expect(filed.first()).toHaveAttribute('data-testid', 'filed-a-2026-09-16-0001');
-		await expect(filed).toHaveCount(5);
+		await expect(filed).toHaveCount(9);
 		// and closing it leaves the record in place
 		await page.getByTestId('beside-toggle').click();
 		await expect(page.getByTestId('beside')).toBeHidden();

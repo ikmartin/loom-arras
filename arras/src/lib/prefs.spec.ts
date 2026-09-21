@@ -20,6 +20,7 @@ describe('the display preferences', () => {
 			shell: 'c',
 			divider: 0.62,
 			swap: false,
+			panel: true,
 			zoom: 1.4,
 			face: 'serif',
 			size: 'm',

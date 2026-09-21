@@ -12,6 +12,7 @@
 	import LinkList from '$lib/review/LinkList.svelte';
 	import Reading from '$lib/pdf/Reading.svelte';
 	import { setQuery } from '$lib/query';
+	import Beside from '$lib/split/Beside.svelte';
 
 	const m = $derived(store.manifest!);
 	const citekey = $derived(decodeURIComponent(page.params.citekey ?? ''));
@@ -37,12 +38,15 @@
 	const anchored = $derived(
 		[...new Set(Object.values(ref?.results ?? {}).map((r) => r.page))].filter((p) => p > 0).sort((a, b) => a - b)
 	);
+	// What a discussion beside this work is about: its digest nodes and its proposals, which is everything on the page.
+	const about = $derived([...(ref?.digest?.nodes ?? []), ...(ref?.proposed?.nodes ?? [])]);
 </script>
 
 <main class="page">
 	{#if !ref}
 		<h1>Unknown reference</h1>
 	{:else}
+		<Beside keys={about} label="this work">
 		<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
 		<p class="muted">
 			<code>{citekey}</code>{ref.bib.author ? ` · ${bibText(ref.bib.author)}` : ''}{ref.bib.year ? ` · ${ref.bib.year}` : ''}
@@ -113,6 +117,7 @@
 		{:else if !proposals.length}
 			<p>No digest yet. Cited by: {#each ref.cited_by as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">nothing</span>{/each}</p>
 		{/if}
+		</Beside>
 	{/if}
 </main>
 

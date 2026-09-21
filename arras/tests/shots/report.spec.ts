@@ -32,7 +32,7 @@ test('a corpus that has everything', async ({ page }) => {
 
 test('a run reviewed', async ({ page }) => {
 	// The centre of plan 0.11: the document on the left, the report on the right, linked both ways.
-	await shot(page, 'split-view', '/thread/2026-09-16T00-00-referee');
+	await shot(page, 'split-view', '/thread/s-2026-09-16-0001');
 	await page.getByTestId('tab-journal').click();
 	await page.waitForTimeout(400);
 	await page.screenshot({ path: `${OUT}/split-view-journal.png` });
@@ -68,7 +68,7 @@ test('a node read three ways', async ({ page }) => {
 	await page.waitForTimeout(700);
 	await page.screenshot({ path: `${OUT}/payload.png` });
 
-	await page.goto('/thread/2026-09-16T00-00-referee');
+	await page.goto('/thread/s-2026-09-16-0001');
 	await page.waitForSelector('[data-testid="notation"]');
 	await page.getByTestId('notation').locator('summary').click();
 	await page.waitForTimeout(800);

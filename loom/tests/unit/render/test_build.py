@@ -327,3 +327,30 @@ def test_a_render_on_one_thread_does_not_see_another_threads_inclusions(tmp_path
     with renderer.collecting() as mine:
         renderer._sink.append("d")  # type: ignore[arg-type]
     assert mine == ["d"] and "d" not in renderer.plan.diagnostics
+
+
+def test_a_report_fragment_is_never_a_dotfile(tmp_path: Path) -> None:
+    """A session's notes live under `.loom/sessions/<id>/`, and percent-encoding that path puts a dot at the front of the fragment's filename.
+
+    Every static host refuses a dotfile -- vite, nginx, GitHub Pages -- so the fragment 404s wherever the corpus is published, and the viewer shows "Fragment unavailable" beside a report that was rendered perfectly well. Found by opening the page (plan 0.13 §13 step 8).
+    """
+    from urllib.parse import quote
+
+    from loom.render.build import _attach_reports
+
+    root = tmp_path
+    report = root / ".loom" / "sessions" / "s-2026-09-16-0001" / "referee-sy-0003.notes.md"
+    report.parent.mkdir(parents=True)
+    report.write_text("## [summary]\n\nIt reads well.\n", encoding="utf-8")
+    rel = ".loom/sessions/s-2026-09-16-0001/referee-sy-0003.notes.md"
+    manifest = {"threads": {"s-2026-09-16-0001": {"pipeline": [{"report": rel}]}}}
+    fragments: dict[str, str] = {}
+    files: dict[str, object] = {}
+    _attach_reports(root, manifest, fragments, files)
+
+    written = manifest["threads"]["s-2026-09-16-0001"]["pipeline"][0]["fragment"]
+    assert written in files
+    assert not Path(written).name.startswith("."), written
+    # and it is still one file per report, keyed by the source path the thread names
+    assert fragments[f"report:{rel}"] == written
+    assert quote(rel, safe="").lstrip(".") in written

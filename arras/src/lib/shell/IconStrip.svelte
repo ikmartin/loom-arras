@@ -9,6 +9,7 @@
 	import DocumentPicker from './DocumentPicker.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Settings from './Settings.svelte';
+	import { prefs } from '$lib/prefs.svelte';
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
@@ -44,10 +45,21 @@
 		<div class="foot"><Settings placement="above" /></div>
 	</nav>
 
-	<div class="panel">
+	<div class="panel" class:away={!prefs.panel}>
 		<div class="head">
 			<a href={route('/')} class="name">{label}</a>
+			<!-- The panel collapses independently of the split and goes first: on a narrow window it is the column a
+			     reader needs least, and the content and the discussion want the width. -->
+			<button
+				class="fold"
+				title={prefs.panel ? 'Hide the panel' : 'Show the panel'}
+				aria-label={prefs.panel ? 'Hide the panel' : 'Show the panel'}
+				aria-expanded={prefs.panel}
+				data-testid="panel-fold"
+				onclick={() => (prefs.panel = !prefs.panel)}>{prefs.panel ? '«' : '»'}</button
+			>
 		</div>
+		<div class="sections rail-scroll">
 		{#if panel}
 			<p class="rail-label">{panelLabel}</p>
 			<div class="page-panel rail-scroll">{@render panel()}</div>
@@ -91,6 +103,7 @@
 				{/each}
 			</ul>
 		{/if}
+		</div>
 		<p class="counts" data-testid="counts">{counts.nodes} nodes · {counts.errors} errors · {counts.warnings} warnings</p>
 	</div>
 
@@ -103,6 +116,10 @@
 		display: grid;
 		grid-template-columns: var(--strip) var(--rail-left) minmax(0, 1fr) auto;
 		min-height: 100vh;
+	}
+	/* the column itself goes, not just its contents: a 252px empty gutter is not a collapsed panel */
+	.shell-c:has(.panel.away) {
+		grid-template-columns: var(--strip) min-content minmax(0, 1fr) auto;
 	}
 	.strip {
 		background: var(--leaf);
@@ -170,12 +187,46 @@
 		gap: var(--gap-hair);
 		overflow: hidden;
 	}
+	.sections {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-hair);
+	}
+	.panel.away {
+		padding-left: 4px;
+		padding-right: 4px;
+	}
+	.panel.away .sections,
+	.panel.away .counts,
+	.panel.away .name {
+		display: none;
+	}
+	.fold {
+		margin-left: auto;
+		font: inherit;
+		font-size: 11px;
+		line-height: 1;
+		color: var(--ink-faint);
+		background: none;
+		border: 0;
+		padding: 2px 3px;
+		cursor: pointer;
+	}
+	.fold:hover {
+		color: var(--ink);
+	}
 	.page-panel {
 		flex: 1;
 		min-height: 0;
 	}
+	/* **One scroll region, and it is the panel** (plan 0.13 §7). The contents tree used to be squeezed by a panel of
+	   fixed height and carry the only scrollbar; adding the Library group then pushed the sections below it off the
+	   bottom, because what was squeezed was the tree and not the column. Two scrollbars in a 252px column is also two
+	   places to look for the same list. The tree keeps its own class for the other shell, where it is the whole rail. */
 	.panel :global(.contents) {
-		flex: 1;
+		overflow: visible;
 		min-height: 0;
 	}
 	.head .name {
@@ -187,6 +238,9 @@
 		text-decoration: none;
 	}
 	.head {
+		display: flex;
+		align-items: baseline;
+		gap: var(--gap-tight);
 		margin-bottom: var(--gap-hair);
 	}
 	ul.plain {

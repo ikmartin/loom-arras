@@ -55,7 +55,7 @@ test('a citation suggestion can be accepted, and leaves a breadcrumb', async ({ 
 });
 
 /** Comments shown in place (`inline` beneath the block, `hover` floating at the mark), with the reply written inside the box that is showing them. */
-function inPlace(where: 'inline' | 'hover') {
+function inPlace(where: 'inline' | 'floating') {
 	return async ({ page }: { page: import('@playwright/test').Page }) => {
 		await page.addInitScript(
 			(c) => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: c })),
@@ -90,4 +90,4 @@ function inPlace(where: 'inline' | 'hover') {
 }
 
 test('a reply written in an inline comment box leaves the box open', inPlace('inline'));
-test('a reply written in a floating comment box leaves the box open', inPlace('hover'));
+test('a reply written in a floating comment box leaves the box open', inPlace('floating'));

@@ -276,12 +276,14 @@ def send_command(text: str, which: str | None, declared: str | None, quilt_path:
 
     The symmetric verb to the composer in the viewer: both append to the same inbox, and a message lands whether or not anybody is listening. Nothing is launched by this -- loom is a mailbox, and a parked reader wakes because a file grew.
     """
-    from loom.mailbox import attached, post
+    from loom.mailbox import attached, changed_since, post
 
     root, found, name, kind = _mail(quilt_path, which, declared)
     if not text.strip():
         raise EnvError("a message with no text says nothing")
-    post(root, found.id, text.strip(), name, kind="message")
+    # The same thing the composer attaches: a post says what changed, not only what was typed, and a message sent from
+    # the terminal is not a lesser message.
+    post(root, found.id, text.strip(), name, kind="message", changed=changed_since(root, found))
     here = [r for r in attached(root, found.id) if r.get("who") != name]
     click.echo(f"posted to {found.id}")
     if here:

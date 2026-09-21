@@ -28,22 +28,42 @@ test("the default shell is the icon strip", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-shell", "c");
 });
 
-test("the contents rail scrolls rather than overflowing, and its last entry can be reached", async ({
+test("the side panel scrolls rather than overflowing, and the contents' last entry can be reached", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's contents cannot fit
+  // One scroll region, and it is the panel (plan 0.13 §7). The contents tree carried the only scrollbar until the
+  // Library group was added below it, at which point what got squeezed was the tree and the sections under it went
+  // off the bottom of a column that could not scroll.
+  await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's panel cannot fit
   await page.goto("/master/main");
-  const rail = page.getByRole("navigation", { name: "Contents" });
-  const box = await rail.evaluate((el) => ({
+  const sections = page.locator(".panel .sections");
+  const box = await sections.evaluate((el) => ({
     scroll: el.scrollHeight,
     client: el.clientHeight,
     overflow: getComputedStyle(el).overflowY,
   }));
   expect(box.overflow).toBe("auto");
   expect(box.scroll).toBeGreaterThan(box.client);
-  const last = rail.locator("a").last();
+  const last = page.getByRole("navigation", { name: "Contents" }).locator("a").last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
+  // and the groups below the tree are reachable in the same scroll, which is what the tree's own scrollbar prevented
+  await page.getByTestId("dev-shelf").scrollIntoViewIfNeeded();
+  await expect(page.getByTestId("dev-shelf")).toBeInViewport();
+});
+
+test("the side panel collapses, and the column goes with it", async ({ page }) => {
+  // It collapses independently of the split and goes first: on a narrow window it is the column a reader needs least.
+  await page.goto("/master/main");
+  const panel = page.locator(".panel");
+  const wide = (await panel.boundingBox())!.width;
+  await page.getByTestId("panel-fold").click();
+  await expect(page.getByRole("navigation", { name: "Contents" })).toBeHidden();
+  const narrow = (await panel.boundingBox())!.width;
+  expect(narrow).toBeLessThan(wide / 3); // the column itself goes, not just its contents
+  // and it comes back
+  await page.getByTestId("panel-fold").click();
+  await expect(page.getByRole("navigation", { name: "Contents" })).toBeVisible();
 });
 
 test("the contents tree is in document order and stops above paragraph units", async ({
@@ -297,12 +317,13 @@ test("the shell fits the window: nothing in a rail falls below the fold", async 
   await expect(page.getByTestId("counts")).toBeInViewport();
 });
 
-test("the contents rail shows its scrollbar only while it is in use", async ({
+test("the side panel shows its scrollbar only while it is in use", async ({
   page,
 }) => {
+  // The panel is the scroll region now, so the rule about a grey stripe down the side of every page belongs to it.
   await page.setViewportSize({ width: 1440, height: 340 });
   await page.goto("/master/main");
-  const rail = page.getByRole("navigation", { name: "Contents" });
+  const rail = page.locator(".panel .sections");
   await expect(rail).toBeVisible();
 
   const atRest = await rail.evaluate(

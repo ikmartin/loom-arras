@@ -158,7 +158,7 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     **The message lands whether or not anybody is attached**, and the answer says which. Refusing would lose what the author typed, for a reason the browser cannot fix; saying nothing would let them believe it was delivered.
     """
     from loom.cli._common import whoever, writer
-    from loom.mailbox import attached, post
+    from loom.mailbox import attached, changed_since, post
     from loom.sessions import ensure_active, resolve
 
     text = _str(body, "text", required=True) or ""
@@ -170,7 +170,7 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     found = resolve(root, which) if which else ensure_active(root, name)
     if found is None:
         raise ApiError("no-such-session", f"no session matches {which}", status=404)
-    event = post(root, found.id, text, name, kind="message", changed=_changed_since(root, found))
+    event = post(root, found.id, text, name, kind="message", changed=changed_since(root, found))
     here = [r for r in attached(root, found.id) if r.get("who") != name]
     return {
         "ok": True,
@@ -179,39 +179,6 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         "seq": event.seq,
         "attached": here,
     }
-
-
-def _changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
-    """The annotations that changed in this session since its last message, carried inline with the next one.
-
-    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Without this, "have another look" arrives with nothing attached and the agent must go and diff the log to learn what moved.
-    """
-    from loom.mailbox import read_events
-    from loom.records.annotations import load_records
-
-    # By id rather than by clock: `stamp()` has second resolution, so a message and an annotation written in the same
-    # second cannot be ordered by their timestamps, and the first post of a session would drop what prompted it.
-    sent = {str(c.get("id", "")) for e in read_events(root, session.id) for c in e.changed}
-    since = session.last_opened
-    records, _ = load_records(root)
-    out: list[dict[str, Any]] = []
-    for record in records:
-        if record.rel not in (session.id, session.source):
-            continue
-        for a in record.annotations:
-            if a.id in sent or a.created < since or a.status == "discarded":
-                continue
-            out.append(
-                {
-                    "id": a.id,
-                    "kind": a.kind,
-                    "target": a.target_key,
-                    "act": "replied" if a.in_reply_to else "created",
-                    "by": a.author_id,
-                    "body": a.body[:200],
-                }
-            )
-    return out
 
 
 def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
@@ -256,14 +223,26 @@ def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     """Verify or discard a proposed digest node, through the same functions `loom refs verify|discard` call.
 
     `digest-verify` with a `statement` is edit-then-verify: the author's own rendering replaces the proposed one and both parties are recorded. It never touches `source_text`, so the anchor survives and the node stays re-checkable (plan 0.12 §5.4).
+
+    **Both are the author's verbs, and the guard is on the declared identity** (plan 0.13 §8). The server's own environment says nothing here -- loom may be serving from the terminal an agent is working in -- so the marker is not consulted; what is refused is a writer who names itself an agent. A post with no author is the author's own click in their own browser, which is what this endpoint is for.
     """
+    from loom.cli._common import is_agent
     from loom.cli._quilt import open_scan
     from loom.refs.proposals import discard_result, verify_result
     from loom.scan.quilt import resolve_author
 
     node = _str(body, "node", required=True) or ""
+    named = _str(body, "author")
+    if named and is_agent(named):
+        verb = "loom refs discard" if endpoint == "digest-discard" else "loom refs verify"
+        raise ApiError(
+            "author-only",
+            f"{verb} is the author's, and {named} is an agent. An agent proposes; it does not vouch for its own "
+            "reading. To ask for one, write a suggestion on the result.",
+            status=403,
+        )
     result = open_scan(str(root))
-    who = resolve_author(_str(body, "author"), root)[0]
+    who = resolve_author(named, root)[0]
     try:
         if endpoint == "digest-discard":
             return discard_result(result, node, _str(body, "reason", required=True) or "", who)

@@ -32,3 +32,6 @@ test-results
 /site
 .tmp-write-quilt/
 static/pdfjs/
+
+# the exploratory browser records where it is listening; it is a running process, not a file to keep
+.drive.json

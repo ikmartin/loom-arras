@@ -121,8 +121,12 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	await expect(page.locator('article.box.active')).toHaveCount(1);
 	await expect(page.locator('article.box.active > header .kind')).toHaveText('objection');
 	await expect(page.locator('article.box.active .reply')).toHaveCount(1);
+	// sy-000A's one annotation is discarded AND belongs to a closed session, so two filters hide it and the reader
+	// must lift both. Closing a session hides its annotations (plan 0.13 §5), which is what closing one is for.
 	await page.goto('/node/sy-000A');
 	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0);
+	await page.getByTestId('show-closed').click();
+	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0); // still discarded
 	await page.getByLabel('show discarded').check();
 	await expect(page.getByTestId('annotation-list').locator('article.box.discarded')).toHaveCount(1);
 });
@@ -167,7 +171,7 @@ test("a work's page lists results with their citers, and the Library counts them
 test('a run is read as the document beside the report', async ({ page }) => {
 	await page.goto('/threads');
 	await expect(page.getByText('referee sy-0003').first()).toBeVisible();
-	await page.goto('/thread/2026-09-16T00-00-referee');
+	await page.goto('/thread/s-2026-09-16-0001');
 	await expect(page.getByTestId('split-view')).toBeVisible();
 	// the document on the left, the report on the right, and the report is rendered rather than named
 	await expect(page.locator('.pane.content .fragment').first()).toBeVisible();
@@ -198,7 +202,7 @@ test('the panes point at each other', async ({ page }) => {
 		return a.top >= b.top - 2 && a.bottom <= b.bottom + 2;
 	};
 
-	await page.goto('/thread/2026-09-16T00-00-referee');
+	await page.goto('/thread/s-2026-09-16-0001');
 	const finding = page.locator('.pane.discussion [data-annotation-id]').first();
 	await expect(finding).toBeVisible();
 	const id = await finding.getAttribute('data-annotation-id');
@@ -220,12 +224,19 @@ test('the panes point at each other', async ({ page }) => {
 	await expect.poll(() => finding.evaluate(inPane), { timeout: 5000 }).toBe(true);
 });
 
-test('a comment session keeps the shape it had', async ({ page }) => {
-	// A session has no report and no draft to split against, so it is still a list. One route, two renderings.
-	await page.goto('/thread/' + encodeURIComponent('comments/the-synthetic-quilt/2026-09-16'));
+test('a session that wrote no report keeps the list shape', async ({ page }) => {
+	// One route, two renderings: a report is the thing that wants a document beside it, so a session that wrote none is
+	// still a list. The condition was `kind !== 'comments'` until sessions replaced runs and loom began writing
+	// `kind: "session"` for every thread (DR-207) — at which point this session rendered as an empty two-pane review.
+	await page.goto('/thread/s-2026-09-15-0001');
 	await expect(page.locator('main h1')).toBeVisible();
 	await expect(page.getByTestId('split-view')).toHaveCount(0);
-	await expect(page.getByRole('heading', { name: 'Attachments' })).toHaveCount(0); // a session has none
+	// and it offers the permalink, which is where a session is read back whole
+	await expect(page.getByRole('link', { name: 'read it as a session' })).toBeVisible();
+
+	// the one that did write a report is the other rendering, from the same route
+	await page.goto('/thread/s-2026-09-16-0001');
+	await expect(page.getByTestId('split-view')).toBeVisible();
 });
 
 
@@ -280,7 +291,7 @@ test("a suggestion shows the text it proposes, and says where it would go", asyn
 
 test('a run lists the notation it introduced, and flags a symbol used twice', async ({ page }) => {
 	// Plan 0.11 Part F. Notation belongs to an agent's prose, never to the quilt's own text, so the panel is on the run.
-	await page.goto('/thread/2026-09-16T00-00-referee');
+	await page.goto('/thread/s-2026-09-16-0001');
 	const panel = page.getByTestId('notation');
 	await expect(panel).toBeVisible();
 	await expect(panel).toContainText('with two meanings');

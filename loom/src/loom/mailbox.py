@@ -212,3 +212,37 @@ def render(events: list[Event]) -> str:
             if c.get("body"):
                 lines.append(f'      "{c["body"]}"')
     return "\n".join(lines)
+
+
+def changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
+    """The annotations that changed in this session since its last message, carried inline with the next one.
+
+    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Without this, "have another look" arrives with nothing attached and the agent must go and diff the log to learn what moved.
+
+    It lives here rather than beside the write API because **both surfaces post**: `loom session send` and the composer must attach the same thing, and when this was the API's own helper the terminal's messages went out bare.
+    """
+    from loom.records.annotations import load_records
+
+    # By id rather than by clock: `stamp()` has second resolution, so a message and an annotation written in the same
+    # second cannot be ordered by their timestamps, and the first post of a session would drop what prompted it.
+    sent = {str(c.get("id", "")) for e in read_events(root, session.id) for c in e.changed}
+    since = session.last_opened
+    records, _ = load_records(root)
+    out: list[dict[str, Any]] = []
+    for record in records:
+        if record.rel not in (session.id, session.source):
+            continue
+        for a in record.annotations:
+            if a.id in sent or a.created < since or a.status == "discarded":
+                continue
+            out.append(
+                {
+                    "id": a.id,
+                    "kind": a.kind,
+                    "target": a.target_key,
+                    "act": "replied" if a.in_reply_to else "created",
+                    "by": a.author_id,
+                    "body": a.body[:200],
+                }
+            )
+    return out

@@ -3,9 +3,9 @@
   "a-2026-09-16-0001": {
    "anchored": true,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
    "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
@@ -18,9 +18,9 @@
    "payload": null,
    "placement": null,
    "quote": "finite widget",
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": "major",
    "status": "open",
    "target": {
@@ -31,9 +31,9 @@
   "a-2026-09-16-0002": {
    "anchored": true,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
    "body_html": "<p>Cite the orbit lemma by number here.</p>",
    "created": "2026-09-16T00:00:00Z",
@@ -46,9 +46,9 @@
    "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
    "placement": "replace",
    "quote": "disjoint union of orbits",
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": "minor",
    "status": "resolved",
    "target": {
@@ -59,9 +59,9 @@
   "a-2026-09-16-0003": {
    "anchored": false,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
    "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
    "created": "2026-09-16T00:00:00Z",
@@ -74,9 +74,9 @@
    "payload": null,
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": false,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": "moderate",
    "status": "open",
    "target": {
@@ -87,9 +87,9 @@
   "a-2026-09-16-0004": {
    "anchored": false,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
    "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
    "created": "2026-09-16T00:00:00Z",
@@ -102,9 +102,9 @@
    "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "resolved",
    "target": {
@@ -115,9 +115,9 @@
   "a-2026-09-16-0005": {
    "anchored": false,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
    "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
    "created": "2026-09-16T00:00:00Z",
@@ -130,9 +130,9 @@
    "payload": "any standard text on group actions",
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
@@ -158,9 +158,9 @@
    "payload": null,
    "placement": null,
    "quote": "one or two points",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
@@ -186,9 +186,9 @@
    "payload": null,
    "placement": null,
    "quote": "finite widget",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
@@ -214,9 +214,9 @@
    "payload": null,
    "placement": null,
    "quote": "disjoint union of orbits",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
@@ -242,9 +242,9 @@
    "payload": null,
    "placement": null,
    "quote": "an involution $\\sigma$ of $X$",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": false,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
@@ -255,9 +255,9 @@
   "a-2026-09-16-0010": {
    "anchored": false,
    "author": {
-    "id": "2026-09-15T10-00-quick",
-    "kind": "run",
-    "label": "2026-09-15T10-00-quick (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
    "body_html": "<p>Gadgets of odd order cannot exist.</p>",
    "created": "2026-09-16T00:00:00Z",
@@ -266,13 +266,13 @@
    "discarded": true,
    "id": "a-2026-09-16-0010",
    "in_reply_to": null,
-   "kind": "ok",
+   "kind": "confirmation",
    "payload": null,
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-15T10-00-quick",
+   "record": "s-2026-09-15-0001",
    "recorded": true,
-   "run": "2026-09-15T10-00-quick",
+   "run": "s-2026-09-15-0001",
    "severity": null,
    "status": "open",
    "target": {
@@ -284,7 +284,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "c8782627c51180c37276d9c6f89b86e97d426bb680427e3528d05cd9f278e897",
+   "hash": "697f90407746cfbab38716a2e793b12d8b09f6cf4f83aaaaade761e6bd1afa75",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -296,7 +296,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "9f84645498b149900a80c22cb6783948adcd28cdbe7980241ddb66bf9e16d467",
+   "hash": "b0abd16115daf91dd2dac7a44bcd169f459c06e6cd4c0f18e0b4da517a5bd58c",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -308,7 +308,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "601040217ab3e84e85f4639bc7884f561a0657c92ecec6bec47eeee86c0aebd6",
+   "hash": "acdc69ee3054bbddefc51917bd25324c5098826ee7952915b551487434a86fad",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -460,6 +460,15 @@
     }
    ],
    "message": "proof names several results (sy-000D, sy-0007); attached to the first",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:no-readable-copy",
+   "keys": [
+    "Kre99"
+   ],
+   "locations": [],
+   "message": "Kre99 has a digest but no copy of the paper is on this machine, so nothing it says can be checked against the paper; loom refs fetch Kre99, or loom refs add Kre99 <FILE>, or loom refs unreadable Kre99 --why '...' when there is no document to hold",
    "severity": "warning"
   },
   {
@@ -1568,15 +1577,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -1670,15 +1679,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -1735,15 +1744,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -4025,7 +4034,7 @@
    ],
    "from": {
     "annotation": "a-2026-09-16-0004",
-    "run": "2026-09-16T00-00-referee"
+    "run": null
    },
    "identifier": {
     "verified": false
@@ -4514,24 +4523,41 @@
   },
   {
    "aliases": [],
-   "key": "2026-09-15T10-00-quick",
+   "key": "s-2026-09-15-0001",
    "kind": "thread",
    "tags": [],
    "title": "quick"
   },
   {
    "aliases": [],
-   "key": "2026-09-16T00-00-referee",
+   "key": "s-2026-09-16-0001",
    "kind": "thread",
    "tags": [],
    "title": "referee sy-0003"
+  }
+ ],
+ "sessions": [
+  {
+   "active": false,
+   "attached": [],
+   "created": "2026-09-15T10:00:00Z",
+   "id": "s-2026-09-15-0001",
+   "opened": "2026-09-15T10:00:00Z",
+   "rounds": 1,
+   "seq": 0,
+   "state": "closed",
+   "title": "quick"
   },
   {
-   "aliases": [],
-   "key": "comments/the-synthetic-quilt/2026-09-16",
-   "kind": "thread",
-   "tags": [],
-   "title": "The synthetic quilt"
+   "active": true,
+   "attached": [],
+   "created": "2026-09-16T00:00:00Z",
+   "id": "s-2026-09-16-0001",
+   "opened": "2026-09-16T00:00:00Z",
+   "rounds": 1,
+   "seq": 0,
+   "state": "open",
+   "title": "referee"
   }
  ],
  "states": {
@@ -4630,7 +4656,7 @@
   }
  },
  "threads": {
-  "2026-09-15T10-00-quick": {
+  "s-2026-09-15-0001": {
    "attachments": [
     {
      "count": 1,
@@ -4640,45 +4666,45 @@
    ],
    "created": "2026-09-15T10:00:00Z",
    "discarded": true,
-   "id": "2026-09-15T10-00-quick",
-   "kind": "run",
+   "id": "s-2026-09-15-0001",
+   "kind": "session",
    "log": [
     {
-     "command": "loom comment sy-000A --kind ok",
+     "command": "loom comment sy-000A --kind confirmation",
      "time": "2026-09-16T00:00:00Z"
     }
    ],
    "messages": [],
    "participants": [
     {
-     "id": "quick",
+     "id": "agent",
      "kind": "agent"
     }
    ],
-   "path": "ai/runs/2026-09-15T10-00-quick",
+   "path": ".loom/sessions/s-2026-09-15-0001",
    "pipeline": [],
    "targets": [
     "sy-000A"
    ],
    "title": "quick"
   },
-  "2026-09-16T00-00-referee": {
+  "s-2026-09-16-0001": {
    "attachments": [
     {
-     "count": 5,
+     "count": 9,
      "kind": "annotations",
      "name": "annotations"
     },
     {
      "kind": "notes",
      "name": "referee-sy-0003.notes.md",
-     "path": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md"
+     "path": ".loom/sessions/s-2026-09-16-0001/referee-sy-0003.notes.md"
     }
    ],
    "created": "2026-09-16T00:00:00Z",
    "discarded": false,
-   "id": "2026-09-16T00-00-referee",
-   "kind": "run",
+   "id": "s-2026-09-16-0001",
+   "kind": "session",
    "log": [
     {
      "command": "loom comment sy-0003 --quote --kind objection",
@@ -4699,6 +4725,26 @@
     {
      "command": "loom comment sy-0002 --kind citation",
      "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0002 --quote --kind question",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment Agreed; I will add the hypothesis to the statement.",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment Done in the next revision.",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment ",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0001 --quote --kind question",
+     "time": "2026-09-16T00:00:00Z"
     }
    ],
    "messages": [
@@ -4713,11 +4759,15 @@
    ],
    "participants": [
     {
-     "id": "referee",
+     "id": "agent",
      "kind": "agent"
+    },
+    {
+     "id": "The synthetic quilt",
+     "kind": "person"
     }
    ],
-   "path": "ai/runs/2026-09-16T00-00-referee",
+   "path": ".loom/sessions/s-2026-09-16-0001",
    "pipeline": [
     {
      "blocks": [
@@ -4757,9 +4807,9 @@
        "title": "decision"
       }
      ],
-     "fragment": "fragments/reports/ai%2Fruns%2F2026-09-16T00-00-referee%2Freferee-sy-0003.notes.md.html",
+     "fragment": "fragments/reports/loom%2Fsessions%2Fs-2026-09-16-0001%2Freferee-sy-0003.notes.md.html",
      "mode": "referee",
-     "report": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md",
+     "report": ".loom/sessions/s-2026-09-16-0001/referee-sy-0003.notes.md",
      "target": "sy-0003"
     }
    ],
@@ -4767,53 +4817,10 @@
     "sy-0003",
     "sy-0004",
     "drafting/main.tex",
-    "sy-0002"
-   ],
-   "title": "referee sy-0003"
-  },
-  "comments/the-synthetic-quilt/2026-09-16": {
-   "attachments": [],
-   "created": "2026-09-16T00:00:00Z",
-   "discarded": false,
-   "id": "comments/the-synthetic-quilt/2026-09-16",
-   "kind": "comments",
-   "log": [],
-   "messages": [
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0002</code>: Is the orbit of a fixed point counted as one point or two?</p>",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0003</code>: Agreed; I will add the hypothesis to the statement.</p>",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0004</code>: Done in the next revision.</p>",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0001</code>: Is the involution required to be a bijection, or does that follow?</p>",
-     "time": "2026-09-16T00:00:00Z"
-    }
-   ],
-   "participants": [
-    {
-     "id": "The synthetic quilt",
-     "kind": "person"
-    }
-   ],
-   "path": "comments/the-synthetic-quilt/2026-09-16",
-   "targets": [
     "sy-0002",
-    "sy-0003",
-    "sy-0004",
     "sy-0001"
    ],
-   "title": "The synthetic quilt"
+   "title": "referee sy-0003"
   }
  }
 }

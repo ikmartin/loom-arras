@@ -16,6 +16,7 @@ from loom.clock import stamp
 from loom.refs.identity import WorkId, primary
 from loom.refs.ingest import filename_title, identifiers_in, look_at
 from loom.refs.pages import STORAGE, page_texts, sha256_of, storage_root, write_map
+from loom.refs.unreadable import declarations
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
 from loom.scan.scan import canon_documents
@@ -64,6 +65,7 @@ class ScanReport:
     siblings: list[tuple[str, str]] = field(default_factory=list)  # (new key, the work it is a second document of)
     unmapped: list[tuple[str, str]] = field(default_factory=list)  # (file, why no page text was written)
     adopted: list[tuple[str, str]] = field(default_factory=list)  # (new key, the store directory nothing named)
+    forgotten: int = 0  # stored documents a tombstone says not to offer again
 
     def lines(self) -> list[str]:
         """What a person reads: one line of counts, then each conflict and each missing `.bib`."""
@@ -86,6 +88,8 @@ class ScanReport:
             )
         out += [f"{new} is a second document for {old}, filed beside it" for new, old in self.siblings]
         out += [f"{key} adopts {where}, which the bibliography no longer named" for key, where in self.adopted]
+        if self.forgotten:
+            out.append(f"{self.forgotten} stored document(s) not offered: forgotten (loom refs forget --undo restores)")
         out += [f"{name}: no page text ({why})" for name, why in self.unmapped]
         out += [f"{doc} names {name}.bib, which does not exist" for doc, name in self.missing_bib]
         if not self.canon:
@@ -421,6 +425,9 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
         if wid is not None:
             claimed.add(wid.path)
     ledger = {rec.get("to", ""): rec for rec in load_ledger(quilt.root).values()}
+    # What the author has deliberately deleted the entry for. Without this the offer is loom undoing their decision on
+    # every scan, which is the whole reason `loom refs forget` exists.
+    forgotten = declarations(quilt.root, "forget")
     taken = set(bib)
     offers: list[Candidate] = []
     for pdf in sorted(store.glob("*/*/paper.pdf")):
@@ -432,6 +439,10 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
         came = str(ledger.get(rel, {}).get("from", "")) or rel
         if came in sources:
             continue  # an entry already names this document by where it came from
+        sha = sha256_of(pdf)
+        if f"sha256:{sha}" in forgotten:
+            report.forgotten += 1
+            continue
         wid, said = _own_account(pdf)  # the real file, for what the document says about itself
         stem = Path(came).stem
         named = filename_title(stem)
@@ -440,7 +451,11 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
             year = re.search(r"\b((?:19|20)\d\d)\b", stem)
             if year:
                 said.setdefault("year", year.group(1))
-        key = _derived_key(Path(came), sha256_of(pdf), taken)
+        key = _derived_key(Path(came), sha, taken)
+        # A tombstone on the citekey, which is what the author types after deleting the entry the last scan offered
+        if key in forgotten:
+            report.forgotten += 1
+            continue
         taken.add(key)
         offers.append(Candidate(key, _entry_for(pdf, wid, said, key, source=came), rel, rel))
         report.adopted.append((key, rel))

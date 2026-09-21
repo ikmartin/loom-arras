@@ -1125,6 +1125,7 @@ def verify_command(
         "loom refs verify",
         "Verify in the digest view, where the page and the rendering are side by side, or in your own terminal. "
         "An agent proposes; it does not vouch for its own reading.",
+        author,
     )
     result = open_scan(quilt_path)
     who = resolve_author(author, result.quilt.root)[0]
@@ -1642,6 +1643,7 @@ def unreadable_command(citekey: str, why: str | None, undo: bool, author: str | 
         "loom refs unreadable",
         "Whether a work can be obtained at all is the author's claim about the world, not something to infer from a "
         "failed fetch. Report what you could not find, and let the author declare it.",
+        author,
     )
     if not why:
         raise EnvError("--why is required: the reason is what a reader of this file has to go on")
@@ -1678,6 +1680,7 @@ def forget_command(target: str, why: str | None, undo: bool, author: str | None,
     refuse_under_agent(
         "loom refs forget",
         "A tombstone says the author decided against this document. Say what you found and let them decide.",
+        author,
     )
     if not why:
         raise EnvError("--why is required: a tombstone with no reason cannot be judged later")

@@ -1326,15 +1326,25 @@ def test_the_declaration_is_appended_and_never_edited(tmp_path: Path) -> None:
 
 
 def test_unreadable_refuses_under_an_agent_and_without_a_reason(tmp_path: Path) -> None:
-    """Whether a work can be obtained at all is a claim about the world, which is the author's to make (DR-185)."""
+    """Whether a work can be obtained at all is a claim about the world, which is the author's to make (DR-185).
+
+    **The guard is on the identity, not the door** (plan 0.13 §8). This test asserted the opposite until 2026-09-21: it required that `--author "A. Author"` be refused under `AI_AGENT`, which is the author unable to use their own verb from the terminal their agent happens to be running in. The marker is a safety net for a writer who declared nothing, and an explicit name wins over it -- in both directions, since a name that calls itself an agent is refused whatever shell it came from.
+    """
     q = quilt(tmp_path)
     assert "--why is required" in run("refs", "unreadable", "Calloway14", cwd=q).output
     os.environ["AI_AGENT"] = "1"
     try:
-        r = run("refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version", cwd=q)
+        bare = run("refs", "unreadable", "Calloway14", "--why", "no fixed version", cwd=q)
+        named = run("refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version", cwd=q)
+        robot = run("refs", "unreadable", "Kre99", "--author", "Agent", "--why", "could not fetch", cwd=q)
     finally:
         del os.environ["AI_AGENT"]
-    assert r.exit_code != 0 and "agent is running this shell" in r.output
+    # nothing declared: the marker is all there is to go on, and it refuses rather than guessing
+    assert bare.exit_code != 0 and "agent is running this shell" in bare.output
+    # a person who named themselves is a person, whatever shell they are in
+    assert named.exit_code == 0, named.output
+    # and a declared agent is refused whichever surface it came through
+    assert robot.exit_code != 0 and "is an agent" in robot.output
 
 
 def test_forget_is_keyed_by_citekey_or_by_a_prefix_of_a_stored_hash(tmp_path: Path) -> None:
