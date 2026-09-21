@@ -27,6 +27,7 @@ CAPABILITIES = [
     "session-use",
     "session-rename",
     "session-delete",
+    "message",
 ]
 
 WRITE_API_VERSION = 1
@@ -83,6 +84,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "result": _digest(root, endpoint, body)}
     if endpoint == "locate":
         return _locate(root, body)
+    if endpoint == "message":
+        return _message(root, body)
     if endpoint.startswith("session-"):
         return {"ok": True, "result": _session(root, endpoint, body)}
     return {"ok": True, "result": _review(root, endpoint, body)}
@@ -144,6 +147,37 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         "anchor": _anchor_json(anchor),
         "text": text or "",
         "page_box": {"width": box[0], "height": box[1]} if box else None,
+    }
+
+
+def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """Post a message into a session, and say whether anybody was listening (plan 0.13 §8, DR-195).
+
+    **Loom appends; nothing is launched.** A parked reader wakes because a file grew. Loom holds no credentials, calls no model, and hands the message to nobody -- the agent is already running in the author's own terminal, and this is the mailbox it reads.
+
+    **The message lands whether or not anybody is attached**, and the answer says which. Refusing would lose what the author typed, for a reason the browser cannot fix; saying nothing would let them believe it was delivered.
+    """
+    from loom.cli._common import whoever, writer
+    from loom.mailbox import attached, post
+    from loom.sessions import ensure_active, resolve
+
+    text = _str(body, "text", required=True) or ""
+    said = _str(body, "as")
+    # A declared identity is taken as declared; with none, this is the author at their own keyboard, which is what the
+    # viewer's composer is. `writer` is what refuses an agent that has not named itself.
+    name, kind = writer(root, said) if said else (_str(body, "author") or whoever(root), "person")
+    which = _str(body, "session")
+    found = resolve(root, which) if which else ensure_active(root, name)
+    if found is None:
+        raise ApiError("no-such-session", f"no session matches {which}", status=404)
+    event = post(root, found.id, text, name, kind="message")
+    here = [r for r in attached(root, found.id) if r.get("who") != name]
+    return {
+        "ok": True,
+        "result": f"posted to {found.id}",
+        "session": found.id,
+        "seq": event.seq,
+        "attached": here,
     }
 
 

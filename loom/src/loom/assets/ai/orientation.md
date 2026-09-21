@@ -93,7 +93,23 @@ Your run:
 - `loom ai findings --session SESSION [--json]`: what that session has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a session.
 - `loom ai name "A better title" --session SESSION`: retitle a session once you know what it turned into.
 
-## 6. Your session
+## 6. Messages, and how to wait for one
+
+**The author may be talking to you.** A session carries an inbox, and the composer in the viewer posts into it. Nothing launches you and nothing assigns you work — loom appends a line, and you find it because you asked.
+
+- `loom session next --wait 120 --json --as "Referee Agent"`: **park until something lands**, print it, and exit. One call is one turn. It returns the moment a message arrives rather than on a poll interval; with nothing waiting it comes back empty and you park again. Keep `--wait` under whatever timeout your harness puts on a tool call.
+- `loom session send "…" --as "Referee Agent"`: say something back.
+- Your cursor moves as you read, so a message survives being read and you resume where you were after a crash. The inbox is a **broadcast**: another agent attached to the same session sees everything you see, and neither of you is handed a task.
+
+**Name yourself.** `--as` is how the record says what wrote a thing. Choose a name that fits the role you were invoked in — `Referee Agent`, `Simplify Agent`, `Tutor Agent` — and **include `Agent` or `AI` in it**. Identity is declared, not sniffed: a command run under an agent's shell with no `--as` is refused rather than guessed at, because an author may ask you to run something and an environment variable is not a claim about who is speaking.
+
+**These commands are the author's and will refuse you**, whatever shell you are in, because each makes a claim only a person can make — *I have checked this*, *I accept this mathematics*:
+
+- `loom accept` · `loom refs verify` · `loom refs discard` · `loom refs unreadable` · `loom refs forget`
+
+**Ask through an annotation, not a request.** Wanting a proposal verified, write a `suggestion` on the result with your reasoning as the body; it surfaces in the proposal box where the author verifies anyway. There is no request object to fill in, deliberately: one would become a queue that nags, and an agent that "requested verification" is one summary away from reporting that it verified.
+
+## 7. Your session
 
 A session is a stretch of work on this quilt, and it may be shared with the author. It has no mode: it is opened, worked in, and closed when the work is done, and you rejoin one with `loom session use` or by naming it with `--session`. Write in its directory:
 
@@ -102,7 +118,7 @@ A session is a stretch of work on this quilt, and it may be shared with the auth
 
 Loom writes `run.log` there for you. The session's title and state live in `.loom/sessions/index.jsonl`, which is loom's to append to and never yours to edit.
 
-## 7. Modes
+## 8. Modes
 
 The author asks for a mode by name. Each has a template in `ai/modes/` with an input contract, a procedure, and an output contract with a checklist. `ai/rules.md` holds what is common to all of them, and applies when no mode is named at all. Follow the template exactly, and tick its checklist in your notes file.
 
@@ -119,14 +135,14 @@ Findings are annotations. Review mode grades every one with `--severity`; elsewh
 
 You never write a digest. `loom refs build` extracts one mechanically from every cited paper whose source can be fetched, and that is most of them. For a work with only a PDF you may **propose** a result with `loom refs propose`: it is verified against the page, held in a file nothing inputs, and enters the digest only when the author compares both texts and verifies it. A proposal that was discarded is refused if you make it again, and the refusal says why — read it, and pass `--supersedes` only if you are answering it. A drafted node is previewed by the author and pasted by them, with an id from `loom id --next`. Proposals are diffs the author applies.
 
-## 8. Context economy
+## 9. Context economy
 
 Read a key's closure, not directories: it is complete by construction. Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`, and do not read the annotation log when `loom ai findings` answers the question. `ai/rules.md` §Inputs is the contract; a digest's overview is `loom refs overview CITEKEY`.
 
-## 9. What you never do
+## 10. What you never do
 
 `ai/rules.md` §Never is the list, and it is the file to check: a mode reached through a slash command never passes through this document, so the prohibitions live where that reader will see them. In one line: you write only under your run directory, only through loom commands, and nothing that writes to the quilt on the author's behalf.
 
-## 10. When you are done
+## 11. When you are done
 
 Update `thread.md`, list your outputs, and tell the author which are drafted nodes to paste, which are diffs to apply, and which annotations need their decision.

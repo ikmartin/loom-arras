@@ -33,6 +33,9 @@ AGENT_COMMANDS = frozenset(
         "build", "check", "comment", "compile", "deps", "doctor", "history", "id", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
         "ai check", "ai discard", "ai findings", "ai name", "ai orient", "ai runs", "ai start",
+        # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
+        # session stay the author's, because they are decisions about the work rather than participation in it.
+        "session list", "session next", "session send", "session watch",
         "digest extract",
         "refs build", "refs coverage", "refs fetch", "refs grep", "refs link", "refs links", "refs locate",
         "refs find", "refs ingest", "refs map", "refs match", "refs page", "refs path", "refs propose", "refs recheck",

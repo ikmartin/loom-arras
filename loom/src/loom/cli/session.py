@@ -254,3 +254,119 @@ def migrate_command(author: str | None, quilt_path: str | None) -> None:
     for s in made:
         click.echo(f"{s.id}  {s.title}   <- {s.source}")
     click.echo(f"{len(made)} session(s) made")
+
+
+def _mail(quilt_path: str | None, which: str | None, declared: str | None):  # type: ignore[no-untyped-def]
+    """(root, session, name, kind) for a dispatch command: the session it is about and who is at the keyboard."""
+    from loom.cli._common import find_session, writer
+
+    quilt = open_quilt(quilt_path)
+    found = find_session(quilt.root, which)
+    name, kind = writer(quilt.root, declared)
+    return quilt.root, found, name, kind
+
+
+@session.command(name="send")
+@click.argument("text")
+@click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to post into.")
+@click.option("--as", "declared", default=None, help="Who is speaking. An agent names itself, including Agent or AI.")
+@quilt_option
+def send_command(text: str, which: str | None, declared: str | None, quilt_path: str | None) -> None:
+    """Post TEXT into a session, from the terminal.
+
+    The symmetric verb to the composer in the viewer: both append to the same inbox, and a message lands whether or not anybody is listening. Nothing is launched by this -- loom is a mailbox, and a parked reader wakes because a file grew.
+    """
+    from loom.mailbox import attached, post
+
+    root, found, name, kind = _mail(quilt_path, which, declared)
+    if not text.strip():
+        raise EnvError("a message with no text says nothing")
+    post(root, found.id, text.strip(), name, kind="message")
+    here = [r for r in attached(root, found.id) if r.get("who") != name]
+    click.echo(f"posted to {found.id}")
+    if here:
+        click.echo("listening: " + ", ".join(f"{r.get('who')} ({r.get('kind')})" for r in here))
+    else:
+        note(f"nobody is attached; it waits in the inbox. loom session watch {found.id} attaches this terminal.")
+
+
+@session.command(name="next")
+@click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to park on.")
+@click.option("--wait", default=120, show_default=True, help="Seconds to park before returning empty-handed.")
+@click.option("--json", "as_json", is_flag=True, help="Print as JSON, with the same text under `text`.")
+@click.option("--as", "declared", default=None, help="Who is parking. An agent names itself, including Agent or AI.")
+@click.option("--since", type=int, default=None, help="Start after this sequence number instead of your own cursor.")
+@quilt_option
+def next_command(
+    which: str | None, wait: int, as_json: bool, declared: str | None, since: int | None, quilt_path: str | None
+) -> None:
+    """Park until something lands in a session, print it, and exit. One call is one turn.
+
+    For an agent. It returns the moment a message arrives rather than on a poll interval, so latency is an append and a wakeup; with nothing waiting it returns empty-handed when `--wait` runs out, and the agent parks again. Keep `--wait` under whatever timeout your harness puts on a tool call.
+
+    The inbox is read and never consumed: your cursor moves, the message stays, and a second reader sees it too. Nothing here assigns you anything -- it is a broadcast, and what to do about a message is your judgement.
+    """
+    import json as _json
+    import time
+
+    from loom.mailbox import attach, cursor, read_events, render, set_cursor
+
+    root, found, name, kind = _mail(quilt_path, which, declared)
+    at = since if since is not None else cursor(root, found.id, name)
+    attach(root, found.id, name, kind)
+    deadline = time.monotonic() + max(0, wait)
+    events = read_events(root, found.id, at)
+    while not events and time.monotonic() < deadline:
+        time.sleep(0.25)
+        attach(root, found.id, name, kind)  # the heartbeat is what makes the composer's answer honest
+        events = read_events(root, found.id, at)
+    if events:
+        set_cursor(root, found.id, name, events[-1].seq)
+    text = render(events)
+    if as_json:
+        click.echo(
+            _json.dumps(
+                {
+                    "session": found.id,
+                    "title": found.title,
+                    "from": at,
+                    "to": events[-1].seq if events else at,
+                    "events": [e.to_json() for e in events],
+                    "text": text,
+                },
+                indent=2,
+            )
+        )
+        return
+    click.echo(text if events else "nothing yet")
+
+
+@session.command(name="watch")
+@click.argument("which", required=False)
+@click.option("--as", "declared", default=None, help="Who is watching. An agent names itself, including Agent or AI.")
+@quilt_option
+def watch_command(which: str | None, declared: str | None, quilt_path: str | None) -> None:
+    """Tail a session: print what lands, until you stop it.
+
+    For a person. It delivers nothing and assigns nothing -- it blocks on the log, prints, and keeps a heartbeat so the composer can say honestly whether anybody is listening.
+    """
+    import time
+
+    from loom.mailbox import attach, detach, last_seq, read_events, render
+
+    root, found, name, kind = _mail(quilt_path, which, declared)
+    at = last_seq(root, found.id)
+    note(f"watching {found.id} ({found.title}) as {name}; Ctrl-C to stop")
+    attach(root, found.id, name, kind)
+    try:
+        while True:
+            events = read_events(root, found.id, at)
+            if events:
+                at = events[-1].seq
+                click.echo(render(events))
+            attach(root, found.id, name, kind)
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        click.echo("")
+    finally:
+        detach(root, found.id, name)

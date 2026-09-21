@@ -1159,7 +1159,7 @@ def discard_command(target: str, reason: str, author: str | None, quilt_path: st
     from loom.refs.proposals import discard_result
     from loom.scan.quilt import resolve_author
 
-    refuse_under_agent("loom refs discard", "Discard in the digest view or in your own terminal.")
+    refuse_under_agent("loom refs discard", "Discard in the digest view or in your own terminal.", author)
     result = open_scan(quilt_path)
     who = resolve_author(author, result.quilt.root)[0]
     try:

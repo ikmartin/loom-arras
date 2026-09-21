@@ -45,6 +45,37 @@ ASSET_SUFFIXES = {
 }
 
 
+SERVE_JSON = ".loom/serve.json"
+
+
+def write_serve_json(root: Path, port: int) -> str:
+    """Record where this server is listening, and the token a write must carry; return the token.
+
+    Two jobs in one file. A command that wants to print an openable link reads the port and the pid to know whether anything is listening. The **token** is what makes the write API safe to leave running: a browser blocks a cross-origin *response* and never the *request*, so any page the author happens to be reading could otherwise POST into their quilt. A cross-site form post cannot set a custom header, so requiring one closes it. This is CSRF protection and not a login -- it keeps other *pages* out, not other people.
+    """
+    import os
+    import secrets
+
+    token = secrets.token_urlsafe(24)
+    p = root / SERVE_JSON
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        json.dumps({"port": port, "pid": os.getpid(), "token": token, "url": f"http://127.0.0.1:{port}/"}, indent=1)
+        + "\n",
+        encoding="utf-8",
+    )
+    return token
+
+
+def read_serve_json(root: Path) -> dict[str, object]:
+    """What the running server said about itself, or {} when nothing is listening."""
+    try:
+        data = json.loads((root / SERVE_JSON).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 class LoomHandler(SimpleHTTPRequestHandler):
     bundle_dir: Path = Path(".")
     build_dir: Path = Path(".")
@@ -94,6 +125,25 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    #: Set when the socket binds; every write must carry it (plan 0.13 §8).
+    token: str = ""
+
+    def _csrf(self) -> str:
+        """Why this request must be refused, or '' when it may proceed.
+
+        Three checks, and together they are CSRF protection rather than a login: they keep other *pages* out, not other people. A browser blocks a cross-origin **response** and never the **request**, so any page the author happens to be reading could otherwise POST into their quilt and create, resolve or discard. A cross-site form post cannot set a custom header, so requiring one closes it; requiring JSON closes the simple-form path that needs no header at all; and a foreign `Origin` is refused outright.
+        """
+        origin = self.headers.get("Origin")
+        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
+        if origin and origin not in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
+            return f"this request came from {origin}, which is not this server"
+        kind = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+        if kind != "application/json":
+            return "a write must be application/json"
+        if self.token and self.headers.get("X-Loom-Token") != self.token:
+            return "this request carries no valid X-Loom-Token"
+        return ""
+
     def do_POST(self) -> None:  # noqa: N802
         """The write API (specs/write-api.md). Localhost only, like everything else this server does."""
         from loom.render.api import ApiError, handle
@@ -101,6 +151,10 @@ class LoomHandler(SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if not path.startswith("/_api/") or self.quilt_root is None:
             self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        refused = self._csrf()
+        if refused:
+            self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": refused}})
             return
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -129,7 +183,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
             if self.quilt_root is None:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            self._json(HTTPStatus.OK, discovery())
+            self._json(HTTPStatus.OK, {**discovery(), "token": self.token})
             return
         target = self._resolve()
         if target is None or not target.is_file():
@@ -229,6 +283,7 @@ class ServeSession:
         )
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
+        handler.token = write_serve_json(self.quilt.root, self.port)  # type: ignore[attr-defined]
         threading.Thread(target=self.httpd.serve_forever, name="loom-http", daemon=True).start()
 
     def start(self) -> None:
@@ -260,6 +315,8 @@ class ServeSession:
         if self.httpd:
             self.httpd.shutdown()
             self.httpd.server_close()
+        # nothing is listening any more, so nothing should tell a command that something is
+        (self.quilt.root / SERVE_JSON).unlink(missing_ok=True)
 
     @property
     def url(self) -> str:

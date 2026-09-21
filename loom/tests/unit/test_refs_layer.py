@@ -609,8 +609,14 @@ def test_an_agent_cannot_vouch_for_its_own_reading(tmp_path: Path, monkeypatch: 
         ):
             r = run(*args, cwd=q)
             assert r.exit_code != 0 and "the author's" in r.output and "AI_AGENT" in r.output, r.output
-        acc = run("accept", "dm-0002", "--author", "x", cwd=q)
-        assert acc.exit_code != 0 and "AI_AGENT" in acc.output
+        # with nothing declared, the marker refuses rather than guessing
+        bare = run("accept", "dm-0002", cwd=q)
+        assert bare.exit_code != 0 and "AI_AGENT" in bare.output
+        # a declared agent is refused whatever shell it is in: the guard is on the identity, not the door
+        robot = run("accept", "dm-0002", "--author", "Referee Agent", cwd=q)
+        assert robot.exit_code != 0 and "is an agent" in robot.output
+        # and an author who says so is the author, even from a shell an agent happens to be running (plan 0.13 §8)
+        assert run("accept", "dm-0002", "--author", "A. Author", cwd=q).exit_code == 0
         # proposing is the agent's, and still works
         assert propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3").exit_code == 0
     finally:
@@ -1386,3 +1392,98 @@ def test_the_viewer_can_switch_retitle_and_tombstone_a_session(tmp_path: Path) -
     assert active(q) is None
     # and purging is not reachable from here at all
     assert "session-purge" not in CAPABILITIES
+
+
+# --- Dispatch: the mailbox, presence and the guard (plan 0.13 §8) ---------------------------------------------
+
+
+def test_a_message_lands_with_nobody_listening_and_is_read_not_consumed(tmp_path: Path) -> None:
+    """Refusing a message because nobody is attached would lose what the author typed, for a reason the browser cannot fix."""
+    from loom.mailbox import attached, cursor, post, read_events, set_cursor
+
+    q = quilt(tmp_path)
+    sid = run("session", "new", "referee pass", "--author", "A. Author", cwd=q).output.split()[0]
+    assert attached(q, sid) == []
+    post(q, sid, "Have a look at dm-0003.", "A. Author")
+
+    # read, never consumed: a cursor moves and the message stays, so a second reader sees it and a crashed one resumes
+    first = read_events(q, sid, cursor(q, sid, "Referee Agent"))
+    assert [e.body for e in first] == ["Have a look at dm-0003."]
+    set_cursor(q, sid, "Referee Agent", first[-1].seq)
+    assert read_events(q, sid, cursor(q, sid, "Referee Agent")) == []
+    assert [e.body for e in read_events(q, sid, cursor(q, sid, "Tutor Agent"))] == ["Have a look at dm-0003."]
+
+
+def test_presence_goes_stale_rather_than_being_believed_forever(tmp_path: Path) -> None:
+    """A reader that was killed writes no farewell; a list that believed it would tell the composer somebody is there when nobody is."""
+    import json as _json
+
+    from loom.mailbox import ATTACHED, attach, attached, detach, session_dir
+
+    q = quilt(tmp_path)
+    sid = run("session", "new", "r", "--author", "A. Author", cwd=q).output.split()[0]
+    attach(q, sid, "Referee Agent", "agent")
+    assert [r["who"] for r in attached(q, sid)] == ["Referee Agent"]
+
+    old = _json.loads((session_dir(q, sid) / ATTACHED).read_text())
+    old[0]["beat"] = "2020-01-01T00:00:00Z"
+    (session_dir(q, sid) / ATTACHED).write_text(_json.dumps(old))
+    assert attached(q, sid) == []
+
+    attach(q, sid, "Referee Agent", "agent")
+    detach(q, sid, "Referee Agent")
+    assert attached(q, sid) == []
+
+
+def test_an_agent_that_has_not_said_who_it_is_is_refused_rather_than_guessed_at(tmp_path: Path) -> None:
+    """Identity is declared, not sniffed: a marker distinguishes well today and an author may ask an agent to run a command."""
+    from loom.cli._common import writer
+
+    q = quilt(tmp_path)
+    assert writer(q, "Referee Agent") == ("Referee Agent", "agent")
+    assert writer(q, "A. Author") == ("A. Author", "person")
+    os.environ["AI_AGENT"] = "1"
+    try:
+        with pytest.raises(Exception, match="has not said who it is"):
+            writer(q, None)
+        # and an explicit identity wins over the marker
+        assert writer(q, "A. Author")[1] == "person"
+    finally:
+        del os.environ["AI_AGENT"]
+
+
+def test_the_write_api_refuses_a_post_from_another_page(tmp_path: Path) -> None:
+    """A browser blocks a cross-origin response and never the request, so a page the author is merely reading could otherwise write into their quilt."""
+    from loom.render.serve import LoomHandler
+
+    checks = LoomHandler._csrf
+
+    class Fake:
+        token = "right"
+        server = type("S", (), {"server_address": ("127.0.0.1", 8791)})()
+
+        def __init__(self, headers: dict[str, str]) -> None:
+            self.headers = headers
+
+    good = {"Content-Type": "application/json", "X-Loom-Token": "right", "Origin": "http://127.0.0.1:8791"}
+    assert checks(Fake(good)) == ""  # type: ignore[arg-type]
+    assert "not this server" in checks(Fake({**good, "Origin": "https://example.org"}))  # type: ignore[arg-type]
+    # a cross-site form post can set neither a custom header nor a JSON content type
+    assert "application/json" in checks(Fake({**good, "Content-Type": "application/x-www-form-urlencoded"}))  # type: ignore[arg-type]
+    assert "X-Loom-Token" in checks(Fake({"Content-Type": "application/json"}))  # type: ignore[arg-type]
+
+
+def test_the_composer_posts_and_says_whether_anyone_heard(tmp_path: Path) -> None:
+    """The viewer's composer and `loom session send` are the same mechanism: both append, and both say who was listening."""
+    from loom.mailbox import attach, read_events
+    from loom.render.api import handle
+
+    q = quilt(tmp_path)
+    sid = run("session", "new", "referee pass", "--author", "A. Author", cwd=q).output.split()[0]
+    said = handle(q, "message", {"text": "Look at the proof.", "author": "A. Author"})
+    assert said["ok"] and said["session"] == sid and said["attached"] == []
+    assert [e.body for e in read_events(q, sid)] == ["Look at the proof."]
+
+    attach(q, sid, "Referee Agent", "agent")
+    again = handle(q, "message", {"text": "And the hypothesis.", "author": "A. Author"})
+    assert [r["who"] for r in again["attached"]] == ["Referee Agent"]

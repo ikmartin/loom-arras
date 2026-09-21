@@ -10,6 +10,7 @@
 	import type { Reference } from '$lib/manifest/types';
 	import PdfDoc from './PdfDoc.svelte';
 	import Split from '$lib/split/Split.svelte';
+	import Composer from '$lib/sessions/Composer.svelte';
 
 	let { citekey, ref, page }: { citekey: string; ref: Reference; page: number } = $props();
 
@@ -103,6 +104,7 @@
 			{/if}
 		{/snippet}
 		{#snippet discussion()}
+			<div class="stack">
 			<aside class="beside">
 				<h2>Anchored to page {at || page}</h2>
 				{#each onPage as q (q.id)}
@@ -115,6 +117,9 @@
 				{/each}
 				{#if told}<pre class="told" data-testid="located">{told}</pre>{/if}
 			</aside>
+			<!-- docked in the discussion pane's foot, which is where a reply to what is beside it belongs -->
+			<Composer />
+			</div>
 		{/snippet}
 	</Split>
 </section>
@@ -126,7 +131,15 @@
 		margin: 16px 0;
 		border: 1px solid var(--rule, #ddd9cf);
 	}
+	.stack {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		min-height: 0;
+	}
 	.beside {
+		flex: 1 1 auto;
+		overflow: auto;
 		padding: 8px 12px;
 		font-size: 0.9rem;
 	}

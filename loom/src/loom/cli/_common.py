@@ -129,6 +129,46 @@ def agent_name() -> str | None:
     return AGENT_NAMES.get(marker, "agent") if marker else None
 
 
+#: What makes a declared name an agent's. An agent is instructed to include one when it names itself, so that a record
+#: says what wrote it without loom having to guess from the environment it happened to run in.
+AGENT_WORDS = ("agent", "ai", "bot", "assistant")
+
+
+def is_agent(name: str) -> bool:
+    """Whether a declared identity is an agent's, by the word it was asked to include in its own name."""
+    return any(w in name.lower().split() or w in name.lower().replace("-", " ").split() for w in AGENT_WORDS)
+
+
+def writer(root: Path, declared: str | None) -> tuple[str, str]:
+    """(name, kind) for whoever is writing, from what they declared rather than from the shell they are in.
+
+    **An explicit identity wins, and a marker with no explicit identity refuses rather than guesses.** The markers distinguish well today -- the author's own shell carries no `CLAUDECODE` -- but an author may ask an agent to run a command, and a marker can be unset. Sniffing was always a proxy for the question actually being asked, which is *who is making this claim*; now it is asked.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt.
+    declared : str, optional
+        What `--as` or `--author` said. An agent names itself and is asked to include `Agent` or `AI` in the name.
+
+    Returns
+    -------
+    tuple of (str, str)
+        The name, and `agent` or `person`.
+    """
+    said = (declared or "").strip()
+    if said:
+        return said, "agent" if is_agent(said) else "person"
+    marker = agent_marker()
+    if marker:
+        raise EnvError(
+            f"an agent is running this shell ({marker} is set) and has not said who it is.\n"
+            "Name yourself with --as, including Agent or AI in the name, so the record says what wrote it: "
+            '--as "Referee Agent".'
+        )
+    return whoever(root), "person"
+
+
 def whoever(root: Path, author: str | None = None) -> str:
     """Who is running this, for a record that wants provenance and must not refuse for want of it.
 
@@ -147,11 +187,17 @@ def whoever(root: Path, author: str | None = None) -> str:
         return ""
 
 
-def refuse_under_agent(verb: str, how: str) -> None:
-    """Refuse one of the author's verbs when an agent is running the shell.
+def refuse_under_agent(verb: str, how: str, declared: str | None = None) -> None:
+    """Refuse one of the author's verbs when an agent is the writer.
 
-    An agent verified its own proposal in the first study run and loom recorded the author as the verifier, because the author's name comes from git, which an agent's shell shares. The claim these verbs make -- *I checked this* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. The permission file that already denies these to an agent is Claude's alone, and is not inherited by an agent started outside the quilt.
+    The claim these verbs make -- *I checked this*, *I accept this mathematics* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. An agent verified its own proposal in the first study run and loom recorded the author as the verifier, because the author's name comes from git, which an agent's shell shares.
+
+    **The guard is on the identity, not the door** (plan 0.13 §8). A session is now shared by a person and an agent, and the write API is no longer only the author's own click, so neither the session nor the environment says who is writing. A declared name that calls itself an agent is refused whichever surface it came through; a marker with no declared identity is refused too, because it will not guess.
     """
+    if declared and is_agent(declared):
+        raise EnvError(f"{verb} is the author's, and {declared} is an agent.\n{how}")
+    if declared:
+        return  # an explicit identity wins: a person who named themselves is a person, whatever shell they are in
     marker = agent_marker()
     if marker:
         raise EnvError(f"{verb} is the author's, and an agent is running this shell ({marker} is set).\n{how}")

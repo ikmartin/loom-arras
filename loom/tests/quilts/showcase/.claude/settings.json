@@ -72,7 +72,6 @@
       "Bash(loom rm*)",
       "Bash(loom session close*)",
       "Bash(loom session delete*)",
-      "Bash(loom session list*)",
       "Bash(loom session migrate*)",
       "Bash(loom session new*)",
       "Bash(loom session rename*)",

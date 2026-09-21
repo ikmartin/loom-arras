@@ -157,9 +157,17 @@ def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignor
     assert status in (400, 404)  # nothing outside the store is reachable through it
 
 
-def post(url: str, body: dict):  # type: ignore[no-untyped-def]
+def post(url: str, body: dict, token: str | None = None):  # type: ignore[no-untyped-def]
+    """A write, carrying the token the running server minted. A caller that omits it is refused, which is the point."""
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    headers = {"Content-Type": "application/json"}
+    if token is None:
+        # the same place the viewer gets it: the discovery response this publisher serves
+        base = url.split("/_api/")[0] + "/_api"
+        token = json.loads(urllib.request.urlopen(base, timeout=5).read()).get("token", "")
+    if token:
+        headers["X-Loom-Token"] = token
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status, json.loads(resp.read())
@@ -305,3 +313,17 @@ def test_the_watcher_does_not_chase_its_own_build(session) -> None:  # type: ign
     settled = s.builds
     time.sleep(2)  # ten watcher intervals with nothing changing
     assert s.builds == settled
+
+
+def test_a_write_without_the_token_is_refused_over_the_wire(session) -> None:  # type: ignore[no-untyped-def]
+    """A browser blocks a cross-origin response and never the request, so any page the author happens to be reading could otherwise POST into their quilt (plan 0.13 §8)."""
+    s, _ = session
+    body = {"target": "sy-0001", "message": "from somewhere else", "author": "Nobody"}
+    status, said = post(s.url + "_api/comment", body, token="")
+    assert status == 403 and "X-Loom-Token" in said["error"]["message"]
+
+    # and the token is served where the viewer reads it, so a legitimate write is not made harder
+    _, _, discovery = get(s.url + "_api")
+    assert json.loads(discovery)["token"]
+    # carrying it gets past the gate; whether the write itself is well formed is another test's business
+    assert post(s.url + "_api/comment", body)[0] != 403

@@ -111,7 +111,9 @@ def accept(
     """Record acceptance rows and snapshots for KEYS; the only writer of the ledger."""
     from loom.cli._common import refuse_under_agent
 
-    refuse_under_agent("loom accept", "Accepting is you saying the mathematics holds; run it in your own terminal.")
+    refuse_under_agent(
+        "loom accept", "Accepting is you saying the mathematics holds; run it in your own terminal.", author
+    )
     result = open_scan(quilt_path)
     root = result.quilt.root
     name = _author(author, root)

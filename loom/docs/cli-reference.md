@@ -998,6 +998,25 @@ Open a session and make it the active one. With no TITLE, one named after today.
 | `--no-use` | Create it without making it the active session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom session next`
+
+`loom session next [OPTIONS]`
+
+Park until something lands in a session, print it, and exit. One call is one turn.
+
+For an agent. It returns the moment a message arrives rather than on a poll interval, so latency is an append and a wakeup; with nothing waiting it returns empty-handed when `--wait` runs out, and the agent parks again. Keep `--wait` under whatever timeout your harness puts on a tool call.
+
+The inbox is read and never consumed: your cursor moves, the message stays, and a second reader sees it too. Nothing here assigns you anything -- it is a broadcast, and what to do about a message is your judgement.
+
+| option | description |
+|---|---|
+| `--session` | The session to park on. |
+| `--wait` | Seconds to park before returning empty-handed. |
+| `--json` | Print as JSON, with the same text under `text`. |
+| `--as` | Who is parking. An agent names itself, including Agent or AI. |
+| `--since` | Start after this sequence number instead of your own cursor. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom session rename`
 
 `loom session rename [OPTIONS] WHICH TITLE`
@@ -1009,6 +1028,20 @@ Change a session's title. Nothing moves: the id is the address and does not chan
 | `--author` | Who renamed it, when the user config and git do not say. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom session send`
+
+`loom session send [OPTIONS] TEXT`
+
+Post TEXT into a session, from the terminal.
+
+The symmetric verb to the composer in the viewer: both append to the same inbox, and a message lands whether or not anybody is listening. Nothing is launched by this -- loom is a mailbox, and a parked reader wakes because a file grew.
+
+| option | description |
+|---|---|
+| `--session` | The session to post into. |
+| `--as` | Who is speaking. An agent names itself, including Agent or AI. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom session use`
 
 `loom session use [OPTIONS] WHICH`
@@ -1018,6 +1051,19 @@ Make WHICH the active session, resuming it when it was closed. WHICH is an id, a
 | option | description |
 |---|---|
 | `--author` | Who resumed it, when the user config and git do not say. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom session watch`
+
+`loom session watch [OPTIONS] [WHICH]`
+
+Tail a session: print what lands, until you stop it.
+
+For a person. It delivers nothing and assigns nothing -- it blocks on the log, prints, and keeps a heartbeat so the composer can say honestly whether anybody is listening.
+
+| option | description |
+|---|---|
+| `--as` | Who is watching. An agent names itself, including Agent or AI. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom source`

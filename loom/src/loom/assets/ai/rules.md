@@ -26,7 +26,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
    - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
-2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`.
+2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`**, including `Agent` or `AI` — identity is declared, not sniffed, and a command run under an agent's shell with no `--as` is refused rather than guessed at. The author's own verbs refuse you whatever shell you are in: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --session SESSION`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
 ## Outputs

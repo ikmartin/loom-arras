@@ -9,6 +9,8 @@ import { base } from '$app/paths';
 export interface Capabilities {
 	write_api: number;
 	capabilities: string[];
+	/** What every write must carry, from the publisher's own `.loom/serve.json`. Absent from a corpus nobody is serving. */
+	token?: string;
 }
 
 /** The versions of the write API this viewer knows how to speak. */
@@ -51,9 +53,16 @@ export interface WriteResult {
 /** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused comment is an answer a reader needs to see. */
 export async function write(endpoint: string, body: Record<string, unknown>): Promise<WriteResult> {
 	try {
+		// The token is CSRF protection and not a login: a browser blocks a cross-origin response and never the
+		// request, so any page the author happens to be reading could otherwise POST into the corpus they are
+		// serving. A cross-site form post cannot set a custom header, which is what makes carrying one enough.
+		const caps = await capabilities();
 		const res = await fetch(apiUrl('/' + endpoint), {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				...(caps?.token ? { 'X-Loom-Token': caps.token } : {})
+			},
 			body: JSON.stringify(body)
 		});
 		const payload = (await res.json().catch(() => ({}))) as WriteResult;
