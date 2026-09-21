@@ -36,7 +36,8 @@ relloc/
         paper.pdf
         pages/
       copied.json          every document ever copied, by content hash
-    markas/2026-09-16.json
+      cache/               derived and throwaway: word boxes, never committed
+    unreadable.json        works declared to have no document, and forgotten documents (8.14)
   ai/                      optional AI layer; see Chapter 11
     orientation.md
     modes/
@@ -45,6 +46,14 @@ relloc/
   notes/                   the author's reference material, not cited works; never scanned, committed
   .loom/                   loom's durable data
     state.toml             the acceptance ledger
+    sessions/              where work belongs, and its mailbox (Chapter 11)
+      index.jsonl          created · renamed · resumed · closed · deleted
+      active               the one session new work lands in
+      <id>/                a session's own directory, made when it has content
+        inbox.jsonl        messages, append-only, read by cursor
+        attached.json      who is listening: name, kind, pid, heartbeat
+        run.log            every command invoked with --session
+    serve.json             the running server's port, pid and write token
     history/               the record of every key (Chapter 17)
       ledger.jsonl
       0002-paper-v1/
@@ -204,7 +213,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/` and `dig
 
 **[decided]** These promises hold for every command and are enforced by tests:
 
-1. Loom never modifies a file the author wrote. It writes new files at destinations the user names — including the canon directory on `canonize` and the drafting directory on `draft` — writes new files in `nodes/` and `digests/` on `new` and `promote`, writes into `.loom/`, `annotations/`, `ai/runs/`, and `build/`, writes `ai/`, `CLAUDE.md`, `AGENTS.md`, and `.claude/` on `ai init` and `upgrade` (DR-71), moves a converted file into `retired/` when `atomize --retire` asks for it, and prints patches. `import` and `draft` edit only the copies they make. `[quilt] main` is loom's own line: `init`, `import`, `draft`, and a conversion that supersedes the default master may move it, and nothing else in `config.toml` is ever rewritten.
+1. Loom never modifies a file the author wrote. It writes new files at destinations the user names — including the canon directory on `canonize` and the drafting directory on `draft` — writes new files in `nodes/` and `digests/` on `new` and `promote`, writes into `.loom/` (the sessions and their mailboxes included), `annotations/`, and `build/`, writes `ai/`, `CLAUDE.md`, `AGENTS.md`, and `.claude/` on `ai init` and `upgrade` (DR-71), moves a converted file into `retired/` when `atomize --retire` asks for it, and prints patches. `import` and `draft` edit only the copies they make. `[quilt] main` is loom's own line: `init`, `import`, `draft`, and a conversion that supersedes the default master may move it, and nothing else in `config.toml` is ever rewritten.
 2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal. The one exception is inside loom's own directory: `loom upgrade` moves `.loom/snapshots/` into the history's `texts/`, where the files are content-addressed and every reference still resolves.
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.

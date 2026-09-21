@@ -1,7 +1,7 @@
 # Mode: ingest
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`. **Never write `digests/`.** A digest is produced by `loom digest extract`, not typed.
+- Write only under your session's directory. Never edit source. Never run `loom accept`. **Never write `digests/`.** A digest is produced by `loom digest extract`, not typed.
 - Read `ai/rules.md` once this session and the digest rules below.
 
 ## Purpose
@@ -31,10 +31,10 @@ For a work with no source the checks below apply to what you propose, and the ou
 5. An entry in `thread.md`.
 
 ## Checklist
-- [ ] For a work with a source: `loom digest extract` was run and its output is in the run directory, unedited.
+- [ ] For a work with a source: `loom digest extract` was run and its output is in your session's directory, unedited.
 - [ ] Every numbered result of the paper is accounted for, present or named as missing.
 - [ ] Every statement checked for dropped hypotheses, by the paper's own numbers.
 - [ ] Standing assumptions found in the prose and proposed for the `-setup` node.
 - [ ] `\uses` edges the source does not state are proposed.
 - [ ] Every locator either resolved or named as unresolved.
-- [ ] Nothing was written outside your run directory. In particular nothing was written to `digests/`.
+- [ ] Nothing was written outside your session's directory. In particular nothing was written to `digests/`.

@@ -17,7 +17,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 4. Cite by id. A fact from the quilt is cited as its key — `<prefix>-0002`, `<prefix>-0004/proof`, where the prefix is this quilt's from `[quilt] prefix` — and a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters, and then from the closure.
 5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the web. Say which you used. If none, write "unlocated".
 6. Distinguish what the author asked for from what you noticed on the way. Report both; do not act on the second.
-7. Report every numerical or symbolic trial you run: inputs, intermediate steps, exact outputs. Save scripts as `MODE-TARGET.check.py` in the run directory with the output appended as a comment block.
+7. Report every numerical or symbolic trial you run: inputs, intermediate steps, exact outputs. Save scripts as `MODE-TARGET.check.py` in your session's directory with the output appended as a comment block.
 
 ## Inputs
 
@@ -31,7 +31,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
 ## Outputs
 
-1. Every output is a file in your run directory, named by mode and target. Never write anywhere else.
+1. Every output is a file in your session's directory, named by mode and target. Never write anywhere else.
 2. LaTeX outputs (`draft-ID.tex`, `proposal-KEY.diff`, `ingest-CITEKEY.tex`) must compile with the quilt's preamble: use the environment names and macros as they appear in the source; `\ref{ID}` and `\uses{ID, ...}` for dependencies; `\incomplete{...}` for anything you could not do; `\label{ID}` when an id was given. This is real LaTeX; no chat restrictions apply.
 3. Notes files (`MODE-TARGET.notes.md`) are Markdown with `$...$` and `$$...$$` math; the viewer renders them, so keep math in TeX. Headings name blocks: `## [hypothesis-ledger]`. A notes file begins with `## [summary]` and ends with the mode's checklist, ticked — except quick's, which is `[answer]` alone, a summary of it being longer than the answer.
 4. Verification you can do: to check that a proposal or a draft compiles, compile it with your text in place of the quilt's (`loom compile KEY --with proposal-KEY.diff --session SESSION` or `loom compile --draft draft-ID.tex --session SESSION`). Nothing in the quilt changes. Report the result in the notes.
@@ -48,7 +48,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
    - the fault is met: `--resolve ID "reason"`;
    - the fault stands and you would put it better: `--edit ID "the restated finding"`. One finding, restated. Do not reply to yourself; a reply is for talking to the author, and three passes of replies leave one finding wearing three copies of itself;
    - you were wrong to raise it: `--discard`, since resolved would claim the author addressed something;
-   - it has become a different fault: resolve this one and make a new one. Record a clean re-read with `--kind ok`.
+   - it has become a different fault: resolve this one and make a new one. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
 
 ## Sequential applications
 
@@ -66,20 +66,26 @@ The blocks below are the vocabulary, not furniture belonging to the templates. W
 - you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
 - you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs note`;
 - you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;
-- you read something and it was fine: `--kind ok` is a record that it was read, which is worth more than silence.
+- you read something and it was fine: `--kind confirmation` is a record that it was read, which is worth more than silence; `--kind note` is for an explanation or an aside that asks nothing.
 
-Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, a run directory for every file, `loom comment` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
+Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, your session's directory for every file, `loom comment` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
+
+## Messages
+
+The author may be talking to you. A session carries an inbox; `loom session next --wait 120 --json --as "…"` parks until something lands and exits, and `loom session send "…" --as "…"` answers. Nothing launches you and nothing assigns you work: loom appends a line and you find it because you asked. The inbox is a broadcast — another agent in the same session sees everything you see — and it is read, never consumed, so a message survives being read and you resume where you were.
 
 ## Never
 
-- Never edit a file outside your run directory, including any scratch directory your harness provides: the run directory is your scratch directory. The exception is a file this quilt's own orientation names.
+- Never edit a file outside your session's directory, including any scratch directory your harness provides: the session's directory is your scratch directory. The exception is a file this quilt's own orientation names.
 - Never write `annotations/log.jsonl` by hand; `loom comment` appends to it.
 - **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written:
 
 {allowed_commands}
 
-  `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your run.
-- Never delete anything outside your own run directory. Inside it, you may remove what you created.
+  `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your session's directory.
+- Never delete anything outside your own session's directory. Inside it, you may remove what you created.
+- **Name yourself with `--as`**, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: a command run under an agent's shell with no `--as` is refused rather than guessed at.
+- **These five are the author's and refuse you whatever shell you are in**, because each makes a claim only a person can make: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
 

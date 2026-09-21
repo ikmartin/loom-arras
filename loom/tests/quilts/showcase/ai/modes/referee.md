@@ -1,7 +1,7 @@
 # Mode: referee
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`.
+- Write only under your session's directory. Never edit source. Never run `loom accept`.
 - Findings are `loom comment ... --session SESSION` calls, quote-anchored.
 - Read `ai/rules.md` once this session.
 
@@ -22,11 +22,11 @@ Read the closure. Produce the blocks of the output contract in order. Every gap,
 5. An entry in `thread.md`.
 
 ## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind ok`.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
 
 ## Checklist
 - [ ] At least two worked examples with exact outputs.
 - [ ] Every objection is anchored and its id is in the notes.
 - [ ] [decision] cites the blocks above.
 - [ ] The diff, if any, compiles.
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

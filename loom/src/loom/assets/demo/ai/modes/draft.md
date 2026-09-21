@@ -1,7 +1,7 @@
 # Mode: draft
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
+- Write only under your session's directory. Never edit source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -25,4 +25,4 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 - [ ] Every fact used is a `\ref` or `\uses` to an existing id or a digest node.
 - [ ] Every incomplete step is marked `\incomplete`.
 - [ ] The draft compiles.
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

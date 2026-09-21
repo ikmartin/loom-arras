@@ -6,7 +6,7 @@ The write API is the HTTP form of the publisher's record-writing commands, so th
 
 ## 1. Discovery
 
-**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...]}` or 404. A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
+**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...], "token": "..."}` or 404. The token is what every write must carry (§3). A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
 
 ## 2. Endpoints
 
@@ -14,14 +14,25 @@ The write API is the HTTP form of the publisher's record-writing commands, so th
 
 | method | path | body | effect |
 |---|---|---|---|
-| `POST` | `/_api/comment` | `{target, message, quote?, kind?, severity?, payload?, placement?, author?, run?}` | writes one finding |
-| `POST` | `/_api/reply` | `{annotation, message, author?, run?}` | answers one |
-| `POST` | `/_api/resolve` | `{annotation, message?, undo?, author?, run?}` | closes one that is met |
-| `POST` | `/_api/edit` | `{annotation, message?, severity?, payload?, placement?, author?, run?}` | restates one that still stands |
-| `POST` | `/_api/discard` | `{annotation, reason?, undo?, author?, run?}` | withdraws one that should not have been raised |
+| `POST` | `/_api/comment` | `{target, message, quote?, kind?, severity?, payload?, placement?, author?, session?}` | writes one finding |
+| `POST` | `/_api/reply` | `{annotation, message, author?, session?}` | answers one |
+| `POST` | `/_api/resolve` | `{annotation, message?, undo?, author?, session?}` | closes one that is met |
+| `POST` | `/_api/edit` | `{annotation, message?, severity?, payload?, placement?, author?, session?}` | restates one that still stands |
+| `POST` | `/_api/discard` | `{annotation, reason?, undo?, author?, session?}` | withdraws one that should not have been raised |
 | `POST` | `/_api/refs-note` | `{annotation, decision: "accept" \| "reject", reason?, author?}` | records a citation suggestion's outcome |
+| `POST` | `/_api/digest-verify` | `{node, statement?, local?, taxon?, author?}` | verifies a proposed result, editing the rendering first when `statement` is given |
+| `POST` | `/_api/digest-discard` | `{node, reason, author?}` | discards a proposed result, keeping the reason |
+| `POST` | `/_api/locate` | `{citekey, page, text? , rects?}` | answers with the anchor loom would record; **writes nothing** |
+| `POST` | `/_api/session-use` | `{session, author?}` | makes one session the one writing lands in, resuming it when closed |
+| `POST` | `/_api/session-rename` | `{session, title, author?}` | retitles one; the id does not change, because it is the address |
+| `POST` | `/_api/session-delete` | `{session, reason?, author?}` | tombstones one; its annotations stay in the log |
+| `POST` | `/_api/message` | `{text, session?, as?, author?}` | posts into a session's inbox and answers with who was attached |
 
-**[decided]** `discard` takes an **annotation**, not a record. Until the annotation log there was a file per review and discarding meant discarding the file; there is one log now, and what a person withdraws is a finding. Discarding a whole run is not served here: it is the author's own housekeeping and has no viewer affordance.
+**[decided]** `session-purge` is **not** an endpoint and will not become one. Purging rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
+
+**[decided]** `locate` maps a selection to an anchor **on the publisher**, never in the browser. The client's text layer is a third extraction of a page, after the committed page text and the word boxes; only the publisher holds the other two, and only the publisher can say what the page says. The client sends the selected string and never a decision about what the anchor is. Geometry-only anchors are legal and are never refused.
+
+**[decided]** `discard` takes an **annotation**, not a record. Until the annotation log there was a file per review and discarding meant discarding the file; there is one log now, and what a person withdraws is a finding. Discarding a whole session is not served here: it is the author's own housekeeping and has no viewer affordance.
 
 **[decided]** `undo: true` on `resolve` or `discard` puts the finding back (DR-174). It appends another event rather than removing one, so the record still says that it was resolved or withdrawn, when and by whom, and that it was reopened. A viewer offers it in place of the verb that fired, which is what lets those two act on a single click: a wrong one is one click back.
 
@@ -31,11 +42,19 @@ Every successful write triggers a republish; the viewer sees the change through 
 
 ## 3. Authorship
 
-**[decided]** `author` defaults to the publisher's resolved author name. There is no authentication in version 1; the API binds to localhost and is intended for one person's machine. Exposing it beyond localhost would need authentication, and CSRF and origin checks, designed first; version 1 does not, because it never leaves the machine.
+**[decided]** `author` defaults to the publisher's resolved author name; `as` declares an identity, and an agent names itself including `Agent` or `AI`. The author's verbs refuse a declared agent identity whichever surface it came through.
+
+**[decided]** **Every write carries three checks.** They are CSRF protection and not a login: they keep other *pages* out, not other people.
+
+1. **`X-Loom-Token`** must equal the token in `.loom/serve.json`, which `GET /_api` serves and the viewer reads.
+2. **`Origin`**, when present, must be this server's own.
+3. **`Content-Type: application/json`** is required.
+
+A browser blocks a cross-origin *response* and never the *request*, so any page the author happens to be reading could otherwise POST into their quilt and create, resolve or discard. A cross-site form post can set neither a custom header nor a JSON content type, which is what closes it. The socket still binds to loopback, which keeps other machines out; it never kept out the page the author was reading. A request failing any of the three answers 403 with `{"error": {"code": "refused", ...}}`.
 
 ## 4. No model behaviour, and no bridge
 
-**[decided]** Version 1 has no `message` endpoint, and nothing in it wakes an agent. An earlier draft routed a reply through "the bridge": a component that watched threads and invoked the runner. The runner was declined as WQ-15 and `specs/runner.md` is kept only as a declined design, so the bridge had nothing left to invoke. **[decided]** A later version may carry one, for a different reason than the bridge had: not loom invoking a model, but the viewer handing a message to a local agent session the author is already running, so that writing in the browser and writing in the terminal are the same conversation (DR-195). What version 1 says is that the API as it stands does not, and a client detects the endpoint rather than assuming it.
+**[decided]** There is a `message` endpoint and **nothing in it wakes an agent**. Loom appends to a session's inbox; a parked reader wakes because a file grew. An earlier draft routed a reply through "the bridge": a component that watched threads and invoked the runner. The runner was declined as WQ-15, so the bridge had nothing left to invoke. What this endpoint does is different in kind: the viewer hands a message to a local agent session the author is already running, so that writing in the browser and writing in the terminal are the same conversation (DR-195, DR-203). Loom holds no credentials and calls no model. A message lands whether or not anybody is attached, and the answer carries who was, so the composer can say so rather than implying delivery.
 
 **[decided]** The direction is the other way round, and it already works: an agent **pulls**. It reads open findings with `loom status` and `loom ai findings`, and answers with `loom comment --reply`. That needs no server, no credentials held by loom, and no tracking of vendor flags that churn. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends, which is what the log was for.
 

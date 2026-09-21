@@ -94,13 +94,23 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ## 10.4 Annotations
 
-**[decided]** Marks in fragments render as highlighted spans coloured by the kind of their leading comment; a block-level annotation colours its block's left edge. Where the box with the annotation's author label, date, kind, body, status, and replies threaded beneath appears is a display preference: beside the node in the margin, where selecting a mark brings its box into view, or in place, where selecting a mark expands the box beneath the text and a press outside closes it (15.3.1, DR-114). A filter by kind and by author is available on every page with marks. Discarded records are hidden by default with a toggle to show them dimmed (M3).
+**[decided]** Marks in fragments render as highlighted spans coloured by the kind of their leading comment; a block-level annotation colours its block's left edge. A mark shared by several annotations **carries the count**, because two on one sentence is ordinary and stacked translucent highlights muddy immediately. Where the box appears is a display preference (15.3.1, DR-114, DR-202): **`floating`** over the text at the mark, **`margin`** beside the node, where boxes with close anchors push each other down, or **`inline`** in the flow, which is the Authoring View's alone.
+
+**[decided]** **A click opens; hovering never does.** Many boxes may be open at once, and **clicking outside backgrounds rather than collapses** — the box stays, clamped and behind, and a click brings it forward. Only its own ×, Escape on the front-most, and *hide all* close one: nothing a reader opened disappears because they looked elsewhere. **Expand all is a state, not an action**, opening every annotation at its own mark so what materialises later opens too; `e` and `h` are its keys, bound only while the content pane has focus so they never reach the composer, and both sit as buttons in that pane's header beside the counts of what is marked and what the session filter is hiding.
+
+**[decided]** **Travel** is a brief scroll then a flash on the destination — not a jump, which loses the reader's place, and not a long animation. Double-clicking a mark goes to the annotation; double-clicking an annotation goes to its place in the text. Where there is nothing to travel to, a notice stands beside what was double-clicked for about 1.5 seconds and **nothing moves**: no approximate destination is invented, because a reader sent to roughly the right place will believe it.
+
+A filter by kind and by author is available on every page with marks. Discarded records are hidden by default with a toggle to show them dimmed (M3).
 
 ### 10.4.1 Links into cited works
 
 **[decided]** A link `cited:<scheme>:<value>#page=N` or `#quote=TEXT` in a comment, a thread message or a report names a place in a cited work by its global identifier (specs/dialect.md §2.13). Selecting it opens the viewer of 15.3.7 without leaving the page. The fetched PDF is opened only when it is filed under the identifier the link names; when the copy on file is another artifact of the same work, the viewer says the pages may not match and opens it only on request, and when nothing is fetched it says so and links to the identifier's own service, arXiv's PDF at the page where it can (DR-123).
 
-When the write API is present (deferred), the same boxes gain reply and resolve controls, and selecting text offers "comment"; the selection is mapped to a quote per `specs/write-api.md`.
+**[decided]** **Arras renders the PDF itself** (DR-201). The `<iframe>` is gone and both its refusals stay. An iframe could be handed a page number and nothing else: no anchor drawn on the page, no selection read back, no box. PDF.js is dynamic-imported as MathJax is, its worker emitted by the bundler and its standard fonts and CMaps served from the bundle's own `static/`, fetched per document so they cost package weight and nothing at load — a deployed corpus must render offline, and a viewer that silently falls back to another font is worse than a larger one, because a reader cannot see which glyphs moved. A document view **virtualises**: a window of pages drawn, the rest holding their own height, because a page costs an order of magnitude less than the budget in time and a canvas per page of a long book is gigabytes.
+
+**[decided]** The same renderer serves the pane, the modal and the proposal box, because it is **dumb**: it is given a document, a page and rectangles to draw, and it reports what the reader did. A toolbar carries **select** and **box**, with a modifier reaching the box without leaving select, a click without a drag leaving a point, and a page with no text layer forced to box whatever the toolbar says. What a selection means is never decided in the browser: the client sends the selected string and loom, which holds the committed page text and the word boxes, says what the anchor is (DR-201).
+
+The write API is present: the boxes carry reply and resolve controls, selecting text offers "comment", and the selection is mapped to a quote per `specs/write-api.md`.
 
 ## 10.5 Live reload
 

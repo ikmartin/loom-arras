@@ -49,14 +49,14 @@ This file is the contract. Where a mode template, the orientation, or anything e
 1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind KIND --run RUN`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
 2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The notes file holds the reasoning and refers to the annotation by the id loom printed.
-4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `ok` for a clean read with nothing to report; `citation` for a work worth citing that the bibliography does not have.
+4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `confirmation` for a clean read with nothing to report; `citation` for a work worth citing that the bibliography does not have; `note` for an explanation or an aside that asks nothing. Any unambiguous prefix names one.
 5. `--severity major|moderate|minor` grades the fault a finding names, not how strongly you feel about it: a grammar note is minor because the fault is small. Review mode requires one on every item; elsewhere give one only when something is actually wrong.
 6. `--payload` carries text you are proposing -- a proof, a paragraph, a rewritten passage -- and `--placement replace|after|before` says where it would go relative to the anchor. It is preview and copy: the author reads it and pastes it if they want it. Nothing applies it for them.
 7. On a re-check, the event says what you found:
    - the fault is met: `--resolve ID "reason"`;
    - the fault stands and you would put it better: `--edit ID "the restated finding"`. One finding, restated. Do not reply to yourself; a reply is for talking to the author, and three passes of replies leave one finding wearing three copies of itself;
    - you were wrong to raise it: `--discard`, since resolved would claim the author addressed something;
-   - it has become a different fault: resolve this one and make a new one. Record a clean re-read with `--kind ok`.
+   - it has become a different fault: resolve this one and make a new one. Record a clean re-read with `--kind confirmation`.
 
 ## Sequential applications
 
@@ -74,7 +74,7 @@ The blocks below are the vocabulary, not furniture belonging to the templates. W
 - you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
 - you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs note`;
 - you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;
-- you read something and it was fine: `--kind ok` is a record that it was read, which is worth more than silence.
+- you read something and it was fine: `--kind confirmation` is a record that it was read, which is worth more than silence; `--kind note` is for an explanation or an aside that asks nothing.
 
 Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, a run directory for every file, `loom comment` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
 
@@ -155,7 +155,7 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 3. An entry in `thread.md`.
 
 ## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind ok`.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind confirmation`.
 
 ## Checklist (copy into the notes and tick)
 - [ ] Every hypothesis has a verdict.
@@ -190,7 +190,7 @@ Read the closure. Produce the blocks of the output contract in order. Every gap,
 5. An entry in `thread.md`.
 
 ## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind ok`.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind confirmation`.
 
 ## Checklist
 - [ ] At least two worked examples with exact outputs.

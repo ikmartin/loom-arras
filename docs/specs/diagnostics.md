@@ -93,6 +93,7 @@ References and digests:
 - `loom:version-mismatch` (warning): a digest's source version differs from the bibliography's.
 - `loom:missing-package` (warning): a digest requires a package the preamble closure does not load.
 - `loom:digest-without-bib` (warning): a digest whose citekey is not in the bibliography.
+- `loom:no-readable-copy`: renderable content — a digest file or a recorded result — whose work has no artifact in the store that can be read. **`warning`** where there is no artifact at all, which is the state the invariant is about; **`info`** where loom holds the paper's LaTeX and no PDF, since source is what a statement is checked against and what it lacks is pagination and a page. Never an error: loom cannot fetch without consent, and a build must not fail for want of a document. A work the author has declared unreadable is silent here (DR-198).
 
 Interface:
 

@@ -1,7 +1,7 @@
 # Mode: audit
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`.
+- Write only under your session's directory. Never edit source. Never run `loom accept`.
 - Findings are `loom comment ... --session SESSION` calls, quote-anchored.
 - Read `ai/rules.md` once this session.
 
@@ -23,11 +23,11 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 3. An entry in `thread.md`.
 
 ## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind ok`.
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
 
 ## Checklist (copy into the notes and tick)
 - [ ] Every hypothesis has a verdict.
 - [ ] Every citation names a digest node id or "unlocated".
 - [ ] Every uses-ledger, self-containedness, and patch-list item is an annotation with its id in the notes.
 - [ ] [summary] states what the author must decide.
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

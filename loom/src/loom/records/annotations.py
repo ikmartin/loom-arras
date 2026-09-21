@@ -12,8 +12,26 @@ from typing import Any
 
 from loom.records.selectors import Selector
 
-KINDS = ("objection", "suggestion", "question", "ok", "citation")
+#: What an annotation is (plan 0.13 §7). `confirmation` replaces `ok`: every other kind is a noun, loom's own prose
+#: already says "three suggestions and one confirmation", and `good` would be praise where the claim is that something
+#: checks out. `checked` and `verified` were rejected for colliding with the anchor check and with `refs verify`.
+#: `note` is the explanation-or-aside kind, and the natural one for teaching.
+KINDS = ("objection", "suggestion", "question", "confirmation", "citation", "note")
+#: The kinds that **await an answer**. `note` and `confirmation` record rather than ask, so a session where a paper was
+#: read closely does not show a number that only ever climbs -- which is the same uselessness as counting notes.
+ASKING = ("objection", "suggestion", "question", "citation")
 SEVERITIES = ("major", "moderate", "minor")
+#: Severity grades a fault, and only two kinds claim one. A graded question is a category error, and a graded
+#: confirmation says nothing at all.
+GRADED = ("objection", "suggestion")
+
+
+def full_kind(given: str) -> str | None:
+    """A kind from any unambiguous prefix of one, so the extra letters of `confirmation` cost nothing."""
+    if given in KINDS:
+        return given
+    hits = [k for k in KINDS if k.startswith(given.lower())]
+    return hits[0] if len(hits) == 1 else None
 PLACEMENTS = ("replace", "after", "before")
 
 

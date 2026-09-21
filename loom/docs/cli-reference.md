@@ -236,7 +236,7 @@ Write an annotation on TARGET (a key, an equation's qualified key, or a master p
 | option | description |
 |---|---|
 | `--quote` | Anchor to this exact text, which must occur once in the target's own text. |
-| `--kind` |  |
+| `--kind` `objection|suggestion|question|confirmation|citation|note` |  |
 | `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
 | `--author` |  |
 | `--reply` `ID` |  |

@@ -1,7 +1,7 @@
 # Mode: simplify
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`.
+- Write only under your session's directory. Never edit source. Never run `loom accept`.
 - The revised text is a diff the author applies; you apply nothing.
 - Read `ai/rules.md` once this session.
 
@@ -30,4 +30,4 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 - [ ] Every removed hypothesis has an absence-of-use demonstration.
 - [ ] The diff applies cleanly and the result compiles.
 - [ ] [meaning-drift-check] covers every modified passage.
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

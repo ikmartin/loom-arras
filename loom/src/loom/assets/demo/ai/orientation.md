@@ -72,22 +72,22 @@ Reading the literature the quilt cites. **Ask the digest before you read a paper
 - `loom refs find TEXT`: search the statements already digested. Every answer says how much of the corpus it could search, and a miss names the fallback.
 - `loom refs grep TEXT`: search the raw page text of every cited PDF for a phrase — a literal phrase, not a pattern. The cold-start path. A hit is a page to read, never a quotation: page text is mathematics after a text layer.
 - `loom refs page CITEKEY N[-M]`: a page's text and the section it falls in. **The sanctioned read.** Quote only from this.
-- `loom refs propose CITEKEY --local thm-4.1 --page N --source-text "…" --statement "…" [--level 1]`: record a result you read. `--source-text` must be the page's own words — **the whole statement, not the first clause**, because it is what the author reads your rendering against; if the statement runs onto the next page, give `--page 353-354` — and it is checked against the page; `--statement` is your LaTeX rendering and is never checked for faithfulness — loom names any of its words the quotation does not contain, and those are usually yours: **the body only** (loom writes the environment, the locator and the label, and refuses a statement that carries its own), and **the paper's words only** — no gloss, no "Equivalently…", no definition of a symbol the statement does not define, no note about which page something is on. Those go in your run; in the second study run five of six corrections an author had to make were an agent's additions. A proposal is not verified by passing the page check: only the author verifies it, and until then call it a proposal, waiting for the author. Refused with the page attached if the quotation is not there. A work needs its main results (`--level 1`) before anything deeper. `--local` is the paper's own number — `thm-4.1`, `cor-2.3.1` for the first corollary under 2.3, `eq-1` for a numbered display the paper calls a result, `thm-star-1` for an unnumbered one — and a name that is not one is refused.
+- `loom refs propose CITEKEY --local thm-4.1 --page N --source-text "…" --statement "…" [--level 1]`: record a result you read. `--source-text` must be the page's own words — **the whole statement, not the first clause**, because it is what the author reads your rendering against; if the statement runs onto the next page, give `--page 353-354` — and it is checked against the page; `--statement` is your LaTeX rendering and is never checked for faithfulness — loom names any of its words the quotation does not contain, and those are usually yours: **the body only** (loom writes the environment, the locator and the label, and refuses a statement that carries its own), and **the paper's words only** — no gloss, no "Equivalently…", no definition of a symbol the statement does not define, no note about which page something is on. Those go in your session's own notes; in the second study run five of six corrections an author had to make were an agent's additions. A proposal is not verified by passing the page check: only the author verifies it, and until then call it a proposal, waiting for the author. Refused with the page attached if the quotation is not there. A work needs its main results (`--level 1`) before anything deeper. `--local` is the paper's own number — `thm-4.1`, `cor-2.3.1` for the first corollary under 2.3, `eq-1` for a numbered display the paper calls a result, `thm-star-1` for an unnumbered one — and a name that is not one is refused.
 - **A work with a LaTeX source** (`coverage` says `src yes`) has a mechanical digest; read that first. A result the extractor missed is quoted from the source, not the PDF: `--source-file main.tex` in place of `--page`, with `--source-text` the LaTeX itself, because the PDF's text layer has lost the mathematics — a formula there is often control bytes.
 - `loom refs link --from ID --to ID --kind same-notion|generalises|specialises|depends-on|contradicts --why "…" --session SESSION`: **record a relation between two results, with a reason.** When you work out how two papers' results relate, record it here rather than in a notes file: a link is drawn in the author's digest view and found from either end, and prose in your session is found by nobody. A link is an assertion, never checked, never citable.
 - `loom refs why ID`, `loom refs links ID`: where a result came from, and what it has been related to.
 - `loom refs overview CITEKEY`: a digest's overview, which is written to be read whole.
 
-`loom refs --help` lists the rest; the author runs `loom refs build`, `verify` and `discard`.
+`loom refs --help` lists the rest; the author runs `loom refs build`, `verify`, `discard`, `unreadable` and `forget`; those five refuse you.
 
 Recording what you found:
 
-- `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question|ok|citation --session SESSION`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
+- `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question|confirmation|citation|note --session SESSION`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
 - `--severity major|moderate|minor` grades the fault; `--payload` carries text you are proposing and `--placement replace|after|before` says where it would go; `--reply ID` answers the author; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
 
 Your run:
 
-- `loom ai runs [--all]`: the quilt's runs, as `YYYY-MM-DD: name`.
+- `loom ai runs [--all]`, or `loom session list`: the quilt's sessions, as `YYYY-MM-DD: title`.
 - `loom ai start "A name"`: open a new run and print its directory. Name it for what you were asked to do.
 - `loom ai orient --session SESSION`: this document, the quilt's live state, and that session's journal — how you rejoin a session, yours, the author's, or another agent's.
 - `loom ai findings --session SESSION [--json]`: what that session has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a session.
@@ -141,7 +141,7 @@ Read a key's closure, not directories: it is complete by construction. Do not re
 
 ## 10. What you never do
 
-`ai/rules.md` §Never is the list, and it is the file to check: a mode reached through a slash command never passes through this document, so the prohibitions live where that reader will see them. In one line: you write only under your run directory, only through loom commands, and nothing that writes to the quilt on the author's behalf.
+`ai/rules.md` §Never is the list, and it is the file to check: a mode reached through a slash command never passes through this document, so the prohibitions live where that reader will see them. In one line: you write only under your session's directory, only through loom commands, and nothing that writes to the quilt on the author's behalf.
 
 ## 11. When you are done
 

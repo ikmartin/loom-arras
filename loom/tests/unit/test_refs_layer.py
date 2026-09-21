@@ -1487,3 +1487,74 @@ def test_the_composer_posts_and_says_whether_anyone_heard(tmp_path: Path) -> Non
     attach(q, sid, "Referee Agent", "agent")
     again = handle(q, "message", {"text": "And the hypothesis.", "author": "A. Author"})
     assert [r["who"] for r in again["attached"]] == ["Referee Agent"]
+
+
+def test_an_anchor_round_trips_in_both_bases(tmp_path: Path) -> None:
+    """`Result.to_json` strips keys by a literal tuple per kind, so a field added to one basis lands silently in the other."""
+    from loom.refs.proposals import Anchor, Result
+
+    text = Anchor(kind="pdf", sha256="a" * 64, page=3, quads=[[1.0, 2.0, 3.0, 4.0]], basis="text", start=10, end=42)
+    box = Anchor(kind="pdf", sha256="b" * 64, page=7, quads=[[5.0, 6.0, 7.0, 8.0]], basis="box")
+    src = Anchor(kind="tex", sha256="c" * 64, path="src/main.tex", bytes=[100, 200])
+    for a in (text, box, src):
+        out = Result(id="x", local="l", anchor=a).to_json()["anchor"]
+        back = Result.from_json({"id": "x", "local": "l", "anchor": out}).anchor
+        assert (back.kind, back.sha256, back.page, back.quads, back.basis) == (a.kind, a.sha256, a.page, a.quads, a.basis)
+        assert (back.start, back.end, back.path, back.bytes) == (a.start, a.end, a.path, a.bytes)
+    # and a pdf anchor never carries a tex anchor's fields, nor the other way round
+    assert "path" not in Result(id="x", local="l", anchor=text).to_json()["anchor"]
+    assert "quads" not in Result(id="x", local="l", anchor=src).to_json()["anchor"]
+    assert "basis" not in Result(id="x", local="l", anchor=src).to_json()["anchor"]
+
+
+def test_a_hyphenated_line_and_a_ligature_both_place(tmp_path: Path) -> None:
+    """The two extractions of a page disagree about hyphens a line break left behind and about spacing around mathematics."""
+    from loom.refs.search import locate_span
+
+    # one word broken across a line, as `-bbox-layout` reports it, and a ligature the two readings spell differently
+    words = [
+        ("Let", 72.0, 100.0, 90.0, 112.0),
+        ("the", 94.0, 100.0, 112.0, 112.0),
+        ("denom-", 116.0, 100.0, 160.0, 112.0),
+        ("inators", 72.0, 114.0, 110.0, 126.0),
+        ("be", 114.0, 114.0, 128.0, 126.0),
+        ("affine", 132.0, 114.0, 164.0, 126.0),
+    ]
+    xml = "".join(
+        f'<word xMin="{a}" yMin="{b}" xMax="{c}" yMax="{d}">{w}</word>' for w, a, b, c, d in words
+    )
+    span = locate_span(xml, "Let the denominators be affine", 1)
+    assert span is not None, "a word split by a line break must still place"
+    assert len(span.lines) == 2, "one rectangle per line, because the quotation crosses one"
+
+
+def test_a_resumed_session_starts_a_new_round(tmp_path: Path) -> None:
+    """A round is what "changed since last time" is measured from, so resuming must open one rather than continue the last."""
+    from loom.sessions import close, create, resume, sessions
+
+    q = quilt(tmp_path)
+    s = create(q, "morning", "A. Author")
+    assert len(sessions(q)[s.id].rounds) == 1
+    close(q, s.id, "A. Author")
+    assert sessions(q)[s.id].state == "closed" and sessions(q)[s.id].rounds[-1].closed
+    resume(q, s.id, "A. Author")
+    again = sessions(q)[s.id]
+    assert again.state == "open" and len(again.rounds) == 2
+    assert again.last_opened == again.rounds[-1].opened
+
+
+def test_a_kind_is_named_by_any_unambiguous_prefix_and_severity_only_grades_a_fault(tmp_path: Path) -> None:
+    """`confirmation` is longer than `ok` was, and the extra letters should cost nothing."""
+    from loom.records.annotations import full_kind
+
+    assert full_kind("conf") == "confirmation"
+    assert full_kind("n") == "note"
+    assert full_kind("objection") == "objection"
+    assert full_kind("c") is None, "citation and confirmation both start with c, so it must refuse rather than guess"
+    assert full_kind("zzz") is None
+
+    q = quilt(tmp_path)
+    ok = run("comment", "dm-0002", "Fine.", "--kind", "conf", "--author", "A. Author", cwd=q)
+    assert ok.exit_code == 0, ok.output
+    bad = run("comment", "dm-0002", "Why?", "--kind", "question", "--severity", "major", "--author", "A. Author", cwd=q)
+    assert bad.exit_code != 0 and "belongs on objection or suggestion" in bad.output

@@ -13,7 +13,11 @@
 		onwritten?: () => void;
 	} = $props();
 
-	const KINDS = ['objection', 'suggestion', 'question', 'ok', 'citation'];
+	// Six kinds (plan 0.13 §7). `confirmation` replaced `ok`: every other kind is a noun, and `good` would be praise
+	// where the claim is that something checks out. `note` is the explanation-or-aside kind, and asks nothing.
+	const KINDS = ['objection', 'suggestion', 'question', 'confirmation', 'citation', 'note'];
+	/** Severity grades a fault, and only two kinds claim one; a graded question is a category error. */
+	const GRADED = ['objection', 'suggestion'];
 	const SEVERITIES = ['', 'major', 'moderate', 'minor'];
 
 	let allowed = $state(false);
@@ -45,7 +49,7 @@
 			message: message.trim(),
 			quote: quote.trim() || undefined,
 			kind,
-			severity: severity || undefined
+			severity: (GRADED.includes(kind) && severity) || undefined
 		});
 		busy = false;
 		if (res.ok) {
@@ -85,11 +89,13 @@
 							{#each KINDS as k (k)}<option value={k}>{k}</option>{/each}
 						</select>
 					</label>
-					<label>severity
-						<select bind:value={severity} data-testid="composer-severity">
-							{#each SEVERITIES as s (s)}<option value={s}>{s || 'none'}</option>{/each}
-						</select>
-					</label>
+					{#if GRADED.includes(kind)}
+						<label>severity
+							<select bind:value={severity} data-testid="composer-severity">
+								{#each SEVERITIES as s (s)}<option value={s}>{s || 'none'}</option>{/each}
+							</select>
+						</label>
+					{/if}
 					<button type="submit" disabled={busy || !message.trim()} data-testid="composer-submit">{busy ? 'writing…' : 'write'}</button>
 					<button type="button" onclick={() => (open = false)}>cancel</button>
 				</div>

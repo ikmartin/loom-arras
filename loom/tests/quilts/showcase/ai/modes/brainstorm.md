@@ -1,7 +1,7 @@
 # Mode: brainstorm
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept` or paste it; the author decides.
+- Write only under your session's directory. Never edit source. Never run `loom accept` or paste it; the author decides.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -30,4 +30,4 @@ Help the author explore a topic before anything is proved. Your job is to make t
 - [ ] Every candidate is a draft file with explicit hypotheses.
 - [ ] Every dead end has a reason.
 - [ ] Every "known" or "new" claim cites a digest node or says "no digest; memory-grade".
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

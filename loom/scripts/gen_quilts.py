@@ -327,7 +327,7 @@ def build_synthetic(dest: Path) -> None:
         "--author",
         AUTHOR,
     )
-    g.run("comment", "sy-000A", "Gadgets of odd order cannot exist.", "--kind", "ok", "--session", quick, agent=True)
+    g.run("comment", "sy-000A", "Gadgets of odd order cannot exist.", "--kind", "confirmation", "--session", quick, agent=True)
     g.run("ai", "discard", quick)
 
     # The definition is revised once more, and the question that quoted the old wording no longer matches it: an annotation loom cannot place is said to be detached, never quietly moved.
@@ -869,7 +869,7 @@ def build_showcase(dest: Path) -> None:
         "sh-0005",
         "Both examples check out, and the second is the smallest quiver with trivial cycle lattice.",
         "--kind",
-        "ok",
+        "confirmation",
         "--session",
         referee,
         agent=True,
@@ -1016,7 +1016,7 @@ def build_showcase(dest: Path) -> None:
         "--quote",
         "A quiver whose underlying graph is a forest",
     )
-    g.run("comment", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "ok")
+    g.run("comment", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "confirmation")
 
     # A second person, so the viewer has two comment sessions and not one.
     g.at("2026-09-17T09:00:00Z")
@@ -1068,6 +1068,45 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     g.run("ai", "discard", quick)
+
+    # ---- A reading session: the author reads Bellamy, anchors to the page, and talks to an agent. ---------
+    # Plan 0.13's reading layer, shown rather than described: an anchor into a filed PDF, a session shared with
+    # an agent, and a message that waited in the inbox because nobody was attached.
+    g.at("2026-09-17T11:00:00Z")
+    reading = g.run("session", "new", "reading Bellamy 19").strip().splitlines()[0].split()[0]
+    g.run(
+        "comment",
+        "Bellamy19-prop-3.1",
+        "This is the form we use; the balanced case is the one that matters here.",
+        "--kind",
+        "note",
+        "--session",
+        reading,
+    )
+    g.run(
+        "comment",
+        "Bellamy19-thm-3.2",
+        "Does this need the weights to be integral, or only bounded?",
+        "--kind",
+        "question",
+        "--session",
+        reading,
+    )
+    g.run("session", "send", "Have a look at Bellamy's Theorem 3.2 and tell me whether integrality is used.", "--session", reading)
+
+    # ---- A work with no document to hold, declared rather than inferred. ----------------------------------
+    g.at("2026-09-17T11:20:00Z")
+    g.run(
+        "refs",
+        "unreadable",
+        "Stacks",
+        "--why",
+        "a living work with no fixed version; there is no document to file",
+    )
+
+    # ---- A session closed when its work was done; its annotations stop being shown. -----------------------
+    g.at("2026-09-17T11:30:00Z")
+    g.run("session", "close", reading)
 
     # ---- The author edits, which is what makes states move. -----------------------------------------------
     # Editing the convention makes its dependents stale; editing the first proof of sh-0007 detaches the

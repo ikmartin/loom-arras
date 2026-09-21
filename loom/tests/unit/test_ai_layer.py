@@ -170,7 +170,7 @@ def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
         assert "## Checklist" in text
         # the write policy is stated in every template, so a mode read without the orientation still carries it.
         # It says "your run directory" rather than $LOOM_SESSION: nothing sets that variable since the launcher went.
-        assert re.search(r"^- \[ \] Nothing was written outside your run directory\.", text, re.M)
+        assert re.search(r"^- \[ \] Nothing was written outside your session's directory\.", text, re.M)
         assert "$LOOM_SESSION" not in text  # nothing sets it; ai/rules.md is the one file that explains that
         if mode not in ("quick",):
             assert "## Output" in text and "thread.md" in text
@@ -434,7 +434,7 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
     assert run("source", "dm-0003", "--session", sid, cwd=q / "nodes").exit_code == 0
     assert (
         run(
-            "comment", "dm-0003", "Fine.", "--kind", "ok", "--session", sid, "--author", "A. Author",
+            "comment", "dm-0003", "Fine.", "--kind", "confirmation", "--session", sid, "--author", "A. Author",
             cwd=q / "nodes", env=FIXED,
         ).exit_code
         == 0

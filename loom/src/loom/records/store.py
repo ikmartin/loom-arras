@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from loom.ai.runs import thread_id
-from loom.records.annotations import Annotation, Record, load_records
+from loom.records.annotations import ASKING, Annotation, Record, load_records
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
 from loom.records.snapshots import read_snapshot
@@ -192,7 +192,8 @@ class Records:
             ks = states.get(a.target_key)
             if ks is None or res.record.discarded:
                 continue
-            if a.in_reply_to is None and a.status == "open" and a.kind != "ok":
+            # what awaits an answer, which is what a count is for: a note or a confirmation records rather than asks
+            if a.in_reply_to is None and a.status == "open" and a.kind in ASKING:
                 ks.open[a.kind] = ks.open.get(a.kind, 0) + 1
             if res.detached:
                 ks.detached += 1

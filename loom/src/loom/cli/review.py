@@ -14,10 +14,12 @@ from loom.cli._quilt import describe, open_scan, quilt_option, require_text, res
 from loom.cli.build_cmds import engine_for, log_run
 from loom.clock import stamp, today
 from loom.records.annotations import (
+    GRADED,
     KINDS,
     PLACEMENTS,
     SEVERITIES,
     find_annotation,
+    full_kind,
     next_id,
 )
 from loom.records.ledger import AcceptRow, append_rows
@@ -271,13 +273,17 @@ def _one_comment(
             raise ContentError(f"quote is ambiguous ({len(spans)} occurrences); give a longer quote")
         selector = make_selector(text, quote)
     if kind is None:
-        kind = "ok" if not message else "objection"
-    if kind not in KINDS:
-        raise EnvError(f"kind must be one of {', '.join(KINDS)}")
+        kind = "confirmation" if not message else "objection"
+    full = full_kind(kind)
+    if full is None:
+        raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
+    kind = full
     if severity is not None and severity not in SEVERITIES:
         raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
-    if severity is not None and kind == "ok":
-        raise EnvError("--severity grades a fault and --kind ok names none; drop one of them")
+    if severity is not None and kind not in GRADED:
+        raise EnvError(
+            f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}"
+        )
     if placement is not None and placement not in PLACEMENTS:
         raise EnvError(f"placement must be one of {', '.join(PLACEMENTS)}")
     if placement and not payload:
@@ -412,7 +418,9 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
 @click.option(
     "--quote", default=None, help="Anchor to this exact text, which must occur once in the target's own text."
 )
-@click.option("--kind", type=click.Choice(list(KINDS)), default=None)
+# Not a `click.Choice`: the choice would reject a prefix before `full_kind` could resolve one, which is the whole
+# point of accepting them — `confirmation` is long, and `--kind conf` should cost nothing (DR-204).
+@click.option("--kind", default=None, metavar="|".join(KINDS))
 @click.option(
     "--session",
     "session",

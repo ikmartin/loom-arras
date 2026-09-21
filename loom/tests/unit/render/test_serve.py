@@ -200,7 +200,7 @@ def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # ty
         {
             "target": "dm-0003",
             "message": "Written from the viewer.",
-            "kind": "question",
+            "kind": "objection",
             "severity": "minor",
             "author": "A Reader",
         },

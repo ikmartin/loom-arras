@@ -16,6 +16,8 @@ That is a real shape, and it is not yet a real problem. No corpus anyone has has
 
 **The trigger above is observable**, which is the test for whether this belongs in the queue at all: it is a number in a file, and `loom build` already knows it.
 
+**Narrowed by plan 0.13.** The sidecar built for anchor geometry (`build/spans/<scheme>/<id>.json`, specs/manifest.md §13) is this item's arrangement, built for a different payload: a file beside the manifest, pointed at by a hash on the manifest row, fetched by the one surface that wants it and cache-busted when it goes stale. What is left for this item is *applying* the pattern to annotation bodies — a `build/annotations/` directory, the fetch path, and a viewer that renders a body it may not have yet — rather than inventing it. The loading state in every surface that draws a comment is still the cost, and the size nobody has reached is still the reason not to pay it.
+
 ## Rough design
 
 Two steps, and the first may be all that is ever wanted:

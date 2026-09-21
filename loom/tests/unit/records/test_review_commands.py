@@ -220,8 +220,8 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
     assert r3.exit_code == 1 and "ambiguous" in r3.output
     r4 = run("comment", "dm-0003", "x", "--quote", "closedness", *AUTHOR, cwd=d)
     assert r4.exit_code == 1  # the quote lies in the proof, outside the statement's own text
-    r5 = run("comment", "dm-0003", "--kind", "ok", *AUTHOR, cwd=d)
-    assert r5.exit_code == 0 and "  ok  " in r5.output
+    r5 = run("comment", "dm-0003", "--kind", "confirmation", *AUTHOR, cwd=d)
+    assert r5.exit_code == 0 and "  confirmation  " in r5.output
     s = status_json(d)
     assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {"objection": 1}
     assert s["keys"]["dm-0003"]["reviews"]["latest_current"]["author"]["id"] == "Markas Hecht"
@@ -564,7 +564,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     f.write_text(new)
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["detached"] == 2
-    assert run("comment", proof, "--kind", "ok", "--session", sid, cwd=d, env=AGENT).exit_code == 0
+    assert run("comment", proof, "--kind", "confirmation", "--session", sid, cwd=d, env=AGENT).exit_code == 0
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["latest_current"]["author"]["kind"] == "agent"
     # Day 3: the author resolves the statement objection and accepts
@@ -690,9 +690,9 @@ def test_batch_carries_every_verb_one_to_a_line(tmp_path: Path) -> None:
 def test_a_clean_read_takes_no_severity(tmp_path: Path) -> None:
     """`--severity` grades a fault; `--kind ok` says there is none, and the pair was accepted and stored (H9)."""
     d = demo(tmp_path)
-    r = run("comment", "dm-0002", "--kind", "ok", "--severity", "major", *AUTHOR, cwd=d)
+    r = run("comment", "dm-0002", "--kind", "confirmation", "--severity", "major", *AUTHOR, cwd=d)
     assert r.exit_code != 0
-    assert "drop one of them" in r.output
+    assert "it belongs on objection or suggestion" in r.output
     assert events(d) == []
 
 
