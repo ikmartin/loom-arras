@@ -188,7 +188,7 @@ The chosen design is **B + C**: C's two-line header over B's grouping and manage
    Annotations hidden · show_closed_annotations = false
 ```
 
-![The session selector, B + C](images/session-selector-b-c.png)
+![The session selector, B + C](images/mockup-session-selector-b-c.png)
 
 Rejected: **A**, a flat list with hover actions, which puts a delete cross one mis-click from a session holding open annotations; and **C alone**, which makes the two controls legible but does not scale past a handful of sessions. The manage toggle is what protects the delete, and the header is the only place the write-target and showing distinction can be made visible without explaining it twice.
 
@@ -196,7 +196,7 @@ Two choices made in the drawing: the **goal line appears under the active sessio
 
 The confirmation, with the tombstone wording:
 
-![Deleting a session](images/delete-session.png)
+![Deleting a session](images/mockup-delete-session.png)
 
 #### 3b. The side panel
 
@@ -231,7 +231,7 @@ The panel is reworked into collapsible sections — **Documents**, **Nodes**, **
 └──────────────────────────────────────┘
 ```
 
-![The side panel](images/side-panel.png)
+![The side panel](images/mockup-side-panel.png)
 
 Live canvas with every variant, including the two that were rejected: https://claude.ai/artifact/XAiUMfLA1xFkNWMS49bbKA
 
@@ -315,7 +315,7 @@ Records never store such a link: a body keeps `cited:`, which travels, and the p
 
 **The split is a mode of a route, never a route of its own**, available where there is a single content target: the Authoring View, a node page, a work's Library View, and a session permalink. It is absent from the graph, the review table, problems and the indexes, which have nothing for the content half to be — clicking a finding there **navigates** to the node with the split open rather than splitting the table.
 
-![The split view](images/split-view.png)
+![The split view](images/mockup-split-view.png)
 
 **The session keeps a permalink**, `/session/<id>`: an agent ending a run needs something to hand you, a coauthor needs to be given a conversation, and a session spanning five nodes has no single document it could be reached through. Arriving there shows that session in the discussion and puts its most recent target in the content pane; it does **not** change the write target, since item 3's rule is that selecting for viewing never redirects writes, and the pane header offers a one-click *write here*. Selecting a session in the side panel stays non-navigational.
 
@@ -363,7 +363,7 @@ Inferred while writing, and open to correction: **single click selects and doubl
 | **margin column** | boxes beside their anchors, several open at once | both views |
 | **inline** | the box in the flow, under its line, pushing the text down | Authoring View only — a PDF page cannot reflow |
 
-![Floating box](images/placement-floating.png) · ![Margin column](images/placement-margin.png) · ![Inline, authoring only](images/placement-inline.png)
+![Floating box](images/mockup-placement-floating.png) · ![Margin column](images/mockup-placement-margin.png) · ![Inline, authoring only](images/mockup-placement-inline.png)
 
 **A click opens an annotation; hovering never does.** The hover placement we shipped meant a box hovering *over* the text, not a box triggered by the pointer. The only hover behaviour anywhere is item 5's locator preview, which shows a place in a PDF from a link in a message — a different object.
 
