@@ -68,6 +68,78 @@ def status_json(q: Path) -> dict:  # type: ignore[type-arg]
     return json.loads(r.output)
 
 
+def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    d = demo(tmp_path)
+    c = d / "nodes" / "dm-0002.tex"
+    c.write_text(c.read_text().replace("one or two points", "one or two points (Definition~\\ref{dm-0001})"))
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-21T12:00:00Z")
+    assert run("accept", "dm-0001", "dm-0002", "dm-0003", "--proofs", "--force", *AUTHOR, cwd=d).exit_code == 0
+    a = d / "nodes" / "dm-0001.tex"
+    a.write_text(a.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
+    state = status_json(d)["keys"]["dm-0003/proof"]
+    assert any(
+        cause.get("id") == "dm-0001" and cause.get("via") == "dm-0002" for cause in state["acceptance"]["causes"]
+    )
+    assert all(cause["when"] == "2026-09-21" for cause in state["acceptance"]["causes"])
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-22T12:00:00Z")
+    assert status_json(d)["keys"]["dm-0003/proof"]["acceptance"]["causes"][0]["when"] == "2026-09-21"
+    assert run("accept", "dm-0002", "--force", *AUTHOR, cwd=d).exit_code == 0
+    state = status_json(d)["keys"]["dm-0003/proof"]
+    assert state["acceptance"]["fresh"] is True
+    assert status_json(d)["keys"]["dm-0003"]["derived"]["settled"] is False
+    c.write_text(c.read_text().replace("one or two points", "at most two points"))
+    state = status_json(d)["keys"]["dm-0003/proof"]
+    assert any(cause.get("id") == "dm-0002" and not cause.get("via") for cause in state["acceptance"]["causes"])
+
+
+def test_review_build_publishes_rendered_comparison_and_citation(tmp_path: Path) -> None:
+    d = demo(tmp_path, clean=False)
+    result = run("review", cwd=d)
+    assert result.exit_code == 0, result.output
+    manifest = json.loads((d / "build" / "manifest.json").read_text())
+    cause = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
+    comparison = cause["comparison"]
+    assert cause["citation"] in (d / "build" / manifest["masters"][0]["fragment"]).read_text()
+    accepted_html = (d / "build" / comparison["accepted"]).read_text()
+    current_html = (d / "build" / comparison["current"]).read_text()
+    assert "fixed locus" in accepted_html
+    assert "fixed locus" in current_html
+    assert 'class="review-changed"' in accepted_html + current_html
+    assert '<p class="review-changed"' not in accepted_html + current_html
+    assert comparison["accepted_spans"] and comparison["current_spans"]
+
+
+def test_observation_date_resets_after_a_cause_disappears(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    d = demo(tmp_path)
+    assert run("accept", "dm-0001", "--force", *AUTHOR, cwd=d).exit_code == 0
+    node = d / "nodes" / "dm-0001.tex"
+    original = node.read_text()
+    edited = original.replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-21T12:00:00Z")
+    node.write_text(edited)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"][0]["when"] == "2026-09-21"
+    node.write_text(original)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["fresh"] is True
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-23T12:00:00Z")
+    node.write_text(edited)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"][0]["when"] == "2026-09-23"
+
+
+def test_comparison_uses_preamble_saved_with_dependent_acceptance(tmp_path: Path) -> None:
+    d = demo(tmp_path, clean=False)
+    master = d / "drafting" / "main.tex"
+    master.write_text(master.read_text().replace("\\operatorname{Fix}", "\\operatorname{Fixed}"))
+    assert run("review", cwd=d).exit_code == 0
+    manifest = json.loads((d / "build" / "manifest.json").read_text())
+    causes = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"]
+    comparison = next(c["comparison"] for c in causes if c["kind"] == "dependency-changed")
+    old = manifest["macros"]["sets"][comparison["accepted_macros"]]
+    assert any(m["name"] == "Fix" and "\\operatorname{Fix}" in m["body"] for m in old)
+    assert any(m["name"] == "Fix" and "\\operatorname{Fixed}" in m["body"] for m in manifest["macros"]["default"])
+
+
 def test_ledger_refuses_without_author_exact_message(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = run("accept", "dm-0002", "--force", cwd=d)

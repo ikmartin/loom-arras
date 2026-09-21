@@ -869,6 +869,16 @@ Print the patch that puts KEY@N's recorded text back in place of the head's; the
 | `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+## `loom review`
+
+`loom review [OPTIONS]`
+
+Observe current review causes and publish the review panel without accepting any key.
+
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## `loom search`
 
 `loom search [OPTIONS] QUERY`

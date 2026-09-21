@@ -110,6 +110,33 @@ Every widget is finite by the preceding construction.\end{remark}
     assert "basis-changed" in {cause.kind for cause in changed.causes}
 
 
+def test_section_reference_is_context_not_a_settlement_obligation(tmp_path: Path) -> None:
+    result = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\begin{document}
+\section{Setup}\label{ab-0001}
+\begin{definition}\label{ab-0002}A widget is a set; see Section~\ref{ab-0001}.\end{definition}
+\begin{lemma}\label{ab-0003}Every widget is a set by Definition~\ref{ab-0002}.\end{lemma}
+\begin{proof}The definition says so.\end{proof}
+\begin{lemma}\label{ab-0004}Every widget is finite.\end{lemma}
+\begin{lemma}\label{ab-0005}Every widget is finite by Lemma~\ref{ab-0004}.\end{lemma}
+\begin{proof}Apply the cited lemma.\end{proof}
+\end{document}
+""",
+        },
+    )
+    write_acceptance(result, ["ab-0002", "ab-0003", "ab-0003/proof", "ab-0004", "ab-0005", "ab-0005/proof"], "Test author")
+    assert "ab-0001" in result.graph.closure("ab-0002")
+    records = Records(result.quilt.root, result.quilt.history_dir)
+    derived = records.derived(result, records.key_states(result))
+    assert derived["ab-0002"] == {"proved": True, "settled": True}
+    assert derived["ab-0003"] == {"proved": True, "settled": True}
+    assert derived["ab-0004"] == {"proved": False, "settled": False}
+    assert derived["ab-0005"] == {"proved": True, "settled": False}
+
+
 def test_accept_all_live_refuses_to_establish_an_open_claim(tmp_path: Path) -> None:
     result = make_quilt(
         tmp_path,

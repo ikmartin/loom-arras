@@ -22,6 +22,8 @@ class AcceptRow:
     master: str
     closure: dict[str, str] = field(default_factory=dict)
     basis: str = ""  # absent in pre-DR-198 rows; future choices must be re-accepted when they change
+    direct: dict[str, str] = field(default_factory=dict)  # direct statement dependencies at acceptance
+    direct_recorded: bool = True  # legacy rows have only closure; compare them conservatively
 
     def to_toml(self) -> str:
         lines = [
@@ -37,6 +39,9 @@ class AcceptRow:
             lines.append(f"basis = {_q(self.basis)}")
         lines.append("[accept.closure]")
         for k, v in self.closure.items():
+            lines.append(f"{_q(k)} = {_q(v)}")
+        lines.append("[accept.direct]")
+        for k, v in self.direct.items():
             lines.append(f"{_q(k)} = {_q(v)}")
         return "\n".join(lines) + "\n"
 
@@ -69,6 +74,8 @@ def read_ledger(root: Path) -> list[AcceptRow]:
                 master=str(r.get("master", "")),
                 closure={str(k): str(v) for k, v in dict(r.get("closure", {})).items()},
                 basis=str(r.get("basis", "")),
+                direct={str(k): str(v) for k, v in dict(r.get("direct", {})).items()},
+                direct_recorded="direct" in r,
             )
         )
     return rows

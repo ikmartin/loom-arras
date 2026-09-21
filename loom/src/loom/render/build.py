@@ -329,6 +329,9 @@ def build(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
     records.apply(result, manifest, build_dir)
+    from loom.render.review_compare import attach_comparisons
+
+    attach_comparisons(result, records, renderer, manifest, files)
     _attach_page_images(result.quilt.root, manifest, build_dir)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)

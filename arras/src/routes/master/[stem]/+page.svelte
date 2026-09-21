@@ -8,7 +8,7 @@
 	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
 	import type { CommentSlot } from '$lib/fragments/mount';
 	import type { Annotation } from '$lib/manifest/types';
-	import { anchorId, keyUrl, masterStem } from '$lib/nav';
+	import { anchorId, keyUrl, masterStem, masterUrl } from '$lib/nav';
 	import { prefs } from '$lib/prefs.svelte';
 	import { followNodes, reading } from '$lib/reading.svelte';
 	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
@@ -21,6 +21,11 @@
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
 	const master = $derived(m.masters.find((x) => masterStem(x.path) === stem));
+	const reviewKey = $derived(page.url.searchParams.get('review') ?? '');
+	const causeIndex = $derived(Number(page.url.searchParams.get('cause') ?? '-1'));
+	const reviewCause = $derived(m.keys[reviewKey]?.acceptance?.causes?.[causeIndex]);
+	const comparison = $derived(reviewCause?.comparison);
+	const acceptedSide = $derived(reviewCause?.kind === 'own-text-changed');
 
 	/** How much a comment may say before a gutter is the wrong place for it. Measured on the rendered text of the comment and its replies. */
 	const GUTTER_LIMIT = 220;
@@ -45,6 +50,7 @@
 		if (prefs.comments !== 'margin') return commentsOn(key).filter((a) => !(a.anchored && a.quote)).map((a) => ({ id: a.id, where: 'count' }));
 		return commentsOn(key).map((a) => ({ id: a.id, where: plainLength(a) > GUTTER_LIMIT ? 'inline' : 'gutter' }));
 	}
+	const inlineSlots = (key: string): CommentSlot[] => commentsOn(key).map((a) => ({ id: a.id, where: 'inline' }));
 
 	// The fragment is injected HTML, so the cards are mounted into the slots its wiring created rather than rendered by this template. They are unmounted whenever the fragment is replaced, so a reload leaves nothing behind.
 	let mounted: Record<string, unknown>[] = [];
@@ -72,6 +78,14 @@
 		const root = docRoot;
 		// untracked: the follower reads the position it writes, and an effect that subscribed to that would restart itself on every result the reader passes
 		if (root) return untrack(() => followNodes(root));
+	});
+	$effect(() => {
+		const root = docRoot;
+		const citation = reviewCause?.kind === 'dependency-changed' ? reviewCause.citation : null;
+		const target = citation ? document.getElementById(citation) : null;
+		if (!root || !target || !root.contains(target)) return;
+		target.classList.add('review-citation-target');
+		return () => target.classList.remove('review-citation-target');
 	});
 	// a result this document holds is a jump within it; anything else opens its page
 	const hrefFor = (id: string) => (master && m.nodes[id]?.reached_by.includes(master.path) ? '#' + anchorId(id) : keyUrl(m, id));
@@ -104,6 +118,7 @@
 		<h1>Unknown document</h1>
 		<p class="muted">No master in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
+		<div class:with-comparison={!!comparison} class="review-layout">
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
@@ -125,16 +140,23 @@
 							{#if master.pdf}· <a href={dataUrl(master.pdf)}>PDF</a>{/if}
 						</p>
 					</header>
-					<Fragment
+					{#key !!comparison}<Fragment
 						path={master.fragment}
 						master={master.path}
 						headingLinks
-						margins
-						comments={slots}
+						margins={!comparison}
+						comments={comparison ? inlineSlots : slots}
 						onmounted={fill}
-					/>
+					/>{/key}
 				</div>
 			</div>
+		</div>
+		{#if comparison}
+			<aside class="review-comparison" data-testid="review-comparison" aria-label="Review comparison">
+				<header><strong>{acceptedSide ? 'Last accepted' : 'Current'} · {reviewCause?.id ?? reviewKey}</strong><a href={`${masterUrl(master.path)}${page.url.hash}`}>close</a></header>
+				<Fragment path={acceptedSide ? comparison.accepted : comparison.current} macroSet={acceptedSide ? comparison.accepted_macros : ''} isolatedMacros={acceptedSide} />
+			</aside>
+		{/if}
 		</div>
 		{#if graphOpen && reading.node}
 			<div class="local-float">
@@ -147,6 +169,26 @@
 </main>
 
 <style>
+	.review-comparison {
+		position: sticky;
+		top: var(--gap-wide);
+		max-height: calc(100vh - 2 * var(--gap-wide));
+		min-width: 0;
+		overflow-y: auto;
+		overflow-x: hidden;
+		padding: var(--gap-tight);
+		background: var(--sheet);
+		border: 1px solid var(--rule);
+	}
+	.review-layout.with-comparison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 390px); gap: var(--gap-wide); align-items: start; padding-right: var(--gap-wide); }
+	.review-layout > .gutters-host { min-width: 0; }
+	.review-comparison header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: var(--gap-tight); }
+	.review-comparison :global(mark.review-changed) { background: var(--state-stale-wash); color: inherit; }
+	.review-comparison :global(.math.review-changed) { background-color: var(--state-stale-wash); outline: 2px solid var(--state-stale); }
+	.review-comparison :global(.review-change-point) { border-left: 2px solid var(--state-stale); }
+	.review-comparison :global(.math.display) { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+	.review-layout :global(.review-citation-target) { background: var(--state-stale-wash); outline: 2px solid var(--state-stale); outline-offset: 2px; scroll-margin-top: var(--gap-wide); }
+	@media (max-width: 900px) { .review-layout.with-comparison { display: flex; flex-direction: column; padding-right: 0; } .review-layout > .gutters-host, .review-comparison { width: 100%; } .review-comparison { position: static; max-height: none; } }
 	.doc-annotations {
 		margin-bottom: var(--gap-wide);
 	}

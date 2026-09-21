@@ -32,6 +32,19 @@ export function stateBadge(manifest: Manifest, key: Key | undefined): BadgePart[
 	return parts;
 }
 
+/** Review rows keep the recorded state visible and add only the statement's derived facts. */
+export function reviewRowBadge(manifest: Manifest, key: Key | undefined): BadgePart[] {
+	const parts = stateBadge(manifest, key);
+	if (!key || key.kind !== 'statement') return parts;
+	const derived = manifest.nodes[key.node]?.derived;
+	for (const name of ['proved', 'settled'] as const) {
+		if (!derived?.[name]) continue;
+		const label = manifest.states.derived[name];
+		parts.push({ text: label?.label ?? name, color: label?.color ?? 'positive' });
+	}
+	return parts;
+}
+
 export function reviewFacts(key: Key | undefined): string {
 	if (!key) return '';
 	const open = Object.entries(key.reviews.open).filter(([, n]) => n > 0);
@@ -77,5 +90,6 @@ function rank(manifest: Manifest, k: Key): number {
 export function shortDate(iso: string): string {
 	const d = new Date(iso);
 	if (Number.isNaN(d.getTime())) return iso;
-	return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+	const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+	return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', ...(dateOnly ? { timeZone: 'UTC' } : {}) });
 }

@@ -10,6 +10,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "cited-result"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "Bellamy19-thm-3.2"
@@ -20,6 +21,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "cited-result"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0001"
@@ -30,6 +32,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "expository"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0002"
@@ -40,6 +43,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "expository"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0003"
@@ -50,6 +54,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "expository"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0004"
@@ -60,6 +65,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "expository"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0005"
@@ -70,6 +76,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "unclassified"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0006"
@@ -80,6 +87,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "local-proof"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0006/proof"
@@ -89,6 +97,9 @@ text = "sha256:17231756d6ea952166e92cb47fd3854bba2e9e45388b2b2c225b42ac2224cb65"
 preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
 master = "drafting/main-atomic.tex"
 [accept.closure]
+"sh-0001" = "sha256:3ad8b0a76f465efc722544e398a4644312409e80b1476d2c47b0b16bab60d885"
+"sh-0006" = "sha256:d3b875d19d39794407a41056c2354e415ac209ebeb86fd633b328bd4454cdca6"
+[accept.direct]
 "sh-0001" = "sha256:3ad8b0a76f465efc722544e398a4644312409e80b1476d2c47b0b16bab60d885"
 "sh-0006" = "sha256:d3b875d19d39794407a41056c2354e415ac209ebeb86fd633b328bd4454cdca6"
 
@@ -101,6 +112,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "local-proof"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0007/proof"
@@ -110,6 +122,8 @@ text = "sha256:253a819d593a35dc08126221b93aadbaaf3d6b35dc3ef6dbb19abc5ca1ff21c4"
 preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
 master = "drafting/main-atomic.tex"
 [accept.closure]
+"sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
+[accept.direct]
 "sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
 
 [[accept]]
@@ -122,6 +136,9 @@ master = "drafting/main-atomic.tex"
 [accept.closure]
 "sh-0004" = "sha256:44c1a17ba8b394b65c3a3519440683aa394f7e58ee54769ab47266a0d17df1e8"
 "sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
+[accept.direct]
+"sh-0004" = "sha256:44c1a17ba8b394b65c3a3519440683aa394f7e58ee54769ab47266a0d17df1e8"
+"sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
 
 [[accept]]
 key = "sh-0009"
@@ -132,6 +149,7 @@ preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7
 master = "drafting/main-atomic.tex"
 basis = "local-proof"
 [accept.closure]
+[accept.direct]
 
 [[accept]]
 key = "sh-0009/proof"
@@ -141,6 +159,10 @@ text = "sha256:e60b5d6ad28aceb027699b4efad421dbb678bf281fb316480b0404fff5e75bc5"
 preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
 master = "drafting/main-atomic.tex"
 [accept.closure]
+"sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
+"Arden24-prop-2.1" = "sha256:7ca2f9d49ecdb83e9bac600502dff56fc857db0a7d3cbb8e5325050280173db2"
+"sh-0009" = "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150"
+[accept.direct]
 "sh-0007" = "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16"
 "Arden24-prop-2.1" = "sha256:7ca2f9d49ecdb83e9bac600502dff56fc857db0a7d3cbb8e5325050280173db2"
 "sh-0009" = "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150"

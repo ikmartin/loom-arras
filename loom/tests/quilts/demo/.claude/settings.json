@@ -63,6 +63,7 @@
       "Bash(loom refs verify*)",
       "Bash(loom remove*)",
       "Bash(loom revert*)",
+      "Bash(loom review*)",
       "Bash(loom rm*)",
       "Bash(loom stamp*)",
       "Bash(loom upgrade*)",

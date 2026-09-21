@@ -1,0 +1,1 @@
+import{U as e,at as t,it as n}from"./BWx7lBku.js";var r=new class{#e=t(null);get snippet(){return e(this.#e)}set snippet(e){n(this.#e,e,!0)}};export{r as t};

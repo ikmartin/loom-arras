@@ -18,7 +18,7 @@
 	import Composer from '$lib/review/Composer.svelte';
 	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
-	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
+	import { anchorId, digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	let verbatim = $state(false);
@@ -53,6 +53,7 @@
 	const deps = $derived(collapse(m.edges.filter((e) => e.from === key || node?.proofs.includes(e.from)), 'to'));
 	const usedBy = $derived(collapse(m.edges.filter((e) => e.to === key || (node?.proofs ?? []).includes(e.to)), 'from'));
 	const diagnostics = $derived(m.diagnostics.filter((d) => d.keys.includes(key)));
+	const missingProof = $derived(diagnostics.some((d) => d.code === 'loom:missing-proof'));
 	const annotations = $derived(onAny(m, [key, ...(node?.proofs ?? [])]));
 	const detached = $derived(annotations.filter((a) => a.detached && !a.discarded));
 	const threads = $derived(Object.values(m.threads).filter((t) => t.targets.includes(key) && !t.discarded));
@@ -96,6 +97,7 @@
 				{#if node.external && node.digest}<span class="muted">from <a href={digestUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
 		</header>
+		{#if missingProof}<p class="muted" data-testid="missing-proof">No proof is attached. <a href={`/review?show=missing-proof#review-${anchorId(key)}`}>See this block in Review</a>.</p>{/if}
 
 		{#if node.conflict?.length}
 			<p class="conflicted" data-testid="conflicted">

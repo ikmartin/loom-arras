@@ -10,7 +10,7 @@ from typing import Any
 import click
 
 from loom.cli._common import ContentError, EnvError, emit_json, find_run
-from loom.cli._quilt import describe, open_scan, quilt_option, require_text, resolve_key
+from loom.cli._quilt import describe, open_quilt, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for, log_run
 from loom.clock import stamp, today
 from loom.records.annotations import (
@@ -29,6 +29,17 @@ from loom.render.manifest import key_hash, own_text
 from loom.scan.quilt import NoAuthorError, resolve_author
 from loom.scan.scan import ScanResult
 from loom.tex.runner import compile_tex
+
+
+@click.command(name="review")
+@quilt_option
+def review_command(quilt_path: str | None) -> None:
+    """Observe current review causes and publish the review panel without accepting any key."""
+    from loom.render.build import build
+
+    report = build(open_quilt(quilt_path))
+    stale = sum(1 for key in report.manifest["keys"].values() if key.get("acceptance", {}).get("fresh") is False)
+    click.echo(f"review updated: {stale} stale key{'s' if stale != 1 else ''}; build/manifest.json published")
 
 
 def _author(explicit: str | None, root: Path) -> str:
@@ -87,6 +98,7 @@ def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[
                 master=master,
                 closure=closure,
                 basis=result.nodes[key].basis if result.nodes[key].kind == "environment" else "",
+                direct={dep: closure[dep] for dep in Records.direct_keys(result, key) if dep in closure},
             )
         )
     append_rows(root, rows)

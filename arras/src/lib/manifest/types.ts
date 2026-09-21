@@ -106,8 +106,17 @@ export interface Node {
 export interface Cause {
   kind: string;
   id?: string;
+  via?: string;
+  citation?: string;
   when?: string;
   diff: string | null;
+  comparison?: {
+    accepted: string;
+    current: string;
+    accepted_macros: string;
+    accepted_spans: [number, number][];
+    current_spans: [number, number][];
+  };
 }
 
 export interface Acceptance {
