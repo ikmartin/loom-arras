@@ -433,6 +433,81 @@ table.list th {
 .comment-slot.inline > .box:first-child {
 	margin-top: 0;
 }
+/* The content pane's header: the two annotation states as buttons with their keys named, and what is being hidden. */
+.content-head {
+	display: flex;
+	align-items: baseline;
+	gap: var(--gap-hair);
+	font-family: var(--sans);
+	font-size: 0.74rem;
+	color: var(--ink-faint);
+	margin-bottom: var(--gap-hair);
+}
+.content-head button {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 1px solid var(--rule);
+	border-radius: var(--rad-control);
+	padding: 0 6px;
+	cursor: pointer;
+}
+.content-head button.on {
+	background: var(--annotation-tint, rgb(217 119 87 / 18%));
+}
+.content-head .count {
+	margin-left: auto;
+}
+.content-head .concealed {
+	color: var(--annotation, #c05621);
+}
+
+/* Two annotations on one phrase is ordinary, and stacked translucent highlights muddy immediately — so the number is
+   said rather than drawn, and stays legible however many overlap (plan 0.13 §7). */
+mark.annotation[data-count]::after {
+	content: attr(data-count);
+	font-family: var(--sans);
+	font-size: 0.62em;
+	vertical-align: super;
+	margin-left: 1px;
+	color: var(--ink-faint);
+}
+
+/* Travel (plan 0.13 §7): a brief scroll, then a flash on what was arrived at, so the eye is told where it landed
+   rather than being left to search the pane it was sent to. */
+.travelled {
+	animation: travelled 700ms ease-out;
+}
+@keyframes travelled {
+	from {
+		background-color: var(--annotation-tint-strong, rgb(217 119 87 / 34%));
+	}
+	to {
+		background-color: transparent;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	/* the flash is the whole point, so it stays; what goes is the fade, which is the part that moves */
+	.travelled {
+		animation: none;
+		outline: 2px solid var(--annotation, #c05621);
+	}
+}
+/* Where there is nothing to travel to: a notice beside what was double-clicked, and nothing moves. */
+.travel-notice {
+	position: fixed;
+	z-index: 60;
+	font-family: var(--sans);
+	font-size: 0.78rem;
+	color: var(--ink);
+	background: var(--sheet);
+	border: 1px solid var(--rule-strong);
+	border-radius: var(--rad-control);
+	box-shadow: 0 2px 10px rgb(0 0 0 / 14%);
+	padding: 2px 8px;
+	pointer-events: none;
+}
+
 /* The `floating` placement: the same box, floated over the page at the mark rather than opened in the flow, so it is
    free to overlap the text and the gutter and nothing reflows under the reader as it appears. Placed in viewport
    coordinates by `expand.ts`, which keeps it 4px clear of every edge and follows its mark as the page scrolls. */

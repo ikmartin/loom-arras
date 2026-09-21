@@ -4,6 +4,7 @@ import { dataUrl } from '$lib/paths';
 import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
+import { travel } from '$lib/travel/travel';
 
 export interface WireOptions {
 	/** The master being read, when the fragment is part of a whole document: a reference to a node the same document reaches becomes an in-page jump rather than a navigation (book 15.3.1). */
@@ -122,6 +123,16 @@ export function wire(
 		// clicked into at all — a box that appears under the pointer and vanishes when it moves toward the box.
 		mark.addEventListener('click', go);
 		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go());
+		// and a double-click travels to the annotation's own card, wherever the discussion is standing. Nothing is
+		// invented for an annotation with no card here: the notice says so and the pane stays put.
+		mark.addEventListener('dblclick', (e) => {
+			e.preventDefault();
+			travel(document.getElementById('ann-' + lead), mark);
+		});
+		// how many are on this phrase: stacked translucent highlights muddy at two, so the number is said rather than
+		// drawn, and the tick stays legible however many overlap
+		const many = ids.filter((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to).length;
+		if (many > 1) mark.dataset.count = String(many);
 	}
 	if (opts.margins) {
 		for (const el of root.querySelectorAll<HTMLElement>('div.env[data-key], details.env-proof[data-key]')) {
@@ -210,5 +221,28 @@ export function wire(
 		btn.textContent = 'show';
 		btn.addEventListener('click', () => expand(inc, key));
 		inc.append(a, ' ', btn);
+	}
+}
+
+/**
+ * Push margin boxes apart so two close anchors do not stack on one another.
+ *
+ * A gutter slot is positioned against its node, which is right until two nodes are a line apart and their boxes are
+ * not. Walked in document order, each box that would start above the previous one's bottom is pushed down to clear it
+ * — so the column's honest promise is *beside*, not *level with*, and a reader can tell which box belongs to which
+ * node by reading downward (plan 0.13 §7).
+ *
+ * Idempotent, and cheap enough to run on every layout change: it reads each box's own offset once and writes a
+ * transform, so nothing it does feeds back into what it measures.
+ */
+export function stackMargins(root: HTMLElement): void {
+	const slots = [...root.querySelectorAll<HTMLElement>('aside.comment-slot.gutter')];
+	let floor = -Infinity;
+	for (const slot of slots) {
+		slot.style.transform = '';
+		const box = slot.getBoundingClientRect();
+		const push = Math.max(0, floor - box.top);
+		if (push > 0) slot.style.transform = `translateY(${Math.round(push)}px)`;
+		floor = box.top + push + box.height + 8;
 	}
 }

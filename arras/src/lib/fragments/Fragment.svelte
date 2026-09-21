@@ -9,6 +9,8 @@
 	import { page } from '$app/state';
 	import { prefs } from '$lib/prefs.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
+	import { stackMargins } from './mount';
+	import { hidden } from '$lib/sessions/sessions.svelte';
 
 	let {
 		path,
@@ -124,6 +126,9 @@
 	async function mount(root: HTMLElement) {
 		wireComments(root);
 		wiredFor = prefs.comments;
+		// counted as soon as the marks are wired, not after the mathematics is set: the header is about what is in the
+		// document, and a reader should not wait on MathJax to be told how much of it is annotated
+		counts();
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
@@ -132,6 +137,9 @@
 		// a long document typesets the part the reader lands on first, and everything above it, before revealing and scrolling there
 		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
 		onmounted?.(root);
+		// the header counts what is in the fragment, which is only knowable once the fragment is wired
+		counts();
+		if (margins) stackMargins(root);
 		scrollToHash();
 	}
 
@@ -158,6 +166,56 @@
 
 	onMount(() => {});
 
+	/** How many phrases in this fragment carry an annotation, and how many the session selection is keeping out of it. */
+	let marks = $state(0);
+	let concealed = $state(0);
+	let allOpen = $state(false);
+
+	function counts(): void {
+		if (!el) return;
+		marks = el.querySelectorAll('mark.annotation[data-annotation]').length;
+		const m = store.manifest;
+		concealed = m ? hidden(m, Object.values(m.annotations ?? {}).filter((a) => !a.in_reply_to && !a.discarded)) : 0;
+	}
+
+	function expandAll(): void {
+		if (!el || !inline) return;
+		inline.expandAll(el);
+		allOpen = true;
+	}
+
+	function hideAll(): void {
+		inline?.hideAll();
+		allOpen = false;
+	}
+
+	// `e` and `h` only while the content has focus, so they never fight the composer. Not on a modifier and not global:
+	// a key that works everywhere is a key that fires while somebody is typing.
+	function keys(e: KeyboardEvent): void {
+		const typing = (e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]');
+		if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+		if (e.key === 'e') expandAll();
+		else if (e.key === 'h') hideAll();
+		else return;
+		e.preventDefault();
+	}
+
+	$effect(() => {
+		void store.manifest;
+		void prefs.comments;
+		counts();
+		// the margin column is laid out against the nodes, so it is restacked whenever what is in it changes
+		if (el && margins) requestAnimationFrame(() => el && stackMargins(el));
+	});
+
+	// and whenever the column's own width changes under it, which moves every box in it
+	$effect(() => {
+		if (!el || !margins) return;
+		const watch = new ResizeObserver(() => el && stackMargins(el));
+		watch.observe(el);
+		return () => watch.disconnect();
+	});
+
 	$effect(() => {
 		const id = ui.activeAnnotation;
 		if (!el) return;
@@ -170,5 +228,37 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<div class="fragment" class:read={margins} class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'} bind:this={el}>{@html html}</div>
+	{#if marks}
+		<!-- The content pane's header. A key nobody has been told about does not exist, so the two states sit here as
+		     buttons with their keys named, beside the count of what is marked and what the session filter is hiding. -->
+		<div class="content-head" data-testid="content-head">
+			<button
+				type="button"
+				class:on={allOpen}
+				title="Expand every annotation at its own mark (e)"
+				data-testid="expand-all"
+				onclick={expandAll}>expand all</button
+			>
+			<button type="button" title="Close everything open, wherever it is (h)" data-testid="hide-all" onclick={hideAll}
+				>hide all</button
+			>
+			<span class="count" data-testid="content-count">{marks} annotated</span>
+			{#if concealed}
+				<span class="concealed" data-testid="content-hidden">{concealed} hidden by the session filter</span>
+			{/if}
+		</div>
+	{/if}
+	<!-- A focusable region with two shortcut keys: the rule below models a static div, not a labelled region a reader
+	     tabs into deliberately to reach the keys its own header names. -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div
+		class="fragment"
+		class:read={margins}
+		class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'}
+		bind:this={el}
+		tabindex="-1"
+		role="region"
+		aria-label="the document"
+		onkeydown={keys}
+	>{@html html}</div>
 {/if}

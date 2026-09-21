@@ -374,3 +374,48 @@ test('a floating box stays open when the reader looks elsewhere, and only its ×
 	await page.locator('.comment-slot.expanded.floating').first().locator('.comment-close').click();
 	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
 });
+
+test('travel goes to the annotation and back, and says so when there is nowhere to go', async ({ page }) => {
+	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'margin' })));
+	await page.goto('/node/sy-0003');
+	const mark = page.locator('.fragment mark.annotation').first();
+	const id = await mark.evaluate((m) => (m as HTMLElement).dataset.annotation!.split(/\s+/)[0]);
+
+	// a brief scroll then a flash, so the eye is told where it landed rather than searching the pane it was sent to
+	await mark.dblclick();
+	await expect(page.locator(`#ann-${id}`)).toHaveClass(/travelled/);
+
+	// and back the other way, from the card to its place in the text
+	await page.locator(`#ann-${id}`).dblclick();
+	await expect(page.locator('.fragment mark.annotation.travelled')).toHaveCount(1);
+
+	// where there is nothing to travel to, nothing moves and a notice says so. a-2026-09-16-0004 is on this node and
+	// quotes nothing, so it has no mark in the text and no approximate destination is invented for it.
+	const orphan = page.locator('article.box[data-annotation-id="a-2026-09-16-0004"]');
+	await expect(orphan).toHaveCount(1);
+	await orphan.dblclick();
+	await expect(page.getByTestId('travel-nowhere')).toBeVisible();
+	await expect(page.getByTestId('travel-nowhere')).toHaveCount(0, { timeout: 3000 });
+});
+
+test('expand all opens every annotation at its mark, and hide all closes them', async ({ page }) => {
+	await page.goto('/master/main');
+	await page.getByTestId('expand-all').waitFor();
+	const boxes = page.locator('aside.comment-slot.expanded');
+	await expect(boxes).toHaveCount(0);
+
+	await page.getByTestId('expand-all').click();
+	const opened = await boxes.count();
+	expect(opened).toBeGreaterThan(1);
+
+	// hide all is the escape hatch that clicking outside no longer provides
+	await page.getByTestId('hide-all').click();
+	await expect(boxes).toHaveCount(0);
+
+	// and the same two are keys, which is why they are named in the buttons' tooltips
+	await page.locator('.fragment').focus();
+	await page.keyboard.press('e');
+	await expect(boxes).toHaveCount(opened);
+	await page.keyboard.press('h');
+	await expect(boxes).toHaveCount(0);
+});
