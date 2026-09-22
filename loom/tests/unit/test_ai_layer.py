@@ -51,7 +51,9 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     assert (q / "ai" / "runs").is_dir()
     assert {p.stem for p in (q / "ai" / "modes").glob("*.md")} == set(MODES)
     root_text = (q / "CLAUDE.md").read_text()
-    assert root_text == (q / "AGENTS.md").read_text() and "loom ai orient" in root_text and ".loom/sessions/" in root_text
+    assert (
+        root_text == (q / "AGENTS.md").read_text() and "loom ai orient" in root_text and ".loom/sessions/" in root_text
+    )
     assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md").read_text()
     assert not (q / ".claude").exists()
     again = run("ai", "init", cwd=q)
@@ -154,7 +156,14 @@ def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
 
     # and the files those commands own, which a direct Write would otherwise reach
-    for path in ("/nodes/**", "/drafting/**", "/canon/**", "/digests/**", "/.loom/history/**", "/reference-notes.jsonl"):
+    for path in (
+        "/nodes/**",
+        "/drafting/**",
+        "/canon/**",
+        "/digests/**",
+        "/.loom/history/**",
+        "/reference-notes.jsonl",
+    ):
         assert f"Write({path})" in denied and f"Edit({path})" in denied, path
 
 
@@ -434,8 +443,17 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
     assert run("source", "dm-0003", "--session", sid, cwd=q / "nodes").exit_code == 0
     assert (
         run(
-            "comment", "dm-0003", "Fine.", "--kind", "confirmation", "--session", sid, "--author", "A. Author",
-            cwd=q / "nodes", env=FIXED,
+            "comment",
+            "dm-0003",
+            "Fine.",
+            "--kind",
+            "confirmation",
+            "--session",
+            sid,
+            "--author",
+            "A. Author",
+            cwd=q / "nodes",
+            env=FIXED,
         ).exit_code
         == 0
     )

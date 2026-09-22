@@ -30,6 +30,9 @@
 	const reviewCause = $derived(m.keys[reviewKey]?.acceptance?.causes?.[causeIndex]);
 	const comparison = $derived(reviewCause?.comparison);
 	const acceptedSide = $derived(reviewCause?.kind === 'own-text-changed');
+	const incomingKey = $derived(page.url.searchParams.get('incoming') ?? '');
+	const incomingChange = $derived(m.incoming?.changes.find((change) => change.key === incomingKey));
+	const hasComparison = $derived(!!comparison || !!incomingChange?.incoming);
 
 	/** What the discussion pane beside the document is about: the document itself, and every key it reaches. */
 	const inDocument = $derived(master ? [master.path, ...Object.keys(m.nodes).filter((k) => m.nodes[k].reached_by.includes(master.path))] : []);
@@ -70,7 +73,7 @@
 	});
 	$effect(() => {
 		const root = docRoot;
-		const citation = reviewCause?.kind === 'dependency-changed' ? reviewCause.citation : null;
+		const citation = incomingKey ? page.url.hash.slice(1) : reviewCause?.kind === 'dependency-changed' ? reviewCause.citation : null;
 		const target = citation ? document.getElementById(citation) : null;
 		if (!root || !target || !root.contains(target)) return;
 		target.classList.add('review-citation-target');
@@ -128,24 +131,29 @@
 			{/snippet}
 		</ReadingRail>
 		<Beside keys={inDocument} label="the document" control={false}>
-		<div class:with-comparison={!!comparison} class="review-layout">
+		<div class:with-comparison={hasComparison} class="review-layout">
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
-					{#key !!comparison}<Fragment
+					{#key hasComparison}<Fragment
 						path={master.fragment}
 						master={master.path}
 						headingLinks
 						head={false}
 						annotations={notes}
-						margins={!comparison}
-						comments={comparison ? inlineSlots : slots}
+						margins={!hasComparison}
+						comments={hasComparison ? inlineSlots : slots}
 						onmounted={fill}
 					/>{/key}
 				</div>
 			</div>
 		</div>
-		{#if comparison}
+		{#if incomingChange?.incoming}
+			<aside class="review-comparison" data-testid="incoming-comparison" aria-label="Incoming comparison">
+				<header><strong>Incoming · {incomingKey}</strong><a href={`${masterUrl(master.path)}${page.url.hash}`}>close</a></header>
+				<Fragment path={incomingChange.incoming} macroSet={incomingChange.incoming_macros} isolatedMacros />
+			</aside>
+		{:else if comparison}
 			<aside class="review-comparison" data-testid="review-comparison" aria-label="Review comparison">
 				<header><strong>{acceptedSide ? 'Last accepted' : 'Current'} · {reviewCause?.id ?? reviewKey}</strong><a href={`${masterUrl(master.path)}${page.url.hash}`}>close</a></header>
 				<Fragment path={acceptedSide ? comparison.accepted : comparison.current} macroSet={acceptedSide ? comparison.accepted_macros : ''} isolatedMacros={acceptedSide} />

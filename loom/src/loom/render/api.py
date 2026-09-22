@@ -1,6 +1,10 @@
 """The write API: the HTTP form of loom's record-writing commands (specs/write-api.md, plan 0.11 Part G).
 
-Served by the publisher, never by the viewer, and it writes only to loom's own record locations -- never to a source file. Every endpoint wraps the same library function the CLI calls, so there is one implementation of what a comment is and the two surfaces cannot drift.
+Served by the publisher, never by the viewer. Most endpoints write only Loom's
+private records. The explicit ``sync-incorporate`` endpoint is the narrow
+exception: it applies the already displayed pull to author files and records
+two local commits. Every endpoint wraps a library function so its behavior is
+shared with recovery and test surfaces.
 
 Nothing here wakes an agent. An agent pulls: it reads open findings with `loom status` and `loom ai findings` and answers with `loom comment --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
 """
@@ -32,6 +36,9 @@ CAPABILITIES = [
     "session-reopen",
     "session-purpose",
     "message",
+    "sync-incorporate",
+    "review-decision",
+    "review-finish",
 ]
 
 WRITE_API_VERSION = 1
@@ -90,6 +97,77 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _locate(root, body)
     if endpoint == "message":
         return _message(root, body)
+    if endpoint == "sync-incorporate":
+        from loom.scan.quilt import load_quilt
+        from loom.sync import SyncError, SyncState, incorporate_pull
+
+        try:
+            quilt = load_quilt(root)
+            state = SyncState.read(root)
+            incoming = _str(body, "incoming", required=True)
+            base = _str(body, "base", required=True)
+            if incoming != state.incoming:
+                raise ApiError("revision-changed", "the fetched revision changed; reload Incoming")
+            if base != state.integrated and state.integrated != state.incoming:
+                raise ApiError("revision-changed", "the incorporated base changed; reload Incoming")
+            sync_result = incorporate_pull(quilt, state)
+        except SyncError as exc:
+            raise ApiError("sync-refused", str(exc), status=409) from exc
+        return {"ok": True, "result": sync_result}
+    if endpoint in ("review-decision", "review-finish"):
+        from loom.cli._quilt import open_scan
+        from loom.cli.review import _author, _master_compiles, write_acceptance
+        from loom.review_queue import clear_accepted, decide, pending, rows_for
+
+        result = open_scan(str(root))
+        if endpoint == "review-decision":
+            key = _str(body, "key", required=True) or ""
+            status = _str(body, "status", required=True) or ""
+            import json
+
+            manifest_path = root / "build" / "manifest.json"
+            if not manifest_path.is_file():
+                raise ApiError("review-unavailable", "build the quilt before reviewing", status=409)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if key not in {row["key"] for row in rows_for(result, manifest)}:
+                raise ApiError("not-unresolved", f"{key} is not awaiting review", status=409)
+            try:
+                decide(result, key, status)
+            except ValueError as exc:
+                raise ApiError("review-refused", str(exc), status=409) from exc
+            return {"ok": True, "result": f"{key}: {status}"}
+        try:
+            keys = pending(result)
+        except ValueError as exc:
+            raise ApiError("review-changed", str(exc), status=409) from exc
+        if not keys:
+            raise ApiError("nothing-pending", "there are no pending OK decisions", status=409)
+        for key in keys:
+            node = result.nodes[key]
+            if (
+                node.external
+                or node.incomplete
+                or (node.kind == "environment" and node.basis in ("open-claim", "unclassified"))
+            ):
+                raise ApiError("not-acceptable", f"{key} is not eligible for acceptance", status=409)
+        from loom.records.store import Records
+
+        states = Records(root, result.quilt.history_dir).key_states(result)
+        for key in keys:
+            for dep in Records.direct_keys(result, key):
+                dependency = states.get(dep)
+                if dependency and dependency.row and not dependency.fresh and dep not in keys:
+                    raise ApiError("dependency-pending", f"review {dep} before finishing {key}", status=409)
+        remaining = [key for key in keys if not (states[key].row and states[key].fresh)]
+        if not remaining:
+            clear_accepted(root, keys)
+            return {"ok": True, "result": "pending decisions were already accepted"}
+        ok, why = _master_compiles(result)
+        if not ok:
+            raise ApiError("compile-failed", f"the document does not compile: {why}", status=409)
+        rows, _, _ = write_acceptance(result, remaining, _author(None, root))
+        clear_accepted(root, keys)
+        return {"ok": True, "result": f"accepted {len(rows)} keys"}
     if endpoint.startswith("session-"):
         return {"ok": True, "result": _session(root, endpoint, body)}
     return {"ok": True, "result": _review(root, endpoint, body)}

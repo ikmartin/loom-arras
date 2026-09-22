@@ -36,6 +36,10 @@ def _norm_manifest(m: dict) -> dict:  # type: ignore[type-arg]
     m.pop("generated", None)
     for master in m.get("masters", []):
         master.pop("compiled", None)
+    # Canon hashes cover their rendered SVGs; dvisvgm produces different
+    # bytes across TeX Live versions even when the surrounding HTML agrees.
+    for canon in m.get("canon", []):
+        canon.pop("hash", None)
     m["publisher"].pop("version", None)
     return m
 

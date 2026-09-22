@@ -120,6 +120,41 @@ export interface Cause {
   };
 }
 
+export interface IncomingChange {
+  key: string;
+  kind: 'edited' | 'added' | 'removed';
+  local_changed: boolean;
+  conflict: boolean;
+  already_local: boolean;
+  local: string | null;
+  incoming: string | null;
+  incoming_macros: string;
+  affected: { key: string; citation: string | null }[];
+}
+
+export interface IncomingReview {
+  remote: string;
+  branch: string;
+  base: string;
+  commit: string;
+  observed: string;
+  changes: IncomingChange[];
+  files: { status: string; path: string; diff?: string }[];
+  issues?: string[];
+  prepared?: { patch: string; root: string; incoming: string; paths: string[] };
+}
+
+export interface UnresolvedReview {
+  key: string;
+  status: 'needs-review' | 'ok' | 'requires-attention';
+  cause: 'incoming-pull' | 'earlier-change';
+  pull: string;
+  changed_text: boolean;
+  /** Null means an older sync record has no post-pull baseline. */
+  local_changed?: boolean | null;
+  invalidated: boolean;
+}
+
 export interface Acceptance {
   author: string;
   date: string;
@@ -444,6 +479,9 @@ export interface Manifest {
   canon?: CanonDoc[];
   nodes: Record<string, Node>;
   keys: Record<string, Key>;
+  /** Fetched source waiting for incorporation; never changes a key's recorded state. */
+  incoming?: IncomingReview;
+  unresolved?: UnresolvedReview[];
   regions: Record<string, Region>;
   relations?: Relation[];
   edges: Edge[];

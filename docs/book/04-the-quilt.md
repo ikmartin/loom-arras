@@ -192,6 +192,8 @@ Rules:
 
 Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/` and `digests/storage/`; `.loom/`, `ai/`, and `annotations/` are harmless), set `drafting/main.tex` as the main document, compile. The README instructs setting the main document from Overleaf's menu, so nothing depends on whether Overleaf honours `% !TEX root` for that selection (WQ-16).
 
+For an Overleaf Git project, `loom sync` offers a source-only projection instead (DR-217). Work on a private local Git branch containing the full quilt, including `.loom/`; `loom sync publish --push` sends a separate commit containing only the committed inputs reachable from the configured drafting master. `--publish-main main.tex` maps that master to an existing Overleaf main file. This does not change the quilt's current branch or its drafting files. `loom sync fetch` pins the remote commit and rebuilds an Incoming review in Arras without merging it. After reviewing the whole pull, the author applies the generated patch in the editor, commits the reconciled source locally, and runs `loom sync incorporated --yes`. A mathematical acceptance remains a separate act.
+
 ## 4.7 What `loom init` creates
 
 **[decided]** `loom init [DIR]` creates, in an empty or nonexistent `DIR` (default: the current directory):
@@ -217,7 +219,7 @@ Consequence for Overleaf: upload the quilt (excluding `build/`, `refs/` and `dig
 2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal. The one exception is inside loom's own directory: `loom upgrade` moves `.loom/snapshots/` into the history's `texts/`, where the files are content-addressed and every reference still resolves.
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.
-5. Loom never touches the network unless the author has allowed it, in the config or on the command line: `[refs] fetch = true` or `--fetch` for `loom refs fetch` and the fetching step of `loom refs build`, `[refs] resolve = true` or `--resolve` for `loom refs resolve` and its step (DR-122, DR-176, DR-193). Both keys are written `false` by `loom init`, and a flag is one run's consent that changes no file. No other command does, `loom lint` included.
+5. Loom never touches the network unless the author has allowed it, in the config or on the command line: `[refs] fetch = true` or `--fetch` for `loom refs fetch` and the fetching step of `loom refs build`, `[refs] resolve = true` or `--resolve` for `loom refs resolve` and its step (DR-122, DR-176, DR-193). Both keys are written `false` by `loom init`, and a flag is one run's consent that changes no file. `loom sync fetch` and `loom sync publish --push` are explicit Git network commands after `loom sync init` has named their remote (DR-217). No other command does, `loom lint` included.
 6. Loom holds no credentials and calls no model provider: it never runs a model itself. It may dispatch a message to a local agent the author is already running, which is a message reaching a process they started, not loom becoming a client of anyone's API (DR-195).
 
 ## 4.9 Ignoring a file

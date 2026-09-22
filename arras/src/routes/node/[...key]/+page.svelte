@@ -101,7 +101,7 @@
 				{#if node.external && node.digest}<span class="muted">from <a href={workUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
 		</header>
-		{#if missingProof}<p class="muted" data-testid="missing-proof">No proof is attached. <a href={`/review?show=missing-proof#review-${anchorId(key)}`}>See this block in Review</a>.</p>{/if}
+		{#if missingProof}<p class="muted" data-testid="missing-proof">No proof is attached. <a href={`/review?show=all#review-${anchorId(key)}`}>See this block in Review</a>.</p>{/if}
 
 		{#if node.conflict?.length}
 			<p class="conflicted" data-testid="conflicted">

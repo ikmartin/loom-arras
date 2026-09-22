@@ -19,6 +19,7 @@ from loom.cli.refs import refs
 from loom.cli.review import accept, comment, review_command, status
 from loom.cli.serve_cmd import serve
 from loom.cli.session import session
+from loom.cli.sync import sync
 from loom.cli.upgrade import upgrade
 from loom.version import __version__
 
@@ -75,5 +76,6 @@ main.add_command(revert)
 main.add_command(live)
 main.add_command(linearize)
 main.add_command(history)
+main.add_command(sync)
 
 __all__ = ["main"]

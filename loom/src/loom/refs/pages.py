@@ -164,7 +164,11 @@ def page_rotation(pdf: Path, page: int, home: Path | None = None) -> float:
                 pass
     try:
         proc = subprocess.run(
-            ["pdfinfo", "-f", str(page), "-l", str(page), str(pdf)], capture_output=True, text=True, timeout=60, check=False
+            ["pdfinfo", "-f", str(page), "-l", str(page), str(pdf)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
         )
         m = re.search(r"^Page\s+(?:\d+\s+)?rot:\s*(-?\d+)", proc.stdout, re.M) if proc.returncode == 0 else None
         rot = float(m.group(1)) if m else 0.0

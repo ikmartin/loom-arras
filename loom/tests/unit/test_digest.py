@@ -118,10 +118,14 @@ def test_postnote_match_edge_unmatched_and_no_postnote(tmp_path: Path) -> None:
     assert "loom:unmatched-postnote" in lint and "Lemma 99" in lint
     digest = q / "digests" / "Calloway14.tex"
     digest.write_text(
-        digest.read_text().replace("\\label{Calloway14-prop-3.2}", "\\label{Calloway14-prop-3.2}\\label{Calloway14-lem-99}", 1)
+        digest.read_text().replace(
+            "\\label{Calloway14-prop-3.2}", "\\label{Calloway14-prop-3.2}\\label{Calloway14-lem-99}", 1
+        )
     )
     assert "unmatched-postnote" not in run("lint", cwd=q).output  # an alias id names the result under another numbering
-    assert lint.count("unmatched-postnote") == 1  # \cite{Calloway14} without a postnote is neither an edge nor a diagnostic
+    assert (
+        lint.count("unmatched-postnote") == 1
+    )  # \cite{Calloway14} without a postnote is neither an edge nor a diagnostic
 
 
 def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> None:

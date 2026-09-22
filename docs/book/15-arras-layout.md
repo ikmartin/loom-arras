@@ -11,7 +11,7 @@ Markers as elsewhere. The chapter was written before the viewer was built and it
 1. One persistent left rail, always present, always in the same place. The user never hunts for navigation.
 2. A right rail appears only where there is context to show: node pages and the graph's inspector. It is absent elsewhere, and its absence is not a gap.
 3. The shell renders no page content; the page renders no navigation. A page that reaches into the shell is a bug.
-4. Nothing in arras writes to the quilt. Every control is navigation, filtering, or display.
+4. Arras asks the local Loom publisher to write only through advertised controls. The explicit Incorporate pull control is the sole author-file write.
 5. Density is comfortable only. **[decided]** No compact mode in the MVP.
 6. Below 900px the layout is undefined. **[decided]** Mobile is deferred; the rule is that shells collapse to no rail with a disclosure control, and nothing else is specified.
 
@@ -99,7 +99,7 @@ See 15.5.
 
 ![Home](figures/page-home.png)
 
-**[decided]** Four metric cards (48px tall, `--leaf`, `--rad-control`, 9px muted label, 18px value in the state colour) — accepted, stale, incomplete, errors — then the documents, what needs attention, what is blocked, what is loose, and what is recent. Every line links. Each card opens the table of exactly what it counts: `/review?show=accepted`, `?show=stale`, `?show=incomplete`, and `/problems?severity=error` (DR-118). This is the landing route.
+**[decided]** Four metric cards (48px tall, `--leaf`, `--rad-control`, 9px muted label, 18px value in the state colour) — accepted, stale, incomplete, errors — then the documents, what needs attention, what is blocked, what is loose, and what is recent. Every line links. The first three cards open Review's complete All table; errors opens `/problems?severity=error` (DR-220). This is the landing route.
 
 ### 15.3.4a Answering a finding
 
@@ -125,7 +125,9 @@ See 15.5.
 
 ### 15.3.5 Review panel, problems, threads, indexes
 
-**[decided]** Table-shaped pages: a header with counts and an explanatory sentence, filter controls in the left panel through the registry of 15.3, rows with state badge, id, taxon, title, cause, counts. Filters live in the URL, so a filtered table is a link, and each count in the header toggles its own filter. A column no row in the current table fills is not drawn. A row expands in place to show the stale cause and its diff, as a two-column diff with the accepted text tinted by `--state-incomplete-wash` on the left and the current text by `--state-accepted-wash` on the right. The review table's incomplete view, which is what `/blockers` opens, adds a column saying how many results each gap blocks, expanding in place to the list (DR-118). There is no right rail; the expansion is in the table. Beside the title of the review and problems pages is a question mark that defines each state and names the command that records it; its panel closes on a press outside it (DR-121).
+**[decided]** The Review page has three tabs only: All, Needs review, and Incoming. All is the default complete table; specialist state, basis, proof, gap, and reachability information stays in its rows and counts. Needs review is a dependency-ordered block queue. Incoming shows the exact fetched revision, comparisons, affected dependents, and changed files. No review filters occupy the left panel. A column no row fills is not drawn, and stale cause details still expand in place. `/blockers` redirects to All.
+
+`/review?show=incoming` is a separate view of a fetched source revision (DR-217). It lists changed block IDs and files, places the current local block beside the incoming rendering, offers source diffs for changed TeX and bibliography files, and links potentially affected dependents to their citations. One **Incorporate pull** click verifies and applies that exact revision and creates two local commits. Conflicts stop before author files change. The action never pushes or accepts mathematics.
 
 **[decided]** The workbench layout (a node list, node body, and context pane as one screen) explored in design is dropped; the review panel plus the node page cover it.
 
@@ -167,7 +169,7 @@ See 15.5.
 | read | document picker, contents tree | none; comments stand in the page's own right gutter or in the text, and the local graph floats when opened |
 | node | document picker, contents tree | local graph, in `<document>`, depends on, used by, see also, discussions, detached comments, diagnostics |
 | graph | drawing, document, taxon, tag, state, depth, highlight, cited results | the selection and what rests on it, or the selected paper and its links |
-| review | show, document, author, tag, and the count | none; a row expands in place |
+| review | none | none; tabs choose All, Needs review, or Incoming, and an All row expands in place |
 | threads, tags, taxa, loose | document picker, contents tree | none |
 | problems | severity and code filters | none |
 | references | document picker, contents tree | none |

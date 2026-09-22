@@ -126,9 +126,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         home = root / str(artifacts.get("dir", ""))
         if not artifacts.get("pdf") or not (home / "paper.pdf").is_file():
             continue
-        results = {
-            rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page
-        }
+        results = {rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page}
         if not results and not notes:
             continue
         table = _PageTable(home)
@@ -165,7 +163,9 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
             continue
         m = read_map(home)
         body = json.dumps(
-            {"artifact": m.sha256 if m else "", "pages": pages, "quads": quads, "marks": marks}, indent=1, sort_keys=True
+            {"artifact": m.sha256 if m else "", "pages": pages, "quads": quads, "marks": marks},
+            indent=1,
+            sort_keys=True,
         )
         rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
         files[rel] = body
@@ -419,6 +419,12 @@ def build(
 
     _attach_spans(result.quilt.root, manifest, files)
     attach_comparisons(result, records, renderer, manifest, files)
+    from loom.render.incoming import attach_incoming
+
+    attach_incoming(result, renderer, manifest, files)
+    from loom.review_queue import rows_for
+
+    manifest["unresolved"] = rows_for(result, manifest)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [

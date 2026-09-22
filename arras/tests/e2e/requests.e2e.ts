@@ -280,27 +280,19 @@ test.describe('references', () => {
 	});
 });
 
-test.describe('the counts open filtered tables', () => {
-	test('the review filter lives in the URL, and a count toggles it', async ({ page }) => {
+test.describe('the review views stay deliberately small', () => {
+	test('All is the default and the only other views are Needs review and Incoming', async ({ page }) => {
 		await page.goto('/review?show=stale');
-		await expect(page.getByTestId('filter-show')).toHaveValue('stale');
-		const staleCount = Object.values(manifest.keys as Record<string, { acceptance?: { fresh: boolean } }>).filter((k) => k.acceptance && k.acceptance.fresh === false).length;
-		await expect(page.locator('main table.list tbody tr')).toHaveCount(staleCount);
-		await page.getByTestId('filter-show').selectOption('draft');
-		await expect(page).toHaveURL(/show=draft/);
-		await page.getByTestId('show-draft').click();
-		await expect(page).toHaveURL(/\/review$/);
+		const tabs = page.getByRole('navigation', { name: 'Review views' });
+		await expect(tabs.getByRole('link')).toHaveText([/All/, /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
+		await expect(tabs.getByRole('link', { name: 'All' })).toHaveAttribute('aria-current', 'page');
+		await expect(page.locator('main table.list')).toBeVisible();
+		await expect(page.getByTestId('filter-show')).toHaveCount(0);
 	});
 
-	test('the incomplete view says what each gap blocks', async ({ page }) => {
-		await page.goto('/review?show=incomplete');
-		await expect(page.locator('main table.list tbody tr')).toHaveCount(1);
-		await expect(page.getByTestId('blocks-sy-000C/proof')).toBeVisible();
-	});
-
-	test('the blockers address lands on the incomplete view', async ({ page }) => {
+	test('the blockers address lands on All', async ({ page }) => {
 		await page.goto('/blockers');
-		await expect(page).toHaveURL(/\/review\?show=incomplete$/);
+		await expect(page).toHaveURL(/\/review\?show=all$/);
 	});
 
 	test('the problems page filters by severity from the URL, with its filters in the panel', async ({ page }) => {

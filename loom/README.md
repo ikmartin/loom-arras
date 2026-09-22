@@ -62,7 +62,7 @@ Every command is described in [docs/cli-reference.md](docs/cli-reference.md), ge
 
 ## What a quilt is
 
-An ordinary LaTeX project loom can read: the documents you are working on in `drafting/`, one node per file in `nodes/` by convention, digests of cited papers in `digests/`, landmarks in `canon/` (flat, self-contained copies of a document as it stood, never scanned), and three macros from `loom.sty` that print nothing (`\uses`, `\incomplete`, `\nest`). The paper compiles with plain `pdflatex` from the quilt root and on Overleaf. loom never edits your files: its own data lives in `.loom/` (the acceptance ledger and the history of every key), `comments/` and `ai/runs/` (review records), and `build/` (everything derived). `loom init` writes `CONTRACT.md` into every quilt with the full contract.
+An ordinary LaTeX project loom can read: the documents you are working on in `drafting/`, one node per file in `nodes/` by convention, digests of cited papers in `digests/`, landmarks in `canon/` (flat, self-contained copies of a document as it stood, never scanned), and three macros from `loom.sty` that print nothing (`\uses`, `\incomplete`, `\nest`). The paper compiles with plain `pdflatex` from the quilt root and on Overleaf. Loom edits author files only when the author explicitly clicks **Incorporate pull** in a locally served Incoming review; that action applies the exact displayed patch and makes local commits. Its own data lives in `.loom/` (the acceptance ledger and the history of every key), `comments/` and `ai/runs/` (review records), and `build/` (everything derived). `loom init` writes `CONTRACT.md` into every quilt with the full contract.
 
 ## Layout of this repository
 
