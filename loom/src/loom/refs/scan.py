@@ -16,6 +16,7 @@ from loom.clock import stamp
 from loom.refs.identity import WorkId, primary
 from loom.refs.ingest import filename_title, identifiers_in, look_at
 from loom.refs.pages import STORAGE, page_texts, sha256_of, storage_root, write_map
+from loom.refs.unreadable import declarations
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
 from loom.scan.scan import canon_documents
@@ -63,13 +64,19 @@ class ScanReport:
     unnamed: list[str] = field(default_factory=list)  # entries offered for a document that stated none
     siblings: list[tuple[str, str]] = field(default_factory=list)  # (new key, the work it is a second document of)
     unmapped: list[tuple[str, str]] = field(default_factory=list)  # (file, why no page text was written)
+    adopted: list[tuple[str, str]] = field(default_factory=list)  # (new key, the store directory nothing named)
+    forgotten: int = 0  # stored documents a tombstone says not to offer again
 
     def lines(self) -> list[str]:
         """What a person reads: one line of counts, then each conflict and each missing `.bib`."""
-        heuristic = sum(1 for c in self.added if "loom-parsed" in c.text)
+        # A `\bibitem` and a document dropped in `refs/` both carry `loom-parsed`, and counting them together said
+        # "from \bibitem text" about a PDF that came from no bibliography at all.
+        from_seed = {c.key for c in self.added if c.text and "loom-source" in c.text}
+        heuristic = sum(1 for c in self.added if "loom-parsed" in c.text and c.key not in from_seed)
         out = [
             f"{BIBLIOGRAPHY}: {len(self.added)} added"
             + (f" ({heuristic} from \\bibitem text, parsed heuristically)" if heuristic else "")
+            + (f" ({len(from_seed)} read from the document itself)" if from_seed else "")
             + f", {self.present} already there"
         ]
         out += [f"conflict: {key} differs between {kept} (kept) and {other}" for key, kept, other in self.conflicts]
@@ -84,6 +91,9 @@ class ScanReport:
                 )
             )
         out += [f"{new} is a second document for {old}, filed beside it" for new, old in self.siblings]
+        out += [f"{key} adopts {where}, which the bibliography no longer named" for key, where in self.adopted]
+        if self.forgotten:
+            out.append(f"{self.forgotten} stored document(s) not offered: forgotten (loom refs forget --undo restores)")
         out += [f"{name}: no page text ({why})" for name, why in self.unmapped]
         out += [f"{doc} names {name}.bib, which does not exist" for doc, name in self.missing_bib]
         if not self.canon:
@@ -175,6 +185,7 @@ def _bibtex(key: str, fields: dict[str, str]) -> str:
         "zbl",
         "loom-text",
         "loom-source",
+        "loom-file",
         "loom-copy-of",
         "loom-parsed",
     ):
@@ -284,6 +295,14 @@ def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
     report.added += from_seed
     if write:
         _append(path, from_seed)
+        existing = parse_bib(path.read_text(encoding="utf-8", errors="replace")) if path.is_file() else existing
+    else:
+        existing = {**existing, **parse_bib("".join(c.text for c in from_seed))}
+    # last, and against everything the bibliography now knows: a document the store holds and no entry names
+    orphans = [c for c in adopt_orphans(quilt, existing, report) if c.key not in existing]
+    report.added += orphans
+    if write:
+        _append(path, orphans)
     return report
 
 
@@ -350,15 +369,21 @@ def _own_account(pdf: Path) -> tuple[WorkId | None, dict[str, str]]:
     return None, fields
 
 
-def _entry_for(pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str) -> str:
-    """A bibliography entry for a document that had none, carrying where it came from."""
+def _entry_for(pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, source: str = "", filed: str = "") -> str:
+    """A bibliography entry for a document that had none, carrying where it came from.
+
+    `source` overrides the seed path for a document that did not come from the seed space; it is what a later scan reads to know this entry already names that document.
+    """
     out = dict(fields)
     if wid is not None:
         if wid.scheme == "arxiv":
             out["eprint"], out["archiveprefix"] = wid.value, "arXiv"
         else:
             out[wid.scheme] = wid.value
-    out["loom-source"] = f"{SEED}/{pdf.name}"
+    out["loom-source"] = source or f"{SEED}/{pdf.name}"
+    # where the document went, when that is not derivable from an identifier it does not state
+    if filed:
+        out["loom-file"] = filed
     out["loom-parsed"] = "heuristic"
     return _bibtex(key, out)
 
@@ -368,6 +393,88 @@ def _derived_key(pdf: Path, sha: str, taken: set[str]) -> str:
     stem = re.sub(r"[^A-Za-z0-9]", "", pdf.stem)[:24]
     key = stem or f"pdf{sha[:8]}"
     return key if key not in taken else _free_key(key, taken)
+
+
+def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) -> list[Candidate]:
+    """Offer an entry for every document in the store that no bibliography entry names.
+
+    The store outlives the bibliography. An entry deleted by hand, a citekey renamed, an import that filed a paper and then failed -- each leaves a directory holding a PDF, its page text and possibly a whole digest, which nothing can now reach: the viewer lists works by entry, and the copy ledger will not offer the file again because it remembers copying it. The document is not lost, only unnamed, and an entry is what names it.
+
+    Parameters
+    ----------
+    quilt : Quilt
+        The quilt whose store to walk.
+    bib : dict of str to BibEntry
+        The bibliography as it stands, including anything this scan has just added.
+    report : ScanReport
+        Filled in with one `adopted` row per orphan.
+
+    Returns
+    -------
+    list of Candidate
+        Entries to append, each carrying the store path it adopts and what the document says about itself.
+
+    Notes
+    -----
+    What the entry says comes from the document and from the ledger's record of where it was dropped, never from a lookup: this runs offline, like the rest of the scan. A directory with no `paper.pdf` is skipped -- a work whose LaTeX alone is filed is a source-only work, which the invariant's relaxation allows (DR-198) and which nothing has lost.
+
+    See Also
+    --------
+    copy_documents : The seed space's side of the same job, which files a document the store has not seen.
+    """
+    store = storage_root(quilt.root)
+    if not store.is_dir():
+        return []
+    claimed = set()
+    # An entry with an identifier names its home outright. One without -- a document the author dropped that says nothing about itself -- is filed under its hash, which the entry does not carry; what it does carry is `loom-source`, where the document came from, and the ledger knows which home that file became. Without this second check every scan would adopt the same hash-named directory again under a new key.
+    sources = {str(e.fields["loom-source"]) for e in bib.values() if e.fields.get("loom-source")}
+    for entry in bib.values():
+        wid = primary(entry)
+        if wid is not None:
+            claimed.add(wid.path)
+    ledger = {rec.get("to", ""): rec for rec in load_ledger(quilt.root).values()}
+    # What the author has deliberately deleted the entry for. Without this the offer is loom undoing their decision on
+    # every scan, which is the whole reason `loom refs forget` exists.
+    forgotten = declarations(quilt.root, "forget")
+    taken = set(bib)
+    offers: list[Candidate] = []
+    for pdf in sorted(store.glob("*/*/paper.pdf")):
+        home = pdf.parent
+        if f"{home.parent.name}/{home.name}" in claimed:
+            continue
+        rel = home.relative_to(quilt.root).as_posix()
+        # where it was dropped, when the ledger remembers: the stored copy is always called `paper.pdf`, so the name a reference manager gave it -- which is the only title worth trusting (DR-191) -- survives only there
+        came = str(ledger.get(rel, {}).get("from", "")) or rel
+        if came in sources:
+            continue  # an entry already names this document by where it came from
+        sha = sha256_of(pdf)
+        if f"sha256:{sha}" in forgotten:
+            report.forgotten += 1
+            continue
+        wid, said = _own_account(pdf)  # the real file, for what the document says about itself
+        stem = Path(came).stem
+        named = filename_title(stem)
+        if named and named != stem:
+            said.setdefault("title", named)
+            year = re.search(r"\b((?:19|20)\d\d)\b", stem)
+            if year:
+                said.setdefault("year", year.group(1))
+        key = _derived_key(Path(came), sha, taken)
+        # A tombstone on the citekey, which is what the author types after deleting the entry the last scan offered
+        if key in forgotten:
+            report.forgotten += 1
+            continue
+        taken.add(key)
+        offers.append(
+            Candidate(
+                key,
+                _entry_for(pdf, wid, said, key, source=came, filed="" if wid else f"{home.parent.name}/{home.name}"),
+                rel,
+                rel,
+            )
+        )
+        report.adopted.append((key, rel))
+    return offers
 
 
 def copy_documents(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) -> list[Candidate]:
@@ -409,7 +516,8 @@ def copy_documents(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) -
             home = own  # nothing in the bibliography claims it
             key = _derived_key(pdf, sha, taken)
             taken.add(key)
-            offers.append(Candidate(key, _entry_for(pdf, wid, said, key), rel, rel))
+            here = own.relative_to(storage_root(root)).as_posix()
+            offers.append(Candidate(key, _entry_for(pdf, wid, said, key, filed="" if wid else here), rel, rel))
             (report.derived if wid else report.unnamed).append(key)
         home.mkdir(parents=True, exist_ok=True)
         shutil.copy(pdf, home / "paper.pdf")

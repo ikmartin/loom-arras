@@ -7,7 +7,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError, find_run
+from loom.cli._common import ContentError, EnvError, find_session
 from loom.cli._quilt import open_quilt, quilt_option
 
 
@@ -28,10 +28,11 @@ def ai() -> None:
 def discard(
     run: str | None, before: str | None, author: str | None, target: str | None, undo: bool, quilt_path: str | None
 ) -> None:
-    """Flag a run's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
+    """Flag a session's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
 
-    Discarding appends an event like any other change, so a run's findings can be dismissed and brought back without anything being rewritten or lost.
+    Discarding appends an event like any other change, so a sitting's findings can be dismissed and brought back without anything being rewritten or lost.
     """
+    from loom.cli._common import agent_marker
     from loom.clock import stamp
     from loom.records.log import append
     from loom.records.store import Records
@@ -41,8 +42,9 @@ def discard(
     records = Records(root, quilt.history_dir).records
     sources: list[str] = []
     if run:
-        d = find_run(root, run)
-        sources.append(d.relative_to(root).as_posix())
+        found = find_session(root, run)
+        # a migrated session's annotations still carry the grouping they were written with
+        sources.append(found.source or found.id)
     elif before or author or target:
         for rec in records:
             created = min((a.created for a in rec.annotations), default="")
@@ -54,33 +56,32 @@ def discard(
                 continue
             sources.append(rec.rel)
     else:
-        raise EnvError("give RUN, or --before, --author, or --target")
+        raise EnvError("give SESSION, or --before, --author, or --target")
     if not sources:
         click.echo("no matching records")
         return
+    from loom.cli._common import whoever
+    from loom.sessions import ID, by_source, close, resume
+
+    who = whoever(root)
+    known = by_source(root)
     for rel in sources:
-        is_run = rel.startswith("ai/runs/")
         event: dict[str, object] = {
             "event": "discarded",
             "source": rel,
             "when": stamp(),
-            "author": rel.rsplit("/", 1)[-1],
-            "kind": "agent" if is_run else "human",
-            "run": rel if is_run else None,
+            "author": who,
+            "kind": "agent" if agent_marker() else "human",
+            "session": rel if ID.match(rel) else known.get(rel),
         }
         if undo:
             event["undo"] = True
         append(root, event)
-        toml = root / rel / "run.toml"
-        if toml.is_file():
-            import re
-
-            text = toml.read_text(encoding="utf-8")
-            if "discarded" in text:
-                text = re.sub(r"discarded\s*=\s*(true|false)", f"discarded = {'false' if undo else 'true'}", text)
-            else:
-                text = text.rstrip("\n") + f"\ndiscarded = {'false' if undo else 'true'}\n"
-            toml.write_text(text, encoding="utf-8")
+        # Discarding a sitting's findings ends the sitting: that is what discarding a run meant, and a session whose
+        # every finding is dismissed has no business in the list of what is open.
+        sid = rel if ID.match(rel) else known.get(rel)
+        if sid:
+            (resume if undo else close)(root, sid, who)
         click.echo(f"{'restored' if undo else 'discarded'} {rel}")
 
 
@@ -106,18 +107,18 @@ def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
 
 @ai.command(name="orient")
 @click.option(
-    "--run",
-    "run_dir",
+    "--session",
+    "session",
     default=None,
-    envvar="LOOM_RUN",
-    metavar="RUN",
-    help="Attach to this run: also print its thread.md and run.log. A name, a prefix of one, or a path.",
+    envvar="LOOM_SESSION",
+    metavar="SESSION",
+    help="Attach to this session: also print its journal and command log. An id, a title, or a unique id suffix.",
 )
 @quilt_option
-def ai_orient(run_dir: str | None, quilt_path: str | None) -> None:
-    """Print the orientation document followed by the quilt's live state, and with --run a run's own journal.
+def ai_orient(session: str | None, quilt_path: str | None) -> None:
+    """Print the orientation document followed by the quilt's live state, and with --session that session's own journal.
 
-    This is also how an agent attaches to a run it did not start: `loom ai orient --run <name>` prints the orientation, the quilt's live state, and that run's thread.md and run.log, which is the scrollback a later session resumes from.
+    This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and that session's journal and command log, which is the scrollback a later sitting resumes from.
     """
     from loom.ai.orient import live_text, static_text
     from loom.cli._quilt import open_scan
@@ -126,57 +127,65 @@ def ai_orient(run_dir: str | None, quilt_path: str | None) -> None:
 
     result = open_scan(quilt_path)
     root = result.quilt.root
-    run: Path | None = find_run(root, run_dir) if run_dir else None
+    from loom.sessions import files_dir
+
+    found = find_session(root, session) if session else None
+    where = files_dir(root, found) if found else None
     click.echo(static_text(root), nl=False)
-    click.echo(live_text(result, Records(root, result.quilt.history_dir), run), nl=False)
-    log_run(run.relative_to(root).as_posix() if run else None, "loom ai orient", root)
+    click.echo(live_text(result, Records(root, result.quilt.history_dir), where), nl=False)
+    log_run(found.id if found else None, "loom ai orient", root)
 
 
 @ai.command(name="start")
 @click.argument("name", required=False, default=None)
 @quilt_option
 def ai_start(name: str | None, quilt_path: str | None) -> None:
-    """Create a run directory under ai/runs/ named NAME, and print its path.
+    """Open a session named NAME and make it active, printing its id.
 
-    Loom does not launch your agent. `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`, so starting a session is `claude`, and this is the command it runs when you ask it to begin a run.
+    The same session a person opens with `loom session new`: an agent and the author working the same job land in one place, which they could not when a run was the agent's alone. Loom does not launch your agent -- `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`.
     """
-    from loom.ai.runs import start_run
+    from loom.cli._common import whoever
+    from loom.sessions import create, set_active
 
     quilt = open_quilt(quilt_path)
     if not (quilt.root / "ai").is_dir():
         raise EnvError("no ai/ in this quilt; run loom ai init first")
-    d = start_run(quilt.root, name)
-    click.echo(d.relative_to(quilt.root).as_posix())
+    s = create(quilt.root, (name or "").strip() or "untitled", whoever(quilt.root))
+    set_active(quilt.root, s.id)
+    click.echo(s.id)
 
 
 @ai.command(name="runs")
-@click.option("--all", "show_all", is_flag=True, help="Include discarded runs, marked.")
+@click.option("--all", "show_all", is_flag=True, help="Include closed sessions, marked.")
 @quilt_option
 def ai_runs(show_all: bool, quilt_path: str | None) -> None:
-    """List this quilt's runs, newest last, as `YYYY-MM-DD: name`."""
-    from loom.ai.orient import open_runs
+    """List this quilt's sessions, newest last, as `YYYY-MM-DD: title`. The same list `loom session list` prints."""
+    from loom.ai.orient import open_sessions
 
     quilt = open_quilt(quilt_path)
-    rows = open_runs(quilt.root, include_discarded=show_all)
+    rows = open_sessions(quilt.root, include_closed=show_all)
     if not rows:
-        click.echo("no runs yet" if show_all else "no open runs")
+        click.echo("no sessions yet" if show_all else "no open sessions")
         return
-    for _rel, name, created, discarded in rows:
-        click.echo(f"  {created[:10]}: {name}" + (" (discarded)" if discarded else ""))
+    for _sid, title, created, closed in rows:
+        click.echo(f"  {created[:10]}: {title}" + (" (closed)" if closed else ""))
 
 
 @ai.command(name="name")
 @click.argument("new_name")
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="The run to rename.")
+@click.option(
+    "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to rename."
+)
 @quilt_option
-def ai_name(new_name: str, run_dir: str | None, quilt_path: str | None) -> None:
-    """Rename a run. The directory keeps the name it was created under, which is its address."""
-    from loom.ai.runs import rename_run
+def ai_name(new_name: str, session: str | None, quilt_path: str | None) -> None:
+    """Retitle a session. The id it was opened under does not change, because that is its address."""
+    from loom.cli._common import whoever
+    from loom.sessions import rename
 
     quilt = open_quilt(quilt_path)
-    d = find_run(quilt.root, run_dir)
-    rename_run(d, new_name)
-    click.echo(f"{d.relative_to(quilt.root).as_posix()}: {new_name}")
+    found = find_session(quilt.root, session)
+    rename(quilt.root, found.id, new_name, whoever(quilt.root))
+    click.echo(f"{found.id}: {new_name}")
 
 
 def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
@@ -205,7 +214,9 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
 
 
 @ai.command(name="findings")
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="The run to report on.")
+@click.option(
+    "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to report on."
+)
 @click.option("--severity", "f_severity", default=None, help="Only findings of this severity.")
 @click.option("--kind", "f_kind", default=None, help="Only findings of this kind.")
 @click.option("--status", "f_status", default=None, help="Only findings in this state: open, resolved or discarded.")
@@ -213,7 +224,7 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
 @click.option("--json", "as_json", is_flag=True, help="Print the findings as JSON.")
 @quilt_option
 def ai_findings(
-    run_dir: str | None,
+    session: str | None,
     f_severity: str | None,
     f_kind: str | None,
     f_status: str | None,
@@ -232,12 +243,15 @@ def ai_findings(
 
     result = open_scan(quilt_path)
     root = result.quilt.root
-    d = find_run(root, run_dir)
-    rel = d.relative_to(root).as_posix()
+    found = find_session(root, session)
+    rel = found.source or found.id
     rows = [
         {
             "id": a.annotation.id,
             "target": a.annotation.target_key,
+            # a note on a page of a cited work: the citekey the agent knows it by, and the page (plan 0.13 item 2)
+            "work": a.work or None,
+            "page": a.annotation.anchor.page if a.annotation.anchor else None,
             "kind": a.annotation.kind,
             "severity": a.annotation.severity,
             "status": a.annotation.status,
@@ -252,7 +266,7 @@ def ai_findings(
             "discard_reason": a.annotation.discard_reason,
         }
         for a in Records(root, result.quilt.history_dir).resolved(result)
-        if a.record.rel.startswith(f"{rel}/") or a.annotation.author_id == d.name
+        if a.record.rel == rel or a.record.rel.startswith(f"{rel}/")
     ]
     rows = [
         r
@@ -262,9 +276,9 @@ def ai_findings(
         and (not f_kind or r["kind"] == f_kind)
         and (not f_status or r["status"] == f_status)
     ]
-    proposals = run_proposals(root, d.name)
+    proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
     if as_json:
-        click.echo(json.dumps({"run": rel, "findings": rows, "proposals": proposals}, indent=2))
+        click.echo(json.dumps({"session": found.id, "findings": rows, "proposals": proposals}, indent=2))
         return
     if proposals:
         # what the author did with this run's proposals: a reattaching agent otherwise ran `refs why` on each id it
@@ -290,27 +304,28 @@ def ai_findings(
         sev = f" {r['severity']}" if r["severity"] else ""
         mark = "" if r["status"] == "open" else f" ({r['status']})"
         quote = f"  \u201c{r['quote']}\u201d" if r["quote"] else ""
-        click.echo(f"{r['id']}  {r['target']}  {r['kind']}{sev}{mark}{quote}")
+        where = f"{r['work']} p.{r['page']}" if r["page"] else r["target"]
+        click.echo(f"{r['id']}  {where}  {r['kind']}{sev}{mark}{quote}")
         if r["discarded"]:
             click.echo(f"      withdrawn: {r['discard_reason'] or 'no reason given'}")
 
 
 @ai.command(name="check")
-@click.argument("run")
+@click.argument("session", metavar="SESSION")
 @quilt_option
 @click.pass_context
-def ai_check(ctx: click.Context, run: str, quilt_path: str | None) -> None:
-    """Report files outside RUN, the annotation log, and build/ modified since the run started (loom:agent-wrote-outside-run)."""
+def ai_check(ctx: click.Context, session: str, quilt_path: str | None) -> None:
+    """Report files outside SESSION, the annotation log, and build/ modified since it opened (loom:agent-wrote-outside-run)."""
     from loom.ai.check import outside_writes
 
     quilt = open_quilt(quilt_path)
-    run_dir = find_run(quilt.root, run)  # a name, a prefix or a path, resolved as everywhere else (DR-167)
+    found = find_session(quilt.root, session)  # an id, a title or a unique suffix, as everywhere else (DR-167)
     try:
-        hits = outside_writes(quilt.root, run_dir)
+        hits = outside_writes(quilt.root, found)
     except ValueError as exc:
         raise ContentError(str(exc)) from exc
     for rel in hits:
-        click.echo(f"error   loom:agent-wrote-outside-run          {rel} changed after the run started")
+        click.echo(f"error   loom:agent-wrote-outside-run          {rel} changed after the session opened")
     if hits:
         ctx.exit(1)
-    click.echo("ok: nothing outside the run changed")
+    click.echo("ok: nothing outside the session changed")

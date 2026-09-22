@@ -2,6 +2,8 @@
 	// Reviewing a run (plan 0.11 Parts B and C): the document on the left, the run on the right, the two scrolling independently and pointing at each other.
 	//
 	// The panes are linked both ways and only both ways: clicking a finding scrolls the document to the sentence it is about, clicking a mark in the document scrolls the report to the finding that made it. That pairing is the whole reason this is one page rather than two.
+	//
+	// It uses the same split as every other route (plan 0.13 §7): one global ratio, one divider, one behaviour below the breakpoint. **Tabs belong to the content pane**, so the journal — which is a text read against the document — is a tab there, and the findings, which are the discussion, are a stream with no tab across them.
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
@@ -9,6 +11,8 @@
 	import type { Annotation, Thread } from '$lib/manifest/types';
 	import { anchorId, keyUrl, threadUrl } from '$lib/nav';
 	import Tex from '$lib/math/Tex.svelte';
+	import Split from '$lib/split/Split.svelte';
+	import Tabs from '$lib/split/Tabs.svelte';
 	import { ambiguous, documentOf, findingsOf, notationOf, runsOn, versionNote } from './run';
 
 	let { thread }: { thread: Thread } = $props();
@@ -22,7 +26,8 @@
 	const notation = $derived(notationOf(thread));
 	const clashes = $derived(new Set(ambiguous(thread).map((d) => d.tex)));
 
-	let tab = $state<'report' | 'journal'>('report');
+	/** Which text the content pane is showing. The report is not among them: it is the discussion. */
+	let tab = $state<'document' | 'journal'>('document');
 	/** Which run the document's marks are showing. Empty means this one, so the pane follows the thread it was given rather than remembering the first it ever saw. */
 	let picked = $state('');
 	const shown = $derived(picked || thread.id);
@@ -52,6 +57,7 @@
 	/** From a finding to the sentence it is about. */
 	function showInDocument(a: Annotation) {
 		selected = a.id;
+		tab = 'document';
 		const mark = leftEl?.querySelector<HTMLElement>(`[data-annotation~="${a.id}"]`);
 		const fallback = leftEl?.querySelector<HTMLElement>(`#${CSS.escape(anchorId(a.target.key))}`);
 		(mark ?? fallback)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -60,7 +66,6 @@
 	/** From a mark to the finding that made it. */
 	function showInReport(id: string) {
 		selected = id;
-		tab = 'report';
 		queueMicrotask(() => {
 			rightEl?.querySelector<HTMLElement>(`#finding-${CSS.escape(id)}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		});
@@ -93,142 +98,114 @@
 	}
 </script>
 
-<div class="split" data-testid="split-view">
-	<section class="pane left" aria-label="the document">
-		{#if master}
-			<p class="faint"><code>{master.path}</code></p>
-			<Fragment path={master.fragment} master={master.path} comments={slots} onmounted={wireLeft} />
-		{:else if thread.targets.length}
-			<p class="faint">No document holds what this run looked at.</p>
-			<ul class="plain">
-				{#each thread.targets as k (k)}<li><a href={keyUrl(m, k)}>{k}</a></li>{/each}
-			</ul>
-		{:else}
-			<p class="faint">This run annotated nothing.</p>
-		{/if}
-	</section>
-
-	<section class="pane right" aria-label="the run">
-		<nav class="tabs">
-			<button class:on={tab === 'report'} onclick={() => (tab = 'report')} data-testid="tab-report">Report</button>
-			<button class:on={tab === 'journal'} onclick={() => (tab = 'journal')} data-testid="tab-journal">Journal</button>
-			{#if others.length > 1}
-				<label class="picker">
-					run
-					<select value={shown} onchange={(e) => (picked = e.currentTarget.value)} data-testid="run-picker">
-						{#each others as t (t.id)}<option value={t.id}>{t.title}</option>{/each}
-					</select>
-				</label>
-			{/if}
-		</nav>
-
-		{#if shown !== thread.id}
-			<p class="faint">Showing <a href={threadUrl(shown)}>{m.threads[shown]?.title ?? shown}</a>'s marks in the document; the report below is still this run's.</p>
-		{/if}
-
-		{#if tab === 'report'}
-			{#if notation.length}
-				<!-- Notation is the run's, never the corpus's: a symbol an agent introduced to explain something is not a symbol the paper uses. Collapsed, because it is a reference you consult rather than prose you read. -->
-				<details class="notation" data-testid="notation">
-					<summary>Notation ({notation.length}){#if clashes.size}<span class="clash-count"> · {clashes.size} with two meanings</span>{/if}</summary>
-					<dl>
-						{#each notation as d (d.tex)}
-							<dt class:clash={clashes.has(d.tex)}><Tex text={'$' + d.tex + '$'} /></dt>
-							<dd>
-								{#each d.means as mean, i (i)}<p>{mean}</p>{/each}
-								{#if clashes.has(d.tex)}<p class="clash-note">declared twice in this run with different meanings</p>{/if}
-							</dd>
+<div class="split-view" data-testid="split-view">
+	<Split contentLabel="the document" discussionLabel="the run">
+		{#snippet content()}
+			<section class="pane-body left" aria-label="the document">
+				<!-- Two texts, one pane: the document, and the journal written against it. The report is not here — it is what the other pane is. -->
+				<Tabs tabs={[{ id: 'document', label: 'Document' }, { id: 'journal', label: 'Journal' }]} bind:value={tab} />
+				{#if tab === 'journal'}
+					<div class="messages" data-testid="journal">
+						{#each thread.messages as msg, i (i)}
+							<article class="message">
+								<p class="faint">{msg.author.id} · {msg.time}</p>
+								<Prose html={msg.body_html} class="msg" />
+							</article>
+						{:else}
+							<p class="faint">This run kept no journal.</p>
 						{/each}
-					</dl>
-				</details>
-			{/if}
-			{#if findings.document.length}
-				<!-- First and in a section of its own: these are about the thing the left pane is showing as a whole, where every other finding is about one node inside it. -->
-				<section class="doc-findings" data-testid="document-findings">
-					<h2>About the document</h2>
+					</div>
+				{:else if master}
+					<p class="faint"><code>{master.path}</code></p>
+					<Fragment path={master.fragment} master={master.path} comments={slots} onmounted={wireLeft} />
+				{:else if thread.targets.length}
+					<p class="faint">No document holds what this run looked at.</p>
 					<ul class="plain">
-						{#each findings.document as a (a.id)}
-							<li class:sel={selected === a.id}>
-								<button class="finding" onclick={() => showInDocument(a)}>
-									{#if a.severity}<span class="sev sev-{a.severity}">{a.severity}</span>{/if}
-									<span class="kind">{a.kind}</span>
-								</button>
-								<Prose html={a.body_html} />
-								{#if versionNote(m, a)}<p class="moved">{versionNote(m, a)}</p>{/if}
-							</li>
-						{/each}
+						{#each thread.targets as k (k)}<li><a href={keyUrl(m, k)}>{k}</a></li>{/each}
 					</ul>
-				</section>
-			{/if}
+				{:else}
+					<p class="faint">This run annotated nothing.</p>
+				{/if}
+			</section>
+		{/snippet}
+		{#snippet discussion()}
+			<section class="pane-body right" aria-label="the run">
+				{#if others.length > 1}
+					<label class="picker">
+						run
+						<select value={shown} onchange={(e) => (picked = e.currentTarget.value)} data-testid="run-picker">
+							{#each others as t (t.id)}<option value={t.id}>{t.title}</option>{/each}
+						</select>
+					</label>
+				{/if}
 
-			{#each steps as step (step.report)}
-				<article class="step" data-testid="report-step">
-					<p class="faint">{step.mode}{step.pass ? ` · pass ${step.pass}` : ''} · {step.target}</p>
-					{#if step.fragment}
-						<Fragment path={step.fragment} standalone onmounted={wireReport} />
-					{:else}
-						<p class="faint">This report was not rendered.</p>
-					{/if}
-				</article>
-			{:else}
-				<p class="faint">This run wrote no report.</p>
-			{/each}
-		{:else}
-			<div class="messages" data-testid="journal">
-				{#each thread.messages as msg, i (i)}
-					<article class="message">
-						<p class="faint">{msg.author.id} · {msg.time}</p>
-						<Prose html={msg.body_html} class="msg" />
+				{#if shown !== thread.id}
+					<p class="faint">Showing <a href={threadUrl(shown)}>{m.threads[shown]?.title ?? shown}</a>'s marks in the document; the report below is still this run's.</p>
+				{/if}
+
+				{#if notation.length}
+					<!-- Notation is the run's, never the corpus's: a symbol an agent introduced to explain something is not a symbol the paper uses. Collapsed, because it is a reference you consult rather than prose you read. -->
+					<details class="notation" data-testid="notation">
+						<summary>Notation ({notation.length}){#if clashes.size}<span class="clash-count"> · {clashes.size} with two meanings</span>{/if}</summary>
+						<dl>
+							{#each notation as d (d.tex)}
+								<dt class:clash={clashes.has(d.tex)}><Tex text={'$' + d.tex + '$'} /></dt>
+								<dd>
+									{#each d.means as mean, i (i)}<p>{mean}</p>{/each}
+									{#if clashes.has(d.tex)}<p class="clash-note">declared twice in this run with different meanings</p>{/if}
+								</dd>
+							{/each}
+						</dl>
+					</details>
+				{/if}
+
+				{#if findings.document.length}
+					<!-- First and in a section of its own: these are about the thing the content pane is showing as a whole, where every other finding is about one node inside it. -->
+					<section class="doc-findings" data-testid="document-findings">
+						<h2>About the document</h2>
+						<ul class="plain">
+							{#each findings.document as a (a.id)}
+								<li class:sel={selected === a.id}>
+									<button class="finding" onclick={() => showInDocument(a)}>
+										{#if a.severity}<span class="sev sev-{a.severity}">{a.severity}</span>{/if}
+										<span class="kind">{a.kind}</span>
+									</button>
+									<Prose html={a.body_html} />
+									{#if versionNote(m, a)}<p class="moved">{versionNote(m, a)}</p>{/if}
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+
+				{#each steps as step (step.report)}
+					<article class="step" data-testid="report-step">
+						<p class="faint">{step.mode}{step.pass ? ` · pass ${step.pass}` : ''} · {step.target}</p>
+						{#if step.fragment}
+							<Fragment path={step.fragment} standalone onmounted={wireReport} />
+						{:else}
+							<p class="faint">This report was not rendered.</p>
+						{/if}
 					</article>
 				{:else}
-					<p class="faint">This run kept no journal.</p>
+					<p class="faint">This run wrote no report.</p>
 				{/each}
-			</div>
-		{/if}
-	</section>
+			</section>
+		{/snippet}
+	</Split>
 </div>
 
 <style>
-	.split {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: var(--gap-wide);
-		align-items: start;
+	.split-view {
+		height: calc(100vh - 8rem);
+		min-height: 320px;
 	}
-	.pane {
+	.pane-body {
 		min-width: 0;
-		max-height: calc(100vh - 6rem);
-		overflow-y: auto;
-	}
-	.pane.right {
-		border-left: 1px solid var(--rule);
-		padding-left: var(--gap-wide);
-	}
-	.tabs {
-		display: flex;
-		gap: var(--gap-tight);
-		align-items: baseline;
-		border-bottom: 1px solid var(--rule);
-		margin-bottom: var(--gap);
-		position: sticky;
-		top: 0;
-		background: var(--paper);
-	}
-	.tabs button {
-		background: none;
-		border: 0;
-		border-bottom: 2px solid transparent;
-		padding: 0.3em 0.2em;
-		font: inherit;
-		color: var(--ink-soft);
-		cursor: pointer;
-	}
-	.tabs button.on {
-		color: var(--ink);
-		border-bottom-color: var(--ink);
+		padding: 0 var(--gap);
 	}
 	.picker {
-		margin-left: auto;
+		display: block;
 		font-size: 0.85em;
 		color: var(--ink-soft);
 	}

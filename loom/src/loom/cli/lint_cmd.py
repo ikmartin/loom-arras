@@ -86,7 +86,9 @@ def by_node(result: ScanResult, diags: list[Diagnostic]) -> tuple[dict[str, list
     is_flag=True,
     help="One block per node id: what is wrong with its identity, and the superseded files.",
 )
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="DIR", help="Log this call to DIR/run.log.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 @click.pass_context
 def lint_command(ctx: click.Context, as_json: bool, nodes: bool, run_dir: str | None, quilt_path: str | None) -> None:

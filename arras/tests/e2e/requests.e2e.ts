@@ -21,7 +21,7 @@ test.describe('comments as expandable highlights', () => {
 		await expect(mark).toHaveClass(/k-objection/);
 	});
 
-	test('inline, a mark expands its comment beneath its paragraph and selecting outside closes it', async ({ page }) => {
+	test('inline, a mark expands its comment beneath its paragraph; clicking away backgrounds it and Escape closes it', async ({ page }) => {
 		await withPrefs(page, { comments: 'inline' });
 		await page.goto('/master/main');
 		await page.waitForSelector('.fragment .env[data-key]');
@@ -41,11 +41,12 @@ test.describe('comments as expandable highlights', () => {
 		});
 		expect(follows).toBe(true);
 
+		// clicking outside backgrounds rather than collapses: nothing a reader opened disappears because they looked
+		// elsewhere (plan 0.13 §7)
 		await page.mouse.click(5, 5);
-		await expect(open).toHaveCount(0);
+		await expect(open).toHaveCount(1);
+		await expect(page.locator('aside.comment-slot.expanded.behind')).toHaveCount(1);
 
-		await mark.click();
-		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(1);
 		await page.keyboard.press('Escape');
 		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
 	});
@@ -69,6 +70,7 @@ test.describe('comments as expandable highlights', () => {
 	});
 
 	test('changing the placement re-wires the document without typesetting it again', async ({ page }) => {
+		await withPrefs(page, { comments: 'margin' });
 		await page.goto('/master/main');
 		await page.waitForSelector('.fragment[data-comments-wired="margin"] mjx-container');
 		await page.waitForFunction(() => document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
@@ -248,13 +250,13 @@ test.describe('references', () => {
 	test('a citation with no digest result behind it links to its reference', async ({ page }) => {
 		await page.goto('/master/main');
 		const cite = page.locator('.fragment span.cite[data-citekey="Har77"]').first();
-		await expect(cite.locator('a')).toHaveAttribute('href', '/digest/Har77');
+		await expect(cite.locator('a')).toHaveAttribute('href', '/library/Har77');
 		const toResult = page.locator('.fragment span.cite[data-target="Kre99-thm-2.1"]').first();
 		await expect(toResult.locator('a')).toHaveAttribute('href', '/node/Kre99-thm-2.1');
 	});
 
 	test('the references page links each work out by its identifier', async ({ page }) => {
-		await page.goto('/references');
+		await page.goto('/library');
 		const links = page.getByTestId('work-links-Man12').locator('a');
 		await expect(links).toHaveCount(1);
 		await expect(links.first()).toHaveAttribute('href', 'https://arxiv.org/abs/0805.2065v2');
@@ -270,8 +272,8 @@ test.describe('references', () => {
 			m.references.Man12.artifacts.pdf = true;
 			await route.fulfill({ json: m });
 		});
-		await page.goto('/digest/Man12');
-		await expect(page.getByTestId('work-links-Man12').getByRole('link', { name: 'PDF' })).toHaveAttribute('href', '/refs/arxiv/0805.2065v2/paper.pdf');
+		await page.goto('/library/Man12');
+		await expect(page.getByTestId('work-links-Man12').getByRole('link', { name: 'PDF' })).toHaveAttribute('href', `/${manifest.references.Man12.artifacts.dir}/paper.pdf`);
 	});
 });
 
@@ -306,11 +308,16 @@ test.describe('the counts open filtered tables', () => {
 	});
 
 	test('the strip panel never repeats the strip', async ({ page }) => {
-		for (const path of ['/threads', '/tags', '/references', '/loose']) {
+		for (const path of ['/threads', '/tags', '/loose']) {
 			await page.goto(path);
 			await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
-			await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
+			// the documents stand there instead, with the contents folded under the open one (plan 0.13.1)
+			await expect(page.getByTestId('docs-drafts')).toBeVisible();
 		}
+		// the Library fills the panel with its own filters, which is the other half of the same rule
+		await page.goto('/library');
+		await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
+		await expect(page.getByTestId('show-proposed')).toBeVisible();
 	});
 });
 
@@ -375,28 +382,39 @@ test.describe('hover previews', () => {
 	});
 });
 
-test.describe('comments on hover', () => {
-	test('a mark opens a floating box the pointer brings up, and clicking away closes it', async ({ page }) => {
-		await withPrefs(page, { comments: 'hover' });
+test.describe('the floating placement', () => {
+	test('a mark opens a box over the page, clear of every edge, and hovering opens nothing', async ({ page }) => {
+		await withPrefs(page, { comments: 'floating' });
 		await page.goto('/master/main');
 		// A fragment is wired once for the default placement and again when the stored preferences arrive, so waiting
 		// on the marks is not enough: wait until it is wired for the placement under test.
-		await page.waitForSelector('.fragment[data-comments-wired="hover"] mark.annotation[data-wired-mark]');
+		await page.waitForSelector('.fragment[data-comments-wired="floating"] mark.annotation[data-wired-mark]');
 		await expect(page.locator('aside.comment-slot.floating')).toHaveCount(0);
 
 		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
 		const box = page.locator('aside.comment-slot.floating');
-		// One hover is one event: if it lands in the tick between the fragment being wired for the default placement
-		// and being wired again for this one, nothing opens and nothing retries. Poll the gesture, not the result.
-		await expect(async () => {
-			await mark.hover({ trial: false, force: true });
-			await expect(box).toHaveCount(1, { timeout: 500 });
-		}).toPass({ timeout: 8000 });
+
+		// hovering never opens one: a box the pointer summons cannot be read without holding it still, and moving
+		// toward the box leaves the mark (plan 0.13 §7)
+		await mark.hover({ force: true });
+		await page.waitForTimeout(400);
+		await expect(box).toHaveCount(0);
+
+		await mark.click();
+		await expect(box).toHaveCount(1);
 		// it floats over the page rather than opening in the flow, so it is free to overlap the text and the gutter
 		await expect(box).toHaveCSS('position', 'fixed');
 		await expect(box.locator('article.box')).toHaveCount(1);
+		// and it is kept clear of every edge, so a mark near one slides the box rather than clipping it
+		const inset = await box.evaluate((el) => {
+			const r = el.getBoundingClientRect();
+			return Math.min(r.left, r.top, window.innerWidth - r.right, window.innerHeight - r.bottom);
+		});
+		expect(inset).toBeGreaterThanOrEqual(3.5);
 
 		await page.mouse.click(4, 4);
+		await expect(box).toHaveCount(1); // backgrounded, not closed
+		await page.keyboard.press('Escape');
 		await expect(box).toHaveCount(0);
 	});
 });
@@ -521,5 +539,189 @@ test.describe('the four settings a document is read in', () => {
 		await expect(page.locator('html')).toHaveAttribute('data-format', 'b2');
 		// b2 points at a result by name, not by number
 		await expect(page.locator('.fragment .env-label .number').first()).toBeHidden();
+	});
+});
+
+test.describe('the session selector', () => {
+	// The fixture's own two sessions, `referee` (active) and `quick` (closed). Only the second annotation on sy-0002 is
+	// moved, and only so that one key carries work from two sessions — which is the state the filter exists for and
+	// which no fixture happens to contain. The sessions themselves are not invented.
+	const withSessions = async (page: Page) =>
+		page.route('**/build/manifest.json', async (route) => {
+			const res = await route.fetch();
+			const m = await res.json();
+			for (const s of m.sessions) if (s.id === 's-2026-09-15-0001') s.state = 'open';
+			m.annotations['a-2026-09-16-0006'].run = 's-2026-09-15-0001';
+			await route.fulfill({ json: m });
+		});
+
+	test('one selection governs the page, and the view filters annotations rather than the list', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/node/sy-0002');
+		// nothing is selected at rest and the page shows everything (plan 0.13.1)
+		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
+		await expect(page.getByTestId('show-current')).toBeDisabled();
+
+		// sy-0002 is now annotated from both sessions. Waited for rather than counted straight away: a bare `count()`
+		// races the first render and reports zero.
+		await expect(page.getByTestId('annotation-list').locator('article.box').first()).toBeVisible();
+		const all = await page.getByTestId('annotation-list').locator('article.box').count();
+		expect(all).toBeGreaterThan(1);
+
+		// selecting a session does not narrow the page by itself: the selection is the write target, the view is the filter
+		await page.getByTestId('session-s-2026-09-15-0001').click();
+		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
+		// and the list still shows every session, because it is how a reader navigates
+		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
+
+		// narrowing is the toggle's job, and it is available now that something is selected
+		await page.getByTestId('show-current').click();
+		const mine = await page.getByTestId('annotation-list').locator('article.box').count();
+		expect(mine).toBeGreaterThan(0);
+		expect(mine).toBeLessThan(all);
+
+		// and back to everything
+		await page.getByTestId('show-all').click();
+		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
+	});
+});
+
+test.describe('the split as a mode of a route', () => {
+	// Presence and the round count are what a heartbeat and a resumed session produce at runtime; a checked-in fixture
+	// has neither, so they are added to the fixture's own active session rather than to an invented one.
+	const withSessions = async (page: Page) =>
+		page.route('**/build/manifest.json', async (route) => {
+			const res = await route.fetch();
+			const m = await res.json();
+			const here = m.sessions.find((s: { id: string }) => s.id === 's-2026-09-16-0001');
+			here.rounds = 2;
+			here.attached = [{ who: 'referee', kind: 'agent' }];
+			here.seq = 0;
+			await route.fulfill({ json: m });
+		});
+
+	test('a node page opens a discussion beside it, and the URL is what remembers', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/node/sy-0003');
+		// closed by default: a reader who never wants one carries a single control and no frame
+		await expect(page.getByTestId('beside')).toBeHidden();
+		await page.getByTestId('beside-toggle').click();
+		await expect(page.getByTestId('beside')).toBeVisible();
+		await expect(page).toHaveURL(/beside=1/);
+		// the divider is the same one the reading pane uses, and the discussion says where writing goes -- which,
+		// with nothing selected, is nowhere until the reader picks a session (plan 0.13.1)
+		await expect(page.getByTestId('divider')).toBeVisible();
+		await expect(page.getByTestId('discussion-into')).toContainText('no session selected');
+		await page.getByTestId('session-s-2026-09-16-0001').click();
+		await expect(page.getByTestId('discussion-into')).toContainText('referee');
+		// what is beside it is what is on this result
+		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
+		await page.getByTestId('beside-toggle').click();
+		await expect(page.getByTestId('beside')).toBeHidden();
+	});
+
+	test('the document does too, and it is the same frame', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/master/main?beside=1');
+		await expect(page.getByTestId('beside')).toBeVisible();
+		await expect(page.getByTestId('pane-content').locator('.fragment').first()).toBeVisible();
+		// an annotation on a key inside the document, not only on the document itself
+		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
+	});
+
+	test("a session's permalink opens split, and reads the session back whole", async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/session/s-2026-09-16-0001');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('referee');
+		await expect(page.getByTestId('session-facts')).toContainText('round 2');
+		await expect(page.getByTestId('session-attached')).toContainText('referee ⟨agent⟩');
+		// it opens split without being asked, because the discussion is what a session is
+		await expect(page.getByTestId('beside')).toBeVisible();
+		// every annotation filed in it, oldest first, each a link to what it is about
+		const filed = page.getByTestId('session-filed').locator('> li');
+		await expect(filed.first()).toHaveAttribute('data-testid', 'filed-a-2026-09-16-0001');
+		await expect(filed).toHaveCount(9);
+		// and closing it leaves the record in place
+		await page.getByTestId('beside-toggle').click();
+		await expect(page.getByTestId('beside')).toBeHidden();
+		await expect(page.getByTestId('session-filed')).toBeVisible();
+	});
+
+	test('an unknown session is reported rather than invented', async ({ page }) => {
+		await withSessions(page);
+		await page.goto('/session/nope');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Unknown session');
+	});
+});
+
+test.describe('the divider, the panel and the ticks', () => {
+	test('the divider drags, snaps at the middle, resets on double-click, nudges by key, and collapses', async ({ page }) => {
+		await page.goto('/node/sy-0003?beside=1');
+		const divider = page.getByTestId('divider');
+		await expect(divider).toBeVisible();
+		const split = page.getByTestId('split');
+		const frame = (await split.boundingBox())!;
+		const at = async () => Number(await divider.getAttribute('aria-valuenow'));
+		// dragged to a third of the frame, the ratio follows the pointer
+		const handle = (await divider.boundingBox())!;
+		await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(frame.x + frame.width * 0.33, handle.y + handle.height / 2, { steps: 6 });
+		await page.mouse.up();
+		expect(await at()).toBeLessThan(40);
+		// near the middle it snaps to it, and nowhere else
+		await page.mouse.move(frame.x + frame.width * 0.33, handle.y + handle.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(frame.x + frame.width * 0.515, handle.y + handle.height / 2, { steps: 6 });
+		await page.mouse.up();
+		expect(await at()).toBe(50);
+		// the keys nudge, Home recentres, a double-click resets
+		await divider.focus();
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('ArrowRight');
+		expect(await at()).toBe(54);
+		await page.keyboard.press('Home');
+		expect(await at()).toBe(50);
+		await page.keyboard.press('ArrowLeft');
+		await divider.dblclick();
+		expect(await at()).toBe(50);
+		// the chevrons collapse either pane and the ratio is remembered
+		await page.getByTestId('fold-discussion').click();
+		await expect(page.getByTestId('pane-discussion')).toBeHidden();
+		await page.getByTestId('fold-discussion').click();
+		await expect(page.getByTestId('pane-discussion')).toBeVisible();
+		expect(await at()).toBe(50);
+		// and below the breakpoint the split is a switch
+		await page.setViewportSize({ width: 640, height: 800 });
+		await expect(page.getByTestId('switch-discussion')).toBeVisible();
+		await page.getByTestId('switch-discussion').click();
+		await expect(page.getByTestId('pane-discussion')).toBeVisible();
+	});
+
+	test('the panel has a Nodes section, folded, narrowed by what is typed', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		await expect(page.getByTestId('nodes-list')).toHaveCount(0); // folded: a corpus of a hundred results would otherwise be the panel
+		await page.getByTestId('nodes-toggle').click();
+		await expect(page.getByTestId('nodes-list')).toBeVisible();
+		await page.getByTestId('nodes-filter').fill('parity');
+		const rows = page.getByTestId('nodes-list').locator('li a');
+		await expect(rows.first()).toContainText('sy-0003');
+		await expect(rows).toHaveCount(1);
+		await page.getByTestId('nodes-filter').fill('zzz');
+		await expect(page.getByTestId('nodes-list')).toContainText('nothing matches');
+	});
+
+	test('a tick stands beside every annotated line, carrying the count where two share one', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		const ticks = page.getByTestId('ticks');
+		await expect(ticks).toBeVisible();
+		const marks = await page.locator('.fragment mark.annotation').count();
+		expect(await ticks.locator('.tick').count()).toBeGreaterThan(0);
+		expect(await ticks.locator('.tick').count()).toBeLessThanOrEqual(marks);
+		// a tick selects its annotation, and double-click travels to the mark
+		const first = ticks.locator('.tick').first();
+		const lead = (await first.getAttribute('data-testid'))!.replace('tick-', '');
+		await first.dblclick();
+		await expect(page.locator(`.fragment [data-annotation~="${lead}"]`)).toBeInViewport();
 	});
 });

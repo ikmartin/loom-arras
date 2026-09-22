@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from loom.anchors import Anchor as Anchor  # re-exported: a result's anchor is the shared type
 from loom.clock import stamp
 from loom.digest.extract import ABBREV
 
@@ -25,26 +26,6 @@ from loom.digest.extract import ABBREV
 PROPOSED = "proposed"
 VERIFIED = "verified"
 DISCARDED = "discarded"
-
-
-@dataclass
-class Anchor:
-    """Where a statement was read from (contract §9.2, §9.3).
-
-    A PDF anchor names a page, and `last` the last page when a statement runs over a break (0 when it does not). A LaTeX anchor names a file by its path under the quilt and its hash, and `bytes` the range the quotation occupies. For a work with a source that is where the mathematics is: in the PDF's text layer Graber and Pandharipande's formula is control bytes, and a quotation of the prose around it anchored everything but the formula.
-    """
-
-    kind: str = "pdf"
-    sha256: str = ""
-    page: int = 0
-    quad: list[float] | None = None
-    last: int = 0
-    path: str = ""
-    bytes: list[int] | None = None
-
-    @property
-    def pages(self) -> range:
-        return range(self.page, max(self.page, self.last) + 1)
 
 
 @dataclass
@@ -69,23 +50,11 @@ class Result:
     def to_json(self) -> dict[str, Any]:
         d = asdict(self)
         d["class"] = d.pop("cls")
-        a = d["anchor"]
-        # each kind carries only its own keys (contract §9.2 for a page, §9.3 for a file)
-        for key in ("path", "bytes") if a["kind"] == "pdf" else ("page", "quad", "last"):
-            a.pop(key)
-        if a.get("quad", 0) is None:
-            a.pop("quad")
-        if "last" in a and not a["last"]:
-            a.pop("last")
-        if "path" in a and not a["path"]:
-            a.pop("path")
-        if "bytes" in a and not a["bytes"]:
-            a.pop("bytes")
+        d["anchor"] = self.anchor.to_dict()
         return d
 
     @classmethod
     def from_json(cls, d: dict[str, Any]) -> Result:
-        a = dict(d.get("anchor") or {})
         return cls(
             id=str(d["id"]),
             local=str(d.get("local", "")),
@@ -94,15 +63,7 @@ class Result:
             locator=str(d.get("locator", "")),
             statement=str(d.get("statement", "")),
             source_text=str(d.get("source_text", "")),
-            anchor=Anchor(
-                kind=str(a.get("kind", "pdf")),
-                sha256=str(a.get("sha256", "")),
-                page=int(a.get("page", 0) or 0),
-                quad=list(a["quad"]) if a.get("quad") else None,
-                last=int(a.get("last", 0) or 0),
-                path=str(a.get("path", "")),
-                bytes=[int(x) for x in a["bytes"]] if a.get("bytes") else None,
-            ),
+            anchor=Anchor.from_dict(dict(d.get("anchor") or {})),
             level=int(d.get("level", 3) or 3),
             cls=str(d.get("class", d.get("cls", "anchored"))),
             state=str(d.get("state", PROPOSED)),

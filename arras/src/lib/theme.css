@@ -433,9 +433,84 @@ table.list th {
 .comment-slot.inline > .box:first-child {
 	margin-top: 0;
 }
-/* The `hover` setting: the same box, floated over the page at the mark rather than opened in the flow, so it is free
-   to overlap the text and the gutter and nothing reflows under the reader as it appears. Placed in viewport
-   coordinates by `expand.ts`, which closes it on a scroll rather than letting it drift. */
+/* The content pane's header: the two annotation states as buttons with their keys named, and what is being hidden. */
+.content-head {
+	display: flex;
+	align-items: baseline;
+	gap: var(--gap-hair);
+	font-family: var(--sans);
+	font-size: 0.74rem;
+	color: var(--ink-faint);
+	margin-bottom: var(--gap-hair);
+}
+.content-head button {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 1px solid var(--rule);
+	border-radius: var(--rad-control);
+	padding: 0 6px;
+	cursor: pointer;
+}
+.content-head button.on {
+	background: var(--annotation-tint, rgb(217 119 87 / 18%));
+}
+.content-head .count {
+	margin-left: auto;
+}
+.content-head .concealed {
+	color: var(--annotation, #c05621);
+}
+
+/* Two annotations on one phrase is ordinary, and stacked translucent highlights muddy immediately — so the number is
+   said rather than drawn, and stays legible however many overlap (plan 0.13 §7). */
+mark.annotation[data-count]::after {
+	content: attr(data-count);
+	font-family: var(--sans);
+	font-size: 0.62em;
+	vertical-align: super;
+	margin-left: 1px;
+	color: var(--ink-faint);
+}
+
+/* Travel (plan 0.13 §7): a brief scroll, then a flash on what was arrived at, so the eye is told where it landed
+   rather than being left to search the pane it was sent to. */
+.travelled {
+	animation: travelled 700ms ease-out;
+}
+@keyframes travelled {
+	from {
+		background-color: var(--annotation-tint-strong, rgb(217 119 87 / 34%));
+	}
+	to {
+		background-color: transparent;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	/* the flash is the whole point, so it stays; what goes is the fade, which is the part that moves */
+	.travelled {
+		animation: none;
+		outline: 2px solid var(--annotation, #c05621);
+	}
+}
+/* Where there is nothing to travel to: a notice beside what was double-clicked, and nothing moves. */
+.travel-notice {
+	position: fixed;
+	z-index: 60;
+	font-family: var(--sans);
+	font-size: 0.78rem;
+	color: var(--ink);
+	background: var(--sheet);
+	border: 1px solid var(--rule-strong);
+	border-radius: var(--rad-control);
+	box-shadow: 0 2px 10px rgb(0 0 0 / 14%);
+	padding: 2px 8px;
+	pointer-events: none;
+}
+
+/* The `floating` placement: the same box, floated over the page at the mark rather than opened in the flow, so it is
+   free to overlap the text and the gutter and nothing reflows under the reader as it appears. Placed in viewport
+   coordinates by `expand.ts`, which keeps it 4px clear of every edge and follows its mark as the page scrolls. */
 .comment-slot.floating {
 	position: fixed;
 	z-index: 40;
@@ -447,6 +522,48 @@ table.list th {
 	padding: var(--gap-tight);
 	max-height: 60vh;
 	overflow-y: auto;
+}
+/* Clicking outside backgrounds rather than collapses (plan 0.13 §7): clamped to about two lines, a lighter shadow and
+   a lower z, and a click on it brings it forward again. Nothing a reader opened disappears because they looked
+   elsewhere, which is the one thing one-at-a-time could not promise. */
+.comment-slot.expanded.behind {
+	z-index: 30;
+	opacity: 0.82;
+}
+.comment-slot.floating.behind {
+	max-height: 4.4em;
+	overflow: hidden;
+	box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+}
+.comment-slot.floating.behind::after {
+	content: '';
+	position: absolute;
+	inset: auto 0 0 0;
+	height: 1.4em;
+	background: linear-gradient(to bottom, transparent, var(--sheet));
+	pointer-events: none;
+}
+/* Every box carries its own ×, because it is now the main way one is closed. */
+.comment-close {
+	position: absolute;
+	top: 2px;
+	right: 4px;
+	z-index: 1;
+	font: inherit;
+	font-size: 14px;
+	line-height: 1;
+	color: var(--ink-faint);
+	background: none;
+	border: 0;
+	padding: 2px 4px;
+	cursor: pointer;
+}
+.comment-close:hover {
+	color: var(--ink);
+}
+/* the × is positioned against the box; a floating one is already `fixed`, which this must not undo */
+.comment-slot.expanded:not(.floating) {
+	position: relative;
 }
 .comment-slot.floating > .box {
 	margin: 0;

@@ -122,7 +122,10 @@ def test_a_document_in_the_seed_space_is_copied_once_and_offered_an_entry(tmp_pa
     filed = quilt.root / report.copied[0][1]
     assert (filed / "paper.pdf").is_file() and filed.is_relative_to(quilt.root / "digests" / "storage")
     entry = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())["Manolache2012Virtualpull"]
-    assert entry.fields["title"] == "Virtual pull-backs" and entry.fields["loom-source"] == "refs/Manolache - 2012 - Virtual pull-backs.pdf"
+    assert (
+        entry.fields["title"] == "Virtual pull-backs"
+        and entry.fields["loom-source"] == "refs/Manolache - 2012 - Virtual pull-backs.pdf"
+    )
 
     again = scan_bibliography(quilt)
     assert again.copied == [] and again.already == 1
@@ -134,8 +137,105 @@ def test_a_document_in_the_seed_space_is_copied_once_and_offered_an_entry(tmp_pa
     assert scan_bibliography(quilt).copied == [] and (filed / "paper.pdf").is_file()
 
 
+def test_a_document_the_store_holds_and_no_entry_names_is_adopted_once(tmp_path: Path) -> None:
+    """The store outlives the bibliography (plan 0.13 §12). An entry deleted by hand leaves a directory holding a PDF and its page text that nothing can reach: the viewer lists works by entry, and the ledger will not offer the file again because it remembers copying it. The scan offers an entry for it -- and **once**, which is the half that is easy to get wrong: a hash-named home is not claimed by any identifier, so a scan that checked identifiers alone would adopt the same directory again under a new key every time it ran."""
+    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    seed = quilt.root / "refs"
+    seed.mkdir()
+    _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
+    scan_bibliography(quilt)
+    path = quilt.root / BIBLIOGRAPHY
+
+    # the second and third scans adopt nothing: the document already has its entry
+    assert scan_bibliography(quilt).adopted == []
+    assert scan_bibliography(quilt).adopted == []
+
+    # now the author deletes the entry, and the document is in the store with nothing naming it
+    kept = [block for block in path.read_text().split("\n@") if "Manolache" not in block]
+    path.write_text("@".join(kept) if kept[0].startswith("@") else kept[0] + "@".join(kept[1:]))
+    assert "Manolache" not in path.read_text()
+
+    report = scan_bibliography(quilt)
+    assert len(report.adopted) == 1, report.lines()
+    key, where = report.adopted[0]
+    assert where.startswith("digests/storage/")
+    entry = parse_bib(path.read_text())[key]
+    # what the entry says comes from the document and from the ledger's record of where it was dropped, never a lookup
+    assert entry.fields["title"] == "Virtual pull-backs"
+    assert entry.fields["loom-source"] == "refs/Manolache - 2012 - Virtual pull-backs.pdf"
+    assert "which the bibliography no longer named" in "\n".join(report.lines())
+
+    # and having adopted it, the scan leaves it alone
+    assert scan_bibliography(quilt).adopted == []
+
+
+def test_a_forgotten_document_is_not_offered_again(tmp_path: Path) -> None:
+    """`loom refs forget` is the tombstone that stops the store undoing a deletion (plan 0.13 §9).
+
+    Without this the command was a report of success and nothing else: it wrote the declaration, nothing read it, and the next scan offered the deleted entry straight back. The tombstone is honoured by the citekey the author typed and by the document's own hash, and `--undo` restores the offer.
+    """
+    from loom.refs.unreadable import declare
+
+    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    seed = quilt.root / "refs"
+    seed.mkdir()
+    _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
+    scan_bibliography(quilt)
+    path = quilt.root / BIBLIOGRAPHY
+
+    # the author deletes the entry the first scan offered, and says they meant it
+    kept = [block for block in path.read_text().split("\n@") if "Manolache" not in block]
+    path.write_text("@".join(kept) if kept[0].startswith("@") else kept[0] + "@".join(kept[1:]))
+    declare(quilt.root, "forget", "Manolache2012Virtualpull", "not worth an entry", "A. Author")
+
+    report = scan_bibliography(quilt)
+    assert report.adopted == [], "a forgotten document was offered an entry again"
+    assert report.forgotten == 1
+    assert "not offered: forgotten" in "\n".join(report.lines())
+    assert "Manolache" not in path.read_text()
+
+    # and withdrawing the tombstone brings the offer back, because nothing was ever removed
+    declare(quilt.root, "forget", "Manolache2012Virtualpull", "changed my mind", "A. Author", undo=True)
+    assert len(scan_bibliography(quilt).adopted) == 1
+
+
 def test_a_bib_file_in_the_seed_space_is_read_like_one_a_document_names(tmp_path: Path) -> None:
-    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"})
+    quilt = _quilt(
+        tmp_path, {"canon/paper.tex": CANON, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"}
+    )
     report = scan_bibliography(quilt)
     assert "Dropped" in {c.key for c in report.added}
     assert parse_bib((quilt.root / BIBLIOGRAPHY).read_text())["Dropped"].fields["title"] == "Dropped in by hand"
+
+
+def test_a_document_that_states_no_identifier_is_reachable_from_its_own_entry(tmp_path: Path) -> None:
+    """A PDF that prints no DOI or arXiv id — a scan, most older literature — is filed under its content hash, and the entry the scan offers states no identifier either, so `primary` answers with the *synthetic* identifier: a hash of author, title and year. The two disagreed, and the viewer told the reader "No copy of this paper on this machine" about a paper sitting in the store.
+
+    Found in the reading study on an OCR'd 1988 journal scan, which is exactly the character of paper that states nothing about itself.
+    """
+    from loom.refs.fetch import work_dir
+    from loom.refs.identity import primary
+    from loom.scan.bib import parse_bib
+
+    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    seed = quilt.root / "refs"
+    seed.mkdir()
+    _pdf(seed / "Ekedahl - 1988 - The order of the tautological ring.pdf", text="The order of the tautological ring")
+    report = scan_bibliography(quilt)
+    key = report.added[-1].key
+    entry = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())[key]
+
+    filed = quilt.root / report.copied[-1][1]
+    assert (filed / "paper.pdf").is_file()
+    assert entry.fields["loom-file"] == f"{filed.parent.name}/{filed.name}"
+    # the entry's own identifier names somewhere else entirely, and must not be what anyone looks under
+    assert primary(entry) is not None and primary(entry).path != entry.fields["loom-file"]
+    assert work_dir(quilt.root, entry) == filed
+
+    # a document that does state an identifier is filed under it, and carries no `loom-file` to override it
+    _pdf(seed / "stated.pdf", text="arXiv:2504.09999v1 A paper that names itself")
+    again = scan_bibliography(quilt)
+    named = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())[again.added[-1].key]
+    if primary(named) and primary(named).scheme == "arxiv":
+        assert "loom-file" not in named.fields
+        assert work_dir(quilt.root, named) == quilt.root / "digests" / "storage" / primary(named).path

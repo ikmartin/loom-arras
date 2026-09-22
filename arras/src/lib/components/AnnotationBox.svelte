@@ -5,13 +5,30 @@
 	import type { Annotation } from '$lib/manifest/types';
 	import { shortDate } from '$lib/badges';
 	import { ui } from '$lib/ui.svelte';
+	import { travel } from '$lib/travel/travel';
 
 	// `anchor` gives the box the element id marks point at; a copy opened in the text beside the one in a list must not claim the same id
 	let { annotation, replies = [], anchor = true }: { annotation: Annotation; replies?: Annotation[]; anchor?: boolean } = $props();
 	const active = $derived(ui.activeAnnotation === annotation.id);
+
+	/** Single click selects, double-click travels to this annotation's place in the text (plan 0.13 §7). */
+	function go(e: MouseEvent): void {
+		e.preventDefault();
+		// a mark in a fragment, or a note's mark on a PDF page: both carry the id the same way
+		const mark = document.querySelector(`[data-annotation~="${CSS.escape(annotation.id)}"]`);
+		// a detached annotation, or one anchored in another document, has no place here; nothing is invented for it
+		travel(mark, e.currentTarget as Element);
+	}
 </script>
 
-<article class="box kind-{annotation.kind}" class:active class:discarded={annotation.discarded} id={anchor ? 'ann-' + annotation.id : undefined} data-annotation-id={annotation.id}>
+<article
+	class="box kind-{annotation.kind}"
+	class:active
+	class:discarded={annotation.discarded}
+	id={anchor ? 'ann-' + annotation.id : undefined}
+	data-annotation-id={annotation.id}
+	ondblclick={go}
+>
 	<header>
 		<span class="kind">{annotation.kind}</span>
 		{#if annotation.severity}<span class="sev sev-{annotation.severity}" data-testid="severity">{annotation.severity}</span>{/if}

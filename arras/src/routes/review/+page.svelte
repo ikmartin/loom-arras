@@ -3,18 +3,19 @@
 	// The review panel (book 15.3.5): which keys are accepted, which have gone stale and why, and which mark a gap and what that gap blocks. A row expands in place to show the cause and its diff. The filters stand in the shell's left panel and live in the URL, so a home card opens this table already filtered.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
+	import type { Cause, Key } from '$lib/manifest/types';
 	import Badge from '$lib/components/Badge.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
 	import HelpDot from '$lib/components/HelpDot.svelte';
 	import PagePanel from '$lib/shell/PagePanel.svelte';
-	import { reviewFacts, shortDate, stateBadge } from '$lib/badges';
+	import { reviewFacts, reviewRowBadge, shortDate } from '$lib/badges';
 	import { downstream } from '$lib/graph/layout';
-	import { keyUrl, threadUrl } from '$lib/nav';
+	import { anchorId, keyUrl, masterUrl, threadUrl } from '$lib/nav';
 	import { setQuery } from '$lib/query';
 	import { reachedExternal } from '$lib/reached';
 
 	const m = $derived(store.manifest!);
-	const SHOWS = ['all', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external'] as const;
+	const SHOWS = ['all', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external', 'classification', 'missing-proof'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
 	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'all');
 	const master = $derived(q('document'));
@@ -30,18 +31,21 @@
 	const keys = $derived(
 		Object.values(m.keys).filter((k) => {
 			const n = m.nodes[k.node];
-			return !n?.external || reached.has(k.node) || filter === 'external';
+			return !n?.external || !!n.reached_by.length || reached.has(k.node) || filter === 'external';
 		})
 	);
 	const isStale = (k: (typeof keys)[number]) => !!k.acceptance && k.acceptance.fresh === false;
+	const missingProof = $derived(new Set(m.diagnostics.filter((d) => d.code === 'loom:missing-proof').flatMap((d) => d.keys)));
 	const counts = $derived({
 		accepted: keys.filter((k) => k.state === 'accepted').length,
 		stale: keys.filter(isStale).length,
 		draft: keys.filter((k) => k.state === 'draft').length,
 		incomplete: keys.filter((k) => k.state === 'incomplete').length,
-		proved: Object.values(m.nodes).filter((n) => n.derived?.proved).length,
-		settled: Object.values(m.nodes).filter((n) => n.derived?.settled).length
+		proved: keys.filter((k) => k.kind === 'statement' && m.nodes[k.node]?.derived?.proved).length,
+		settled: keys.filter((k) => k.kind === 'statement' && m.nodes[k.node]?.derived?.settled).length,
+		missingProof: keys.filter((k) => k.kind === 'statement' && missingProof.has(k.key)).length
 	});
+	const needsClassification = $derived(keys.filter((k) => m.nodes[k.node]?.basis === 'unclassified' && m.nodes[k.node]?.reached_by.length).length);
 	const undigested = $derived(Object.values(m.references).filter((r) => !r.digest && r.cited_by.length).map((r) => r.citekey));
 	const rows = $derived(
 		keys.filter((k) => {
@@ -53,6 +57,8 @@
 			if (filter === 'loose' && n?.reached_by.length) return false;
 			if (filter === 'retired' && !k.previous_key_match) return false;
 			if (filter === 'external' && !m.nodes[k.node]?.external) return false;
+			if (filter === 'classification' && (n?.basis !== 'unclassified' || !n.reached_by.length)) return false;
+			if (filter === 'missing-proof' && !missingProof.has(k.key)) return false;
 			if (master && !n?.reached_by.includes(master)) return false;
 			if (author && !(n?.author ?? []).includes(author) && k.acceptance?.author !== author) return false;
 			if (tag && !n?.tags.includes(tag)) return false;
@@ -65,12 +71,21 @@
 	const hasFacts = $derived(rows.some((k) => reviewFacts(k)));
 	const hasIncomplete = $derived(rows.some((k) => k.incomplete.length));
 	const hasCauses = $derived(rows.some((k) => k.acceptance?.causes?.length || k.previous_key_match));
-	const cols = $derived(4 + (hasCauses ? 1 : 0) + (hasFacts ? 1 : 0) + (hasIncomplete ? 2 : 0));
+	const cols = $derived(5 + (hasCauses ? 1 : 0) + (hasFacts ? 1 : 0) + (hasIncomplete ? 2 : 0));
 
 	const authors = $derived([...new Set([...Object.values(m.nodes).flatMap((n) => n.author ?? []), ...keys.map((k) => k.acceptance?.author).filter(Boolean)])].sort() as string[]);
 	const records = $derived([...new Set(Object.values(m.annotations).map((a) => a.run ?? a.record))].sort());
 	const threads = $derived(Object.values(m.threads));
 	const causes = (k: string) => m.keys[k]?.acceptance?.causes ?? [];
+	const redundantProofCause = (k: Key, c: Cause) => k.kind === 'proof' && c.kind === 'dependency-changed' && c.id === k.node;
+	function causeUrl(k: Key, c: Cause, index: number): string | null {
+		if (!c.comparison || c.via) return null;
+		const document = m.nodes[k.node]?.reached_by[0];
+		if (!document) return null;
+		const anchor = c.kind === 'own-text-changed' ? anchorId(k.key) : c.kind === 'dependency-changed' ? c.citation : '';
+		if (!anchor) return null;
+		return `${masterUrl(document)}?review=${encodeURIComponent(k.key)}&cause=${index}#${anchor}`;
+	}
 
 	const LEADS: Record<string, string> = {
 		all: 'Every statement and proof in this corpus, with the state recorded for it and, where an accepted text has since changed, the reason it is no longer current.',
@@ -80,7 +95,9 @@
 		incomplete: 'Each text that marks a gap in itself, and what rests on it. A result whose proof is incomplete is not proved, and neither is anything that uses it.',
 		loose: 'Texts no document reaches, so nothing depends on them yet.',
 		retired: 'Acceptances recorded under an earlier key that now match this one; re-accept to confirm.',
-		external: 'Results stated in digests of cited papers, including the ones nothing here uses.'
+		external: 'Results stated in digests of cited papers, including the ones nothing here uses.',
+		classification: 'Blocks whose basis is unclear. Add % !LOOM basis: expository, local-proof, cited-result, assumption, or open-claim inside the drafting block, then rescan.',
+		'missing-proof': 'Local-proof blocks with no attached proof and no incomplete marker. Open a block to inspect its statement and source location.'
 	};
 	const set = (name: string, fallback = '') => (e: Event) => void setQuery(page.url, name, (e.currentTarget as HTMLSelectElement).value, fallback);
 	const show = (v: string) => void setQuery(page.url, 'show', filter === v ? 'all' : v, 'all');
@@ -97,12 +114,14 @@
 			{#if i}<span class="sep">·</span>{/if}<button class="count" class:on={filter === name} aria-pressed={filter === name} onclick={() => show(name as string)} data-testid="show-{name}">{n} {name}</button>
 		{/each}
 		<span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
+		{#if needsClassification}<span class="sep">·</span><button class="count" class:on={filter === 'classification'} aria-pressed={filter === 'classification'} onclick={() => show('classification')}>{needsClassification} need classification</button>{/if}
+		{#if counts.missingProof}<span class="sep">·</span><button class="count" class:on={filter === 'missing-proof'} aria-pressed={filter === 'missing-proof'} onclick={() => show('missing-proof')}>{counts.missingProof} need proof</button>{/if}
 	</p>
 
 	<table class="list">
 		<thead>
 			<tr>
-				<th>key</th><th>state</th><th>since</th>
+				<th>key</th><th>state</th><th>basis</th><th>since</th>
 				{#if hasCauses}<th>cause</th>{/if}
 				{#if hasFacts}<th>review</th>{/if}
 				{#if hasIncomplete}<th>incomplete</th><th>blocks</th>{/if}
@@ -111,17 +130,23 @@
 		</thead>
 		<tbody>
 			{#each rows as k (k.key)}
-				<tr>
+				<tr id={`review-${anchorId(k.key)}`}>
 					<td><a href={keyUrl(m, k.key)}>{k.key}</a></td>
-					<td><Badge parts={stateBadge(m, k)} /></td>
+					<td><Badge parts={reviewRowBadge(m, k)} />{#if missingProof.has(k.key)}<div class="faint">missing proof</div>{/if}</td>
+					<td>{#if m.nodes[k.node]?.kind === 'environment'}{m.nodes[k.node]?.basis === 'unclassified' ? 'needs classification' : m.nodes[k.node]?.basis}{m.nodes[k.node]?.inline_proof ? ' (inline)' : ''}{#if m.nodes[k.node]?.basis === 'unclassified'}<div class="faint">{m.nodes[k.node]?.basis_reason}</div>{/if}{/if}</td>
 					<td class="faint nowrap">{k.acceptance ? shortDate(k.acceptance.date) : ''}</td>
 					{#if hasCauses}
 						<td>
 							{#each causes(k.key) as c, i (i)}
+								{@const href = causeUrl(k, c, i)}
 								<div>
-									{c.kind}{c.id ? ' ' + c.id : ''}{c.when ? ` (${shortDate(c.when)})` : ''}
-									{#if c.diff}
-										· <button class="as-link" onclick={() => (open = open === k.key ? '' : k.key)} data-testid="expand-{k.key}">{open === k.key ? 'hide' : 'what changed'}</button>
+									{#if c.kind === 'own-text-changed'}
+										{#if href}<a {href}>text edit</a>{:else}text edit{/if}
+									{:else if c.kind === 'dependency-changed'}
+										dependency changed: {#if href}<a {href}>{c.id}</a>{:else}{c.id}{/if}{#if c.via}{' '}via {c.via}{/if}
+									{:else}{c.kind}{c.id ? ' ' + c.id : ''}{/if}{c.when ? ` (${shortDate(c.when)})` : ''}
+									{#if c.diff && !href && !c.via && !redundantProofCause(k, c)}
+										· <button class="as-link" onclick={() => (open = open === k.key ? '' : k.key)} data-testid="expand-{k.key}">{open === k.key ? 'hide details' : 'details'}</button>
 									{/if}
 								</div>
 							{/each}
@@ -145,7 +170,7 @@
 					<tr class="expansion" data-testid="expansion-{k.key}">
 						<td colspan={cols}>
 							{#each causes(k.key) as c, i (i)}
-								{#if c.diff}
+								{#if c.diff && !redundantProofCause(k, c)}
 									<p class="cause">{c.kind}{c.id ? ' · ' + c.id : ''} — accepted text on the left, current text on the right</p>
 									<DiffView path={c.diff} />
 								{/if}
@@ -187,7 +212,7 @@
 
 <PagePanel label="Filters">
 	<div class="filters">
-		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option></select></label>
+		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option><option value="classification">needs classification</option><option value="missing-proof">needs proof</option></select></label>
 		<label>document<select value={master} onchange={set('document')}><option value="">any</option>{#each m.masters as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
 		<label>author<select value={author} onchange={set('author')}><option value="">any</option>{#each authors as a (a)}<option value={a}>{a}</option>{/each}</select></label>
 		<label>tag<select value={tag} onchange={set('tag')}><option value="">any</option>{#each Object.keys(m.tags).sort() as t (t)}<option value={t}>{t}</option>{/each}</select></label>

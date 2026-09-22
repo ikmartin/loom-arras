@@ -1,25 +1,32 @@
 <script lang="ts">
-	// A thread, in one of two shapes (plan 0.11 Part C). A run is a document and a report read against each other, which
-	// is what reviewing one actually is; a comment session has no report and no draft to split against, so it keeps the
-	// list it always had. One route, because both are threads and a reader arriving from the index should not have to
-	// know which kind they clicked.
+	// A thread, in one of two shapes (plan 0.11 Part C). A session that wrote a report is a document and that report read
+	// against each other, which is what reviewing one actually is; a session that only commented has no report and no
+	// draft to split against, so it keeps the list it always had. One route, because both are threads and a reader
+	// arriving from the index should not have to know which kind they clicked.
+	//
+	// **The shape follows what the session has, not what kind it calls itself.** The condition was `kind !== 'comments'`
+	// until sessions replaced runs and loom began writing `kind: "session"` for every one of them (DR-207), at which
+	// point a session with nothing to split rendered as an empty two-pane review. A report is the thing that wants a
+	// document beside it, so a report is what the split asks for.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import { keyUrl, nodeUrl } from '$lib/nav';
 	import SplitView from '$lib/review/SplitView.svelte';
+	import { sessionUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	const id = $derived(decodeURIComponent(page.params.id ?? ''));
 	const t = $derived(m.threads[id]);
+	const split = $derived(!!t && (t.pipeline ?? []).length > 0);
 </script>
 
-<main class="page" class:wide={t?.kind === 'run'}>
+<main class="page" class:wide={split}>
 	{#if !t}
 		<h1>Unknown thread</h1>
 	{:else}
 		<h1>{t.title}</h1>
-		<p class="muted">{t.kind} · {t.created} · participants {t.participants.map((p) => p.id).join(', ')}{t.discarded ? ' · discarded' : ''}</p>
-		{#if t.kind === 'run'}
+		<p class="muted">{t.kind} · {t.created} · participants {t.participants.map((p) => p.id).join(', ')}{t.discarded ? ' · discarded' : ''}{#if m.sessions?.some((s) => s.id === id)} · <a href={sessionUrl(id)}>read it as a session</a>{/if}</p>
+		{#if split}
 			<SplitView thread={t} />
 			{#if t.log.length}
 				<details><summary>Run log ({t.log.length})</summary><pre>{t.log.map((l) => `${l.time}  ${l.command}`).join('\n')}</pre></details>

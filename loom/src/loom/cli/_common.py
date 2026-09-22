@@ -49,7 +49,7 @@ def resolve_run(root: Path, run_dir: str | None) -> Path | None:
 
     See Also
     --------
-    find_run : the same, but accepting a run's name or a prefix of it.
+    find_session : a session by id, title or unique suffix.
     """
     if not run_dir:
         return None
@@ -65,47 +65,38 @@ def under_runs(root: Path, p: Path) -> bool:
         return False
 
 
-def find_run(root: Path, run: str | None) -> Path:
-    """Locate a run by name, by a prefix of its name, or by its path; with nothing, the most recent undiscarded one.
+def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
+    """Locate a session by id, by title, or by a unique id suffix; with nothing, the active one (plan 0.13 §5).
 
-    A run directory is `2026-09-17T01-43-review-main`, so addressing one by path means remembering the minute it started. The name is what the author remembers, so that is what this accepts. An ambiguous prefix names its matches and refuses rather than guessing, as `refs resolve` does with candidates.
-
-    **Names are matched before paths, and a path must be under `ai/runs/`.** Both orderings used to be the other way round, and the consequence was severe: an unmatched `--run` was created as a directory at the quilt root, and that directory then satisfied the path test on every later command, so the run the author had named was never reached and every annotation was filed under a run that did not exist.
+    Refuses rather than guessing, and refuses rather than creating: a value that matched nothing used to be made as a directory at the quilt root, and that directory then satisfied every later lookup, so a whole sitting's annotations were filed under a run that did not exist.
     """
-    from loom.ai.orient import open_runs
+    from loom.sessions import active, sessions
 
-    runs = open_runs(root, include_discarded=True)
-    if not run:
-        live = [r for r in runs if not r[3]]
-        if not live:
-            raise EnvError('no runs yet; loom ai start "a name" makes one')
-        return root / live[-1][0]
-    if not runs:
-        raise EnvError('no runs yet; loom ai start "a name" makes one')
-
-    want = run.strip().strip("/").lower()
-
-    def spellings(rel: str, name: str) -> tuple[str, ...]:
-        """Every way of writing this run: its name, its directory, the directory without its leading timestamp, and the path."""
-        dirname = rel.rsplit("/", 1)[-1]
-        slug = dirname.split("-", 4)[-1] if dirname[:4].isdigit() else dirname
-        return (name.lower(), dirname.lower(), slug.lower(), rel.lower())
-
-    exact = [r for r in runs if want in spellings(r[0], r[1])]
-    hits = exact or [r for r in runs if any(want in s for s in spellings(r[0], r[1]))]
-    if len(hits) > 1:
-        named = "\n".join(f"  {r[2][:10]}: {r[1]}" for r in hits)
-        raise EnvError(f"{run!r} matches {len(hits)} runs:\n{named}\ngive more of the name")
-    if hits:
-        return root / hits[0][0]
-
-    # Only then a path, and only one that exists inside ai/runs/. Nothing here creates a directory.
-    p = resolve_run(root, run)
-    if p is not None and p.is_dir() and under_runs(root, p):
-        return p
-    if p is not None and p.is_dir():
-        raise EnvError(f"{run} is not under ai/runs/; an agent writes only in its own run directory")
-    raise EnvError(f"no run matches {run!r}; loom ai runs lists them")
+    if not which:
+        here = active(root)
+        standing = sessions(root)
+        if here and here in standing:
+            return standing[here]
+        raise EnvError('no session is active; loom session new "a name" opens one')
+    standing = sessions(root, deleted=True)
+    if which in standing:
+        return standing[which]
+    want = which.strip().lower()
+    # The title is what a person remembers, so it is what this accepts -- exactly, then as part of one. An id suffix
+    # is here for the same reason: nobody types a date they can see in a listing.
+    for pick in (
+        lambda x: x.title.lower() == want,
+        lambda x: x.id.endswith(want),
+        lambda x: want in x.title.lower(),
+    ):
+        hits = [x for x in standing.values() if pick(x)]
+        if len(hits) == 1:
+            return hits[0]
+        if hits:
+            # naming the matches rather than guessing, as `refs resolve` does with candidates
+            named = ", ".join(f"{x.id} ({x.title})" for x in hits[:4])
+            raise EnvError(f"{which!r} matches {len(hits)} sessions: {named}")
+    raise EnvError(f"no session matches {which!r}; loom session list shows them")
 
 
 #: Environment variables an agent's shell carries. `AI_AGENT` is the generic one; the rest name a particular tool.
@@ -120,11 +111,98 @@ def agent_marker() -> str | None:
     return next((v for v in AGENT_MARKERS if os.environ.get(v)), None)
 
 
-def refuse_under_agent(verb: str, how: str) -> None:
-    """Refuse one of the author's verbs when an agent is running the shell.
+#: What to call an agent that has not named itself. A record that says "claude-code" is auditable; one that says the
+#: author's git name because the agent's shell inherited it is not, which is what DR-185 found.
+AGENT_NAMES = {
+    "AI_AGENT": "agent",
+    "CLAUDECODE": "claude-code",
+    "CLAUDE_CODE_ENTRYPOINT": "claude-code",
+    "CODEX_SANDBOX": "codex",
+    "CURSOR_AGENT": "cursor",
+    "GEMINI_CLI": "gemini",
+}
 
-    An agent verified its own proposal in the first study run and loom recorded the author as the verifier, because the author's name comes from git, which an agent's shell shares. The claim these verbs make -- *I checked this* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. The permission file that already denies these to an agent is Claude's alone, and is not inherited by an agent started outside the quilt.
+
+def agent_name() -> str | None:
+    """What the agent running this shell is called, or None when a person is."""
+    marker = agent_marker()
+    return AGENT_NAMES.get(marker, "agent") if marker else None
+
+
+#: What makes a declared name an agent's. An agent is instructed to include one when it names itself, so that a record
+#: says what wrote it without loom having to guess from the environment it happened to run in.
+AGENT_WORDS = ("agent", "ai", "bot", "assistant")
+
+
+def is_agent(name: str) -> bool:
+    """Whether a declared identity is an agent's, by the word it was asked to include in its own name.
+
+    The words are matched however they are punctuated, because the form loom's own documents ask for is `Referee (Agent)` and the showcase writes exactly that. Splitting on whitespace and hyphens made `(agent)` a different word from `agent`, so the name the orientation teaches was read as a person's: the session picker showed a parked agent as `⟨person⟩`, and `refuse_under_agent` let that name run `loom accept` and `loom refs verify`. Found by the reading study, 2026-09-21.
     """
+    import re
+
+    return any(w in re.findall(r"[a-z0-9]+", name.lower()) for w in AGENT_WORDS)
+
+
+def writer(root: Path, declared: str | None) -> tuple[str, str]:
+    """(name, kind) for whoever is writing, from what they declared rather than from the shell they are in.
+
+    **An explicit identity wins, and a marker with no explicit identity refuses rather than guesses.** The markers distinguish well today -- the author's own shell carries no `CLAUDECODE` -- but an author may ask an agent to run a command, and a marker can be unset. Sniffing was always a proxy for the question actually being asked, which is *who is making this claim*; now it is asked.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt.
+    declared : str, optional
+        What `--as` or `--author` said. An agent names itself and is asked to include `Agent` or `AI` in the name.
+
+    Returns
+    -------
+    tuple of (str, str)
+        The name, and `agent` or `person`.
+    """
+    said = (declared or "").strip()
+    if said:
+        return said, "agent" if is_agent(said) else "person"
+    marker = agent_marker()
+    if marker:
+        raise EnvError(
+            f"an agent is running this shell ({marker} is set) and has not said who it is.\n"
+            "Name yourself with --as, including Agent or AI in the name, so the record says what wrote it: "
+            '--as "Referee Agent".'
+        )
+    return whoever(root), "person"
+
+
+def whoever(root: Path, author: str | None = None) -> str:
+    """Who is running this, for a record that wants provenance and must not refuse for want of it.
+
+    Opening, retitling or closing a session is not an authored claim about anybody's mathematics, so an unconfigured author name costs the record a name and never the command. The verbs that *are* claims -- `accept`, `refs verify`, a comment -- keep asking.
+    """
+    from loom.scan.quilt import NoAuthorError, resolve_author
+
+    if (author or "").strip():
+        return str(author).strip()
+    robot = agent_name()
+    if robot:
+        return robot
+    try:
+        return resolve_author(None, root)[0]
+    except NoAuthorError:
+        return ""
+
+
+def refuse_under_agent(verb: str, how: str, declared: str | None = None) -> None:
+    """Refuse one of the author's verbs when an agent is the writer.
+
+    The claim these verbs make -- *I checked this*, *I accept this mathematics* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. An agent verified its own proposal in the first study run and loom recorded the author as the verifier, because the author's name comes from git, which an agent's shell shares.
+
+    **The guard is on the identity, not the door** (plan 0.13 §8). A session is now shared by a person and an agent, and the write API is no longer only the author's own click, so neither the session nor the environment says who is writing. A declared name that calls itself an agent is refused whichever surface it came through; a marker with no declared identity is refused too, because it will not guess.
+    """
+    if declared and is_agent(declared):
+        raise EnvError(f"{verb} is the author's, and {declared} is an agent.\n{how}")
+    if declared:
+        return  # an explicit identity wins: a person who named themselves is a person, whatever shell they are in
     marker = agent_marker()
     if marker:
         raise EnvError(f"{verb} is the author's, and an agent is running this shell ({marker} is set).\n{how}")

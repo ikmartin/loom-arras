@@ -33,6 +33,8 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:positional-proof-key": ("info", False),
     "loom:unexpected-proof": ("info", False),
     "loom:missing-proof": ("warning", False),
+    "loom:needs-classification": ("warning", False),
+    "loom:misplaced-basis": ("warning", False),
     "loom:equation-in-proof-referenced": ("warning", False),
     "loom:uses-missing": ("info", False),
     "loom:uses-unused": ("info", False),
@@ -73,6 +75,8 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:id-reused": ("error", False),
     "loom:node-recovered": ("info", False),
     "loom:no-live-document": ("info", False),
+    # the PDF invariant (plan 0.13 §4): a warning and never an error, because loom cannot fetch without consent
+    "loom:no-readable-copy": ("warning", False),
 }
 
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}

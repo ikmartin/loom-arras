@@ -28,8 +28,9 @@ export function docUrl(m: { masters: { path: string }[]; canon?: { path: string 
 	return m?.canon?.some((c) => c.path === path) ? canonUrl(path) : masterUrl(path);
 }
 
-export function digestUrl(citekey: string): string {
-	return route('/digest/' + encodeURIComponent(citekey));
+/** A cited work's page in the Library, which is where its digest, its proposals, its links and the paper itself are read. */
+export function workUrl(citekey: string): string {
+	return route('/library/' + encodeURIComponent(citekey));
 }
 
 export function tagUrl(tag: string): string {
@@ -42,6 +43,11 @@ export function taxonUrl(slug: string): string {
 
 export function threadUrl(id: string): string {
 	return route('/thread/' + encodeURIComponent(id));
+}
+
+/** A session's permalink: where one piece of work is read back whole, rather than through the panel's picker. */
+export function sessionUrl(id: string): string {
+	return route('/session/' + encodeURIComponent(id));
 }
 
 /**

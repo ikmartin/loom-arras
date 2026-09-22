@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, find_run, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, find_session, note
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.clock import stamp
 from loom.reshape.linearize import flatten
@@ -28,14 +28,17 @@ def engine_for(result: ScanResult, master: str, override: str | None = None) -> 
     return normalise_engine(override or (closure.engine if closure else None) or result.quilt.config.engine)
 
 
-def log_run(run_dir: str | None, command: str, root: Path | None = None) -> None:
-    """Append `command` to the run's run.log; a relative run directory is the quilt's (`root`) when `root` is given."""
-    if not run_dir:
+def log_run(session: str | None, command: str, root: Path | None = None) -> None:
+    """Append `command` to a session's command log, which is the scrollback a later sitting resumes from.
+
+    The same resolver every other `--session` uses, and it never creates one: an unmatched value used to be mkdir'd at the quilt root, and the directory that left behind then shadowed the real run for every later command, so a whole sitting's annotations were filed under a run that did not exist.
+    """
+    if not session or root is None:
         return
-    # The same resolver every other `--run` uses. It never creates: an unmatched value used to be mkdir'd at the quilt
-    # root, and the directory that left behind then shadowed the real run for every later command, so a whole session's
-    # annotations were filed under a run that did not exist.
-    p = find_run(root, run_dir) if root is not None else Path(run_dir)
+    from loom.sessions import files_dir
+
+    found = find_session(root, session)  # an unmatched value is an error, never a directory quietly created
+    p = files_dir(root, found)
     p.mkdir(parents=True, exist_ok=True)
     with (p / "run.log").open("a", encoding="utf-8") as fh:
         fh.write(f"{stamp()}  {command}\n")
@@ -65,7 +68,9 @@ def write_bundle(result: ScanResult, b: Bundle) -> Path:
     help="Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched.",
 )
 @click.option("--draft", "draft_file", default=None, metavar="FILE", help="Compile a node file not yet in the quilt.")
-@click.option("--run", "run_dir", default=None, metavar="DIR", envvar="LOOM_RUN", help="Log this call to DIR/run.log.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 @click.pass_context
 def compile(  # noqa: A001
@@ -261,7 +266,9 @@ def document_rel(result: ScanResult, target: str) -> str | None:
 @click.command()
 @click.argument("target", metavar="TARGET")
 @click.option("--closure", is_flag=True, help="Everything TARGET depends on, in dependency order, then TARGET itself.")
-@click.option("--run", "run_dir", default=None, metavar="DIR", envvar="LOOM_RUN", help="Log this call to DIR/run.log.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 def source(target: str, closure: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Print TARGET's LaTeX source: a key's own text, or a document flattened with every inclusion expanded in place.

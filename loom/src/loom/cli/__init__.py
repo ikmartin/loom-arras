@@ -16,8 +16,9 @@ from loom.cli.nodes import delete, new, search
 from loom.cli.paper import atomize, id_command, import_command, inline_command
 from loom.cli.quilt import init
 from loom.cli.refs import refs
-from loom.cli.review import accept, comment, status
+from loom.cli.review import accept, comment, review_command, status
 from loom.cli.serve_cmd import serve
+from loom.cli.session import session
 from loom.cli.upgrade import upgrade
 from loom.version import __version__
 
@@ -34,6 +35,7 @@ def main() -> None:
 
 
 main.add_command(doctor)
+main.add_command(session)
 main.add_command(init)
 main.add_command(new)
 main.add_command(id_command)
@@ -59,6 +61,7 @@ main.add_command(serve)
 main.add_command(accept)
 main.add_command(comment)
 main.add_command(status)
+main.add_command(review_command)
 main.add_command(ai)
 main.add_command(digest)
 main.add_command(upgrade)

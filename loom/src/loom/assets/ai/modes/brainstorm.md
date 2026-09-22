@@ -1,7 +1,7 @@
 # Mode: brainstorm
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept` or paste it; the author decides.
+- Write only under your session's directory. Never edit source. Never run `loom accept` or paste it; the author decides.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -9,9 +9,9 @@ Help the author explore a topic before anything is proved. Your job is to make t
 
 ## Input
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
-- `loom source ID --closure --run RUN` for each definition or result the topic touches.
+- `loom source ID --closure --session SESSION` for each definition or result the topic touches.
 - The overviews of the relevant digests (`loom refs overview CITEKEY`, each written to be read whole); `loom search --kind digest`.
-- If the author has an outline master, `loom source drafting/outline.tex --run RUN` prints the plan as it stands, flattened.
+- If the author has an outline master, `loom source drafting/outline.tex --session SESSION` prints the plan as it stands, flattened.
 
 ## Procedure
 1. Ask what the author is after and restate it precisely. Stop until they confirm.
@@ -30,4 +30,4 @@ Help the author explore a topic before anything is proved. Your job is to make t
 - [ ] Every candidate is a draft file with explicit hypotheses.
 - [ ] Every dead end has a reason.
 - [ ] Every "known" or "new" claim cites a digest node or says "no digest; memory-grade".
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

@@ -48,6 +48,7 @@
 	}
 	.contents a.current {
 		color: var(--ink);
+		font-weight: 600;
 		border-left-color: var(--link);
 	}
 	.num {

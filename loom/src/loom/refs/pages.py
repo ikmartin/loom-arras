@@ -121,9 +121,62 @@ def page_texts(pdf: Path) -> list[str]:
     return pages
 
 
-def token_boxes(pdf: Path, page: int) -> str:
-    """The `-bbox-layout` XML for one page, for `loom refs locate`; written per page on demand, never in bulk (§4.2)."""
-    return _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
+_PAGE = re.compile(r'<page\s+width="([\d.]+)"\s+height="([\d.]+)"')
+
+
+def page_box(bbox_xml: str) -> tuple[float, float] | None:
+    """A page's width and height in points, from its `-bbox-layout` output; None when the output names neither.
+
+    Read from the output rather than from the PDF because a scan's pages are not all one size -- Atiyah and Bott's is 533x806 on one page and 535x808 on another -- so a viewer given one page box for the document draws every highlight slightly wrong.
+    """
+    m = _PAGE.search(bbox_xml)
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def token_boxes(pdf: Path, page: int, home: Path | None = None) -> str:
+    """The `-bbox-layout` XML for one page, written per page on demand and never in bulk (§4.2).
+
+    With `home`, the work's directory in the store, the output is cached under `digests/storage/cache/boxes/` — which the shipped `.gitignore` ignores. It used to be written beside the page text as `pages/NNNN.boxes.xml`, which that file **commits**: 60 KB a page of derived geometry entering the repository the first time anyone ran `loom refs locate`.
+    """
+    if home is None:
+        return _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
+    cache = home.parent.parent / "cache" / "boxes" / home.parent.name / home.name / f"{page:04d}.xml"
+    if cache.is_file():
+        return cache.read_text(encoding="utf-8")
+    xml = _pdftotext(["-q", "-bbox-layout", "-f", str(page), "-l", str(page), str(pdf), "-"])
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(xml, encoding="utf-8")
+    return xml
+
+
+def page_rotation(pdf: Path, page: int, home: Path | None = None) -> float:
+    """A page's rotation in degrees, from `pdfinfo`, cached beside the word boxes; 0.0 when it cannot be read.
+
+    The `-bbox-layout` output carries no rotation and its page box is already the rotated one, so a viewer drawing against that box needs nothing more; the value is published for one that does not. Read per page because a document may rotate one landscape figure page and no other. Failing soft: geometry is a convenience and a missing `pdfinfo` must not stop a build.
+    """
+    cache = None
+    if home is not None:
+        cache = home.parent.parent / "cache" / "boxes" / home.parent.name / home.name / f"{page:04d}.rot"
+        if cache.is_file():
+            try:
+                return float(cache.read_text(encoding="utf-8").strip() or 0)
+            except ValueError:
+                pass
+    try:
+        proc = subprocess.run(
+            ["pdfinfo", "-f", str(page), "-l", str(page), str(pdf)], capture_output=True, text=True, timeout=60, check=False
+        )
+        m = re.search(r"^Page\s+(?:\d+\s+)?rot:\s*(-?\d+)", proc.stdout, re.M) if proc.returncode == 0 else None
+        rot = float(m.group(1)) if m else 0.0
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        rot = 0.0
+    if cache is not None:
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(f"{rot}\n", encoding="utf-8")
+        except OSError:
+            pass
+    return rot
 
 
 def _clean_title(raw: str) -> str:

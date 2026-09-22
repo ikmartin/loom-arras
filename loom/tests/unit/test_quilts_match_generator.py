@@ -16,12 +16,15 @@ REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "scripts" / "gen_quilts.py"
 
 
-# The showcase is TeX-tier only because `loom refs scan` reads the page text of the two PDFs it files, which
-# needs the real poppler; the shim on the unit tier writes nothing and the check would fail on empty pages.
-@pytest.mark.parametrize("which", ["demo", "synthetic", pytest.param("showcase", marks=pytest.mark.tex)])
+# The demo and the showcase are TeX-tier because `loom refs scan` reads the page text of the PDFs they file, which
+# needs the real poppler; the shim on the unit tier writes nothing, so the work is filed under a content hash rather
+# than the identifier its first page prints and the check fails on the path as well as on empty pages.
+@pytest.mark.parametrize(
+    "which", [pytest.param("demo", marks=pytest.mark.tex), "synthetic", pytest.param("showcase", marks=pytest.mark.tex)]
+)
 def test_the_checked_in_quilt_is_what_the_generator_writes(which: str) -> None:
-    if which == "showcase" and not shutil.which("pdftotext"):
-        pytest.skip("the showcase files two PDFs into its store, and their page text comes from poppler")
+    if which in ("demo", "showcase") and not shutil.which("pdftotext"):
+        pytest.skip(f"the {which} files a PDF into its store, and its page text comes from poppler")
     proc = subprocess.run(
         [sys.executable, str(SCRIPT), which, "--check"],
         cwd=REPO,

@@ -42,7 +42,7 @@
 	const COMMENTS: { v: Comments; label: string }[] = [
 		{ v: 'margin', label: 'margin' },
 		{ v: 'inline', label: 'inline' },
-		{ v: 'hover', label: 'hover' }
+		{ v: 'floating', label: 'floating' }
 	];
 </script>
 
@@ -81,6 +81,18 @@
 			{@render row('Theme', THEMES, prefs.theme, (v) => (prefs.theme = v as Theme), 'theme')}
 			{@render row('Format', FORMATS, prefs.format, (v) => (prefs.format = v as Format), 'format')}
 			{@render row('Comments', COMMENTS, prefs.comments, (v) => (prefs.comments = v as Comments), 'comments')}
+			<!-- Which side the discussion stands on. A toggle rather than a decision, and expected to be deprecated
+			     once one side is known to be the right one. -->
+			{@render row(
+				'Panes',
+				[
+					{ v: 'no', label: 'discussion right' },
+					{ v: 'yes', label: 'discussion left' }
+				],
+				prefs.swap ? 'yes' : 'no',
+				(v) => (prefs.swap = v === 'yes'),
+				'swap'
+			)}
 		</div>
 	{/if}
 </div>

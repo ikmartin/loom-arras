@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nodeBadge, stateBadge } from './badges';
+import { nodeBadge, reviewRowBadge, shortDate, stateBadge } from './badges';
 import type { Key, Manifest, Node } from './manifest/types';
 
 const states = {
@@ -18,6 +18,9 @@ function node(id: string, extra: Partial<Node> = {}): Node {
 const base = { states, keys: {}, nodes: {} } as unknown as Manifest;
 
 describe('badge composition', () => {
+	it('keeps date-only observations on their recorded calendar day', () => {
+		expect(shortDate('2026-09-21')).toBe(new Date('2026-09-21').toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' }));
+	});
 	it('shows the state label and the stale modifier', () => {
 		const k = key('a', 'a', 'accepted', { acceptance: { author: 'x', date: '2026-09-16T00:00:00Z', fresh: false } });
 		expect(stateBadge(base, k).map((p) => p.text)).toEqual(['accepted', 'stale']);
@@ -40,6 +43,13 @@ describe('badge composition', () => {
 		} as Manifest;
 		const parts = nodeBadge(m, node('a', { proofs: ['a/proof', 'a/proof/2'], derived: { proved: true, settled: false } })).map((p) => p.text);
 		expect(parts).toEqual(['statement accepted', 'proof accepted', 'proof stale', 'proved']);
+	});
+
+	it('shows recorded and derived state in statement rows, but only recorded state in proof rows', () => {
+		const m = { ...base, nodes: { a: node('a', { derived: { proved: true, settled: true } }), b: node('b', { derived: { proved: true, settled: false } }) } } as Manifest;
+		expect(reviewRowBadge(m, key('a', 'a', 'accepted')).map((p) => p.text)).toEqual(['accepted', 'proved', 'settled']);
+		expect(reviewRowBadge(m, key('b', 'b', 'accepted')).map((p) => p.text)).toEqual(['accepted', 'proved']);
+		expect(reviewRowBadge(m, key('a/proof', 'a', 'accepted')).map((p) => p.text)).toEqual(['accepted']);
 	});
 });
 

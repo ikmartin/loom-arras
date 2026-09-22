@@ -71,6 +71,8 @@ def demo(tmp_path: Path) -> Path:
         fh.write("\n@misc{Ref20, title={Widgets}, author={Ref, A.}, year={2020}, eprint={2001.00001v2}}\n")
     (tmp_path / "paper").mkdir()
     (tmp_path / "paper" / "ref.tex").write_text(REF)
+    # extraction is gated on loom holding the document, so the source is filed before it is read (plan 0.13 §4)
+    assert run("refs", "add", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q).exit_code == 0
     return q
 
 
@@ -97,40 +99,45 @@ def test_postnote_match_edge_unmatched_and_no_postnote(tmp_path: Path) -> None:
     node.write_text(
         node.read_text().replace(
             "\\end{lemma}",
-            "% see \\cite[Prop.~3.2]{Man12}, \\cite[Section 2]{Man12}, \\cite[Lemma 99]{Man12}, and \\cite{Man12}.\n\\end{lemma}",
+            "% see \\cite[Prop.~3.2]{Calloway14}, \\cite[Section 3]{Calloway14}, \\cite[Lemma 99]{Calloway14}, and \\cite{Calloway14}.\n\\end{lemma}",
             1,
         )
     )
     r = scan(load_quilt(q))
     post = [(e.src, e.to) for e in r.edges.edges if e.via == "postnote"]
-    assert ("dm-0003/proof", "Man12-prop-3.2") in post  # the demo's own citation
-    assert ("dm-0002", "Man12-prop-3.2") not in post  # inside a comment: comments are blanked before every stage
+    assert ("dm-0003/proof", "Calloway14-prop-3.2") in post  # the demo's own citation
+    assert ("dm-0002", "Calloway14-prop-3.2") not in post  # inside a comment: comments are blanked before every stage
     lint = run("lint", cwd=q).output
     assert "unmatched-postnote" not in lint
     node.write_text(node.read_text().replace("% see", "See"))
     r = scan(load_quilt(q))
     post = [(e.src, e.to) for e in r.edges.edges if e.via == "postnote"]
-    assert ("dm-0002", "Man12-prop-3.2") in post
-    assert ("dm-0002", "Man12-setup") in post and ("dm-0002", "Man12-sec-2") in post  # Section 2 names both
+    assert ("dm-0002", "Calloway14-prop-3.2") in post
+    assert ("dm-0002", "Calloway14-sec-3") in post  # a postnote naming a section resolves to the section node
     lint = run("lint", cwd=q).output
     assert "loom:unmatched-postnote" in lint and "Lemma 99" in lint
-    digest = q / "digests" / "Man12.tex"
+    digest = q / "digests" / "Calloway14.tex"
     digest.write_text(
-        digest.read_text().replace("\\label{Man12-prop-3.2}", "\\label{Man12-prop-3.2}\\label{Man12-lem-99}", 1)
+        digest.read_text().replace("\\label{Calloway14-prop-3.2}", "\\label{Calloway14-prop-3.2}\\label{Calloway14-lem-99}", 1)
     )
     assert "unmatched-postnote" not in run("lint", cwd=q).output  # an alias id names the result under another numbering
-    assert lint.count("unmatched-postnote") == 1  # \cite{Man12} without a postnote is neither an edge nor a diagnostic
+    assert lint.count("unmatched-postnote") == 1  # \cite{Calloway14} without a postnote is neither an edge nor a diagnostic
 
 
 def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> None:
     q = demo(tmp_path)
+    # A digest whose source is a preprint, against a bibliography that now cites a later one: the demo's own cited work
+    # is filed under a DOI, which carries no version, so the mismatch is made here rather than borrowed.
+    (q / "digests" / "Man12.tex").write_text(
+        "% !LOOM digest: Man12\n% !LOOM extracted-from: arXiv:0805.2065v2\n% !LOOM method: extract\n\n"
+        "\\begin{theorem}[{\\cite[Theorem 1]{Man12}}]\\label{Man12-thm-1}\nA.\n\\end{theorem}\n",
+        encoding="utf-8",
+    )
     bib = q / "digests" / "bibliography.bib"
     bib.write_text(bib.read_text().replace("eprint  = {0805.2065v2}", "eprint  = {0805.2065v3}", 1))
     assert "0805.2065v3" in bib.read_text()
-    digest = q / "digests" / "Man12.tex"
-    digest.write_text(
-        digest.read_text().replace("% !LOOM requires: amsmath, amsthm", "% !LOOM requires: amsmath, amsthm, tikz-cd")
-    )
+    digest = q / "digests" / "Calloway14.tex"
+    digest.write_text(digest.read_text().replace("% !LOOM method:", "% !LOOM requires: tikz-cd\n% !LOOM method:", 1))
     lint = run("lint", cwd=q).output
     assert "loom:version-mismatch" in lint and "v2" in lint and "v3" in lint
     assert "loom:missing-package" in lint and "tikz-cd" in lint
@@ -141,7 +148,7 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
 
 def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q)
+    r = run("digest", "extract", "Ref20", cwd=q)
     assert r.exit_code == 0, r.output
     text = (q / "digests" / "Ref20.tex").read_text()
     head = text.splitlines()[:5]
@@ -170,7 +177,7 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_pa
     assert "Extracted 4 results (2 Theorem, 1 Definition, 1 Lemma); 2 sections" in r.output
     assert "\\uses recorded: 3" in r.output and "Numbering: from the paper's .aux" in r.output
     assert "Lint on the digest: clean" in r.output or "loom:missing-package" in r.output
-    again = run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q)
+    again = run("digest", "extract", "Ref20", cwd=q)
     assert again.exit_code != 0 and "exists" in again.output
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(
@@ -194,7 +201,7 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_pa
 
 def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q, env={"FAKE_TEX_FAIL": "1"})
+    r = run("digest", "extract", "Ref20", cwd=q, env={"FAKE_TEX_FAIL": "1"})
     assert r.exit_code == 0, r.output
     text = (q / "digests" / "Ref20.tex").read_text()
     assert "% !LOOM numbering: emulated" in text and "Numbering: emulated" in r.output
@@ -204,7 +211,7 @@ def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
 
 def test_import_digest_as_rewrites_prefix(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    assert run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q).exit_code == 0
+    assert run("digest", "extract", "Ref20", cwd=q).exit_code == 0
     src = q / "digests" / "Ref20.tex"
     assert run("init", str(tmp_path / "lib"), "--demo", cwd=tmp_path).exit_code == 0
     lib = tmp_path / "lib"
@@ -257,7 +264,7 @@ def test_fetch_writes_gitignored_dirs(tmp_path: Path) -> None:
 
 def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    assert run("digest", "extract", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q).exit_code == 0
+    assert run("digest", "extract", "Ref20", cwd=q).exit_code == 0
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().replace("\\end{lemma}", "By \\cite[Theorem 3.1]{Ref20}.\n\\end{lemma}", 1))
     r = run("compile", "dm-0002", cwd=q, env={"FAKE_TEX_FAIL": "1"})
@@ -358,7 +365,8 @@ def _extract(tmp_path: Path, src: str, key: str) -> str:
     paper.write_text(src)
     with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write(f"\n@misc{{{key}, title={{X}}, author={{Y, Z.}}, year={{2000}}}}\n")
-    r = run("digest", "extract", key, str(paper), "--no-compile", cwd=q)
+    assert run("refs", "add", key, str(paper), cwd=q).exit_code == 0
+    r = run("digest", "extract", key, "--no-compile", cwd=q)
     assert r.exit_code == 0, r.output
     return (q / "digests" / f"{key}.tex").read_text()
 

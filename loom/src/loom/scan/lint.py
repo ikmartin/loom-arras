@@ -45,6 +45,9 @@ COMMON_THEOREM_ENVS = {
     "construction",
     "convention",
     "assumption",
+    "hypothesis",
+    "axiom",
+    "postulate",
     "fact",
     "observation",
     "setting",
@@ -87,15 +90,39 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         )
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
-    # proofs owed and unexpected
+    for path, directives in asm.directives.items():
+        for d in directives:
+            if d.key == "basis" and not any(
+                n.kind == "environment" and n.file == path and any(a <= d.offset < b for a, b in n.own)
+                for n in asm.nodes.values()
+            ):
+                diags.append(
+                    Diagnostic(
+                        "warning",
+                        "loom:misplaced-basis",
+                        "% !LOOM basis belongs inside one theorem-like block",
+                        [Location(path, d.line)],
+                    )
+                )
+    # The basis is inferred during every live scan; an unresolved basis is a review task, not a proof waiver.
     for key, n in asm.nodes.items():
         if n.kind != "environment" or n.conflict_of:
             continue
-        if n.style == "plain" and not n.proofs and not n.incomplete and not n.external and n.digest is None:
+        if n.basis == "unclassified" and n.reached_by:
+            diags.append(
+                Diagnostic(
+                    "warning",
+                    "loom:needs-classification",
+                    f"{key} needs classification: {n.basis_reason}",
+                    [_loc(result, n)],
+                    [key],
+                )
+            )
+        if n.basis == "local-proof" and not n.proofs and not n.inline_proof and not n.incomplete:
             diags.append(
                 Diagnostic("warning", "loom:missing-proof", f"{key} ({n.taxon}) has no proof", [_loc(result, n)], [key])
             )
-        if n.style in ("definition", "remark") and n.proofs:
+        if n.basis in ("expository", "assumption", "open-claim") and n.proofs:
             diags.append(
                 Diagnostic("info", "loom:unexpected-proof", f"{key} ({n.taxon}) has a proof", [_loc(result, n)], [key])
             )
@@ -302,6 +329,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                     "warning", "loom:digest-without-bib", f"digest {ck} names a citekey not in the bibliography", []
                 )
             )
+    diags.extend(_no_readable_copy(result, digest_keys))
     # digest provenance against the bibliography, and requires: against the default master's preamble closure
     dm = result.default_master
     dm_closure = result.closures.get(dm) if dm else None
@@ -373,6 +401,56 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
         )
     )
     return diags
+
+
+def _no_readable_copy(result: ScanResult, digest_keys: set[str]) -> list[Diagnostic]:
+    """The artifact invariant (plan 0.13 §4, as relaxed): renderable content with no artifact behind it, or none that can be read.
+
+    Renderable content is a digest file or a recorded result; a bibliography entry alone is not, and a work nobody has fetched is a perfectly good state. What backs it may be either artifact, and which one decides what can be done with it. **Source** is enough to check a statement against -- it is the paper's own LaTeX, better evidence than a page image -- but carries no pagination and no page to read, so it reports as `info`. **Nothing at all** is the state the invariant is about and reports as `warning`. Never an error either way: loom cannot fetch without consent, and a build must not fail for want of a document.
+
+    A work the author has declared unreadable is silent here, and `refs build` lists it instead.
+    """
+    from loom.refs.fetch import work_dir
+    from loom.refs.pages import read_map
+    from loom.refs.proposals import load_results
+    from loom.refs.unreadable import declarations
+
+    root = result.quilt.root
+    silent = declarations(root, "unreadable")
+    out: list[Diagnostic] = []
+    for ck in sorted(set(result.bib)):
+        if ck in silent:
+            continue
+        if ck not in digest_keys and not load_results(root, ck):
+            continue
+        try:
+            home = work_dir(root, result.bib[ck])
+        except Exception:  # noqa: BLE001 -- an entry with no identifier has no home; loom:unresolved-work says so
+            continue
+        m = read_map(home)
+        if m is not None and m.pages > 0:
+            continue
+        has_pdf, has_source = (home / "paper.pdf").is_file(), (home / "src").is_dir()
+        if has_pdf:
+            sev, what, how = "warning", "its pages have never been read", f"loom refs map {ck}"
+        elif has_source:
+            sev = "info"
+            what = "loom holds its LaTeX and no PDF, so there is no page to read and its page locators are unverified"
+            how = f"loom refs fetch {ck}, or loom refs add {ck} <FILE>"
+        else:
+            sev = "warning"
+            what = "no copy of the paper is on this machine, so nothing it says can be checked against the paper"
+            how = f"loom refs fetch {ck}, or loom refs add {ck} <FILE>"
+        out.append(
+            Diagnostic(
+                sev,
+                "loom:no-readable-copy",
+                f"{ck} has a digest but {what}; {how}, or loom refs unreadable {ck} --why '...' when there is no document to hold",
+                [],
+                [ck],
+            )
+        )
+    return out
 
 
 def _stmt(asm: Assembly, key: str | None) -> str | None:

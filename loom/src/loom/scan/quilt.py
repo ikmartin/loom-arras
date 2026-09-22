@@ -166,6 +166,19 @@ def find_quilt(start: Path | None = None) -> Quilt:
     for candidate in [start, *start.parents]:
         if is_quilt_root(candidate):
             return load_quilt(candidate)
+    # A `config.toml` that is there and will not parse is a different problem from one that is absent, and saying
+    # "no config.toml" about a file the author is looking at sends them hunting for the wrong thing. Found by the
+    # reading study, 2026-09-21, after a stray second `[author]` table made a quilt vanish.
+    for candidate in [start, *start.parents]:
+        cfg = candidate / "config.toml"
+        if not cfg.is_file():
+            continue
+        try:
+            tomllib.loads(cfg.read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as exc:
+            raise NoQuiltError(f"{cfg} is not valid TOML, so this is not a readable quilt: {exc}") from exc
+        except OSError:
+            continue
     raise NoQuiltError(f"not inside a quilt: no config.toml with a [quilt] table above {start}")
 
 

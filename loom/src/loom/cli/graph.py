@@ -72,7 +72,9 @@ def _relation_entries(result: ScanResult, key: str) -> list[dict[str, str]]:
 @click.argument("key")
 @click.option("--closure", "show_closure", is_flag=True, help="The transitive statement closure in dependency order.")
 @click.option("--json", "as_json", is_flag=True)
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="DIR", help="Log this call to DIR/run.log.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """What KEY depends on: direct statement-edges and proof-edges, grouped."""
@@ -180,7 +182,9 @@ def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:
 @click.command()
 @click.argument("id_", metavar="ID")
 @click.option("--json", "as_json", is_flag=True)
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="DIR", help="Log this call to DIR/run.log.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 def unravel(id_: str, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing."""

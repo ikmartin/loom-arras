@@ -1,4 +1,7 @@
-"""Threads for the manifest (specs/manifest.md §10, book 11.4.7): every run under `ai/runs/` and every comment session under `comments/`, read-only."""
+"""Threads for the manifest (specs/manifest.md §10, book 11.4.7): every session, read-only.
+
+One thread per session, which since plan 0.13 §5 is what a run and a day's comments both are. A session the migration made from a run reads its journal and its attachments from the run directory those bytes are still in.
+"""
 
 from __future__ import annotations
 
@@ -7,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from loom.ai.layout import MODES
-from loom.ai.runs import read_run_toml, thread_id
 from loom.records.annotations import Record
 
 _HEADING = re.compile(r"^##\s+(.*)$", re.M)
@@ -79,25 +81,26 @@ def _messages(thread: str, agent: str, fallback_time: str) -> list[dict[str, Any
     return out
 
 
-def run_thread(root: Path, run_dir: Path, record: Record | None = None) -> dict[str, Any]:
-    meta = read_run_toml(run_dir)
-    rel = run_dir.relative_to(root).as_posix()
-    agent = meta.get("name") or meta.get("slug") or run_dir.name
-    created = meta.get("created", "")
-    participants: list[dict[str, str]] = [{"kind": "agent", "id": agent}]
+def session_thread(root: Path, session: Any, record: Record | None, run_dir: Path) -> dict[str, Any]:
+    """One session as a thread: its journal, what it wrote, who took part, and what it touched."""
+    rel = run_dir.relative_to(root).as_posix() if run_dir.is_relative_to(root) else run_dir.as_posix()
+    agent = session.title
+    created = session.created
+    participants: list[dict[str, str]] = []
     targets: list[str] = []
     attachments: list[dict[str, Any]] = []
-    discarded = meta.get("discarded") == "true"
+    discarded = session.state != "open"
     if record is not None:
         discarded = discarded or record.discarded
         attachments.append({"name": "annotations", "kind": "annotations", "count": len(record.annotations)})
         for a in record.annotations:
             if a.target_key not in targets:
                 targets.append(a.target_key)
-            who = {"kind": a.author_kind if a.author_kind != "run" else "agent", "id": a.author_id}
-            if a.author_kind == "person" and who not in participants:
+            # every party who wrote in the session, which is the point of separating the author from the place
+            who = {"kind": "agent" if a.author_kind in ("agent", "run") else "person", "id": a.author_id}
+            if who not in participants:
                 participants.append(who)
-    for p in sorted(run_dir.iterdir()):
+    for p in sorted(run_dir.iterdir()) if run_dir.is_dir() else []:
         if not p.is_file() or p.name in ("run.toml", "run.log", "thread.md", "annotations.json"):
             continue
         attachments.append({"name": p.name, "kind": _attachment_kind(p.name), "path": f"{rel}/{p.name}"})
@@ -112,8 +115,8 @@ def run_thread(root: Path, run_dir: Path, record: Record | None = None) -> dict[
             if m:
                 log.append({"time": m.group(1), "command": m.group(2)})
     return {
-        "id": thread_id(rel),
-        "kind": "run",
+        "id": session.id,
+        "kind": "session",
         "title": title,
         "created": created,
         "path": rel,
@@ -121,59 +124,24 @@ def run_thread(root: Path, run_dir: Path, record: Record | None = None) -> dict[
         "targets": targets,
         "messages": _messages(thread_text, agent, created) if thread_text else [],
         "attachments": attachments,
-        "pipeline": _pipeline(run_dir, rel),
+        "pipeline": _pipeline(run_dir, rel) if run_dir.is_dir() else [],
         "log": log,
         "discarded": discarded,
     }
 
 
-def session_thread(root: Path, record: Record) -> dict[str, Any] | None:
-    """A person's annotations as a thread: each one a message, since a comment session has no journal of its own."""
-    from loom.records.store import render_markdown
-
-    if not record.annotations:
-        return None
-    author = record.annotations[0].author_id
-    created = min(a.created for a in record.annotations)
-    messages = [
-        {
-            "author": a.author_id,
-            "time": a.created,
-            "body_html": render_markdown(f"**{a.kind}** on `{a.target_key}`: {a.body}"),
-        }
-        for a in record.annotations
-    ]
-    return {
-        "id": record.rel,
-        "kind": "comments",
-        "title": author,
-        "created": created,
-        "path": record.rel,
-        "participants": [{"kind": "person", "id": author}],
-        "targets": list(dict.fromkeys(a.target_key for a in record.annotations)),
-        "messages": messages,
-        "attachments": [],
-        "log": [],
-        "discarded": record.discarded,
-    }
-
-
 def build_threads(root: Path, records: list[Record] | None = None) -> dict[str, Any]:
-    """Every run and every comment session as a thread, keyed by id."""
+    """Every session as a thread, keyed by its id."""
     from loom.records.annotations import load_records
+    from loom.sessions import files_dir, sessions
 
     if records is None:
         records, _ = load_records(root)
     by_rel = {r.rel: r for r in records}
     out: dict[str, Any] = {}
-    runs = root / "ai" / "runs"
-    if runs.is_dir():
-        for d in sorted(p for p in runs.iterdir() if p.is_dir()):
-            t = run_thread(root, d, by_rel.get(d.relative_to(root).as_posix()))
-            out[t["id"]] = t
-    for rel, rec in by_rel.items():
-        if rel.startswith("comments/"):
-            st = session_thread(root, rec)
-            if st is not None:
-                out[st["id"]] = st
+    for s in sessions(root).values():
+        # a migrated session's annotations still carry the grouping they were written with
+        record = by_rel.get(s.id) or (by_rel.get(s.source) if s.source else None)
+        where = files_dir(root, s)
+        out[s.id] = session_thread(root, s, record, where)
     return out

@@ -1,16 +1,16 @@
 // The workbench in the viewer (book 15.2, 15.3.1, 15.3.5): landmarks as documents of their own, a corpus with nothing being worked on, a doubly-defined id, the fixes a diagnostic offers, and the badge that says a text is one a landmark recorded.
 import { expect, test } from '@playwright/test';
 
-test('the document picker offers the landmarks and the working drafts in two groups', async ({ page }) => {
+test('the documents section lists the landmarks and the working drafts in two groups', async ({ page }) => {
+	// A list rather than a dropdown (plan 0.13.1's panel work): a dropdown shows one name at a time, cannot say which
+	// draft is conflicted, and hides the landmarks behind a click.
 	await page.goto('/');
-	const picker = page.getByRole('combobox', { name: 'Document' });
-	await expect(picker.locator('optgroup[label="Canon"]')).toHaveCount(1);
-	await expect(picker.locator('optgroup[label="Working Drafts"]')).toHaveCount(1);
+	await expect(page.getByTestId('docs-drafts')).toBeVisible();
+	const canon = page.getByTestId('docs-canon').locator('li');
 	// newest landmark first, each named by the step that wrote it
-	const canon = picker.locator('optgroup[label="Canon"] option');
 	await expect(canon.first()).toContainText('@5');
 	await expect(canon).toHaveCount(3);
-	await picker.selectOption('canon/widgets-v3.tex');
+	await page.getByTestId('docs-canon').getByRole('link', { name: /widgets-v3/ }).click();
 	await expect(page).toHaveURL(/\/canon\/widgets-v3$/);
 });
 

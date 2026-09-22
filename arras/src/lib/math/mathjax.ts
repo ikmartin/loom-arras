@@ -51,7 +51,7 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 }
 
 function macroPrefix(macros: Macro[]): string {
-	return macros.map((m) => (m.args > 0 ? `\\renewcommand{\\${m.name}}[${m.args}]{${m.body}}` : `\\renewcommand{\\${m.name}}{${m.body}}`)).join('');
+	return macros.map((m) => `\\providecommand{\\${m.name}}{}${m.args > 0 ? `\\renewcommand{\\${m.name}}[${m.args}]{${m.body}}` : `\\renewcommand{\\${m.name}}{${m.body}}`}`).join('');
 }
 
 /** Typesetting is serialised: MathJax is not safe to enter twice, and a document typesetting in the background shares it with titles and previews. */

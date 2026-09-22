@@ -55,35 +55,113 @@ def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, s
             if not src.is_file():
                 continue
             parsed = parse_report(src.read_text(encoding="utf-8", errors="replace"), run=str(tid), src=entry["report"])
-            rel = f"fragments/reports/{quote(entry['report'], safe='')}.html"
+            # A leading dot would make the file invisible to every static host: a session's report lives under
+            # `.loom/sessions/<id>/`, and percent-encoding the path keeps that dot at the front of the name. Vite,
+            # nginx and GitHub Pages all refuse a dotfile, so the fragment 404s wherever the corpus is published.
+            name = quote(entry["report"], safe="").lstrip(".")
+            rel = f"fragments/reports/{name}.html"
             fragments[f"report:{entry['report']}"] = rel
             files[rel] = parsed.html
             entry["fragment"] = rel
             entry["blocks"] = [b.to_dict() for b in parsed.blocks]
 
 
-def _attach_page_images(root: Path, manifest: dict[str, Any], build_dir: Path) -> None:
-    """Render the anchor page of every pending proposal and name it on the result's manifest row (plan 0.12 §5.3).
+class _PageTable:
+    """The word boxes of one work's pages, read once each, and the page table the sidecar publishes for them."""
 
-    Pending proposals only: they are the one place a person is asked to judge a rendering, and the text layer beside them has lost the notation the judgement is about. A handful of pages, cached by artifact hash and page under `build/pages/`; a work whose PDF is not on this machine gets no image and the viewer says so.
+    def __init__(self, home: Path) -> None:
+        self.home = home
+        self.boxes: dict[int, str] = {}
+        self.pages: dict[str, dict[str, float]] = {}
+
+    def boxes_of(self, page: int) -> str:
+        from loom.refs.pages import page_box, page_rotation, token_boxes
+
+        if page not in self.boxes:
+            try:
+                self.boxes[page] = token_boxes(self.home / "paper.pdf", page, self.home)
+            except Exception:  # noqa: BLE001 -- geometry is a convenience; a page without it still reads
+                self.boxes[page] = ""
+        if self.boxes[page] and str(page) not in self.pages:
+            box = page_box(self.boxes[page])
+            if box:
+                self.pages[str(page)] = {
+                    "width": box[0],
+                    "height": box[1],
+                    "rotate": page_rotation(self.home / "paper.pdf", page, self.home),
+                }
+        return self.boxes[page]
+
+
+def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -> None:
+    """One sidecar per work holding the geometry of its anchors, and a pointer to it on the reference (plan 0.13 item 2).
+
+    Beside the manifest for the reason `_write_source` gives: the manifest is loaded whole on every poll, and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, which is what lets a viewer notice a stale copy while `loom serve` rebuilds under it.
+
+    Two maps: `quads` for the work's results, keyed by result id, and `marks` for the notes on its pages, keyed by annotation id. A text anchor's rectangles are derived here from the word boxes and never recorded; a box anchor's are the record itself, read back from the log. A work whose PDF is not on this machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+
+    Runs after `Records.apply`, so it reads the published annotations and writes each reference's `reading` count.
     """
-    from loom.refs.images import anchor_focus, anchor_images
-    from loom.refs.proposals import PROPOSED, load_results
+    from loom.records.annotations import load_records
+    from loom.refs.pages import read_map
+    from loom.refs.proposals import load_results
+    from loom.refs.search import locate_span
+
+    published = manifest.get("annotations", {})
+    # the box anchors' own rectangles, which the manifest does not carry
+    drawn: dict[str, list[list[float]]] = {}
+    if any(a.get("basis") == "box" for a in published.values()):
+        for record in load_records(root)[0]:
+            for a in record.annotations:
+                if a.anchor is not None and a.anchor.basis == "box" and a.anchor.quads:
+                    drawn[a.id] = a.anchor.quads
 
     for citekey, ref in manifest.get("references", {}).items():
-        rows = ref.get("results") or {}
-        pending = [rid for rid, row in rows.items() if row.get("state") == PROPOSED]
-        if not pending:
+        notes = [a for a in published.values() if a["target"].get("work") == citekey and not a["discarded"]]
+        ref["reading"] = {
+            "total": len(notes),
+            "open": sum(1 for a in notes if a["status"] == "open" and a["in_reply_to"] is None),
+        }
+        artifacts = ref.get("artifacts") or {}
+        home = root / str(artifacts.get("dir", ""))
+        if not artifacts.get("pdf") or not (home / "paper.pdf").is_file():
             continue
-        recorded = load_results(root, citekey)
-        for rid in pending:
-            if rid in recorded:
-                images = anchor_images(root, build_dir, recorded[rid])
-                if images:
-                    rows[rid]["page_images"] = images
-                    focus = anchor_focus(root, recorded[rid])
-                    if focus is not None:
-                        rows[rid]["page_focus"] = focus
+        results = {
+            rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page
+        }
+        if not results and not notes:
+            continue
+        table = _PageTable(home)
+        quads: dict[str, list[list[float]]] = {}
+        marks: dict[str, list[list[float]]] = {}
+        for rid, r in results.items():
+            xml = table.boxes_of(r.anchor.page)
+            span = locate_span(xml, r.source_text, r.anchor.page) if xml else None
+            if span is not None:
+                quads[rid] = [list(q) for q in span.lines]
+        for a in notes:
+            page = int(a["target"].get("page") or 0)
+            if not page:
+                continue
+            if a.get("basis") == "box":
+                if a["id"] in drawn:
+                    marks[a["id"]] = drawn[a["id"]]
+                    table.boxes_of(page)  # for the page table
+                continue
+            xml = table.boxes_of(page)
+            span = locate_span(xml, a.get("quote") or "", page) if xml and a.get("quote") else None
+            if span is not None:
+                marks[a["id"]] = [list(q) for q in span.lines]
+        pages = table.pages
+        if not quads and not marks:
+            continue
+        m = read_map(home)
+        body = json.dumps(
+            {"artifact": m.sha256 if m else "", "pages": pages, "quads": quads, "marks": marks}, indent=1, sort_keys=True
+        )
+        rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
+        files[rel] = body
+        ref["spans"] = {"path": rel, "sha256": hashlib.sha256(body.encode()).hexdigest()}
 
 
 def _write_source(result: ScanResult, fragments: dict[str, str], files: dict[str, Any]) -> None:
@@ -329,14 +407,17 @@ def build(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
     records.apply(result, manifest, build_dir)
-    _attach_page_images(result.quilt.root, manifest, build_dir)
+    from loom.render.review_compare import attach_comparisons
+
+    _attach_spans(result.quilt.root, manifest, files)
+    attach_comparisons(result, records, renderer, manifest, files)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
     ]
     report.manifest = manifest
-    prune = ("fragments/", "source/") if wanted is None else ()
+    prune = ("fragments/", "source/", "spans/") if wanted is None else ()
     if wanted is None:
         for rel in list(index):
             if rel not in fragments.values():

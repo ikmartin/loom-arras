@@ -14,7 +14,8 @@ export type ColorClass =
   | (string & {});
 
 export interface Author {
-  kind: "run" | "person" | "agent" | (string & {});
+  /** Who wrote it. `run` is what an agent's annotation said before sessions separated the author from the place (plan 0.13 §5); records written then still carry it. */
+  kind: "agent" | "person" | "run" | (string & {});
   id: string;
   label?: string;
 }
@@ -90,6 +91,10 @@ export interface Node {
   children: string[];
   proofs: string[];
   external: boolean;
+  /** Why this block may be relied on; unclassified blocks need an author choice in the drafting source. */
+  basis?: 'expository' | 'local-proof' | 'cited-result' | 'assumption' | 'open-claim' | 'unclassified';
+  basis_reason?: string;
+  inline_proof?: boolean;
   /** The files that each define this id, when two do. The id is then `conflicted`: it has no text, and loom reports both rather than choosing (book 5.3.5). */
   conflict?: string[];
   digest: string | null;
@@ -102,8 +107,17 @@ export interface Node {
 export interface Cause {
   kind: string;
   id?: string;
+  via?: string;
+  citation?: string;
   when?: string;
   diff: string | null;
+  comparison?: {
+    accepted: string;
+    current: string;
+    accepted_macros: string;
+    accepted_spans: [number, number][];
+    current_spans: [number, number][];
+  };
 }
 
 export interface Acceptance {
@@ -187,7 +201,10 @@ export interface Annotation {
   id: string;
   author: Author;
   created: string;
-  target: { key: string; hash: string };
+  /** What it is about. A key in the corpus -- or, for a note on a page of a cited work, the work's identifier, with `work` the citekey the viewer knows it by and `page` where on it (plan 0.13 item 2). */
+  target: { key: string; hash: string; work?: string | null; page?: number | null };
+  /** On a note on a page: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. */
+  basis?: "text" | "box" | null;
   kind: string;
   body_html: string;
   status: "open" | "resolved" | (string & {});
@@ -263,9 +280,30 @@ export interface ReferenceNote {
   from?: { run: string; annotation: string };
 }
 
+/** One session as the selector shows it. The id is the address and never changes; the title is the author's and may. */
+export interface SessionRow {
+  id: string;
+  title: string;
+  /** What the sitting is for, in the author's words; '' when never stated. */
+  purpose?: string;
+  /** `open`, `closed`, or `deleted` — a tombstone, which the publisher does not send. */
+  state: "open" | "closed" | (string & {});
+  created: string;
+  /** When the current round opened: what "changed since last time" is measured from. */
+  opened: string;
+  rounds: number;
+  /** Whether this is the publisher's own default for writes made at a terminal. The viewer never reads it: a write names its session (plan 0.13.1). */
+  active: boolean;
+  /** Who is listening now, by a heartbeat that goes stale rather than being believed forever. Empty means nobody. */
+  attached?: { who: string; kind: string }[];
+  /** The last event in this session's inbox. A client that has fallen behind knows it has by comparing its own. */
+  seq?: number;
+}
+
 export interface Thread {
   id: string;
-  kind: string;
+  /** `session` since plan 0.13 §5; `run` and `comments` are what a thread written before it says. */
+  kind: "session" | "run" | "comments" | (string & {});
   title: string;
   created: string;
   participants: Author[];
@@ -324,10 +362,6 @@ export interface ResultRecord {
   statement?: string;
   /** The page around the quoted span, for a proposal: what the rendering is judged against. The quote alone is not enough -- an agent quotes only as much as the anchor check needs. */
   page_text?: string;
-  /** The anchor's page(s) rendered as images, build-relative, for a proposal whose PDF is on the publishing machine. The text layer drops script, bold, sub- and superscripts, so a symbol is judged here and never from `page_text`. */
-  page_images?: string[];
-  /** How far down the first anchored page the quotation starts, 0 to 1; absent when it could not be placed. */
-  page_focus?: number;
   /** Words of `statement`'s prose that the quoted source text does not contain: an agent's gloss, or a word the page spells differently. */
   not_on_page?: string[];
   /** For a result quoted from the paper's LaTeX rather than a page: the file, relative to the corpus root. `page` is then 0. */
@@ -347,6 +381,12 @@ export interface Reference {
   works?: string[];
   /** What has been fetched for the work. `dir` is servable under the viewer's origin; both flags are false until someone fetches or adds a copy, and the fetched material is not in version control, so another reader's copy of the corpus may have neither. */
   artifacts?: { dir: string; pdf: boolean; source: boolean };
+  /** The author's standing claim that no document can be held for this work: the Stacks Project is a living work with no fixed version. Nothing in a bibliography entry says so, so it is declared and never inferred, and the reading view says it rather than showing an empty pane. */
+  unreadable?: { why: string; who: string; when: string };
+  /** Where the work's anchor geometry is published, and its hash. Beside the manifest rather than in it: the manifest is loaded whole on every poll, and rectangles are wanted for the one paper being read. Absent when no copy of the paper is on the publishing machine, which is the honest state — the viewer then has nothing to draw. */
+  spans?: { path: string; sha256: string };
+  /** The notes on this work's pages: how many, and how many still await an answer. They are in no key's row and count toward no total, so this is where a list says a paper has been read. */
+  reading?: { total: number; open: number };
   digest: {
     file: string;
     fragment: string;
@@ -411,6 +451,8 @@ export interface Manifest {
   states: States;
   annotations: Record<string, Annotation>;
   threads: Record<string, Thread>;
+  /** Every session the index leaves standing, for the selector: which exists, which loom is writing into, and what round each is on. */
+  sessions?: SessionRow[];
   reference_notes?: ReferenceNote[];
   diagnostics: Diagnostic[];
   tags: Record<string, string[]>;

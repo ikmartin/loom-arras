@@ -42,7 +42,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-37](WQ-37-digest-version-where-it-is-read.md) | a digest's version shown where an agent reads it | loom | fired 2026-09-19: an agent filed as a bug what `loom:unverified-locators` explained |
 | [WQ-38](WQ-38-digest-blocks-in-their-own-preamble.md) | a digest block rendered against the paper's own preamble | loom | a digest block the author needs shows a raw-TeX error box |
 | [WQ-39](WQ-39-mechanical-version-check.md) | a mechanical version check for extracted digests | loom | the author cites, with a locator, a result in a flagged digest that the cited version numbers differently |
-| [WQ-40](WQ-40-page-image-for-verified-results.md) | the page image beside a verified result | loom, arras | a verified result is found wrong and the PDF has to be opened to settle it |
 | [WQ-41](WQ-41-ranked-find.md) | ranking for `loom refs find` | loom | an agent reruns `refs find` three or more times in one query to narrow it |
 | [WQ-42](WQ-42-the-gradient-with-orientation-held.md) | measure the gradient with orientation held fixed | — | before the layer is claimed to make later questions cheaper outside the project |
 

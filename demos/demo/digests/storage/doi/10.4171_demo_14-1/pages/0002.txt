@@ -1,0 +1,19 @@
+Proof. The orbits of σ partition X and each has one or two elements, the singletons being
+exactly the fixed points. Writing t for the number of two-element orbits, |X| = | Fix(σ)|+2t.
+Theorem 3.4. Let X be a finite Hausdorff space and σ an involution of X. Then Fix(σ) is
+closed and |X| ≡ | Fix(σ)| (mod 2).
+Proof. Both halves are proved above.
+
+4
+
+The hypothesis is needed
+
+Let X = {a, b} carry the indiscrete topology and let σ exchange a and b; the fixed locus
+is empty, hence closed, so this is not yet a counterexample. Instead let X = {a, b, c} with
+open sets ∅, {a, b} and X, and let σ fix c and exchange a with b. Then Fix(σ) = {c}, whose
+complement {a, b} is open, so the locus is closed here too.
+A genuine counterexample needs a space that is not T1 in a more substantial way, and we
+give one in the line with two origins, where the two origins are exchanged by an involution
+fixing everything else. The fixed locus is the complement of the two origins, which is not closed.
+
+2

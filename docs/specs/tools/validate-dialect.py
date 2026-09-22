@@ -18,13 +18,13 @@ ALLOWED = {
     "thead", "tbody", "tr", "th", "td", "br",
 }
 ALLOWED_CLASSES = {
-    "div": {"env", "include", "included", "math", "display", "annotation-block"},
+    "div": {"env", "include", "included", "math", "display", "annotation-block", "review-changed"},
     "details": {"env", "env-proof", "annotation-block"},
     "summary": {"env-label"},
     "p": {"env-label", "annotation-block"},
-    "span": {"number", "taxon", "title", "math", "inline", "cite", "footnote", "incomplete", "smallcaps", "tex-color"},
+    "span": {"number", "taxon", "title", "math", "inline", "cite", "footnote", "incomplete", "smallcaps", "tex-color", "review-changed", "review-change-point"},
     "a": {"ref", "ref-eq", "ref-dangling", "url"},
-    "mark": {"annotation"},
+    "mark": {"annotation", "review-changed"},
     "figure": {"diagram", "fallback", "failed"},
     "section": {"annotation-block"},
 }

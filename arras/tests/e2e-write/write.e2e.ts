@@ -4,6 +4,24 @@ import { readFileSync } from 'node:fs';
 
 const QUILT = '.tmp-write-quilt';
 
+/**
+ * Select a session, because a write names one (plan 0.13.1) and nothing is selected at rest.
+ *
+ * This is the setup the interface asks of a reader too: the composer is greyed until an open session is chosen, and
+ * nothing is opened behind their back. Every write test therefore starts by choosing where its work will be filed.
+ */
+async function intoASession(page: import('@playwright/test').Page) {
+	const first = page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first();
+	if (await first.count()) {
+		await first.click();
+	} else {
+		await page.getByTestId('session-new').click();
+		await page.getByTestId('session-new-title').fill('a sitting for the tests');
+		await page.getByTestId('session-new-title').press('Enter');
+	}
+	await expect(page.getByTestId('session-list').locator('li.selected')).toHaveCount(1);
+}
+
 function log(): Record<string, unknown>[] {
 	return readFileSync(`${QUILT}/annotations/log.jsonl`, 'utf8')
 		.split('\n')
@@ -14,11 +32,14 @@ function log(): Record<string, unknown>[] {
 test('a comment written in the browser lands in the log as a person', async ({ page }) => {
 	// The gate of plan 0.11 Part H. Not "the button appeared" -- the file changed.
 	await page.goto('/node/sy-0003');
+	await intoASession(page);
 	await expect(page.getByTestId('composer')).toBeVisible();
 	await page.getByTestId('composer-open').click();
 	await page.getByTestId('composer-quote').fill('finite widget');
 	await page.getByTestId('composer-message').fill('Does finiteness do any work in the closedness half?');
-	await page.getByTestId('composer-kind').selectOption('question');
+	// an objection, because severity grades a fault and only `objection` and `suggestion` claim one (DR-204); this
+	// test asked for a `minor` question until the six kinds landed, which the publisher would now refuse
+	await page.getByTestId('composer-kind').selectOption('objection');
 	await page.getByTestId('composer-severity').selectOption('minor');
 	await page.getByTestId('composer-submit').click();
 	await expect(page.getByTestId('composer-said')).toHaveText('written');
@@ -26,6 +47,7 @@ test('a comment written in the browser lands in the log as a person', async ({ p
 	const mine = log().filter((e) => String(e.body ?? '').startsWith('Does finiteness'));
 	expect(mine).toHaveLength(1);
 	expect(mine[0].kind).toBe('human'); // written by a person, not by the run whose page it was
+	expect(mine[0].annotation_kind).toBe('objection');
 	expect(mine[0].severity).toBe('minor');
 	expect(JSON.stringify(mine[0])).toContain('finite widget'); // anchored to the sentence, not to the node
 });
@@ -33,6 +55,7 @@ test('a comment written in the browser lands in the log as a person', async ({ p
 test("the publisher's refusal is shown rather than swallowed", async ({ page }) => {
 	// "quote not found" means something different from "no such key", and a reader told only "failed" has to guess.
 	await page.goto('/node/sy-0003');
+	await intoASession(page);
 	await page.getByTestId('composer-open').click();
 	await page.getByTestId('composer-quote').fill('a phrase that appears nowhere in this statement at all');
 	await page.getByTestId('composer-message').fill('This should be refused.');
@@ -45,6 +68,7 @@ test("the publisher's refusal is shown rather than swallowed", async ({ page }) 
 
 test('a citation suggestion can be accepted, and leaves a breadcrumb', async ({ page }) => {
 	await page.goto('/node/sy-0002');
+	await intoASession(page);
 	const notes = page.getByTestId('reference-notes');
 	await expect(notes).toContainText('Suggested citations');
 	await page.getByTestId('refnote-accept').first().click();
@@ -55,13 +79,14 @@ test('a citation suggestion can be accepted, and leaves a breadcrumb', async ({ 
 });
 
 /** Comments shown in place (`inline` beneath the block, `hover` floating at the mark), with the reply written inside the box that is showing them. */
-function inPlace(where: 'inline' | 'hover') {
+function inPlace(where: 'inline' | 'floating') {
 	return async ({ page }: { page: import('@playwright/test').Page }) => {
 		await page.addInitScript(
 			(c) => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: c })),
 			where
 		);
 		await page.goto('/node/sy-0003');
+	await intoASession(page);
 		const mark = page.locator('.fragment mark.annotation').first();
 		await mark.waitFor();
 		const box = page.locator('[data-testid="comment-expanded"]'); // one host, however many comments the mark carries by now
@@ -90,4 +115,4 @@ function inPlace(where: 'inline' | 'hover') {
 }
 
 test('a reply written in an inline comment box leaves the box open', inPlace('inline'));
-test('a reply written in a floating comment box leaves the box open', inPlace('hover'));
+test('a reply written in a floating comment box leaves the box open', inPlace('floating'));

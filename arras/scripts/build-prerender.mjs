@@ -16,14 +16,15 @@ execSync('node scripts/stage-fixture.mjs --clean', { stdio: 'inherit' });
 const manifest = JSON.parse(readFileSync(join(buildDir, 'manifest.json'), 'utf8'));
 const enc = (s) => s.split('/').map(encodeURIComponent).join('/');
 const stem = (p) => p.split('/').pop().replace(/\.tex$/, '');
-const routes = new Set(['/', '/review', '/problems', '/blockers', '/graph', '/threads', '/tags', '/taxa', '/references', '/loose']);
+const routes = new Set(['/', '/review', '/problems', '/blockers', '/graph', '/threads', '/tags', '/taxa', '/library', '/loose']);
 for (const key of Object.keys(manifest.nodes ?? {})) routes.add('/node/' + enc(key));
 for (const m of manifest.masters ?? []) routes.add('/master/' + encodeURIComponent(stem(m.path)));
 for (const c of manifest.canon ?? []) routes.add('/canon/' + encodeURIComponent(c.stem));
-for (const ck of Object.keys(manifest.references ?? {})) routes.add('/digest/' + encodeURIComponent(ck));
+for (const ck of Object.keys(manifest.references ?? {})) routes.add('/library/' + encodeURIComponent(ck));
 for (const t of Object.keys(manifest.tags ?? {})) routes.add('/tag/' + encodeURIComponent(t));
 for (const t of Object.values(manifest.taxa ?? {})) routes.add('/taxon/' + encodeURIComponent(t.slug));
 for (const id of Object.keys(manifest.threads ?? {})) routes.add('/thread/' + encodeURIComponent(id));
+for (const s of manifest.sessions ?? []) routes.add('/session/' + encodeURIComponent(s.id));
 rmSync(outDir, { recursive: true, force: true });
 // With a base, the whole site lives under it: the assets the shell names are `<base>/_app/...`, so the built files
 // and the prerendered routes have to sit in the same place or every asset 404s. The directory is then served at the

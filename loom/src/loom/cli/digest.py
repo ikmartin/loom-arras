@@ -11,7 +11,7 @@ from loom.cli._quilt import open_scan, quilt_option
 from loom.digest.extract import extract_digest
 from loom.digest.importer import plan_digest_import, write_digest_import
 from loom.scan.quilt import load_quilt
-from loom.scan.scan import scan
+from loom.scan.scan import ScanResult, scan
 
 
 @click.group(name="digest")
@@ -22,9 +22,41 @@ def digest() -> None:
     """
 
 
+def _must_be_stored(root: Path, src: Path, citekey: str) -> Path:
+    """Refuse a source outside loom's store: renderable content must have a document behind it (plan 0.13 §4).
+
+    A digest extracted from a file on the author's desktop cites page numbers nobody else can open, and nothing later in the pipeline can repair that -- so the obligation starts where the digest is born, and the two commands that put a document in the store are named here rather than left to be found.
+    """
+    from loom.refs.pages import storage_root
+
+    store = storage_root(root)
+    if src.resolve().is_relative_to(store.resolve()):
+        return src
+    raise EnvError(
+        f"{src} is not in loom's store, so a digest made from it would cite a document nobody else holds.\n"
+        f"File it first: loom refs add <FILE> {citekey}, or loom refs fetch {citekey} where an identifier will serve it.\n"
+        f"The store is {store.relative_to(root)}/."
+    )
+
+
+def _stored_source(result: ScanResult, citekey: str) -> Path:
+    """The stored source to extract from, or a refusal naming the two ways to put one there."""
+    from loom.refs.build import main_tex
+
+    entry = result.bib.get(citekey)
+    main = main_tex(result.quilt.root, entry) if entry is not None else None
+    if main is None:
+        raise EnvError(
+            f"loom holds no source for {citekey}, so there is nothing to extract from.\n"
+            f"loom refs fetch {citekey} where an identifier will serve it, or loom refs add {citekey} <FILE-OR-DIR> "
+            f"for source you already hold."
+        )
+    return main
+
+
 @digest.command(name="extract")
 @click.argument("citekey")
-@click.argument("src", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("src", type=click.Path(exists=True, dir_okay=False, path_type=Path), required=False)
 @click.option("--to", "to", default=None, metavar="PATH", help="Write here instead of digests/<citekey>.tex.")
 @click.option(
     "--engine", default=None, help="Engine for compiling the reference (default: its magic comment or pdflatex)."
@@ -37,15 +69,19 @@ def digest() -> None:
 def extract(
     ctx: click.Context,
     citekey: str,
-    src: Path,
+    src: Path | None,
     to: str | None,
     engine: str | None,
     no_compile: bool,
     quilt_path: str | None,
 ) -> None:
-    """Produce digests/CITEKEY.tex mechanically from the reference paper whose main file is SRC (proofs dropped, ids prefixed)."""
+    """Produce digests/CITEKEY.tex mechanically from the reference paper's source (proofs dropped, ids prefixed).
+
+    With no SRC, the source loom holds for CITEKEY: the file in the store declaring `\\documentclass`, which is what `loom refs fetch` or `loom refs add` put there. A path may be given instead, and must be inside the store -- a digest made from a file nobody else holds cites pages nobody else can open.
+    """
     result = open_scan(quilt_path)
     root = result.quilt.root
+    src = _stored_source(result, citekey) if src is None else _must_be_stored(root, src, citekey)
     target = root / (to or f"digests/{citekey}.tex")
     if target.exists():
         raise EnvError(f"{target.relative_to(root)} exists; use --to to write elsewhere")

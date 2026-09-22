@@ -58,8 +58,12 @@ Source and structure:
 - `loom:documentclass-outside-drafts` (info): a file with `\documentclass` outside the masters directory.
 - `loom:unlabelled-node` (info): a theorem-like environment without an id.
 - `loom:positional-proof-key` (info): a node with more than one unlabelled proof.
-- `loom:unexpected-proof` (info): a proof attached to a definition- or remark-style node.
-- `loom:missing-proof` (warning): a plain-style node with no proof, no `\incomplete`, and no citation in its title.
+- `loom:unexpected-proof` (info): a proof attached to a block explicitly classified as definition, assumption, or open claim.
+- `loom:missing-proof` (warning): a local-proof block with no proof and no `\incomplete`, regardless of TeX style.
+
+Arras displays this diagnostic on the block with a link to its Review row and provides a Review filter for affected blocks. It does not change the recorded acceptance state.
+- `loom:needs-classification` (warning): a live theorem-like block whose basis is unknown or whose signals conflict; add `% !LOOM basis:` inside it after deciding what the block asserts.
+- `loom:misplaced-basis` (warning): a `% !LOOM basis:` directive outside a theorem-like block; it cannot classify a whole file or a proof.
 - `loom:equation-in-proof-referenced` (warning): another node references an equation inside this node's proof.
 - `loom:uses-missing` (info): a `\ref` in a proof not listed in `\uses`.
 - `loom:uses-unused` (info): a `\uses` entry the proof's text never mentions.
@@ -93,6 +97,7 @@ References and digests:
 - `loom:version-mismatch` (warning): a digest's source version differs from the bibliography's.
 - `loom:missing-package` (warning): a digest requires a package the preamble closure does not load.
 - `loom:digest-without-bib` (warning): a digest whose citekey is not in the bibliography.
+- `loom:no-readable-copy`: renderable content — a digest file or a recorded result — whose work has no artifact in the store that can be read. **`warning`** where there is no artifact at all, which is the state the invariant is about; **`info`** where loom holds the paper's LaTeX and no PDF, since source is what a statement is checked against and what it lacks is pagination and a page. Never an error: loom cannot fetch without consent, and a build must not fail for want of a document. A work the author has declared unreadable is silent here (DR-198).
 
 Interface:
 

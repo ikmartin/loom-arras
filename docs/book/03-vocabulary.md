@@ -40,7 +40,8 @@ All entries are **[decided]** unless marked.
 - alias : any label on a node other than its id. Multiple `\label`s in one environment are legal LaTeX; loom resolves all of them to the node.
 - tag : a thematic label attached to a node by a `% !LOOM tags:` directive (`algebraic-geometry`). Any number per node. Never an identifier.
 - taxon : the kind of a node: the display name declared by `\newtheorem` (or `\declaretheorem`) for a theorem-like environment; `Section`, `Subsection`, and so on for sectioning units; `Proof` for a labelled proof.
-- style class : amsthm's `plain`, `definition`, or `remark`, read from the `\theoremstyle` in force when the environment was declared. `plain` nodes owe a proof.
+- style class : amsthm's `plain`, `definition`, or `remark`, read from the `\theoremstyle` in force when the environment was declared. It controls presentation, not proof obligation.
+- basis : the reason a theorem-like block may be relied on: `expository`, `local-proof`, `cited-result`, `assumption`, or `open-claim`; `unclassified` means the drafting scan needs the author's choice. `expository` covers definitions, notation, and explanatory remarks or comments that make no claim requiring mathematical justification. A remark or comment with a claim and its justification inline may declare `local-proof`; its acceptance covers the entire block. The author may declare a basis with `% !LOOM basis:` inside the block.
 - version : the text a key had at a step, stored in that step's directory and addressed `rl-0001@3`.
 - address : a key and a step, `rl-0001@3` or `rl-0001@paper-v2`; the step may be named by number or by the canon document it wrote.
 - retired id : an id the history has recorded and no live document defines. Never allocated again.
@@ -49,7 +50,7 @@ All entries are **[decided]** unless marked.
 - qualified key : the internal address of something without an id: `rl-0004#eq:main` for an equation, `drafting/main.tex#sec:setup` for an untagged section.
 - region : the span of source text belonging to a node, a proof, or a labelled equation.
 - own text : a node's region minus the regions of its children. Every character of the quilt belongs to exactly one node's own text (the master owns the preamble and top-level prose).
-- external node : a `plain` node with no proof whose title contains a citation. Digests consist of these.
+- digest node : a node of a cited work's digest — a `plain` node with no proof whose title carries the citation and the locator. **[decided]** The term is *digest node*, said from what it is rather than from where it is not; a quilt's own nodes are **authoring nodes** where the two must be told apart (DR-205).
 
 ## 3.4 Structure
 
@@ -80,13 +81,16 @@ All entries are **[decided]** unless marked.
 
 ## 3.6 Digests
 
-- digest : a LaTeX file under `digests/` holding one cited paper's results as external nodes under the paper's outline, with a provenance header.
+- digest : a LaTeX file under `digests/` holding one cited paper's results as digest nodes under the paper's outline, with a provenance header.
 - extraction : producing a digest mechanically from the reference paper's LaTeX source (`loom digest extract`).
 - ingest : the AI mode in which an agent produces or completes a digest from a PDF, or checks an extracted digest for missing dependencies.
 - postnote : the optional argument of `\cite`, as in `\cite[Theorem 4.1]{Man12}`.
 - postnote edge : an edge created by matching a postnote against a digest node's locator.
-- locator : the reference's own address for a result, recorded in the external node's title: `Theorem 4.1, p. 12`.
+- locator : the reference's own address for a result, recorded in the digest node's title: `Theorem 4.1, p. 12`.
 - macro block : a `% !LOOM begin macros` ... `% !LOOM end macros` region in a digest holding the reference paper's macro definitions, applied inside a TeX group wherever the digest's text is used.
+- Library : the view of a quilt's cited works as **whole documents** rather than as loose digest nodes — a work is one thing one opens, reads and annotates. **[decided]** It is where `/references` and `/digest` fold together (DR-206).
+- work : one cited paper, named by its global identifier rather than by a citekey, with whatever the store holds for it — a PDF, its LaTeX source, its page text, its digest.
+- unreadable : an author's standing claim that a work has no document to hold at all, recorded in `digests/unreadable.json`. Declared and never inferred, because nothing in a bibliography entry says so.
 - library quilt : a quilt with no masters, holding only digests and the store. The place digests are kept once per paper.
 
 ## 3.7 Build and interface
@@ -98,18 +102,25 @@ All entries are **[decided]** unless marked.
 - diagnostic : an entry in the manifest's diagnostics list: severity, code, message, locations, keys.
 - reserved code : a diagnostic code defined by the interface for any node-based publisher.
 - publisher code : a namespaced diagnostic code (`loom:unattached-proof`) defined by one publisher.
-- thread : the interface's name for a discussion: messages, attachments, targets. A run publishes as a thread.
-- write API : the HTTP form of loom's record-writing commands, for a browser. Specified, deferred.
+- thread : the interface's name for a discussion: messages, attachments, targets. A session publishes as a thread.
+- Authoring View : the quilt's own document and nodes — what the author is writing. **Library View** is the same frame turned on a cited work. The split, the panel and the placements are the same machinery in both; what differs is whose text is in the content pane.
+- split view : content on one side, discussion on the other, one divider between them, with one ratio for the whole app.
+- placement : where an opened annotation stands — `floating` over the text, `margin` beside it, or `inline` in the flow, the last in the Authoring View alone.
+- travel : moving between the panes on a double-click: a brief scroll, then a flash on what was arrived at.
+- write API : the HTTP form of loom's record-writing commands, for a browser. Carries a token, an `Origin` check and a JSON content type (DR-203).
 - runner : an external command that turns one prompt into one response with no interactive session. Specified and declined; loom prepares an agent's context and records what it did, and does not supervise the process (WQ-15).
 
 ## 3.8 AI layer
 
 - orientation document : `ai/orientation.md`, the file that tells an agent what a quilt is and how to work in it. Printed with live state by `loom ai orient`.
-- run : one chat thread with an agent; one directory under `ai/runs/`. Re-enterable. Not tied to a mode.
+- session : a stretch of work on a quilt, which a person and an agent may share; one directory under `.loom/sessions/`, named by a stable id and carrying a title the author may change. Re-enterable, not tied to a mode, and what an annotation belongs to. **[decided]** It replaces *run*, and the separation it makes is that the **author** is who wrote a thing and the **session** is where it belongs (DR-199).
+- round : the span between a session opening or resuming and its next close or resume; what "changed since last time" is measured from.
+- inbox : a session's append-only message log, read and never consumed. A **broadcast**, not a queue with assignment: every attached reader sees everything and nobody is handed a task.
+- attached : listening to a session, recorded by a heartbeat. A stale heartbeat means detached.
 - mode : one of the review procedures (audit, referee, review, simplify, question, quick, draft, ingest, brainstorm) as a prompt template with input and output contracts, under `ai/modes/`.
-- application : one use of a mode on one target inside a run, producing named output files in the run directory.
-- `run.log` : automatic log of every loom command invoked with `--run`, in the run directory.
-- `thread.md` : voluntary journal the agent appends to, in the run directory.
+- application : one use of a mode on one target inside a session, producing named output files in the session's directory.
+- `run.log` : automatic log of every loom command invoked with `--session`, in the session's directory.
+- `thread.md` : voluntary journal the agent appends to, in the session's directory.
 - promote : withdrawn (DR-173). Nothing copies what an agent wrote into the quilt: a digest is made by `loom digest extract` and checked by ingest mode, and a drafted node is previewed by the author and pasted by them, taking an id from `loom id --next`.
 - agent : the interactive program a person points at a quilt (Claude Code, Codex). Never a dependency.
 
@@ -136,6 +147,8 @@ All entries are **[decided]** unless marked.
 
 The following words were used during design and are not terms of the system. Do not use them in code, docs, or CLI text.
 
+- external node : now digest node (DR-205). The old term said what a node was *not* part of, which stopped being the interesting fact once the Library made a cited work a thing one reads.
+- run : now session (DR-199). A run was the agent's alone; a session is shared, and the author of a thing is recorded separately from the place it belongs to.
 - tag (as identifier) : now id. "Tag" means a thematic label.
 - patch, thread (as node or edge) : now node and edge. "Thread" survives only as the interface's word for a discussion.
 - map : now digest.

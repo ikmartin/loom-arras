@@ -1,7 +1,7 @@
 # Mode: ingest
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`. **Never write `digests/`.** A digest is produced by `loom digest extract`, not typed.
+- Write only under your session's directory. Never edit source. Never run `loom accept`. **Never write `digests/`.** A digest is produced by `loom digest extract`, not typed.
 - Read `ai/rules.md` once this session and the digest rules below.
 
 ## Purpose
@@ -21,20 +21,21 @@ For a work with no source the checks below apply to what you propose, and the ou
 3. **Standing assumptions.** The `-setup` node holds what the paper assumes outside numbered results: conventions, notation, blanket hypotheses. The extractor fills it from a conventions or notation heading, or else gathers the sentences that state an assumption and says it did; check each for its scope, and name what it missed — assumptions stated in passing are the ones a reader loses.
 4. **`\uses` edges.** A proof invokes lemmas it never `\ref`s. The extractor sees only what the source cites, so the dependency graph is systematically thin.
 5. **Locators.** Every node's title carries the paper's own number and page. The extractor leaves what it could not resolve as `\incomplete`. A digest extracted from a preprint carries the preprint's numbers, pages and statements; when the bibliography cites the published version `loom lint` says so (`loom:unverified-locators`), and then every number is checked against the cited PDF with `loom refs page` — versions renumber, and they change statements.
+6. **Notes on the page.** What you notice while reading that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a note on the page, not a proposal: `loom comment CITEKEY "…" --page N --quote "…" --kind note` (or `question`), the quote from `loom refs page`. It lands in your session beside your proposals, `loom ai findings` lists it with the page, and the author sees it on the page in arras.
 6. **Macros.** What could not be expanded sits in `% !LOOM begin macros`. Check the statements still say what the paper says with those definitions.
 
 ## Output
 1. `ingest-CITEKEY.tex` — the extractor's output, unedited, so the author can see what it produced.
 2. `proposal-CITEKEY.diff` — a unified diff against it carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
 3. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
-4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --run RUN`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
+4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
 5. An entry in `thread.md`.
 
 ## Checklist
-- [ ] For a work with a source: `loom digest extract` was run and its output is in the run directory, unedited.
+- [ ] For a work with a source: `loom digest extract` was run and its output is in your session's directory, unedited.
 - [ ] Every numbered result of the paper is accounted for, present or named as missing.
 - [ ] Every statement checked for dropped hypotheses, by the paper's own numbers.
 - [ ] Standing assumptions found in the prose and proposed for the `-setup` node.
 - [ ] `\uses` edges the source does not state are proposed.
 - [ ] Every locator either resolved or named as unresolved.
-- [ ] Nothing was written outside your run directory. In particular nothing was written to `digests/`.
+- [ ] Nothing was written outside your session's directory. In particular nothing was written to `digests/`.

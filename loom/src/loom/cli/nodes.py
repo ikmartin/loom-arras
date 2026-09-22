@@ -54,7 +54,9 @@ def resolve_taxon(result: ScanResult, name: str) -> str:
 @click.option(
     "--print", "print_only", is_flag=True, help="Print the skeleton without allocating an id or writing a file."
 )
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="RUN", help="Log this call to the run.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 def new(
     taxon: str, title: str | None, prefix: str | None, print_only: bool, run_dir: str | None, quilt_path: str | None
@@ -140,7 +142,9 @@ def search_entries(result: ScanResult, query: str, kind: str | None) -> list[dic
 @click.argument("query")
 @click.option("--kind", type=click.Choice(["node", "digest", "master", "thread"]), default=None)
 @click.option("--json", "as_json", is_flag=True)
-@click.option("--run", "run_dir", default=None, envvar="LOOM_RUN", metavar="DIR", help="Log this call to DIR/run.log.")
+@click.option(
+    "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
+)
 @quilt_option
 def search(query: str, kind: str | None, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Find ids by id, alias, title, taxon, tag, or citekey; exact matches first."""

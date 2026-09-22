@@ -10,25 +10,45 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from loom.anchors import Anchor
 from loom.records.selectors import Selector
 
-KINDS = ("objection", "suggestion", "question", "ok", "citation")
+#: What an annotation is (plan 0.13 §7). `confirmation` replaces `ok`: every other kind is a noun, loom's own prose
+#: already says "three suggestions and one confirmation", and `good` would be praise where the claim is that something
+#: checks out. `checked` and `verified` were rejected for colliding with the anchor check and with `refs verify`.
+#: `note` is the explanation-or-aside kind, and the natural one for teaching.
+KINDS = ("objection", "suggestion", "question", "confirmation", "citation", "note")
+#: The kinds that **await an answer**. `note` and `confirmation` record rather than ask, so a session where a paper was
+#: read closely does not show a number that only ever climbs -- which is the same uselessness as counting notes.
+ASKING = ("objection", "suggestion", "question", "citation")
 SEVERITIES = ("major", "moderate", "minor")
+#: Severity grades a fault, and only two kinds claim one. A graded question is a category error, and a graded
+#: confirmation says nothing at all.
+GRADED = ("objection", "suggestion")
+
+
+def full_kind(given: str) -> str | None:
+    """A kind from any unambiguous prefix of one, so the extra letters of `confirmation` cost nothing."""
+    if given in KINDS:
+        return given
+    hits = [k for k in KINDS if k.startswith(given.lower())]
+    return hits[0] if len(hits) == 1 else None
 PLACEMENTS = ("replace", "after", "before")
 
 
 @dataclass
 class Annotation:
     id: str
-    author_kind: str  # run | person
+    author_kind: str  # agent | person: who wrote it, which is not where it belongs (plan 0.13 §5)
     author_id: str
     created: str
-    target_key: str
+    target_key: str  # a key in the quilt, or -- for a note on a page of a cited work -- the work's identifier
     target_hash: str
-    selector: Selector | None
+    selector: Selector | None  # the text triple: what was quoted, and the words either side
     kind: str
     body: str
     status: str = "open"
+    anchor: Anchor | None = None  # the page anchor of a note on a cited work's page; None on a key (plan 0.13 item 2)
     in_reply_to: str | None = None
     severity: str | None = None  # major | moderate | minor: how bad the fault is, not how keen the suggestion
     payload: str | None = None  # suggested text, previewed and copied by the author; nothing applies it (WQ-27)
@@ -44,6 +64,7 @@ class Annotation:
             "created": self.created,
             "target": {"key": self.target_key, "hash": self.target_hash},
             "selector": self.selector.to_dict() if self.selector else None,
+            "anchor": self.anchor.to_dict() if self.anchor else None,
             "kind": self.kind,
             "body": self.body,
             "status": self.status,
@@ -57,6 +78,7 @@ class Annotation:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Annotation:
         sel = d.get("selector")
+        anc = d.get("anchor")
         return cls(
             id=str(d["id"]),
             author_kind=str(d.get("author", {}).get("kind", "person")),
@@ -65,6 +87,7 @@ class Annotation:
             target_key=str(d.get("target", {}).get("key", "")),
             target_hash=str(d.get("target", {}).get("hash", "")),
             selector=Selector.from_dict(sel) if isinstance(sel, dict) else None,
+            anchor=Anchor.from_dict(anc) if isinstance(anc, dict) else None,
             kind=str(d.get("kind", "objection")),
             body=str(d.get("body", "")),
             status=str(d.get("status", "open")),
@@ -81,13 +104,20 @@ class Record:
     """One run's or one author's annotations, replayed from the log; `rel` is the run directory or `comments/<author>`."""
 
     path: Path  # the log the record was replayed from
-    rel: str  # the grouping key: ai/runs/<run>, or comments/<author-slug>
+    rel: str  # the grouping key: a session id, or -- written before sessions -- ai/runs/<run> or comments/<author>/<date>
     discarded: bool = False
     annotations: list[Annotation] = field(default_factory=list)
 
     @property
     def is_run(self) -> bool:
         return self.rel.startswith("ai/runs/")
+
+    @property
+    def is_session(self) -> bool:
+        """Whether this record is grouped by a session, which everything written since plan 0.13 §5 is."""
+        from loom.sessions import ID
+
+        return bool(ID.match(self.rel))
 
 
 def load_records(root: Path) -> tuple[list[Record], list[str]]:

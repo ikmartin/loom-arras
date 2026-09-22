@@ -3,10 +3,11 @@
   "a-2026-09-16-0001": {
    "anchored": true,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
+   "basis": null,
    "body_html": "<p>The hypothesis 'finite' is essential for the parity count; say so in the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -18,23 +19,26 @@
    "payload": null,
    "placement": null,
    "quote": "finite widget",
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": "major",
    "status": "open",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
-    "key": "sy-0003"
+    "key": "sy-0003",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0002": {
    "anchored": true,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
+   "basis": null,
    "body_html": "<p>Cite the orbit lemma by number here.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -46,23 +50,26 @@
    "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
    "placement": "replace",
    "quote": "disjoint union of orbits",
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": "minor",
    "status": "resolved",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
-    "key": "sy-0004"
+    "key": "sy-0004",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0003": {
    "anchored": false,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
+   "basis": null,
    "body_html": "<p>The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -74,23 +81,26 @@
    "payload": null,
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": false,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": "moderate",
    "status": "open",
    "target": {
     "hash": "sha256:c2c3814a51416f1f58bd87e0e76b99dd8a05d76486962c1adc81a5cbc887bbc3",
-    "key": "drafting/main.tex"
+    "key": "drafting/main.tex",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0004": {
    "anchored": false,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
+   "basis": null,
    "body_html": "<p>Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -102,23 +112,26 @@
    "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "resolved",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
-    "key": "sy-0003"
+    "key": "sy-0003",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0005": {
    "anchored": false,
    "author": {
-    "id": "2026-09-16T00-00-referee",
-    "kind": "run",
-    "label": "2026-09-16T00-00-referee (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
+   "basis": null,
    "body_html": "<p>The orbit decomposition is standard; a textbook reference would do.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -130,14 +143,16 @@
    "payload": "any standard text on group actions",
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-16T00-00-referee",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "2026-09-16T00-00-referee",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
-    "key": "sy-0002"
+    "key": "sy-0002",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0006": {
@@ -147,6 +162,7 @@
     "kind": "person",
     "label": "The synthetic quilt"
    },
+   "basis": null,
    "body_html": "<p>Is the orbit of a fixed point counted as one point or two?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -158,14 +174,16 @@
    "payload": null,
    "placement": null,
    "quote": "one or two points",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
-    "key": "sy-0002"
+    "key": "sy-0002",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0007": {
@@ -175,6 +193,7 @@
     "kind": "person",
     "label": "The synthetic quilt"
    },
+   "basis": null,
    "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -186,14 +205,16 @@
    "payload": null,
    "placement": null,
    "quote": "finite widget",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
-    "key": "sy-0003"
+    "key": "sy-0003",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0008": {
@@ -203,6 +224,7 @@
     "kind": "person",
     "label": "The synthetic quilt"
    },
+   "basis": null,
    "body_html": "<p>Done in the next revision.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -214,14 +236,16 @@
    "payload": null,
    "placement": null,
    "quote": "disjoint union of orbits",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": true,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
-    "key": "sy-0004"
+    "key": "sy-0004",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0009": {
@@ -231,6 +255,7 @@
     "kind": "person",
     "label": "The synthetic quilt"
    },
+   "basis": null,
    "body_html": "<p>Is the involution required to be a bijection, or does that follow?</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": true,
@@ -242,23 +267,26 @@
    "payload": null,
    "placement": null,
    "quote": "an involution $\\sigma$ of $X$",
-   "record": "comments/the-synthetic-quilt/2026-09-16",
+   "record": "s-2026-09-16-0001",
    "recorded": false,
-   "run": "comments/the-synthetic-quilt/2026-09-16",
+   "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
-    "key": "sy-0001"
+    "key": "sy-0001",
+    "page": null,
+    "work": null
    }
   },
   "a-2026-09-16-0010": {
    "anchored": false,
    "author": {
-    "id": "2026-09-15T10-00-quick",
-    "kind": "run",
-    "label": "2026-09-15T10-00-quick (run)"
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
    },
+   "basis": null,
    "body_html": "<p>Gadgets of odd order cannot exist.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
@@ -266,25 +294,27 @@
    "discarded": true,
    "id": "a-2026-09-16-0010",
    "in_reply_to": null,
-   "kind": "ok",
+   "kind": "confirmation",
    "payload": null,
    "placement": null,
    "quote": null,
-   "record": "ai/runs/2026-09-15T10-00-quick",
+   "record": "s-2026-09-15-0001",
    "recorded": true,
-   "run": "2026-09-15T10-00-quick",
+   "run": "s-2026-09-15-0001",
    "severity": null,
    "status": "open",
    "target": {
     "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
-    "key": "sy-000A"
+    "key": "sy-000A",
+    "page": null,
+    "work": null
    }
   }
  },
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "c8782627c51180c37276d9c6f89b86e97d426bb680427e3528d05cd9f278e897",
+   "hash": "5959ae173561d892113811b30da39f7a7ecbfe1c5b6d833a785d35ab3eb4866a",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -296,7 +326,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "9f84645498b149900a80c22cb6783948adcd28cdbe7980241ddb66bf9e16d467",
+   "hash": "5a2541927b19130ee6a4e078a20b4ecd6a736db4bcb76793a4294b72fbcabd04",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -308,7 +338,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "601040217ab3e84e85f4639bc7884f561a0657c92ecec6bec47eeee86c0aebd6",
+   "hash": "aa9df1352395f75be539620398600fa7d36c8324a833e5d383d02692f768893b",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -463,6 +493,43 @@
    "severity": "warning"
   },
   {
+   "code": "loom:needs-classification",
+   "keys": [
+    "sy-000B"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sy-000B.tex",
+     "line": 1
+    }
+   ],
+   "message": "sy-000B needs classification: environment name does not identify one basis; add % !LOOM basis: ... inside the block",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:needs-classification",
+   "keys": [
+    "sy-000E"
+   ],
+   "locations": [
+    {
+     "file": "sections/appendix.tex",
+     "line": 21
+    }
+   ],
+   "message": "sy-000E needs classification: this block has a proof but its environment suggests no local proof; classify it explicitly",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:no-readable-copy",
+   "keys": [
+    "Kre99"
+   ],
+   "locations": [],
+   "message": "Kre99 has a digest but no copy of the paper is on this machine, so nothing it says can be checked against the paper; loom refs fetch Kre99, or loom refs add Kre99 <FILE>, or loom refs unreadable Kre99 --why '...' when there is no document to hold",
+   "severity": "warning"
+  },
+  {
    "code": "loom:taxon-conflict",
    "keys": [],
    "locations": [],
@@ -526,20 +593,6 @@
    ],
    "locations": [],
    "message": "Har77 is cited with a locator but has no digest",
-   "severity": "info"
-  },
-  {
-   "code": "loom:unexpected-proof",
-   "keys": [
-    "sy-000E"
-   ],
-   "locations": [
-    {
-     "file": "sections/appendix.tex",
-     "line": 21
-    }
-   ],
-   "message": "sy-000E (Definition) has a proof",
    "severity": "info"
   },
   {
@@ -1484,11 +1537,94 @@
     "author": "The synthetic quilt",
     "causes": [
      {
+      "comparison": {
+       "accepted": "fragments/review/b0e87d44e6b71ffd20d9-accepted.html",
+       "accepted_macros": "review:b0e87d44e6b71ffd20d9",
+       "accepted_spans": [
+        [
+         68,
+         80
+        ],
+        [
+         81,
+         85
+        ],
+        [
+         86,
+         99
+        ],
+        [
+         100,
+         104
+        ],
+        [
+         105,
+         107
+        ],
+        [
+         108,
+         118
+        ],
+        [
+         119,
+         136
+        ]
+       ],
+       "current": "fragments/review/b0e87d44e6b71ffd20d9-current.html",
+       "current_spans": [
+        [
+         68,
+         70
+        ],
+        [
+         71,
+         72
+        ],
+        [
+         73,
+         76
+        ],
+        [
+         77,
+         80
+        ],
+        [
+         81,
+         83
+        ],
+        [
+         84,
+         94
+        ],
+        [
+         95,
+         133
+        ]
+       ]
+      },
       "diff": "diffs/sy-0001-own-text-changed.diff",
       "kind": "own-text-changed",
       "when": "2026-09-16"
      },
      {
+      "citation": "cite-drafting-main-tex-1156-sy-0100-eq-prose",
+      "comparison": {
+       "accepted": "fragments/review/800fd03b12dbadcd3f9d-accepted.html",
+       "accepted_macros": "review:800fd03b12dbadcd3f9d",
+       "accepted_spans": [
+        [
+         1138,
+         1175
+        ]
+       ],
+       "current": "fragments/review/800fd03b12dbadcd3f9d-current.html",
+       "current_spans": [
+        [
+         1138,
+         1163
+        ]
+       ]
+      },
       "diff": "diffs/sy-0001-dependency-changed-sy-0100.diff",
       "id": "sy-0100",
       "kind": "dependency-changed",
@@ -1537,12 +1673,72 @@
     "author": "The synthetic quilt",
     "causes": [
      {
-      "diff": "diffs/sy-0002-dependency-changed-sy-0100.diff",
-      "id": "sy-0100",
-      "kind": "dependency-changed",
-      "when": "2026-09-16"
-     },
-     {
+      "citation": "cite-nodes-sy-0002-tex-185-sy-0001-eq-fix",
+      "comparison": {
+       "accepted": "fragments/review/b0e87d44e6b71ffd20d9-accepted.html",
+       "accepted_macros": "review:b0e87d44e6b71ffd20d9",
+       "accepted_spans": [
+        [
+         68,
+         80
+        ],
+        [
+         81,
+         85
+        ],
+        [
+         86,
+         99
+        ],
+        [
+         100,
+         104
+        ],
+        [
+         105,
+         107
+        ],
+        [
+         108,
+         118
+        ],
+        [
+         119,
+         136
+        ]
+       ],
+       "current": "fragments/review/b0e87d44e6b71ffd20d9-current.html",
+       "current_spans": [
+        [
+         68,
+         70
+        ],
+        [
+         71,
+         72
+        ],
+        [
+         73,
+         76
+        ],
+        [
+         77,
+         80
+        ],
+        [
+         81,
+         83
+        ],
+        [
+         84,
+         94
+        ],
+        [
+         95,
+         133
+        ]
+       ]
+      },
       "diff": "diffs/sy-0002-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
       "kind": "dependency-changed",
@@ -1568,15 +1764,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -1603,6 +1799,24 @@
     "author": "The synthetic quilt",
     "causes": [
      {
+      "citation": "cite-nodes-sy-0002-tex-372-sy-0100-eq-prose",
+      "comparison": {
+       "accepted": "fragments/review/800fd03b12dbadcd3f9d-accepted.html",
+       "accepted_macros": "review:800fd03b12dbadcd3f9d",
+       "accepted_spans": [
+        [
+         1138,
+         1175
+        ]
+       ],
+       "current": "fragments/review/800fd03b12dbadcd3f9d-current.html",
+       "current_spans": [
+        [
+         1138,
+         1163
+        ]
+       ]
+      },
       "diff": "diffs/sy-0002_proof-dependency-changed-sy-0100.diff",
       "id": "sy-0100",
       "kind": "dependency-changed",
@@ -1612,6 +1826,7 @@
       "diff": "diffs/sy-0002_proof-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
       "kind": "dependency-changed",
+      "via": "sy-0002",
       "when": "2026-09-16"
      }
     ],
@@ -1670,15 +1885,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -1702,15 +1917,10 @@
     "author": "The synthetic quilt",
     "causes": [
      {
-      "diff": "diffs/sy-0004-dependency-changed-sy-0100.diff",
-      "id": "sy-0100",
-      "kind": "dependency-changed",
-      "when": "2026-09-16"
-     },
-     {
       "diff": "diffs/sy-0004-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
       "kind": "dependency-changed",
+      "via": "sy-0002",
       "when": "2026-09-16"
      }
     ],
@@ -1735,15 +1945,15 @@
     "detached": 0,
     "latest_any": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
     "latest_current": {
      "author": {
-      "id": "2026-09-16T00-00-referee",
-      "kind": "run"
+      "id": "agent",
+      "kind": "agent"
      },
      "date": "2026-09-16T00:00:00Z"
     },
@@ -1767,12 +1977,72 @@
     "author": "The synthetic quilt",
     "causes": [
      {
-      "diff": "diffs/sy-0005-dependency-changed-sy-0100.diff",
-      "id": "sy-0100",
-      "kind": "dependency-changed",
-      "when": "2026-09-16"
-     },
-     {
+      "citation": "cite-nodes-sy-0003-tex-569-sy-0001",
+      "comparison": {
+       "accepted": "fragments/review/b0e87d44e6b71ffd20d9-accepted.html",
+       "accepted_macros": "review:b0e87d44e6b71ffd20d9",
+       "accepted_spans": [
+        [
+         68,
+         80
+        ],
+        [
+         81,
+         85
+        ],
+        [
+         86,
+         99
+        ],
+        [
+         100,
+         104
+        ],
+        [
+         105,
+         107
+        ],
+        [
+         108,
+         118
+        ],
+        [
+         119,
+         136
+        ]
+       ],
+       "current": "fragments/review/b0e87d44e6b71ffd20d9-current.html",
+       "current_spans": [
+        [
+         68,
+         70
+        ],
+        [
+         71,
+         72
+        ],
+        [
+         73,
+         76
+        ],
+        [
+         77,
+         80
+        ],
+        [
+         81,
+         83
+        ],
+        [
+         84,
+         94
+        ],
+        [
+         95,
+         133
+        ]
+       ]
+      },
       "diff": "diffs/sy-0005-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
       "kind": "dependency-changed",
@@ -2781,6 +3051,130 @@
      "body": "\\textcolor{red}{#1}",
      "name": "red"
     }
+   ],
+   "review:800fd03b12dbadcd3f9d": [
+    {
+     "args": 0,
+     "body": "\\operatorname{Fix}",
+     "name": "Fix"
+    },
+    {
+     "args": 0,
+     "body": "Gromov--Witten",
+     "name": "GW"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Hom}",
+     "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\section",
+     "name": "chapter"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "incomplete"
+    },
+    {
+     "args": 1,
+     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
+     "name": "nest"
+    },
+    {
+     "args": 0,
+     "body": "\\subparagraph",
+     "name": "paragraph"
+    },
+    {
+     "args": 1,
+     "body": "\\textcolor{red}{#1}",
+     "name": "red"
+    },
+    {
+     "args": 0,
+     "body": "\\subsection",
+     "name": "section"
+    },
+    {
+     "args": 0,
+     "body": "\\subsubsection",
+     "name": "subsection"
+    },
+    {
+     "args": 0,
+     "body": "\\paragraph",
+     "name": "subsubsection"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "uses"
+    }
+   ],
+   "review:b0e87d44e6b71ffd20d9": [
+    {
+     "args": 0,
+     "body": "\\operatorname{Fix}",
+     "name": "Fix"
+    },
+    {
+     "args": 0,
+     "body": "Gromov--Witten",
+     "name": "GW"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Hom}",
+     "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\section",
+     "name": "chapter"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "incomplete"
+    },
+    {
+     "args": 1,
+     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
+     "name": "nest"
+    },
+    {
+     "args": 0,
+     "body": "\\subparagraph",
+     "name": "paragraph"
+    },
+    {
+     "args": 1,
+     "body": "\\textcolor{red}{#1}",
+     "name": "red"
+    },
+    {
+     "args": 0,
+     "body": "\\subsection",
+     "name": "section"
+    },
+    {
+     "args": 0,
+     "body": "\\subsubsection",
+     "name": "subsection"
+    },
+    {
+     "args": 0,
+     "body": "\\paragraph",
+     "name": "subsubsection"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "uses"
+    }
    ]
   }
  },
@@ -2878,6 +3272,8 @@
   "Kre99-setup": {
    "aliases": [],
    "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
    "children": [],
    "created": "2026-09-16",
    "derived": {
@@ -2890,6 +3286,7 @@
    "fragment": "fragments/nodes/Kre99-setup.html",
    "id": "Kre99-setup",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "locator": "Standing assumptions, Section 1",
    "numbers": {},
@@ -2909,6 +3306,8 @@
   "Kre99-thm-2.1": {
    "aliases": [],
    "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
    "children": [],
    "created": "2026-09-16",
    "derived": {
@@ -2921,6 +3320,7 @@
    "fragment": "fragments/nodes/Kre99-thm-2.1.html",
    "id": "Kre99-thm-2.1",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "locator": "Theorem 2.1, p.~4",
    "numbers": {},
@@ -2972,6 +3372,8 @@
   "drafting/talk.tex#lemma:1": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": null,
    "derived": {
@@ -2984,6 +3386,7 @@
    "fragment": "fragments/keys/drafting%2Ftalk.tex%23lemma%3A1.html",
    "id": "drafting/talk.tex#lemma:1",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {},
    "parent": {
@@ -3006,6 +3409,8 @@
   "nodes/sy-999B.tex#lemma:1": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": null,
    "derived": {
@@ -3018,6 +3423,7 @@
    "fragment": "fragments/keys/nodes%2Fsy-999B.tex%23lemma%3A1.html",
    "id": "nodes/sy-999B.tex#lemma:1",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {},
    "parent": {
@@ -3040,6 +3446,8 @@
   "sections/appendix.tex#remark:1": {
    "aliases": [],
    "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Remark",
    "children": [],
    "created": null,
    "derived": {
@@ -3052,6 +3460,7 @@
    "fragment": "fragments/keys/sections%2Fappendix.tex%23remark%3A1.html",
    "id": "sections/appendix.tex#remark:1",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {},
    "parent": {
@@ -3074,6 +3483,8 @@
   "sy-0001": {
    "aliases": [],
    "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Definition",
    "children": [],
    "created": null,
    "derived": {
@@ -3086,6 +3497,7 @@
    "fragment": "fragments/nodes/sy-0001.html",
    "id": "sy-0001",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3115,6 +3527,8 @@
    "author": [
     "The synthetic quilt"
    ],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": "2026-09-16",
    "derived": {
@@ -3127,6 +3541,7 @@
    "fragment": "fragments/nodes/sy-0002.html",
    "id": "sy-0002",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3167,6 +3582,8 @@
    "author": [
     "The synthetic quilt"
    ],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Theorem",
    "children": [],
    "created": "2026-09-16",
    "derived": {
@@ -3179,6 +3596,7 @@
    "fragment": "fragments/nodes/sy-0003.html",
    "id": "sy-0003",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3297,6 +3715,8 @@
   "sy-0006": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Proposition",
    "children": [],
    "created": null,
    "derived": {
@@ -3309,6 +3729,7 @@
    "fragment": "fragments/nodes/sy-0006.html",
    "id": "sy-0006",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3339,6 +3760,8 @@
   "sy-0007": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": null,
    "derived": {
@@ -3351,6 +3774,7 @@
    "fragment": "fragments/nodes/sy-0007.html",
    "id": "sy-0007",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3385,6 +3809,8 @@
     "defn:gadget-old"
    ],
    "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Definition",
    "children": [],
    "created": null,
    "derived": {
@@ -3397,6 +3823,7 @@
    "fragment": "fragments/nodes/sy-0008.html",
    "id": "sy-0008",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3430,6 +3857,8 @@
   "sy-0009": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": null,
    "derived": {
@@ -3442,6 +3871,7 @@
    "fragment": "fragments/nodes/sy-0009.html",
    "id": "sy-0009",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {},
    "parent": {},
@@ -3464,6 +3894,8 @@
   "sy-000A": {
    "aliases": [],
    "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Remark",
    "children": [],
    "created": null,
    "derived": {
@@ -3476,6 +3908,7 @@
    "fragment": "fragments/nodes/sy-000A.html",
    "id": "sy-000A",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3503,6 +3936,8 @@
   "sy-000B": {
    "aliases": [],
    "author": [],
+   "basis": "unclassified",
+   "basis_reason": "environment name does not identify one basis; add % !LOOM basis: ... inside the block",
    "children": [],
    "created": null,
    "derived": {
@@ -3515,6 +3950,7 @@
    "fragment": "fragments/nodes/sy-000B.html",
    "id": "sy-000B",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3544,6 +3980,8 @@
   "sy-000C": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": null,
    "derived": {
@@ -3556,6 +3994,7 @@
    "fragment": "fragments/nodes/sy-000C.html",
    "id": "sy-000C",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3585,6 +4024,8 @@
   "sy-000D": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": null,
    "derived": {
@@ -3597,6 +4038,7 @@
    "fragment": "fragments/nodes/sy-000D.html",
    "id": "sy-000D",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3626,6 +4068,8 @@
   "sy-000E": {
    "aliases": [],
    "author": [],
+   "basis": "unclassified",
+   "basis_reason": "this block has a proof but its environment suggests no local proof; classify it explicitly",
    "children": [],
    "created": null,
    "derived": {
@@ -3638,6 +4082,7 @@
    "fragment": "fragments/nodes/sy-000E.html",
    "id": "sy-000E",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3799,6 +4244,8 @@
    "author": [
     "A Coauthor"
    ],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
    "children": [],
    "created": null,
    "derived": {
@@ -3811,6 +4258,7 @@
    "fragment": "fragments/nodes/sy-0202.html",
    "id": "sy-0202",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/main.tex": {
@@ -3927,6 +4375,8 @@
   "sy-999A": {
    "aliases": [],
    "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Proposition",
    "children": [],
    "created": null,
    "derived": {
@@ -3939,6 +4389,7 @@
    "fragment": "fragments/nodes/sy-999A.html",
    "id": "sy-999A",
    "incomplete": [],
+   "inline_proof": false,
    "kind": "environment",
    "numbers": {
     "drafting/talk.tex": {
@@ -4025,7 +4476,7 @@
    ],
    "from": {
     "annotation": "a-2026-09-16-0004",
-    "run": "2026-09-16T00-00-referee"
+    "run": null
    },
    "identifier": {
     "verified": false
@@ -4051,6 +4502,10 @@
    "citekey": "Har77",
    "digest": null,
    "proposed": null,
+   "reading": {
+    "open": 0,
+    "total": 0
+   },
    "results": {},
    "slug": "Har77",
    "version_mismatch": false,
@@ -4090,6 +4545,10 @@
     "source": "arXiv:math/9810166v2"
    },
    "proposed": null,
+   "reading": {
+    "open": 0,
+    "total": 0
+   },
    "results": {},
    "slug": "Kre99",
    "version_mismatch": false,
@@ -4114,6 +4573,10 @@
    "citekey": "Man12",
    "digest": null,
    "proposed": null,
+   "reading": {
+    "open": 0,
+    "total": 0
+   },
    "results": {},
    "slug": "Man12",
    "version_mismatch": false,
@@ -4514,24 +4977,43 @@
   },
   {
    "aliases": [],
-   "key": "2026-09-15T10-00-quick",
+   "key": "s-2026-09-15-0001",
    "kind": "thread",
    "tags": [],
    "title": "quick"
   },
   {
    "aliases": [],
-   "key": "2026-09-16T00-00-referee",
+   "key": "s-2026-09-16-0001",
    "kind": "thread",
    "tags": [],
    "title": "referee sy-0003"
+  }
+ ],
+ "sessions": [
+  {
+   "active": false,
+   "attached": [],
+   "created": "2026-09-15T10:00:00Z",
+   "id": "s-2026-09-15-0001",
+   "opened": "2026-09-15T10:00:00Z",
+   "purpose": "",
+   "rounds": 1,
+   "seq": 0,
+   "state": "closed",
+   "title": "quick"
   },
   {
-   "aliases": [],
-   "key": "comments/the-synthetic-quilt/2026-09-16",
-   "kind": "thread",
-   "tags": [],
-   "title": "The synthetic quilt"
+   "active": true,
+   "attached": [],
+   "created": "2026-09-16T00:00:00Z",
+   "id": "s-2026-09-16-0001",
+   "opened": "2026-09-16T00:00:00Z",
+   "purpose": "",
+   "rounds": 1,
+   "seq": 0,
+   "state": "open",
+   "title": "referee"
   }
  ],
  "states": {
@@ -4630,7 +5112,7 @@
   }
  },
  "threads": {
-  "2026-09-15T10-00-quick": {
+  "s-2026-09-15-0001": {
    "attachments": [
     {
      "count": 1,
@@ -4640,45 +5122,45 @@
    ],
    "created": "2026-09-15T10:00:00Z",
    "discarded": true,
-   "id": "2026-09-15T10-00-quick",
-   "kind": "run",
+   "id": "s-2026-09-15-0001",
+   "kind": "session",
    "log": [
     {
-     "command": "loom comment sy-000A --kind ok",
+     "command": "loom comment sy-000A --kind confirmation",
      "time": "2026-09-16T00:00:00Z"
     }
    ],
    "messages": [],
    "participants": [
     {
-     "id": "quick",
+     "id": "agent",
      "kind": "agent"
     }
    ],
-   "path": "ai/runs/2026-09-15T10-00-quick",
+   "path": ".loom/sessions/s-2026-09-15-0001",
    "pipeline": [],
    "targets": [
     "sy-000A"
    ],
    "title": "quick"
   },
-  "2026-09-16T00-00-referee": {
+  "s-2026-09-16-0001": {
    "attachments": [
     {
-     "count": 5,
+     "count": 9,
      "kind": "annotations",
      "name": "annotations"
     },
     {
      "kind": "notes",
      "name": "referee-sy-0003.notes.md",
-     "path": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md"
+     "path": ".loom/sessions/s-2026-09-16-0001/referee-sy-0003.notes.md"
     }
    ],
    "created": "2026-09-16T00:00:00Z",
    "discarded": false,
-   "id": "2026-09-16T00-00-referee",
-   "kind": "run",
+   "id": "s-2026-09-16-0001",
+   "kind": "session",
    "log": [
     {
      "command": "loom comment sy-0003 --quote --kind objection",
@@ -4699,6 +5181,26 @@
     {
      "command": "loom comment sy-0002 --kind citation",
      "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0002 --quote --kind question",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment Agreed; I will add the hypothesis to the statement.",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment Done in the next revision.",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment ",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "command": "loom comment sy-0001 --quote --kind question",
+     "time": "2026-09-16T00:00:00Z"
     }
    ],
    "messages": [
@@ -4713,11 +5215,15 @@
    ],
    "participants": [
     {
-     "id": "referee",
+     "id": "agent",
      "kind": "agent"
+    },
+    {
+     "id": "The synthetic quilt",
+     "kind": "person"
     }
    ],
-   "path": "ai/runs/2026-09-16T00-00-referee",
+   "path": ".loom/sessions/s-2026-09-16-0001",
    "pipeline": [
     {
      "blocks": [
@@ -4757,9 +5263,9 @@
        "title": "decision"
       }
      ],
-     "fragment": "fragments/reports/ai%2Fruns%2F2026-09-16T00-00-referee%2Freferee-sy-0003.notes.md.html",
+     "fragment": "fragments/reports/loom%2Fsessions%2Fs-2026-09-16-0001%2Freferee-sy-0003.notes.md.html",
      "mode": "referee",
-     "report": "ai/runs/2026-09-16T00-00-referee/referee-sy-0003.notes.md",
+     "report": ".loom/sessions/s-2026-09-16-0001/referee-sy-0003.notes.md",
      "target": "sy-0003"
     }
    ],
@@ -4767,53 +5273,10 @@
     "sy-0003",
     "sy-0004",
     "drafting/main.tex",
-    "sy-0002"
-   ],
-   "title": "referee sy-0003"
-  },
-  "comments/the-synthetic-quilt/2026-09-16": {
-   "attachments": [],
-   "created": "2026-09-16T00:00:00Z",
-   "discarded": false,
-   "id": "comments/the-synthetic-quilt/2026-09-16",
-   "kind": "comments",
-   "log": [],
-   "messages": [
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0002</code>: Is the orbit of a fixed point counted as one point or two?</p>",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0003</code>: Agreed; I will add the hypothesis to the statement.</p>",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0004</code>: Done in the next revision.</p>",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "author": "The synthetic quilt",
-     "body_html": "<p><strong>question</strong> on <code>sy-0001</code>: Is the involution required to be a bijection, or does that follow?</p>",
-     "time": "2026-09-16T00:00:00Z"
-    }
-   ],
-   "participants": [
-    {
-     "id": "The synthetic quilt",
-     "kind": "person"
-    }
-   ],
-   "path": "comments/the-synthetic-quilt/2026-09-16",
-   "targets": [
     "sy-0002",
-    "sy-0003",
-    "sy-0004",
     "sy-0001"
    ],
-   "title": "The synthetic quilt"
+   "title": "referee sy-0003"
   }
  }
 }

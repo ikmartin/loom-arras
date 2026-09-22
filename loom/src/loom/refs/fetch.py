@@ -101,9 +101,14 @@ def work_dir(root: Path, entry: BibEntry | None) -> Path:
     """The directory in the store holding everything loom has for one work.
 
     Named by the work's primary global identifier, never by the citekey: two quilts citing one paper name one directory, which is what lets a shared cache be a hardlink rather than a mapping (DR-108).
+
+    **A document that states no identifier is filed under its own content hash**, and the entry `refs scan` offers for it states none either -- so `primary` answers with the *synthetic* identifier, a hash of author, title and year, and the two disagree. A scanned paper was filed at `file/04232c5d…` while every reader looked under `work/51661974` and was told there was no copy on this machine. The entry records where its document went, and that wins; `loom-file` is written by whatever files it (reading study, 2026-09-21).
     """
     from loom.refs.pages import storage_root
 
+    filed = str((entry.fields.get("loom-file") or "").strip()) if entry is not None else ""
+    if filed:
+        return storage_root(root) / filed
     wid = primary(entry)
     if wid is None:
         raise FetchRefused("the work has no bibliography entry, so it has no identity to file under")
@@ -259,7 +264,9 @@ def fetch_work(
     """
     out = Fetched(citekey=citekey)
     if not quilt.config.fetch:
-        out.refused = "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
+        out.refused = (
+            "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
+        )
         return out
     if entry is None:
         out.refused = f"{citekey} is not in the bibliography"

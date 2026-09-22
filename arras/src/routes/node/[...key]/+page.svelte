@@ -18,9 +18,12 @@
 	import Composer from '$lib/review/Composer.svelte';
 	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
-	import { digestUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
+	import Beside from '$lib/split/Beside.svelte';
+	import { slotsFor } from '$lib/fragments/slots';
+	import { anchorId, workUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
+	const slots = slotsFor(() => m);
 	let verbatim = $state(false);
 	let restsOpen = $state(false);
 	const key = $derived(keyFromParam(page.params.key ?? ''));
@@ -53,6 +56,7 @@
 	const deps = $derived(collapse(m.edges.filter((e) => e.from === key || node?.proofs.includes(e.from)), 'to'));
 	const usedBy = $derived(collapse(m.edges.filter((e) => e.to === key || (node?.proofs ?? []).includes(e.to)), 'from'));
 	const diagnostics = $derived(m.diagnostics.filter((d) => d.keys.includes(key)));
+	const missingProof = $derived(diagnostics.some((d) => d.code === 'loom:missing-proof'));
 	const annotations = $derived(onAny(m, [key, ...(node?.proofs ?? [])]));
 	const detached = $derived(annotations.filter((a) => a.detached && !a.discarded));
 	const threads = $derived(Object.values(m.threads).filter((t) => t.targets.includes(key) && !t.discarded));
@@ -84,6 +88,7 @@
 		<h1>Unknown key</h1>
 		<p class="muted">The manifest has no node <code>{key}</code>.</p>
 	{:else}
+		<Beside keys={[key, ...node.proofs]} label="this result">
 		<header class="node-head">
 			<h1><Tex text={node.title ?? node.id} />{#if number}<span class="num">{number}</span>{/if}</h1>
 			<p class="meta">
@@ -93,9 +98,10 @@
 				{#if versionLabel(stmt)}<span class="version" data-testid="version">{versionLabel(stmt)}</span>{/if}
 				{#if !number && m.publishes.documents}<span class="muted">not yet numbered</span>{/if}
 				{#each node.tags as t (t)}<a class="tag" href={tagUrl(t)}>#{t}</a>{/each}
-				{#if node.external && node.digest}<span class="muted">from <a href={digestUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
+				{#if node.external && node.digest}<span class="muted">from <a href={workUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
 		</header>
+		{#if missingProof}<p class="muted" data-testid="missing-proof">No proof is attached. <a href={`/review?show=missing-proof#review-${anchorId(key)}`}>See this block in Review</a>.</p>{/if}
 
 		{#if node.conflict?.length}
 			<p class="conflicted" data-testid="conflicted">
@@ -106,7 +112,8 @@
 			<!-- The toggle is the node's own text before macro expansion, fetched only when a reader asks; a corpus that publishes no source shows no control (plan 0.11 Part E). -->
 			<div class="verbatim-head"><SourceToggle sourceKey={key} bind:open={verbatim} /></div>
 			{#if !verbatim}
-				<Fragment path={node.fragment} macroSet={node.digest ?? ''} />
+				<!-- `comments` so the margin column stands here too; a digest node's text is read, not written, so it is not authoring -->
+				<Fragment path={node.fragment} macroSet={node.digest ?? ''} comments={slots} authoring={!node.external} />
 			{/if}
 		{/if}
 
@@ -142,6 +149,7 @@
 		{/if}
 
 		<AnnotationPanel manifest={m} keys={[key, ...node.proofs]} />
+		</Beside>
 	{/if}
 </main>
 

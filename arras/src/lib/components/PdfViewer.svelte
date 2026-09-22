@@ -2,13 +2,16 @@
 	// The PDF viewer (book 15.3.7): a link into a cited work, `cited:<scheme>:<value>#page=N`, opens the fetched paper at that page in the browser's own renderer. A link naming an artifact that is not on this machine says so and offers the identifier's own resolver instead, and a copy of a different version of the work is offered only with a warning, since that is where page numbers disagree.
 	// Clicks on work links anywhere are caught here, so a comment body, a thread message and a report all behave alike without each wiring its links.
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { store } from '$lib/manifest/client.svelte';
 	import { pdf } from '$lib/pdf.svelte';
-	import { locate, parseWorkLink, isWorkLink } from '$lib/worklink';
+	import { workUrl } from '$lib/nav';
+	import { locate, parseWorkLink, isWorkLink, placeQuery } from '$lib/worklink';
 	import { bibText } from '$lib/works';
 	import { dismiss } from '$lib/dismiss';
 	import Tex from '$lib/math/Tex.svelte';
 	import Icon from './Icon.svelte';
+	import PdfDoc from '$lib/pdf/PdfDoc.svelte';
 
 	const m = $derived(store.manifest);
 	const link = $derived(pdf.link);
@@ -29,6 +32,14 @@
 			const parsed = parseWorkLink(href!);
 			if (!parsed) return;
 			e.preventDefault();
+			// A copy on this machine opens in the Library View, where the page is read beside its discussion and the
+			// place is lit (plan 0.13 item 6, §16); the modal is for a copy that is another version, or none.
+			const where = m ? locate(m, parsed) : null;
+			if (where?.local && where.ref) {
+				const q = placeQuery({ ...parsed, page: parsed.page ?? 1 });
+				void goto(workUrl(where.ref.citekey) + (q ? '?' + q : ''));
+				return;
+			}
 			pdf.open(parsed);
 		};
 		document.addEventListener('click', click);
@@ -36,7 +47,9 @@
 	});
 
 	const title = $derived(target?.ref ? bibText(target.ref.bib.title) || target.ref.citekey : link?.id ?? '');
-	const shown = $derived(target?.local ?? (anyway && target?.otherCopy ? target.otherCopy.url + (link?.page ? `#page=${link.page}` : '') : ''));
+	// The URL without the fragment: the renderer is told which page to open, rather than a browser plugin being asked.
+	const shown = $derived(target?.local?.split('#')[0] ?? (anyway && target?.otherCopy ? target.otherCopy.url : ''));
+	const opensAt = $derived(link?.page ?? 1);
 </script>
 
 {#if link && target}
@@ -54,7 +67,9 @@
 				<p class="look" data-testid="pdf-quote">Look for “{link.quote}”.{link.page ? '' : ' The link names no page, so the paper opens at its start.'}</p>
 			{/if}
 			{#if shown}
-				<iframe src={shown} title="the paper {title}" data-testid="pdf-frame"></iframe>
+				<div class="frame" data-testid="pdf-frame">
+					<PdfDoc url={shown} page={opensAt} />
+				</div>
 			{:else}
 				<div class="absent" data-testid="pdf-absent">
 					{#if target.otherCopy}
@@ -147,10 +162,10 @@
 		color: var(--state-stale);
 		background: var(--state-stale-wash);
 	}
-	iframe {
+	.frame {
 		flex: 1;
 		width: 100%;
-		border: 0;
+		min-height: 0;
 		background: var(--leaf);
 	}
 	.absent {

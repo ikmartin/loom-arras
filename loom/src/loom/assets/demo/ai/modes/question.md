@@ -1,7 +1,7 @@
 # Mode: question
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`.
+- Write only under your session's directory. Never edit source. Never run `loom accept`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -18,4 +18,4 @@ The closure of the key concerned, or `loom status --json` for quilt-level questi
 ## Checklist
 - [ ] Every claim carries an epistemic label.
 - [ ] Trials are saved and reported.
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

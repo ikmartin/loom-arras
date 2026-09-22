@@ -5,7 +5,7 @@ import type { Annotation, Manifest, Thread } from '$lib/manifest/types';
 const ann = (id: string, over: Partial<Annotation> = {}): Annotation =>
 	({
 		id,
-		author: { kind: 'run', id: 'r' },
+		author: { kind: 'agent', id: 'r' },
 		created: '2026-09-16T14:31:00Z',
 		target: { key: 'n-1', hash: 'h1' },
 		kind: 'objection',
@@ -28,7 +28,7 @@ const m = {
 	threads: {}
 } as unknown as Manifest;
 
-const thread = (over: Partial<Thread> = {}): Thread => ({ id: 'r1', kind: 'run', title: 't', created: '2026-09-16T14:02:00Z', participants: [], targets: ['n-1'], messages: [], attachments: [], log: [], discarded: false, ...over });
+const thread = (over: Partial<Thread> = {}): Thread => ({ id: 'r1', kind: 'session', title: 't', created: '2026-09-16T14:02:00Z', participants: [], targets: ['n-1'], messages: [], attachments: [], log: [], discarded: false, ...over });
 
 describe('what a run says about a document', () => {
 	it('knows a document from a node', () => {

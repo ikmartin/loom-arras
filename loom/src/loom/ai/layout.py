@@ -33,17 +33,29 @@ AGENT_COMMANDS = frozenset(
         "build", "check", "comment", "compile", "deps", "doctor", "history", "id", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
         "ai check", "ai discard", "ai findings", "ai name", "ai orient", "ai runs", "ai start",
+        # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
+        # session stay the author's, because they are decisions about the work rather than participation in it.
+        "session list", "session next", "session send", "session watch",
         "digest extract",
         "refs build", "refs coverage", "refs fetch", "refs grep", "refs link", "refs links", "refs locate",
         "refs find", "refs ingest", "refs map", "refs match", "refs page", "refs path", "refs propose", "refs recheck",
         "refs resolve", "refs unlink", "refs why",
     }
 )  # fmt: skip
-AGENT_WRITES = ("ai/runs", "build")  # the only places an agent may write
-AGENT_READONLY = ("nodes", "drafting", "canon", "retired", "digests", "refs", "annotations", ".loom", "ai/modes")
-AGENT_READONLY_FILES = ("ai/orientation.md", "ai/rules.md", "config.toml", "reference-notes.jsonl")
+AGENT_WRITES = (".loom/sessions", "build")  # the only places an agent may write
+# `.loom` is not read-only wholesale any more: a session's own directory is under it and is where an agent writes its
+# journal and its notes, so the parts that are the record -- the history and the acceptance ledger -- are named instead.
+AGENT_READONLY = ("nodes", "drafting", "canon", "retired", "digests", "refs", "annotations", ".loom/history", "ai")
+AGENT_READONLY_FILES = (
+    "ai/orientation.md",
+    "ai/rules.md",
+    "config.toml",
+    "reference-notes.jsonl",
+    ".loom/state.toml",
+    ".loom/sessions/index.jsonl",
+)
 
-CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under `ai/runs/`."
+CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`."
 VERSION_FILE = ".loom-modes-version"
 
 

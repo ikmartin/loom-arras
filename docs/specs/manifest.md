@@ -119,6 +119,8 @@ The values are properties of the publisher and its corpora, not of this corpus's
   "children": [],
   "proofs": ["rl-0004/proof"],
   "external": false,
+  "basis": "local-proof",
+  "basis_reason": "inferred from environment Lemma",
   "digest": null,
   "incomplete": [],
   "state": "accepted",
@@ -126,7 +128,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 }
 ```
 
-Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for digest nodes, with `digest` naming the citekey and `locator` present; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments.
+Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for cited-result blocks and digest nodes, with `digest` naming the citekey for the latter and `locator` present when available; `basis` on environment nodes is `expository`, `local-proof`, `cited-result`, `assumption`, `open-claim`, or `unclassified`, with `basis_reason` explaining the scan's choice or uncertainty; `inline_proof` is true when an explicitly `local-proof` remark or comment has its whole argument inside the block and no separate attached proof; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments. The basis fields are additive in interface version 1 (DR-212); DR-213 replaces the `definition` value with `expository` and adds `inline_proof`.
 
 ## 4. Keys
 
@@ -167,7 +169,7 @@ Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes)
 }
 ```
 
-Rules: `state` is one of the publisher's state labels (section 8); `acceptance` absent when no row exists; `causes` present only when `fresh` is false, each with a `diff` path under the build directory to a unified diff (or `null` when no snapshot exists); `previous_key_match` names an old positional key whose acceptance row matches this text (7.10 in the book), else null; `uses` lists direct dependencies; `closure` the transitive statement closure.
+Rules: `state` is one of the publisher's state labels (section 8); `acceptance` is absent when no row exists; `causes` appear only when `fresh` is false. A cause may carry `when` (first observation date), `via` (immediate dependency for an indirect cause), `citation` (an anchor in the dependent document), and `comparison` with `accepted`, `current`, `accepted_macros`, `accepted_spans`, and `current_spans`. The fragment paths resolve under the build directory; spans are source offsets in each normalized text. A cause may also carry `diff`, a unified diff path or null if unavailable. Viewers tolerate absent optional fields. `previous_key_match` names an old positional key whose acceptance row matches this text (7.10 in the book), else null; `uses` lists direct dependencies; `closure` the transitive statement closure.
 
 ## 5. Regions
 
@@ -244,9 +246,10 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 ```json
 "a-2026-09-16-0007": {
   "id": "a-2026-09-16-0007",
-  "author": {"kind": "run", "id": "2026-09-16T14-02-referee", "label": "referee run, 16 Sep"},
+  "author": {"kind": "agent", "id": "Referee Agent", "label": "Referee Agent"},
   "created": "2026-09-16T14:31:08Z",
-  "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f..."},
+  "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f...", "work": null, "page": null},
+  "basis": null,
   "kind": "objection",
   "body_html": "<p>No rigidity lemma exists in the quilt. ...</p>",
   "status": "open",
@@ -258,14 +261,33 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "severity": "major",
   "payload": "\\begin{lemma}\\label{rl-0021}...",
   "placement": "after",
-  "run": "ai/runs/2026-09-16T14-02-referee",
-  "record": "ai/runs/2026-09-16T14-02-referee",
+  "run": "s-2026-09-16-0001",
+  "record": "s-2026-09-16-0001",
   "discarded": false,
   "discard_reason": null
 }
 ```
 
 `body_html` is the Markdown body rendered by the publisher into the dialect's inline subset.
+
+**[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**; `run` is the **session** the annotation belongs to, which is where it was written rather than who wrote it. The two were one field: an agent's annotation recorded its run directory as its author, so the log could say who only by naming a place (DR-199). The field keeps the name `run` because readers written before sessions read it, and an annotation written before them still carries the old grouping key.
+
+**[decided]** `target.key` is a key in the corpus, or — for a note on a page of a cited work (DR-209) — the work's identifier as `references[].work` spells it; `target.work` is then the citekey and `target.page` the page, so a viewer needs no lookup to say where the note is, and `basis` is `text` (the quotation locates in the page's committed text) or `box` (a drawn rectangle is the record). Both are null on a note on a key. The rectangles are in the work's sidecar (§13) under `marks`; the body is here, with every other annotation.
+
+**[decided]** `kind` is one of six — `objection`, `suggestion`, `question`, `confirmation`, `citation`, `note`. The first three and `citation` **await an answer** and are what an open count counts; `confirmation` and `note` record rather than ask (DR-204).
+
+## 9.1 Sessions
+
+**[decided]** `sessions` lists every session the index leaves standing, for the viewer's selector.
+
+```json
+"sessions": [
+  {"id": "s-2026-09-16-0001", "title": "referee pass", "state": "open",
+   "created": "2026-09-16T14:02:00Z", "opened": "2026-09-16T14:02:00Z", "rounds": 1, "active": true}
+]
+```
+
+The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from. `active` marks the one session writing lands in. A tombstoned session is not published at all.
 
 **[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash` — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
 
@@ -346,6 +368,8 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
              "source": "arXiv:0805.2065v2", "extracted_from": "arXiv:0805.2065v2",
              "published_as": "doi:10.1090/S1056-3911-2011-00606-1",
              "method": "extract", "nodes": ["Man12-setup", "Man12-thm-4.1"]},
+  "spans": {"path": "spans/doi/10.1090_S1056-3911-2011-00606-1.json", "sha256": "…"},
+  "reading": {"total": 2, "open": 1},
   "version_mismatch": false,
   "cited_by": ["rl-0004/proof", "drafting/main.tex"]
 }
@@ -354,6 +378,12 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 `digest` is null for an undigested citekey. Each entry also carries `slug`, the prefix of the digest's node ids: the prefix the digest declares in its header, or the citekey with every character outside `[A-Za-z0-9]` removed when it declares none (DR-45, DR-109).
 
 **[decided]** `work` is the work's global identifier and `works` every identifier its bibliography entry states, each written `scheme:value` with the scheme one of `doi`, `arxiv`, `mr`, `zbl`, or `work` (a deterministic hash of author, title and year, for an entry stating none). `artifacts.dir` is where what loom holds for the work lives, under `digests/storage/` (book 8.16, DR-192), servable under the viewer's origin, and the two flags say which of the source and the PDF are present; both are false until someone fetches, adds or drops a copy, and neither the PDF nor the source is in version control, so another reader's copy of the corpus may have neither. `digest.extracted_from` and `digest.published_as` distinguish the artifact whose numbering the digest carries from the work the bibliography cites; `digest.source` repeats `extracted_from` and is retained for readers written before 0.5. All of these are additive and the interface version is unchanged (DR-108, DR-109, DR-110).
+
+**[decided]** `spans` points at a **sidecar** holding the geometry of the work's anchors: `{"artifact": <sha256>, "pages": {"2": {"width": 612, "height": 792, "rotate": 0}}, "quads": {"<result id>": [[x0, y0, x1, y1], …]}, "marks": {"<annotation id>": [[x0, y0, x1, y1], …]}}`, one rectangle per line — `quads` for the work's results by result id, `marks` for the notes on its pages by annotation id (DR-209). `rotate` is the page's own rotation in degrees, read from the document. `reading` on the reference counts those notes, and how many still await an answer, since they are in no key's row. It stands **beside** the manifest rather than inside it, for the reason `source` does: the manifest is loaded whole on every poll and geometry is wanted for the one paper being read. The pointer carries the sidecar's own hash, so a stale copy is noticed while the publisher rebuilds underneath. **Quads are derived and never recorded for a text anchor**: an anchor says where it is in the page's text, and the rectangles are computed from the word boxes at build time; a box anchor's rectangles are the anchor itself and are recorded. A work whose PDF is not on the publishing machine gets no sidecar, and the viewer has nothing to draw, which is the honest state.
+
+**[decided]** **Coordinates are points with a top-left origin** — what `pdftotext -bbox-layout` emits — and never PDF user space, whose origin is at the bottom left. A viewer that hands these to a renderer's own transform draws every highlight mirrored about the middle of the page.
+
+**[decided]** `unreadable`, present only where the author has declared one, is `{"why": …, "who": …, "when": …}`: the standing claim that the work has no document to hold at all. Nothing in a bibliography entry says so, which is why it is declared and never inferred, and a viewer says it rather than showing an empty pane (DR-198).
 
 **[decided]** `candidates`, present only on a reference whose bibliography entry states no identifier and only once a lookup has run, lists identifiers a lookup proposed, best first: `{"id": "doi:10.1353/ajm.1998.0020", "source": "zbMATH Open", "confidence": 1.0, "strength": "strong", "title": "…"}`. They are unconfirmed and never the reference's `work`, which changes only when the bibliography states the identifier. A viewer may show them, marked as unconfirmed. Additive; the interface version is unchanged (DR-122).
 

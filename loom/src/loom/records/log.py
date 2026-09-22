@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from loom.anchors import Anchor, is_page_anchor
 from loom.records.annotations import KINDS, Annotation, Record
 from loom.records.selectors import Selector
 
@@ -32,10 +33,13 @@ def append(root: Path, event: dict[str, Any]) -> None:
 
 
 def source_of(event: dict[str, Any]) -> str:
-    """Which record an event belongs to: its run, or the author and the day they wrote it.
+    """Which record an event belongs to: its session, or -- for an event written before sessions -- its run, or the author and the day.
 
-    This is the manifest's grouping key, and the reason a run is a first-class column rather than something encoded into the author's name. A person's annotations group by day because "what the author said on the 16th" is a session a reader looks for, where everything one person has ever written is not.
+    This is the manifest's grouping key. Since plan 0.13 §5 it is the session, which is where work belongs and is now said outright rather than inferred from who wrote it. The two older forms are still read, because the log is append-only and what was written before sessions was written before sessions; `loom session migrate` gives each of them a session, and `sessions_by_source` is what maps one to the other.
     """
+    session = event.get("session")
+    if session:
+        return str(session)
     run = event.get("run")
     if run:
         return str(run)
@@ -51,15 +55,21 @@ ID = re.compile(r"^a-\d{4}-\d{2}-\d{2}-\d+$")
 
 
 def _annotation(event: dict[str, Any]) -> Annotation:
+    """One `created` or `replied` event as an annotation.
+
+    `anchor` is one of two shapes under one name: the text triple every annotation has carried since book 7.5, or -- on a note against a page of a cited work -- a page anchor carrying `kind` beside that triple (plan 0.13 item 2). The triple is read in both cases; the page anchor only when `kind` says so, since `Selector.from_dict` would otherwise swallow the page fields without a word.
+    """
     anchor = event.get("anchor")
     return Annotation(
         id=str(event["id"]),
-        author_kind="run" if event.get("run") else "person",
+        # `run` on an event written before sessions said the same thing this says outright (plan 0.13 §5)
+        author_kind="agent" if (str(event.get("kind", "")) == "agent" or event.get("run")) else "person",
         author_id=str(event.get("author", "")),
         created=str(event.get("when", "")),
         target_key=str(event.get("target", "")),
         target_hash=str(event.get("against", "")),
         selector=Selector.from_dict(anchor) if isinstance(anchor, dict) else None,
+        anchor=Anchor.from_dict(anchor) if is_page_anchor(anchor) else None,
         kind=str(event.get("annotation_kind") or "objection"),
         body=str(event.get("body", "")),
         status="open",

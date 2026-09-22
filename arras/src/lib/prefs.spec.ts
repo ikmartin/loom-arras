@@ -15,8 +15,33 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it('defaults to shell C, serif, medium, mid, system, the compiled page, comments in the margin', () => {
-		expect(DEFAULTS).toEqual({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'margin' });
+	it('defaults to shell C, serif, medium, mid, system, the compiled page, and a floating comment box', () => {
+		expect(DEFAULTS).toEqual({
+			shell: 'c',
+			divider: 0.62,
+			swap: false,
+			panel: true,
+			zoom: { pdf: 1.4 },
+			face: 'serif',
+			size: 'm',
+			width: 'mid',
+			theme: 'system',
+			format: 'p1',
+			comments: 'floating'
+		});
+	});
+
+	it('keeps the divider inside the range a pane is usable in, and reads a stored hover placement as the default', () => {
+		// a ratio outside it leaves one pane too narrow to read, which a stored value from a dragged-off-screen divider
+		// or a hand-edited blob could otherwise do
+		expect(coerce({ divider: 0.95 }).divider).toBe(0.8);
+		expect(coerce({ divider: 0.01 }).divider).toBe(0.2);
+		expect(coerce({ divider: 'wide' }).divider).toBe(DEFAULTS.divider);
+		expect(coerce({ comments: 'hover' }).comments).toBe('floating');
+		// zoom is per renderer kind and remembered, and is clamped for the same reason the divider is
+		expect(coerce({ zoom: 9 }).zoom).toEqual({ pdf: 3 }); // a number is what this stored before it was per kind
+	expect(coerce({ zoom: { pdf: 0.1, other: 2 } }).zoom).toEqual({ pdf: 0.5, other: 2 });
+		expect(coerce({ zoom: 0.1 }).zoom).toEqual({ pdf: 0.5 });
 	});
 
 	it('reads a stored tabs shell, which is retired, as the default', () => {

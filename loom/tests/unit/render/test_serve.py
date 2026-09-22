@@ -17,6 +17,15 @@ from loom.render.serve import ServeSession
 from loom.scan.quilt import load_quilt
 
 
+def _sid(root: Path) -> str:
+    """A session to write into. Every write over the API names one (plan 0.13.1); only the CLI still has a default."""
+    from loom.sessions import create, sessions
+
+    have = [s for s in sessions(root).values() if s.state == "open"]
+    return have[0].id if have else create(root, "test sitting", "tester").id
+
+
+
 def demo(tmp_path: Path) -> Path:
     old = os.getcwd()
     try:
@@ -157,9 +166,17 @@ def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignor
     assert status in (400, 404)  # nothing outside the store is reachable through it
 
 
-def post(url: str, body: dict):  # type: ignore[no-untyped-def]
+def post(url: str, body: dict, token: str | None = None):  # type: ignore[no-untyped-def]
+    """A write, carrying the token the running server minted. A caller that omits it is refused, which is the point."""
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+    headers = {"Content-Type": "application/json"}
+    if token is None:
+        # the same place the viewer gets it: the discovery response this publisher serves
+        base = url.split("/_api/")[0] + "/_api"
+        token = json.loads(urllib.request.urlopen(base, timeout=5).read()).get("token", "")
+    if token:
+        headers["X-Loom-Token"] = token
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status, json.loads(resp.read())
@@ -190,9 +207,10 @@ def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # ty
     status, body = post(
         s.url + "/_api/comment",
         {
+            "session": _sid(d),
             "target": "dm-0003",
             "message": "Written from the viewer.",
-            "kind": "question",
+            "kind": "objection",
             "severity": "minor",
             "author": "A Reader",
         },
@@ -207,21 +225,36 @@ def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # ty
 
     # and it can be answered, restated and withdrawn over the same surface
     ann = mine[0]["id"]
-    assert post(s.url + "/_api/reply", {"annotation": ann, "message": "Noted.", "author": "A Reader"})[0] == 200
-    assert post(s.url + "/_api/edit", {"annotation": ann, "message": "Restated.", "author": "A Reader"})[0] == 200
-    assert post(s.url + "/_api/discard", {"annotation": ann, "reason": "mine", "author": "A Reader"})[0] == 200
+    assert post(s.url + "/_api/reply", {"session": _sid(d), "annotation": ann, "message": "Noted.", "author": "A Reader"})[0] == 200
+    assert post(s.url + "/_api/edit", {"session": _sid(d), "annotation": ann, "message": "Restated.", "author": "A Reader"})[0] == 200
+    assert post(s.url + "/_api/discard", {"session": _sid(d), "annotation": ann, "reason": "mine", "author": "A Reader"})[0] == 200
     events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
     assert {e["event"] for e in events if e.get("id") == ann} >= {"created", "edited", "discarded"}
 
 
+def test_the_manifest_is_current_when_a_write_answers(session) -> None:  # type: ignore[no-untyped-def]
+    """**A write rebuilds before it answers** (plan 0.13.1). The watcher's scan and the viewer's poll are a second each, so a rename that costs 40ms to build took ~1.3s to show, and the `refresh()` a viewer runs on the answer raced the rebuild and lost. Asserted as the property -- the manifest carries the write when the POST resolves -- rather than as a duration, which would be a flake on a loaded machine."""
+    s, d = session
+    sid = _sid(d)
+    status, body = post(s.url + "/_api/session-rename", {"session": sid, "title": "renamed in place"})
+    assert status == 200, body
+    # no sleep, no poll: the very next read must already have it
+    _, _, raw = get(s.url + "build/manifest.json")
+    rows = {x["id"]: x for x in json.loads(raw)["sessions"]}
+    assert rows[sid]["title"] == "renamed in place", rows[sid]
+
+
 def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ignore[no-untyped-def]
-    s, _ = session
-    status, body = post(s.url + "/_api/comment", {"message": "no target"})
+    s, d = session
+    status, body = post(s.url + "/_api/comment", {"session": _sid(d), "message": "no target"})
     assert status == 400 and body["error"]["code"] == "missing-field"
-    status, body = post(s.url + "/_api/comment", {"target": "nope-9999", "message": "x"})
+    status, body = post(s.url + "/_api/comment", {"session": _sid(d), "target": "nope-9999", "message": "x"})
     assert status in (400, 404) and "error" in body
-    status, body = post(s.url + "/_api/discard", {"annotation": "a-1999-01-01-0001"})
+    status, body = post(s.url + "/_api/discard", {"session": _sid(d), "annotation": "a-1999-01-01-0001"})
     assert status in (400, 404) and "error" in body
+    # a write that names no session at all is malformed, not something to file against whatever was last active
+    status, body = post(s.url + "/_api/comment", {"target": "dm-0003", "message": "orphan"})
+    assert status == 400 and body["error"]["code"] == "no-session"
 
 
 def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> None:  # type: ignore[no-untyped-def]
@@ -229,7 +262,8 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> 
     s, d = session
     _, made = post(
         s.url + "/_api/comment",
-        {"target": "dm-0003", "message": "Cite Manolache, Prop 3.2.", "kind": "citation", "author": "A Reader"},
+        {
+            "session": _sid(d),"target": "dm-0003", "message": "Cite Manolache, Prop 3.2.", "kind": "citation", "author": "A Reader"},
     )
     ann = [
         json.loads(x)
@@ -237,7 +271,7 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> 
         if x.strip() and "Manolache" in x
     ][0]["id"]
 
-    status, body = post(s.url + "/_api/refs-note", {"annotation": ann, "decision": "accept", "author": "A Reader"})
+    status, body = post(s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "accept", "author": "A Reader"})
     assert status == 200, body
     notes = [json.loads(x) for x in (d / "reference-notes.jsonl").read_text().splitlines() if x.strip()]
     assert notes[-1]["for"] == ["dm-0003"]
@@ -246,7 +280,7 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> 
     events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
     assert any(e.get("id") == ann and e["event"] == "resolved" for e in events)
 
-    status, body = post(s.url + "/_api/refs-note", {"annotation": ann, "decision": "sideways"})
+    status, body = post(s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "sideways"})
     assert status == 400 and body["error"]["code"] == "bad-field"
 
 
@@ -254,7 +288,8 @@ def test_rejecting_a_citation_writes_no_breadcrumb(session) -> None:  # type: ig
     s, d = session
     post(
         s.url + "/_api/comment",
-        {"target": "dm-0002", "message": "Cite something else.", "kind": "citation", "author": "R"},
+        {
+            "session": _sid(d),"target": "dm-0002", "message": "Cite something else.", "kind": "citation", "author": "R"},
     )
     ann = [
         json.loads(x)
@@ -263,7 +298,7 @@ def test_rejecting_a_citation_writes_no_breadcrumb(session) -> None:  # type: ig
     ][0]["id"]
     before = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
     status, _ = post(
-        s.url + "/_api/refs-note", {"annotation": ann, "decision": "reject", "reason": "already cited", "author": "R"}
+        s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "reject", "reason": "already cited", "author": "R"}
     )
     assert status == 200
     after = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
@@ -305,3 +340,40 @@ def test_the_watcher_does_not_chase_its_own_build(session) -> None:  # type: ign
     settled = s.builds
     time.sleep(2)  # ten watcher intervals with nothing changing
     assert s.builds == settled
+
+
+def test_a_write_without_the_token_is_refused_over_the_wire(session) -> None:  # type: ignore[no-untyped-def]
+    """A browser blocks a cross-origin response and never the request, so any page the author happens to be reading could otherwise POST into their quilt (plan 0.13 §8)."""
+    s, _ = session
+    body = {"target": "sy-0001", "message": "from somewhere else", "author": "Nobody"}
+    status, said = post(s.url + "_api/comment", body, token="")
+    assert status == 403 and "X-Loom-Token" in said["error"]["message"]
+
+    # and the token is served where the viewer reads it, so a legitimate write is not made harder
+    _, _, discovery = get(s.url + "_api")
+    assert json.loads(discovery)["token"]
+    # carrying it gets past the gate; whether the write itself is well formed is another test's business
+    assert post(s.url + "_api/comment", body)[0] != 403
+
+
+def test_a_link_into_the_running_viewer_is_offered_only_while_one_is_running(tmp_path: Path) -> None:
+    """`serve.json` outlives the process that wrote it, so a command that printed a link from the file alone would send its reader to a tab that never loads (plan 0.13 §9, the `open:` line)."""
+    import json as _json
+
+    from loom.render.serve import SERVE_JSON, open_url, write_serve_json
+
+    root = tmp_path / "quilt"
+    root.mkdir()
+    assert open_url(root) == "", "nothing has ever served this quilt"
+
+    write_serve_json(root, 8791)
+    # this process wrote it and this process is alive, which is the case the check is meant to pass
+    assert open_url(root) == "http://127.0.0.1:8791/"
+    assert open_url(root, "library/Bellamy19?page=2") == "http://127.0.0.1:8791/library/Bellamy19?page=2"
+
+    # a pid nothing holds: the file is stale and the honest answer is no link at all
+    p = root / SERVE_JSON
+    data = _json.loads(p.read_text())
+    data["pid"] = 2**22  # above every pid_max this runs on
+    p.write_text(_json.dumps(data))
+    assert open_url(root) == ""

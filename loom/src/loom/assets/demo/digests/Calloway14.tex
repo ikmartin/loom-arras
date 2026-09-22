@@ -1,0 +1,38 @@
+% !LOOM digest: Calloway14
+% !LOOM prefix: Calloway14
+% !LOOM extracted-from: doi:10.4171_demo_14-1
+% !LOOM published-as: doi:10.4171/demo/14-1
+% !LOOM method: extract
+% !LOOM created: 2026-09-16
+% !LOOM numbering: emulated
+
+\section*{Overview}
+Let $X$ be a topological space and $\sigma \colon X \to X$ a continuous map with $\sigma^2 = \mathrm{id}$. The \emph{fixed locus} $\operatorname{Fix}(\sigma)$ is the set of points $x$ with $\sigma(x) = x$. Nothing here is new; the paper is written to be cited, and collects in one place the two facts about $\operatorname{Fix}(\sigma)$ that are used again and again without reference.
+
+Section 2 fixes conventions. Section 3 defines the fixed locus and proves the two statements. Section 4 gives a non-Hausdorff space whose fixed locus is not closed, which shows that the hypothesis in Proposition 3.2 cannot be dropped.
+
+\begin{theorem}[{\cite[Standing assumptions]{Calloway14}}]\label{Calloway14-setup}
+Throughout, spaces are topological spaces and no separation axiom is assumed except where it is stated. An involution is not assumed to be non-trivial: the identity is an involution, and its fixed locus is the whole space. All maps are continuous.
+\end{theorem}
+
+\section{The two statements}\label{Calloway14-sec-3}
+
+\begin{definition}[{\cite[Definition 3.1]{Calloway14}}]\label{Calloway14-def-3.1}
+\label{Calloway14-def:involution}
+An \emph{involution} of a space $X$ is a map $\sigma \colon X \to X$ with $\sigma \circ \sigma = \mathrm{id}_X$. Its \emph{fixed locus} is $\operatorname{Fix}(\sigma) = \{x \in X : \sigma(x) = x\}$.
+\end{definition}
+
+\begin{proposition}[{\cite[Proposition 3.2]{Calloway14}}]\label{Calloway14-prop-3.2}
+\label{Calloway14-prop:closed}
+Let $X$ be a Hausdorff space and $\sigma$ an involution of $X$ in the sense of Definition~\ref{Calloway14-def-3.1}. Then $\operatorname{Fix}(\sigma)$ is closed in $X$.
+\end{proposition}
+
+\begin{proposition}[{\cite[Proposition 3.3]{Calloway14}}]\label{Calloway14-prop-3.3}
+\label{Calloway14-prop:parity}
+Let $X$ be a finite set and $\sigma$ an involution of $X$. Then $|X| \equiv |\operatorname{Fix}(\sigma)| \pmod 2$.
+\end{proposition}
+
+\begin{theorem}[{\cite[Theorem 3.4]{Calloway14}}]\label{Calloway14-thm-3.4}
+\label{Calloway14-thm:both}
+Let $X$ be a finite Hausdorff space and $\sigma$ an involution of $X$. Then $\operatorname{Fix}(\sigma)$ is closed and $|X| \equiv |\operatorname{Fix}(\sigma)| \pmod 2$.
+\end{theorem}

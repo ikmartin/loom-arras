@@ -12,6 +12,7 @@ import os
 import sys
 import threading
 import time
+from collections.abc import Callable
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -45,6 +46,73 @@ ASSET_SUFFIXES = {
 }
 
 
+SERVE_JSON = ".loom/serve.json"
+
+
+def write_serve_json(root: Path, port: int) -> str:
+    """Record where this server is listening, and the token a write must carry; return the token.
+
+    Two jobs in one file. A command that wants to print an openable link reads the port and the pid to know whether anything is listening. The **token** is what makes the write API safe to leave running: a browser blocks a cross-origin *response* and never the *request*, so any page the author happens to be reading could otherwise POST into their quilt. A cross-site form post cannot set a custom header, so requiring one closes it. This is CSRF protection and not a login -- it keeps other *pages* out, not other people.
+    """
+    import os
+    import secrets
+
+    token = secrets.token_urlsafe(24)
+    p = root / SERVE_JSON
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(
+        json.dumps({"port": port, "pid": os.getpid(), "token": token, "url": f"http://127.0.0.1:{port}/"}, indent=1)
+        + "\n",
+        encoding="utf-8",
+    )
+    return token
+
+
+def read_serve_json(root: Path) -> dict[str, object]:
+    """What the running server said about itself, or {} when nothing is listening."""
+    try:
+        data = json.loads((root / SERVE_JSON).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def open_url(root: Path, path: str = "") -> str:
+    """A link into the running viewer, or '' when nothing is listening.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt root.
+    path : str, default ''
+        Where in the viewer to land, without a leading slash; '' is the home page.
+
+    Returns
+    -------
+    str
+        An absolute `http://127.0.0.1:<port>/...` URL, or '' when no server holds the file's pid.
+
+    Notes
+    -----
+    The pid is checked rather than trusted: `serve.json` outlives the process that wrote it, and a command that printed a dead link would send its reader to a browser tab that never loads. `os.kill(pid, 0)` asks the kernel whether the process exists without touching it.
+
+    See Also
+    --------
+    write_serve_json : What puts the port, the pid and the token there.
+    """
+    import os
+
+    data = read_serve_json(root)
+    port, pid = data.get("port"), data.get("pid")
+    if not isinstance(port, int) or not isinstance(pid, int):
+        return ""
+    try:
+        os.kill(pid, 0)
+    except (OSError, ProcessLookupError):
+        return ""
+    return f"http://127.0.0.1:{port}/{path.lstrip('/')}"
+
+
 class LoomHandler(SimpleHTTPRequestHandler):
     bundle_dir: Path = Path(".")
     build_dir: Path = Path(".")
@@ -52,6 +120,10 @@ class LoomHandler(SimpleHTTPRequestHandler):
     #: The quilt to write into. `None` serves the corpus read-only and answers `/_api` with 404, which is the
     #: discovery mechanism working: a viewer that gets 404 shows no editing affordances.
     quilt_root: Path | None = None
+    #: Rebuild the manifest, set when the server owns one. **A write rebuilds before it answers** (plan 0.13.1): the
+    #: watcher's filesystem scan and the viewer's manifest poll are a second each, so a change that costs 40ms to
+    #: build took ~1.3s to appear, and the `refresh()` a viewer runs on the answer raced the rebuild and lost.
+    rebuild: Callable[[], None] | None = None
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
@@ -94,6 +166,25 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    #: Set when the socket binds; every write must carry it (plan 0.13 §8).
+    token: str = ""
+
+    def _csrf(self) -> str:
+        """Why this request must be refused, or '' when it may proceed.
+
+        Three checks, and together they are CSRF protection rather than a login: they keep other *pages* out, not other people. A browser blocks a cross-origin **response** and never the **request**, so any page the author happens to be reading could otherwise POST into their quilt and create, resolve or discard. A cross-site form post cannot set a custom header, so requiring one closes it; requiring JSON closes the simple-form path that needs no header at all; and a foreign `Origin` is refused outright.
+        """
+        origin = self.headers.get("Origin")
+        port = self.server.server_address[1] if isinstance(self.server.server_address, tuple) else 0
+        if origin and origin not in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
+            return f"this request came from {origin}, which is not this server"
+        kind = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+        if kind != "application/json":
+            return "a write must be application/json"
+        if self.token and self.headers.get("X-Loom-Token") != self.token:
+            return "this request carries no valid X-Loom-Token"
+        return ""
+
     def do_POST(self) -> None:  # noqa: N802
         """The write API (specs/write-api.md). Localhost only, like everything else this server does."""
         from loom.render.api import ApiError, handle
@@ -101,6 +192,10 @@ class LoomHandler(SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if not path.startswith("/_api/") or self.quilt_root is None:
             self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        refused = self._csrf()
+        if refused:
+            self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": refused}})
             return
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -115,21 +210,63 @@ class LoomHandler(SimpleHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": {"code": "bad-json", "message": str(exc)}})
             return
         try:
-            self._json(HTTPStatus.OK, handle(self.quilt_root, path[len("/_api/") :], body))
+            answer = handle(self.quilt_root, path[len("/_api/") :], body)
+            # The manifest is current when the answer arrives, so the viewer's own refresh finds the write on its
+            # first try rather than after two polling loops.
+            if self.rebuild is not None:
+                self.rebuild()
+            self._json(HTTPStatus.OK, answer)
         except ApiError as exc:
             self._json(exc.status, {"error": {"code": exc.code, "message": exc.message}})
         except Exception as exc:  # noqa: BLE001
             # A write that failed for a reason nobody anticipated is still the publisher's answer, not a dead socket.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"code": "failed", "message": str(exc)}})
 
+    def _events(self) -> None:
+        """`GET /_api/events?session=<id>&since=<seq>`: what has landed in a session's inbox since a sequence number.
+
+        **Fine events for appends, coarse for everything else** (plan 0.13 §8). A message is the smallest unit loom can stream -- it never sees the model, so a "typing" feel could only come from an agent writing partial messages -- and everything else a reader needs still arrives through the manifest it already polls. Rebuilding the whole manifest per message would reintroduce the re-render that closed open boxes under the reader.
+
+        The answer carries `seq`, so a client that finds a gap between what it has and what it is given knows it missed some and resyncs the coarse way rather than stitching a stream together from the middle.
+        """
+        from urllib.parse import parse_qs, urlsplit
+
+        from loom.mailbox import last_seq, read_events
+
+        if self.quilt_root is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        query = parse_qs(urlsplit(self.path).query)
+        sid = (query.get("session") or [""])[0]
+        try:
+            since = int((query.get("since") or ["0"])[0])
+        except ValueError:
+            since = 0
+        if not sid:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": {"code": "missing-field", "message": "session is required"}})
+            return
+        events = read_events(self.quilt_root, sid, since)
+        self._json(
+            HTTPStatus.OK,
+            {
+                "session": sid,
+                "from": since,
+                "seq": last_seq(self.quilt_root, sid),
+                "events": [e.to_json() for e in events],
+            },
+        )
+
     def do_GET(self) -> None:  # noqa: N802
+        if self.path.split("?", 1)[0] == "/_api/events":
+            self._events()
+            return
         if self.path.split("?", 1)[0] == "/_api":
             from loom.render.api import discovery
 
             if self.quilt_root is None:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            self._json(HTTPStatus.OK, discovery())
+            self._json(HTTPStatus.OK, {**discovery(), "token": self.token})
             return
         target = self._resolve()
         if target is None or not target.is_file():
@@ -225,10 +362,12 @@ class ServeSession:
                 "refs_dir": storage_root(self.quilt.root),
                 # The write API is served for the quilt being served, and only ever over this loopback socket.
                 "quilt_root": self.quilt.root,
+                "rebuild": self.rebuild,
             },
         )
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
+        handler.token = write_serve_json(self.quilt.root, self.port)  # type: ignore[attr-defined]
         threading.Thread(target=self.httpd.serve_forever, name="loom-http", daemon=True).start()
 
     def start(self) -> None:
@@ -260,6 +399,8 @@ class ServeSession:
         if self.httpd:
             self.httpd.shutdown()
             self.httpd.server_close()
+        # nothing is listening any more, so nothing should tell a command that something is
+        (self.quilt.root / SERVE_JSON).unlink(missing_ok=True)
 
     @property
     def url(self) -> str:

@@ -1,4 +1,8 @@
-// Annotations indexed by what they are about, built once per manifest.
+// Annotations indexed by what they are about, built once per manifest, and filtered by the session being shown.
+//
+// The session selection governs the page and not only the panel (plan 0.13 §7): what the side panel is showing is what
+// the content marks, so a tick's count is of *visible* annotations. The index itself is unfiltered -- it is keyed on
+// the manifest object and a selection change must not rebuild it -- and the filter is applied on the way out.
 //
 // Every surface that draws a comment asks "which annotations are on this key", and each of them answered by scanning
 // the whole table. One fragment mount asks it once per key, so a document of a hundred keys scanned a corpus of a
@@ -6,6 +10,7 @@
 // manifest object itself, so a new poll gets a new index for free and a stale one cannot be returned.
 
 import type { Annotation, Manifest } from '$lib/manifest/types';
+import { visible } from '$lib/sessions/sessions.svelte';
 
 interface Index {
 	byTarget: Map<string, Annotation[]>;
@@ -29,8 +34,13 @@ function index(m: Manifest): Index {
 	return built;
 }
 
-/** Every annotation on this key, replies excluded; in manifest order. */
+/** Every annotation on this key, replies excluded; in manifest order and under the session the panel is showing. */
 export function on(m: Manifest, key: string): Annotation[] {
+	return (index(m).byTarget.get(key) ?? []).filter((a) => visible(m, a));
+}
+
+/** Every annotation on this key whatever the session selection is, for counting what the selection hides. */
+export function allOn(m: Manifest, key: string): Annotation[] {
 	return index(m).byTarget.get(key) ?? [];
 }
 

@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from loom.refs.identity import declared, identify, primary
-from loom.refs.pages import STORAGE, storage_root
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
@@ -38,6 +37,32 @@ STATE_LABELS = {
         "settled": {"label": "settled", "color": "positive-strong"},
     },
 }
+
+
+def _sessions(root: Path) -> list[dict[str, Any]]:
+    """Every session the index leaves standing, with what the viewer's selector shows: the title, the state, and the round it is on."""
+    from loom.mailbox import attached, last_seq
+    from loom.sessions import active, sessions
+
+    here = active(root)
+    return [
+        {
+            "id": s.id,
+            "title": s.title,
+            # what the sitting is for, in the author's words: a line under the title in the panel, absent when unset
+            "purpose": s.purpose,
+            "state": s.state,
+            "created": s.created,
+            "opened": s.last_opened,
+            "rounds": len(s.rounds),
+            "active": s.id == here,
+            # who is listening now, by a heartbeat that goes stale rather than being believed forever, so the composer
+            # can say honestly whether anybody is there (plan 0.13 §8)
+            "attached": [{"who": r.get("who", ""), "kind": r.get("kind", "")} for r in attached(root, s.id)],
+            "seq": last_seq(root, s.id),
+        }
+        for s in sessions(root).values()
+    ]
 
 
 def _results_for(root: Path, citekey: str) -> dict[str, dict[str, Any]]:
@@ -206,6 +231,16 @@ def _published_notes(root: Path) -> list[dict[str, Any]]:
 PUBLISHES = {"documents": True, "review": True, "bibliography": True, "discussions": True}
 
 
+def _work_home(root: Path, entry: Any) -> Path | None:
+    """Where this work's documents are, or None when the entry names no identity at all."""
+    from loom.refs.fetch import FetchRefused, work_dir
+
+    try:
+        return work_dir(root, entry)
+    except FetchRefused:
+        return None
+
+
 def build_manifest(
     result: ScanResult,
     numbers: dict[str, dict[str, AuxNumber]],
@@ -237,6 +272,8 @@ def build_manifest(
         "states": STATE_LABELS,
         "annotations": {},
         "threads": build_threads(result.quilt.root),
+        # The selector's data (plan 0.13 §5): which sessions exist, which is active, and how much is open in each.
+        "sessions": _sessions(result.quilt.root),
         "reference_notes": _published_notes(result.quilt.root),
         "diagnostics": [d.to_dict() for d in diagnostics],
         "tags": {},
@@ -296,6 +333,10 @@ def build_manifest(
         }
         if n.kind == "section":
             entry["level"] = n.level  # the sectioning depth, so a viewer's contents can stop at subsubsection
+        if n.kind == "environment":
+            entry["basis"] = n.basis
+            entry["basis_reason"] = n.basis_reason
+            entry["inline_proof"] = n.inline_proof
         if n.external:
             entry["locator"] = _locator(n)
         manifest["nodes"][key] = entry
@@ -346,8 +387,10 @@ def build_manifest(
     digests = {ck: f for f, ck in asm.digest_files.items() if not f.endswith(".proposed.tex")}
     proposals = {ck: f for f, ck in asm.digest_files.items() if f.endswith(".proposed.tex")}
     from loom.refs.links import read_links
+    from loom.refs.unreadable import declarations
 
     manifest["links"] = [x.to_json() for x in read_links(result.quilt.root)]
+    unreadable = declarations(result.quilt.root, "unreadable")
     for ck in sorted(set(result.bib) | set(digests) | set(proposals)):
         bib = result.bib.get(ck)
         fields = {
@@ -390,7 +433,9 @@ def build_manifest(
         # what is on disk for this work, so the viewer can offer a PDF or say it has not been fetched.
         # Additive: the interface version is unchanged, as `relations` was in 0.2.
         wid = primary(bib) if bib else None
-        home = storage_root(result.quilt.root) / wid.path if wid else None
+        # through `work_dir`, so the viewer looks where the document was actually filed: a paper that states no
+        # identifier lives under its content hash, which its entry's synthetic identifier does not name
+        home = _work_home(result.quilt.root, bib) if bib else None
         manifest["references"][ck] = {
             "citekey": ck,
             "slug": asm.prefix_of(ck),
@@ -398,7 +443,7 @@ def build_manifest(
             "work": str(wid) if wid else "",
             "works": [str(w) for w in identify(bib)] if bib else [],
             "artifacts": {
-                "dir": f"{STORAGE}/{wid.path}" if wid else "",
+                "dir": home.relative_to(result.quilt.root).as_posix() if home else "",
                 "pdf": bool(home and (home / "paper.pdf").is_file()),
                 "source": bool(home and (home / "src").is_dir()),
             },
@@ -408,6 +453,11 @@ def build_manifest(
             "version_mismatch": version_mismatch,
             "cited_by": sorted(set(cited_by.get(ck, []))),
         }
+        # the author's claim that there is no document to hold, so the reading view says so rather than showing an
+        # empty pane and the digest as though it were the paper (plan 0.13 §4)
+        said = unreadable.get(ck)
+        if said is not None:
+            manifest["references"][ck]["unreadable"] = {"why": said.why, "who": said.who, "when": said.when}
         # identifiers a lookup proposed for a work that states none: unconfirmed, and never the work's identity (8.9.1)
         if bib is not None and not declared(bib):
             found = load_candidates(result.quilt.root, bib)

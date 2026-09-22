@@ -1,7 +1,7 @@
 # Mode: simplify
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`.
+- Write only under your session's directory. Never edit source. Never run `loom accept`.
 - The revised text is a diff the author applies; you apply nothing.
 - Read `ai/rules.md` once this session.
 
@@ -9,7 +9,7 @@
 Revise the text of one key to be simpler and shorter while preserving mathematical content exactly. Assume the mathematics is correct; do not perform in-depth verification (that is referee). Citation verification is required for any argument you replace with a citation. If an error surfaces incidentally, flag it in [summary] and as an objection, and leave that passage unsimplified rather than propagating it.
 
 ## Input
-- `loom source KEY --closure --run RUN`.
+- `loom source KEY --closure --session SESSION`.
 - If `audit-KEY.notes.md` exists in this run, its [patch-list] is your starting list.
 - Digest nodes for candidate citations (standing rule 5).
 
@@ -18,7 +18,7 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 
 ## Output
 1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected], [revised], [meaning-drift-check].
-2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --run RUN` recorded under [revised].
+2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --session SESSION` recorded under [revised].
 3. One suggestion annotation per simplification, anchored to the old text.
 4. An entry in `thread.md`.
 
@@ -30,4 +30,4 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 - [ ] Every removed hypothesis has an absence-of-use demonstration.
 - [ ] The diff applies cleanly and the result compiles.
 - [ ] [meaning-drift-check] covers every modified passage.
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

@@ -1,2 +1,3 @@
 info loom:uses-missing
 info loom:uses-unused
+warning loom:needs-classification

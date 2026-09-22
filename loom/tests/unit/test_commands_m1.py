@@ -110,7 +110,7 @@ def test_init_demo_writes_demo_and_lints_clean(tmp_path: Path) -> None:
     r = run("init", str(tmp_path / "demo"), "--demo")
     assert r.exit_code == 0, r.output
     demo = tmp_path / "demo"
-    assert (demo / "digests" / "Man12.tex").exists() and (demo / "nodes" / "dm-0003.tex").exists()
+    assert (demo / "digests" / "Calloway14.tex").exists() and (demo / "nodes" / "dm-0003.tex").exists()
     lint = run("lint", "--json", cwd=demo)
     assert lint.exit_code == 0, lint.output
     diags = json.loads(lint.output)
@@ -314,15 +314,15 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
     payload = json.loads(d.output)
     assert [e["key"] for e in payload["proof"]] == [
         "dm-0002",
-        "Man12-prop-3.2",
-    ]  # \cite[Proposition 3.2]{Man12} resolves to the digest node
+        "Calloway14-prop-3.2",
+    ]  # \cite[Proposition 3.2]{Calloway14} resolves to the digest node
     assert payload["closure"] == [{"key": "dm-0003"}]
     dp = run("deps", "dm-0003/proof", "--closure", cwd=demo)
     assert set(dp.output.splitlines()[2:]) == {
         "  dm-0002 (Lemma)",
         "  dm-0003 (Theorem)",
-        "  Man12-setup (Theorem)",
-        "  Man12-prop-3.2 (Proposition)",
+        "  Calloway14-def-3.1 (Definition)",
+        "  Calloway14-prop-3.2 (Proposition)",
     }  # the closure includes the digest nodes the proof cites by postnote (book 8.11)
     u = run("unravel", "dm-0001", "--json", cwd=demo)
     assert u.exit_code == 0, u.output

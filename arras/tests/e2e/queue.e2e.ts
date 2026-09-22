@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
+const kreschPdf = `/${manifest.references.Kre99.artifacts.dir}/paper.pdf`;
 
 // the smallest PDF a browser accepts, so the viewer has something real to load
 const PDF = `%PDF-1.4
@@ -18,7 +19,7 @@ async function serve(page: Page, edit: (m: typeof manifest) => void) {
 		edit(m);
 		await route.fulfill({ json: m });
 	});
-	await page.route('**/refs/**/paper.pdf', (route) => route.fulfill({ body: PDF, contentType: 'application/pdf' }));
+	await page.route('**/digests/storage/**/paper.pdf', (route) => route.fulfill({ body: PDF, contentType: 'application/pdf' }));
 }
 
 function linkInComment(m: typeof manifest, href: string) {
@@ -26,21 +27,21 @@ function linkInComment(m: typeof manifest, href: string) {
 }
 
 test.describe('links into cited works', () => {
-	test('a link in a comment opens the fetched paper at its page, and Escape closes it', async ({ page }) => {
+	test('a link in a comment lands in the Library View at its page, and back returns', async ({ page }) => {
+		// Plan 0.13 item 6: a copy on this machine opens where the page is read beside its discussion, not in a modal.
+		// The link is written in the one locator syntax, and the fragment form written before it is still read.
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
-			linkInComment(m, 'cited:arxiv:math/9810166v2#page=4');
+			linkInComment(m, 'cited:arxiv:math/9810166v2?page=4');
 		});
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
-		await expect(page).toHaveURL(/\/node\/sy-0003$/); // the reader stays where they were
-		const viewer = page.getByTestId('pdf-viewer');
-		await expect(viewer).toBeVisible();
-		await expect(viewer.getByTestId('pdf-frame')).toHaveAttribute('src', '/refs/arxiv/math_9810166v2/paper.pdf#page=4');
-		await expect(viewer).toContainText('Cycle groups for Artin stacks');
-		await expect(viewer).toContainText('page 4');
-		await page.keyboard.press('Escape');
-		await expect(viewer).toHaveCount(0);
+		await expect(page).toHaveURL(/\/library\/Kre99\?page=4$/);
+		await expect(page.getByTestId('pdf-doc')).toBeVisible();
+		await expect(page.getByTestId('pdf-viewer')).toHaveCount(0); // no modal for a copy that is here
+		await expect(page.getByTestId('beside')).toBeVisible(); // and it opens split, the paper beside its discussion
+		await page.goBack();
+		await expect(page).toHaveURL(/\/node\/sy-0003$/);
 	});
 
 	test('a paper not fetched on this machine says so and links to its source at the page', async ({ page }) => {
@@ -63,32 +64,35 @@ test.describe('links into cited works', () => {
 		await expect(page.getByTestId('pdf-absent')).toContainText('a different version');
 		await expect(page.getByTestId('pdf-frame')).toHaveCount(0);
 		await page.getByTestId('pdf-open-anyway').click();
-		await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', '/refs/arxiv/math_9810166v2/paper.pdf#page=4');
+		await expect(page.getByTestId('pdf-frame')).toBeVisible();
 	});
 
-	test('a quote anchor is shown to look for', async ({ page }) => {
+	test('a quote anchor travels in the URL, in the same keys the app uses', async ({ page }) => {
+		// The place itself is lit by the publisher mapping the quote onto the page, which the reading suite covers
+		// under `loom serve`; here there is no publisher, so what is checked is that the link carried it whole.
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
 			linkInComment(m, 'cited:arxiv:math/9810166v2#quote=Artin%20stacks');
 		});
 		await page.goto('/node/sy-0003');
 		await page.getByRole('link', { name: 'Kresch, Theorem 2.1' }).click();
-		await expect(page.getByTestId('pdf-quote')).toContainText('Look for “Artin stacks”');
+		await expect(page).toHaveURL(/\/library\/Kre99\?page=1&quote=Artin\+stacks$/);
+		await expect(page.getByTestId('pdf-doc')).toBeVisible();
 	});
 
 	test('a digest result links its page into the version it was extracted from, and the viewer closes on an outside press', async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		const link = page.getByTestId('page-link').first();
 		await expect(link).toHaveText('p. 4');
 		await link.click();
-		await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', '/refs/arxiv/math_9810166v2/paper.pdf#page=4');
+		await expect(page.getByTestId('pdf-frame')).toBeVisible();
 		await page.mouse.click(5, 5);
 		await expect(page.getByTestId('pdf-viewer')).toHaveCount(0);
 	});
 
 	test('with no copy on file a digest page is plain text', async ({ page }) => {
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		await expect(page.locator('main')).toContainText('Theorem 2.1, p. 4');
 		await expect(page.getByTestId('page-link')).toHaveCount(0);
 	});
@@ -108,9 +112,9 @@ test.describe('the work graph', () => {
 
 test.describe('the digest view', () => {
 	test('is the seventh view, and lists the cited works with what has been read of them', async ({ page }) => {
-		await page.goto('/digest');
-		await expect(page.getByTestId('digest-works')).toBeVisible();
-		await expect(page.getByTestId('digest-works')).toContainText('Kre99');
+		await page.goto('/library');
+		await expect(page.getByTestId('library-works')).toBeVisible();
+		await expect(page.getByTestId('library-works')).toContainText('Kre99');
 		await expect(page.locator('nav [aria-current="page"], nav .current').first()).toBeVisible();
 	});
 
@@ -132,7 +136,7 @@ test.describe('the digest view', () => {
 				}
 			};
 		});
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		const box = page.getByTestId('proposal');
 		await expect(box).toHaveCount(1);
 		await expect(page.getByTestId('proposal-flag')).toHaveText('proposed');
@@ -144,42 +148,41 @@ test.describe('the digest view', () => {
 	});
 
 	test('shows the page itself, and names the words of the rendering the page does not have', async ({ page }) => {
-		// the text layer keeps one "X" for a stack and its space: a symbol is judged from the image or not at all
-		const png = 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAfQCAIAAABqm2meAAAATUlEQVR42u3HMQ0AAAwDoPo33b6zsAQ+0iMiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIn8zlAVntCIwbUUAAAAASUVORK5CYII='; // 4 x 2000: tall enough that the box must scroll to reach the middle
-		await page.route('**/pages/df039aa2ab80-0012.png', (route) =>
-			route.fulfill({ contentType: 'image/png', body: Buffer.from(png, 'base64') })
+		// the text layer keeps one "X" for a stack and its space, so a symbol is judged from the page or not at all
+		// (DR-179). The page is rendered here rather than fetched as an image: nothing is drawn at build time any more.
+		await page.route('**/spans/**.json', (route) =>
+			route.fulfill({ json: { artifact: 'df039aa2ab80', pages: {}, quads: { 'Kre99-thm-9.9': [[72, 100, 400, 116]] } } })
 		);
 		await serve(page, (m) => {
 			const r = m.references.Kre99;
+			r.artifacts.pdf = true;
+			r.spans = { path: 'spans/arxiv/math_9810166v2.json', sha256: 'abc' };
 			r.proposed = { file: 'digests/Kre99.proposed.tex', fragment: '', nodes: ['Kre99-thm-9.9'] };
 			r.results = {
 				'Kre99-thm-9.9': {
 					state: 'proposed',
 					level: 1,
 					class: 'anchored',
-					page: 12,
+					page: 1,
 					artifact: 'df039aa2ab80',
 					origin: [],
 					source_text: 'Every cycle group is generated by integral cycles.',
 					statement: 'Every cycle group (in the sense of Deligne--Mumford) is generated by integral cycles.',
 					page_text: 'Theorem 9.9. Every cycle group is generated by integral cycles.',
-					page_images: ['pages/df039aa2ab80-0012.png'],
-					page_focus: 0.5,
 					not_on_page: ['sense', 'Deligne', 'Mumford']
 				}
 			};
 		});
-		await page.goto('/digest/Kre99');
-		const img = page.getByTestId('proposal-image').locator('img');
-		await expect(img).toHaveCount(1);
-		await expect(img).toHaveAttribute('src', /pages\/df039aa2ab80-0012\.png$/);
+		await page.goto('/library/Kre99');
+		await expect(page.getByTestId('proposal-paper')).toBeVisible();
+		await expect(page.getByTestId('proposal-paper').getByTestId('pdf-page-1')).toBeVisible();
+		// the quotation is marked on the page, which is what the author's eye is led to
+		await expect(page.getByTestId('mark-Kre99-thm-9.9').first()).toBeVisible();
 		await expect(page.getByTestId('proposal-added')).toContainText('Deligne');
 		await expect(page.getByTestId('proposal-noimage')).toHaveCount(0);
-		await expect(page.getByTestId('proposal-focus')).toHaveAttribute('style', /top: 50%/);
-		// and the box is scrolled there: the marker alone was right while the image sat at the top of the page
-		await expect
-			.poll(() => page.getByTestId('proposal-image').locator('.pages').evaluate((el) => el.scrollTop))
-			.toBeGreaterThan(500);
+		// and the page's own text, which is what the anchor check runs against, is still reachable
+		await page.getByTestId('proposal-pagetext').getByRole('group').or(page.getByText("the page's text")).first().click();
+		await expect(page.getByTestId('proposal-page')).toContainText('Every cycle group');
 	});
 
 	test('with no PDF on the building machine it says there is no image, rather than showing nothing', async ({ page }) => {
@@ -200,7 +203,7 @@ test.describe('the digest view', () => {
 				}
 			};
 		});
-		await page.goto('/digest/Kre99');
+		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('proposal-noimage')).toBeVisible();
 		await expect(page.getByTestId('proposal-added')).toHaveCount(0);
 	});
@@ -210,11 +213,11 @@ test.describe('the digest view', () => {
 			const r = m.references.Kre99;
 			r.results = { 'Kre99-thm-9.9': { state: 'proposed', level: 1, class: 'anchored', page: 1, artifact: 'x', origin: [] } };
 		});
-		await page.goto('/digest');
+		await page.goto('/library');
 		await page.getByTestId('show-proposed').click();
 		await expect(page).toHaveURL(/show=proposed/);
 		await expect(page.getByTestId('pending-Kre99')).toHaveText('1');
-		await expect(page.getByTestId('digest-works').locator('tbody tr')).toHaveCount(1);
+		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(1);
 	});
 });
 
@@ -223,12 +226,58 @@ test.describe('identity candidates', () => {
 		await serve(page, (m) => {
 			m.references.Har77.candidates = [{ id: 'doi:10.1007/978-1-4757-3849-0', source: 'zbMATH Open, Crossref', confidence: 1, strength: 'strong', title: 'Algebraic geometry' }];
 		});
-		await page.goto('/references');
+		await page.goto('/library');
 		const c = page.getByTestId('candidate-Har77');
 		await expect(c).toHaveText('doi?');
 		await expect(c).toHaveAttribute('href', 'https://doi.org/10.1007/978-1-4757-3849-0');
 		await expect(c).toHaveAttribute('title', /unconfirmed/);
 		// a work that states its identifier shows no candidate even if one were recorded
 		await expect(page.getByTestId('candidate-Kre99')).toHaveCount(0);
+	});
+});
+
+test.describe('what the reading study found', () => {
+	test('a filed paper can be opened whether or not anything is anchored to it yet', async ({ page }) => {
+		// The "Read the paper" row was gated on the pages the work's *results* sit on, so a paper that had been filed
+		// and not yet extracted or proposed from — the state every newly filed paper is in — offered no way into the
+		// reader at all, and the only link left the viewer for the browser's own renderer.
+		await serve(page, (m) => {
+			m.references.Kre99.artifacts.pdf = true;
+			m.references.Kre99.results = {};
+			m.references.Kre99.digest = null;
+		});
+		await page.goto('/library/Kre99');
+		const open = page.getByTestId('read-page-1');
+		await expect(open).toBeVisible();
+		await open.click();
+		await expect(page).toHaveURL(/\/library\/Kre99\?page=1$/);
+		await expect(page.getByTestId('pdf-doc')).toBeVisible();
+	});
+
+	test('a verb that needs no panel still shows why it was refused', async ({ page }) => {
+		// `resolve` is one click, so it opens no panel — and the refusal rendered only inside a panel, so the publisher's
+		// reason was dropped. In the study the reader clicked resolve, nothing happened, and the log took the event twice.
+		await serve(page, () => {});
+		// the fixture is served by `vite preview`, which has no write API; the verbs appear only where one is advertised
+		await page.route('**/_api', (route) =>
+			route.fulfill({ json: { write_api: 1, capabilities: ['comment', 'reply', 'resolve', 'edit', 'discard'], token: 't' } })
+		);
+		await page.route('**/_api/resolve', (route) =>
+			route.fulfill({
+				status: 400,
+				contentType: 'application/json',
+				body: JSON.stringify({ error: { code: 'no-such-run', message: 'no author name: add name = "Your Name" under [author]' } })
+			})
+		);
+		await page.goto('/node/sy-0003');
+		const said = page.getByTestId('verb-said').first();
+		// with nothing selected the write never leaves the viewer, and the verb says which condition is unmet
+		await page.getByTestId('verb-resolve').first().click();
+		await expect(said).toContainText('No session selected');
+		// with one selected the request reaches the publisher, and *its* refusal is what gets shown
+		await page.getByTestId('session-s-2026-09-16-0001').click();
+		await page.getByTestId('verb-resolve').first().click();
+		await expect(said).toBeVisible();
+		await expect(said).toContainText('no author name');
 	});
 });

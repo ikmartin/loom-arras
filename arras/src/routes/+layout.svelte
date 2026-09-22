@@ -97,7 +97,7 @@
 	{currentSection}
 	counts={{ nodes: m ? Object.keys(m.nodes).length : 0, errors, warnings }}
 	search={openPalette}
-	rail={rail.snippet ? pageRail : undefined}
+	rail={rail.snippet && !rail.beside ? pageRail : undefined}
 	panel={panel.snippet ? pagePanel : undefined}
 	panelLabel={panel.label}
 >

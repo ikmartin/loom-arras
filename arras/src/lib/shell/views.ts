@@ -30,9 +30,8 @@ export function viewsOf(m: Manifest | null): View[] {
 		{ id: 'read', label: 'read', href: read, icon: 'read', when: has?.documents },
 		{ id: 'graph', label: 'graph', href: route('/graph'), icon: 'graph', when: true },
 		{ id: 'review', label: 'review', href: route('/review'), icon: 'review', when: has?.review },
-		{ id: 'digest', label: 'digest', href: route('/digest'), icon: 'digest', when: has?.bibliography },
-		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems', when: true },
-		{ id: 'references', label: 'references', href: route('/references'), icon: 'references', when: has?.bibliography }
+		{ id: 'library', label: 'library', href: route('/library'), icon: 'digest', when: has?.bibliography },
+		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems', when: true }
 	]
 		.filter((v) => v.when !== false)
 		.map(({ when: _when, ...v }) => v);
@@ -42,12 +41,13 @@ export function viewsOf(m: Manifest | null): View[] {
 export function viewOf(path: string): string {
 	if (path === '/') return 'home';
 	if (path.startsWith('/master') || path.startsWith('/canon')) return 'read';
-	if (path.startsWith('/digest')) return 'digest';
+	if (path.startsWith('/library')) return 'library';
 	if (path.startsWith('/node')) return 'read';
+	// a session is read beside the work it was done in, so it lights the view its annotations point into
+	if (path.startsWith('/session')) return 'read';
 	if (path.startsWith('/graph')) return 'graph';
 	if (path.startsWith('/review')) return 'review';
 	if (path.startsWith('/problems')) return 'problems';
-	if (path.startsWith('/references')) return 'references';
 	return '';
 }
 

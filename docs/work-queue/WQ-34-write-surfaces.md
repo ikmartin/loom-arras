@@ -12,7 +12,14 @@ Carried out of [[WQ-23]] when that item graduated into [plan 0.11](../plans/0.11
 
 Two of the five pieces are already spoken for: the write API **was built in 0.11** (DR-161) and proposals as editor code actions are [[WQ-27]]. What is left is the rest of the surface, and it waits until those two show what the shape actually is.
 
-What 0.11 settled that this item inherits: the API is **detected, never assumed** — `GET /_api` answers with the capabilities the publisher serves, and a client that gets 404 offers nothing. An editor client speaks the same six endpoints arras does, over the same library functions, so `--json` on write commands is for clients that would rather run a command than open a socket, not for clients that have no other way in. There is no `message` endpoint and nothing wakes an agent.
+What 0.11 settled that this item inherits: the API is **detected, never assumed** — `GET /_api` answers with the capabilities the publisher serves, and a client that gets 404 offers nothing. An editor client speaks the same endpoints arras does, over the same library functions, so `--json` on write commands is for clients that would rather run a command than open a socket, not for clients that have no other way in.
+
+**Revisited after plan 0.13**, which moved two of this item's assumptions:
+
+- **There is a `message` endpoint now, and it still wakes nothing** (DR-203, DR-195). Loom appends to a session's inbox and a parked reader wakes because a file grew. An editor client that wanted a composer of its own would post to the same endpoint; nothing about it is arras's.
+- **Every write now carries a token, an `Origin` check and a JSON content type.** An editor client is a new client of this API and must read `GET /_api` for the token rather than assuming there is none — which is the strongest argument yet for *detected, never assumed*, since a client written against the 0.11 shape would now be refused with a 403 it does not expect.
+
+The trigger is unchanged. What has shrunk is the unknown: the composer in arras is the worked example of a write surface that is not the CLI, and the editor clients' version of it is the same three calls against the same detection.
 
 ## Rough design
 

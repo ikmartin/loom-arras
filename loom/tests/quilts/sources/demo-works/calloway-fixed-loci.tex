@@ -1,0 +1,73 @@
+% An invented paper, written for the demo quilt so that `loom init --demo` cites, digests and anchors into a
+% work whose bytes this repository is free to publish. Nobody named here exists.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1.15in]{geometry}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\DeclareMathOperator{\Fix}{Fix}
+
+\title{Fixed loci of involutions on separated spaces}
+\author{Imogen Calloway}
+\date{Ann.\ Fict.\ Topol.\ \textbf{14} (2014), 87--119. \\ doi:10.4171/demo/14-1}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+An involution of a topological space fixes a subspace, and we record when that subspace is closed and how its size is constrained. The two statements intended for use elsewhere are that the fixed locus of a continuous involution of a Hausdorff space is closed, and that on a finite space the fixed locus has the same parity as the space itself.
+\end{abstract}
+
+\section{Introduction}
+
+Let $X$ be a topological space and $\sigma \colon X \to X$ a continuous map with $\sigma^2 = \mathrm{id}$. The \emph{fixed locus} $\Fix(\sigma)$ is the set of points $x$ with $\sigma(x) = x$. Nothing here is new; the paper is written to be cited, and collects in one place the two facts about $\Fix(\sigma)$ that are used again and again without reference.
+
+Section 2 fixes conventions. Section 3 defines the fixed locus and proves the two statements. Section 4 gives a non-Hausdorff space whose fixed locus is not closed, which shows that the hypothesis in Proposition 3.2 cannot be dropped.
+
+\section{Conventions}
+
+Throughout, spaces are topological spaces and no separation axiom is assumed except where it is stated. An involution is not assumed to be non-trivial: the identity is an involution, and its fixed locus is the whole space. All maps are continuous.
+
+\section{The two statements}
+
+\begin{definition}\label{def:involution}
+An \emph{involution} of a space $X$ is a map $\sigma \colon X \to X$ with $\sigma \circ \sigma = \mathrm{id}_X$. Its \emph{fixed locus} is $\Fix(\sigma) = \{x \in X : \sigma(x) = x\}$.
+\end{definition}
+
+\begin{proposition}\label{prop:closed}
+Let $X$ be a Hausdorff space and $\sigma$ an involution of $X$ in the sense of Definition~\ref{def:involution}. Then $\Fix(\sigma)$ is closed in $X$.
+\end{proposition}
+
+\begin{proof}
+The map $(\mathrm{id}, \sigma) \colon X \to X \times X$ is continuous, and $\Fix(\sigma)$ is the preimage of the diagonal. A space is Hausdorff exactly when its diagonal is closed in the product, so the preimage is closed.
+\end{proof}
+
+\begin{proposition}\label{prop:parity}
+Let $X$ be a finite set and $\sigma$ an involution of $X$. Then $|X| \equiv |\Fix(\sigma)| \pmod 2$.
+\end{proposition}
+
+\begin{proof}
+The orbits of $\sigma$ partition $X$ and each has one or two elements, the singletons being exactly the fixed points. Writing $t$ for the number of two-element orbits, $|X| = |\Fix(\sigma)| + 2t$.
+\end{proof}
+
+\begin{theorem}\label{thm:both}
+Let $X$ be a finite Hausdorff space and $\sigma$ an involution of $X$. Then $\Fix(\sigma)$ is closed and $|X| \equiv |\Fix(\sigma)| \pmod 2$.
+\end{theorem}
+
+\begin{proof}
+Both halves are proved above.
+\end{proof}
+
+\section{The hypothesis is needed}
+
+Let $X = \{a, b\}$ carry the indiscrete topology and let $\sigma$ exchange $a$ and $b$; the fixed locus is empty, hence closed, so this is not yet a counterexample. Instead let $X = \{a, b, c\}$ with open sets $\emptyset$, $\{a, b\}$ and $X$, and let $\sigma$ fix $c$ and exchange $a$ with $b$. Then $\Fix(\sigma) = \{c\}$, whose complement $\{a, b\}$ is open, so the locus is closed here too.
+
+A genuine counterexample needs a space that is not $T_1$ in a more substantial way, and we give one in the line with two origins, where the two origins are exchanged by an involution fixing everything else. The fixed locus is the complement of the two origins, which is not closed.
+
+\end{document}

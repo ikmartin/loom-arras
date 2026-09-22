@@ -84,9 +84,9 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
     b = build_bundle(result, "dm-0003/proof")
     assert set(b.closure) == {
         "dm-0002",
-        "Man12-setup",
-        "Man12-prop-3.2",
-    }  # the proof cites Man12 by postnote (book 8.11)
+        "Calloway14-def-3.1",
+        "Calloway14-prop-3.2",
+    }  # the proof cites Calloway14 by postnote (book 8.11)
     text = b.text
     assert text.index("\\usepackage{loom}") < text.index("\\begin{document}")
     assert text.index("% id: dm-0002") < text.index("% id: dm-0003") < text.index("% proof: dm-0003/proof")
@@ -100,12 +100,13 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
 def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
     """`loom source` replaced `loom bundle` as the way to read a result: it prints, so there is no file to go stale."""
     d = demo(tmp_path)
-    run_dir = d / run("ai", "start", "Reading dm-0002", cwd=d).output.strip()
-    r = run("source", "dm-0002", "--run", str(run_dir), cwd=d)
+    sid = run("ai", "start", "Reading dm-0002", cwd=d).output.strip()
+    run_dir = d / ".loom" / "sessions" / sid
+    r = run("source", "dm-0002", "--session", sid, cwd=d)
     assert r.exit_code == 0, r.output
     assert r.output.startswith("\\begin{lemma}[Orbits]\\label{dm-0002}")
     assert "% id:" not in r.output  # the key alone, not the closure document
-    assert not list(run_dir.glob("*.tex"))  # nothing written into the run
+    assert not list(run_dir.glob("*.tex"))  # nothing written into the session
     assert "loom source dm-0002" in (run_dir / "run.log").read_text()
 
     # the theorem's own closure is empty -- its dependency is declared inside the proof, so the proof key is the one
@@ -119,8 +120,9 @@ def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
 def test_source_prints_a_whole_document_flattened(tmp_path: Path) -> None:
     """An agent asked about a paper rather than a result needs the document; `loom linearize` would do it by superseding the master, and is denied to agents, so `loom source` takes a path (DR-155)."""
     d = demo(tmp_path)
-    run_dir = d / run("ai", "start", "Reading the paper", cwd=d).output.strip()
-    r = run("source", "drafting/main.tex", "--run", str(run_dir), cwd=d)
+    sid = run("ai", "start", "Reading the paper", cwd=d).output.strip()
+    run_dir = d / ".loom" / "sessions" / sid
+    r = run("source", "drafting/main.tex", "--session", sid, cwd=d)
     assert r.exit_code == 0, r.output
     assert "\\documentclass" in r.output  # the document, preamble and all
     assert "\\input{" not in r.output  # every inclusion expanded in place
@@ -296,13 +298,13 @@ def test_stage_sources_leaves_the_build_products_behind(tmp_path: Path) -> None:
     assert (stage_sources(p, tmp_path / "stage2") / "main.bbl").is_file()
 
 
-def test_id_and_new_log_themselves_to_the_run(tmp_path: Path) -> None:
-    """The orientation lists both among an agent's commands and says every command that takes --run logs the call (F7)."""
+def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
+    """The orientation lists both among an agent's commands and says every command that takes --session logs the call (F7)."""
     d = demo(tmp_path)
-    rel = run("ai", "start", "Drafting", cwd=d).output.strip()
-    run_dir = d / rel
-    assert run("id", "--next", "--run", rel, cwd=d).exit_code == 0
-    assert run("new", "lemma", "Rigidity", "--run", rel, cwd=d).exit_code == 0
+    sid = run("ai", "start", "Drafting", cwd=d).output.strip()
+    run_dir = d / ".loom" / "sessions" / sid
+    assert run("id", "--next", "--session", sid, cwd=d).exit_code == 0
+    assert run("new", "lemma", "Rigidity", "--session", sid, cwd=d).exit_code == 0
     log = (run_dir / "run.log").read_text()
     assert "loom id --next" in log and "loom new lemma" in log
 

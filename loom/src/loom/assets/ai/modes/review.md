@@ -1,8 +1,8 @@
 # Mode: review
 
 ## Before you begin
-- Write only under your run directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --run RUN` calls, quote-anchored, every one carrying `--severity`.
+- Write only under your session's directory. Never edit source. Never run `loom accept`.
+- Findings are `loom comment ... --session SESSION` calls, quote-anchored, every one carrying `--severity`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -41,4 +41,4 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 - [ ] Every one of the nine kinds above was looked for.
 - [ ] Every finding is anchored, graded, and its id is in the notes.
 - [ ] Every citation proposed from memory says so.
-- [ ] Nothing was written outside your run directory.
+- [ ] Nothing was written outside your session's directory.

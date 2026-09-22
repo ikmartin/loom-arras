@@ -6,7 +6,7 @@
 	// The shape follows what each endpoint needs rather than one house style. `reply`, `edit` and `discard` take text, so each opens a small panel **above** the row — above, because a box in the gutter has the page to its left and the text below it, and a panel that pushed the body down would move the thing being discussed. `resolve` needs nothing, so it is one click, and the button that fired becomes its own undo where it stood: the row never changes length or order, so nothing moves under the pointer between the act and the second thoughts.
 	//
 	// In a gutter slot -- about 210px, `(container - measure) / 3` -- four verbs and the metadata cannot share a line, so `edit` and `discard` fold behind `⋯` and `reply` and `resolve` stay out. A container query, not a media query: the same box is wide inline and narrow in the gutter on one screen.
-	import { can, write } from '$lib/write';
+	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Annotation } from '$lib/manifest/types';
 
@@ -21,7 +21,11 @@
 
 	type Verb = 'reply' | 'edit' | 'discard';
 
-	let allowed = $state<Record<string, boolean>>({});
+	//: Seeded from the probe's standing answer, so a row re-mounted after a write does not blink out while it asks again.
+	const VERBS = ['reply', 'edit', 'resolve', 'discard'];
+	let allowed = $state<Record<string, boolean>>(
+		Object.fromEntries(VERBS.map((v) => [v, known(v) ?? false]).filter(([, ok]) => ok))
+	);
 	let open = $state<Verb | null>(null);
 	let menu = $state(false);
 	let busy = $state(false);
@@ -30,7 +34,7 @@
 	let severity = $state('');
 
 	$effect(() => {
-		for (const v of ['reply', 'edit', 'resolve', 'discard']) can(v).then((ok) => (allowed[v] = ok));
+		for (const v of VERBS) can(v).then((ok) => (allowed[v] = ok));
 	});
 
 	const resolved = $derived(annotation.status === 'resolved');
@@ -79,6 +83,11 @@
 
 {#if any}
 	<div class="verbs" class:compact data-testid="verb-row">
+		{#if said && !open}
+			<!-- `resolve` needs no panel, so its refusal had nowhere to be shown and was dropped: the reader clicked,
+			     nothing happened, and the publisher's reason — "no author name…" — never reached them. -->
+			<p class="said bare" role="status" data-testid="verb-said">{said}</p>
+		{/if}
 		{#if open}
 			<!-- above the row: the body below it is what the panel is about, and must not move -->
 			<div class="pop" data-testid="verb-panel">
@@ -256,6 +265,11 @@
 		display: flex;
 		gap: var(--gap-hair);
 		align-items: center;
+	}
+	.said.bare {
+		margin: 0 0 var(--gap-hair);
+		font-size: 0.9em;
+		color: var(--state-incomplete, #c4583c);
 	}
 	.pop .said {
 		margin: 0;

@@ -1,0 +1,44 @@
+Fixed loci of involutions on separated spaces
+Imogen Calloway
+Ann. Fict. Topol. 14 (2014), 87–119.
+doi:10.4171/demo/14-1
+Abstract
+An involution of a topological space fixes a subspace, and we record when that subspace
+is closed and how its size is constrained. The two statements intended for use elsewhere
+are that the fixed locus of a continuous involution of a Hausdorff space is closed, and that
+on a finite space the fixed locus has the same parity as the space itself.
+
+1
+
+Introduction
+
+Let X be a topological space and σ : X → X a continuous map with σ 2 = id. The fixed locus
+Fix(σ) is the set of points x with σ(x) = x. Nothing here is new; the paper is written to
+be cited, and collects in one place the two facts about Fix(σ) that are used again and again
+without reference.
+Section 2 fixes conventions. Section 3 defines the fixed locus and proves the two statements.
+Section 4 gives a non-Hausdorff space whose fixed locus is not closed, which shows that the
+hypothesis in Proposition 3.2 cannot be dropped.
+
+2
+
+Conventions
+
+Throughout, spaces are topological spaces and no separation axiom is assumed except where
+it is stated. An involution is not assumed to be non-trivial: the identity is an involution, and
+its fixed locus is the whole space. All maps are continuous.
+
+3
+
+The two statements
+
+Definition 3.1. An involution of a space X is a map σ : X → X with σ ◦ σ = idX . Its fixed
+locus is Fix(σ) = {x ∈ X : σ(x) = x}.
+Proposition 3.2. Let X be a Hausdorff space and σ an involution of X in the sense of
+Definition 3.1. Then Fix(σ) is closed in X.
+Proof. The map (id, σ) : X → X × X is continuous, and Fix(σ) is the preimage of the diagonal.
+A space is Hausdorff exactly when its diagonal is closed in the product, so the preimage is
+closed.
+Proposition 3.3. Let X be a finite set and σ an involution of X. Then |X| ≡ | Fix(σ)|
+(mod 2).
+1

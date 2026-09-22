@@ -4,6 +4,8 @@ import type { Snippet } from 'svelte';
 
 class RailState {
 	snippet = $state<Snippet | null>(null);
+	/** Whether a split is open on this page. The discussion pane stands where the rail stands (plan 0.13 §7), so the two never share the width: the rail's context is a link away, and a 300px discussion is not a discussion. */
+	beside = $state(false);
 }
 
 export const rail = new RailState();

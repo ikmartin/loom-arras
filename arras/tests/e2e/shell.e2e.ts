@@ -2,19 +2,36 @@ import { expect, test } from "@playwright/test";
 
 const SHELLS = ["a", "c"] as const;
 
+/** Shell C hangs the contents off the open document behind a `show` disclosure (plan 0.13.1); shell A still lists them outright. */
+async function openContents(page: import("@playwright/test").Page) {
+  const nav = page.getByRole("navigation", { name: "Contents" });
+  const toggle = page.getByTestId("contents-toggle");
+  // Wait for whichever the shell offers before asking after either: shell A has no toggle and shell C has no tree
+  // until the toggle is pressed, so probing one first races hydration and then waits for something that never comes.
+  await page.locator('nav.contents, [data-testid="contents-toggle"]').first().waitFor();
+  if (await nav.isVisible()) return;
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
+  await nav.waitFor();
+}
+
 for (const shell of SHELLS) {
   test(`shell ${shell} contains the same elements as the others`, async ({
     page,
   }) => {
     await page.goto(`/master/main?shell=${shell}`);
     await expect(page.locator("html")).toHaveAttribute("data-shell", shell);
-    // the view switcher, the document picker, the contents tree, the search affordance and the counts are in every arrangement
+    // the view switcher, a way to choose a document, the contents tree, the search affordance and the counts are in
+    // every arrangement -- though not yet in the same form: shell C lists the documents and folds the contents under
+    // the open one (plan 0.13.1), while shell A still carries the dropdown it has always had.
     await expect(
       page.getByRole("link", { name: "graph", exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("combobox", { name: "Document" }),
-    ).toBeVisible();
+    if (shell === "c") {
+      await expect(page.getByTestId("docs-drafts")).toBeVisible();
+    } else {
+      await expect(page.getByRole("combobox", { name: "Document" })).toBeVisible();
+    }
+    await openContents(page);
     await expect(
       page.getByRole("navigation", { name: "Contents" }),
     ).toBeVisible();
@@ -28,28 +45,51 @@ test("the default shell is the icon strip", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-shell", "c");
 });
 
-test("the contents rail scrolls rather than overflowing, and its last entry can be reached", async ({
+test("the side panel scrolls rather than overflowing, and the contents' last entry can be reached", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's contents cannot fit
+  // One scroll region, and it is the panel (plan 0.13 §7). The contents tree carried the only scrollbar until the
+  // Library group was added below it, at which point what got squeezed was the tree and the sections under it went
+  // off the bottom of a column that could not scroll.
+  await page.setViewportSize({ width: 1280, height: 320 }); // short enough that the fixture's panel cannot fit
   await page.goto("/master/main");
-  const rail = page.getByRole("navigation", { name: "Contents" });
-  const box = await rail.evaluate((el) => ({
+  await openContents(page);
+  const sections = page.locator(".panel .sections");
+  const box = await sections.evaluate((el) => ({
     scroll: el.scrollHeight,
     client: el.clientHeight,
     overflow: getComputedStyle(el).overflowY,
   }));
   expect(box.overflow).toBe("auto");
   expect(box.scroll).toBeGreaterThan(box.client);
-  const last = rail.locator("a").last();
+  const last = page.getByRole("navigation", { name: "Contents" }).locator("a").last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
+  // and the sections below the tree are reachable in the same scroll, which is what the tree's own scrollbar prevented
+  await page.getByTestId("session-list").scrollIntoViewIfNeeded();
+  await expect(page.getByTestId("session-list")).toBeInViewport();
+});
+
+test("the side panel collapses, and the column goes with it", async ({ page }) => {
+  // It collapses independently of the split and goes first: on a narrow window it is the column a reader needs least.
+  await page.goto("/master/main");
+  await openContents(page);
+  const panel = page.locator(".panel");
+  const wide = (await panel.boundingBox())!.width;
+  await page.getByTestId("panel-fold").click();
+  await expect(page.getByRole("navigation", { name: "Contents" })).toBeHidden();
+  const narrow = (await panel.boundingBox())!.width;
+  expect(narrow).toBeLessThan(wide / 3); // the column itself goes, not just its contents
+  // and it comes back
+  await page.getByTestId("panel-fold").click();
+  await expect(page.getByRole("navigation", { name: "Contents" })).toBeVisible();
 });
 
 test("the contents tree is in document order and stops above paragraph units", async ({
   page,
 }) => {
   await page.goto("/master/main");
+  await openContents(page);
   const entries = page
     .getByRole("navigation", { name: "Contents" })
     .locator("a");
@@ -63,6 +103,7 @@ test("a contents entry scrolls the document instead of navigating away", async (
   page,
 }) => {
   await page.goto("/master/main");
+  await openContents(page);
   const entry = page
     .getByRole("navigation", { name: "Contents" })
     .getByRole("link", { name: /Results/ });
@@ -77,6 +118,7 @@ test("the contents rail always marks where the reader is, and the mark follows t
   // It used to be driven by location.hash: it appeared only once someone clicked an entry and then never moved,
   // and an entry whose key is not slug-shaped never matched the hash at all.
   await page.goto("/master/main");
+  await openContents(page);
   const contents = page.getByRole("navigation", { name: "Contents" });
   await contents.getByRole("link").first().waitFor();
 
@@ -202,6 +244,8 @@ test("the graph toggle keeps the selection and both layouts draw their edges", a
 test("the read view has gutters, with the margin annotation in one and the comments in the other", async ({
   page,
 }) => {
+  // this test is about the margin arrangement; `floating` is the default and puts the box over the text instead
+  await page.addInitScript(() => localStorage.setItem("arras.prefs", JSON.stringify({ comments: "margin" })));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/master/main");
   await page.waitForSelector(".fragment .env[data-key]");
@@ -238,6 +282,8 @@ test("the read view has gutters, with the margin annotation in one and the comme
 test("a comment with sizeable content stays in the text as a box", async ({
   page,
 }) => {
+  // the margin arrangement, which is what "stays in the text as a box" is about
+  await page.addInitScript(() => localStorage.setItem("arras.prefs", JSON.stringify({ comments: "margin" })));
   await page.route("**/build/manifest.json", async (route) => {
     const res = await route.fetch();
     const m = await res.json();
@@ -293,12 +339,13 @@ test("the shell fits the window: nothing in a rail falls below the fold", async 
   await expect(page.getByTestId("counts")).toBeInViewport();
 });
 
-test("the contents rail shows its scrollbar only while it is in use", async ({
+test("the side panel shows its scrollbar only while it is in use", async ({
   page,
 }) => {
+  // The panel is the scroll region now, so the rule about a grey stripe down the side of every page belongs to it.
   await page.setViewportSize({ width: 1440, height: 340 });
   await page.goto("/master/main");
-  const rail = page.getByRole("navigation", { name: "Contents" });
+  const rail = page.locator(".panel .sections");
   await expect(rail).toBeVisible();
 
   const atRest = await rail.evaluate(
@@ -342,7 +389,7 @@ test("the settings panel puts every row on one line, label included, with nothin
       };
     });
   });
-  expect(rows.length).toBe(7); // shell, type, size, width, theme, format, comments
+  expect(rows.length).toBe(8); // shell, type, size, width, theme, format, comments, panes
   for (const r of rows) {
     expect(r.lines, `the ${r.label} row wraps`).toBe(1);
     expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(
