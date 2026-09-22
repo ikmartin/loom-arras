@@ -128,7 +128,8 @@ test('Needs review separates the block queue, pending OK, and attention', async 
 	await page.getByRole('button', { name: 'Return to Needs review' }).click();
 	await expect(page.getByTestId('guided-review')).toHaveCount(0);
 	await page.getByRole('button', { name: 'sy-0003' }).click();
-	await expect(page.getByRole('button', { name: 'Mark OK' })).toBeVisible();
+	await expect(page.getByTestId('guided-review')).toContainText('sy-0003');
+	await expect(page.getByRole('button', { name: 'Mark OK' })).toHaveCount(0);
 });
 
 test('guided review highlights a dependent citation and distinguishes local edits', async ({ page }) => {
@@ -278,7 +279,7 @@ test('review causes open rendered text beside its current context', async ({ pag
 
 test('review panel explains itself and names the command behind each state', async ({ page }) => {
 	await page.goto('/review');
-	await expect(page.locator('p.lead')).toContainText('states are recorded from the command line');
+	await expect(page.locator('p.lead')).toContainText('Recorded states are read from Loom’s ledger.');
 	await page.getByTestId('help-review').click();
 	const help = page.getByTestId('help-panel-review');
 	await expect(help).toContainText('stale');
