@@ -7,11 +7,12 @@ never merges into, or writes, an author's drafting files.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +36,9 @@ class SyncState:
     observed: str = ""
     local_commit: str = ""
     published_main: str = ""
+    last_pull: dict[str, Any] = field(default_factory=dict)
+    review_origins: dict[str, str] = field(default_factory=dict)
+    review_changed: dict[str, bool] = field(default_factory=dict)
 
     @classmethod
     def read(cls, root: Path) -> SyncState:
@@ -144,6 +148,167 @@ def incoming_patch(quilt: Quilt, state: SyncState) -> bytes:
             rewritten.append(line)
         patch = b"".join(rewritten)
     return patch
+
+
+def _incoming_paths(quilt: Quilt, state: SyncState) -> list[str]:
+    paths = [
+        state.master if row["path"] == state.published_main else row["path"]
+        for row in changed_files(quilt.root, state.integrated, state.incoming)
+    ]
+    if len(paths) != len(set(paths)) or any(Path(p).is_absolute() or ".." in Path(p).parts for p in paths):
+        raise SyncError("incoming source contains an unsafe or duplicate path")
+    return paths
+
+
+def _prepared_path(root: Path, incoming: str) -> Path:
+    return root / "build" / "incoming" / f"{incoming}.json"
+
+
+def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
+    """Preflight one pinned pull and save a patch for the author to apply with Git."""
+    root = quilt.root
+    if not state.incoming or state.incoming == state.integrated:
+        raise SyncError("there is no incoming revision to incorporate")
+    paths = _incoming_paths(quilt, state)
+    if not paths:
+        raise SyncError("the incoming revision changes no files")
+    patch = incoming_patch(quilt, state)
+    if not patch:
+        raise SyncError("the incoming patch is empty")
+    git(root, "diff", "--cached", "--quiet")
+    git(root, "diff", "--quiet", "HEAD", "--", *paths)
+    for row in changed_files(root, state.integrated, state.incoming):
+        path = state.master if row["path"] == state.published_main else row["path"]
+        if row["status"].startswith("A") and (root / path).exists():
+            raise SyncError(f"{path} already exists locally; reconcile it before incorporation")
+    git(root, "apply", "--check", "-", input=patch)
+    git(root, "var", "GIT_AUTHOR_IDENT")
+    git(root, "var", "GIT_COMMITTER_IDENT")
+    head = revision(root, "HEAD")
+    home = root / "build" / "incoming"
+    home.mkdir(parents=True, exist_ok=True)
+    patch_path = home / f"{state.incoming}.patch"
+    patch_path.write_bytes(patch)
+    prepared = {
+        "base": state.integrated,
+        "incoming": state.incoming,
+        "head": head,
+        "patch_sha256": hashlib.sha256(patch).hexdigest(),
+        "paths": paths,
+    }
+    from loom.render.build import build
+
+    manifest = build(quilt).manifest
+    incoming_review = manifest.get("incoming") or {}
+    if incoming_review.get("commit") != state.incoming:
+        raise SyncError("the incoming review changed; refresh and prepare again")
+    prepared["changed_keys"] = [change["key"] for change in incoming_review.get("changes", [])]
+    prepared["review_keys"] = sorted(
+        set(prepared["changed_keys"])
+        | {
+            dependent["key"]
+            for change in incoming_review.get("changes", [])
+            for dependent in change.get("affected", [])
+        }
+    )
+    _prepared_path(root, state.incoming).write_text(json.dumps(prepared, indent=2) + "\n", encoding="utf-8")
+    return {**prepared, "patch": str(patch_path), "root": str(root)}
+
+
+def _expected_blobs(root: Path, head: str, patch: bytes, paths: list[str]) -> dict[str, str | None]:
+    """Apply the reviewed patch to a temporary Git index, never to author files."""
+    with tempfile.TemporaryDirectory(prefix="loom-incoming-index-") as temp:
+        env = dict(os.environ)
+        env["GIT_INDEX_FILE"] = str(Path(temp) / "index")
+        git(root, "read-tree", head, env=env)
+        git(root, "apply", "--cached", "-", env=env, input=patch)
+        out: dict[str, str | None] = {}
+        for path in paths:
+            try:
+                out[path] = git(root, "rev-parse", f":{path}", env=env).decode().strip()
+            except SyncError:
+                out[path] = None
+        return out
+
+
+def finish_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
+    """Verify the author's Git application, then commit source and private sync metadata."""
+    root = quilt.root
+    if not state.incoming:
+        raise SyncError("there is no prepared incoming revision")
+    record = _prepared_path(root, state.incoming)
+    if not record.is_file():
+        raise SyncError("prepare this incoming revision before finishing")
+    prepared = json.loads(record.read_text(encoding="utf-8"))
+    paths = prepared["paths"]
+    patch_path = root / "build" / "incoming" / f"{state.incoming}.patch"
+    patch = patch_path.read_bytes()
+    if prepared["incoming"] != state.incoming or (
+        prepared["base"] != state.integrated and state.integrated != state.incoming
+    ):
+        raise SyncError("the incoming revision changed; prepare it again")
+    if hashlib.sha256(patch).hexdigest() != prepared["patch_sha256"]:
+        raise SyncError("the prepared patch changed; prepare it again")
+    expected = _expected_blobs(root, prepared["head"], patch, paths)
+    for path, blob in expected.items():
+        actual = root / path
+        if blob is None:
+            if actual.exists():
+                raise SyncError(f"{path} should have been removed by the patch")
+        elif (
+            actual.is_symlink() or not actual.is_file() or git(root, "hash-object", "--", path).decode().strip() != blob
+        ):
+            raise SyncError(f"{path} does not match the reviewed pull; apply the prepared patch exactly")
+    head = revision(root, "HEAD")
+    if state.integrated == state.incoming and state.local_commit and head != state.local_commit:
+        if revision(root, "HEAD^") == state.local_commit and git(
+            root, "diff", "--name-only", "HEAD^", "HEAD"
+        ).decode().splitlines() == [".loom/source-sync.json"]:
+            return {"source_commit": state.local_commit, "integrated": state.integrated, "paths": paths}
+    if head == prepared["head"]:
+        git(root, "diff", "--cached", "--quiet")
+        git(root, "add", "--", *paths)
+        git(
+            root,
+            "commit",
+            "-m",
+            f"Incorporate source from {state.remote}/{state.branch} {state.incoming[:12]}",
+            "--",
+            *paths,
+        )
+        head = revision(root, "HEAD")
+    else:
+        if revision(root, "HEAD^") != prepared["head"]:
+            raise SyncError("local Git history changed after preparation; reconcile before finishing")
+        committed = sorted(git(root, "diff", "--name-only", "HEAD^", "HEAD").decode().splitlines())
+        if committed != sorted(paths) or not git(root, "log", "-1", "--format=%s").decode().startswith(
+            "Incorporate source from "
+        ):
+            raise SyncError("the commit after preparation is not Loom's source incorporation commit")
+    if state.integrated != state.incoming:
+        state.integrated = state.incoming
+        state.local_commit = head
+        state.last_pull = {
+            "commit": state.incoming,
+            "observed": state.observed,
+            "keys": prepared["review_keys"],
+            "changed": prepared["changed_keys"],
+        }
+        for key in prepared["review_keys"]:
+            state.review_origins[key] = state.incoming
+            state.review_changed[key] = key in prepared["changed_keys"]
+        state.write(root)
+    if git(root, "status", "--porcelain", "--", ".loom/source-sync.json").strip():
+        git(root, "add", "--", ".loom/source-sync.json")
+        git(
+            root,
+            "commit",
+            "-m",
+            f"Record incorporated {state.remote}/{state.branch} revision {state.incoming[:12]}",
+            "--",
+            ".loom/source-sync.json",
+        )
+    return {"source_commit": head, "integrated": state.integrated, "paths": paths}
 
 
 def mark_incorporated(quilt: Quilt, state: SyncState) -> SyncState:

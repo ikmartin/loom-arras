@@ -217,6 +217,8 @@ resolved a-2026-09-16-0007
 
 `loom status --explain KEY` prints the key with its state, source file, comment counts, detached count, and each cause with a unified diff where snapshots exist. A cause's date is the first date Loom observed that active cause, kept in `.loom/review-observations.json` across subsequent scans. `loom review` publishes the review panel on demand; `loom build` and live `loom serve` publish it too. The panel's `text edit` link opens the current block with its accepted rendering beside it, using the preamble saved at acceptance. For a direct changed dependency, its name links to its citation in the dependent block, with the current dependency rendered beside it. An indirect `A via C` label is informational and has no link to A. A proof's own statement may appear as a cause without a redundant comparison control. Other causes retain readable details and diffs where available.
 
+**[decided]** An incoming pull may be prepared in the locally served review panel. Loom pins and checks the patch; the author runs the displayed `git apply` command in the local quilt, and Loom then verifies the exact resulting source before committing only the affected source paths and a separate private sync record. Neither step pushes to Overleaf or accepts mathematics. The Unresolved view includes affected blocks and older stale blocks with distinct cause labels. OK and Requires attention are saved private review decisions; OK remains pending until Finish review validates current text and dependencies and records the eligible acceptances together. A changed source invalidates its pending OK.
+
 ### 7.6.3 Derived node states
 
 **[decided]** Display only, never written:

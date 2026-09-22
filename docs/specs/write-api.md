@@ -1,6 +1,6 @@
 # Write API
 
-The write API is the HTTP form of the publisher's record-writing commands, so that a browser can do what the CLI does: create a thread, append a message, comment, reply, resolve, accept, discard. It is served by the publisher (loom's `serve`), never by the viewer. It writes only to the publisher's own record locations and never to source files. Interface version 1; status: built in plan 0.11.
+The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit Git sync steps. It is served by the publisher (loom's `serve`), never by the viewer. It never writes author source files. The sync finish action may write local Git commits after the author has applied a patch. Interface version 1; status: extended for source sync and pending review.
 
 **[decided]** The commands it wraps are library functions with the same signatures, and a viewer detects it rather than assuming it.
 
@@ -42,7 +42,16 @@ The write API is the HTTP form of the publisher's record-writing commands, so th
 
 **[decided]** `resolve` and `discard` are different acts and the API keeps them apart, as the log does. Resolved means the fault was addressed; discarded means it should not have been raised. Collapsing them loses the only record of which agent findings were worth having.
 
-Every successful write triggers a republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content.
+### Local source sync and pending review
+
+| method | path | body | effect |
+|---|---|---|---|
+| `POST` | `/_api/sync-prepare` | `{incoming}` | pins and checks an incoming Git patch, returning its absolute path and the quilt directory; changes no author file |
+| `POST` | `/_api/sync-finish` | `{incoming}` | verifies that the author applied the exact patch with Git, then commits only its source paths and the private sync record in separate local commits |
+| `POST` | `/_api/review-decision` | `{key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision without accepting mathematics |
+| `POST` | `/_api/review-finish` | `{}` | validates pending OK decisions and records eligible acceptances together |
+
+Every successful write triggers a republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. The sync endpoints are local-only actions: the browser cannot apply the patch, and Loom never writes an author file. `sync-finish` writes Git commits and Loom's sync record after verifying the author's Git application. It never pushes to Overleaf.
 
 ## 3. Authorship
 

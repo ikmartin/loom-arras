@@ -141,6 +141,16 @@ export interface IncomingReview {
   changes: IncomingChange[];
   files: { status: string; path: string; diff?: string }[];
   issues?: string[];
+  prepared?: { patch: string; root: string; incoming: string; paths: string[] };
+}
+
+export interface UnresolvedReview {
+  key: string;
+  status: 'needs-review' | 'ok' | 'requires-attention';
+  cause: 'incoming-pull' | 'earlier-change';
+  pull: string;
+  changed_text: boolean;
+  invalidated: boolean;
 }
 
 export interface Acceptance {
@@ -469,6 +479,7 @@ export interface Manifest {
   keys: Record<string, Key>;
   /** Fetched source waiting for incorporation; never changes a key's recorded state. */
   incoming?: IncomingReview;
+  unresolved?: UnresolvedReview[];
   regions: Record<string, Region>;
   relations?: Relation[];
   edges: Edge[];

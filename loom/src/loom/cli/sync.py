@@ -10,7 +10,18 @@ from typing import TypeVar
 import click
 
 from loom.cli._quilt import open_quilt, quilt_option
-from loom.sync import SyncError, SyncState, configure, fetch, incoming_patch, mark_incorporated, publish, summary
+from loom.sync import (
+    SyncError,
+    SyncState,
+    configure,
+    fetch,
+    finish_incorporation,
+    incoming_patch,
+    mark_incorporated,
+    prepare_incorporation,
+    publish,
+    summary,
+)
 
 
 @click.group()
@@ -99,6 +110,24 @@ def incorporated_sync(yes: bool, quilt_path: str | None) -> None:
     state = _run(lambda: mark_incorporated(quilt, SyncState.read(quilt.root)))
     assert isinstance(state, SyncState)
     click.echo(f"source incorporated through {state.integrated[:12]}; mathematical acceptances unchanged")
+
+
+@sync.command("prepare")
+@quilt_option
+def prepare_sync(quilt_path: str | None) -> None:
+    """Prepare a pinned patch for the author to apply with Git."""
+    quilt = open_quilt(quilt_path)
+    prepared = _run(lambda: prepare_incorporation(quilt, SyncState.read(quilt.root)))
+    click.echo(f"in {prepared['root']}: git apply '{prepared['patch']}'")
+
+
+@sync.command("finish")
+@quilt_option
+def finish_sync(quilt_path: str | None) -> None:
+    """Verify the author's Git application and commit the source and sync record."""
+    quilt = open_quilt(quilt_path)
+    result = _run(lambda: finish_incorporation(quilt, SyncState.read(quilt.root)))
+    click.echo(f"incorporated {result['integrated'][:12]} in local source commit {result['source_commit'][:12]}")
 
 
 @sync.command("publish")

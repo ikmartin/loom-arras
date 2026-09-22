@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	// The review panel (book 15.3.5): which keys are accepted, which have gone stale and why, and which mark a gap and what that gap blocks. A row expands in place to show the cause and its diff. The filters stand in the shell's left panel and live in the URL, so a home card opens this table already filtered.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
-	import type { Cause, IncomingChange, Key } from '$lib/manifest/types';
+	import type { Cause, IncomingChange, Key, UnresolvedReview } from '$lib/manifest/types';
 	import Badge from '$lib/components/Badge.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
@@ -14,9 +15,10 @@
 	import { anchorId, keyUrl, masterUrl, threadUrl } from '$lib/nav';
 	import { setQuery } from '$lib/query';
 	import { reachedExternal } from '$lib/reached';
+	import { can, write } from '$lib/write';
 
 	const m = $derived(store.manifest!);
-	const SHOWS = ['all', 'incoming', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external', 'classification', 'missing-proof'] as const;
+	const SHOWS = ['all', 'incoming', 'unresolved', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external', 'classification', 'missing-proof'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
 	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'all');
 	const master = $derived(q('document'));
@@ -24,6 +26,66 @@
 	const tag = $derived(q('tag'));
 	let open = $state('');
 	let blocksOpen = $state('');
+	let syncWritable = $state(false);
+	let syncBusy = $state(false);
+	let syncError = $state('');
+	let prepared = $state<{ patch: string; root: string; incoming: string; paths: string[] } | null>(null);
+	let syncFinished = $state(false);
+	let finishedPull = $state('');
+	let reviewWritable = $state(false);
+	let activeReview = $state('');
+	let reviewHistory = $state<string[]>([]);
+	let reviewError = $state('');
+	let reviewBusy = $state(false);
+	onMount(() => {
+		void can('sync-prepare').then((yes) => (syncWritable = yes));
+		void can('review-decision').then((yes) => (reviewWritable = yes));
+	});
+	const preparedPull = $derived(prepared ?? m.incoming?.prepared ?? null);
+	const pullFilter = $derived(q('pull'));
+	const unresolved = $derived((m.unresolved ?? []).filter((r) => !pullFilter || r.pull === pullFilter));
+	const needsReview = $derived(unresolved.filter((r) => r.status === 'needs-review'));
+	const pendingOk = $derived(unresolved.filter((r) => r.status === 'ok'));
+	const attention = $derived(unresolved.filter((r) => r.status === 'requires-attention'));
+	const reviewGroups = $derived([
+		{ heading: 'Needs review', entries: needsReview },
+		{ heading: 'Pending OK', entries: pendingOk },
+		{ heading: 'Requires attention', entries: attention }
+	]);
+	const activeEntry = $derived(unresolved.find((r) => r.key === activeReview));
+	const activeComparison = $derived(activeEntry ? m.keys[activeEntry.key]?.acceptance?.causes?.find((cause) => cause.comparison) : null);
+	async function reviewDecision(entry: UnresolvedReview, status: 'ok' | 'requires-attention') {
+		if (reviewBusy) return;
+		reviewBusy = true; reviewError = '';
+		const next = needsReview.find((r) => r.key !== entry.key)?.key ?? '';
+		const answer = await write('review-decision', { key: entry.key, status });
+		if (answer.ok) { reviewHistory = [...reviewHistory, entry.key]; activeReview = next; }
+		else reviewError = answer.error?.message ?? 'Could not save the decision';
+		reviewBusy = false;
+	}
+	async function finishReview() {
+		if (reviewBusy) return;
+		reviewBusy = true; reviewError = '';
+		const answer = await write('review-finish', {});
+		if (!answer.ok) reviewError = answer.error?.message ?? 'Could not finish review';
+		reviewBusy = false;
+	}
+	async function preparePull() {
+		if (!m.incoming || syncBusy) return;
+		syncBusy = true; syncError = '';
+		const answer = await write('sync-prepare', { incoming: m.incoming.commit });
+		if (answer.ok) prepared = answer.result as unknown as typeof prepared;
+		else syncError = answer.error?.message ?? 'Could not prepare the pull';
+		syncBusy = false;
+	}
+	async function finishPull() {
+		if (!preparedPull || syncBusy) return;
+		syncBusy = true; syncError = '';
+		const answer = await write('sync-finish', { incoming: preparedPull.incoming });
+		if (answer.ok) { syncFinished = true; finishedPull = preparedPull.incoming; prepared = null; }
+		else syncError = answer.error?.message ?? 'Could not finish incorporation';
+		syncBusy = false;
+	}
 
 	// An external node owes no proof and counts as settled as a dependency (7.6.3), so leaving the ones nothing
 	// depends on out of the queue removes noise without hiding work. What is left is the handful whose acceptance
@@ -38,6 +100,7 @@
 	const isStale = (k: (typeof keys)[number]) => !!k.acceptance && k.acceptance.fresh === false;
 	const missingProof = $derived(new Set(m.diagnostics.filter((d) => d.code === 'loom:missing-proof').flatMap((d) => d.keys)));
 	const counts = $derived({
+		unresolved: (m.unresolved ?? []).length,
 		accepted: keys.filter((k) => k.state === 'accepted').length,
 		stale: keys.filter(isStale).length,
 		draft: keys.filter((k) => k.state === 'draft').length,
@@ -99,6 +162,7 @@
 	const LEADS: Record<string, string> = {
 		all: 'Every statement and proof in this corpus, with the state recorded for it and, where an accepted text has since changed, the reason it is no longer current.',
 		incoming: 'Changes fetched from collaborators, before they are incorporated into the local draft. Potential effects do not change recorded states.',
+		unresolved: 'Blocks awaiting a mathematical review decision, including older changes and incorporated pulls. OK decisions are saved pending until Finish review.',
 		accepted: 'The texts someone has recorded as correct as they stand. One that has changed since is also listed under stale.',
 		stale: 'Accepted texts that have changed since, or rest on something that has, with the reason for each.',
 		draft: 'Texts nothing has been recorded about yet.',
@@ -118,12 +182,13 @@
 	{#if !m.masters.length}
 		<NoDrafts what="keys to review" />
 	{/if}
-	<p class="lead">{LEADS[filter]} Nothing here writes: states are recorded from the command line, and this page reads them back.</p>
+	<p class="lead">{LEADS[filter]} {filter === 'incoming' || filter === 'unresolved' ? 'When served locally, review actions save private decisions; incorporation is completed after you apply its patch with Git.' : 'Recorded states are read from Loom’s ledger.'}</p>
 	<p class="counts" data-testid="review-counts">
 		{#each [['accepted', counts.accepted], ['stale', counts.stale], ['draft', counts.draft], ['incomplete', counts.incomplete]] as [name, n], i (name)}
 			{#if i}<span class="sep">·</span>{/if}<button class="count" class:on={filter === name} aria-pressed={filter === name} onclick={() => show(name as string)} data-testid="show-{name}">{n} {name}</button>
 		{/each}
 		{#if m.incoming}<span class="sep">·</span><button class="count" class:on={filter === 'incoming'} aria-pressed={filter === 'incoming'} onclick={() => show('incoming')}>{m.incoming.changes.length} incoming changes</button>{/if}
+		<span class="sep">·</span><button class="count" class:on={filter === 'unresolved'} aria-pressed={filter === 'unresolved'} onclick={() => show('unresolved')}>{counts.unresolved} unresolved</button>
 		<span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
 		{#if needsClassification}<span class="sep">·</span><button class="count" class:on={filter === 'classification'} aria-pressed={filter === 'classification'} onclick={() => show('classification')}>{needsClassification} need classification</button>{/if}
 		{#if counts.missingProof}<span class="sep">·</span><button class="count" class:on={filter === 'missing-proof'} aria-pressed={filter === 'missing-proof'} onclick={() => show('missing-proof')}>{counts.missingProof} need proof</button>{/if}
@@ -132,6 +197,21 @@
 	{#if filter === 'incoming'}
 		{#if m.incoming}
 			<p class="faint">{m.incoming.remote}/{m.incoming.branch} · {m.incoming.commit.slice(0, 12)} · first observed {shortDate(m.incoming.observed)} · compared with {m.incoming.base.slice(0, 12)}</p>
+			{#if syncWritable}
+				<section class="incoming-change" data-testid="incoming-incorporation">
+					<h2>Incorporate this pull</h2>
+					<p>Review the whole pull below. Preparation writes a patch for you to apply with Git; finishing commits the source and private sync record locally. No Overleaf push or mathematical acceptance occurs.</p>
+					{#if preparedPull}
+						<p>In <code>{preparedPull.root}</code>, run this one command:</p>
+						<pre><code>git apply '{preparedPull.patch.replaceAll("'", "'\\''")}'</code></pre>
+						<p>{preparedPull.paths.length} source files · revision {preparedPull.incoming.slice(0, 12)}</p>
+						<button disabled={syncBusy} onclick={finishPull}>Verify and finish incorporation</button>
+					{:else}
+						<button disabled={syncBusy || !!m.incoming.issues?.length} onclick={preparePull}>Prepare incorporation</button>
+					{/if}
+					{#if syncError}<p class="incoming-warning" role="alert">{syncError}</p>{/if}
+				</section>
+			{/if}
 			{#each m.incoming.issues ?? [] as issue}<p class="incoming-warning">{issue}</p>{/each}
 			{#each m.incoming.changes as change (change.key)}
 				<section class="incoming-change" data-testid={`incoming-${change.key}`}>
@@ -149,7 +229,44 @@
 				<h2>Changed source files</h2>
 				<ul>{#each m.incoming.files as file (file.path)}<li>{file.status} · <code>{file.path}</code>{#if file.diff}<details><summary>Source diff</summary><pre class="incoming-file-diff">{file.diff}</pre></details>{/if}</li>{/each}</ul>
 			{/if}
-		{:else}<p class="faint">No fetched source is waiting for review.</p>{/if}
+		{:else}<p class="faint">No fetched source is waiting for review. {#if syncFinished}<a href={`?show=unresolved&pull=${encodeURIComponent(finishedPull)}`}>Review affected blocks</a>{/if}</p>{/if}
+	{:else if filter === 'unresolved'}
+		{#if pullFilter}<p><a href="?show=unresolved">Show all unresolved blocks</a> · Pull {pullFilter.slice(0, 12)}</p>{/if}
+		<p>{needsReview.length} need review · {pendingOk.length} pending OK · {attention.length} require attention</p>
+		{#if needsReview.length}<button onclick={() => (activeReview = needsReview[0].key)}>Start review</button>{/if}
+		{#if reviewError}<p class="incoming-warning" role="alert">{reviewError}</p>{/if}
+		{#if pendingOk.length && reviewWritable}<button disabled={reviewBusy} onclick={finishReview}>Finish review · record {pendingOk.length} acceptances</button>{/if}
+		{#if activeEntry}
+			<section class="incoming-change" data-testid="guided-review">
+				<h2>{activeEntry.key} · {activeEntry.cause === 'incoming-pull' ? `Incoming pull ${activeEntry.pull.slice(0, 12)}` : 'Earlier change'}</h2>
+				<p><a href={keyUrl(m, activeEntry.key)}>Open in document</a></p>
+				<div class="guided-pair">
+					<div class:guided-proof={m.keys[activeEntry.key]?.kind === 'proof'} class:guided-statement={m.keys[activeEntry.key]?.kind === 'statement'}>
+						<h3>Current block</h3>
+						{#if m.nodes[m.keys[activeEntry.key]?.node]?.fragment}<Fragment path={m.nodes[m.keys[activeEntry.key].node].fragment} />{/if}
+					</div>
+					{#if activeComparison?.comparison}
+						<div class="guided-comparison">
+							<h3>{activeComparison.kind === 'own-text-changed' ? 'Last accepted' : `Current dependency ${activeComparison.id ?? ''}`}</h3>
+							<Fragment path={activeComparison.kind === 'own-text-changed' ? activeComparison.comparison.accepted : activeComparison.comparison.current} macroSet={activeComparison.kind === 'own-text-changed' ? activeComparison.comparison.accepted_macros : undefined} isolatedMacros={activeComparison.kind === 'own-text-changed'} />
+						</div>
+					{/if}
+				</div>
+				{#each causes(activeEntry.key) as c, i}<p>{c.kind === 'own-text-changed' ? 'Text edit' : c.kind === 'dependency-changed' ? `Dependency changed: ${c.id}` : c.kind}{#if causeUrl(m.keys[activeEntry.key], c, i)} · <a href={causeUrl(m.keys[activeEntry.key], c, i)!}>Compare</a>{/if}</p>{/each}
+				{#if reviewWritable && activeEntry.status === 'needs-review'}
+					<p>{activeEntry.changed_text ? 'OK confirms the revised text and its dependencies.' : 'OK confirms this block in its current dependency context.'}</p>
+					<button disabled={reviewBusy} onclick={() => reviewDecision(activeEntry, 'ok')}>OK</button>{' '}
+					<button disabled={reviewBusy} onclick={() => reviewDecision(activeEntry, 'requires-attention')}>Requires attention</button>
+				{/if}
+				{#if reviewHistory.length}<button onclick={() => { activeReview = reviewHistory[reviewHistory.length - 1]; reviewHistory = reviewHistory.slice(0, -1); }}>Back</button>{/if}
+				{#if needsReview.some((r) => r.key !== activeEntry.key)}<button onclick={() => (activeReview = needsReview.find((r) => r.key !== activeEntry.key)?.key ?? '')}>Next</button>{/if}
+				<button onclick={() => (activeReview = '')}>Return to Unresolved</button>
+			</section>
+		{/if}
+		{#each reviewGroups as group}
+			<h2>{group.heading}</h2>
+			{#if group.entries.length}<ul>{#each group.entries as entry (entry.key)}<li><button class="as-link" onclick={() => (activeReview = entry.key)}>{entry.key}</button> · {entry.cause === 'incoming-pull' ? `Incoming pull ${entry.pull.slice(0, 12)}` : 'Earlier change'}{#if entry.invalidated} · changed since OK{/if}</li>{/each}</ul>{:else}<p class="faint">None.</p>{/if}
+		{/each}
 	{:else}
 	<table class="list">
 		<thead>
@@ -246,15 +363,21 @@
 
 <PagePanel label="Filters">
 	<div class="filters">
-		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="incoming">incoming</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option><option value="classification">needs classification</option><option value="missing-proof">needs proof</option></select></label>
+		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="incoming">incoming</option><option value="unresolved">unresolved</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option><option value="classification">needs classification</option><option value="missing-proof">needs proof</option></select></label>
 		<label>document<select value={master} onchange={set('document')}><option value="">any</option>{#each m.masters as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
 		<label>author<select value={author} onchange={set('author')}><option value="">any</option>{#each authors as a (a)}<option value={a}>{a}</option>{/each}</select></label>
 		<label>tag<select value={tag} onchange={set('tag')}><option value="">any</option>{#each Object.keys(m.tags).sort() as t (t)}<option value={t}>{t}</option>{/each}</select></label>
-		<p class="faint">{rows.length} of {keys.length} keys</p>
+		<p class="faint">{filter === 'unresolved' ? unresolved.length : filter === 'incoming' ? (m.incoming?.changes.length ?? 0) : rows.length} of {keys.length} keys</p>
 	</div>
 </PagePanel>
 
 <style>
+	.guided-pair { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: var(--gap-wide); }
+	.guided-pair > div { min-width: 0; max-height: 65vh; overflow: auto; }
+	.guided-pair h3 { font-size: 0.8rem; }
+	.guided-statement :global(details.env-proof) { display: none; }
+	.guided-proof :global(.env:not(.env-proof)) { display: none; }
+	@media (max-width: 900px) { .guided-pair { grid-template-columns: 1fr; } }
 	.incoming-change { border-top: 1px solid var(--rule); padding: var(--gap-wide) 0; }
 	.incoming-change h2 { font-size: 1rem; }
 	.incoming-warning { color: var(--state-stale); }

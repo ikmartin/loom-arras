@@ -414,6 +414,9 @@ def build(
     from loom.render.incoming import attach_incoming
 
     attach_incoming(result, renderer, manifest, files)
+    from loom.review_queue import rows_for
+
+    manifest["unresolved"] = rows_for(result, manifest)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [

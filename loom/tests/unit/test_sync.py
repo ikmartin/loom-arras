@@ -7,8 +7,21 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from loom.render.build import build
+from loom.review_queue import decide
 from loom.scan.quilt import load_quilt
-from loom.sync import SyncError, changed_files, configure, fetch, git, incoming_patch, publish, tree_files
+from loom.scan.scan import scan
+from loom.sync import (
+    SyncError,
+    changed_files,
+    configure,
+    fetch,
+    finish_incorporation,
+    git,
+    incoming_patch,
+    prepare_incorporation,
+    publish,
+    tree_files,
+)
 
 
 def run(root: Path, *args: str) -> str:
@@ -86,3 +99,33 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     else:
         raise AssertionError("publishing an unreviewed incoming revision must refuse")
     assert git(root, "show", f"{state.incoming}:main.tex").startswith(b"\\documentclass")
+    prepared = prepare_incorporation(quilt, state)
+    assert (root / "drafting/main.tex").read_bytes() == original
+    try:
+        finish_incorporation(quilt, state)
+    except SyncError as exc:
+        assert "does not match the reviewed pull" in str(exc)
+    else:
+        raise AssertionError("finishing before the author's Git apply must refuse")
+    git(root, "apply", prepared["patch"])
+    finished = finish_incorporation(quilt, state)
+    assert finished["integrated"] == state.incoming
+    assert run(root, "show", "--format=", "--name-only", "HEAD").splitlines() == [".loom/source-sync.json"]
+    assert sorted(run(root, "show", "--format=", "--name-only", "HEAD^").splitlines()) == [
+        "drafting/main.tex",
+        "new-section.tex",
+        "references.bib",
+    ]
+    assert (
+        run(root, "diff", "--name-only", "HEAD", "--", "drafting/main.tex", "new-section.tex", "references.bib") == ""
+    )
+    assert finish_incorporation(quilt, state)["integrated"] == state.incoming
+    unresolved = build(quilt).manifest["unresolved"]
+    assert [(row["key"], row["cause"], row["status"]) for row in unresolved] == [
+        ("zk-0001", "incoming-pull", "needs-review")
+    ]
+    decide(scan(quilt), "zk-0001", "ok")
+    assert build(quilt).manifest["unresolved"][0]["status"] == "ok"
+    (root / "drafting/main.tex").write_text(source.replace("zk-0001}A", "zk-0001}C"), encoding="utf-8")
+    changed = build(quilt).manifest["unresolved"][0]
+    assert changed["status"] == "needs-review" and changed["invalidated"]

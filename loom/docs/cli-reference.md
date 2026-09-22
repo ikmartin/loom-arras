@@ -1159,6 +1159,16 @@ Fetch Overleaf without changing author files, then publish Incoming review.
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom sync finish`
+
+`loom sync finish [OPTIONS]`
+
+Verify the author's Git application and commit the source and sync record.
+
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom sync incorporated`
 
 `loom sync incorporated [OPTIONS]`
@@ -1192,6 +1202,16 @@ Print a patch for the author to inspect and apply in the editor.
 | option | description |
 |---|---|
 | `--to` | Write the incoming Git patch to a new file. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom sync prepare`
+
+`loom sync prepare [OPTIONS]`
+
+Prepare a pinned patch for the author to apply with Git.
+
+| option | description |
+|---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom sync publish`

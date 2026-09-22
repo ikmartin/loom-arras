@@ -88,6 +88,28 @@ test('incoming review stays separate from recorded states and opens a document c
 	await expect(page.getByTestId('incoming-comparison')).toBeVisible();
 });
 
+test('Unresolved separates pull work, pending OK, and attention from older changes', async ({ page }) => {
+	await page.route('**/build/manifest.json', async (route) => {
+		const m = JSON.parse(JSON.stringify(manifest));
+		m.unresolved = [
+			{ key: 'sy-0001', status: 'needs-review', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: true, invalidated: false },
+			{ key: 'sy-0002', status: 'ok', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: false, invalidated: false },
+			{ key: 'sy-0003', status: 'requires-attention', cause: 'earlier-change', pull: '', changed_text: false, invalidated: false }
+		];
+		await route.fulfill({ json: m });
+	});
+	await page.goto('/review?show=unresolved');
+	await expect(page.getByTestId('review-counts')).toContainText('3 unresolved');
+	await expect(page.getByRole('heading', { name: /needs review/i })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /pending ok/i })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /requires attention/i })).toBeVisible();
+	await page.getByRole('button', { name: 'Start review' }).click();
+	await expect(page.getByTestId('guided-review')).toContainText('sy-0001');
+	await expect(page.getByTestId('guided-review')).toContainText('Incoming pull');
+	await page.getByRole('button', { name: 'Return to Unresolved' }).click();
+	await expect(page.getByTestId('guided-review')).toHaveCount(0);
+});
+
 test('interface version mismatch shows one diagnostic and nothing else', async ({ page }) => {
 	await page.route('**/build/manifest.json', async (route) => {
 		const m = JSON.parse(JSON.stringify(manifest));
