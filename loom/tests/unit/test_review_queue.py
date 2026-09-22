@@ -38,13 +38,17 @@ def test_requires_attention_returns_to_queue_when_block_changes(tmp_path: Path) 
     assert row["status"] == "requires-attention"
 
     path = root / "drafting" / "main.tex"
-    path.write_text(path.read_text(encoding="utf-8").replace("a pair of a set", "a pair consisting of a set"), encoding="utf-8")
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("a pair of a set", "a pair consisting of a set"), encoding="utf-8"
+    )
     changed = next(row for row in build(load_quilt(root)).manifest["unresolved"] if row["key"] == "sy-0001")
     assert changed["status"] == "needs-review"
     assert changed["invalidated"] is True
 
 
-def test_transitive_attention_clears_after_upstream_ok_is_finished(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_transitive_attention_clears_after_upstream_ok_is_finished(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     source = Path(__file__).resolve().parents[1] / "quilts" / "synthetic"
     root = tmp_path / "quilt"
     shutil.copytree(source, root, ignore=shutil.ignore_patterns("build", ".git"))
@@ -53,7 +57,9 @@ def test_transitive_attention_clears_after_upstream_ok_is_finished(tmp_path: Pat
     proof_acceptance = Records(root, quilt.history_dir).latest["sy-0002/proof"]
 
     path = root / "drafting" / "main.tex"
-    path.write_text(path.read_text(encoding="utf-8").replace("a pair of a set", "a pair consisting of a set"), encoding="utf-8")
+    path.write_text(
+        path.read_text(encoding="utf-8").replace("a pair of a set", "a pair consisting of a set"), encoding="utf-8"
+    )
     manifest = build(quilt).manifest
     assert manifest["keys"]["sy-0002/proof"]["acceptance"]["fresh"] is False
     assert any(c.get("via") == "sy-0002" for c in manifest["keys"]["sy-0002/proof"]["acceptance"]["causes"])

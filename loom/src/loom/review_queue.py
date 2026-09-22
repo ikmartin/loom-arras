@@ -51,7 +51,9 @@ def _latest_pull_baselines(result: ScanResult, sync: SyncState) -> dict[str, str
         names = set(git(root, "ls-tree", "-r", "--name-only", "-z", sync.local_commit).decode().split("\0"))
         sources = {name for name in names | set(result.files) if name.endswith((".tex", ".sty", ".cls"))}
         overlay = {
-            name: git(root, "show", f"{sync.local_commit}:{name}").decode("utf-8", errors="replace") if name in names else ""
+            name: git(root, "show", f"{sync.local_commit}:{name}").decode("utf-8", errors="replace")
+            if name in names
+            else ""
             for name in sources
         }
         previous = scan(result.quilt, overlay=overlay)
@@ -136,8 +138,10 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
         # A current pending OK provisionally covers indirect causes through
         # that block. Keep a dependent with any direct or independent cause,
         # and keep its own explicit OK visible until Finish review.
-        if status != "ok" and causes and all(
-            cause.get("kind") == "dependency-changed" and cause.get("via") in pending_ok for cause in causes
+        if (
+            status != "ok"
+            and causes
+            and all(cause.get("kind") == "dependency-changed" and cause.get("via") in pending_ok for cause in causes)
         ):
             continue
         cause = "incoming-pull" if key in pull_keys else "earlier-change"

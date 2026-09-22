@@ -193,7 +193,7 @@ def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
     home.mkdir(parents=True, exist_ok=True)
     patch_path = home / f"{state.incoming}.patch"
     patch_path.write_bytes(patch)
-    prepared = {
+    prepared: dict[str, Any] = {
         "base": state.integrated,
         "incoming": state.incoming,
         "head": head,
@@ -221,7 +221,11 @@ def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
     current = scan(quilt)
     prepared["local_before"] = {
         key: state.review_local_changed.get(key, False)
-        or (key in state.review_baselines and key in current.nodes and fingerprint(current, key) != state.review_baselines[key])
+        or (
+            key in state.review_baselines
+            and key in current.nodes
+            and fingerprint(current, key) != state.review_baselines[key]
+        )
         for key in prepared["review_keys"]
     }
     _prepared_path(root, state.incoming).write_text(json.dumps(prepared, indent=2) + "\n", encoding="utf-8")
