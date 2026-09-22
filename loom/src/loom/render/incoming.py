@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -156,13 +155,3 @@ def attach_incoming(
             "files": _source_files(root, state),
             "issues": issues,
         }
-        prepared = root / "build" / "incoming" / f"{state.incoming}.json"
-        if prepared.is_file():
-            details = json.loads(prepared.read_text(encoding="utf-8"))
-            if details.get("base") == state.integrated and details.get("incoming") == state.incoming:
-                manifest["incoming"]["prepared"] = {
-                    "patch": str(root / "build" / "incoming" / f"{state.incoming}.patch"),
-                    "root": str(root),
-                    "incoming": state.incoming,
-                    "paths": details["paths"],
-                }

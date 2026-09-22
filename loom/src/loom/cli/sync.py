@@ -1,4 +1,4 @@
-"""Explicit source-only Git sync; Arras reads the resulting review but writes no source."""
+"""Explicit source-only Git sync; local Arras may incorporate a reviewed pull."""
 
 from __future__ import annotations
 

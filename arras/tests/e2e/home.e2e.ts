@@ -6,17 +6,17 @@ test('home page renders the fixture manifest', async ({ page }) => {
 	await expect(page.getByTestId('counts')).toContainText('nodes');
 });
 
-test('home page leads with the four metric cards, each opening the table of what it counts', async ({ page }) => {
+test('home page leads with four metric cards which open the complete review table', async ({ page }) => {
 	await page.goto('/');
 	for (const name of ['accepted', 'stale', 'incomplete', 'errors']) {
 		await expect(page.getByTestId(`card-${name}`)).toBeVisible();
 	}
-	await expect(page.getByTestId('card-accepted')).toHaveAttribute('href', '/review?show=accepted');
-	await expect(page.getByTestId('card-stale')).toHaveAttribute('href', '/review?show=stale');
+	await expect(page.getByTestId('card-accepted')).toHaveAttribute('href', '/review?show=all');
+	await expect(page.getByTestId('card-stale')).toHaveAttribute('href', '/review?show=all');
 	await expect(page.getByTestId('card-errors')).toHaveAttribute('href', '/problems?severity=error');
 	await page.getByTestId('card-incomplete').click();
-	await expect(page).toHaveURL(/\/review\?show=incomplete$/);
-	await expect(page.getByTestId('filter-show')).toHaveValue('incomplete');
+	await expect(page).toHaveURL(/\/review\?show=all$/);
+	await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'All' })).toHaveAttribute('aria-current', 'page');
 });
 
 test('home page lists the documents and what needs attention', async ({ page }) => {

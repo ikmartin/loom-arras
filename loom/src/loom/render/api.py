@@ -1,6 +1,10 @@
 """The write API: the HTTP form of loom's record-writing commands (specs/write-api.md, plan 0.11 Part G).
 
-Served by the publisher, never by the viewer, and it writes only to loom's own record locations -- never to a source file. Every endpoint wraps the same library function the CLI calls, so there is one implementation of what a comment is and the two surfaces cannot drift.
+Served by the publisher, never by the viewer. Most endpoints write only Loom's
+private records. The explicit ``sync-incorporate`` endpoint is the narrow
+exception: it applies the already displayed pull to author files and records
+two local commits. Every endpoint wraps a library function so its behavior is
+shared with recovery and test surfaces.
 
 Nothing here wakes an agent. An agent pulls: it reads open findings with `loom status` and `loom ai findings` and answers with `loom comment --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
 """
@@ -32,8 +36,7 @@ CAPABILITIES = [
     "session-reopen",
     "session-purpose",
     "message",
-    "sync-prepare",
-    "sync-finish",
+    "sync-incorporate",
     "review-decision",
     "review-finish",
 ]
@@ -94,24 +97,23 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _locate(root, body)
     if endpoint == "message":
         return _message(root, body)
-    if endpoint in ("sync-prepare", "sync-finish"):
+    if endpoint == "sync-incorporate":
         from loom.scan.quilt import load_quilt
-        from loom.sync import SyncError, SyncState, finish_incorporation, prepare_incorporation
+        from loom.sync import SyncError, SyncState, incorporate_pull
 
         try:
             quilt = load_quilt(root)
             state = SyncState.read(root)
             incoming = _str(body, "incoming", required=True)
+            base = _str(body, "base", required=True)
             if incoming != state.incoming:
                 raise ApiError("revision-changed", "the fetched revision changed; reload Incoming")
-            result = (
-                prepare_incorporation(quilt, state)
-                if endpoint == "sync-prepare"
-                else finish_incorporation(quilt, state)
-            )
+            if base != state.integrated and state.integrated != state.incoming:
+                raise ApiError("revision-changed", "the incorporated base changed; reload Incoming")
+            sync_result = incorporate_pull(quilt, state)
         except SyncError as exc:
             raise ApiError("sync-refused", str(exc), status=409) from exc
-        return {"ok": True, "result": result}
+        return {"ok": True, "result": sync_result}
     if endpoint in ("review-decision", "review-finish"):
         from loom.cli._quilt import open_scan
         from loom.cli.review import _author, _master_compiles, write_acceptance

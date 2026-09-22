@@ -1,8 +1,10 @@
 """The source-only Git bridge for an Overleaf-backed quilt.
 
 The quilt branch owns Loom's records.  The remote branch owns only the files
-needed to compile the selected master.  Git transports both histories; Loom
-never merges into, or writes, an author's drafting files.
+needed to compile the selected master.  Git transports both histories.  The
+one operation that writes author files is an explicit, locally served
+``Incorporate pull`` action: it applies the exact reviewed patch and records
+two local commits, without pushing or accepting mathematics.
 """
 
 from __future__ import annotations
@@ -39,6 +41,8 @@ class SyncState:
     last_pull: dict[str, Any] = field(default_factory=dict)
     review_origins: dict[str, str] = field(default_factory=dict)
     review_changed: dict[str, bool] = field(default_factory=dict)
+    review_baselines: dict[str, str] = field(default_factory=dict)
+    review_local_changed: dict[str, bool] = field(default_factory=dict)
 
     @classmethod
     def read(cls, root: Path) -> SyncState:
@@ -165,7 +169,7 @@ def _prepared_path(root: Path, incoming: str) -> Path:
 
 
 def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
-    """Preflight one pinned pull and save a patch for the author to apply with Git."""
+    """Preflight one pinned pull and save its exact checked transaction."""
     root = quilt.root
     if not state.incoming or state.incoming == state.integrated:
         raise SyncError("there is no incoming revision to incorporate")
@@ -211,8 +215,58 @@ def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
             for dependent in change.get("affected", [])
         }
     )
+    from loom.review_queue import fingerprint
+    from loom.scan.scan import scan
+
+    current = scan(quilt)
+    prepared["local_before"] = {
+        key: state.review_local_changed.get(key, False)
+        or (key in state.review_baselines and key in current.nodes and fingerprint(current, key) != state.review_baselines[key])
+        for key in prepared["review_keys"]
+    }
     _prepared_path(root, state.incoming).write_text(json.dumps(prepared, indent=2) + "\n", encoding="utf-8")
     return {**prepared, "patch": str(patch_path), "root": str(root)}
+
+
+def incorporate_pull(quilt: Quilt, state: SyncState) -> dict[str, Any]:
+    """Apply one reviewed pull and record its two local commits.
+
+    Preparation checks every condition before this function changes an author
+    file.  A failed ``git apply --check`` therefore leaves the source alone.
+    The saved transaction also makes a retry able to complete the private sync
+    commit if the source commit was already made.
+    """
+    root = quilt.root
+    requested = state.incoming
+    if not requested:
+        raise SyncError("there is no incoming revision to incorporate")
+    if state.integrated == requested:
+        return finish_incorporation(quilt, state)
+
+    prepared = prepare_incorporation(quilt, state)
+    patch_path = root / "build" / "incoming" / f"{requested}.patch"
+    patch = patch_path.read_bytes()
+    try:
+        # prepare_incorporation has already run --check against the same pinned
+        # bytes.  Do not request a three-way merge: a conflict must stop before
+        # Git writes conflict markers into an author file.
+        git(root, "apply", "-", input=patch)
+        return finish_incorporation(quilt, state)
+    except SyncError:
+        # If no commit was made, every affected path was clean at preflight and
+        # can be restored to the pinned HEAD.  Once the source commit exists,
+        # keep it: finish_incorporation is deliberately resumable and will
+        # complete the private sync-record commit on retry.
+        if revision(root, "HEAD") == prepared["head"]:
+            present = set(tree_files(root, prepared["head"]))
+            existing = [path for path in prepared["paths"] if path in present]
+            if existing:
+                git(root, "restore", "--worktree", "--source", prepared["head"], "--", *existing)
+            for path in set(prepared["paths"]) - present:
+                candidate = root / path
+                if candidate.exists() and candidate.is_file():
+                    candidate.unlink()
+        raise
 
 
 def _expected_blobs(root: Path, head: str, patch: bytes, paths: list[str]) -> dict[str, str | None]:
@@ -264,7 +318,12 @@ def finish_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
         if revision(root, "HEAD^") == state.local_commit and git(
             root, "diff", "--name-only", "HEAD^", "HEAD"
         ).decode().splitlines() == [".loom/source-sync.json"]:
-            return {"source_commit": state.local_commit, "integrated": state.integrated, "paths": paths}
+            return {
+                "source_commit": state.local_commit,
+                "sync_commit": head,
+                "integrated": state.integrated,
+                "paths": paths,
+            }
     if head == prepared["head"]:
         git(root, "diff", "--cached", "--quiet")
         git(root, "add", "--", *paths)
@@ -286,6 +345,10 @@ def finish_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
         ):
             raise SyncError("the commit after preparation is not Loom's source incorporation commit")
     if state.integrated != state.incoming:
+        from loom.review_queue import fingerprint
+        from loom.scan.scan import scan
+
+        incorporated = scan(quilt)
         state.integrated = state.incoming
         state.local_commit = head
         state.last_pull = {
@@ -297,6 +360,9 @@ def finish_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
         for key in prepared["review_keys"]:
             state.review_origins[key] = state.incoming
             state.review_changed[key] = key in prepared["changed_keys"]
+            if key in incorporated.nodes:
+                state.review_baselines[key] = fingerprint(incorporated, key)
+            state.review_local_changed[key] = prepared.get("local_before", {}).get(key, False)
         state.write(root)
     if git(root, "status", "--porcelain", "--", ".loom/source-sync.json").strip():
         git(root, "add", "--", ".loom/source-sync.json")
@@ -308,7 +374,12 @@ def finish_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
             "--",
             ".loom/source-sync.json",
         )
-    return {"source_commit": head, "integrated": state.integrated, "paths": paths}
+    return {
+        "source_commit": head,
+        "sync_commit": revision(root, "HEAD"),
+        "integrated": state.integrated,
+        "paths": paths,
+    }
 
 
 def mark_incorporated(quilt: Quilt, state: SyncState) -> SyncState:

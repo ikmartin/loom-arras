@@ -1,6 +1,6 @@
 <script lang="ts">
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
-	// Home (book 15.3.4): four metric cards, then what needs attention, what is blocked, and where to go. Every line links, and each card opens the table of exactly what it counts.
+	// Home (book 15.3.4): four metric cards, then what needs attention, what is blocked, and where to go.
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, keyUrl, masterUrl, nodeUrl } from '$lib/nav';
 	import { route } from '$lib/paths';
@@ -16,9 +16,9 @@
 	const loose = $derived(nodes.filter((n) => n.reached_by.length === 0));
 
 	const cards = $derived([
-		{ label: 'accepted', value: count('accepted'), tone: 'positive', href: '/review?show=accepted' },
-		{ label: 'stale', value: stale.length, tone: 'warning', href: '/review?show=stale' },
-		{ label: 'incomplete', value: incomplete.length, tone: 'negative', href: '/review?show=incomplete' },
+		{ label: 'accepted', value: count('accepted'), tone: 'positive', href: '/review?show=all' },
+		{ label: 'stale', value: stale.length, tone: 'warning', href: '/review?show=all' },
+		{ label: 'incomplete', value: incomplete.length, tone: 'negative', href: '/review?show=all' },
 		{ label: 'errors', value: errors.length, tone: errors.length ? 'negative' : 'neutral', href: '/problems?severity=error' }
 	]);
 
@@ -80,15 +80,15 @@
 				<li><a href={keyUrl(m, k.key)}>{title(k.key)}</a> <span class="faint">incomplete</span></li>
 			{/each}
 		</ul>
-		{#if stale.length > 8}<p class="faint"><a href="/review?show=stale">all {stale.length} stale</a></p>{/if}
-		{#if incomplete.length > 8}<p class="faint"><a href="/review?show=incomplete">all {incomplete.length} incomplete</a></p>{/if}
+		{#if stale.length > 8}<p class="faint"><a href="/review?show=all">all {stale.length} stale</a></p>{/if}
+		{#if incomplete.length > 8}<p class="faint"><a href="/review?show=all">all {incomplete.length} incomplete</a></p>{/if}
 	{:else}
 		<p class="faint">nothing is stale and nothing is incomplete</p>
 	{/if}
 
 	<h2>Blocked</h2>
 	{#if incomplete.length}
-		<p><a href="/review?show=incomplete">{incomplete.length} incomplete keys and what they block</a></p>
+		<p><a href="/review?show=all">{incomplete.length} incomplete keys and what they block</a></p>
 	{:else}
 		<p class="faint">nothing is blocked</p>
 	{/if}

@@ -150,6 +150,8 @@ export interface UnresolvedReview {
   cause: 'incoming-pull' | 'earlier-change';
   pull: string;
   changed_text: boolean;
+  /** Null means an older sync record has no post-pull baseline. */
+  local_changed?: boolean | null;
   invalidated: boolean;
 }
 

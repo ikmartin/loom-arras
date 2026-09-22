@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
-	// The review panel (book 15.3.5): which keys are accepted, which have gone stale and why, and which mark a gap and what that gap blocks. A row expands in place to show the cause and its diff. The filters stand in the shell's left panel and live in the URL, so a home card opens this table already filtered.
+	// All is the complete ledger. Needs review is the ordered block queue. Incoming is the exact collaborator pull before it changes local source.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Cause, IncomingChange, Key, UnresolvedReview } from '$lib/manifest/types';
@@ -9,41 +9,34 @@
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
 	import HelpDot from '$lib/components/HelpDot.svelte';
-	import PagePanel from '$lib/shell/PagePanel.svelte';
 	import { reviewFacts, reviewRowBadge, shortDate } from '$lib/badges';
 	import { downstream } from '$lib/graph/layout';
 	import { anchorId, keyUrl, masterUrl, threadUrl } from '$lib/nav';
-	import { setQuery } from '$lib/query';
 	import { reachedExternal } from '$lib/reached';
 	import { can, write } from '$lib/write';
 
 	const m = $derived(store.manifest!);
-	const SHOWS = ['all', 'incoming', 'unresolved', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external', 'classification', 'missing-proof'] as const;
+	const SHOWS = ['all', 'needs-review', 'incoming'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
 	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'all');
-	const master = $derived(q('document'));
-	const author = $derived(q('author'));
-	const tag = $derived(q('tag'));
 	let open = $state('');
 	let blocksOpen = $state('');
 	let syncWritable = $state(false);
 	let syncBusy = $state(false);
 	let syncError = $state('');
-	let prepared = $state<{ patch: string; root: string; incoming: string; paths: string[] } | null>(null);
-	let syncFinished = $state(false);
-	let finishedPull = $state('');
+	let syncResult = $state<{ source_commit: string; sync_commit: string; integrated: string; paths: string[] } | null>(null);
 	let reviewWritable = $state(false);
 	let activeReview = $state('');
 	let reviewHistory = $state<string[]>([]);
 	let reviewError = $state('');
 	let reviewBusy = $state(false);
+	let guidedRoot = $state<HTMLElement | null>(null);
+	let guidedMount = $state(0);
 	onMount(() => {
-		void can('sync-prepare').then((yes) => (syncWritable = yes));
+		void can('sync-incorporate').then((yes) => (syncWritable = yes));
 		void can('review-decision').then((yes) => (reviewWritable = yes));
 	});
-	const preparedPull = $derived(prepared ?? m.incoming?.prepared ?? null);
-	const pullFilter = $derived(q('pull'));
-	const unresolved = $derived((m.unresolved ?? []).filter((r) => !pullFilter || r.pull === pullFilter));
+	const unresolved = $derived(m.unresolved ?? []);
 	const needsReview = $derived(unresolved.filter((r) => r.status === 'needs-review'));
 	const pendingOk = $derived(unresolved.filter((r) => r.status === 'ok'));
 	const attention = $derived(unresolved.filter((r) => r.status === 'requires-attention'));
@@ -54,6 +47,34 @@
 	]);
 	const activeEntry = $derived(unresolved.find((r) => r.key === activeReview));
 	const activeComparison = $derived(activeEntry ? m.keys[activeEntry.key]?.acceptance?.causes?.find((cause) => cause.comparison) : null);
+	const reviewOrigin = (entry: UnresolvedReview) => entry.cause === 'incoming-pull'
+		? entry.local_changed === true ? `Pull ${entry.pull.slice(0, 12)} + local edits` : entry.local_changed == null ? `Pull ${entry.pull.slice(0, 12)} · later edits unverified` : `Incoming pull ${entry.pull.slice(0, 12)}`
+		: 'Local change';
+	$effect(() => {
+		void guidedMount;
+		const root = guidedRoot;
+		const key = activeEntry?.key;
+		if (!root || !key) return;
+		const targets = (m.keys[key]?.acceptance?.causes ?? [])
+			.filter((cause) => cause.kind === 'dependency-changed' && cause.citation && !cause.via)
+			.map((cause) => root.querySelector<HTMLElement>(`#${CSS.escape(cause.citation!)}`))
+			.filter((target): target is HTMLElement => !!target);
+		for (const target of targets) target.classList.add('review-citation-target');
+		const first = root.querySelector<HTMLElement>('.review-citation-target');
+		const pane = root.closest<HTMLElement>('.guided-current');
+		if (pane) pane.scrollTop = 0;
+		if (first && pane) {
+			const top = first.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop;
+			pane.scrollTop = Math.max(0, top - 16);
+		}
+		if (pane) {
+			const paneTop = pane.getBoundingClientRect().top;
+			if (paneTop < 16 || paneTop > window.innerHeight - 100) {
+				window.scrollBy({ top: paneTop - 16, behavior: 'auto' });
+			}
+		}
+		return () => { for (const target of targets) target.classList.remove('review-citation-target'); };
+	});
 	async function reviewDecision(entry: UnresolvedReview, status: 'ok' | 'requires-attention') {
 		if (reviewBusy) return;
 		reviewBusy = true; reviewError = '';
@@ -70,20 +91,12 @@
 		if (!answer.ok) reviewError = answer.error?.message ?? 'Could not finish review';
 		reviewBusy = false;
 	}
-	async function preparePull() {
+	async function incorporatePull() {
 		if (!m.incoming || syncBusy) return;
 		syncBusy = true; syncError = '';
-		const answer = await write('sync-prepare', { incoming: m.incoming.commit });
-		if (answer.ok) prepared = answer.result as unknown as typeof prepared;
-		else syncError = answer.error?.message ?? 'Could not prepare the pull';
-		syncBusy = false;
-	}
-	async function finishPull() {
-		if (!preparedPull || syncBusy) return;
-		syncBusy = true; syncError = '';
-		const answer = await write('sync-finish', { incoming: preparedPull.incoming });
-		if (answer.ok) { syncFinished = true; finishedPull = preparedPull.incoming; prepared = null; }
-		else syncError = answer.error?.message ?? 'Could not finish incorporation';
+		const answer = await write('sync-incorporate', { incoming: m.incoming.commit, base: m.incoming.base });
+		if (answer.ok) syncResult = answer.result as unknown as typeof syncResult;
+		else syncError = answer.error?.message ?? 'Could not incorporate the pull';
 		syncBusy = false;
 	}
 
@@ -94,13 +107,12 @@
 	const keys = $derived(
 		Object.values(m.keys).filter((k) => {
 			const n = m.nodes[k.node];
-			return !n?.external || !!n.reached_by.length || reached.has(k.node) || filter === 'external';
+			return !n?.external || !!n.reached_by.length || reached.has(k.node);
 		})
 	);
 	const isStale = (k: (typeof keys)[number]) => !!k.acceptance && k.acceptance.fresh === false;
 	const missingProof = $derived(new Set(m.diagnostics.filter((d) => d.code === 'loom:missing-proof').flatMap((d) => d.keys)));
 	const counts = $derived({
-		unresolved: (m.unresolved ?? []).length,
 		accepted: keys.filter((k) => k.state === 'accepted').length,
 		stale: keys.filter(isStale).length,
 		draft: keys.filter((k) => k.state === 'draft').length,
@@ -109,26 +121,8 @@
 		settled: keys.filter((k) => k.kind === 'statement' && m.nodes[k.node]?.derived?.settled).length,
 		missingProof: keys.filter((k) => k.kind === 'statement' && missingProof.has(k.key)).length
 	});
-	const needsClassification = $derived(keys.filter((k) => m.nodes[k.node]?.basis === 'unclassified' && m.nodes[k.node]?.reached_by.length).length);
 	const undigested = $derived(Object.values(m.references).filter((r) => !r.digest && r.cited_by.length).map((r) => r.citekey));
-	const rows = $derived(
-		keys.filter((k) => {
-			const n = m.nodes[k.node];
-			if (filter === 'accepted' && k.state !== 'accepted') return false;
-			if (filter === 'stale' && !isStale(k)) return false;
-			if (filter === 'draft' && k.state !== 'draft') return false;
-			if (filter === 'incomplete' && k.state !== 'incomplete') return false;
-			if (filter === 'loose' && n?.reached_by.length) return false;
-			if (filter === 'retired' && !k.previous_key_match) return false;
-			if (filter === 'external' && !m.nodes[k.node]?.external) return false;
-			if (filter === 'classification' && (n?.basis !== 'unclassified' || !n.reached_by.length)) return false;
-			if (filter === 'missing-proof' && !missingProof.has(k.key)) return false;
-			if (master && !n?.reached_by.includes(master)) return false;
-			if (author && !(n?.author ?? []).includes(author) && k.acceptance?.author !== author) return false;
-			if (tag && !n?.tags.includes(tag)) return false;
-			return true;
-		})
-	);
+	const rows = $derived(keys);
 	// What a gap blocks: everything that rests on the node carrying it. Computed only for rows that mark one, since the walk is per node.
 	const blocks = $derived(new Map(rows.filter((k) => k.incomplete.length).map((k) => [k.key, [...downstream(m, k.node)].sort()])));
 	// A column nothing in the current rows fills is not drawn, so a filtered table is not mostly empty headings.
@@ -137,7 +131,6 @@
 	const hasCauses = $derived(rows.some((k) => k.acceptance?.causes?.length || k.previous_key_match));
 	const cols = $derived(5 + (hasCauses ? 1 : 0) + (hasFacts ? 1 : 0) + (hasIncomplete ? 2 : 0));
 
-	const authors = $derived([...new Set([...Object.values(m.nodes).flatMap((n) => n.author ?? []), ...keys.map((k) => k.acceptance?.author).filter(Boolean)])].sort() as string[]);
 	const records = $derived([...new Set(Object.values(m.annotations).map((a) => a.run ?? a.record))].sort());
 	const threads = $derived(Object.values(m.threads));
 	const causes = (k: string) => m.keys[k]?.acceptance?.causes ?? [];
@@ -160,21 +153,10 @@
 	}
 
 	const LEADS: Record<string, string> = {
-		all: 'Every statement and proof in this corpus, with the state recorded for it and, where an accepted text has since changed, the reason it is no longer current.',
-		incoming: 'Changes fetched from collaborators, before they are incorporated into the local draft. Potential effects do not change recorded states.',
-		unresolved: 'Blocks awaiting a mathematical review decision, including older changes and incorporated pulls. OK decisions are saved pending until Finish review.',
-		accepted: 'The texts someone has recorded as correct as they stand. One that has changed since is also listed under stale.',
-		stale: 'Accepted texts that have changed since, or rest on something that has, with the reason for each.',
-		draft: 'Texts nothing has been recorded about yet.',
-		incomplete: 'Each text that marks a gap in itself, and what rests on it. A result whose proof is incomplete is not proved, and neither is anything that uses it.',
-		loose: 'Texts no document reaches, so nothing depends on them yet.',
-		retired: 'Acceptances recorded under an earlier key that now match this one; re-accept to confirm.',
-		external: 'Results stated in digests of cited papers, including the ones nothing here uses.',
-		classification: 'Blocks whose basis is unclear. Add % !LOOM basis: expository, local-proof, cited-result, assumption, or open-claim inside the drafting block, then rescan.',
-		'missing-proof': 'Local-proof blocks with no attached proof and no incomplete marker. Open a block to inspect its statement and source location.'
+		all: 'Every statement and proof in this corpus, with its recorded state and review facts.',
+		'needs-review': 'An ordered block queue. OK decisions remain pending until Finish review records their acceptances together.',
+		incoming: 'The exact collaborator revision, its changed files, and its potential effects before incorporation.'
 	};
-	const set = (name: string, fallback = '') => (e: Event) => void setQuery(page.url, name, (e.currentTarget as HTMLSelectElement).value, fallback);
-	const show = (v: string) => void setQuery(page.url, 'show', filter === v ? 'all' : v, 'all');
 </script>
 
 <main class="page">
@@ -182,37 +164,30 @@
 	{#if !m.masters.length}
 		<NoDrafts what="keys to review" />
 	{/if}
-	<p class="lead">{LEADS[filter]} {filter === 'incoming' || filter === 'unresolved' ? 'When served locally, review actions save private decisions; incorporation is completed after you apply its patch with Git.' : 'Recorded states are read from Loom’s ledger.'}</p>
+	<nav class="review-tabs" aria-label="Review views">
+		<a class:active={filter === 'all'} aria-current={filter === 'all' ? 'page' : undefined} href="?show=all">All</a>
+		<a class:active={filter === 'needs-review'} aria-current={filter === 'needs-review' ? 'page' : undefined} href="?show=needs-review">Needs Review ({needsReview.length})</a>
+		<a class:active={filter === 'incoming'} aria-current={filter === 'incoming' ? 'page' : undefined} href="?show=incoming">Incoming ({m.incoming?.changes.length ?? 0})</a>
+	</nav>
+	<p class="lead">{LEADS[filter]} {filter === 'all' ? 'Recorded states are read from Loom’s ledger.' : 'When served locally, review actions save private decisions.'}</p>
 	<p class="counts" data-testid="review-counts">
-		{#each [['accepted', counts.accepted], ['stale', counts.stale], ['draft', counts.draft], ['incomplete', counts.incomplete]] as [name, n], i (name)}
-			{#if i}<span class="sep">·</span>{/if}<button class="count" class:on={filter === name} aria-pressed={filter === name} onclick={() => show(name as string)} data-testid="show-{name}">{n} {name}</button>
-		{/each}
-		{#if m.incoming}<span class="sep">·</span><button class="count" class:on={filter === 'incoming'} aria-pressed={filter === 'incoming'} onclick={() => show('incoming')}>{m.incoming.changes.length} incoming changes</button>{/if}
-		<span class="sep">·</span><button class="count" class:on={filter === 'unresolved'} aria-pressed={filter === 'unresolved'} onclick={() => show('unresolved')}>{counts.unresolved} unresolved</button>
-		<span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
-		{#if needsClassification}<span class="sep">·</span><button class="count" class:on={filter === 'classification'} aria-pressed={filter === 'classification'} onclick={() => show('classification')}>{needsClassification} need classification</button>{/if}
-		{#if counts.missingProof}<span class="sep">·</span><button class="count" class:on={filter === 'missing-proof'} aria-pressed={filter === 'missing-proof'} onclick={() => show('missing-proof')}>{counts.missingProof} need proof</button>{/if}
+		{counts.accepted} accepted <span class="sep">·</span>{counts.stale} stale <span class="sep">·</span>{counts.draft} draft <span class="sep">·</span>{counts.incomplete} incomplete <span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
 	</p>
 
 	{#if filter === 'incoming'}
 		{#if m.incoming}
 			<p class="faint">{m.incoming.remote}/{m.incoming.branch} · {m.incoming.commit.slice(0, 12)} · first observed {shortDate(m.incoming.observed)} · compared with {m.incoming.base.slice(0, 12)}</p>
+			{#each m.incoming.issues ?? [] as issue}<p class="incoming-warning">{issue}</p>{/each}
+			<h2>Changed source files</h2>
+			<ul>{#each m.incoming.files as file (file.path)}<li>{file.status} · <code>{file.path}</code></li>{/each}</ul>
 			{#if syncWritable}
 				<section class="incoming-change" data-testid="incoming-incorporation">
 					<h2>Incorporate this pull</h2>
-					<p>Review the whole pull below. Preparation writes a patch for you to apply with Git; finishing commits the source and private sync record locally. No Overleaf push or mathematical acceptance occurs.</p>
-					{#if preparedPull}
-						<p>In <code>{preparedPull.root}</code>, run this one command:</p>
-						<pre><code>git apply '{preparedPull.patch.replaceAll("'", "'\\''")}'</code></pre>
-						<p>{preparedPull.paths.length} source files · revision {preparedPull.incoming.slice(0, 12)}</p>
-						<button disabled={syncBusy} onclick={finishPull}>Verify and finish incorporation</button>
-					{:else}
-						<button disabled={syncBusy || !!m.incoming.issues?.length} onclick={preparePull}>Prepare incorporation</button>
-					{/if}
+					<p>Loom will apply this exact reviewed revision and create two local commits. It will neither push nor accept mathematics.</p>
+					<button disabled={syncBusy || !!m.incoming.issues?.length} onclick={incorporatePull}>{syncBusy ? 'Incorporating…' : 'Incorporate pull'}</button>
 					{#if syncError}<p class="incoming-warning" role="alert">{syncError}</p>{/if}
 				</section>
 			{/if}
-			{#each m.incoming.issues ?? [] as issue}<p class="incoming-warning">{issue}</p>{/each}
 			{#each m.incoming.changes as change (change.key)}
 				<section class="incoming-change" data-testid={`incoming-${change.key}`}>
 					<h2>{#if change.local}<a href={incomingUrl(change)}>{change.key}</a>{:else}{change.key}{/if} <span class="faint">{change.kind}</span></h2>
@@ -226,24 +201,32 @@
 				</section>
 			{/each}
 			{#if m.incoming.files.length}
-				<h2>Changed source files</h2>
-				<ul>{#each m.incoming.files as file (file.path)}<li>{file.status} · <code>{file.path}</code>{#if file.diff}<details><summary>Source diff</summary><pre class="incoming-file-diff">{file.diff}</pre></details>{/if}</li>{/each}</ul>
+				<h2>Source diffs</h2>
+				{#each m.incoming.files as file (file.path)}{#if file.diff}<details><summary>{file.path}</summary><pre class="incoming-file-diff">{file.diff}</pre></details>{/if}{/each}
 			{/if}
-		{:else}<p class="faint">No fetched source is waiting for review. {#if syncFinished}<a href={`?show=unresolved&pull=${encodeURIComponent(finishedPull)}`}>Review affected blocks</a>{/if}</p>{/if}
-	{:else if filter === 'unresolved'}
-		{#if pullFilter}<p><a href="?show=unresolved">Show all unresolved blocks</a> · Pull {pullFilter.slice(0, 12)}</p>{/if}
+		{:else}
+			<p class="faint">No fetched source is waiting for review.</p>
+			{#if syncResult}
+				<section class="incoming-change" data-testid="incorporation-result">
+					<h2>Pull incorporated</h2>
+					<p>Source commit <code>{syncResult.source_commit.slice(0, 12)}</code> · sync record commit <code>{syncResult.sync_commit.slice(0, 12)}</code></p>
+					<p><a href="?show=needs-review">Review affected blocks</a></p>
+				</section>
+			{/if}
+		{/if}
+	{:else if filter === 'needs-review'}
 		<p>{needsReview.length} need review · {pendingOk.length} pending OK · {attention.length} require attention</p>
 		{#if needsReview.length}<button onclick={() => (activeReview = needsReview[0].key)}>Start review</button>{/if}
 		{#if reviewError}<p class="incoming-warning" role="alert">{reviewError}</p>{/if}
 		{#if pendingOk.length && reviewWritable}<button disabled={reviewBusy} onclick={finishReview}>Finish review · record {pendingOk.length} acceptances</button>{/if}
 		{#if activeEntry}
 			<section class="incoming-change" data-testid="guided-review">
-				<h2>{activeEntry.key} · {activeEntry.cause === 'incoming-pull' ? `Incoming pull ${activeEntry.pull.slice(0, 12)}` : 'Earlier change'}</h2>
+				<h2>{activeEntry.key} · {reviewOrigin(activeEntry)}</h2>
 				<p><a href={keyUrl(m, activeEntry.key)}>Open in document</a></p>
 				<div class="guided-pair">
-					<div class:guided-proof={m.keys[activeEntry.key]?.kind === 'proof'} class:guided-statement={m.keys[activeEntry.key]?.kind === 'statement'}>
+					<div class="guided-current" class:guided-proof={m.keys[activeEntry.key]?.kind === 'proof'} class:guided-statement={m.keys[activeEntry.key]?.kind === 'statement'}>
 						<h3>Current block</h3>
-						{#if m.nodes[m.keys[activeEntry.key]?.node]?.fragment}<Fragment path={m.nodes[m.keys[activeEntry.key].node].fragment} />{/if}
+						{#if m.nodes[m.keys[activeEntry.key]?.node]?.fragment}<Fragment path={m.nodes[m.keys[activeEntry.key].node].fragment} onmounted={(root) => { guidedRoot = root; guidedMount += 1; }} />{/if}
 					</div>
 					{#if activeComparison?.comparison}
 						<div class="guided-comparison">
@@ -257,15 +240,21 @@
 					<p>{activeEntry.changed_text ? 'OK confirms the revised text and its dependencies.' : 'OK confirms this block in its current dependency context.'}</p>
 					<button disabled={reviewBusy} onclick={() => reviewDecision(activeEntry, 'ok')}>OK</button>{' '}
 					<button disabled={reviewBusy} onclick={() => reviewDecision(activeEntry, 'requires-attention')}>Requires attention</button>
+				{:else if reviewWritable && activeEntry.status === 'requires-attention'}
+					<p>This block remains unaccepted. Mark it OK when the concern is resolved.</p>
+					<button disabled={reviewBusy} onclick={() => reviewDecision(activeEntry, 'ok')}>Mark OK</button>
+				{:else if reviewWritable && activeEntry.status === 'ok'}
+					<p>This block is pending acceptance at Finish review.</p>
+					<button disabled={reviewBusy} onclick={() => reviewDecision(activeEntry, 'requires-attention')}>Requires attention</button>
 				{/if}
 				{#if reviewHistory.length}<button onclick={() => { activeReview = reviewHistory[reviewHistory.length - 1]; reviewHistory = reviewHistory.slice(0, -1); }}>Back</button>{/if}
 				{#if needsReview.some((r) => r.key !== activeEntry.key)}<button onclick={() => (activeReview = needsReview.find((r) => r.key !== activeEntry.key)?.key ?? '')}>Next</button>{/if}
-				<button onclick={() => (activeReview = '')}>Return to Unresolved</button>
+				<button onclick={() => (activeReview = '')}>Return to Needs review</button>
 			</section>
 		{/if}
 		{#each reviewGroups as group}
 			<h2>{group.heading}</h2>
-			{#if group.entries.length}<ul>{#each group.entries as entry (entry.key)}<li><button class="as-link" onclick={() => (activeReview = entry.key)}>{entry.key}</button> · {entry.cause === 'incoming-pull' ? `Incoming pull ${entry.pull.slice(0, 12)}` : 'Earlier change'}{#if entry.invalidated} · changed since OK{/if}</li>{/each}</ul>{:else}<p class="faint">None.</p>{/if}
+				{#if group.entries.length}<ul>{#each group.entries as entry (entry.key)}<li><button class="as-link" onclick={() => (activeReview = entry.key)}>{entry.key}</button> · {reviewOrigin(entry)}{#if entry.invalidated} · changed since decision{/if}</li>{/each}</ul>{:else}<p class="faint">None.</p>{/if}
 		{/each}
 	{:else}
 	<table class="list">
@@ -361,17 +350,11 @@
 	{/if}
 </main>
 
-<PagePanel label="Filters">
-	<div class="filters">
-		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="incoming">incoming</option><option value="unresolved">unresolved</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option><option value="classification">needs classification</option><option value="missing-proof">needs proof</option></select></label>
-		<label>document<select value={master} onchange={set('document')}><option value="">any</option>{#each m.masters as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
-		<label>author<select value={author} onchange={set('author')}><option value="">any</option>{#each authors as a (a)}<option value={a}>{a}</option>{/each}</select></label>
-		<label>tag<select value={tag} onchange={set('tag')}><option value="">any</option>{#each Object.keys(m.tags).sort() as t (t)}<option value={t}>{t}</option>{/each}</select></label>
-		<p class="faint">{filter === 'unresolved' ? unresolved.length : filter === 'incoming' ? (m.incoming?.changes.length ?? 0) : rows.length} of {keys.length} keys</p>
-	</div>
-</PagePanel>
-
 <style>
+	.review-tabs { display: flex; gap: var(--gap-tight); margin: 0 0 var(--gap); border-bottom: 1px solid var(--rule); }
+	.review-tabs a { padding: var(--gap-tight) 0; color: var(--ink-soft); text-decoration: none; border-bottom: 2px solid transparent; }
+	.review-tabs a.active { color: var(--ink); border-color: var(--link); }
+	.guided-pair :global(.review-citation-target) { background: var(--state-stale-wash); outline: 2px solid var(--state-stale); outline-offset: 2px; }
 	.guided-pair { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: var(--gap-wide); }
 	.guided-pair > div { min-width: 0; max-height: 65vh; overflow: auto; }
 	.guided-pair h3 { font-size: 0.8rem; }
@@ -403,22 +386,6 @@
 		margin: 0 4px;
 		color: var(--ink-faint);
 	}
-	.count {
-		font: inherit;
-		color: inherit;
-		background: none;
-		border: none;
-		padding: 0 3px;
-		border-radius: var(--rad-pill);
-		cursor: pointer;
-	}
-	.count:hover {
-		color: var(--link);
-	}
-	.count.on {
-		background: var(--link-wash);
-		color: var(--link);
-	}
 	.nowrap {
 		white-space: nowrap;
 	}
@@ -435,18 +402,5 @@
 	tr.expansion td {
 		background: var(--leaf);
 		padding: var(--gap-tight);
-	}
-	.filters {
-		display: grid;
-		gap: var(--gap-tight);
-	}
-	.filters label {
-		display: grid;
-		gap: 2px;
-		font-family: var(--sans);
-		font-size: 9px;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--ink-faint);
 	}
 </style>

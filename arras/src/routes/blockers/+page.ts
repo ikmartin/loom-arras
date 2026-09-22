@@ -3,5 +3,5 @@ import { redirect } from '@sveltejs/kit';
 import { route } from '$lib/paths';
 
 export function load(): never {
-	redirect(308, route('/review') + '?show=incomplete');
+	redirect(308, route('/review') + '?show=all');
 }

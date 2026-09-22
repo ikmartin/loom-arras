@@ -62,6 +62,12 @@ test('unknown state labels and codes render generically', async ({ page }) => {
 });
 
 test('incoming review stays separate from recorded states and opens a document comparison', async ({ page }) => {
+	let incorporated: Record<string, string> | null = null;
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['sync-incorporate'] } }));
+	await page.route('**/_api/sync-incorporate', async (route) => {
+		incorporated = route.request().postDataJSON();
+		await route.fulfill({ json: { ok: true, result: { source_commit: 'c'.repeat(40), sync_commit: 'd'.repeat(40), integrated: 'b'.repeat(40), paths: ['drafting/main.tex'] } } });
+	});
 	await page.route('**/build/manifest.json', async (route) => {
 		const m = JSON.parse(JSON.stringify(manifest));
 		m.macros.sets['incoming:test'] = m.macros.default;
@@ -79,35 +85,94 @@ test('incoming review stays separate from recorded states and opens a document c
 	});
 	await page.goto('/review?show=incoming');
 	await expect(page.getByTestId('incoming-sy-0003')).toBeVisible();
-	await expect(page.getByTestId('review-counts')).toContainText('1 incoming changes');
+	await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'Incoming (1)' })).toBeVisible();
 	await expect(page.getByTestId('review-counts')).toContainText('stale');
-	await page.getByText('Source diff').click();
+	await expect(page.getByTestId('incoming-incorporation')).toContainText('neither push nor accept mathematics');
+	const files = page.getByRole('heading', { name: 'Changed source files' }).locator('xpath=following-sibling::ul[1]');
+	await expect(files).toContainText('drafting/main.tex');
+	await expect(files).toContainText('references.bib');
+	const incorporationBeforeChange = await page.evaluate(() => {
+		const action = document.querySelector('[data-testid="incoming-incorporation"]')!;
+		const change = document.querySelector('[data-testid="incoming-sy-0003"]')!;
+		return !!(action.compareDocumentPosition(change) & Node.DOCUMENT_POSITION_FOLLOWING);
+	});
+	expect(incorporationBeforeChange).toBe(true);
+	await page.getByRole('button', { name: 'Incorporate pull' }).click();
+	await expect.poll(() => incorporated).toEqual({ incoming: 'b'.repeat(40), base: 'a'.repeat(40) });
+	await page.getByText('references.bib', { exact: true }).last().click();
 	await expect(page.locator('.incoming-file-diff')).toContainText('A collaborator reference');
 	await page.getByTestId('incoming-sy-0003').locator('h2 a').click();
 	await expect(page).toHaveURL(/incoming=sy-0003/);
 	await expect(page.getByTestId('incoming-comparison')).toBeVisible();
 });
 
-test('Unresolved separates pull work, pending OK, and attention from older changes', async ({ page }) => {
+test('Needs review separates the block queue, pending OK, and attention', async ({ page }) => {
 	await page.route('**/build/manifest.json', async (route) => {
 		const m = JSON.parse(JSON.stringify(manifest));
 		m.unresolved = [
-			{ key: 'sy-0001', status: 'needs-review', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: true, invalidated: false },
+			{ key: 'sy-0001', status: 'needs-review', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: true, local_changed: false, invalidated: false },
 			{ key: 'sy-0002', status: 'ok', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: false, invalidated: false },
 			{ key: 'sy-0003', status: 'requires-attention', cause: 'earlier-change', pull: '', changed_text: false, invalidated: false }
 		];
 		await route.fulfill({ json: m });
 	});
-	await page.goto('/review?show=unresolved');
-	await expect(page.getByTestId('review-counts')).toContainText('3 unresolved');
+	await page.goto('/review?show=needs-review');
+	await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'Needs Review (1)' })).toBeVisible();
+	await expect(page.getByText('1 need review · 1 pending OK · 1 require attention')).toBeVisible();
 	await expect(page.getByRole('heading', { name: /needs review/i })).toBeVisible();
 	await expect(page.getByRole('heading', { name: /pending ok/i })).toBeVisible();
 	await expect(page.getByRole('heading', { name: /requires attention/i })).toBeVisible();
 	await page.getByRole('button', { name: 'Start review' }).click();
 	await expect(page.getByTestId('guided-review')).toContainText('sy-0001');
 	await expect(page.getByTestId('guided-review')).toContainText('Incoming pull');
-	await page.getByRole('button', { name: 'Return to Unresolved' }).click();
+	await page.getByRole('button', { name: 'Return to Needs review' }).click();
 	await expect(page.getByTestId('guided-review')).toHaveCount(0);
+	await page.getByRole('button', { name: 'sy-0003' }).click();
+	await expect(page.getByRole('button', { name: 'Mark OK' })).toBeVisible();
+});
+
+test('guided review highlights a dependent citation and distinguishes local edits', async ({ page }) => {
+	await page.route('**/fragments/nodes/sy-0002.html', async (route) => {
+		const response = await route.fetch();
+		const body = await response.text();
+		const citation = '<a id="cite-nodes-sy-0002-tex-185-sy-0001-eq-fix"';
+		expect(body).toContain(citation);
+		await route.fulfill({ response, body: body.replace(citation, `<span style="display:block;height:1200px"></span>${citation}`) });
+	});
+	await page.route('**/build/manifest.json', async (route) => {
+		const m = JSON.parse(JSON.stringify(manifest));
+		m.unresolved = [
+			{ key: 'sy-0002', status: 'needs-review', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: false, local_changed: true, invalidated: false },
+			{ key: 'sy-0003', status: 'needs-review', cause: 'earlier-change', pull: '', changed_text: false, local_changed: true, invalidated: false }
+		];
+		await route.fulfill({ json: m });
+	});
+	await page.goto('/review?show=needs-review');
+	await page.getByRole('button', { name: 'Start review' }).click();
+	const guided = page.getByTestId('guided-review');
+	await expect(guided).toContainText('Pull bbbbbbbbbbbb + local edits');
+	await expect(guided.locator('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')).toHaveClass(/review-citation-target/);
+	const position = await guided.evaluate((section) => {
+		const pane = section.querySelector('.guided-current')!;
+		const citation = pane.querySelector('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')!;
+		return { scrollTop: pane.scrollTop, paneBottom: pane.getBoundingClientRect().bottom, citationTop: citation.getBoundingClientRect().top };
+	});
+	expect(position.scrollTop).toBeGreaterThan(0);
+	expect(position.citationTop).toBeLessThan(position.paneBottom);
+	await page.getByRole('button', { name: 'sy-0003' }).click();
+	await expect(guided).toContainText('Local change');
+	await expect(guided.locator('.review-citation-target')).toHaveCount(0);
+	await expect(guided.locator('.guided-current')).toHaveJSProperty('scrollTop', 0);
+	await page.getByRole('button', { name: 'sy-0002' }).click();
+	await expect(guided.locator('.review-citation-target')).toHaveCount(1);
+	const viewportPosition = await guided.evaluate((section) => {
+		const pane = section.querySelector('.guided-current')!;
+		const citation = pane.querySelector('.review-citation-target')!;
+		return { paneTop: pane.getBoundingClientRect().top, citationTop: citation.getBoundingClientRect().top, viewportHeight: window.innerHeight };
+	});
+	expect(viewportPosition.paneTop).toBeGreaterThanOrEqual(0);
+	expect(viewportPosition.citationTop).toBeGreaterThanOrEqual(0);
+	expect(viewportPosition.citationTop).toBeLessThan(viewportPosition.viewportHeight);
 });
 
 test('interface version mismatch shows one diagnostic and nothing else', async ({ page }) => {
@@ -244,9 +309,8 @@ test('missing proof on a block leads to its review row', async ({ page }) => {
 	});
 	await page.goto('/node/sy-0003');
 	await page.getByTestId('missing-proof').getByRole('link').click();
-	await expect(page).toHaveURL(/\/review\?show=missing-proof#review-sy-0003$/);
+	await expect(page).toHaveURL(/\/review\?show=all#review-sy-0003$/);
 	await expect(page.locator('#review-sy-0003')).toContainText('missing proof');
-	await expect(page.getByTestId('review-counts')).toContainText('1 need proof');
 });
 
 test("a work's page lists results with their citers, and the Library counts them", async ({ page }) => {

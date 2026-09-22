@@ -189,10 +189,10 @@ test("the display preferences survive a reload and change the document", async (
   await expect(page.locator("html")).toHaveAttribute("data-shell", "a");
 });
 
-test("no route reaches an unknown key from review, its incomplete view, or the problems page", async ({
+test("no route reaches an unknown key from review or the problems page", async ({
   page,
 }) => {
-  for (const start of ["/review", "/review?show=incomplete", "/problems"]) {
+  for (const start of ["/review", "/problems"]) {
     await page.goto(start);
     await expect(page.locator('main a[href^="/node/"]').first()).toBeAttached();
     const hrefs = await page

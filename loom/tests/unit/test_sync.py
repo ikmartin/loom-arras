@@ -6,12 +6,14 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+from loom.render.api import ApiError, handle
 from loom.render.build import build
 from loom.review_queue import decide
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from loom.sync import (
     SyncError,
+    SyncState,
     changed_files,
     configure,
     fetch,
@@ -99,16 +101,27 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     else:
         raise AssertionError("publishing an unreviewed incoming revision must refuse")
     assert git(root, "show", f"{state.incoming}:main.tex").startswith(b"\\documentclass")
-    prepared = prepare_incorporation(quilt, state)
+    prepare_incorporation(quilt, state)
     assert (root / "drafting/main.tex").read_bytes() == original
     try:
         finish_incorporation(quilt, state)
     except SyncError as exc:
         assert "does not match the reviewed pull" in str(exc)
     else:
-        raise AssertionError("finishing before the author's Git apply must refuse")
-    git(root, "apply", prepared["patch"])
-    finished = finish_incorporation(quilt, state)
+        raise AssertionError("finishing before applying the exact patch must refuse")
+    try:
+        handle(root, "sync-incorporate", {"incoming": "0" * 40, "base": state.integrated})
+    except ApiError as exc:
+        assert exc.code == "revision-changed"
+    else:
+        raise AssertionError("the one-click action must stay pinned to the displayed revision")
+    assert (root / "drafting/main.tex").read_bytes() == original
+    finished = handle(
+        root,
+        "sync-incorporate",
+        {"incoming": state.incoming, "base": state.integrated},
+    )["result"]
+    state = SyncState.read(root)
     assert finished["integrated"] == state.incoming
     assert run(root, "show", "--format=", "--name-only", "HEAD").splitlines() == [".loom/source-sync.json"]
     assert sorted(run(root, "show", "--format=", "--name-only", "HEAD^").splitlines()) == [
@@ -124,8 +137,31 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     assert [(row["key"], row["cause"], row["status"]) for row in unresolved] == [
         ("zk-0001", "incoming-pull", "needs-review")
     ]
+    assert unresolved[0]["local_changed"] is False
+    assert "zk-0001" in state.review_baselines
+    state.review_baselines.clear()  # a quilt incorporated before baseline tracking existed
+    state.write(root)
+    assert build(quilt).manifest["unresolved"][0]["local_changed"] is False
     decide(scan(quilt), "zk-0001", "ok")
     assert build(quilt).manifest["unresolved"][0]["status"] == "ok"
     (root / "drafting/main.tex").write_text(source.replace("zk-0001}A", "zk-0001}C"), encoding="utf-8")
     changed = build(quilt).manifest["unresolved"][0]
     assert changed["status"] == "needs-review" and changed["invalidated"]
+    assert changed["local_changed"] is True
+    run(root, "add", "drafting/main.tex")
+    run(root, "commit", "-m", "local statement edit")
+    assert build(quilt).manifest["unresolved"][0]["local_changed"] is True
+    (root / "drafting/main.tex").write_text(source.replace("zk-0001}A", "zk-0001}B"), encoding="utf-8")
+    assert build(quilt).manifest["unresolved"][0]["local_changed"] is False
+    run(root, "add", "drafting/main.tex")
+    run(root, "commit", "-m", "restore incorporated statement")
+    (collaborator / "main.tex").write_text(source.replace("zk-0001}A", "zk-0001}D"), encoding="utf-8")
+    run(collaborator, "add", "main.tex")
+    run(collaborator, "commit", "-m", "revise statement again")
+    run(collaborator, "push", "origin", "main")
+    state = fetch(quilt, state)
+    second = handle(root, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})["result"]
+    assert second["integrated"] == state.incoming
+    latest = build(quilt).manifest["unresolved"][0]
+    assert latest["pull"] == state.incoming
+    assert latest["local_changed"] is False
