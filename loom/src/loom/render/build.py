@@ -411,6 +411,9 @@ def build(
 
     _attach_spans(result.quilt.root, manifest, files)
     attach_comparisons(result, records, renderer, manifest, files)
+    from loom.render.incoming import attach_incoming
+
+    attach_incoming(result, renderer, manifest, files)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [

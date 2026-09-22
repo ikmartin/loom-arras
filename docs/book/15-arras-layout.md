@@ -127,6 +127,8 @@ See 15.5.
 
 **[decided]** Table-shaped pages: a header with counts and an explanatory sentence, filter controls in the left panel through the registry of 15.3, rows with state badge, id, taxon, title, cause, counts. Filters live in the URL, so a filtered table is a link, and each count in the header toggles its own filter. A column no row in the current table fills is not drawn. A row expands in place to show the stale cause and its diff, as a two-column diff with the accepted text tinted by `--state-incomplete-wash` on the left and the current text by `--state-accepted-wash` on the right. The review table's incomplete view, which is what `/blockers` opens, adds a column saying how many results each gap blocks, expanding in place to the list (DR-118). There is no right rail; the expansion is in the table. Beside the title of the review and problems pages is a question mark that defines each state and names the command that records it; its panel closes on a press outside it (DR-121).
 
+`/review?show=incoming` is a separate view of a fetched source revision (DR-217). It lists changed block IDs and files, places the current local block beside the incoming rendering, offers source diffs for changed TeX and bibliography files, and links potentially affected dependents to their citations. It does not change accepted, proved, settled, or stale states. Both-side edits are called out for manual reconciliation. No per-block reviewed state is recorded; the pull is incorporated as a whole after the author commits its reconciled source.
+
 **[decided]** The workbench layout (a node list, node body, and context pane as one screen) explored in design is dropped; the review panel plus the node page cover it.
 
 ### 15.3.6 Hover previews

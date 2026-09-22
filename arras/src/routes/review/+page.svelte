@@ -3,8 +3,9 @@
 	// The review panel (book 15.3.5): which keys are accepted, which have gone stale and why, and which mark a gap and what that gap blocks. A row expands in place to show the cause and its diff. The filters stand in the shell's left panel and live in the URL, so a home card opens this table already filtered.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
-	import type { Cause, Key } from '$lib/manifest/types';
+	import type { Cause, IncomingChange, Key } from '$lib/manifest/types';
 	import Badge from '$lib/components/Badge.svelte';
+	import Fragment from '$lib/fragments/Fragment.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
 	import HelpDot from '$lib/components/HelpDot.svelte';
 	import PagePanel from '$lib/shell/PagePanel.svelte';
@@ -15,7 +16,7 @@
 	import { reachedExternal } from '$lib/reached';
 
 	const m = $derived(store.manifest!);
-	const SHOWS = ['all', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external', 'classification', 'missing-proof'] as const;
+	const SHOWS = ['all', 'incoming', 'accepted', 'stale', 'draft', 'incomplete', 'loose', 'retired', 'external', 'classification', 'missing-proof'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
 	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'all');
 	const master = $derived(q('document'));
@@ -77,6 +78,14 @@
 	const records = $derived([...new Set(Object.values(m.annotations).map((a) => a.run ?? a.record))].sort());
 	const threads = $derived(Object.values(m.threads));
 	const causes = (k: string) => m.keys[k]?.acceptance?.causes ?? [];
+	function incomingUrl(change: IncomingChange, dependent?: { key: string; citation: string | null }): string {
+		const target = dependent?.key ?? change.key;
+		const key = m.keys[target];
+		const document = key && m.nodes[key.node]?.reached_by[0];
+		if (!document) return keyUrl(m, target);
+		const anchor = dependent?.citation || anchorId(target);
+		return `${masterUrl(document)}?incoming=${encodeURIComponent(change.key)}#${anchor}`;
+	}
 	const redundantProofCause = (k: Key, c: Cause) => k.kind === 'proof' && c.kind === 'dependency-changed' && c.id === k.node;
 	function causeUrl(k: Key, c: Cause, index: number): string | null {
 		if (!c.comparison || c.via) return null;
@@ -89,6 +98,7 @@
 
 	const LEADS: Record<string, string> = {
 		all: 'Every statement and proof in this corpus, with the state recorded for it and, where an accepted text has since changed, the reason it is no longer current.',
+		incoming: 'Changes fetched from collaborators, before they are incorporated into the local draft. Potential effects do not change recorded states.',
 		accepted: 'The texts someone has recorded as correct as they stand. One that has changed since is also listed under stale.',
 		stale: 'Accepted texts that have changed since, or rest on something that has, with the reason for each.',
 		draft: 'Texts nothing has been recorded about yet.',
@@ -113,11 +123,34 @@
 		{#each [['accepted', counts.accepted], ['stale', counts.stale], ['draft', counts.draft], ['incomplete', counts.incomplete]] as [name, n], i (name)}
 			{#if i}<span class="sep">·</span>{/if}<button class="count" class:on={filter === name} aria-pressed={filter === name} onclick={() => show(name as string)} data-testid="show-{name}">{n} {name}</button>
 		{/each}
+		{#if m.incoming}<span class="sep">·</span><button class="count" class:on={filter === 'incoming'} aria-pressed={filter === 'incoming'} onclick={() => show('incoming')}>{m.incoming.changes.length} incoming changes</button>{/if}
 		<span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
 		{#if needsClassification}<span class="sep">·</span><button class="count" class:on={filter === 'classification'} aria-pressed={filter === 'classification'} onclick={() => show('classification')}>{needsClassification} need classification</button>{/if}
 		{#if counts.missingProof}<span class="sep">·</span><button class="count" class:on={filter === 'missing-proof'} aria-pressed={filter === 'missing-proof'} onclick={() => show('missing-proof')}>{counts.missingProof} need proof</button>{/if}
 	</p>
 
+	{#if filter === 'incoming'}
+		{#if m.incoming}
+			<p class="faint">{m.incoming.remote}/{m.incoming.branch} · {m.incoming.commit.slice(0, 12)} · first observed {shortDate(m.incoming.observed)} · compared with {m.incoming.base.slice(0, 12)}</p>
+			{#each m.incoming.issues ?? [] as issue}<p class="incoming-warning">{issue}</p>{/each}
+			{#each m.incoming.changes as change (change.key)}
+				<section class="incoming-change" data-testid={`incoming-${change.key}`}>
+					<h2>{#if change.local}<a href={incomingUrl(change)}>{change.key}</a>{:else}{change.key}{/if} <span class="faint">{change.kind}</span></h2>
+					{#if change.conflict}<p class="incoming-warning">Both the local draft and the pull changed this block. Reconcile it before incorporation.</p>{:else if change.already_local}<p class="faint">This incoming text is already present locally.</p>{/if}
+					{#if change.local && change.incoming}
+						<div class="incoming-pair"><div><h3>Current local</h3><Fragment path={change.local} /></div><div><h3>Incoming</h3><Fragment path={change.incoming} macroSet={change.incoming_macros} isolatedMacros /></div></div>
+					{/if}
+					{#if change.affected.length}
+						<p>Potentially affected: {#each change.affected as dependent, i (dependent.key)}{#if i}, {/if}<a href={incomingUrl(change, dependent)}>{dependent.key} via {change.key}</a>{/each}</p>
+					{/if}
+				</section>
+			{/each}
+			{#if m.incoming.files.length}
+				<h2>Changed source files</h2>
+				<ul>{#each m.incoming.files as file (file.path)}<li>{file.status} · <code>{file.path}</code>{#if file.diff}<details><summary>Source diff</summary><pre class="incoming-file-diff">{file.diff}</pre></details>{/if}</li>{/each}</ul>
+			{/if}
+		{:else}<p class="faint">No fetched source is waiting for review.</p>{/if}
+	{:else}
 	<table class="list">
 		<thead>
 			<tr>
@@ -191,6 +224,7 @@
 			{/each}
 		</tbody>
 	</table>
+	{/if}
 
 	{#if undigested.length && filter === 'all'}
 		<h2>Undigested citations</h2>
@@ -212,7 +246,7 @@
 
 <PagePanel label="Filters">
 	<div class="filters">
-		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option><option value="classification">needs classification</option><option value="missing-proof">needs proof</option></select></label>
+		<label>show<select value={filter} onchange={set('show', 'all')} data-testid="filter-show"><option value="all">all</option><option value="incoming">incoming</option><option value="accepted">accepted</option><option value="stale">stale</option><option value="draft">draft</option><option value="incomplete">incomplete</option><option value="loose">loose</option><option value="retired">previous-key matches</option><option value="external">cited results</option><option value="classification">needs classification</option><option value="missing-proof">needs proof</option></select></label>
 		<label>document<select value={master} onchange={set('document')}><option value="">any</option>{#each m.masters as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
 		<label>author<select value={author} onchange={set('author')}><option value="">any</option>{#each authors as a (a)}<option value={a}>{a}</option>{/each}</select></label>
 		<label>tag<select value={tag} onchange={set('tag')}><option value="">any</option>{#each Object.keys(m.tags).sort() as t (t)}<option value={t}>{t}</option>{/each}</select></label>
@@ -221,6 +255,16 @@
 </PagePanel>
 
 <style>
+	.incoming-change { border-top: 1px solid var(--rule); padding: var(--gap-wide) 0; }
+	.incoming-change h2 { font-size: 1rem; }
+	.incoming-warning { color: var(--state-stale); }
+	.incoming-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-wide); }
+	.incoming-pair > div { min-width: 0; overflow-x: auto; border: 1px solid var(--rule); padding: var(--gap-tight); }
+	.incoming-pair h3 { font-size: 0.85rem; }
+	.incoming-pair :global(mark.review-changed) { background: var(--state-stale-wash); color: inherit; }
+	.incoming-pair :global(.math.review-changed) { background-color: var(--state-stale-wash); outline: 2px solid var(--state-stale); }
+	.incoming-file-diff { max-width: 100%; overflow-x: auto; padding: var(--gap-tight); border: 1px solid var(--rule); }
+	@media (max-width: 900px) { .incoming-pair { grid-template-columns: 1fr; } }
 	.lead {
 		max-width: var(--measure);
 		color: var(--ink-soft);

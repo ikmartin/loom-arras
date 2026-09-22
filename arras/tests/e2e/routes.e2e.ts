@@ -61,6 +61,33 @@ test('unknown state labels and codes render generically', async ({ page }) => {
 	await expect(page.locator('main h2 code', { hasText: 'other:code' })).toBeVisible();
 });
 
+test('incoming review stays separate from recorded states and opens a document comparison', async ({ page }) => {
+	await page.route('**/build/manifest.json', async (route) => {
+		const m = JSON.parse(JSON.stringify(manifest));
+		m.macros.sets['incoming:test'] = m.macros.default;
+		m.incoming = {
+			remote: 'origin', branch: 'main', base: 'a'.repeat(40), commit: 'b'.repeat(40), observed: '2026-09-21T15:00:00Z',
+			files: [{ status: 'M', path: 'drafting/main.tex' }, { status: 'M', path: 'references.bib', diff: '+@book{source,title={A collaborator reference}}' }],
+			changes: [{
+				key: 'sy-0003', kind: 'edited', local_changed: false, conflict: false, already_local: false,
+				local: 'fragments/review/800fd03b12dbadcd3f9d-current.html',
+				incoming: 'fragments/review/800fd03b12dbadcd3f9d-accepted.html', incoming_macros: 'incoming:test',
+				affected: [{ key: 'sy-0004', citation: null }]
+			}]
+		};
+		await route.fulfill({ json: m });
+	});
+	await page.goto('/review?show=incoming');
+	await expect(page.getByTestId('incoming-sy-0003')).toBeVisible();
+	await expect(page.getByTestId('review-counts')).toContainText('1 incoming changes');
+	await expect(page.getByTestId('review-counts')).toContainText('stale');
+	await page.getByText('Source diff').click();
+	await expect(page.locator('.incoming-file-diff')).toContainText('A collaborator reference');
+	await page.getByTestId('incoming-sy-0003').locator('h2 a').click();
+	await expect(page).toHaveURL(/incoming=sy-0003/);
+	await expect(page.getByTestId('incoming-comparison')).toBeVisible();
+});
+
 test('interface version mismatch shows one diagnostic and nothing else', async ({ page }) => {
 	await page.route('**/build/manifest.json', async (route) => {
 		const m = JSON.parse(JSON.stringify(manifest));
