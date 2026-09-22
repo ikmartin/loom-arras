@@ -406,7 +406,9 @@ def test_a_run_resolves_its_own_annotation(tmp_path: Path) -> None:
     """
     d = demo(tmp_path)
     sid, run_dir = session(d, "r1")
-    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT)
+    made = run(
+        "comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT
+    )
     assert made.exit_code == 0, made.output
     ann = made.output.split()[0]
 
@@ -445,7 +447,9 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
     assert "objection major" in r.output
     ann = r.output.split()[0]
 
-    e = run("comment", "--edit", ann, "Still wrong, and the fix is smaller than I said.", "--session", sid, cwd=d, env=AGENT)
+    e = run(
+        "comment", "--edit", ann, "Still wrong, and the fix is smaller than I said.", "--session", sid, cwd=d, env=AGENT
+    )
     assert e.exit_code == 0 and e.output.strip() == f"edited {ann}"
 
     kinds = [x["event"] for x in events(d)]
@@ -463,7 +467,9 @@ def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> 
     """Resolving claims the author addressed it. An agent that misread wants to say the opposite (blocks.md rule 7)."""
     d = demo(tmp_path)
     sid, run_dir = session(d, "r1")
-    made = run("comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT)
+    made = run(
+        "comment", "dm-0002", "Orbits may be empty.", "--quote", "Every orbit", "--session", sid, cwd=d, env=AGENT
+    )
     assert made.exit_code == 0, made.output
     ann = made.output.split()[0]
 
@@ -769,14 +775,20 @@ def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
     d = demo(tmp_path)
     rel = run("ai", "start", "Referee", cwd=d).output.strip()
     run_name = rel.rsplit("/", 1)[-1]
-    assert run("comment", "dm-0002", "Wrong", "--severity", "major", "--session", run_name, cwd=d, env=AGENT).exit_code == 0
+    assert (
+        run("comment", "dm-0002", "Wrong", "--severity", "major", "--session", run_name, cwd=d, env=AGENT).exit_code
+        == 0
+    )
     assert run("comment", "dm-0003", "Also wrong", "--session", run_name, cwd=d, env=AGENT).exit_code == 0
     live = json.loads(run("ai", "findings", "--session", run_name, "--json", cwd=d).output)["findings"]
     assert len(live) == 2
     assert [f["message"] for f in live] == ["Wrong", "Also wrong"]
 
     assert (
-        run("comment", "--discard", live[1]["id"], "I misread the hypothesis", "--session", run_name, cwd=d, env=AGENT).exit_code == 0
+        run(
+            "comment", "--discard", live[1]["id"], "I misread the hypothesis", "--session", run_name, cwd=d, env=AGENT
+        ).exit_code
+        == 0
     )
     after = json.loads(run("ai", "findings", "--session", run_name, "--json", cwd=d).output)["findings"]
     assert [f["id"] for f in after] == [live[0]["id"]]  # the withdrawn one is out of the way

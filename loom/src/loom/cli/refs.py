@@ -1289,7 +1289,11 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
 @click.option("--kind", required=True, help="same-notion, generalises, specialises, depends-on, contradicts.")
 @click.option("--why", required=True, help="One or two sentences. This is what you read six months later.")
 @click.option(
-    "--session", "run_dir", default=None, envvar="LOOM_SESSION", help="The session asserting it; an agent must say which."
+    "--session",
+    "run_dir",
+    default=None,
+    envvar="LOOM_SESSION",
+    help="The session asserting it; an agent must say which.",
 )
 @click.option("--author", default=None, help="Who asserted it, when the user config and git do not say.")
 @quilt_option

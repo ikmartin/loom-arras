@@ -360,9 +360,7 @@ def _one_comment(
     if severity is not None and severity not in SEVERITIES:
         raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
     if severity is not None and kind not in GRADED:
-        raise EnvError(
-            f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}"
-        )
+        raise EnvError(f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}")
     if placement is not None and placement not in PLACEMENTS:
         raise EnvError(f"placement must be one of {', '.join(PLACEMENTS)}")
     if placement and not payload:
@@ -465,9 +463,7 @@ def _note_on_page(
     if severity is not None and severity not in SEVERITIES:
         raise EnvError(f"severity must be one of {', '.join(SEVERITIES)}")
     if severity is not None and kind not in GRADED:
-        raise EnvError(
-            f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}"
-        )
+        raise EnvError(f"--severity grades a fault, and --kind {kind} claims none; it belongs on {' or '.join(GRADED)}")
     ann_id = next_id(records, date)
     # Quads are recorded only for a box, where they are the anchor; for text they are derived at build time from
     # the offsets, as a result's are, so a record never carries two descriptions that could drift apart.
@@ -1075,7 +1071,9 @@ def status(
             where = f"p.{r['page']}" + (" (box)" if r["basis"] == "box" else "")
             state = r["status"] + (", detached" if r["detached"] else "") + ("" if r["recorded"] else ", unrecorded")
             first = r["body"].strip().splitlines()[0] if r["body"].strip() else ""
-            click.echo(f"{r['work'] or r['target']:<16} {where:<10} {r['kind']:<13} {r['id']:<20} {state:<18} {first[:60]}")
+            click.echo(
+                f"{r['work'] or r['target']:<16} {where:<10} {r['kind']:<13} {r['id']:<20} {state:<18} {first[:60]}"
+            )
         return
     if explain:
         key = resolve_key(result, explain)

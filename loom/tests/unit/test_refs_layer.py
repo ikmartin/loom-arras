@@ -25,7 +25,6 @@ def _sid(root: Path) -> str:
     return have[0].id if have else create(root, "test sitting", "tester").id
 
 
-
 def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
     old = os.getcwd()
     try:
@@ -854,7 +853,8 @@ def test_source_on_an_equation_label_prints_what_holds_it(tmp_path: Path) -> Non
     q = quilt(tmp_path)
     digest = q / "digests" / "Calloway14.tex"
     digest.write_text(
-        digest.read_text() + "\n\\section*{Overview}\nWe prove\n\\begin{equation}\\label{Calloway14-eqx}x=y\\end{equation}\n"
+        digest.read_text()
+        + "\n\\section*{Overview}\nWe prove\n\\begin{equation}\\label{Calloway14-eqx}x=y\\end{equation}\n"
     )
     r = run("source", "Calloway14-eqx", cwd=q)
     assert r.exit_code == 0 and "KeyError" not in r.output and "inside" in r.output, r.output
@@ -1019,7 +1019,11 @@ def test_the_write_api_verifies_renames_and_discards_a_proposal(tmp_path: Path) 
             q, "digest-verify", {"node": f"{ck}-thm-1.1", "statement": "S'", "local": "cor-1.1.1", "author": "i"}
         )
         assert got["ok"] and "renamed from" in got["result"]
-        gone = handle(q, "digest-discard", {"session": _sid(q), "node": f"{ck}-thm-4.1", "reason": "not the paper's", "author": "i"})
+        gone = handle(
+            q,
+            "digest-discard",
+            {"session": _sid(q), "node": f"{ck}-thm-4.1", "reason": "not the paper's", "author": "i"},
+        )
         assert gone["ok"]
     finally:
         mp.undo()
@@ -1260,6 +1264,11 @@ def _source_only(tmp_path: Path) -> Path:
     (tmp_path / "b").mkdir(exist_ok=True)
     q = quilt(tmp_path / "b")
     home = q / "digests" / "storage" / "doi" / "10.4171_demo_14-1"
+    source = (
+        Path(__file__).resolve().parents[2] / "tests" / "quilts" / "sources" / "demo-works" / "calloway-fixed-loci.tex"
+    )
+    (home / "src").mkdir()
+    shutil.copy2(source, home / "src" / source.name)
     (home / "paper.pdf").unlink()
     (home / "sections.json").unlink()
     shutil.rmtree(home / "pages")
@@ -1282,7 +1291,11 @@ def test_extract_with_no_source_says_how_to_get_one(tmp_path: Path) -> None:
     (q / "digests" / "Calloway14.tex").unlink()
     r = run("digest", "extract", "Calloway14", cwd=q)
     assert r.exit_code != 0
-    assert "holds no source" in r.output and "loom refs fetch Calloway14" in r.output and "loom refs add Calloway14" in r.output
+    assert (
+        "holds no source" in r.output
+        and "loom refs fetch Calloway14" in r.output
+        and "loom refs add Calloway14" in r.output
+    )
 
 
 def test_a_digest_with_no_readable_copy_warns_and_never_errors(tmp_path: Path) -> None:
@@ -1294,7 +1307,11 @@ def test_a_digest_with_no_readable_copy_warns_and_never_errors(tmp_path: Path) -
     assert r.exit_code == 0
     assert "loom refs unreadable Calloway14" in said[0]["message"]
     # and source alone is an info, not a warning: the paper's own LaTeX is what a statement is checked against
-    quieter = [d for d in json.loads(run("lint", "--json", cwd=_source_only(tmp_path)).output) if d["code"] == "loom:no-readable-copy"]
+    quieter = [
+        d
+        for d in json.loads(run("lint", "--json", cwd=_source_only(tmp_path)).output)
+        if d["code"] == "loom:no-readable-copy"
+    ]
     assert [d["severity"] for d in quieter] == ["info"]
     assert "no PDF" in quieter[0]["message"]
 
@@ -1303,7 +1320,14 @@ def test_declaring_a_work_unreadable_suppresses_the_lint_and_undo_restores_it(tm
     """Impossible is declared, never inferred: nothing in a bibliography entry says a work has no fixed document."""
     q = _no_copy(tmp_path)
     said = run(
-        "refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "a living work with no fixed version", cwd=q
+        "refs",
+        "unreadable",
+        "Calloway14",
+        "--author",
+        "A. Author",
+        "--why",
+        "a living work with no fixed version",
+        cwd=q,
     )
     assert said.exit_code == 0, said.output
     codes = [d["code"] for d in json.loads(run("lint", "--json", cwd=q).output)]
@@ -1367,7 +1391,8 @@ def test_forget_is_keyed_by_citekey_or_by_a_prefix_of_a_stored_hash(tmp_path: Pa
     record_copy(q, sha, "refs/whatever.pdf", "digests/storage/file/9f2c/paper.pdf")
     assert run("refs", "forget", "9f2c00", "--author", "A. Author", "--why", "a duplicate scan", cwd=q).exit_code == 0
     assert (
-        run("refs", "forget", "Calloway14", "--author", "A. Author", "--why", "deliberately not cited", cwd=q).exit_code == 0
+        run("refs", "forget", "Calloway14", "--author", "A. Author", "--why", "deliberately not cited", cwd=q).exit_code
+        == 0
     )
     assert set(declarations(q, "forget")) == {f"sha256:{sha}", "Calloway14"}
     unknown = run("refs", "forget", "nothing-like-this", "--author", "A. Author", "--why", "x", cwd=q)
@@ -1519,7 +1544,13 @@ def test_an_anchor_round_trips_in_both_bases(tmp_path: Path) -> None:
     for a in (text, box, src):
         out = Result(id="x", local="l", anchor=a).to_json()["anchor"]
         back = Result.from_json({"id": "x", "local": "l", "anchor": out}).anchor
-        assert (back.kind, back.sha256, back.page, back.quads, back.basis) == (a.kind, a.sha256, a.page, a.quads, a.basis)
+        assert (back.kind, back.sha256, back.page, back.quads, back.basis) == (
+            a.kind,
+            a.sha256,
+            a.page,
+            a.quads,
+            a.basis,
+        )
         assert (back.start, back.end, back.path, back.bytes) == (a.start, a.end, a.path, a.bytes)
     # and a pdf anchor never carries a tex anchor's fields, nor the other way round
     assert "path" not in Result(id="x", local="l", anchor=text).to_json()["anchor"]
@@ -1540,9 +1571,7 @@ def test_a_hyphenated_line_and_a_ligature_both_place(tmp_path: Path) -> None:
         ("be", 114.0, 114.0, 128.0, 126.0),
         ("affine", 132.0, 114.0, 164.0, 126.0),
     ]
-    xml = "".join(
-        f'<word xMin="{a}" yMin="{b}" xMax="{c}" yMax="{d}">{w}</word>' for w, a, b, c, d in words
-    )
+    xml = "".join(f'<word xMin="{a}" yMin="{b}" xMax="{c}" yMax="{d}">{w}</word>' for w, a, b, c, d in words)
     span = locate_span(xml, "Let the denominators be affine", 1)
     assert span is not None, "a word split by a line break must still place"
     assert len(span.lines) == 2, "one rectangle per line, because the quotation crosses one"
@@ -1639,14 +1668,30 @@ def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     sid = run("session", "new", "reading", cwd=q).output.split()[0]
     _note_on_page(
-        q, sid, id="a-2026-09-21-0001", sha256="feed" * 16,
-        anchor={"basis": "text", "start": 12, "end": 36, "exact": "balanced at every vertex", "prefix": "locus is ", "suffix": " of the"},
+        q,
+        sid,
+        id="a-2026-09-21-0001",
+        sha256="feed" * 16,
+        anchor={
+            "basis": "text",
+            "start": 12,
+            "end": 36,
+            "exact": "balanced at every vertex",
+            "prefix": "locus is ",
+            "suffix": " of the",
+        },
     )
     _note_on_page(
-        q, sid, id="a-2026-09-21-0002", sha256="feed" * 16, kind="note",
+        q,
+        sid,
+        id="a-2026-09-21-0002",
+        sha256="feed" * 16,
+        kind="note",
         anchor={"basis": "box", "quads": [[82.8, 278.1, 529.2, 315.7]], "exact": "", "prefix": "", "suffix": ""},
     )
-    plain_out = run("comment", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
+    plain_out = run(
+        "comment", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q
+    )
     assert plain_out.exit_code == 0, plain_out.output
 
     records, problems = load_records(q)
@@ -1680,9 +1725,35 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
     (home / "pages").mkdir(exist_ok=True)
     (home / "pages" / "0002.txt").write_text("the fixed locus is balanced at every vertex of the widget\n")
     sid = run("session", "new", "reading", cwd=q).output.split()[0]
-    _note_on_page(q, sid, id="a-2026-09-21-0001", sha256=sha, anchor={"basis": "text", "start": 19, "end": 43, "exact": "balanced at every vertex", "prefix": "", "suffix": ""})
-    _note_on_page(q, sid, id="a-2026-09-21-0002", sha256=sha, anchor={"basis": "text", "start": 0, "end": 5, "exact": "nowhere on this page", "prefix": "", "suffix": ""})
-    _note_on_page(q, sid, id="a-2026-09-21-0003", sha256="dead" * 16, kind="note", anchor={"basis": "box", "quads": [[1, 2, 3, 4]], "exact": "", "prefix": "", "suffix": ""})
+    _note_on_page(
+        q,
+        sid,
+        id="a-2026-09-21-0001",
+        sha256=sha,
+        anchor={
+            "basis": "text",
+            "start": 19,
+            "end": 43,
+            "exact": "balanced at every vertex",
+            "prefix": "",
+            "suffix": "",
+        },
+    )
+    _note_on_page(
+        q,
+        sid,
+        id="a-2026-09-21-0002",
+        sha256=sha,
+        anchor={"basis": "text", "start": 0, "end": 5, "exact": "nowhere on this page", "prefix": "", "suffix": ""},
+    )
+    _note_on_page(
+        q,
+        sid,
+        id="a-2026-09-21-0003",
+        sha256="dead" * 16,
+        kind="note",
+        anchor={"basis": "box", "quads": [[1, 2, 3, 4]], "exact": "", "prefix": "", "suffix": ""},
+    )
 
     from loom.cli._quilt import open_scan
 
@@ -1693,7 +1764,9 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
     lost = by_id["a-2026-09-21-0002"]
     assert lost.work == "Calloway14" and lost.recorded and lost.detached
     box = by_id["a-2026-09-21-0003"]
-    assert box.work == "Calloway14" and not box.recorded and not box.detached  # a stale artifact, but the rectangles are the record
+    assert (
+        box.work == "Calloway14" and not box.recorded and not box.detached
+    )  # a stale artifact, but the rectangles are the record
 
     # status: no row, no count, listed by work on request (design §4)
     j = _json.loads(run("status", "--json", cwd=q).output)
@@ -1724,29 +1797,69 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
 
     q = _showcase(tmp_path)
     who = ("--author", "A. Author")
-    said = run("comment", "Bellamy19", "Is this needed?", "--page", "2", "--quote", "totally unimodular", "--kind", "question", *who, cwd=q)
+    said = run(
+        "comment",
+        "Bellamy19",
+        "Is this needed?",
+        "--page",
+        "2",
+        "--quote",
+        "totally unimodular",
+        "--kind",
+        "question",
+        *who,
+        cwd=q,
+    )
     assert said.exit_code == 0 and "Bellamy19 p.2 (text)  question" in said.output, said.output
-    drawn = run("comment", "Bellamy19", "the polytope", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q)
+    drawn = run(
+        "comment", "Bellamy19", "the polytope", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
+    )
     assert drawn.exit_code == 0 and "p.2 (box)  note" in drawn.output, drawn.output
-    by_id = run("comment", "doi:10.4171/showcase/19-2", "by its identifier", "--page", "2", "--quote", "Boundedness holds", *who, cwd=q)
+    by_id = run(
+        "comment",
+        "doi:10.4171/showcase/19-2",
+        "by its identifier",
+        "--page",
+        "2",
+        "--quote",
+        "Boundedness holds",
+        *who,
+        cwd=q,
+    )
     assert by_id.exit_code == 0, by_id.output
 
     events = [_json.loads(line) for line in (q / "annotations" / "log.jsonl").read_text().splitlines()]
     text, box, ident = events[-3], events[-2], events[-1]  # appended in order, after the showcase's own
     page_text = (q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt").read_text()
     assert text["target"] == "doi:10.4171/showcase/19-2" and text["against"].startswith("sha256:")
-    assert text["anchor"]["basis"] == "text" and page_text[text["anchor"]["start"] : text["anchor"]["end"]] == "totally unimodular"
-    assert text["anchor"]["exact"] == "totally unimodular" and text["anchor"]["prefix"] and "quads" not in text["anchor"]
+    assert (
+        text["anchor"]["basis"] == "text"
+        and page_text[text["anchor"]["start"] : text["anchor"]["end"]] == "totally unimodular"
+    )
+    assert (
+        text["anchor"]["exact"] == "totally unimodular" and text["anchor"]["prefix"] and "quads" not in text["anchor"]
+    )
     assert box["anchor"]["basis"] == "box" and box["anchor"]["quads"] == [[82.0, 278.0, 529.0, 316.0]]
     assert "quasi-polynomial" in box["anchor"]["exact"]  # the words under the rectangle, as a hint
     assert ident["target"] == text["target"]  # the citekey and the identifier name one work
 
     # the refusals, each naming what to do
     assert "say which page" in run("comment", "Bellamy19", "no page", "--quote", "x", *who, cwd=q).output
-    assert "is a key in this quilt" in run("comment", "sh-0003", "page on a key", "--page", "2", "--quote", "x", *who, cwd=q).output
-    assert "names none" in run("comment", "doi:10.1/nothing", "unknown", "--page", "2", "--quote", "x", *who, cwd=q).output
-    assert "not both" in run("comment", "Bellamy19", "both", "--page", "2", "--quote", "x", "--box", "1,2,3,4", *who, cwd=q).output
-    assert "loom refs page Bellamy19 2" in run("comment", "Bellamy19", "absent", "--page", "2", "--quote", "zebra crossing", *who, cwd=q).output
+    assert (
+        "is a key in this quilt"
+        in run("comment", "sh-0003", "page on a key", "--page", "2", "--quote", "x", *who, cwd=q).output
+    )
+    assert (
+        "names none" in run("comment", "doi:10.1/nothing", "unknown", "--page", "2", "--quote", "x", *who, cwd=q).output
+    )
+    assert (
+        "not both"
+        in run("comment", "Bellamy19", "both", "--page", "2", "--quote", "x", "--box", "1,2,3,4", *who, cwd=q).output
+    )
+    assert (
+        "loom refs page Bellamy19 2"
+        in run("comment", "Bellamy19", "absent", "--page", "2", "--quote", "zebra crossing", *who, cwd=q).output
+    )
     assert "x0,y0,x1,y1" in run("comment", "Bellamy19", "bad box", "--page", "2", "--box", "1,2,3", *who, cwd=q).output
 
     # a batch line carries the same two keys
@@ -1768,14 +1881,38 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
     q = _showcase(tmp_path)
     text = "the constraint matrix is an incidence matrix"
     preview = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})["anchor"]
-    written = handle(q, "comment", {"session": _sid(q), "target": "Bellamy19", "message": "so it is integral", "page": 2, "quote": text, "kind": "note", "author": "A. Author"})
+    written = handle(
+        q,
+        "comment",
+        {
+            "session": _sid(q),
+            "target": "Bellamy19",
+            "message": "so it is integral",
+            "page": 2,
+            "quote": text,
+            "kind": "note",
+            "author": "A. Author",
+        },
+    )
     assert written["ok"], written
     event = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
     recorded = {k: v for k, v in event["anchor"].items() if k not in ("exact", "prefix", "suffix")}
     # the preview carries derived quads so the viewer can draw before anything is written; the record does not
     assert recorded == {k: v for k, v in preview.items() if k != "quads"}
     # and a box over the API, rectangles and all
-    drawn = handle(q, "comment", {"session": _sid(q), "target": "Bellamy19", "message": "that display", "page": 2, "rects": [[82, 278, 529, 316]], "kind": "note", "author": "A. Author"})
+    drawn = handle(
+        q,
+        "comment",
+        {
+            "session": _sid(q),
+            "target": "Bellamy19",
+            "message": "that display",
+            "page": 2,
+            "rects": [[82, 278, 529, 316]],
+            "kind": "note",
+            "author": "A. Author",
+        },
+    )
     assert drawn["ok"] and "(box)" in drawn["result"], drawn
 
 
@@ -1788,14 +1925,33 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     who = ("--author", "A. Author")
     # the showcase carries reading notes of its own; what is asserted is what these two add
     before = sum(1 for line in (q / "annotations" / "log.jsonl").read_text().splitlines() if '"basis"' in line)
-    a = run("comment", "Bellamy19", "why unimodular?", "--page", "2", "--quote", "totally unimodular", "--kind", "question", *who, cwd=q).output.split()[0]
-    b = run("comment", "Bellamy19", "this display", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q).output.split()[0]
+    a = run(
+        "comment",
+        "Bellamy19",
+        "why unimodular?",
+        "--page",
+        "2",
+        "--quote",
+        "totally unimodular",
+        "--kind",
+        "question",
+        *who,
+        cwd=q,
+    ).output.split()[0]
+    b = run(
+        "comment", "Bellamy19", "this display", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
+    ).output.split()[0]
     # exit 1 is a content problem, which the showcase carries on purpose (a duplicate id); the build still writes
     assert run("build", cwd=q).exit_code in (0, 1)
     manifest = _json.loads((q / "build" / "manifest.json").read_text())
     ref = manifest["references"]["Bellamy19"]
     assert ref["reading"]["total"] == before + 2 and ref["reading"]["open"] >= 2
-    assert manifest["annotations"][a]["target"] == {"key": "doi:10.4171/showcase/19-2", "hash": manifest["annotations"][a]["target"]["hash"], "work": "Bellamy19", "page": 2}
+    assert manifest["annotations"][a]["target"] == {
+        "key": "doi:10.4171/showcase/19-2",
+        "hash": manifest["annotations"][a]["target"]["hash"],
+        "work": "Bellamy19",
+        "page": 2,
+    }
     assert manifest["annotations"][a]["basis"] == "text" and manifest["annotations"][b]["basis"] == "box"
     assert manifest["annotations"][a]["anchored"] and manifest["annotations"][b]["anchored"]
     side = _json.loads((q / "build" / ref["spans"]["path"]).read_text())
@@ -1851,11 +2007,40 @@ def test_an_agent_parked_on_session_next_wakes_when_a_message_lands_with_what_ch
 
     q = quilt(tmp_path)
     sid = run("session", "new", "reading", cwd=q).output.split()[0]
-    assert run("comment", "dm-0003", "Is this the balanced case?", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q).exit_code == 0
+    assert (
+        run(
+            "comment",
+            "dm-0003",
+            "Is this the balanced case?",
+            "--kind",
+            "question",
+            "--session",
+            sid,
+            "--author",
+            "A. Author",
+            cwd=q,
+        ).exit_code
+        == 0
+    )
     env = {**os.environ, "LOOM_FIXED_TIME": "2026-09-21T12:00:00Z"}
     env.pop("AI_AGENT", None)
     agent = subprocess.Popen(
-        [sys.executable, "-m", "loom", "session", "next", "--wait", "20", "--json", "--as", "Referee (Agent)", "--session", sid, "--quilt", str(q)],
+        [
+            sys.executable,
+            "-m",
+            "loom",
+            "session",
+            "next",
+            "--wait",
+            "20",
+            "--json",
+            "--as",
+            "Referee (Agent)",
+            "--session",
+            sid,
+            "--quilt",
+            str(q),
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -1864,9 +2049,18 @@ def test_an_agent_parked_on_session_next_wakes_when_a_message_lands_with_what_ch
     )
     try:
         time.sleep(1.5)  # long enough to be parked; the wait above is what would end it otherwise
-        assert agent.poll() is None, "the agent returned before anything landed: " + (agent.stdout.read() if agent.stdout else "")
+        assert agent.poll() is None, "the agent returned before anything landed: " + (
+            agent.stdout.read() if agent.stdout else ""
+        )
         t0 = time.monotonic()
-        post(q, sid, "Have another look at the balanced case.", "A. Author", kind="message", changed=changed_since(q, sessions(q)[sid]))
+        post(
+            q,
+            sid,
+            "Have another look at the balanced case.",
+            "A. Author",
+            kind="message",
+            changed=changed_since(q, sessions(q)[sid]),
+        )
         out, err = agent.communicate(timeout=15)
     finally:
         if agent.poll() is None:
@@ -1930,12 +2124,24 @@ def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(tmp_
     )
     os.environ["AI_AGENT"] = "1"
     try:
-        said = handle(q, "comment", {"session": _sid(q), "target": "dm-0003", "message": "from the browser", "kind": "note"})
+        said = handle(
+            q, "comment", {"session": _sid(q), "target": "dm-0003", "message": "from the browser", "kind": "note"}
+        )
         assert said["ok"], said
         written = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
         assert written["author"] != "agent" and written["kind"] == "human", written
         # an agent posting to the same endpoint still says so, and is believed by its name
-        handle(q, "comment", {"session": _sid(q), "target": "dm-0003", "message": "from an agent", "kind": "note", "author": "Referee (Agent)"})
+        handle(
+            q,
+            "comment",
+            {
+                "session": _sid(q),
+                "target": "dm-0003",
+                "message": "from an agent",
+                "kind": "note",
+                "author": "Referee (Agent)",
+            },
+        )
         robot = _json.loads((q / "annotations" / "log.jsonl").read_text().splitlines()[-1])
         assert robot["author"] == "Referee (Agent)" and robot["kind"] == "agent", robot
         assert written["author"] == "Wren Halloway", written
@@ -1995,8 +2201,34 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
 
     q = _showcase(tmp_path)
     sid = create(q, "reading", "A. Author").id
-    run("comment", "Bellamy19", "why unimodular?", "--page", "2", "--quote", "totally unimodular", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q)
-    run("comment", "sh-0003", "and one on a key, which has no work", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
+    run(
+        "comment",
+        "Bellamy19",
+        "why unimodular?",
+        "--page",
+        "2",
+        "--quote",
+        "totally unimodular",
+        "--kind",
+        "question",
+        "--session",
+        sid,
+        "--author",
+        "A. Author",
+        cwd=q,
+    )
+    run(
+        "comment",
+        "sh-0003",
+        "and one on a key, which has no work",
+        "--kind",
+        "note",
+        "--session",
+        sid,
+        "--author",
+        "A. Author",
+        cwd=q,
+    )
 
     changed = changed_since(q, sessions(q)[sid])
     page_note = next(c for c in changed if c["page"])
@@ -2005,5 +2237,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
     on_key = next(c for c in changed if not c["page"])
     assert on_key["work"] is None and on_key["target"] == "sh-0003"
     # and what a parked agent reads names the paper and the page, not an address it must decode
-    said = render([type("E", (), {"who": "A. Author", "when": "now", "kind": "message", "body": "look", "changed": changed})()])
+    said = render(
+        [type("E", (), {"who": "A. Author", "when": "now", "kind": "message", "body": "look", "changed": changed})()]
+    )
     assert "Bellamy19 p.2" in said, said

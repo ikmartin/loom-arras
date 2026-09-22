@@ -126,9 +126,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         home = root / str(artifacts.get("dir", ""))
         if not artifacts.get("pdf") or not (home / "paper.pdf").is_file():
             continue
-        results = {
-            rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page
-        }
+        results = {rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page}
         if not results and not notes:
             continue
         table = _PageTable(home)
@@ -157,7 +155,9 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
             continue
         m = read_map(home)
         body = json.dumps(
-            {"artifact": m.sha256 if m else "", "pages": pages, "quads": quads, "marks": marks}, indent=1, sort_keys=True
+            {"artifact": m.sha256 if m else "", "pages": pages, "quads": quads, "marks": marks},
+            indent=1,
+            sort_keys=True,
         )
         rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
         files[rel] = body

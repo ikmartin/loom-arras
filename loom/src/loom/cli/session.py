@@ -174,7 +174,9 @@ def delete_command(
         kept, dropped = _without(root, s.id)
         if not yes:
             if not sys.stdin.isatty():
-                raise EnvError(f"--purge erases {dropped} annotation(s) and cannot be undone; pass --yes when you mean it")
+                raise EnvError(
+                    f"--purge erases {dropped} annotation(s) and cannot be undone; pass --yes when you mean it"
+                )
             click.echo(f"--purge erases {s.id} and the {dropped} annotation(s) written in it. This cannot be undone.")
             click.confirm("erase it?", abort=True)
         log_path(root).write_text("".join(kept), encoding="utf-8")

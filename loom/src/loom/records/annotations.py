@@ -33,6 +33,8 @@ def full_kind(given: str) -> str | None:
         return given
     hits = [k for k in KINDS if k.startswith(given.lower())]
     return hits[0] if len(hits) == 1 else None
+
+
 PLACEMENTS = ("replace", "after", "before")
 
 

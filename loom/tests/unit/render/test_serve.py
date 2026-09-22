@@ -25,7 +25,6 @@ def _sid(root: Path) -> str:
     return have[0].id if have else create(root, "test sitting", "tester").id
 
 
-
 def demo(tmp_path: Path) -> Path:
     old = os.getcwd()
     try:
@@ -225,9 +224,24 @@ def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # ty
 
     # and it can be answered, restated and withdrawn over the same surface
     ann = mine[0]["id"]
-    assert post(s.url + "/_api/reply", {"session": _sid(d), "annotation": ann, "message": "Noted.", "author": "A Reader"})[0] == 200
-    assert post(s.url + "/_api/edit", {"session": _sid(d), "annotation": ann, "message": "Restated.", "author": "A Reader"})[0] == 200
-    assert post(s.url + "/_api/discard", {"session": _sid(d), "annotation": ann, "reason": "mine", "author": "A Reader"})[0] == 200
+    assert (
+        post(s.url + "/_api/reply", {"session": _sid(d), "annotation": ann, "message": "Noted.", "author": "A Reader"})[
+            0
+        ]
+        == 200
+    )
+    assert (
+        post(
+            s.url + "/_api/edit", {"session": _sid(d), "annotation": ann, "message": "Restated.", "author": "A Reader"}
+        )[0]
+        == 200
+    )
+    assert (
+        post(s.url + "/_api/discard", {"session": _sid(d), "annotation": ann, "reason": "mine", "author": "A Reader"})[
+            0
+        ]
+        == 200
+    )
     events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
     assert {e["event"] for e in events if e.get("id") == ann} >= {"created", "edited", "discarded"}
 
@@ -263,7 +277,12 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> 
     _, made = post(
         s.url + "/_api/comment",
         {
-            "session": _sid(d),"target": "dm-0003", "message": "Cite Manolache, Prop 3.2.", "kind": "citation", "author": "A Reader"},
+            "session": _sid(d),
+            "target": "dm-0003",
+            "message": "Cite Manolache, Prop 3.2.",
+            "kind": "citation",
+            "author": "A Reader",
+        },
     )
     ann = [
         json.loads(x)
@@ -271,7 +290,9 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> 
         if x.strip() and "Manolache" in x
     ][0]["id"]
 
-    status, body = post(s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "accept", "author": "A Reader"})
+    status, body = post(
+        s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "accept", "author": "A Reader"}
+    )
     assert status == 200, body
     notes = [json.loads(x) for x in (d / "reference-notes.jsonl").read_text().splitlines() if x.strip()]
     assert notes[-1]["for"] == ["dm-0003"]
@@ -288,8 +309,7 @@ def test_rejecting_a_citation_writes_no_breadcrumb(session) -> None:  # type: ig
     s, d = session
     post(
         s.url + "/_api/comment",
-        {
-            "session": _sid(d),"target": "dm-0002", "message": "Cite something else.", "kind": "citation", "author": "R"},
+        {"session": _sid(d), "target": "dm-0002", "message": "Cite something else.", "kind": "citation", "author": "R"},
     )
     ann = [
         json.loads(x)
@@ -298,7 +318,8 @@ def test_rejecting_a_citation_writes_no_breadcrumb(session) -> None:  # type: ig
     ][0]["id"]
     before = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
     status, _ = post(
-        s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "reject", "reason": "already cited", "author": "R"}
+        s.url + "/_api/refs-note",
+        {"session": _sid(d), "annotation": ann, "decision": "reject", "reason": "already cited", "author": "R"},
     )
     assert status == 200
     after = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""

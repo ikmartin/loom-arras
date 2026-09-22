@@ -369,7 +369,9 @@ def _own_account(pdf: Path) -> tuple[WorkId | None, dict[str, str]]:
     return None, fields
 
 
-def _entry_for(pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, source: str = "", filed: str = "") -> str:
+def _entry_for(
+    pdf: Path, wid: WorkId | None, fields: dict[str, str], key: str, source: str = "", filed: str = ""
+) -> str:
     """A bibliography entry for a document that had none, carrying where it came from.
 
     `source` overrides the seed path for a document that did not come from the seed space; it is what a later scan reads to know this entry already names that document.
