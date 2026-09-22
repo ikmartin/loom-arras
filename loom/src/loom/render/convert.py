@@ -363,6 +363,7 @@ class RenderContext:
     diagnostics: list[Diagnostic] = field(default_factory=list)
     footnotes: int = 0
     region_ids: dict[str, str] = field(default_factory=dict)  # label -> element id
+    highlight_spans: list[tuple[int, int]] = field(default_factory=list)  # comparison-only source ranges
 
     def src(self, a: int, b: int) -> str:
         return f"{self.file}:{a}:{b}"
@@ -474,6 +475,33 @@ class Converter:
     def __init__(self, ctx: RenderContext) -> None:
         self.ctx = ctx
 
+    def _changed(self, start: int, end: int) -> bool:
+        return any((a < end and b > start) or (a == b and start < a < end) for a, b in self.ctx.highlight_spans)
+
+    def _prose(self, value: str, start: int) -> str:
+        """Mark only source characters that changed, before ligatures and escaping alter them."""
+        if not self.ctx.highlight_spans:
+            return esc(ligatures(value))
+        end = start + len(value)
+        cuts = {start, end}
+        for a, b in self.ctx.highlight_spans:
+            if start < a < end:
+                cuts.add(a)
+            if start < b < end:
+                cuts.add(b)
+        points = sorted(cuts)
+        out: list[str] = []
+        for a, b in zip(points, points[1:], strict=False):
+            if any(lo == hi == a for lo, hi in self.ctx.highlight_spans):
+                out.append('<span class="review-change-point" aria-label="edit point"></span>')
+            piece = esc(ligatures(value[a - start : b - start]))
+            if any(lo < b and hi > a for lo, hi in self.ctx.highlight_spans):
+                piece = f'<mark class="review-changed">{piece}</mark>'
+            out.append(piece)
+        if any(lo == hi == end for lo, hi in self.ctx.highlight_spans):
+            out.append('<span class="review-change-point" aria-label="edit point"></span>')
+        return "".join(out)
+
     # ---- ranges and blocks -------------------------------------------------
 
     def render_range(self, a: int, b: int) -> str:
@@ -537,7 +565,7 @@ class Converter:
                 if part:
                     if not para and not part.strip():
                         pstart[0] = offset + len(part)
-                    para.append(esc(ligatures(part)))
+                    para.append(self._prose(part, offset))
                 offset += len(part)
 
         i = 0
@@ -633,7 +661,8 @@ class Converter:
                         (k for k in range(i + 1, n) if toks[k].kind == "math" and toks[k].value == close_val), None
                     )
                     inner = ctx.text[t.end : toks[j].start] if j is not None else ctx.text[t.end : b]
-                    para.append(f'<span class="math inline">\\({esc(self.math_text(inner))}\\)</span>')
+                    changed = " review-changed" if self._changed(t.start, toks[j].end if j is not None else b) else ""
+                    para.append(f'<span class="math inline{changed}">\\({esc(self.math_text(inner))}\\)</span>')
                     i = (j + 1) if j is not None else n
                     continue
                 i += 1
@@ -793,7 +822,7 @@ class Converter:
         while i < n:
             t = toks[i]
             if t.kind == "text":
-                out.append(esc(ligatures(t.value)))
+                out.append(self._prose(t.value, t.start))
             elif t.kind == "math":
                 if t.value in ("$", "\\(", "$$", "\\["):
                     close_val = {"$": "$", "\\(": "\\)", "$$": "$$", "\\[": "\\]"}[t.value]
@@ -801,7 +830,8 @@ class Converter:
                         (k for k in range(i + 1, n) if toks[k].kind == "math" and toks[k].value == close_val), None
                     )
                     inner = rawslice(t.end, toks[j].start) if j is not None else rawslice(t.end, b)
-                    out.append(f'<span class="math inline">\\({esc(self.math_text(inner))}\\)</span>')
+                    changed = " review-changed" if self._changed(t.start, toks[j].end if j is not None else b) else ""
+                    out.append(f'<span class="math inline{changed}">\\({esc(self.math_text(inner))}\\)</span>')
                     i = (j + 1) if j is not None else n
                     continue
             elif t.kind == "open":
@@ -856,7 +886,7 @@ class Converter:
 
         if name in REF_CMDS:
             (arg,), spans, after = args("m")
-            return self.ref_html(name, arg or "", spans[0]), after, None
+            return self.ref_html(name, arg or "", spans[0], t.start), after, None
         if name in CITE_CMDS:
             (o1, o2, keys), spans, after = args("oom")
             post = o2 if o2 is not None else o1
@@ -1024,7 +1054,7 @@ class Converter:
             pass
         return pos + base
 
-    def ref_html(self, cmd: str, label: str, span: tuple[int, int]) -> str:
+    def ref_html(self, cmd: str, label: str, span: tuple[int, int], offset: int) -> str:
         ctx = self.ctx
         parts = [re.sub(r"\s+", " ", x).strip() for x in (label.split(",") if cmd in ("cref", "Cref") else [label])]
         pieces = []
@@ -1043,8 +1073,9 @@ class Converter:
             else:
                 cls = "ref"
             href = "#" + slug(target)
+            cite_id = f"cite-{slug(ctx.file)}-{offset}-{slug(target)}"
             pieces.append(
-                f'<a class="{cls}" data-target="{html.escape(target, quote=True)}" href="{href}">{esc(text)}</a>'
+                f'<a id="{cite_id}" class="{cls}" data-target="{html.escape(target, quote=True)}" href="{href}">{esc(text)}</a>'
             )
             _ = container
         return ", ".join(pieces)
@@ -1155,7 +1186,8 @@ class Converter:
             attrs += f' id="{slug(ctx.key + "-" + label)}" data-label="{html.escape(label, quote=True)}"'
             if num:
                 attrs += f' data-number="{html.escape(num, quote=True)}"'
-        return f'<div class="math display"{attrs}>{esc(tex)}</div>'
+        changed = " review-changed" if self._changed(start, end) else ""
+        return f'<div class="math display{changed}"{attrs}>{esc(tex)}</div>'
 
     @staticmethod
     def _undisplay(raw: str) -> str:

@@ -69,6 +69,7 @@
       "Bash(loom refs verify*)",
       "Bash(loom remove*)",
       "Bash(loom revert*)",
+      "Bash(loom review*)",
       "Bash(loom rm*)",
       "Bash(loom session close*)",
       "Bash(loom session delete*)",

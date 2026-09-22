@@ -26,6 +26,7 @@ KNOWN_KEYS = {
     "requires",
     "numbering",
     "shared",
+    "basis",
 }
 LIST_KEYS = {"author", "tags", "see", "requires"}
 BARE_KEYS = {"ignore"}

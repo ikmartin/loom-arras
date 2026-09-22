@@ -407,7 +407,10 @@ def build(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
     records.apply(result, manifest, build_dir)
+    from loom.render.review_compare import attach_comparisons
+
     _attach_spans(result.quilt.root, manifest, files)
+    attach_comparisons(result, records, renderer, manifest, files)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     report.diagnostics = [d for d in report.diagnostics] + [

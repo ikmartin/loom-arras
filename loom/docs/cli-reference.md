@@ -24,6 +24,7 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 |---|---|
 | `--proofs` | Also accept every proof attached to each statement given. |
 | `--stale` | Accept every key that is currently accepted-stale, after confirmation. |
+| `--all-live` | Accept every live author-owned statement and proof, after confirmation. |
 | `--author` |  |
 | `--force` | Accept even when the master does not compile. |
 | `--yes`, `-y` |  |
@@ -904,6 +905,16 @@ Print the patch that puts KEY@N's recorded text back in place of the head's; the
 | option | description |
 |---|---|
 | `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom review`
+
+`loom review [OPTIONS]`
+
+Observe current review causes and publish the review panel without accepting any key.
+
+| option | description |
+|---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom search`

@@ -119,6 +119,8 @@ The values are properties of the publisher and its corpora, not of this corpus's
   "children": [],
   "proofs": ["rl-0004/proof"],
   "external": false,
+  "basis": "local-proof",
+  "basis_reason": "inferred from environment Lemma",
   "digest": null,
   "incomplete": [],
   "state": "accepted",
@@ -126,7 +128,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 }
 ```
 
-Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for digest nodes, with `digest` naming the citekey and `locator` present; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments.
+Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for cited-result blocks and digest nodes, with `digest` naming the citekey for the latter and `locator` present when available; `basis` on environment nodes is `expository`, `local-proof`, `cited-result`, `assumption`, `open-claim`, or `unclassified`, with `basis_reason` explaining the scan's choice or uncertainty; `inline_proof` is true when an explicitly `local-proof` remark or comment has its whole argument inside the block and no separate attached proof; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments. The basis fields are additive in interface version 1 (DR-212); DR-213 replaces the `definition` value with `expository` and adds `inline_proof`.
 
 ## 4. Keys
 
@@ -167,7 +169,7 @@ Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes)
 }
 ```
 
-Rules: `state` is one of the publisher's state labels (section 8); `acceptance` absent when no row exists; `causes` present only when `fresh` is false, each with a `diff` path under the build directory to a unified diff (or `null` when no snapshot exists); `previous_key_match` names an old positional key whose acceptance row matches this text (7.10 in the book), else null; `uses` lists direct dependencies; `closure` the transitive statement closure.
+Rules: `state` is one of the publisher's state labels (section 8); `acceptance` is absent when no row exists; `causes` appear only when `fresh` is false. A cause may carry `when` (first observation date), `via` (immediate dependency for an indirect cause), `citation` (an anchor in the dependent document), and `comparison` with `accepted`, `current`, `accepted_macros`, `accepted_spans`, and `current_spans`. The fragment paths resolve under the build directory; spans are source offsets in each normalized text. A cause may also carry `diff`, a unified diff path or null if unavailable. Viewers tolerate absent optional fields. `previous_key_match` names an old positional key whose acceptance row matches this text (7.10 in the book), else null; `uses` lists direct dependencies; `closure` the transitive statement closure.
 
 ## 5. Regions
 

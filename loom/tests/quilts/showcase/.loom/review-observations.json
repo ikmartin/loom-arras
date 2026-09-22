@@ -1,0 +1,5 @@
+{
+  "[\"sh-0001\",\"2026-09-16T10:00:00Z\",\"sha256:3ad8b0a76f465efc722544e398a4644312409e80b1476d2c47b0b16bab60d885\",\"own-text-changed\",null,null]": "2026-09-18",
+  "[\"sh-0006/proof\",\"2026-09-16T10:00:00Z\",\"sha256:17231756d6ea952166e92cb47fd3854bba2e9e45388b2b2c225b42ac2224cb65\",\"dependency-changed\",\"sh-0001\",null]": "2026-09-18",
+  "[\"sh-0007/proof\",\"2026-09-16T10:00:00Z\",\"sha256:253a819d593a35dc08126221b93aadbaaf3d6b35dc3ef6dbb19abc5ca1ff21c4\",\"own-text-changed\",null,null]": "2026-09-18"
+}

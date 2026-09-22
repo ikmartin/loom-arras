@@ -16,6 +16,7 @@
 	let {
 		path,
 		macroSet = '',
+		isolatedMacros = false,
 		master = '',
 		headingLinks = false,
 		margins = false,
@@ -26,6 +27,8 @@
 	}: {
 		path: string;
 		macroSet?: string;
+		/** Accepted review text uses its saved preamble without modifying the live MathJax instance. */
+		isolatedMacros?: boolean;
 		master?: string;
 		headingLinks?: boolean;
 		margins?: boolean;
@@ -39,13 +42,21 @@
 
 	let html = $state('');
 	let error = $state('');
+	let mathReady = $state(false);
 	let el: HTMLElement | undefined = $state();
+	let mountVersion = 0;
+	let loadVersion = 0;
 
 	async function load(p: string, hash: string) {
+		const version = ++loadVersion;
+		if (isolatedMacros) mathReady = false;
 		try {
-			html = await fetchFragment(p, hash);
+			const fragment = await fetchFragment(p, hash);
+			if (version !== loadVersion) return;
+			html = fragment;
 			error = '';
 		} catch (err) {
+			if (version !== loadVersion) return;
 			error = (err as Error).message;
 		}
 	}
@@ -129,6 +140,7 @@
 	});
 
 	async function mount(root: HTMLElement) {
+		const version = ++mountVersion;
 		wireComments(root);
 		wiredFor = prefs.comments;
 		// counted as soon as the marks are wired, not after the mathematics is set: the header is about what is in the
@@ -140,7 +152,20 @@
 		const id = decodeURIComponent(location.hash.slice(1));
 		const target = id ? document.getElementById(id) : null;
 		// a long document typesets the part the reader lands on first, and everything above it, before revealing and scrolling there
-		await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
+		if (isolatedMacros) {
+			try {
+				const { typesetScoped } = await import('$lib/math/scoped');
+				if (version !== mountVersion || root !== el) return;
+				await typesetScoped(root, setName ? (sets[setName] ?? []) : []);
+				if (version !== mountVersion || root !== el) return;
+				mathReady = true;
+			} catch (err) {
+				if (version === mountVersion) error = `Could not render accepted mathematics: ${(err as Error).message}`;
+				return;
+			}
+		} else {
+			await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
+		}
 		onmounted?.(root);
 		requestAnimationFrame(() => tickAt()); // after typesetting, which is what moves the lines
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
@@ -159,7 +184,7 @@
 
 	// Mounting reads the comments setting, and an effect that tracked it re-mounted the whole fragment on every change of placement: a second wiring, a pass of MathJax over every formula, and a jump back to the URL's anchor. The effect above answers that setting; this one follows the markup and what the wiring is built from.
 	$effect(() => {
-		void [store.manifest, macroSet, master, headingLinks, margins, standalone, comments];
+		void [store.manifest, macroSet, isolatedMacros, master, headingLinks, margins, standalone, comments];
 		const root = el;
 		if (html && root) untrack(() => void mount(root));
 	});
@@ -294,7 +319,9 @@
 		<div
 			class="fragment"
 			class:read={margins}
+			class:math-pending={isolatedMacros && !mathReady}
 			class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'}
+			aria-busy={isolatedMacros && !mathReady}
 			bind:this={el}
 			tabindex="-1"
 			role="region"
@@ -326,6 +353,17 @@
 {/if}
 
 <style>
+	/* A comparison typesets with its own macro set, and half-typeset TeX is worse to look at than a held frame. */
+	.fragment.math-pending {
+		visibility: hidden;
+	}
+	.fragment.math-pending::before {
+		content: 'Rendering comparison…';
+		display: block;
+		visibility: visible;
+		font-family: var(--sans);
+		color: var(--ink-soft);
+	}
 	.framed {
 		position: relative;
 	}

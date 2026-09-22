@@ -6,12 +6,15 @@
 from __future__ import annotations
 
 import difflib
+import json
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from loom.ai.runs import thread_id
+from loom.clock import today
 from loom.records.annotations import ASKING, Annotation, Record, load_records
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
@@ -30,6 +33,7 @@ class Cause:
     when: str | None = None
     before: str | None = None  # snapshot hash
     after: str | None = None  # current hash
+    via: str | None = None  # direct dependency through which an indirect edit is reached
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"kind": self.kind, "diff": None}
@@ -37,6 +41,8 @@ class Cause:
             d["id"] = self.id
         if self.when:
             d["when"] = self.when
+        if self.via:
+            d["via"] = self.via
         return d
 
 
@@ -134,6 +140,15 @@ class Records:
                 out[k] = key_hash(result, k)
         return out
 
+    @staticmethod
+    def direct_keys(result: ScanResult, key: str) -> list[str]:
+        assert result.graph is not None
+        n = result.nodes[key]
+        direct = result.graph.direct(key)
+        if n.kind == "proof" and n.of and n.of not in direct:
+            direct.append(n.of)
+        return direct
+
     # ---- states -----------------------------------------------------------------
 
     def key_states(self, result: ScanResult) -> dict[str, KeyState]:
@@ -171,29 +186,114 @@ class Records:
                     # own text, and the cause is the useful half of the seal: the transcription you checked has moved.
                     moved = "transcription-changed" if n.external else "own-text-changed"
                     ks.causes.append(Cause(moved, before=row.text, after=current, when=_when(result, n)))
-                for dep, h in row.closure.items():
+                if row.basis and n.kind == "environment" and row.basis != n.basis:
+                    ks.causes.append(Cause("basis-changed", before=row.basis, after=n.basis, when=_when(result, n)))
+                direct_now = {d: closure_now[d] for d in self.direct_keys(result, key) if d in closure_now}
+                accepted_direct = (
+                    row.direct if row.direct_recorded else {d: row.closure[d] for d in direct_now if d in row.closure}
+                )
+                for dep, h in accepted_direct.items():
                     if dep not in result.nodes:
                         ks.causes.append(Cause("dependency-removed", id=dep, before=h))
-                    elif closure_now.get(dep) != h:
+                    elif direct_now.get(dep) != h:
                         ks.causes.append(
                             Cause(
                                 "dependency-changed",
                                 id=dep,
                                 before=h,
-                                after=closure_now.get(dep),
+                                after=direct_now.get(dep),
                                 when=_when(result, result.nodes[dep]),
                             )
                         )
-                for dep in closure_now:
-                    if dep not in row.closure:
+                for dep in direct_now:
+                    if dep not in accepted_direct and (row.direct_recorded or dep not in row.closure):
                         ks.causes.append(Cause("dependency-added", id=dep))
+                if not row.direct_recorded:
+                    # An old row does not say which closure member was direct. A removed member
+                    # cannot be reached from today's graph, so retain that conservative warning.
+                    for dep, h in row.closure.items():
+                        if dep not in closure_now and dep not in accepted_direct:
+                            ks.causes.append(Cause("dependency-removed", id=dep, before=h))
                 if row.preamble and pre and row.preamble != pre:
                     ks.causes.append(Cause("preamble-changed", before=row.preamble, after=pre))
-                ks.fresh = not ks.causes
             states[key] = ks
+        # A stable direct dependency is an acceptance boundary. Its own unresolved edit
+        # propagates; reaccepting it without changing its text resolves the indirect cause.
+        visited: set[str] = set()
+
+        def propagate(key: str, visiting: set[str]) -> None:
+            if key in visited or key in visiting or key not in states:
+                return
+            visiting.add(key)
+            ks = states[key]
+            if ks.row and result.graph:
+                for dep in self.direct_keys(result, key):
+                    if dep not in result.nodes or dep not in ks.row.closure:
+                        continue
+                    if current_hashes.get(dep) != ks.row.closure[dep]:
+                        continue  # the direct dependency already has its own cause
+                    upstream = states.get(dep)
+                    if upstream and upstream.row:
+                        propagate(dep, visiting)
+                        origins = [c.id for c in upstream.causes if c.kind == "dependency-changed" and c.id]
+                    else:
+                        origins = [
+                            ancestor
+                            for ancestor in result.graph.closure(dep)
+                            if ancestor != dep
+                            and ancestor in ks.row.closure
+                            and current_hashes.get(ancestor) != ks.row.closure[ancestor]
+                        ]
+                    for origin in origins:
+                        if origin == key or origin not in result.nodes or any(c.id == origin for c in ks.causes):
+                            continue
+                        ks.causes.append(
+                            Cause(
+                                "dependency-changed",
+                                id=origin,
+                                via=dep,
+                                before=ks.row.closure.get(origin),
+                                after=current_hashes.get(origin),
+                                when=_when(result, result.nodes[origin]),
+                            )
+                        )
+                ks.fresh = not ks.causes
+            visiting.remove(key)
+            visited.add(key)
+
+        for key in states:
+            propagate(key, set())
+        self._observe_causes(states)
         self._review_facts(result, states, current_hashes)
         self._previous_key_matches(result, states, current_hashes)
         return states
+
+    def _observe_causes(self, states: dict[str, KeyState]) -> None:
+        """Remember the first scan that saw each unresolved cause, once per acceptance epoch."""
+        path = self.root / ".loom" / "review-observations.json"
+        try:
+            old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        except (OSError, ValueError):
+            old = {}
+        if not isinstance(old, dict):
+            old = {}
+        active: dict[str, str] = {}
+        for key, state in states.items():
+            if not state.row:
+                continue
+            for cause in state.causes:
+                identity = json.dumps(
+                    [key, state.row.date, state.row.text, cause.kind, cause.id, cause.via],
+                    separators=(",", ":"),
+                )
+                first = old.get(identity)
+                active[identity] = first if isinstance(first, str) else today()
+                cause.when = active[identity]
+        if active != old:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_suffix(".json.tmp")
+            temporary.write_text(json.dumps(active, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            os.replace(temporary, path)
 
     def _review_facts(self, result: ScanResult, states: dict[str, KeyState], current: dict[str, str]) -> None:
         for res in self.resolved(result):
@@ -243,8 +343,9 @@ class Records:
                 states.get(p) and states[p].state == "accepted" and states[p].fresh and not result.nodes[p].incomplete
                 for p in n.proofs
             )
-            owes_proof = n.style == "plain" and not n.external
-            proved[key] = ok and (good_proof or not owes_proof)
+            proved[key] = ok and (
+                (n.basis == "local-proof" and (good_proof or n.inline_proof)) or n.basis in ("expository", "assumption")
+            )
         settled: dict[str, bool] = {}
         visiting: set[str] = set()
 
@@ -254,7 +355,12 @@ class Records:
             n = result.nodes.get(key)
             if n is None:
                 return False
-            if n.external:
+            # A section can be referenced as context, but has no statement or proof
+            # to accept. Keep it in dependency tracking without making it a proof obligation.
+            if n.kind == "section":
+                settled[key] = True
+                return True
+            if n.basis == "cited-result":
                 settled[key] = True
                 return True
             if key in visiting:
@@ -401,6 +507,8 @@ class Records:
     # ---- diffs -------------------------------------------------------------------
 
     def diff_for(self, result: ScanResult, cause: Cause, key: str) -> str | None:
+        if cause.kind == "basis-changed":
+            return None  # a source directive changed; no accepted text snapshot represents the old classification
         if not cause.before:
             return None
         before = read_snapshot(self.root, cause.before, self.history_dir)
@@ -441,6 +549,20 @@ class Records:
                     causes = []
                     for c in ks.causes:
                         d = c.to_dict()
+                        if c.kind == "dependency-changed" and c.id and not c.via and result.graph:
+                            from loom.render.convert import slug
+
+                            edge = next(
+                                (
+                                    e
+                                    for e in result.graph.out.get(key, [])
+                                    if e.offset >= 0 and e.via != "uses" and result.graph.statement_key(e.to) == c.id
+                                ),
+                                None,
+                            )
+                            if edge:
+                                label_target = result.assembly.labels.get(edge.label, edge.to)
+                                d["citation"] = f"cite-{slug(edge.file)}-{edge.offset}-{slug(label_target)}"
                         text = self.diff_for(result, c, key)
                         if text and diffs_dir is not None:
                             name = f"{_slug(key)}-{c.kind}{'-' + _slug(c.id) if c.id else ''}.diff"

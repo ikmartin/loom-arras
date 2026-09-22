@@ -1,6 +1,6 @@
 # 7. Review
 
-This chapter specifies how decisions about a quilt are recorded and how the tool reports their current standing. The model has two kinds of record and no stored state: acceptance rows in the ledger, written only by a human through `loom accept`; and review records, files of annotations written only by `loom comment`, by humans and agents alike. Every word the viewer shows is computed from those records and the current text.
+This chapter specifies how decisions about a quilt are recorded and how the tool reports their current standing. Acceptance rows in the ledger are written only by a human through `loom accept`; review annotations are written by humans and agents. The review observation cache records when Loom first saw an active stale cause. States are computed from the records and current text.
 
 ## 7.1 The model in one paragraph
 
@@ -23,10 +23,13 @@ date = 2026-09-16T14:02:11Z
 text = "sha256:9b1c4e..."          # hash of the key's normalized own text
 preamble = "sha256:77aa02..."      # hash of the master's preamble closure
 master = "drafting/main.tex"         # the master whose preamble was hashed
+basis = "local-proof"                # the classified basis of a statement; absent on proof or legacy rows
 [accept.closure]                   # hashes of every statement in the closure
 "rl-0002" = "sha256:3c0e91..."
 "rl-0001" = "sha256:1f2d7b..."
 "Man12-thm-4.1" = "sha256:aa10c3..."
+[accept.direct]                    # hashes of immediate dependencies
+"rl-0002" = "sha256:3c0e91..."
 
 [[accept]]
 key = "rl-0004/proof"
@@ -49,6 +52,8 @@ Rules:
 4. **[decided]** `author` comes from the resolution order in 4.3; the row is refused without one.
 5. **[decided]** `schema = 1`; a future loom migrates on `loom upgrade`.
 6. **[decided]** Git merges of concurrent appends to different keys are clean; concurrent acceptances of the same key produce a textual conflict either resolution of which is consistent, since both rows are valid.
+7. **[decided]** Statement rows written after DR-212 record `basis`. A later classification change makes that acceptance stale until the author re-accepts it; older rows without the field remain readable and are compared by their existing text and context hashes.
+8. New rows also record `direct`, the immediate dependency hashes at acceptance. Older rows without it remain readable. A change through an unchanged immediate dependency is reported with the upstream key `via` that dependency; re-accepting the intermediate block unchanged resolves that indirect stale cause.
 
 ### 7.2.2 Snapshots
 
@@ -56,13 +61,14 @@ Rules:
 
 ## 7.3 `loom accept`
 
-**[decided]** `loom accept KEY [KEY ...] [--proofs] [--stale] [--author NAME] [--force] [--yes]`
+**[decided]** `loom accept [KEY ...] [--proofs] [--stale] [--all-live] [--author NAME] [--force] [--yes]`
 
 1. For each key: compute the current hashes; write one row and the snapshots; print `accepted <key> (<Taxon>) by <author> <date>` per row, then how many snapshots were written and how many were already present.
 2. `--proofs`: for each statement key given, also accept all its attached proofs.
 3. `--stale`: accept every key currently in state accepted-stale, after printing the list with its causes and asking for confirmation on a terminal (`--yes` skips; without a terminal `--yes` is required). This is the command for "I have read the diffs and nothing is affected".
-4. Refusals: no author name (exit 2); a key that does not exist or is not a statement or proof (exit 2); a key with `\incomplete` in it (exit 1; `loom accept` will not accept an incomplete key; remove the mark first); a default master that does not compile (exit 1), since numbers and preamble are then unknown. **[decided]** The compile check is cheap: the master is recompiled only when its PDF under `build/` is older than some scanned file, and `--force` skips the check (settled at M3).
-5. Never enforced: that the closure is accepted. An author may accept a proof whose lemmas are drafts; the viewer shows that honestly through the derived states (7.6.3).
+4. `--all-live`: accept every author-owned statement and proof reached by a live document, excluding sections, cited results and loose nodes. It is mutually exclusive with named keys, `--proofs` and `--stale`. It prints the statement and proof counts and asks for confirmation on a terminal (`--yes` skips; without a terminal `--yes` is required). A live conflicted, incomplete, unclassified, or open claim refuses the entire operation before any rows are written. This is a bulk mathematical assertion, not an automatic consequence of drafting from a canon landmark (DR-211, DR-212).
+5. Refusals: no author name (exit 2); a key that does not exist or is not a statement or proof (exit 2); an open claim, which is not asserted as established; a key with `\incomplete` in it (exit 1; `loom accept` will not accept an incomplete key; remove the mark first); a default master that does not compile (exit 1), since numbers and preamble are then unknown. **[decided]** The compile check is cheap: the master is recompiled only when its PDF under `build/` is older than some scanned file, and `--force` skips the check (settled at M3).
+6. Never enforced: that the closure is accepted. An author may accept a proof whose lemmas are drafts; the viewer shows that honestly through the derived states (7.6.3).
 
 Example:
 
@@ -194,8 +200,8 @@ resolved a-2026-09-16-0007
 **[decided]** For a key with current text hash H, current closure hashes C, and current preamble hash P:
 
 - `incomplete` if the key's text contains `\incomplete`. Overrides everything below.
-- `accepted` if the latest acceptance row for the key has `text = H`, `preamble = P`, and `closure` equal to C on every entry, and no closure entry names a node that no longer exists.
-- `accepted, stale` if a latest row exists but some recorded hash differs from the current one, or a closure node was removed.
+- `accepted` if the latest acceptance row has matching own text, preamble, classification where recorded, and immediate dependencies, with no active cause propagated through an unchanged immediate dependency.
+- `accepted, stale` if a latest row exists and an own, immediate dependency, classification, preamble, removal, or propagated indirect cause is active.
 - `draft` otherwise (no row).
 
 ### 7.6.2 Stale causes
@@ -203,19 +209,20 @@ resolved a-2026-09-16-0007
 **[decided]** When a key is stale, loom names the cause, and there are exactly these:
 
 1. `own-text-changed`: `text` differs. Diff: snapshot of the accepted text against the current own text. **[decided]** On an external node the same cause is reported as `transcription-changed`: what moved is loom's copy of somebody else's theorem, and that is the whole point of having sealed it (DR-172).
-2. `dependency-changed <id>`: a closure entry's hash differs. Diff: snapshot of that statement against its current text. Several may apply; all are listed.
+2. `dependency-changed <id>`: an immediate dependency's hash differs, or a changed ancestor is reached through an unchanged immediate dependency (`<id> via <intermediate>`). Several may apply; all are listed. Re-accepting an intermediate unchanged resolves the indirect cause; changing its text makes it the direct cause.
 3. `dependency-removed <id>`: a closure entry names a node no longer defined.
 4. `preamble-changed`: `preamble` differs. Diff: preamble snapshot against current.
 5. `dependency-added <id>`: the current closure contains a node not in the recorded closure (which implies `own-text-changed`, since a new edge means new text, or `dependency-changed` upstream). Listed for clarity.
+6. `basis-changed`: the source-level classification no longer matches the one the author accepted. It has no text diff because the change may be only a `% !LOOM basis:` directive.
 
-`loom status --explain KEY` prints the key with its state, the file that holds it, its open comment counts and detached count, and each cause with the date of the changed file and the unified diff (`accepted/<id>` against `current/<id>`); `loom build` writes the same diffs under `build/diffs/`, and the review panel shows them (settled at M3).
+`loom status --explain KEY` prints the key with its state, source file, comment counts, detached count, and each cause with a unified diff where snapshots exist. A cause's date is the first date Loom observed that active cause, kept in `.loom/review-observations.json` across subsequent scans. `loom review` publishes the review panel on demand; `loom build` and live `loom serve` publish it too. The panel's `text edit` link opens the current block with its accepted rendering beside it, using the preamble saved at acceptance. For a direct changed dependency, its name links to its citation in the dependent block, with the current dependency rendered beside it. An indirect `A via C` label is informational and has no link to A. A proof's own statement may appear as a cause without a redundant comparison control. Other causes retain readable details and diffs where available.
 
 ### 7.6.3 Derived node states
 
 **[decided]** Display only, never written:
 
-- `proved`: statement accepted (fresh) with no `\incomplete`, and, for a node that owes a proof (plain style and not external), at least one attached proof accepted (fresh) with no `\incomplete`. Definition- and remark-style nodes and external nodes owe no proof and are proved by acceptance alone, so they can be settled and so can what depends on them (DR-59).
-- `settled`: proved, and every node in the statement's closure and in the closure of each fresh accepted proof is settled. External nodes count as settled. **[decided]** A dependency cycle is reported as `loom:dependency-cycle` (warning) and nothing on it is settled (verified at M3; 5.9.4 covers inclusion cycles).
+- `proved`: a `local-proof` statement accepted (fresh) with no `\incomplete` and at least one attached proof accepted (fresh) with no `\incomplete`; an explicitly `local-proof` remark or comment whose argument is inline, accepted as one block; or a freshly accepted `expository` or `assumption` block. For an inline argument, dependencies from the entire block constrain settlement. An assumption is a declared premise, so this word is relative to that premise rather than a claim that it has a proof. `open-claim` and `unclassified` blocks are never proved merely by acceptance. TeX style is irrelevant (DR-212, DR-213).
+- `settled`: proved, and every statement dependency in the statement's closure and in the closure of each fresh accepted proof is settled. Section references give structural context and impose no proof obligation. A `cited-result` is a settled dependency leaf by attribution to another paper, not a locally proved theorem; `loom refs verify` independently seals whether the transcription is faithful. **[decided]** A dependency cycle is reported as `loom:dependency-cycle` (warning) and nothing on it is settled (verified at M3; 5.9.4 covers inclusion cycles).
 
 ### 7.6.4 Review facts
 
@@ -223,7 +230,7 @@ resolved a-2026-09-16-0007
 
 ## 7.7 `loom status`
 
-**[decided]** Prints every key as `<key> (<Taxon>)` and its title, with its state, the cause if stale (with the date of the changed file), review facts, and its `\incomplete` text if any; then a summary line counting stale of accepted, draft, incomplete, loose, proved, and settled keys **of the author's own rows among those it printed**, so a filtered list is summarised by what it holds and a cited paper is never counted as the author's work (DR-172). Filters: `--stale`, `--draft`, `--incomplete`, `--loose`, `--master PATH`, `--tag TAG`, `--severity S`, `--kind K`, `--status S`, `--detached`, `--include-digests`, `--unmatched-cites`, `--undigested`, `--retired`, `--runs`; `--explain KEY`; `--json`, which also carries each key's closure, its title and taxon, the masters reaching it, and the live annotations on it. It never exits nonzero; `loom check` is the command that fails.
+**[decided]** Prints every key as `<key> (<Taxon>)` and its title, with its state, the cause if stale (dated when first observed), review facts, and its `\incomplete` text if any; then a summary line counting stale of accepted, draft, incomplete, loose, proved, and settled keys **of the author's own rows among those it printed**, so a filtered list is summarised by what it holds and a cited paper is never counted as the author's work (DR-172). Filters: `--stale`, `--draft`, `--incomplete`, `--loose`, `--master PATH`, `--tag TAG`, `--severity S`, `--kind K`, `--status S`, `--detached`, `--include-digests`, `--unmatched-cites`, `--undigested`, `--retired`, `--runs`; `--explain KEY`; `--json`, which also carries each key's closure, its title and taxon, the masters reaching it, and the live annotations on it. It never exits nonzero; `loom check` is the command that fails.
 
 **[decided]** **A digest's results are the literature, not the to-do list** (DR-172). A digest holds every numbered result of a cited paper, of which the author's own arguments reach two or three; `status` lists the **reached** ones and leaves the rest out, `--include-digests` shows them all, and the counting line names both groups — `· 14 digest keys you depend on · 79 digest keys not counted`. Reachedness, not depth: a cited result you lean on needs checking whoever cited it, and one you never use needs nothing. This is the line arras's review panel has drawn since 0.9, now drawn once and drawn the same way in both.
 

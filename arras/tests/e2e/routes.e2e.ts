@@ -133,19 +133,33 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	await expect(page.getByTestId('annotation-list').locator('article.box.discarded')).toHaveCount(1);
 });
 
-test('review panel shows stale causes and expands a row into a two-column diff', async ({ page }) => {
+test('review causes open rendered text beside its current context', async ({ page }) => {
 	await page.goto('/review');
 	await expect(page.getByTestId('review-counts')).toContainText('5 stale');
 	const row = page.locator('table.list tr', { hasText: 'sy-0002/proof' });
-	await expect(row).toContainText('dependency-changed sy-0001');
+	await expect(row).toContainText('sy-0001 via sy-0002');
 	const stale = page.locator('table.list tr', { hasText: 'sy-0001' }).first();
 	await expect(stale).toContainText('1 detached');
-
-	await page.getByTestId('expand-sy-0001').first().click(); // the key is listed once per stale cause
-	const diff = page.getByTestId('expansion-sy-0001').first().getByTestId('diff').first(); // own text first, then each changed dependency
-	await expect(diff).toBeVisible();
-	await expect(diff.locator('tr.change td.l').first()).toContainText('satisfying');
-	await expect(diff.locator('tr.change td.r').first()).toContainText('involution');
+	await stale.getByRole('link', { name: 'text edit' }).click();
+	await expect(page).toHaveURL(/\/master\/main\?review=sy-0001&cause=0#sy-0001$/);
+	await expect(page.getByTestId('review-comparison').locator('.fragment')).toHaveAttribute('aria-busy', 'false');
+	await expect(page.getByTestId('review-comparison')).toContainText('satisfying');
+	await expect(page.getByTestId('review-comparison').locator('.math mjx-container')).not.toHaveCount(0);
+	await expect(page.getByTestId('review-comparison').locator('.review-changed')).not.toHaveCount(0);
+	await expect(page.getByTestId('review-comparison')).not.toContainText('\\providecommand');
+	const comparisonLayout = await page.evaluate(() => {
+		const document = window.document.querySelector('.gutters-host')!.getBoundingClientRect();
+		const comparison = window.document.querySelector('.review-comparison')!.getBoundingClientRect();
+		return { documentRight: document.right, comparisonLeft: comparison.left, pageOverflows: window.document.documentElement.scrollWidth > window.innerWidth };
+	});
+	expect(comparisonLayout.comparisonLeft).toBeGreaterThan(comparisonLayout.documentRight);
+	expect(comparisonLayout.pageOverflows).toBe(false);
+	await page.goto('/review');
+	const dependent = page.locator('table.list tr', { hasText: 'sy-0002' }).first();
+	await dependent.getByRole('link', { name: 'sy-0001', exact: true }).click();
+	await expect(page).toHaveURL(/#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix$/);
+	await expect(page.locator('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')).toHaveClass(/review-citation-target/);
+	await expect(page.getByTestId('review-comparison')).toContainText('involution');
 });
 
 test('review panel explains itself and names the command behind each state', async ({ page }) => {
@@ -155,6 +169,35 @@ test('review panel explains itself and names the command behind each state', asy
 	const help = page.getByTestId('help-panel-review');
 	await expect(help).toContainText('stale');
 	await expect(help).toContainText('accept');
+});
+
+test('review statement badges agree with proved and settled counts', async ({ page }) => {
+	await page.route('**/build/manifest.json', async (route) => {
+		const m = structuredClone(manifest);
+		m.nodes['sy-0003'].derived = { proved: true, settled: true };
+		m.nodes['sy-0002'].derived = { proved: true, settled: false };
+		m.keys['sy-0002'].acceptance.fresh = true;
+		await route.fulfill({ json: m });
+	});
+	await page.goto('/review');
+	const counts = await page.getByTestId('review-counts').innerText();
+	expect(counts).toContain('2 proved');
+	expect(counts).toContain('3 settled');
+	await expect(page.locator('#review-sy-0003 .badge .chip')).toHaveText(['accepted', 'proved', 'settled']);
+	await expect(page.locator('#review-sy-0002 .badge .chip')).toHaveText(['accepted', 'proved']);
+});
+
+test('missing proof on a block leads to its review row', async ({ page }) => {
+	await page.route('**/build/manifest.json', async (route) => {
+		const m = structuredClone(manifest);
+		m.diagnostics.push({ severity: 'warning', code: 'loom:missing-proof', message: 'No proof attached', locations: [], keys: ['sy-0003'] });
+		await route.fulfill({ json: m });
+	});
+	await page.goto('/node/sy-0003');
+	await page.getByTestId('missing-proof').getByRole('link').click();
+	await expect(page).toHaveURL(/\/review\?show=missing-proof#review-sy-0003$/);
+	await expect(page.locator('#review-sy-0003')).toContainText('missing proof');
+	await expect(page.getByTestId('review-counts')).toContainText('1 need proof');
 });
 
 test("a work's page lists results with their citers, and the Library counts them", async ({ page }) => {

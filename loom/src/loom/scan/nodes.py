@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from loom.scan.bib import citekey_slug
 from loom.scan.directives import HEAD_LINES, file_level, list_value, parse_directives, within
-from loom.scan.envtree import FileEnvs, first_body_token_is_cite, labels_in, scan_environments
+from loom.scan.envtree import FileEnvs, labels_in, scan_environments
 from loom.scan.expand import Expansion, Segment
 from loom.scan.labels import is_id_shaped
 from loom.scan.model import Diagnostic, Directive, Env, Location, SourceFile, Taxon
@@ -18,7 +18,25 @@ from loom.scan.preamble import PreambleClosure, document_start
 from loom.scan.sections import LEVEL_NAMES, SectionUnit, find_sections
 
 _INCOMPLETE = re.compile(r"\\incomplete\s*\{")
-_CITE_IN_TITLE = re.compile(r"\\cite[a-zA-Z*]*\s*[\[{]")
+_CITE = re.compile(r"\\cite[a-zA-Z*]*\s*(?:\[([^]]+)\])?\s*\{[^}]+\}")
+_BASIS_NAMES = {
+    "expository": {
+        "definition",
+        "defn",
+        "def",
+        "notation",
+        "construction",
+        "convention",
+        "remark",
+        "rmk",
+        "rem",
+        "comment",
+    },
+    "local-proof": {"theorem", "thm", "lemma", "lem", "proposition", "prop", "corollary", "cor", "claim", "fact"},
+    "assumption": {"assumption", "axiom", "postulate", "hypothesis"},
+    "open-claim": {"conjecture", "conj", "question", "problem"},
+}
+_BASES = frozenset((*_BASIS_NAMES, "cited-result"))
 
 
 @dataclass
@@ -41,6 +59,8 @@ class NodeRec:
     children: dict[str, list[str]] = field(default_factory=dict)
     proofs: list[str] = field(default_factory=list)
     external: bool = False
+    basis: str = "unclassified"
+    basis_reason: str = ""
     digest: str | None = None
     incomplete: list[str] = field(default_factory=list)
     directives: dict[str, str] = field(default_factory=dict)
@@ -59,6 +79,20 @@ class NodeRec:
         default_factory=list
     )  # kind "conflict": the files that each define this id (book 5.3.5)
     conflict_of: str | None = None  # a demoted definition: the id it claimed, which a placeholder now holds
+
+    @property
+    def inline_proof(self) -> bool:
+        """An explicitly classified remark/comment contains its own argument instead of a proof environment."""
+        return (
+            self.kind == "environment"
+            and self.basis == "local-proof"
+            and self.directives.get("basis", "").strip().lower() == "local-proof"
+            and any(
+                name in {"remark", "rmk", "rem", "comment"}
+                for name in ((self.env or "").lower(), (self.taxon or "").lower())
+            )
+            and not self.proofs
+        )
 
 
 @dataclass
@@ -264,10 +298,6 @@ def _statement_nodes(
                 aliases=[] if conflict_of else [lab for lab in labels if lab != node_id],
                 conflict_of=conflict_of,
             )
-            has_cite = bool(env.optarg and _CITE_IN_TITLE.search(env.optarg)) or first_body_token_is_cite(
-                src.clean, env
-            )
-            rec.external = rec.style == "plain" and has_cite
             asm.nodes[key] = rec
             asm._env_keys[(path, env.start)] = key
             if node_id is None and conflict_of is None:
@@ -525,8 +555,60 @@ def _regions_and_details(
         for n in asm.nodes.values():
             if n.file == path and n.kind in ("environment", "proof", "section"):
                 for k, v in file_dirs.items():
-                    n.directives.setdefault(k, v)
+                    if k != "basis":  # a support claim belongs to one block, never every block in the file
+                        n.directives.setdefault(k, v)
+    envs = {(path, env.start): env for path, fe in asm.envs.items() for env in fe.theorem_envs}
+    for n in asm.nodes.values():
+        if n.kind == "environment":
+            n.basis, n.basis_reason = _classify_basis(n, files[n.file], envs.get((n.file, n.start)))
+            n.external = n.basis == "cited-result"
     _collect_labels(asm, files)
+
+
+def _classify_basis(n: NodeRec, src: SourceFile, env: Env | None) -> tuple[str, str]:
+    """A basis is a source-level claim about why this block may be relied on, never a TeX style."""
+    explicit = n.directives.get("basis", "").strip().lower()
+    legacy_definition = explicit == "definition"
+    if legacy_definition:
+        explicit = "expository"
+    if explicit and explicit not in _BASES:
+        return "unclassified", f"unknown basis {explicit!r}; choose {', '.join(sorted(_BASES))}"
+    if n.digest:
+        if explicit and explicit != "cited-result":
+            return "unclassified", "a digest block must have basis cited-result"
+        return "cited-result", "identified by the digest source"
+    title_cites = list(_CITE.finditer(n.title or ""))
+    body = src.clean[env.body_start : env.body_end] if env else ""
+    first_body_cite = _CITE.match(body.lstrip())
+    attributed = title_cites or first_body_cite is not None
+    located = any(m.group(1) for m in title_cites) or bool(first_body_cite and first_body_cite.group(1))
+    if explicit:
+        if explicit == "cited-result" and not any(
+            m.group(1) for a, b in n.own for m in _CITE.finditer(src.clean, a, b)
+        ):
+            return "unclassified", "cited-result needs a citation with a result locator in its block"
+        return explicit, (
+            "legacy % !LOOM basis: definition migrated to expository"
+            if legacy_definition
+            else "classified by % !LOOM basis in the source"
+        )
+    if attributed:
+        if not located:
+            return "unclassified", "attribution has no result locator; classify the block explicitly"
+        if n.proofs:
+            return "unclassified", "a cited result also has a local proof; classify the block explicitly"
+        return "cited-result", "attributed to a cited result with a locator"
+    names = {str(v).lower().replace(" ", "-") for v in (n.env, n.taxon) if v}
+    matches = {basis for basis, aliases in _BASIS_NAMES.items() if names & aliases}
+    if len(matches) != 1:
+        return "unclassified", "environment name does not identify one basis; add % !LOOM basis: ... inside the block"
+    basis = matches.pop()
+    if n.proofs and basis != "local-proof":
+        return (
+            "unclassified",
+            "this block has a proof but its environment suggests no local proof; classify it explicitly",
+        )
+    return basis, f"inferred from environment {n.taxon or n.env}"
 
 
 def _incomplete_texts(clean: str, own: list[tuple[int, int]]) -> list[str]:

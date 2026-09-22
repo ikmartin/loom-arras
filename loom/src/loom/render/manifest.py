@@ -333,6 +333,10 @@ def build_manifest(
         }
         if n.kind == "section":
             entry["level"] = n.level  # the sectioning depth, so a viewer's contents can stop at subsubsection
+        if n.kind == "environment":
+            entry["basis"] = n.basis
+            entry["basis_reason"] = n.basis_reason
+            entry["inline_proof"] = n.inline_proof
         if n.external:
             entry["locator"] = _locator(n)
         manifest["nodes"][key] = entry

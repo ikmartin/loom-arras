@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
+const kreschPdf = `/${manifest.references.Kre99.artifacts.dir}/paper.pdf`;
 
 // the smallest PDF a browser accepts, so the viewer has something real to load
 const PDF = `%PDF-1.4

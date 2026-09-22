@@ -8,7 +8,9 @@ def codes(r):  # type: ignore[no-untyped-def]
 
 
 def test_edge_family_alias_classification_closure(tmp_path: Path) -> None:
-    r = make_quilt(tmp_path, {"drafting/main.tex": SINGLE_FILE, "digests/bibliography.bib": "@article{Man12, title={x}}\n"})
+    r = make_quilt(
+        tmp_path, {"drafting/main.tex": SINGLE_FILE, "digests/bibliography.bib": "@article{Man12, title={x}}\n"}
+    )
     edges = {(e.src, e.to, e.kind, e.via) for e in r.edges.edges}
     assert ("ab-0003/proof", "ab-0001", "proof", "uses") in edges
     assert ("ab-0003/proof", "ab-0002", "proof", "ref") in edges
@@ -50,7 +52,7 @@ def test_missing_proof_external_unexpected_unknown_env(tmp_path: Path) -> None:
     )
     c = codes(r)
     assert c.count("loom:missing-proof") == 1
-    assert "loom:unexpected-proof" in c
+    assert "loom:needs-classification" in c  # a definition with a proof needs an explicit basis
     assert "loom:unknown-environment" in c
     assert r.nodes["ab-0002"].external
 

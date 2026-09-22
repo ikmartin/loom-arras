@@ -80,6 +80,78 @@ def status_json(q: Path) -> dict:  # type: ignore[type-arg]
     return json.loads(r.output)
 
 
+def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    d = demo(tmp_path)
+    c = d / "nodes" / "dm-0002.tex"
+    c.write_text(c.read_text().replace("one or two points", "one or two points (Definition~\\ref{dm-0001})"))
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-21T12:00:00Z")
+    assert run("accept", "dm-0001", "dm-0002", "dm-0003", "--proofs", "--force", *AUTHOR, cwd=d).exit_code == 0
+    a = d / "nodes" / "dm-0001.tex"
+    a.write_text(a.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
+    state = status_json(d)["keys"]["dm-0003/proof"]
+    assert any(
+        cause.get("id") == "dm-0001" and cause.get("via") == "dm-0002" for cause in state["acceptance"]["causes"]
+    )
+    assert all(cause["when"] == "2026-09-21" for cause in state["acceptance"]["causes"])
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-22T12:00:00Z")
+    assert status_json(d)["keys"]["dm-0003/proof"]["acceptance"]["causes"][0]["when"] == "2026-09-21"
+    assert run("accept", "dm-0002", "--force", *AUTHOR, cwd=d).exit_code == 0
+    state = status_json(d)["keys"]["dm-0003/proof"]
+    assert state["acceptance"]["fresh"] is True
+    assert status_json(d)["keys"]["dm-0003"]["derived"]["settled"] is False
+    c.write_text(c.read_text().replace("one or two points", "at most two points"))
+    state = status_json(d)["keys"]["dm-0003/proof"]
+    assert any(cause.get("id") == "dm-0002" and not cause.get("via") for cause in state["acceptance"]["causes"])
+
+
+def test_review_build_publishes_rendered_comparison_and_citation(tmp_path: Path) -> None:
+    d = demo(tmp_path, clean=False)
+    result = run("review", cwd=d)
+    assert result.exit_code == 0, result.output
+    manifest = json.loads((d / "build" / "manifest.json").read_text())
+    cause = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
+    comparison = cause["comparison"]
+    assert cause["citation"] in (d / "build" / manifest["masters"][0]["fragment"]).read_text()
+    accepted_html = (d / "build" / comparison["accepted"]).read_text()
+    current_html = (d / "build" / comparison["current"]).read_text()
+    assert "fixed locus" in accepted_html
+    assert "fixed locus" in current_html
+    assert 'class="review-changed"' in accepted_html + current_html
+    assert '<p class="review-changed"' not in accepted_html + current_html
+    assert comparison["accepted_spans"] and comparison["current_spans"]
+
+
+def test_observation_date_resets_after_a_cause_disappears(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    d = demo(tmp_path)
+    assert run("accept", "dm-0001", "--force", *AUTHOR, cwd=d).exit_code == 0
+    node = d / "nodes" / "dm-0001.tex"
+    original = node.read_text()
+    edited = original.replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-21T12:00:00Z")
+    node.write_text(edited)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"][0]["when"] == "2026-09-21"
+    node.write_text(original)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["fresh"] is True
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-23T12:00:00Z")
+    node.write_text(edited)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"][0]["when"] == "2026-09-23"
+
+
+def test_comparison_uses_preamble_saved_with_dependent_acceptance(tmp_path: Path) -> None:
+    d = demo(tmp_path, clean=False)
+    master = d / "drafting" / "main.tex"
+    master.write_text(master.read_text().replace("\\operatorname{Fix}", "\\operatorname{Fixed}"))
+    assert run("review", cwd=d).exit_code == 0
+    manifest = json.loads((d / "build" / "manifest.json").read_text())
+    causes = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"]
+    comparison = next(c["comparison"] for c in causes if c["kind"] == "dependency-changed")
+    old = manifest["macros"]["sets"][comparison["accepted_macros"]]
+    assert any(m["name"] == "Fix" and "\\operatorname{Fix}" in m["body"] for m in old)
+    assert any(m["name"] == "Fix" and "\\operatorname{Fixed}" in m["body"] for m in manifest["macros"]["default"])
+
+
 def test_ledger_refuses_without_author_exact_message(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = run("accept", "dm-0002", "--force", cwd=d)
@@ -105,6 +177,67 @@ def test_accept_writes_closure_hashes_and_proofs_flag(tmp_path: Path) -> None:
     assert s["keys"]["dm-0002"]["state"] == "accepted" and s["keys"]["dm-0002"]["acceptance"]["fresh"]
     assert s["keys"]["dm-0002/proof"]["acceptance"]["fresh"]
     assert s["summary"]["accepted"] == 2
+
+
+def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    (d / "nodes" / "dm-0099.tex").write_text("\\begin{lemma}\\label{dm-0099}Loose.\\end{lemma}\n")
+    before = run("accept", "--all-live", "--yes", "--force", *AUTHOR, cwd=d)
+    assert before.exit_code == 1 and "dm-0005/proof" in before.output
+    assert not (d / ".loom" / "state.toml").exists()
+
+    master = d / "drafting" / "main.tex"
+    master.write_text(
+        master.read_text()
+        .replace(
+            "\\incomplete{Say why the restriction is continuous when $X$ carries the constructible topology.}",
+            "The restriction is continuous in the constructible topology.",
+        )
+        .replace("\\begin{remark}\\label{dm-0004}", "\\begin{remark}\\label{dm-0004}\n% !LOOM basis: local-proof")
+    )
+    candidate = d / "nodes" / "dm-0006.tex"
+    candidate.write_text(
+        candidate.read_text()
+        .replace(
+            "\\incomplete{Not yet attempted. The first clause should be immediate from the orbit decomposition of Lemma~\\ref{dm-0002}; the invariance clause is the part that needs an argument.}",
+            "The count follows by partitioning into one- and two-point orbits.",
+        )
+        .replace(
+            "\\begin{conjecture}[Orbit counting]\\label{dm-0006}",
+            "\\begin{conjecture}[Orbit counting]\\label{dm-0006}\n% !LOOM basis: local-proof",
+        )
+    )
+    outline = d / "drafting" / "outline.tex"
+    outline.write_text(outline.read_text().replace("\\input{nodes/dm-0007}\n", ""))  # an open question stays loose
+    unconfirmed = run("accept", "--all-live", "--force", *AUTHOR, cwd=d)
+    assert unconfirmed.exit_code == 2 and "--yes" in unconfirmed.output, unconfirmed.output
+    assert not (d / ".loom" / "state.toml").exists()
+
+    accepted = run("accept", "--all-live", "--yes", "--force", *AUTHOR, cwd=d)
+    assert accepted.exit_code == 0, accepted.output
+    assert "statements and" in accepted.output and "proofs" in accepted.output
+    s = status_json(d)
+    assert s["keys"]["dm-0002/proof"]["state"] == "accepted"
+    assert s["keys"]["dm-0005/proof"]["state"] == "accepted"
+    assert s["keys"]["dm-0006"]["state"] == "accepted"  # the outline master also makes this node live
+    assert s["keys"]["dm-0007"]["state"] == "draft"
+    assert s["keys"]["dm-0099"]["state"] == "draft"  # an unreached node is excluded
+
+    upstream = d / "nodes" / "dm-0001.tex"
+    upstream.write_text(
+        upstream.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    )
+    s = status_json(d)
+    assert not s["keys"]["dm-0001"]["acceptance"]["fresh"]
+    assert "dependency-changed" in {c["kind"] for c in s["keys"]["dm-0002/proof"]["acceptance"]["causes"]}
+
+
+@pytest.mark.parametrize("extra", [("dm-0001",), ("--proofs",), ("--stale",)])
+def test_accept_all_live_refuses_other_target_modes(tmp_path: Path, extra: tuple[str, ...]) -> None:
+    d = demo(tmp_path)
+    r = run("accept", "--all-live", *extra, "--yes", "--force", *AUTHOR, cwd=d)
+    assert r.exit_code == 2 and "cannot be combined" in r.output
+    assert not (d / ".loom" / "state.toml").exists()
 
 
 def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> None:

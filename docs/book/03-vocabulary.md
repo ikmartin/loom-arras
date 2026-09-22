@@ -40,7 +40,8 @@ All entries are **[decided]** unless marked.
 - alias : any label on a node other than its id. Multiple `\label`s in one environment are legal LaTeX; loom resolves all of them to the node.
 - tag : a thematic label attached to a node by a `% !LOOM tags:` directive (`algebraic-geometry`). Any number per node. Never an identifier.
 - taxon : the kind of a node: the display name declared by `\newtheorem` (or `\declaretheorem`) for a theorem-like environment; `Section`, `Subsection`, and so on for sectioning units; `Proof` for a labelled proof.
-- style class : amsthm's `plain`, `definition`, or `remark`, read from the `\theoremstyle` in force when the environment was declared. `plain` nodes owe a proof.
+- style class : amsthm's `plain`, `definition`, or `remark`, read from the `\theoremstyle` in force when the environment was declared. It controls presentation, not proof obligation.
+- basis : the reason a theorem-like block may be relied on: `expository`, `local-proof`, `cited-result`, `assumption`, or `open-claim`; `unclassified` means the drafting scan needs the author's choice. `expository` covers definitions, notation, and explanatory remarks or comments that make no claim requiring mathematical justification. A remark or comment with a claim and its justification inline may declare `local-proof`; its acceptance covers the entire block. The author may declare a basis with `% !LOOM basis:` inside the block.
 - version : the text a key had at a step, stored in that step's directory and addressed `rl-0001@3`.
 - address : a key and a step, `rl-0001@3` or `rl-0001@paper-v2`; the step may be named by number or by the canon document it wrote.
 - retired id : an id the history has recorded and no live document defines. Never allocated again.
