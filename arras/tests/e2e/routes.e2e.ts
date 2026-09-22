@@ -279,7 +279,7 @@ test('review causes open rendered text beside its current context', async ({ pag
 
 test('review panel explains itself and names the command behind each state', async ({ page }) => {
 	await page.goto('/review');
-	await expect(page.locator('p.lead')).toContainText('Recorded states are read from Loom’s ledger.');
+	await expect(page.locator('p.lead')).toContainText('Recorded states are read from this corpus’s review history.');
 	await page.getByTestId('help-review').click();
 	const help = page.getByTestId('help-panel-review');
 	await expect(help).toContainText('stale');

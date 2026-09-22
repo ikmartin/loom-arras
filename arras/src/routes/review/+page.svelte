@@ -169,7 +169,7 @@
 		<a class:active={filter === 'needs-review'} aria-current={filter === 'needs-review' ? 'page' : undefined} href="?show=needs-review">Needs Review ({needsReview.length})</a>
 		<a class:active={filter === 'incoming'} aria-current={filter === 'incoming' ? 'page' : undefined} href="?show=incoming">Incoming ({m.incoming?.changes.length ?? 0})</a>
 	</nav>
-	<p class="lead">{LEADS[filter]} {filter === 'all' ? 'Recorded states are read from Loom’s ledger.' : 'When served locally, review actions save private decisions.'}</p>
+	<p class="lead">{LEADS[filter]} {filter === 'all' ? 'Recorded states are read from this corpus’s review history.' : 'When served locally, review actions save private decisions.'}</p>
 	<p class="counts" data-testid="review-counts">
 		{counts.accepted} accepted <span class="sep">·</span>{counts.stale} stale <span class="sep">·</span>{counts.draft} draft <span class="sep">·</span>{counts.incomplete} incomplete <span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
 	</p>
