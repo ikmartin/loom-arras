@@ -1391,6 +1391,52 @@ def test_source_alone_is_enough_to_extract_from_and_a_work_with_neither_is_block
     assert work.blocked == ("", "")  # source is enough to extract from; the missing page is the lint's business
 
 
+@pytest.mark.tex
+def test_an_extracted_result_is_located_on_the_page_it_is_printed_on() -> None:
+    """**A digest node points into the paper, not only at its own source** (plan 0.13.2).
+
+    The page is found in the work's committed page text, so it holds whether or not the paper compiled: the showcase extracts with `--no-compile`, and every result still carries the page it is printed on. What is recorded is a page whose text carries the result, never the `.aux`'s claim taken on trust.
+    """
+    import json as _json
+
+    showcase = Path(__file__).resolve().parents[2] / "tests" / "quilts" / "showcase"
+    results = _json.loads((showcase / "digests" / "Arden24.results.json").read_text())["results"]
+    by_id = {r["id"]: r for r in results}
+
+    # the locator a reader sees, and the anchor a viewer follows, agree
+    prop = by_id["Arden24-prop-2.1"]
+    assert "p.~1" in prop["locator"], prop["locator"]
+    assert prop["anchor"]["kind"] == "pdf" and prop["anchor"]["page"] == 1
+
+    # a result later in the paper is on a later page: the page is located, not defaulted
+    assert by_id["Arden24-cor-3.2"]["anchor"]["page"] == 2
+
+    # the anchor says where the statement is, not merely which sheet it is on
+    assert prop["anchor"]["basis"] == "text"
+    assert prop["anchor"]["end"] > prop["anchor"]["start"]
+    page_text = (showcase / "digests" / "storage" / "arxiv" / "2504.01234v1" / "pages" / "0001.txt").read_text()
+    said = page_text[prop["anchor"]["start"] : prop["anchor"]["end"]]
+    assert said.startswith("Proposition 2.1"), said[:60]
+    assert "quiver whose underlying graph" in said, said[:120]
+
+    # and every located page really carries the result's printed label
+    for r in results:
+        page = r["anchor"].get("page") or 0
+        if not page:
+            continue
+        text = (showcase / "digests" / "storage" / "arxiv" / "2504.01234v1" / "pages" / f"{page:04d}.txt").read_text()
+        label = r["locator"].split("[", 1)[1].split(",", 1)[0]
+        assert label in text, f"{r['id']} claims {label} on page {page}"
+
+
+def test_a_work_with_no_filed_copy_keeps_its_source_anchor(tmp_path: Path) -> None:
+    """Extraction still works with no document at all (DR-198): what it cannot locate it does not invent."""
+    from loom.refs.proposals import _extracted_anchor
+
+    a = _extracted_anchor(tmp_path, "Nobody12", None, "{\\cite[Theorem 1.1, p.~4]{Nobody12}}", "Let X be a scheme.", "digests/Nobody12.tex", "abc")
+    assert a.kind == "tex" and a.page == 0  # a page in the locator is not a page anybody can open
+
+
 def test_the_viewer_can_switch_retitle_and_tombstone_a_session(tmp_path: Path) -> None:
     """The panel's selector writes through the same functions `loom session` calls, so the two surfaces cannot spell an event differently."""
     from loom.render.api import handle

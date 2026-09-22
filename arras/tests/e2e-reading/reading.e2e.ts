@@ -44,8 +44,20 @@ async function intoASession(page: Page): Promise<void> {
 	await expect(page.locator('[data-testid="session-list"] li.selected')).toHaveCount(1);
 }
 
-/** Select a phrase on the page the way a reader does: a Range over the text layer and the release the handler reads. */
+/**
+ * Select a phrase and ask to annotate it, the way a reader does.
+ *
+ * Selecting no longer opens the composer by itself: the selection stays live so it can be copied, and an *annotate*
+ * chip offers the other thing. Both halves are exercised here, because a test that reached the composer without the
+ * chip would not notice the chip disappearing.
+ */
 async function select(page: Page, phrase: string): Promise<void> {
+	await selectOnly(page, phrase);
+	await page.getByTestId('annotate-offer').click();
+}
+
+/** The selection alone, for a test about what selecting does on its own. */
+async function selectOnly(page: Page, phrase: string): Promise<void> {
 	await page
 		.locator(`[data-testid="pdf-page-2"] .text span:has-text("${phrase}")`)
 		.first()
@@ -58,6 +70,18 @@ async function select(page: Page, phrase: string): Promise<void> {
 			node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 		});
 }
+
+test('selecting text leaves it selected, and only offers to annotate it', async ({ page }) => {
+	// Highlighting a phrase to copy it is the ordinary thing to do with a paper. The composer used to open on every
+	// mouse-up, so it could not be done at all; now the selection survives and the chip is the way to the composer.
+	await opened(page);
+	await selectOnly(page, 'incidence matrix');
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain('incidence matrix');
+	await expect(page.getByTestId('annotate-offer')).toBeVisible();
+	await page.getByTestId('annotate-offer').click();
+	await expect(page.getByTestId('note-at')).toBeVisible();
+});
 
 test('a note is written from a selection, and the page shows loom’s own words before anything is recorded', async ({ page }) => {
 	await opened(page);
@@ -130,7 +154,7 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 test('a mark opens the box a fragment opens, Escape closes it, and the discussion lists the note with its page', async ({ page }) => {
 	await opened(page);
 	const mark = page.locator('[data-testid="pdf-page-2"] .mark.note').first();
-	await expect(mark).toBeVisible();
+	await expect(mark).toBeVisible({ timeout: 15000 }); // the sidecar, after the publisher's rebuild
 	const id = (await mark.getAttribute('data-mark'))!;
 	await mark.click();
 	const open = page.getByTestId('comment-expanded');
@@ -148,20 +172,14 @@ test('a mark opens the box a fragment opens, Escape closes it, and the discussio
 	await expect(page.getByTestId(`beside-${id}`)).toBeInViewport();
 });
 
-test('the margin column stands beside the page, and inline is never offered on it', async ({ page }) => {
-	// set by evaluate rather than an init script, which would re-impose `margin` on every navigation below
+test('inline is never offered on a page, and a note opens floating', async ({ page }) => {
+	// A PDF page cannot reflow, so there is nowhere for an inline box to go. The margin column this test also covered
+	// is retired with the `margin` placement.
 	await page.goto('/');
-	await page.evaluate(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'margin' })));
-	await opened(page);
-	await expect(page.locator('[data-testid="pdf-page-2"] .mark.note').first()).toBeVisible({ timeout: 15000 }); // the sidecar, after the publisher's rebuild
-	const margin = page.getByTestId('reading-margin');
-	await expect(margin).toBeVisible();
-	await expect(margin.locator('article.box').first()).toBeVisible();
 	await page.evaluate(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'inline' })));
 	await opened(page);
-	await expect(page.getByTestId('reading-margin')).toHaveCount(0);
+	await expect(page.locator('[data-testid="pdf-page-2"] .mark.note').first()).toBeVisible({ timeout: 15000 });
 	await page.locator('[data-testid="pdf-page-2"] .mark.note').first().click();
-	// inline is the Authoring View's alone: a PDF page cannot reflow, so the box floats
 	await expect(page.getByTestId('comment-expanded')).toHaveClass(/floating/);
 });
 
@@ -258,4 +276,72 @@ test('a box shows the write it fired, without being closed and reopened', async 
 	const undo = box.getByTestId('verb-undo-resolve').first();
 	await undo.click();
 	await expect(box.locator('.status').first()).toHaveText('open', { timeout: 10000 });
+});
+
+test('a selection records the lines it covers and nothing else', async ({ page }) => {
+	// **A phantom rectangle is a wrong anchor, not a cosmetic fault.** A range over the text layer yields a rectangle
+	// for every element it crosses, degenerate ones included, and those were mapped to points and recorded. They sat
+	// at the layer's top-left, hundreds of points above the words they claimed to be. A text anchor publishes its
+	// geometry through the sidecar rather than the log (DR-209), so that is where the drawn rectangles are checked.
+	await opened(page);
+	await select(page, 'rational polytope');
+	await page.getByTestId('note-body').fill('the quads of this note are the lines it covers');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toHaveCount(0, { timeout: 10000 });
+
+	const written = log().filter((e) => String(e.body ?? '').startsWith('the quads of this note')).at(-1)!;
+	const id = String(written.id);
+	const sidecar = `${QUILT}/build/spans/doi/10.4171_showcase_19-2.json`;
+	await expect
+		.poll(() => JSON.parse(readFileSync(sidecar, 'utf8')).marks?.[id]?.length ?? 0, { timeout: 15000 })
+		.toBeGreaterThan(0);
+
+	const spans = JSON.parse(readFileSync(sidecar, 'utf8'));
+	const box = spans.pages[String((written.anchor as { page: number }).page)];
+	for (const [x0, y0, x1, y1] of spans.marks[id] as number[][]) {
+		expect(x1, `a quad with no width: ${JSON.stringify([x0, y0, x1, y1])}`).toBeGreaterThan(x0);
+		expect(y1, `a quad with no height: ${JSON.stringify([x0, y0, x1, y1])}`).toBeGreaterThan(y0);
+		expect(x0).toBeGreaterThanOrEqual(-1);
+		expect(y0).toBeGreaterThanOrEqual(-1);
+		expect(x1).toBeLessThanOrEqual(box.width + 1);
+		expect(y1).toBeLessThanOrEqual(box.height + 1);
+	}
+});
+
+test('the page and the zoom are typed into, and take exactly what was typed', async ({ page }) => {
+	// The controls live on the view's one rail rather than in a toolbar of the renderer's own, and both boxes are
+	// editable the way a desktop viewer's are: `+` twelve times is not how a reader reaches page 12. Typing over a box
+	// is the case that broke -- the field held `140`, the reader typed `150`, and `140150` clamped to the maximum -- so
+	// each assertion below is that the value taken is exactly the value typed.
+	await opened(page);
+	const zoom = page.getByTestId('zoom-at');
+	const at = page.getByTestId('page-at');
+	await expect(page.getByTestId('page-count')).toContainText('/');
+
+	await zoom.click();
+	await page.keyboard.type('150');
+	await page.keyboard.press('Enter');
+	await expect(zoom).toHaveValue('150%');
+
+	await zoom.click();
+	await page.keyboard.type('75');
+	await page.keyboard.press('Enter');
+	await expect(zoom).toHaveValue('75%');
+
+	// Escape puts back what the view holds rather than committing what was typed
+	await zoom.click();
+	await page.keyboard.type('300');
+	await page.keyboard.press('Escape');
+	await expect(zoom).toHaveValue('75%');
+
+	// matching the width is a zoom the reader did not have to name, so the box reports whatever it came to
+	await page.getByTestId('zoom-fit').click();
+	await expect(page.getByTestId('zoom-fit')).toHaveAttribute('aria-pressed', 'true');
+	await expect(zoom).not.toHaveValue('75%');
+
+	// and the page box moves the reader, the count beside it saying how far it can go
+	await at.click();
+	await page.keyboard.type('1');
+	await page.keyboard.press('Enter');
+	await expect(at).toHaveValue('1');
 });

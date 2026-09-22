@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Annotations } from './shown.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
@@ -6,7 +7,6 @@
 	import { markPages } from '$lib/fragments/pages';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
-	import { travel } from '$lib/travel/travel';
 	import { page } from '$app/state';
 	import { prefs } from '$lib/prefs.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
@@ -20,6 +20,8 @@
 		master = '',
 		headingLinks = false,
 		margins = false,
+		head = true,
+		annotations,
 		standalone = false,
 		comments,
 		authoring = true,
@@ -32,6 +34,10 @@
 		master?: string;
 		headingLinks?: boolean;
 		margins?: boolean;
+		/** Whether to draw the content head (expand/hide and the counts). The document view puts its controls in its own rail and passes `false`; this goes when every reading view has one. */
+		head?: boolean;
+		/** Shared state for a rail that offers to open every annotation: this fragment registers the actions on it. */
+		annotations?: Annotations;
 		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
 		standalone?: boolean;
 		comments?: (key: string) => CommentSlot[];
@@ -167,7 +173,6 @@
 			await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
 		}
 		onmounted?.(root);
-		requestAnimationFrame(() => tickAt()); // after typesetting, which is what moves the lines
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
 		counts();
 		if (margins) stackMargins(root);
@@ -201,28 +206,21 @@
 	let marks = $state(0);
 	let concealed = $state(0);
 	let allOpen = $state(false);
-	/** The margin ticks (plan 0.13 §8): one per annotated line, on the discussion side, carrying the count where several share a line. */
-	let ticks = $state<{ top: number; ids: string[]; lead: string }[]>([]);
-
-	function tickAt(): void {
-		if (!el) return;
-		const rows = new Map<number, { top: number; ids: string[]; lead: string }>();
-		for (const mark of el.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
-			const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
-			if (!ids.length) continue;
-			// marks on one line share a tick: the line is the unit a reader's eye finds, not the phrase
-			const line = Math.round(mark.offsetTop / 8) * 8;
-			const row = rows.get(line);
-			if (row) row.ids.push(...ids.filter((i) => !row.ids.includes(i)));
-			else rows.set(line, { top: mark.offsetTop, ids: [...ids], lead: ids[0] });
-		}
-		ticks = [...rows.values()].sort((a, b) => a.top - b.top);
-	}
-
-	function tickTravel(t: { lead: string }, from: HTMLElement): void {
-		travel(el?.querySelector(`[data-annotation~="${CSS.escape(t.lead)}"]`) ?? null, from);
-	}
-
+	// What a rail outside this component needs in order to offer the same two actions: the actions themselves, whether
+	// there is anything to act on, and which way the control should read.
+	$effect(() => {
+		const a = annotations;
+		if (!a) return;
+		a.expand = expandAll;
+		a.collapse = hideAll;
+		a.ready = marks > 0;
+		return () => {
+			a.ready = false;
+		};
+	});
+	$effect(() => {
+		if (annotations) annotations.allOpen = allOpen;
+	});
 	function counts(): void {
 		if (!el) return;
 		marks = el.querySelectorAll('mark.annotation[data-annotation]').length;
@@ -260,16 +258,6 @@
 		counts();
 		// the margin column is laid out against the nodes, so it is restacked whenever what is in it changes
 		if (el && margins) requestAnimationFrame(() => el && stackMargins(el));
-		// and the ticks are laid out against the marks, which typesetting moves
-		requestAnimationFrame(() => tickAt());
-	});
-
-	// the ticks follow the text when its width changes, which reflows every line
-	$effect(() => {
-		if (!el) return;
-		const watch = new ResizeObserver(() => tickAt());
-		watch.observe(el);
-		return () => watch.disconnect();
 	});
 
 	// and whenever the column's own width changes under it, which moves every box in it
@@ -292,7 +280,7 @@
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	{#if marks}
+	{#if head && marks}
 		<!-- The content pane's header. A key nobody has been told about does not exist, so the two states sit here as
 		     buttons with their keys named, beside the count of what is marked and what the session filter is hiding. -->
 		<div class="content-head" data-testid="content-head">
@@ -328,27 +316,6 @@
 			aria-label="the document"
 			onkeydown={keys}
 		>{@html html}</div>
-		{#if ticks.length}
-			<!-- The persistent marks' other half (§8): a tick in the margin on the discussion side for every annotated
-			     line, so a page can be scanned for where the discussion is without reading it. Click selects, double-click
-			     travels; the count says how many share the line. -->
-			<div class="ticks" data-testid="ticks" aria-label="annotated lines">
-				{#each ticks as t (t.top + ':' + t.lead)}
-					<button
-						type="button"
-						class="tick"
-						class:many={t.ids.length > 1}
-						style="top: {t.top}px;"
-						data-count={t.ids.length > 1 ? t.ids.length : undefined}
-						data-testid="tick-{t.lead}"
-						title={t.ids.length > 1 ? `${t.ids.length} annotations on this line` : 'an annotation on this line'}
-						aria-label={t.ids.length > 1 ? `${t.ids.length} annotations on this line` : 'an annotation on this line'}
-						onclick={() => (ui.activeAnnotation = t.lead)}
-						ondblclick={(e) => tickTravel(t, e.currentTarget)}
-					></button>
-				{/each}
-			</div>
-		{/if}
 	</div>
 {/if}
 
@@ -366,43 +333,5 @@
 	}
 	.framed {
 		position: relative;
-	}
-	/* the tick column: on the discussion side, following the swap; outside the text, never over it */
-	.ticks {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		right: -14px;
-		width: 10px;
-		pointer-events: none;
-	}
-	.framed.swap .ticks {
-		right: auto;
-		left: -14px;
-	}
-	.tick {
-		position: absolute;
-		left: 0;
-		width: 10px;
-		height: 3px;
-		margin-top: 0.55em;
-		border: 0;
-		padding: 0;
-		background: var(--annotation, #c05621);
-		opacity: 0.55;
-		cursor: pointer;
-		pointer-events: auto;
-	}
-	.tick:hover,
-	.tick.many {
-		opacity: 0.95;
-	}
-	.tick[data-count]::after {
-		content: attr(data-count);
-		position: absolute;
-		left: 12px;
-		top: -0.55em;
-		font: 600 9px/1 var(--sans, sans-serif);
-		color: var(--annotation, #c05621);
 	}
 </style>

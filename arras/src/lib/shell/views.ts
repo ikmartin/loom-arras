@@ -30,7 +30,6 @@ export function viewsOf(m: Manifest | null): View[] {
 		{ id: 'read', label: 'read', href: read, icon: 'read', when: has?.documents },
 		{ id: 'graph', label: 'graph', href: route('/graph'), icon: 'graph', when: true },
 		{ id: 'review', label: 'review', href: route('/review'), icon: 'review', when: has?.review },
-		{ id: 'library', label: 'library', href: route('/library'), icon: 'digest', when: has?.bibliography },
 		{ id: 'problems', label: 'problems', href: route('/problems'), icon: 'problems', when: true }
 	]
 		.filter((v) => v.when !== false)
@@ -41,7 +40,9 @@ export function viewsOf(m: Manifest | null): View[] {
 export function viewOf(path: string): string {
 	if (path === '/') return 'home';
 	if (path.startsWith('/master') || path.startsWith('/canon')) return 'read';
-	if (path.startsWith('/library')) return 'library';
+	// The Library left the strip: a work is a document, it is navigated to from the panel's Library section, and the
+	// read view is where every document is read.
+	if (path.startsWith('/library')) return 'read';
 	if (path.startsWith('/node')) return 'read';
 	// a session is read beside the work it was done in, so it lights the view its annotations point into
 	if (path.startsWith('/session')) return 'read';

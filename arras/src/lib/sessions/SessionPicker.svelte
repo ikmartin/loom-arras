@@ -12,7 +12,6 @@
 	import { touched } from './when';
 	import DeleteSession from './DeleteSession.svelte';
 	import { write } from '$lib/write';
-	import { sessionUrl } from '$lib/nav';
 	import type { SessionRow } from '$lib/manifest/types';
 
 	const m = $derived(store.manifest);
@@ -112,8 +111,6 @@
 				</span>
 				<span class="verbs">
 					<span class="count">{it.open} open</span>
-					<!-- The list chooses what the page shows; the permalink is where a session is read back whole. -->
-					<a href={sessionUrl(s.id)} title="Open this session" aria-label="Open {s.title}" data-testid="session-open-{s.id}">↗</a>
 					{#if shutAlready}
 						<button
 							type="button"
@@ -191,8 +188,10 @@
 {/if}
 
 <style>
+	/* The panel's own size. The section was set in rem while the lists above it are 11px, so Sessions read a size
+	   larger than Documents and Nodes and pulled the eye to the least important part of the panel. */
 	.sessions {
-		font-size: 0.82rem;
+		font-size: 11px;
 	}
 	.showing {
 		display: flex;
@@ -316,7 +315,6 @@
 		margin-right: 3px;
 		font-variant-numeric: tabular-nums;
 	}
-	.verbs a,
 	.verbs button {
 		font: inherit;
 		font-size: 0.9em;
@@ -327,7 +325,6 @@
 		cursor: pointer;
 		text-decoration: none;
 	}
-	.verbs a:hover,
 	.verbs button:hover {
 		color: var(--ink);
 	}

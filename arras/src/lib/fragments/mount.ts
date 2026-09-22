@@ -1,6 +1,7 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
 import { anchorId, workUrl, keyUrl, nodeUrl } from '$lib/nav';
 import { dataUrl } from '$lib/paths';
+import { pageOf } from '$lib/worklink';
 import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
@@ -27,7 +28,7 @@ export interface WireOptions {
 export interface CommentSlot {
 	id: string;
 	/** `gutter` stands beside the node; `inline` stays in the text as a box; `count` is a small control beside the node's label that expands it, for a comment with no mark of its own when comments are shown in place. */
-	where: 'gutter' | 'inline' | 'count';
+	where: 'inline' | 'count';
 }
 
 export function labelFor(manifest: Manifest | null, key: string): string {
@@ -49,6 +50,24 @@ const LIVE = new WeakMap<HTMLElement, WireOptions>();
 export function resetComments(root: HTMLElement): void {
 	for (const el of root.querySelectorAll('aside.comment-slot, button.comment-count')) el.remove();
 	for (const el of root.querySelectorAll<HTMLElement>('[data-wired-comments]')) delete el.dataset.wiredComments;
+}
+
+/**
+ * Where a cited result is in the work itself: its page, and the result whose rectangles the sidecar carries.
+ *
+ * It ends `beside=0` on purpose. A work opened at a page opens split by default, because the link that form was built
+ * for is one written *in a discussion* and the page is then read beside it (plan 0.13 item 6). A citation in a paper
+ * came from no discussion and asks for no pane, so it says so rather than inherit a default meant for the other case.
+ *
+ * Empty when no copy is filed or the locator names no page, in which case the caller falls back to the digest node.
+ */
+function atResult(manifest: Manifest | null, node: string): string {
+	const nd = manifest?.nodes[node];
+	const ck = nd?.digest;
+	const ref = ck ? manifest?.references[ck] : undefined;
+	const at = pageOf(nd?.locator);
+	if (!ref?.artifacts?.pdf || !at) return '';
+	return `${workUrl(ref.citekey)}?page=${at}&result=${encodeURIComponent(node)}&beside=0`;
 }
 
 export function wire(
@@ -74,12 +93,17 @@ export function wire(
 		const here = opts.master ? manifest?.nodes[owner]?.reached_by?.includes(opts.master) : false;
 		a.href = here ? '#' + anchorId(key) : keyUrl(manifest, owner) + (region ? '#' + anchorId(key) : '');
 	}
-	// A citation with a digest node behind it opens that result; one without opens the reference, which links out to the work. A citekey the manifest does not know stays text.
+	// **A citation opens the paper, not the transcription of it.** `[1, Proposition 2.1]` means that proposition in that
+	// work, so where a copy is filed the link goes to the work at the result: the reader lands on the page they cited,
+	// with the statement in view. The digest node's own page renders loom's record of the result -- its LaTeX, its
+	// provenance, what depends on it -- which is a thing to go and look at, not what the citation names. With no copy
+	// filed, or no page in the locator, that record is the best there is and the link goes there as before; a citation
+	// with no digest node behind it opens the reference; a citekey the manifest does not know stays text.
 	for (const c of root.querySelectorAll<HTMLElement>('span.cite[data-citekey]')) {
 		if (c.querySelector('a')) continue;
 		const target = c.dataset.target;
 		const citekey = c.dataset.citekey ?? '';
-		const href = target ? nodeUrl(target) : manifest?.references[citekey] ? workUrl(citekey) : '';
+		const href = (target ? atResult(manifest, target) : '') || (target ? nodeUrl(target) : manifest?.references[citekey] ? workUrl(citekey) : '');
 		if (!href) continue;
 		const a = document.createElement('a');
 		a.href = href;
@@ -181,16 +205,14 @@ export function wire(
 				});
 				label.appendChild(btn);
 			}
-			for (const where of ['gutter', 'inline'] as const) {
-				const ids = placements.filter((p) => p.where === where).map((p) => p.id);
-				if (!ids.length) continue;
+			const inline = placements.filter((p) => p.where === 'inline').map((p) => p.id);
+			if (inline.length) {
+				// a sibling of the node, because it takes room in the text rather than standing beside it
 				const slot = document.createElement('aside');
-				slot.className = `comment-slot ${where}`;
-				slot.dataset.commentSlot = ids.join(' ');
+				slot.className = 'comment-slot inline';
+				slot.dataset.commentSlot = inline.join(' ');
 				slot.dataset.slotFor = key;
-				// a gutter slot is positioned against the node, so it is a child of it; an inline slot is a sibling, because it takes room in the text
-				if (where === 'gutter') el.appendChild(slot);
-				else el.after(slot);
+				el.after(slot);
 			}
 		}
 	}

@@ -84,15 +84,26 @@ export async function write(endpoint: string, body: Record<string, unknown>): Pr
 		// The token is CSRF protection and not a login: a browser blocks a cross-origin response and never the
 		// request, so any page the author happens to be reading could otherwise POST into the corpus they are
 		// serving. A cross-site form post cannot set a custom header, which is what makes carrying one enough.
-		const caps = await capabilities();
-		const res = await fetch(apiUrl('/' + endpoint), {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				...(caps?.token ? { 'X-Loom-Token': caps.token } : {})
-			},
-			body: JSON.stringify(body)
-		});
+		const send = async () => {
+			const caps = await capabilities();
+			return fetch(apiUrl('/' + endpoint), {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...(caps?.token ? { 'X-Loom-Token': caps.token } : {})
+				},
+				body: JSON.stringify(body)
+			});
+		};
+		let res = await send();
+		// **A restarted publisher mints a new token**, and the old one is cached for the life of the page — so a tab
+		// left open across a restart refused every write with "this request carries no valid X-Loom-Token" until it
+		// was reloaded, which is not something a reader should have to work out. A 403 is re-probed and retried once;
+		// if the second answer is also 403, it is a real refusal and is shown.
+		if (res.status === 403) {
+			forgetCapabilities();
+			res = await send();
+		}
 		const payload = (await res.json().catch(() => ({}))) as WriteResult;
 		if (res.ok && payload.ok) return payload;
 		return { ok: false, error: payload.error ?? { code: 'failed', message: `the publisher answered ${res.status}` } };

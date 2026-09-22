@@ -1,4 +1,10 @@
 <script lang="ts">
+	// A cited work: the paper, the digest read off it, and what the corpus knows about it.
+	//
+	// **The paper opens first, always.** A work in the Library is a document a reader came to read, and the digest is
+	// a derived index of it — useful, and never the thing you meant when you clicked the title. The three tabs are the
+	// first thing on the page, and everything that is *about* the work rather than *of* it stands behind **Info**, so
+	// the reading surface is the paper and nothing else.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
@@ -11,8 +17,10 @@
 	import ProposalBox from '$lib/review/ProposalBox.svelte';
 	import LinkList from '$lib/review/LinkList.svelte';
 	import Reading from '$lib/pdf/Reading.svelte';
-	import { setQuery } from '$lib/query';
+	import PdfTools from '$lib/pdf/PdfTools.svelte';
+	import { PdfView } from '$lib/pdf/view.svelte';
 	import Beside from '$lib/split/Beside.svelte';
+	import BesideToggle from '$lib/split/BesideToggle.svelte';
 	import Tabs from '$lib/split/Tabs.svelte';
 	import { readKeys, type WorkLink } from '$lib/worklink';
 	import { slotsFor } from '$lib/fragments/slots';
@@ -35,119 +43,297 @@
 			.map((id) => ({ id, record: ref?.results?.[id] }))
 			.filter((x): x is { id: string; record: NonNullable<typeof x.record> } => !!x.record)
 	);
-	// The presence of `page` is what opens the reader (0.13 item 6): no separate route, so a page of a paper is a link
-	// into the place the paper is already discussed, and closing it leaves the reader where they were.
-	const reading = $derived(Number(page.url.searchParams.get('page') ?? '') || 0);
-	// The pages anything is anchored to, in order: what there is to open, and nothing when no result was read off a page.
-	const anchored = $derived(
-		[...new Set(Object.values(ref?.results ?? {}).map((r) => r.page))].filter((p) => p > 0).sort((a, b) => a - b)
-	);
+	/** The page to open at: whatever the URL names, else the first. A paper always opens somewhere. */
+	const reading = $derived(Number(page.url.searchParams.get('page') ?? '') || 1);
+	const readable = $derived(!ref?.unreadable && !!ref?.artifacts?.pdf);
 	// What a discussion beside this work is about: its digest nodes and its proposals, which is everything on the page.
 	const about = $derived([...(ref?.work ? [ref.work] : []), ...(ref?.digest?.nodes ?? []), ...(ref?.proposed?.nodes ?? [])]);
 	// The place the URL points at, in the one locator syntax `cited:` links share (plan 0.13 item 6).
 	const locator = $derived<WorkLink | null>(ref?.work ? readKeys({ id: ref.work }, page.url.search.slice(1)) : null);
-	// Two texts, one pane: the paper and the digest read off it. Tabs belong to the content pane (§7).
-	let tab = $state<'paper' | 'digest'>('paper');
+
+	let tab = $state<'paper' | 'digest' | 'info'>('paper');
+	/** The reader's view of the paper, shared by the rail's controls and the renderer below them. */
+	const pdf = new PdfView();
+
+	const tabs = $derived([
+		{ id: 'paper', label: 'Paper' },
+		...(ref?.digest || proposals.length ? [{ id: 'digest', label: 'Digest' }] : []),
+		{ id: 'info', label: 'Info' }
+	]);
+
+	let asBibtex = $state(false);
+	let copied = $state('');
+
+	/** The entry as BibTeX, rebuilt from the fields the manifest carries: what you paste into a `.bib`. */
+	const bibtex = $derived.by(() => {
+		if (!ref) return '';
+		const type = String(ref.bib.ENTRYTYPE ?? 'article');
+		const body = bibRows.map(([k, v]) => `  ${k} = {${v}}`).join(',\n');
+		return `@${type}{${citekey},\n${body}\n}`;
+	});
+
+	async function copyBibtex(): Promise<void> {
+		try {
+			await navigator.clipboard.writeText(bibtex);
+			copied = 'copied';
+		} catch {
+			copied = 'could not copy — select the text instead';
+		}
+		setTimeout(() => (copied = ''), 2500);
+	}
+
+	/** The bibliography entry as rows, in the order a reader scans: who, when, where, then the rest. */
+	const FIRST = ['author', 'title', 'year', 'journal', 'booktitle', 'publisher', 'volume', 'number', 'pages', 'doi', 'eprint', 'url'];
+	const bibRows = $derived(
+		Object.entries(ref?.bib ?? {})
+			.filter(([k, v]) => k !== 'ENTRYTYPE' && k !== 'ID' && String(v).trim() !== '')
+			.sort((a, b) => {
+				const ia = FIRST.indexOf(a[0]);
+				const ib = FIRST.indexOf(b[0]);
+				return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a[0].localeCompare(b[0]);
+			})
+	);
 </script>
 
-<main class="page">
+<main class="page" class:reading={tab === 'paper'}>
 	{#if !ref}
 		<h1>Unknown reference</h1>
 	{:else}
-		<Beside keys={about} label="this work" open={!!reading}>
-		<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
-		<p class="muted">
-			<code>{citekey}</code>{ref.bib.author ? ` · ${bibText(ref.bib.author)}` : ''}{ref.bib.year ? ` · ${ref.bib.year}` : ''}
-			<WorkLinks {ref} />
-			{#if ref.digest}· digest from {ref.digest.source} ({ref.digest.method}){/if}
-			{#if ref.version_mismatch}<span class="problem"> · version mismatch between the digest's source and the bibliography</span>{/if}
-		</p>
-		<!-- above the digest, not below it: under a 45-result paper the one link on the page was never seen -->
-		<LinkList heading="Links touching this paper" forKeys={Object.keys(ref.results ?? {})} />
-		{#if ref.unreadable}
-			<p class="muted" data-testid="unreadable">
-				Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}. Nothing here can be checked against a page.
-			</p>
-		{:else if ref.artifacts?.pdf}
-			<!-- A paper that has been filed can be read, whether or not anything has been anchored to it yet. This was
-			     gated on the pages the work's *results* sit on, so a paper nobody had extracted or proposed from — the
-			     state every newly filed paper is in — offered no way into the reader at all, and the only link left
-			     the viewer for the browser's own renderer. Found in the first minute of the reading study. -->
-			<p class="pages">
-				Read the paper:
-				{#if !anchored.length}
-					<button class="page-link" class:on={reading === 1} data-testid="read-page-1" onclick={() => setQuery(page.url, 'page', reading === 1 ? '' : '1')}>open at page 1</button>
+		<Beside keys={about} label="this work" control={false} open={!!page.url.searchParams.get('page')}>
+			<!-- One line for the whole of the top: which text you are reading, the controls for reading it, and the split.
+			     The tabs come first because which of the three you are in is the only question that has to be answered
+			     before anything else; the paper's own title is on the paper, and the Info tab has the rest of the entry. -->
+			<div class="top">
+				<Tabs {tabs} bind:value={tab} />
+				{#if tab === 'paper' && readable}
+					<span class="bar" aria-hidden="true"></span>
+					<PdfTools view={pdf} />
 				{/if}
-				{#each anchored as p (p)}
-					<button
-						class="page-link"
-						class:on={reading === p}
-						data-testid="read-page-{p}"
-						onclick={() => setQuery(page.url, 'page', reading === p ? '' : String(p))}>page {p}</button
-					>
-				{/each}
-			</p>
-		{/if}
-		{#if reading}
-			<Tabs tabs={[{ id: 'paper', label: 'Paper' }, { id: 'digest', label: 'Digest' }]} bind:value={tab} />
-		{/if}
-		{#if reading && tab === 'paper'}
-			<div class="reader">
-				<Reading {citekey} {ref} page={reading} {locator} />
+				<span class="gap"></span>
+				<BesideToggle open={!!page.url.searchParams.get('page')} />
 			</div>
-		{:else}
-		{#if proposals.length}
-			<section class="proposals" data-testid="proposals">
-				<h2>Proposed — {proposals.length} statement{proposals.length === 1 ? '' : 's'} nobody has vouched for</h2>
-				<p class="muted">
-					Read off the page by an agent and rendered into LaTeX. Neither the digest nor any bundle contains these:
-					until you say a copy is faithful, it cannot be cited or compiled.
-				</p>
-				{#each proposals as p (p.id)}
-					<ProposalBox id={p.id} record={p.record} {citekey} />
-				{/each}
-			</section>
-		{/if}
-		{#if ref.digest}
-			<Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} />
-			<h2>Results used here</h2>
-			{#if used.length}
-				<ul>
-					{#each used as id (id)}
-						<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="muted">Nothing here depends on this reference yet.</p>
-			{/if}
-			{#if rest.length}
-				<h2>
-					<button class="fold" onclick={() => (showAll = !showAll)} aria-expanded={showAll} data-testid="digest-rest">
-						{showAll ? '▾' : '▸'} {rest.length} further result{rest.length === 1 ? '' : 's'} nothing here uses
-					</button>
-				</h2>
-				{#if showAll}
-					<ul>
-						{#each rest as id (id)}
-							<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}</li>
-						{/each}
-					</ul>
+
+			{#if tab === 'paper'}
+				{#if readable}
+					<div class="reader" data-testid="reader">
+						<Reading {citekey} {ref} page={reading} {locator} view={pdf} toolbar={false} />
+					</div>
+				{:else if ref.unreadable}
+					<p class="muted" data-testid="unreadable">
+						Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}. Nothing here can be checked against a page.
+					</p>
+				{:else}
+					<p class="muted" data-testid="no-copy">No copy of this paper is filed here. <WorkLinks {ref} /></p>
 				{/if}
+			{:else if tab === 'digest'}
+				<div class="prose">
+					{#if proposals.length}
+						<section class="proposals" data-testid="proposals">
+							<h2>Proposed — {proposals.length} statement{proposals.length === 1 ? '' : 's'} nobody has vouched for</h2>
+							<p class="muted">
+								Read off the page by an agent and rendered into LaTeX. Neither the digest nor any bundle contains these:
+								until you say a copy is faithful, it cannot be cited or compiled.
+							</p>
+							{#each proposals as p (p.id)}
+								<ProposalBox id={p.id} record={p.record} {citekey} />
+							{/each}
+						</section>
+					{/if}
+					{#if ref.digest}
+						<Fragment path={ref.digest.fragment} macroSet={citekey} comments={slots} authoring={false} />
+						<h2>Results used here</h2>
+						{#if used.length}
+							<ul>
+								{#each used as id (id)}
+									<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}: {#each citers(id) as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">not cited</span>{/each}</li>
+								{/each}
+							</ul>
+						{:else}
+							<p class="muted">Nothing here depends on this reference yet.</p>
+						{/if}
+						{#if rest.length}
+							<h2>
+								<button class="fold" onclick={() => (showAll = !showAll)} aria-expanded={showAll} data-testid="digest-rest">
+									{showAll ? '▾' : '▸'} {rest.length} further result{rest.length === 1 ? '' : 's'} nothing here uses
+								</button>
+							</h2>
+							{#if showAll}
+								<ul>
+									{#each rest as id (id)}
+										<li><a href={nodeUrl(id)}>{id}</a> {#if m.nodes[id]?.locator}(<Locator {ref} locator={m.nodes[id].locator} />){/if}</li>
+									{/each}
+								</ul>
+							{/if}
+						{/if}
+					{/if}
+				</div>
+			{:else}
+				<div class="prose info" data-testid="work-info">
+					<h1><Tex text={bibText(ref.bib.title) || citekey} /></h1>
+					<p class="links"><code>{citekey}</code> <WorkLinks {ref} /></p>
+
+					<!-- Read as a list, taken as BibTeX. The list is for the eye; the entry is what goes into a `.bib`, and
+					     retyping it from a rendered list is exactly the thing a reader should never have to do. -->
+					<p class="bibtools">
+						<button type="button" class:on={asBibtex} data-testid="bibtex-toggle" onclick={() => (asBibtex = !asBibtex)}>
+							{asBibtex ? 'list' : 'bibtex'}
+						</button>
+						{#if asBibtex}<button type="button" data-testid="bibtex-copy" onclick={copyBibtex}>copy</button>{/if}
+						{#if copied}<span class="said" role="status">{copied}</span>{/if}
+					</p>
+					{#if asBibtex}
+						<pre class="bibtex" data-testid="bibtex">{bibtex}</pre>
+					{:else}
+						<dl class="bib" data-testid="bib-list">
+							{#each bibRows as [field, value] (field)}
+								<dt>{field}</dt>
+								<dd><Tex text={bibText(value)} /></dd>
+							{/each}
+						</dl>
+					{/if}
+
+					{#if ref.digest}
+						<p class="muted">Digest from {ref.digest.source} ({ref.digest.method}).</p>
+					{/if}
+					{#if ref.version_mismatch}
+						<p class="problem">The digest's source and the bibliography name different versions of this work.</p>
+					{/if}
+					{#if ref.unreadable}
+						<p class="muted">Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}.</p>
+					{/if}
+
+					<LinkList heading="Links touching this paper" forKeys={Object.keys(ref.results ?? {})} />
+				</div>
 			{/if}
-		{:else if !proposals.length}
-			<p>No digest yet. Cited by: {#each ref.cited_by as c, i (c)}{#if i}, {/if}<a href={keyUrl(m, c)}>{c}</a>{:else}<span class="muted">nothing</span>{/each}</p>
-		{/if}
-		{/if}
 		</Beside>
 	{/if}
 </main>
 
 <style>
-	/* the reader fills what the pane leaves it, so the page column scrolls and the page does not */
+	/* Reading the paper is a full-height job: the column fills the pane and scrolls inside itself, so the page behind
+	   it never scrolls and the reader never runs out of paper at the bottom of a screen. */
+	.page.reading {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+		overflow: hidden;
+		padding: 0;
+		max-width: none;
+	}
+	/* Everything the top of this view has to say, on one line: the tabs, the reading controls, and the split.
+	   The line carries the tabs' own size so that everything inheriting it -- the split control among them -- is set to
+	   match them rather than to the body size, and it sits off the top edge rather than against it. */
+	.top {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		height: 38px;
+		padding: 8px var(--gap-tight) 0;
+		border-bottom: 1px solid var(--rule);
+		font-size: 11px;
+	}
+	.top .gap {
+		flex: 1 1 auto;
+	}
+	.top .bar {
+		width: 1px;
+		height: 15px;
+		margin: 0 2px;
+		background: var(--rule);
+	}
 	.reader {
-		height: calc(80vh - 7rem);
-		min-height: 320px;
-		border: 1px solid var(--rule, #ddd9cf);
+		flex: 1 1 auto;
+		min-height: 0;
+	}
+	/* Inside the split the content pane is a scroll container, so the paper grew to its full length and took the tabs
+	   and the toolbar off the top with it. The held column is given the pane's height and scrolls inside the reader
+	   instead, which is where a paper should scroll. */
+	.page.reading :global(.held) {
+		height: 100%;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		padding: 0;
+	}
+	.page.reading :global(.held > .top) {
+		flex: none;
+	}
+	.prose {
+		padding: var(--gap) var(--gap-wide);
+		min-width: 0;
+	}
+	.info h1 {
+		margin-top: 0;
+	}
+	.links {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-tight);
+		margin-top: 0;
+	}
+	/* the entry as a reader reads it: the field names quiet and aligned, the values in the body face */
+	.bib {
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr);
+		gap: 2px var(--gap);
+		margin: var(--gap) 0;
+		font-size: 0.9rem;
+	}
+	.bib dt {
+		font-family: var(--sans);
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--ink-faint);
+		padding-top: 0.25em;
+	}
+	.bib dd {
+		margin: 0;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.bibtools {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-hair);
+		margin: var(--gap) 0 var(--gap-hair);
+	}
+	.bibtools button {
+		font-family: var(--sans);
+		font-size: 11px;
+		color: var(--ink-soft);
+		background: none;
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-pill);
+		padding: 1px 7px;
+		cursor: pointer;
+	}
+	.bibtools button:hover {
+		color: var(--ink);
+		border-color: var(--rule-strong);
+	}
+	.bibtools button.on {
+		background: var(--link-wash);
+		border-color: var(--link);
+		color: var(--link);
+	}
+	.said {
+		font-family: var(--sans);
+		font-size: 11px;
+		color: var(--ink-faint);
+	}
+	.bibtex {
+		font-family: var(--mono);
+		font-size: 12px;
+		line-height: 1.5;
+		white-space: pre;
+		overflow-x: auto;
+		background: var(--leaf);
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-control);
+		padding: var(--gap-tight);
+		margin: 0 0 var(--gap);
+		user-select: text;
 	}
 	.fold {
 		font: inherit;
@@ -156,19 +342,5 @@
 		border: none;
 		padding: 0;
 		cursor: pointer;
-	}
-	.page-link {
-		font: inherit;
-		font-size: 0.85rem;
-		color: inherit;
-		background: none;
-		border: 1px solid var(--rule, #ddd9cf);
-		border-radius: 3px;
-		padding: 1px 6px;
-		margin-left: 4px;
-		cursor: pointer;
-	}
-	.page-link.on {
-		background: var(--annotation-tint, rgb(217 119 87 / 0.18));
 	}
 </style>

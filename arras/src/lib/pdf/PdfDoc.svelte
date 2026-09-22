@@ -9,6 +9,8 @@
 	// creep down a long paper. Page one's size is the placeholder until a page reports its own.
 	import { onMount } from 'svelte';
 	import { prefs } from '$lib/prefs.svelte';
+	import PdfTools from './PdfTools.svelte';
+	import { PdfView } from './view.svelte';
 	import { document_ } from './document';
 	import PdfPage from './PdfPage.svelte';
 
@@ -23,6 +25,7 @@
 		scale,
 		window: near = 2,
 		toolbar = true,
+		view,
 		onselect,
 		onbox,
 		onmark,
@@ -41,6 +44,8 @@
 		/** How many pages either side of the one in view are drawn. */
 		window?: number;
 		toolbar?: boolean;
+		/** The reader's view of this document, when a page draws the controls itself. Left out, the renderer keeps its own and draws its toolbar. */
+		view?: PdfView;
 		onselect?: (e: { page: number; text: string; rects: number[][]; client: Box }) => void;
 		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
 		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
@@ -50,14 +55,27 @@
 		onlink?: (e: { page: number }) => void;
 	} = $props();
 
+	// The renderer's own view, used when no caller supplied one; `v` is the one in force either way.
+	const own = new PdfView();
+	const v = $derived(view ?? own);
+	let columnWidth = $state(0);
+	const PAGE_GUTTER = 24;
+	const fitted = $derived.by(() => {
+		const w = sizes[at]?.width ?? sizes[1]?.width ?? 612;
+		if (!v.fitWidth || !columnWidth) return null;
+		return Math.min(3, Math.max(0.5, (columnWidth - PAGE_GUTTER) / w));
+	});
+
 	// The reader's zoom for this kind of renderer, remembered across papers and across visits, unless a caller fixes it.
-	const drawAt = $derived(scale ?? prefs.zoom.pdf ?? 1.4);
-	const zoomTo = (v: number) => (prefs.zoom = { ...prefs.zoom, pdf: Math.min(3, Math.max(0.5, Math.round(v * 10) / 10)) });
+	const drawAt = $derived(scale ?? fitted ?? prefs.zoom.pdf ?? 1.4);
+	// The controls read the scale actually drawn, which is the fitted one while fit-width holds.
+	$effect(() => {
+		v.scale = drawAt;
+	});
 	let column = $state<HTMLDivElement | null>(null);
 	let count = $state(0);
 	// `page` is the page the parent asked for; `here` is the one the reader is on, which scrolling also moves.
 	let here = $state(0);
-	let tool = $state<'select' | 'box'>('select');
 	let problem = $state('');
 	/** Each page's own size in points, filled in as pages draw; page one's stands in for the undrawn. */
 	let sizes = $state<Record<number, { width: number; height: number }>>({});
@@ -76,6 +94,25 @@
 	function sizeOf(n: number): { width: number; height: number } {
 		return sizes[n] ?? sizes[1] ?? { width: 612, height: 792 };
 	}
+
+	// what the controls show, wherever they are drawn
+	$effect(() => {
+		v.count = count;
+	});
+	$effect(() => {
+		v.page = at;
+	});
+	// A control asking for a page, by nonce so that asking for the one already shown still scrolls to it.
+	$effect(() => {
+		const want = v.jump;
+		if (!want || !column || !count) return;
+		const n = Math.min(Math.max(want.page, 1), count);
+		const target = column.querySelector(`[data-holder="${n}"]`);
+		if (!target) return;
+		here = n;
+		target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+		onpage?.({ page: n });
+	});
 
 	onMount(() => {
 		let dropped = false;
@@ -109,14 +146,25 @@
 		const at = spans.find((s) => s.id === id);
 		if (!at) return;
 		here = at.page;
-		// after the page is in the window and has drawn, the mark itself is what to scroll to
-		requestAnimationFrame(() => {
+		// After the page is in the window and has drawn, the mark itself is what to scroll to — and it does not exist
+		// until the page it is on is rendered, which is not the next frame. One frame was enough while the only caller
+		// scrolled to a mark on a page already drawn; the preview card asks for one on a page it has just mounted, and
+		// fell back to the top of the page every time. Wait for the mark, then give up on the page.
+		let tries = 0;
+		let frame = 0;
+		const reach = () => {
 			const mark = column?.querySelector(`[data-mark="${CSS.escape(id)}"]`);
+			if (!mark && tries++ < 30) {
+				frame = requestAnimationFrame(reach);
+				return;
+			}
 			(mark ?? column?.querySelector(`[data-holder="${at.page}"]`))?.scrollIntoView({
 				block: 'center',
 				behavior: 'smooth'
 			});
-		});
+		};
+		frame = requestAnimationFrame(reach);
+		return () => cancelAnimationFrame(frame);
 	});
 
 	/** Sent to a page by a link inside the paper: scroll there and say so, as a scroll would. */
@@ -144,32 +192,12 @@
 
 <div class="doc" data-testid="pdf-doc">
 	{#if toolbar}
-		<div class="tools" role="toolbar" aria-label="reading tools">
-			<button
-				type="button"
-				class:on={tool === 'select'}
-				title="Select text. Hold Alt to draw a box without switching."
-				aria-pressed={tool === 'select'}
-				data-testid="tool-select"
-				onclick={() => (tool = 'select')}>select</button
-			>
-			<button
-				type="button"
-				class:on={tool === 'box'}
-				title="Draw a box around a formula or a figure. A click without a drag leaves a point."
-				aria-pressed={tool === 'box'}
-				data-testid="tool-box"
-				onclick={() => (tool = 'box')}>box</button
-			>
-			<span class="zoom" role="group" aria-label="zoom">
-				<button type="button" title="Smaller" aria-label="Smaller" data-testid="zoom-out" onclick={() => zoomTo(drawAt - 0.2)}>−</button>
-				<span class="at" data-testid="zoom-at">{Math.round(drawAt * 100)}%</span>
-				<button type="button" title="Larger" aria-label="Larger" data-testid="zoom-in" onclick={() => zoomTo(drawAt + 0.2)}>+</button>
-			</span>
+		<div class="toolbar">
+			<PdfTools view={v} />
 			<span class="where" data-testid="pdf-where">{count ? `page ${at} of ${count}` : ''}</span>
 		</div>
 	{/if}
-	<div class="column" bind:this={column} onscroll={scrolled}>
+	<div class="column" bind:this={column} bind:clientWidth={columnWidth} onscroll={scrolled}>
 		{#if problem}
 			<p class="problem" data-testid="pdf-problem">{problem}</p>
 		{/if}
@@ -180,7 +208,7 @@
 					{url}
 					page={n}
 					scale={drawAt}
-					{tool}
+					tool={v.tool}
 					{focus}
 					render={shown.has(n)}
 					quads={byPage[n] ?? []}
@@ -205,39 +233,18 @@
 		min-height: 0;
 		height: 100%;
 	}
-	.tools {
+	/* The renderer's own toolbar, for a caller that does not draw one. A page with a rail of its own passes `toolbar: false` and puts `PdfTools` on that line instead. */
+	.toolbar {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 4px 6px;
+		gap: 8px;
+		padding: 3px 6px;
 		border-bottom: 1px solid var(--rule, #ddd9cf);
-		font-size: 0.8rem;
-	}
-	.tools button {
-		font: inherit;
-		color: inherit;
-		background: none;
-		border: 1px solid var(--rule, #ddd9cf);
-		border-radius: 3px;
-		padding: 1px 8px;
-		cursor: pointer;
-	}
-	.tools button.on {
-		background: var(--annotation-tint, rgb(217 119 87 / 0.18));
-	}
-	.zoom {
-		margin-left: auto;
-		display: inline-flex;
-		align-items: center;
-		gap: 2px;
-	}
-	.zoom .at {
-		min-width: 3.2em;
-		text-align: center;
-		color: var(--muted, #6b6b6b);
 	}
 	.where {
+		margin-left: auto;
 		color: var(--muted, #6b6b6b);
+		font-size: 0.78rem;
 	}
 	.column {
 		flex: 1 1 auto;

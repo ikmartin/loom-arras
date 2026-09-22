@@ -2,6 +2,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
+/** The Library opens on the paper now (the digest is a derived index, never what a title click meant), so a test about the digest asks for it. */
+async function digestTab(page: import('@playwright/test').Page) {
+	await page.getByTestId('tab-digest').click();
+}
+
 const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
 const kreschPdf = `/${manifest.references.Kre99.artifacts.dir}/paper.pdf`;
 
@@ -83,6 +88,7 @@ test.describe('links into cited works', () => {
 	test('a digest result links its page into the version it was extracted from, and the viewer closes on an outside press', async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await page.goto('/library/Kre99');
+		await digestTab(page);
 		const link = page.getByTestId('page-link').first();
 		await expect(link).toHaveText('p. 4');
 		await link.click();
@@ -93,6 +99,7 @@ test.describe('links into cited works', () => {
 
 	test('with no copy on file a digest page is plain text', async ({ page }) => {
 		await page.goto('/library/Kre99');
+		await digestTab(page);
 		await expect(page.locator('main')).toContainText('Theorem 2.1, p. 4');
 		await expect(page.getByTestId('page-link')).toHaveCount(0);
 	});
@@ -137,6 +144,7 @@ test.describe('the digest view', () => {
 			};
 		});
 		await page.goto('/library/Kre99');
+		await digestTab(page);
 		const box = page.getByTestId('proposal');
 		await expect(box).toHaveCount(1);
 		await expect(page.getByTestId('proposal-flag')).toHaveText('proposed');
@@ -174,6 +182,7 @@ test.describe('the digest view', () => {
 			};
 		});
 		await page.goto('/library/Kre99');
+		await digestTab(page);
 		await expect(page.getByTestId('proposal-paper')).toBeVisible();
 		await expect(page.getByTestId('proposal-paper').getByTestId('pdf-page-1')).toBeVisible();
 		// the quotation is marked on the page, which is what the author's eye is led to
@@ -204,6 +213,7 @@ test.describe('the digest view', () => {
 			};
 		});
 		await page.goto('/library/Kre99');
+		await digestTab(page);
 		await expect(page.getByTestId('proposal-noimage')).toBeVisible();
 		await expect(page.getByTestId('proposal-added')).toHaveCount(0);
 	});
@@ -240,18 +250,16 @@ test.describe('what the reading study found', () => {
 	test('a filed paper can be opened whether or not anything is anchored to it yet', async ({ page }) => {
 		// The "Read the paper" row was gated on the pages the work's *results* sit on, so a paper that had been filed
 		// and not yet extracted or proposed from — the state every newly filed paper is in — offered no way into the
-		// reader at all, and the only link left the viewer for the browser's own renderer.
+		// reader at all. The Library now opens on the paper, so the guarantee is stronger: it is already open, and a
+		// work with no digest has no Digest tab to hide it behind.
 		await serve(page, (m) => {
 			m.references.Kre99.artifacts.pdf = true;
 			m.references.Kre99.results = {};
 			m.references.Kre99.digest = null;
 		});
 		await page.goto('/library/Kre99');
-		const open = page.getByTestId('read-page-1');
-		await expect(open).toBeVisible();
-		await open.click();
-		await expect(page).toHaveURL(/\/library\/Kre99\?page=1$/);
 		await expect(page.getByTestId('pdf-doc')).toBeVisible();
+		await expect(page.getByTestId('tab-digest')).toHaveCount(0);
 	});
 
 	test('a verb that needs no panel still shows why it was refused', async ({ page }) => {

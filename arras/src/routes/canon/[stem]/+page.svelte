@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
+	import ReadingRail from '$lib/shell/ReadingRail.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -15,17 +16,17 @@
 		<h1>Unknown landmark</h1>
 		<p class="muted">No canon document in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
+		<!-- A landmark's step is its identity rather than a note about it -- flows-v1 and flows-v2 are the same document
+		     at two moments -- so it stays, in the rail, while the path and the commit message go the way the master's did. -->
+		<ReadingRail>
+			{#snippet lead()}
+				{#if doc.step}<span class="faint">landmark @{Number(doc.step)}{doc.name ? ' (' + doc.name + ')' : ''}</span>{/if}
+			{/snippet}
+		</ReadingRail>
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
-					<header class="doc-head">
-						<p class="faint">
-							<code>{doc.path}</code>
-							{#if doc.step}· landmark @{Number(doc.step)}{doc.name ? ' (' + doc.name + ')' : ''}{/if}
-							{#if doc.message}· “{doc.message}”{/if}
-						</p>
-					</header>
-					<Fragment path={doc.fragment} macroSet={doc.macros ?? ''} standalone />
+					<Fragment path={doc.fragment} macroSet={doc.macros ?? ''} head={false} standalone />
 				</div>
 			</div>
 		</div>
@@ -33,11 +34,10 @@
 </main>
 
 <style>
+	/* the rail is the top edge of the view, as the library work's toolbar is: flush, full width, no gutter above it */
 	main.master {
+		padding-top: 0;
 		padding-left: 0;
 		padding-right: 0;
-	}
-	.doc-head {
-		margin-bottom: var(--gap-wide);
 	}
 </style>

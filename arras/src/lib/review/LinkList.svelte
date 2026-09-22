@@ -45,9 +45,10 @@
 {#if links.length}
 	<section class="links" data-testid="links">
 		<h2>{heading}</h2>
+		<!-- The long version of this said "Asserted, not checked — a relation has no page to verify it against", which
+		     names the problem without saying what a reader is looking at or what to do. One sentence, in that order. -->
 		<p class="muted asserted">
-			Asserted, not checked — a relation has no page to verify it against. Open one to read both statements' own
-			words side by side, which is how you settle it.
+			Someone claimed these statements are related. Nobody has checked — open a pair to read both and decide.
 		</p>
 		<ul class="plain">
 			{#each links as l (l.id)}

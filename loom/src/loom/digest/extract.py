@@ -179,6 +179,64 @@ def _today() -> str:
     return datetime.now(UTC).date().isoformat()
 
 
+def _store_home(result: ScanResult, citekey: str) -> Path | None:
+    """The work's directory in the store, or None when nothing readable is filed for it.
+
+    Extraction must still work with no document at all (DR-198), so everything that depends on one asks here first.
+    """
+    from loom.refs.fetch import work_dir
+    from loom.refs.pages import read_map
+
+    entry = result.bib.get(citekey)
+    if entry is None:
+        return None
+    home = work_dir(result.quilt.root, entry)
+    return home if read_map(home) is not None and (home / "paper.pdf").is_file() else None
+
+
+def _page_of(home: Path, citekey: str, taxon: str, number: str | None, statement: str, hint: int | None) -> int | None:
+    """The page of the filed copy a result sits on, or None when it cannot be told.
+
+    **The page is found in the work's own committed page text, never asserted.** The `.aux` gives an exact page when the paper compiled, but it is the page of the PDF *that compile produced*, which need not be the artifact in the store: a preprint and its published version differ by exactly this. So the aux page is a hint to check first, and what is recorded is a page whose text actually carries the result.
+
+    The printed label — `Proposition 2.1` — is what is searched for, because it is on the page in the form the reader sees, while the statement is LaTeX. A forward reference names the label before the statement arrives, so where several pages carry it the one that also carries the statement's own prose wins.
+
+    Parameters
+    ----------
+    home : Path
+        The work's directory in the store, holding `pages/`.
+    citekey : str
+    taxon : str
+        The result's kind as printed, `Proposition`.
+    number : str or None
+        Its number; an unnumbered result has no printed label to find and gets no page.
+    statement : str
+        The result's LaTeX, for choosing between pages that share the label.
+    hint : int or None
+        The page the `.aux` gave, checked before anything is searched.
+
+    Returns
+    -------
+    int or None
+    """
+    from loom.refs.pages import read_page
+    from loom.refs.search import find_in_page, grep_work, words_not_on_page
+
+    if not number or not (home / "pages").is_dir():
+        return None
+    label = f"{taxon} {number}"
+    if hint is not None and hint > 0:
+        text = read_page(home, hint)
+        if text and find_in_page(text, label):
+            return hint
+    hits = [h.page for h in grep_work(home, citekey, label)]
+    if not hits:
+        return None
+    if len(hits) == 1:
+        return hits[0]
+    return min(hits, key=lambda p: len(words_not_on_page(statement, read_page(home, p) or "")))
+
+
 def _body_text(env: Env, clean: str) -> str:
     """The statement: the environment's body minus nested theorem-like environments and proofs."""
     pieces: list[str] = []
@@ -562,6 +620,14 @@ def extract_digest(
     body_lines.append(conventions or "\\incomplete{Standing assumptions not extracted; see the paper.}")
     body_lines.append(f"\\end{{{setup_env}}}")
     body_lines.append("")
+    # **Every result that can be located gets its page**, so a digest node's locator points into the paper rather than
+    # only naming the result. The aux gives one when the paper compiled; the store's page text is what confirms it, and
+    # what supplies it when there was no compile at all — which is the state every `--no-compile` extraction is in.
+    home = _store_home(result, citekey)
+    if home is not None:
+        for r in results:
+            r.page = _page_of(home, citekey, r.taxon.name, r.number, _body_text(r.env, files[r.file].clean), r.page)
+
     written_units: set[int] = set()
     for r in sorted(results, key=lambda x: x.order):
         chain: list[SectionUnit] = []

@@ -10,8 +10,9 @@
 	import { keyFromParam } from '$lib/nav';
 	import { nodeBadge } from '$lib/badges';
 	import { bibText } from '$lib/works';
-	import { isWorkLink, locate, parseWorkLink, type WorkLink } from '$lib/worklink';
-	import { artifactUrl } from '$lib/paths';
+	import { isWorkLink, locate, pageOf, parseWorkLink, readKeys, type WorkLink } from '$lib/worklink';
+	import { artifactUrl, dataUrl } from '$lib/paths';
+	import type { Sidecar } from '$lib/pdf/sidecar';
 	import { can, write, type WriteResult } from '$lib/write';
 	import Badge from './Badge.svelte';
 	import Tex from '$lib/math/Tex.svelte';
@@ -23,7 +24,10 @@
 
 	// A `cited:` link with a copy here previews the page itself, at the place (plan 0.13 item 5: the renderer's fourth
 	// mounting context); one without previews the work's record.
-	type Target = { kind: 'node'; key: string } | { kind: 'ref'; citekey: string } | { kind: 'work'; citekey: string; link: WorkLink; url: string };
+	type Target =
+		| { kind: 'node'; key: string }
+		| { kind: 'ref'; citekey: string }
+		| { kind: 'work'; citekey: string; link: WorkLink; url: string; result?: string };
 
 	// raw, so the identity check after an await compares the object that was hovered rather than a proxy of it
 	let target = $state.raw<Target | null>(null);
@@ -41,6 +45,51 @@
 	const ref = $derived(m && (target?.kind === 'ref' || target?.kind === 'work') ? m.references[target.citekey] : undefined);
 	/** The place the link names, mapped by the publisher into rectangles for the card to draw; a box needs no mapping. */
 	let lit = $state<{ page: number; rects: number[][] } | null>(null);
+	/**
+	 * The statement's own lines, from the work's sidecar.
+	 *
+	 * **A citation previews the result, not the sheet it is printed on.** The card is sized to the statement plus two
+	 * lines either side — enough context to see where it begins and ends, and what it follows — and scrolls when the
+	 * statement is longer than that, rather than shrinking the page until nothing can be read.
+	 */
+	let statement = $state<{ page: number; rects: number[][] } | null>(null);
+	$effect(() => {
+		const t = target;
+		statement = null;
+		if (!t || t.kind !== 'work' || !t.result || !ref?.spans) return;
+		let dropped = false;
+		fetch(dataUrl(ref.spans.path))
+			.then((r) => (r.ok ? (r.json() as Promise<Sidecar>) : null))
+			.then((j) => {
+				const rects = j?.quads?.[t.result!];
+				if (!dropped && rects?.length) statement = { page: t.link.page ?? 1, rects };
+			})
+			.catch(() => {});
+		return () => {
+			dropped = true;
+		};
+	});
+
+	/**
+	 * How large the page is drawn inside the card, and how tall the card then is.
+	 *
+	 * The card is a window `CARD_WIDTH` wide (`.page-card` below), and the page is drawn at 115% of it: a paper's
+	 * margins are not what the reader hovered, so letting them fall outside the window buys back the width that the
+	 * text is read at. `PAGE_WIDTH` is US Letter, which every paper in the fixture is; a page of another size shifts
+	 * the zoom a little either way, which is what the fixed scale here has always done.
+	 */
+	const CARD_WIDTH = 43.2 * 16;
+	const PAGE_WIDTH = 612;
+	const CARD_SCALE = (CARD_WIDTH * 1.15) / PAGE_WIDTH;
+	/** The card's height: the statement and two lines either side, in points at the card's own scale. */
+	const cropHeight = $derived.by(() => {
+		const rs = statement?.rects ?? [];
+		if (!rs.length) return 0;
+		const top = Math.min(...rs.map((r) => r[1]));
+		const bottom = Math.max(...rs.map((r) => r[3]));
+		const line = Math.max(...rs.map((r) => r[3] - r[1]));
+		return Math.round((bottom - top + line * 4) * CARD_SCALE);
+	});
 	$effect(() => {
 		const t = target;
 		lit = null;
@@ -78,10 +127,31 @@
 			const n = m.keys[k]?.node ?? k;
 			return m.nodes[n] ? n : null;
 		};
+		/**
+		 * A node's preview.
+		 *
+		 * **A digest node previews the paper, not the digest.** A result read off a cited work is a transcription of a
+		 * page, and a reader hovering a citation wants the page — the digest's rendering of it, its badges and its
+		 * provenance are what the work's own tabs are for. With no copy filed, or no page in the locator, the
+		 * transcription is the best there is and stands.
+		 */
+		const preview = (n: string): Target => {
+
+			// deliberately not named `node` or `ref`: both are `$derived` in this component, and a local of the same
+			// name inside a nested function is a trap worth not setting
+			const nd = m.nodes[n];
+			const ck = nd?.digest;
+			const work = ck ? m.references[ck] : undefined;
+			const at = pageOf(nd?.locator);
+			if (work?.artifacts?.pdf && at) {
+				return { kind: 'work', citekey: work.citekey, link: { id: work.work ?? work.citekey, page: at }, url: artifactUrl(work.artifacts.dir), result: n };
+			}
+			return { kind: 'node', key: n };
+		};
 		const named = a.getAttribute('data-preview-key');
 		if (named) {
 			const n = owner(named);
-			return n ? { kind: 'node', key: n } : null;
+			return n ? preview(n) : null;
 		}
 		const href = a.getAttribute('href');
 		if (isWorkLink(href)) {
@@ -90,12 +160,12 @@
 			if (!link || !where?.ref) return null;
 			// the very artifact the link names, on this machine: the page at the place, not the record
 			if (where.local && where.ref.artifacts?.pdf) return { kind: 'work', citekey: where.ref.citekey, link, url: artifactUrl(where.ref.artifacts.dir) };
-			return { kind: 'ref', citekey: where.ref.citekey };
+			return null;
 		}
 		const refTarget = a.matches('a.ref[data-target]') ? a.getAttribute('data-target') : a.closest<HTMLElement>('span.cite[data-target]')?.dataset.target;
 		if (refTarget) {
 			const n = owner(refTarget);
-			return n ? { kind: 'node', key: n } : null;
+			return n ? preview(n) : null;
 		}
 		const url = new URL(a.getAttribute('href') ?? '', location.href);
 		if (url.origin !== location.origin) return null;
@@ -104,11 +174,28 @@
 			const n = owner(keyFromParam(path.slice('/node/'.length)));
 			// a link to the page already open previews nothing a reader cannot already see
 			if (!n || page.url.pathname === path) return null;
-			return { kind: 'node', key: n };
+			return preview(n);
 		}
 		if (path.startsWith('/library/')) {
 			const ck = decodeURIComponent(path.slice('/library/'.length));
-			return m.references[ck] && page.url.pathname !== path ? { kind: 'ref', citekey: ck } : null;
+			const r = m.references[ck];
+			if (!r || page.url.pathname === path) return null;
+			// the page itself when a copy is filed, at whatever place the URL names; otherwise nothing to show
+			if (!r.artifacts?.pdf) return null;
+			const link = readKeys({ id: r.work ?? ck }, url.search.slice(1));
+			// A citation carrying a postnote names a place, not a work. Where the postnote is a digest node, `refTarget`
+			// above already previewed it; reaching here means it is not one, and the postnote is all there is to go on.
+			// It is often enough -- an author writes `\cite[Corollary 3.2, p.~2]{Arden24}` and the page is right there.
+			// Where it names no page, the place is unknown, and the honest preview of an unknown place is none: a card
+			// for the front page would answer a question nobody asked, showing `[1, Lemma 5.9]` the title and the
+			// abstract as though they were the lemma. A bare `\cite{Arden24}` names the work, so its front page stands.
+			const postnote = a.closest<HTMLElement>('span.cite')?.dataset.postnote;
+			if (!link.page && postnote) {
+				const at = pageOf(postnote);
+				if (!at) return null;
+				link.page = at;
+			}
+			return { kind: 'work', citekey: ck, link, url: artifactUrl(r.artifacts.dir) };
 		}
 		return null;
 	}
@@ -221,7 +308,15 @@
 			}
 		};
 		const key = (e: KeyboardEvent) => e.key === 'Escape' && hide();
-		const scroll = () => target && hide();
+		// **A scroll inside the card is not the page moving out from under it.** The listener is capturing, so it hears
+		// every scroll in the document — including the one a PDF preview makes when it scrolls its own column to the
+		// page it was asked for, which closed the card in the same frame it opened.
+		const scroll = (e: Event) => {
+			if (!target) return;
+			const from = e.target as Element | null;
+			if (from?.closest?.('.link-preview')) return;
+			hide();
+		};
 		const down = (e: PointerEvent) => {
 			if (target && !(e.target as Element)?.closest?.('.link-preview')) hide();
 		};
@@ -248,7 +343,7 @@
 </script>
 
 {#if target && m && (node || ref)}
-	<div class="link-preview" role="tooltip" bind:this={card} style="left: {left}px; top: {top}px" data-testid="link-preview">
+	<div class="link-preview" class:page={target.kind === 'work'} role="tooltip" bind:this={card} style="left: {left}px; top: {top}px" data-testid="link-preview">
 		{#if node}
 			<p class="head">
 				<span class="label">{node.taxon}{number ? ' ' + number : ''}</span>
@@ -262,14 +357,29 @@
 				<div class="body fragment" bind:this={body}>{@html html}</div>
 			{/if}
 		{:else if target.kind === 'work' && ref}
-			<p class="head"><span class="title"><Tex text={bibText(ref.bib.title) || ref.citekey} /></span><span class="id">p.{target.link.page ?? 1}</span></p>
-			<div class="page-card" data-testid="preview-page">
-				<PdfDoc url={target.url} page={target.link.page ?? 1} toolbar={false} scale={0.55} window={0} spans={lit ? [{ id: '_locator', page: lit.page, rects: lit.rects, transient: true }] : []} focus={lit ? '_locator' : ''} />
+			<!-- Sized to the statement and a line either side where the sidecar knows where it is, and scrolled to it by
+			     the renderer's own `focus`; a statement longer than the card scrolls inside it rather than being shrunk
+			     until it cannot be read. A work with no located statement keeps the standing page-sized card. -->
+			<div
+				class="page-card"
+				class:cropped={!!statement}
+				style={statement ? `height: ${Math.min(cropHeight, 39.6 * 16)}px` : undefined}
+				data-testid="preview-page"
+			>
+				<PdfDoc
+					url={target.url}
+					page={statement?.page ?? target.link.page ?? 1}
+					toolbar={false}
+					scale={statement ? CARD_SCALE : 0.99}
+					window={0}
+					spans={statement
+						? [{ id: '_stmt', page: statement.page, rects: statement.rects, transient: true }]
+						: lit
+							? [{ id: '_locator', page: lit.page, rects: lit.rects, transient: true }]
+							: []}
+					focus={statement ? '_stmt' : lit ? '_locator' : ''}
+				/>
 			</div>
-		{:else if ref}
-			<p class="head"><span class="title"><Tex text={bibText(ref.bib.title) || ref.citekey} /></span></p>
-			<p class="byline">{bibText(ref.bib.author)}{ref.bib.year ? ` · ${ref.bib.year}` : ''}</p>
-			<p class="state"><WorkLinks {ref} />{#if ref.digest}<span class="from">digest of {ref.digest.nodes.length} results</span>{/if}</p>
 		{/if}
 	</div>
 {/if}
@@ -322,7 +432,6 @@
 		margin: var(--gap-hair) 0;
 	}
 	.from,
-	.byline,
 	.more {
 		color: var(--ink-faint);
 		font-size: 10px;
@@ -350,11 +459,44 @@
 	}
 	/* the page at the place: a fixed-size window onto the renderer, at a scale a glance can read */
 	.page-card {
-		width: 24rem;
-		height: 16rem;
+		width: 43.2rem;
+		height: 28.8rem;
 		overflow: hidden;
-		border: 1px solid var(--rule);
 		background: var(--sheet);
+	}
+	/**
+	 * A page preview is the page and nothing else, so the card is the frame: no padding around it and no border of its
+	 * own. The two used to sit one inside the other -- the card's rule a few pixels in from the tooltip's -- which read
+	 * as a box in a box for the sake of a boundary already drawn. The radius is inherited and clipped so the page takes
+	 * the corners.
+	 */
+	.link-preview.page {
+		padding: 0;
+		overflow: hidden;
+		max-width: min(46.8rem, calc(100vw - 16px));
+	}
+	/* **The card marks where the result starts; it does not outline it.** The statement's rectangles are what the card
+	   is sized and scrolled by, but drawing them boxes three lines of a paper the reader is trying to read. A dot in
+	   the margin beside the first line says the same thing — this is where it begins — and leaves the text alone. */
+	.page-card :global(.mark.transient) {
+		outline: none;
+		background: none;
+	}
+	.page-card :global(.marks > .mark.transient:first-child)::before {
+		content: '';
+		position: absolute;
+		left: -0.7em;
+		top: 50%;
+		width: 0.5em;
+		height: 0.5em;
+		transform: translateY(-50%);
+		border-radius: 50%;
+		background: rgb(224 168 32 / 0.55);
+	}
+	/* the height comes from the statement; the floor keeps a one-line result from being a sliver */
+	.page-card.cropped {
+		min-height: 9rem;
+		max-height: 39.6rem;
 	}
 	@media (hover: none) {
 		.link-preview {

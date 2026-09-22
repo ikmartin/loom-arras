@@ -341,6 +341,41 @@ def rewrite_in_digest(root: Path, citekey: str, r: Result) -> bool:
     return True
 
 
+#: The page a locator names, as `digest extract` writes it: `Proposition 2.1, p.~7`.
+_LOCATOR_PAGE = re.compile(r"\bpp?\.\s*~?\s*(\d+)")
+
+
+def _extracted_anchor(root: Path, citekey: str, entry: Any, locator: str, statement: str, rel: str, sha: str) -> Anchor:
+    """The anchor a mechanically extracted result carries.
+
+    A page anchor against the filed copy where extraction located the result on one, **with the statement's own span on that page** rather than the page alone: a reader following a citation wants the result, not the sheet it is printed on. The source file stays on the anchor as its provenance either way, and a work with no readable copy keeps the tex anchor it has always had (DR-198).
+    """
+    from loom.refs.fetch import work_dir
+    from loom.refs.pages import read_map, read_page
+    from loom.refs.search import statement_span
+
+    found = _LOCATOR_PAGE.search(locator or "")
+    if not found or entry is None:
+        return Anchor(kind="tex", sha256=sha, path=rel)
+    try:
+        home = work_dir(root, entry)
+    except Exception:
+        # a work with no identity to file under has no store directory, and so no page anybody could open
+        return Anchor(kind="tex", sha256=sha, path=rel)
+    m = read_map(home)
+    if m is None or not (home / "paper.pdf").is_file():
+        return Anchor(kind="tex", sha256=sha, path=rel)
+    page = int(found.group(1))
+    anchor = Anchor(kind="pdf", sha256=m.sha256, page=page, path=rel)
+    inner = re.search(r"\\cite\s*\[([^\]]*)\]", locator or "")
+    label = (inner.group(1) if inner else locator or "").split(",")[0].strip()
+    text = read_page(home, page) or ""
+    span = statement_span(text, label, statement) if text and label else None
+    if span is not None:
+        anchor.basis, anchor.start, anchor.end = "text", span[0], span[1]
+    return anchor
+
+
 def record_extracted(result: Any, citekey: str) -> int:
     """Write `results.json` entries for a digest that `loom digest extract` produced; returns how many.
 
@@ -374,7 +409,7 @@ def record_extracted(result: Any, citekey: str) -> int:
             locator=n.title or "",
             statement=text.strip(),
             source_text=text.strip(),
-            anchor=Anchor(kind="tex", sha256=sha, path=rel),
+            anchor=_extracted_anchor(root, citekey, result.bib.get(citekey), n.title or "", text.strip(), rel, sha),
             level=3,
             cls="mechanical",
             state=VERIFIED,

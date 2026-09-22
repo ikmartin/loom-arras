@@ -21,7 +21,8 @@ test('the editing surfaces', async ({ page }) => {
 	await page.screenshot({ path: `${OUT}/composer.png` });
 
 	await page.goto('/master/main');
-	await page.waitForSelector('[data-testid="document-annotations"]');
+	await page.getByTestId('beside-toggle').click();
+	await page.waitForSelector('[data-testid="beside"]');
 	await page.waitForTimeout(900);
 	await page.screenshot({ path: `${OUT}/document-annotations.png` });
 });

@@ -286,6 +286,38 @@ def locate_offsets(page_text: str, needle: str) -> tuple[int, int] | None:
     return keep[at], keep[at + len(want) - 1] + 1
 
 
+def statement_span(page_text: str, label: str, statement: str) -> tuple[int, int] | None:
+    """Where a result's statement sits in a page's committed text: from its printed label to its last words.
+
+    A digest node is a transcription of a statement, and what a reader wants to see of it is the statement — not the page it happens to be on. The two ends are found differently because the page offers different evidence for each. The **start** is the printed label, `Proposition 2.1`, which is on the page in exactly the form a reader sees. The **end** cannot be matched the same way: the statement is LaTeX and its mathematics is not on the page as typed, so what is searched for is the last run of three prose words that survives stripping the mathematics out, and the span ends where that run ends.
+
+    Parameters
+    ----------
+    page_text : str
+        The page's committed text, as `pages/NNNN.txt` holds it.
+    label : str
+        The result as the paper prints it, `Proposition 2.1`.
+    statement : str
+        The result's LaTeX, whose prose supplies the end.
+
+    Returns
+    -------
+    tuple of (int, int), or None
+        Offsets into `page_text`, or None when the label is not on the page. A statement whose prose cannot be found — one that is nearly all mathematics, or one that runs onto the next page — ends at its label, which is short but never wrong.
+    """
+    head = locate_offsets(page_text, label)
+    if head is None:
+        return None
+    start, end = head
+    prose = _PROSE.findall(normalize(_CONTROL_WORD.sub(" ", _NAMING.sub(" ", _MATH.sub(" ", statement)))))
+    rest = page_text[start:]
+    for i in range(len(prose) - 3, -1, -1):
+        found = locate_offsets(rest, " ".join(prose[i : i + 3]))
+        if found is not None and start + found[1] > end:
+            return start, start + found[1]
+    return start, end
+
+
 def words_in_boxes(bbox_xml: str, rects: list[list[float]]) -> str:
     """The page's own words under a reader's rectangles, in reading order.
 

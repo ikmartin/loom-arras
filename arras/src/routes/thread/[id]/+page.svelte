@@ -12,7 +12,6 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { keyUrl, nodeUrl } from '$lib/nav';
 	import SplitView from '$lib/review/SplitView.svelte';
-	import { sessionUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	const id = $derived(decodeURIComponent(page.params.id ?? ''));
@@ -25,7 +24,7 @@
 		<h1>Unknown thread</h1>
 	{:else}
 		<h1>{t.title}</h1>
-		<p class="muted">{t.kind} · {t.created} · participants {t.participants.map((p) => p.id).join(', ')}{t.discarded ? ' · discarded' : ''}{#if m.sessions?.some((s) => s.id === id)} · <a href={sessionUrl(id)}>read it as a session</a>{/if}</p>
+		<p class="muted">{t.kind} · {t.created} · participants {t.participants.map((p) => p.id).join(', ')}{t.discarded ? ' · discarded' : ''}</p>
 		{#if split}
 			<SplitView thread={t} />
 			{#if t.log.length}

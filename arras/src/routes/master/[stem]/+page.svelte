@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The read view (book 15.3.1): the document rendered as a document in a measured column, with the margin annotation in the left gutter and the comments in the right.
+	// The read view (book 15.3.1): the document rendered as a document in a measured column, with each result's id and state in the left gutter and the annotation ticks in the right.
 	// The gutters use the site generator's algebra, so a corpus page and a note page are laid out alike; the environment's taxon accent stands on the boundary between the left gutter and the text.
 	import { mount, unmount, untrack, type Component } from 'svelte';
 	import { page } from '$app/state';
@@ -17,8 +17,10 @@
 	import { dataUrl } from '$lib/paths';
 	import { repliesTo } from '$lib/annotations';
 	import { commentsOn, slotsFor } from '$lib/fragments/slots';
-	import Composer from '$lib/review/Composer.svelte';
 	import Beside from '$lib/split/Beside.svelte';
+	import { Annotations } from '$lib/fragments/shown.svelte';
+	import BesideToggle from '$lib/split/BesideToggle.svelte';
+	import ReadingRail from '$lib/shell/ReadingRail.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -32,11 +34,10 @@
 	/** What the discussion pane beside the document is about: the document itself, and every key it reaches. */
 	const inDocument = $derived(master ? [master.path, ...Object.keys(m.nodes).filter((k) => m.nodes[k].reached_by.includes(master.path))] : []);
 
-	/** Annotations on the document itself, as opposed to on anything inside it. */
-	const onDocument = $derived(master ? commentsOn(m, master.path) : []);
-
 	const replies = (id: string) => repliesTo(m, id);
 	const slots = slotsFor(() => m);
+	/** Whether the document's annotations are open, shared by the rail's control and the fragment that holds them. */
+	const notes = new Annotations();
 	/** Every comment inline: beside a comparison there is no gutter to put one in. */
 	const inlineSlots = (key: string): CommentSlot[] => commentsOn(m, key).map((a) => ({ id: a.id, where: 'inline' }));
 
@@ -106,33 +107,37 @@
 		<h1>Unknown document</h1>
 		<p class="muted">No master in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
-		<Beside keys={inDocument} label="the document">
+		<!-- The rail stands outside `Beside`, so opening the split moves the document into a pane and leaves the controls
+		     where they were rather than carrying them into it. -->
+		<ReadingRail>
+			{#snippet acts()}
+				{#if notes.ready}
+					<button
+						type="button"
+						class="as-link"
+						aria-expanded={notes.allOpen}
+						data-testid="toggle-annotations"
+						title={notes.allOpen ? 'Close everything open, wherever it is (h)' : 'Open every annotation at its own mark (e)'}
+						onclick={() => notes.toggle()}
+						>{notes.allOpen ? 'hide all annotations' : 'show all annotations'}<span class="chev" class:down={notes.allOpen} aria-hidden="true"></span></button
+					>
+				{/if}
+				{#if !master.numbering_known}<span class="faint">not yet numbered</span>{/if}
+				{#if master.pdf}<a href={dataUrl(master.pdf)}>PDF</a>{/if}
+				<BesideToggle />
+			{/snippet}
+		</ReadingRail>
+		<Beside keys={inDocument} label="the document" control={false}>
 		<div class:with-comparison={!!comparison} class="review-layout">
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
-					{#if onDocument.length}
-						<!-- An annotation whose target is the document rather than a key. a publisher may target a document as easily as a key, and `commentsOn` was only ever called with node keys, so no viewer has ever shown one. -->
-						<section class="doc-annotations" data-testid="document-annotations">
-							<p class="head">About this document</p>
-							{#each onDocument as a (a.id)}
-								<AnnotationBox annotation={a} replies={replies(a.id)} />
-							{/each}
-						</section>
-					{/if}
-					<Composer target={master.path} />
-					<header class="doc-head">
-						<p class="faint">
-							<code>{master.path}</code>{master.numbering_known
-								? ''
-								: ' · not yet numbered: ids shown without numbers'}
-							{#if master.pdf}· <a href={dataUrl(master.pdf)}>PDF</a>{/if}
-						</p>
-					</header>
 					{#key !!comparison}<Fragment
 						path={master.fragment}
 						master={master.path}
 						headingLinks
+						head={false}
+						annotations={notes}
 						margins={!comparison}
 						comments={comparison ? inlineSlots : slots}
 						onmounted={fill}
@@ -159,6 +164,23 @@
 </main>
 
 <style>
+	/* Drawn rather than set, as the panel's disclosure is: no chevron in the type stack is a true right angle with
+	   equal arms. Pointing right while everything is closed and down while it is open. */
+	.chev {
+		display: inline-block;
+		width: 5px;
+		height: 5px;
+		margin-left: 6px;
+		border-right: 1.5px solid currentColor;
+		border-bottom: 1.5px solid currentColor;
+		transform: rotate(-45deg);
+		/* the arms hang below the box's centre once rotated; this puts the vertex back on the text's midline */
+		margin-bottom: 1px;
+	}
+	.chev.down {
+		transform: rotate(45deg);
+		margin-bottom: 3px;
+	}
 	.review-comparison {
 		position: sticky;
 		top: var(--gap-wide);
@@ -179,23 +201,11 @@
 	.review-comparison :global(.math.display) { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
 	.review-layout :global(.review-citation-target) { background: var(--state-stale-wash); outline: 2px solid var(--state-stale); outline-offset: 2px; scroll-margin-top: var(--gap-wide); }
 	@media (max-width: 900px) { .review-layout.with-comparison { display: flex; flex-direction: column; padding-right: 0; } .review-layout > .gutters-host, .review-comparison { width: 100%; } .review-comparison { position: static; max-height: none; } }
-	.doc-annotations {
-		margin-bottom: var(--gap-wide);
-	}
-	.doc-annotations .head {
-		font-family: var(--sans);
-		font-size: 0.72em;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: var(--ink-faint);
-		margin: 0 0 var(--gap-tight);
-	}
+	/* the rail is the top edge of the view, as the library work's toolbar is: flush, full width, no gutter above it */
 	main.master {
+		padding-top: 0;
 		padding-left: 0;
 		padding-right: 0;
-	}
-	.doc-head {
-		margin-bottom: var(--gap-wide);
 	}
 	.local-float {
 		position: fixed;

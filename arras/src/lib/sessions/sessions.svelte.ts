@@ -106,7 +106,13 @@ export function hidden(m: Manifest | null, list: readonly Annotation[]): number 
 /** The one list the panel draws, and the closed ones behind their own section. */
 export function grouped(m: Manifest | null): { open: SessionRow[]; closed: SessionRow[] } {
 	const rows = m?.sessions ?? [];
-	return { open: rows.filter((s) => s.state === 'open'), closed: rows.filter((s) => s.state !== 'open') };
+	// Most recently touched first. The index is append-only and was shown in creation order, so the sitting you were
+	// in five minutes ago sat at the bottom of the list under everything you had finished with.
+	const recent = (a: SessionRow, b: SessionRow) => (b.opened || b.created).localeCompare(a.opened || a.created);
+	return {
+		open: rows.filter((s) => s.state === 'open').sort(recent),
+		closed: rows.filter((s) => s.state !== 'open').sort(recent)
+	};
 }
 
 /** What one session holds: how many are open in it, who took part, and how many arrived in the current round. */

@@ -7,7 +7,6 @@ const routes: [string, string][] = [
 	['/node/sy-0003', 'Parity'],
 	['/node/sy-0200', 'Results'],
 	['/master/main', 'Widgets, gadgets'],
-	['/library/Kre99', 'Cycle groups'],
 	['/review', 'Review'],
 	['/problems', 'Problems'],
 	['/blockers', 'Review'],
@@ -96,9 +95,7 @@ test('live reload follows the manifest only', async ({ page }) => {
 });
 
 test('marks and boxes on the annotated node; discarded hidden by default', async ({ page }) => {
-	// the margin arrangement, which this test is about: a mark activates the box standing beside the node. The default
-	// placement is `floating`, which opens a box over the text instead (plan 0.13 §7).
-	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'margin' })));
+	// A mark opens its annotation as a floating box over the text, and the list below the node holds every one of them.
 	await page.goto('/node/sy-0003');
 	// Counted as "every open annotation on this key has a box", not as a literal, so adding one to the fixture does
 	// not fail a test that is about marks and boxes agreeing.
@@ -118,9 +115,10 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	// only the annotations that quote a phrase can be marked in the text
 	await expect(page.locator('.fragment mark.annotation')).toHaveCount(2);
 	await page.locator('.fragment mark.annotation').first().click();
-	await expect(page.locator('article.box.active')).toHaveCount(1);
-	await expect(page.locator('article.box.active > header .kind')).toHaveText('objection');
-	await expect(page.locator('article.box.active .reply')).toHaveCount(1);
+	const opened = page.locator('[data-testid="comment-expanded"] article.box');
+	await expect(opened).toHaveCount(1);
+	await expect(opened.locator('> header .kind')).toHaveText('objection');
+	await expect(opened.locator('.reply')).toHaveCount(1);
 	// sy-000A's one annotation is discarded AND belongs to a closed session, so two filters hide it and the reader
 	// must lift both. Closing a session hides its annotations (plan 0.13 §5), which is what closing one is for.
 	await page.goto('/node/sy-000A');
@@ -202,6 +200,7 @@ test('missing proof on a block leads to its review row', async ({ page }) => {
 
 test("a work's page lists results with their citers, and the Library counts them", async ({ page }) => {
 	await page.goto('/library/Kre99');
+	await page.getByTestId('tab-digest').click();
 	const item = page.locator('li:has(> a:first-child[href="/node/Kre99-thm-2.1"])');
 	await expect(item).toContainText('sy-000A'); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
 	await page.goto('/library');
@@ -276,8 +275,6 @@ test('a session that wrote no report keeps the list shape', async ({ page }) => 
 	await page.goto('/thread/s-2026-09-15-0001');
 	await expect(page.locator('main h1')).toBeVisible();
 	await expect(page.getByTestId('split-view')).toHaveCount(0);
-	// and it offers the permalink, which is where a session is read back whole
-	await expect(page.getByRole('link', { name: 'read it as a session' })).toBeVisible();
 
 	// the one that did write a report is the other rendering, from the same route
 	await page.goto('/thread/s-2026-09-16-0001');
@@ -314,13 +311,13 @@ test('a node can be read as it was written', async ({ page }) => {
 	await page.goto('/node/sy-0003');
 	await expect(page.locator('.fragment .env').first()).toBeVisible();
 	const toggle = page.getByTestId('source-toggle').first();
-	await expect(toggle).toHaveText('source');
+	await expect(toggle).toHaveText('verbatim code');
 	await toggle.click();
 	const verbatim = page.getByTestId('verbatim').first();
 	await expect(verbatim).toBeVisible();
 	await expect(verbatim).toContainText('\\begin{theorem}'); // the LaTeX, not the rendering
 	await expect(page.locator('.fragment .env')).toHaveCount(0); // and the rendering stands aside
-	await expect(toggle).toHaveText('rendered');
+	await expect(toggle).toHaveText('rendered latex');
 	await toggle.click();
 	await expect(page.locator('.fragment .env').first()).toBeVisible();
 });
@@ -373,13 +370,19 @@ test('the viewer shows no editing affordance when the publisher serves none', as
 	await expect(page.getByTestId('refnote-accept')).toHaveCount(0);
 });
 
-test('a document carries annotations of its own', async ({ page }) => {
-	// loom has written these since 0.6 -- `loom comment` has always taken a master path -- and no viewer showed one.
+test('a document carries annotations of its own, and they are read beside it', async ({ page }) => {
+	// loom has written these since 0.6 -- `loom comment` has always taken a master path. They used to open a block above
+	// the document, which put a remark about the whole paper on its title and sized a report like a sentence; the
+	// discussion pane is where a document's own annotations are read, because that is the surface built for length.
 	await page.goto('/master/main');
-	const box = page.getByTestId('document-annotations');
-	await expect(box).toBeVisible();
-	await expect(box).toContainText('which conventions it inherits');
-	await expect(box.getByTestId('severity').first()).toHaveText('moderate');
+	await expect(page.getByTestId('document-annotations')).toHaveCount(0);
+
+	await page.getByTestId('beside-toggle').click();
+	const pane = page.getByTestId('beside');
+	// the pane lists every annotation the document reaches, the document's own among them, so it is found by its text
+	// rather than by being first; the list is compact items, not the boxes the retired block drew
+	await expect(pane).toContainText('which conventions it inherits');
+	await expect(pane.locator('li', { hasText: 'which conventions it inherits' })).toHaveCount(1);
 });
 
 test('a node shows the citations suggested for it and those already accepted', async ({ page }) => {
@@ -413,9 +416,10 @@ test('the setting is one switch, applied everywhere', async ({ page }) => {
 	await expect(page.locator('.fragment .env-label .number').first()).toBeHidden();
 });
 
-test('a floating box stays open when the reader looks elsewhere, and only its × closes it', async ({ page }) => {
-	// The default placement. One-at-a-time closed a box whenever the reader clicked away, so a second annotation could
-	// not be read beside the first and a click on the text lost what was open (plan 0.13 §7).
+test('two floating boxes are open at once, its × closes one, and a click away closes them', async ({ page }) => {
+	// The default placement. One-at-a-time could not show a second annotation beside the first, which is why several
+	// may be open. Clicking away closes them: backgrounding left a clipped, faded stub that read as a ghost, or as a
+	// doubled border under the box in front (amends DR-202).
 	await page.goto('/node/sy-0003');
 	const marks = page.locator('.fragment mark.annotation');
 	await expect(marks).toHaveCount(2);
@@ -426,14 +430,14 @@ test('a floating box stays open when the reader looks elsewhere, and only its ×
 	await marks.nth(1).click();
 	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(2);
 
-	// clicking the text backgrounds them; nothing closes
-	await page.locator('.fragment p').first().click({ position: { x: 4, y: 4 } });
-	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(2);
-	await expect(page.locator('.comment-slot.floating.behind')).toHaveCount(2);
-
-	// and a box's own × is what closes it
+	// a box's own × closes just that one
 	await page.locator('.comment-slot.expanded.floating').first().locator('.comment-close').click();
 	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
+
+	// and clicking the text closes what is left, leaving no ghost behind
+	await page.locator('.fragment p').first().click({ position: { x: 4, y: 4 } });
+	await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(0);
+	await expect(page.locator('.comment-slot.floating.behind')).toHaveCount(0);
 });
 
 test('travel goes to the annotation and back, and says so when there is nowhere to go', async ({ page }) => {
@@ -459,24 +463,72 @@ test('travel goes to the annotation and back, and says so when there is nowhere 
 	await expect(page.getByTestId('travel-nowhere')).toHaveCount(0, { timeout: 3000 });
 });
 
-test('expand all opens every annotation at its mark, and hide all closes them', async ({ page }) => {
+test('e opens every annotation at its mark, and h closes them', async ({ page }) => {
+	// The document view draws no buttons for these. They were a row across the top of every document, ahead of its
+	// title, for an action wanted occasionally -- so the keys are the whole affordance here until they have a home
+	// that is not the reader's way.
 	await page.goto('/master/main');
-	await page.getByTestId('expand-all').waitFor();
+	await page.waitForSelector('.fragment mjx-container');
 	const boxes = page.locator('aside.comment-slot.expanded');
+	await expect(page.getByTestId('content-head')).toHaveCount(0);
 	await expect(boxes).toHaveCount(0);
 
-	await page.getByTestId('expand-all').click();
+	await page.locator('.fragment').focus();
+	await page.keyboard.press('e');
 	const opened = await boxes.count();
 	expect(opened).toBeGreaterThan(1);
 
-	// hide all is the escape hatch that clicking outside no longer provides
-	await page.getByTestId('hide-all').click();
-	await expect(boxes).toHaveCount(0);
-
-	// and the same two are keys, which is why they are named in the buttons' tooltips
-	await page.locator('.fragment').focus();
-	await page.keyboard.press('e');
-	await expect(boxes).toHaveCount(opened);
+	// h is the escape hatch that clicking outside no longer provides
 	await page.keyboard.press('h');
 	await expect(boxes).toHaveCount(0);
+});
+
+test('a citation opens the cited paper at the result, not the digest node', async ({ page }) => {
+	// `[1, Theorem 2.1]` names a theorem in a paper, so where a copy is filed the link goes to the paper at that result.
+	// The digest node's page renders loom's record of it -- the LaTeX, the provenance, what depends on it -- which is a
+	// thing to go and look at and not what the citation names. It asks for no discussion pane: a work opened at a page
+	// opens split for a link written in a discussion, which this is not.
+	await page.route('**/build/manifest.json', async (route) => {
+		const res = await route.fetch();
+		const m = await res.json();
+		m.references.Kre99.artifacts.pdf = true;
+		await route.fulfill({ json: m });
+	});
+	await page.goto('/master/main');
+	await page.waitForSelector('.fragment mjx-container');
+	await expect(page.locator('span.cite[data-target="Kre99-thm-2.1"] a').first()).toHaveAttribute(
+		'href',
+		/\/library\/Kre99\?page=4&result=Kre99-thm-2\.1&beside=0$/
+	);
+
+	// with no copy filed there is no page to open, so the record is the best there is and the link goes to the node
+	await page.unroute('**/build/manifest.json');
+	await page.goto('/master/main');
+	await page.waitForSelector('.fragment mjx-container');
+	await expect(page.locator('span.cite[data-target="Kre99-thm-2.1"] a').first()).toHaveAttribute('href', /\/node\/Kre99-thm-2\.1$/);
+});
+
+test('a proposed text opens as source, and renders on asking', async ({ page }) => {
+	// What is proposed is text to be written into a document, so the source is what a reader judges and the source is
+	// what opens. The rendering is what it will look like afterwards, which is the second question. The control names
+	// what a click gives rather than what is on screen.
+	await page.goto('/node/sy-0003');
+	// the suggestion that proposes prose, not the citation suggestion beside it, which proposes a bibliography line
+	const payload = page.locator('article.box[data-annotation-id="a-2026-09-16-0002"] [data-testid="payload"]');
+	await expect(payload).toBeVisible();
+	await expect(payload.getByTestId('payload-verbatim')).toContainText('\\ref{sy-0002}');
+	await expect(payload.getByTestId('payload-rendered')).toHaveCount(0);
+	const view = payload.getByTestId('payload-view');
+	await expect(view).toHaveText('rendered latex');
+
+	await view.click();
+	await expect(payload.getByTestId('payload-verbatim')).toHaveCount(0);
+	// rendered means rendered: the math is typeset, and the LaTeX that produced it is not on screen
+	await expect(payload.getByTestId('payload-rendered').locator('mjx-container')).not.toHaveCount(0);
+	await expect(payload.getByTestId('payload-rendered')).not.toContainText('\\ref');
+	await expect(view).toHaveText('verbatim code');
+
+	// copying is selecting the text, as it is everywhere else; the two buttons that did it are gone
+	await expect(page.getByTestId('source-copy')).toHaveCount(0);
+	await expect(page.getByTestId('source-copy-chat')).toHaveCount(0);
 });

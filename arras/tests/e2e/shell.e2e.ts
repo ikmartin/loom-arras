@@ -1,48 +1,24 @@
 import { expect, test } from "@playwright/test";
 
-const SHELLS = ["a", "c"] as const;
-
-/** Shell C hangs the contents off the open document behind a `show` disclosure (plan 0.13.1); shell A still lists them outright. */
+/** The contents hang off the open document behind a `show` disclosure (plan 0.13.1). */
 async function openContents(page: import("@playwright/test").Page) {
-  const nav = page.getByRole("navigation", { name: "Contents" });
   const toggle = page.getByTestId("contents-toggle");
-  // Wait for whichever the shell offers before asking after either: shell A has no toggle and shell C has no tree
-  // until the toggle is pressed, so probing one first races hydration and then waits for something that never comes.
-  await page.locator('nav.contents, [data-testid="contents-toggle"]').first().waitFor();
-  if (await nav.isVisible()) return;
+  await toggle.waitFor({ state: "visible" });
   if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
-  await nav.waitFor();
+  await page.getByRole("navigation", { name: "Contents" }).waitFor();
 }
 
-for (const shell of SHELLS) {
-  test(`shell ${shell} contains the same elements as the others`, async ({
-    page,
-  }) => {
-    await page.goto(`/master/main?shell=${shell}`);
-    await expect(page.locator("html")).toHaveAttribute("data-shell", shell);
-    // the view switcher, a way to choose a document, the contents tree, the search affordance and the counts are in
-    // every arrangement -- though not yet in the same form: shell C lists the documents and folds the contents under
-    // the open one (plan 0.13.1), while shell A still carries the dropdown it has always had.
-    await expect(
-      page.getByRole("link", { name: "graph", exact: true }),
-    ).toBeVisible();
-    if (shell === "c") {
-      await expect(page.getByTestId("docs-drafts")).toBeVisible();
-    } else {
-      await expect(page.getByRole("combobox", { name: "Document" })).toBeVisible();
-    }
-    await openContents(page);
-    await expect(
-      page.getByRole("navigation", { name: "Contents" }),
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
-    await expect(page.getByTestId("counts")).toContainText("nodes");
-  });
-}
-
-test("the default shell is the icon strip", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("data-shell", "c");
+test("the shell carries the views, the documents, the contents, search and the counts", async ({
+  page,
+}) => {
+  // One arrangement. There were two, and the second fell behind on the first panel change that was not made twice.
+  await page.goto("/master/main");
+  await expect(page.getByRole("link", { name: "graph", exact: true })).toBeVisible();
+  await expect(page.getByTestId("docs-drafts")).toBeVisible();
+  await openContents(page);
+  await expect(page.getByRole("navigation", { name: "Contents" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
+  await expect(page.getByTestId("counts")).toContainText("nodes");
 });
 
 test("the side panel scrolls rather than overflowing, and the contents' last entry can be reached", async ({
@@ -180,13 +156,13 @@ test("the display preferences survive a reload and change the document", async (
   await page.goto("/");
   await page.getByTestId("settings-toggle").click();
   await page.getByTestId("theme-dark").click();
-  await page.getByTestId("shell-a").click();
+  await page.getByTestId("size-l").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator("html")).toHaveAttribute("data-shell", "a");
+  await expect(page.locator("html")).toHaveAttribute("data-size", "l");
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator("html")).toHaveAttribute("data-shell", "a");
+  await expect(page.locator("html")).toHaveAttribute("data-size", "l");
 });
 
 test("no route reaches an unknown key from review, its incomplete view, or the problems page", async ({
@@ -241,12 +217,19 @@ test("the graph toggle keeps the selection and both layouts draw their edges", a
   expect(await page.locator("svg path.edge").count()).toBeLessThanOrEqual(forceEdges);
 });
 
-test("the read view has gutters, with the margin annotation in one and the comments in the other", async ({
+test("the key gutter carries the id and the state beside the node", async ({
   page,
 }) => {
-  // this test is about the margin arrangement; `floating` is the default and puts the box over the text instead
-  await page.addInitScript(() => localStorage.setItem("arras.prefs", JSON.stringify({ comments: "margin" })));
+  // The comment gutter went with the `margin` placement; the left gutter, which names the node and its state, stays --
+  // behind Settings > Show ids, which is off by default, so the test turns it on the way a reader would.
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("arras.prefs", JSON.stringify({ ids: true }));
+    } catch {
+      /* storage unavailable: the gutter stays hidden and the assertions below say so */
+    }
+  });
   await page.goto("/master/main");
   await page.waitForSelector(".fragment .env[data-key]");
 
@@ -257,69 +240,13 @@ test("the read view has gutters, with the margin annotation in one and the comme
 
   const envBox = (await env.boundingBox())!;
   const marginBox = (await margin.boundingBox())!;
-  // the annotation sits wholly in the left gutter, ending where the environment's accent rule begins
+  // it sits wholly in the left gutter, ending where the environment's accent rule begins
   expect(marginBox.x + marginBox.width).toBeLessThanOrEqual(envBox.x + 1);
-
-  const comment = page.locator(
-    'aside.comment-slot.gutter[data-slot-for="sy-0001"]',
-  );
-  await expect(comment).toBeVisible();
-  const commentBox = (await comment.boundingBox())!;
-  // and the comment sits wholly in the right gutter, beginning where the text column ends
-  expect(commentBox.x).toBeGreaterThanOrEqual(envBox.x + envBox.width - 1);
-  await expect(comment.locator("article.box")).toHaveCount(1);
-  // aligned with the node it is about
-  expect(Math.abs(commentBox.y - envBox.y)).toBeLessThan(40);
-
-  // the two gutters are the same width, and the text keeps its measure between them
-  const host = (await page.locator(".gutters").boundingBox())!;
-  const left = envBox.x - host.x;
-  const right = host.x + host.width - (envBox.x + envBox.width);
-  expect(Math.abs(left - right)).toBeLessThan(2);
-  expect(left).toBeGreaterThan(80);
+  // and an id is never broken across lines, however narrow the gutter gets
+  const lines = await margin.locator(".mid").evaluate((e) => e.getClientRects().length);
+  expect(lines).toBe(1);
 });
 
-test("a comment with sizeable content stays in the text as a box", async ({
-  page,
-}) => {
-  // the margin arrangement, which is what "stays in the text as a box" is about
-  await page.addInitScript(() => localStorage.setItem("arras.prefs", JSON.stringify({ comments: "margin" })));
-  await page.route("**/build/manifest.json", async (route) => {
-    const res = await route.fetch();
-    const m = await res.json();
-    // found rather than named: an annotation's id depends on how many were written before it, so hard-coding one
-    // makes this test fail the next time the fixture gains a comment anywhere earlier in the log.
-    const on = Object.values(m.annotations).find(
-      (a: any) => a.target.key === "sy-0001" && !a.in_reply_to,
-    ) as any;
-    on.body_html =
-      "<p>" +
-      "This comment says a great deal about the involution and its fixed locus. ".repeat(
-        8,
-      ) +
-      "</p>";
-    await route.fulfill({ response: res, json: m });
-  });
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/master/main");
-  await page.waitForSelector(".fragment .env[data-key]");
-
-  const inline = page.locator(
-    'aside.comment-slot.inline[data-slot-for="sy-0001"]',
-  );
-  await expect(inline).toBeVisible();
-  await expect(
-    page.locator('aside.comment-slot.gutter[data-slot-for="sy-0001"]'),
-  ).toHaveCount(0);
-
-  // in the flow: as wide as the text column, and below the node rather than beside it
-  const env = (await page
-    .locator('.fragment .env[data-key="sy-0001"]')
-    .boundingBox())!;
-  const box = (await inline.boundingBox())!;
-  expect(box.x).toBeGreaterThanOrEqual(env.x - 1);
-  expect(box.width).toBeGreaterThan(env.width / 2);
-});
 
 test("the shell fits the window: nothing in a rail falls below the fold", async ({
   page,
@@ -389,7 +316,7 @@ test("the settings panel puts every row on one line, label included, with nothin
       };
     });
   });
-  expect(rows.length).toBe(8); // shell, type, size, width, theme, format, comments, panes
+  expect(rows.length).toBe(8); // type, size, width, theme, format, comments, show ids, panes
   for (const r of rows) {
     expect(r.lines, `the ${r.label} row wraps`).toBe(1);
     expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(

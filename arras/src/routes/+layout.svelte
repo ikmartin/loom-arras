@@ -12,7 +12,7 @@
 	import { indexesOf, viewsOf, viewOf } from '$lib/shell/views';
 	import { contentsOf } from '$lib/contents';
 	import { followReading, reading, sectionIds } from '$lib/reading.svelte';
-	import { prefs, type Shell } from '$lib/prefs.svelte';
+	import { prefs } from '$lib/prefs.svelte';
 	import { openPalette } from '$lib/palette';
 	import { ensureMathJax } from '$lib/math/mathjax';
 	import { masterStem } from '$lib/nav';
@@ -22,9 +22,7 @@
 	let { children } = $props();
 
 	onMount(() => {
-		// `?shell=` beats the stored choice, so two shells can be compared by sending a link (book 15.2)
-		const q = page.url.searchParams.get('shell');
-		prefs.load(q === 'a' || q === 'c' ? { shell: q as Shell } : undefined);
+		prefs.load();
 		store.start(1000);
 	});
 	onDestroy(() => store.stop());

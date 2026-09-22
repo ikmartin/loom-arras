@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SourceToggle from './SourceToggle.svelte';
+	import TexProse from '$lib/math/TexProse.svelte';
 	import VerbRow from '$lib/review/VerbRow.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import type { Annotation } from '$lib/manifest/types';
@@ -19,6 +19,9 @@
 		// a detached annotation, or one anchored in another document, has no place here; nothing is invented for it
 		travel(mark, e.currentTarget as Element);
 	}
+
+	/** Whether the proposed text is shown as it will look rather than as it is written; the source is what opens. */
+	let rendered = $state(false);
 </script>
 
 <article
@@ -43,13 +46,26 @@
 	{#if annotation.quote}<blockquote class="quote">{annotation.quote}</blockquote>{/if}
 	<Prose html={annotation.body_html} />
 	{#if annotation.payload}
-		<!-- Text the annotation proposes, shown where its `placement` says it would go. Preview and copy only: nothing here applies anything, and the toggle is the same one a node's own source gets. -->
+		<!-- Text the annotation proposes, shown where its `placement` says it would go. A preview only: nothing here
+		     applies anything.
+
+		     **The verbatim is what opens.** What is proposed is text to be written into a document, so the thing a reader
+		     judges is the source, character for character; the rendering is what it will look like afterwards, and is the
+		     second question. It used to be the other way about, and the toggle then showed the same verbatim twice -- once
+		     in the payload's own block and once inside the uppercased head above it, where the inherited `text-transform`
+		     made a LaTeX snippet unreadable. -->
 		<div class="payload" data-testid="payload" data-placement={annotation.placement ?? 'replace'}>
 			<p class="payload-head">
 				proposed {annotation.placement === 'after' ? 'after' : annotation.placement === 'before' ? 'before' : 'in place of'} the quoted text
-				<SourceToggle sourceKey={annotation.target.key} text={annotation.payload} />
+				<button type="button" class="as-view" aria-pressed={rendered} data-testid="payload-view" onclick={() => (rendered = !rendered)}
+					>{rendered ? 'verbatim code' : 'rendered latex'}</button
+				>
 			</p>
-			<pre>{annotation.payload}</pre>
+			{#if rendered}
+				<p class="payload-rendered" data-testid="payload-rendered"><TexProse text={annotation.payload} /></p>
+			{:else}
+				<pre data-testid="payload-verbatim">{annotation.payload}</pre>
+			{/if}
 		</div>
 	{/if}
 	{#if replies.length}
@@ -128,6 +144,27 @@
 		color: var(--ink-faint);
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
+	}
+	/* The control names what a click gives you, not what is on screen. It sits in the uppercased head and opts out of it:
+	   `rendered latex` shouted is not the register of a control nobody is looking for. */
+	.as-view {
+		flex: 0 0 auto;
+		background: none;
+		border: 1px solid var(--rule);
+		border-radius: 2px;
+		padding: 0 0.4em;
+		font: inherit;
+		text-transform: none;
+		color: var(--ink-soft);
+		cursor: pointer;
+	}
+	.as-view:hover {
+		color: var(--ink);
+		border-color: var(--rule-strong);
+	}
+	.payload-rendered {
+		margin: 0;
+		font-size: 0.95em;
 	}
 	.payload pre {
 		white-space: pre-wrap;

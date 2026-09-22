@@ -15,12 +15,12 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it('defaults to shell C, serif, medium, mid, system, the compiled page, and a floating comment box', () => {
+	it('defaults to serif, medium, mid, system, the compiled page, a floating comment box, and no ids', () => {
 		expect(DEFAULTS).toEqual({
-			shell: 'c',
 			divider: 0.62,
 			swap: false,
 			panel: true,
+			ids: false,
 			zoom: { pdf: 1.4 },
 			face: 'serif',
 			size: 'm',
@@ -44,13 +44,13 @@ describe('the display preferences', () => {
 		expect(coerce({ zoom: 0.1 }).zoom).toEqual({ pdf: 0.5 });
 	});
 
-	it('reads a stored tabs shell, which is retired, as the default', () => {
-		expect(coerce({ shell: 'b' }).shell).toBe('c');
+	it('ignores a stored shell, now that there is only one arrangement', () => {
+		expect('shell' in coerce({ shell: 'b' })).toBe(false);
 	});
 
 	it('round-trips through storage', () => {
 		stub();
-		const p = { ...DEFAULTS, shell: 'a' as const, theme: 'dark' as const, size: 'l' as const };
+		const p = { ...DEFAULTS, theme: 'dark' as const, size: 'l' as const };
 		write(p);
 		expect(read()).toEqual(p);
 	});

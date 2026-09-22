@@ -122,11 +122,6 @@ export function inlineComments(
 		boxes = [...boxes.filter((b) => b !== box), box];
 	};
 
-	/** Clicking outside every box: they stay open, clamped and behind, because nothing a reader opened should vanish. */
-	const background = () => {
-		for (const b of boxes) b.host.classList.add('behind');
-	};
-
 	const shut = (box: Opened) => {
 		for (const made of box.made) void unmount(made);
 		box.host.remove();
@@ -210,7 +205,10 @@ export function inlineComments(
 	};
 
 	const toggle = (trigger: HTMLElement, ids: string[]) => {
-		const already = boxes.find((b) => b.trigger === trigger);
+		// **One box per annotation, not per mark.** A note over four lines of a paper draws four marks, and each was a
+		// trigger of its own, so clicking a second line of the same highlight opened a second box a few pixels off the
+		// first -- which read as one box with a doubled border. A box already showing any of these ids is the box.
+		const already = boxes.find((b) => b.trigger === trigger || b.ids.some((id) => ids.includes(id)));
 		if (already) {
 			// a backgrounded box is brought forward rather than shut: the reader is reaching for it, not dismissing it
 			if (already.host.classList.contains('behind')) front(already);
@@ -234,7 +232,11 @@ export function inlineComments(
 		if (!boxes.length) return;
 		const t = e.target as Element | null;
 		if (t?.closest?.('.comment-slot.expanded, mark.annotation, .annotation-block, .comment-count, .mark[data-annotation]')) return;
-		background();
+		// **A click away closes.** DR-202 backgrounded instead, so that nothing a reader opened would disappear because
+		// they looked elsewhere. What that leaves on the page is a clipped, faded stub of a box -- which reads as a
+		// ghost when it is alone and as a doubled border when another box is in front of it. Closing is what clicking
+		// away means everywhere else, and the mark is still there to open it again.
+		hideAll();
 	};
 	const key = (e: KeyboardEvent) => {
 		if (e.key !== 'Escape' || !boxes.length) return;

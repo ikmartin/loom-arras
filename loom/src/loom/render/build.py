@@ -103,7 +103,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
     Runs after `Records.apply`, so it reads the published annotations and writes each reference's `reading` count.
     """
     from loom.records.annotations import load_records
-    from loom.refs.pages import read_map
+    from loom.refs.pages import read_map, read_page
     from loom.refs.proposals import load_results
     from loom.refs.search import locate_span
 
@@ -136,7 +136,15 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         marks: dict[str, list[list[float]]] = {}
         for rid, r in results.items():
             xml = table.boxes_of(r.anchor.page)
-            span = locate_span(xml, r.source_text, r.anchor.page) if xml else None
+            # An anchor that records a span says which words on the page it means, and the page's own text is what
+            # those offsets index; a result read off a page instead carries the words it quoted. A mechanically
+            # extracted result's `source_text` is its LaTeX, which is not what the page says, so matching that was
+            # what left an extracted digest with no geometry at all.
+            needle = r.source_text
+            if r.anchor.basis == "text" and r.anchor.end > r.anchor.start:
+                page_text = read_page(home, r.anchor.page) or ""
+                needle = page_text[r.anchor.start : r.anchor.end] or needle
+            span = locate_span(xml, needle, r.anchor.page) if xml else None
             if span is not None:
                 quads[rid] = [list(q) for q in span.lines]
         for a in notes:

@@ -45,10 +45,6 @@ export function threadUrl(id: string): string {
 	return route('/thread/' + encodeURIComponent(id));
 }
 
-/** A session's permalink: where one piece of work is read back whole, rather than through the panel's picker. */
-export function sessionUrl(id: string): string {
-	return route('/session/' + encodeURIComponent(id));
-}
 
 /**
  * The publisher's slug rule, `[^A-Za-z0-9]+` to `-`, trimmed and lowercased (loom `render/convert.py::slug`).

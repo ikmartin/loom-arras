@@ -9,10 +9,10 @@
 	// scroll together is one pane with a line drawn down it.
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
-	import { setQuery } from '$lib/query';
 	import { rail } from '$lib/shell/rail.svelte';
 	import Split from './Split.svelte';
 	import Discussion from './Discussion.svelte';
+	import BesideToggle from './BesideToggle.svelte';
 
 	let {
 		children,
@@ -20,6 +20,7 @@
 		label = 'content',
 		session = '',
 		open = false,
+		control = true,
 		head
 	}: {
 		children: Snippet;
@@ -29,6 +30,8 @@
 		session?: string;
 		/** Whether this route opens split. A session's permalink does, because the discussion is what it is for. */
 		open?: boolean;
+		/** Whether to draw the toggle in a band above the content. A view with a rail of its own renders `BesideToggle` there instead and passes `false`; this goes when every reading view has one. */
+		control?: boolean;
 		head?: Snippet;
 	} = $props();
 
@@ -44,15 +47,9 @@
 	});
 </script>
 
-<p class="beside-control">
-	<button
-		type="button"
-		class="as-link"
-		aria-pressed={on}
-		data-testid="beside-toggle"
-		onclick={() => setQuery(page.url, 'beside', on ? '0' : '1', open ? '1' : '0')}>{on ? 'close the discussion' : 'discuss beside this'}</button
-	>
-</p>
+{#if control}
+	<p class="beside-control"><BesideToggle {open} /></p>
+{/if}
 
 {#if on}
 	<div class="frame" data-testid="beside">
@@ -76,13 +73,14 @@
 		font-size: 10px;
 		text-align: right;
 	}
+	/* **The split is the page, not a card on it.** It was 80vh inside a padded column, so a fifth of every screen was
+	   empty below it and a rule was drawn round the whole thing. It now fills what the shell leaves it, edge to edge,
+	   with no border of its own -- the divider is the only line the reader needs. */
 	.frame {
-		height: 80vh;
-		min-height: 320px;
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-card);
+		height: 100%;
+		min-height: 0;
 	}
 	.held {
-		padding: var(--gap);
+		padding: var(--gap) var(--gap-wide) var(--gap) var(--gap);
 	}
 </style>

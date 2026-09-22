@@ -21,7 +21,7 @@ test.describe('comments as expandable highlights', () => {
 		await expect(mark).toHaveClass(/k-objection/);
 	});
 
-	test('inline, a mark expands its comment beneath its paragraph; clicking away backgrounds it and Escape closes it', async ({ page }) => {
+	test('inline, a mark expands its comment beneath its paragraph; clicking away closes it', async ({ page }) => {
 		await withPrefs(page, { comments: 'inline' });
 		await page.goto('/master/main');
 		await page.waitForSelector('.fragment .env[data-key]');
@@ -41,12 +41,14 @@ test.describe('comments as expandable highlights', () => {
 		});
 		expect(follows).toBe(true);
 
-		// clicking outside backgrounds rather than collapses: nothing a reader opened disappears because they looked
-		// elsewhere (plan 0.13 §7)
+		// Clicking away closes. DR-202 backgrounded instead, which left a clipped, faded stub of a box on the page --
+		// a ghost when it was alone, and a second border when another box sat in front of it.
 		await page.mouse.click(5, 5);
-		await expect(open).toHaveCount(1);
-		await expect(page.locator('aside.comment-slot.expanded.behind')).toHaveCount(1);
+		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
 
+		// and Escape closes the front-most, as it always did
+		await mark.click();
+		await expect(open).toHaveCount(1);
 		await page.keyboard.press('Escape');
 		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
 	});
@@ -70,9 +72,9 @@ test.describe('comments as expandable highlights', () => {
 	});
 
 	test('changing the placement re-wires the document without typesetting it again', async ({ page }) => {
-		await withPrefs(page, { comments: 'margin' });
+		await withPrefs(page, { comments: 'floating' });
 		await page.goto('/master/main');
-		await page.waitForSelector('.fragment[data-comments-wired="margin"] mjx-container');
+		await page.waitForSelector('.fragment[data-comments-wired="floating"] mjx-container');
 		await page.waitForFunction(() => document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
 		await page.evaluate(() => {
 			const w = window as unknown as { MathJax: { typesetPromise: (els: Element[]) => Promise<void> }; ofDocument: number };
@@ -87,8 +89,8 @@ test.describe('comments as expandable highlights', () => {
 		await page.getByTestId('settings-toggle').click();
 		await page.getByTestId('comments-inline').click();
 		await page.waitForSelector('.fragment[data-comments-wired="inline"]');
-		await page.getByTestId('comments-margin').click();
-		await page.waitForSelector('.fragment[data-comments-wired="margin"] aside.comment-slot.gutter');
+		await page.getByTestId('comments-floating').click();
+		await page.waitForSelector('.fragment[data-comments-wired="floating"]');
 		await page.waitForTimeout(300);
 		expect(await page.evaluate(() => (window as unknown as { ofDocument: number }).ofDocument)).toBe(0);
 	});
@@ -273,6 +275,7 @@ test.describe('references', () => {
 			await route.fulfill({ json: m });
 		});
 		await page.goto('/library/Man12');
+		await page.getByTestId('tab-info').click();
 		await expect(page.getByTestId('work-links-Man12').getByRole('link', { name: 'PDF' })).toHaveAttribute('href', `/${manifest.references.Man12.artifacts.dir}/paper.pdf`);
 	});
 });
@@ -342,14 +345,17 @@ test.describe('floating boxes close when you select outside them', () => {
 	});
 });
 
-test.describe('the tabs shell is retired', () => {
-	test('a link asking for it gets the default, and settings offers two', async ({ page }) => {
-		await page.goto('/?shell=b');
-		await expect(page.locator('html')).toHaveAttribute('data-shell', 'c');
+test.describe('there is one shell', () => {
+	test('settings offers no arrangement to choose, and a link asking for one is ignored', async ({ page }) => {
+		// Two arrangements meant every panel change had to be made twice, and the second fell behind on the first one
+		// that was not. A stored or linked `shell` is now simply unread.
+		await page.goto('/?shell=a');
+		await expect(page.locator('html')).not.toHaveAttribute('data-shell', /./);
+		await expect(page.getByTestId('view-home')).toBeVisible(); // the icon strip, whatever the link asked for
 		await page.getByTestId('settings-toggle').click();
-		await expect(page.getByTestId('shell-b')).toHaveCount(0);
-		await expect(page.getByTestId('shell-a')).toBeVisible();
-		await expect(page.getByTestId('shell-c')).toBeVisible();
+		await expect(page.getByTestId('settings-panel')).toBeVisible();
+		await expect(page.getByTestId('shell-a')).toHaveCount(0);
+		await expect(page.getByTestId('shell-c')).toHaveCount(0);
 	});
 });
 
@@ -374,11 +380,38 @@ test.describe('hover previews', () => {
 		await expect(page.getByTestId('link-preview')).toHaveCount(0);
 	});
 
-	test('a citation previews the reference behind it', async ({ page }) => {
+	test('a citation previews the page at the place it names, and nothing where the place is unknown', async ({ page }) => {
+		// A hover over a citation shows the paper, not a card about it: the entry and the digest are what the work's own
+		// Info tab is for. With no copy on this machine there is no page to show, so nothing opens.
 		await page.goto('/master/main');
 		await page.waitForSelector('.fragment mjx-container'); // typesetting reflows the text, which would move the link out from under the pointer
 		await page.locator('.fragment span.cite[data-citekey="Har77"] a').first().hover();
-		await expect(page.getByTestId('link-preview')).toContainText('Algebraic Geometry');
+		await page.waitForTimeout(500);
+		await expect(page.getByTestId('link-preview')).toHaveCount(0);
+
+		await page.route('**/build/manifest.json', async (route) => {
+			const res = await route.fetch();
+			const m = await res.json();
+			m.references.Har77.artifacts.pdf = true;
+			m.references.Kre99.artifacts.pdf = true;
+			await route.fulfill({ json: m });
+		});
+		await page.reload();
+		await page.waitForSelector('.fragment mjx-container');
+
+		// A postnote names a place, so a copy being filed is not on its own a reason to open one: `[Har77, Chapter II]`
+		// knows no page, and the front page of Hartshorne is not Chapter II. Answering with it would be the reading
+		// layer claiming a location it does not have.
+		await page.locator('.fragment span.cite[data-citekey="Har77"] a').first().hover();
+		await page.waitForTimeout(500);
+		await expect(page.getByTestId('link-preview')).toHaveCount(0);
+
+		// where the postnote carries its own page, that is the place, and the card is the page and nothing else
+		await page.goto('/node/Kre99-thm-2.1');
+		await page.waitForSelector('.fragment mjx-container');
+		await page.locator('.fragment span.cite[data-postnote="Theorem 2.1, p.~4"] a').first().hover();
+		await expect(page.getByTestId('preview-page')).toBeVisible();
+		await expect(page.getByTestId('link-preview').locator('p')).toHaveCount(0);
 	});
 });
 
@@ -412,9 +445,12 @@ test.describe('the floating placement', () => {
 		});
 		expect(inset).toBeGreaterThanOrEqual(3.5);
 
-		await page.mouse.click(4, 4);
-		await expect(box).toHaveCount(1); // backgrounded, not closed
+		// Escape closes the front-most, and a click away closes what is open
 		await page.keyboard.press('Escape');
+		await expect(box).toHaveCount(0);
+		await mark.click();
+		await expect(box).toHaveCount(1);
+		await page.mouse.click(4, 4);
 		await expect(box).toHaveCount(0);
 	});
 });
@@ -467,22 +503,6 @@ test.describe('the four verbs on an annotation', () => {
 		await expect(panel).toHaveCount(0);
 	});
 
-	test('in a gutter slot two verbs fold behind a menu', async ({ page }) => {
-		await withWriteApi(page);
-		await withPrefs(page, { comments: 'margin', width: 'narrow' });
-		await page.setViewportSize({ width: 1600, height: 1000 });
-		await page.goto('/master/main');
-		const slot = page.locator('aside.comment-slot.gutter').first();
-		await expect(slot).toBeVisible();
-		// the slot is about (container - measure) / 3 wide, and four verbs will not fit beside the metadata
-		expect((await slot.boundingBox())!.width).toBeLessThan(330);
-
-		const row = slot.locator('[data-testid="verb-row"]').first();
-		await expect(row.getByTestId('verb-reply')).toBeVisible();
-		await expect(row.getByTestId('verb-edit')).toBeHidden();
-		await row.getByTestId('verb-more').click();
-		await expect(row.getByTestId('verb-menu')).toBeVisible();
-	});
 });
 
 test.describe('the four settings a document is read in', () => {
@@ -629,32 +649,9 @@ test.describe('the split as a mode of a route', () => {
 		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
 	});
 
-	test("a session's permalink opens split, and reads the session back whole", async ({ page }) => {
-		await withSessions(page);
-		await page.goto('/session/s-2026-09-16-0001');
-		await expect(page.getByRole('heading', { level: 1 })).toHaveText('referee');
-		await expect(page.getByTestId('session-facts')).toContainText('round 2');
-		await expect(page.getByTestId('session-attached')).toContainText('referee ⟨agent⟩');
-		// it opens split without being asked, because the discussion is what a session is
-		await expect(page.getByTestId('beside')).toBeVisible();
-		// every annotation filed in it, oldest first, each a link to what it is about
-		const filed = page.getByTestId('session-filed').locator('> li');
-		await expect(filed.first()).toHaveAttribute('data-testid', 'filed-a-2026-09-16-0001');
-		await expect(filed).toHaveCount(9);
-		// and closing it leaves the record in place
-		await page.getByTestId('beside-toggle').click();
-		await expect(page.getByTestId('beside')).toBeHidden();
-		await expect(page.getByTestId('session-filed')).toBeVisible();
-	});
-
-	test('an unknown session is reported rather than invented', async ({ page }) => {
-		await withSessions(page);
-		await page.goto('/session/nope');
-		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Unknown session');
-	});
 });
 
-test.describe('the divider, the panel and the ticks', () => {
+test.describe('the divider and the panel', () => {
 	test('the divider drags, snaps at the middle, resets on double-click, nudges by key, and collapses', async ({ page }) => {
 		await page.goto('/node/sy-0003?beside=1');
 		const divider = page.getByTestId('divider');
@@ -711,17 +708,4 @@ test.describe('the divider, the panel and the ticks', () => {
 		await expect(page.getByTestId('nodes-list')).toContainText('nothing matches');
 	});
 
-	test('a tick stands beside every annotated line, carrying the count where two share one', async ({ page }) => {
-		await page.goto('/node/sy-0003');
-		const ticks = page.getByTestId('ticks');
-		await expect(ticks).toBeVisible();
-		const marks = await page.locator('.fragment mark.annotation').count();
-		expect(await ticks.locator('.tick').count()).toBeGreaterThan(0);
-		expect(await ticks.locator('.tick').count()).toBeLessThanOrEqual(marks);
-		// a tick selects its annotation, and double-click travels to the mark
-		const first = ticks.locator('.tick').first();
-		const lead = (await first.getAttribute('data-testid'))!.replace('tick-', '');
-		await first.dblclick();
-		await expect(page.locator(`.fragment [data-annotation~="${lead}"]`)).toBeInViewport();
-	});
 });
