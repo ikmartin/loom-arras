@@ -327,7 +327,16 @@ def build_synthetic(dest: Path) -> None:
         "--author",
         AUTHOR,
     )
-    g.run("comment", "sy-000A", "Gadgets of odd order cannot exist.", "--kind", "confirmation", "--session", quick, agent=True)
+    g.run(
+        "comment",
+        "sy-000A",
+        "Gadgets of odd order cannot exist.",
+        "--kind",
+        "confirmation",
+        "--session",
+        quick,
+        agent=True,
+    )
     g.run("ai", "discard", quick)
 
     # The definition is revised once more, and the question that quoted the old wording no longer matches it: an annotation loom cannot place is said to be detached, never quietly moved.
@@ -529,6 +538,8 @@ def build_demo(dest: Path) -> None:
 
 
 SHOWCASE = "The loom showcase"
+
+
 def _tiny_pdf(path: Path, text: str = "Notes on balanced quivers, for a reader in a hurry.") -> None:
     """A one-page PDF with a text layer, written by hand: the orphan needs a document nothing else in the showcase names, and generating one needs no TeX."""
     stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode()
@@ -1040,7 +1051,9 @@ def build_showcase(dest: Path) -> None:
         "--quote",
         "A quiver whose underlying graph is a forest",
     )
-    g.run("comment", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "confirmation")
+    g.run(
+        "comment", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "confirmation"
+    )
 
     # A second person, so the viewer has two comment sessions and not one.
     g.at("2026-09-17T09:00:00Z")
@@ -1146,7 +1159,13 @@ def build_showcase(dest: Path) -> None:
     )
     # The message carries what changed since the last one -- the notes above -- in the same text `session next`
     # prints, so a parked agent needs no second call to learn what it is being asked about.
-    g.run("session", "send", "Have a look at Bellamy's Theorem 3.2 and tell me whether integrality is used.", "--session", reading)
+    g.run(
+        "session",
+        "send",
+        "Have a look at Bellamy's Theorem 3.2 and tell me whether integrality is used.",
+        "--session",
+        reading,
+    )
     # The agent, attached, answers: a reply in the inbox, an edit of its own earlier objection in place, and a
     # suggestion asking the author for a verification it cannot make itself (DR-185's route).
     g.at("2026-09-17T11:10:00Z")
@@ -1369,8 +1388,18 @@ def _sync(src: Path, dest: Path) -> None:
 
 def _differences(a: Path, b: Path) -> list[str]:
     out: list[str] = []
-    files = {p.relative_to(a).as_posix() for p in a.rglob("*") if p.is_file()}
-    other = {p.relative_to(b).as_posix() for p in b.rglob("*") if p.is_file()}
+
+    def committed(rel: str) -> bool:
+        # The generator uses these copies while building the quilt, but the
+        # quilt's .gitignore deliberately keeps them out of its committed copy.
+        return not (
+            rel.startswith("refs/")
+            or rel.startswith("digests/storage/cache/")
+            or (rel.startswith("digests/storage/") and "/src/" in rel)
+        )
+
+    files = {rel for p in a.rglob("*") if p.is_file() if committed(rel := p.relative_to(a).as_posix())}
+    other = {rel for p in b.rglob("*") if p.is_file() if committed(rel := p.relative_to(b).as_posix())}
     for rel in sorted(files - other):
         out.append(f"only generated: {rel}")
     for rel in sorted(other - files):

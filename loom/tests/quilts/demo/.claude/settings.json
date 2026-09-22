@@ -78,6 +78,12 @@
       "Bash(loom session rename*)",
       "Bash(loom session use*)",
       "Bash(loom stamp*)",
+      "Bash(loom sync fetch*)",
+      "Bash(loom sync incorporated*)",
+      "Bash(loom sync init*)",
+      "Bash(loom sync patch*)",
+      "Bash(loom sync publish*)",
+      "Bash(loom sync status*)",
       "Bash(loom upgrade*)",
       "Bash(rm *)"
     ]

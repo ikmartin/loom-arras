@@ -1267,7 +1267,7 @@ def _source_only(tmp_path: Path) -> Path:
     source = (
         Path(__file__).resolve().parents[2] / "tests" / "quilts" / "sources" / "demo-works" / "calloway-fixed-loci.tex"
     )
-    (home / "src").mkdir()
+    (home / "src").mkdir(exist_ok=True)
     shutil.copy2(source, home / "src" / source.name)
     (home / "paper.pdf").unlink()
     (home / "sections.json").unlink()
