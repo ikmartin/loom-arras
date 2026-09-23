@@ -290,7 +290,7 @@ test.describe('the review views stay deliberately small', () => {
 	test('the blockers address lands on the default working document', async ({ page }) => {
 		await page.goto('/blockers');
 		await expect(page).toHaveURL(/\/review$/);
-		await expect(page.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
 	});
 
 	test('the problems page filters by severity from the URL, with its filters in the panel', async ({ page }) => {

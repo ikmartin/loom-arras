@@ -73,7 +73,7 @@ test('Review scopes rows and counts to working-document tabs while sharing one b
 	await expect(page.getByText('Undigested citations')).toHaveCount(0);
 
 	await page.goto('/review?document=drafting%2Fmissing.tex');
-	await expect(page.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
 });
 
 test('the problems page groups by subject and copies a fix', async ({ page, context, browserName }) => {

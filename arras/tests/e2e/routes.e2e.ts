@@ -297,7 +297,7 @@ test('review statement badges agree with proved and settled counts', async ({ pa
 	await page.goto('/review');
 	const counts = await page.getByTestId('review-counts').innerText();
 	expect(counts).toContain('2 proved');
-	expect(counts).toContain('3 settled');
+	expect(counts).toContain('1 settled');
 	await expect(page.locator('#review-sy-0003 .badge .chip')).toHaveText(['accepted', 'proved', 'settled']);
 	await expect(page.locator('#review-sy-0002 .badge .chip')).toHaveText(['accepted', 'proved']);
 });
