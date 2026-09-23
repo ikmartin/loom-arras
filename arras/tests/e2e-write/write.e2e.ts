@@ -1,5 +1,6 @@
 // Writing from the viewer, against a publisher that is actually serving the write API.
 import { expect, test } from '@playwright/test';
+import { openPicker } from '../picker';
 import { readFileSync } from 'node:fs';
 
 const QUILT = '.tmp-write-quilt';
@@ -11,6 +12,7 @@ const QUILT = '.tmp-write-quilt';
  * nothing is opened behind their back. Every write test therefore starts by choosing where its work will be filed.
  */
 async function intoASession(page: import('@playwright/test').Page) {
+	await openPicker(page);
 	const first = page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first();
 	if (await first.count()) {
 		await first.click();
@@ -19,7 +21,7 @@ async function intoASession(page: import('@playwright/test').Page) {
 		await page.getByTestId('session-new-title').fill('a sitting for the tests');
 		await page.getByTestId('session-new-title').press('Enter');
 	}
-	await expect(page.getByTestId('session-list').locator('li.selected')).toHaveCount(1);
+	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
 }
 
 function log(): Record<string, unknown>[] {

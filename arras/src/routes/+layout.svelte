@@ -9,6 +9,7 @@
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import PdfViewer from '$lib/components/PdfViewer.svelte';
 	import NavShell from '$lib/shell/NavShell.svelte';
+	import ReadingRail from '$lib/shell/ReadingRail.svelte';
 	import { indexesOf, viewsOf, viewOf } from '$lib/shell/views';
 	import { contentsOf } from '$lib/contents';
 	import { followReading, reading, sectionIds } from '$lib/reading.svelte';
@@ -76,6 +77,12 @@
 		return followReading(sectionIds(contents));
 	});
 	const currentSection = $derived(reading.section || (page.url.hash ? page.url.hash.slice(1) : ''));
+
+	// Reading mode is the things a reader reads (plan 0.13.3): documents, works, nodes and sessions. Those routes get the rail above their content; the tables, the graph and home render without it.
+	const READING = new Set(['/master/[stem]', '/canon/[stem]', '/node/[...key]', '/library/[citekey]', '/thread/[id]']);
+	const inReading = $derived(READING.has(page.route.id ?? ''));
+	// A document is on screen, so the panel hangs its contents under it (S2); elsewhere there is no tree.
+	const onDocument = $derived(page.route.id === '/master/[stem]' || page.route.id === '/canon/[stem]');
 </script>
 
 <svelte:head>
@@ -93,7 +100,8 @@
 	{currentDoc}
 	{contents}
 	{currentSection}
-	counts={{ nodes: m ? Object.keys(m.nodes).length : 0, errors, warnings }}
+	{onDocument}
+	counts={{ errors, warnings }}
 	search={openPalette}
 	rail={rail.snippet && !rail.beside ? pageRail : undefined}
 	panel={panel.snippet ? pagePanel : undefined}
@@ -106,6 +114,11 @@
 		</main>
 	{:else if !m}
 		<main class="page"><p class="muted">Loading manifest…</p></main>
+	{:else if inReading}
+		<div class="reading" style="--above: var(--reading-rail)">
+			<ReadingRail />
+			{@render children()}
+		</div>
 	{:else}
 		{@render children()}
 	{/if}

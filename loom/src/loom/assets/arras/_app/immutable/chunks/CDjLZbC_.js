@@ -1,0 +1,1 @@
+import{J as e,dt as t,ft as n}from"./CEUmY5cH.js";import"./xihTtKlq.js";import{t as r}from"./CJVo2f66.js";function i(i,a){n(a,!0),e(()=>(r.lead=a.lead??null,r.acts=a.acts??null,()=>{r.lead=null,r.acts=null})),t()}export{i as t};

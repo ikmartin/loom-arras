@@ -8,7 +8,7 @@
 	import { workUrl } from '$lib/nav';
 	import { locate, parseWorkLink, isWorkLink, placeQuery } from '$lib/worklink';
 	import { bibText } from '$lib/works';
-	import { dismiss } from '$lib/dismiss';
+	import Popover from './Popover.svelte';
 	import Tex from '$lib/math/Tex.svelte';
 	import Icon from './Icon.svelte';
 	import PdfDoc from '$lib/pdf/PdfDoc.svelte';
@@ -53,8 +53,8 @@
 </script>
 
 {#if link && target}
-	<div class="backdrop">
-		<div class="viewer" role="dialog" aria-modal="true" aria-label="the paper {title}" use:dismiss={() => pdf.close()} data-testid="pdf-viewer">
+	<Popover modal open label="the paper {title}" testid="pdf-viewer" onclose={() => pdf.close()}>
+		<div class="viewer">
 			<header>
 				<div class="what">
 					<span class="title"><Tex text={title} /></span>
@@ -86,29 +86,15 @@
 				</div>
 			{/if}
 		</div>
-	</div>
+	</Popover>
 {/if}
 
 <style>
-	.backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 55;
-		background: rgb(0 0 0 / 22%);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
 	.viewer {
 		width: min(90vw, 1000px);
 		height: min(90vh, 1200px);
 		display: flex;
 		flex-direction: column;
-		background: var(--sheet);
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-card);
-		box-shadow: 0 10px 40px rgb(0 0 0 / 20%);
-		overflow: hidden;
 	}
 	header {
 		display: flex;

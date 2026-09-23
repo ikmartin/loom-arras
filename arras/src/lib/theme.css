@@ -55,6 +55,7 @@
 	--rail-left: 252px;
 	--rail-right: 236px;
 	--strip: 44px;
+	--reading-rail: 36px; /* the rail above a reading view; a page sized to the window subtracts it as `--above` */
 	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
 	--rail-a: 267px;
 
@@ -250,7 +251,7 @@ main.page:has(> [data-testid='beside']) {
 	/* A definite height, not a minimum: with `min-height` the cell grew to the paper's full length, the window
 	   scrolled, and the tabs and the toolbar scrolled off the top of it. The page is the window; what scrolls is the
 	   column inside it. */
-	height: 100vh;
+	height: calc(100vh - var(--above, 0px));
 	overflow: hidden;
 }
 main.page > [data-testid='beside'] {

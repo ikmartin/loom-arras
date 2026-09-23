@@ -1,10 +1,8 @@
 <script lang="ts">
 	// The question-mark circle beside a page title (book 15.3.5): what the page means, what each state means, and which command records it.
-	import { dismiss } from '$lib/dismiss';
+	import Popover from '$lib/components/Popover.svelte';
 
 	let { label, topic }: { label: string; topic: 'review' | 'problems' | (string & {}) } = $props();
-
-	let open = $state(false);
 
 	const TOPICS: Record<string, { title: string; body: string; states?: [string, string][]; command: string }> = {
 		review: {
@@ -29,30 +27,26 @@
 	const t = $derived(TOPICS[topic] ?? { title: label, body: '', command: '' });
 </script>
 
-<span class="help" use:dismiss={() => (open = false)}>
-	<button aria-label={label} aria-expanded={open} title={label} onclick={() => (open = !open)} data-testid="help-{topic}">?</button>
-	{#if open}
-		<div class="pop" role="note" data-testid="help-panel-{topic}">
-			<p class="title">{t.title}</p>
-			<p>{t.body}</p>
-			{#if t.states}
-				<dl>
-					{#each t.states as [name, meaning] (name)}
-						<dt>{name}</dt>
-						<dd>{meaning}</dd>
-					{/each}
-				</dl>
-			{/if}
-			{#if t.command}<p class="cmd">Recorded and reported by the command line: <code>{t.command}</code>. Run it with <code>--help</code> for what it takes.</p>{/if}
-		</div>
-	{/if}
-</span>
+<Popover placement="below" width={320} role="note" testid="help-panel-{topic}">
+	{#snippet trigger({ open, toggle })}
+		<button aria-label={label} aria-expanded={open} title={label} onclick={toggle} data-testid="help-{topic}">?</button>
+	{/snippet}
+	<div class="pop">
+		<p class="title">{t.title}</p>
+		<p>{t.body}</p>
+		{#if t.states}
+			<dl>
+				{#each t.states as [name, meaning] (name)}
+					<dt>{name}</dt>
+					<dd>{meaning}</dd>
+				{/each}
+			</dl>
+		{/if}
+		{#if t.command}<p class="cmd">Recorded and reported by the command line: <code>{t.command}</code>. Run it with <code>--help</code> for what it takes.</p>{/if}
+	</div>
+</Popover>
 
 <style>
-	.help {
-		position: relative;
-		display: inline-block;
-	}
 	button {
 		width: 15px;
 		height: 15px;
@@ -71,15 +65,6 @@
 		border-color: var(--link);
 	}
 	.pop {
-		position: absolute;
-		z-index: 40;
-		left: 0;
-		top: calc(100% + 6px);
-		width: 320px;
-		background: var(--sheet);
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-card);
-		box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
 		padding: var(--gap);
 		font-family: var(--sans);
 		font-size: 11px;

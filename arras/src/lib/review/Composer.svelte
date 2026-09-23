@@ -61,19 +61,19 @@
 			said = res.error?.message ?? 'the publisher refused it';
 		}
 	}
-	// A write is available only while an open session is selected (plan 0.13.1). The control stays put and greyed
-	// rather than vanishing: a control that disappears leaves the reader wondering whether commenting exists here.
-	let gate = $state<ReturnType<typeof NoSession> | null>(null);
+	// A write is available only while an open session is selected (plan 0.13.1). The control stays put, disabled, with the reason beside it rather than vanishing: a control that disappears leaves the reader wondering whether commenting exists here.
 	const why = $derived(writable(store.manifest));
 </script>
 
 {#if allowed}
 	<div class="composer" data-testid="composer">
-		<NoSession bind:this={gate} />
 		{#if !open}
-			<button class="open" class:off={!!why} aria-disabled={!!why} onclick={() => (why ? gate?.say() : takeSelection())} data-testid="composer-open">
-				Comment{#if (window.getSelection()?.toString() ?? '').trim()} on the selection{/if}
-			</button>
+			<div class="gate">
+				<button class="open" disabled={!!why} onclick={takeSelection} data-testid="composer-open">
+					Comment{#if (window.getSelection()?.toString() ?? '').trim()} on the selection{/if}
+				</button>
+				<NoSession />
+			</div>
 		{:else}
 			<form onsubmit={submit}>
 				<label class="field">
@@ -98,7 +98,7 @@
 							</select>
 						</label>
 					{/if}
-					<button type="submit" class:off={!!why} aria-disabled={!!why} disabled={busy || !message.trim()} data-testid="composer-submit">{busy ? 'writing…' : 'write'}</button>
+					<button type="submit" disabled={!!why || busy || !message.trim()} data-testid="composer-submit">{busy ? 'writing…' : 'write'}</button>
 					<button type="button" onclick={() => (open = false)}>cancel</button>
 				</div>
 			</form>
@@ -127,9 +127,10 @@
 		color: var(--ink);
 		border-color: var(--rule-strong);
 	}
-	button.off {
-		opacity: 0.45;
-		cursor: not-allowed;
+	.gate {
+		display: flex;
+		align-items: center;
+		gap: var(--gap);
 	}
 	button:disabled {
 		opacity: 0.5;

@@ -1,5 +1,6 @@
 // Plan 0.6: the running requests, each as the behaviour a reader asked for.
 import { expect, test, type Page } from '@playwright/test';
+import { openPicker, pickSession } from '../picker';
 import { readFileSync } from 'node:fs';
 
 const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
@@ -581,10 +582,12 @@ test.describe('the session selector', () => {
 		expect(all).toBeGreaterThan(1);
 
 		// selecting a session does not narrow the page by itself: the selection is the write target, the view is the filter
-		await page.getByTestId('session-s-2026-09-15-0001').click();
+		await pickSession(page, 's-2026-09-15-0001');
 		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
-		// and the list still shows every session, because it is how a reader navigates
+		// and the picker still lists every session, because it is how a reader navigates
+		await openPicker(page);
 		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
+		await page.keyboard.press('Escape');
 
 		// narrowing is the toggle's job, and it is available now that something is selected
 		await page.getByTestId('show-current').click();
@@ -620,12 +623,12 @@ test.describe('the split as a mode of a route', () => {
 		await page.getByTestId('beside-toggle').click();
 		await expect(page.getByTestId('beside')).toBeVisible();
 		await expect(page).toHaveURL(/beside=1/);
-		// the divider is the same one the reading pane uses, and the discussion says where writing goes -- which,
-		// with nothing selected, is nowhere until the reader picks a session (plan 0.13.1)
+		// the divider is the same one the reading pane uses; where a reply lands is the panel footer's to say, and it
+		// says nowhere until the reader picks a session (plan 0.13.1)
 		await expect(page.getByTestId('divider')).toBeVisible();
-		await expect(page.getByTestId('discussion-into')).toContainText('no session selected');
-		await page.getByTestId('session-s-2026-09-16-0001').click();
-		await expect(page.getByTestId('discussion-into')).toContainText('referee');
+		await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected');
+		await pickSession(page, 's-2026-09-16-0001');
+		await expect(page.getByTestId('session-footer-name')).toContainText('referee');
 		// what is beside it is what is on this result
 		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
 		await page.getByTestId('beside-toggle').click();

@@ -1,6 +1,5 @@
 <script lang="ts">
-	// What stands in the discussion pane (plan 0.13 §7): the session being written to, the annotations on what the
-	// content pane is showing, the messages as they land, and the composer docked in the foot.
+	// What stands in the discussion pane (plan 0.13 §7): the annotations on what the content pane is showing, the messages as they land, and the composer docked in the foot. Which session a reply lands in is the panel footer's to say, and said nowhere else (plan 0.13.3 P2).
 	//
 	// One component for every route that opens the split, because the discussion is the same discussion wherever the
 	// content came from. What differs between an authoring node, a document and a cited work is the keys it is about,
@@ -8,7 +7,7 @@
 	import type { Annotation } from '$lib/manifest/types';
 	import { store } from '$lib/manifest/client.svelte';
 	import { onAny } from '$lib/annotations';
-	import { hidden, selected, sessionView } from '$lib/sessions/sessions.svelte';
+	import { hidden, sessionView } from '$lib/sessions/sessions.svelte';
 	import { travel } from '$lib/travel/travel';
 	import Prose from '$lib/math/Prose.svelte';
 	import Stream from '$lib/sessions/Stream.svelte';
@@ -18,7 +17,6 @@
 	let { keys = [], session = '', head }: { keys?: readonly string[]; session?: string; head?: Snippet } = $props();
 
 	const m = $derived(store.manifest);
-	const here = $derived(selected(m));
 	const shown = $derived<Annotation[]>(m ? onAny(m, keys).filter((a) => !a.discarded) : []);
 	// What the selection is keeping off the page. Said rather than left to be inferred: a page can look lightly
 	// annotated when it is not, and a reader who does not know that trusts the wrong picture.
@@ -32,11 +30,6 @@
 
 <div class="stack" data-testid="discussion">
 	<div class="body">
-		<!-- Where a reply from this pane will land. With nothing selected it says so rather than going quiet, because a
-		     composer that simply refuses is harder to read than one that names its condition (plan 0.13.1). -->
-		<p class="into" data-testid="discussion-into">
-			{#if here}writing to <strong>{here.title}</strong>{:else}no session selected{/if}
-		</p>
 		{#if head}{@render head()}{/if}
 		{#if keys.length}
 			<ul class="plain notes">
@@ -79,10 +72,6 @@
 		padding: 8px 12px;
 		font-family: var(--sans);
 		font-size: 11px;
-	}
-	.into {
-		margin: 0 0 var(--gap-tight);
-		color: var(--ink-soft);
 	}
 	.notes {
 		margin: 0;

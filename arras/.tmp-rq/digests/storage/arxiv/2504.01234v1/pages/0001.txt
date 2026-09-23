@@ -1,0 +1,40 @@
+Cycle spaces of finite quivers
+Elspeth Arden
+arXiv:2504.01234v1
+
+Abstract
+We collect the standard facts about the cycle space of a finite quiver: that the divergence
+map has the expected image, that its kernel is saturated, and that the rank of the kernel
+depends only on the underlying graph. The treatment is elementary and self-contained,
+and is written so that later work may cite it by number.
+
+1
+
+Introduction
+
+Let Q be a finite quiver. A weighting of Q assigns an integer to each arrow, and the weightings
+form a free abelian group of rank |A(Q)|. Among them sit the weightings that balance at every
+vertex. This note fixes the notation for that sublattice and proves the three facts about it that
+are used everywhere.
+Throughout, all quivers are finite, loops and parallel arrows are permitted, and the underlying graph of a quiver is the undirected multigraph obtained by forgetting the orientation of
+each arrow.
+Definition 1.1. A quiver is a quadruple Q = (V, A, s, t) in which V and A are finite sets and
+s, t : A → V are functions, called the source and target maps.
+Definition 1.2. The cycle space of a quiver Q is the kernel Z(Q) of the divergence map
+∂ : ZA(Q) → ZV (Q) whose value at a vertex v is the total weight of the arrows with target v
+less the total weight of the arrows with source v.
+The cycle space is the object of study. We record first what its ambient quotient looks like.
+
+2
+
+The image of the divergence map
+
+The divergence of any weighting sums to zero over the vertices of each connected component,
+because each arrow contributes +1 at its target and −1 at its source. That this is the only
+constraint is the content of the following proposition, which we use without further comment.
+Proposition 2.1. Let Q be a quiver whose underlying graph has c connected components. The
+image of the divergence map is the lattice of integer vectors in ZV (Q) whose coordinates sum
+to zero on each component, and its rank is |V (Q)| − c.
+Proof. Each arrow a has divergence et(a) − es(a) , which lies in the stated lattice, so the image
+is contained in it. For the reverse inclusion, choose a spanning tree of each component and
+1

@@ -27,27 +27,31 @@ beforeEach(() => {
 
 describe('the selection', () => {
 	it('is one selection, shared by open and closed sessions', () => {
-		sessionView.pick('s-open', m);
+		sessionView.select('s-open', m);
 		expect(selected(m)?.id).toBe('s-open');
 		// picking a closed one moves the same selection rather than keeping a second
-		sessionView.pick('s-shut', m);
+		sessionView.select('s-shut', m);
 		expect(selected(m)?.id).toBe('s-shut');
 	});
 
-	it('deselects when the selected row is picked again, which is how the author detaches', () => {
-		sessionView.pick('s-open', m);
-		sessionView.pick('s-open', m);
+	it('keeps the selection when the selected row is picked again; clearing is how the author detaches', () => {
+		sessionView.select('s-open', m);
+		sessionView.select('s-open', m);
+		expect(sessionView.selected).toBe('s-open');
+		sessionView.view = 'current';
+		sessionView.clear();
 		expect(sessionView.selected).toBeNull();
+		expect(sessionView.view).toBe('all');
 	});
 
 	it('admits closed sessions when one is selected, so selected-and-hidden cannot arise', () => {
 		expect(sessionView.showClosed).toBe(false);
-		sessionView.pick('s-shut', m);
+		sessionView.select('s-shut', m);
 		expect(sessionView.showClosed).toBe(true);
 	});
 
 	it('clears, and widens the view, when the selected session goes', () => {
-		sessionView.pick('s-open', m);
+		sessionView.select('s-open', m);
 		sessionView.view = 'current';
 		sessionView.dropped('s-other');
 		expect(sessionView.selected).toBe('s-open'); // a different session going leaves it alone
@@ -63,19 +67,19 @@ describe('whether a write is allowed', () => {
 	});
 
 	it('refuses a closed session with the other sentence', () => {
-		sessionView.pick('s-shut', m);
+		sessionView.select('s-shut', m);
 		expect(writable(m)).toBe('Selected session is closed: either select an open session or reopen the closed session.');
 	});
 
 	it('allows it only with an open session selected', () => {
-		sessionView.pick('s-open', m);
+		sessionView.select('s-open', m);
 		expect(writable(m)).toBe('');
 	});
 });
 
 describe('what the page draws', () => {
 	it('under `current`, only the selected session, whatever its state', () => {
-		sessionView.pick('s-open', m);
+		sessionView.select('s-open', m);
 		sessionView.view = 'current';
 		expect(visible(m, note('a', 's-open'))).toBe(true);
 		expect(visible(m, note('b', 's-other'))).toBe(false);

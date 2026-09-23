@@ -17,7 +17,8 @@ test('the documents section lists the landmarks and the working drafts in two gr
 test('a landmark is a document, with no identity and nothing to review', async ({ page }) => {
 	await page.goto('/canon/widgets-v1');
 	await expect(page.locator('main').getByRole('heading', { level: 1 }).first()).toContainText('Widgets');
-	await expect(page.locator('main')).toContainText('landmark @1');
+	// its step is its identity, so it stands in the rail above the document
+	await expect(page.getByTestId('reading-rail')).toContainText('landmark @1');
 	const fragment = page.locator('.fragment');
 	await expect(fragment.locator('.env').first()).toBeVisible();
 	await expect(fragment.locator('.env[data-key], .env[data-id]')).toHaveCount(0); // no theorem in a landmark is a node

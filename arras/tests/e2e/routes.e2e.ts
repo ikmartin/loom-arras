@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openPicker } from '../picker';
 import { readFileSync } from 'node:fs';
 
 const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
@@ -239,8 +240,10 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	await page.goto('/node/sy-000A');
 	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0);
 	// the closed section unfolds, and the setting inside it is what admits their annotations (plan 0.13.1)
+	await openPicker(page);
 	await page.getByTestId('show-closed').click();
 	await page.getByTestId('closed-yes').click();
+	await page.keyboard.press('Escape');
 	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0); // still discarded
 	await page.getByLabel('show discarded').check();
 	await expect(page.getByTestId('annotation-list').locator('article.box.discarded')).toHaveCount(1);

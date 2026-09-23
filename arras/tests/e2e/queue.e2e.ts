@@ -1,5 +1,6 @@
 // Plan 0.7: the PDF viewer and links into cited works (WQ-21), the work graph (WQ-05), and identity candidates (WQ-04) as the viewer shows them.
 import { expect, test, type Page } from '@playwright/test';
+import { pickSession } from '../picker';
 import { readFileSync } from 'node:fs';
 
 /** The Library opens on the paper now (the digest is a derived index, never what a title click meant), so a test about the digest asks for it. */
@@ -283,7 +284,7 @@ test.describe('what the reading study found', () => {
 		await page.getByTestId('verb-resolve').first().click();
 		await expect(said).toContainText('No session selected');
 		// with one selected the request reaches the publisher, and *its* refusal is what gets shown
-		await page.getByTestId('session-s-2026-09-16-0001').click();
+		await pickSession(page, 's-2026-09-16-0001');
 		await page.getByTestId('verb-resolve').first().click();
 		await expect(said).toBeVisible();
 		await expect(said).toContainText('no author name');

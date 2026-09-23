@@ -1,5 +1,6 @@
 // Screenshots of the editing surfaces, which exist only where a publisher is actually serving the write API.
 import { test } from '@playwright/test';
+import { openPicker } from '../picker';
 
 const OUT = '../records/images';
 
@@ -12,6 +13,7 @@ test('the editing surfaces', async ({ page }) => {
 	await page.waitForSelector('main h1');
 	// a write names its session, and nothing is selected at rest (plan 0.13.1), so the picture is of a reader who
 	// has chosen where their work goes -- which is the state the composer is usable in
+	await openPicker(page);
 	await page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first().click();
 	await page.getByTestId('composer-open').click();
 	await page.getByTestId('composer-quote').fill('one or two points');

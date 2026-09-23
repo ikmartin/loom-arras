@@ -4,7 +4,7 @@
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
-	import ReadingRail from '$lib/shell/ReadingRail.svelte';
+	import ReadingActs from '$lib/shell/ReadingActs.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -18,11 +18,11 @@
 	{:else}
 		<!-- A landmark's step is its identity rather than a note about it -- flows-v1 and flows-v2 are the same document
 		     at two moments -- so it stays, in the rail, while the path and the commit message go the way the master's did. -->
-		<ReadingRail>
+		<ReadingActs>
 			{#snippet lead()}
 				{#if doc.step}<span class="faint">landmark @{Number(doc.step)}{doc.name ? ' (' + doc.name + ')' : ''}</span>{/if}
 			{/snippet}
-		</ReadingRail>
+		</ReadingActs>
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
@@ -34,7 +34,7 @@
 </main>
 
 <style>
-	/* the rail is the top edge of the view, as the library work's toolbar is: flush, full width, no gutter above it */
+	/* the rail above is the top edge of the view: the document runs flush to it, full width, no gutter above */
 	main.master {
 		padding-top: 0;
 		padding-left: 0;

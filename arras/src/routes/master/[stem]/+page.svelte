@@ -20,7 +20,7 @@
 	import Beside from '$lib/split/Beside.svelte';
 	import { Annotations } from '$lib/fragments/shown.svelte';
 	import BesideToggle from '$lib/split/BesideToggle.svelte';
-	import ReadingRail from '$lib/shell/ReadingRail.svelte';
+	import ReadingActs from '$lib/shell/ReadingActs.svelte';
 
 	const m = $derived(store.manifest!);
 	const stem = $derived(decodeURIComponent(page.params.stem ?? ''));
@@ -110,9 +110,8 @@
 		<h1>Unknown document</h1>
 		<p class="muted">No master in this corpus has the stem <code>{stem}</code>.</p>
 	{:else}
-		<!-- The rail stands outside `Beside`, so opening the split moves the document into a pane and leaves the controls
-		     where they were rather than carrying them into it. -->
-		<ReadingRail>
+		<!-- The controls go to the rail the layout draws above the page, outside `Beside`, so opening the split moves the document into a pane and leaves the controls where they were rather than carrying them into it. -->
+		<ReadingActs>
 			{#snippet acts()}
 				{#if notes.ready}
 					<button
@@ -129,7 +128,7 @@
 				{#if master.pdf}<a href={dataUrl(master.pdf)}>PDF</a>{/if}
 				<BesideToggle />
 			{/snippet}
-		</ReadingRail>
+		</ReadingActs>
 		<Beside keys={inDocument} label="the document" control={false}>
 		<div class:with-comparison={hasComparison} class="review-layout">
 		<div class="gutters-host">
@@ -209,7 +208,7 @@
 	.review-comparison :global(.math.display) { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
 	.review-layout :global(.review-citation-target) { background: var(--state-stale-wash); outline: 2px solid var(--state-stale); outline-offset: 2px; scroll-margin-top: var(--gap-wide); }
 	@media (max-width: 900px) { .review-layout.with-comparison { display: flex; flex-direction: column; padding-right: 0; } .review-layout > .gutters-host, .review-comparison { width: 100%; } .review-comparison { position: static; max-height: none; } }
-	/* the rail is the top edge of the view, as the library work's toolbar is: flush, full width, no gutter above it */
+	/* the rail above is the top edge of the view: the document runs flush to it, full width, no gutter above */
 	main.master {
 		padding-top: 0;
 		padding-left: 0;

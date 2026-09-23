@@ -22,6 +22,7 @@
 	import Beside from '$lib/split/Beside.svelte';
 	import BesideToggle from '$lib/split/BesideToggle.svelte';
 	import Tabs from '$lib/split/Tabs.svelte';
+	import ReadingActs from '$lib/shell/ReadingActs.svelte';
 	import { readKeys, type WorkLink } from '$lib/worklink';
 	import { slotsFor } from '$lib/fragments/slots';
 
@@ -99,20 +100,15 @@
 	{#if !ref}
 		<h1>Unknown reference</h1>
 	{:else}
-		<Beside keys={about} label="this work" control={false} open={!!page.url.searchParams.get('page')}>
-			<!-- One line for the whole of the top: which text you are reading, the controls for reading it, and the split.
-			     The tabs come first because which of the three you are in is the only question that has to be answered
-			     before anything else; the paper's own title is on the paper, and the Info tab has the rest of the entry. -->
-			<div class="top">
-				<Tabs {tabs} bind:value={tab} />
-				{#if tab === 'paper' && readable}
-					<span class="bar" aria-hidden="true"></span>
-					<PdfTools view={pdf} />
-				{/if}
-				<span class="gap"></span>
+		<!-- One line for the whole of the top, in the rail the layout draws: which text you are reading, the controls for reading it, and the split. The tabs come first because which of the three you are in is the only question that has to be answered before anything else; the paper's own title is on the paper, and Info has the rest. -->
+		<ReadingActs>
+			{#snippet lead()}<Tabs {tabs} bind:value={tab} />{/snippet}
+			{#snippet acts()}
+				{#if tab === 'paper' && readable}<PdfTools view={pdf} />{/if}
 				<BesideToggle open={!!page.url.searchParams.get('page')} />
-			</div>
-
+			{/snippet}
+		</ReadingActs>
+		<Beside keys={about} label="this work" control={false} open={!!page.url.searchParams.get('page')}>
 			{#if tab === 'paper'}
 				{#if readable}
 					<div class="reader" data-testid="reader">
@@ -215,48 +211,22 @@
 	.page.reading {
 		display: flex;
 		flex-direction: column;
-		height: 100vh;
+		height: calc(100vh - var(--above, 0px));
 		overflow: hidden;
 		padding: 0;
 		max-width: none;
-	}
-	/* Everything the top of this view has to say, on one line: the tabs, the reading controls, and the split.
-	   The line carries the tabs' own size so that everything inheriting it -- the split control among them -- is set to
-	   match them rather than to the body size, and it sits off the top edge rather than against it. */
-	.top {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		height: 38px;
-		padding: 8px var(--gap-tight) 0;
-		border-bottom: 1px solid var(--rule);
-		font-size: 11px;
-	}
-	.top .gap {
-		flex: 1 1 auto;
-	}
-	.top .bar {
-		width: 1px;
-		height: 15px;
-		margin: 0 2px;
-		background: var(--rule);
 	}
 	.reader {
 		flex: 1 1 auto;
 		min-height: 0;
 	}
-	/* Inside the split the content pane is a scroll container, so the paper grew to its full length and took the tabs
-	   and the toolbar off the top with it. The held column is given the pane's height and scrolls inside the reader
-	   instead, which is where a paper should scroll. */
+	/* Inside the split the content pane is a scroll container, so the paper grew to its full length. The held column is given the pane's height and scrolls inside the reader instead, which is where a paper should scroll. */
 	.page.reading :global(.held) {
 		height: 100%;
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
 		padding: 0;
-	}
-	.page.reading :global(.held > .top) {
-		flex: none;
 	}
 	.prose {
 		padding: var(--gap) var(--gap-wide);

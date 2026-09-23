@@ -1,12 +1,7 @@
 <script lang="ts">
 	// The display preferences (book 15.7): shell, typeface, size, line width, theme, and where comments stand. Every control writes through `prefs`, which applies the data-* attributes and persists. Nothing here is published anywhere; the corpus is read-only to arras.
 	import { prefs, type Face, type Size, type Width, type Theme, type Format, type Comments } from '$lib/prefs.svelte';
-	import { dismiss } from '$lib/dismiss';
-
-	// The icon strip puts its settings at the foot of a full-height column, so a panel hung below the button would open past the bottom of the window.
-	let { placement = 'below' }: { placement?: 'below' | 'above' } = $props();
-
-	let open = $state(false);
+	import Popover from '$lib/components/Popover.svelte';
 
 	const FACES: { v: Face; label: string }[] = [
 		{ v: 'serif', label: 'serif' },
@@ -41,72 +36,63 @@
 	];
 </script>
 
-<div class="settings" use:dismiss={() => (open = false)}>
-	<button
-		class="toggle"
-		aria-label="Display settings"
-		aria-expanded={open}
-		title="Display settings"
-		onclick={() => (open = !open)}
-		data-testid="settings-toggle">⚙</button
-	>
-	{#if open}
-		<div class="panel" class:above={placement === 'above'} data-testid="settings-panel">
-			{#snippet row(label: string, options: { v: string; label: string; title?: string }[], current: string, pick: (v: string) => void, test: string)}
-				<div class="row" role="group" aria-label={label}>
-					<span class="lbl">{label}</span>
-					<div class="opts">
-						{#each options as o (o.v)}
-							<button
-								class:on={current === o.v}
-								aria-pressed={current === o.v}
-								onclick={() => pick(o.v)}
-								title={o.title}
-								data-testid={test ? `${test}-${o.v}` : undefined}>{o.label}</button
-							>
-						{/each}
-					</div>
+<!-- Above its control: the control stands at the foot of a full-height column, so a panel hung below it would open past the bottom of the window. -->
+<Popover placement="above" testid="settings-panel">
+	{#snippet trigger({ open, toggle })}
+		<button class="toggle" aria-label="Display settings" aria-expanded={open} title="Display settings" onclick={toggle} data-testid="settings-toggle">⚙</button>
+	{/snippet}
+	<div class="panel">
+		{#snippet row(label: string, options: { v: string; label: string; title?: string }[], current: string, pick: (v: string) => void, test: string)}
+			<div class="row" role="group" aria-label={label}>
+				<span class="lbl">{label}</span>
+				<div class="opts">
+					{#each options as o (o.v)}
+						<button
+							class:on={current === o.v}
+							aria-pressed={current === o.v}
+							onclick={() => pick(o.v)}
+							title={o.title}
+							data-testid={test ? `${test}-${o.v}` : undefined}>{o.label}</button
+						>
+					{/each}
 				</div>
-			{/snippet}
+			</div>
+		{/snippet}
 
-			{@render row('Type', FACES, prefs.face, (v) => (prefs.face = v as Face), 'face')}
-			{@render row('Size', SIZES, prefs.size, (v) => (prefs.size = v as Size), 'size')}
-			{@render row('Width', WIDTHS, prefs.width, (v) => (prefs.width = v as Width), 'width')}
-			{@render row('Theme', THEMES, prefs.theme, (v) => (prefs.theme = v as Theme), 'theme')}
-			{@render row('Format', FORMATS, prefs.format, (v) => (prefs.format = v as Format), 'format')}
-			{@render row('Comments', COMMENTS, prefs.comments, (v) => (prefs.comments = v as Comments), 'comments')}
-			<!-- The result keys and states in the left gutter. -->
-			{@render row(
-				'Show ids',
-				[
-					{ v: 'no', label: 'no' },
-					{ v: 'yes', label: 'yes' }
-				],
-				prefs.ids ? 'yes' : 'no',
-				(v) => (prefs.ids = v === 'yes'),
-				'ids'
-			)}
-			<!-- Which side the discussion stands on. A toggle rather than a decision, and expected to be deprecated
-			     once one side is known to be the right one. The options are in the order they name, left then right, so
-			     the control is a picture of the choice rather than a list of it. -->
-			{@render row(
-				'Discussion Pane',
-				[
-					{ v: 'yes', label: 'Left' },
-					{ v: 'no', label: 'Right' }
-				],
-				prefs.swap ? 'yes' : 'no',
-				(v) => (prefs.swap = v === 'yes'),
-				'swap'
-			)}
-		</div>
-	{/if}
-</div>
+		{@render row('Type', FACES, prefs.face, (v) => (prefs.face = v as Face), 'face')}
+		{@render row('Size', SIZES, prefs.size, (v) => (prefs.size = v as Size), 'size')}
+		{@render row('Width', WIDTHS, prefs.width, (v) => (prefs.width = v as Width), 'width')}
+		{@render row('Theme', THEMES, prefs.theme, (v) => (prefs.theme = v as Theme), 'theme')}
+		{@render row('Format', FORMATS, prefs.format, (v) => (prefs.format = v as Format), 'format')}
+		{@render row('Comments', COMMENTS, prefs.comments, (v) => (prefs.comments = v as Comments), 'comments')}
+		<!-- The result keys and states in the left gutter. -->
+		{@render row(
+			'Show ids',
+			[
+				{ v: 'no', label: 'no' },
+				{ v: 'yes', label: 'yes' }
+			],
+			prefs.ids ? 'yes' : 'no',
+			(v) => (prefs.ids = v === 'yes'),
+			'ids'
+		)}
+		<!-- Which side the discussion stands on. A toggle rather than a decision, and expected to be deprecated
+		     once one side is known to be the right one. The options are in the order they name, left then right, so
+		     the control is a picture of the choice rather than a list of it. -->
+		{@render row(
+			'Discussion Pane',
+			[
+				{ v: 'yes', label: 'Left' },
+				{ v: 'no', label: 'Right' }
+			],
+			prefs.swap ? 'yes' : 'no',
+			(v) => (prefs.swap = v === 'yes'),
+			'swap'
+		)}
+	</div>
+</Popover>
 
 <style>
-	.settings {
-		position: relative;
-	}
 	.toggle {
 		background: none;
 		border: none;
@@ -121,29 +107,12 @@
 		color: var(--ink);
 		background: var(--link-wash);
 	}
+	/* Sized by its widest row, never by the control it hangs off; rows never wrap (book 15.2.3). */
 	.panel {
-		position: absolute;
-		z-index: 40;
-		right: 0;
-		top: calc(100% + 4px);
-		max-height: 80vh;
-		overflow-y: auto;
-		/* The containing block is the control, which in the icon strip is 44px wide, so a shrink-to-fit box is clamped to nothing and its rows spill out of it. `max-content` sizes the panel to the widest row instead, whatever the control it hangs off. */
 		width: max-content;
-		max-width: min(92vw, 420px);
-		background: var(--sheet);
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-card);
-		box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
 		padding: var(--gap);
 		display: grid;
 		gap: var(--gap-tight);
-	}
-	.panel.above {
-		top: auto;
-		bottom: calc(100% + 4px);
-		right: auto;
-		left: 0;
 	}
 	/* One fixed label column, so every row's options start at the same place; wide enough for the longest label, which
 	   is what sets it. */

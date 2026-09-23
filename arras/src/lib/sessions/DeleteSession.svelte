@@ -3,7 +3,7 @@
 	// thing that decides the answer: **how much is still open in the session about to go**. It also could not offer the
 	// escape hatch, since purging is deliberately terminal-only and the sentence naming it is the only place a reader
 	// learns it exists.
-	import { dismiss } from '$lib/dismiss';
+	import Popover from '$lib/components/Popover.svelte';
 
 	let {
 		title,
@@ -16,8 +16,8 @@
 	$effect(() => box?.querySelector<HTMLButtonElement>('[data-testid=delete-confirm]')?.focus());
 </script>
 
-<div class="scrim" role="presentation">
-	<div class="modal" role="dialog" aria-modal="true" aria-labelledby="delete-title" data-testid="delete-session" bind:this={box} use:dismiss={onCancel}>
+<Popover modal open testid="delete-session" label="Delete “{title}”?" onclose={onCancel}>
+	<div class="modal" bind:this={box}>
 		<h3 id="delete-title">Delete “{title}”?</h3>
 		{#if open > 0}
 			<p data-testid="delete-open">
@@ -32,26 +32,13 @@
 			<button type="button" class="destroy" data-testid="delete-confirm" onclick={onDelete}>Delete</button>
 		</div>
 	</div>
-</div>
+</Popover>
 
 <style>
-	.scrim {
-		position: fixed;
-		inset: 0;
-		background: rgb(44 44 42 / 0.55);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--gap);
-		z-index: 60;
-	}
 	.modal {
-		background: var(--sheet);
-		border-radius: var(--rad-card);
-		box-shadow: 0 18px 50px rgb(0 0 0 / 28%);
 		padding: var(--gap-wide);
-		max-width: 460px;
-		width: 100%;
+		width: min(460px, 100%);
+		box-sizing: border-box;
 	}
 	h3 {
 		margin: 0 0 var(--gap);

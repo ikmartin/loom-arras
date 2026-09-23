@@ -48,7 +48,6 @@
 	let busy = $state(false);
 	let said = $state('');
 	// A note is a write, so it needs an open session selected like any other (plan 0.13.1).
-	let gate = $state<ReturnType<typeof NoSession> | null>(null);
 	const why = $derived(writable(store.manifest));
 	let form = $state<HTMLFormElement | null>(null);
 	let body = $state<HTMLTextAreaElement | null>(null);
@@ -87,11 +86,7 @@
 
 	async function submit(e: SubmitEvent): Promise<void> {
 		e.preventDefault();
-		if (why) {
-			gate?.say();
-			return;
-		}
-		if (!message.trim() || busy) return;
+		if (why || !message.trim() || busy) return;
 		busy = true;
 		said = '';
 		const res: WriteResult = await write('comment', {
@@ -137,11 +132,11 @@
 				{#each SEVERITIES as s (s)}<option value={s}>{s || 'severity'}</option>{/each}
 			</select>
 		{/if}
-		<button type="submit" class:off={!!why} aria-disabled={!!why} disabled={busy || !message.trim()} data-testid="note-submit">{busy ? 'writing…' : 'note it'}</button>
+		<button type="submit" disabled={!!why || busy || !message.trim()} data-testid="note-submit">{busy ? 'writing…' : 'note it'}</button>
 		<button type="button" onclick={() => onclose?.()}>cancel</button>
 	</div>
 	{#if said}<p class="said" role="status" data-testid="note-said">{said}</p>{/if}
-	<NoSession bind:this={gate} placement="below" />
+	<NoSession />
 </form>
 
 <style>
@@ -219,10 +214,6 @@
 		color: var(--ink);
 		border-color: var(--rule-strong);
 		margin-left: auto;
-	}
-	.row button.off {
-		opacity: 0.45;
-		cursor: not-allowed;
 	}
 	.row button:disabled {
 		opacity: 0.5;

@@ -1,0 +1,1 @@
+import{H as e,it as t,rt as n}from"./CEUmY5cH.js";var r=new class{#e=t(null);get link(){return e(this.#e)}set link(e){n(this.#e,e)}open(e){this.link=e}close(){this.link=null}};export{r as t};

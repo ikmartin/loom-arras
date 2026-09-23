@@ -1,4 +1,4 @@
-// The one prop set the two arrangements share (book 15.8). Every shell contains the same elements; adding one here means adding it to both or to neither.
+// The shell's props (book 15.8): what the layout knows about the page and hands to the navigation shell.
 
 import type { Snippet } from 'svelte';
 import type { ContentsEntry } from '$lib/contents';
@@ -14,9 +14,12 @@ export interface ShellProps {
 	canon: CanonDoc[];
 	/** The document the shell is about, by path: a master or a landmark. */
 	currentDoc: string;
+	/** Whether that document is on screen, so the panel hangs its contents under it; elsewhere no tree is drawn. */
+	onDocument: boolean;
 	contents: ContentsEntry[];
 	currentSection: string;
-	counts: { nodes: number; errors: number; warnings: number };
+	/** The publisher's diagnostics, which the problems glyph carries. */
+	counts: { errors: number; warnings: number };
 	/** Opens the command palette, which is arras's search (book 15.2). */
 	search: () => void;
 	children: Snippet;

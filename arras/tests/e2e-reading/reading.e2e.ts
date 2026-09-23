@@ -5,6 +5,7 @@
 // Every test starts from the showcase copy the config staged, and the notes it writes accumulate in it; each one
 // therefore reads back what it wrote by id rather than by count.
 import { expect, test, type Page } from '@playwright/test';
+import { openPicker } from '../picker';
 import { readFileSync } from 'node:fs';
 
 const QUILT = '.tmp-reading-quilt';
@@ -32,7 +33,8 @@ async function opened(page: Page): Promise<void> {
  * two clicks the interface asks for.
  */
 async function intoASession(page: Page): Promise<void> {
-	if ((await page.locator('[data-testid="session-list"] li.selected').count()) === 1) return;
+	if ((await page.getByTestId('session-footer').getAttribute('aria-label'))?.startsWith('annotations are written into')) return;
+	await openPicker(page);
 	const first = page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first();
 	if (await first.count()) {
 		await first.click();
@@ -41,7 +43,7 @@ async function intoASession(page: Page): Promise<void> {
 		await page.getByTestId('session-new-title').fill('reading Bellamy 19');
 		await page.getByTestId('session-new-title').press('Enter');
 	}
-	await expect(page.locator('[data-testid="session-list"] li.selected')).toHaveCount(1);
+	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
 }
 
 /**
@@ -188,11 +190,12 @@ test('the session selection governs the page: a hidden note is counted, not draw
 	await expect(page.locator('[data-testid="pdf-page-2"] .mark.note').first()).toBeVisible({ timeout: 15000 }); // the sidecar, after the publisher's rebuild
 	const before = await page.locator('[data-testid="pdf-page-2"] .mark.note').count();
 	// a fresh session, empty, made the active one; showing only it hides every note the earlier tests wrote
+	await openPicker(page);
 	await page.getByTestId('session-new').click();
 	await page.getByTestId('session-new-title').fill('an empty sitting');
 	await page.getByTestId('session-new-title').press('Enter');
 	// `+ new` selects what it opens, since nothing is created automatically any more (plan 0.13.1)
-	await expect(page.locator('[data-testid="session-list"] li.selected')).toContainText('an empty sitting', { timeout: 10000 });
+	await expect(page.getByTestId('session-footer-name')).toContainText('an empty sitting', { timeout: 10000 });
 	await page.getByTestId('show-current').click();
 	await expect(page.getByTestId('reading-hidden')).toContainText('hidden by the session being shown');
 	expect(await page.locator('[data-testid="pdf-page-2"] .mark.note').count()).toBeLessThan(before);
@@ -222,16 +225,20 @@ test('a locator in the URL is lit while the URL carries it, and a note is focuse
 
 test('a session is named on the spot and closed from the page', async ({ page }) => {
 	await opened(page);
+	await openPicker(page);
 	await page.getByTestId('session-new').click();
 	await page.getByTestId('session-new-title').fill('reading Bellamy, closely');
 	await page.getByTestId('session-new-title').press('Enter');
-	// it is selected on being opened, and the discussion says so because that is where a reply would land
-	await expect(page.locator('[data-testid="session-list"] li.selected')).toContainText('reading Bellamy, closely', { timeout: 10000 });
-	await expect(page.getByTestId('discussion-into')).toContainText('reading Bellamy, closely');
+	// it is selected on being opened, and the footer says so because that is where a note would land
+	await expect(page.getByTestId('session-footer-name')).toContainText('reading Bellamy, closely', { timeout: 10000 });
 	// closing the selected session clears the selection, so writing is unavailable until another is chosen
-	await page.locator('[data-testid="session-list"] li.selected [data-testid^="session-close-"]').click();
-	await expect(page.locator('[data-testid="session-list"] li.selected')).toHaveCount(0, { timeout: 10000 });
-	await expect(page.getByTestId('discussion-into')).toContainText('no session selected');
+	await openPicker(page);
+	// the verbs stand over a row only while the pointer is on it
+	const row = page.locator('[data-testid="session-list"] li.selected');
+	await expect(row.locator('[data-testid^="session-close-"]')).toBeHidden();
+	await row.hover();
+	await row.locator('[data-testid^="session-close-"]').click();
+	await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected', { timeout: 10000 });
 });
 
 test('two notes on one place are one mark carrying the count, and one box holding both', async ({ page }) => {

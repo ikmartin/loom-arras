@@ -8,7 +8,7 @@ async function openContents(page: import("@playwright/test").Page) {
   await page.getByRole("navigation", { name: "Contents" }).waitFor();
 }
 
-test("the shell carries the views, the documents, the contents, search and the counts", async ({
+test("the shell carries the views, the documents, the contents, search and the problems glyph", async ({
   page,
 }) => {
   // One arrangement. There were two, and the second fell behind on the first panel change that was not made twice.
@@ -18,7 +18,7 @@ test("the shell carries the views, the documents, the contents, search and the c
   await openContents(page);
   await expect(page.getByRole("navigation", { name: "Contents" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
-  await expect(page.getByTestId("counts")).toContainText("nodes");
+  await expect(page.getByTestId("problems-glyph")).toHaveAttribute("title", /^problems: /);
 });
 
 test("the side panel scrolls rather than overflowing, and the contents' last entry can be reached", async ({
@@ -41,9 +41,8 @@ test("the side panel scrolls rather than overflowing, and the contents' last ent
   const last = page.getByRole("navigation", { name: "Contents" }).locator("a").last();
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
-  // and the sections below the tree are reachable in the same scroll, which is what the tree's own scrollbar prevented
-  await page.getByTestId("session-list").scrollIntoViewIfNeeded();
-  await expect(page.getByTestId("session-list")).toBeInViewport();
+  // and the write target is pinned below the scroll rather than scrolled away with it
+  await expect(page.getByTestId("session-footer")).toBeInViewport();
 });
 
 test("the side panel collapses, and the column goes with it", async ({ page }) => {
@@ -263,7 +262,8 @@ test("the shell fits the window: nothing in a rail falls below the fold", async 
 
   // the two things at the foot of the shell are reachable without scrolling
   await expect(page.getByTestId("settings-toggle")).toBeInViewport();
-  await expect(page.getByTestId("counts")).toBeInViewport();
+  await expect(page.getByTestId("problems-glyph")).toBeInViewport();
+  await expect(page.getByTestId("session-footer")).toBeInViewport();
 });
 
 test("the side panel shows its scrollbar only while it is in use", async ({

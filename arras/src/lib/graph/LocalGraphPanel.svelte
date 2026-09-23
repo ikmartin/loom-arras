@@ -1,8 +1,7 @@
 <script lang="ts">
 	// The local graph with its controls (book 15.5.1): how far out to draw, dots or boxes as in the graph view, a larger drawing on demand, and — where it floats over the read view — a way to put it away.
 	import Icon from '$lib/components/Icon.svelte';
-	import { dismiss } from '$lib/dismiss';
-	import { portal } from '$lib/portal';
+	import Popover from '$lib/components/Popover.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import LocalGraph from './LocalGraph.svelte';
 	import LocalBoxGraph from './LocalBoxGraph.svelte';
@@ -59,22 +58,20 @@
 	{/if}
 </div>
 
-{#if expanded}
-	<div class="backdrop" use:portal>
-		<div class="dialog" role="dialog" aria-modal="true" aria-label="the neighbourhood of {label}" use:dismiss={() => (expanded = false)} data-testid="local-graph-dialog">
-			<div class="bar">
-				<span class="title">Local Graph</span>
-				{@render controls()}
-				<button class="icon" onclick={() => (expanded = false)} aria-label="Close" title="close"><Icon name="close" size={14} /></button>
-			</div>
-			{#if drawAs === 'box'}
-				<LocalBoxGraph center={owner} {depth} height={Math.round(window.innerHeight * 0.72)} {master} {hrefFor} />
-			{:else}
-				<LocalGraph center={owner} {depth} height={Math.round(window.innerHeight * 0.72)} {master} {hrefFor} allLabels />
-			{/if}
+<Popover modal bind:open={expanded} label="the neighbourhood of {label}" testid="local-graph-dialog">
+	<div class="dialog">
+		<div class="bar">
+			<span class="title">Local Graph</span>
+			{@render controls()}
+			<button class="icon" onclick={() => (expanded = false)} aria-label="Close" title="close"><Icon name="close" size={14} /></button>
 		</div>
+		{#if drawAs === 'box'}
+			<LocalBoxGraph center={owner} {depth} height={Math.round(window.innerHeight * 0.72)} {master} {hrefFor} />
+		{:else}
+			<LocalGraph center={owner} {depth} height={Math.round(window.innerHeight * 0.72)} {master} {hrefFor} allLabels />
+		{/if}
 	</div>
-{/if}
+</Popover>
 
 <style>
 	.panel {
@@ -135,21 +132,8 @@
 	.group button:hover {
 		color: var(--ink);
 	}
-	.backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 50;
-		background: rgb(0 0 0 / 22%);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
 	.dialog {
 		width: min(80vw, 1100px);
-		background: var(--sheet);
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-card);
-		box-shadow: 0 10px 40px rgb(0 0 0 / 20%);
 		padding: var(--gap);
 		display: flex;
 		flex-direction: column;
