@@ -51,8 +51,8 @@ def _author(explicit: str | None, root: Path) -> str:
         raise EnvError(str(exc)) from exc
 
 
-def _master_compiles(result: ScanResult) -> tuple[bool, str]:
-    master = result.default_master
+def _master_compiles(result: ScanResult, master: str | None = None) -> tuple[bool, str]:
+    master = master or result.default_master
     if master is None:
         return True, ""
     root = result.quilt.root
@@ -64,7 +64,22 @@ def _master_compiles(result: ScanResult) -> tuple[bool, str]:
     return res.ok, res.first_error
 
 
-def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[list[AcceptRow], int, int]:
+def _acceptance_master(result: ScanResult, key: str) -> str:
+    """Choose a deterministic document context for an acceptance not explicitly scoped to one master."""
+    reached = result.nodes[key].reached_by
+    if result.default_master and result.default_master in reached:
+        return result.default_master
+    if reached:
+        return str(reached[0])
+    return result.default_master or (result.masters[0] if result.masters else "")
+
+
+def write_acceptance(
+    result: ScanResult,
+    keys: list[str],
+    author: str,
+    masters: dict[str, str] | None = None,
+) -> tuple[list[AcceptRow], int, int]:
     """Record acceptance rows and the snapshots they name; returns (rows, snapshots written, snapshots already present).
 
     The one writer of the ledger, shared by `loom accept` and `loom refs verify`. They make different claims -- the author's own mathematics against a faithful copy of someone else's -- but the record is the same shape, and a second implementation would drift in exactly the way that makes `stale` stop meaning anything.
@@ -72,14 +87,16 @@ def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[
     root = result.quilt.root
     rows: list[AcceptRow] = []
     written = present = 0
-    master = result.default_master or (result.masters[0] if result.masters else "")
-    closure_obj = result.closures.get(master)
-    pre_text = closure_obj.raw_text() if closure_obj else ""
     hist = result.quilt.history_dir
-    pre_hash, w = write_snapshot(root, pre_text, hist)
-    written += w
-    present += not w
+    preambles: dict[str, str] = {}
     for key in keys:
+        master = (masters or {}).get(key, result.default_master or (result.masters[0] if result.masters else ""))
+        if master not in preambles:
+            closure_obj = result.closures.get(master)
+            pre_text = closure_obj.raw_text() if closure_obj else ""
+            preambles[master], w = write_snapshot(root, pre_text, hist)
+            written += w
+            present += not w
         text_hash, w = write_snapshot(root, own_text(result, result.nodes[key]), hist)
         written += w
         present += not w
@@ -96,7 +113,7 @@ def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[
                 author=author,
                 date=stamp(),
                 text=text_hash,
-                preamble=pre_hash,
+                preamble=preambles[master],
                 master=master,
                 closure=closure,
                 basis=result.nodes[key].basis if result.nodes[key].kind == "environment" else "",
@@ -119,8 +136,8 @@ def write_acceptance(result: ScanResult, keys: list[str], author: str) -> tuple[
 @click.option(
     "--all-live", is_flag=True, help="Accept every live author-owned statement and proof, after confirmation."
 )
+@click.option("--master", "accept_master", default=None, help="Accept every statement and proof reached by MASTER.")
 @click.option("--author", default=None)
-@click.option("--force", is_flag=True, help="Accept even when the master does not compile.")
 @click.option("--yes", "-y", is_flag=True)
 @quilt_option
 def accept(
@@ -128,8 +145,8 @@ def accept(
     proofs: bool,
     accept_stale: bool,
     all_live: bool,
+    accept_master: str | None,
     author: str | None,
-    force: bool,
     yes: bool,
     quilt_path: str | None,
 ) -> None:
@@ -139,22 +156,36 @@ def accept(
     refuse_under_agent(
         "loom accept", "Accepting is you saying the mathematics holds; run it in your own terminal.", author
     )
-    if all_live and (keys or proofs or accept_stale):
-        raise EnvError("--all-live cannot be combined with keys, --proofs, or --stale")
+    if all_live and (keys or proofs or accept_stale or accept_master):
+        raise EnvError("--all-live cannot be combined with keys, --proofs, --stale, or --master")
+    if accept_master and (keys or proofs or accept_stale):
+        raise EnvError("--master cannot be combined with keys, --proofs, or --stale")
     result = open_scan(quilt_path)
     root = result.quilt.root
     name = _author(author, root)
     records = Records(root, result.quilt.history_dir)
     targets: list[str] = []
-    if all_live:
-        conflicts = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and n.reached_by)
+    contexts: dict[str, str] = {}
+    if all_live or accept_master:
+        if accept_master and accept_master not in result.masters:
+            raise EnvError(f"{accept_master} is not a live drafting document")
+        conflicts = sorted(
+            k
+            for k, n in result.nodes.items()
+            if n.kind == "conflict" and (accept_master in n.reached_by if accept_master else bool(n.reached_by))
+        )
         if conflicts:
-            raise ContentError(f"live conflicted keys prevent --all-live: {', '.join(conflicts)}")
+            scope = f"--master {accept_master}" if accept_master else "--all-live"
+            raise ContentError(f"live conflicted keys prevent {scope}: {', '.join(conflicts)}")
         targets = sorted(
-            k for k, n in result.nodes.items() if n.kind in ("environment", "proof") and n.reached_by and not n.external
+            k
+            for k, n in result.nodes.items()
+            if n.kind in ("environment", "proof")
+            and (accept_master in n.reached_by if accept_master else bool(n.reached_by))
+            and not n.external
         )
         if not targets:
-            click.echo("no live author-owned statements or proofs to accept")
+            click.echo("no author-owned statements or proofs to accept")
             return
         incomplete = [k for k in targets if result.nodes[k].incomplete]
         if incomplete:
@@ -170,14 +201,16 @@ def accept(
         if open_claims:
             raise ContentError(f"open claims cannot be accepted as established: {', '.join(open_claims)}")
         statements = sum(result.nodes[k].kind == "environment" for k in targets)
-        click.echo(f"--all-live selects {statements} statements and {len(targets) - statements} proofs")
+        label = f"--master {accept_master}" if accept_master else "--all-live"
+        click.echo(f"{label} selects {statements} statements and {len(targets) - statements} proofs")
         if not yes:
             if not sys.stdin.isatty():
-                raise EnvError("--all-live needs confirmation; pass --yes")
+                raise EnvError(f"{label} needs confirmation; pass --yes")
             click.confirm(
                 f"accept these {len(targets)} keys as mathematically correct in their current dependency contexts?",
                 abort=True,
             )
+        contexts = {key: accept_master or _acceptance_master(result, key) for key in targets}
     if accept_stale:
         states = records.key_states(result)
         stale = sorted(k for k, s in states.items() if s.state == "accepted" and not s.fresh)
@@ -193,6 +226,12 @@ def accept(
                 raise EnvError("--stale needs confirmation; pass --yes")
             click.confirm(f"accept these {len(stale)} stale keys?", abort=True)
         targets = stale
+        contexts = {
+            key: (records.latest[key].master or _acceptance_master(result, key))
+            if key in records.latest
+            else _acceptance_master(result, key)
+            for key in targets
+        }
     for k in keys:
         key = resolve_key(result, k)
         require_text(result, key)
@@ -214,20 +253,22 @@ def accept(
                 "To verify its transcription, represent it as a digest result and use loom refs verify there."
             )
         targets.append(key)
+        contexts[key] = _acceptance_master(result, key)
         if proofs:
             targets.extend(n.proofs)
+            contexts.update({proof: contexts[key] for proof in n.proofs})
     if not targets:
-        raise EnvError("give at least one KEY, --stale, or --all-live")
+        raise EnvError("give at least one KEY, --stale, --all-live, or --master")
     for key in targets:
         if result.nodes[key].incomplete:
             raise ContentError(f"{key} contains \\incomplete; remove the mark before accepting")
         if result.nodes[key].kind == "environment" and result.nodes[key].basis == "open-claim":
             raise ContentError(f"{key} is an open claim and cannot be accepted as established")
-    if not force:
-        ok, err = _master_compiles(result)
+    for master in dict.fromkeys(contexts[key] for key in targets if contexts.get(key)):
+        ok, err = _master_compiles(result, master)
         if not ok:
-            raise ContentError(f"the default master does not compile ({err}); fix it or pass --force")
-    rows, written, present = write_acceptance(result, targets, name)
+            raise ContentError(f"{master} does not compile ({err})")
+    rows, written, present = write_acceptance(result, targets, name, contexts)
     for row in rows:
         click.echo(f"accepted {describe(result, row.key):<40} by {row.author}  {row.date[:10]}")
     click.echo(f"snapshots: {written} written, {present} already present")

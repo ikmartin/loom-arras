@@ -87,7 +87,7 @@ def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
     c = d / "nodes" / "dm-0002.tex"
     c.write_text(c.read_text().replace("one or two points", "one or two points (Definition~\\ref{dm-0001})"))
     monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-21T12:00:00Z")
-    assert run("accept", "dm-0001", "dm-0002", "dm-0003", "--proofs", "--force", *AUTHOR, cwd=d).exit_code == 0
+    assert run("accept", "dm-0001", "dm-0002", "dm-0003", "--proofs", *AUTHOR, cwd=d).exit_code == 0
     a = d / "nodes" / "dm-0001.tex"
     a.write_text(a.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
     state = status_json(d)["keys"]["dm-0003/proof"]
@@ -97,7 +97,7 @@ def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
     assert all(cause["when"] == "2026-09-21" for cause in state["acceptance"]["causes"])
     monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-22T12:00:00Z")
     assert status_json(d)["keys"]["dm-0003/proof"]["acceptance"]["causes"][0]["when"] == "2026-09-21"
-    assert run("accept", "dm-0002", "--force", *AUTHOR, cwd=d).exit_code == 0
+    assert run("accept", "dm-0002", *AUTHOR, cwd=d).exit_code == 0
     state = status_json(d)["keys"]["dm-0003/proof"]
     assert state["acceptance"]["fresh"] is True
     assert status_json(d)["keys"]["dm-0003"]["derived"]["settled"] is False
@@ -125,7 +125,7 @@ def test_review_build_publishes_rendered_comparison_and_citation(tmp_path: Path)
 
 def test_observation_date_resets_after_a_cause_disappears(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     d = demo(tmp_path)
-    assert run("accept", "dm-0001", "--force", *AUTHOR, cwd=d).exit_code == 0
+    assert run("accept", "dm-0001", *AUTHOR, cwd=d).exit_code == 0
     node = d / "nodes" / "dm-0001.tex"
     original = node.read_text()
     edited = original.replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
@@ -154,7 +154,7 @@ def test_comparison_uses_preamble_saved_with_dependent_acceptance(tmp_path: Path
 
 def test_ledger_refuses_without_author_exact_message(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    r = run("accept", "dm-0002", "--force", cwd=d)
+    r = run("accept", "dm-0002", cwd=d)
     assert r.exit_code == 2 and NO_AUTHOR_MESSAGE in r.output
 
 
@@ -182,7 +182,7 @@ def test_accept_writes_closure_hashes_and_proofs_flag(tmp_path: Path) -> None:
 def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_path: Path) -> None:
     d = demo(tmp_path)
     (d / "nodes" / "dm-0099.tex").write_text("\\begin{lemma}\\label{dm-0099}Loose.\\end{lemma}\n")
-    before = run("accept", "--all-live", "--yes", "--force", *AUTHOR, cwd=d)
+    before = run("accept", "--all-live", "--yes", *AUTHOR, cwd=d)
     assert before.exit_code == 1 and "dm-0005/proof" in before.output
     assert not (d / ".loom" / "state.toml").exists()
 
@@ -209,11 +209,11 @@ def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_pa
     )
     outline = d / "drafting" / "outline.tex"
     outline.write_text(outline.read_text().replace("\\input{nodes/dm-0007}\n", ""))  # an open question stays loose
-    unconfirmed = run("accept", "--all-live", "--force", *AUTHOR, cwd=d)
+    unconfirmed = run("accept", "--all-live", *AUTHOR, cwd=d)
     assert unconfirmed.exit_code == 2 and "--yes" in unconfirmed.output, unconfirmed.output
     assert not (d / ".loom" / "state.toml").exists()
 
-    accepted = run("accept", "--all-live", "--yes", "--force", *AUTHOR, cwd=d)
+    accepted = run("accept", "--all-live", "--yes", *AUTHOR, cwd=d)
     assert accepted.exit_code == 0, accepted.output
     assert "statements and" in accepted.output and "proofs" in accepted.output
     s = status_json(d)
@@ -232,10 +232,62 @@ def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_pa
     assert "dependency-changed" in {c["kind"] for c in s["keys"]["dm-0002/proof"]["acceptance"]["causes"]}
 
 
+def test_accept_master_uses_that_documents_reachability_and_preamble(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    toy = d / "drafting" / "toy.tex"
+    toy.write_text(
+        "\\documentclass{amsart}\n"
+        "\\usepackage{amsmath,amssymb,amsthm}\n"
+        "\\usepackage{loom}\n"
+        "\\newtheorem{lemma}{Lemma}\n"
+        "\\newcommand{\\ToyMacro}{one}\n"
+        "\\begin{document}\n"
+        "\\input{nodes/dm-0001}\n"
+        "\\begin{lemma}\\label{dm-0098}Toy only.\\end{lemma}\n"
+        "\\end{document}\n",
+        encoding="utf-8",
+    )
+
+    unconfirmed = run("accept", "--master", "drafting/toy.tex", *AUTHOR, cwd=d)
+    assert unconfirmed.exit_code == 2 and "--yes" in unconfirmed.output
+    accepted = run("accept", "--master", "drafting/toy.tex", "--yes", *AUTHOR, cwd=d)
+    assert accepted.exit_code == 0, accepted.output
+    assert "2 statements and 0 proofs" in accepted.output
+
+    from loom.records.ledger import read_ledger
+
+    rows = {row.key: row for row in read_ledger(d)}
+    assert set(rows) == {"dm-0001", "dm-0098"}
+    assert {row.master for row in rows.values()} == {"drafting/toy.tex"}
+    state = status_json(d)["keys"]
+    assert state["dm-0098"]["acceptance"]["fresh"] is True
+    main = d / "drafting" / "main.tex"
+    main.write_text(main.read_text().replace("\\newcommand{\\Fix}", "\\newcommand{\\MainOnly}"))
+    assert status_json(d)["keys"]["dm-0098"]["acceptance"]["fresh"] is True
+    toy.write_text(toy.read_text().replace("{one}", "{two}"))
+    assert status_json(d)["keys"]["dm-0098"]["acceptance"]["fresh"] is False
+
+
+@pytest.mark.parametrize("extra", [("dm-0001",), ("--proofs",), ("--stale",), ("--all-live",)])
+def test_accept_master_refuses_other_target_modes(tmp_path: Path, extra: tuple[str, ...]) -> None:
+    d = demo(tmp_path)
+    r = run("accept", "--master", "drafting/main.tex", *extra, "--yes", *AUTHOR, cwd=d)
+    assert r.exit_code == 2 and "cannot be combined" in r.output
+
+
+def test_accept_master_refuses_non_master_and_invalid_document_atomically(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    unknown = run("accept", "--master", "drafting/missing.tex", "--yes", *AUTHOR, cwd=d)
+    assert unknown.exit_code == 2 and "not a live drafting document" in unknown.output
+    invalid = run("accept", "--master", "drafting/outline.tex", "--yes", *AUTHOR, cwd=d)
+    assert invalid.exit_code == 1 and ("incomplete" in invalid.output or "open claims" in invalid.output)
+    assert not (d / ".loom" / "state.toml").exists()
+
+
 @pytest.mark.parametrize("extra", [("dm-0001",), ("--proofs",), ("--stale",)])
 def test_accept_all_live_refuses_other_target_modes(tmp_path: Path, extra: tuple[str, ...]) -> None:
     d = demo(tmp_path)
-    r = run("accept", "--all-live", *extra, "--yes", "--force", *AUTHOR, cwd=d)
+    r = run("accept", "--all-live", *extra, "--yes", *AUTHOR, cwd=d)
     assert r.exit_code == 2 and "cannot be combined" in r.output
     assert not (d / ".loom" / "state.toml").exists()
 
@@ -298,7 +350,7 @@ def test_stale_diff_from_snapshot_and_accept_stale(tmp_path: Path) -> None:
     assert "a subset of" in r.output
     r2 = run("status", "--stale", cwd=d)
     assert "dm-0002/proof" in r2.output and "dm-0002 " not in r2.output.split("\n")[0][:8] or True
-    r3 = run("accept", "--stale", "--yes", "--force", *AUTHOR, cwd=d)
+    r3 = run("accept", "--stale", "--yes", *AUTHOR, cwd=d)
     assert r3.exit_code == 0, r3.output
     s = status_json(d)
     assert s["summary"]["stale"] == 0 and s["summary"]["accepted"] == 2
@@ -313,7 +365,7 @@ def test_accept_refuses_incomplete_and_uncompiled(tmp_path: Path, monkeypatch: p
     r2 = run("accept", "dm-0002", *AUTHOR, cwd=d)
     assert r2.exit_code == 1 and "does not compile" in r2.output
     r3 = run("accept", "dm-0002", "--force", *AUTHOR, cwd=d)
-    assert r3.exit_code == 0, r3.output
+    assert r3.exit_code == 2 and "No such option '--force'" in r3.output
     assert run("accept", "dm-9999", *AUTHOR, cwd=d).exit_code == 2
 
 
@@ -601,7 +653,7 @@ def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
 
 def test_positional_key_recovery_by_hash(tmp_path: Path) -> None:
     q = synthetic(tmp_path)
-    assert run("accept", "sy-0006/proof/2", "--force", *AUTHOR, cwd=q).exit_code == 0
+    assert run("accept", "sy-0006/proof/2", *AUTHOR, cwd=q).exit_code == 0
     f = q / "nodes" / "sy-0006.tex"
     text = f.read_text()
     first = text[text.index("\\begin{proof}") : text.index("\\end{proof}") + len("\\end{proof}") + 1]
@@ -728,7 +780,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     m = json.loads((d / "build" / "manifest.json").read_text())
     cause = m["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
     assert cause["diff"] and (d / "build" / cause["diff"]).exists()
-    assert run("accept", "--stale", "--yes", "--force", *AUTHOR, cwd=d).exit_code == 0
+    assert run("accept", "--stale", "--yes", *AUTHOR, cwd=d).exit_code == 0
     s = status_json(d)
     assert s["summary"]["stale"] == 0
     m = json.loads((d / "build" / "manifest.json").read_text()) if run("build", cwd=d).exit_code == 0 else {}

@@ -60,13 +60,13 @@ This is quoted later in the block from \cite[Theorem 3]{Paper}.\end{theorem}
     assert {d.keys[0] for d in result.lint if d.code == "loom:needs-classification"} == {"ab-0006"}
     assert any(d.code == "loom:misplaced-basis" for d in result.lint)
     bulk = CliRunner().invoke(
-        main, ["accept", "--all-live", "--yes", "--force", "--author", "Test author", "--quilt", str(result.quilt.root)]
+        main, ["accept", "--all-live", "--yes", "--author", "Test author", "--quilt", str(result.quilt.root)]
     )
     assert bulk.exit_code != 0 and "live unclassified keys" in bulk.output
     assert not (result.quilt.root / ".loom" / "state.toml").exists()
     for key, phrase in (("ab-0004", "open claim"), ("ab-0005", "quotes someone else's result")):
         attempt = CliRunner().invoke(
-            main, ["accept", key, "--force", "--author", "Test author", "--quilt", str(result.quilt.root)]
+            main, ["accept", key, "--author", "Test author", "--quilt", str(result.quilt.root)]
         )
         assert attempt.exit_code != 0 and phrase in attempt.output
 
@@ -153,7 +153,7 @@ def test_accept_all_live_refuses_to_establish_an_open_claim(tmp_path: Path) -> N
         },
     )
     attempt = CliRunner().invoke(
-        main, ["accept", "--all-live", "--yes", "--force", "--author", "Test author", "--quilt", str(result.quilt.root)]
+        main, ["accept", "--all-live", "--yes", "--author", "Test author", "--quilt", str(result.quilt.root)]
     )
     assert attempt.exit_code != 0 and "open claims cannot be accepted" in attempt.output
     assert not (result.quilt.root / ".loom" / "state.toml").exists()

@@ -116,7 +116,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "result": sync_result}
     if endpoint in ("review-decision", "review-finish"):
         from loom.cli._quilt import open_scan
-        from loom.cli.review import _author, _master_compiles, write_acceptance
+        from loom.cli.review import _acceptance_master, _author, _master_compiles, write_acceptance
         from loom.review_queue import clear_accepted, decide, pending, rows_for
 
         result = open_scan(str(root))
@@ -162,10 +162,12 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         if not remaining:
             clear_accepted(root, keys)
             return {"ok": True, "result": "pending decisions were already accepted"}
-        ok, why = _master_compiles(result)
-        if not ok:
-            raise ApiError("compile-failed", f"the document does not compile: {why}", status=409)
-        rows, _, _ = write_acceptance(result, remaining, _author(None, root))
+        contexts = {key: _acceptance_master(result, key) for key in remaining}
+        for master in dict.fromkeys(contexts.values()):
+            ok, why = _master_compiles(result, master)
+            if not ok:
+                raise ApiError("compile-failed", f"{master} does not compile: {why}", status=409)
+        rows, _, _ = write_acceptance(result, remaining, _author(None, root), contexts)
         clear_accepted(root, keys)
         return {"ok": True, "result": f"accepted {len(rows)} keys"}
     if endpoint.startswith("session-"):

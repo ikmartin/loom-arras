@@ -46,8 +46,8 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 | `--proofs` | Also accept every proof attached to each statement given. |
 | `--stale` | Accept every key that is currently accepted-stale, after confirmation. |
 | `--all-live` | Accept every live author-owned statement and proof, after confirmation. |
+| `--master` | Accept every author-owned statement and proof reached by this live drafting document, after confirmation. |
 | `--author` |  |
-| `--force` | Accept even when the master does not compile. |
 | `--yes`, `-y` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

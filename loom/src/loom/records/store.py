@@ -155,7 +155,6 @@ class Records:
         states: dict[str, KeyState] = {}
         kinds = ("environment", "proof", "section")
         current_hashes = {k: key_hash(result, k) for k, n in result.nodes.items() if n.kind in kinds}
-        pre = self.preamble_hash(result, result.default_master)
         for key, n in result.nodes.items():
             if n.kind not in kinds:
                 continue
@@ -214,7 +213,8 @@ class Records:
                     for dep, h in row.closure.items():
                         if dep not in closure_now and dep not in accepted_direct:
                             ks.causes.append(Cause("dependency-removed", id=dep, before=h))
-                if row.preamble and pre and row.preamble != pre:
+                pre = self.preamble_hash(result, row.master or result.default_master)
+                if row.preamble and row.preamble != pre:
                     ks.causes.append(Cause("preamble-changed", before=row.preamble, after=pre))
             states[key] = ks
         # A stable direct dependency is an acceptance boundary. Its own unresolved edit

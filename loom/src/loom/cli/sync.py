@@ -21,6 +21,7 @@ from loom.sync import (
     prepare_incorporation,
     publish,
     summary,
+    update_documents,
 )
 
 
@@ -80,6 +81,30 @@ def status_sync(quilt_path: str | None) -> None:
     click.echo(f"incoming   {str(report['incoming'])[:12]}")
     for file in report["files"]:
         click.echo(f"  {file['status']} {file['path']}")
+
+
+@sync.command("documents")
+@click.argument("action", required=False, type=click.Choice(["add", "remove"]))
+@click.argument("document", required=False)
+@quilt_option
+def documents_sync(action: str | None, document: str | None, quilt_path: str | None) -> None:
+    """List, add, or remove documents in the persistent Overleaf projection."""
+    quilt = open_quilt(quilt_path)
+    state = _run(lambda: SyncState.read(quilt.root))
+    assert isinstance(state, SyncState)
+    if action is None:
+        if document is not None:
+            raise click.ClickException("give add or remove before DOCUMENT")
+    elif document is None:
+        raise click.ClickException(f"loom sync documents {action} needs DOCUMENT")
+    else:
+        state = _run(lambda: update_documents(quilt, state, action, document))
+        verb = "added" if action == "add" else "removed"
+        click.echo(f"{verb} {document}; sync selection updated (not committed or published)")
+    for selected in state.documents or [state.master]:
+        mapped = state.published_main if selected == state.master else selected
+        suffix = " (Overleaf main)" if selected == state.master else ""
+        click.echo(f"  {selected} -> {mapped}{suffix}")
 
 
 @sync.command("patch")

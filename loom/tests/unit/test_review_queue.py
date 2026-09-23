@@ -79,7 +79,7 @@ def test_transitive_attention_clears_after_upstream_ok_is_finished(
     assert any(row["key"] == "sy-0002/proof" and row["status"] == "needs-review" for row in invalidated)
     node_path.write_text(original_node, encoding="utf-8")
 
-    monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result: (True, ""))
+    monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master=None: (True, ""))
     monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "Test author")
     assert handle(root, "review-finish", {})["ok"]
     after = build(quilt).manifest

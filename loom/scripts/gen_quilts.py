@@ -60,12 +60,20 @@ class Gen:
         }
 
     def run(self, *args: str, expect: int = 0, agent: bool = False) -> str:
+        from unittest.mock import patch
+
         from loom.cli import main
 
         old = os.getcwd()
         try:
             os.chdir(self.root)
-            res = CliRunner().invoke(main, list(args), env=self.env(agent))
+            # Acceptance requires a successful compile. The generator fixes that environmental precondition so its
+            # checked-in records are byte-identical with or without TeX; compile behavior has its own command tests.
+            if args and args[0] == "accept":
+                with patch("loom.cli.review._master_compiles", return_value=(True, "")):
+                    res = CliRunner().invoke(main, list(args), env=self.env(agent))
+            else:
+                res = CliRunner().invoke(main, list(args), env=self.env(agent))
         finally:
             os.chdir(old)
         if res.exit_code != expect:
@@ -158,12 +166,12 @@ def build_synthetic(dest: Path) -> None:
     g.at("2026-09-13T09:00:00Z")
     g.run("canonize", "drafting/main.tex", "--to", "canon/widgets-v1.tex", "-m", "First landmark", "--no-check")
 
-    # Acceptance, on that same text. --force skips the compile: the rows it writes do not depend on it, and the generator must produce the same bytes with or without a TeX distribution.
+    # Acceptance, on that same text. The generator fixes the compile precondition so fixture bytes do not depend on the installed TeX distribution.
     g.at("2026-09-14T09:00:00Z")
-    g.run("accept", "sy-0001", "--author", AUTHOR, "--force")
-    g.run("accept", "sy-0002", "--proofs", "--author", AUTHOR, "--force")
-    g.run("accept", "sy-0003", "--proofs", "--author", AUTHOR, "--force")
-    g.run("accept", "sy-000F", "--proofs", "--author", AUTHOR, "--force")
+    g.run("accept", "sy-0001", "--author", AUTHOR)
+    g.run("accept", "sy-0002", "--proofs", "--author", AUTHOR)
+    g.run("accept", "sy-0003", "--proofs", "--author", AUTHOR)
+    g.run("accept", "sy-000F", "--proofs", "--author", AUTHOR)
 
     # A first pass that was discarded; its one annotation is written with the rest, below.
     g.at("2026-09-15T10:00:00Z")
@@ -452,7 +460,7 @@ def build_demo(dest: Path) -> None:
         "--author",
         "The loom demo",
     )
-    g.run("accept", "dm-0002", "--proofs", "--author", "The loom demo", "--force")
+    g.run("accept", "dm-0002", "--proofs", "--author", "The loom demo")
     g.run(
         "canonize",
         "drafting/main.tex",
@@ -756,13 +764,12 @@ def build_showcase(dest: Path) -> None:
     )
 
     # ---- The author accepts what they are satisfied with. ------------------------------------------------
-    # --force skips the compile check: the rows it writes do not depend on it, and the generator must write
-    # the same bytes with or without a TeX distribution.
+    # The generator fixes the compile precondition so the recorded fixture is independent of the installed TeX distribution.
     g.at("2026-09-16T10:00:00Z")
     for key in ("sh-0001", "sh-0002", "sh-0003", "sh-0004", "sh-0005"):
-        g.run("accept", key, "--force")
+        g.run("accept", key)
     for key in ("sh-0006", "sh-0007", "sh-0009"):
-        g.run("accept", key, "--proofs", "--force")
+        g.run("accept", key, "--proofs")
 
     # ---- A referee run: one annotation of every kind, severity and state the model has. ------------------
     g.at("2026-09-16T11:00:00Z")
