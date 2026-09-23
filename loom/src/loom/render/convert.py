@@ -360,6 +360,7 @@ class RenderContext:
     fallback: Callable[[str, str, str], str]  # (latex, css_class, data_src) -> html
     cite_target: Callable[[str, str | None], str | None]
     cite_labels: dict[str, str] = field(default_factory=dict)  # citekey -> the label the compiled document prints
+    titles: dict[str, str] = field(default_factory=dict)  # node key -> its title, where it is plain text
     diagnostics: list[Diagnostic] = field(default_factory=list)
     footnotes: int = 0
     region_ids: dict[str, str] = field(default_factory=dict)  # label -> element id
@@ -1066,7 +1067,8 @@ class Converter:
                 continue
             container = ctx.regions.get(target, target)
             is_region = target in ctx.regions
-            text = num if num else (lab if is_region else target)
+            # with no number in this document, a result is named by its title rather than by a number another document gave it
+            text = num if num else (lab if is_region else ctx.titles.get(target, target))
             if cmd == "eqref" or (is_region and cmd != "pageref"):
                 text = f"({num})" if num else f"({lab})"
                 cls = "ref ref-eq"

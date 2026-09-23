@@ -5,10 +5,25 @@
 	// what a reader on page 1 of 60 needs: `+` twelve times is not navigation. Each box shows the current value while it
 	// is not being edited, takes the typed one on Enter or on leaving, and puts the current one back on Escape or on
 	// anything that is not a number.
+	//
+	// Off the paper — a work's digest or its info — the row stays where it was and greys out: a toolbar that vanished and came back would move everything after it, and a greyed control still says what it would act on.
 	import Icon from '$lib/components/Icon.svelte';
+	import ToolPair from './ToolPair.svelte';
 	import { MAX_ZOOM, MIN_ZOOM, type PdfView } from './view.svelte';
 
-	let { view }: { view: PdfView } = $props();
+	let {
+		view,
+		of = '',
+		disabled = false
+	}: {
+		view: PdfView;
+		/** What the controls act on, for their accessible names: in the rail they stand apart from the paper, so each says whose it is. */
+		of?: string;
+		/** Nothing to act on here: every control is drawn and none acts. */
+		disabled?: boolean;
+	} = $props();
+
+	const on = $derived(of ? ` in ${of}` : '');
 
 	// Each box is bound to its own text and refilled from the view whenever it is not being edited. Two things fought the
 	// field before: a `value=` bound to a derived string, and a focus handler that rewrote the text as it selected it.
@@ -54,29 +69,8 @@
 	};
 </script>
 
-<div class="tools" role="toolbar" aria-label="reading tools">
-	<!-- Two icons of one size rather than two words of different lengths: they are a pair of modes, and a pair reads as
-	     a pair only when the controls match. -->
-	<button
-		type="button"
-		class="tool"
-		class:on={view.tool === 'select'}
-		title="Select text — highlight and copy as usual, and annotate what you select. Hold Alt to draw a box without switching."
-		aria-label="Select text"
-		aria-pressed={view.tool === 'select'}
-		data-testid="tool-select"
-		onclick={() => (view.tool = 'select')}><Icon name="cursor" size={15} /></button
-	>
-	<button
-		type="button"
-		class="tool"
-		class:on={view.tool === 'box'}
-		title="Draw a box around a formula or a figure. A click without a drag leaves a point."
-		aria-label="Draw a box"
-		aria-pressed={view.tool === 'box'}
-		data-testid="tool-box"
-		onclick={() => (view.tool = 'box')}><Icon name="marquee" size={15} /></button
-	>
+<div class="tools" class:disabled role="group" aria-label="reading tools{on}">
+	<ToolPair holder={view} {of} {disabled} />
 
 	<span class="bar" aria-hidden="true"></span>
 
@@ -85,24 +79,26 @@
 		class="tool"
 		class:on={view.fitWidth}
 		title="Match the page to the width of the column"
-		aria-label="Match width"
+		aria-label="Match width{on}"
 		aria-pressed={view.fitWidth}
 		data-testid="zoom-fit"
+		{disabled}
 		onclick={() => (view.fitWidth = !view.fitWidth)}><Icon name="fit-width" size={15} /></button
 	>
-	<button type="button" class="step" title="Smaller" aria-label="Smaller" data-testid="zoom-out" onclick={() => view.zoomTo(view.scale - 0.1)}>−</button>
+	<button type="button" class="step" title="Smaller" aria-label="Smaller{on}" data-testid="zoom-out" {disabled} onclick={() => view.zoomTo(view.scale - 0.1)}>−</button>
 	<input
 		class="box zoom"
 		type="text"
 		inputmode="decimal"
-		aria-label="Zoom"
+		aria-label="Zoom{on}"
 		data-testid="zoom-at"
+		{disabled}
 		bind:value={zoomText}
 		onfocus={(e) => ((zoomEditing = true), e.currentTarget.select())}
 		onblur={commitZoom}
 		onkeydown={(e) => key(e, commitZoom)}
 	/>
-	<button type="button" class="step" title="Larger" aria-label="Larger" data-testid="zoom-in" onclick={() => view.zoomTo(view.scale + 0.1)}>+</button>
+	<button type="button" class="step" title="Larger" aria-label="Larger{on}" data-testid="zoom-in" {disabled} onclick={() => view.zoomTo(view.scale + 0.1)}>+</button>
 
 	<span class="bar" aria-hidden="true"></span>
 
@@ -110,8 +106,9 @@
 		class="box page"
 		type="text"
 		inputmode="numeric"
-		aria-label="Page"
+		aria-label="Page{on}"
 		data-testid="page-at"
+		{disabled}
 		bind:value={pageText}
 		onfocus={(e) => ((pageEditing = true), e.currentTarget.select())}
 		onblur={commitPage}
@@ -125,74 +122,80 @@
 		display: flex;
 		align-items: center;
 		gap: 3px;
-		font-size: 0.78rem;
 		white-space: nowrap;
 	}
 	button {
 		font: inherit;
-		color: var(--ink-soft, #5f5e5a);
+		color: var(--ink-soft);
 		background: none;
 		border: none;
-		border-radius: 3px;
+		border-radius: 4px;
 		cursor: pointer;
 	}
-	button:hover {
-		color: var(--ink, #2c2c2a);
-		background: var(--leaf, #f1efe7);
+	button:hover:not(:disabled) {
+		color: var(--ink);
+		background: var(--leaf);
+	}
+	button:disabled,
+	input:disabled {
+		cursor: default;
+	}
+	.tools.disabled > :not(.bar) {
+		opacity: 0.35;
 	}
 	/* every icon control is the same square, so the row reads as one set of tools */
 	.tool {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 22px;
-		height: 20px;
+		width: 24px;
+		height: 22px;
 		padding: 0;
 	}
 	.tool.on {
-		background: var(--annotation-tint, rgb(217 119 87 / 0.18));
-		color: var(--ink, #2c2c2a);
+		background: var(--accent-wash);
+		color: var(--ink);
 	}
 	.step {
-		width: 18px;
-		height: 20px;
+		width: 20px;
+		height: 22px;
 		padding: 0;
-		font-size: 0.95rem;
+		font-size: 1.1em;
 		line-height: 1;
 	}
 	/* The typed boxes, as a desktop viewer draws them: a filled field that reads as editable without a full border. */
 	.box {
 		font: inherit;
-		color: var(--ink, #2c2c2a);
-		background: var(--leaf, #f1efe7);
+		color: var(--ink);
+		background: var(--leaf);
 		border: 1px solid transparent;
-		border-radius: 3px;
-		height: 20px;
-		padding: 0 4px;
+		border-radius: 4px;
+		height: 22px;
+		padding: 0 6px;
 		text-align: center;
 	}
-	.box:hover {
-		border-color: var(--rule, #ddd9cf);
+	.box:hover:not(:disabled) {
+		border-color: var(--rule);
 	}
 	.box:focus {
 		outline: none;
-		border-color: var(--accent, #d97757);
-		background: var(--sheet, #fff);
+		border-color: var(--accent);
+		background: var(--sheet);
 	}
 	.zoom {
-		width: 4.2em;
+		width: 4.4em;
 	}
 	.page {
-		width: 2.8em;
+		width: 3em;
 	}
 	.of {
-		color: var(--muted, #6b6b6b);
+		color: var(--ink-faint);
 		padding-right: 2px;
 	}
 	.bar {
 		width: 1px;
-		height: 15px;
-		margin: 0 4px;
-		background: var(--rule, #ddd9cf);
+		height: 14px;
+		margin: 0 6px;
+		background: var(--rule);
 	}
 </style>

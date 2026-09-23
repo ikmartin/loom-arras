@@ -26,6 +26,8 @@
 	import PdfDoc from './PdfDoc.svelte';
 	import type { PdfView } from './view.svelte';
 	import NoteAt from './NoteAt.svelte';
+	import { clearPending, showPending } from '$lib/fragments/pending';
+	import { onDestroy } from 'svelte';
 
 	let {
 		citekey,
@@ -33,7 +35,6 @@
 		page,
 		locator = null,
 		view,
-		toolbar = true
 	}: {
 		citekey: string;
 		ref: Reference;
@@ -42,7 +43,6 @@
 		locator?: WorkLink | null;
 		/** The reader's view, when the page draws the controls in a rail of its own. */
 		view?: PdfView;
-		toolbar?: boolean;
 	} = $props();
 
 	const url = $derived(ref.artifacts?.pdf ? artifactUrl(ref.artifacts.dir) : '');
@@ -66,7 +66,13 @@
 	 * appearing over the page. Now the selection stays live and a single *annotate* chip offers the other thing; the
 	 * box tool has no such ambiguity and still opens the composer directly.
 	 */
-	let offered = $state<{ page: number; text: string; at: { left: number; top: number; width: number; height: number } } | null>(null);
+	let offered = $state<{ page: number; text: string; at: { left: number; top: number; width: number; height: number }; range?: Range } | null>(null);
+	onDestroy(clearPending);
+	/** The composer closed, written or not: the place it was lit for goes out. */
+	const done = () => {
+		noting = null;
+		clearPending();
+	};
 
 	// Fetched by the sidecar's own hash rather than derived from the manifest: the manifest is replaced on every poll,
 	// and re-fetching geometry once a second is exactly the re-render this pane must not do. Naming the hash is also
@@ -140,6 +146,8 @@
 		}
 		out.push(...stacked.values());
 		if (lit) out.push({ id: '_locator', page: lit.page, rects: lit.rects, transient: true });
+		// a box drawn for a note stays drawn while the note is written
+		if (noting?.rects) out.push({ id: '_noting', page: noting.page, rects: noting.rects, transient: true });
 		return out;
 	});
 	// `result=` names a result of this work, whose rectangles the sidecar already carries under that same id, so it is
@@ -203,10 +211,12 @@
 				{url}
 				{page}
 				{view}
-				{toolbar}
 				spans={drawn}
 				focus={focusOn}
-				onselect={(e) => (offered = { page: e.page, text: e.text, at: e.client })}
+				onselect={(e) => {
+					const sel = window.getSelection();
+					offered = { page: e.page, text: e.text, at: e.client, range: sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : undefined };
+				}}
 				onbox={(e) => ((offered = null), (noting = { page: e.page, rects: e.rects, at: e.client }))}
 				onmark={travel}
 				onpage={(e) => (at = e.page)}
@@ -223,6 +233,7 @@
 			data-testid="annotate-offer"
 			style="left: {Math.round(offered.at.left)}px; top: {Math.round(offered.at.top - 34)}px;"
 			onclick={() => {
+				showPending(offered!.range ?? null);
 				noting = { page: offered!.page, text: offered!.text, at: offered!.at };
 				offered = null;
 			}}>annotate</button
@@ -236,10 +247,10 @@
 			rects={noting.rects}
 			at={noting.at}
 			onwritten={() => {
-				noting = null;
+				done();
 				store.refresh();
 			}}
-			onclose={() => (noting = null)}
+			onclose={done}
 		/>
 	{/if}
 </section>

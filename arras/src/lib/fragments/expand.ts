@@ -83,6 +83,8 @@ interface Opened {
 	host: HTMLElement;
 	made: Record<string, unknown>[];
 	ids: string[];
+	/** Whether this box stands over the text; a box opened by `expandAll` stands in the flow whatever the placement. */
+	floats: boolean;
 }
 
 export function inlineComments(
@@ -135,15 +137,15 @@ export function inlineComments(
 		for (const b of [...boxes]) shut(b);
 	};
 
-	const openAt = (trigger: HTMLElement, ids: string[]): Opened | null => {
+	const openAt = (trigger: HTMLElement, ids: string[], floats = floating): Opened | null => {
 		const manifest = manifestNow();
 		if (!manifest) return null;
 		const lead = leadComments(manifest, ids);
 		if (!lead.length) return null;
 		const host = document.createElement('aside');
-		host.className = floating ? 'comment-slot expanded floating' : 'comment-slot expanded';
+		host.className = floats ? 'comment-slot expanded floating' : 'comment-slot expanded';
 		host.dataset.testid = 'comment-expanded';
-		if (floating) {
+		if (floats) {
 			// into the host a page gave, else the fragment: a mark on a PDF page sits in an overlay that takes no
 			// pointer events, which is no place for a box that must be clicked into
 			(opts.host ?? trigger.closest('.fragment') ?? trigger.parentElement ?? trigger).append(host);
@@ -164,14 +166,14 @@ export function inlineComments(
 		const made = fill(host, lead.map((a) => a.id));
 		trigger.classList.add('expanded');
 		trigger.setAttribute('aria-expanded', 'true');
-		const box: Opened = { trigger, host, made, ids: lead.map((a) => a.id) };
+		const box: Opened = { trigger, host, made, ids: lead.map((a) => a.id), floats };
 		boxes = [...boxes, box];
 		shutter.addEventListener('click', (e) => {
 			e.stopPropagation();
 			shut(box);
 		});
 		host.addEventListener('pointerdown', () => front(box));
-		if (floating) place(host, trigger);
+		if (floats) place(host, trigger);
 		front(box);
 		return box;
 	};
@@ -218,11 +220,14 @@ export function inlineComments(
 		openAt(trigger, ids);
 	};
 
+	// **Every box at once stands in the flow.** Opened together over the text, floating boxes stood on one another and on the words until neither could be read; in the flow each stands under its own paragraph or label, and the text makes room. A box already floating is closed and opened again in the flow. A single mark's click keeps the reader's placement.
 	const expandAll = (root: HTMLElement) => {
 		all = true;
 		for (const t of triggers(root)) {
-			if (boxes.some((b) => b.trigger === t)) continue;
-			openAt(t, idsOf(t));
+			const open = boxes.find((b) => b.trigger === t);
+			if (open && !open.floats) continue;
+			if (open) shut(open);
+			openAt(t, idsOf(t), false);
 		}
 		// nothing is in front when everything is open: the reader's eye, not the z-order, is what picks one out
 		for (const b of boxes) b.host.classList.remove('behind');
@@ -245,8 +250,7 @@ export function inlineComments(
 	// A floating box is placed against the window, so it follows its mark rather than being abandoned by it. It used to
 	// close on scroll, which was right only while the pointer was what opened it.
 	const again = () => {
-		if (!floating) return;
-		for (const b of boxes) place(b.host, b.trigger);
+		for (const b of boxes) if (b.floats) place(b.host, b.trigger);
 	};
 	document.addEventListener('pointerdown', down, true);
 	document.addEventListener('keydown', key);

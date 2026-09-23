@@ -55,19 +55,21 @@ export function resetComments(root: HTMLElement): void {
 /**
  * Where a cited result is in the work itself: its page, and the result whose rectangles the sidecar carries.
  *
- * It ends `beside=0` on purpose. A work opened at a page opens split by default, because the link that form was built
- * for is one written *in a discussion* and the page is then read beside it (plan 0.13 item 6). A citation in a paper
- * came from no discussion and asks for no pane, so it says so rather than inherit a default meant for the other case.
- *
  * Empty when no copy is filed or the locator names no page, in which case the caller falls back to the digest node.
  */
+/** An annotation's card, looked for in the pane the mark stands in before anywhere else: two open items can both hold a card for one annotation. */
+function card(root: HTMLElement, id: string): HTMLElement | null {
+	const scope = root.closest('[data-pane]');
+	return scope?.querySelector<HTMLElement>(`[id="ann-${CSS.escape(id)}"]`) ?? document.getElementById('ann-' + id);
+}
+
 function atResult(manifest: Manifest | null, node: string): string {
 	const nd = manifest?.nodes[node];
 	const ck = nd?.digest;
 	const ref = ck ? manifest?.references[ck] : undefined;
 	const at = pageOf(nd?.locator);
 	if (!ref?.artifacts?.pdf || !at) return '';
-	return `${workUrl(ref.citekey)}?page=${at}&result=${encodeURIComponent(node)}&beside=0`;
+	return `${workUrl(ref.citekey)}?page=${at}&result=${encodeURIComponent(node)}`;
 }
 
 export function wire(
@@ -140,7 +142,7 @@ export function wire(
 			const now = LIVE.get(root) ?? opts;
 			if (now.expand) return now.expand(mark, ids);
 			select(lead);
-			document.getElementById('ann-' + lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			card(root, lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		};
 		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made
 		// passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be
@@ -151,7 +153,7 @@ export function wire(
 		// invented for an annotation with no card here: the notice says so and the pane stays put.
 		mark.addEventListener('dblclick', (e) => {
 			e.preventDefault();
-			travel(document.getElementById('ann-' + lead), mark);
+			travel(card(root, lead), mark);
 		});
 		// how many are on this phrase: stacked translucent highlights muddy at two, so the number is said rather than
 		// drawn, and the tick stays legible however many overlap

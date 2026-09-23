@@ -416,6 +416,8 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
     assert t["targets"] == ["dm-0003/proof"] and t["discarded"] is False
     assert [msg["body_html"] for msg in t["messages"]][0] == "<p>Opening note.</p>"
     assert t["messages"][1]["time"] == "2026-09-16T14:31:00Z" and "one objection" in t["messages"][1]["body_html"]
+    # the heading is the message's time and a name the viewer shows itself; its date is not repeated in the body
+    assert "2026-09-16" not in t["messages"][1]["body_html"]
     kinds = {a["name"]: a["kind"] for a in t["attachments"]}
     assert kinds == {"annotations": "annotations", "referee-dm-0003.notes.md": "notes"}  # reading leaves no file
     assert [entry["command"] for entry in t["log"]][:2] == [

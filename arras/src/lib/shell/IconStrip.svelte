@@ -18,10 +18,16 @@
 	// The problems view stands at the strip's foot as a warning glyph (plan 0.13.3 S9): it answers whether anything is wrong, so it carries the counts and takes their colour.
 	const problems = $derived(views.find((v) => v.id === 'problems'));
 	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
-	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes.
-	const works = $derived(Object.values(store.manifest?.references ?? {}));
-	const library = $derived(works.slice(0, 6));
-	const more = $derived(works.length > 6 ? works.length : 0);
+	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes. This is the list's one home (plan 0.13.3 P2): the `/library` route is a ledger of what each work needs, not a second list. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs.
+	const works = $derived(
+		Object.values(store.manifest?.references ?? {}).sort((a, b) => (bibText(a.bib.title) || a.citekey).localeCompare(bibText(b.bib.title) || b.citekey))
+	);
+	let workFilter = $state('');
+	const WORKS_SHOWN = 30;
+	const library = $derived.by(() => {
+		const q = workFilter.trim().toLowerCase();
+		return q ? works.filter((r) => `${r.citekey} ${bibText(r.bib.title)} ${bibText(r.bib.author ?? '')}`.toLowerCase().includes(q)) : works;
+	});
 	// Nodes (plan 0.13 §7): the corpus's own statements, by id, narrowed by what is typed. Folded by default -- a
 	// corpus of a hundred results would otherwise be the panel -- and never the digests' nodes, which the Library
 	// lists as works.
@@ -32,6 +38,20 @@
 	);
 	let nodeFilter = $state('');
 	let nodesOpen = $state(false);
+
+	// **On a narrow window the panel goes first** (plan 0.13 §7): below 1200px the workspace and its rail need the width, so the panel shows folded whatever the reader's stored choice, and the fold opens it for this visit without rewriting that choice. A window widened again shows the stored choice.
+	const SQUEEZED = 1200;
+	let windowWidth = $state(typeof window === 'undefined' ? SQUEEZED : window.innerWidth);
+	let peek = $state<boolean | null>(null);
+	const squeezed = $derived(windowWidth < SQUEEZED);
+	const shown = $derived(squeezed ? (peek ?? false) : prefs.panel);
+	$effect(() => {
+		if (!squeezed) peek = null;
+	});
+	function fold(): void {
+		if (squeezed) peek = !shown;
+		else prefs.panel = !prefs.panel;
+	}
 	const NODES_SHOWN = 30;
 	const matching = $derived.by(() => {
 		const q = nodeFilter.trim().toLowerCase();
@@ -52,6 +72,8 @@
 	let contentsOpen = $state(true);
 	let libraryOpen = $state(true);
 </script>
+
+<svelte:window bind:innerWidth={windowWidth} />
 
 <div class="shell-c">
 	<nav class="strip" aria-label="Views">
@@ -89,18 +111,18 @@
 		</div>
 	</nav>
 
-	<div class="panel" class:away={!prefs.panel}>
+	<div class="panel" class:away={!shown}>
 		<div class="head">
 			<a href={route('/')} class="name">{label}</a>
 			<!-- The panel collapses independently of the split and goes first: on a narrow window it is the column a
 			     reader needs least, and the content and the discussion want the width. -->
 			<button
 				class="fold"
-				title={prefs.panel ? 'Hide the panel' : 'Show the panel'}
-				aria-label={prefs.panel ? 'Hide the panel' : 'Show the panel'}
-				aria-expanded={prefs.panel}
+				title={shown ? 'Hide the panel' : 'Show the panel'}
+				aria-label={shown ? 'Hide the panel' : 'Show the panel'}
+				aria-expanded={shown}
 				data-testid="panel-fold"
-				onclick={() => (prefs.panel = !prefs.panel)}>{prefs.panel ? '«' : '»'}</button
+				onclick={fold}>{shown ? '«' : '»'}</button
 			>
 		</div>
 		<div class="sections rail-scroll">
@@ -178,21 +200,27 @@
 				</ul>
 			{/if}
 		{/if}
-		{#if library.length}
+		{#if works.length}
 			<p class="rail-label">
 				<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
 					{libraryOpen ? '▾' : '▸'} Library <span class="aside">({works.length})</span>
 				</button>
 			</p>
 			{#if libraryOpen}
-				<ul class="plain library">
-					{#each library as r (r.citekey)}
+				{#if works.length > 6}<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />{/if}
+				<ul class="plain library" data-testid="library-list">
+					{#each library.slice(0, WORKS_SHOWN) as r (r.citekey)}
 						<li>
-							<a href={workUrl(r.citekey)}>{bibText(r.bib.title) || r.citekey}</a>
+							<a href={workUrl(r.citekey)}
+								><span class="dot" class:filed={!!r.artifacts?.pdf} role="img" aria-label={r.artifacts?.pdf ? 'filed here' : 'not filed here'}></span>{bibText(r.bib.title) || r.citekey}</a
+							>
 							{#if r.unreadable}<span class="aside">unreadable</span>{/if}
 						</li>
+					{:else}
+						<li class="aside">nothing matches</li>
 					{/each}
-					{#if more}<li><a href={route('/library')}>all {more} works</a></li>{/if}
+					{#if library.length > WORKS_SHOWN}<li class="aside">{library.length - WORKS_SHOWN} more; narrow it</li>{/if}
+					<li><a href={route('/library')} data-testid="ledger-link">ledger</a></li>
 				</ul>
 			{/if}
 		{/if}
@@ -488,6 +516,21 @@
 	   that separates the panel's own groups. */
 	.docs :global(.contents) {
 		margin: var(--gap-hair) 0 var(--gap-tight) 6px;
+	}
+	/* Filled where a copy is filed, hollow where none is. */
+	.library .dot {
+		display: inline-block;
+		flex: none;
+		width: 6px;
+		height: 6px;
+		margin-right: 6px;
+		border-radius: 50%;
+		vertical-align: 1px;
+		box-shadow: inset 0 0 0 1.2px var(--ink-faint);
+	}
+	.library .dot.filed {
+		background: var(--state-accepted);
+		box-shadow: none;
 	}
 	.library .aside,
 	.docs .aside {

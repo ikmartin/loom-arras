@@ -51,7 +51,7 @@ async function serve(args) {
 	const { chromium } = await import('playwright');
 	const base = args.url ?? 'http://127.0.0.1:8791/';
 	const port = Number(args.port ?? 4399);
-	const shots = resolve(ROOT, args.shots ?? '../docs/reports/0.13-reading-layer/shots');
+	const shots = resolve(ROOT, args.shots ?? '../docs/reports/images/0.13-reading-layer/shots');
 	mkdirSync(shots, { recursive: true });
 
 	const browser = await chromium.launch({ headless: !args.headed });

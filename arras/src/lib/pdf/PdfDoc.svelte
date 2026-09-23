@@ -9,7 +9,6 @@
 	// creep down a long paper. Page one's size is the placeholder until a page reports its own.
 	import { onMount } from 'svelte';
 	import { prefs } from '$lib/prefs.svelte';
-	import PdfTools from './PdfTools.svelte';
 	import { PdfView } from './view.svelte';
 	import { document_ } from './document';
 	import PdfPage from './PdfPage.svelte';
@@ -24,7 +23,6 @@
 		focus = '',
 		scale,
 		window: near = 2,
-		toolbar = true,
 		view,
 		onselect,
 		onbox,
@@ -43,8 +41,7 @@
 		scale?: number;
 		/** How many pages either side of the one in view are drawn. */
 		window?: number;
-		toolbar?: boolean;
-		/** The reader's view of this document, when a page draws the controls itself. Left out, the renderer keeps its own and draws its toolbar. */
+		/** The reader's view of this document, which the caller's controls act on. Left out, the renderer keeps its own. */
 		view?: PdfView;
 		onselect?: (e: { page: number; text: string; rects: number[][]; client: Box }) => void;
 		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
@@ -66,8 +63,48 @@
 		return Math.min(3, Math.max(0.5, (columnWidth - PAGE_GUTTER) / w));
 	});
 
+	/** Where the text of the paper runs, in points, from every result and note the sidecar places: the margins either side are paper, not reading. */
+	const textBlock = $derived.by(() => {
+		let x0 = Infinity;
+		let x1 = -Infinity;
+		for (const s of spans)
+			for (const r of s.rects) {
+				x0 = Math.min(x0, r[0]);
+				x1 = Math.max(x1, r[2]);
+			}
+		return x1 > x0 ? { x0, x1 } : null;
+	});
+	/** Room left of the text for the landing dot, which is drawn just outside a result's first line. */
+	const LANDING = 18;
+	// A page wider than its column at the reader's zoom is drawn so its text block fits, with room for the dot: in half a pane the reader's zoom would cut every line. With nothing placed on the paper, the page fits instead.
+	const textFitted = $derived.by(() => {
+		const reader = prefs.zoom.pdf ?? 1.4;
+		const w = sizes[at]?.width ?? sizes[1]?.width ?? 612;
+		if (!v.fitText || !columnWidth || w * reader <= columnWidth - PAGE_GUTTER) return null;
+		const room = textBlock ? (columnWidth - LANDING - 12) / (textBlock.x1 - textBlock.x0) : (columnWidth - PAGE_GUTTER) / w;
+		return Math.min(reader, Math.max(0.5, room));
+	});
+
+	/** Whether the zoom a page is drawn at is settled: while it may still fit the text to a column not yet measured, a page drawn now would be drawn again a frame later. */
+	const ready = $derived(scale !== undefined || !v.fitText || columnWidth > 0);
+
 	// The reader's zoom for this kind of renderer, remembered across papers and across visits, unless a caller fixes it.
-	const drawAt = $derived(scale ?? fitted ?? prefs.zoom.pdf ?? 1.4);
+	const drawAt = $derived(scale ?? fitted ?? textFitted ?? prefs.zoom.pdf ?? 1.4);
+
+	/** With the page wider than the column, start the view at the text's left edge, less the dot's room, rather than at the paper's. */
+	function toText(): void {
+		if (!column || !textBlock || column.scrollWidth <= column.clientWidth) return;
+		const holder = column.querySelector<HTMLElement>('[data-holder]');
+		if (!holder) return;
+		const left = holder.getBoundingClientRect().left - column.getBoundingClientRect().left + column.scrollLeft;
+		column.scrollLeft = Math.max(0, left + textBlock.x0 * drawAt - LANDING);
+	}
+	$effect(() => {
+		void drawAt;
+		void columnWidth;
+		void count;
+		if (!focus) requestAnimationFrame(toText);
+	});
 	// The controls read the scale actually drawn, which is the fitted one while fit-width holds.
 	$effect(() => {
 		v.scale = drawAt;
@@ -158,8 +195,10 @@
 				frame = requestAnimationFrame(reach);
 				return;
 			}
+			// `inline: 'start'` against the mark's scroll margin: a result wider than the column is read from its first word, with the dot in view
 			(mark ?? column?.querySelector(`[data-holder="${at.page}"]`))?.scrollIntoView({
 				block: 'center',
+				inline: 'start',
 				behavior: 'smooth'
 			});
 		};
@@ -191,12 +230,6 @@
 </script>
 
 <div class="doc" data-testid="pdf-doc">
-	{#if toolbar}
-		<div class="toolbar">
-			<PdfTools view={v} />
-			<span class="where" data-testid="pdf-where">{count ? `page ${at} of ${count}` : ''}</span>
-		</div>
-	{/if}
 	<div class="column" bind:this={column} bind:clientWidth={columnWidth} onscroll={scrolled}>
 		{#if problem}
 			<p class="problem" data-testid="pdf-problem">{problem}</p>
@@ -210,7 +243,7 @@
 					scale={drawAt}
 					tool={v.tool}
 					{focus}
-					render={shown.has(n)}
+					render={shown.has(n) && ready}
 					quads={byPage[n] ?? []}
 					{onselect}
 					{onbox}
@@ -233,25 +266,13 @@
 		min-height: 0;
 		height: 100%;
 	}
-	/* The renderer's own toolbar, for a caller that does not draw one. A page with a rail of its own passes `toolbar: false` and puts `PdfTools` on that line instead. */
-	.toolbar {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 3px 6px;
-		border-bottom: 1px solid var(--rule, #ddd9cf);
-	}
-	.where {
-		margin-left: auto;
-		color: var(--muted, #6b6b6b);
-		font-size: 0.78rem;
-	}
 	.column {
 		flex: 1 1 auto;
 		overflow: auto;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
+		/* `safe`: a page wider than the column overflows to the right, where it can be scrolled to, rather than off the left edge */
+		align-items: safe center;
 		gap: 12px;
 		padding: 12px 0;
 		min-height: 0;

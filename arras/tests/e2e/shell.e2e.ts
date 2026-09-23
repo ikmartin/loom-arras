@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { scrollPane } from "../workspace";
 
 /** The contents hang off the open document behind a `show` disclosure (plan 0.13.1). */
 async function openContents(page: import("@playwright/test").Page) {
@@ -112,7 +113,7 @@ test("the contents rail always marks where the reader is, and the mark follows t
   expect(await contents.locator('a[aria-current="true"]').count()).toBe(1); // still exactly one
   expect(await marked()).not.toBe(first); // and it moved
 
-  await page.evaluate(() => window.scrollTo(0, 0));
+  await scrollPane(page, 0, "top"); // the document scrolls in its pane, not the window
   await page.waitForTimeout(150);
   expect(await marked()).toBe(first); // scrolling back returns it
 });
@@ -180,10 +181,11 @@ test("no route reaches an unknown key from review or the problems page", async (
     expect(hrefs.length).toBeGreaterThan(0);
     for (const href of hrefs) {
       await page.goto(href.split("#")[0]);
-      await expect(
-        page.locator("main h1").first(),
-        `${start} links to ${href}`,
-      ).not.toHaveText("Unknown key");
+      const item = page.locator("[data-pane] .page.item").first();
+      await expect(item, `${start} links to ${href}`).toBeVisible();
+      await expect(item, `${start} links to ${href}`).not.toContainText(
+        "The manifest has no node",
+      );
     }
   }
 });
@@ -316,7 +318,7 @@ test("the settings panel puts every row on one line, label included, with nothin
       };
     });
   });
-  expect(rows.length).toBe(8); // type, size, width, theme, format, comments, show ids, panes
+  expect(rows.length).toBe(7); // type, size, width, theme, format, comments, show ids
   for (const r of rows) {
     expect(r.lines, `the ${r.label} row wraps`).toBe(1);
     expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(

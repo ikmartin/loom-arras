@@ -1,1 +1,0 @@
-function e(e){let t=new Set(Object.values(e.nodes).filter(e=>e.external).map(e=>e.id)),n=new Set;for(let r of Object.values(e.keys)){let i=e.nodes[r.node];if(i&&!i.external){for(let i of r.closure)if(t.has(i)){n.add(i);for(let r of e.keys[i]?.closure??[])t.has(r)&&n.add(r)}}}return n}export{e as t};

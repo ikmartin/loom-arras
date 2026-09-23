@@ -23,10 +23,8 @@ export type Comments = 'floating' | 'inline';
 const KEY = 'arras.prefs';
 
 export interface Prefs {
-	/** The split's global ratio: how much of the frame the content pane takes, 0.2 to 0.8. One ratio, not one per route — a reader sets the shape of their screen once. */
+	/** The workspace's ratio: how much of the frame the left pane takes, 0.2 to 0.8, half by default since neither pane is primary. One ratio — a reader sets the shape of their screen once. */
 	divider: number;
-	/** Whether the discussion stands on the left. A settings toggle, expected to be deprecated once one side is known to be right. */
-	swap: boolean;
 	/** Whether the side panel is showing. It collapses independently of the split and goes first, because on a narrow window it is the column the reader needs least (plan 0.13 §7). */
 	panel: boolean;
 	/** How large a rendered page is drawn, per renderer kind (`pdf` today): a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. A second renderer gets its own entry rather than the PDF's number. */
@@ -41,7 +39,7 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.62, swap: false, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
 // The same carries the format rename: a browser holding `paper` or `blog` gets the default back, which is what the
 // reader would have chosen anyway now that the compiled page is on offer.
@@ -66,7 +64,6 @@ export function coerce(raw: unknown): Prefs {
 	}
 	return {
 		divider: Math.min(0.8, Math.max(0.2, ratio)),
-		swap: o.swap === true,
 		panel: o.panel !== false,
 		ids: o.ids === true,
 		zoom,
@@ -106,13 +103,11 @@ export function attributes(p: Prefs): Record<string, string | null> {
 		'data-format': p.format,
 		'data-comments': p.comments,
 		'data-ids': p.ids ? 'yes' : null,
-		'data-swap': p.swap ? 'yes' : null
 	};
 }
 
 class PrefsState {
 	divider = $state<number>(DEFAULTS.divider);
-	swap = $state<boolean>(DEFAULTS.swap);
 	panel = $state<boolean>(DEFAULTS.panel);
 	ids = $state<boolean>(DEFAULTS.ids);
 	zoom = $state<Record<string, number>>({ ...DEFAULTS.zoom });
@@ -124,13 +119,12 @@ class PrefsState {
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { divider: this.divider, swap: this.swap, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { divider: this.divider, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
 		const p = coerce({ ...read(), ...(override ?? {}) });
 		this.divider = p.divider;
-		this.swap = p.swap;
 		this.panel = p.panel;
 		this.ids = p.ids;
 		this.zoom = { ...p.zoom };

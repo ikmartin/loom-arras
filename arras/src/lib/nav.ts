@@ -41,8 +41,9 @@ export function taxonUrl(slug: string): string {
 	return route('/taxon/' + encodeURIComponent(slug));
 }
 
+/** A session or run, read as a session item: its record and its discussion (plan 0.13.3 E1). */
 export function threadUrl(id: string): string {
-	return route('/thread/' + encodeURIComponent(id));
+	return route('/session/' + encodeURIComponent(id));
 }
 
 

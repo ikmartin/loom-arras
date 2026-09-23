@@ -15,6 +15,8 @@ export class PdfView {
 	tool = $state<Tool>('select');
 	/** Whether the page is matched to the column, which then survives a resize. */
 	fitWidth = $state(false);
+	/** Whether a page wider than its column is drawn so its text fits instead: a paper opened into half a pane is read, not scrolled sideways. The reader's own zoom takes over as soon as they give one. */
+	fitText = $state(true);
 	/** The page the reader is on and how many there are; the renderer writes both. */
 	page = $state(1);
 	count = $state(0);
@@ -33,6 +35,7 @@ export class PdfView {
 	/** Set the zoom. An instruction about size leaves the fitted mode rather than fighting it. */
 	zoomTo(v: number): void {
 		this.fitWidth = false;
+		this.fitText = false;
 		prefs.zoom = { ...prefs.zoom, pdf: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(v * 100) / 100)) };
 	}
 }

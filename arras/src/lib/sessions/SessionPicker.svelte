@@ -8,6 +8,7 @@
 	import { grouped, sessionView, summary, titleOf } from './sessions.svelte';
 	import { touched, when } from './when';
 	import { openSession } from './new';
+	import { openDiscussion } from '$lib/workspace/links';
 	import { write } from '$lib/write';
 	import type { SessionRow } from '$lib/manifest/types';
 
@@ -34,7 +35,11 @@
 		naming = false;
 		newName = '';
 		if (!want) return;
-		if (await openSession(want)) onpicked();
+		const id = await openSession(want);
+		if (id) {
+			openDiscussion(id);
+			onpicked();
+		}
 	}
 
 	async function act(id: string, endpoint: string, body: Record<string, unknown> = {}): Promise<boolean> {
@@ -56,6 +61,7 @@
 
 	function choose(s: SessionRow): void {
 		sessionView.select(s.id, m);
+		openDiscussion(s.id);
 		onpicked();
 	}
 
@@ -69,6 +75,7 @@
 		// set directly rather than through `select`: the manifest still says closed, and that would admit every closed session's annotations
 		sessionView.selected = s.id;
 		sessionView.save();
+		openDiscussion(s.id);
 		onpicked();
 	}
 

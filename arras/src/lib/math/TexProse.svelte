@@ -23,9 +23,22 @@
 		[/\\texttt\{([^{}]*)\}/g, '<code>', '</code>']
 	];
 
+	/** A cross-reference as the reader's documents print it: the default document's number, else the result's title, else the key. MathJax would otherwise turn a `\ref` outside math into `???`. */
+	function refText(key: string, eq: boolean): string {
+		const m = store.manifest;
+		const main = m?.masters.find((x) => x.default)?.path ?? '';
+		const n = m?.nodes[key];
+		const num = n?.numbers[main]?.number ?? m?.regions?.[key]?.numbers[main]?.number;
+		const said = num ?? n?.title ?? key;
+		return eq ? `(${said})` : said;
+	}
+
 	// Escaped first, so the only markup in the result is the markup this file put there.
 	const html = $derived.by(() => {
-		let out = text.replace(/[&<>]/g, (c) => ESC[c]);
+		let out = text
+			.replace(/\\(eq)?ref\{([^{}]*)\}/g, (_, eq: string | undefined, key: string) => refText(key.trim(), !!eq))
+			.replace(/~/g, '\u00a0')
+			.replace(/[&<>]/g, (c) => ESC[c]);
 		for (const [re, open, close] of MARKUP) out = out.replace(re, (_, inner: string) => open + inner + close);
 		// MathJax's inline delimiters here are \( \), matching what the publisher emits
 		return out.replace(/\$([^$]*)\$/g, (_, m: string) => '\\(' + m + '\\)');

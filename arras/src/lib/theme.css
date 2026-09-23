@@ -29,6 +29,9 @@
 	--link: #185fa5;
 	--link-wash: #e6f1fb;
 	--mark: #faeeda;
+	/* the chrome's one warm colour: the active view's underline and the active tool's fill */
+	--accent: #d97757;
+	--accent-wash: rgb(217 119 87 / 18%);
 
 	/* states: text and wash, named for the state rather than for a severity role */
 	--state-accepted: #0f6e56;
@@ -55,7 +58,7 @@
 	--rail-left: 252px;
 	--rail-right: 236px;
 	--strip: 44px;
-	--reading-rail: 36px; /* the rail above a reading view; a page sized to the window subtracts it as `--above` */
+	--reading-rail: 34px; /* the global rail above the workspace (plan 0.13.3 F1) */
 	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
 	--rail-a: 267px;
 
@@ -87,6 +90,8 @@
 		--link: #7fb0e8;
 		--link-wash: rgb(127 176 232 / 14%);
 		--mark: rgb(250 238 218 / 18%);
+		--accent: #e08d70;
+		--accent-wash: rgb(224 141 112 / 22%);
 		--state-conflicted: #d98ac4;
 		--state-conflicted-wash: rgb(217 138 196 / 16%);
 		--state-accepted: #5cc4a3;
@@ -113,6 +118,8 @@
 	--link: #7fb0e8;
 	--link-wash: rgb(127 176 232 / 14%);
 	--mark: rgb(250 238 218 / 18%);
+	--accent: #e08d70;
+	--accent-wash: rgb(224 141 112 / 22%);
 	--state-accepted: #5cc4a3;
 	--state-accepted-wash: rgb(92 196 163 / 14%);
 	--state-stale: #d9a44f;
@@ -236,35 +243,21 @@ ul.plain li {
 .tone-conflicted { --tone: var(--state-conflicted); --tone-wash: var(--state-conflicted-wash); border-style: dashed; }
 .tone-loose { --tone: var(--state-loose); --tone-wash: var(--state-loose-wash); }
 
-/* The content region of every page: the shell owns the chrome, the page owns its own <main> (15.3). */
-main.page {
+/* The content region of every page: the shell owns the chrome, the page owns its own <main> (15.3). An item in a pane is laid out as a page is, inside the pane's scroll. */
+main.page,
+.page.item {
 	padding: var(--gap-wide) 28px var(--gap-wide) 24px;
 	min-width: 0;
 }
-/* A page whose whole content is a split hands it the window: the frame runs to the panel on one side, to a small
-   margin on the other, and to the bottom of the screen, because a reading surface that stops short wastes the screen
-   it was asked for. */
-main.page:has(> [data-testid='beside']) {
-	display: flex;
-	flex-direction: column;
-	padding: 0 var(--gap-tight) 0 0;
-	/* A definite height, not a minimum: with `min-height` the cell grew to the paper's full length, the window
-	   scrolled, and the tabs and the toolbar scrolled off the top of it. The page is the window; what scrolls is the
-	   column inside it. */
-	height: calc(100vh - var(--above, 0px));
-	overflow: hidden;
-}
-main.page > [data-testid='beside'] {
-	flex: 1 1 auto;
-	min-height: 0;
-}
-main.page > h1 {
+main.page > h1,
+.page.item > h1 {
 	font-family: var(--sans);
 	font-size: 19px;
 	font-weight: 500;
 	margin: 0 0 var(--gap-hair);
 }
-main.page > h2 {
+main.page > h2,
+.page.item > h2 {
 	font-family: var(--sans);
 	font-size: 12px;
 	font-weight: 500;
@@ -456,35 +449,6 @@ table.list th {
 .comment-slot.inline > .box:first-child {
 	margin-top: 0;
 }
-/* The content pane's header: the two annotation states as buttons with their keys named, and what is being hidden. */
-.content-head {
-	display: flex;
-	align-items: baseline;
-	gap: var(--gap-hair);
-	font-family: var(--sans);
-	font-size: 0.74rem;
-	color: var(--ink-faint);
-	margin-bottom: var(--gap-hair);
-}
-.content-head button {
-	font: inherit;
-	color: inherit;
-	background: none;
-	border: 1px solid var(--rule);
-	border-radius: var(--rad-control);
-	padding: 0 6px;
-	cursor: pointer;
-}
-.content-head button.on {
-	background: var(--annotation-tint, rgb(217 119 87 / 18%));
-}
-.content-head .count {
-	margin-left: auto;
-}
-.content-head .concealed {
-	color: var(--annotation, #c05621);
-}
-
 /* Two annotations on one phrase is ordinary, and stacked translucent highlights muddy immediately — so the number is
    said rather than drawn, and stays legible however many overlap (plan 0.13 §7). */
 mark.annotation[data-count]::after {
@@ -1002,13 +966,19 @@ a.heading-link:focus {
    use one arras was never told about, and 0.10's own `citation` was unstyled for exactly this reason -- so the base
    rule carries the neutral treatment and the four known kinds override it. Found by a corpus built to break things, whose
    annotations include a kind of `catastrophe`. */
-.fragment mark.annotation,
-.fragment .annotation-block {
+.fragment mark.annotation {
 	background: var(--leaf);
 	box-shadow: inset 0 -2px 0 var(--rule-strong);
 }
+.fragment .annotation-block {
+	--underline: var(--rule-strong);
+	background: var(--leaf);
+	text-decoration: underline 2px var(--underline);
+	text-underline-offset: 0.22em;
+	text-decoration-skip-ink: none;
+}
 
-/* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. A whole marked block carries the colour down its edge rather than under every line. */
+/* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. Every mark is an underline in its kind's colour over its kind's wash — a phrase and a whole block alike, a block underlined line by line rather than barred down its edge, since a bar at a paragraph's start reads as punctuation in the text. */
 .fragment mark.annotation.k-objection { background: var(--state-incomplete-wash); box-shadow: inset 0 -2px 0 var(--state-incomplete); }
 .fragment mark.annotation.k-suggestion { background: var(--state-stale-wash); box-shadow: inset 0 -2px 0 var(--state-stale); }
 .fragment mark.annotation.k-question { background: var(--link-wash); box-shadow: inset 0 -2px 0 var(--link); }
@@ -1020,10 +990,15 @@ a.heading-link:focus {
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;
 }
-.fragment .annotation-block.k-objection { box-shadow: inset 3px 0 0 var(--state-incomplete); }
-.fragment .annotation-block.k-suggestion { box-shadow: inset 3px 0 0 var(--state-stale); }
-.fragment .annotation-block.k-question { box-shadow: inset 3px 0 0 var(--link); }
-.fragment .annotation-block.k-ok { box-shadow: inset 3px 0 0 var(--state-accepted); }
+.fragment .annotation-block.k-objection { --underline: var(--state-incomplete); background: var(--state-incomplete-wash); }
+.fragment .annotation-block.k-suggestion { --underline: var(--state-stale); background: var(--state-stale-wash); }
+.fragment .annotation-block.k-question { --underline: var(--link); background: var(--link-wash); }
+.fragment .annotation-block.k-ok { --underline: var(--state-accepted); background: var(--state-accepted-wash); }
+/* a displayed formula is drawn, not set in lines of text, so its underline is a rule under the display */
+.fragment .math.display.annotation-block {
+	text-decoration: none;
+	box-shadow: inset 0 -2px 0 var(--underline);
+}
 .fragment mark.annotation.expanded,
 .fragment .annotation-block.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
 .fragment mark.annotation:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
@@ -1059,3 +1034,13 @@ a.heading-link:focus {
 .fragment button.comment-count.k-question { color: var(--link); background: var(--link-wash); }
 .fragment button.comment-count.k-ok { color: var(--state-accepted); background: var(--state-accepted-wash); }
 .fragment button.comment-count.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
+
+/* The place a note is being written against, while its composer is open (fragments/pending.ts): the selected words, as a selection is drawn, since focusing the composer ends the selection itself; a block chosen by a box, outlined. */
+::highlight(note-pending) {
+	background-color: rgb(24 95 165 / 26%);
+}
+.note-pending {
+	outline: 2px dashed var(--accent);
+	outline-offset: 2px;
+	background: var(--accent-wash);
+}

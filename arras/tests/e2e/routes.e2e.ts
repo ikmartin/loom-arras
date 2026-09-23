@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { beside, pane } from '../workspace';
 import { openPicker } from '../picker';
 import { readFileSync } from 'node:fs';
 
@@ -24,7 +25,9 @@ const routes: [string, string][] = [
 for (const [path, heading] of routes) {
 	test(`route ${path} renders`, async ({ page }) => {
 		await page.goto(path);
-		await expect(page.locator('main h1').first()).toContainText(heading);
+		// a node draws no heading of its own (the tab names it): its title is in its statement
+		if (path.startsWith('/node/')) await expect(page.locator('[data-pane] .fragment').first()).toContainText(heading);
+		else await expect(page.locator('main h1').first()).toContainText(heading);
 	});
 }
 
@@ -55,8 +58,10 @@ test('unknown state labels and codes render generically', async ({ page }) => {
 		m.diagnostics.push({ severity: 'info', code: 'other:code', message: 'from another publisher', locations: [], keys: [] });
 		await route.fulfill({ json: m });
 	});
+	// a state loom never told arras about is still said, in the gutter Show ids opens, in its own word
+	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ ids: true })));
 	await page.goto('/node/sy-0003');
-	await expect(page.locator('.chip', { hasText: 'statement mysterious' })).toBeVisible();
+	await expect(page.locator('.fragment .node-margin', { hasText: 'mysterious' }).first()).toBeVisible();
 	await page.goto('/problems');
 	await expect(page.locator('main h2 code', { hasText: 'other:code' })).toBeVisible();
 });
@@ -210,8 +215,8 @@ test('live reload follows the manifest only', async ({ page }) => {
 	await expect(page.locator('main h1')).toHaveText('Renamed corpus', { timeout: 5000 });
 });
 
-test('marks and boxes on the annotated node; discarded hidden by default', async ({ page }) => {
-	// A mark opens its annotation as a floating box over the text, and the list below the node holds every one of them.
+test('a node draws no annotation list: its marks open their boxes, and the discarded are in its context', async ({ page }) => {
+	// A mark opens its annotation as a floating box over the text; `show all annotations` opens every one. Nothing below the node lists them again (phase 4).
 	await page.goto('/node/sy-0003');
 	// Counted as "every open annotation on this key has a box", not as a literal, so adding one to the fixture does
 	// not fail a test that is about marks and boxes agreeing.
@@ -227,7 +232,7 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 		).length;
 	});
 	expect(open).toBeGreaterThan(1);
-	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(open);
+	await expect(page.getByTestId('annotation-list')).toHaveCount(0);
 	// only the annotations that quote a phrase can be marked in the text
 	await expect(page.locator('.fragment mark.annotation')).toHaveCount(2);
 	await page.locator('.fragment mark.annotation').first().click();
@@ -235,18 +240,24 @@ test('marks and boxes on the annotated node; discarded hidden by default', async
 	await expect(opened).toHaveCount(1);
 	await expect(opened.locator('> header .kind')).toHaveText('objection');
 	await expect(opened.locator('.reply')).toHaveCount(1);
+	// the rail opens every one at once, each at its mark or beside its result's label
+	await page.getByTestId('toggle-annotations').click();
+	await expect(page.locator('[data-testid="comment-expanded"] article.box')).toHaveCount(open);
 	// sy-000A's one annotation is discarded AND belongs to a closed session, so two filters hide it and the reader
 	// must lift both. Closing a session hides its annotations (plan 0.13 §5), which is what closing one is for.
-	await page.goto('/node/sy-000A');
-	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0);
+	await page.goto('/node/sy-000A' + beside('/context/sy-000A'));
+	const context = pane(page, 1);
+	await expect(context.getByTestId('context')).toBeVisible();
+	await expect(context.getByTestId('show-discarded')).toHaveCount(0);
 	// the closed section unfolds, and the setting inside it is what admits their annotations (plan 0.13.1)
 	await openPicker(page);
 	await page.getByTestId('show-closed').click();
 	await page.getByTestId('closed-yes').click();
 	await page.keyboard.press('Escape');
-	await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(0); // still discarded
-	await page.getByLabel('show discarded').check();
-	await expect(page.getByTestId('annotation-list').locator('article.box.discarded')).toHaveCount(1);
+	// a quiet line in the context says how many were discarded, and shows them there
+	await expect(context.getByTestId('show-discarded')).toHaveText('1 discarded — show');
+	await context.getByTestId('show-discarded').click();
+	await expect(context.getByTestId('discarded-list').locator('article.box.discarded')).toHaveCount(1);
 });
 
 test('review causes open rendered text beside its current context', async ({ page }) => {
@@ -303,16 +314,19 @@ test('review statement badges agree with proved and settled counts', async ({ pa
 	await expect(page.locator('#review-sy-0002 .badge .chip')).toHaveText(['accepted', 'proved']);
 });
 
-test('missing proof on a block leads to its review row', async ({ page }) => {
+test('a missing proof is said where the proof would be, and its diagnostic is in the context', async ({ page }) => {
 	await page.route('**/build/manifest.json', async (route) => {
 		const m = structuredClone(manifest);
 		m.diagnostics.push({ severity: 'warning', code: 'loom:missing-proof', message: 'No proof attached', locations: [], keys: ['sy-0003'] });
 		await route.fulfill({ json: m });
 	});
-	await page.goto('/node/sy-0003');
-	await page.getByTestId('missing-proof').getByRole('link').click();
-	await expect(page).toHaveURL(/\/review\?show=all#review-sy-0003$/);
-	await expect(page.locator('#review-sy-0003')).toContainText('missing proof');
+	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+	const said = pane(page, 0).getByTestId('missing-proof');
+	await expect(said).toHaveText('No proof is attached.');
+	// after the statement, not above it: the statement leads (N1)
+	const statement = (await pane(page, 0).locator('.fragment .env[data-id="sy-0003"]').boundingBox())!;
+	expect((await said.boundingBox())!.y).toBeGreaterThan(statement.y);
+	await expect(pane(page, 1).getByTestId('context')).toContainText('No proof attached');
 });
 
 test("a work's page lists results with their citers, and the Library counts them", async ({ page }) => {
@@ -321,91 +335,84 @@ test("a work's page lists results with their citers, and the Library counts them
 	const item = page.locator('li:has(> a:first-child[href="/node/Kre99-thm-2.1"])');
 	await expect(item).toContainText('sy-000A'); // \cite[Theorem 2.1]{Kre99} resolved to this result by its locator
 	await page.goto('/library');
-	// one row per work, carrying what the two indexes carried between them: who cites it, and what has been read of it
-	const row = page.locator('tr', { hasText: 'Kre99' });
-	await expect(row).toContainText('sy-000A');
-	await expect(row.locator('td.num').first()).toHaveText('2');
+	// the ledger counts what was read off it and how much of that the corpus leans on; who cites it is the work's own Digest view
+	await expect(page.getByTestId('digest-Kre99')).toHaveText('2');
+	await expect(page.getByTestId('used-Kre99')).not.toHaveText('—');
 	await page.goto('/problems');
 	await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
 });
 
-test('a run is read as the document beside the report', async ({ page }) => {
+test("a session's run is read as what it did, the report beside the document", async ({ page }) => {
 	await page.goto('/threads');
 	await expect(page.getByText('referee sy-0003').first()).toBeVisible();
+	// a run's old address is its session's, and it opens on the discussion (plan 0.13.3 E1)
 	await page.goto('/thread/s-2026-09-16-0001');
-	await expect(page.getByTestId('split-view')).toBeVisible();
-	// the document on the left, the report on the right, and the report is rendered rather than named
-	await expect(page.locator('.pane.content .fragment').first()).toBeVisible();
-	await expect(page.getByTestId('report-step')).toHaveCount(1);
-	await expect(page.locator('.pane.discussion').getByText('Major Issues')).toBeVisible();
-	// a finding about the whole document comes first, in a section of its own
-	await expect(page.getByTestId('document-findings')).toBeVisible();
-	// the journal is thread.md under its real name, and it is a tab of the CONTENT pane: the report is the discussion
-	// and never folds behind a control (plan 0.13 §7)
-	await page.getByTestId('tab-journal').click();
-	await expect(page.locator('.pane.content').getByTestId('journal').getByText('hostile review of the parity theorem')).toBeVisible();
-	await expect(page.getByTestId('report-step')).toBeVisible();
-	await expect(page.locator('.pane.discussion [role="tablist"]')).toHaveCount(0);
-	await page.getByTestId('tab-document').click();
-	await expect(page.locator('pre', { hasText: 'loom comment sy-0003' })).toHaveCount(1); // the log, collapsed by default
+	await expect(page.getByTestId('discussion')).toBeVisible();
+	// the journal is in the transcript, in time, and no date is a raw timestamp
+	await expect(page.getByTestId('discussion').getByText('hostile review of the parity theorem')).toBeVisible();
+	expect(await page.getByTestId('discussion').innerText()).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+	// what it did: a sentence from the record, what is still open, and the report rendered rather than named
+	await page.getByTestId('tab-did').click();
+	const did = page.getByTestId('session-did');
+	await expect(did.getByTestId('session-said')).toContainText('findings');
+	await expect(did.getByTestId('report-step')).toHaveCount(1);
+	await expect(did.getByText('Major Issues')).toBeVisible();
+	await expect(did.getByTestId('session-open')).toBeVisible();
+	// the run log is the command line's, not a reader's question
+	await expect(did.locator('pre', { hasText: 'loom comment' })).toHaveCount(0);
+	expect(await did.innerText()).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
 });
 
 test('the panes point at each other', async ({ page }) => {
-	// The gate of plan 0.11 Parts B and C: a finding scrolls the document to the sentence it is about, and a mark in
-	// the document scrolls the report to the finding that made it. Without both, this is two pages sharing a route.
-	//
-	// Asserting that scrollTop merely changed is not enough -- a target already at the top of its pane moves nothing --
-	// so each half asserts the thing the reader cares about: after the click, the target is inside its pane's box.
+	// A finding in what the session did opens the document it is about, at its mark, in the other pane; and the mark's
+	// double-click travels back to the finding. The run page did this inside a private split; the workspace does it
+	// across its two panes. Each half asserts the target ends up inside its pane's box, not merely that something scrolled.
 	const inPane = (el: Element) => {
-		const pane = el.closest('.pane') as HTMLElement;
+		const pane = el.closest('[data-pane] > .body') as HTMLElement;
 		const a = el.getBoundingClientRect();
 		const b = pane.getBoundingClientRect();
 		return a.top >= b.top - 2 && a.bottom <= b.bottom + 2;
 	};
+	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001?view=did'));
+	await expect(page.getByTestId('session-open')).toBeVisible();
+	await page.waitForSelector('[data-pane="0"] .fragment [data-annotation]');
+	// the first finding with a mark in the text: one about the document as a whole has none
+	const id = await page.evaluate(() => {
+		for (const li of document.querySelectorAll('[data-testid="session-open"] li')) {
+			const id = li.id.replace(/^ann-/, '');
+			if (document.querySelector(`[data-pane="0"] [data-annotation~="${id}"]`)) return id;
+		}
+		return '';
+	});
+	expect(id).not.toBe('');
+	const row = page.locator(`[id="ann-${id}"]`);
+	const mark = page.locator(`[data-pane="0"] [data-annotation~="${id}"]`).first();
 
-	await page.goto('/thread/s-2026-09-16-0001');
-	const finding = page.locator('.pane.discussion [data-annotation-id]').first();
-	await expect(finding).toBeVisible();
-	const id = await finding.getAttribute('data-annotation-id');
-	const mark = page.locator(`.pane.content [data-annotation~="${id}"]`).first();
-	await expect(mark).toBeVisible();
-
-	// a finding scrolls the document to its mark
-	await page.locator('.pane.content').evaluate((el) => (el.scrollTop = el.scrollHeight));
-	await page.waitForTimeout(200);
-	await finding.click();
-	// polled, not slept: smooth scrolling takes as long as the machine's load makes it take, and a fixed 900 ms passed
-	// alone and failed under the parallel suite
+	await page.locator('[data-pane="0"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await row.locator('button.finding').click();
 	await expect.poll(() => mark.evaluate(inPane), { timeout: 5000 }).toBe(true);
 
-	// and a mark scrolls the report to its finding
-	await page.locator('.pane.discussion').evaluate((el) => (el.scrollTop = el.scrollHeight));
-	await page.waitForTimeout(200);
-	await mark.click();
-	await expect.poll(() => finding.evaluate(inPane), { timeout: 5000 }).toBe(true);
+	await page.locator('[data-pane="1"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await mark.dblclick();
+	await expect.poll(() => row.evaluate(inPane), { timeout: 5000 }).toBe(true);
 });
 
-test('a session that wrote no report keeps the list shape', async ({ page }) => {
-	// One route, two renderings: a report is the thing that wants a document beside it, so a session that wrote none is
-	// still a list. The condition was `kind !== 'comments'` until sessions replaced runs and loom began writing
-	// `kind: "session"` for every thread (DR-207) — at which point this session rendered as an empty two-pane review.
-	await page.goto('/thread/s-2026-09-15-0001');
-	await expect(page.locator('main h1')).toBeVisible();
-	await expect(page.getByTestId('split-view')).toHaveCount(0);
-
-	// the one that did write a report is the other rendering, from the same route
-	await page.goto('/thread/s-2026-09-16-0001');
-	await expect(page.getByTestId('split-view')).toBeVisible();
+test('what a session did claims only what is recorded', async ({ page }) => {
+	// A session that wrote no report has no report section and says so by saying nothing (P3); the one that did has one.
+	await page.goto('/session/s-2026-09-15-0001?view=did');
+	await expect(page.getByTestId('session-did')).toBeVisible();
+	await expect(page.getByTestId('report-step')).toHaveCount(0);
+	await page.goto('/session/s-2026-09-16-0001?view=did');
+	await expect(page.getByTestId('report-step')).toHaveCount(1);
 });
-
 
 test('see also lists both directions and says where each node is reached', async ({ page }) => {
-	await page.goto('/node/sy-0009');
+	await page.goto('/node/sy-0009' + beside('/context/sy-0009'));
 	const list = page.getByTestId('relations-see');
-	await expect(list.getByRole('link', { name: /Gadget/ })).toBeVisible();
+	await expect(list.locator('a[href$="/node/sy-0008"]')).toBeVisible();
 	await expect(list).toContainText('drafting/main.tex'); // the related node is reached by the paper
 
-	await page.goto('/node/sy-0008'); // the relation is declared on the other node and shows here too
+	await page.goto('/node/sy-0008' + beside('/context/sy-0008')); // the relation is declared on the other node and shows here too
 	await expect(page.getByTestId('relations-see').getByRole('link', { name: /Loose/ })).toBeVisible();
 	await expect(page.getByTestId('relations-see')).toContainText('no document'); // where a node is reached, or that nothing reaches it
 });
@@ -417,7 +424,7 @@ test('an unknown relation kind renders as a labelled list of links', async ({ pa
 		m.relations = [{ from: 'sy-0003', to: 'sy-0001', kind: 'contradicts', src: { file: 'x', line: 1 } }];
 		await route.fulfill({ response: res, json: m });
 	});
-	await page.goto('/node/sy-0003');
+	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
 	const list = page.getByTestId('relations-contradicts');
 	await expect(list).toBeVisible();
 	await expect(list.getByRole('link').first()).toHaveAttribute('href', '/node/sy-0001');
@@ -441,6 +448,7 @@ test('a node can be read as it was written', async ({ page }) => {
 
 test("a suggestion shows the text it proposes, and says where it would go", async ({ page }) => {
 	await page.goto('/node/sy-0004');
+	await page.getByTestId('toggle-annotations').click();
 	const payload = page.getByTestId('payload').first();
 	await expect(payload).toBeVisible();
 	await expect(payload).toHaveAttribute('data-placement', 'replace');
@@ -450,7 +458,8 @@ test("a suggestion shows the text it proposes, and says where it would go", asyn
 
 test('a run lists the notation it introduced, and flags a symbol used twice', async ({ page }) => {
 	// Plan 0.11 Part F. Notation belongs to an agent's prose, never to the quilt's own text, so the panel is on the run.
-	await page.goto('/thread/s-2026-09-16-0001');
+	await page.goto('/session/s-2026-09-16-0001?view=did');
+	// beneath the report, where it is consulted
 	const panel = page.getByTestId('notation');
 	await expect(panel).toBeVisible();
 	await expect(panel).toContainText('with two meanings');
@@ -461,9 +470,9 @@ test('a run lists the notation it introduced, and flags a symbol used twice', as
 
 test('a node page answers both closure questions without leaving it', async ({ page }) => {
 	// Plan 0.11 Part D: the graph says what this would disturb, the stack says what it rests on. Neither is a route.
-	await page.goto('/node/sy-0003');
-	// the graph could always be read and never entered
-	const graphLink = page.locator('[data-testid="local-graph"] a, .rail a[href*="/node/"]').first();
+	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+	// the graph could always be read and never entered; it stands in the node's context, beside it
+	const graphLink = page.getByTestId('context').locator('[data-testid="local-graph"] a').first();
 	await expect(graphLink).toBeVisible();
 
 	const opener = page.getByTestId('closure-open');
@@ -481,9 +490,11 @@ test('a node page answers both closure questions without leaving it', async ({ p
 test('the viewer shows no editing affordance when the publisher serves none', async ({ page }) => {
 	// Plan 0.11 Part H and specs/write-api.md §1: detected, never assumed. The e2e fixture is served by a static
 	// preview with no write API, so every affordance must be absent -- which is also what a deployed static site gets.
-	await page.goto('/node/sy-0003');
-	await expect(page.locator('main h1')).toBeVisible();
-	await expect(page.getByTestId('composer')).toHaveCount(0);
+	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+	await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
+	await expect(pane(page, 1).getByTestId('reference-notes')).toBeVisible();
+	// no tools to write with, in the rail or on the page, and no verbs on what is written
+	await expect(page.getByTestId('tool-select')).toHaveCount(0);
 	await expect(page.getByTestId('refnote-accept')).toHaveCount(0);
 });
 
@@ -491,25 +502,24 @@ test('a document carries annotations of its own, and they are read beside it', a
 	// loom has written these since 0.6 -- `loom comment` has always taken a master path. They used to open a block above
 	// the document, which put a remark about the whole paper on its title and sized a report like a sentence; the
 	// discussion pane is where a document's own annotations are read, because that is the surface built for length.
-	await page.goto('/master/main');
+	// The discussion is scoped by session (plan 0.13.3 E4), so they are read in the session's discussion beside it.
+	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
 	await expect(page.getByTestId('document-annotations')).toHaveCount(0);
-
-	await page.getByTestId('beside-toggle').click();
-	const pane = page.getByTestId('beside');
-	// the pane lists every annotation the document reaches, the document's own among them, so it is found by its text
+	const pane = page.getByTestId('discussion');
+	// the discussion lists everything written in the session, the document's own among them, so it is found by its text
 	// rather than by being first; the list is compact items, not the boxes the retired block drew
 	await expect(pane).toContainText('which conventions it inherits');
 	await expect(pane.locator('li', { hasText: 'which conventions it inherits' })).toHaveCount(1);
 });
 
-test('a node shows the citations suggested for it and those already accepted', async ({ page }) => {
-	await page.goto('/node/sy-0003');
-	const notes = page.getByTestId('reference-notes');
+test("a node's context shows the citations suggested for it and those already accepted", async ({ page }) => {
+	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+	const notes = pane(page, 1).getByTestId('reference-notes');
 	await expect(notes).toBeVisible();
 	await expect(notes).toContainText('Accepted, not yet in the bibliography');
 	await expect(notes).toContainText('identifier unconfirmed'); // a breadcrumb, never a second source of identity truth
-	await page.goto('/node/sy-0002');
-	await expect(page.getByTestId('reference-notes')).toContainText('Suggested citations');
+	await page.goto('/node/sy-0002' + beside('/context/sy-0002'));
+	await expect(pane(page, 1).getByTestId('reference-notes')).toContainText('Suggested citations');
 });
 
 test('the setting is one switch, applied everywhere', async ({ page }) => {
@@ -557,27 +567,19 @@ test('two floating boxes are open at once, its × closes one, and a click away c
 	await expect(page.locator('.comment-slot.floating.behind')).toHaveCount(0);
 });
 
-test('travel goes to the annotation and back, and says so when there is nowhere to go', async ({ page }) => {
-	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'margin' })));
+test('travel goes from a mark to its finding, and says so when there is nowhere to go', async ({ page }) => {
+	// alone, a node lists no annotations, so a mark has nowhere to travel to, and a notice says so rather than inventing a place
 	await page.goto('/node/sy-0003');
 	const mark = page.locator('.fragment mark.annotation').first();
 	const id = await mark.evaluate((m) => (m as HTMLElement).dataset.annotation!.split(/\s+/)[0]);
-
-	// a brief scroll then a flash, so the eye is told where it landed rather than searching the pane it was sent to
 	await mark.dblclick();
-	await expect(page.locator(`#ann-${id}`)).toHaveClass(/travelled/);
-
-	// and back the other way, from the card to its place in the text
-	await page.locator(`#ann-${id}`).dblclick();
-	await expect(page.locator('.fragment mark.annotation.travelled')).toHaveCount(1);
-
-	// where there is nothing to travel to, nothing moves and a notice says so. a-2026-09-16-0004 is on this node and
-	// quotes nothing, so it has no mark in the text and no approximate destination is invented for it.
-	const orphan = page.locator('article.box[data-annotation-id="a-2026-09-16-0004"]');
-	await expect(orphan).toHaveCount(1);
-	await orphan.dblclick();
 	await expect(page.getByTestId('travel-nowhere')).toBeVisible();
 	await expect(page.getByTestId('travel-nowhere')).toHaveCount(0, { timeout: 3000 });
+
+	// beside the session that wrote it, a brief scroll then a flash on the finding, so the eye is told where it landed
+	await page.goto('/node/sy-0003' + beside('/session/s-2026-09-16-0001?view=did'));
+	await pane(page, 0).locator('.fragment mark.annotation').first().dblclick();
+	await expect(pane(page, 1).locator(`#ann-${id}`)).toHaveClass(/travelled/);
 });
 
 test('e opens every annotation at its mark, and h closes them', async ({ page }) => {
@@ -603,8 +605,7 @@ test('e opens every annotation at its mark, and h closes them', async ({ page })
 test('a citation opens the cited paper at the result, not the digest node', async ({ page }) => {
 	// `[1, Theorem 2.1]` names a theorem in a paper, so where a copy is filed the link goes to the paper at that result.
 	// The digest node's page renders loom's record of it -- the LaTeX, the provenance, what depends on it -- which is a
-	// thing to go and look at and not what the citation names. It asks for no discussion pane: a work opened at a page
-	// opens split for a link written in a discussion, which this is not.
+	// thing to go and look at and not what the citation names.
 	await page.route('**/build/manifest.json', async (route) => {
 		const res = await route.fetch();
 		const m = await res.json();
@@ -615,7 +616,7 @@ test('a citation opens the cited paper at the result, not the digest node', asyn
 	await page.waitForSelector('.fragment mjx-container');
 	await expect(page.locator('span.cite[data-target="Kre99-thm-2.1"] a').first()).toHaveAttribute(
 		'href',
-		/\/library\/Kre99\?page=4&result=Kre99-thm-2\.1&beside=0$/
+		/\/library\/Kre99\?page=4&result=Kre99-thm-2\.1$/
 	);
 
 	// with no copy filed there is no page to open, so the record is the best there is and the link goes to the node
@@ -629,7 +630,8 @@ test('a proposed text opens as source, and renders on asking', async ({ page }) 
 	// What is proposed is text to be written into a document, so the source is what a reader judges and the source is
 	// what opens. The rendering is what it will look like afterwards, which is the second question. The control names
 	// what a click gives rather than what is on screen.
-	await page.goto('/node/sy-0003');
+	await page.goto('/node/sy-0004');
+	await page.getByTestId('toggle-annotations').click();
 	// the suggestion that proposes prose, not the citation suggestion beside it, which proposes a bibliography line
 	const payload = page.locator('article.box[data-annotation-id="a-2026-09-16-0002"] [data-testid="payload"]');
 	await expect(payload).toBeVisible();

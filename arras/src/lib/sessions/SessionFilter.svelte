@@ -27,39 +27,44 @@
 </span>
 
 <style>
+	/* The mockup's pill: one rounded outline round two segments, the chosen one washed in the link's colour, the other in the leaf's. */
 	.filter {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
 		white-space: nowrap;
 	}
 	.lbl {
 		color: var(--ink-faint);
 	}
-	/* One segmented control: the two values of a single setting share a border (15.7). */
 	.choice {
 		display: inline-flex;
 		border: 1px solid var(--rule);
-		border-radius: var(--rad-pill);
+		border-radius: 10px;
 		overflow: hidden;
 	}
 	.choice button {
 		font: inherit;
+		line-height: 1.5;
 		color: var(--ink-soft);
 		background: var(--leaf);
 		border: 0;
-		padding: 1px 8px;
+		padding: 1px 10px;
 		cursor: pointer;
 	}
 	.choice button + button {
 		border-left: 1px solid var(--rule);
+	}
+	.choice button:hover:not(:disabled):not(.on) {
+		color: var(--ink);
+		background: var(--sheet);
 	}
 	.choice button.on {
 		background: var(--link-wash);
 		color: var(--link);
 	}
 	.choice button:disabled {
-		opacity: 0.45;
+		color: var(--ink-faint);
 		cursor: not-allowed;
 	}
 </style>

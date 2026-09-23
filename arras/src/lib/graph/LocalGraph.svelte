@@ -242,7 +242,7 @@
 				{/each}
 			</g>
 		</svg>
-		{#if nodes.length === 1}<p class="alone">nothing depends on this, and it depends on nothing</p>{/if}
+		<!-- a node with no neighbours is drawn alone and nothing is said about it: nobody asks whether a thing depends on nothing (C2) -->
 	{:else}
 		<p class="alone">nothing to draw</p>
 	{/if}

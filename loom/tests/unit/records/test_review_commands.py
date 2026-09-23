@@ -1020,3 +1020,17 @@ def test_a_status_change_is_reversed_by_appending_its_undo(tmp_path: Path) -> No
     assert [e.get("undo") for e in events(d)] == [None, None, True, None, True]
 
     assert run("comment", "--undo", *AUTHOR, cwd=d).exit_code != 0  # --undo needs a verb to undo
+
+
+def test_a_comment_on_an_equation_marks_its_display(tmp_path: Path) -> None:
+    """A comment on a region key with no quote -- a box drawn round an equation -- marks the display itself, so the reader can click it; nothing is put inside the formula."""
+    d = synthetic(tmp_path)
+    sid, _ = session(d)
+    r = run("comment", "sy-0001#eq:fix", "The fixed locus wants a name.", "--session", sid, cwd=d, env=AGENT)
+    assert r.exit_code == 0, r.output
+    ann = [e["id"] for e in events(d) if e["event"] == "created"][-1]
+    run("build", cwd=d)
+    frag = (d / "build" / "fragments" / "nodes" / "sy-0001.html").read_text()
+    display = next(ln for ln in frag.split("<div") if 'data-label="eq:fix"' in ln)
+    assert "annotation-block" in display and ann in display
+    assert "<mark" not in display

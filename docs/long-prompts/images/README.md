@@ -2,7 +2,7 @@
 
 Every `mockup-*.png` here is a **drawing of a design that had not been built yet**, made during the conversation that produced `../split-view-reading-view-overhaul.md` and plan `../../plans/0.13-plan-reading-layer.md` on 2026-09-20. None of them is a screenshot of loom or arras. They are static HTML rendered headlessly from the design canvases, so a control in one of them does nothing and a number in one of them is invented.
 
-**What the interface actually looks like once it is built belongs in the report's own directory**, `../../reports/0.13-reading-layer/`, the way 0.12 keeps its figures. Nothing in here is ever overwritten with a photograph of the real thing: a mockup and a record of what shipped answer different questions, and a file that quietly becomes the other one is how a document starts lying.
+**What the interface actually looks like once it is built belongs in the report's own directory**, `../../reports/images/0.13-reading-layer/`, the way 0.12 keeps its figures. Nothing in here is ever overwritten with a photograph of the real thing: a mockup and a record of what shipped answer different questions, and a file that quietly becomes the other one is how a document starts lying.
 
 | File | What it shows | Decided in |
 |---|---|---|

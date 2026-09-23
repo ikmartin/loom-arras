@@ -12,7 +12,7 @@
 	// It is deliberately NOT keyed on the manifest store: arras polls every second and swaps the manifest whenever its
 	// hash changes, so a pane that re-derived from it would re-render a page a second — the failure `Fragment.svelte`
 	// has been patched for twice.
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { asPercent, document_, pdfjs } from './document';
 
 	type Rect = readonly number[];
@@ -76,13 +76,44 @@
 		performance.measure(`pdf:${name}`, { start: from, end: to });
 	}
 
+	// **One draw at a time on a canvas.** A page drawn again — at a new zoom, say — cancels the render still running on its canvas and waits for it to let go before touching it; pdf.js refuses a second render on a busy canvas, and that refusal was shown at the top of the page. A draw that a later one superseded stops at its next step and shows nothing.
+	type Cancellable = { cancel(): void; promise: Promise<unknown> };
+	let running: Cancellable | null = null;
+	let layerRunning: { cancel(): void } | null = null;
+	let drawSeq = 0;
+
+	async function settle(): Promise<void> {
+		layerRunning?.cancel();
+		layerRunning = null;
+		const task = running;
+		running = null;
+		if (task) {
+			task.cancel();
+			await task.promise.catch(() => {});
+		}
+	}
+
+	onDestroy(() => {
+		drawSeq++;
+		void settle();
+	});
+
+	/** pdf.js's own word for a render that was called off: not a problem with the page. */
+	const cancelled = (exc: unknown) => exc instanceof Error && (exc.name === 'RenderingCancelledException' || /cancel/i.test(exc.message));
+
 	async function draw(): Promise<void> {
 		if (!canvas || !textLayer) return;
+		const seq = ++drawSeq;
+		const stale = () => seq !== drawSeq;
 		try {
+			await settle();
+			if (stale()) return;
+			problem = '';
 			const t0 = performance.now();
 			const lib = await pdfjs();
 			const doc = await document_(url);
 			const p = await doc.getPage(page);
+			if (stale()) return;
 			const viewport = p.getViewport({ scale });
 			box = { width: viewport.width / scale, height: viewport.height / scale };
 			size = { width: viewport.width, height: viewport.height };
@@ -95,11 +126,20 @@
 			if (!ctx) return;
 			ctx.scale(ratio, ratio);
 			const t1 = performance.now();
-			await p.render({ canvasContext: ctx, viewport, canvas }).promise;
+			const task = p.render({ canvasContext: ctx, viewport, canvas }) as unknown as Cancellable;
+			running = task;
+			await task.promise;
+			if (running === task) running = null;
+			if (stale()) return;
 			const t2 = performance.now();
+			const content = await p.getTextContent();
+			if (stale() || !textLayer) return;
 			textLayer.replaceChildren();
-			const layer = new lib.TextLayer({ textContentSource: await p.getTextContent(), container: textLayer, viewport });
+			const layer = new lib.TextLayer({ textContentSource: content, container: textLayer, viewport });
+			layerRunning = layer;
 			await layer.render();
+			if (layerRunning === layer) layerRunning = null;
+			if (stale()) return;
 			const t3 = performance.now();
 			// The paper's links, drawn by us rather than by PDF.js's annotation layer, which wants a link service with a
 			// contract of its own; a `Link` annotation is a rectangle and a destination, and that is all a reader needs.
@@ -126,6 +166,7 @@
 					}
 				}
 			}
+			if (stale()) return;
 			links = found;
 			timed('open', t0, t1);
 			timed('render', t1, t2);
@@ -134,6 +175,7 @@
 			empty = textLayer.textContent?.trim() === '';
 			drawn = true;
 		} catch (exc) {
+			if (stale() || cancelled(exc)) return;
 			problem = exc instanceof Error ? exc.message : String(exc);
 		}
 	}
@@ -385,6 +427,8 @@
 		background: var(--annotation-tint, rgb(217 119 87 / 0.22));
 		cursor: pointer;
 		pointer-events: auto;
+		/* scrolled to, a mark stops short of the column's edge by the landing dot's room */
+		scroll-margin-left: 18px;
 	}
 	/* with the box tool, what is under the pointer is the page and nothing on it: a reader drawing over a mark or a
 	   link is drawing, not clicking, and a mark that took the press would end the box before it began */

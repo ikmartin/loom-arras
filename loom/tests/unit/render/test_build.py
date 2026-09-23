@@ -354,3 +354,32 @@ def test_a_report_fragment_is_never_a_dotfile(tmp_path: Path) -> None:
     # and it is still one file per report, keyed by the source path the thread names
     assert fragments[f"report:{rel}"] == written
     assert quote(rel, safe="").lstrip(".") in written
+
+
+def test_a_document_shows_its_own_numbers_and_none_it_was_not_given(tmp_path: Path) -> None:
+    """Each master's fragment is numbered from that master's own compile. A document never compiled shows no numbers, and a reference to a result it cannot number names the result's title."""
+    from loom.render.fragments import FragmentRenderer, RenderPlan
+    from loom.scan.scan import scan
+    from loom.tex.aux import AuxNumber
+
+    q = synthetic(tmp_path)
+    main_numbers = {"sy-0002": AuxNumber("2.1", 1), "sy-0001": AuxNumber("1.1", 1)}
+
+    def render(talk: dict[str, AuxNumber]) -> tuple[str, str]:
+        renderer = FragmentRenderer(
+            RenderPlan(
+                result=scan(load_quilt(q)),
+                numbers={"drafting/main.tex": main_numbers, "drafting/talk.tex": talk},
+                svg_cache=tmp_path / "c",
+                svg_out=tmp_path / "s",
+            )
+        )
+        return renderer.master_fragment("drafting/main.tex"), renderer.master_fragment("drafting/talk.tex")
+
+    main_html, talk_html = render({})
+    assert '<span class="number">2.1</span>' in main_html
+    assert 'class="number"' not in talk_html
+    assert 'data-target="sy-0001" href="#sy-0001">Widget</a>' in talk_html
+
+    _, talk_html = render({"sy-0002": AuxNumber("3", 2)})
+    assert '<span class="number">3</span>' in talk_html and "2.1" not in talk_html

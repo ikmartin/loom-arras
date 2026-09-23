@@ -198,7 +198,7 @@ arras/                      AGPL-3.0-or-later; NOTICE
   README.md, CONTRIBUTING.md, LICENSE, NOTICE
   src/
     app.html, app.d.ts
-    lib/                    manifest/ (types, loader, client), fragments/ (fetch, mount, Fragment.svelte), math/ (mathjax), graph/ (layout), components/ (Badge, AnnotationBox, AnnotationPanel, Diagnostics, Palette), badges.ts, diagnostics.ts, nav.ts, ui.svelte.ts, theme.css; the vitest specs (*.spec.ts) sit beside the modules they test
+    lib/                    manifest/ (types, loader, client), fragments/ (fetch, mount, Fragment.svelte), math/ (mathjax), graph/ (layout), components/ (Badge, AnnotationBox, Diagnostics, Palette), badges.ts, diagnostics.ts, nav.ts, ui.svelte.ts, theme.css; the vitest specs (*.spec.ts) sit beside the modules they test
     routes/                 +layout, home, node/[...key], master/[stem], digest/[citekey], review, problems, blockers, graph, threads, thread/[id], tags, tag/[tag], taxa, taxon/[slug], references, loose
   static/robots.txt
   scripts/                  stage-fixture.mjs (copies tests/fixture into static/build for dev and e2e), build-prerender.mjs, copy-bundle.mjs (into python/)

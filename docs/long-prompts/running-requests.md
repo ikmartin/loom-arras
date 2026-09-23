@@ -5,8 +5,6 @@ This contains a running list of open instructions for modifying/fixing the proje
 When pointed at this document an AI should do its best to resolve ALL open questions EXCEPT those marked with an [x] or a [FOR HUMAN] tag. Upon completing it, mark the item with [x] and include a brief indented summary of the fix/change applied below the item.
 
 ## Open
-- [FOR HUMAN] improvements to the side panel, 
-- annotations anchored to latex mangle mathjax rendoring. Please fix.
 - [x] loom is a little slow and could be optimized. Look for 5 potential optimizations and perform the 3 which are easiest to implement.
 - [x] the viewer could generally be sped up and optimized. Many things feel a little slow. Clicking buttons in the settings is laggy. Test out 6 potential optimizations, implement the top 3.
 - [x] [FOR HUMAN] this is a question to investigate rather than a change to implement: how are taxons implemented today? Is there a fixed list or is it computed from a source? It SHOULD be computed from a source -- anything defined in a newtheorem enironment for instance.

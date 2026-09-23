@@ -23,6 +23,9 @@ async function opened(page: Page): Promise<void> {
 	await page.locator('[data-testid="pdf-page-2"] canvas').waitFor();
 	await expect.poll(() => page.locator('[data-testid="pdf-page-2"] .text span').count()).toBeGreaterThan(50);
 	await intoASession(page);
+	// choosing a session opens its discussion beside, which narrows the paper's pane and draws its pages again at the zoom that fits; a selection made while the text layer is being replaced would be lost with it
+	await page.waitForTimeout(1500);
+	await expect.poll(() => page.locator('[data-testid="pdf-page-2"] .text span').count()).toBeGreaterThan(50);
 }
 
 /**
@@ -92,7 +95,9 @@ test('a note is written from a selection, and the page shows loom’s own words 
 	await expect(form).toBeVisible();
 	// the preview: what loom found on the page, in its own words, before the note is typed
 	await expect(page.getByTestId('note-where')).toContainText('anchored by text');
-	await expect(page.getByTestId('note-quote')).toContainText('incidence matrix');
+	// the composer is a comment box and nothing else: the words stay lit on the page instead of being quoted in it
+	await expect(page.getByTestId('note-quote')).toHaveCount(0);
+	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('incidence matrix');
 	await page.getByTestId('note-body').fill('So the vertices are integral.');
 	await page.getByTestId('note-kind').selectOption('note');
 	await page.getByTestId('note-submit').click();
@@ -164,7 +169,8 @@ test('a mark opens the box a fragment opens, Escape closes it, and the discussio
 	await expect(open.locator('article.box').first()).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(open).toHaveCount(0);
-	// beside it: the note, with the page it is on
+	// beside it, in the discussion of the session it was written in: the note, with the page it is on
+	await page.getByTestId('open-discussion').click();
 	await expect(page.getByTestId(`beside-${id}`)).toBeVisible();
 	await expect(page.getByTestId(`beside-page-${id}`)).toContainText('p.2');
 	// and travel both ways: the row to the mark, the mark to the row
@@ -351,4 +357,104 @@ test('the page and the zoom are typed into, and take exactly what was typed', as
 	await page.keyboard.type('1');
 	await page.keyboard.press('Enter');
 	await expect(at).toHaveValue('1');
+});
+
+test('the preview lands on its mark', async ({ page }) => {
+	// Owed since plan 0.13.3: a card opened at a result shows that result, not the top of its page. The renderer waits for the mark to exist before scrolling to it, since the card mounts a page that has not drawn yet.
+	await page.goto('/master/main-atomic');
+	await page.waitForSelector('[data-pane="0"] .fragment mjx-container');
+	await page.locator('[data-pane="0"] span.cite[data-citekey="Arden24"] a').first().hover();
+	const card = page.getByTestId('link-preview');
+	const mark = card.getByTestId('mark-_stmt').first();
+	await expect(mark).toBeVisible({ timeout: 10000 });
+	await expect
+		.poll(() =>
+			card.evaluate((c) => {
+				const m = c.querySelector('[data-testid="mark-_stmt"]')!.getBoundingClientRect();
+				const box = c.querySelector('[data-testid="preview-page"]')!.getBoundingClientRect();
+				return m.top >= box.top - 2 && m.top <= box.bottom;
+			}),
+			{ timeout: 5000 }
+		)
+		.toBe(true);
+});
+
+test('a scroll inside the preview does not dismiss it', async ({ page }) => {
+	// Owed since plan 0.13.3: the dismissal listens to every scroll, capturing, so it hears the card's own column scrolling itself to the page it was asked for — which once closed the card in the frame it opened. A scroll outside the card still dismisses it.
+	await page.goto('/master/main-atomic');
+	await page.waitForSelector('[data-pane="0"] .fragment mjx-container');
+	await page.locator('[data-pane="0"] span.cite[data-citekey="Arden24"] a').first().hover();
+	const card = page.getByTestId('link-preview');
+	await expect(card.getByTestId('mark-_stmt').first()).toBeVisible({ timeout: 10000 });
+	// the renderer has scrolled its own column by now; the card stands
+	await page.waitForTimeout(800);
+	await expect(card).toBeVisible();
+	// and a wheel inside the card scrolls the card, not away from it
+	await card.hover();
+	await page.mouse.wheel(0, 120);
+	await page.waitForTimeout(300);
+	await expect(card).toBeVisible();
+});
+
+test('a mark round a formula leaves the formula typeset', async ({ page }) => {
+	// the quote `underlying graph has $c$ connected components` is TeX; its mark takes the formula whole, so MathJax still reads it (phase 4)
+	await page.goto('/node/sh-0009');
+	const mark = page.locator('[data-pane="0"] .fragment mark.annotation', { hasText: 'underlying graph' }).first();
+	await expect(mark.locator('mjx-container')).toHaveCount(1);
+	await expect(page.locator('[data-pane="0"] .fragment')).not.toContainText('\\(');
+});
+
+test('a document never compiled shows none of another document’s numbers', async ({ page }) => {
+	// the talk has no compile of its own: the default document's `Theorem 3.1` would be plausible and wrong there (P3)
+	await page.goto('/master/talk');
+	await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
+	await expect(page.locator('[data-pane="0"] .fragment .env-label .number')).toHaveCount(0);
+	await expect(page.getByTestId('cluster')).not.toContainText('not yet numbered');
+});
+
+test('a paper opened into half a pane fits its text, and its landing dot is in the pane', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/master/main-atomic');
+	await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
+	await page.locator('[data-pane="0"] a', { hasText: 'Proposition 2.1' }).first().click();
+	const lead = page.locator('[data-pane="1"] .mark.on.lead').first();
+	await lead.waitFor();
+	const paneBox = (await page.getByTestId('pane-1').boundingBox())!;
+	// the whole line is inside the pane, with room left of it for the dot, once the smooth scroll to it has settled
+	await expect
+		.poll(async () => {
+			const box = (await lead.boundingBox())!;
+			return box.x >= paneBox.x + 8 && box.x + box.width <= paneBox.x + paneBox.width;
+		}, { timeout: 8000 })
+		.toBe(true);
+	// and the reader's own zoom returns the moment they give one
+	await page.getByTestId('zoom-at').fill('140');
+	await page.getByTestId('zoom-at').press('Enter');
+	await expect(page.getByTestId('zoom-at')).toHaveValue('140%');
+});
+
+test('a paper drawn again at a new zoom never shows a render refused', async ({ page, context }) => {
+	// a page redrawn while its first draw was running told the reader "Cannot use the same canvas during multiple render() operations" (phase 5). The race needs a slow machine to show, so the CPU is slowed and the zoom changed while pages are drawing.
+	test.setTimeout(90000);
+	const cdp = await context.newCDPSession(page);
+	await cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 });
+	for (const at of ['/library/Arden24', '/master/main-atomic']) {
+		await page.goto(at);
+		if (at.startsWith('/master')) {
+			await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor({ timeout: 30000 });
+			await page.locator('[data-pane="0"] a', { hasText: 'Proposition 2.1' }).first().click();
+		}
+		await page.getByTestId('zoom-in').waitFor({ timeout: 30000 });
+		await page.evaluate(async () => {
+			const b = document.querySelector<HTMLButtonElement>('[data-testid="zoom-in"]');
+			for (let k = 0; k < 3; k++) {
+				b?.click();
+				await new Promise((r) => setTimeout(r, 40));
+			}
+		});
+		await page.waitForTimeout(6000);
+		await expect(page.getByText('Cannot use the same canvas')).toHaveCount(0);
+		await expect(page.locator('[data-testid="pdf-page-1"] canvas').first()).toBeVisible();
+	}
+	await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 });

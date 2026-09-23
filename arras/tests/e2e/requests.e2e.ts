@@ -1,5 +1,6 @@
 // Plan 0.6: the running requests, each as the behaviour a reader asked for.
 import { expect, test, type Page } from '@playwright/test';
+import { beside, pane, scrollPane } from '../workspace';
 import { openPicker, pickSession } from '../picker';
 import { readFileSync } from 'node:fs';
 
@@ -154,9 +155,9 @@ test.describe('the Box drawing', () => {
 });
 
 test.describe('the local graph', () => {
-	test('a node page opens its rail with the neighbourhood, centred on the node', async ({ page }) => {
-		await page.goto('/node/sy-0003');
-		const graph = page.locator('aside').getByTestId('local-graph');
+	test("a node's context opens with the neighbourhood, centred on the node", async ({ page }) => {
+		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+		const graph = page.getByTestId('context').getByTestId('local-graph');
 		await expect.poll(() => graph.locator('circle').count()).toBeGreaterThan(1);
 		await expect(graph.locator('circle.centre')).toHaveCount(1);
 		await expect(graph.locator('a[data-preview-key="sy-0003"] circle.centre')).toHaveCount(1);
@@ -172,7 +173,7 @@ test.describe('the local graph', () => {
 		const centre = () => panel.locator('a:has(circle.centre)').getAttribute('data-preview-key');
 		await expect.poll(centre).toBeTruthy();
 		const first = await centre();
-		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+		await scrollPane(page, 0, 'bottom');
 		await expect.poll(centre).not.toBe(first);
 
 		await page.getByTestId('local-graph-expand').click();
@@ -189,8 +190,8 @@ test.describe('the local graph', () => {
 
 test.describe('the local graph header', () => {
 	test('reads Local Graph, then depth, then Dot or Box, then expand; Box draws the neighbourhood in layers', async ({ page }) => {
-		await page.goto('/node/sy-0003');
-		const panel = page.locator('aside').getByTestId('local-graph-panel');
+		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+		const panel = page.getByTestId('context').getByTestId('local-graph-panel');
 		const bar = panel.locator('.bar');
 		await expect(bar.locator('.title')).toHaveText('Local Graph');
 		await expect(bar.locator('button')).toHaveText(['1', '2', 'Dot', 'Box', '']);
@@ -354,8 +355,8 @@ test.describe('there is one shell', () => {
 
 test.describe('hover previews', () => {
 	test('resting on a link to a node shows its statement, and Escape dismisses it', async ({ page }) => {
-		await page.goto('/node/sy-0003');
-		const link = page.locator('aside a[href^="/node/sy-"]').filter({ hasNotText: 'document' }).first();
+		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+		const link = page.getByTestId('context').getByRole('link', { name: /^Definition/ }).first();
 		await link.hover();
 		const card = page.getByTestId('link-preview');
 		await expect(card).toBeVisible();
@@ -365,8 +366,8 @@ test.describe('hover previews', () => {
 	});
 
 	test('a quick pass over a link shows nothing', async ({ page }) => {
-		await page.goto('/node/sy-0003');
-		const link = page.locator('aside a[href^="/node/sy-"]').first();
+		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+		const link = page.getByTestId('context').locator('a[href^="/node/sy-"]').first();
 		await link.hover();
 		await page.mouse.move(900, 600);
 		await page.waitForTimeout(500);
@@ -404,7 +405,8 @@ test.describe('hover previews', () => {
 		await page.waitForSelector('.fragment mjx-container');
 		await page.locator('.fragment span.cite[data-postnote="Theorem 2.1, p.~4"] a').first().hover();
 		await expect(page.getByTestId('preview-page')).toBeVisible();
-		await expect(page.getByTestId('link-preview').locator('p')).toHaveCount(0);
+		// the card is the paper, not text about it; its one line is the `open here` every card carries (plan 0.13.3 H6)
+		await expect(page.getByTestId('link-preview').locator('p:not(.opens):not(.problem)')).toHaveCount(0); // the renderer's own load notice is not text about the work
 	});
 });
 
@@ -464,13 +466,17 @@ test.describe('the four verbs on an annotation', () => {
 
 	test('no write API means no editing affordance at all', async ({ page }) => {
 		await page.goto('/node/sy-0003');
+		await page.locator('.fragment mark.annotation').first().click();
 		await expect(page.locator('article.box').first()).toBeVisible();
 		await expect(page.locator('[data-testid="verb-row"]')).toHaveCount(0);
 	});
 
 	test('a panel opens above the row, so the body it is about never moves', async ({ page }) => {
 		await withWriteApi(page);
+		// placed inline, the box opens in the flow under its paragraph, which is where a panel pushing down would move the body; a floating box holds its panel in its own flow instead
+		await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ comments: 'inline' })));
 		await page.goto('/node/sy-0003');
+		await page.locator('.fragment mark.annotation').first().click();
 		const row = page.locator('[data-testid="verb-row"]').first();
 		await expect(row).toBeVisible();
 
@@ -568,40 +574,36 @@ test.describe('the session selector', () => {
 			await route.fulfill({ json: m });
 		});
 
-	test('one selection governs the page, and the view filters annotations rather than the list', async ({ page }) => {
+	test('one selection governs the page, and the view filters what the page draws', async ({ page }) => {
 		await withSessions(page);
 		await page.goto('/node/sy-0002');
 		// nothing is selected at rest and the page shows everything (plan 0.13.1)
 		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
 		await expect(page.getByTestId('show-current')).toBeDisabled();
 
-		// sy-0002 is now annotated from both sessions. Waited for rather than counted straight away: a bare `count()`
-		// races the first render and reports zero.
-		await expect(page.getByTestId('annotation-list').locator('article.box').first()).toBeVisible();
-		const all = await page.getByTestId('annotation-list').locator('article.box').count();
-		expect(all).toBeGreaterThan(1);
+		// sy-0002 is now annotated from both sessions: its comment with no mark, from the referee, is counted beside its label
+		const counted = pane(page, 0).locator('.fragment button.comment-count');
+		await expect(counted).toHaveCount(1);
 
 		// selecting a session does not narrow the page by itself: the selection is the write target, the view is the filter
 		await pickSession(page, 's-2026-09-15-0001');
-		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
+		await expect(counted).toHaveCount(1);
 		// and the picker still lists every session, because it is how a reader navigates
 		await openPicker(page);
 		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
 		await page.keyboard.press('Escape');
 
-		// narrowing is the toggle's job, and it is available now that something is selected
+		// narrowing is the toggle's job, and it is available now that something is selected: the referee's comment goes
 		await page.getByTestId('show-current').click();
-		const mine = await page.getByTestId('annotation-list').locator('article.box').count();
-		expect(mine).toBeGreaterThan(0);
-		expect(mine).toBeLessThan(all);
+		await expect(counted).toHaveCount(0);
 
 		// and back to everything
 		await page.getByTestId('show-all').click();
-		await expect(page.getByTestId('annotation-list').locator('article.box')).toHaveCount(all);
+		await expect(counted).toHaveCount(1);
 	});
 });
 
-test.describe('the split as a mode of a route', () => {
+test.describe('a session opened beside what is read', () => {
 	// Presence and the round count are what a heartbeat and a resumed session produce at runtime; a checked-in fixture
 	// has neither, so they are added to the fixture's own active session rather than to an invented one.
 	const withSessions = async (page: Page) =>
@@ -615,43 +617,49 @@ test.describe('the split as a mode of a route', () => {
 			await route.fulfill({ json: m });
 		});
 
-	test('a node page opens a discussion beside it, and the URL is what remembers', async ({ page }) => {
+	test('choosing a session opens its discussion beside the node, focus stays, and the URL is what remembers', async ({ page }) => {
 		await withSessions(page);
 		await page.goto('/node/sy-0003');
-		// closed by default: a reader who never wants one carries a single control and no frame
-		await expect(page.getByTestId('beside')).toBeHidden();
-		await page.getByTestId('beside-toggle').click();
-		await expect(page.getByTestId('beside')).toBeVisible();
-		await expect(page).toHaveURL(/beside=1/);
-		// the divider is the same one the reading pane uses; where a reply lands is the panel footer's to say, and it
-		// says nowhere until the reader picks a session (plan 0.13.1)
-		await expect(page.getByTestId('divider')).toBeVisible();
-		await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected');
+		// one pane at rest: a reader who never wants a second carries no frame for it
+		await expect(pane(page, 1)).toHaveCount(0);
+		// with nothing selected the rail's control keeps its name and is disabled, the reason its title; the footer carries the state (G8)
+		await expect(page.getByTestId('open-discussion')).toBeDisabled();
+		await expect(page.getByTestId('open-discussion')).toHaveText('open session discussion');
+		await expect(page.getByTestId('open-discussion')).toHaveAttribute('title', /No session selected/);
+		// choosing where to write opens where the writing is read, beside, and the reader stays in the node
 		await pickSession(page, 's-2026-09-16-0001');
-		await expect(page.getByTestId('session-footer-name')).toContainText('referee');
-		// what is beside it is what is on this result
-		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
-		await page.getByTestId('beside-toggle').click();
-		await expect(page.getByTestId('beside')).toBeHidden();
+		await expect(pane(page, 1).getByTestId('discussion')).toBeVisible();
+		await expect(pane(page, 0)).toHaveClass(/focused/);
+		await expect(page.getByTestId('open-context')).toBeVisible();
+		// closed, the rail opens it again
+		await pane(page, 1).getByTestId('tab-close').click();
+		await expect(pane(page, 1)).toHaveCount(0);
+		await page.getByTestId('open-discussion').click();
+		await expect(pane(page, 1).getByTestId('discussion')).toBeVisible();
+		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toBe('/session/s-2026-09-16-0001');
+		await expect(page.getByTestId('divider')).toBeVisible();
+		// the discussion is the session's: what was written in it, wherever it was written (E4)
+		await expect(pane(page, 1).getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
+		// and the arrangement is a link: a reload reproduces it
+		await page.reload();
+		await expect(pane(page, 1).getByTestId('discussion')).toBeVisible();
+		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 	});
 
-	test('the document does too, and it is the same frame', async ({ page }) => {
+	test('the document holds it the same way, and it is the same frame', async ({ page }) => {
 		await withSessions(page);
-		await page.goto('/master/main?beside=1');
-		await expect(page.getByTestId('beside')).toBeVisible();
-		await expect(page.getByTestId('pane-content').locator('.fragment').first()).toBeVisible();
-		// an annotation on a key inside the document, not only on the document itself
-		await expect(page.getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
+		await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
+		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
+		await expect(pane(page, 1).getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
 	});
-
 });
 
 test.describe('the divider and the panel', () => {
-	test('the divider drags, snaps at the middle, resets on double-click, nudges by key, and collapses', async ({ page }) => {
-		await page.goto('/node/sy-0003?beside=1');
+	test('the divider is one line that drags, snaps at the middle, resets on double-click and nudges by key', async ({ page }) => {
+		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
 		const divider = page.getByTestId('divider');
 		await expect(divider).toBeVisible();
-		const split = page.getByTestId('split');
+		const split = page.getByTestId('workspace');
 		const frame = (await split.boundingBox())!;
 		const at = async () => Number(await divider.getAttribute('aria-valuenow'));
 		// dragged to a third of the frame, the ratio follows the pointer
@@ -677,17 +685,16 @@ test.describe('the divider and the panel', () => {
 		await page.keyboard.press('ArrowLeft');
 		await divider.dblclick();
 		expect(await at()).toBe(50);
-		// the chevrons collapse either pane and the ratio is remembered
-		await page.getByTestId('fold-discussion').click();
-		await expect(page.getByTestId('pane-discussion')).toBeHidden();
-		await page.getByTestId('fold-discussion').click();
-		await expect(page.getByTestId('pane-discussion')).toBeVisible();
-		expect(await at()).toBe(50);
-		// and below the breakpoint the split is a switch
+		// one line and nothing on it: no chevrons, no grip
+		await expect(divider.locator('button')).toHaveCount(0);
+		// and below the breakpoint one pane shows, under one strip holding both panes' tabs
 		await page.setViewportSize({ width: 640, height: 800 });
-		await expect(page.getByTestId('switch-discussion')).toBeVisible();
-		await page.getByTestId('switch-discussion').click();
-		await expect(page.getByTestId('pane-discussion')).toBeVisible();
+		const strip = page.getByTestId('narrow-strip');
+		await expect(strip).toBeVisible();
+		await expect(strip.getByTestId('item-tab')).toHaveCount(2);
+		await strip.getByTestId('pane-head-1').getByRole('tab').click();
+		await expect(pane(page, 1)).toBeVisible();
+		await expect(pane(page, 0)).toHaveCount(0);
 	});
 
 	test('the panel has a Nodes section, folded, narrowed by what is typed', async ({ page }) => {

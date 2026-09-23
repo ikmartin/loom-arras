@@ -1,5 +1,6 @@
 // The side panel (plan 0.13.3 phase 1): the write target pinned in a footer, the session list in a picker it opens, and the annotation filter in the rail above the content. Each test is named for the rule in the plan's Tests section it holds.
 import { expect, test, type Page } from '@playwright/test';
+import { beside, pane } from '../workspace';
 import { readFileSync } from 'node:fs';
 import { openPicker, pickSession } from '../picker';
 
@@ -16,6 +17,18 @@ async function serve(page: Page, edit: (m: typeof manifest) => void): Promise<vo
 	});
 }
 
+/** Select an element's words as a reader would, and let go. */
+async function selectWithin(at: import('@playwright/test').Locator): Promise<void> {
+	await at.evaluate((node) => {
+		const range = document.createRange();
+		range.selectNodeContents(node);
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
+		node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+	});
+}
+
 /** Advertise a write API with `caps`; `vite preview` serves none, and the controls appear only where one is. */
 async function writes(page: Page, caps: string[]): Promise<void> {
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: caps, token: 't' } }));
@@ -26,18 +39,23 @@ test('the write target is stated once', async ({ page }) => {
 	await serve(page, (m) => {
 		m.sessions.find((s: { id: string }) => s.id === REFEREE).title = 'the refereeing sitting';
 	});
-	await page.goto('/master/main?beside=1');
-	await expect(page.getByTestId('beside')).toBeVisible();
+	// a document and a node beside it: two items, two panes, and still one place that says where writes go
+	await page.goto('/master/main' + beside('/node/sy-0003'));
+	await expect(pane(page, 1)).toBeVisible();
 	await pickSession(page, REFEREE);
 	await expect(page.getByTestId('session-footer-name')).toHaveText('the refereeing sitting');
+	// choosing it opened its discussion, whose tab names the item that is open, a different question from where writes go
 	const naming = await page.evaluate(
-		() => [...document.querySelectorAll('body *')].filter((el) => [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent?.includes('the refereeing sitting'))).length
+		() =>
+			[...document.querySelectorAll('body *')].filter(
+				(el) => !el.closest('[data-testid="item-tab"]') && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent?.includes('the refereeing sitting'))
+			).length
 	);
 	expect(naming).toBe(1);
 });
 
 test('annotations are filtered from one control', async ({ page }) => {
-	for (const at of ['/master/main?beside=1', '/node/sy-0002?beside=1', '/library/Kre99']) {
+	for (const at of ['/master/main' + beside('/node/sy-0003'), '/node/sy-0002' + beside('/context/sy-0002'), '/library/Kre99']) {
 		await page.goto(at);
 		await expect(page.getByTestId('reading-rail')).toBeVisible();
 		await expect(page.getByTestId('show-current')).toHaveCount(1);
@@ -53,7 +71,13 @@ test('annotations are filtered from one control', async ({ page }) => {
 test('a refusal names its condition', async ({ page }) => {
 	await writes(page, ['comment']);
 	await page.goto('/node/sy-0002');
-	const open = page.getByTestId('composer-open');
+	// a selection on the node offers to annotate it, as on a paper's page
+	const words = pane(page, 0).locator('.fragment .env[data-id="sy-0002"] p[data-src]').first();
+	await expect(words).toBeVisible();
+	await selectWithin(words);
+	await page.getByTestId('annotate-offer').click();
+	await page.getByTestId('note-body').fill('Say which orbit.');
+	const open = page.getByTestId('note-submit');
 	await expect(open).toBeDisabled();
 	// the sentence `writable()` returns, beside the control it refuses, for as long as the refusal holds
 	await expect(page.getByTestId('no-session-tip')).toHaveText('No session selected: either select a session or start a new session.');
@@ -85,7 +109,7 @@ test('the contents hang open under a document on screen, and nowhere else', asyn
 	await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
 	await expect(page.getByTestId('contents-toggle')).toHaveAttribute('aria-expanded', 'true');
 	await page.goto('/node/sy-0002');
-	await expect(page.locator('main h1')).toBeVisible();
+	await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 	await expect(page.getByRole('navigation', { name: 'Contents' })).toHaveCount(0);
 	await expect(page.getByTestId('contents-toggle')).toHaveCount(0);
 });

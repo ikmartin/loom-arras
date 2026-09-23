@@ -93,6 +93,8 @@ class FragmentRenderer:
             for env in fe.all_envs():
                 self.env_at[(path, env.start)] = env
         self.master_titles = {m: master_title(self.result, m) for m in self.result.masters}
+        # a reference with no number prints its target's title; a title carrying TeX would print as source, so those keep the key
+        self.titles = {k: n.title for k, n in self.asm.nodes.items() if n.title and not re.search(r"[\\$]", n.title)}
         # Per thread: `loom build` renders on a pool, and a stack or a diagnostic list shared between renders made one
         # thread's expansion of sections/results.tex look like a cycle to another thread rendering a different node.
         self._local = threading.local()
@@ -126,7 +128,18 @@ class FragmentRenderer:
 
     # ---- contexts -----------------------------------------------------------
 
+    @property
+    def _master(self) -> str | None:
+        """The master this thread is rendering a document fragment for, or None while it renders a node's page."""
+        return getattr(self._local, "master", None)
+
     def _numbers_for(self, node: NodeRec) -> dict[str, AuxNumber]:
+        """The numbers a node shows: the document's own inside a document fragment, else the default master's.
+
+        A document shows the numbers its own compile gave, and none when it has not been compiled; another document's numbers there would be plausible and wrong.
+        """
+        if (m := self._master) is not None:
+            return self.plan.numbers.get(m, {})
         dm = self.result.default_master
         if dm and dm in self.plan.numbers and (dm in node.reached_by or node.kind == "master"):
             return self.plan.numbers[dm]
@@ -137,6 +150,8 @@ class FragmentRenderer:
 
     def _cite_labels_for(self, node: NodeRec) -> dict[str, str]:
         """The printed citation labels of the master whose numbers the node shows (see _numbers_for)."""
+        if (m := self._master) is not None:
+            return self.plan.cite_labels.get(m, {})
         dm = self.result.default_master
         if dm and dm in self.plan.cite_labels and (dm in node.reached_by or node.kind == "master"):
             return self.plan.cite_labels[dm]
@@ -250,6 +265,7 @@ class FragmentRenderer:
             regions={k: r.container for k, r in self.asm.regions.items()},
             numbers=self._numbers_for(node),
             cite_labels=self._cite_labels_for(node),
+            titles=self.titles,
             macros=self._macros_for(node),
             taxa=self.result.taxa,
             child_at=child_at,
@@ -430,7 +446,11 @@ class FragmentRenderer:
         node = self.asm.nodes[master]
         title = self.master_titles.get(master) or master
         head = f'<h1 data-src="{master}:0:0">{esc(title)}</h1>'
-        return _stamp_first(head + self.render_container_body(node, "master"), "master")
+        self._local.master = master
+        try:
+            return _stamp_first(head + self.render_container_body(node, "master"), "master")
+        finally:
+            self._local.master = None
 
     def digest_fragment(self, file: str) -> str:
         """The digest file as a document, starting after its macro block: the block is loaded around every statement, never shown as text."""

@@ -314,7 +314,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "3a57c90979a2789e7bbacea677d9fe512962917ef69854469ef3a88e3e46eb09",
+   "hash": "6c8234a6d707dc5f8953a3c24b1dd190e325cc0bc7e94ff5639dfdd4900d8538",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -326,7 +326,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "9604e5e10d0df1805e8c58f05728028a86ef3812c0cc70dddae66f5843b8588c",
+   "hash": "cfeff29f01b68bcc2abea451ae8028671ba36602528ab401635caad16f8939e1",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -338,7 +338,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "0254afb77b01f738846fdfb5a6de05976e1efc121f4ebe489214be261b28aaad",
+   "hash": "bde0690e59155ca7a9266d744700bcad762412cb44f619c6bc3fca110ab9dedb",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -5209,7 +5209,7 @@
       "id": "referee",
       "kind": "agent"
      },
-     "body_html": "<p><strong>2026-09-16 00:00 referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
+     "body_html": "<p><strong>referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
      "time": "2026-09-16T00:00:00Z"
     }
    ],

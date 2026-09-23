@@ -1,10 +1,7 @@
 <script lang="ts">
-	// The composer at the place (plan 0.13 §1, item 2): what opens when a reader selects on a page or draws a box.
+	// The composer at the place (plan 0.13 §1, item 2): what opens when a reader selects on a page or draws a box — on a cited work's page, or on a node's or a document's text, where the place is a key of the corpus and the quote is the selection's TeX.
 	//
-	// **The reader sees what loom will record before typing.** The selection came from the viewer's own text layer,
-	// which is a third extraction of the page; loom maps it against the committed text and the word boxes, and the
-	// words it found are shown here as the quote. A box shows the words under it, which is the hint the record keeps.
-	// Nothing is written until *note it*; Escape and *cancel* leave nothing behind.
+	// **The place stays lit and the composer is only a comment.** The words selected, or the box drawn, stay marked on the page while the composer is open (`fragments/pending.ts`), so the composer does not repeat them; its heading names where the note will go, in loom's words for a page. Nothing is written until *note it*; Escape and *cancel* leave nothing behind. On the corpus's own text the quote is checked by loom against the source when it is written; a quote loom cannot find is refused in loom's words, with the offer to note the whole thing instead, so nothing is filed as anchored that is not.
 	//
 	// It stands where the selection is, inset from the window like a floating box, because a form that opened in the
 	// pane beside would ask the eye to leave the sentence it is about.
@@ -16,16 +13,23 @@
 	import { GRADED, KINDS, SEVERITIES } from '$lib/review/kinds';
 
 	let {
-		citekey,
-		page,
+		citekey = '',
+		page = 0,
+		target = '',
+		name = '',
 		text = '',
 		rects = undefined,
 		at,
 		onwritten,
 		onclose
 	}: {
-		citekey: string;
-		page: number;
+		/** A cited work's page: the work and the page the place is on. */
+		citekey?: string;
+		page?: number;
+		/** Or a key of the corpus — a node, a proof, an equation, a document — for a place on its own text. */
+		target?: string;
+		/** How the reader names the key, for the form's heading. */
+		name?: string;
 		/** What was selected; empty for a drawn box. */
 		text?: string;
 		/** What was drawn, in points with the origin at the top left; undefined for a selection. */
@@ -38,15 +42,16 @@
 
 	const INSET = 4;
 
-	let quote = $state('');
 	let where = $state('');
 	let message = $state('');
 	// the initial value only, on purpose: a box is usually a note and a selection usually a question, and the reader picks
 	// svelte-ignore state_referenced_locally
-	let kind = $state<string>(rects ? 'note' : 'question');
+	let kind = $state<string>(rects || (target && !text) ? 'note' : 'question');
 	let severity = $state('');
 	let busy = $state(false);
 	let said = $state('');
+	/** A quote loom could not find: the offer is to note the whole place instead. */
+	let unanchored = $state(false);
 	// A note is a write, so it needs an open session selected like any other (plan 0.13.1).
 	const why = $derived(writable(store.manifest));
 	let form = $state<HTMLFormElement | null>(null);
@@ -58,17 +63,20 @@
 	}
 
 	onMount(() => {
+		body?.focus();
+		if (target) {
+			// the corpus's own text: the quote is the selection, and loom checks it against the source when it is written
+			where = name || target;
+			return;
+		}
 		// the preview: what loom found on the page for this place, in loom's own words
 		void write('locate', rects ? { citekey, page, rects } : { citekey, page, text }).then((res: WriteResult & Located) => {
 			if (res.ok) {
-				quote = res.text ?? text;
 				where = res.result ?? '';
 			} else {
-				quote = text;
 				where = res.error?.message ?? '';
 			}
 		});
-		body?.focus();
 	});
 
 	/** Beside the place, and never off the window: below it when there is room, above it otherwise. */
@@ -84,15 +92,14 @@
 		return `left: ${left}px; top: ${top}px; width: ${w}px;`;
 	});
 
-	async function submit(e: SubmitEvent): Promise<void> {
+	async function submit(e: SubmitEvent, whole = false): Promise<void> {
 		e.preventDefault();
 		if (why || !message.trim() || busy) return;
 		busy = true;
 		said = '';
+		const place = target ? { target, ...(text && !whole ? { quote: text } : {}) } : { target: citekey, page, ...(rects ? { rects } : { quote: text }) };
 		const res: WriteResult = await write('comment', {
-			target: citekey,
-			page,
-			...(rects ? { rects } : { quote: text }),
+			...place,
 			message: message.trim(),
 			kind,
 			severity: (GRADED.includes(kind) && severity) || undefined
@@ -100,6 +107,7 @@
 		busy = false;
 		if (!res.ok) {
 			said = res.error?.message ?? 'the publisher refused it';
+			unanchored = !!target && !!text && !whole;
 			return;
 		}
 		const id = (res.result ?? '').split(/\s+/)[0] ?? '';
@@ -118,10 +126,9 @@
 
 <form class="note-at" {style} bind:this={form} onsubmit={submit} data-testid="note-at" aria-label="Write a note on this place">
 	<p class="place">
-		<span class="where" data-testid="note-where">{where || `${citekey} p.${page}`}</span>
+		<span class="where" data-testid="note-where">{where || (target ? target : `${citekey} p.${page}`)}</span>
 		<button type="button" class="close" title="Cancel" aria-label="Cancel" onclick={() => onclose?.()}>×</button>
 	</p>
-	{#if quote}<blockquote class="quote" data-testid="note-quote">{quote}</blockquote>{/if}
 	<textarea bind:this={body} bind:value={message} rows="3" required placeholder="what you want to say" data-testid="note-body"></textarea>
 	<div class="row">
 		<select bind:value={kind} aria-label="kind" data-testid="note-kind">
@@ -135,7 +142,12 @@
 		<button type="submit" disabled={!!why || busy || !message.trim()} data-testid="note-submit">{busy ? 'writing…' : 'note it'}</button>
 		<button type="button" onclick={() => onclose?.()}>cancel</button>
 	</div>
-	{#if said}<p class="said" role="status" data-testid="note-said">{said}</p>{/if}
+	{#if said}
+		<p class="said" role="status" data-testid="note-said">
+			{said}
+			{#if unanchored}<button type="button" class="as-link" data-testid="note-whole" onclick={(e) => submit(e as unknown as SubmitEvent, true)}>note on the whole {name || target}</button>{/if}
+		</p>
+	{/if}
 	<NoSession />
 </form>
 
@@ -172,15 +184,6 @@
 		color: var(--ink-faint);
 		cursor: pointer;
 		padding: 0 2px;
-	}
-	.quote {
-		margin: 0;
-		padding: 2px 8px;
-		border-left: 3px solid var(--annotation, #c05621);
-		color: var(--ink-soft);
-		font-family: var(--body-face, serif);
-		max-height: 5.5em;
-		overflow: auto;
 	}
 	textarea,
 	select {

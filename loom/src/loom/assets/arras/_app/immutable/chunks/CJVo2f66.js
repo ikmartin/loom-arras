@@ -1,1 +1,0 @@
-import{H as e,it as t,rt as n}from"./CEUmY5cH.js";var r=new class{#e=t(null);get lead(){return e(this.#e)}set lead(e){n(this.#e,e,!0)}#t=t(null);get acts(){return e(this.#t)}set acts(e){n(this.#t,e,!0)}};export{r as t};

@@ -52,3 +52,14 @@ def test_selector_resolution_unique_by_context_and_detached() -> None:
     assert resolve_selector(text, Selector("vanished text")) is None
     assert resolve_selector("a  b\nc", Selector("a b c")) == (0, 6)
     assert find_quote("x  y", "x y") == [(0, 4)]
+
+
+def test_a_quote_selected_on_the_page_finds_its_source() -> None:
+    """A reader's selection brings math as `$tex$` and emphasis as plain words; the source says `\\(c\\)` and `\\emph{widget}`. The span found is still the source's, so the recorded quote is the source slice."""
+    own = r"Let $\quiv$ be a quiver whose underlying graph has \(c\) connected components. A \emph{widget}~is a pair."
+    [(a, b)] = find_quote(own, "underlying graph has $c$ connected")
+    assert own[a:b] == r"underlying graph has \(c\) connected"
+    [(a, b)] = find_quote(own, "A widget is a pair")
+    assert own[a:b] == r"A \emph{widget}~is a pair"
+    assert make_selector(own, "A widget is").exact == r"A \emph{widget}~is"
+    assert find_quote(own, "a pear") == []

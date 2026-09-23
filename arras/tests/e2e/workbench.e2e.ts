@@ -17,8 +17,8 @@ test('the documents section lists the landmarks and the working drafts in two gr
 test('a landmark is a document, with no identity and nothing to review', async ({ page }) => {
 	await page.goto('/canon/widgets-v1');
 	await expect(page.locator('main').getByRole('heading', { level: 1 }).first()).toContainText('Widgets');
-	// its step is its identity, so it stands in the rail above the document
-	await expect(page.getByTestId('reading-rail')).toContainText('landmark @1');
+	// its step is its identity, so it stands in its tab (plan 0.13.3 D1)
+	await expect(page.getByTestId('item-tab')).toContainText('widgets-v1 @1');
 	const fragment = page.locator('.fragment');
 	await expect(fragment.locator('.env').first()).toBeVisible();
 	await expect(fragment.locator('.env[data-key], .env[data-id]')).toHaveCount(0); // no theorem in a landmark is a node
@@ -70,9 +70,9 @@ test('the problems page groups by subject and copies a fix', async ({ page, cont
 	}
 });
 
-test('a key whose text a landmark recorded says which', async ({ page }) => {
-	await page.goto('/node/sy-0002');
-	await expect(page.getByTestId('version')).toContainText('text of @1');
+test("a key whose text a landmark recorded says which, in the node's context", async ({ page }) => {
+	await page.goto('/node/sy-0002?beside=' + encodeURIComponent('/context/sy-0002'));
+	await expect(page.getByTestId('context').getByTestId('version').first()).toContainText('text of @1');
 });
 
 test('with nothing being worked on, every view says so and points at the landmarks', async ({ page }) => {

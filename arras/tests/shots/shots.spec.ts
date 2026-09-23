@@ -5,7 +5,7 @@ import { test, type Page } from '@playwright/test';
 const OUT = '../docs/book/figures';
 
 async function settle(page: Page) {
-	await page.waitForSelector('main h1', { timeout: 15000 });
+	await page.waitForSelector('main h1, [data-pane] > .body > *', { timeout: 15000 });
 	await page.waitForTimeout(700); // MathJax and the force simulation
 }
 

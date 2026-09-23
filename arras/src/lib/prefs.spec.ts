@@ -17,8 +17,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('the display preferences', () => {
 	it('defaults to serif, medium, mid, system, the compiled page, a floating comment box, and no ids', () => {
 		expect(DEFAULTS).toEqual({
-			divider: 0.62,
-			swap: false,
+			divider: 0.5,
 			panel: true,
 			ids: false,
 			zoom: { pdf: 1.4 },

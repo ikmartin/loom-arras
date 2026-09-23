@@ -76,19 +76,6 @@
 			(v) => (prefs.ids = v === 'yes'),
 			'ids'
 		)}
-		<!-- Which side the discussion stands on. A toggle rather than a decision, and expected to be deprecated
-		     once one side is known to be the right one. The options are in the order they name, left then right, so
-		     the control is a picture of the choice rather than a list of it. -->
-		{@render row(
-			'Discussion Pane',
-			[
-				{ v: 'yes', label: 'Left' },
-				{ v: 'no', label: 'Right' }
-			],
-			prefs.swap ? 'yes' : 'no',
-			(v) => (prefs.swap = v === 'yes'),
-			'swap'
-		)}
 	</div>
 </Popover>
 

@@ -6,12 +6,15 @@
 	// poll. Rebuilding the whole manifest per message would reintroduce the re-render that closed open boxes under the
 	// reader — the failure `Fragment.svelte` has been patched for twice.
 	//
+	// **Messages only.** An annotation an event reports is in the manifest by the next poll, and the discussion shows it there as a finding; saying it here too would say one thing twice (plan 0.13.3 P2).
+	//
 	// **A gap resyncs rather than stitching.** The answer carries the inbox's own last sequence number; when it is
 	// further along than what arrived, some were missed, and the honest response is to ask again from where we are
 	// rather than to pretend the stream was continuous.
 	import { base } from '$app/paths';
 	import { store } from '$lib/manifest/client.svelte';
 	import { selected } from './sessions.svelte';
+	import { when } from './when';
 
 	let { session = '' }: { session?: string } = $props();
 
@@ -78,15 +81,7 @@
 		{/if}
 		{#each events as e (e.seq)}
 			<li data-testid="message-{e.seq}">
-				<p class="said"><span class="who">{e.who}</span> {e.body ?? ''}</p>
-				{#each e.changed ?? [] as c (c.id)}
-					<p class="changed" data-testid="changed-{c.id}">
-						<code>{c.id}</code>
-						{c.kind} · {c.target} · {c.act} by {c.by}
-						<!-- the body too, because `loom session next` prints it and the decision is that both surfaces show the same post -->
-						{#if c.body}<span class="said-body">{c.body}</span>{/if}
-					</p>
-				{/each}
+				<p class="said"><span class="when">{when(e.when)}</span> <span class="who">{e.who}</span> {e.body ?? ''}</p>
 			</li>
 		{/each}
 	</ol>
@@ -108,14 +103,9 @@
 	.who {
 		color: var(--ink-faint, #6b6b6b);
 	}
-	.changed {
-		margin: 2px 0 0 12px;
-		font-size: 0.92em;
+	.when {
 		color: var(--ink-faint, #6b6b6b);
-	}
-	.said-body {
-		display: block;
-		color: var(--ink, #1b1b1b);
+		font-size: 0.9em;
 	}
 	.gap {
 		color: var(--annotation, #c05621);

@@ -54,7 +54,10 @@ def _pass_of(name: str) -> str:
 
 
 def _messages(thread: str, agent: str, fallback_time: str) -> list[dict[str, Any]]:
-    """`thread.md` as messages: one per `##` heading (a dated entry), the text before the first heading as an opening message."""
+    """`thread.md` as messages: one per `##` heading (a dated entry), the text before the first heading as an opening message.
+
+    The heading gives the message its time; its text stays in the body only where it says more than the date and the session's own name.
+    """
     from loom.records.store import render_markdown
 
     out: list[dict[str, Any]] = []
@@ -71,11 +74,15 @@ def _messages(thread: str, agent: str, fallback_time: str) -> list[dict[str, Any
         time = fallback_time
         if m:
             time = m.group(1) + (f"T{m.group(2)}:{m.group(3)}:00Z" if m.group(2) else "T00:00:00Z")
+        # The heading's date is the message's time and its name the session's, both carried as fields and shown by the
+        # viewer in its own words; only a heading that says more than that stays as the message's first line.
+        label = (heading[: m.start()] + heading[m.end() :] if m else heading).strip(" \t-–—·:")
+        lead = f"**{label}**" if label and label.casefold() != agent.casefold() else ""
         out.append(
             {
                 "author": {"kind": "agent", "id": agent},
                 "time": time,
-                "body_html": render_markdown(f"**{heading}**\n\n{body}" if body else f"**{heading}**"),
+                "body_html": render_markdown("\n\n".join(x for x in (lead, body) if x)),
             }
         )
     return out

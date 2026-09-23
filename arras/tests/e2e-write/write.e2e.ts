@@ -31,47 +31,118 @@ function log(): Record<string, unknown>[] {
 		.map((l) => JSON.parse(l));
 }
 
-test('a comment written in the browser lands in the log as a person', async ({ page }) => {
-	// The gate of plan 0.11 Part H. Not "the button appeared" -- the file changed.
+/** Select an element's words as a reader would, and let go: the page offers to annotate them. */
+async function select(at: import('@playwright/test').Locator): Promise<void> {
+	await at.evaluate((node) => {
+		const range = document.createRange();
+		range.selectNodeContents(node);
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
+		node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+	});
+}
+
+test('a comment written from a selection lands in the log as a person, anchored across the formula it crosses', async ({ page }) => {
+	// The gate of plan 0.11 Part H, with the tools a work's pages have (phase 4): not "the button appeared" -- the file changed.
 	await page.goto('/node/sy-0003');
 	await intoASession(page);
-	await expect(page.getByTestId('composer')).toBeVisible();
-	await page.getByTestId('composer-open').click();
-	await page.getByTestId('composer-quote').fill('finite widget');
-	await page.getByTestId('composer-message').fill('Does finiteness do any work in the closedness half?');
-	// an objection, because severity grades a fault and only `objection` and `suggestion` claim one (DR-204); this
-	// test asked for a `minor` question until the six kinds landed, which the publisher would now refuse
-	await page.getByTestId('composer-kind').selectOption('objection');
-	await page.getByTestId('composer-severity').selectOption('minor');
-	await page.getByTestId('composer-submit').click();
-	await expect(page.getByTestId('composer-said')).toHaveText('written');
+	const statement = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
+	await statement.locator('mjx-container').first().waitFor();
+	await select(statement);
+	await page.getByTestId('annotate-offer').click();
+	// the place is named as the tab names it (this corpus is not compiled, so by its id), and the quote carries the formula as TeX
+	await expect(page.getByTestId('note-where')).toContainText('sy-0003');
+	// the selection stays lit while the comment is written, and the composer does not repeat it
+	await expect(page.getByTestId('note-quote')).toHaveCount(0);
+	await expect.poll(() => page.evaluate(() => (CSS as unknown as { highlights: Map<string, unknown> }).highlights.has('note-pending'))).toBe(true);
+	await page.getByTestId('note-body').fill('Does finiteness do any work in the closedness half?');
+	// an objection, because severity grades a fault and only `objection` and `suggestion` claim one (DR-204)
+	await page.getByTestId('note-kind').selectOption('objection');
+	await page.getByTestId('note-severity').selectOption('minor');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
 
 	const mine = log().filter((e) => String(e.body ?? '').startsWith('Does finiteness'));
 	expect(mine).toHaveLength(1);
 	expect(mine[0].kind).toBe('human'); // written by a person, not by the run whose page it was
+	expect(mine[0].target).toBe('sy-0003');
 	expect(mine[0].annotation_kind).toBe('objection');
 	expect(mine[0].severity).toBe('minor');
-	expect(JSON.stringify(mine[0])).toContain('finite widget'); // anchored to the sentence, not to the node
+	// anchored to the sentence, not to the node, and recorded as the source has it: the formula's own TeX
+	const exact = (mine[0].anchor as { exact: string }).exact;
+	expect(exact).toContain('finite widget');
+	expect(exact).toMatch(/\$|\\\(/);
 });
 
-test("the publisher's refusal is shown rather than swallowed", async ({ page }) => {
+test("the publisher's refusal is shown rather than swallowed, and the whole result is offered instead", async ({ page }) => {
 	// "quote not found" means something different from "no such key", and a reader told only "failed" has to guess.
 	await page.goto('/node/sy-0003');
 	await intoASession(page);
-	await page.getByTestId('composer-open').click();
-	await page.getByTestId('composer-quote').fill('a phrase that appears nowhere in this statement at all');
-	await page.getByTestId('composer-message').fill('This should be refused.');
-	await page.getByTestId('composer-submit').click();
-	const said = page.getByTestId('composer-said');
-	await expect(said).toBeVisible();
-	await expect(said).not.toHaveText('written');
+	const statement = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
+	await statement.locator('mjx-container').first().waitFor();
+	// words that are nowhere in the source: what a reader would get from a selection loom cannot map back
+	await statement.evaluate((p) => p.insertAdjacentText('afterbegin', 'a phrase that appears nowhere in this statement at all '));
+	await select(statement);
+	await page.getByTestId('annotate-offer').click();
+	await page.getByTestId('note-body').fill('This should be refused.');
+	await page.getByTestId('note-submit').click();
+	const said = page.getByTestId('note-said');
+	await expect(said).toContainText('quote');
 	expect(log().filter((e) => e.body === 'This should be refused.')).toHaveLength(0);
+	// nothing is filed as anchored that is not: the one way on is a note on the whole result, said as such
+	await page.getByTestId('note-whole').click();
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	const whole = log().filter((e) => e.body === 'This should be refused.');
+	expect(whole).toHaveLength(1);
+	expect(whole[0].target).toBe('sy-0003');
+	expect(whole[0].anchor ?? null).toBeNull();
 });
 
-test('a citation suggestion can be accepted, and leaves a breadcrumb', async ({ page }) => {
+test('a box drawn round an equation notes the equation itself', async ({ page }) => {
+	await page.goto('/node/sy-0001');
+	await intoASession(page);
+	const display = page.locator('[data-pane="0"] .fragment .math.display[data-label="eq:fix"]');
+	await display.locator('mjx-container').waitFor();
+	await page.getByTestId('tool-box').click();
+	const b = (await display.boundingBox())!;
+	await page.mouse.move(b.x + 4, b.y + 2);
+	await page.mouse.down();
+	await page.mouse.move(b.x + b.width - 4, b.y + b.height - 2, { steps: 6 });
+	await page.mouse.up();
+	await expect(page.getByTestId('note-where')).toContainText('equation');
+	await page.getByTestId('note-body').fill('Name the fixed locus here.');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	const mine = log().filter((e) => e.body === 'Name the fixed locus here.');
+	expect(mine).toHaveLength(1);
+	expect(mine[0].target).toBe('sy-0001#eq:fix');
+	// and once the publisher has rebuilt, the display is marked, underlined rather than barred
+	await expect(display).toHaveClass(/annotation-block/, { timeout: 10000 });
+	expect(await display.evaluate((d) => getComputedStyle(d).borderLeftWidth)).toBe('0px');
+});
+
+test('a document is written on the same way', async ({ page }) => {
+	await page.goto('/master/main');
+	await intoASession(page);
+	await expect(page.getByTestId('tool-select')).toBeVisible();
+	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
+	await words.scrollIntoViewIfNeeded();
+	await select(words);
+	await page.getByTestId('annotate-offer').click();
+	await page.getByTestId('note-body').fill('A gadget wants an example.');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	const mine = log().filter((e) => e.body === 'A gadget wants an example.');
+	expect(mine).toHaveLength(1);
+	expect(mine[0].target).toBe('sy-0008');
+});
+
+test('a citation suggestion can be accepted from the context, and leaves a breadcrumb', async ({ page }) => {
 	await page.goto('/node/sy-0002');
 	await intoASession(page);
-	const notes = page.getByTestId('reference-notes');
+	await page.getByTestId('open-context').click();
+	const notes = page.getByTestId('context').getByTestId('reference-notes');
 	await expect(notes).toContainText('Suggested citations');
 	await page.getByTestId('refnote-accept').first().click();
 	await expect(notes.getByRole('status')).toHaveText('accepted');

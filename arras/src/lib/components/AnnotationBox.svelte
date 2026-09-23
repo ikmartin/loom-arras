@@ -43,7 +43,8 @@
 		<span class="grow"></span>
 		<VerbRow {annotation} />
 	</header>
-	{#if annotation.quote}<blockquote class="quote">{annotation.quote}</blockquote>{/if}
+	<!-- the quote is the source's TeX: typeset, so `$c$` reads as the formula it is -->
+	{#if annotation.quote}<blockquote class="quote"><TexProse text={annotation.quote} /></blockquote>{/if}
 	<Prose html={annotation.body_html} />
 	{#if annotation.payload}
 		<!-- Text the annotation proposes, shown where its `placement` says it would go. A preview only: nothing here

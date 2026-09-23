@@ -1,13 +1,14 @@
-"""Annotation marks in fragments (book 9.5): a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span; a quote that crosses converted markup marks the whole block instead."""
+"""Annotation marks in fragments (book 9.5): a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span.
+
+The quote is TeX and the block is HTML, so both are compared as a projection: inline math reads as `$tex$`, `\\emph{..}` and its kind read as their text, other tags read as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
+"""
 
 from __future__ import annotations
 
+import html as htmllib
 import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
-
-_TAG_SPLIT = re.compile(r"(<[^>]+>)")
-
 
 @dataclass
 class MarkEntry:
@@ -107,28 +108,11 @@ def place_marks(html: str, entries: list[MarkEntry]) -> str:
         if not candidates:
             continue
         blk = min(candidates, key=lambda b: b.end - b.start)
-        inner = html[blk.open_end : blk.close_start]
-        parts = _TAG_SPLIT.split(inner)
-        texts: list[tuple[int, int, str]] = []  # (inner_offset, index in parts, text)
-        pos = 0
-        for i, p in enumerate(parts):
-            if i % 2 == 0:
-                texts.append((pos, i, p))
-            pos += len(p)
         placed = False
-        target = _norm(e.quote)
-        if target:
-            for off, _, text in texts:
-                nt = _norm_positions(text)
-                k = nt[0].find(target)
-                if k >= 0:
-                    a = nt[1][k]
-                    b = nt[1][k + len(target) - 1] + 1
-                    abs_a = blk.open_end + off + a
-                    abs_b = blk.open_end + off + b
-                    spans.setdefault((abs_a, abs_b), []).append(e.ann_id)
-                    placed = True
-                    break
+        if not _is_math(html[blk.open_start : blk.open_end]):
+            for a_, b_ in _locate(html, blk.open_end, blk.close_start, e.quote):
+                spans.setdefault((a_, b_), []).append(e.ann_id)
+                placed = True
         if not placed:
             block_level.setdefault(blk.open_start, []).append(e.ann_id)
     # Two comments on the same words are one mark carrying both ids, which is the shape the viewer already reads; two edits over one range would otherwise be applied one inside the other and emit the tag as text. A span that overlaps a kept one without matching it joins that mark rather than cutting it.
@@ -185,3 +169,131 @@ def _norm_positions(text: str) -> tuple[str, list[int]]:
         out.pop()
         idx.pop()
     return "".join(out), idx
+
+
+_MATH_OPEN = re.compile(r'^<(span|div)\b[^>]*\bclass="[^"]*\bmath\b')
+_TEXT_MACRO = re.compile(r"\\(?:emph|textit|textbf|texttt|textrm|textsf|textsc|textup)\{([^{}]*)\}")
+_ENTITY = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[A-Za-z]+);")
+
+
+def _is_math(open_tag: str) -> bool:
+    return bool(_MATH_OPEN.match(open_tag))
+
+
+def project_tex(tex: str) -> str:
+    """TeX as the reader sees it: math delimiters as `$`, the simple text macros unwrapped, whitespace collapsed."""
+    t = tex.replace("\\(", "$").replace("\\)", "$").replace("\\[", "$$").replace("\\]", "$$")
+    prev = None
+    while prev != t:
+        prev, t = t, _TEXT_MACRO.sub(r"\1", t)
+    return _norm(t)
+
+
+def _units(html: str, a: int, b: int) -> list[tuple[int, int, str, bool]]:
+    """The block's content between `a` and `b` as (start, end, projected text, atomic): text runs, and each math element whole."""
+    out: list[tuple[int, int, str, bool]] = []
+    pos = a
+    while pos < b:
+        if html.startswith("<", pos):
+            end = html.index(">", pos) + 1
+            tag = html[pos:end]
+            if _is_math(tag):
+                name = _MATH_OPEN.match(tag).group(1)  # type: ignore[union-attr]
+                close = _close_of(html, end, b, name)
+                inner = re.sub(r"<[^>]+>", "", html[end:close])
+                tex = htmllib.unescape(inner).strip()
+                display = name == "div" or tex.startswith("\\[")
+                if tex[:2] in ("\\(", "\\["):
+                    tex = tex[2:]
+                if tex[-2:] in ("\\)", "\\]"):
+                    tex = tex[:-2]
+                tex = tex.strip()
+                d = "$$" if display else "$"
+                stop = html.index(">", close) + 1
+                out.append((pos, stop, f"{d}{tex}{d}", True))
+                pos = stop
+            else:
+                pos = end
+            continue
+        nxt = html.find("<", pos, b)
+        nxt = b if nxt < 0 else nxt
+        out.append((pos, nxt, html[pos:nxt], False))
+        pos = nxt
+    return out
+
+
+def _close_of(html: str, start: int, limit: int, name: str) -> int:
+    """Where the element opened just before `start` closes: the offset of its closing tag."""
+    depth = 1
+    for m in re.finditer(rf"<(/?){name}\b[^>]*>", html[start:limit]):
+        depth += -1 if m.group(1) else 1
+        if depth == 0:
+            return start + m.start()
+    return limit
+
+
+def _locate(html: str, a: int, b: int, quote: str) -> list[tuple[int, int]]:
+    """Where `quote` falls in html[a:b], as the ranges to wrap: one range when it is balanced markup, else one per run of text or formula."""
+    target = project_tex(quote)
+    if not target:
+        return []
+    chars: list[str] = []
+    where: list[tuple[int, int]] = []
+    units = _units(html, a, b)
+    for u0, u1, text, atomic in units:
+        if atomic:
+            for ch in text:
+                chars.append(ch)
+                where.append((u0, u1))
+            continue
+        i = 0
+        while i < len(text):
+            m = _ENTITY.match(text, i)
+            if m:
+                chars.append(htmllib.unescape(m.group(0)))
+                where.append((u0 + i, u0 + m.end()))
+                i = m.end()
+            else:
+                chars.append(text[i])
+                where.append((u0 + i, u0 + i + 1))
+                i += 1
+    flat, idx = _norm_positions("".join(chars))
+    k = flat.find(target)
+    if k < 0:
+        return []
+    lo = where[idx[k]][0]
+    hi = where[idx[k + len(target) - 1]][1]
+    lo, hi = _widen(html, lo, hi)
+    if _balanced(html[lo:hi]):
+        return [(lo, hi)]
+    return [(max(lo, u0), min(hi, u1)) for u0, u1, text, _ in units if u0 < hi and lo < u1 and text.strip()]
+
+
+def _widen(html: str, lo: int, hi: int) -> tuple[int, int]:
+    """Take in the tags at either edge that the range opens or closes, so `open</em>` becomes `<em>open</em>` inside the mark."""
+    while True:
+        opened, stray = _imbalance(html[lo:hi])
+        if opened and (m := re.match(r"</[^>]+>", html[hi:])):
+            hi += m.end()
+        elif stray and (m := re.search(r"<[^/!][^>]*>$", html[:lo])):
+            lo = m.start()
+        else:
+            return lo, hi
+
+
+def _imbalance(s: str) -> tuple[int, int]:
+    """(elements opened and not closed, closes with no open) within `s`."""
+    depth = stray = 0
+    for m in re.finditer(r"<(/?)([A-Za-z][\w-]*)[^>]*?(/?)>", s):
+        if m.group(1):
+            if depth:
+                depth -= 1
+            else:
+                stray += 1
+        elif not m.group(3) and m.group(2).lower() not in _Index.VOID:
+            depth += 1
+    return depth, stray
+
+
+def _balanced(s: str) -> bool:
+    return _imbalance(s) == (0, 0)

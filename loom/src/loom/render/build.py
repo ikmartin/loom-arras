@@ -277,15 +277,29 @@ def _marks_hash(marks: dict[str, list[MarkEntry]], key: str, result: ScanResult)
 
 
 def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkEntry]]:
-    """Mark entries grouped by the node whose fragment shows them (a proof's marks belong to its statement's node)."""
+    """Mark entries grouped by the node whose fragment shows them: a proof's marks under its statement, and on the proof's own page.
+
+    A comment on an equation with no quote (a box drawn round it) marks the display itself, found by the offset of its label.
+    """
     out: dict[str, list[MarkEntry]] = {}
     for res in records.resolved(result):
-        if res.span is None or res.record.discarded:
+        if res.record.discarded:
             continue
         a = res.annotation
+        region = result.assembly.regions.get(a.target_key)
+        if res.span is None and a.selector is None and region is not None and a.in_reply_to is None:
+            host = result.nodes.get(region.container)
+            if host is not None:
+                entry = MarkEntry(a.id, "", region.file, region.offset, region.offset)
+                owner = host.of if host.kind == "proof" and host.of else host.key
+                out.setdefault(owner, []).append(entry)
+                if owner != host.key:
+                    out.setdefault(host.key, []).append(entry)
+            continue
+        if res.span is None:
+            continue
         n = result.nodes.get(a.target_key)
         if n is None:
-            region = result.assembly.regions.get(a.target_key)
             n = result.nodes.get(region.container) if region else None
         if n is None:
             continue
@@ -293,10 +307,12 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
         span = Records.to_file_span(pieces, res.span)
         if span is None:
             continue
+        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1])
         owner = n.of if n.kind == "proof" and n.of else n.key
-        out.setdefault(owner, []).append(
-            MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1])
-        )
+        out.setdefault(owner, []).append(entry)
+        # a labelled proof has a page of its own too, and its marks belong on it as well as under its statement
+        if owner != n.key:
+            out.setdefault(n.key, []).append(entry)
     return out
 
 
