@@ -13,7 +13,7 @@ The closure of the key concerned, or `loom status --json` for quilt-level questi
 ## Output
 1. `question-SLUG.notes.md`: [summary], [definition], [worked-examples], [edge-cases], [stress-test], [answer].
 2. Annotations only if the question revealed a defect in a key (then as audit would record it).
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] Every claim carries an epistemic label.

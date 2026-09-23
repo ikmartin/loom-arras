@@ -182,7 +182,8 @@ def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
         assert re.search(r"^- \[ \] Nothing was written outside your session's directory\.", text, re.M)
         assert "$LOOM_SESSION" not in text  # nothing sets it; ai/rules.md is the one file that explains that
         if mode not in ("quick",):
-            assert "## Output" in text and "thread.md" in text
+            # the account of the work goes in the chat, the one transcript; no journal file
+            assert "## Output" in text and "loom session say" in text and "thread.md" not in text
 
 
 def test_upgrade_preserves_edited_modes(tmp_path: Path) -> None:
@@ -257,7 +258,7 @@ def test_orient_static_plus_live(tmp_path: Path) -> None:
     assert "- undigested citekeys: " in r.output and "- open sessions: none" in r.output
 
 
-def test_ai_start_opens_a_session_and_orient_prints_its_journal(tmp_path: Path) -> None:
+def test_ai_start_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = run("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED)
     assert r.exit_code == 0, r.output
@@ -266,17 +267,27 @@ def test_ai_start_opens_a_session_and_orient_prints_its_journal(tmp_path: Path) 
     index = (q / ".loom" / "sessions" / "index.jsonl").read_text()
     assert '"title": "Referee of dm-0003"' in index and '"event": "created"' in index
     rel = f".loom/sessions/{sid}"
-    (q / rel).mkdir(parents=True, exist_ok=True)
-    (q / rel / "thread.md").write_text(
-        "# Thread: referee dm-0003\n\n## 2026-09-16 14:10 first pass\n\nAsked: referee. Did: read the source.\n"
+    said = run(
+        "session",
+        "say",
+        "First pass. Asked: referee. Did: read the source.",
+        "--session",
+        sid,
+        "--as",
+        "Referee Agent",
+        cwd=q,
     )
+    assert said.exit_code == 0, said.output
     assert run("source", "dm-0003", "--closure", "--session", sid, cwd=q).exit_code == 0
     log = (q / rel / "run.log").read_text()
     assert "loom source dm-0003 --closure" in log
     assert not list((q / rel).glob("*.tex"))  # reading writes nothing into the session
     o = run("ai", "orient", "--session", sid, cwd=q)
     assert o.exit_code == 0, o.output
-    assert f"# Your session: `{rel}`" in o.output and "first pass" in o.output
+    assert (
+        f"# Your session: `{rel}`" in o.output and "## the chat" in o.output and "Referee Agent: First pass" in o.output
+    )
+    assert "thread.md" not in o.output
     assert "loom source dm-0003" in o.output
     assert "loom ai orient" in (q / rel / "run.log").read_text()
     second = run("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED).output.strip()
@@ -404,20 +415,20 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         env=dict(FIXED, AI_AGENT="1"),
     )
     assert r.exit_code == 0, r.output
-    (q / rel).mkdir(parents=True, exist_ok=True)
-    (q / rel / "thread.md").write_text(
-        "# Thread: referee dm-0003\n\nOpening note.\n\n## 2026-09-16 14:31 referee\n\nRefereed dm-0003; one objection.\n"
-    )
+    said = run("session", "say", "Refereed dm-0003; one objection.", "--session", sid, "--as", "Referee Agent", cwd=q)
+    assert said.exit_code == 0, said.output
     (q / rel / "referee-dm-0003.notes.md").write_text("## [summary]\nOne objection.\n")
     assert run("build", cwd=q).exit_code == 0
     m = json.loads((q / "build" / "manifest.json").read_text())
     t = m["threads"][sid]
-    assert t["kind"] == "session" and t["title"] == "referee dm-0003" and t["created"] == "2026-09-16T14:02:00Z"
+    assert t["kind"] == "session" and t["created"] == "2026-09-16T14:02:00Z"
     assert t["targets"] == ["dm-0003/proof"] and t["discarded"] is False
-    assert [msg["body_html"] for msg in t["messages"]][0] == "<p>Opening note.</p>"
-    assert t["messages"][1]["time"] == "2026-09-16T14:31:00Z" and "one objection" in t["messages"][1]["body_html"]
-    # the heading is the message's time and a name the viewer shows itself; its date is not repeated in the body
-    assert "2026-09-16" not in t["messages"][1]["body_html"]
+    # the conversation is not in the manifest, which every viewer polls; the build pages it beside it
+    assert "messages" not in t
+    page = json.loads((q / "build" / "transcripts" / sid / "1.json").read_text())
+    assert [(e["who"], e["body_html"]) for e in page["events"]] == [
+        ("Referee Agent", "<p>Refereed dm-0003; one objection.</p>")
+    ]
     kinds = {a["name"]: a["kind"] for a in t["attachments"]}
     assert kinds == {"annotations": "annotations", "referee-dm-0003.notes.md": "notes"}  # reading leaves no file
     assert [entry["command"] for entry in t["log"]][:2] == [

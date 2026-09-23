@@ -314,7 +314,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "6c8234a6d707dc5f8953a3c24b1dd190e325cc0bc7e94ff5639dfdd4900d8538",
+   "hash": "535c2c9d9d28d0876373f2269193e57ca359a4f048bb9273329e6f35ea183f59",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -326,7 +326,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "cfeff29f01b68bcc2abea451ae8028671ba36602528ab401635caad16f8939e1",
+   "hash": "c2d430627c906ad27bd4412440a73ad662a569c78a52fdadc6a6e6612f4bb2e3",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -338,7 +338,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "bde0690e59155ca7a9266d744700bcad762412cb44f619c6bc3fca110ab9dedb",
+   "hash": "7434a75b00fbf107b3c35aa7fb0794248555566ad9d0957ac0a0c353e79aa8f8",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -4987,7 +4987,7 @@
    "key": "s-2026-09-16-0001",
    "kind": "thread",
    "tags": [],
-   "title": "referee sy-0003"
+   "title": "referee"
   }
  ],
  "sessions": [
@@ -5011,7 +5011,7 @@
    "opened": "2026-09-16T00:00:00Z",
    "purpose": "",
    "rounds": 1,
-   "seq": 0,
+   "seq": 1,
    "state": "open",
    "title": "referee"
   }
@@ -5130,7 +5130,6 @@
      "time": "2026-09-16T00:00:00Z"
     }
    ],
-   "messages": [],
    "participants": [
     {
      "id": "agent",
@@ -5203,16 +5202,6 @@
      "time": "2026-09-16T00:00:00Z"
     }
    ],
-   "messages": [
-    {
-     "author": {
-      "id": "referee",
-      "kind": "agent"
-     },
-     "body_html": "<p><strong>referee of sy-0003</strong></p>\n<p>Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
-     "time": "2026-09-16T00:00:00Z"
-    }
-   ],
    "participants": [
     {
      "id": "agent",
@@ -5276,7 +5265,7 @@
     "sy-0002",
     "sy-0001"
    ],
-   "title": "referee sy-0003"
+   "title": "referee"
   }
  },
  "unresolved": [

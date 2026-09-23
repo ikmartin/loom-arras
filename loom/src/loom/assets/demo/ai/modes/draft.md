@@ -18,7 +18,7 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 ## Output
 1. `draft-ID.tex`: one complete node obeying the source contract (`% !LOOM author:` and `created:` lines; one environment with the title and `\label{ID}` if an id was given; adjacent proof; `\uses`).
 2. `draft-ID.notes.md`: [summary]; what the plan asked; what you did; what you could not do and why; every trial.
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] The statement matches the plan.

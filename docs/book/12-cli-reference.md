@@ -1066,6 +1066,20 @@ Change a session's title. Nothing moves: the id is the address and does not chan
 | `--author` | Who renamed it, when the user config and git do not say. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+#### `loom session say`
+
+`loom session say [OPTIONS] TEXT`
+
+Say TEXT in a session's chat, as the agent; `-` reads it from stdin.
+
+The agent's half of the transcript, as `send` is the person's: the message goes into the session's inbox as written and carries no annotations. Your own cursor moves past it when you had read everything before it, so `next` does not hand you your own words, and never past a message you have not read.
+
+| option | description |
+|---|---|
+| `--session` | The session to speak in. |
+| `--as` | Who is speaking: your name, including Agent or AI. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 #### `loom session send`
 
 `loom session send [OPTIONS] TEXT`

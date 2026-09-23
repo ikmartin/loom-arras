@@ -9,7 +9,7 @@ A short, durable answer. Use quick when the author asks something in passing tha
 If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a defect, annotate it and say so.
 
 ## Output
-`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no [summary], because a summary of a quick answer is longer than the answer. An entry in `thread.md`.
+`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no [summary], because a summary of a quick answer is longer than the answer. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] The answer was checked once against the source or a digest.

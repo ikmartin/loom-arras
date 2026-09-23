@@ -112,13 +112,13 @@ def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
     default=None,
     envvar="LOOM_SESSION",
     metavar="SESSION",
-    help="Attach to this session: also print its journal and command log. An id, a title, or a unique id suffix.",
+    help="Attach to this session: also print the end of its chat and its command log. An id, a title, or a unique id suffix.",
 )
 @quilt_option
 def ai_orient(session: str | None, quilt_path: str | None) -> None:
-    """Print the orientation document followed by the quilt's live state, and with --session that session's own journal.
+    """Print the orientation documents followed by the quilt's live state, and with --session the end of that session's chat.
 
-    This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and that session's journal and command log, which is the scrollback a later sitting resumes from.
+    This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and the last messages of that session's chat with its command log, which is what a later sitting resumes from.
     """
     from loom.ai.orient import live_text, static_text
     from loom.cli._quilt import open_scan
@@ -132,7 +132,7 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
     found = find_session(root, session) if session else None
     where = files_dir(root, found) if found else None
     click.echo(static_text(root), nl=False)
-    click.echo(live_text(result, Records(root, result.quilt.history_dir), where), nl=False)
+    click.echo(live_text(result, Records(root, result.quilt.history_dir), where, found.id if found else None), nl=False)
     log_run(found.id if found else None, "loom ai orient", root)
 
 

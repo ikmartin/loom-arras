@@ -158,7 +158,7 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 ## Output
 1. `audit-KEY.notes.md`: [summary], [hypothesis-ledger], [citation-ledger], [uses-ledger], [self-containedness], [sharpenings], [patch-list].
 2. Annotations for every item of [uses-ledger], [self-containedness], and [patch-list] (kind suggestion; kind objection for an incidental error; kind question where you could not decide), each anchored to the sentence it concerns; the notes list their ids.
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
 Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
@@ -198,7 +198,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 1. `brainstorm-SLUG.notes.md`: [summary], [candidates], [dead-ends], [known-results], [open-questions].
 2. `draft-cand-*.tex` per candidate.
 3. `brainstorm-SLUG.check.py` with outputs.
-4. An entry in `thread.md` after each significant exchange. No annotations unless an existing key was found wanting (then as audit would record it).
+4. A message in the chat (`loom session say`) after each significant exchange. No annotations unless an existing key was found wanting (then as audit would record it).
 
 ## Checklist
 - [ ] Every candidate is a draft file with explicit hypotheses.
@@ -228,7 +228,7 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 ## Output
 1. `draft-ID.tex`: one complete node obeying the source contract (`% !LOOM author:` and `created:` lines; one environment with the title and `\label{ID}` if an id was given; adjacent proof; `\uses`).
 2. `draft-ID.notes.md`: [summary]; what the plan asked; what you did; what you could not do and why; every trial.
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] The statement matches the plan.
@@ -254,7 +254,7 @@ Check a mechanically extracted digest of a cited paper against the paper itself,
 ## When there is no source
 Some cited works exist only as a PDF — a thesis, a journal-only paper, most of the classical literature. There is nothing to extract, and a digest you typed would be exactly the unverifiable artefact this mode exists to avoid (DR-173). What you do instead is read and propose: `loom refs page CITEKEY N` for the text, then `loom refs propose` for each result, main results first (`--level 1`). A proposal is not typed in DR-173's sense: its `--source-text` is checked against the page before anything is stored, and its `--statement` — your rendering, in the paper's words only — waits in a file nothing inputs until the author compares the two and verifies it. You never write `digests/` yourself, and a proposal that passed the check is **waiting for the author**, not verified.
 
-For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the `thread.md` entry; there is no extractor output to keep and no diff to write.
+For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the message in the chat; there is no extractor output to keep and no diff to write.
 
 ## What to check, in this order
 1. **Completeness.** Every numbered result in the paper is a node, and nothing that is not a result became one. Name what is missing by the paper's own number.
@@ -270,7 +270,7 @@ For a work with no source the checks below apply to what you propose, and the ou
 2. `proposal-CITEKEY.diff` — a unified diff against it carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
 3. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
 4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
-5. An entry in `thread.md`.
+5. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] For a work with a source: `loom digest extract` was run and its output is in your session's directory, unedited.
@@ -298,7 +298,7 @@ The closure of the key concerned, or `loom status --json` for quilt-level questi
 ## Output
 1. `question-SLUG.notes.md`: [summary], [definition], [worked-examples], [edge-cases], [stress-test], [answer].
 2. Annotations only if the question revealed a defect in a key (then as audit would record it).
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] Every claim carries an epistemic label.
@@ -318,7 +318,7 @@ A short, durable answer. Use quick when the author asks something in passing tha
 If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a defect, annotate it and say so.
 
 ## Output
-`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no [summary], because a summary of a quick answer is longer than the answer. An entry in `thread.md`.
+`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no [summary], because a summary of a quick answer is longer than the answer. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] The answer was checked once against the source or a digest.
@@ -347,7 +347,7 @@ Read the closure. Produce the blocks of the output contract in order. Every gap,
 2. Annotations for every item of [gaps-and-ambiguities] and [referee-review], ids listed in the notes.
 3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result of `loom compile KEY --with proposal-KEY.diff --session SESSION`, which compiles your text in place of the quilt's without changing it.
 4. `referee-KEY.check.py` with its output, for every trial.
-5. An entry in `thread.md`.
+5. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
 Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
@@ -393,7 +393,7 @@ Errors and prose both go in [referee-review], which already groups by severity a
 1. `review-KEY.notes.md`: [summary], [referee-review], [citation-ledger], [self-containedness], [sharpenings], [simplifications].
 2. An annotation per item, every one with `--severity`, and a `--payload` wherever you are proposing text. Ids listed in the notes.
 3. `review-KEY.check.py` with its output, for every trial.
-4. An entry in `thread.md`.
+4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; exporting an annotated document for a reader who cannot open the viewer is a separate feature, and not this mode's job.
 
@@ -430,7 +430,7 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected], [revised], [meaning-drift-check].
 2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --session SESSION` recorded under [revised].
 3. One suggestion annotation per simplification, anchored to the old text.
-4. An entry in `thread.md`.
+4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
 Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.

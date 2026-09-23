@@ -10,7 +10,6 @@ info loom:retired-ledger-key
 info loom:retired-ledger-key
 info loom:see-redundant
 info loom:undigested-citekey
-info loom:unexpected-proof
 info loom:unlabelled-node
 info loom:unresolved-work
 info loom:uses-missing
@@ -25,6 +24,8 @@ info unreachable
 warning loom:canon-edited
 warning loom:equation-in-proof-referenced
 warning loom:multi-target-proof
+warning loom:needs-classification
+warning loom:needs-classification
 warning loom:no-readable-copy
 warning loom:taxon-conflict
 warning loom:unknown-directive

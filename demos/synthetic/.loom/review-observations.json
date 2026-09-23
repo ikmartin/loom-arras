@@ -1,0 +1,9 @@
+{
+  "[\"sy-0001\",\"2026-09-14T09:00:00Z\",\"sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd\",\"dependency-changed\",\"sy-0100\",null]": "2026-09-16",
+  "[\"sy-0001\",\"2026-09-14T09:00:00Z\",\"sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd\",\"own-text-changed\",null,null]": "2026-09-16",
+  "[\"sy-0002\",\"2026-09-14T09:00:00Z\",\"sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1\",\"dependency-changed\",\"sy-0001\",null]": "2026-09-16",
+  "[\"sy-0002/proof\",\"2026-09-14T09:00:00Z\",\"sha256:57e15b9a88a2cb06719fc7d1dc7e1599e042189b955244fecd419d9e3497e57c\",\"dependency-changed\",\"sy-0001\",\"sy-0002\"]": "2026-09-16",
+  "[\"sy-0002/proof\",\"2026-09-14T09:00:00Z\",\"sha256:57e15b9a88a2cb06719fc7d1dc7e1599e042189b955244fecd419d9e3497e57c\",\"dependency-changed\",\"sy-0100\",null]": "2026-09-16",
+  "[\"sy-0004\",\"2026-09-14T09:00:00Z\",\"sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4\",\"dependency-changed\",\"sy-0001\",\"sy-0002\"]": "2026-09-16",
+  "[\"sy-0005\",\"2026-09-14T09:00:00Z\",\"sha256:facfa8fd5344b1ccec44ce7b29ccb7a7ab832789095a309373c5a09328cbd7a1\",\"dependency-changed\",\"sy-0001\",null]": "2026-09-16"
+}

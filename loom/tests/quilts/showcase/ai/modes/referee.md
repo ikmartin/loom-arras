@@ -19,7 +19,7 @@ Read the closure. Produce the blocks of the output contract in order. Every gap,
 2. Annotations for every item of [gaps-and-ambiguities] and [referee-review], ids listed in the notes.
 3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result of `loom compile KEY --with proposal-KEY.diff --session SESSION`, which compiles your text in place of the quilt's without changing it.
 4. `referee-KEY.check.py` with its output, for every trial.
-5. An entry in `thread.md`.
+5. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
 Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).

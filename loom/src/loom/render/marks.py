@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
 
+
 @dataclass
 class MarkEntry:
     ann_id: str

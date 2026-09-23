@@ -13,7 +13,9 @@ def test_marks_placed_inline_and_block_level() -> None:
     )
     assert '<mark class="annotation" data-annotation="a-1">rigidity</mark>' in out
     assert '<mark class="annotation" data-annotation="a-3">Second paragraph</mark>' in out
-    assert '<mark class="annotation" data-annotation="a-2">inclusion is <em>open</em></mark>' in out  # crosses <em>, whole
+    assert (
+        '<mark class="annotation" data-annotation="a-2">inclusion is <em>open</em></mark>' in out
+    )  # crosses <em>, whole
     assert out.count("<mark") == 3 and "annotation-block" not in out
 
 
@@ -50,7 +52,10 @@ def test_a_quote_around_math_takes_the_formula_whole() -> None:
     """The quote is TeX and the block carries `\\(c\\)`; the mark wraps the whole formula, so MathJax still finds both delimiters in one text node."""
     html = '<p data-src="f.tex:0:90">the graph has <span class="math inline">\\(c\\)</span> connected components.</p>'
     out = place_marks(html, [MarkEntry("a-1", "graph has $c$ connected", "f.tex", 4, 27)])
-    assert '<mark class="annotation" data-annotation="a-1">graph has <span class="math inline">\\(c\\)</span> connected</mark>' in out
+    assert (
+        '<mark class="annotation" data-annotation="a-1">graph has <span class="math inline">\\(c\\)</span> connected</mark>'
+        in out
+    )
 
 
 def test_a_quote_inside_a_formula_never_puts_a_tag_inside_it() -> None:

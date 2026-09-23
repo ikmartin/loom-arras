@@ -22,7 +22,7 @@ INDEX = f"{DIR}/index.jsonl"
 #: The one session new work lands in, named here so the CLI and the viewer cannot disagree about which it is.
 ACTIVE = f"{DIR}/active"
 
-EVENTS = ("created", "renamed", "resumed", "closed", "deleted")
+EVENTS = ("created", "renamed", "purposed", "resumed", "closed", "deleted")
 ID = re.compile(r"^s-\d{4}-\d{2}-\d{2}-\d{4}$")
 
 

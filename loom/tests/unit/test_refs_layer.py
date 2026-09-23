@@ -1458,7 +1458,15 @@ def test_a_work_with_no_filed_copy_keeps_its_source_anchor(tmp_path: Path) -> No
     """Extraction still works with no document at all (DR-198): what it cannot locate it does not invent."""
     from loom.refs.proposals import _extracted_anchor
 
-    a = _extracted_anchor(tmp_path, "Nobody12", None, "{\\cite[Theorem 1.1, p.~4]{Nobody12}}", "Let X be a scheme.", "digests/Nobody12.tex", "abc")
+    a = _extracted_anchor(
+        tmp_path,
+        "Nobody12",
+        None,
+        "{\\cite[Theorem 1.1, p.~4]{Nobody12}}",
+        "Let X be a scheme.",
+        "digests/Nobody12.tex",
+        "abc",
+    )
     assert a.kind == "tex" and a.page == 0  # a page in the locator is not a page anybody can open
 
 

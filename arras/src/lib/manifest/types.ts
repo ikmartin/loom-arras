@@ -264,12 +264,6 @@ export interface Annotation {
   discarded: boolean;
 }
 
-export interface ThreadMessage {
-  author: Author;
-  time: string;
-  body_html: string;
-}
-
 export interface Attachment {
   name: string;
   kind: string;
@@ -343,7 +337,6 @@ export interface Thread {
   created: string;
   participants: Author[];
   targets: string[];
-  messages: ThreadMessage[];
   attachments: Attachment[];
   pipeline?: PipelineStep[];
   log: { time: string; command: string }[];

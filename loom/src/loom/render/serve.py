@@ -231,7 +231,8 @@ class LoomHandler(SimpleHTTPRequestHandler):
         """
         from urllib.parse import parse_qs, urlsplit
 
-        from loom.mailbox import last_seq, read_events
+        from loom.mailbox import attached, public, transcript
+        from loom.sessions import ID
 
         if self.quilt_root is None:
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -245,14 +246,24 @@ class LoomHandler(SimpleHTTPRequestHandler):
         if not sid:
             self._json(HTTPStatus.BAD_REQUEST, {"error": {"code": "missing-field", "message": "session is required"}})
             return
-        events = read_events(self.quilt_root, sid, since)
+        # The id is joined into a path, so it is held to the shape an id has.
+        if not ID.match(sid):
+            self._json(
+                HTTPStatus.BAD_REQUEST, {"error": {"code": "bad-session", "message": f"not a session id: {sid}"}}
+            )
+            return
+        log = transcript(self.quilt_root, sid)
+        events = log.since(since)
         self._json(
             HTTPStatus.OK,
             {
                 "session": sid,
                 "from": since,
-                "seq": last_seq(self.quilt_root, sid),
-                "events": [e.to_json() for e in events],
+                "seq": log.seq,
+                "events": [public(e) for e in events],
+                "attached": [
+                    {"who": r.get("who", ""), "kind": r.get("kind", "")} for r in attached(self.quilt_root, sid)
+                ],
             },
         )
 

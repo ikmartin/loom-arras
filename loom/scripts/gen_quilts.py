@@ -290,12 +290,18 @@ def build_synthetic(dest: Path) -> None:
         referee,
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{referee}/thread.md",
-        "# Thread: referee sy-0003\n\n## 2026-09-16 00:00 referee of sy-0003\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on "
         "the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: "
-        "nothing; the author decides. Remains: the second proof was not reviewed.\n",
+        "nothing; the author decides. Remains: the second proof was not reviewed.",
+        "--session",
+        referee,
+        "--as",
+        "Referee Agent",
+        agent=True,
     )
     g.run(
         "comment",
@@ -520,11 +526,17 @@ def build_demo(dest: Path) -> None:
         run_dir,
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{run_dir}/thread.md",
-        "# Thread: referee dm-0003\n\n## 2026-09-16 14:31 referee\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Refereed dm-0003. One major objection in the proof, one moderate suggestion on the statement "
-        "with a proposed replacement, and one minor point about the document as a whole.\n",
+        "with a proposed replacement, and one minor point about the document as a whole.",
+        "--session",
+        run_dir,
+        "--as",
+        "Referee Agent",
+        agent=True,
     )
     # in creation order: the statement suggestion, the proof objection, the whole-document point
     suggestion, objection, document = _annotation_ids(dest, run_dir)[:3]
@@ -719,13 +731,19 @@ def build_showcase(dest: Path) -> None:
         survey,
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{survey}/thread.md",
-        "# Thread: survey Bellamy19\n\n## 2026-09-15 10:00 survey-bellamy\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Asked: find in Bellamy19 whatever the counting argument of Section 3 could rest on. Did: read pages 1 to 3, "
         "proposed four results, and asserted two links. Decided: nothing; the four proposals wait for the author. "
         "Remains: the examples of Section 4 are not proposed, since the paper states no result there beyond the "
-        "definition of the defect.\n",
+        "definition of the defect.",
+        "--session",
+        survey,
+        "--as",
+        "Survey Agent",
+        agent=True,
     )
     g.write(
         f".loom/sessions/{survey}/survey-bellamy.notes.md",
@@ -976,13 +994,19 @@ def build_showcase(dest: Path) -> None:
         height,
         torsion,
     ) = _annotation_ids(dest, referee)[:14]
-    g.write(
-        f".loom/sessions/{referee}/thread.md",
-        "# Thread: referee sh-0009\n\n## 2026-09-16 11:00 referee-sh-0009\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Asked: referee the rank theorem and everything its proof reaches. Did: read the closure of sh-0009 and of "
         "sh-000C, and left fourteen findings -- three major, four moderate, five minor, one question and one clean "
         "read. Decided: nothing; every one of them is the author's to answer. Remains: the appendix (sh-0400) was "
-        "not read, and Lemma sh-000E is marked incomplete, so there was nothing there to referee.\n",
+        "not read, and Lemma sh-000E is marked incomplete, so there was nothing there to referee.",
+        "--session",
+        referee,
+        "--as",
+        "Referee Agent",
+        agent=True,
     )
     g.write(
         f".loom/sessions/{referee}/referee-sh-0009.notes.md",
@@ -1383,7 +1407,10 @@ BUILDERS = {"synthetic": build_synthetic, "demo": build_demo, "showcase": build_
 def _sync(src: Path, dest: Path) -> None:
     if dest.exists():
         shutil.rmtree(dest)
-    shutil.copytree(src, dest, ignore=shutil.ignore_patterns("build", "__pycache__", ".git"))
+    # A session's readers' cursors and heartbeat are runtime state the quilt's .gitignore keeps out.
+    shutil.copytree(
+        src, dest, ignore=shutil.ignore_patterns("build", "__pycache__", ".git", "cursors", "attached.json")
+    )
 
 
 def _differences(a: Path, b: Path) -> list[str]:
@@ -1394,6 +1421,7 @@ def _differences(a: Path, b: Path) -> list[str]:
         # quilt's .gitignore deliberately keeps them out of its committed copy.
         return not (
             rel.startswith("refs/")
+            or (rel.startswith(".loom/sessions/") and ("/cursors/" in rel or rel.endswith("/attached.json")))
             or rel.startswith("digests/storage/cache/")
             or (rel.startswith("digests/storage/") and "/src/" in rel)
         )

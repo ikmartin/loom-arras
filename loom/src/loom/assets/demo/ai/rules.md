@@ -123,6 +123,7 @@ The author may be talking to you. A session carries an inbox; `loom session next
   - `loom serve`
   - `loom session list`
   - `loom session next`
+  - `loom session say`
   - `loom session send`
   - `loom session watch`
   - `loom source`

@@ -24,7 +24,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 1. `brainstorm-SLUG.notes.md`: [summary], [candidates], [dead-ends], [known-results], [open-questions].
 2. `draft-cand-*.tex` per candidate.
 3. `brainstorm-SLUG.check.py` with outputs.
-4. An entry in `thread.md` after each significant exchange. No annotations unless an existing key was found wanting (then as audit would record it).
+4. A message in the chat (`loom session say`) after each significant exchange. No annotations unless an existing key was found wanting (then as audit would record it).
 
 ## Checklist
 - [ ] Every candidate is a draft file with explicit hypotheses.

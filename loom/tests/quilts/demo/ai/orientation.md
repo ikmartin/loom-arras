@@ -99,7 +99,7 @@ Your run:
 **The author may be talking to you.** A session carries an inbox, and the composer in the viewer posts into it. Nothing launches you and nothing assigns you work — loom appends a line, and you find it because you asked.
 
 - `loom session next --wait 120 --json --as "Referee Agent"`: **park until something lands**, print it, and exit. One call is one turn. It returns the moment a message arrives rather than on a poll interval; with nothing waiting it comes back empty and you park again. Keep `--wait` under whatever timeout your harness puts on a tool call.
-- `loom session send "…" --as "Referee Agent"`: say something back.
+- `loom session say "…" --as "Referee Agent"`: say something back. `-` in place of the text reads it from stdin, for anything long.
 - Your cursor moves as you read, so a message survives being read and you resume where you were after a crash. The inbox is a **broadcast**: another agent attached to the same session sees everything you see, and neither of you is handed a task.
 
 **Name yourself.** `--as` is how the record says what wrote a thing. Choose a name that fits the role you were invoked in — `Referee Agent`, `Simplify Agent`, `Tutor Agent` — and **include `Agent` or `AI` in it**. Identity is declared, not sniffed: a command run under an agent's shell with no `--as` is refused rather than guessed at, because an author may ask you to run something and an environment variable is not a claim about who is speaking.
@@ -115,7 +115,7 @@ Your run:
 A session is a stretch of work on this quilt, and it may be shared with the author. It has no mode: it is opened, worked in, and closed when the work is done, and you rejoin one with `loom session use` or by naming it with `--session`. Write in its directory:
 
 - outputs named by mode and target: `referee-rl-0004.notes.md`, `draft-rl-0019.tex`, `proposal-rl-0004.diff`, `ingest-Man12.tex`. Where a mode's template says a second pass is numbered, as referee's and review's do, it is: `referee-rl-0004.2.notes.md`.
-- `thread.md`: after each significant exchange, append a dated entry saying what was asked, what you did, what you decided and what remains. Keep it; a later session, yours or another agent's, resumes from it.
+- nothing else: your account of the work goes in the chat. After each significant exchange, say there (`loom session say`) what was asked, what you did, what you decided and what remains. A later session, yours or another agent's, resumes from the chat: `loom ai orient --session` prints its end.
 
 Loom writes `run.log` there for you. The session's title and state live in `.loom/sessions/index.jsonl`, which is loom's to append to and never yours to edit.
 
@@ -146,4 +146,4 @@ Read a key's closure, not directories: it is complete by construction. Do not re
 
 ## 11. When you are done
 
-Update `thread.md`, list your outputs, and tell the author which are drafted nodes to paste, which are diffs to apply, and which annotations need their decision.
+Say in the chat what you did, list your outputs, and tell the author which are drafted nodes to paste, which are diffs to apply, and which annotations need their decision.

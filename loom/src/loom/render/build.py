@@ -316,6 +316,19 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
     return out
 
 
+def _write_transcripts(root: Path, files: dict[str, str | bytes]) -> None:
+    """Every session's transcript as pages under `transcripts/<id>/<n>.json`, so a viewer with no publisher running still reads the chat.
+
+    Out of the manifest, which every viewer polls: a long conversation would make every poll pay for it.
+    """
+    from loom.mailbox import pages
+    from loom.sessions import sessions
+
+    for sid in sessions(root):
+        for n, page in pages(root, sid).items():
+            files[f"transcripts/{sid}/{n}.json"] = json.dumps(page, ensure_ascii=False, indent=1, sort_keys=True)
+
+
 def build(
     quilt: Quilt, keys: list[str] | None = None, records: Records | None = None, force: bool = False
 ) -> BuildReport:
@@ -443,11 +456,12 @@ def build(
     manifest["unresolved"] = rows_for(result, manifest)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
+    _write_transcripts(result.quilt.root, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
     ]
     report.manifest = manifest
-    prune = ("fragments/", "source/", "spans/") if wanted is None else ()
+    prune = ("fragments/", "source/", "spans/", "transcripts/") if wanted is None else ()
     if wanted is None:
         for rel in list(index):
             if rel not in fragments.values():

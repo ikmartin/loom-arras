@@ -28,7 +28,7 @@ const m = {
 	threads: {}
 } as unknown as Manifest;
 
-const thread = (over: Partial<Thread> = {}): Thread => ({ id: 'r1', kind: 'session', title: 't', created: '2026-09-16T14:02:00Z', participants: [], targets: ['n-1'], messages: [], attachments: [], log: [], discarded: false, ...over });
+const thread = (over: Partial<Thread> = {}): Thread => ({ id: 'r1', kind: 'session', title: 't', created: '2026-09-16T14:02:00Z', participants: [], targets: ['n-1'], attachments: [], log: [], discarded: false, ...over });
 
 describe('what a run says about a document', () => {
 	it('knows a document from a node', () => {

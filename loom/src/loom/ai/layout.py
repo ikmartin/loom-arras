@@ -35,7 +35,7 @@ AGENT_COMMANDS = frozenset(
         "ai check", "ai discard", "ai findings", "ai name", "ai orient", "ai runs", "ai start",
         # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
         # session stay the author's, because they are decisions about the work rather than participation in it.
-        "session list", "session next", "session send", "session watch",
+        "session list", "session next", "session say", "session send", "session watch",
         "digest extract",
         "refs build", "refs coverage", "refs fetch", "refs grep", "refs link", "refs links", "refs locate",
         "refs find", "refs ingest", "refs map", "refs match", "refs page", "refs path", "refs propose", "refs recheck",
@@ -49,6 +49,7 @@ AGENT_READONLY = ("nodes", "drafting", "canon", "retired", "digests", "refs", "a
 AGENT_READONLY_FILES = (
     "ai/orientation.md",
     "ai/rules.md",
+    "ai/formatting.md",
     "config.toml",
     "reference-notes.jsonl",
     ".loom/state.toml",
@@ -94,6 +95,7 @@ def tracked_docs() -> dict[str, str]:
     out = {
         f"ai/{RULES}": _asset(RULES).replace("{allowed_commands}", allowed),
         "ai/orientation.md": _asset("orientation.md"),
+        "ai/formatting.md": _asset("formatting.md"),
     }
     out.update({f"ai/modes/{m}.md": _asset("modes", f"{m}.md") for m in MODES})
     return out

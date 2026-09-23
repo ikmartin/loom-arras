@@ -13,7 +13,7 @@ Check a mechanically extracted digest of a cited paper against the paper itself,
 ## When there is no source
 Some cited works exist only as a PDF — a thesis, a journal-only paper, most of the classical literature. There is nothing to extract, and a digest you typed would be exactly the unverifiable artefact this mode exists to avoid (DR-173). What you do instead is read and propose: `loom refs page CITEKEY N` for the text, then `loom refs propose` for each result, main results first (`--level 1`). A proposal is not typed in DR-173's sense: its `--source-text` is checked against the page before anything is stored, and its `--statement` — your rendering, in the paper's words only — waits in a file nothing inputs until the author compares the two and verifies it. You never write `digests/` yourself, and a proposal that passed the check is **waiting for the author**, not verified.
 
-For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the `thread.md` entry; there is no extractor output to keep and no diff to write.
+For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the message in the chat; there is no extractor output to keep and no diff to write.
 
 ## What to check, in this order
 1. **Completeness.** Every numbered result in the paper is a node, and nothing that is not a result became one. Name what is missing by the paper's own number.
@@ -29,7 +29,7 @@ For a work with no source the checks below apply to what you propose, and the ou
 2. `proposal-CITEKEY.diff` — a unified diff against it carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
 3. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
 4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
-5. An entry in `thread.md`.
+5. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] For a work with a source: `loom digest extract` was run and its output is in your session's directory, unedited.

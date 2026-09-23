@@ -50,8 +50,9 @@ relloc/
       index.jsonl          created · renamed · resumed · closed · deleted
       active               the one session new work lands in
       <id>/                a session's own directory, made when it has content
-        inbox.jsonl        messages, append-only, read by cursor
-        attached.json      who is listening: name, kind, pid, heartbeat
+        inbox.jsonl        the transcript: messages, append-only, read by cursor
+        attached.json      who is listening: name, kind, pid, heartbeat (not committed)
+        cursors/           how far each reader has read (not committed)
         run.log            every command invoked with --session
     serve.json             the running server's port, pid and write token
     history/               the record of every key (Chapter 17)

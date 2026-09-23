@@ -294,6 +294,32 @@ def send_command(text: str, which: str | None, declared: str | None, quilt_path:
         note(waiting_on(root, found.id, name))
 
 
+@session.command(name="say")
+@click.argument("text")
+@click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to speak in.")
+@click.option("--as", "declared", default=None, help="Who is speaking: your name, including Agent or AI.")
+@quilt_option
+def say_command(text: str, which: str | None, declared: str | None, quilt_path: str | None) -> None:
+    """Say TEXT in a session's chat, as the agent; `-` reads it from stdin.
+
+    The agent's half of the transcript, as `send` is the person's: the message goes into the session's inbox as written and carries no annotations. Your own cursor moves past it when you had read everything before it, so `next` does not hand you your own words, and never past a message you have not read.
+    """
+    import sys
+
+    from loom.mailbox import cursor, post, set_cursor
+
+    root, found, name, kind = _mail(quilt_path, which, declared)
+    if kind != "agent":
+        raise EnvError("say is the agent's; a person uses loom session send")
+    body = (sys.stdin.read() if text == "-" else text).strip()
+    if not body:
+        raise EnvError("a message with no text says nothing")
+    e = post(root, found.id, body, name, kind="message")
+    if cursor(root, found.id, name) == e.seq - 1:
+        set_cursor(root, found.id, name, e.seq)
+    click.echo(f"said in {found.id}")
+
+
 @session.command(name="next")
 @click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to park on.")
 @click.option("--wait", default=120, show_default=True, help="Seconds to park before returning empty-handed.")

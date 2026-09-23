@@ -1,6 +1,6 @@
 <script lang="ts">
-	// A session read while working (plan 0.13.3 E2): the conversation beside its subject. The targets lead, as chips named as a reader names them, since a discussion on its own has no subject otherwise — the documents, a few results and a count of the rest; then one flow in time — the journal's messages, the findings marked by an edge in their kind's colour, what was attached, and the messages still landing — with a gutter of relative dates; the composer at the foot. No title: the tab names the session, once (P2).
-	import type { Annotation, ThreadMessage } from '$lib/manifest/types';
+	// A session read while working (plan 0.13.3 E2): the conversation beside its subject. The targets lead, as chips named as a reader names them, since a discussion on its own has no subject otherwise — the documents, a few results and a count of the rest; then one flow in time — the findings marked by an edge in their kind's colour, what was attached, and the messages still landing — with a gutter of relative dates; the composer at the foot. No title: the tab names the session, once (P2).
+	import type { Annotation } from '$lib/manifest/types';
 	import { store } from '$lib/manifest/client.svelte';
 	import { travel } from '$lib/travel/travel';
 	import Prose from '$lib/math/Prose.svelte';
@@ -26,11 +26,10 @@
 	const shownTargets = $derived([...documents, ...(allTargets ? others : others.slice(0, SHOWN))]);
 	const folded = $derived(allTargets ? 0 : Math.max(0, others.length - SHOWN));
 
-	type Entry = { at: string; message?: ThreadMessage; finding?: Annotation };
-	/** The journal and the findings, in the order they happened. Replies stand under what they answer wherever it is read, so they are not entries of their own. */
+	type Entry = { at: string; finding: Annotation };
+	/** The findings, in the order they happened. Replies stand under what they answer wherever it is read, so they are not entries of their own. */
 	const flow = $derived<Entry[]>(
 		[
-			...thread.messages.map((message) => ({ at: message.time, message })),
 			...Object.values(m.annotations)
 				.filter((a) => a.run === item.id && !a.in_reply_to && !a.discarded)
 				.map((finding) => ({ at: finding.created, finding }))
@@ -82,11 +81,6 @@
 							{#if a.status === 'resolved'}<span class="who">settled</span>{/if}
 							{#if a.quote}<span class="quote">“<TexProse text={a.quote} />”</span>{/if}
 							<Prose html={a.body_html} />
-						</div>
-					{:else if e.message}
-						<div class="message">
-							<span class="who">{e.message.author.label ?? e.message.author.id}</span>
-							<Prose html={e.message.body_html} />
 						</div>
 					{/if}
 				</li>
@@ -178,9 +172,6 @@
 	}
 	.entry[data-kind='confirmation'] > div {
 		border-left-color: var(--state-accepted);
-	}
-	.message {
-		padding-left: calc(var(--gap-tight) + 3px);
 	}
 	.kind {
 		font-weight: 500;

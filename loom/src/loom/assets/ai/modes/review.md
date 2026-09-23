@@ -30,7 +30,7 @@ Errors and prose both go in [referee-review], which already groups by severity a
 1. `review-KEY.notes.md`: [summary], [referee-review], [citation-ledger], [self-containedness], [sharpenings], [simplifications].
 2. An annotation per item, every one with `--severity`, and a `--payload` wherever you are proposing text. Ids listed in the notes.
 3. `review-KEY.check.py` with its output, for every trial.
-4. An entry in `thread.md`.
+4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; exporting an annotated document for a reader who cannot open the viewer is a separate feature, and not this mode's job.
 

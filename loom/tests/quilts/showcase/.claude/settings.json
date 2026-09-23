@@ -29,6 +29,8 @@
       "Write(/ai/orientation.md)",
       "Edit(/ai/rules.md)",
       "Write(/ai/rules.md)",
+      "Edit(/ai/formatting.md)",
+      "Write(/ai/formatting.md)",
       "Edit(/config.toml)",
       "Write(/config.toml)",
       "Edit(/reference-notes.jsonl)",

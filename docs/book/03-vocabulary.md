@@ -120,7 +120,7 @@ All entries are **[decided]** unless marked.
 - mode : one of the review procedures (audit, referee, review, simplify, question, quick, draft, ingest, brainstorm) as a prompt template with input and output contracts, under `ai/modes/`.
 - application : one use of a mode on one target inside a session, producing named output files in the session's directory.
 - `run.log` : automatic log of every loom command invoked with `--session`, in the session's directory.
-- `thread.md` : voluntary journal the agent appends to, in the session's directory.
+- transcript : a session's conversation, which is its inbox: every message the person and the agent said, in order, and nothing loom wrote. The agent writes its account of the work there with `loom session say`; there is no separate journal.
 - promote : withdrawn (DR-173). Nothing copies what an agent wrote into the quilt: a digest is made by `loom digest extract` and checked by ingest mode, and a drafted node is previewed by the author and pasted by them, taking an id from `loom id --next`.
 - agent : the interactive program a person points at a quilt (Claude Code, Codex). Never a dependency.
 

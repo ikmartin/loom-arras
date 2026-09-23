@@ -20,7 +20,7 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 ## Output
 1. `audit-KEY.notes.md`: [summary], [hypothesis-ledger], [citation-ledger], [uses-ledger], [self-containedness], [sharpenings], [patch-list].
 2. Annotations for every item of [uses-ledger], [self-containedness], and [patch-list] (kind suggestion; kind objection for an incidental error; kind question where you could not decide), each anchored to the sentence it concerns; the notes list their ids.
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
 Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).

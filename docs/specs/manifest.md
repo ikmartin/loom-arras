@@ -313,10 +313,6 @@ The **id** is minted once and is the address; the **title** is the author's and 
   "created": "2026-09-16T14:02:00Z",
   "participants": [{"kind": "person", "id": "Markas Hecht"}, {"kind": "agent", "id": "claude-code"}],
   "targets": ["rl-0004", "rl-0004/proof"],
-  "messages": [
-    {"author": {"kind": "agent", "id": "claude-code"}, "time": "2026-09-16T14:31:00Z",
-     "body_html": "<p>Refereed rl-0004; three objections.</p>"}
-  ],
   "attachments": [
     {"name": "referee-rl-0004.notes.md", "kind": "notes", "path": "ai/runs/.../referee-rl-0004.notes.md"},
     {"name": "draft-rl-0019.tex", "kind": "draft", "path": "..."},
@@ -329,7 +325,21 @@ The **id** is minted once and is the address; the **title** is the author's and 
 
 **[decided]** A thread of kind `run` also carries `pipeline`: the modes the run applied, in order, each `{mode, target, report}` with `pass` when it is a numbered re-run, `fragment` naming the rendered report fragment, and `blocks` indexing that fragment as `{name, title, findings}`. It is **derived, not declared** — every mode writes `<mode>-<target>.notes.md` without exception, so the run directory already says which modes ran and against what, and says it retroactively for runs written before the field existed. The order is the files' own, a numbered second pass after its first; name order rather than clock order, because two builds of one quilt must not disagree about it. A publisher with no modes emits no `pipeline`, and a viewer must not recover a mode by parsing a filename itself.
 
-`messages` comes from `thread.md` (rendered) or, later, from the write API; `log` from `run.log`. As published by loom (M6): every run under `ai/runs/` is a thread of `kind` `run` with `path` (the run directory), `title` from the first heading of `thread.md` or the run's name, `participants` from the run's name and the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`; every comment session — one author on one day, replayed from the annotation log — is a thread of `kind` `comments` whose messages are its annotations. Each thread also has a `search` entry with `kind` `thread`.
+A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` from the run's name and the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`; every comment session — one author on one day, replayed from the annotation log — is a thread of `kind` `comments` whose messages are its annotations. Each thread also has a `search` entry with `kind` `thread`.
+
+## 10.1 Transcripts
+
+**[decided]** A session's conversation is published beside the manifest, never in it, because every viewer polls the manifest and a long conversation would make every poll pay for it. The build writes `transcripts/<session>/<n>.json`, page `n` (from 1) holding the events numbered `100(n-1)+1` to `100n`:
+
+```json
+{"session": "s-2026-09-17-0002", "page": 1, "events": [
+  {"seq": 1, "kind": "message", "who": "A. Author", "when": "2026-09-17T11:00:00Z",
+   "body": "Have a look at Theorem 3.2.", "body_html": "<p>Have a look at Theorem 3.2.</p>",
+   "changed": [{"id": "a-2026-09-17-0001", "kind": "question", "target": "Bellamy19-thm-3.2", "act": "created", "by": "A. Author", "body": "…"}]}
+]}
+```
+
+The session's `seq` in `sessions` is the last event's number, so a viewer knows which pages exist without an index. `body` is what was written and `body_html` its rendering, by the same rules as an annotation's body; `changed` lists the annotations a message carried. A publisher that serves live adds the events after the last page through its own channel (specs/write-api.md). `messages` was dropped from threads when transcripts arrived; the interface version stays 1 because no corpus outside the fixtures carried it (DR-264-ikmartin).
 
 ## 11. Diagnostics
 

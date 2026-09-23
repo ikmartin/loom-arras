@@ -16,7 +16,6 @@ export function recordOf(m: Manifest, id: string): Thread {
 			created: '',
 			participants: [],
 			targets: [],
-			messages: [],
 			attachments: [],
 			log: [],
 			discarded: false

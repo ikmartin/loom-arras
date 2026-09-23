@@ -107,13 +107,13 @@ Retitle a session. The id it was opened under does not change, because that is i
 
 `loom ai orient [OPTIONS]`
 
-Print the orientation document followed by the quilt's live state, and with --session that session's own journal.
+Print the orientation documents followed by the quilt's live state, and with --session the end of that session's chat.
 
-This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and that session's journal and command log, which is the scrollback a later sitting resumes from.
+This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and the last messages of that session's chat with its command log, which is what a later sitting resumes from.
 
 | option | description |
 |---|---|
-| `--session` `SESSION` | Attach to this session: also print its journal and command log. An id, a title, or a unique id suffix. |
+| `--session` `SESSION` | Attach to this session: also print the end of its chat and its command log. An id, a title, or a unique id suffix. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom ai runs`
@@ -1043,6 +1043,20 @@ Change a session's title. Nothing moves: the id is the address and does not chan
 | option | description |
 |---|---|
 | `--author` | Who renamed it, when the user config and git do not say. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom session say`
+
+`loom session say [OPTIONS] TEXT`
+
+Say TEXT in a session's chat, as the agent; `-` reads it from stdin.
+
+The agent's half of the transcript, as `send` is the person's: the message goes into the session's inbox as written and carries no annotations. Your own cursor moves past it when you had read everything before it, so `next` does not hand you your own words, and never past a message you have not read.
+
+| option | description |
+|---|---|
+| `--session` | The session to speak in. |
+| `--as` | Who is speaking: your name, including Agent or AI. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom session send`

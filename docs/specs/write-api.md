@@ -30,6 +30,8 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | `POST` | `/_api/session-close` | `{session, author?}` | ends the round; a closed session's annotations are hidden until it is shown or resumed |
 | `POST` | `/_api/message` | `{text, session?, as?, author?}` | posts into a session's inbox and answers with who was attached |
 
+**[decided]** `GET /_api/events?session=ID&since=SEQ` answers `{session, from, seq, events, attached}`: the events after `SEQ` in the transcript's page form (specs/manifest.md §10.1), the last sequence number, and who is attached now. It reads by an index of where each event starts, so a poll costs what is new; a `session` that is not an id's shape is refused.
+
 **[decided]** `session-purge` is **not** an endpoint and will not become one. Purging rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
 
 **[decided]** `comment` with `page` records a note on a page of a cited work (DR-209) through the same mapping `locate` previews — one function on the publisher, so what the viewer showed is what the log says. `locate` with `span` maps offsets into the page's committed text, which is what a `span=` locator in a URL carries.
