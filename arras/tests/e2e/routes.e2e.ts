@@ -86,7 +86,7 @@ test('incoming review stays separate from recorded states and opens a document c
 	await page.goto('/review?show=incoming');
 	await expect(page.getByTestId('incoming-sy-0003')).toBeVisible();
 	await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'Incoming (1)' })).toBeVisible();
-	await expect(page.getByTestId('review-counts')).toContainText('stale');
+	await expect(page.getByTestId('review-counts')).toHaveCount(0);
 	await expect(page.getByTestId('incoming-incorporation')).toContainText('neither push nor accept mathematics');
 	const files = page.getByRole('heading', { name: 'Changed source files' }).locator('xpath=following-sibling::ul[1]');
 	await expect(files).toContainText('drafting/main.tex');
@@ -310,7 +310,7 @@ test('missing proof on a block leads to its review row', async ({ page }) => {
 	});
 	await page.goto('/node/sy-0003');
 	await page.getByTestId('missing-proof').getByRole('link').click();
-	await expect(page).toHaveURL(/\/review\?show=all#review-sy-0003$/);
+	await expect(page).toHaveURL(/\/review\?document=drafting%2Fmain\.tex#review-sy-0003$/);
 	await expect(page.locator('#review-sy-0003')).toContainText('missing proof');
 });
 

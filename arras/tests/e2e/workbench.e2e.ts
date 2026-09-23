@@ -51,6 +51,31 @@ test('a doubly defined id has no text, and says where both definitions are', asy
 	await expect(page.locator('.fragment')).toHaveCount(0);
 });
 
+test('Review scopes rows and counts to working-document tabs while sharing one block state', async ({ page }) => {
+	await page.goto('/review');
+	const tabs = page.getByRole('navigation', { name: 'Review views' });
+	await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
+	await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+	await expect(page.locator('#review-sy-0003')).toBeVisible();
+	await expect(page.locator('#review-sy-999a')).toHaveCount(0);
+	await expect(page.locator('#review-sy-0002')).toBeVisible();
+	await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
+	const mainCounts = await page.getByTestId('review-counts').innerText();
+
+	await tabs.getByRole('link', { name: 'talk.tex' }).click();
+	await expect(page).toHaveURL(/\/review\?document=drafting%2Ftalk\.tex$/);
+	await expect(page.locator('#review-sy-999a')).toBeVisible();
+	await expect(page.locator('#review-sy-0003')).toHaveCount(0);
+	await expect(page.locator('#review-sy-0002')).toBeVisible();
+	await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
+	await expect(page.getByTestId('review-counts')).not.toHaveText(mainCounts);
+	await expect(page.getByText('Runs and comment sessions')).toHaveCount(0);
+	await expect(page.getByText('Undigested citations')).toHaveCount(0);
+
+	await page.goto('/review?document=drafting%2Fmissing.tex');
+	await expect(page.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+});
+
 test('the problems page groups by subject and copies a fix', async ({ page, context, browserName }) => {
 	await page.goto('/problems');
 	const headings = page.getByTestId('subject-heading');

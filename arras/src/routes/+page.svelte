@@ -16,9 +16,9 @@
 	const loose = $derived(nodes.filter((n) => n.reached_by.length === 0));
 
 	const cards = $derived([
-		{ label: 'accepted', value: count('accepted'), tone: 'positive', href: '/review?show=all' },
-		{ label: 'stale', value: stale.length, tone: 'warning', href: '/review?show=all' },
-		{ label: 'incomplete', value: incomplete.length, tone: 'negative', href: '/review?show=all' },
+		{ label: 'accepted', value: count('accepted'), tone: 'positive' },
+		{ label: 'stale', value: stale.length, tone: 'warning' },
+		{ label: 'incomplete', value: incomplete.length, tone: 'negative' },
 		{ label: 'errors', value: errors.length, tone: errors.length ? 'negative' : 'neutral', href: '/problems?severity=error' }
 	]);
 
@@ -37,10 +37,17 @@
 
 	<div class="cards">
 		{#each cards as c (c.label)}
-			<a class="card {toneClass(c.tone)}" href={c.href} data-testid="card-{c.label}">
-				<span class="card-label">{c.label}</span>
-				<span class="card-value">{c.value}</span>
-			</a>
+			{#if c.href}
+				<a class="card {toneClass(c.tone)}" href={c.href} data-testid="card-{c.label}">
+					<span class="card-label">{c.label}</span>
+					<span class="card-value">{c.value}</span>
+				</a>
+			{:else}
+				<div class="card {toneClass(c.tone)}" data-testid="card-{c.label}">
+					<span class="card-label">{c.label}</span>
+					<span class="card-value">{c.value}</span>
+				</div>
+			{/if}
 		{/each}
 	</div>
 
@@ -80,15 +87,15 @@
 				<li><a href={keyUrl(m, k.key)}>{title(k.key)}</a> <span class="faint">incomplete</span></li>
 			{/each}
 		</ul>
-		{#if stale.length > 8}<p class="faint"><a href="/review?show=all">all {stale.length} stale</a></p>{/if}
-		{#if incomplete.length > 8}<p class="faint"><a href="/review?show=all">all {incomplete.length} incomplete</a></p>{/if}
+		{#if stale.length > 8}<p class="faint">{stale.length} stale across drafting documents</p>{/if}
+		{#if incomplete.length > 8}<p class="faint">{incomplete.length} incomplete across drafting documents</p>{/if}
 	{:else}
 		<p class="faint">nothing is stale and nothing is incomplete</p>
 	{/if}
 
 	<h2>Blocked</h2>
 	{#if incomplete.length}
-		<p><a href="/review?show=all">{incomplete.length} incomplete keys and what they block</a></p>
+		<p>{incomplete.length} incomplete keys across drafting documents. <a href={route('/review')}>Review them by document</a>.</p>
 	{:else}
 		<p class="faint">nothing is blocked</p>
 	{/if}
@@ -124,7 +131,7 @@
 		justify-content: center;
 		gap: 1px;
 	}
-	.card:hover {
+	a.card:hover {
 		text-decoration: none;
 		background: var(--link-wash);
 	}

@@ -20,7 +20,7 @@
 	import { nodeBadge, reviewFacts, stateBadge, versionLabel } from '$lib/badges';
 	import Beside from '$lib/split/Beside.svelte';
 	import { slotsFor } from '$lib/fragments/slots';
-	import { anchorId, workUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, tagUrl, threadUrl } from '$lib/nav';
+	import { workUrl, keyFromParam, keyUrl, masterUrl, nodeUrl, reviewUrl, tagUrl, threadUrl } from '$lib/nav';
 
 	const m = $derived(store.manifest!);
 	const slots = slotsFor(() => m);
@@ -101,7 +101,7 @@
 				{#if node.external && node.digest}<span class="muted">from <a href={workUrl(node.digest)}>{node.digest}</a>{#if node.locator}, <Locator ref={m.references[node.digest]} locator={node.locator} />{/if}</span>{/if}
 			</p>
 		</header>
-		{#if missingProof}<p class="muted" data-testid="missing-proof">No proof is attached. <a href={`/review?show=all#review-${anchorId(key)}`}>See this block in Review</a>.</p>{/if}
+		{#if missingProof}<p class="muted" data-testid="missing-proof">No proof is attached. <a href={reviewUrl(node.reached_by[0], key)}>See this block in Review</a>.</p>{/if}
 
 		{#if node.conflict?.length}
 			<p class="conflicted" data-testid="conflicted">

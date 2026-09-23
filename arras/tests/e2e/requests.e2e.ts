@@ -278,18 +278,19 @@ test.describe('references', () => {
 });
 
 test.describe('the review views stay deliberately small', () => {
-	test('All is the default and the only other views are Needs review and Incoming', async ({ page }) => {
+	test('working documents replace All while Needs review and Incoming stay global', async ({ page }) => {
 		await page.goto('/review?show=stale');
 		const tabs = page.getByRole('navigation', { name: 'Review views' });
-		await expect(tabs.getByRole('link')).toHaveText([/All/, /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
-		await expect(tabs.getByRole('link', { name: 'All' })).toHaveAttribute('aria-current', 'page');
+		await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
+		await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
 		await expect(page.locator('main table.list')).toBeVisible();
 		await expect(page.getByTestId('filter-show')).toHaveCount(0);
 	});
 
-	test('the blockers address lands on All', async ({ page }) => {
+	test('the blockers address lands on the default working document', async ({ page }) => {
 		await page.goto('/blockers');
-		await expect(page).toHaveURL(/\/review\?show=all$/);
+		await expect(page).toHaveURL(/\/review$/);
+		await expect(page.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
 	});
 
 	test('the problems page filters by severity from the URL, with its filters in the panel', async ({ page }) => {
