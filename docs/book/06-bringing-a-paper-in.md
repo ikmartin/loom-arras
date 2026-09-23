@@ -86,9 +86,9 @@ Recorded: draft (ledger line 2)
 
 ## 6.4 `loom id FILE [--to DEST]`
 
-**[decided]** The tagging half of `import`, for files already in the quilt: computes the label insertions of 6.2.4 for `FILE` and prints them as a unified diff to stdout, or writes the resulting file to `DEST` with `--to` (refusing if `DEST` exists). It never modifies `FILE`. It refuses a file with line-anchoring violations, naming the lines, since it places labels on those lines (DR-40). A heading's id goes directly after the heading's arguments, ahead of any label the author already placed there (DR-64), and headings in a file no master reaches are labelled too, since such a file is sectioned on its own (DR-62). The single-file author who wrote human labels applies the patch with their editor or `git apply`.
+**[decided]** The tagging half of `import`, for files already in the quilt: computes the label insertions of 6.2.4 for `FILE` and prints them as a unified diff to stdout, or writes the resulting file to `DEST` with `--to` (refusing if `DEST` exists). It never modifies `FILE`. It refuses a file with line-anchoring violations, naming the lines, unless `--fix-anchoring` is passed; with that option, the one patch or copy repairs anchoring first and inserts labels at the repaired offsets (DR-224). A heading's id goes directly after the heading's arguments, ahead of any label the author already placed there (DR-64), and headings in a file no master reaches are labelled too, since such a file is sectioned on its own (DR-62). The single-file author who wrote human labels applies the patch with their editor or `git apply`.
 
-Options: `--sections` and `--no-sections` (default: sections through subsubsection are labelled); `--all-levels` (also paragraphs and subparagraphs); `--prefix P`.
+Options: `--sections` and `--no-sections` (default: sections through subsubsection are labelled); `--all-levels` (also paragraphs and subparagraphs); `--prefix P`; `--fix-anchoring` (repair line anchoring in the proposed patch or copy; not valid with `--next`).
 
 Example:
 

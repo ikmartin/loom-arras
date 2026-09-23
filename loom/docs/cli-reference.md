@@ -389,6 +389,7 @@ Print a patch (or write a copy with --to) inserting \label{<id>} on every untagg
 | `--sections`, `--no-sections` | Also label sections through subsubsection (default on). |
 | `--all-levels` | Also label paragraphs and subparagraphs. |
 | `--prefix` |  |
+| `--fix-anchoring` | Include line-anchoring repairs in the patch or written copy. |
 | `--next` | Print the next free id and nothing else; inserts nothing. |
 | `--json` | With --next: print it as JSON. |
 | `--session` `SESSION` | Log this call to the session. |

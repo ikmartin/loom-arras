@@ -4,6 +4,7 @@ Every place the implementation departs from a `[decided]` statement, or settles 
 
 | date | section | book says | implemented | why | DR | book updated |
 |---|---|---|---|---|---|---|
+| 2026-09-23 | 6.4 | `loom id` refuses non-anchored source and asks for manual repair | `loom id --fix-anchoring` prints one combined anchoring-and-id patch or writes a separate copy with `--to` | a document begun directly in drafting needs the same repair path as a draft copied from canon, without changing author files | DR-224 | y |
 | 2026-09-21 | dialect 2.9 | the listed class vocabulary is closed | comparison fragments add source-precise review change classes | a word edit should not highlight its whole paragraph | DR-202 | y |
 | 2026-09-21 | 7.6.3 | every node in the closure must be settled | section references are structural context and impose no settlement obligation | sections cannot be accepted or proved and otherwise hide settled status | DR-201 | y |
 | 2026-09-21 | 7.2, 7.6, 10.3, manifest | transitive closure hash changes and file dates explain staleness; review shows unified diffs | acceptance records immediate dependencies; first observation dates and rendered contextual comparisons explain direct and indirect causes; review command and build/serve publish the panel | an unchanged accepted intermediate should resolve an indirect cause, and the reader needs the cited context | DR-200 | y |
