@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from loom.ai.runs import thread_id
 from loom.clock import today
 from loom.records.annotations import ASKING, Annotation, Record, load_records
 from loom.records.ledger import AcceptRow, latest_rows, read_ledger
@@ -391,7 +390,8 @@ class Records:
         if self._resolved_cache is not None and self._resolved_cache[0] is result:
             return self._resolved_cache[1]
         out: list[ResolvedAnnotation] = []
-        texts: dict[str, str] = {}
+        texts: dict[str, str] = {}  # the text a quote is found in: no child markers
+        hashed: dict[str, str] = {}  # the text a version is: with them, as every hash is taken (book 5.13)
         works: dict[str, str] = {}
         for rec in self.records:
             for a in rec.annotations:
@@ -407,7 +407,8 @@ class Records:
                     continue
                 if n.key not in texts:
                     texts[n.key], _ = self.own_pieces(result, n)
-                kept = self._recorded(a, texts[n.key])
+                    hashed[n.key] = own_text(result, n)
+                kept = self._recorded(a, hashed[n.key])
                 if a.selector is None:
                     out.append(ResolvedAnnotation(a, rec, None, False, kept))
                     continue
@@ -447,9 +448,9 @@ class Records:
         return ResolvedAnnotation(a, rec, span, span is None, recorded, ck)
 
     def _recorded(self, a: Annotation, current: str | None) -> bool:
-        """Whether the text `a` was written against can still be shown: it is the current text, or a frozen snapshot.
+        """Whether loom can still produce the text `a` was written against: its `against` hash is the current text's, or a frozen snapshot's.
 
-        Two edits between two scans lose the text in between (`lastseen.py`), and the quote may still match the new text, so `detached` does not answer this. An annotation with no `against` made no claim about a version and counts as recorded.
+        Snapshots come from `loom accept`, from `loom comment`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (P3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai findings --json` reports `recorded`, and `loom status --reading` prints it for page notes; nothing yet shows the old text. A note with no `against` claimed no version and counts as recorded.
         """
         want = a.target_hash
         if not want:
@@ -590,7 +591,7 @@ class Records:
             a = res.annotation
             anns[a.id] = {
                 "id": a.id,
-                "author": {"kind": a.author_kind, "id": a.author_id, "label": _author_label(a)},
+                "author": {"kind": a.author_kind, "id": a.author_id, "label": a.author_id},
                 "created": a.created,
                 # a note on a page of a cited work names the work by identifier; the citekey and the page travel
                 # beside it so a viewer needs no lookup to say where it is (plan 0.13 item 2)
@@ -613,9 +614,8 @@ class Records:
                 "payload": a.payload,
                 "placement": a.placement,
                 "discard_reason": a.discard_reason,
-                # the run or comment session this belongs to; with one log it is the grouping key a viewer needs,
-                # which a file path no longer is, and it is the thread's own id so the two can be joined
-                "run": thread_id(res.record.rel),
+                # the session this belongs to: the grouping key a viewer needs, and the thread's own id so the two join
+                "run": res.record.rel,
                 "record": res.record.rel,
                 "discarded": res.record.discarded,
             }
@@ -627,10 +627,6 @@ def _fact(a: Annotation | None) -> dict[str, Any] | None:
     if a is None:
         return None
     return {"author": {"kind": a.author_kind, "id": a.author_id}, "date": a.created}
-
-
-def _author_label(a: Annotation) -> str:
-    return f"{a.author_id} (run)" if a.author_kind == "run" else a.author_id
 
 
 def _when(result: ScanResult, n: NodeRec) -> str | None:
@@ -675,7 +671,13 @@ def _protect_math(text: str) -> tuple[str, list[tuple[bool, str]]]:
         spans.append((display, (m.group(1) if display else m.group(2)).strip()))
         return _HOLE.format(len(spans) - 1)
 
-    return _MATH.sub(take, text), spans
+    # Code is quoted as written: `$` inside backticks is the source's own, not mathematics to typeset.
+    parts = _CODE.split(text)
+    return "".join(part if i % 2 else _MATH.sub(take, part) for i, part in enumerate(parts)), spans
+
+
+#: Fenced code blocks and inline code spans, as CommonMark reads them; `split` keeps them at the odd indices.
+_CODE = re.compile(r"(```[\s\S]*?```|(?<!`)`+(?!`)[\s\S]*?(?<!`)`+(?!`))")
 
 
 def _restore_math(html_text: str, spans: list[tuple[bool, str]]) -> str:

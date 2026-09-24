@@ -13,7 +13,7 @@ from loom.cli._quilt import open_quilt, quilt_option
 
 @click.group()
 def ai() -> None:
-    """The optional AI layer: runs, orientation, promotion, and discarding review records."""
+    """The optional AI layer: orientation, sessions, findings, and discarding review records."""
 
 
 @ai.command()
@@ -43,8 +43,7 @@ def discard(
     sources: list[str] = []
     if run:
         found = find_session(root, run)
-        # a migrated session's annotations still carry the grouping they were written with
-        sources.append(found.source or found.id)
+        sources.append(found.id)
     elif before or author or target:
         for rec in records:
             created = min((a.created for a in rec.annotations), default="")
@@ -61,10 +60,9 @@ def discard(
         click.echo("no matching records")
         return
     from loom.cli._common import whoever
-    from loom.sessions import ID, by_source, close, resume
+    from loom.sessions import ID, close, resume
 
     who = whoever(root)
-    known = by_source(root)
     for rel in sources:
         event: dict[str, object] = {
             "event": "discarded",
@@ -72,36 +70,39 @@ def discard(
             "when": stamp(),
             "author": who,
             "kind": "agent" if agent_marker() else "human",
-            "session": rel if ID.match(rel) else known.get(rel),
+            "session": rel,
         }
         if undo:
             event["undo"] = True
         append(root, event)
         # Discarding a sitting's findings ends the sitting: that is what discarding a run meant, and a session whose
         # every finding is dismissed has no business in the list of what is open.
-        sid = rel if ID.match(rel) else known.get(rel)
-        if sid:
-            (resume if undo else close)(root, sid, who)
+        if ID.match(rel):
+            (resume if undo else close)(root, rel, who)
         click.echo(f"{'restored' if undo else 'discarded'} {rel}")
 
 
 @ai.command(name="init")
-@click.option("--permissions", is_flag=True, help="Also write the agents' permission settings (.claude/settings.json).")
+@click.option(
+    "--permissions",
+    is_flag=True,
+    help="Also write what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules).",
+)
 @click.option("--skills", is_flag=True, help="Also write skill stubs and slash commands for Claude Code.")
 @quilt_option
 def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
-    """Write ai/ (orientation, modes, runs/) and the vendor files CLAUDE.md and AGENTS.md; refuses if ai/ exists."""
+    """Write ai/ (orientation, rules, modes) and the vendor files CLAUDE.md and AGENTS.md; refuses if ai/ exists."""
     from loom.ai.layout import init_layer
 
     quilt = open_quilt(quilt_path)
     try:
-        rep = init_layer(quilt.root, permissions=permissions, skills=skills)
+        rep = init_layer(quilt.root, permissions=permissions, skills=skills, codex=permissions)
     except FileExistsError:
         raise EnvError("ai/ exists; run loom upgrade to refresh it") from None
     for rel in rep.written:
         click.echo(f"wrote {rel}")
     click.echo(
-        'next: start your agent here; it reads CLAUDE.md and runs loom ai orient. loom ai start "a name" opens a run.'
+        'next: start your agent here; it reads CLAUDE.md and runs loom ai orient. loom ai start "a name" opens a session.'
     )
 
 
@@ -142,7 +143,7 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
 def ai_start(name: str | None, quilt_path: str | None) -> None:
     """Open a session named NAME and make it active, printing its id.
 
-    The same session a person opens with `loom session new`: an agent and the author working the same job land in one place, which they could not when a run was the agent's alone. Loom does not launch your agent -- `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`.
+    The same session a person opens with `loom session new`, so an agent and the author working the same job land in one place. Loom does not launch your agent -- `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`.
     """
     from loom.cli._common import whoever
     from loom.sessions import create, set_active
@@ -232,7 +233,7 @@ def ai_findings(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """What this run has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole finding.
+    """What this session has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole finding.
 
     An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
     """
@@ -244,7 +245,7 @@ def ai_findings(
     result = open_scan(quilt_path)
     root = result.quilt.root
     found = find_session(root, session)
-    rel = found.source or found.id
+    rel = found.id
     rows = [
         {
             "id": a.annotation.id,

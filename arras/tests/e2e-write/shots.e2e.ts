@@ -16,7 +16,7 @@ test('the editing surfaces', async ({ page }) => {
 	// has chosen where their work goes -- which is the state the composer is usable in
 	await openPicker(page);
 	await page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first().click();
-	await page.waitForSelector('[data-testid="discussion"]');
+	await page.waitForSelector('[data-testid="chat"]');
 	// the composer opens where the selection is, as on a paper's page
 	await words.evaluate((node) => {
 		const range = document.createRange();
@@ -32,10 +32,10 @@ test('the editing surfaces', async ({ page }) => {
 	await page.screenshot({ path: `${OUT}/composer.png` });
 
 	await page.goto('/master/main');
-	// choosing where to write opens where the writing is read, beside the document
+	// choosing where to write opens its Chat, beside the document
 	await openPicker(page);
 	await page.getByTestId('session-list').locator('[data-testid^="session-s-"]').first().click();
-	await page.waitForSelector('[data-testid="discussion"]');
+	await page.waitForSelector('[data-testid="chat"]');
 	await page.waitForTimeout(900);
 	await page.screenshot({ path: `${OUT}/document-annotations.png` });
 });

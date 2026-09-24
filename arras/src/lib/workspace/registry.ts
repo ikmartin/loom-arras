@@ -89,7 +89,7 @@ export const kinds: Record<ItemKind, Kind> = {
 		},
 		renderer: SessionItem,
 		views: () => [
-			{ id: 'discussion', label: 'Discussion' },
+			{ id: 'chat', label: 'Chat' },
 			{ id: 'did', label: 'What it did' }
 		]
 	}

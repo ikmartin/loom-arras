@@ -82,7 +82,7 @@
    "placement": null,
    "quote": null,
    "record": "s-2026-09-16-0001",
-   "recorded": false,
+   "recorded": true,
    "run": "s-2026-09-16-0001",
    "severity": "moderate",
    "status": "open",
@@ -268,7 +268,7 @@
    "placement": null,
    "quote": "an involution $\\sigma$ of $X$",
    "record": "s-2026-09-16-0001",
-   "recorded": false,
+   "recorded": true,
    "run": "s-2026-09-16-0001",
    "severity": null,
    "status": "open",
@@ -314,7 +314,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "535c2c9d9d28d0876373f2269193e57ca359a4f048bb9273329e6f35ea183f59",
+   "hash": "09d3fe0189daba2a9f49f2d3292a50790f16f91aa3b31c53404b4d74c6647152",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -326,7 +326,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "c2d430627c906ad27bd4412440a73ad662a569c78a52fdadc6a6e6612f4bb2e3",
+   "hash": "a441608e4c2315987a70a16f00e4e14b2ab47426899040773a83aaeea2c1fa8f",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -338,7 +338,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "7434a75b00fbf107b3c35aa7fb0794248555566ad9d0957ac0a0c353e79aa8f8",
+   "hash": "63577d96dc60c940ca55515d06c2d608cff9d56b3a132322ce3d08111b7049ca",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -4476,7 +4476,7 @@
    ],
    "from": {
     "annotation": "a-2026-09-16-0004",
-    "run": null
+    "run": "s-2026-09-16-0001"
    },
    "identifier": {
     "verified": false
@@ -5126,6 +5126,7 @@
    "kind": "session",
    "log": [
     {
+     "annotation": "a-2026-09-16-0010",
      "command": "loom comment sy-000A --kind confirmation",
      "time": "2026-09-16T00:00:00Z"
     }
@@ -5162,42 +5163,52 @@
    "kind": "session",
    "log": [
     {
+     "annotation": "a-2026-09-16-0001",
      "command": "loom comment sy-0003 --quote --kind objection",
      "time": "2026-09-16T00:00:00Z"
     },
     {
+     "annotation": "a-2026-09-16-0002",
      "command": "loom comment sy-0004 --quote --kind suggestion",
      "time": "2026-09-16T00:00:00Z"
     },
     {
+     "annotation": "a-2026-09-16-0003",
      "command": "loom comment drafting/main.tex --kind suggestion",
      "time": "2026-09-16T00:00:00Z"
     },
     {
+     "annotation": "a-2026-09-16-0004",
      "command": "loom comment sy-0003 --kind citation",
      "time": "2026-09-16T00:00:00Z"
     },
     {
+     "annotation": "a-2026-09-16-0005",
      "command": "loom comment sy-0002 --kind citation",
      "time": "2026-09-16T00:00:00Z"
     },
     {
+     "annotation": "a-2026-09-16-0006",
      "command": "loom comment sy-0002 --quote --kind question",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "command": "loom comment Agreed; I will add the hypothesis to the statement.",
+     "annotation": "a-2026-09-16-0007",
+     "command": "loom comment --reply a-2026-09-16-0001",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "command": "loom comment Done in the next revision.",
+     "annotation": "a-2026-09-16-0008",
+     "command": "loom comment --reply a-2026-09-16-0002",
      "time": "2026-09-16T00:00:00Z"
     },
     {
-     "command": "loom comment ",
+     "annotation": "a-2026-09-16-0002",
+     "command": "loom comment --resolve a-2026-09-16-0002",
      "time": "2026-09-16T00:00:00Z"
     },
     {
+     "annotation": "a-2026-09-16-0009",
      "command": "loom comment sy-0001 --quote --kind question",
      "time": "2026-09-16T00:00:00Z"
     }

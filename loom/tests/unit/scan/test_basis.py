@@ -12,7 +12,7 @@ from loom.records.store import Records
 from loom.reshape.atomize import plan_atomize
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
-from tests.unit.scan.helpers import PREAMBLE, make_quilt
+from tests.unit.scan.helpers import DEFAULT_CONFIG, PREAMBLE, make_quilt
 
 
 def test_drafting_scan_classifies_five_bases_and_flags_uncertainty(tmp_path: Path) -> None:
@@ -233,7 +233,7 @@ def test_proof_after_remark_needs_a_preceding_claim_or_explicit_reference(tmp_pa
     assert any(d.code == "loom:unattached-proof" for d in result.diagnostics)
 
 
-def test_legacy_definition_directive_maps_to_expository(tmp_path: Path) -> None:
+def test_an_unknown_basis_is_named_and_the_known_ones_offered(tmp_path: Path) -> None:
     result = make_quilt(
         tmp_path,
         {
@@ -247,5 +247,37 @@ This only fixes terminology.
 """
         },
     )
-    assert result.nodes["ab-0001"].basis == "expository"
-    assert "legacy" in result.nodes["ab-0001"].basis_reason
+    node = result.nodes["ab-0001"]
+    assert node.basis == "unclassified", node.basis_reason
+    assert "unknown basis 'definition'" in node.basis_reason and "expository" in node.basis_reason
+
+
+def test_the_quilts_basis_table_names_its_own_environments(tmp_path: Path) -> None:
+    """An example is expository without being told; `[basis]` gives a quilt's own names a basis and overrides a built-in one, and a value that is no basis is warned about and ignored."""
+    config = (
+        DEFAULT_CONFIG + '\n[basis]\nexercise = "open-claim"\nremark = "local-proof"\nobservation = "cited-result"\n'
+    )
+    result = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\newtheorem{exercise}{Exercise}
+\newtheorem{observation}{Observation}
+\begin{document}
+\begin{example}\label{ab-0001}The empty widget.\end{example}
+\begin{exercise}\label{ab-0002}Find a widget.\end{exercise}
+\begin{remark}\label{ab-0003}Every widget is a set, since sets are.\end{remark}
+\begin{observation}\label{ab-0004}Widgets exist.\end{observation}
+\end{document}
+"""
+        },
+        config=config,
+    )
+    assert {k: result.nodes[k].basis for k in ("ab-0001", "ab-0002", "ab-0003", "ab-0004")} == {
+        "ab-0001": "expository",
+        "ab-0002": "open-claim",
+        "ab-0003": "local-proof",
+        "ab-0004": "unclassified",
+    }
+    assert "[basis] in config.toml" in result.nodes["ab-0002"].basis_reason
+    assert any("basis.observation = 'cited-result'" in w for w in result.quilt.config.warnings)

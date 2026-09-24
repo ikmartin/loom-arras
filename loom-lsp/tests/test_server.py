@@ -34,8 +34,8 @@ def test_the_quilt_is_found_by_walking_up_and_only_inside_one(tmp_path: Path, qu
     assert find_quilt(loose / "paper.tex") is None
 
 
-def test_diagnostics_match_what_lint_reports(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
-    harness.open(quilt / "drafts" / "main.tex")
+def test_diagnostics_match_what_lint_reports(quilt: Path, master: Path, harness) -> None:  # type: ignore[no-untyped-def]
+    harness.open(master)
     out = subprocess.run(["loom", "lint", "--json", "--quilt", str(quilt)], capture_output=True, text=True, check=False)
     expected = json.loads(out.stdout)
     by_file: dict[str, set[tuple[str, int]]] = {}
@@ -47,13 +47,12 @@ def test_diagnostics_match_what_lint_reports(quilt: Path, harness) -> None:  # t
         assert wanted <= got, (rel, wanted - got)
 
 
-def test_a_dangling_reference_is_an_error_at_the_command_not_the_line(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
-    main = quilt / "drafts" / "main.tex"
-    harness.open(main)
-    dangling = [d for d in harness.diagnostics(main) if d.code == "dangling-link"]
+def test_a_dangling_reference_is_an_error_at_the_command_not_the_line(master: Path, harness) -> None:  # type: ignore[no-untyped-def]
+    harness.open(master)
+    dangling = [d for d in harness.diagnostics(master) if d.code == "dangling-link"]
     assert dangling and dangling[0].severity == lsp.DiagnosticSeverity.Error
     assert dangling[0].code_description is not None
-    line = main.read_text(encoding="utf-8").splitlines()[dangling[0].range.start.line]
+    line = master.read_text(encoding="utf-8").splitlines()[dangling[0].range.start.line]
     assert line[dangling[0].range.start.character :].startswith("\\ref{sy-9999}")
 
 
@@ -71,7 +70,7 @@ def test_an_unsaved_buffer_produces_diagnostics_the_disk_does_not_justify(quilt:
     assert not [d for d in harness.diagnostics(node) if d.code == "dangling-link"]
 
 
-def test_definition_of_a_reference_a_citation_and_an_inclusion(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
+def test_definition_of_a_reference_a_citation_and_an_inclusion(quilt: Path, master: Path, harness) -> None:  # type: ignore[no-untyped-def]
     node = quilt / "nodes" / "sy-000B.tex"
     uri = harness.open(node)
     pos = harness.position_of(node, "Theorem~\\ref{sy-0003}", len("Theorem~\\ref{") + 2)
@@ -83,9 +82,8 @@ def test_definition_of_a_reference_a_citation_and_an_inclusion(quilt: Path, harn
     target = (quilt / "nodes" / "sy-0003.tex").read_text(encoding="utf-8").splitlines()
     assert "sy-0003" in target[loc.range.start.line]
 
-    main = quilt / "drafts" / "main.tex"
-    uri = harness.open(main)
-    pos = harness.position_of(main, "\\input{nodes/sy-0002}", 8)
+    uri = harness.open(master)
+    pos = harness.position_of(master, "\\input{nodes/sy-0002}", 8)
     loc = goto_definition(
         harness.server,
         lsp.DefinitionParams(text_document=lsp.TextDocumentIdentifier(uri=uri), position=pos),
@@ -214,9 +212,8 @@ def _reshape_actions_at(harness, path: Path, needle: str, kind: str):  # type: i
     return [a for a in _actions_at(harness, path, needle) if a.kind == kind]
 
 
-def test_atomizing_the_node_under_the_cursor_is_one_edit_that_creates_its_file(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
-    main = quilt / "drafts" / "main.tex"
-    (action,) = _reshape_actions_at(harness, main, "\\begin{definition}[Widget]", lsp.CodeActionKind.RefactorExtract)
+def test_atomizing_the_node_under_the_cursor_is_one_edit_that_creates_its_file(master: Path, harness) -> None:  # type: ignore[no-untyped-def]
+    (action,) = _reshape_actions_at(harness, master, "\\begin{definition}[Widget]", lsp.CodeActionKind.RefactorExtract)
     assert action.title == "Atomize sy-0001 into nodes/sy-0001.tex"
     create, write, replace = action.edit.document_changes
     assert isinstance(create, lsp.CreateFile) and create.uri.endswith("/nodes/sy-0001.tex")
@@ -224,21 +221,20 @@ def test_atomizing_the_node_under_the_cursor_is_one_edit_that_creates_its_file(q
     assert write.edits[0].new_text.startswith("\\begin{definition}[Widget]\\label{sy-0001}")
     assert write.edits[0].new_text.endswith("\n")
 
-    text = main.read_text(encoding="utf-8")
+    text = master.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
     rng = replace.edits[0].range
     start = sum(len(x) for x in lines[: rng.start.line]) + rng.start.character
     end = sum(len(x) for x in lines[: rng.end.line]) + rng.end.character
-    assert replace.text_document.uri.endswith("/drafts/main.tex")
+    assert replace.text_document.uri == harness.uri(master)
     assert replace.edits[0].new_text == "\\input{nodes/sy-0001}"
     assert text[start:end] == write.edits[0].new_text.rstrip("\n"), "the region that moves is what the file receives"
     assert text[:start] + "\\input{nodes/sy-0001}" + text[end:] != text
 
 
-def test_the_client_gets_only_the_kinds_it_asked_for(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
-    main = quilt / "drafts" / "main.tex"
-    uri = harness.open(main)
-    pos = harness.position_of(main, "\\begin{definition}[Widget]")
+def test_the_client_gets_only_the_kinds_it_asked_for(master: Path, harness) -> None:  # type: ignore[no-untyped-def]
+    uri = harness.open(master)
+    pos = harness.position_of(master, "\\begin{definition}[Widget]")
 
     def ask(only: list[str] | None) -> list[str]:
         got = code_actions(
@@ -261,28 +257,22 @@ def test_the_client_gets_only_the_kinds_it_asked_for(quilt: Path, harness) -> No
     assert "refactor.extract" in ask(["refactor"]), "a kind covers everything under it"
 
 
-def test_a_node_already_in_its_own_file_or_a_section_is_not_offered(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
+def test_a_node_already_in_its_own_file_or_a_section_is_not_offered(quilt: Path, master: Path, harness) -> None:  # type: ignore[no-untyped-def]
     assert (
         _reshape_actions_at(
             harness, quilt / "nodes" / "sy-0003.tex", "\\begin{theorem}", lsp.CodeActionKind.RefactorExtract
         )
         == []
     )
-    assert (
-        _reshape_actions_at(
-            harness, quilt / "drafts" / "main.tex", "\\section{Introduction}", lsp.CodeActionKind.RefactorExtract
-        )
-        == []
-    )
+    assert _reshape_actions_at(harness, master, "\\section{Introduction}", lsp.CodeActionKind.RefactorExtract) == []
 
 
-def test_a_node_with_no_id_is_offered_one_instead_of_an_atomize(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
-    main = quilt / "drafts" / "main.tex"
-    text = main.read_text(encoding="utf-8")
+def test_a_node_with_no_id_is_offered_one_instead_of_an_atomize(master: Path, harness) -> None:  # type: ignore[no-untyped-def]
+    text = master.read_text(encoding="utf-8")
     edited = text.replace("\\end{document}", "\\begin{lemma}\nNo id yet.\n\\end{lemma}\n\\end{document}")
-    harness.open(main)
-    harness.change(main, edited)
-    uri = harness.uri(main)
+    harness.open(master)
+    harness.change(master, edited)
+    uri = harness.uri(master)
     line = edited[: edited.index("No id yet.")].count("\n") - 1
     got = code_actions(
         harness.server,
@@ -300,11 +290,10 @@ def test_a_node_with_no_id_is_offered_one_instead_of_an_atomize(quilt: Path, har
     assert edited.splitlines()[edit.range.start.line].startswith("\\begin{lemma}")
 
 
-def test_the_plan_reads_the_unsaved_buffer(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
-    main = quilt / "drafts" / "main.tex"
-    harness.open(main)
-    edited = main.read_text(encoding="utf-8").replace("A \\emph{widget} is", "A \\emph{gadget} is")
-    uri = harness.change(main, edited)
+def test_the_plan_reads_the_unsaved_buffer(master: Path, harness) -> None:  # type: ignore[no-untyped-def]
+    harness.open(master)
+    edited = master.read_text(encoding="utf-8").replace("A \\emph{widget} is", "A \\emph{gadget} is")
+    uri = harness.change(master, edited)
     line = edited[: edited.index("\\begin{definition}[Widget]")].count("\n")
     got = code_actions(
         harness.server,
@@ -319,13 +308,13 @@ def test_the_plan_reads_the_unsaved_buffer(quilt: Path, harness) -> None:  # typ
     assert "gadget" in write.edits[0].new_text, "the node file takes the buffer's text, not the disk's"
 
 
-def test_workspace_symbols_find_a_node_by_title_at_its_label(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
-    harness.open(quilt / "drafts" / "main.tex")
+def test_workspace_symbols_find_a_node_by_title_at_its_label(master: Path, harness) -> None:  # type: ignore[no-untyped-def]
+    harness.open(master)
     got = workspace_symbol(harness.server, lsp.WorkspaceSymbolParams(query="widget"))
     widget = next(s for s in got if s.name.startswith("sy-0001 "))
     assert "Definition: Widget" in widget.name
     assert isinstance(widget.location, lsp.Location)
-    text = (quilt / "drafts" / "main.tex").read_text(encoding="utf-8").splitlines()
+    text = master.read_text(encoding="utf-8").splitlines()
     line = widget.location.range.start.line
     rng = widget.location.range
     assert text[line][rng.start.character : rng.end.character] == "\\label{sy-0001}"
@@ -381,14 +370,14 @@ def _hints(harness, path: Path) -> list[tuple[str, str]]:  # type: ignore[no-unt
     return [(lines[h.position.line][: h.position.character], str(h.label)) for h in got]
 
 
-def test_inlay_hints_name_what_references_and_inclusions_point_to(quilt: Path, harness) -> None:  # type: ignore[no-untyped-def]
+def test_inlay_hints_name_what_references_and_inclusions_point_to(quilt: Path, master: Path, harness) -> None:  # type: ignore[no-untyped-def]
     hints = _hints(harness, quilt / "nodes" / "sy-000B.tex")
     before_ref = [label for before, label in hints if before.endswith("\\ref{sy-0003}")]
     assert len(before_ref) == 1 and before_ref[0].startswith("Theorem")
     uses = [label for before, label in hints if before.endswith("\\uses{sy-0003, sy-0006}")]
     assert len(uses) == 1 and "; " in uses[0]  # one hint for a command naming two keys
 
-    main = _hints(harness, quilt / "drafts" / "main.tex")
+    main = _hints(harness, master)
     assert any(before.endswith("\\input{nodes/sy-0002}") for before, _ in main)
     assert not any(before.endswith("\\input{nodes/missing}") for before, _ in main)
 

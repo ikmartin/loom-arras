@@ -152,14 +152,14 @@ def test_say_is_the_agents_half_of_the_transcript(tmp_path: Path) -> None:
 
 def test_a_packet_carries_the_whole_annotation(tmp_path: Path) -> None:
     """What was sent is recorded as sent: a body cut at 200 characters was not what the agent was asked about."""
-    from loom.mailbox import changed_since
+    from loom.mailbox import pending
     from loom.sessions import sessions
 
     q, sid = quilt(tmp_path)
     long = "word " * 80
     r = run("comment", "dm-0003", long, "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
     assert r.exit_code == 0, r.output
-    [c] = changed_since(q, sessions(q)[sid])
+    [c] = pending(q, sessions(q)[sid], "A. Author")
     assert c["body"] == long.strip() or c["body"] == long
 
 

@@ -80,21 +80,44 @@
 		offered = { target: keyOf(range.commonAncestorContainer, fallback), text, at: { left: r.left, top: r.top, width: r.width, height: r.height }, range: range.cloneRange() };
 	}
 
+	/** A press on a mark while the box tool is chosen: a click on the mark until the pointer moves, a box once it does. */
+	let pressed: { x: number; y: number } | null = null;
+
 	function down(e: PointerEvent): void {
 		if (!allowed || e.button !== 0 || !(boxing || e.altKey)) return;
-		// a press on a mark or a link is a click on it, not the start of a box
-		if ((e.target as Element).closest('a, button, mark.annotation, .annotation-block, input, textarea, select')) return;
+		const on = e.target as Element;
+		// a press on a link or a control is a click on it, never the start of a box
+		if (on.closest('a, button, input, textarea, select')) return;
+		// On a mark, only the box tool draws, and only once the pointer moves: an annotated equation is still boxable
+		// for a second note, and a click without a drag still opens the mark (study F4).
+		if (on.closest('mark.annotation, .annotation-block')) {
+			if (boxing) pressed = { x: e.clientX, y: e.clientY };
+			return;
+		}
+		start(e, e.clientX, e.clientY);
+	}
+
+	function start(e: PointerEvent, x: number, y: number): void {
 		e.preventDefault();
+		// a drag begun on a mark has already started selecting its words; a box is not a selection
+		window.getSelection()?.removeAllRanges();
 		offered = null;
-		drawing = { x: e.clientX, y: e.clientY, x2: e.clientX, y2: e.clientY };
+		drawing = { x, y, x2: e.clientX, y2: e.clientY };
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 	}
 
 	function move(e: PointerEvent): void {
+		if (pressed && Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) > 4) {
+			const from = pressed;
+			pressed = null;
+			start(e, from.x, from.y);
+			return;
+		}
 		if (drawing) drawing = { ...drawing, x2: e.clientX, y2: e.clientY };
 	}
 
 	function up(e: PointerEvent): void {
+		pressed = null;
 		if (!drawing || !root) return;
 		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
 		const box = rectOf(drawing);

@@ -91,14 +91,14 @@ test.describe('a narrow window', () => {
 		await page.goto('/library/Kre99');
 		await expect(page.locator('.panel.away')).toHaveCount(1);
 		const parts = page.getByTestId('reading-rail').locator('> *');
-		await expect(parts).toHaveCount(3);
+		await expect(parts).toHaveCount(2);
 		const boxes = await parts.evaluateAll((els) => els.map((e) => (e.firstElementChild ?? e).getBoundingClientRect()).map((r) => [r.left, r.right]));
 		for (let i = 1; i < boxes.length; i++) expect(boxes[i][0]).toBeGreaterThanOrEqual(boxes[i - 1][1] - 1);
 		// the reader's stored choice is not rewritten by the window's width
 		expect(await page.evaluate(() => JSON.parse(localStorage.getItem('arras.prefs') ?? '{}').panel)).not.toBe(false);
 	});
 
-	test('when the parts cannot fit, the filter and the discussion go behind ⋯ and the cluster stays', async ({ page }) => {
+	test('when the parts cannot fit, the filter goes behind ⋯ and the cluster stays', async ({ page }) => {
 		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
 		await page.setViewportSize({ width: 760, height: 800 });
 		await page.goto('/library/Kre99');
@@ -107,7 +107,6 @@ test.describe('a narrow window', () => {
 		await expect(page.getByTestId('reading-rail').getByTestId('show-current')).toHaveCount(0);
 		await page.getByTestId('rail-more-toggle').click();
 		await expect(page.getByTestId('rail-more').getByTestId('show-current')).toBeVisible();
-		await expect(page.getByTestId('rail-more').getByTestId('open-discussion')).toBeVisible();
 	});
 });
 
@@ -118,7 +117,7 @@ test.describe('sessions', () => {
 		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
 		await page.reload();
 		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
-		await expect(page.getByTestId('open-discussion')).toBeEnabled();
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 	});
 
 	test('a stored session the corpus no longer lists is let go', async ({ page }) => {
@@ -142,14 +141,15 @@ test.describe('panes', () => {
 		await expect(pane(page, 0).getByTestId('local-graph-panel')).toBeVisible();
 	});
 
-	test("a context's links open in its own pane, so the node it belongs to stays", async ({ page }) => {
+	test("a context's link follows the one rule: a new tab in the other pane, the node it came from kept behind it", async ({ page }) => {
 		await page.goto('/node/sy-0005' + beside('/context/sy-0005'));
 		const link = pane(page, 1).getByTestId('context').locator('a[href*="/node/sy-0002"]').first();
 		await link.click();
-		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
-		await expect.poll(() => new URL(page.url()).pathname).toBe('/node/sy-0005');
-		await expect(pane(page, 1).getByTestId('item-tab')).toHaveCount(2);
-		await expect(pane(page, 1).getByTestId('context')).toHaveCount(0);
+		// the context stays where it was; the other pane gains a tab, and the node the context is about is still there
+		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
+		await expect(pane(page, 0).getByTestId('item-tab')).toHaveCount(2);
+		await expect(pane(page, 0)).toHaveClass(/focused/);
+		await expect.poll(() => new URL(page.url()).pathname).toBe('/node/sy-0002');
 	});
 
 	test('the focused pane is marked by its shadow, with no line on its head', async ({ page }) => {

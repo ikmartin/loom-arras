@@ -1,6 +1,8 @@
-// What a reader selected in a fragment, as loom will look for it in the source: the words as they are, and each formula as its TeX between `$`s, which is the form loom's quote matching reads (records/selectors.py). The chrome a fragment carries — the gutter's id and state, a comment count, MathJax's hidden copy — is not text of the result and is left out.
+// What a reader selected in a fragment, as loom will look for it in the source: the words as they are, each formula as its TeX between `$`s, and each citation or reference as the command it was written as, which is the form loom's quote matching reads (records/selectors.py). The chrome a fragment carries — the gutter's id and state, a comment count, MathJax's hidden copy — is not text of the result and is left out.
 
 const SKIP = '.node-margin, button, .comment-slot, mjx-assistive-mml, .env-label';
+/** A citation or reference the renderer drew from a command, carrying the command as written. */
+const COMMAND = '.cite[data-tex], a.ref[data-tex]';
 
 /** A formula's TeX as a quote carries it: `$…$` inline, `$$…$$` displayed. */
 export function texOf(el: HTMLElement): string {
@@ -32,7 +34,12 @@ export function quoteOf(range: Range): string {
 	// a selection wholly inside one formula is that formula
 	const inMath = top.closest<HTMLElement>('.math');
 	if (inMath) return texOf(inMath);
+	// and one wholly inside a citation or a reference is the command (study F5)
+	const inCommand = top.closest<HTMLElement>(COMMAND);
+	if (inCommand) return inCommand.dataset.tex ?? '';
 	const out: string[] = [];
+	// a `\cite{a,b}` is drawn as one element per key, and quoted once
+	const quoted = new Set<string>();
 	const walk = (node: Node): void => {
 		if (!range.intersectsNode(node)) return;
 		if (node.nodeType === Node.TEXT_NODE) {
@@ -47,6 +54,12 @@ export function quoteOf(range: Range): string {
 		if (el.matches(SKIP)) return;
 		if (el.matches('.math')) {
 			out.push(texOf(el));
+			return;
+		}
+		if (el.matches(COMMAND)) {
+			const at = el.dataset.at ?? '';
+			if (!quoted.has(at)) out.push(el.dataset.tex ?? '');
+			quoted.add(at);
 			return;
 		}
 		for (const c of el.childNodes) walk(c);

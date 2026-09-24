@@ -56,6 +56,8 @@ describe('the display preferences', () => {
 
 	it('narrows a stored blob field by field', () => {
 		expect(coerce({ shell: 'z', face: 'serif', size: 42 })).toEqual({ ...DEFAULTS, face: 'serif' });
+		expect(coerce({ format: 'b2' }).format).toBe('b2');
+		expect(coerce({ format: 'web' }).format).toBe(DEFAULTS.format);
 		expect(coerce(null)).toEqual(DEFAULTS);
 	});
 
@@ -81,12 +83,3 @@ describe('the display preferences', () => {
 	});
 });
 
-describe('the format rename', () => {
-	it('sends a stored `paper` or `blog` back to the default', () => {
-		// The names moved: what was `paper` is `b1` and what was `blog` is `b2`, and the compiled page took the name.
-		// Nothing migrates a stored value, so a browser holding either gets p1 — which is what it would now choose.
-		expect(coerce({ format: 'paper' }).format).toBe('p1');
-		expect(coerce({ format: 'blog' }).format).toBe('p1');
-		for (const f of ['p1', 'p2', 'b1', 'b2']) expect(coerce({ format: f }).format).toBe(f);
-	});
-});

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -379,7 +380,7 @@ def test_a_document_shows_its_own_numbers_and_none_it_was_not_given(tmp_path: Pa
     main_html, talk_html = render({})
     assert '<span class="number">2.1</span>' in main_html
     assert 'class="number"' not in talk_html
-    assert 'data-target="sy-0001" href="#sy-0001">Widget</a>' in talk_html
+    assert re.search(r'data-target="sy-0001" data-tex="[^"]*" data-at="\d+" href="#sy-0001">Widget</a>', talk_html)
 
     _, talk_html = render({"sy-0002": AuxNumber("3", 2)})
     assert '<span class="number">3</span>' in talk_html and "2.1" not in talk_html

@@ -58,7 +58,7 @@ A session is shared: the author may be working in the one you are in, and their 
 Working in the quilt:
 
 - `loom status` (first, always): every key, its state, causes, open annotations; `--stale`, `--draft`, `--incomplete`, `--undigested`, `--explain KEY`; `--json` for tools. This is the to-do list.
-- `loom search QUERY --json`: find ids by title, alias, tag or citekey; get a node's file.
+- `loom search QUERY --json`: find ids by title, alias, tag or citekey; get a node's file. **When the author names a result by its number** — `Theorem 3.4`, `(3)` — resolve it here before reading anything: it lists every key the drafting documents number so, the default document's first, and `--in DOC` asks one document.
 - `loom source TARGET [--closure]`: prints a key's own text, and with `--closure` exactly the statements it depends on first. Give it a document's path instead and it prints that document flattened, every inclusion expanded in place, for when a plan or a paper is the context. Read this, not the directories. It writes no file, so nothing you read can go stale behind you.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
 - `loom lint`: what is structurally wrong. `loom check`: lint, then compile every master; with `--bundles all` it also compiles every key's closure, which the default does not.
@@ -84,25 +84,25 @@ Reading the literature the quilt cites. **Ask the digest before you read a paper
 Recording what you found:
 
 - `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question|confirmation|citation|note --session SESSION`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
-- `--severity major|moderate|minor` grades the fault; `--payload` carries text you are proposing and `--placement replace|after|before` says where it would go; `--reply ID` answers the author; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
+- `--severity major|moderate|minor` grades the fault; `--payload` carries text you are proposing and `--placement replace|after|before` says where it would go; `--reply ID` answers the author, in text only; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
 
-Your run:
+Your session:
 
 - `loom ai runs [--all]`, or `loom session list`: the quilt's sessions, as `YYYY-MM-DD: title`.
-- `loom ai start "A name"`: open a new run and print its directory. Name it for what you were asked to do.
-- `loom ai orient --session SESSION`: this document, the quilt's live state, and that session's journal — how you rejoin a session, yours, the author's, or another agent's.
+- `loom ai start "A name"`: open a new session, make it active, and print its id. Name it for what you were asked to do.
+- `loom ai orient --session SESSION`: this document, the quilt's live state, and the end of that session's chat and its command log — how you rejoin a session, yours, the author's, or another agent's.
 - `loom ai findings --session SESSION [--json]`: what that session has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a session.
 - `loom ai name "A better title" --session SESSION`: retitle a session once you know what it turned into.
 
 ## 6. Messages, and how to wait for one
 
-**The author may be talking to you.** A session carries an inbox, and the composer in the viewer posts into it. Nothing launches you and nothing assigns you work — loom appends a line, and you find it because you asked.
+**The author may be talking to you.** A session carries an inbox, and the Chat in the viewer posts into it. Nothing assigns you work: loom appends a line, and you find it because you asked. **If loom started you**, for one turn because a message was waiting, its prompt says so: read what is waiting with `loom session next --wait 0 --json --as "…"`, answer with `loom session say`, and stop — loom starts you again when the next message arrives. **If the author started you**, park on `next` as below.
 
 - `loom session next --wait 120 --json --as "Referee Agent"`: **park until something lands**, print it, and exit. One call is one turn. It returns the moment a message arrives rather than on a poll interval; with nothing waiting it comes back empty and you park again. Keep `--wait` under whatever timeout your harness puts on a tool call.
 - `loom session say "…" --as "Referee Agent"`: say something back. `-` in place of the text reads it from stdin, for anything long.
 - Your cursor moves as you read, so a message survives being read and you resume where you were after a crash. The inbox is a **broadcast**: another agent attached to the same session sees everything you see, and neither of you is handed a task.
 
-**Name yourself.** `--as` is how the record says what wrote a thing. Choose a name that fits the role you were invoked in — `Referee Agent`, `Simplify Agent`, `Tutor Agent` — and **include `Agent` or `AI` in it**. Identity is declared, not sniffed: a command run under an agent's shell with no `--as` is refused rather than guessed at, because an author may ask you to run something and an environment variable is not a claim about who is speaking.
+**Name yourself.** `--as` is how the record says what wrote a thing. Choose a name that fits the role you were invoked in — `Referee Agent`, `Simplify Agent`, `Tutor Agent` — and **include `Agent` or `AI` in it**. Every command you write with takes it. Identity is declared, not sniffed, because an author may ask you to run something and an environment variable is not a claim about who is speaking: unnamed, the session commands refuse you and a comment is recorded under your tool's name, never the author's.
 
 **These commands are the author's and will refuse you**, whatever shell you are in, because each makes a claim only a person can make — *I have checked this*, *I accept this mathematics*:
 

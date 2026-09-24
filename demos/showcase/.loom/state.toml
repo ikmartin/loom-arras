@@ -74,7 +74,7 @@ date = 2026-09-16T10:00:00Z
 text = "sha256:e6cef97b64a4e18f0b5a13564b27aab10073954773559d6bafa61ace481ddd2e"
 preamble = "sha256:c1cff78225798313fef814a82983d6fe0448b44397ce7f9c793deb8a176f7298"
 master = "drafting/main-atomic.tex"
-basis = "unclassified"
+basis = "expository"
 [accept.closure]
 [accept.direct]
 

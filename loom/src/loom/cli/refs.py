@@ -57,7 +57,13 @@ def logged(name: str) -> Callable[[F], F]:
                 from loom.cli._quilt import open_quilt
                 from loom.cli.build_cmds import log_run
 
-                shown = [str(v) for k, v in kwargs.items() if v not in (None, False, (), "") and k != "quilt_path"]
+                # a multiple option or argument arrives as a tuple; the log says what was typed, not Python's repr of it
+                shown = [
+                    str(x)
+                    for k, v in kwargs.items()
+                    if v not in (None, False, (), "") and k != "quilt_path"
+                    for x in (v if isinstance(v, (tuple, list)) else (v,))
+                ]
                 log_run(run_dir, " ".join(["loom refs", name, *shown]), open_quilt(kwargs.get("quilt_path")).root)
             return f(*args, **kwargs)
 
@@ -278,7 +284,7 @@ def note_command(
                 "claim": ann.body,
                 "identifier": {"verified": False},
                 "accepted": {"when": stamp(), "who": who},
-                "from": {"run": _rec.rel if _rec.is_run else None, "annotation": ann_id},
+                "from": {"run": _rec.rel, "annotation": ann_id},
             },
         )
     append(
@@ -1295,7 +1301,13 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
     envvar="LOOM_SESSION",
     help="The session asserting it; an agent must say which.",
 )
-@click.option("--author", default=None, help="Who asserted it, when the user config and git do not say.")
+@click.option(
+    "--author",
+    "--as",
+    "author",
+    default=None,
+    help="Who asserted it; an agent names itself, with Agent or AI in the name.",
+)
 @quilt_option
 def link_command(
     frm: str, to: str, kind: str, why: str, run_dir: str | None, author: str | None, quilt_path: str | None

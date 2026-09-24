@@ -48,7 +48,6 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     q = demo(tmp_path)
     for rel in ("ai/README.md", "ai/orientation.md", "ai/.loom-modes-version", "CLAUDE.md", "AGENTS.md"):
         assert (q / rel).is_file(), rel
-    assert (q / "ai" / "runs").is_dir()
     assert {p.stem for p in (q / "ai" / "modes").glob("*.md")} == set(MODES)
     root_text = (q / "CLAUDE.md").read_text()
     assert (
@@ -88,8 +87,10 @@ def test_ai_init_permissions_generated(tmp_path: Path) -> None:
     # `.loom` is no longer denied wholesale: the session an agent writes in lives under it, so the record's own
     # parts are named instead (plan 0.13 §5).
     for d in ("nodes", "drafting", "digests", "refs", "annotations", ".loom/history", "ai"):
-        assert f"Edit(/{d}/**)" in deny and f"Write(/{d}/**)" in deny, d
-    assert "Edit(/.loom/sessions/**)" in allow and "Write(/build/**)" in allow
+        assert f"Edit(/{d}/**)" in deny, d
+    assert "Edit(/.loom/sessions/**)" in allow and "Edit(/build/**)" in allow
+    # Claude Code matches only `Edit` rules against paths; a `Write` rule is ignored and says so on every start
+    assert not any(r.startswith("Write(") for r in allow + deny)
     assert any(rule.startswith("Bash(loom accept") for rule in deny) and any("upgrade" in rule for rule in deny)
 
 
@@ -164,7 +165,7 @@ def test_every_command_that_writes_outside_a_run_is_denied_to_the_agent(tmp_path
         "/.loom/history/**",
         "/reference-notes.jsonl",
     ):
-        assert f"Write({path})" in denied and f"Edit({path})" in denied, path
+        assert f"Edit({path})" in denied, path
 
 
 def test_modes_templates_present_and_contracts_listed(tmp_path: Path) -> None:
@@ -530,3 +531,46 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     for c in sorted(AGENT_COMMANDS):
         assert f"`loom {c}`" in rules, c  # the prose is the same table
     assert "{allowed_commands}" not in rules
+
+
+def test_every_command_an_agent_writes_with_takes_as() -> None:
+    """F22 of the 0.14 study: the rules say "name yourself with `--as`", and `loom comment` knew only `--author`."""
+    import click
+
+    from loom.ai.layout import AGENT_COMMANDS
+    from loom.cli import main
+
+    def walk(cmd: click.Command, path: tuple[str, ...] = ()):  # type: ignore[no-untyped-def]
+        if isinstance(cmd, click.Group):
+            for n, c in cmd.commands.items():
+                yield from walk(c, (*path, n))
+        else:
+            yield " ".join(path), {o for p in cmd.params for o in getattr(p, "opts", [])}
+
+    # `ai discard --author` picks records to discard; it says nothing about who is discarding
+    naming = {c: opts for c, opts in walk(main) if c in AGENT_COMMANDS and "--author" in opts and c != "ai discard"}
+    assert naming, "no agent command takes an author"
+    assert not [c for c, opts in naming.items() if "--as" not in opts]
+
+
+def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
+    """F18 of the 0.14 study: the orientation sent the agent to `loom refs overview`, and the permission file refused it."""
+    from loom.ai.layout import AGENT_COMMANDS, author_commands
+
+    assets = Path(__file__).parents[2] / "src" / "loom" / "assets" / "ai"
+    docs = " ".join(p.read_text() for p in assets.rglob("*.md"))
+    # the author's own verbs are named to be refused; `session use` is named beside `--session`, which the agent uses
+    named_to_refuse = {
+        "accept",
+        "refs verify",
+        "refs discard",
+        "refs unreadable",
+        "refs forget",
+        "refs note",
+        "ai init",
+        "upgrade",
+        "session use",
+    }
+    told = {c for c in author_commands() if re.search(rf"`loom {re.escape(c)}\b", docs)}
+    assert told <= named_to_refuse, sorted(told - named_to_refuse)
+    assert "refs overview" in AGENT_COMMANDS

@@ -24,11 +24,12 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run test:unit -- --run
-      - run: npm run build
+      # the product, set aside before the e2e configs rebuild build/ with a fixture staged into it
+      - run: npm run build && cp -R build ../bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run test:minimal
       - uses: actions/upload-artifact@v4
         with:
           name: bundle
-          path: arras/build
+          path: bundle

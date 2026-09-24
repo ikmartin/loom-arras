@@ -73,3 +73,37 @@ export function keyName(m: Named, key: string): string {
 	const work = Object.values(m.references ?? {}).find((r) => r.work === key || r.works?.includes(key));
 	return work ? work.citekey : key;
 }
+
+/** What a link names, for a `quilt:` or `cited:` link written with no text of its own (plan 0.14): the name a reader uses, which stays right when the document is renumbered. */
+interface Linked extends Named {
+	annotations: Record<string, { kind: string; target: { key: string }; in_reply_to?: string | null }>;
+	sessions?: { id: string; title: string }[];
+	canon?: { path: string }[];
+}
+
+/**
+ * The viewer's name for what `href` names.
+ *
+ * An annotation is its kind on what it is about (`objection on Theorem 2.1`), a reply `reply on …` as What it did names it, a session its title, a document its file, any other key as `keyName` has it; a work its citekey, with the page when one is named. A key the manifest does not know is shown as itself.
+ */
+export function linkName(m: Linked, href: string): string {
+	if (href.startsWith('cited:')) {
+		const [target, rest = ''] = href.slice('cited:'.length).split(/[?#](.*)/s, 2);
+		const id = target.toLowerCase();
+		const work = Object.values(m.references ?? {}).find((r) => [r.work, ...(r.works ?? [])].some((w) => w?.toLowerCase() === id));
+		const page = /(?:^|[&#])page=(\d+)/.exec(rest)?.[1];
+		return (work?.citekey ?? target) + (page ? ` p. ${page}` : '');
+	}
+	const body = decodeURIComponent(href.slice('quilt:'.length));
+	const cut = body.indexOf('#');
+	const key = cut < 0 ? body : body.slice(0, cut);
+	const place = cut < 0 ? '' : body.slice(cut + 1);
+	const note = m.annotations[key];
+	if (note) return `${note.in_reply_to ? 'reply' : note.kind} on ${keyName(m, note.target.key)}`;
+	const session = (m.sessions ?? []).find((s) => s.id === key);
+	if (session) return session.title;
+	if (m.canon?.some((c) => c.path === key)) return key.split('/').pop() ?? key;
+	if (place && m.masters.some((x) => x.path === key)) return keyName(m, place);
+	if (place) return keyName(m, m.regions?.[`${key}#${place}`] ? `${key}#${place}` : place);
+	return keyName(m, key);
+}

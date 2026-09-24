@@ -799,6 +799,9 @@ def build_showcase(dest: Path) -> None:
         "underlying graph has $c$ connected components",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
         "comment",
@@ -818,6 +821,9 @@ def build_showcase(dest: Path) -> None:
         "replace",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
         "comment",
@@ -834,6 +840,9 @@ def build_showcase(dest: Path) -> None:
         "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
         "comment",
@@ -846,6 +855,9 @@ def build_showcase(dest: Path) -> None:
         "we obtain an infinite walk inside $\\supp(w)$",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
         "comment",
@@ -861,6 +873,9 @@ def build_showcase(dest: Path) -> None:
         "after",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
         "comment",
@@ -873,6 +888,8 @@ def build_showcase(dest: Path) -> None:
         "moderate",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -886,6 +903,8 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -899,6 +918,8 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -915,6 +936,8 @@ def build_showcase(dest: Path) -> None:
         "whose underlying graph has $c$ connected components",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -925,6 +948,8 @@ def build_showcase(dest: Path) -> None:
         "confirmation",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -937,6 +962,8 @@ def build_showcase(dest: Path) -> None:
         "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -949,6 +976,8 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -961,6 +990,8 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -976,6 +1007,8 @@ def build_showcase(dest: Path) -> None:
         "a homomorphism into a torsion-free group",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     (
@@ -1005,7 +1038,7 @@ def build_showcase(dest: Path) -> None:
         "--session",
         referee,
         "--as",
-        "Referee Agent",
+        "Referee (Agent)",
         agent=True,
     )
     g.write(
@@ -1022,6 +1055,8 @@ def build_showcase(dest: Path) -> None:
         "Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
@@ -1032,6 +1067,9 @@ def build_showcase(dest: Path) -> None:
         "restricts to them. Say so in the definition rather than in the theorem that uses it.",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
 
     # ---- The author answers. ------------------------------------------------------------------------------
@@ -1050,6 +1088,8 @@ def build_showcase(dest: Path) -> None:
         "Then the convention is the right place, and this finding can stand until it is there.",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.at("2026-09-16T15:10:00Z")

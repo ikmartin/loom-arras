@@ -63,3 +63,16 @@ def test_a_quote_selected_on_the_page_finds_its_source() -> None:
     assert own[a:b] == r"A \emph{widget}~is a pair"
     assert make_selector(own, "A widget is").exact == r"A \emph{widget}~is"
     assert find_quote(own, "a pear") == []
+
+
+def test_a_selection_is_found_as_the_page_prints_it() -> None:
+    """The 0.14 study (F5): the page prints `Ehrhart’s` and `[2, Theorem 3.2]`; the viewer quotes the second as its command, and the first must be found as printed."""
+    src = "by Theorem~\\ref{sh-0009}. Ehrhart's theorem in the form of \\cite[Theorem 3.2]{Bellamy19} applies -- as ``stated''."
+    quote = "by Theorem \\ref{sh-0009}. Ehrhart’s theorem in the form of \\cite[Theorem 3.2]{Bellamy19} applies – as “stated”."
+    [(a, b)] = find_quote(src, quote)
+    assert (a, b) == (0, len(src))
+    assert make_selector(src, quote).exact == src
+    # a quote typed from the source still matches, as before
+    assert find_quote(src, "Ehrhart's theorem") == [
+        (src.index("Ehrhart"), src.index("Ehrhart") + len("Ehrhart's theorem"))
+    ]

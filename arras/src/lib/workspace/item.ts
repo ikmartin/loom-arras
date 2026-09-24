@@ -22,6 +22,8 @@ export interface Item {
 	anchor?: string;
 	/** Where on a work's pages. */
 	place?: Place;
+	/** An annotation to open at its mark on arrival: what a link to an annotation names. */
+	note?: string;
 	/** A document's review and incoming comparisons, which the review page opens by URL (`review`, `cause`, `incoming`). */
 	params?: Record<string, string>;
 	/** Stamped by the workspace each time the item is opened or revealed, so its renderer goes to the place again even when the place is unchanged. */
@@ -75,6 +77,7 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 	if (!tail) return null;
 	const anchor = url.hash ? safe(url.hash.slice(1)) : undefined;
 	const query = url.searchParams;
+	const note = query.get('note') || undefined;
 	switch (head) {
 		case 'master':
 		case 'canon': {
@@ -86,7 +89,7 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 				const v = query.get(k);
 				if (v) params[k] = v;
 			}
-			return { kind: 'document', id, ...(anchor ? { anchor } : {}), ...(Object.keys(params).length ? { params } : {}) };
+			return { kind: 'document', id, ...(anchor ? { anchor } : {}), ...(note ? { note } : {}), ...(Object.keys(params).length ? { params } : {}) };
 		}
 		case 'library': {
 			const place = readKeys({ id: '' }, url.search.slice(1)) as WorkLink;
@@ -95,7 +98,7 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 			return { kind: 'work', id: safe(tail), ...(view ? { view } : {}), ...(Object.keys(keys).length ? { place: keys } : {}) };
 		}
 		case 'node':
-			return { kind: 'node', id: keyFromParam(tail), ...(anchor ? { anchor } : {}) };
+			return { kind: 'node', id: keyFromParam(tail), ...(anchor ? { anchor } : {}), ...(note ? { note } : {}) };
 		case 'context':
 			return { kind: 'context', id: keyFromParam(tail) };
 		case 'session':
@@ -129,6 +132,7 @@ export function pathFor(m: Documents | null, item: Item): string {
 			const at = isLandmark(m, item.id) ? canonUrl(item.id) : masterUrl(item.id);
 			const q = new URLSearchParams();
 			for (const k of DOC_PARAMS) if (item.params?.[k]) q.set(k, item.params[k]);
+			if (item.note) q.set('note', item.note);
 			return at + (q.size ? '?' + q : '') + hash;
 		}
 		case 'work': {
@@ -137,7 +141,7 @@ export function pathFor(m: Documents | null, item: Item): string {
 			return workUrl(item.id) + (q.size ? '?' + q : '');
 		}
 		case 'node':
-			return nodeUrl(item.id) + hash;
+			return nodeUrl(item.id) + (item.note ? '?note=' + encodeURIComponent(item.note) : '') + hash;
 		case 'context':
 			return route('/context/' + item.id.split('/').map(encodeURIComponent).join('/'));
 		case 'session':

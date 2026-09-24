@@ -2056,7 +2056,7 @@ def test_an_agent_parked_on_session_next_wakes_when_a_message_lands_with_what_ch
     import sys
     import time
 
-    from loom.mailbox import changed_since, post
+    from loom.mailbox import pending, post
     from loom.sessions import sessions
 
     q = quilt(tmp_path)
@@ -2113,7 +2113,7 @@ def test_an_agent_parked_on_session_next_wakes_when_a_message_lands_with_what_ch
             "Have another look at the balanced case.",
             "A. Author",
             kind="message",
-            changed=changed_since(q, sessions(q)[sid]),
+            changed=pending(q, sessions(q)[sid], "A. Author"),
         )
         out, err = agent.communicate(timeout=15)
     finally:
@@ -2250,7 +2250,7 @@ def test_refs_locate_names_the_place_and_not_only_the_page(tmp_path: Path) -> No
 @pytest.mark.tex
 def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
     """A page note's target is the work's identifier, which is what two quilts agree on and what no `loom refs` command accepts. The study watched an agent take the changed-annotation block, try `loom refs page arXiv:1809.02027v1 4`, be told it was not in the bibliography, and go hunting for the citekey. It travels with the change now."""
-    from loom.mailbox import changed_since, render
+    from loom.mailbox import pending, render
     from loom.sessions import create, sessions
 
     q = _showcase(tmp_path)
@@ -2284,7 +2284,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         cwd=q,
     )
 
-    changed = changed_since(q, sessions(q)[sid])
+    changed = pending(q, sessions(q)[sid], "A. Author")
     page_note = next(c for c in changed if c["page"])
     assert page_note["work"] == "Bellamy19" and page_note["page"] == 2
     assert page_note["target"].startswith("doi:")  # the identifier is still what was recorded

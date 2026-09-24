@@ -1,0 +1,84 @@
+name: clients
+
+# The three editor clients' suites (deprecated and breakable, WQ-49: a loom change does not run them), each against a copy of loom's committed synthetic quilt with loom and loom-lsp from this checkout. mirror-nvim.yml calls this workflow with `only: nvim` before it publishes loom-nvim/.
+
+on:
+  push:
+    paths: ['loom-lsp/**', 'loom-nvim/**', 'loom-vscode/**', '.github/workflows/clients.yml']
+  pull_request:
+    paths: ['loom-lsp/**', 'loom-nvim/**', 'loom-vscode/**', '.github/workflows/clients.yml']
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      only:
+        description: "Run one suite (lsp, nvim or vscode); empty runs all three"
+        type: string
+        default: ""
+
+jobs:
+  lsp:
+    if: ${{ !inputs.only || inputs.only == 'lsp' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loom-lsp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv sync --python 3.12
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run mypy
+      - run: uv run pytest -q
+
+  nvim:
+    if: ${{ !inputs.only || inputs.only == 'nvim' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - name: loom and loom-lsp from this checkout, on PATH
+        run: |
+          (cd loom && uv sync --python 3.12 --no-dev)
+          (cd loom-lsp && uv sync --python 3.12 --no-dev)
+          echo "$GITHUB_WORKSPACE/loom/.venv/bin" >> "$GITHUB_PATH"
+          echo "$GITHUB_WORKSPACE/loom-lsp/.venv/bin" >> "$GITHUB_PATH"
+      - name: Neovim (stable release) and plenary
+        run: |
+          curl -fsSL https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim "$RUNNER_TEMP/plenary.nvim"
+          echo "PLENARY_DIR=$RUNNER_TEMP/plenary.nvim" >> "$GITHUB_ENV"
+      - run: nvim --version | head -1 && loom --version && command -v loom-lsp
+      - name: Test
+        working-directory: loom-nvim
+        run: nvim --headless --noplugin -u tests/minimal_init.lua -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
+
+  vscode:
+    if: ${{ !inputs.only || inputs.only == 'vscode' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loom-vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - name: loom and loom-lsp from this checkout
+        run: |
+          (cd ../loom && uv sync --python 3.12 --no-dev)
+          (cd ../loom-lsp && uv sync --python 3.12 --no-dev)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: loom-vscode/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - name: Test (VS Code under a virtual display)
+        env:
+          LOOM_LSP: ${{ github.workspace }}/loom-lsp/.venv/bin/loom-lsp
+          LOOM_BIN: ${{ github.workspace }}/loom/.venv/bin/loom
+        run: xvfb-run -a npm test

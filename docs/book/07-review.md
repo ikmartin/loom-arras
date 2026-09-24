@@ -83,15 +83,15 @@ snapshots: 5 written, 2 already present
 
 ### 7.4.1 The log
 
-**[decided]** Every review event is one line of `annotations/log.jsonl` at the quilt root, appended and never rewritten. A *record* is what replay produces: one run's or one author's annotations as they now stand. There is no file per run and none per author; a line that cannot be read is reported as `loom:foreign-annotations` (warning) and skipped, and the rest of the log still loads.
+**[decided]** Every review event is one line of `annotations/log.jsonl` at the quilt root, appended and never rewritten. A *record* is what replay produces: one session's annotations as they now stand. There is no file per session and none per author; a line that cannot be read is reported as `loom:foreign-annotations` (warning) and skipped, and the rest of the log still loads.
 
-**[decided]** The columns, spelled as they are written. An event carries `id`, `event`, `when`, `author`, `kind` (`human` | `agent`), `run`, and then whatever its event needs: a `created` or `replied` event carries `target`, `against`, `anchor`, **`annotation_kind`** (one of `objection`, `suggestion`, `question`, `confirmation`, `citation`, `note`), `severity`, `body`, `payload`, `placement`, and **`reply_to`** on a reply; a later event carries the `id` it acts on. The underscores are not decoration: an earlier draft of the design wrote `annotation-kind` and `reply-to` with hyphens, and a log written from that spelling lost its kind and its parent on every line.
+**[decided]** The columns, spelled as they are written. An event carries `id`, `event`, `when`, `author`, `kind` (`human` | `agent`), `session`, and then whatever its event needs: a `created` or `replied` event carries `target`, `against`, `anchor`, **`annotation_kind`** (one of `objection`, `suggestion`, `question`, `confirmation`, `citation`, `note`), `severity`, `body`, `payload`, `placement`, and **`reply_to`** on a reply; a later event carries the `id` it acts on. The underscores are not decoration: an earlier draft of the design wrote `annotation-kind` and `reply-to` with hyphens, and a log written from that spelling lost its kind and its parent on every line.
 
 **[decided]** Four things make a line foreign rather than merely unusual, and each is reported as `loom:foreign-annotations` with its line number: it is not JSON; it is JSON that is not a review event; its `annotation_kind` is not one of the six; its `id` is not of the form `a-YYYY-MM-DD-NNNN`; or it replies to an annotation the log does not contain. **None of these is corrected.** An unknown kind is published as written, because `kind` is an open string a viewer must tolerate from any publisher — what is wrong is the silence, not the value. The id is checked because it becomes a DOM id and a URL fragment, and would become a filename the first time anything stored one per annotation. A reply whose parent is absent is reported because it is otherwise in the record and on no page: not a finding, because it answers one, and under no finding, because the one it answers is not there.
 
 **[decided]** The events are `created`, `replied`, `edited`, `resolved` and `discarded`, and an annotation's current state is their replay. `edited` supersedes a body: the earlier one stays in the log, one current body is shown. That is what lets a re-check restate a finding that still stands instead of replying to itself, which is how a single finding used to end up wearing one copy per pass.
 
-**[decided]** `run` and `author` are separate columns, so "everything from this run" and "everything any agent said about `rl-0002`" are both filters rather than string parsing. A run's record is keyed by its directory; a person's by `comments/<author-slug>/<YYYY-MM-DD>`, because "what the author said on the 16th" is a session a reader looks for where everything one person has ever written is not. The slug is the name lowercased with every run of other characters replaced by a hyphen.
+**[decided]** `session` and `author` are separate columns, so "everything from this session" and "everything any agent said about `rl-0002`" are both filters rather than string parsing. A record is keyed by its session's id, whoever wrote in it; a line that names no session is reported as `loom:foreign-annotations` and skipped.
 
 **[decided]** Two people appending in parallel merge as two lines, which is why this is JSONL and not a database, and the reason the log is written by `loom comment` and `loom refs note` alone.
 
@@ -106,7 +106,7 @@ snapshots: 5 written, 2 already present
   "annotations": [
     {
       "id": "a-2026-09-16-0007",
-      "author": {"kind": "run", "id": "2026-09-16T14-02-referee"},
+      "author": {"kind": "agent", "id": "Referee Agent"},
       "created": "2026-09-16T14:31:08Z",
       "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f..."},
       "selector": {
@@ -126,7 +126,7 @@ snapshots: 5 written, 2 already present
 Fields:
 
 - `id`: `a-<date>-<nnnn>`, unique within the quilt; **[decided]** the counter runs over every review record in the quilt, not per file (DR-60).
-- `author.kind`: `agent` or `person`; `author.id`: the name the writer declared. **[decided]** The author is *who wrote it* and the session is *where it belongs*; an agent's annotation used to record its run directory as its author, so the log could say who only by naming a place (DR-199). An event written before sessions carries `run` and is read the same way.
+- `author.kind`: `agent` or `person`; `author.id`: the name the writer declared. **[decided]** The author is *who wrote it* and the session is *where it belongs*, so the log says who without naming a place (DR-199).
 - `target.key`: a key, an equation's qualified key, or a master path (7.5.4). `target.hash`: the hash of the target's own text when the annotation was written.
 - `selector`: null for an annotation on the whole target; otherwise the text-quote selector (7.5).
 - `kind`: **[decided]** one of six — `objection`, `suggestion`, `question`, `confirmation`, `citation`, `note`. `confirmation` replaced `ok`: every other kind is a noun, loom's own prose already says "three suggestions and one confirmation", and `good` would be praise where the claim is that something checks out; `checked` and `verified` collide with the anchor check and with `refs verify`. `note` is the explanation-or-aside kind, and the natural one for teaching. `--kind` takes any unambiguous prefix, so the extra letters cost nothing (DR-204).
@@ -136,20 +136,20 @@ Fields:
 - `payload`: **[decided]** text the annotation proposes — a proof, a paragraph, a rewritten passage — with `placement` (`replace`, `after`, `before`) as a hint for where a viewer shows it relative to the anchor. Everything is preview and copy: the author reads it and pastes it where they decide, and nothing in loom applies one.
 - `status`: `open`, `resolved` or `discarded`.
 - `in_reply_to`: an annotation id or null.
-- `discarded`: **[decided]** an event, set by `loom ai discard` against a whole run or session, or against one annotation; a discarded record's annotations are hidden everywhere. Nothing is deleted and `--undo` reverses it.
+- `discarded`: **[decided]** an event, set by `loom ai discard` against a whole session, or against one annotation; a discarded record's annotations are hidden everywhere. Nothing is deleted and `--undo` reverses it.
 
 ### 7.4.3 `loom comment`
 
-**[decided]** `loom comment TARGET "message" [--quote TEXT] [--kind KIND] [--session SESSION] [--author NAME] [--reply ID] [--resolve ID] [--batch]`
+**[decided]** `loom comment TARGET "message" [--quote TEXT] [--kind KIND] [--session SESSION] [--author NAME | --as NAME] [--reply ID] [--resolve ID] [--batch]`
 
-1. `TARGET` is a key, an equation's qualified key, or a master path. It must exist.
-2. `--quote TEXT`: the annotation anchors to `TEXT`, which must occur exactly once in the target's own text (whitespace-normalized). Zero occurrences: exit 1 with "quote not found in TARGET". More than one: exit 1 with "quote is ambiguous (n occurrences); give a longer quote". Loom extracts prefix and suffix itself, **[decided]** 32 characters each, clipped at the target's boundaries (settled at M3).
+1. `TARGET` is a key, an equation's qualified key, or a master path. It must exist. **[decided]** The note records the version of the target's text it was written against — the text every hash is taken over (5.13), child markers and all — and `loom comment` freezes that version at once, so it can always be shown (DR-284-ikmartin).
+2. `--quote TEXT`: the annotation anchors to `TEXT`, which must occur exactly once in the target's own text (whitespace-normalized). **[decided]** A quote is found as written or as the page prints it: mathematics as `$…$`, the simple text macros unwrapped, `~` as a space, and quotes and dashes as the renderer sets them (`Ehrhart’s` for `Ehrhart's`); the viewer quotes a citation or a reference it drew as the command it was written as, which each carries (DR-282-ikmartin). Zero occurrences: exit 1 with "quote not found in TARGET". More than one: exit 1 with "quote is ambiguous (n occurrences); give a longer quote". Loom extracts prefix and suffix itself, **[decided]** 32 characters each, clipped at the target's boundaries (settled at M3).
 3. `--kind` defaults to `objection` when a message is given and to `confirmation` when none is; a confirmation records that the target was read and nothing was wrong, and may carry a message. Any unambiguous prefix names a kind. **[decided]** `--severity` on a kind that claims no fault is refused: the pair says two contradictory things and was being stored as though it said one (DR-169, DR-204).
 4. `--session SESSION`: where the annotation belongs. **[decided]** A session is named by its id, its title, or part of either, resolved as 11.4 describes, and defaults from `LOOM_SESSION` and then from the active session; writing with nothing active opens one, for a person and an agent alike (DR-199). `--author NAME` says *who*, by the resolution order of 4.3, and the two are no longer exclusive — they answer different questions.
-5. **[decided]** `--edit ID` supersedes an annotation's body, and is what a re-check uses on a finding that still stands. A reply is dialogue; an edit is restatement. `--severity`, `--payload` and `--placement` carry the fields of 7.4.2.
-6. `--reply ID`: `in_reply_to` set; `target`, its hash, and the selector are copied from the parent, so the reply is anchored where the parent is; the kind defaults to `question`; no `TARGET` is needed. **[decided]** **Each of `--reply`, `--resolve`, `--edit` and `--discard` names its annotation by id and takes no `TARGET`, so the one positional argument given is the body** (DR-171). **[decided]** A reply with no message is refused, and so is an `--edit` that would change nothing or that supersedes a body with an empty one — a finding is withdrawn with `--discard`, not emptied. A resolution still needs no message; item 7 is what says so.
+5. **[decided]** `--edit ID` supersedes an annotation's body, and is what a re-check uses on a finding that still stands; the finding is thereby restated against the target's text as it is now, whose version the edit records (DR-284-ikmartin). A reply is dialogue; an edit is restatement. `--severity`, `--payload` and `--placement` carry the fields of 7.4.2.
+6. `--reply ID`: `in_reply_to` set; `target` and the selector are copied from the parent, and the hash is of the text the reply was written against, which may have moved on since the parent (DR-284-ikmartin); so the reply is anchored where the parent is; the kind defaults to `question`; no `TARGET` is needed. **[decided]** **Each of `--reply`, `--resolve`, `--edit` and `--discard` names its annotation by id and takes no `TARGET`, so the one positional argument given is the body** (DR-171). **[decided]** A reply with no message is refused, and so is an `--edit` that would change nothing or that supersedes a body with an empty one — a finding is withdrawn with `--discard`, not emptied. A resolution still needs no message; item 7 is what says so. **[decided]** A reply or a resolution is its text and nothing else: given `--quote`, `--severity`, `--payload` or `--placement` it is refused, naming what would be lost, rather than dropping them — text to paste in is a `suggestion` of its own, and a change to the note itself is `--edit` (DR-279-ikmartin).
 7. `--resolve ID`: sets the parent's `status` to `resolved` and, if a message is given, records it as a reply with status `resolved` (kind `confirmation` unless given). **[decided]** Resolution is an edit to an existing annotation's `status` field, the one field loom rewrites in place; it is loom's file.
-7. **[decided]** `--undo`, with `--resolve` or `--discard`, puts the finding back (DR-174). **A status change is reversed by appending its undo, never by removing the event that made it**, so the log still says that it was resolved, when, by whom, and that it was reopened. Discarding has always replayed this way; resolving did not, which made a resolution the one state nothing could take back — and `--resolve` is the verb a run can apply to its own finding.
+7. **[decided]** `--undo`, with `--resolve` or `--discard`, puts the finding back (DR-174). **A status change is reversed by appending its undo, never by removing the event that made it**, so the log still says that it was resolved, when, by whom, and that it was reopened. Discarding has always replayed this way; resolving did not, which made a resolution the one state nothing could take back — and `--resolve` is the verb an agent can apply to its own finding.
 8. `--batch`: read JSON lines from stdin, one annotation or one change per line, so an agent can write a whole pass in one process; an error names its line number. **[decided]** The accepted keys are `target`, `message`, `quote`, `kind`, `reply`, `resolve`, `edit`, `discard`, `severity`, `payload` and `placement`, and **an unknown key is an error** (DR-169) — a batch is written by a program that cannot see the result, so a misspelled `messsage` that silently files an empty annotation is a fault its writer never learns about. A line carries at most one of `reply`, `resolve`, `edit` and `discard`; two is an error naming both.
 9. Every annotation records `target.hash` at the moment of writing.
 
@@ -157,8 +157,8 @@ Examples:
 
 ```
 $ loom comment rl-0004/proof "This needs the rigidity lemma." \
-    --quote "the inclusion is open" --run ai/runs/2026-09-16T14-02-referee
-a-2026-09-16-0007  rl-0004/proof  objection  (2026-09-16T14-02-referee run)
+    --quote "the inclusion is open" --session "referee rl-0004"
+a-2026-09-16-0007  rl-0004/proof  objection  (claude-code)
 
 $ loom comment rl-0004 --kind confirmation
 a-2026-09-16-0008  rl-0004  confirmation  (Tom Graber)
@@ -179,7 +179,7 @@ resolved a-2026-09-16-0007
 
 ### 7.5.3 Detached annotations
 
-**[decided]** A detached annotation is still shown, in a separate list on the target's page and in the run or comment session, with its quoted text, marked detached. It is never deleted. An annotation whose target no longer exists is detached as a whole (7.9). `loom:detached-annotation` (info) is reported with a count per key, by `loom lint` and `loom check` as well as in the manifest (DR-61). Detached annotations are the natural candidates for `--resolve`.
+**[decided]** A detached annotation is still shown, in a separate list on the target's page and in its session, with its quoted text, marked detached. It is never deleted. An annotation whose target no longer exists is detached as a whole (7.9). `loom:detached-annotation` (info) is reported with a count per key, by `loom lint` and `loom check` as well as in the manifest (DR-61). Detached annotations are the natural candidates for `--resolve`.
 
 ### 7.5.4 Targets
 
@@ -256,7 +256,7 @@ sy-0002/proof (Proof)  accepted, stale   dependency-changed sy-0001 (2026-09-16)
 
 ## 7.8 Discard
 
-**[decided]** `loom ai discard RUN` appends a `discarded` event naming the run (and sets `discarded = true` in `RUN/run.toml` when present, Chapter 11); every annotation in it disappears from the panel, the margins, and every count; the directory remains. `--before DATE` (records whose earliest annotation predates the date), `--author NAME`, `--target KEY` discard every run or comment session matching; `--undo` reverses. Comment sessions are discarded the same way, by `--author`. Discard is a flag, never a deletion, and never touches the ledger.
+**[decided]** `loom ai discard SESSION` appends a `discarded` event naming the session and closes it (11.4); every annotation in it disappears from the panel, the margins, and every count; its directory remains. `--before DATE` (sessions whose earliest annotation predates the date), `--author NAME`, `--target KEY` discard every session matching; `--undo` reverses and resumes the session. Discard is a flag, never a deletion, and never touches the ledger.
 
 Two further defences against garbage: annotations carry kinds, and the panel filters by kind; and no annotation creates an obligation, since states never depend on annotation counts.
 
@@ -269,7 +269,7 @@ Two further defences against garbage: annotations carry kinds, and the panel fil
 - After deletion, lint reports dangling references (`dangling-link`), missing inputs (`missing-include`), and `loom:retired-ledger-key` (info) for ledger rows whose key no longer exists (DR-61); `status --retired` lists retired keys with the date of their last acceptance; annotations targeting them are detached at the target level.
 - Dependents whose closure recorded the deleted id become stale with cause `dependency-removed`.
 - The recommended alternative to deletion is to make the node loose: remove its inclusion line. Everything about it survives, marked loose.
-- A refuted candidate is handled the same way: its `\input` line is removed, its body gains a sentence naming the run and the counterexample, and a tag of the author's choosing may mark it for filtering; no tag has special meaning.
+- A refuted candidate is handled the same way: its `\input` line is removed, its body gains a sentence naming the session and the counterexample, and a tag of the author's choosing may mark it for filtering; no tag has special meaning.
 - Merging is aliasing (5.4.5); splitting is new ids for the pieces; renaming is not an operation.
 
 ## 7.10 Positional proof keys
@@ -280,9 +280,9 @@ Two further defences against garbage: annotations carry kinds, and the panel fil
 
 Day 1. The author writes `nodes/rl-0004.tex`, a lemma with its proof. `status`: both keys `draft`, never reviewed.
 
-Day 1. `loom ai start referee-rl-0004`; in the run, the agent runs `loom source rl-0004 --closure`, reads it, and issues three `loom comment --run ...` calls: one objection on a hypothesis in the statement, two on the proof. `status`: statement `draft, 1 open objection (run, today)`; proof `draft, 2 open objections`. The node page shows three margin marks.
+Day 1. The agent runs `loom ai start "Referee of rl-0004"`, which opens a session and makes it active, then `loom source rl-0004 --closure`, reads it, and issues three `loom comment ... --as "Referee Agent"` calls: one objection on a hypothesis in the statement, two on the proof. `status`: statement `draft, 1 open objection`; proof `draft, 2 open objections`. The node page shows three margin marks.
 
-Day 2. The author fixes the proof. Its hash changes; the two proof annotations no longer find their quotes and show as detached. The author asks the agent to look again; it issues `loom comment rl-0004/proof --kind confirmation --session ...`. `status`: proof `draft, reviewed clean (run, today), 2 detached`.
+Day 2. The author fixes the proof. Its hash changes; the two proof annotations no longer find their quotes and show as detached. The author asks the agent to look again; it issues `loom comment rl-0004/proof --kind confirmation --as "Referee Agent"`. `status`: proof `draft, reviewed clean (Referee Agent, today), 2 detached`.
 
 Day 3. The author decides the hypothesis objection is wrong, runs `loom comment rl-0004 --resolve a-...-0001 "The hypothesis is stated in rl-0002."`, and `loom accept rl-0004 --proofs`. Both keys `accepted`; the node `proved`.
 

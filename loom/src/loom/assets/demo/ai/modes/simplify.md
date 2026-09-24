@@ -10,7 +10,7 @@ Revise the text of one key to be simpler and shorter while preserving mathematic
 
 ## Input
 - `loom source KEY --closure --session SESSION`.
-- If `audit-KEY.notes.md` exists in this run, its [patch-list] is your starting list.
+- If `audit-KEY.notes.md` exists in this session, its [patch-list] is your starting list.
 - Digest nodes for candidate citations (standing rule 5).
 
 ## Procedure

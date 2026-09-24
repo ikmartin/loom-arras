@@ -86,7 +86,7 @@ Review:
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
 - `loom:foreign-annotations` (warning): a line of `annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads (book 7.4.1).
-- `loom:agent-wrote-outside-run` (error): reported by `loom ai check`: a file outside the run, `comments/`, and `build/` changed after the run started (book 11.8).
+- `loom:agent-wrote-outside-run` (error): reported by `loom ai check SESSION`: a file outside the session's directory, `annotations/`, `build/` and `.loom/` changed after the session's current round opened (book 11.8).
 
 References and digests:
 
@@ -119,7 +119,6 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 - `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
 - `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.
 - `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes; carries the fix that starts one.
-- `loom:deprecated-config-key` (warning, subject `source`): a configuration key loom still reads under an older name.
 
 ## 4. Adding a code
 

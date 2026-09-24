@@ -1,0 +1,100 @@
+% An invented paper, written for the showcase quilt so that it can cite, digest and anchor into a
+% work whose bytes this repository is free to publish. Nobody named here exists.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[margin=1.15in]{geometry}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\DeclareMathOperator{\rank}{rank}
+\newcommand{\ZZ}{\mathbb{Z}}
+\newcommand{\Zc}{\mathcal{Z}}
+
+\title{Cycle spaces of finite quivers}
+\author{Elspeth Arden}
+\date{arXiv:2504.01234v1}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We collect the standard facts about the cycle space of a finite quiver: that the divergence map has the expected image, that its kernel is saturated, and that the rank of the kernel depends only on the underlying graph. The treatment is elementary and self-contained, and is written so that later work may cite it by number.
+\end{abstract}
+
+\section{Introduction}
+
+Let $Q$ be a finite quiver. A weighting of $Q$ assigns an integer to each arrow, and the weightings form a free abelian group of rank $|A(Q)|$. Among them sit the weightings that balance at every vertex. This note fixes the notation for that sublattice and proves the three facts about it that are used everywhere.
+
+Throughout, all quivers are finite, loops and parallel arrows are permitted, and the underlying graph of a quiver is the undirected multigraph obtained by forgetting the orientation of each arrow.
+
+\begin{definition}\label{def:quiver}
+A \emph{quiver} is a quadruple $Q = (V, A, s, t)$ in which $V$ and $A$ are finite sets and $s, t \colon A \to V$ are functions, called the source and target maps.
+\end{definition}
+
+\begin{definition}\label{def:cycle-space}
+The \emph{cycle space} of a quiver $Q$ is the kernel $\Zc(Q)$ of the divergence map $\partial \colon \ZZ^{A(Q)} \to \ZZ^{V(Q)}$ whose value at a vertex $v$ is the total weight of the arrows with target $v$ less the total weight of the arrows with source $v$.
+\end{definition}
+
+The cycle space is the object of study. We record first what its ambient quotient looks like.
+
+\section{The image of the divergence map}
+
+The divergence of any weighting sums to zero over the vertices of each connected component, because each arrow contributes $+1$ at its target and $-1$ at its source. That this is the only constraint is the content of the following proposition, which we use without further comment.
+
+\begin{proposition}\label{prop:image}
+Let $Q$ be a quiver whose underlying graph has $c$ connected components. The image of the divergence map is the lattice of integer vectors in $\ZZ^{V(Q)}$ whose coordinates sum to zero on each component, and its rank is $|V(Q)| - c$.
+\end{proposition}
+
+\begin{proof}
+Each arrow $a$ has divergence $e_{t(a)} - e_{s(a)}$, which lies in the stated lattice, so the image is contained in it. For the reverse inclusion, choose a spanning tree of each component and induct on the distance to its root: the difference $e_{u} - e_{v}$ of two vertices of one component is a sum of arrow divergences along a path, and the vectors $e_u - e_v$ generate the lattice of vectors summing to zero on each component. The rank statement follows by counting coordinates.
+\end{proof}
+
+\begin{lemma}\label{lem:saturated}
+The cycle space of a quiver is a saturated sublattice of the lattice of weightings: if $nw$ is balanced for some nonzero integer $n$, then $w$ is balanced.
+\end{lemma}
+
+\begin{proof}
+The divergence map is a homomorphism of free abelian groups, and $\ZZ^{V(Q)}$ is torsion-free, so $n \partial w = \partial(nw) = 0$ implies $\partial w = 0$.
+\end{proof}
+
+\section{Rank and duality}
+
+We can now compute the rank of the cycle space, which is the invariant the rest of the literature calls the cycle rank or the first Betti number of the underlying graph.
+
+\begin{theorem}\label{thm:rank}
+Let $Q$ be a quiver whose underlying graph has $c$ connected components. Then the cycle space of $Q$ is a free abelian group of rank $|A(Q)| - |V(Q)| + c$, and this rank depends only on the underlying graph of $Q$.
+\end{theorem}
+
+\begin{proof}
+The cycle space is the kernel of the divergence map, whose image has rank $|V(Q)| - c$ by Proposition~\ref{prop:image}. Since the domain has rank $|A(Q)|$, the rank of the kernel is the difference. Reversing an arrow changes the sign of the corresponding coordinate and is an automorphism of the domain carrying one cycle space onto the other, so the rank is unchanged.
+\end{proof}
+
+\begin{corollary}\label{cor:forest}
+The cycle space of a quiver is trivial if and only if the underlying graph is a forest.
+\end{corollary}
+
+\begin{proof}
+A graph with $c$ components is a forest exactly when it has $|V(Q)| - c$ edges, which by Theorem~\ref{thm:rank} is exactly the condition that the rank of the cycle space vanish. A saturated sublattice of rank zero is trivial by Lemma~\ref{lem:saturated}.
+\end{proof}
+
+\section{Examples and remarks}
+
+The bouquet of $n$ loops at a single vertex has cycle space $\ZZ^{n}$, and every weighting of it is balanced. A single arrow between two distinct vertices has trivial cycle space. A directed cycle of length $\ell$ has cycle space $\ZZ$, generated by the weighting that is $1$ on every arrow of the cycle.
+
+\begin{remark}\label{rem:orientation}
+Nothing above uses the orientation of the arrows except as bookkeeping, which is the content of the last sentence of the proof of Theorem~\ref{thm:rank}. Readers who prefer graphs to quivers may replace every quiver by its underlying graph with an arbitrary orientation, and no statement changes.
+\end{remark}
+
+\begin{remark}\label{rem:infinite}
+For an infinite quiver of finite valence the divergence map is still defined on finitely supported weightings and its kernel is still saturated, but the rank formula of Theorem~\ref{thm:rank} has no meaning, since all three of its terms are infinite. The correct statement in that setting is a description of the cycle space as a direct limit, which we do not pursue.
+\end{remark}
+
+\end{document}

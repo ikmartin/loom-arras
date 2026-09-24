@@ -65,7 +65,6 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:foreign-annotations": ("warning", False),
     "loom:agent-wrote-outside-run": ("error", False),
     # the workbench and the record (book chapter 17; docs/specs/diagnostics.md §3)
-    "loom:deprecated-config-key": ("warning", False),
     "loom:superseded-file": ("info", False),
     "loom:canon-edited": ("warning", False),
     "loom:history-missing": ("error", False),

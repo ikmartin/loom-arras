@@ -50,8 +50,8 @@ class ScanResult:
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
-    """Top-level directories the scan never enters: the canon directory, `retired/`, and `notes/`, the author's reference material (book 4.1.2)."""
-    return (quilt.config.canon, "retired", "notes")
+    """Directories the scan never enters: the canon directory, `retired/`, `notes/`, the author's reference material (book 4.1.2), and the history directory wherever `[quilt] history` puts it, whose frozen texts are old versions of the quilt's own keys."""
+    return (quilt.config.canon, "retired", "notes", Path(quilt.config.history).as_posix())
 
 
 def canon_documents(quilt: Quilt) -> list[str]:
@@ -160,7 +160,13 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
             Diagnostic("warning", "loom:taxon-conflict", f"environment {env} declared differently: {desc}", [])
         )
     result.assembly = assemble(
-        result.files, result.closures, result.expansions, result.taxa, set(result.bib), result.default_master
+        result.files,
+        result.closures,
+        result.expansions,
+        result.taxa,
+        set(result.bib),
+        result.default_master,
+        result.quilt.config.basis,
     )
     result.diagnostics.extend(result.assembly.diagnostics)
     for path, fe in result.assembly.envs.items():

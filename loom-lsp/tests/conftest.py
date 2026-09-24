@@ -6,6 +6,7 @@ The quilt is copied rather than used in place so that nothing a test does can re
 from __future__ import annotations
 
 import shutil
+import tomllib
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -18,11 +19,34 @@ from loom_lsp.workspace import uri_of
 QUILTS = Path(__file__).resolve().parents[2] / "loom" / "tests" / "quilts"
 
 
+def master_of(root: Path) -> Path:
+    """The quilt's main master, as loom resolves it: `[quilt] main`, else `<drafting>/main.tex`.
+
+    Mirrors QuiltConfig.from_dict without the user config, which a test never reads.
+    """
+    table = tomllib.loads((root / "config.toml").read_text(encoding="utf-8")).get("quilt", {})
+    drafting = str(table.get("drafting", "drafting")).strip("/") or "drafting"
+    return root / str(table.get("main", f"{drafting}/main.tex"))
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Stop the run once, naming the cause, when the synthetic quilt no longer has the master the suite opens."""
+    main = master_of(QUILTS / "synthetic")
+    if not main.is_file():
+        pytest.exit(f"loom's synthetic quilt has no master at {main}; did the fixture layout change?", returncode=1)
+
+
 @pytest.fixture
 def quilt(tmp_path: Path) -> Path:
     dest = tmp_path / "synthetic"
     shutil.copytree(QUILTS / "synthetic", dest)
     return dest
+
+
+@pytest.fixture
+def master(quilt: Path) -> Path:
+    """The copied quilt's main master."""
+    return master_of(quilt)
 
 
 @pytest.fixture

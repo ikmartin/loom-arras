@@ -8,7 +8,7 @@
 	import { grouped, sessionView, summary, titleOf } from './sessions.svelte';
 	import { touched, when } from './when';
 	import { openSession } from './new';
-	import { openDiscussion } from '$lib/workspace/links';
+	import { openChat } from '$lib/workspace/links';
 	import { write } from '$lib/write';
 	import type { SessionRow } from '$lib/manifest/types';
 
@@ -37,7 +37,8 @@
 		if (!want) return;
 		const id = await openSession(want);
 		if (id) {
-			openDiscussion(id);
+			// `openSession` has selected it; selecting again before the manifest lists it would read it as closed
+			openChat(id, m, false);
 			onpicked();
 		}
 	}
@@ -60,8 +61,7 @@
 	}
 
 	function choose(s: SessionRow): void {
-		sessionView.select(s.id, m);
-		openDiscussion(s.id);
+		openChat(s.id, m);
 		onpicked();
 	}
 
@@ -75,7 +75,7 @@
 		// set directly rather than through `select`: the manifest still says closed, and that would admit every closed session's annotations
 		sessionView.selected = s.id;
 		sessionView.save();
-		openDiscussion(s.id);
+		openChat(s.id, m, false);
 		onpicked();
 	}
 

@@ -340,10 +340,10 @@
 	{/if}
 
 	{#if filter === 'all'}
-		<h2>Runs and comment sessions</h2>
+		<h2>Sessions</h2>
 		{#if threads.length || records.length}
 			<ul class="plain">
-				{#each threads as t (t.id)}<li><a href={threadUrl(t.id)}>{t.title}</a> <span class="faint">{t.kind}{t.discarded ? ' · discarded' : ''}</span></li>{/each}
+				{#each threads as t (t.id)}<li><a href={threadUrl(t.id)}>{t.title}</a> {#if t.discarded}<span class="faint">discarded</span>{/if}</li>{/each}
 				{#each records as r (r)}<li><code>{r}</code></li>{/each}
 			</ul>
 		{:else}

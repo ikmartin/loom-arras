@@ -44,6 +44,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-39](WQ-39-mechanical-version-check.md) | a mechanical version check for extracted digests | loom | the author cites, with a locator, a result in a flagged digest that the cited version numbers differently |
 | [WQ-41](WQ-41-ranked-find.md) | ranking for `loom refs find` | loom | an agent reruns `refs find` three or more times in one query to narrow it |
 | [WQ-42](WQ-42-the-gradient-with-orientation-held.md) | measure the gradient with orientation held fixed | — | before the layer is claimed to make later questions cheaper outside the project |
+| [WQ-49](WQ-49-editor-clients.md) | rework the editor clients; until then they are deprecated and may break | loom-lsp, loom-nvim, loom-vscode | someone starts to work seriously in a quilt and wants loom in their editor |
 
 Twenty-five active, twenty slots of headroom.
 

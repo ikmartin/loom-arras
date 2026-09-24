@@ -6,7 +6,7 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { keyUrl } from '$lib/nav';
 	import { pageOf } from '$lib/worklink';
-	import { clickWhere, follow, itemForHref, paneOfElement } from '$lib/workspace/links';
+	import { itemForHref, paneOfElement } from '$lib/workspace/links';
 	import { itemFromPath, itemKey, type Item } from '$lib/workspace/item';
 	import { kinds } from '$lib/workspace/registry';
 	import { workspace } from '$lib/workspace/store.svelte';
@@ -20,8 +20,8 @@
 	let left = $state(0);
 	let top = $state(0);
 	let anchor: Element | null = null;
-	/** What the hovered link names, the pane it stands in, and where the card's one action opens it: the destination a click does not give (H6), which is `here` for most links and `beside` for a context's. */
-	let opens = $state.raw<{ item: Item; pane: number; where: 'here' | 'beside' } | null>(null);
+	/** What the hovered link names and the pane it stands in, for the card's one action: opening it in that pane, the destination a click does not give (H6). */
+	let opens = $state.raw<{ item: Item; pane: number } | null>(null);
 	let showTimer: ReturnType<typeof setTimeout> | undefined;
 	let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -129,7 +129,7 @@
 		const href = a.getAttribute('href');
 		const clicked = href ? itemForHref(m, href) : null;
 		const item = clicked ?? (t.kind === 'node' ? itemFromPath(m, keyUrl(m, t.id)) : t);
-		opens = item && pane >= 0 ? { item, pane, where: clickWhere(pane) === 'here' ? 'beside' : 'here' } : null;
+		opens = item && pane >= 0 ? { item, pane } : null;
 		void place();
 	}
 
@@ -213,16 +213,16 @@
 	<div class="link-preview" class:bleeds={kind.bleeds} role="tooltip" bind:this={card} style="left: {left}px; top: {top}px" data-testid="link-preview">
 		{#key itemKey(target) + (target.place?.page ?? '') + (target.place?.result ?? '')}<Preview item={target} onresize={() => void place()} />{/key}
 		{#if opens}
-			<!-- Drawn always, not revealed once the pointer is inside: a remedy most readers never find is no remedy (H6). It opens the target in the pane a click on the link does not (H7). -->
+			<!-- Drawn always, not revealed once the pointer is inside: a remedy most readers never find is no remedy (H6). A click opens the target in the other pane; this opens it in the link's own, or reveals it where it is already open. -->
 			<p class="opens">
 				<button
 					type="button"
 					class="as-link"
 					data-testid="preview-open-here"
 					onclick={() => {
-						if (opens) follow(opens.item, opens.pane, opens.where);
+						if (opens) workspace.openIn(opens.item, opens.pane);
 						hide();
-					}}>open {opens.where}</button
+					}}>open here</button
 				>
 			</p>
 		{/if}

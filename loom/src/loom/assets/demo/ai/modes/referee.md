@@ -12,7 +12,7 @@ A hostile review of one key. You are a referee at a top-tier journal looking for
 As audit. You can run code: save every trial per standing rule 7.
 
 ## Procedure
-Read the closure. Produce the blocks of the output contract in order. Every gap, error, or unjustified step is an objection anchored to the exact sentence; every improvement a suggestion; every doubt a question. If an earlier audit notes file exists in this run, read it first and do not repeat its findings.
+Read the closure. Produce the blocks of the output contract in order. Every gap, error, or unjustified step is an objection anchored to the exact sentence; every improvement a suggestion; every doubt a question. If an earlier audit notes file exists in this session, read it first and do not repeat its findings.
 
 ## Output
 1. `referee-KEY.notes.md`: [summary], [gaps-and-ambiguities], [worked-examples], [counterexample], [referee-review], [referee-revised], [decision].

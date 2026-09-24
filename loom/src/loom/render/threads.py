@@ -1,6 +1,6 @@
 """Threads for the manifest (specs/manifest.md §10, book 11.4.7): every session, read-only.
 
-One thread per session, which since plan 0.13 §5 is what a run and a day's comments both are. A session the migration made from a run reads its attachments from the run directory those bytes are still in.
+One thread per session; its attachments are the files the session wrote into its own directory.
 """
 
 from __future__ import annotations
@@ -13,7 +13,8 @@ from loom.ai.layout import MODES
 from loom.records.annotations import Record
 
 #: What loom keeps in a session's directory for itself, as opposed to what the session wrote there.
-SESSION_FILES = ("run.toml", "run.log", "annotations.json", "inbox.jsonl", "attached.json")
+SESSION_FILES = ("run.log", "inbox.jsonl", "attached.json", "agent.json", "agent.log")
+_MADE = re.compile(r"^(.*?)\s+→\s+(a-\d{4}-\d{2}-\d{2}-\d+)$")
 KINDS = {"draft-": "draft", "proposal-": "proposal", "ingest-": "digest", "plan-": "plan"}
 
 
@@ -68,7 +69,7 @@ def session_thread(root: Path, session: Any, record: Record | None, run_dir: Pat
             if a.target_key not in targets:
                 targets.append(a.target_key)
             # every party who wrote in the session, which is the point of separating the author from the place
-            who = {"kind": "agent" if a.author_kind in ("agent", "run") else "person", "id": a.author_id}
+            who = {"kind": "agent" if a.author_kind == "agent" else "person", "id": a.author_id}
             if who not in participants:
                 participants.append(who)
     for p in sorted(run_dir.iterdir()) if run_dir.is_dir() else []:
@@ -80,8 +81,14 @@ def session_thread(root: Path, session: Any, record: Record | None, run_dir: Pat
     if log_path.is_file():
         for line in log_path.read_text(encoding="utf-8").splitlines():
             m = re.match(r"^(\S+)\s+(.*)$", line)
-            if m:
-                log.append({"time": m.group(1), "command": m.group(2)})
+            if not m:
+                continue
+            entry = {"time": m.group(1), "command": m.group(2)}
+            # `loom comment` names the annotation it made or changed after an arrow (plan 0.14)
+            made = _MADE.match(entry["command"])
+            if made:
+                entry["command"], entry["annotation"] = made.group(1), made.group(2)
+            log.append(entry)
     return {
         "id": session.id,
         "kind": "session",
@@ -107,8 +114,7 @@ def build_threads(root: Path, records: list[Record] | None = None) -> dict[str, 
     by_rel = {r.rel: r for r in records}
     out: dict[str, Any] = {}
     for s in sessions(root).values():
-        # a migrated session's annotations still carry the grouping they were written with
-        record = by_rel.get(s.id) or (by_rel.get(s.source) if s.source else None)
+        record = by_rel.get(s.id)
         where = files_dir(root, s)
         out[s.id] = session_thread(root, s, record, where)
     return out

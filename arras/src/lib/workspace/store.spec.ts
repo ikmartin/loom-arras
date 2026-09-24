@@ -19,6 +19,8 @@ describe('an item and its address', () => {
 			'/library/Kre99?page=4&result=Kre99-thm-2.1&view=digest',
 			'/library/Kre99?page=1&quote=Artin+stacks',
 			'/node/sy-0002/proof',
+			'/node/sy-0002?note=a-2026-09-16-0001',
+			'/master/main?note=a-2026-09-16-0004',
 			'/context/sy-0002',
 			'/session/s-2026-09-16-0001',
 			'/session/s-2026-09-16-0001?view=did'

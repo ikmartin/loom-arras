@@ -1,4 +1,0 @@
-The defect is the invariant that measures how far a weighted digraph is from the situation
-of Theorem 3.2, and it is the subject of the sequel.
-
-3

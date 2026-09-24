@@ -67,9 +67,16 @@ def test_convert_refs_cites_footnote_url() -> None:
     out, ctx, _ = make(text, labels=labels, numbers={"lem:a": AuxNumber("2.1", 1), "eq:b": AuxNumber("7", 2)})
     ctx.regions["k-0003#eq:b"] = "k-0003"
     out, ctx2, _ = make(text, labels=labels, numbers={"lem:a": AuxNumber("2.1", 1), "eq:b": AuxNumber("7", 2)})
-    assert '<a id="cite-f-tex-10-k-0002" class="ref" data-target="k-0002" href="#k-0002">2.1</a>' in out
-    assert '<a class="ref ref-dangling" data-target="nope">??</a>' in out
-    assert 'data-citekey="Man12" data-postnote="Theorem 4.1" data-target="Man12-thm-4.1"' in out
+    # each carries the command as written, for a quote across it (DR-282-ikmartin)
+    assert (
+        '<a id="cite-f-tex-10-k-0002" class="ref" data-target="k-0002" data-tex="\\ref{lem:a}" data-at="10" href="#k-0002">2.1</a>'
+        in out
+    )
+    assert re.search(
+        r'<a class="ref ref-dangling" data-target="nope" data-tex="\\ref\{nope\}" data-at="\d+">\?\?</a>', out
+    )
+    assert 'data-citekey="Man12" data-tex="\\cite[Theorem 4.1]{Man12}"' in out
+    assert 'data-postnote="Theorem 4.1" data-target="Man12-thm-4.1"' in out
     assert 'data-citekey="Har77"' in out and 'data-target="Har77' not in out
     assert '<span class="footnote" data-n="1">A note with <span class="math inline">\\(m\\)</span>.</span>' in out
     assert (

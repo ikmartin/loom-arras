@@ -188,13 +188,35 @@
 	});
 
 
+	// A link to a note on this work arrives with its box open (plan 0.14), once its mark is drawn: the page renders after the item opens, so the mark is waited for rather than assumed.
+	let openedFor = '';
+	$effect(() => {
+		const id = locator?.annot;
+		const host = pane;
+		void drawn;
+		if (!id || !host || !boxes || openedFor === id) return;
+		const find = () => host.querySelector<HTMLElement>(`[data-testid="mark-${CSS.escape(id)}"]`);
+		let tries = 0;
+		const look = () => {
+			const at = find();
+			if (at && boxes) {
+				openedFor = id;
+				boxes.toggle(at, [id]);
+				return;
+			}
+			if (++tries < 40) timer = setTimeout(look, 150);
+		};
+		let timer = setTimeout(look, 0);
+		return () => clearTimeout(timer);
+	});
+
 	function travel(e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }): void {
 		active = e.id;
 		if (e.note) ui.activeAnnotation = e.id;
 		if (e.travel) {
-			// a note travels to its row in the discussion; a result to its entry beside the page
+			// a note travels to where it is listed — its session's record of it, or its card; a result to its entry beside the page
 			const to = e.note
-				? document.querySelector(`[data-testid="beside-${CSS.escape(e.id)}"]`)
+				? document.querySelector(`[id="ann-${CSS.escape(e.id)}"]`)
 				: document.querySelector(`[data-anchored="${CSS.escape(e.id)}"]`);
 			goTo(to, e.el);
 			return;

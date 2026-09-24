@@ -58,7 +58,7 @@ export function resetComments(root: HTMLElement): void {
  * Empty when no copy is filed or the locator names no page, in which case the caller falls back to the digest node.
  */
 /** An annotation's card, looked for in the pane the mark stands in before anywhere else: two open items can both hold a card for one annotation. */
-function card(root: HTMLElement, id: string): HTMLElement | null {
+export function card(root: HTMLElement, id: string): HTMLElement | null {
 	const scope = root.closest('[data-pane]');
 	return scope?.querySelector<HTMLElement>(`[id="ann-${CSS.escape(id)}"]`) ?? document.getElementById('ann-' + id);
 }

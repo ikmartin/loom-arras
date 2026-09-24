@@ -46,8 +46,6 @@ class Session:
     rounds: list[Round] = field(default_factory=list)
     #: What the sitting is for, in the author's words -- a line under the title, not a second name (plan 0.13.1).
     purpose: str = ""
-    #: For a session made by the migration: the run directory or comment grouping its annotations still carry.
-    source: str = ""
 
     @property
     def last_opened(self) -> str:
@@ -114,7 +112,6 @@ def sessions(root: Path, *, deleted: bool = False) -> dict[str, Session]:
                 created=when,
                 rounds=[Round(opened=when)],
                 purpose=str(e.get("purpose", "")),
-                source=str(e.get("source", "")),
             )
             continue
         s = out.get(sid)
@@ -154,7 +151,7 @@ def next_id(root: Path, date: str) -> str:
     return f"{prefix}{n + 1:04d}"
 
 
-def create(root: Path, title: str, who: str, *, purpose: str = "", source: str = "") -> Session:
+def create(root: Path, title: str, who: str, *, purpose: str = "") -> Session:
     """Mint a session and return it; the directory is not made until something is written into it.
 
     Parameters
@@ -167,8 +164,6 @@ def create(root: Path, title: str, who: str, *, purpose: str = "", source: str =
         The author creating it.
     purpose : str, default ''
         What the sitting is for; shown under the title and changed later with `purposed`.
-    source : str, default ''
-        For the migration: the run directory or comment grouping whose annotations belong to this session.
 
     Returns
     -------
@@ -179,8 +174,7 @@ def create(root: Path, title: str, who: str, *, purpose: str = "", source: str =
     append_event(
         root,
         {"event": "created", "id": sid, "title": title, "who": who, "when": when}
-        | ({"purpose": purpose} if purpose else {})
-        | ({"source": source} if source else {}),
+        | ({"purpose": purpose} if purpose else {}),
     )
     return sessions(root)[sid]
 
@@ -270,67 +264,6 @@ def resolve(root: Path, needle: str) -> Session | None:
     return None
 
 
-def by_source(root: Path) -> dict[str, str]:
-    """Which session each pre-session grouping belongs to: `ai/runs/<dir>` or `comments/<who>/<date>` to a session id."""
-    return {s.source: s.id for s in sessions(root, deleted=True).values() if s.source}
-
-
-def migrate(root: Path, who: str) -> list[Session]:
-    """Give every run and every day's comments a session, and return the ones this call made.
-
-    Nothing in `annotations/log.jsonl` is rewritten -- it is append-only and this is not an exception. Each session records the grouping its annotations already carry as its `source`, and an annotation's session is read through that. A run that was discarded becomes a closed session; a run still going becomes an open one.
-
-    Parameters
-    ----------
-    root : Path
-        The quilt.
-    who : str
-        Who ran the migration; recorded as the author of the events it writes.
-
-    Returns
-    -------
-    list of Session
-        Sessions made by this call, in the order the groupings were found. Empty when there was nothing left to do.
-    """
-    from loom.ai.runs import RUNS_DIR, read_run_toml, run_name
-    from loom.records.annotations import load_records
-
-    known = by_source(root)
-    made: list[Session] = []
-    runs = root / RUNS_DIR
-    if runs.is_dir():
-        for d in sorted(p for p in runs.iterdir() if p.is_dir()):
-            rel = d.relative_to(root).as_posix()
-            if rel in known:
-                continue
-            meta = read_run_toml(d)
-            s = create(root, run_name(d), who, source=rel)
-            if str(meta.get("discarded", "")).lower() == "true":
-                close(root, s.id, who)
-            made.append(s)
-            known[rel] = s.id
-    records, _ = load_records(root)
-    for rec in sorted(records, key=lambda r: r.rel):
-        if not rec.rel.startswith("comments/") or rec.rel in known:
-            continue
-        # `comments/<author>/<date>`: the day's work by one person, which is the session they would have opened
-        parts = rec.rel.split("/")
-        title = f"{parts[1]}, {parts[2]}" if len(parts) > 2 else rec.rel
-        s = create(root, title, who, source=rec.rel)
-        close(root, s.id, who)
-        made.append(s)
-        known[rec.rel] = s.id
-    return made
-
-
 def files_dir(root: Path, s: Session) -> Path:
-    """Where a session's own files are -- its notes, its thread, its command log.
-
-    `.loom/sessions/<id>/`, except for a session the migration made from a run, whose files are still in the run directory the agent wrote them to. Nothing is moved: the run directory is where those bytes are, and a record that points somewhere they are not is worse than an inconsistent path.
-    """
-    own = s.directory(root)
-    if own.is_dir():
-        return own
-    if s.source and s.source.startswith("ai/runs/") and (root / s.source).is_dir():
-        return root / s.source
-    return own
+    """Where a session's own files are -- its notes, its command log, its inbox: `.loom/sessions/<id>/`."""
+    return s.directory(root)

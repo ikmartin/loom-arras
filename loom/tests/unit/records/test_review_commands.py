@@ -881,6 +881,18 @@ def test_every_verb_takes_its_message_as_the_one_positional(tmp_path: Path) -> N
     assert bodies["resolved"] == "fixed in the new statement"
 
 
+def test_a_reply_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
+    """The 0.14 study: an agent replied "a replacement is attached" with `--payload`, and the payload was dropped without a word."""
+    d = demo(tmp_path)
+    ann = run("comment", "dm-0002", "A finding", *AUTHOR, cwd=d).output.split()[0]
+    before = len(events(d))
+    for extra in (("--payload", "New sentence."), ("--severity", "minor"), ("--quote", "finite set")):
+        for verb in ("--reply", "--resolve"):
+            r = run("comment", verb, ann, "A replacement is attached.", *extra, *AUTHOR, cwd=d)
+            assert r.exit_code != 0 and f"{extra[0]} would be lost" in r.output, r.output
+    assert len(events(d)) == before
+
+
 def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:
     d = demo(tmp_path)
     ann = run("comment", "dm-0002", "A finding", *AUTHOR, cwd=d).output.split()[0]

@@ -7,14 +7,12 @@ from importlib import resources
 import click
 
 from loom.cli._quilt import open_quilt, quilt_option
-from loom.history.migrate import migrate_history
-from loom.refs.migrate import migrate
 
 
 @click.command()
 @quilt_option
 def upgrade(quilt_path: str | None) -> None:
-    """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones. Also brings the records to the current layout: snapshots into the history's texts/, `drafts` renamed `drafting` in config.toml."""
+    """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones."""
     from loom.ai.layout import upgrade_layer
     from loom.records.lastseen import ensure_gitignore_line
 
@@ -22,6 +20,10 @@ def upgrade(quilt_path: str | None) -> None:
     root = quilt.root
     if ensure_gitignore_line(root):
         click.echo("wrote .gitignore (loom's last-seen cache)")
+    from loom.agent import ensure_ignored
+
+    if ensure_ignored(root):
+        click.echo("wrote .gitignore (the agent's command and its turns' state)")
     sty = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")
     p = root / "loom.sty"
     if not p.is_file() or p.read_text(encoding="utf-8") != sty:
@@ -39,22 +41,3 @@ def upgrade(quilt_path: str | None) -> None:
             click.echo("ai/ is current")
     else:
         click.echo("no ai/ (loom ai init creates it)")
-    refs_rep = migrate(root)
-    for line in refs_rep.moved:
-        click.echo(f"moved {line}")
-    for key in refs_rep.retired:
-        click.echo(f"removed {key} from config.toml (withdrawn; it did nothing)")
-    if refs_rep.unknown:
-        click.echo(
-            f"provenance split for {', '.join(refs_rep.unknown)}: the recorded identifier names the published work, so "
-            "what the statements were extracted from is unknown; loom:unverified-locators names it until you say"
-        )
-    if not refs_rep.done:
-        click.echo("references are current")
-    hist_rep = migrate_history(root, quilt.history_dir)
-    if hist_rep.moved:
-        click.echo(f"moved {len(hist_rep.moved)} snapshots into {quilt.config.history}/texts/")
-    if hist_rep.renamed:
-        click.echo("renamed [quilt] drafts to drafting in config.toml (nothing moved)")
-    if not refs_rep.retired and not hist_rep.done:
-        click.echo("config.toml and the ledger need no migration")

@@ -189,3 +189,96 @@ function inPlace(where: 'inline' | 'floating') {
 
 test('a reply written in an inline comment box leaves the box open', inPlace('inline'));
 test('a reply written in a floating comment box leaves the box open', inPlace('floating'));
+
+test("the Chat posts through the publisher, and the agent's answer arrives without a rebuild", async ({ page }) => {
+	// plan 0.14 phase 2: the person writes in the Chat, the agent answers with `loom session say` from its own shell, and the answer is read from `/_api/events` rather than waiting for the manifest
+	await page.goto('/node/sy-0003');
+	await intoASession(page);
+	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
+	await expect(chat).toBeVisible();
+	const sid = new URL(page.url()).searchParams.get('beside')!.replace('/session/', '');
+	await chat.getByTestId('composer-text').fill('Is the second proof needed?');
+	await chat.getByTestId('composer-send').click();
+	await expect(chat.getByTestId('transcript')).toContainText('Is the second proof needed?');
+	await expect(chat.getByTestId('chat-status')).toContainText('sent');
+	const { execFileSync } = await import('node:child_process');
+	execFileSync('../loom/.venv/bin/loom', ['session', 'say', 'Only for the *odd* case.', '--session', sid, '--as', 'Referee Agent', '--quilt', QUILT], {
+		env: { ...process.env, AI_AGENT: '1' }
+	});
+	await expect(chat.getByTestId('transcript')).toContainText('Only for the odd case.', { timeout: 3000 });
+	await expect(chat.getByTestId('transcript').locator('em', { hasText: 'odd' })).toHaveCount(1);
+});
+
+test('what the person marks goes with their next message, whole, and the agent is handed it', async ({ page }) => {
+	// plan 0.14 phase 4: a note written in the document waits in the Chat's tray, goes without words, and reaches a parked agent with its body and the words it is on
+	await page.goto('/node/sy-0003');
+	await intoASession(page);
+	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
+	await expect(chat).toBeVisible();
+	const sid = new URL(page.url()).searchParams.get('beside')!.replace('/session/', '');
+	const statement = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
+	await statement.locator('mjx-container').first().waitFor();
+	await select(statement);
+	await page.getByTestId('annotate-offer').click();
+	await page.getByTestId('note-body').fill('Packet: does the fixed point count once?');
+	await page.getByTestId('note-kind').selectOption('question');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	const id = log().filter((e) => e.body === 'Packet: does the fixed point count once?').at(-1)!.id as string;
+	await expect(chat.getByTestId(`packet-row-${id}`)).toBeVisible();
+	await chat.getByTestId('composer-send').click();
+	await expect(chat.getByTestId('packet-tray')).toHaveCount(0);
+	await expect(chat.getByTestId('message-carried').last()).toContainText('1 question');
+	const { execFileSync } = await import('node:child_process');
+	const out = execFileSync('../loom/.venv/bin/loom', ['session', 'next', '--wait', '0', '--json', '--since', '0', '--session', sid, '--as', 'Test Agent', '--quilt', QUILT], {
+		env: { ...process.env, AI_AGENT: '1' }
+	}).toString();
+	const carried = JSON.parse(out).events.flatMap((e: { changed?: { id: string; body: string; quote?: string }[] }) => e.changed ?? []);
+	const mine = carried.find((c: { id: string }) => c.id === id);
+	expect(mine.body).toBe('Packet: does the fixed point count once?');
+	expect(mine.quote).toContain('finite widget');
+});
+
+test('with launching on, a message starts the configured agent for a turn, and its answer arrives', async ({ page }) => {
+	// plan 0.14 phase 5: `loom serve` runs the command in ai/ai-config.toml -- here a stand-in agent -- when a message waits and nobody is listening
+	const { readFileSync: read, writeFileSync: write } = await import('node:fs');
+	const fake = `${QUILT}/.fake-agent.py`;
+	write(
+		fake,
+		[
+			'import json, subprocess, sys, time',
+			'session = sys.argv[1]',
+			'loom = [sys.executable, "-m", "loom"]',
+			'out = subprocess.run(loom + ["session", "next", "--wait", "0", "--json", "--session", session, "--as", "Stand-in Agent"], capture_output=True, text=True, check=True).stdout',
+			'said = [e.get("body", "") for e in json.loads(out)["events"]]',
+			'time.sleep(2)',
+			'subprocess.run(loom + ["session", "say", "echo: " + (said[-1] if said else ""), "--session", session, "--as", "Stand-in Agent"], check=True)'
+		].join('\n')
+	);
+	const python = new URL('../../../loom/.venv/bin/python', import.meta.url).pathname;
+	write(`${QUILT}/ai/ai-config.toml`, `name = "Stand-in Agent"\nstart = ${JSON.stringify([python, '.fake-agent.py', '{session}'])}\n`);
+	const cfgPath = `${QUILT}/config.toml`;
+	const before = read(cfgPath, 'utf8');
+	const on = /^launch\s*=/m.test(before)
+		? before.replace(/^launch\s*=.*$/m, 'launch = true')
+		: /^\[ai\]/m.test(before)
+			? before.replace(/^\[ai\]\s*$/m, '[ai]\nlaunch = true')
+			: before + '\n[ai]\nlaunch = true\n';
+	write(cfgPath, on);
+	try {
+		await page.goto('/node/sy-0003');
+		await intoASession(page);
+		const chat = page.locator('[data-pane="1"]').getByTestId('chat');
+		// an earlier test parked an agent on `next`, and its heartbeat would rightly keep loom from starting another
+		const { rmSync } = await import('node:fs');
+		const sid = new URL(page.url()).searchParams.get('beside')!.replace('/session/', '');
+		rmSync(`${QUILT}/.loom/sessions/${sid}/attached.json`, { force: true });
+		await chat.getByTestId('composer-text').fill('Stand-in, are you there?');
+		await chat.getByTestId('composer-send').click();
+		await expect(chat.getByTestId('chat-status')).toContainText('Stand-in Agent is working', { timeout: 10000 });
+		await expect(chat.getByTestId('transcript')).toContainText('echo: Stand-in, are you there?', { timeout: 15000 });
+		await expect.poll(() => JSON.parse(read(`${QUILT}/.loom/sessions/${sid}/agent.json`, 'utf8')).state, { timeout: 10000 }).toBe('done');
+	} finally {
+		write(cfgPath, before);
+	}
+});

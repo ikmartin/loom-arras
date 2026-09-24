@@ -36,6 +36,7 @@ CAPABILITIES = [
     "session-reopen",
     "session-purpose",
     "message",
+    "agent-stop",
     "sync-incorporate",
     "review-decision",
     "review-finish",
@@ -218,26 +219,30 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
 def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     """Post a message into a session, and say whether anybody was listening (plan 0.13 §8, DR-195).
 
-    **Loom appends; nothing is launched.** A parked reader wakes because a file grew. Loom holds no credentials, calls no model, and hands the message to nobody -- the agent is already running in the author's own terminal, and this is the mailbox it reads.
+    **Loom appends.** A parked reader wakes because a file grew; where the quilt lets it, `loom serve` starts the author's own agent command for the turn (`loom.agent`). Loom holds no credentials, calls no model, and hands the message to nobody -- this is the mailbox the agent reads.
 
     **The message lands whether or not anybody is attached**, and the answer says which. Refusing would lose what the author typed, for a reason the browser cannot fix; saying nothing would let them believe it was delivered.
     """
     from loom.cli._common import whoever, writer
-    from loom.mailbox import attached, changed_since, post, waiting_on
+    from loom.mailbox import attached, pending, post, waiting_on
     from loom.sessions import resolve
 
-    text = _str(body, "text", required=True) or ""
+    # the words may be left out: a message may be what the person marked, and nothing else (plan 0.14)
+    text = (_str(body, "text") or "").strip()
     said = _str(body, "as")
     # A declared identity is taken as declared; with none, this is the author at their own keyboard, which is what the
     # viewer's composer is. `writer` is what refuses an agent that has not named itself.
-    name, kind = writer(root, said) if said else (_str(body, "author") or whoever(root), "person")
+    name, kind = writer(root, said) if said else (_str(body, "author") or whoever(root, sniff=False), "person")
     # A message names its session like every other write (plan 0.13.1): it is addressed to whoever is attached there,
     # and a message posted to "whatever was last active" would reach the wrong reader.
     which = _str(body, "session", required=True) or ""
     found = resolve(root, which)
     if found is None:
         raise ApiError("no-such-session", f"no session matches {which}", status=404)
-    event = post(root, found.id, text, name, kind="message", changed=changed_since(root, found))
+    packet = pending(root, found, name)
+    if not text and not packet:
+        raise ApiError("nothing-to-send", "nothing to send: no words, and nothing marked since the last message")
+    event = post(root, found.id, text, name, kind="message", changed=packet)
     here = [r for r in attached(root, found.id) if r.get("who") != name]
     return {
         "ok": True,
@@ -257,7 +262,7 @@ def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     from loom.cli._common import whoever
     from loom.sessions import active, close, create, delete, purpose, rename, resolve, resume, sessions, set_active
 
-    who = _str(body, "author") or whoever(root)
+    who = _str(body, "author") or whoever(root, sniff=False)
     if endpoint == "session-new":
         # named by the author on the spot, and made the one writing lands in: what §16's example does from the page
         title = _str(body, "title", required=True) or ""
@@ -380,10 +385,11 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return discard_annotation(
                 root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"), undo
             )
-        if endpoint == "edit":
-            fields = {k: _str(body, k) for k in ("message", "severity", "payload", "placement")}
-            return edit_annotation(root, _str(body, "annotation", required=True) or "", writer, **fields)
         result = open_scan(str(root))
+        if endpoint == "edit":
+            # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
+            fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("severity", "payload", "placement")}}
+            return edit_annotation(result, _str(body, "annotation", required=True) or "", writer, **fields)
         if endpoint == "comment":
             # a note on a page of a cited work carries the page and, for a box, the rectangles (plan 0.13 item 2)
             page = body.get("page")
@@ -419,7 +425,6 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
 
 def _refs_note(root: Path, body: dict[str, Any]) -> str:
     """Accept or reject a citation an agent suggested: the log records the decision, the breadcrumb records the work."""
-    from loom.ai.runs import thread_id
     from loom.records.annotations import find_annotation
     from loom.records.store import Records
     from loom.refs.notes import append_note
@@ -449,7 +454,7 @@ def _refs_note(root: Path, body: dict[str, Any]) -> str:
             "claim": annotation.selector.exact if annotation.selector else None,
             "identifier": {"verified": False},
             "accepted": {"when": stamp(), "who": _str(body, "author") or "viewer"},
-            "from": {"run": thread_id(record.rel), "annotation": ann_id},
+            "from": {"run": record.rel, "annotation": ann_id},
         },
     )
     return f"accepted {ann_id}; {resolved}"

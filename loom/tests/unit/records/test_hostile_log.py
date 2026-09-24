@@ -20,6 +20,7 @@ def created(**over: object) -> dict[str, object]:
         "when": "2026-09-18T00:00:00Z",
         "author": "A Reader",
         "kind": "human",
+        "session": "s-2026-09-18-0001",
         "target": "x-0001",
         "annotation_kind": "objection",
         "body": "A finding.",

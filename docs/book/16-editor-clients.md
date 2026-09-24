@@ -2,6 +2,8 @@
 
 **[decided]** Three projects exist beside loom and arras: a language server and two editor plugins. They are clients. P8 holds unchanged: no loom command requires any of them, none of them is assumed by anything in this book, and a quilt edited in a plain text editor loses nothing but convenience.
 
+**[decided]** The three clients are **deprecated and breakable**. They were built before sessions, the drafting layout, the annotation log and the chat, and what follows describes them as they were built, not as loom now is. A loom change may break them, and nothing is held back to keep them working. They are reworked, not patched, once someone works seriously in a quilt and wants loom in their editor (WQ-49).
+
 They are directories of this repository, each with its own release cycle, ecosystem and dependencies: a reader who wants only loom builds only `loom/`, and nothing here is built to get it. They were separate repositories until a change crossing the server and both plugins proved to be three pull requests nothing tied together (DR-196). `loom-nvim/` is additionally mirrored to a repository of its own, since a Neovim plugin manager installs from a repository whose root is the plugin.
 
 | project | what it is | directory |

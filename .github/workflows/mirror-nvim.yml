@@ -1,6 +1,6 @@
 name: mirror loom-nvim
 
-# A Neovim plugin manager installs a plugin from a repository whose root is the plugin, so loom-nvim/ is pushed to ikmartin/loom-nvim whenever it changes. That repository is a mirror: it takes no pull requests, and development happens here.
+# A Neovim plugin manager installs a plugin from a repository whose root is the plugin, so loom-nvim/ is pushed to ikmartin/loom-nvim whenever it changes, once its suite has passed on the commit being pushed. That repository is a mirror: it takes no pull requests, and development happens here.
 
 on:
   push:
@@ -9,7 +9,13 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    uses: ./.github/workflows/clients.yml
+    with:
+      only: nvim
+
   mirror:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

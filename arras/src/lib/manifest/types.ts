@@ -14,8 +14,8 @@ export type ColorClass =
   | (string & {});
 
 export interface Author {
-  /** Who wrote it. `run` is what an agent's annotation said before sessions separated the author from the place (plan 0.13 §5); records written then still carry it. */
-  kind: "agent" | "person" | "run" | (string & {});
+  /** Who wrote it; where it belongs is the annotation's session. */
+  kind: "agent" | "person" | (string & {});
   id: string;
   label?: string;
 }
@@ -331,15 +331,14 @@ export interface SessionRow {
 
 export interface Thread {
   id: string;
-  /** `session` since plan 0.13 §5; `run` and `comments` are what a thread written before it says. */
-  kind: "session" | "run" | "comments" | (string & {});
+  kind: "session" | (string & {});
   title: string;
   created: string;
   participants: Author[];
   targets: string[];
   attachments: Attachment[];
   pipeline?: PipelineStep[];
-  log: { time: string; command: string }[];
+  log: { time: string; command: string; annotation?: string }[];
   discarded: boolean;
 }
 

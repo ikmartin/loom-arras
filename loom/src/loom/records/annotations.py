@@ -5,7 +5,6 @@ Annotations are stored as events in `annotations/log.jsonl` (`records/log.py`) a
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -103,16 +102,12 @@ class Annotation:
 
 @dataclass
 class Record:
-    """One run's or one author's annotations, replayed from the log; `rel` is the run directory or `comments/<author>`."""
+    """One session's annotations, replayed from the log; `rel` is the session id."""
 
     path: Path  # the log the record was replayed from
-    rel: str  # the grouping key: a session id, or -- written before sessions -- ai/runs/<run> or comments/<author>/<date>
+    rel: str  # the grouping key: the session id
     discarded: bool = False
     annotations: list[Annotation] = field(default_factory=list)
-
-    @property
-    def is_run(self) -> bool:
-        return self.rel.startswith("ai/runs/")
 
     @property
     def is_session(self) -> bool:
@@ -127,10 +122,6 @@ def load_records(root: Path) -> tuple[list[Record], list[str]]:
     from loom.records.log import replay
 
     return replay(root)
-
-
-def author_slug(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "anonymous"
 
 
 def next_id(records: list[Record], date: str) -> str:

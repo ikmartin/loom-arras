@@ -99,6 +99,10 @@
 		const left = holder.getBoundingClientRect().left - column.getBoundingClientRect().left + column.scrollLeft;
 		column.scrollLeft = Math.max(0, left + textBlock.x0 * drawAt - LANDING);
 	}
+	/** Whether the text block fits the column at the zoom drawn, so the page is read from its left edge whatever it lands on. */
+	function textFits(): boolean {
+		return !!column && !!textBlock && (textBlock.x1 - textBlock.x0) * drawAt + LANDING <= column.clientWidth;
+	}
 	$effect(() => {
 		void drawAt;
 		void columnWidth;
@@ -147,7 +151,7 @@
 		const target = column.querySelector(`[data-holder="${n}"]`);
 		if (!target) return;
 		here = n;
-		target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+		toPage(target, 'smooth');
 		onpage?.({ page: n });
 	});
 
@@ -173,12 +177,15 @@
 		const target = column.querySelector(`[data-holder="${Math.min(Math.max(want, 1), count)}"]`);
 		if (target) {
 			here = Math.min(Math.max(want, 1), count);
-			target.scrollIntoView({ block: 'start' });
+			toPage(target);
 		}
 	});
 
 	$effect(() => {
 		const id = focus;
+		// a redraw at another zoom or width moves the result: land again, which also re-reads whether the text now fits
+		void drawAt;
+		void columnWidth;
 		if (!id || !column) return;
 		const at = spans.find((s) => s.id === id);
 		if (!at) return;
@@ -191,27 +198,41 @@
 		let frame = 0;
 		const reach = () => {
 			const mark = column?.querySelector(`[data-mark="${CSS.escape(id)}"]`);
-			if (!mark && tries++ < 30) {
+			// and for the page to be drawn at the zoom about to be reasoned with: a page told its new zoom but not yet redrawn still places the mark at the old one, and a landing measured there scrolls to the wrong place
+			const holder = column?.querySelector<HTMLElement>(`[data-holder="${at.page}"]`);
+			const drawn = !holder || Math.abs(holder.getBoundingClientRect().width - sizeOf(at.page).width * drawAt) <= 2;
+			if ((!mark || !drawn) && tries++ < 30) {
 				frame = requestAnimationFrame(reach);
 				return;
 			}
-			// `inline: 'start'` against the mark's scroll margin: a result wider than the column is read from its first word, with the dot in view
-			(mark ?? column?.querySelector(`[data-holder="${at.page}"]`))?.scrollIntoView({
-				block: 'center',
-				inline: 'start',
-				behavior: 'smooth'
-			});
+			// A text block that fits the column is read from its left edge: `toText` sets the sideways place first, so the whole block is in view and the result needs no sideways move, which would otherwise go to where its first line starts, mid-line, cutting its every other line. Wider than the column, a result is read from its first word, with the dot in view.
+			const fits = textFits();
+			if (fits) toText();
+			if (!mark) {
+				// no mark after all: the page, which is wider than a half-pane column, so vertically only
+				const holder = column?.querySelector(`[data-holder="${at.page}"]`);
+				if (holder) toPage(holder, 'smooth');
+				return;
+			}
+			mark.scrollIntoView({ block: 'center', inline: fits ? 'nearest' : 'start', behavior: 'smooth' });
 		};
 		frame = requestAnimationFrame(reach);
 		return () => cancelAnimationFrame(frame);
 	});
+
+	/** Scroll a page's top to the top of the column, and nothing sideways: a page is wider than a half-pane column, and scrolling it into view let the browser align its right edge, over a landing that had just set where the text starts. */
+	function toPage(target: Element, behavior: ScrollBehavior = 'auto'): void {
+		if (!column) return;
+		const top = column.scrollTop + target.getBoundingClientRect().top - column.getBoundingClientRect().top;
+		column.scrollTo({ top, behavior });
+	}
 
 	/** Sent to a page by a link inside the paper: scroll there and say so, as a scroll would. */
 	function goTo(n: number): void {
 		const target = column?.querySelector(`[data-holder="${n}"]`);
 		if (!target) return;
 		here = n;
-		target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+		toPage(target, 'smooth');
 		onpage?.({ page: n });
 	}
 

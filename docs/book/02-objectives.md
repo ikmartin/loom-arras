@@ -37,7 +37,7 @@ For a colleague or coauthor:
 2. Every theorem-like environment and section in the paper carries an id, and every existing label survives as an alias.
 3. `loom atomize` of the master to a new spine, and `loom inline` back, both pass the identity test.
 4. `loom status` reports every key; the graph has no dangling references; every proof is attached.
-5. The whole paper has been through the cycle: for every key, at least one review record exists (from a run or from `loom comment`), and every key is accepted or explicitly incomplete.
+5. The whole paper has been through the cycle: for every key, at least one review record exists (from `loom comment`, by a person or an agent), and every key is accepted or explicitly incomplete.
 6. At least one upstream edit has produced stale acceptances that `loom status --explain` attributes correctly with a diff, and those keys have been re-accepted.
 7. Digests exist for the paper's principal references, including one extracted mechanically from LaTeX source and one produced by ingest from a PDF, and at least one `\cite[postnote]` resolves to a digest node.
 8. Arras, served by `loom serve`, shows the master view, node pages, the review panel, the problems page, the graph, tags, and search for this quilt, and re-renders on save.

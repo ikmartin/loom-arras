@@ -20,6 +20,9 @@ export class Workspace {
 	/** Per-item state a renderer keeps across being hidden behind another tab: a work's view of its pages, a document's open annotations, a scroll offset. */
 	#state = new Map<string, object>();
 	#seq = 0;
+	/** When each item was last made its pane's active tab: the order a reader last looked at background tabs in. */
+	#shown = new Map<string, number>();
+	#tick = 0;
 
 	/** The focused pane's active item: the current document, whatever kind it is. */
 	get current(): Item | null {
@@ -30,6 +33,11 @@ export class Workspace {
 	active(pane: number): Item | null {
 		const p = this.panes[pane];
 		return p?.items.find((i) => itemKey(i) === p.active) ?? null;
+	}
+
+	/** When an item was last its pane's front tab, as an order and not a time; 0 for one never shown. */
+	shownAt(key: string): number {
+		return this.#shown.get(key) ?? 0;
 	}
 
 	/** Which pane holds an item, or -1. */
@@ -78,6 +86,7 @@ export class Workspace {
 			return;
 		}
 		const pane: Pane = { items: [this.#stamp(item)], active: itemKey(item) };
+		this.#shown.set(itemKey(item), ++this.#tick);
 		this.panes = [this.panes[0], pane];
 		this.focus = 1;
 	}
@@ -88,18 +97,19 @@ export class Workspace {
 		const at = this.paneOf(key);
 		if (at >= 0) {
 			this.#replace(at, key, item);
-			this.panes[at].active = key;
+			this.#front(this.panes[at], key);
 			this.focus = at;
 			return;
 		}
 		if (!this.panes.length) {
 			this.panes = [{ items: [this.#stamp(item)], active: key }];
+			this.#shown.set(key, ++this.#tick);
 			this.focus = 0;
 			return;
 		}
 		const p = this.panes[Math.min(pane, this.panes.length - 1)];
 		p.items.push(this.#stamp(item));
-		p.active = key;
+		this.#front(p, key);
 		this.focus = this.panes.indexOf(p);
 	}
 
@@ -107,7 +117,7 @@ export class Workspace {
 	activate(pane: number, key: string): void {
 		const p = this.panes[pane];
 		if (!p || !p.items.some((i) => itemKey(i) === key)) return;
-		p.active = key;
+		this.#front(p, key);
 		this.focus = pane;
 	}
 
@@ -132,11 +142,12 @@ export class Workspace {
 		if (!dest) {
 			// the source pane kept its other tabs; the moved one makes the second pane
 			this.panes = [this.panes[0], { items: [item], active: key }];
+			this.#shown.set(key, ++this.#tick);
 			this.focus = 1;
 			return;
 		}
 		dest.items.push(item);
-		dest.active = key;
+		this.#front(dest, key);
 		this.focus = this.panes.indexOf(dest);
 	}
 
@@ -178,6 +189,7 @@ export class Workspace {
 		if (!this.panes.length) {
 			if (!main) return;
 			this.panes = [{ items: [this.#stamp(main)], active: itemKey(main) }];
+			this.#shown.set(itemKey(main), ++this.#tick);
 			this.focus = 0;
 			if (other && itemKey(other) !== itemKey(main)) this.beside(other, 0);
 			this.focus = 0;
@@ -196,6 +208,7 @@ export class Workspace {
 		this.panes = [];
 		this.focus = 0;
 		this.#state.clear();
+		this.#shown.clear();
 	}
 
 	#stamp(item: Item): Item {
@@ -221,7 +234,12 @@ export class Workspace {
 			this.focus = Math.min(this.focus > pane ? this.focus - 1 : this.focus, Math.max(0, this.panes.length - 1));
 			return;
 		}
-		if (p.active === key) p.active = itemKey(p.items[Math.min(i, p.items.length - 1)]);
+		if (p.active === key) this.#front(p, itemKey(p.items[Math.min(i, p.items.length - 1)]));
+	}
+
+	#front(p: Pane, key: string): void {
+		p.active = key;
+		this.#shown.set(key, ++this.#tick);
 	}
 }
 

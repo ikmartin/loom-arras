@@ -24,7 +24,7 @@ All entries are **[decided]** unless marked.
 - `nodes/` : the directory `loom new` and `atomize` write node files to. A convention, not a rule.
 - `digests/` : the directory of digests, with loom's store of other people's documents under `digests/storage/`, named by identifier. `refs/` is the author's seed space: the PDFs and `.bib` files they drop in for loom to read (8.16), and is gitignored.
 - `comments/<author-slug>/<date>` : the grouping key for what one person wrote on one day. A path-shaped **name**, not a directory: every annotation lives in `annotations/log.jsonl`, and nothing is written under `comments/`.
-- `ai/` : the optional AI layer: `orientation.md`, `modes/`, `runs/`.
+- `ai/` : the optional AI layer: `orientation.md`, `rules.md`, `formatting.md`, `modes/`. Sessions live in `.loom/sessions/`.
 - `.loom/` : loom's own durable data: `state.toml` (the acceptance ledger) and `history/` (the history ledger, the step directories, and the content-addressed text store).
 - `retired/` : where `atomize --retire` moves a converted file at the author's request. Never scanned.
 - `build/` : everything derivable. Gitignored. Deletable at any time.
@@ -68,8 +68,8 @@ All entries are **[decided]** unless marked.
 - ledger : `.loom/state.toml`. Holds acceptance rows and nothing else. Written only by `loom accept`. Never edited.
 - acceptance row : one entry in the ledger: key, author, date, hash of the key's text, hashes of the closure's statements and the preamble closure, references to snapshots.
 - snapshot : the normalized text of a key or preamble at the time of an acceptance, stored content-addressed under `.loom/history/texts/`, the same store the versions use. What lets a stale acceptance be explained with a diff.
-- review record : one run's or one author's annotations as they now stand, replayed from `annotations/log.jsonl`. Not a file: the log is the only store, written only by `loom comment` and `loom refs note`.
-- annotation : one comment: id, author (person or run), target key, target hash, selector, kind, body, status, reply-to.
+- review record : one session's annotations as they now stand, replayed from `annotations/log.jsonl`. Not a file: the log is the only store, written only by `loom comment` and `loom refs note`.
+- annotation : one comment: id, author (person or agent), session, target key, target hash, selector, kind, body, status, reply-to.
 - selector : the text-quote selector: the exact quoted text with prefix and suffix context, resolved within the target's own text.
 - detached : an annotation whose selector no longer matches its target's current text.
 - state : a computed word for a key: `draft`, `accepted`, `incomplete`, with `stale` as a modifier on `accepted`.
@@ -77,7 +77,7 @@ All entries are **[decided]** unless marked.
 - fresh : not stale.
 - proved : a computed display state for a node: statement accepted and at least one proof accepted, none stale, no `\incomplete`.
 - settled : proved, and every node in the closure settled.
-- discard : marking a run or comment session ignored so that its annotations vanish from every view. Reversible. Never deletes.
+- discard : marking a session ignored so that its annotations vanish from every view, and closing it. Reversible. Never deletes.
 
 ## 3.6 Digests
 
@@ -119,7 +119,7 @@ All entries are **[decided]** unless marked.
 - attached : listening to a session, recorded by a heartbeat. A stale heartbeat means detached.
 - mode : one of the review procedures (audit, referee, review, simplify, question, quick, draft, ingest, brainstorm) as a prompt template with input and output contracts, under `ai/modes/`.
 - application : one use of a mode on one target inside a session, producing named output files in the session's directory.
-- `run.log` : automatic log of every loom command invoked with `--session`, in the session's directory.
+- `run.log` : automatic log of every loom command invoked with `--session`, in the session's directory; `loom comment` adds the annotation it made or changed after an arrow. A session's What it did is this log.
 - transcript : a session's conversation, which is its inbox: every message the person and the agent said, in order, and nothing loom wrote. The agent writes its account of the work there with `loom session say`; there is no separate journal.
 - promote : withdrawn (DR-173). Nothing copies what an agent wrote into the quilt: a digest is made by `loom digest extract` and checked by ingest mode, and a drafted node is previewed by the author and pasted by them, taking an id from `loom id --next`.
 - agent : the interactive program a person points at a quilt (Claude Code, Codex). Never a dependency.

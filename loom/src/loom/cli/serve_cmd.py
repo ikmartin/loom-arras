@@ -34,6 +34,14 @@ def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | Non
     note(f"loom serve: {session.url}  (build directory at {session.url}build/; Ctrl-C to stop)")
     if open_browser:
         webbrowser.open(session.url)
+    # A terminal closed or a `kill` stops a server with SIGTERM, not Ctrl-C; either way the turns it started stop with
+    # it, since each runs in a process group of its own that nothing else would ever end (plan 0.14, study F15).
+    import signal
+
+    def _term(*_: object) -> None:
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGTERM, _term)
     session.start()
     try:
         while True:

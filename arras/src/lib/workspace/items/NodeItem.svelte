@@ -46,7 +46,7 @@
 				<div class="column">
 					<!-- `margins` so Show ids puts the id and state in the gutter, as in a document; a digest node's text is read, not written, so it is not authoring -->
 					<FragmentNotes holder={held} fallback={key}>
-						<Fragment path={node.fragment} macroSet={node.digest ?? ''} margins comments={slots} authoring={!node.external} annotations={held.notes} anchor={item.anchor ?? ''} jump={item.seq} />
+						<Fragment path={node.fragment} macroSet={node.digest ?? ''} margins comments={slots} authoring={!node.external} annotations={held.notes} anchor={item.anchor ?? ''} jump={item.seq} note={item.note} />
 					</FragmentNotes>
 					{#if missingProof}<p class="muted absent" data-testid="missing-proof">No proof is attached.</p>{/if}
 					{#if node.children.length}

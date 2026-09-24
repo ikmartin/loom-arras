@@ -64,8 +64,6 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     diags: list[Diagnostic] = list(result.diagnostics) + list(edges.diagnostics)
     for w in result.quilt.config.warnings:
         diags.append(Diagnostic("warning", "loom:unknown-config-key", w, [Location("config.toml", 1)]))
-    for w in result.quilt.config.deprecations:
-        diags.append(Diagnostic("warning", "loom:deprecated-config-key", w, [Location("config.toml", 1)]))
     from loom.history.checks import quick_checks
     from loom.history.ledger import load_history
 

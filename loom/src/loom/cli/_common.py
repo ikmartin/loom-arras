@@ -44,27 +44,6 @@ def note(message: str) -> None:
     click.echo(message, err=True)
 
 
-def resolve_run(root: Path, run_dir: str | None) -> Path | None:
-    """A `--run` directory as a path: absolute as given, otherwise relative to the quilt root (never to the shell's cwd), so `--run ai/runs/x` means the quilt's run from any directory.
-
-    See Also
-    --------
-    find_session : a session by id, title or unique suffix.
-    """
-    if not run_dir:
-        return None
-    p = Path(run_dir).expanduser()
-    return p if p.is_absolute() else root / p
-
-
-def under_runs(root: Path, p: Path) -> bool:
-    """Whether a resolved `--run` path is inside `ai/runs/`, which is the only place an agent may write."""
-    try:
-        return p.resolve().is_relative_to((root / "ai" / "runs").resolve())
-    except (OSError, ValueError):
-        return False
-
-
 def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
     """Locate a session by id, by title, or by a unique id suffix; with nothing, the active one (plan 0.13 §5).
 
@@ -174,16 +153,16 @@ def writer(root: Path, declared: str | None) -> tuple[str, str]:
     return whoever(root), "person"
 
 
-def whoever(root: Path, author: str | None = None) -> str:
+def whoever(root: Path, author: str | None = None, *, sniff: bool = True) -> str:
     """Who is running this, for a record that wants provenance and must not refuse for want of it.
 
-    Opening, retitling or closing a session is not an authored claim about anybody's mathematics, so an unconfigured author name costs the record a name and never the command. The verbs that *are* claims -- `accept`, `refs verify`, a comment -- keep asking.
+    Opening, retitling or closing a session is not an authored claim about anybody's mathematics, so an unconfigured author name costs the record a name and never the command. The verbs that *are* claims -- `accept`, `refs verify`, a comment -- keep asking. `sniff=False` is the write API's: a write over HTTP is somebody at a browser, and the shell `loom serve` was started in says nothing about them.
     """
     from loom.scan.quilt import NoAuthorError, resolve_author
 
     if (author or "").strip():
         return str(author).strip()
-    robot = agent_name()
+    robot = agent_name() if sniff else None
     if robot:
         return robot
     try:

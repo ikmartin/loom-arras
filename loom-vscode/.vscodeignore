@@ -1,6 +1,5 @@
 .vscode-test/**
 .vscode-test.mjs
-fixtures/**
 src/**
 out/test/**
 **/*.map

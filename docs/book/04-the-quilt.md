@@ -40,20 +40,23 @@ relloc/
     unreadable.json        works declared to have no document, and forgotten documents (8.14)
   ai/                      optional AI layer; see Chapter 11
     orientation.md
+    rules.md
+    formatting.md
     modes/
-    runs/
   retired/                 where atomize --retire moves a converted file, if asked; never scanned
   notes/                   the author's reference material, not cited works; never scanned, committed
   .loom/                   loom's durable data
     state.toml             the acceptance ledger
     sessions/              where work belongs, and its mailbox (Chapter 11)
-      index.jsonl          created · renamed · resumed · closed · deleted
+      index.jsonl          created · renamed · purposed · resumed · closed · deleted
       active               the one session new work lands in
       <id>/                a session's own directory, made when it has content
         inbox.jsonl        the transcript: messages, append-only, read by cursor
         attached.json      who is listening: name, kind, pid, heartbeat (not committed)
         cursors/           how far each reader has read (not committed)
         run.log            every command invoked with --session
+        agent.json         the last turn loom started here, and how it ended (not committed)
+        agent.log          what that turn printed (not committed)
     serve.json             the running server's port, pid and write token
     history/               the record of every key (Chapter 17)
       ledger.jsonl
@@ -68,7 +71,7 @@ relloc/
 Rules:
 
 1. **[decided]** A directory is a quilt if and only if it contains `config.toml` with a `[quilt]` table. Every loom command locates the quilt by walking up from the current directory (or from `--quilt PATH`, or from `$LOOM_QUILT`) to the nearest such file.
-2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/`, `.loom/`, `.claude/`, or a version-control or tooling directory (`.git/`, `node_modules/`, `.svelte-kit/`) at any depth, those under `ai/`, `refs/`, `digests/storage/`, the canon directory, `retired/`, or `notes/` at the root, and those whose first twenty lines contain `% !LOOM ignore`. A document a conversion superseded is also not scanned, and that is recorded rather than written into the file (17.12). Run outputs and fetched sources are complete documents carrying the quilt's ids, not the quilt's text (DR-70).
+2. **[decided]** Every `.tex` file under the quilt root, at any depth, is scanned, except those under `build/`, `.loom/`, `.claude/`, or a version-control or tooling directory (`.git/`, `node_modules/`, `.svelte-kit/`) at any depth, those under `ai/`, `refs/`, `digests/storage/`, the canon directory, `retired/`, or `notes/` at the root, and those whose first twenty lines contain `% !LOOM ignore`. A document a conversion superseded is also not scanned, and that is recorded rather than written into the file (17.12). Session outputs and fetched sources are complete documents carrying the quilt's ids, not the quilt's text (DR-70).
 3. **[decided]** The scanner never infers anything from a file's location. `nodes/`, `digests/`, and the drafting directory are conventions: `loom new` writes to `nodes/`; digests are expected in `digests/` but are recognized by their `% !LOOM digest:` header wherever they sit; masters are recognized by `\documentclass`, but only within the drafting directory (rule 4.4.1). `refs/`, the canon directory and `notes/` are the exceptions, and all three are exclusions rather than inferences: nothing under any of them is scanned at all, because nothing under them is the quilt's source — `refs/` holds what was fetched (DR-108), the canon holds copies loom itself wrote of documents that are already in the quilt (DR-132), and `notes/` holds whatever the author keeps beside the project (DR-187).
 4. **[decided]** Local style files, class files, and preamble fragments live at the quilt root, because masters compile from the root and LaTeX resolves `\usepackage{base-macros}` and `\input{preamble}` against the current directory.
 5. **[decided]** `notes/` is where the author keeps reference material that is not a cited work and belongs in no digest: a colleague's draft, an excerpt, a research note, in any format. It is in version control, loom never writes to it, and the orientation tells an agent to read it as context and never to cite, digest or propose from it (DR-187). Loom does not create it; the author does, when there is something to keep.
@@ -98,20 +101,24 @@ contact = ""                # optional address sent to Crossref, which routes lo
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
 
-[ai]
-agent = ""                  # command loom ai start launches, if any
-
 [author]
 name = "Markas Hecht"       # who this quilt's records name; init asks for it, and writes it empty when nobody answers
+
+[ai]
+launch = false              # may loom serve run the command in ai/ai-config.toml for a turn when a message waits
+
+# [basis]                   # this quilt's own environment names, and the basis each implies (5.5); init writes none
+# exercise = "open-claim"
 ```
 
 Rules:
 
-1. **[decided]** `[author] name` is the one key here that is a person's: a quilt is usually one person's, and a record must not be signed by whichever machine or agent shell ran the command (DR-189). These are all the keys. Adding a key is a decision-record event and must pass principle P6 (config only for what the preamble cannot say). `history` is the one key `loom init` does not write: a quilt that never moves its record does not need a line saying where it is, and one that does can say so.
-2. **[decided]** `main` must name a file inside `drafting`. `drafts` is read as `drafting` in a quilt written before 0.9, with `loom:deprecated-config-key` (warning) and nothing moved; `drafting` wins when both are present, and `loom upgrade` renames the key in place. `prefix` must match the prefix grammar (Chapter 5). `engine` is one of the engines `latexmk` knows; it applies to a master only when the master has no `% !TEX program` line.
+1. **[decided]** `[author] name` is the one key here that is a person's: a quilt is usually one person's, and a record must not be signed by whichever machine or agent shell ran the command (DR-189). These are all the keys. Adding a key is a decision-record event and must pass principle P6 (config only for what the preamble cannot say). `history` and `[basis]` are the ones `loom init` does not write: a quilt that never moves its record does not need a line saying where it is, and a quilt whose environments are all named in 5.5's table needs no `[basis]`.
+2. **[decided]** `main` must name a file inside `drafting`. `prefix` must match the prefix grammar (Chapter 5). `engine` is one of the engines `latexmk` knows; it applies to a master only when the master has no `% !TEX program` line.
 3. **[decided]** `[lint] disable` accepts diagnostic codes from `specs/diagnostics.md`. Reserved codes cannot be disabled; publisher codes can.
 4. **[decided]** Unknown keys produce a warning, not an error, so that a newer quilt opens in an older loom.
-5. **[decided]** There is no `[taxa]` table, no `[author]` table, and no list of masters. Taxa come from the preamble, the author from the user config, masters from the directory.
+5. **[decided]** There is no `[taxa]` table and no list of masters. Taxa come from the preamble and masters from the directory.
+6. **[decided]** `[basis]` maps an environment name to the basis it implies: one of `expository`, `local-proof`, `assumption`, `open-claim`. A name it gives wins over 5.5's built-in table for that name only; a value outside the four is warned about and ignored. `cited-result` is not among them because it needs a locator in each block. Any key is accepted in this table, since the keys are the quilt's own environment names.
 
 ## 4.3 User configuration
 
@@ -217,11 +224,11 @@ For an Overleaf Git project, `loom sync` offers a source-only projection instead
 **[decided]** These promises hold for every command and are enforced by tests:
 
 1. Loom never modifies a file the author wrote. It writes new files at destinations the user names — including the canon directory on `canonize` and the drafting directory on `draft` — writes new files in `nodes/` and `digests/` on `new` and `promote`, writes into `.loom/` (the sessions and their mailboxes included), `annotations/`, and `build/`, writes `ai/`, `CLAUDE.md`, `AGENTS.md`, and `.claude/` on `ai init` and `upgrade` (DR-71), moves a converted file into `retired/` when `atomize --retire` asks for it, and prints patches. `import` and `draft` edit only the copies they make. `[quilt] main` is loom's own line: `init`, `import`, `draft`, and a conversion that supersedes the default master may move it, and nothing else in `config.toml` is ever rewritten.
-2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal. The one exception is inside loom's own directory: `loom upgrade` moves `.loom/snapshots/` into the history's `texts/`, where the files are content-addressed and every reference still resolves.
+2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal.
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.
 5. Loom never touches the network unless the author has allowed it, in the config or on the command line: `[refs] fetch = true` or `--fetch` for `loom refs fetch` and the fetching step of `loom refs build`, `[refs] resolve = true` or `--resolve` for `loom refs resolve` and its step (DR-122, DR-176, DR-193). Both keys are written `false` by `loom init`, and a flag is one run's consent that changes no file. `loom sync fetch` and `loom sync publish --push` are explicit Git network commands after `loom sync init` has named their remote (DR-217). No other command does, `loom lint` included.
-6. Loom holds no credentials and calls no model provider: it never runs a model itself. It may dispatch a message to a local agent the author is already running, which is a message reaching a process they started, not loom becoming a client of anyone's API (DR-195).
+6. Loom holds no credentials and calls no model provider: it never runs a model itself. It may hand a message to a local agent the author is already running (DR-195), and, where `config.toml` says `launch = true` under `[ai]`, `loom serve` may start the author's own agent command from `ai/ai-config.toml` for one turn when a message waits — a command line the person wrote, never an API, and never one a quilt carries in git (DR-273-ikmartin).
 
 ## 4.9 Ignoring a file
 

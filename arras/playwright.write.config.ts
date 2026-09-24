@@ -16,6 +16,8 @@ export default defineConfig({
 	},
 	testDir: 'tests/e2e-write',
 	testMatch: '**/*.e2e.ts',
+	// shots.e2e.ts writes the committed pictures under records/images, so it runs only when asked (`npm run shots:write`)
+	testIgnore: process.env.ARRAS_SHOTS ? [] : ['**/shots.e2e.ts'],
 	workers: 1,
 	use: { baseURL: 'http://localhost:4178' }
 });

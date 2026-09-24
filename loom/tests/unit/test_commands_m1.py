@@ -173,14 +173,18 @@ def test_init_asks_for_an_author_name_and_writes_it(tmp_path: Path, monkeypatch:
     monkeypatch.setattr(quilt_cli, "sys", SimpleNamespace(stdin=SimpleNamespace(isatty=lambda: True)))
     monkeypatch.setattr(quilt_cli.click, "prompt", prompt)
     assert run("init", str(tmp_path / "asked"), "--prefix", "ab").exit_code == 0
-    assert len(asked) == 1 and "Author name" in asked[0]
+    # the author's name, then which AI they use, which is what decides what ai/ai-config.toml holds
+    assert len(asked) == 2 and "Author name" in asked[0] and asked[1] == "Enter 1, 2, 3 or 4"
     assert 'name = "Markas Hecht"' in (tmp_path / "asked" / "config.toml").read_text()  # trimmed
 
     # the flag is an answer, an empty one included: a quilt told to have no name is not asked for one
     asked.clear()
     assert run("init", str(tmp_path / "flagged"), "--prefix", "ab", "--author", "").exit_code == 0
-    assert asked == [] and 'name = ""' in (tmp_path / "flagged" / "config.toml").read_text()
-    assert quilt_cli.ask_author("", yes=True) == "" and asked == []  # --yes never asks
+    assert (
+        not any("Author name" in q for q in asked) and 'name = ""' in (tmp_path / "flagged" / "config.toml").read_text()
+    )
+    before = len(asked)
+    assert quilt_cli.ask_author("", yes=True) == "" and len(asked) == before  # --yes never asks
 
 
 def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
@@ -388,26 +392,6 @@ def test_non_utf8_source_code_reported(tmp_path: Path) -> None:
     )  # Mac Roman en dash
     lint = run("lint", cwd=q).output
     assert "loom:non-utf8-source" in lint and "nodes/old.tex" in lint
-
-
-def test_retired_config_key_is_tolerated_and_upgrade_removes_it(tmp_path: Path) -> None:
-    """`[ai] runner` was withdrawn with the declined runner (WQ-15) and `[ai] agent` with the declined launcher (DR-149). A quilt loom itself wrote either key into must not now be told it is unknown, so both stay accepted and inert; `loom upgrade` tidies the lines away."""
-    assert run("init", str(tmp_path / "q"), "--prefix", "zz", "--yes").exit_code == 0
-    q = tmp_path / "q"
-    cfg = q / "config.toml"
-    assert "runner" not in cfg.read_text() and "agent" not in cfg.read_text()  # a new quilt gets neither
-
-    # a new quilt no longer writes an empty `[ai]` either, so the table is added here as an older quilt would carry it
-    cfg.write_text(cfg.read_text() + '\n[ai]\nagent = "claude"\nrunner = "some-command"\n', encoding="utf-8")
-    lint = run("lint", "--json", cwd=q)
-    assert "unknown-config-key" not in lint.output  # tolerated: loom wrote them there
-
-    up = run("upgrade", cwd=q)
-    assert up.exit_code == 0 and "[ai] runner" in up.output
-    assert "runner" not in cfg.read_text()
-
-    again = run("upgrade", cwd=q)
-    assert "[ai] runner" not in again.output  # idempotent
 
 
 def test_unravel_reports_the_ledger_and_the_annotations_it_heads(tmp_path: Path) -> None:

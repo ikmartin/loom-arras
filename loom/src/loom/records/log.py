@@ -33,20 +33,8 @@ def append(root: Path, event: dict[str, Any]) -> None:
 
 
 def source_of(event: dict[str, Any]) -> str:
-    """Which record an event belongs to: its session, or -- for an event written before sessions -- its run, or the author and the day.
-
-    This is the manifest's grouping key. Since plan 0.13 §5 it is the session, which is where work belongs and is now said outright rather than inferred from who wrote it. The two older forms are still read, because the log is append-only and what was written before sessions was written before sessions; `loom session migrate` gives each of them a session, and `sessions_by_source` is what maps one to the other.
-    """
-    session = event.get("session")
-    if session:
-        return str(session)
-    run = event.get("run")
-    if run:
-        return str(run)
-    from loom.records.annotations import author_slug
-
-    day = str(event.get("when", ""))[:10]
-    return f"comments/{author_slug(str(event.get('author', '')))}/{day}"
+    """Which record an event belongs to: its session, the manifest's grouping key (plan 0.13 §5); '' when it names none."""
+    return str(event.get("session") or "")
 
 
 #: What `loom comment` writes as an id. An id reaches a DOM id and a URL fragment in the viewer, and would reach a
@@ -62,8 +50,7 @@ def _annotation(event: dict[str, Any]) -> Annotation:
     anchor = event.get("anchor")
     return Annotation(
         id=str(event["id"]),
-        # `run` on an event written before sessions said the same thing this says outright (plan 0.13 §5)
-        author_kind="agent" if (str(event.get("kind", "")) == "agent" or event.get("run")) else "person",
+        author_kind="agent" if str(event.get("kind", "")) == "agent" else "person",
         author_id=str(event.get("author", "")),
         created=str(event.get("when", "")),
         target_key=str(event.get("target", "")),
@@ -107,6 +94,10 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
                 problems.append(f"{LOG}:{n}: {kind} without an id")
                 continue
             src = source_of(event)
+            if not src:
+                # every writer names the session; a line that does not was written by something else
+                problems.append(f"{LOG}:{n}: {kind} {event['id']!r} names no session")
+                continue
             ann = _annotation(event)
             # Reported, not corrected. A kind loom does not know is still shown -- `kind` is an open string and a
             # viewer renders one it has never heard of -- but a log line missing the column, or spelling it the way
@@ -148,6 +139,9 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
             for f in ("body", "severity", "payload", "placement"):
                 if f in event:
                     setattr(ann, f, event[f])
+            # a restated finding is about the text it was restated against
+            if event.get("against"):
+                ann.target_hash = str(event["against"])
         elif kind == "resolved":
             # A status change is reversed by appending its undo, never by removing the event that made it. Discarding
             # has always replayed this way; resolving did not, so a resolution was the one state nothing could take

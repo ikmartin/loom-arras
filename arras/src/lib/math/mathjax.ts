@@ -31,6 +31,8 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 				inlineMath: [['\\(', '\\)']],
 				displayMath: [['\\[', '\\]']],
 				processEscapes: true,
+				// `tags: 'none'` gives MathJax no labels, so a `\ref` outside mathematics could only ever read `???`; loom turns a fragment's own into links, and one in a message or a note reads as written
+				processRefs: false,
 				packages: { '[+]': ['ams', 'amscd', 'boldsymbol', 'mathtools', 'newcommand', 'color', 'cancel', 'bbox', 'html', 'unicode', 'verb', 'mhchem', 'physics', 'textmacros'] },
 				macros: currentMacros,
 				tags: 'none'

@@ -30,7 +30,7 @@ TRIGGERS = {
 # forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
 AGENT_COMMANDS = frozenset(
     {
-        "build", "check", "comment", "compile", "deps", "doctor", "history", "id", "lint",
+        "build", "check", "comment", "compile", "deps", "doctor", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
         "ai check", "ai discard", "ai findings", "ai name", "ai orient", "ai runs", "ai start",
         # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
@@ -38,7 +38,8 @@ AGENT_COMMANDS = frozenset(
         "session list", "session next", "session say", "session send", "session watch",
         "digest extract",
         "refs build", "refs coverage", "refs fetch", "refs grep", "refs link", "refs links", "refs locate",
-        "refs find", "refs ingest", "refs map", "refs match", "refs page", "refs path", "refs propose", "refs recheck",
+        "refs find", "refs ingest", "refs map", "refs match", "refs overview", "refs page", "refs path", "refs propose",
+        "refs recheck",
         "refs resolve", "refs unlink", "refs why",
     }
 )  # fmt: skip
@@ -124,24 +125,55 @@ def write_versions(root: Path, texts: dict[str, str]) -> None:
 def permissions_json() -> str:
     """`.claude/settings.json`, generated from the one table rather than written by hand.
 
-    Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71), so the file still enumerates what is refused -- but it enumerates the complement of `AGENT_COMMANDS` rather than a list somebody remembered to extend. The hand-written one had drifted by seven commands, `loom upgrade` and both spellings of `loom canonize` among them, so `loom canonise` walked through the deny on `loom canonize`.
+    Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71), so the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, rather than a list somebody remembered to extend -- and allows `AGENT_COMMANDS` themselves outright, because an agent `loom serve` starts for one turn cannot answer a permission prompt (plan 0.14). The hand-written one had drifted by seven commands, `loom upgrade` and both spellings of `loom canonize` among them, so `loom canonise` walked through the deny on `loom canonize`.
     """
     import json
 
-    allow = [f"{verb}(/{d}/**)" for d in AGENT_WRITES for verb in ("Edit", "Write")]
-    deny = [f"{verb}(/{d}/**)" for d in AGENT_READONLY for verb in ("Edit", "Write")]
-    deny += [f"{verb}(/{f})" for f in AGENT_READONLY_FILES for verb in ("Edit", "Write")]
-    deny += [f"{verb}(/*.{ext})" for ext in ("tex", "sty", "bib") for verb in ("Edit", "Write")]
+    # `Edit` rules govern every file-editing tool; Claude Code does not match `Write` rules against paths at all
+    allow = [f"Edit(/{d}/**)" for d in AGENT_WRITES]
+    # the agent's own commands, allowed outright: an agent `loom serve` starts for a turn cannot answer a prompt
+    allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)]
+    deny = [f"Edit(/{d}/**)" for d in AGENT_READONLY]
+    deny += [f"Edit(/{f})" for f in AGENT_READONLY_FILES]
+    deny += [f"Edit(/*.{ext})" for ext in ("tex", "sty", "bib")]
     deny += [f"Bash(loom {c}*)" for c in author_commands()]
     deny.append("Bash(rm *)")
     return json.dumps({"permissions": {"allow": allow, "deny": deny}}, indent=2) + "\n"
 
 
-def vendor_files(permissions: bool, skills: bool) -> dict[str, str]:
+#: Where each agent tool reads the quilt's rules for its agents: one policy, loom's own, rendered per tool (DR-283-ikmartin).
+CLAUDE_SETTINGS = ".claude/settings.json"
+CODEX_RULES = ".codex/rules/loom.rules"
+
+
+def codex_rules() -> str:
+    """`.codex/rules/loom.rules`: the same table as `permissions_json`, as Codex's command-prefix rules.
+
+    Codex matches commands, not paths, so the path rules have no counterpart here; the author's own verbs are refused by loom itself for an agent's name whatever the tool (DR-185). Codex reads a project's rules only once the project is trusted. Unverified: Codex was not installed where this was written.
+    """
+    import json
+
+    head = [
+        "# Written by loom from its table of what an agent may run; `loom upgrade` rewrites it, and a quilt does not change it.",
+        "# Rules of your own go in another file in this directory, which loom never touches.",
+    ]
+
+    def rule(words: list[str], decision: str) -> str:
+        return f"prefix_rule(pattern = [{', '.join(json.dumps(w) for w in words)}], decision = {json.dumps(decision)})"
+
+    body = [rule(["loom", *c.split()], "allow") for c in sorted(AGENT_COMMANDS)]
+    body += [rule(["loom", *c.split()], "forbidden") for c in author_commands()]
+    body.append(rule(["rm"], "forbidden"))
+    return "\n".join(head + body) + "\n"
+
+
+def vendor_files(permissions: bool, skills: bool, codex: bool = False) -> dict[str, str]:
     """Quilt-relative path -> text for the files loom owns whole; the agent root files are not among them (see `ensure_root_line`)."""
     out: dict[str, str] = {}
     if permissions:
-        out[".claude/settings.json"] = permissions_json()
+        out[CLAUDE_SETTINGS] = permissions_json()
+    if codex:
+        out[CODEX_RULES] = codex_rules()
     if skills:
         skill = _asset("vendor", "claude", "SKILL.md")
         command = _asset("vendor", "claude", "command.md")
@@ -192,14 +224,13 @@ def ensure_root_line(root: Path) -> list[str]:
     return written
 
 
-def init_layer(root: Path, permissions: bool = False, skills: bool = False) -> LayerReport:
+def init_layer(root: Path, permissions: bool = False, skills: bool = False, codex: bool = False) -> LayerReport:
     """Write `ai/` and the vendor files into a quilt that has no `ai/` yet."""
     ai = root / "ai"
     if ai.exists():
         raise FileExistsError(str(ai))
     rep = LayerReport()
     (ai / "modes").mkdir(parents=True)
-    (ai / "runs").mkdir()
     texts = tracked_docs()
     for rel, text in texts.items():
         p = root / rel
@@ -211,7 +242,7 @@ def init_layer(root: Path, permissions: bool = False, skills: bool = False) -> L
         rep.written.append(f"ai/{name}")
     write_versions(root, texts)
     rep.written.append(f"ai/{VERSION_FILE}")
-    for rel, text in vendor_files(permissions, skills).items():
+    for rel, text in vendor_files(permissions, skills, codex).items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
@@ -263,9 +294,10 @@ def upgrade_layer(root: Path) -> LayerReport:
             rep.written.append(f"ai/{name}")
         else:
             rep.unchanged.append(f"ai/{name}")
-    permissions = (root / ".claude" / "settings.json").is_file()
+    permissions = (root / CLAUDE_SETTINGS).is_file()
+    codex = (root / CODEX_RULES).is_file()
     skills = (root / ".claude" / "skills").is_dir() or (root / ".claude" / "commands").is_dir()
-    for rel, text in vendor_files(permissions, skills).items():
+    for rel, text in vendor_files(permissions, skills, codex).items():
         p = root / rel
         if p.is_file() and p.read_text(encoding="utf-8") == text:
             rep.unchanged.append(rel)

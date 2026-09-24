@@ -5,6 +5,7 @@ Tests marked `tex` get the real TeX distribution instead of the shim (and are sk
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -55,7 +56,7 @@ def fake_bin(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def isolated_env(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_bin: Path
 ) -> Path:
-    """Isolate PATH, HOME, XDG_CONFIG_HOME, and every TeX tree; return the temporary HOME."""
+    """Isolate PATH, HOME, XDG_CONFIG_HOME, every TeX tree and every LOOM_* variable; return the temporary HOME."""
     assert not str(tmp_path.resolve()).startswith(str(NOTES)), "tests must never run under ~/notes"
     home = tmp_path / "home"
     (home / ".config").mkdir(parents=True)
@@ -75,8 +76,11 @@ def isolated_env(
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
     for var in ("TEXMFHOME", "TEXMFLOCAL", "TEXMFVAR", "TEXMFCONFIG"):
         monkeypatch.setenv(var, str(texmf))
-    for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS", "LOOM_QUILT", "LOOM_RUN", "LOOM_ARRAS_BUNDLE", "FAKE_TEX_FAIL"):
+    for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS", "FAKE_TEX_FAIL"):
         monkeypatch.delenv(var, raising=False)
+    # every LOOM_* the shell carries -- a session, a quilt, a fixed clock -- would otherwise reach loom in every test
+    for var in [v for v in os.environ if v.startswith("LOOM_")]:
+        monkeypatch.delenv(var)
     # an agent running the suite must not make loom refuse the author's verbs in every test that uses them
     from loom.cli._common import AGENT_MARKERS
 

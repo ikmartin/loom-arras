@@ -342,23 +342,21 @@ test("a work's page lists results with their citers, and the Library counts them
 	await expect(page.getByText('names no result in the digest of Kre99').first()).toBeVisible();
 });
 
-test("a session's run is read as what it did, the report beside the document", async ({ page }) => {
+test("a session's run is read as its chat and as what it did", async ({ page }) => {
 	await page.goto('/threads');
 	await expect(page.getByText('referee').first()).toBeVisible();
-	// a run's old address is its session's, and it opens on the discussion (plan 0.13.3 E1)
+	// a run's old address is its session's, and it opens on the Chat (plan 0.14)
 	await page.goto('/thread/s-2026-09-16-0001');
-	await expect(page.getByTestId('discussion')).toBeVisible();
-	// no date is a raw timestamp
-	expect(await page.getByTestId('discussion').innerText()).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
-	// what it did: a sentence from the record, what is still open, and the report rendered rather than named
+	await expect(page.getByTestId('chat')).toBeVisible();
+	// the agent's account of the run is in the transcript, and no date is a raw timestamp
+	await expect(page.getByTestId('chat')).toContainText('hostile review of the parity theorem');
+	expect(await page.getByTestId('chat').innerText()).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+	// what it did is the session's log, the comments it made among the commands, and no date raw
 	await page.getByTestId('tab-did').click();
 	const did = page.getByTestId('session-did');
-	await expect(did.getByTestId('session-said')).toContainText('findings');
-	await expect(did.getByTestId('report-step')).toHaveCount(1);
-	await expect(did.getByText('Major Issues')).toBeVisible();
-	await expect(did.getByTestId('session-open')).toBeVisible();
-	// the run log is the command line's, not a reader's question
-	await expect(did.locator('pre', { hasText: 'loom comment' })).toHaveCount(0);
+	await expect(did.getByTestId('did-row').first()).toContainText('loom comment sy-0003 --quote --kind objection');
+	await expect(did.getByTestId('session-said')).toHaveCount(0);
+	await expect(did.getByTestId('report-step')).toHaveCount(0);
 	expect(await did.innerText()).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
 });
 
@@ -372,12 +370,19 @@ test('the panes point at each other', async ({ page }) => {
 		const b = pane.getBoundingClientRect();
 		return a.top >= b.top - 2 && a.bottom <= b.bottom + 2;
 	};
+	// What it did scrolls itself, so its row is in view when it is inside that list's own box
+	const inDid = (el: Element) => {
+		const box = el.closest('[data-testid="session-did"]') as HTMLElement;
+		const a = el.getBoundingClientRect();
+		const b = box.getBoundingClientRect();
+		return a.top >= b.top - 2 && a.bottom <= b.bottom + 2;
+	};
 	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001?view=did'));
-	await expect(page.getByTestId('session-open')).toBeVisible();
+	await expect(page.getByTestId('session-did')).toBeVisible();
 	await page.waitForSelector('[data-pane="0"] .fragment [data-annotation]');
-	// the first finding with a mark in the text: one about the document as a whole has none
+	// the first row that made an annotation with a mark in the text: one about the document as a whole has none
 	const id = await page.evaluate(() => {
-		for (const li of document.querySelectorAll('[data-testid="session-open"] li')) {
+		for (const li of document.querySelectorAll('[data-testid="session-did"] li[id^="ann-"]')) {
 			const id = li.id.replace(/^ann-/, '');
 			if (document.querySelector(`[data-pane="0"] [data-annotation~="${id}"]`)) return id;
 		}
@@ -388,21 +393,24 @@ test('the panes point at each other', async ({ page }) => {
 	const mark = page.locator(`[data-pane="0"] [data-annotation~="${id}"]`).first();
 
 	await page.locator('[data-pane="0"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));
-	await row.locator('button.finding').click();
+	await row.getByTestId('did-annotation').click();
 	await expect.poll(() => mark.evaluate(inPane), { timeout: 5000 }).toBe(true);
 
-	await page.locator('[data-pane="1"] > .body').evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await page.getByTestId('session-did').evaluate((el) => (el.scrollTop = 0));
 	await mark.dblclick();
-	await expect.poll(() => row.evaluate(inPane), { timeout: 5000 }).toBe(true);
+	await expect.poll(() => row.evaluate(inDid), { timeout: 5000 }).toBe(true);
 });
 
-test('what a session did claims only what is recorded', async ({ page }) => {
-	// A session that wrote no report has no report section and says so by saying nothing (P3); the one that did has one.
+test('what a session did lists only what its log says', async ({ page }) => {
+	// A session with an empty log says so in one line, rather than a section over nothing (P3, P6).
+	await page.route('**/build/manifest.json', async (route) => {
+		const m = JSON.parse(JSON.stringify(manifest));
+		m.threads['s-2026-09-15-0001'].log = [];
+		await route.fulfill({ json: m });
+	});
 	await page.goto('/session/s-2026-09-15-0001?view=did');
-	await expect(page.getByTestId('session-did')).toBeVisible();
-	await expect(page.getByTestId('report-step')).toHaveCount(0);
-	await page.goto('/session/s-2026-09-16-0001?view=did');
-	await expect(page.getByTestId('report-step')).toHaveCount(1);
+	await expect(page.getByTestId('session-did')).toHaveText('Nothing done through loom in this session yet.');
+	await expect(page.getByTestId('did-row')).toHaveCount(0);
 });
 
 test('see also lists both directions and says where each node is reached', async ({ page }) => {
@@ -455,18 +463,6 @@ test("a suggestion shows the text it proposes, and says where it would go", asyn
 	await expect(page.getByTestId('severity').first()).toBeVisible();
 });
 
-test('a run lists the notation it introduced, and flags a symbol used twice', async ({ page }) => {
-	// Plan 0.11 Part F. Notation belongs to an agent's prose, never to the quilt's own text, so the panel is on the run.
-	await page.goto('/session/s-2026-09-16-0001?view=did');
-	// beneath the report, where it is consulted
-	const panel = page.getByTestId('notation');
-	await expect(panel).toBeVisible();
-	await expect(panel).toContainText('with two meanings');
-	await panel.locator('summary').click();
-	await expect(panel).toContainText('the number of two-element orbits');
-	await expect(panel).toContainText('declared twice in this run with different meanings');
-});
-
 test('a node page answers both closure questions without leaving it', async ({ page }) => {
 	// Plan 0.11 Part D: the graph says what this would disturb, the stack says what it rests on. Neither is a route.
 	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
@@ -501,14 +497,16 @@ test('a document carries annotations of its own, and they are read beside it', a
 	// loom has written these since 0.6 -- `loom comment` has always taken a master path. They used to open a block above
 	// the document, which put a remark about the whole paper on its title and sized a report like a sentence; the
 	// discussion pane is where a document's own annotations are read, because that is the surface built for length.
-	// The discussion is scoped by session (plan 0.13.3 E4), so they are read in the session's discussion beside it.
-	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
+	// They are read in what the session did, beside it: the Chat holds the conversation, not the annotations (plan 0.14).
+	await page.goto('/master/main' + beside('/session/s-2026-09-16-0001?view=did'));
 	await expect(page.getByTestId('document-annotations')).toHaveCount(0);
-	const pane = page.getByTestId('discussion');
-	// the discussion lists everything written in the session, the document's own among them, so it is found by its text
-	// rather than by being first; the list is compact items, not the boxes the retired block drew
-	await expect(pane).toContainText('which conventions it inherits');
-	await expect(pane.locator('li', { hasText: 'which conventions it inherits' })).toHaveCount(1);
+	const pane = page.getByTestId('session-did');
+	// what it did lists everything written in the session, the document's own among them, found by its id rather than
+	// by being first; the list is compact rows, not the boxes the retired block drew
+	const own = Object.values(manifest.annotations as Record<string, { id: string; body_html: string; target: { key: string } }>).find(
+		(a) => a.body_html.includes('which conventions it inherits') && a.target.key === 'drafting/main.tex'
+	)!;
+	await expect(pane.locator(`[id="ann-${own.id}"]`)).toHaveCount(1);
 });
 
 test("a node's context shows the citations suggested for it and those already accepted", async ({ page }) => {

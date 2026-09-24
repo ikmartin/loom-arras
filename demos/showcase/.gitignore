@@ -44,3 +44,10 @@ drafting/*.fls
 drafting/*.fdb_latexmk
 drafting/*.synctex.gz
 drafting/*.pdf
+# the running server's port and token, and who is listening in a session: this machine's alone
+.loom/serve.json
+.loom/sessions/*/attached.json
+.loom/sessions/*/cursors/
+# The agent loom may start: your own command, and each turn's runtime state. None of it is the quilt's.
+.loom/sessions/*/agent.*
+ai/ai-config.toml

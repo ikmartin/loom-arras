@@ -132,14 +132,13 @@ test.describe('P3 · claim only what is known', () => {
 });
 
 test.describe('P4 · name the question', () => {
-	test('the global rail holds three things', async ({ page }) => {
+	test('the global rail holds two things', async ({ page }) => {
 		await page.goto('/master/main');
 		const rail = page.getByTestId('reading-rail');
 		await expect(rail).toBeVisible();
-		expect(await rail.evaluate((r) => r.children.length)).toBe(3);
+		expect(await rail.evaluate((r) => r.children.length)).toBe(2);
 		await expect(rail.getByRole('group', { name: 'which annotations the page shows' })).toBeVisible();
 		await expect(page.getByTestId('cluster')).toBeVisible();
-		await expect(page.getByTestId('open-discussion')).toBeVisible();
 	});
 
 	test('every control names its target', async ({ page }) => {

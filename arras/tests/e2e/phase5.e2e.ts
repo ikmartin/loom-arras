@@ -42,45 +42,19 @@ test.describe('the context', () => {
 	});
 });
 
-test.describe('a session', () => {
-	test('its head names what it touched as a reader would, and folds the rest behind a count', async ({ page }) => {
-		await serve(page, (m) => {
-			m.threads[REFEREE].targets = [...m.threads[REFEREE].targets, 'sy-0008', 'sy-0006', 'sy-0007', 'sy-0001#eq:fix', 'arXiv:math/9810166v2'];
-		});
-		await page.goto('/session/' + REFEREE);
-		const head = page.getByTestId('session-targets');
-		await expect(head.locator('a.chip').first()).toHaveText('main.tex'); // the documents first
-		await expect(head.getByRole('link', { name: 'Theorem 2.1', exact: true })).toHaveAttribute('title', 'sy-0003');
-		await expect(head).not.toContainText('sy-00');
-		const more = page.getByTestId('session-targets-more');
-		await expect(more).toHaveText(/^and \d+ more$/);
-		await more.click();
-		await expect(more).toHaveCount(0);
-		// an equation is named by its number in its result, and opens the document at it; a cited work's identifier is the work
-		await expect(head.getByRole('link', { name: /^\(\d+\) in Definition 1\.1$/ })).toHaveAttribute('href', /\/master\/main#sy-0001-eq-fix$/);
-		await expect(head.getByRole('link', { name: 'Kre99' })).toHaveAttribute('href', /\/library\/Kre99/);
-	});
-});
-
 test.describe('the rail', () => {
-	test('refused, its control keeps its name and gives the reason as its title', async ({ page }) => {
+	test('it carries no session control: a session is opened by choosing it', async ({ page }) => {
 		await page.goto('/master/main');
-		const open = page.getByTestId('open-discussion');
-		await expect(open).toBeDisabled();
-		await expect(open).toHaveText('open session discussion');
-		await expect(open).toHaveAttribute('title', /No session selected/);
-		await expect(page.getByTestId('reading-rail')).not.toContainText('select a session first');
+		await expect(page.getByTestId('open-discussion')).toHaveCount(0);
+		await expect(page.getByTestId('reading-rail')).not.toContainText('discussion');
 	});
 
-	test('a closed session is read like any other: its discussion opens', async ({ page }) => {
+	test('a closed session is read like any other: its Chat opens, and it becomes the one selected', async ({ page }) => {
 		const closed = manifest.sessions.find((s: { state: string }) => s.state !== 'open');
 		expect(closed).toBeTruthy();
-		await page.addInitScript((id) => localStorage.setItem('arras.session-view', JSON.stringify({ selected: id, view: 'all', showClosed: true })), closed.id);
-		await page.goto('/master/main');
-		const open = page.getByTestId('open-discussion');
-		await expect(open).toBeEnabled();
-		await open.click();
-		await expect(pane(page, 1).getByTestId('discussion')).toBeVisible();
+		await page.goto('/master/main' + beside('/session/' + closed.id));
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
+		await expect(page.getByTestId('session-footer-name')).toHaveText(closed.title);
 	});
 });
 

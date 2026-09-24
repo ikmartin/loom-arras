@@ -90,9 +90,7 @@ def live_text(result: ScanResult, records: Records, run: Path | None, session_id
         log = run / "run.log"
         lines += ["", "## the command log", ""]
         lines.append(log.read_text(encoding="utf-8").rstrip("\n") if log.is_file() else "(empty)")
-        outputs = sorted(
-            p.name for p in run.iterdir() if p.is_file() and p.name not in SESSION_FILES
-        )
+        outputs = sorted(p.name for p in run.iterdir() if p.is_file() and p.name not in SESSION_FILES)
         lines += ["", "## files in the session", ""]
         lines.append(", ".join(outputs) if outputs else "(none)")
     return "\n".join(lines) + "\n"

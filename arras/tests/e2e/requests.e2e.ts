@@ -617,32 +617,26 @@ test.describe('a session opened beside what is read', () => {
 			await route.fulfill({ json: m });
 		});
 
-	test('choosing a session opens its discussion beside the node, focus stays, and the URL is what remembers', async ({ page }) => {
+	test('choosing a session opens its Chat beside the node, focus stays, and the URL is what remembers', async ({ page }) => {
 		await withSessions(page);
 		await page.goto('/node/sy-0003');
 		// one pane at rest: a reader who never wants a second carries no frame for it
 		await expect(pane(page, 1)).toHaveCount(0);
-		// with nothing selected the rail's control keeps its name and is disabled, the reason its title; the footer carries the state (G8)
-		await expect(page.getByTestId('open-discussion')).toBeDisabled();
-		await expect(page.getByTestId('open-discussion')).toHaveText('open session discussion');
-		await expect(page.getByTestId('open-discussion')).toHaveAttribute('title', /No session selected/);
-		// choosing where to write opens where the writing is read, beside, and the reader stays in the node
+		// choosing whom to talk to opens the conversation beside, and the reader stays in the node
 		await pickSession(page, 's-2026-09-16-0001');
-		await expect(pane(page, 1).getByTestId('discussion')).toBeVisible();
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 		await expect(pane(page, 0)).toHaveClass(/focused/);
 		await expect(page.getByTestId('open-context')).toBeVisible();
-		// closed, the rail opens it again
+		// closed, choosing it again opens it again
 		await pane(page, 1).getByTestId('tab-close').click();
 		await expect(pane(page, 1)).toHaveCount(0);
-		await page.getByTestId('open-discussion').click();
-		await expect(pane(page, 1).getByTestId('discussion')).toBeVisible();
+		await pickSession(page, 's-2026-09-16-0001');
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toBe('/session/s-2026-09-16-0001');
 		await expect(page.getByTestId('divider')).toBeVisible();
-		// the discussion is the session's: what was written in it, wherever it was written (E4)
-		await expect(pane(page, 1).getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
 		// and the arrangement is a link: a reload reproduces it
 		await page.reload();
-		await expect(pane(page, 1).getByTestId('discussion')).toBeVisible();
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 	});
 
@@ -650,7 +644,7 @@ test.describe('a session opened beside what is read', () => {
 		await withSessions(page);
 		await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
 		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
-		await expect(pane(page, 1).getByTestId('beside-a-2026-09-16-0001')).toBeVisible();
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 	});
 });
 

@@ -61,7 +61,8 @@ def test_init_demo_matches_fixture(tmp_path: Path) -> None:
     # `.gitignore` is written from `assets/init/` and never from the demo's own copy: the fixture negates the store's
     # PDF so this repository can commit the invented paper behind the demo's digest, and a quilt an author makes must
     # not inherit that (DR-194, as amended).
-    skip = {"EXPECTED-LINT.txt", ".gitignore"}
+    # `ai/ai-config.toml` is the person's own command, never the quilt's, and init writes it for whoever runs init.
+    skip = {"EXPECTED-LINT.txt", ".gitignore", "ai-config.toml"}
     expected = {
         p.relative_to(fixture).as_posix(): p.read_bytes()
         for p in fixture.rglob("*")

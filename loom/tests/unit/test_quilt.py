@@ -50,12 +50,6 @@ def test_a_table_that_is_not_a_table_warns() -> None:
     assert any("[refs] is not a table" in w for w in cfg.warnings)
 
 
-def test_a_retired_table_is_accepted_and_ignored() -> None:
-    """A quilt still carrying `[crawl]` (DR-144) must not start reporting it as unknown; `loom upgrade` removes it."""
-    cfg = QuiltConfig.from_dict({"crawl": {"depth": 3, "subjects": ["14N"], "categories": ["math.AG"], "cap": 50}})
-    assert cfg.warnings == []
-
-
 def test_the_quilts_own_config_settles_the_author(tmp_path: Path) -> None:
     """A quilt that states an `[author]` table answers for itself, so a command records that name rather than the git identity of whatever machine or agent shell it ran in; empty means ask, and a quilt with no table falls back as before."""
     from loom.scan.quilt import NoAuthorError, no_author_in_quilt, resolve_author

@@ -53,30 +53,30 @@ test.describe('the Library', () => {
 });
 
 test.describe('the session', () => {
-	test('a session reads as its discussion and as what it did', async ({ page }) => {
+	test('a session reads as its Chat and as what it did', async ({ page }) => {
 		await page.goto('/session/s-2026-09-16-0001');
-		const discussion = page.getByTestId('discussion');
-		await expect(discussion).toBeVisible();
-		// its subject leads, and the tab is the one place it is named
-		await expect(page.getByTestId('session-targets')).toBeVisible();
-		await expect(discussion.locator('h1, h2')).toHaveCount(0);
-		const text = await discussion.innerText();
+		const chat = page.getByTestId('chat');
+		await expect(chat).toBeVisible();
+		// the conversation leads, and the tab is the one place the session is named
+		await expect(chat.getByTestId('message-1')).toContainText('hostile review of the parity theorem');
+		await expect(chat.locator('h1, h2')).toHaveCount(0);
+		const text = await chat.innerText();
 		expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
 		// the two readings are the rail's views, as a work's are
-		await expect(page.getByTestId('tab-discussion')).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.getByTestId('tab-chat')).toHaveAttribute('aria-pressed', 'true');
 		await page.getByTestId('tab-did').click();
 		await expect(page.getByTestId('session-did')).toBeVisible();
 		await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('did');
 	});
 
 	test('a finding opens its target beside', async ({ page }) => {
-		// with nothing showing the mark, the finding's row opens what it is about in the other pane, and the discussion stays
-		await page.goto('/session/s-2026-09-16-0001');
-		const row = pane(page, 0).locator('[data-testid^="beside-a-"]').first();
-		await expect(row).toBeVisible();
-		await row.getByRole('button').first().click();
+		// with nothing showing the mark, the finding's row in what it did opens what it is about in the other pane, and the record stays
+		await page.goto('/session/s-2026-09-16-0001?view=did');
+		const link = pane(page, 0).getByTestId('did-annotation').first();
+		await expect(link).toBeVisible();
+		await link.click();
 		await expect(pane(page, 1)).toBeVisible();
-		await expect(pane(page, 0).getByTestId('discussion')).toBeVisible();
+		await expect(pane(page, 0).getByTestId('session-did')).toBeVisible();
 	});
 });
 

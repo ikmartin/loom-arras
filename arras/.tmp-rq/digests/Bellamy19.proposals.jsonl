@@ -1,7 +1,0 @@
-{"when": "2026-09-15T10:00:00Z", "event": "proposed", "id": "Bellamy19-thm-2.3", "local": "thm-2.3", "page": 2, "run": "s-2026-09-15-0001", "supersedes": ""}
-{"when": "2026-09-15T10:00:00Z", "event": "proposed", "id": "Bellamy19-thm-3.2", "local": "thm-3.2", "page": 2, "run": "s-2026-09-15-0001", "supersedes": ""}
-{"when": "2026-09-15T10:00:00Z", "event": "proposed", "id": "Bellamy19-prop-3.1", "local": "prop-3.1", "page": 2, "run": "s-2026-09-15-0001", "supersedes": ""}
-{"when": "2026-09-15T10:00:00Z", "event": "proposed", "id": "Bellamy19-def-4.1", "local": "def-4.1", "page": 2, "run": "s-2026-09-15-0001", "supersedes": ""}
-{"when": "2026-09-16T09:00:00Z", "event": "verified", "id": "Bellamy19-thm-2.3", "local": "thm-2.3", "by": "The loom showcase", "edited": false}
-{"when": "2026-09-16T09:00:00Z", "event": "verified", "id": "Bellamy19-thm-3.2", "local": "thm-3.2", "by": "The loom showcase", "edited": true}
-{"when": "2026-09-16T09:00:00Z", "event": "discarded", "id": "Bellamy19-def-4.1", "local": "def-4.1", "by": "The loom showcase", "reason": "The defect is defined in the sequel, not here; this paper only names it. Nothing in the quilt uses it."}

@@ -1,0 +1,6763 @@
+{
+ "annotations": {
+  "a-2026-09-16-0001": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>The rank formula is stated for the underlying graph's component count, but nothing in the statement says that a loop counts as an arrow and contributes to the rank. Arden is explicit about it on <a href=\"cited:arxiv:2504.01234v1?page=2\">page 2</a>; say so here too.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0001",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": "underlying graph has $c$ connected components",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "major",
+   "status": "open",
+   "target": {
+    "hash": "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150",
+    "key": "sh-0009",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0002": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>The kernel--image count is right but compressed into one clause. A reader checking it has to supply the rank--nullity step and the saturation step themselves. A replacement is attached.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0002",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": "the sequence $0 \\to \\Zcyc(\\quiv) \\to W(\\quiv) \\to \\operatorname{im} \\bd \\to 0$ is exact and $\\operatorname{im} \\bd$ is free, so it splits and the ranks add",
+   "placement": "replace",
+   "quote": "the rank of the kernel is the rank of the source less the rank of the image",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "moderate",
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:e60b5d6ad28aceb027699b4efad421dbb678bf281fb316480b0404fff5e75bc5",
+    "key": "sh-0009/proof",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0003": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>Integrality of the vertices of <span class=\"math inline\">\\(\\Pi\\)</span> does not follow from saturation of the cycle lattice: saturation is about the lattice, integrality is about the polytope's vertices, and Bellamy assumes the second (<a href=\"cited:doi:10.4171/showcase/19-2?quote=balanced%20at%20every%20vertex\">the balancing hypothesis</a>). This is the gap Lemma~sh-000E is meant to close, and it is not closed.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0003",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "major",
+   "status": "open",
+   "target": {
+    "hash": "sha256:7820f24ee7a4a2ded049f055cc57029903e2012f32a9b74b124b02d38b3786fd",
+    "key": "sh-000C/proof",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0004": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>Is the walk required to be a walk in the quiver, or only in the support? The two differ when an arrow of weight zero joins two arrows of the support.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0004",
+   "in_reply_to": null,
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "we obtain an infinite walk inside $\\supp(w)$",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:17231756d6ea952166e92cb47fd3854bba2e9e45388b2b2c225b42ac2224cb65",
+    "key": "sh-0006/proof",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0005": {
+   "anchored": false,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>Worth naming the quotient here: it is the group the divergence map lands in, and it is used twice later.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0005",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": "The quotient $W(\\quiv)/\\Zcyc(\\quiv)$ is the \\emph{boundary lattice} of $\\quiv$.",
+   "placement": "after",
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "minor",
+   "status": "open",
+   "target": {
+    "hash": "sha256:44c1a17ba8b394b65c3a3519440683aa394f7e58ee54769ab47266a0d17df1e8",
+    "key": "sh-0004",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0006": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The paper never says whether quivers are assumed connected. Convention~sh-0001 says finite and says nothing about connectedness, and the rank formula is the only place it would matter.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0006",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": false,
+   "run": "s-2026-09-16-0001",
+   "severity": "moderate",
+   "status": "open",
+   "target": {
+    "hash": "sha256:8fbc7e0b2558dd6072711b95fbcb7e78f5882bf8c8530de9cda7331e59f637b9",
+    "key": "drafting/main-atomic.tex",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0007": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>This section introduces the divergence map twice, once in prose and once as Definition sh-0003. Keep the definition.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0007",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": false,
+   "run": "s-2026-09-16-0001",
+   "severity": "minor",
+   "status": "open",
+   "target": {
+    "hash": "sha256:69c0e128638b3995bf8451ae4548ff8bfd2ad6e512002f5ec3d0e2246e8a5173",
+    "key": "sh-0200",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0008": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The formula is right, and it is the one place the component count <span class=\"math inline\">\\(c\\)</span> appears without being defined in the same breath.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0008",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "minor",
+   "status": "open",
+   "target": {
+    "hash": "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150",
+    "key": "sh-0009#eq:rank",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0009": {
+   "anchored": true,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The transcription drops Arden's hypothesis that the quiver is finite, which is in his standing assumptions and not in the proposition. It is harmless here and would not be in a quilt that cited him for an infinite quiver.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0009",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": "whose underlying graph has $c$ connected components",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "moderate",
+   "status": "open",
+   "target": {
+    "hash": "sha256:504d0f21b6bc3f35966e1142f7d206351872bf07ec470b2f237727dcf82eb104",
+    "key": "Arden24-prop-2.1",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0010": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>Both examples check out, and the second is the smallest quiver with trivial cycle lattice.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0010",
+   "in_reply_to": null,
+   "kind": "confirmation",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:e6cef97b64a4e18f0b5a13564b27aab10073954773559d6bafa61ace481ddd2e",
+    "key": "sh-0005",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0011": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The infinite case has a standard reference; cite it rather than pointing at a survey.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0011",
+   "in_reply_to": null,
+   "kind": "citation",
+   "payload": "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5",
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "resolved",
+   "target": {
+    "hash": "sha256:15092111e47467eed6ea1d8348fe6bcb6dfc14a314c9d3c0bffbcea247ee55a5",
+    "key": "sh-000F",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0012": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The remark asserts that no index creeps in, which is what Proposition sh-0007 says; the remark is redundant.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": "Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
+   "discarded": false,
+   "id": "a-2026-09-16-0012",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "minor",
+   "status": "discarded",
+   "target": {
+    "hash": "sha256:2692c657bbd8f3d492ea81d050902dedc70e6eb26b0507ff97e19c09c6882e9f",
+    "key": "sh-0008",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0013": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>Height is defined for every weighting but only used for balanced ones, and <span class=\"math inline\">\\(N_{\\quiv}(k)\\)</span> silently restricts to them. Say so in the definition rather than in the theorem that uses it.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0013",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "minor",
+   "status": "open",
+   "target": {
+    "hash": "sha256:61683c0954e97527bc451f5b514544f1bea9799d3a89997323d6363e58bb3181",
+    "key": "sh-000B",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0014": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>This proof uses that the target of the divergence map is torsion-free, which is true of <span class=\"math inline\">\\(\\ZZ^{V}\\)</span> and is never said. One clause fixes it.</p>",
+   "created": "2026-09-16T11:00:00Z",
+   "detached": true,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0014",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": "a homomorphism into a torsion-free group",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "major",
+   "status": "open",
+   "target": {
+    "hash": "sha256:253a819d593a35dc08126221b93aadbaaf3d6b35dc3ef6dbb19abc5ca1ff21c4",
+    "key": "sh-0007/proof",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0015": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>A loop contributes an arrow and no divergence, so it adds one to the rank. I will say it in Convention sh-0001 rather than in the theorem.</p>",
+   "created": "2026-09-16T15:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0015",
+   "in_reply_to": "a-2026-09-16-0001",
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "underlying graph has $c$ connected components",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150",
+    "key": "sh-0009",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0016": {
+   "anchored": true,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>Then the convention is the right place, and this finding can stand until it is there.</p>",
+   "created": "2026-09-16T15:05:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0016",
+   "in_reply_to": "a-2026-09-16-0001",
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "underlying graph has $c$ connected components",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150",
+    "key": "sh-0009",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0017": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>Does this need the quiver to be connected, or does the component count handle it?</p>",
+   "created": "2026-09-16T15:10:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0017",
+   "in_reply_to": null,
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "A quiver whose underlying graph is a forest",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:baab3ea7100f6e5ee6ba6e35f8757c700dc360f5f325b3a83c1cf08bd866f324",
+    "key": "sh-000A",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0018": {
+   "anchored": false,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>Read against the definition in Arden24-def-1.2; the two agree.</p>",
+   "created": "2026-09-16T15:10:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0018",
+   "in_reply_to": null,
+   "kind": "confirmation",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:7a13f29d92e1b306349a48f7942e67e7dafd4d3fd8dfe31d5e752eb1b3765e70",
+    "key": "sh-0003",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-17-0001": {
+   "anchored": false,
+   "author": {
+    "id": "Wren Halloway",
+    "kind": "person",
+    "label": "Wren Halloway"
+   },
+   "basis": null,
+   "body_html": "<p>I would split this: the polynomiality and the degree are two claims and only the first needs Bellamy.</p>",
+   "created": "2026-09-17T09:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0001",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": "moderate",
+   "status": "open",
+   "target": {
+    "hash": "sha256:e722ea669c455be43c67b9562918656f55c3f5c914f2220a273ae712881166d7",
+    "key": "sh-000C",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-17-0002": {
+   "anchored": true,
+   "author": {
+    "id": "Wren Halloway",
+    "kind": "person",
+    "label": "Wren Halloway"
+   },
+   "basis": null,
+   "body_html": "<p>Agreed that this is the gap. I will not accept sh-000C until sh-000E is proved.</p>",
+   "created": "2026-09-17T09:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0002",
+   "in_reply_to": "a-2026-09-16-0003",
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:7820f24ee7a4a2ded049f055cc57029903e2012f32a9b74b124b02d38b3786fd",
+    "key": "sh-000C/proof",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-17-0003": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>A quiver should be required to be connected.</p>",
+   "created": "2026-09-17T09:30:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": true,
+   "id": "a-2026-09-17-0003",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-17-0001",
+   "recorded": true,
+   "run": "s-2026-09-17-0001",
+   "severity": "major",
+   "status": "open",
+   "target": {
+    "hash": "sha256:06698eb6d2496b14749e2612bf3705c3d9afa9aa8b60cf6bddd1e33896a29e21",
+    "key": "sh-0002",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-17-0004": {
+   "anchored": false,
+   "author": {
+    "id": "agent",
+    "kind": "agent",
+    "label": "agent"
+   },
+   "basis": null,
+   "body_html": "<p>The bouquet is not a quiver.</p>",
+   "created": "2026-09-17T09:30:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": true,
+   "id": "a-2026-09-17-0004",
+   "in_reply_to": null,
+   "kind": "objection",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-17-0001",
+   "recorded": true,
+   "run": "s-2026-09-17-0001",
+   "severity": "major",
+   "status": "open",
+   "target": {
+    "hash": "sha256:e6cef97b64a4e18f0b5a13564b27aab10073954773559d6bafa61ace481ddd2e",
+    "key": "sh-0005",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-17-0005": {
+   "anchored": false,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>This is the form we use; the balanced case is the one that matters here.</p>",
+   "created": "2026-09-17T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0005",
+   "in_reply_to": null,
+   "kind": "note",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-17-0002",
+   "recorded": true,
+   "run": "s-2026-09-17-0002",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:533617c542aacf71db4889c298004516a5c6757131c6e8ee40e7d7cf050ad4e2",
+    "key": "Bellamy19-prop-3.1",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-17-0006": {
+   "anchored": false,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": null,
+   "body_html": "<p>Does this need the weights to be integral, or only bounded?</p>",
+   "created": "2026-09-17T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0006",
+   "in_reply_to": null,
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-17-0002",
+   "recorded": true,
+   "run": "s-2026-09-17-0002",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:7c88fb798f78dacefc25f7ff1fd82085e36f96c86d6e7309cd6ea5022419c945",
+    "key": "Bellamy19-thm-3.2",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-17-0007": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": "text",
+   "body_html": "<p>Is total unimodularity really needed here, or only that the vertices are integral?</p>",
+   "created": "2026-09-17T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0007",
+   "in_reply_to": null,
+   "kind": "question",
+   "payload": null,
+   "placement": null,
+   "quote": "totally unimodular",
+   "record": "s-2026-09-17-0002",
+   "recorded": true,
+   "run": "s-2026-09-17-0002",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45",
+    "key": "doi:10.4171/showcase/19-2",
+    "page": 2,
+    "work": "Bellamy19"
+   }
+  },
+  "a-2026-09-17-0008": {
+   "anchored": true,
+   "author": {
+    "id": "The loom showcase",
+    "kind": "person",
+    "label": "The loom showcase"
+   },
+   "basis": "box",
+   "body_html": "<p>This is the display we cite; the balanced case is the one that matters.</p>",
+   "created": "2026-09-17T11:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0008",
+   "in_reply_to": null,
+   "kind": "note",
+   "payload": null,
+   "placement": null,
+   "quote": "Proposition 3.1. The function L is a quasi-polynomial in k of degree equal to the dimension of M (D), with a period dividing the least common multiple of the denominators of the vertices of M (D).",
+   "record": "s-2026-09-17-0002",
+   "recorded": true,
+   "run": "s-2026-09-17-0002",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45",
+    "key": "doi:10.4171/showcase/19-2",
+    "page": 2,
+    "work": "Bellamy19"
+   }
+  },
+  "a-2026-09-17-0009": {
+   "anchored": true,
+   "author": {
+    "id": "Referee (Agent)",
+    "kind": "agent",
+    "label": "Referee (Agent)"
+   },
+   "basis": "text",
+   "body_html": "<p>Answered on the page: unimodularity is the mechanism, integrality of the vertices is what is used downstream.</p>",
+   "created": "2026-09-17T11:10:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0009",
+   "in_reply_to": null,
+   "kind": "note",
+   "payload": null,
+   "placement": null,
+   "quote": "the constraint matrix is an incidence matrix",
+   "record": "s-2026-09-17-0002",
+   "recorded": true,
+   "run": "s-2026-09-17-0002",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:e16ea0a74da711cddafcb5a49851aeb5e78f16f22ea7ee1a1fa2a0b9acb80d45",
+    "key": "doi:10.4171/showcase/19-2",
+    "page": 2,
+    "work": "Bellamy19"
+   }
+  },
+  "a-2026-09-17-0010": {
+   "anchored": false,
+   "author": {
+    "id": "Referee (Agent)",
+    "kind": "agent",
+    "label": "Referee (Agent)"
+   },
+   "basis": null,
+   "body_html": "<p>Please verify the transcription of 3.2 against p.2: the digest says 'integral' where the page says 'bounded'.</p>",
+   "created": "2026-09-17T11:10:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-17-0010",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": null,
+   "record": "s-2026-09-17-0002",
+   "recorded": true,
+   "run": "s-2026-09-17-0002",
+   "severity": "moderate",
+   "status": "open",
+   "target": {
+    "hash": "sha256:7c88fb798f78dacefc25f7ff1fd82085e36f96c86d6e7309cd6ea5022419c945",
+    "key": "Bellamy19-thm-3.2",
+    "page": null,
+    "work": null
+   }
+  }
+ },
+ "canon": [
+  {
+   "fragment": "fragments/canon/flows-v1.html",
+   "hash": "59f2bf123a570221eea1548b865f6e86f0a44fd8a28acda1d7d2522ccfd2bbc2",
+   "macros": "canon:flows-v1",
+   "message": "The paper as it arrived",
+   "name": "flows-v1",
+   "path": "canon/flows-v1.tex",
+   "stem": "flows-v1",
+   "step": "0001",
+   "title": "Balanced flows on finite quivers",
+   "when": "2026-09-14T09:05:00Z"
+  },
+  {
+   "fragment": "fragments/canon/flows-v2.html",
+   "hash": "35aee9b81fec4a20b9dcced332fda8daf98e56beedd6965957c5722b9d8dbbf8",
+   "macros": "canon:flows-v2",
+   "message": "After the referee",
+   "name": "flows-v2",
+   "path": "canon/flows-v2.tex",
+   "stem": "flows-v2",
+   "step": "0003",
+   "title": "Balanced flows on finite quivers",
+   "when": "2026-09-17T10:10:00Z"
+  }
+ ],
+ "corpus": {
+  "name": "The loom showcase",
+  "root_label": "Balanced flows on finite quivers"
+ },
+ "diagnostics": [
+  {
+   "code": "duplicate-id",
+   "fixes": [
+    {
+     "command": "loom fork sh-0020 --in drafting/sketch.tex",
+     "label": "fork the copy in drafting/sketch.tex"
+    },
+    {
+     "command": "loom fork sh-0020 --in nodes/sh-0020.tex",
+     "label": "fork the copy in nodes/sh-0020.tex"
+    },
+    {
+     "command": "loom id --next",
+     "label": "give one copy a fresh id by hand"
+    }
+   ],
+   "keys": [
+    "sh-0020"
+   ],
+   "locations": [
+    {
+     "file": "drafting/sketch.tex",
+     "line": 16
+    },
+    {
+     "file": "nodes/sh-0020.tex",
+     "line": 1
+    }
+   ],
+   "message": "sh-0020 is defined by drafting/sketch.tex and nodes/sh-0020.tex; it has no text until one definition remains",
+   "severity": "error"
+  },
+  {
+   "code": "loom:missing-proof",
+   "keys": [
+    "sh-0402"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sh-0402.tex",
+     "line": 5
+    }
+   ],
+   "message": "sh-0402 (Lemma) has no proof",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:needs-classification",
+   "keys": [
+    "sh-0005"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sh-0005.tex",
+     "line": 1
+    }
+   ],
+   "message": "sh-0005 needs classification: environment name does not identify one basis; add % !LOOM basis: ... inside the block",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:needs-classification",
+   "keys": [
+    "sh-000D"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sh-000D.tex",
+     "line": 1
+    }
+   ],
+   "message": "sh-000D needs classification: environment name does not identify one basis; add % !LOOM basis: ... inside the block",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:unmatched-postnote",
+   "keys": [
+    "sh-0100"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sh-0100.tex",
+     "line": 5
+    }
+   ],
+   "message": "\\cite[Lemma 5.9]{Arden24} names no result in the digest of Arden24",
+   "severity": "warning"
+  },
+  {
+   "code": "loom:superseded-file",
+   "fixes": [
+    {
+     "command": "loom live drafting/main.tex",
+     "label": "make it live again"
+    }
+   ],
+   "keys": [],
+   "locations": [
+    {
+     "file": "drafting/main.tex",
+     "line": 1
+    }
+   ],
+   "message": "drafting/main.tex was superseded by drafting/main-atomic.tex (atomize, 2026-09-14); it defines nothing",
+   "severity": "info",
+   "subject": "record"
+  },
+  {
+   "code": "loom:unresolved-work",
+   "keys": [
+    "Cortez07"
+   ],
+   "locations": [],
+   "message": "Cortez07 states no identifier, so loom cannot name the work the same way on another machine; add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom refs resolve",
+   "severity": "info"
+  },
+  {
+   "code": "unreachable",
+   "keys": [
+    "sh-0402"
+   ],
+   "locations": [
+    {
+     "file": "nodes/sh-0402.tex",
+     "line": 1
+    }
+   ],
+   "message": "no master reaches nodes/sh-0402.tex",
+   "severity": "info"
+  },
+  {
+   "code": "loom:detached-annotation",
+   "keys": [
+    "sh-0007/proof"
+   ],
+   "locations": [],
+   "message": "1 annotation(s) on sh-0007/proof no longer match its text",
+   "severity": "info"
+  }
+ ],
+ "edges": [
+  {
+   "from": "Arden24-thm-3.1",
+   "kind": "statement",
+   "src": {
+    "file": "digests/Arden24.tex",
+    "line": 46
+   },
+   "to": "Arden24-prop-2.1",
+   "via": "uses"
+  },
+  {
+   "from": "Arden24-cor-3.2",
+   "kind": "statement",
+   "src": {
+    "file": "digests/Arden24.tex",
+    "line": 52
+   },
+   "to": "Arden24-thm-3.1",
+   "via": "uses"
+  },
+  {
+   "from": "Arden24-cor-3.2",
+   "kind": "statement",
+   "src": {
+    "file": "digests/Arden24.tex",
+    "line": 52
+   },
+   "to": "Arden24-lem-2.2",
+   "via": "uses"
+  },
+  {
+   "from": "Arden24-rem-4.1",
+   "kind": "statement",
+   "src": {
+    "file": "digests/Arden24.tex",
+    "line": 61
+   },
+   "to": "Arden24-thm-3.1",
+   "via": "ref"
+  },
+  {
+   "from": "Arden24-rem-4.2",
+   "kind": "statement",
+   "src": {
+    "file": "digests/Arden24.tex",
+    "line": 66
+   },
+   "to": "Arden24-thm-3.1",
+   "via": "ref"
+  },
+  {
+   "from": "sh-0008",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sh-0008.tex",
+    "line": 2
+   },
+   "to": "sh-0009",
+   "via": "ref"
+  },
+  {
+   "from": "sh-000D",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sh-000D.tex",
+    "line": 2
+   },
+   "to": "sh-0400",
+   "via": "ref"
+  },
+  {
+   "from": "sh-000E",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sh-000E.tex",
+    "line": 3
+   },
+   "to": "sh-000C",
+   "via": "ref"
+  },
+  {
+   "from": "sh-000F",
+   "kind": "statement",
+   "src": {
+    "file": "nodes/sh-000F.tex",
+    "line": 4
+   },
+   "to": "sh-0009",
+   "via": "eqref"
+  },
+  {
+   "from": "sh-0100",
+   "kind": "prose",
+   "src": {
+    "file": "nodes/sh-0100.tex",
+    "line": 3
+   },
+   "to": "sh-0009",
+   "via": "ref"
+  },
+  {
+   "from": "sh-0100",
+   "kind": "prose",
+   "src": {
+    "file": "nodes/sh-0100.tex",
+    "line": 3
+   },
+   "to": "sh-000C",
+   "via": "ref"
+  },
+  {
+   "from": "sh-0100",
+   "kind": "prose",
+   "src": {
+    "file": "nodes/sh-0100.tex",
+    "line": 5
+   },
+   "to": "sh-0300",
+   "via": "ref"
+  },
+  {
+   "from": "sh-0006/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-0006.tex",
+    "line": 5
+   },
+   "to": "sh-0001",
+   "via": "uses"
+  },
+  {
+   "from": "sh-0006/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-0006.tex",
+    "line": 6
+   },
+   "to": "sh-0001",
+   "via": "ref"
+  },
+  {
+   "from": "sh-0010",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-0010.tex",
+    "line": 2
+   },
+   "to": "sh-0004",
+   "via": "uses"
+  },
+  {
+   "from": "sh-0010",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-0010.tex",
+    "line": 3
+   },
+   "to": "sh-0004",
+   "via": "ref"
+  },
+  {
+   "from": "sh-0009/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-0009.tex",
+    "line": 8
+   },
+   "to": "sh-0007",
+   "via": "uses"
+  },
+  {
+   "from": "sh-0009/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-0009.tex",
+    "line": 9
+   },
+   "to": "sh-0007",
+   "via": "ref"
+  },
+  {
+   "from": "sh-000A/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000A.tex",
+    "line": 5
+   },
+   "to": "sh-0009",
+   "via": "uses"
+  },
+  {
+   "from": "sh-000A/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000A.tex",
+    "line": 6
+   },
+   "to": "sh-0009",
+   "via": "ref"
+  },
+  {
+   "from": "sh-000A/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000A.tex",
+    "line": 6
+   },
+   "to": "sh-0009",
+   "via": "eqref"
+  },
+  {
+   "from": "sh-000C/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000C.tex",
+    "line": 5
+   },
+   "to": "sh-0009",
+   "via": "uses"
+  },
+  {
+   "from": "sh-000C/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000C.tex",
+    "line": 5
+   },
+   "to": "sh-0007",
+   "via": "uses"
+  },
+  {
+   "from": "sh-000C/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000C.tex",
+    "line": 6
+   },
+   "to": "sh-0009",
+   "via": "ref"
+  },
+  {
+   "from": "sh-000C/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000C.tex",
+    "line": 6
+   },
+   "to": "sh-0007",
+   "via": "ref"
+  },
+  {
+   "from": "sh-0100",
+   "kind": "prose",
+   "src": {
+    "file": "nodes/sh-0100.tex",
+    "line": 5
+   },
+   "to": "Arden24-prop-2.1",
+   "via": "postnote"
+  },
+  {
+   "from": "sh-0100",
+   "kind": "prose",
+   "src": {
+    "file": "nodes/sh-0100.tex",
+    "line": 5
+   },
+   "to": "Bellamy19-thm-2.3",
+   "via": "postnote"
+  },
+  {
+   "from": "sh-0009/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-0009.tex",
+    "line": 9
+   },
+   "to": "Arden24-prop-2.1",
+   "via": "postnote"
+  },
+  {
+   "from": "sh-000C/proof",
+   "kind": "proof",
+   "src": {
+    "file": "nodes/sh-000C.tex",
+    "line": 6
+   },
+   "to": "Bellamy19-thm-3.2",
+   "via": "postnote"
+  }
+ ],
+ "generated": "2026-09-22T03:40:25Z",
+ "inclusion": {
+  "drafting/main-atomic.tex": {
+   "children": [
+    {
+     "children": [
+      {
+       "children": [
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0001",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0001.tex",
+         "key": "nodes/sh-0001.tex",
+         "shift": 0,
+         "via": "input"
+        }
+       ],
+       "key": "sh-0100",
+       "shift": 0,
+       "via": "section"
+      }
+     ],
+     "file": "nodes/sh-0100.tex",
+     "key": "nodes/sh-0100.tex",
+     "shift": 0,
+     "via": "input"
+    },
+    {
+     "children": [
+      {
+       "children": [
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0002",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0002.tex",
+         "key": "nodes/sh-0002.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0003",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0003.tex",
+         "key": "nodes/sh-0003.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0004",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0004.tex",
+         "key": "nodes/sh-0004.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0005",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0005.tex",
+         "key": "nodes/sh-0005.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0006",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0006.tex",
+         "key": "nodes/sh-0006.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0007",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0007.tex",
+         "key": "nodes/sh-0007.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0010",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0010.tex",
+         "key": "nodes/sh-0010.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0008",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0008.tex",
+         "key": "nodes/sh-0008.tex",
+         "shift": 0,
+         "via": "input"
+        }
+       ],
+       "key": "sh-0200",
+       "shift": 0,
+       "via": "section"
+      }
+     ],
+     "file": "nodes/sh-0200.tex",
+     "key": "nodes/sh-0200.tex",
+     "shift": 0,
+     "via": "input"
+    },
+    {
+     "children": [
+      {
+       "children": [
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-0009",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-0009.tex",
+         "key": "nodes/sh-0009.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-000A",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-000A.tex",
+         "key": "nodes/sh-000A.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [
+            {
+             "children": [
+              {
+               "children": [],
+               "key": "sh-000B",
+               "shift": 0,
+               "via": "nested-env"
+              }
+             ],
+             "file": "nodes/sh-000B.tex",
+             "key": "nodes/sh-000B.tex",
+             "shift": 0,
+             "via": "input"
+            },
+            {
+             "children": [
+              {
+               "children": [],
+               "key": "sh-000C",
+               "shift": 0,
+               "via": "nested-env"
+              }
+             ],
+             "file": "nodes/sh-000C.tex",
+             "key": "nodes/sh-000C.tex",
+             "shift": 0,
+             "via": "input"
+            },
+            {
+             "children": [
+              {
+               "children": [],
+               "key": "sh-000D",
+               "shift": 0,
+               "via": "nested-env"
+              }
+             ],
+             "file": "nodes/sh-000D.tex",
+             "key": "nodes/sh-000D.tex",
+             "shift": 0,
+             "via": "input"
+            }
+           ],
+           "key": "sh-0301",
+           "shift": 0,
+           "via": "section"
+          }
+         ],
+         "file": "nodes/sh-0301.tex",
+         "key": "nodes/sh-0301.tex",
+         "shift": 0,
+         "via": "input"
+        }
+       ],
+       "key": "sh-0300",
+       "shift": 0,
+       "via": "section"
+      }
+     ],
+     "file": "nodes/sh-0300.tex",
+     "key": "nodes/sh-0300.tex",
+     "shift": 0,
+     "via": "input"
+    },
+    {
+     "children": [
+      {
+       "children": [
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-000E",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-000E.tex",
+         "key": "nodes/sh-000E.tex",
+         "shift": 0,
+         "via": "input"
+        },
+        {
+         "children": [
+          {
+           "children": [],
+           "key": "sh-000F",
+           "shift": 0,
+           "via": "nested-env"
+          }
+         ],
+         "file": "nodes/sh-000F.tex",
+         "key": "nodes/sh-000F.tex",
+         "shift": 0,
+         "via": "input"
+        }
+       ],
+       "key": "sh-0400",
+       "shift": 0,
+       "via": "section"
+      }
+     ],
+     "file": "nodes/sh-0400.tex",
+     "key": "nodes/sh-0400.tex",
+     "shift": 0,
+     "via": "input"
+    }
+   ],
+   "key": "drafting/main-atomic.tex"
+  },
+  "drafting/sketch-atomic.tex": {
+   "children": [
+    {
+     "children": [
+      {
+       "children": [],
+       "key": "nodes/sh-0020.tex#lemma:1",
+       "shift": 0,
+       "via": "nested-env"
+      }
+     ],
+     "file": "nodes/sh-0020.tex",
+     "key": "nodes/sh-0020.tex",
+     "shift": 0,
+     "via": "input"
+    }
+   ],
+   "key": "drafting/sketch-atomic.tex"
+  },
+  "drafting/sketch.tex": {
+   "children": [
+    {
+     "children": [],
+     "key": "drafting/sketch.tex#lemma:1",
+     "shift": 0,
+     "via": "nested-env"
+    }
+   ],
+   "key": "drafting/sketch.tex"
+  },
+  "drafting/talk.tex": {
+   "children": [
+    {
+     "children": [
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sh-0002",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sh-0002.tex",
+       "key": "nodes/sh-0002.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sh-0401",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sh-0401.tex",
+       "key": "nodes/sh-0401.tex",
+       "shift": 0,
+       "via": "input"
+      },
+      {
+       "children": [
+        {
+         "children": [],
+         "key": "sh-0009",
+         "shift": 0,
+         "via": "nested-env"
+        }
+       ],
+       "file": "nodes/sh-0009.tex",
+       "key": "nodes/sh-0009.tex",
+       "shift": 0,
+       "via": "input"
+      }
+     ],
+     "key": "sh-0011",
+     "shift": 0,
+     "via": "section"
+    }
+   ],
+   "key": "drafting/talk.tex"
+  }
+ },
+ "interface_version": 1,
+ "keys": {
+  "Arden24-cor-3.2": {
+   "closure": [
+    "Arden24-prop-2.1",
+    "Arden24-thm-3.1",
+    "Arden24-lem-2.2",
+    "Arden24-cor-3.2"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:8c7021645432fc9a09c8fa09cb6e7431d2aaa28659e108e6be0cf79baa857948",
+   "incomplete": [],
+   "key": "Arden24-cor-3.2",
+   "kind": "statement",
+   "node": "Arden24-cor-3.2",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    2962,
+    3212
+   ],
+   "state": "draft",
+   "uses": [
+    "Arden24-thm-3.1",
+    "Arden24-lem-2.2"
+   ],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-def-1.1": {
+   "closure": [
+    "Arden24-def-1.1"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:6ac150cb75c9a6357ac576e9058a58855e1255552a265c3fef92d60836079540",
+   "incomplete": [],
+   "key": "Arden24-def-1.1",
+   "kind": "statement",
+   "node": "Arden24-def-1.1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    1148,
+    1436
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-def-1.2": {
+   "closure": [
+    "Arden24-def-1.2"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:83d77dff3c1af1eca3185c06d3460af5cdda65fe5da6c3b9fefc92c6f36d9859",
+   "incomplete": [],
+   "key": "Arden24-def-1.2",
+   "kind": "statement",
+   "node": "Arden24-def-1.2",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    1438,
+    1849
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-lem-2.2": {
+   "closure": [
+    "Arden24-lem-2.2"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:15e64543c33d776f2d62ac8dc44fd334aa5c820996da9b931490a0ab06a0ec1e",
+   "incomplete": [],
+   "key": "Arden24-lem-2.2",
+   "kind": "statement",
+   "node": "Arden24-lem-2.2",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    2287,
+    2556
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-prop-2.1": {
+   "closure": [
+    "Arden24-prop-2.1"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:504d0f21b6bc3f35966e1142f7d206351872bf07ec470b2f237727dcf82eb104",
+   "incomplete": [],
+   "key": "Arden24-prop-2.1",
+   "kind": "statement",
+   "node": "Arden24-prop-2.1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {
+     "objection": 1
+    }
+   },
+   "src": [
+    1915,
+    2285
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-rem-4.1": {
+   "closure": [
+    "Arden24-prop-2.1",
+    "Arden24-thm-3.1",
+    "Arden24-rem-4.1"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:4e92d0bb4e37f7deef0cae981fde835fa847861e59982f4ef6456645acca65b7",
+   "incomplete": [],
+   "key": "Arden24-rem-4.1",
+   "kind": "statement",
+   "node": "Arden24-rem-4.1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    3267,
+    3689
+   ],
+   "state": "draft",
+   "uses": [
+    "Arden24-thm-3.1"
+   ],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-rem-4.2": {
+   "closure": [
+    "Arden24-prop-2.1",
+    "Arden24-thm-3.1",
+    "Arden24-rem-4.2"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:5b966561a127a5979da584c6091f5d91eb0510ed01959e2964e91555f0be95ff",
+   "incomplete": [],
+   "key": "Arden24-rem-4.2",
+   "kind": "statement",
+   "node": "Arden24-rem-4.2",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    3691,
+    4181
+   ],
+   "state": "draft",
+   "uses": [
+    "Arden24-thm-3.1"
+   ],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-setup": {
+   "closure": [
+    "Arden24-setup"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:79911e33e293fb4d88a6aeb8c609db8c006c98504a211a83c1977b040ee27777",
+   "incomplete": [],
+   "key": "Arden24-setup",
+   "kind": "statement",
+   "node": "Arden24-setup",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    706,
+    1101
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Arden24-thm-3.1": {
+   "closure": [
+    "Arden24-prop-2.1",
+    "Arden24-thm-3.1"
+   ],
+   "file": "digests/Arden24.tex",
+   "hash": "sha256:c06d3d629774fae5497c62edc11868c0b41a4b44e7477fb63b672af85a6319ab",
+   "incomplete": [],
+   "key": "Arden24-thm-3.1",
+   "kind": "statement",
+   "node": "Arden24-thm-3.1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    2607,
+    2960
+   ],
+   "state": "draft",
+   "uses": [
+    "Arden24-prop-2.1"
+   ],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Bellamy19-prop-3.1": {
+   "closure": [
+    "Bellamy19-prop-3.1"
+   ],
+   "file": "digests/Bellamy19.proposed.tex",
+   "hash": "sha256:533617c542aacf71db4889c298004516a5c6757131c6e8ee40e7d7cf050ad4e2",
+   "incomplete": [],
+   "key": "Bellamy19-prop-3.1",
+   "kind": "statement",
+   "node": "Bellamy19-prop-3.1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-17T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-17T11:00:00Z"
+    },
+    "open": {}
+   },
+   "src": [
+    224,
+    516
+   ],
+   "state": "proposed",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Bellamy19-thm-2.3": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T09:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "Bellamy19-thm-2.3"
+   ],
+   "file": "digests/Bellamy19.tex",
+   "hash": "sha256:98198fa8e2344b6233ddc3e6d3233603b7971c8da57f984b9ad24a5ca4016570",
+   "incomplete": [],
+   "key": "Bellamy19-thm-2.3",
+   "kind": "statement",
+   "node": "Bellamy19-thm-2.3",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    122,
+    419
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "Bellamy19-thm-3.2": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T09:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "Bellamy19-thm-3.2"
+   ],
+   "file": "digests/Bellamy19.tex",
+   "hash": "sha256:7c88fb798f78dacefc25f7ff1fd82085e36f96c86d6e7309cd6ea5022419c945",
+   "incomplete": [],
+   "key": "Bellamy19-thm-3.2",
+   "kind": "statement",
+   "node": "Bellamy19-thm-3.2",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "Referee (Agent)",
+      "kind": "agent"
+     },
+     "date": "2026-09-17T11:10:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "Referee (Agent)",
+      "kind": "agent"
+     },
+     "date": "2026-09-17T11:10:00Z"
+    },
+    "open": {
+     "question": 1,
+     "suggestion": 1
+    }
+   },
+   "src": [
+    421,
+    802
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "drafting/sketch.tex#lemma:1": {
+   "closure": [
+    "drafting/sketch.tex#lemma:1"
+   ],
+   "file": "drafting/sketch.tex",
+   "hash": "sha256:aeac6ba5175471064d37708800f03db02bf0c9c2768754b906d6daf509fdffb3",
+   "incomplete": [],
+   "key": "drafting/sketch.tex#lemma:1",
+   "kind": "statement",
+   "node": "drafting/sketch.tex#lemma:1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    326,
+    535
+   ],
+   "state": "draft",
+   "uses": []
+  },
+  "nodes/sh-0020.tex#lemma:1": {
+   "closure": [
+    "nodes/sh-0020.tex#lemma:1"
+   ],
+   "file": "nodes/sh-0020.tex",
+   "hash": "sha256:aeac6ba5175471064d37708800f03db02bf0c9c2768754b906d6daf509fdffb3",
+   "incomplete": [],
+   "key": "nodes/sh-0020.tex#lemma:1",
+   "kind": "statement",
+   "node": "nodes/sh-0020.tex#lemma:1",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    209
+   ],
+   "state": "draft",
+   "uses": []
+  },
+  "sh-0001": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "causes": [
+     {
+      "comparison": {
+       "accepted": "fragments/review/fc975cc03052947a7cd8-accepted.html",
+       "accepted_macros": "review:fc975cc03052947a7cd8",
+       "accepted_spans": [
+        [
+         154,
+         162
+        ]
+       ],
+       "current": "fragments/review/fc975cc03052947a7cd8-current.html",
+       "current_spans": [
+        [
+         154,
+         223
+        ]
+       ]
+      },
+      "diff": "diffs/sh-0001-own-text-changed.diff",
+      "kind": "own-text-changed",
+      "when": "2026-09-18"
+     }
+    ],
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sh-0001"
+   ],
+   "file": "nodes/sh-0001.tex",
+   "hash": "sha256:c43321ef884b1e7d55d5ce1ba298398bb53450d6a54c78a51de91fffc5cdbbae",
+   "incomplete": [],
+   "key": "sh-0001",
+   "kind": "statement",
+   "node": "sh-0001",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    313
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "sh-0002": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0002"
+   ],
+   "file": "nodes/sh-0002.tex",
+   "hash": "sha256:06698eb6d2496b14749e2612bf3705c3d9afa9aa8b60cf6bddd1e33896a29e21",
+   "incomplete": [],
+   "key": "sh-0002",
+   "kind": "statement",
+   "node": "sh-0002",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    346
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0003": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0003"
+   ],
+   "file": "nodes/sh-0003.tex",
+   "hash": "sha256:7a13f29d92e1b306349a48f7942e67e7dafd4d3fd8dfe31d5e752eb1b3765e70",
+   "incomplete": [],
+   "key": "sh-0003",
+   "kind": "statement",
+   "node": "sh-0003",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T15:10:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T15:10:00Z"
+    },
+    "open": {}
+   },
+   "src": [
+    0,
+    405
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0004": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0004"
+   ],
+   "file": "nodes/sh-0004.tex",
+   "hash": "sha256:44c1a17ba8b394b65c3a3519440683aa394f7e58ee54769ab47266a0d17df1e8",
+   "incomplete": [],
+   "key": "sh-0004",
+   "kind": "statement",
+   "node": "sh-0004",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {
+     "suggestion": 1
+    }
+   },
+   "src": [
+    0,
+    328
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0005": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0005"
+   ],
+   "file": "nodes/sh-0005.tex",
+   "hash": "sha256:e6cef97b64a4e18f0b5a13564b27aab10073954773559d6bafa61ace481ddd2e",
+   "incomplete": [],
+   "key": "sh-0005",
+   "kind": "statement",
+   "node": "sh-0005",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {}
+   },
+   "src": [
+    0,
+    235
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0006": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0006"
+   ],
+   "file": "nodes/sh-0006.tex",
+   "hash": "sha256:d3b875d19d39794407a41056c2354e415ac209ebeb86fd633b328bd4454cdca6",
+   "incomplete": [],
+   "key": "sh-0006",
+   "kind": "statement",
+   "node": "sh-0006",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    179
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0006/proof": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "causes": [
+     {
+      "citation": "cite-nodes-sh-0006-tex-490-sh-0001",
+      "comparison": {
+       "accepted": "fragments/review/fc975cc03052947a7cd8-accepted.html",
+       "accepted_macros": "review:fc975cc03052947a7cd8",
+       "accepted_spans": [
+        [
+         154,
+         162
+        ]
+       ],
+       "current": "fragments/review/fc975cc03052947a7cd8-current.html",
+       "current_spans": [
+        [
+         154,
+         223
+        ]
+       ]
+      },
+      "diff": "diffs/sh-0006_proof-dependency-changed-sh-0001.diff",
+      "id": "sh-0001",
+      "kind": "dependency-changed",
+      "when": "2026-09-18"
+     }
+    ],
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sh-0001",
+    "sh-0006"
+   ],
+   "file": "nodes/sh-0006.tex",
+   "hash": "sha256:17231756d6ea952166e92cb47fd3854bba2e9e45388b2b2c225b42ac2224cb65",
+   "incomplete": [],
+   "key": "sh-0006/proof",
+   "kind": "proof",
+   "node": "sh-0006",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {
+     "question": 1
+    }
+   },
+   "src": [
+    180,
+    579
+   ],
+   "state": "accepted",
+   "uses": [
+    "sh-0001"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0007": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0007"
+   ],
+   "file": "nodes/sh-0007.tex",
+   "hash": "sha256:8dfa32f01ec0956a335ecdbadd1dbdf162677a0c90d09a1bc957f956452edf16",
+   "incomplete": [],
+   "key": "sh-0007",
+   "kind": "statement",
+   "node": "sh-0007",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    228
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0007/proof": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "causes": [
+     {
+      "comparison": {
+       "accepted": "fragments/review/a06540faf0583bf0f2bd-accepted.html",
+       "accepted_macros": "review:a06540faf0583bf0f2bd",
+       "accepted_spans": [
+        [
+         69,
+         70
+        ],
+        [
+         71,
+         83
+        ],
+        [
+         84,
+         90
+        ]
+       ],
+       "current": "fragments/review/a06540faf0583bf0f2bd-current.html",
+       "current_spans": [
+        [
+         69,
+         79
+        ],
+        [
+         80,
+         85
+        ],
+        [
+         86,
+         102
+        ]
+       ]
+      },
+      "diff": "diffs/sh-0007_proof-own-text-changed.diff",
+      "kind": "own-text-changed",
+      "when": "2026-09-18"
+     }
+    ],
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": false
+   },
+   "closure": [
+    "sh-0007"
+   ],
+   "file": "nodes/sh-0007.tex",
+   "hash": "sha256:b485d8ade84c94c366644bb374fc4ddeb9d4a8e2612a990869dc3fac24cc98aa",
+   "incomplete": [],
+   "key": "sh-0007/proof",
+   "kind": "proof",
+   "node": "sh-0007",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 1,
+    "latest_any": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": null,
+    "open": {
+     "objection": 1
+    }
+   },
+   "src": [
+    229,
+    394
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "stamp-referee-points-answered",
+    "step": "0002"
+   }
+  },
+  "sh-0008": {
+   "closure": [
+    "sh-0009",
+    "sh-0008"
+   ],
+   "file": "nodes/sh-0008.tex",
+   "hash": "sha256:2692c657bbd8f3d492ea81d050902dedc70e6eb26b0507ff97e19c09c6882e9f",
+   "incomplete": [],
+   "key": "sh-0008",
+   "kind": "statement",
+   "node": "sh-0008",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {}
+   },
+   "src": [
+    0,
+    198
+   ],
+   "state": "draft",
+   "uses": [
+    "sh-0009"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0009": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0009"
+   ],
+   "file": "nodes/sh-0009.tex",
+   "hash": "sha256:559937032f6db400eae53d77d6073a10f690d9c8e1d23172f444bedd5ef1a150",
+   "incomplete": [],
+   "key": "sh-0009",
+   "kind": "statement",
+   "node": "sh-0009",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T15:05:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T15:05:00Z"
+    },
+    "open": {
+     "objection": 1
+    }
+   },
+   "src": [
+    0,
+    233
+   ],
+   "state": "accepted",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0009/proof": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0007",
+    "Arden24-prop-2.1",
+    "sh-0009"
+   ],
+   "file": "nodes/sh-0009.tex",
+   "hash": "sha256:e60b5d6ad28aceb027699b4efad421dbb678bf281fb316480b0404fff5e75bc5",
+   "incomplete": [],
+   "key": "sh-0009/proof",
+   "kind": "proof",
+   "node": "sh-0009",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {}
+   },
+   "src": [
+    234,
+    632
+   ],
+   "state": "accepted",
+   "uses": [
+    "sh-0007",
+    "Arden24-prop-2.1"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000A": {
+   "closure": [
+    "sh-000A"
+   ],
+   "file": "nodes/sh-000A.tex",
+   "hash": "sha256:baab3ea7100f6e5ee6ba6e35f8757c700dc360f5f325b3a83c1cf08bd866f324",
+   "incomplete": [],
+   "key": "sh-000A",
+   "kind": "statement",
+   "node": "sh-000A",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T15:10:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "The loom showcase",
+      "kind": "person"
+     },
+     "date": "2026-09-16T15:10:00Z"
+    },
+    "open": {
+     "question": 1
+    }
+   },
+   "src": [
+    0,
+    123
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000A/proof": {
+   "closure": [
+    "sh-0009",
+    "sh-000A"
+   ],
+   "file": "nodes/sh-000A.tex",
+   "hash": "sha256:b92ef0b17da561ca94862c89093439dcf2271641790d8056369d6304cac4fef9",
+   "incomplete": [],
+   "key": "sh-000A/proof",
+   "kind": "proof",
+   "node": "sh-000A",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    124,
+    367
+   ],
+   "state": "draft",
+   "uses": [
+    "sh-0009"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000B": {
+   "closure": [
+    "sh-000B"
+   ],
+   "file": "nodes/sh-000B.tex",
+   "hash": "sha256:61683c0954e97527bc451f5b514544f1bea9799d3a89997323d6363e58bb3181",
+   "incomplete": [],
+   "key": "sh-000B",
+   "kind": "statement",
+   "node": "sh-000B",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {
+     "suggestion": 1
+    }
+   },
+   "src": [
+    0,
+    222
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000C": {
+   "closure": [
+    "sh-000C"
+   ],
+   "file": "nodes/sh-000C.tex",
+   "hash": "sha256:e722ea669c455be43c67b9562918656f55c3f5c914f2220a273ae712881166d7",
+   "incomplete": [],
+   "key": "sh-000C",
+   "kind": "statement",
+   "node": "sh-000C",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "Wren Halloway",
+      "kind": "person"
+     },
+     "date": "2026-09-17T09:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "Wren Halloway",
+      "kind": "person"
+     },
+     "date": "2026-09-17T09:00:00Z"
+    },
+    "open": {
+     "suggestion": 1
+    }
+   },
+   "src": [
+    0,
+    199
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000C/proof": {
+   "closure": [
+    "sh-0009",
+    "sh-0007",
+    "Bellamy19-thm-3.2",
+    "sh-000C"
+   ],
+   "file": "nodes/sh-000C.tex",
+   "hash": "sha256:7820f24ee7a4a2ded049f055cc57029903e2012f32a9b74b124b02d38b3786fd",
+   "incomplete": [],
+   "key": "sh-000C/proof",
+   "kind": "proof",
+   "node": "sh-000C",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "Wren Halloway",
+      "kind": "person"
+     },
+     "date": "2026-09-17T09:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "Wren Halloway",
+      "kind": "person"
+     },
+     "date": "2026-09-17T09:00:00Z"
+    },
+    "open": {
+     "objection": 1
+    }
+   },
+   "src": [
+    200,
+    649
+   ],
+   "state": "draft",
+   "uses": [
+    "sh-0009",
+    "sh-0007",
+    "Bellamy19-thm-3.2"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000D": {
+   "closure": [
+    "sh-0400",
+    "sh-000D"
+   ],
+   "file": "nodes/sh-000D.tex",
+   "hash": "sha256:8b7f335f2d94f8681ea3a778357316e29919d734d3a76a3064c077c68b01b21d",
+   "incomplete": [],
+   "key": "sh-000D",
+   "kind": "statement",
+   "node": "sh-000D",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    240
+   ],
+   "state": "draft",
+   "uses": [
+    "sh-0400"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000E": {
+   "closure": [
+    "sh-000C",
+    "sh-000E"
+   ],
+   "file": "nodes/sh-000E.tex",
+   "hash": "sha256:318e301873c8b739f60c311086794983fef999ac94ca6fd11b591fc8da600da7",
+   "incomplete": [
+    "The vertex description of $\\Pi$ is not written down, so integrality is unproved."
+   ],
+   "key": "sh-000E",
+   "kind": "statement",
+   "node": "sh-000E",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    214
+   ],
+   "state": "incomplete",
+   "uses": [
+    "sh-000C"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-000F": {
+   "closure": [
+    "sh-0009",
+    "sh-000F"
+   ],
+   "file": "nodes/sh-000F.tex",
+   "hash": "sha256:15092111e47467eed6ea1d8348fe6bcb6dfc14a314c9d3c0bffbcea247ee55a5",
+   "incomplete": [],
+   "key": "sh-000F",
+   "kind": "statement",
+   "node": "sh-000F",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "latest_current": {
+     "author": {
+      "id": "agent",
+      "kind": "agent"
+     },
+     "date": "2026-09-16T11:00:00Z"
+    },
+    "open": {}
+   },
+   "src": [
+    0,
+    287
+   ],
+   "state": "draft",
+   "uses": [
+    "sh-0009"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0010": {
+   "acceptance": {
+    "author": "The loom showcase",
+    "date": "2026-09-16T10:00:00Z",
+    "fresh": true
+   },
+   "closure": [
+    "sh-0004",
+    "sh-0007"
+   ],
+   "file": "nodes/sh-0010.tex",
+   "hash": "sha256:14804ce3dbb6139362f836e89d8b2e1e6a0ae57bed5dbfc3d09349a85b7fab61",
+   "incomplete": [],
+   "key": "sh-0010",
+   "kind": "proof",
+   "node": "sh-0007",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    360
+   ],
+   "state": "accepted",
+   "uses": [
+    "sh-0004"
+   ],
+   "version": {
+    "name": "flows-v1",
+    "step": "0001"
+   }
+  },
+  "sh-0020": {
+   "closure": [
+    "sh-0020"
+   ],
+   "conflict": [
+    "drafting/sketch.tex",
+    "nodes/sh-0020.tex"
+   ],
+   "file": "",
+   "hash": "",
+   "incomplete": [],
+   "key": "sh-0020",
+   "kind": "statement",
+   "node": "sh-0020",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    0
+   ],
+   "state": "conflicted",
+   "uses": []
+  },
+  "sh-0401": {
+   "closure": [
+    "sh-0401"
+   ],
+   "file": "nodes/sh-0401.tex",
+   "hash": "sha256:ed995bacc65b62bea40efd3936270be3b765f1bf293d0f805d1fbebefa92f7dd",
+   "incomplete": [],
+   "key": "sh-0401",
+   "kind": "statement",
+   "node": "sh-0401",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    0,
+    156
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-talk-prepared",
+    "step": "0004"
+   }
+  },
+  "sh-0401/proof": {
+   "closure": [
+    "sh-0401"
+   ],
+   "file": "nodes/sh-0401.tex",
+   "hash": "sha256:0612191cb144ed3e3bb8c67429dbbf83e7fc3c781cabf88dbb72a0f6708f019a",
+   "incomplete": [],
+   "key": "sh-0401/proof",
+   "kind": "proof",
+   "node": "sh-0401",
+   "ordinal": 1,
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    157,
+    507
+   ],
+   "state": "draft",
+   "uses": [],
+   "version": {
+    "name": "stamp-talk-prepared",
+    "step": "0004"
+   }
+  },
+  "sh-0402": {
+   "closure": [
+    "sh-0402"
+   ],
+   "file": "nodes/sh-0402.tex",
+   "hash": "sha256:2d7ee9b029e13e73c8fe1044e981d022f436796a87f99c31a5f8003a642a641b",
+   "incomplete": [],
+   "key": "sh-0402",
+   "kind": "statement",
+   "node": "sh-0402",
+   "previous_key_match": null,
+   "reviews": {
+    "detached": 0,
+    "latest_any": null,
+    "latest_current": null,
+    "open": {}
+   },
+   "src": [
+    72,
+    245
+   ],
+   "state": "draft",
+   "uses": []
+  }
+ },
+ "links": [
+  {
+   "by": "s-2026-09-15-0001",
+   "from": "Bellamy19-thm-3.2",
+   "id": "link-0001",
+   "kind": "depends-on",
+   "to": "Arden24-thm-3.1",
+   "when": "2026-09-15T10:00:00Z",
+   "why": "Bellamy's counting theorem needs the polytope to be full-dimensional, and its dimension is Arden's rank."
+  },
+  {
+   "by": "s-2026-09-15-0001",
+   "from": "Bellamy19-thm-2.3",
+   "id": "link-0002",
+   "kind": "specialises",
+   "to": "Bellamy19-thm-3.2",
+   "when": "2026-09-15T10:00:00Z",
+   "why": "2.3 is the polytope; 3.2 counts its lattice points. The second is the one this quilt cites."
+  }
+ ],
+ "macros": {
+  "default": [
+   {
+    "args": 0,
+    "body": "\\acute",
+    "name": "Acute"
+   },
+   {
+    "args": 0,
+    "body": "\\bar",
+    "name": "Bar"
+   },
+   {
+    "args": 0,
+    "body": "\\breve",
+    "name": "Breve"
+   },
+   {
+    "args": 0,
+    "body": "\\check",
+    "name": "Check"
+   },
+   {
+    "args": 0,
+    "body": "\\ddot",
+    "name": "Ddot"
+   },
+   {
+    "args": 0,
+    "body": "\\dot",
+    "name": "Dot"
+   },
+   {
+    "args": 0,
+    "body": "\\grave",
+    "name": "Grave"
+   },
+   {
+    "args": 0,
+    "body": "\\hat",
+    "name": "Hat"
+   },
+   {
+    "args": 0,
+    "body": "\\mathbb{R}",
+    "name": "RR"
+   },
+   {
+    "args": 0,
+    "body": "\\tilde",
+    "name": "Tilde"
+   },
+   {
+    "args": 0,
+    "body": "\\vec",
+    "name": "Vec"
+   },
+   {
+    "args": 0,
+    "body": "\\mathbb{Z}",
+    "name": "ZZ"
+   },
+   {
+    "args": 0,
+    "body": "\\mathcal{Z}",
+    "name": "Zcyc"
+   },
+   {
+    "args": 0,
+    "body": "\\partial",
+    "name": "bd"
+   },
+   {
+    "args": 0,
+    "body": "Q",
+    "name": "quiv"
+   },
+   {
+    "args": 0,
+    "body": "\\operatorname{rank}",
+    "name": "rank"
+   },
+   {
+    "args": 0,
+    "body": "\\operatorname{supp}",
+    "name": "supp"
+   }
+  ],
+  "sets": {
+   "Arden24": [],
+   "Bellamy19": [],
+   "canon:flows-v1": [
+    {
+     "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
+     "body": "\\mathbb{R}",
+     "name": "RR"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
+    },
+    {
+     "args": 0,
+     "body": "\\mathbb{Z}",
+     "name": "ZZ"
+    },
+    {
+     "args": 0,
+     "body": "\\mathcal{Z}",
+     "name": "Zcyc"
+    },
+    {
+     "args": 0,
+     "body": "\\partial",
+     "name": "bd"
+    },
+    {
+     "args": 0,
+     "body": "Q",
+     "name": "quiv"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{rank}",
+     "name": "rank"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{supp}",
+     "name": "supp"
+    }
+   ],
+   "canon:flows-v2": [
+    {
+     "args": 0,
+     "body": "\\acute",
+     "name": "Acute"
+    },
+    {
+     "args": 0,
+     "body": "\\bar",
+     "name": "Bar"
+    },
+    {
+     "args": 0,
+     "body": "\\breve",
+     "name": "Breve"
+    },
+    {
+     "args": 0,
+     "body": "\\check",
+     "name": "Check"
+    },
+    {
+     "args": 0,
+     "body": "\\ddot",
+     "name": "Ddot"
+    },
+    {
+     "args": 0,
+     "body": "\\dot",
+     "name": "Dot"
+    },
+    {
+     "args": 0,
+     "body": "\\grave",
+     "name": "Grave"
+    },
+    {
+     "args": 0,
+     "body": "\\hat",
+     "name": "Hat"
+    },
+    {
+     "args": 0,
+     "body": "\\mathbb{R}",
+     "name": "RR"
+    },
+    {
+     "args": 0,
+     "body": "\\tilde",
+     "name": "Tilde"
+    },
+    {
+     "args": 0,
+     "body": "\\vec",
+     "name": "Vec"
+    },
+    {
+     "args": 0,
+     "body": "\\mathbb{Z}",
+     "name": "ZZ"
+    },
+    {
+     "args": 0,
+     "body": "\\mathcal{Z}",
+     "name": "Zcyc"
+    },
+    {
+     "args": 0,
+     "body": "\\partial",
+     "name": "bd"
+    },
+    {
+     "args": 0,
+     "body": "Q",
+     "name": "quiv"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{rank}",
+     "name": "rank"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{supp}",
+     "name": "supp"
+    }
+   ],
+   "review:a06540faf0583bf0f2bd": [
+    {
+     "args": 0,
+     "body": "\\mathbb{R}",
+     "name": "RR"
+    },
+    {
+     "args": 0,
+     "body": "\\mathbb{Z}",
+     "name": "ZZ"
+    },
+    {
+     "args": 0,
+     "body": "\\mathcal{Z}",
+     "name": "Zcyc"
+    },
+    {
+     "args": 0,
+     "body": "\\partial",
+     "name": "bd"
+    },
+    {
+     "args": 0,
+     "body": "\\section",
+     "name": "chapter"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "incomplete"
+    },
+    {
+     "args": 1,
+     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
+     "name": "nest"
+    },
+    {
+     "args": 0,
+     "body": "\\subparagraph",
+     "name": "paragraph"
+    },
+    {
+     "args": 0,
+     "body": "Q",
+     "name": "quiv"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{rank}",
+     "name": "rank"
+    },
+    {
+     "args": 0,
+     "body": "\\subsection",
+     "name": "section"
+    },
+    {
+     "args": 0,
+     "body": "\\subsubsection",
+     "name": "subsection"
+    },
+    {
+     "args": 0,
+     "body": "\\paragraph",
+     "name": "subsubsection"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{supp}",
+     "name": "supp"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "uses"
+    }
+   ],
+   "review:fc975cc03052947a7cd8": [
+    {
+     "args": 0,
+     "body": "\\mathbb{R}",
+     "name": "RR"
+    },
+    {
+     "args": 0,
+     "body": "\\mathbb{Z}",
+     "name": "ZZ"
+    },
+    {
+     "args": 0,
+     "body": "\\mathcal{Z}",
+     "name": "Zcyc"
+    },
+    {
+     "args": 0,
+     "body": "\\partial",
+     "name": "bd"
+    },
+    {
+     "args": 0,
+     "body": "\\section",
+     "name": "chapter"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "incomplete"
+    },
+    {
+     "args": 1,
+     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
+     "name": "nest"
+    },
+    {
+     "args": 0,
+     "body": "\\subparagraph",
+     "name": "paragraph"
+    },
+    {
+     "args": 0,
+     "body": "Q",
+     "name": "quiv"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{rank}",
+     "name": "rank"
+    },
+    {
+     "args": 0,
+     "body": "\\subsection",
+     "name": "section"
+    },
+    {
+     "args": 0,
+     "body": "\\subsubsection",
+     "name": "subsection"
+    },
+    {
+     "args": 0,
+     "body": "\\paragraph",
+     "name": "subsubsection"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{supp}",
+     "name": "supp"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "uses"
+    }
+   ]
+  }
+ },
+ "masters": [
+  {
+   "default": true,
+   "engine": "pdflatex",
+   "fragment": "fragments/masters/main-atomic.html",
+   "numbering_known": false,
+   "path": "drafting/main-atomic.tex",
+   "title": "Balanced flows on finite quivers"
+  },
+  {
+   "default": false,
+   "engine": "pdflatex",
+   "fragment": "fragments/masters/sketch-atomic.html",
+   "numbering_known": false,
+   "path": "drafting/sketch-atomic.tex",
+   "title": "Sketch: the defect of a quiver"
+  },
+  {
+   "default": false,
+   "engine": "pdflatex",
+   "fragment": "fragments/masters/sketch.html",
+   "numbering_known": false,
+   "path": "drafting/sketch.tex",
+   "title": "Sketch: the defect of a quiver"
+  },
+  {
+   "default": false,
+   "engine": "pdflatex",
+   "fragment": "fragments/masters/talk.html",
+   "numbering_known": false,
+   "path": "drafting/talk.tex",
+   "title": "Balanced flows, in twenty minutes"
+  }
+ ],
+ "nodes": {
+  "Arden24-cor-3.2": {
+   "aliases": [
+    "Arden24-cor:forest"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-cor-3.2.html",
+   "id": "Arden24-cor-3.2",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Corollary 3.2, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    2962,
+    3212
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Corollary",
+   "title": ""
+  },
+  "Arden24-def-1.1": {
+   "aliases": [
+    "Arden24-def:quiver"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-def-1.1.html",
+   "id": "Arden24-def-1.1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Definition 1.1, p.~1",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    1148,
+    1436
+   ],
+   "state": "draft",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": ""
+  },
+  "Arden24-def-1.2": {
+   "aliases": [
+    "Arden24-def:cycle-space"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-def-1.2.html",
+   "id": "Arden24-def-1.2",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Definition 1.2, p.~1",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    1438,
+    1849
+   ],
+   "state": "draft",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": ""
+  },
+  "Arden24-lem-2.2": {
+   "aliases": [
+    "Arden24-lem:saturated"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-lem-2.2.html",
+   "id": "Arden24-lem-2.2",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Lemma 2.2, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    2287,
+    2556
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": ""
+  },
+  "Arden24-prop-2.1": {
+   "aliases": [
+    "Arden24-prop:image"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-prop-2.1.html",
+   "id": "Arden24-prop-2.1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Proposition 2.1, p.~1",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    1915,
+    2285
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": ""
+  },
+  "Arden24-rem-4.1": {
+   "aliases": [
+    "Arden24-rem:orientation"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-rem-4.1.html",
+   "id": "Arden24-rem-4.1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Remark 4.1, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    3267,
+    3689
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [],
+   "taxon": "Remark",
+   "title": ""
+  },
+  "Arden24-rem-4.2": {
+   "aliases": [
+    "Arden24-rem:infinite"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-rem-4.2.html",
+   "id": "Arden24-rem-4.2",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Remark 4.2, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    3691,
+    4181
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [],
+   "taxon": "Remark",
+   "title": ""
+  },
+  "Arden24-sec-1": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Arden24-def-1.1",
+    "Arden24-def-1.2"
+   ],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-sec-1.html",
+   "id": "Arden24-sec-1",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    1103,
+    1851
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Introduction"
+  },
+  "Arden24-sec-2": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Arden24-prop-2.1",
+    "Arden24-lem-2.2"
+   ],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-sec-2.html",
+   "id": "Arden24-sec-2",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    1851,
+    2558
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "The image of the divergence map"
+  },
+  "Arden24-sec-3": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Arden24-thm-3.1",
+    "Arden24-cor-3.2"
+   ],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-sec-3.html",
+   "id": "Arden24-sec-3",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    2558,
+    3214
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Rank and duality"
+  },
+  "Arden24-sec-4": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Arden24-rem-4.1",
+    "Arden24-rem-4.2"
+   ],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-sec-4.html",
+   "id": "Arden24-sec-4",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    3214,
+    4182
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Examples and remarks"
+  },
+  "Arden24-setup": {
+   "aliases": [],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-setup.html",
+   "id": "Arden24-setup",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Standing assumptions",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    706,
+    1101
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": ""
+  },
+  "Arden24-thm-3.1": {
+   "aliases": [
+    "Arden24-thm:rank"
+   ],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/nodes/Arden24-thm-3.1.html",
+   "id": "Arden24-thm-3.1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Theorem 3.1, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    2607,
+    2960
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": ""
+  },
+  "Bellamy19-prop-3.1": {
+   "aliases": [],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Bellamy19",
+   "external": true,
+   "file": "digests/Bellamy19.proposed.tex",
+   "fragment": "fragments/nodes/Bellamy19-prop-3.1.html",
+   "id": "Bellamy19-prop-3.1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Proposition 3.1, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    224,
+    516
+   ],
+   "state": "proposed",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": ""
+  },
+  "Bellamy19-thm-2.3": {
+   "aliases": [],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Bellamy19",
+   "external": true,
+   "file": "digests/Bellamy19.tex",
+   "fragment": "fragments/nodes/Bellamy19-thm-2.3.html",
+   "id": "Bellamy19-thm-2.3",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Theorem 2.3, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    122,
+    419
+   ],
+   "state": "accepted",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": ""
+  },
+  "Bellamy19-thm-3.2": {
+   "aliases": [],
+   "author": [],
+   "basis": "cited-result",
+   "basis_reason": "identified by the digest source",
+   "children": [],
+   "created": "2026-09-16",
+   "derived": {
+    "proved": false,
+    "settled": true
+   },
+   "digest": "Bellamy19",
+   "external": true,
+   "file": "digests/Bellamy19.tex",
+   "fragment": "fragments/nodes/Bellamy19-thm-3.2.html",
+   "id": "Bellamy19-thm-3.2",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "locator": "Theorem 3.2, p.~2",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    421,
+    802
+   ],
+   "state": "accepted",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": ""
+  },
+  "digests/Arden24.tex#section:1": {
+   "aliases": [],
+   "author": [],
+   "children": [
+    "Arden24-setup"
+   ],
+   "created": "2026-09-14",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": "Arden24",
+   "external": true,
+   "file": "digests/Arden24.tex",
+   "fragment": "fragments/keys/digests%2FArden24.tex%23section%3A1.html",
+   "id": "digests/Arden24.tex#section:1",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "locator": null,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    172,
+    1103
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Overview"
+  },
+  "drafting/sketch.tex#lemma:1": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/sketch.tex",
+   "fragment": "fragments/keys/drafting%2Fsketch.tex%23lemma%3A1.html",
+   "id": "drafting/sketch.tex#lemma:1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/sketch.tex"
+   ],
+   "src": [
+    326,
+    535
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Defect"
+  },
+  "nodes/sh-0020.tex#lemma:1": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0020.tex",
+   "fragment": "fragments/keys/nodes%2Fsh-0020.tex%23lemma%3A1.html",
+   "id": "nodes/sh-0020.tex#lemma:1",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/sketch-atomic.tex"
+   ],
+   "src": [
+    0,
+    209
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Defect"
+  },
+  "sh-0001": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Convention",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0001.tex",
+   "fragment": "fragments/nodes/sh-0001.html",
+   "id": "sh-0001",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0100"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    313
+   ],
+   "state": "accepted",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Convention",
+   "title": null
+  },
+  "sh-0002": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Definition",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": true,
+    "settled": true
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0002.tex",
+   "fragment": "fragments/nodes/sh-0002.html",
+   "id": "sh-0002",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200",
+    "drafting/talk.tex": "sh-0011"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex",
+    "drafting/talk.tex"
+   ],
+   "src": [
+    0,
+    346
+   ],
+   "state": "accepted",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Quiver"
+  },
+  "sh-0003": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Definition",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": true,
+    "settled": true
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0003.tex",
+   "fragment": "fragments/nodes/sh-0003.html",
+   "id": "sh-0003",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    405
+   ],
+   "state": "accepted",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Divergence"
+  },
+  "sh-0004": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Definition",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": true,
+    "settled": true
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0004.tex",
+   "fragment": "fragments/nodes/sh-0004.html",
+   "id": "sh-0004",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    328
+   ],
+   "state": "accepted",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Balanced weighting"
+  },
+  "sh-0005": {
+   "aliases": [],
+   "author": [],
+   "basis": "unclassified",
+   "basis_reason": "environment name does not identify one basis; add % !LOOM basis: ... inside the block",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0005.tex",
+   "fragment": "fragments/nodes/sh-0005.html",
+   "id": "sh-0005",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    235
+   ],
+   "state": "accepted",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Example",
+   "title": null
+  },
+  "sh-0006": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0006.tex",
+   "fragment": "fragments/nodes/sh-0006.html",
+   "id": "sh-0006",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200"
+   },
+   "proofs": [
+    "sh-0006/proof"
+   ],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    179
+   ],
+   "state": "accepted",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Support"
+  },
+  "sh-0007": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Proposition",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": true,
+    "settled": true
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0007.tex",
+   "fragment": "fragments/nodes/sh-0007.html",
+   "id": "sh-0007",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200"
+   },
+   "proofs": [
+    "sh-0007/proof",
+    "sh-0010"
+   ],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    228
+   ],
+   "state": "accepted",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Saturation"
+  },
+  "sh-0008": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Remark",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0008.tex",
+   "fragment": "fragments/nodes/sh-0008.html",
+   "id": "sh-0008",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    198
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [],
+   "taxon": "Remark",
+   "title": null
+  },
+  "sh-0009": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Theorem",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": true,
+    "settled": true
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0009.tex",
+   "fragment": "fragments/nodes/sh-0009.html",
+   "id": "sh-0009",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0300",
+    "drafting/talk.tex": "sh-0011"
+   },
+   "proofs": [
+    "sh-0009/proof"
+   ],
+   "reached_by": [
+    "drafting/main-atomic.tex",
+    "drafting/talk.tex"
+   ],
+   "src": [
+    0,
+    233
+   ],
+   "state": "accepted",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Rank"
+  },
+  "sh-000A": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Corollary",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-000A.tex",
+   "fragment": "fragments/nodes/sh-000A.html",
+   "id": "sh-000A",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0300"
+   },
+   "proofs": [
+    "sh-000A/proof"
+   ],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    123
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Corollary",
+   "title": "Trees"
+  },
+  "sh-000B": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Definition",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-000B.tex",
+   "fragment": "fragments/nodes/sh-000B.html",
+   "id": "sh-000B",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0301"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    222
+   ],
+   "state": "draft",
+   "style": "definition",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Height"
+  },
+  "sh-000C": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Theorem",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-000C.tex",
+   "fragment": "fragments/nodes/sh-000C.html",
+   "id": "sh-000C",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0301"
+   },
+   "proofs": [
+    "sh-000C/proof"
+   ],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    199
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Counting"
+  },
+  "sh-000D": {
+   "aliases": [],
+   "author": [],
+   "basis": "unclassified",
+   "basis_reason": "environment name does not identify one basis; add % !LOOM basis: ... inside the block",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-000D.tex",
+   "fragment": "fragments/nodes/sh-000D.html",
+   "id": "sh-000D",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0301"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    240
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [],
+   "taxon": "Caveat",
+   "title": null
+  },
+  "sh-000E": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-000E.tex",
+   "fragment": "fragments/nodes/sh-000E.html",
+   "id": "sh-000E",
+   "incomplete": [
+    "The vertex description of $\\Pi$ is not written down, so integrality is unproved."
+   ],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0400"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    214
+   ],
+   "state": "incomplete",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Integrality"
+  },
+  "sh-000F": {
+   "aliases": [],
+   "author": [],
+   "basis": "expository",
+   "basis_reason": "inferred from environment Remark",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-000F.tex",
+   "fragment": "fragments/nodes/sh-000F.html",
+   "id": "sh-000F",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0400"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    287
+   ],
+   "state": "draft",
+   "style": "remark",
+   "tags": [
+    "outlook"
+   ],
+   "taxon": "Remark",
+   "title": null
+  },
+  "sh-0010": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0010.tex",
+   "fragment": "fragments/nodes/sh-0010.html",
+   "id": "sh-0010",
+   "incomplete": [],
+   "kind": "proof",
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0200"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    360
+   ],
+   "state": "accepted",
+   "style": null,
+   "tags": [],
+   "taxon": "Proof",
+   "title": "Second proof of Proposition sh-0007"
+  },
+  "sh-0011": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "drafting/talk.tex",
+   "fragment": "fragments/nodes/sh-0011.html",
+   "id": "sh-0011",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/talk.tex"
+   ],
+   "src": [
+    422,
+    660
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "The cycle lattice"
+  },
+  "sh-0020": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "conflict": [
+    "drafting/sketch.tex",
+    "nodes/sh-0020.tex"
+   ],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "",
+   "fragment": "",
+   "id": "sh-0020",
+   "incomplete": [],
+   "kind": "environment",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/sketch-atomic.tex",
+    "drafting/sketch.tex"
+   ],
+   "src": [
+    0,
+    0
+   ],
+   "state": "conflicted",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": null
+  },
+  "sh-0100": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0100.tex",
+   "fragment": "fragments/nodes/sh-0100.html",
+   "id": "sh-0100",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    862
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Introduction"
+  },
+  "sh-0200": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0200.tex",
+   "fragment": "fragments/nodes/sh-0200.html",
+   "id": "sh-0200",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    319
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "Weightings and the divergence map"
+  },
+  "sh-0300": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0300.tex",
+   "fragment": "fragments/nodes/sh-0300.html",
+   "id": "sh-0300",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    123
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "The rank of the cycle lattice"
+  },
+  "sh-0301": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0301.tex",
+   "fragment": "fragments/nodes/sh-0301.html",
+   "id": "sh-0301",
+   "incomplete": [],
+   "kind": "section",
+   "level": 2,
+   "numbers": {},
+   "parent": {
+    "drafting/main-atomic.tex": "sh-0300"
+   },
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    125
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Subsection",
+   "title": "Bounded balanced weightings"
+  },
+  "sh-0400": {
+   "aliases": [],
+   "author": [],
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0400.tex",
+   "fragment": "fragments/nodes/sh-0400.html",
+   "id": "sh-0400",
+   "incomplete": [],
+   "kind": "section",
+   "level": 1,
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [
+    "drafting/main-atomic.tex"
+   ],
+   "src": [
+    0,
+    134
+   ],
+   "state": "",
+   "style": null,
+   "tags": [],
+   "taxon": "Section",
+   "title": "What is left"
+  },
+  "sh-0401": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
+   "children": [],
+   "created": null,
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0401.tex",
+   "fragment": "fragments/nodes/sh-0401.html",
+   "id": "sh-0401",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {
+    "drafting/talk.tex": "sh-0011"
+   },
+   "proofs": [
+    "sh-0401/proof"
+   ],
+   "reached_by": [
+    "drafting/talk.tex"
+   ],
+   "src": [
+    0,
+    156
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Support"
+  },
+  "sh-0402": {
+   "aliases": [],
+   "author": [],
+   "basis": "local-proof",
+   "basis_reason": "inferred from environment Lemma",
+   "children": [],
+   "created": "2026-09-18",
+   "derived": {
+    "proved": false,
+    "settled": false
+   },
+   "digest": null,
+   "external": false,
+   "file": "nodes/sh-0402.tex",
+   "fragment": "fragments/nodes/sh-0402.html",
+   "id": "sh-0402",
+   "incomplete": [],
+   "inline_proof": false,
+   "kind": "environment",
+   "numbers": {},
+   "parent": {},
+   "proofs": [],
+   "reached_by": [],
+   "src": [
+    72,
+    245
+   ],
+   "state": "draft",
+   "style": "plain",
+   "tags": [
+    "outlook"
+   ],
+   "taxon": "Lemma",
+   "title": "Integral vertices of the flow polytope"
+  }
+ },
+ "publisher": {
+  "name": "loom",
+  "version": "0.1.0.dev0"
+ },
+ "publishes": {
+  "bibliography": true,
+  "discussions": true,
+  "documents": true,
+  "review": true
+ },
+ "reference_notes": [
+  {
+   "accepted": {
+    "when": "2026-09-16T15:10:00Z",
+    "who": "The loom showcase"
+   },
+   "claim": "The infinite case has a standard reference; cite it rather than pointing at a survey.",
+   "for": [
+    "sh-000F"
+   ],
+   "from": {
+    "annotation": "a-2026-09-16-0011",
+    "run": null
+   },
+   "identifier": {
+    "verified": false
+   },
+   "work": "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5"
+  }
+ ],
+ "references": {
+  "Arden24": {
+   "artifacts": {
+    "dir": "digests/storage/arxiv/2504.01234v1",
+    "pdf": true,
+    "source": true
+   },
+   "bib": {
+    "author": "Arden, Elspeth",
+    "eprint": "2504.01234v1",
+    "journal": "J. Invented Combin.",
+    "title": "Cycle spaces of finite quivers",
+    "year": 2024
+   },
+   "cited_by": [
+    "sh-0009/proof",
+    "sh-0100"
+   ],
+   "citekey": "Arden24",
+   "digest": {
+    "extracted_from": "arXiv:2504.01234v1",
+    "file": "digests/Arden24.tex",
+    "fragment": "fragments/digests/Arden24.html",
+    "method": "extract",
+    "nodes": [
+     "Arden24-setup",
+     "Arden24-def-1.1",
+     "Arden24-def-1.2",
+     "Arden24-prop-2.1",
+     "Arden24-lem-2.2",
+     "Arden24-thm-3.1",
+     "Arden24-cor-3.2",
+     "Arden24-rem-4.1",
+     "Arden24-rem-4.2"
+    ],
+    "published_as": "",
+    "source": "arXiv:2504.01234v1"
+   },
+   "proposed": null,
+   "reading": {
+    "open": 0,
+    "total": 0
+   },
+   "results": {
+    "Arden24-cor-3.2": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 2,
+     "state": "verified"
+    },
+    "Arden24-def-1.1": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 1,
+     "state": "verified"
+    },
+    "Arden24-def-1.2": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 1,
+     "state": "verified"
+    },
+    "Arden24-lem-2.2": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 2,
+     "state": "verified"
+    },
+    "Arden24-prop-2.1": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 1,
+     "state": "verified"
+    },
+    "Arden24-rem-4.1": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 2,
+     "state": "verified"
+    },
+    "Arden24-rem-4.2": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 2,
+     "state": "verified"
+    },
+    "Arden24-setup": {
+     "artifact": "367f29a784cf",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 0,
+     "state": "verified"
+    },
+    "Arden24-thm-3.1": {
+     "artifact": "8c21ed504f94",
+     "class": "mechanical",
+     "level": 3,
+     "origin": [
+      {
+       "act": "extracted",
+       "by": "loom digest extract",
+       "when": "2026-09-14T09:15:00Z"
+      }
+     ],
+     "page": 2,
+     "state": "verified"
+    }
+   },
+   "slug": "Arden24",
+   "version_mismatch": false,
+   "work": "arXiv:2504.01234v1",
+   "works": [
+    "arXiv:2504.01234v1"
+   ]
+  },
+  "Bellamy19": {
+   "artifacts": {
+    "dir": "digests/storage/doi/10.4171_showcase_19-2",
+    "pdf": true,
+    "source": false
+   },
+   "bib": {
+    "author": "Bellamy, Rosalind",
+    "doi": "10.4171/showcase/19-2",
+    "journal": "Ann. Fict. Math.",
+    "title": "Median orders on weighted digraphs",
+    "year": 2019
+   },
+   "cited_by": [
+    "sh-000C/proof",
+    "sh-0100"
+   ],
+   "citekey": "Bellamy19",
+   "digest": {
+    "extracted_from": "",
+    "file": "digests/Bellamy19.tex",
+    "fragment": "fragments/digests/Bellamy19.html",
+    "method": "pdf",
+    "nodes": [
+     "Bellamy19-thm-2.3",
+     "Bellamy19-thm-3.2"
+    ],
+    "published_as": "",
+    "source": ""
+   },
+   "proposed": {
+    "file": "digests/Bellamy19.proposed.tex",
+    "fragment": "fragments/digests/Bellamy19.html",
+    "nodes": [
+     "Bellamy19-prop-3.1"
+    ]
+   },
+   "reading": {
+    "open": 3,
+    "total": 3
+   },
+   "results": {
+    "Bellamy19-def-4.1": {
+     "artifact": "e16ea0a74da7",
+     "class": "anchored",
+     "level": 3,
+     "origin": [
+      {
+       "act": "proposed",
+       "by": "s-2026-09-15-0001",
+       "when": "2026-09-15T10:00:00Z"
+      },
+      {
+       "act": "discarded",
+       "by": "The loom showcase",
+       "when": "2026-09-16T09:00:00Z"
+      }
+     ],
+     "page": 2,
+     "source_text": "The defect of a weighted digraph is the least common multiple of the denominators of the vertices of its median polytope.",
+     "state": "discarded"
+    },
+    "Bellamy19-prop-3.1": {
+     "artifact": "e16ea0a74da7",
+     "class": "anchored",
+     "level": 3,
+     "local": "prop-3.1",
+     "origin": [
+      {
+       "act": "proposed",
+       "by": "s-2026-09-15-0001",
+       "when": "2026-09-15T10:00:00Z"
+      }
+     ],
+     "page": 2,
+     "page_text": "We now count. The dilate kM (D) of the median polytope is the set of points kx with x in\nM (D), and L(k) denotes the number of points of ZA in it.\nProposition 3.1. The function L is a quasi-polynomial in k of degree equal to the dimension\nof M (D), with a period dividing the least common multiple of the denominators of the vertices\nof M (D).\nProof. This is Ehrhart’s theorem for a rational polytope, applied to M (D), together with the\nobservation that the dimension of the dilate is the dimension of the polytope.\nTheorem 3.2. Let D be a weighted digraph whose weight function is balanced at every vertex.\nThen the counting function of the median polytope of D agrees with a polynomial of degree\nequal to the dimension of that polytope for every nonnegative integer dilation factor, and the\nleading coefficient of that polynomial is the relative volume of the polytope.\nProof. By Theorem 2.3 the polytope is the convex hull of integral vertices, so its Ehrhart\nquasi-polynomial has period one, and Proposition 3.1 then gives a polynomial of the stated\ndegree. The statement about the leading coefficient is the standard interpretation of the",
+     "source_text": "The function L is a quasi-polynomial in k of degree equal to the dimension of M (D), with a period dividing the least common multiple of the denominators of the vertices of M (D).",
+     "state": "proposed",
+     "statement": "The function $L$ is a quasi-polynomial in $k$ of degree equal to the dimension of $M(D)$, with a period dividing the least common multiple of the denominators of the vertices of $M(D)$.",
+     "taxon": "proposition"
+    },
+    "Bellamy19-thm-2.3": {
+     "artifact": "e16ea0a74da7",
+     "class": "anchored",
+     "level": 1,
+     "origin": [
+      {
+       "act": "proposed",
+       "by": "s-2026-09-15-0001",
+       "when": "2026-09-15T10:00:00Z"
+      },
+      {
+       "act": "verified",
+       "by": "The loom showcase",
+       "when": "2026-09-16T09:00:00Z"
+      }
+     ],
+     "page": 2,
+     "source_text": "The median orders of a weighted digraph are in bijection with the vertices of a rational polytope M (D) ⊆ RA cut out by the exchange inequalities of Lemma 2.2, and M (D) is bounded.",
+     "state": "verified"
+    },
+    "Bellamy19-thm-3.2": {
+     "artifact": "e16ea0a74da7",
+     "class": "anchored",
+     "level": 1,
+     "origin": [
+      {
+       "act": "proposed",
+       "by": "s-2026-09-15-0001",
+       "when": "2026-09-15T10:00:00Z"
+      },
+      {
+       "act": "edited",
+       "by": "The loom showcase",
+       "was": "Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting function of the median polytope of $D$ agrees with a polynomial of degree equal to the dimension of that polytope, and the leading coefficient of that polynomial is the relative volume.",
+       "when": "2026-09-16T09:00:00Z"
+      },
+      {
+       "act": "verified",
+       "by": "The loom showcase",
+       "when": "2026-09-16T09:00:00Z"
+      }
+     ],
+     "page": 2,
+     "source_text": "Let D be a weighted digraph whose weight function is balanced at every vertex. Then the counting function of the median polytope of D agrees with a polynomial of degree equal to the dimension of that polytope for every nonnegative integer dilation factor, and the leading coefficient of that polynomial is the relative volume of the polytope.",
+     "state": "verified"
+    }
+   },
+   "slug": "Bellamy19",
+   "spans": {
+    "path": "spans/doi/10.4171_showcase_19-2.json",
+    "sha256": "c63e01a57d948f260441d35e730259a0c406a45b3866816ec17b6f17e622fecf"
+   },
+   "version_mismatch": false,
+   "work": "doi:10.4171/showcase/19-2",
+   "works": [
+    "doi:10.4171/showcase/19-2"
+   ]
+  },
+  "Cortez07": {
+   "artifacts": {
+    "dir": "digests/storage/work/52fa6386",
+    "pdf": false,
+    "source": false
+   },
+   "bib": {
+    "author": "Cortez, Hilario",
+    "journal": "Bull. Imag. Soc.",
+    "title": "Flows on infinite quivers: a survey",
+    "year": 2007
+   },
+   "cited_by": [
+    "sh-000F",
+    "sh-0100"
+   ],
+   "citekey": "Cortez07",
+   "digest": null,
+   "proposed": null,
+   "reading": {
+    "open": 0,
+    "total": 0
+   },
+   "results": {},
+   "slug": "Cortez07",
+   "version_mismatch": false,
+   "work": "work:52fa6386",
+   "works": [
+    "work:52fa6386"
+   ]
+  },
+  "Halloway2026Notesonbalan": {
+   "artifacts": {
+    "dir": "digests/storage/file/c7af5b0d095ff4ad",
+    "pdf": true,
+    "source": false
+   },
+   "bib": {
+    "title": "Notes on balanced quivers",
+    "year": 2026
+   },
+   "cited_by": [],
+   "citekey": "Halloway2026Notesonbalan",
+   "digest": null,
+   "proposed": null,
+   "reading": {
+    "open": 0,
+    "total": 0
+   },
+   "results": {},
+   "slug": "Halloway2026Notesonbalan",
+   "version_mismatch": false,
+   "work": "work:4ed9b695",
+   "works": [
+    "work:4ed9b695"
+   ]
+  },
+  "Stacks": {
+   "artifacts": {
+    "dir": "digests/storage/work/ebf8962a",
+    "pdf": false,
+    "source": false
+   },
+   "bib": {
+    "author": "The Invented Stacks Collective",
+    "title": "The Invented Stacks Project",
+    "year": 2026
+   },
+   "cited_by": [],
+   "citekey": "Stacks",
+   "digest": null,
+   "proposed": null,
+   "reading": {
+    "open": 0,
+    "total": 0
+   },
+   "results": {},
+   "slug": "Stacks",
+   "unreadable": {
+    "when": "2026-09-17T11:20:00Z",
+    "who": "The loom showcase",
+    "why": "a living work with no fixed version; there is no document to file"
+   },
+   "version_mismatch": false,
+   "work": "work:ebf8962a",
+   "works": [
+    "work:ebf8962a"
+   ]
+  }
+ },
+ "regions": {
+  "sh-0003#eq:divergence": {
+   "container": "sh-0003",
+   "in": "statement",
+   "key": "sh-0003#eq:divergence",
+   "label": "eq:divergence",
+   "numbers": {},
+   "src": [
+    122,
+    122
+   ]
+  },
+  "sh-0004#eq:cycle-lattice": {
+   "container": "sh-0004",
+   "in": "statement",
+   "key": "sh-0004#eq:cycle-lattice",
+   "label": "eq:cycle-lattice",
+   "numbers": {},
+   "src": [
+    169,
+    169
+   ]
+  },
+  "sh-0009#eq:rank": {
+   "container": "sh-0009",
+   "in": "statement",
+   "key": "sh-0009#eq:rank",
+   "label": "eq:rank",
+   "numbers": {},
+   "src": [
+    135,
+    135
+   ]
+  }
+ },
+ "relations": [
+  {
+   "from": "sh-000F",
+   "kind": "see",
+   "src": {
+    "file": "nodes/sh-000F.tex",
+    "line": 2
+   },
+   "to": "sh-0008"
+  },
+  {
+   "from": "sh-0402",
+   "kind": "see",
+   "src": {
+    "file": "nodes/sh-0402.tex",
+    "line": 3
+   },
+   "to": "sh-000E"
+  }
+ ],
+ "search": [
+  {
+   "aliases": [],
+   "key": "canon/flows-v1.tex",
+   "kind": "canon",
+   "tags": [],
+   "title": "Balanced flows on finite quivers"
+  },
+  {
+   "aliases": [],
+   "key": "canon/flows-v2.tex",
+   "kind": "canon",
+   "tags": [],
+   "title": "Balanced flows on finite quivers"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{Arden24}}] \\emph{Sentences of the paper that state an assumption, gathered by the extractor; check each one's scope.} Throughout, all quivers are finite, loops",
+   "key": "Arden24-setup",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Arden24-setup"
+  },
+  {
+   "aliases": [
+    "Arden24-def:quiver"
+   ],
+   "excerpt": "{Arden24}}] A \\emph{quiver} is a quadruple $Q = (V, A, s, t)$ in which $V$ and $A$ are finite sets and $s, t \\colon A \\to V$ are functions, called the source an",
+   "key": "Arden24-def-1.1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Arden24-def-1.1"
+  },
+  {
+   "aliases": [
+    "Arden24-def:cycle-space"
+   ],
+   "excerpt": "{Arden24}}] The \\emph{cycle space} of a quiver $Q$ is the kernel $\\mathcal{Z}(Q)$ of the divergence map $\\partial \\colon \\mathbb{Z}^{A(Q)} \\to \\mathbb{Z}^{V(Q)}",
+   "key": "Arden24-def-1.2",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Arden24-def-1.2"
+  },
+  {
+   "aliases": [
+    "Arden24-prop:image"
+   ],
+   "excerpt": "{Arden24}}] Let $Q$ be a quiver whose underlying graph has $c$ connected components. The image of the divergence map is the lattice of integer vectors in $\\math",
+   "key": "Arden24-prop-2.1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Arden24-prop-2.1"
+  },
+  {
+   "aliases": [
+    "Arden24-lem:saturated"
+   ],
+   "excerpt": "{Arden24}}] The cycle space of a quiver is a saturated sublattice of the lattice of weightings: if $nw$ is balanced for some nonzero integer $n$, then $w$ is ba",
+   "key": "Arden24-lem-2.2",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Arden24-lem-2.2"
+  },
+  {
+   "aliases": [
+    "Arden24-thm:rank"
+   ],
+   "excerpt": "{Arden24}}] Let $Q$ be a quiver whose underlying graph has $c$ connected components. Then the cycle space of $Q$ is a free abelian group of rank $|A(Q)| - |V(Q)",
+   "key": "Arden24-thm-3.1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Arden24-thm-3.1"
+  },
+  {
+   "aliases": [
+    "Arden24-cor:forest"
+   ],
+   "excerpt": "{Arden24}}] The cycle space of a quiver is trivial if and only if the underlying graph is a forest.",
+   "key": "Arden24-cor-3.2",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Corollary",
+   "title": "Arden24-cor-3.2"
+  },
+  {
+   "aliases": [
+    "Arden24-rem:orientation"
+   ],
+   "excerpt": "{Arden24}}] Nothing above uses the orientation of the arrows except as bookkeeping, which is the content of the last sentence of the proof of Theorem~\\ref{Arden",
+   "key": "Arden24-rem-4.1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Remark",
+   "title": "Arden24-rem-4.1"
+  },
+  {
+   "aliases": [
+    "Arden24-rem:infinite"
+   ],
+   "excerpt": "{Arden24}}] For an infinite quiver of finite valence the divergence map is still defined on finitely supported weightings and its kernel is still saturated, but",
+   "key": "Arden24-rem-4.2",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Remark",
+   "title": "Arden24-rem-4.2"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{Bellamy19}}] The function $L$ is a quasi-polynomial in $k$ of degree equal to the dimension of $M(D)$, with a period dividing the least common multiple of the ",
+   "key": "Bellamy19-prop-3.1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Bellamy19-prop-3.1"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{Bellamy19}}] The median orders of a weighted digraph are in bijection with the vertices of a rational polytope $M(D) \\subseteq \\mathbb{R}^{A}$ cut out by the e",
+   "key": "Bellamy19-thm-2.3",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Bellamy19-thm-2.3"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{Bellamy19}}] Let $D$ be a weighted digraph whose weight function is balanced at every vertex. Then the counting function of the median polytope of $D$ agrees w",
+   "key": "Bellamy19-thm-3.2",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Bellamy19-thm-3.2"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The defect of a quiver divides the order of the torsion subgroup of $W(\\quiv) / \\Zcyc(\\quiv)$, which is trivial by saturation, so the defect of a quiver is one.",
+   "key": "drafting/sketch.tex#lemma:1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Defect"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Every quiver in this paper is finite: both $V(\\quiv)$ and $A(\\quiv)$ are finite sets, and loops and parallel arrows are allowed, a loop counting as one arrow an",
+   "key": "sh-0001",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Convention",
+   "title": "sh-0001"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A \\emph{quiver} $\\quiv$ is a quadruple $(V, A, s, t)$ with $V$ and $A$ finite sets and $s, t \\colon A \\to V$ the source and target maps. A \\emph{weighting} of $",
+   "key": "sh-0002",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Quiver"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The \\emph{divergence} of a weighting $w$ at a vertex $v$ is (\\bd w)(v) \\;=\\; \\sum_{a \\colon t(a) = v} w(a) \\;-\\; \\sum_{a \\colon s(a) = v} w(a), the weight arriv",
+   "key": "sh-0003",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Divergence"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A weighting $w$ is \\emph{balanced} if $\\bd w = 0$, and the balanced weightings form the sublattice \\Zcyc(\\quiv) \\;=\\; \\ker \\bd \\;\\subseteq\\; W(\\quiv), which we ",
+   "key": "sh-0004",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Balanced weighting"
+  },
+  {
+   "aliases": [],
+   "excerpt": "For the quiver with one vertex and $n$ loops, every weighting is balanced and $\\Zcyc(\\quiv) = \\ZZ^{n}$. For a single arrow between two distinct vertices, only t",
+   "key": "sh-0005",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Example",
+   "title": "sh-0005"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Let $w$ be a balanced weighting with $w \\geq 0$ and $w \\neq 0$. Then the support $\\supp(w)$ contains a directed cycle of $\\quiv$.",
+   "key": "sh-0006",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Support"
+  },
+  {
+   "aliases": [],
+   "excerpt": "$\\Zcyc(\\quiv)$ is a saturated sublattice of $W(\\quiv)$: if $n w \\in \\Zcyc(\\quiv)$ for some $w \\in W(\\quiv)$ and some integer $n \\neq 0$, then $w \\in \\Zcyc(\\quiv",
+   "key": "sh-0007",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Proposition",
+   "title": "Saturation"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Saturation is what makes the rank in Theorem~\\ref{sh-0009} an honest dimension count: over $\\RR$ the same kernel has the same rank, and no index creeps in.",
+   "key": "sh-0008",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Remark",
+   "title": "sh-0008"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Let $\\quiv$ be a quiver whose underlying graph has $c$ connected components. Then \\rank \\Zcyc(\\quiv) \\;=\\; |A(\\quiv)| - |V(\\quiv)| + c.",
+   "key": "sh-0009",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Rank"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A quiver whose underlying graph is a forest has $\\Zcyc(\\quiv) = 0$.",
+   "key": "sh-000A",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Corollary",
+   "title": "Trees"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The \\emph{height} of a weighting $w$ is $\\|w\\| = \\max_{a \\in A(\\quiv)} |w(a)|$, and $N_{\\quiv}(k)$ denotes the number of balanced weightings of height at most $",
+   "key": "sh-000B",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Definition",
+   "title": "Height"
+  },
+  {
+   "aliases": [],
+   "excerpt": "For every quiver $\\quiv$ there is a polynomial $P_{\\quiv}$ of degree $\\rank \\Zcyc(\\quiv)$ with $N_{\\quiv}(k) = P_{\\quiv}(k)$ for all $k \\geq 0$.",
+   "key": "sh-000C",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Theorem",
+   "title": "Counting"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The polytope $\\Pi$ need not have integral vertices when parallel arrows are weighted with different signs; the proof above quietly assumes it does, and Section~",
+   "key": "sh-000D",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Caveat",
+   "title": "sh-000D"
+  },
+  {
+   "aliases": [],
+   "excerpt": "\\incomplete{The vertex description of $\\Pi$ is not written down, so integrality is unproved.} The polytope $\\Pi$ of Theorem~\\ref{sh-000C} has integral vertices.",
+   "key": "sh-000E",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Integrality"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Every statement above is about a finite quiver. For an infinite quiver with finite valence the cycle lattice is still saturated, but its rank is no longer given",
+   "key": "sh-000F",
+   "kind": "environment",
+   "tags": [
+    "outlook"
+   ],
+   "taxon": "Remark",
+   "title": "sh-000F"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The defect of a quiver divides the order of the torsion subgroup of $W(\\quiv) / \\Zcyc(\\quiv)$, which is trivial by saturation, so the defect of a quiver is one.",
+   "key": "nodes/sh-0020.tex#lemma:1",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Defect"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Let $w$ be a balanced weighting with $w \\geq 0$ and $w \\neq 0$. Then $\\supp(w)$ contains a directed cycle.",
+   "key": "sh-0401",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "Support"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Every vertex of $\\Pi$ is the indicator weighting of a directed cycle of $\\quiv$, up to sign.",
+   "key": "sh-0402",
+   "kind": "environment",
+   "tags": [
+    "outlook"
+   ],
+   "taxon": "Lemma",
+   "title": "Integral vertices of the flow polytope"
+  },
+  {
+   "aliases": [],
+   "excerpt": "A quiver carries two lattices: the weightings of its arrows, and the balanced weightings, those that neither create nor destroy anything at a vertex. This paper",
+   "key": "sh-0100",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Introduction"
+  },
+  {
+   "aliases": [],
+   "excerpt": "\\input{nodes/sh-0002} \\input{nodes/sh-0003} \\input{nodes/sh-0004} \\input{nodes/sh-0005} \\includegraphics[width=3cm]{figures/quiver.pdf} \\input{nodes/sh-0006} \\i",
+   "key": "sh-0200",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Weightings and the divergence map"
+  },
+  {
+   "aliases": [],
+   "excerpt": "\\input{nodes/sh-0009} \\input{nodes/sh-000A} \\input{nodes/sh-0301}",
+   "key": "sh-0300",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "The rank of the cycle lattice"
+  },
+  {
+   "aliases": [],
+   "excerpt": "\\input{nodes/sh-000B} \\input{nodes/sh-000C} \\input{nodes/sh-000D}",
+   "key": "sh-0301",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Subsection",
+   "title": "Bounded balanced weightings"
+  },
+  {
+   "aliases": [],
+   "excerpt": "\\input{nodes/sh-000E} \\input{nodes/sh-000F} \\bibliographystyle{amsplain} \\bibliography{refs}",
+   "key": "sh-0400",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "What is left"
+  },
+  {
+   "aliases": [],
+   "excerpt": "{What a quiver weighs} \\input{nodes/sh-0002} {The one lemma} \\input{nodes/sh-0401} {The rank} \\input{nodes/sh-0009}",
+   "key": "sh-0011",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "The cycle lattice"
+  },
+  {
+   "aliases": [],
+   "excerpt": "Let $Q$ be a finite quiver. A weighting of $Q$ assigns an integer to each arrow, and the weightings form a free abelian group of rank $|A(Q)|$. Among them sit t",
+   "key": "digests/Arden24.tex#section:1",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Overview"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Arden24-sec-1",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Introduction"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Arden24-sec-2",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "The image of the divergence map"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Arden24-sec-3",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Rank and duality"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "Arden24-sec-4",
+   "kind": "section",
+   "tags": [],
+   "taxon": "Section",
+   "title": "Examples and remarks"
+  },
+  {
+   "aliases": [],
+   "excerpt": "",
+   "key": "sh-0020",
+   "kind": "environment",
+   "tags": [],
+   "taxon": "Lemma",
+   "title": "sh-0020"
+  },
+  {
+   "aliases": [],
+   "excerpt": "The quotient $W(\\quiv) / \\Zcyc(\\quiv)$ embeds in $\\ZZ^{V}$ by the first isomorphism theorem, hence is torsion-free, and a sublattice with torsion-free quotient ",
+   "key": "sh-0010",
+   "kind": "proof",
+   "tags": [],
+   "taxon": "Proof",
+   "title": "Second proof of Proposition sh-0007"
+  },
+  {
+   "aliases": [],
+   "key": "drafting/main-atomic.tex",
+   "kind": "master",
+   "tags": [],
+   "title": "Balanced flows on finite quivers"
+  },
+  {
+   "aliases": [],
+   "key": "drafting/sketch-atomic.tex",
+   "kind": "master",
+   "tags": [],
+   "title": "Sketch: the defect of a quiver"
+  },
+  {
+   "aliases": [],
+   "key": "drafting/sketch.tex",
+   "kind": "master",
+   "tags": [],
+   "title": "Sketch: the defect of a quiver"
+  },
+  {
+   "aliases": [],
+   "key": "drafting/talk.tex",
+   "kind": "master",
+   "tags": [],
+   "title": "Balanced flows, in twenty minutes"
+  },
+  {
+   "aliases": [],
+   "key": "s-2026-09-15-0001",
+   "kind": "thread",
+   "tags": [],
+   "title": "survey Bellamy19"
+  },
+  {
+   "aliases": [],
+   "key": "s-2026-09-16-0001",
+   "kind": "thread",
+   "tags": [],
+   "title": "referee sh-0009"
+  },
+  {
+   "aliases": [],
+   "key": "s-2026-09-17-0001",
+   "kind": "thread",
+   "tags": [],
+   "title": "quick-pass"
+  },
+  {
+   "aliases": [],
+   "key": "s-2026-09-17-0002",
+   "kind": "thread",
+   "tags": [],
+   "title": "reading Bellamy 19"
+  }
+ ],
+ "sessions": [
+  {
+   "active": false,
+   "attached": [],
+   "created": "2026-09-15T10:00:00Z",
+   "id": "s-2026-09-15-0001",
+   "opened": "2026-09-15T10:00:00Z",
+   "purpose": "",
+   "rounds": 1,
+   "seq": 0,
+   "state": "open",
+   "title": "survey-bellamy"
+  },
+  {
+   "active": false,
+   "attached": [],
+   "created": "2026-09-16T11:00:00Z",
+   "id": "s-2026-09-16-0001",
+   "opened": "2026-09-16T11:00:00Z",
+   "purpose": "",
+   "rounds": 1,
+   "seq": 0,
+   "state": "open",
+   "title": "referee-sh-0009"
+  },
+  {
+   "active": false,
+   "attached": [],
+   "created": "2026-09-17T09:30:00Z",
+   "id": "s-2026-09-17-0001",
+   "opened": "2026-09-17T09:30:00Z",
+   "purpose": "",
+   "rounds": 1,
+   "seq": 0,
+   "state": "closed",
+   "title": "quick-pass"
+  },
+  {
+   "active": false,
+   "attached": [],
+   "created": "2026-09-17T11:00:00Z",
+   "id": "s-2026-09-17-0002",
+   "opened": "2026-09-17T11:00:00Z",
+   "purpose": "",
+   "rounds": 1,
+   "seq": 2,
+   "state": "closed",
+   "title": "reading Bellamy 19"
+  }
+ ],
+ "states": {
+  "derived": {
+   "proved": {
+    "color": "positive",
+    "label": "proved"
+   },
+   "settled": {
+    "color": "positive-strong",
+    "label": "settled"
+   }
+  },
+  "labels": {
+   "accepted": {
+    "color": "positive",
+    "label": "accepted"
+   },
+   "conflicted": {
+    "color": "negative",
+    "label": "conflicted"
+   },
+   "draft": {
+    "color": "neutral",
+    "label": "draft"
+   },
+   "incomplete": {
+    "color": "negative",
+    "label": "incomplete"
+   },
+   "proposed": {
+    "color": "info",
+    "label": "proposed"
+   },
+   "stale": {
+    "color": "warning",
+    "label": "stale",
+    "modifier": true
+   }
+  }
+ },
+ "tags": {
+  "outlook": [
+   "sh-000F",
+   "sh-0402"
+  ]
+ },
+ "taxa": {
+  "Caveat": {
+   "count": 1,
+   "slug": "caveat",
+   "style": "remark"
+  },
+  "Convention": {
+   "count": 1,
+   "slug": "convention",
+   "style": "definition"
+  },
+  "Corollary": {
+   "count": 2,
+   "slug": "corollary",
+   "style": "plain"
+  },
+  "Definition": {
+   "count": 6,
+   "slug": "definition",
+   "style": "definition"
+  },
+  "Example": {
+   "count": 1,
+   "slug": "example",
+   "style": "definition"
+  },
+  "Lemma": {
+   "count": 7,
+   "slug": "lemma",
+   "style": "plain"
+  },
+  "Proposition": {
+   "count": 3,
+   "slug": "proposition",
+   "style": "plain"
+  },
+  "Remark": {
+   "count": 4,
+   "slug": "remark",
+   "style": "remark"
+  },
+  "Theorem": {
+   "count": 6,
+   "slug": "theorem",
+   "style": "plain"
+  }
+ },
+ "threads": {
+  "s-2026-09-15-0001": {
+   "attachments": [
+    {
+     "kind": "notes",
+     "name": "survey-bellamy.notes.md",
+     "path": ".loom/sessions/s-2026-09-15-0001/survey-bellamy.notes.md"
+    }
+   ],
+   "created": "2026-09-15T10:00:00Z",
+   "discarded": false,
+   "id": "s-2026-09-15-0001",
+   "kind": "session",
+   "log": [],
+   "messages": [
+    {
+     "author": {
+      "id": "survey-bellamy",
+      "kind": "agent"
+     },
+     "body_html": "<p><strong>2026-09-15 10:00 survey-bellamy</strong></p>\n<p>Asked: find in Bellamy19 whatever the counting argument of Section 3 could rest on. Did: read pages 1 to 3, proposed four results, and asserted two links. Decided: nothing; the four proposals wait for the author. Remains: the examples of Section 4 are not proposed, since the paper states no result there beyond the definition of the defect.</p>",
+     "time": "2026-09-15T10:00:00Z"
+    }
+   ],
+   "participants": [],
+   "path": ".loom/sessions/s-2026-09-15-0001",
+   "pipeline": [],
+   "targets": [],
+   "title": "survey Bellamy19"
+  },
+  "s-2026-09-16-0001": {
+   "attachments": [
+    {
+     "count": 20,
+     "kind": "annotations",
+     "name": "annotations"
+    },
+    {
+     "kind": "notes",
+     "name": "referee-sh-0009.notes.md",
+     "path": ".loom/sessions/s-2026-09-16-0001/referee-sh-0009.notes.md"
+    }
+   ],
+   "created": "2026-09-16T11:00:00Z",
+   "discarded": false,
+   "id": "s-2026-09-16-0001",
+   "kind": "session",
+   "log": [
+    {
+     "command": "loom comment sh-0009 --quote --kind objection",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0009/proof --quote --kind suggestion",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-000C/proof --quote --kind objection",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0006/proof --quote --kind question",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0004 --kind suggestion",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment drafting/main-atomic.tex --kind suggestion",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0200 --kind suggestion",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0009#eq:rank --kind objection",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment Arden24-prop-2.1 --quote --kind objection",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0005 --kind confirmation",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-000F --kind citation",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0008 --kind objection",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-000B --kind suggestion",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment sh-0007/proof --quote --kind objection",
+     "time": "2026-09-16T11:00:00Z"
+    },
+    {
+     "command": "loom comment Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
+     "time": "2026-09-16T11:40:00Z"
+    },
+    {
+     "command": "loom comment Height is defined for every weighting but only used for balanced ones, and $N_{\\quiv}(k)$ silently restricts to them. Say so in the definition rather than in the theorem that uses it.",
+     "time": "2026-09-16T11:40:00Z"
+    },
+    {
+     "command": "loom comment A loop contributes an arrow and no divergence, so it adds one to the rank. I will say it in Convention sh-0001 rather than in the theorem.",
+     "time": "2026-09-16T15:00:00Z"
+    },
+    {
+     "command": "loom comment Then the convention is the right place, and this finding can stand until it is there.",
+     "time": "2026-09-16T15:05:00Z"
+    },
+    {
+     "command": "loom comment Taken, with the exact sequence written out.",
+     "time": "2026-09-16T15:10:00Z"
+    },
+    {
+     "command": "loom comment The walk is a walk in the support, which is a subquiver.",
+     "time": "2026-09-16T15:10:00Z"
+    },
+    {
+     "command": "loom comment ",
+     "time": "2026-09-16T15:10:00Z"
+    },
+    {
+     "command": "loom comment sh-000A --quote --kind question",
+     "time": "2026-09-16T15:10:00Z"
+    },
+    {
+     "command": "loom comment sh-0003 --kind confirmation",
+     "time": "2026-09-16T15:10:00Z"
+    },
+    {
+     "command": "loom comment sh-000C --kind suggestion",
+     "time": "2026-09-17T09:00:00Z"
+    },
+    {
+     "command": "loom comment Agreed that this is the gap. I will not accept sh-000C until sh-000E is proved.",
+     "time": "2026-09-17T09:00:00Z"
+    }
+   ],
+   "messages": [
+    {
+     "author": {
+      "id": "referee-sh-0009",
+      "kind": "agent"
+     },
+     "body_html": "<p><strong>2026-09-16 11:00 referee-sh-0009</strong></p>\n<p>Asked: referee the rank theorem and everything its proof reaches. Did: read the closure of sh-0009 and of sh-000C, and left fourteen findings -- three major, four moderate, five minor, one question and one clean read. Decided: nothing; every one of them is the author's to answer. Remains: the appendix (sh-0400) was not read, and Lemma sh-000E is marked incomplete, so there was nothing there to referee.</p>",
+     "time": "2026-09-16T11:00:00Z"
+    }
+   ],
+   "participants": [
+    {
+     "id": "The loom showcase",
+     "kind": "person"
+    },
+    {
+     "id": "agent",
+     "kind": "agent"
+    },
+    {
+     "id": "Wren Halloway",
+     "kind": "person"
+    }
+   ],
+   "path": ".loom/sessions/s-2026-09-16-0001",
+   "pipeline": [
+    {
+     "blocks": [
+      {
+       "name": "summary",
+       "title": "summary"
+      },
+      {
+       "name": "notation",
+       "symbols": [
+        {
+         "means": "is the cycle lattice, written $\\mathcal{Z}(Q)$ in Arden24.",
+         "tex": "\\Zcyc(\\quiv)"
+        },
+        {
+         "means": "is the flow polytope of sh-000C; Bellamy's $M(D)$ is a different polytope over the same arc set.",
+         "tex": "\\Pi"
+        },
+        {
+         "means": "is the number of connected components of the underlying graph.",
+         "tex": "c"
+        }
+       ],
+       "title": "notation"
+      },
+      {
+       "findings": [
+        "a-2026-09-16-0003",
+        "a-2026-09-16-0001",
+        "a-2026-09-16-0002",
+        "a-2026-09-16-0006"
+       ],
+       "name": "referee-review",
+       "title": "Major and minor issues"
+      },
+      {
+       "name": "decision",
+       "title": "decision"
+      }
+     ],
+     "fragment": "fragments/reports/loom%2Fsessions%2Fs-2026-09-16-0001%2Freferee-sh-0009.notes.md.html",
+     "mode": "referee",
+     "report": ".loom/sessions/s-2026-09-16-0001/referee-sh-0009.notes.md",
+     "target": "sh-0009"
+    }
+   ],
+   "targets": [
+    "sh-0009",
+    "sh-0009/proof",
+    "sh-000C/proof",
+    "sh-0006/proof",
+    "sh-0004",
+    "drafting/main-atomic.tex",
+    "sh-0200",
+    "sh-0009#eq:rank",
+    "Arden24-prop-2.1",
+    "sh-0005",
+    "sh-000F",
+    "sh-0008",
+    "sh-000B",
+    "sh-0007/proof",
+    "sh-000A",
+    "sh-0003",
+    "sh-000C"
+   ],
+   "title": "referee sh-0009"
+  },
+  "s-2026-09-17-0001": {
+   "attachments": [
+    {
+     "count": 2,
+     "kind": "annotations",
+     "name": "annotations"
+    }
+   ],
+   "created": "2026-09-17T09:30:00Z",
+   "discarded": true,
+   "id": "s-2026-09-17-0001",
+   "kind": "session",
+   "log": [
+    {
+     "command": "loom comment sh-0002 --kind objection",
+     "time": "2026-09-17T09:30:00Z"
+    },
+    {
+     "command": "loom comment sh-0005 --kind objection",
+     "time": "2026-09-17T09:30:00Z"
+    }
+   ],
+   "messages": [],
+   "participants": [
+    {
+     "id": "agent",
+     "kind": "agent"
+    }
+   ],
+   "path": ".loom/sessions/s-2026-09-17-0001",
+   "pipeline": [],
+   "targets": [
+    "sh-0002",
+    "sh-0005"
+   ],
+   "title": "quick-pass"
+  },
+  "s-2026-09-17-0002": {
+   "attachments": [
+    {
+     "count": 6,
+     "kind": "annotations",
+     "name": "annotations"
+    },
+    {
+     "kind": "file",
+     "name": "inbox.jsonl",
+     "path": ".loom/sessions/s-2026-09-17-0002/inbox.jsonl"
+    }
+   ],
+   "created": "2026-09-17T11:00:00Z",
+   "discarded": true,
+   "id": "s-2026-09-17-0002",
+   "kind": "session",
+   "log": [
+    {
+     "command": "loom comment Bellamy19-prop-3.1 --kind note",
+     "time": "2026-09-17T11:00:00Z"
+    },
+    {
+     "command": "loom comment Bellamy19-thm-3.2 --kind question",
+     "time": "2026-09-17T11:00:00Z"
+    },
+    {
+     "command": "loom comment Bellamy19 --quote --kind question",
+     "time": "2026-09-17T11:00:00Z"
+    },
+    {
+     "command": "loom comment Bellamy19 --kind note",
+     "time": "2026-09-17T11:00:00Z"
+    },
+    {
+     "command": "loom comment Bellamy19 --quote --kind note",
+     "time": "2026-09-17T11:10:00Z"
+    },
+    {
+     "command": "loom comment Bellamy19-thm-3.2 --kind suggestion",
+     "time": "2026-09-17T11:10:00Z"
+    }
+   ],
+   "messages": [],
+   "participants": [
+    {
+     "id": "The loom showcase",
+     "kind": "person"
+    },
+    {
+     "id": "Referee (Agent)",
+     "kind": "agent"
+    }
+   ],
+   "path": ".loom/sessions/s-2026-09-17-0002",
+   "pipeline": [],
+   "targets": [
+    "Bellamy19-prop-3.1",
+    "Bellamy19-thm-3.2",
+    "doi:10.4171/showcase/19-2"
+   ],
+   "title": "reading Bellamy 19"
+  }
+ }
+}

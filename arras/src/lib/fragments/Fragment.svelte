@@ -3,7 +3,8 @@
 	import { onMount, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
-	import { resetComments, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { card, resetComments, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { flash } from '$lib/travel/travel';
 	import { markPages } from '$lib/fragments/pages';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
@@ -26,6 +27,7 @@
 		authoring = true,
 		anchor,
 		jump = 0,
+		note,
 		onmounted
 	}: {
 		path: string;
@@ -46,6 +48,8 @@
 		anchor?: string;
 		/** Changes each time the item is opened again, so the fragment goes to `anchor` even when it is unchanged. */
 		jump?: number;
+		/** An annotation to open at its mark on arrival: what a followed link to an annotation names. */
+		note?: string;
 		onmounted?: (root: HTMLElement) => void;
 	} = $props();
 
@@ -197,14 +201,38 @@
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
 		counts();
 		if (margins) stackMargins(root);
-		scrollToHash();
+		arrive();
 	}
 
 	/** The browser cannot honour `location.hash` for an element that did not exist at navigation time, and none of a fragment's elements do. Looked up inside this fragment: the same document open twice, or a node beside the document holding it, repeats every id. */
 	function scrollToHash() {
 		const id = target();
 		if (!id || !el) return;
-		el.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'start' });
+		const at = el.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
+		if (!at) return;
+		at.scrollIntoView({ block: 'start' });
+		// a place a pane was sent to is marked briefly, so the eye is told where it arrived (plan 0.14)
+		if (anchor) flash(at);
+	}
+
+	/** Go where the item names: its place, and the annotation it names, open at its mark — or, with comments in the gutter, its card. */
+	function arrive() {
+		scrollToHash();
+		const id = note;
+		if (!id || !el) return;
+		if (inline) {
+			const at = triggerFor(el, [id]);
+			if (!at) return;
+			if (!inline.current()?.includes(id)) inline.toggle(at, [id]);
+			at.scrollIntoView({ block: 'center' });
+			flash(at);
+			return;
+		}
+		const box = card(el, id);
+		if (!box) return;
+		ui.activeAnnotation = id;
+		box.scrollIntoView({ block: 'center' });
+		flash(box);
 	}
 
 	// Mounting reads the comments setting, and an effect that tracked it re-mounted the whole fragment on every change of placement: a second wiring, a pass of MathJax over every formula, and a jump back to the URL's anchor. The effect above answers that setting; this one follows the markup and what the wiring is built from.
@@ -216,9 +244,9 @@
 
 	// A contents entry on the page already changes only the hash, so nothing re-mounts and the browser will not scroll to an element the fragment created after navigation.
 	$effect(() => {
-		// in a pane, the item's own anchor and each reopening; elsewhere the URL's hash
-		const at = anchor !== undefined ? `${anchor}\u0000${jump}` : page.url.hash;
-		if (html && el && at) untrack(scrollToHash);
+		// in a pane, the item's own anchor, its annotation and each reopening; elsewhere the URL's hash
+		const at = anchor !== undefined ? `${anchor}\u0000${jump}\u0000${note ?? ''}` : page.url.hash;
+		if (html && el && at) untrack(arrive);
 	});
 
 	onMount(() => {});

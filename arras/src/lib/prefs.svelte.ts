@@ -41,8 +41,6 @@ export interface Prefs {
 
 export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
-// The same carries the format rename: a browser holding `paper` or `blog` gets the default back, which is what the
-// reader would have chosen anyway now that the compiled page is on offer.
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
 const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];

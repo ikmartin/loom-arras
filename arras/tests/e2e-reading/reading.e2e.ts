@@ -23,7 +23,7 @@ async function opened(page: Page): Promise<void> {
 	await page.locator('[data-testid="pdf-page-2"] canvas').waitFor();
 	await expect.poll(() => page.locator('[data-testid="pdf-page-2"] .text span').count()).toBeGreaterThan(50);
 	await intoASession(page);
-	// choosing a session opens its discussion beside, which narrows the paper's pane and draws its pages again at the zoom that fits; a selection made while the text layer is being replaced would be lost with it
+	// choosing a session opens its Chat beside, which narrows the paper's pane and draws its pages again at the zoom that fits; a selection made while the text layer is being replaced would be lost with it
 	await page.waitForTimeout(1500);
 	await expect.poll(() => page.locator('[data-testid="pdf-page-2"] .text span').count()).toBeGreaterThan(50);
 }
@@ -114,6 +114,40 @@ test('a note is written from a selection, and the page shows loom’s own words 
 	await expect(page.getByTestId(`mark-${written.id}`)).toHaveClass(/k-note/);
 });
 
+test('a selection across a citation and a reference is quoted as they were written, and anchors', async ({ page }) => {
+	// the 0.14 study (F5): the rendered `[2, Theorem 3.2]` shares no text with `\cite[Theorem 3.2]{Bellamy19}`, and the page prints `Ehrhart’s` for `Ehrhart's`, so a selection across either was "quote not found" and only a note on the whole proof was offered
+	await page.goto('/node/sh-000C');
+	await intoASession(page);
+	const para = page.locator('[data-pane="0"] .fragment details p').filter({ hasText: 'Ehrhart' }).first();
+	await expect(para.locator('mjx-container').first()).toBeAttached();
+	await para.evaluate((node) => {
+		const range = document.createRange();
+		range.selectNodeContents(node);
+		const sel = window.getSelection();
+		sel?.removeAllRanges();
+		sel?.addRange(range);
+		node.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+	});
+	await page.getByTestId('annotate-offer').click();
+	await page.getByTestId('note-body').fill('Which digraph is this the median polytope of?');
+	await page.getByTestId('note-kind').selectOption('question');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toBeHidden();
+	const written = log().at(-1)!;
+	expect(written.target).toBe('sh-000C/proof');
+	const quote = String((written.anchor as Record<string, unknown>).exact);
+	expect(quote).toContain('\\cite[Theorem 3.2]{Bellamy19}');
+	expect(quote).toContain('\\ref{sh-0009}');
+	// and the note is anchored where it was written, not merely accepted (WQ-48 is a note that was accepted and not)
+	await expect
+		.poll(async () => {
+			const m = await (await page.request.get('/build/manifest.json')).json();
+			const a = m.annotations[written.id as string];
+			return a ? `${a.recorded} ${a.anchored}` : 'absent';
+		}, { timeout: 15000 })
+		.toBe('true true');
+});
+
 test('a box is recorded as drawn, and the words under it are its hint', async ({ page }) => {
 	await opened(page);
 	await page.getByTestId('tool-box').click();
@@ -158,7 +192,7 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 	await expect(page.getByTestId(`mark-${written.id}`)).toBeVisible({ timeout: 15000 });
 });
 
-test('a mark opens the box a fragment opens, Escape closes it, and the discussion lists the note with its page', async ({ page }) => {
+test('a mark opens the box a fragment opens, Escape closes it, and the note waits in the Chat for the next message', async ({ page }) => {
 	await opened(page);
 	const mark = page.locator('[data-testid="pdf-page-2"] .mark.note').first();
 	await expect(mark).toBeVisible({ timeout: 15000 }); // the sidecar, after the publisher's rebuild
@@ -169,15 +203,11 @@ test('a mark opens the box a fragment opens, Escape closes it, and the discussio
 	await expect(open.locator('article.box').first()).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(open).toHaveCount(0);
-	// beside it, in the discussion of the session it was written in: the note, with the page it is on
-	await page.getByTestId('open-discussion').click();
-	await expect(page.getByTestId(`beside-${id}`)).toBeVisible();
-	await expect(page.getByTestId(`beside-page-${id}`)).toContainText('p.2');
-	// and travel both ways: the row to the mark, the mark to the row
-	await page.getByTestId(`beside-${id}`).getByRole('button').first().click();
-	await expect(page.getByTestId(`mark-${id}`)).toBeInViewport();
+	// beside it, the session it was written in, whose Chat choosing it opened: a person's note goes to the agent with the next message (plan 0.14)
+	await expect(page.getByTestId(`packet-row-${id}`)).toBeVisible();
+	// what the session did is the log of what was done through loom's commands, which a note written here is not: its mark has nowhere to travel, and says so
 	await mark.dblclick();
-	await expect(page.getByTestId(`beside-${id}`)).toBeInViewport();
+	await expect(page.getByTestId('travel-nowhere')).toBeVisible();
 });
 
 test('inline is never offered on a page, and a note opens floating', async ({ page }) => {
@@ -227,6 +257,8 @@ test('a locator in the URL is lit while the URL carries it, and a note is focuse
 	const mine = log().filter((e) => e.event === 'created' && (e.anchor as Record<string, unknown>)?.kind === 'pdf').at(-1)!;
 	await page.goto(`${PAGE2}&annot=${mine.id}`);
 	await expect(page.getByTestId(`mark-${mine.id}`)).toHaveClass(/on/, { timeout: 15000 });
+	// and it arrives open: a link to a note is a link to what it says (plan 0.14)
+	await expect(page.getByTestId('comment-expanded').locator(`[data-annotation-id="${mine.id}"]`)).toBeVisible();
 });
 
 test('a session is named on the spot and closed from the page', async ({ page }) => {
@@ -431,6 +463,21 @@ test('a paper opened into half a pane fits its text, and its landing dot is in t
 	await page.getByTestId('zoom-at').fill('140');
 	await page.getByTestId('zoom-at').press('Enter');
 	await expect(page.getByTestId('zoom-at')).toHaveValue('140%');
+});
+
+test('a result that starts mid-line lands with every line of it in half a pane', async ({ page }) => {
+	// the 0.14 study: landing scrolled to the first word of `Theorem 3.2.`'s statement, past the margin its other lines start at, so every line but the first lost its opening words
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/library/Bellamy19?page=2&result=Bellamy19-thm-3.2&beside=%2Fnode%2Fsh-0009');
+	const lines = page.locator('[data-pane="0"] [data-mark="Bellamy19-thm-3.2"]');
+	await expect(lines).toHaveCount(4, { timeout: 10000 });
+	const pane = (await page.getByTestId('pane-0').boundingBox())!;
+	await page.waitForTimeout(1200); // the smooth scroll to the result
+	for (const line of await lines.all()) {
+		const box = (await line.boundingBox())!;
+		expect(box.x).toBeGreaterThanOrEqual(pane.x);
+		expect(box.x + box.width).toBeLessThanOrEqual(pane.x + pane.width);
+	}
 });
 
 test('a paper drawn again at a new zoom never shows a render refused', async ({ page, context }) => {

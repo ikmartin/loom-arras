@@ -285,6 +285,9 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
     for res in records.resolved(result):
         if res.record.discarded:
             continue
+        # a note whose version is gone is not pinned to the text that replaced it; it is counted beside its key instead
+        if not res.recorded:
+            continue
         a = res.annotation
         region = result.assembly.regions.get(a.target_key)
         if res.span is None and a.selector is None and region is not None and a.in_reply_to is None:

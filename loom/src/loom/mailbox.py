@@ -1,6 +1,6 @@
 """`.loom/sessions/<id>/`: the mailbox a session carries, and who is listening to it (plan 0.13 §8).
 
-**Loom is a mailbox and not an orchestrator.** A message is appended and a parked reader wakes; nothing is launched, no model is called, and no task is assigned. Two attached agents both see everything and neither is handed anything to do, which is the honest behaviour for a tool that is not orchestrating.
+**Loom is a mailbox and not an orchestrator.** A message is appended and a parked reader wakes; no model is called and no task is assigned. The one thing loom may start is the author's own agent command, for a turn, where the quilt allows it (`loom.agent`). Two attached agents both see everything and neither is handed anything to do, which is the honest behaviour for a tool that is not orchestrating.
 
 **Read, never consumed.** The inbox is append-only and each reader keeps a cursor of its own, so a message survives being read, a second reader sees it too, and an agent that crashed resumes where it was rather than losing the turn.
 
@@ -192,6 +192,12 @@ def public(e: Event) -> dict[str, Any]:
     return out
 
 
+def page(root: Path, sid: str, n: int) -> dict[str, Any]:
+    """Page `n` of a session's transcript as it stands now, read through the session's index: what `loom serve` answers for a page, since a message rebuilds nothing and the build's copy goes stale."""
+    events = [e for e in transcript(root, sid).since(PAGE * (n - 1)) if e.seq <= PAGE * n]
+    return {"session": sid, "page": n, "events": [public(e) for e in events]}
+
+
 def pages(root: Path, sid: str) -> dict[int, dict[str, Any]]:
     """The transcript in the build's pages: page n holds seqs PAGE*(n-1)+1 to PAGE*n, so a reader that knows the last seq knows which pages exist."""
     out: dict[int, dict[str, Any]] = {}
@@ -370,13 +376,25 @@ def render(events: list[Event]) -> str:
     lines: list[str] = []
     for e in events:
         lines.append(f"{e.when[11:16]} {e.who}: {e.body}" if e.kind == "message" else f"{e.when[11:16]} — {e.body}")
-        for c in e.changed:
-            who = c.get("by", "")
-            # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
-            where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
-            lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}")
-            if c.get("body"):
-                lines.append(f'      "{c["body"]}"')
+        if e.changed:
+            lines.append(render_changes(e.changed))
+    return "\n".join(lines)
+
+
+def render_changes(changed: list[dict[str, Any]]) -> str:
+    """The annotations a message carries, as the agent reads them beneath it -- and as the viewer's tray previews them before it is sent, so the preview is the text itself."""
+    lines: list[str] = []
+    for c in changed:
+        who = c.get("by", "")
+        # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
+        where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
+        lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}")
+        if c.get("quote"):
+            lines.append(f'      on "{c["quote"]}"')
+        if c.get("body"):
+            lines.append(f'      "{c["body"]}"')
+        if c.get("payload"):
+            lines.append(f"      proposes ({c.get('placement') or 'replace'}): {c['payload']}")
     return "\n".join(lines)
 
 
@@ -403,12 +421,12 @@ def work_of(root: Path, annotation: Any) -> str | None:
     return None
 
 
-def changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
-    """The annotations that changed in this session since its last message, carried inline with the next one.
+def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
+    """The packet: what `who` wrote in this session since a message last carried any, carried by their next one (plan 0.14).
 
-    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Without this, "have another look" arrives with nothing attached and the agent must go and diff the log to learn what moved.
+    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Only the sender's own annotations and replies go: another person's wait for that person's next message, and an agent's are its own -- sending them back would be telling it what it said. Each is carried whole -- its body, the words it is on, what it proposes -- because the inbox is the record of what was sent.
 
-    It lives here rather than beside the write API because **both surfaces post**: `loom session send` and the composer must attach the same thing, and when this was the API's own helper the terminal's messages went out bare.
+    Both surfaces post -- `loom session send` and the viewer's input -- so both take the packet from here, and the viewer's tray previews it from here too.
     """
     from loom.records.annotations import load_records
 
@@ -419,24 +437,30 @@ def changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
     records, _ = load_records(root)
     out: list[dict[str, Any]] = []
     for record in records:
-        if record.rel not in (session.id, session.source):
+        if record.rel != session.id:
             continue
         for a in record.annotations:
-            if a.id in sent or a.created < since or a.status == "discarded":
+            if a.id in sent or a.created < since or a.status == "discarded" or a.author_kind != "person":
                 continue
-            out.append(
-                {
-                    "id": a.id,
-                    "kind": a.kind,
-                    "target": a.target_key,
-                    # A page note targets the work's identifier, which no `loom refs` command accepts. An agent
-                    # handed only that has to find the citekey by trial -- which is what the reading study watched
-                    # one do. The citekey and the page travel with it, as `ai findings` prints them.
-                    "work": work_of(root, a),
-                    "page": a.anchor.page if a.anchor else None,
-                    "act": "replied" if a.in_reply_to else "created",
-                    "by": a.author_id,
-                    "body": a.body,
-                }
-            )
+            if a.author_id != who:
+                continue
+            row: dict[str, Any] = {
+                "id": a.id,
+                "kind": a.kind,
+                "target": a.target_key,
+                # A page note targets the work's identifier, which no `loom refs` command accepts. An agent handed
+                # only that has to find the citekey by trial -- which is what the reading study watched one do. The
+                # citekey and the page travel with it, as `ai findings` prints them.
+                "work": work_of(root, a),
+                "page": a.anchor.page if a.anchor else None,
+                "act": "replied" if a.in_reply_to else "created",
+                "by": a.author_id,
+                "body": a.body,
+            }
+            if a.selector is not None and a.selector.exact:
+                row["quote"] = a.selector.exact
+            for field in ("severity", "payload", "placement"):
+                if getattr(a, field):
+                    row[field] = getattr(a, field)
+            out.append(row)
     return out

@@ -11,7 +11,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 3. Every mathematical claim carries an epistemic label:
    - `file-verified`: checked against printed source, a digest node, or a file in the quilt; name which.
    - `memory-grade`: from your own knowledge; say so.
-   - `proved-here`: proved in this run; the proof is in the notes.
+   - `proved-here`: proved in this session; the proof is in the notes.
 
    Never present a memory-grade claim as verified. When a digest for a cited paper exists, prefer it to memory for anything about that paper.
 4. Cite by id. A fact from the quilt is cited as its key — `<prefix>-0002`, `<prefix>-0004/proof`, where the prefix is this quilt's from `[quilt] prefix` — and a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters, and then from the closure.
@@ -26,7 +26,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
    - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
-2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`**, including `Agent` or `AI` — identity is declared, not sniffed, and a command run under an agent's shell with no `--as` is refused rather than guessed at. The author's own verbs refuse you whatever shell you are in: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result.
+2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and a comment is recorded under your tool's name (`claude-code`), never the author's. The author's own verbs refuse you whatever shell you are in: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --session SESSION`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
 ## Outputs
@@ -52,7 +52,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
 ## Sequential applications
 
-Modes are applied one at a time inside a run and each writes its own files. When a second mode is applied to the same target, read the earlier notes file first, refer to its annotations by id, and do not repeat findings already recorded. Do not insert dividers; the files are the divisions. The intended pipeline audit → simplify holds: simplify's starting list is audit's [patch-list] when one exists in the run.
+Modes are applied one at a time inside a session and each writes its own files. When a second mode is applied to the same target, read the earlier notes file first, refer to its annotations by id, and do not repeat findings already recorded. Do not insert dividers; the files are the divisions. The intended pipeline audit → simplify holds: simplify's starting list is audit's [patch-list] when one exists in the session.
 
 ## When no mode is named
 
@@ -72,7 +72,7 @@ Two things do not change. **The standing rules, the Inputs and Outputs contracts
 
 ## Messages
 
-The author may be talking to you. A session carries an inbox; `loom session next --wait 120 --json --as "…"` parks until something lands and exits, and `loom session send "…" --as "…"` answers. Nothing launches you and nothing assigns you work: loom appends a line and you find it because you asked. The inbox is a broadcast — another agent in the same session sees everything you see — and it is read, never consumed, so a message survives being read and you resume where you were.
+The author may be talking to you. A session carries an inbox; `loom session next --wait 120 --json --as "…"` parks until something lands and exits, and `loom session say "…" --as "…"` answers. Nothing assigns you work: loom appends a line and you find it because you asked. When the author has let it, loom starts you for one turn because a message waited; then read with `--wait 0`, answer, and stop. The inbox is a broadcast — another agent in the same session sees everything you see — and it is read, never consumed, so a message survives being read and you resume where you were.
 
 ## Never
 
@@ -97,6 +97,7 @@ The author may be talking to you. A session carries an inbox; `loom session next
   - `loom downstream`
   - `loom history`
   - `loom id`
+  - `loom link`
   - `loom lint`
   - `loom new`
   - `loom pop`
@@ -112,6 +113,7 @@ The author may be talking to you. A session carries an inbox; `loom session next
   - `loom refs locate`
   - `loom refs map`
   - `loom refs match`
+  - `loom refs overview`
   - `loom refs page`
   - `loom refs path`
   - `loom refs propose`
@@ -132,7 +134,7 @@ The author may be talking to you. A session carries an inbox; `loom session next
 
   `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your session's directory.
 - Never delete anything outside your own session's directory. Inside it, you may remove what you created.
-- **Name yourself with `--as`**, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: a command run under an agent's shell with no `--as` is refused rather than guessed at.
+- **Name yourself with `--as`** on everything you write, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: unnamed, the session commands refuse you and a comment is recorded under your tool's name, never the author's.
 - **These five are the author's and refuse you whatever shell you are in**, because each makes a claim only a person can make: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
@@ -169,7 +171,7 @@ Write each block under a heading with its name in brackets.
 - [rejected] Simplifications considered and not made, with reasons. If nothing was rejected, name the areas examined and found already tight.
 - [revised] The revised text as `proposal-KEY.diff`, a unified diff against the node's file, and the result of compiling with it applied.
 - [meaning-drift-check] For each modified passage, compare against the original and confirm the meaning is unchanged. If it has changed, flag the drift explicitly and explain the reason. If preservation is non-obvious, say why it holds.
-- [candidates] One entry per candidate statement produced in this run: its draft file name, its taxon, a one-line statement, the hypotheses the author must still decide, and what it would depend on (ids).
+- [candidates] One entry per candidate statement produced in this session: its draft file name, its taxon, a one-line statement, the hypotheses the author must still decide, and what it would depend on (ids).
 - [dead-ends] One entry per approach tried and abandoned: what it was, why it fails (a computation, a counterexample, a known obstruction with a digest node id), and whether anything was salvaged.
 - [known-results] What the digests already say about the topic: digest node ids with locators, each with one line on how it bears on the candidates (gives it, contradicts it, gives it under other hypotheses).
-- [open-questions] What could not be decided in this run and what would decide it (a computation to run, a paper to digest, a definition to fix).
+- [open-questions] What could not be decided in this session and what would decide it (a computation to run, a paper to digest, a definition to fix).

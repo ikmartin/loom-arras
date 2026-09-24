@@ -374,6 +374,13 @@ def esc(s: str) -> str:
     return html.escape(s, quote=False)
 
 
+def _said(src: str | None, offset: int) -> str:
+    """The attributes that carry a command's source to the viewer's quote: `data-tex`, and `data-at` so a command drawn as several elements is quoted once."""
+    if not src:
+        return ""
+    return f' data-tex="{html.escape(src, quote=True)}" data-at="{offset}"'
+
+
 def slug(s: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "-", s).strip("-").lower() or "x"
 
@@ -885,13 +892,17 @@ class Converter:
             vals, spans, after = read_args(local, t.end - base, spec)
             return vals, [(s + base, e + base) for s, e in spans], after + base
 
+        # the command as written, for a quote across it: only where it is the node's own text, not a macro's expansion
+        def source(after: int) -> str | None:
+            return clean[t.start : after] if clean is not None else None
+
         if name in REF_CMDS:
             (arg,), spans, after = args("m")
-            return self.ref_html(name, arg or "", spans[0], t.start), after, None
+            return self.ref_html(name, arg or "", spans[0], t.start, source(after)), after, None
         if name in CITE_CMDS:
             (o1, o2, keys), spans, after = args("oom")
             post = o2 if o2 is not None else o1
-            return self.cite_html(keys or "", post), after, None
+            return self.cite_html(keys or "", post, source(after), t.start), after, None
         if name == "footnote":
             (body,), spans, after = args("m")
             ctx.footnotes += 1
@@ -1055,15 +1066,17 @@ class Converter:
             pass
         return pos + base
 
-    def ref_html(self, cmd: str, label: str, span: tuple[int, int], offset: int) -> str:
+    def ref_html(self, cmd: str, label: str, span: tuple[int, int], offset: int, src: str | None = None) -> str:
+        """A reference as the reader sees it. `src`, the command as written, rides on each link as `data-tex`, so a selection across it quotes the source (study F5)."""
         ctx = self.ctx
+        said = _said(src, offset)
         parts = [re.sub(r"\s+", " ", x).strip() for x in (label.split(",") if cmd in ("cref", "Cref") else [label])]
         pieces = []
         for lab in parts:
             target = ctx.labels.get(lab)
             num = number_of(ctx, lab)
             if target is None:
-                pieces.append(f'<a class="ref ref-dangling" data-target="{html.escape(lab, quote=True)}">??</a>')
+                pieces.append(f'<a class="ref ref-dangling" data-target="{html.escape(lab, quote=True)}"{said}>??</a>')
                 continue
             container = ctx.regions.get(target, target)
             is_region = target in ctx.regions
@@ -1077,17 +1090,19 @@ class Converter:
             href = "#" + slug(target)
             cite_id = f"cite-{slug(ctx.file)}-{offset}-{slug(target)}"
             pieces.append(
-                f'<a id="{cite_id}" class="{cls}" data-target="{html.escape(target, quote=True)}" href="{href}">{esc(text)}</a>'
+                f'<a id="{cite_id}" class="{cls}" data-target="{html.escape(target, quote=True)}"{said} href="{href}">{esc(text)}</a>'
             )
             _ = container
         return ", ".join(pieces)
 
-    def cite_html(self, keys: str, postnote: str | None) -> str:
+    def cite_html(self, keys: str, postnote: str | None, src: str | None = None, offset: int = 0) -> str:
+        """A citation as the reader sees it, one span per key; `src`, the command as written, rides on each as `data-tex` (study F5)."""
         ctx = self.ctx
         out = []
+        said = _said(src, offset)
         for ck in [re.sub(r"\s+", " ", k).strip() for k in keys.split(",") if k.strip()]:
             target = ctx.cite_target(ck, postnote)
-            attrs = f' data-citekey="{html.escape(ck, quote=True)}"'
+            attrs = f' data-citekey="{html.escape(ck, quote=True)}"{said}'
             if postnote:
                 attrs += f' data-postnote="{html.escape(postnote, quote=True)}"'
             if target:

@@ -48,10 +48,12 @@ def find_quote(own_text: str, quote: str) -> list[tuple[int, int]]:
 
 
 _SIMPLE = ("emph", "textit", "textbf", "texttt", "textrm", "textsf", "textsc", "textup")
+#: What the renderer prints for the source's quotes and dashes (`ligatures` in render/convert.py), longest first: a reader's selection carries `Ehrhart’s` where the source has `Ehrhart's`.
+_TYPOGRAPHY = {"---": "—", "--": "–", "``": "“", "''": "”", "`": "‘", "'": "’"}
 
 
 def _project(text: str) -> tuple[str, list[tuple[int, int]]]:
-    """`text` as a reader sees it, each character mapped to the source range it came from: math delimiters as `$`/`$$`, the simple text macros unwrapped, `~` a space, whitespace collapsed."""
+    """`text` as a reader sees it, each character mapped to the source range it came from: math delimiters as `$`/`$$`, the simple text macros unwrapped, `~` a space, quotes and dashes as printed, whitespace collapsed."""
     out: list[str] = []
     where: list[tuple[int, int]] = []
     dropped: list[bool] = []  # per open brace: whether it belongs to an unwrapped macro
@@ -89,6 +91,9 @@ def _project(text: str) -> tuple[str, list[tuple[int, int]]]:
         elif text[i] == "~":
             put(" ", i, i + 1)
             i += 1
+        elif typo := next((t for t in _TYPOGRAPHY if text.startswith(t, i)), None):
+            put(_TYPOGRAPHY[typo], i, i + len(typo))
+            i += len(typo)
         else:
             put(text[i], i, i + 1)
             i += 1

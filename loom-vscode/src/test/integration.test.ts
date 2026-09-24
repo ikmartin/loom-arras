@@ -5,6 +5,8 @@ import * as http from 'node:http';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 
+import { masterOf } from './fixture';
+
 const ID = 'ikmartin.loom-vscode';
 
 type Extension = typeof import('../extension.js');
@@ -310,14 +312,14 @@ suite('the extension in a quilt', () => {
 		test('atomize moves the definition in the draft into its own file', async function () {
 			this.timeout(60000);
 			const created = vscode.Uri.file(path.join(root, 'nodes', 'sy-0001.tex'));
-			const document = await cursorAt('drafts/main.tex', '\\begin{definition}[Widget]\\label{sy-0001}');
+			const document = await cursorAt(masterOf(root), '\\begin{definition}[Widget]\\label{sy-0001}');
 			try {
 				await vscode.commands.executeCommand('loom.atomize');
 				await vscode.workspace.fs.stat(created); // throws when the edit created nothing
 				assert.ok(document.getText().includes('\\input{nodes/sy-0001}'), 'the draft does not input the new file');
 				assert.ok(!document.getText().includes('A \\emph{widget} is a pair'), 'the definition is still in the draft');
 			} finally {
-				// leave the fixture as it was: the draft back to what is on disk, and the file the edit created gone
+				// leave the copy as it was for the tests after this one: the draft back to what is on disk, and the file the edit created gone
 				for (const uri of [document.uri, created]) {
 					const open = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString());
 					if (open) {

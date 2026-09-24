@@ -124,7 +124,7 @@
 		<div class="gutters-host">
 			<div class="gutters">
 				<div class="column">
-					<Fragment path={doc.fragment} macroSet={doc.macros ?? ''} standalone anchor={item.anchor ?? ''} jump={item.seq} />
+					<Fragment path={doc.fragment} macroSet={doc.macros ?? ''} standalone anchor={item.anchor ?? ''} jump={item.seq} note={item.note} />
 				</div>
 			</div>
 		</div>
@@ -149,6 +149,7 @@
 									comments={hasComparison ? inlineSlots : slots}
 									anchor={item.anchor ?? ''}
 									jump={item.seq}
+									note={item.note}
 									onmounted={fill}
 								/>{/key}
 						</FragmentNotes>
