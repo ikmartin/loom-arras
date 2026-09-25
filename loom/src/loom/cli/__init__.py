@@ -33,7 +33,7 @@ CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 def main() -> None:
     """loom: a tool for atomized mathematical development.
 
-    Every command except `init` and `doctor` runs against the nearest quilt, found by walking up from the current directory to a `config.toml` with a [quilt] table.
+    Every command except `init` and `doctor` runs against the nearest quilt, found by walking up from the current directory to a `config.toml` with a [quilt] table; `doctor` checks that quilt too when there is one.
     """
 
 

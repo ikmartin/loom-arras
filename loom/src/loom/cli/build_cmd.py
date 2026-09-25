@@ -16,13 +16,17 @@ from loom.render.build import build
     multiple=True,
     help="Limit rendering to these keys and their masters; the manifest is always complete.",
 )
-@click.option("--force", is_flag=True, help="Render every fragment again, ignoring the cache.")
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Render every fragment again, ignoring the cache and retrying remembered SVG failures.",
+)
 @quilt_option
 @click.pass_context
 def build_command(ctx: click.Context, keys: tuple[str, ...], force: bool, quilt_path: str | None) -> None:
     """Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
 
-    Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless.
+    Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before.
     """
     quilt = open_quilt(quilt_path)
     report = build(quilt, list(keys) or None, force=force)

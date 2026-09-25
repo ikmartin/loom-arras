@@ -118,7 +118,8 @@ def read_versions(root: Path) -> dict[str, str]:
 
 
 def write_versions(root: Path, texts: dict[str, str]) -> None:
-    lines = [f"{m}.md {sha(t)}" for m, t in sorted(texts.items())]
+    """Record the shipped hash of each of `texts` (quilt-relative path -> text) under its file name, which is how `upgrade_layer` looks it up."""
+    lines = [f"{Path(rel).name} {sha(t)}" for rel, t in sorted(texts.items(), key=lambda kv: Path(kv[0]).name)]
     (root / "ai" / VERSION_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -198,8 +199,8 @@ class LayerReport:
 ROOT_FILES = ("CLAUDE.md", "AGENTS.md")
 
 
-def ensure_root_line(root: Path) -> list[str]:
-    """Put loom's one line into CLAUDE.md and AGENTS.md without taking the files over; returns what was written.
+def ensure_root_line(root: Path, write: bool = True) -> list[str]:
+    """Put loom's one line into CLAUDE.md and AGENTS.md without taking the files over; returns what was written, or with `write` false what would be.
 
     These are the files an agent reads before anything else, and they are also where an author writes what is true of *their* project — so loom contributes a line and owns nothing else. An earlier version of the line is replaced in place; everything around it is left exactly as the author left it. Loom writing the whole file is what clobbered hand-written instructions on every upgrade (DR-151).
     """
@@ -209,6 +210,9 @@ def ensure_root_line(root: Path) -> list[str]:
         existing = p.read_text(encoding="utf-8") if p.is_file() else ""
         lines = existing.splitlines()
         if CLAUDE_LINE in lines:
+            continue
+        written.append(name)
+        if not write:
             continue
         stale = [i for i, ln in enumerate(lines) if ln.startswith("This directory is a quilt managed by loom.")]
         if stale:
@@ -220,12 +224,11 @@ def ensure_root_line(root: Path) -> list[str]:
             p.write_text(
                 existing.rstrip("\n") + ("\n\n" if existing.strip() else "") + CLAUDE_LINE + "\n", encoding="utf-8"
             )
-        written.append(name)
     return written
 
 
-def init_layer(root: Path, permissions: bool = False, skills: bool = False, codex: bool = False) -> LayerReport:
-    """Write `ai/` and the vendor files into a quilt that has no `ai/` yet."""
+def init_layer(root: Path, skills: bool = False) -> LayerReport:
+    """Write `ai/` and the vendor files into a quilt that has no `ai/` yet, the permission files for every tool among them: what agents may run is loom's, and the same whichever tool runs them (DR-283)."""
     ai = root / "ai"
     if ai.exists():
         raise FileExistsError(str(ai))
@@ -242,7 +245,7 @@ def init_layer(root: Path, permissions: bool = False, skills: bool = False, code
         rep.written.append(f"ai/{name}")
     write_versions(root, texts)
     rep.written.append(f"ai/{VERSION_FILE}")
-    for rel, text in vendor_files(permissions, skills, codex).items():
+    for rel, text in vendor_files(True, skills, True).items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
@@ -251,8 +254,11 @@ def init_layer(root: Path, permissions: bool = False, skills: bool = False, code
     return rep
 
 
-def upgrade_layer(root: Path) -> LayerReport:
-    """Refresh the generated files of an existing `ai/`; keep edited mode files and write `.new` beside them."""
+def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
+    """Refresh the generated files of an existing `ai/`; keep edited mode files and write `.new` beside them.
+
+    With `write` false nothing is written and the report says what would be: `loom doctor`'s dry run, byte for byte what `loom upgrade` compares.
+    """
     ai = root / "ai"
     rep = LayerReport()
     if not ai.is_dir():
@@ -263,8 +269,9 @@ def upgrade_layer(root: Path) -> LayerReport:
         p = root / rel
         name = Path(rel).name
         if not p.is_file():
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(shipped, encoding="utf-8")
+            if write:
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(shipped, encoding="utf-8")
             rep.written.append(rel)
             continue
         current = p.read_text(encoding="utf-8")
@@ -272,44 +279,49 @@ def upgrade_layer(root: Path) -> LayerReport:
             rep.unchanged.append(rel)
             continue
         if recorded.get(name) == sha(current):
-            p.write_text(shipped, encoding="utf-8")  # untouched since it was shipped: refresh
+            if write:
+                p.write_text(shipped, encoding="utf-8")  # untouched since it was shipped: refresh
             rep.written.append(rel)
         else:
-            p.with_name(name + ".new").write_text(shipped, encoding="utf-8")
+            if write:
+                p.with_name(name + ".new").write_text(shipped, encoding="utf-8")
             rep.kept.append(rel)
             rep.new_beside.append(rel + ".new")
-    new_versions = dict(recorded)
+    names = {Path(rel).name for rel in texts}
+    new_versions = {name: h for name, h in recorded.items() if name in names}
     for rel, shipped in texts.items():
         if rel in rep.kept:
             continue  # the record keeps the hash of what was shipped last time, so a later upgrade still sees the edit
         new_versions[Path(rel).name] = sha(shipped)
-    (ai / VERSION_FILE).write_text(
-        "\n".join(f"{k} {v}" for k, v in sorted(new_versions.items())) + "\n", encoding="utf-8"
-    )
+    if write:
+        (ai / VERSION_FILE).write_text(
+            "\n".join(f"{k} {v}" for k, v in sorted(new_versions.items())) + "\n", encoding="utf-8"
+        )
     for name in ("README.md",):
         p = ai / name
         text = _asset(name)
         if not p.is_file() or p.read_text(encoding="utf-8") != text:
-            p.write_text(text, encoding="utf-8")
+            if write:
+                p.write_text(text, encoding="utf-8")
             rep.written.append(f"ai/{name}")
         else:
             rep.unchanged.append(f"ai/{name}")
-    permissions = (root / CLAUDE_SETTINGS).is_file()
-    codex = (root / CODEX_RULES).is_file()
+    # a quilt with ai/ has both permission files, so a missing one is written like a stale one
     skills = (root / ".claude" / "skills").is_dir() or (root / ".claude" / "commands").is_dir()
-    for rel, text in vendor_files(permissions, skills, codex).items():
+    for rel, text in vendor_files(True, skills, True).items():
         p = root / rel
         if p.is_file() and p.read_text(encoding="utf-8") == text:
             rep.unchanged.append(rel)
             continue
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(text, encoding="utf-8")
+        if write:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(text, encoding="utf-8")
         rep.written.append(rel)
-    rep.written.extend(ensure_root_line(root))
+    rep.written.extend(ensure_root_line(root, write))
     return rep
 
 
 def settings_deny_paths() -> list[str]:
-    """The Edit/Write patterns and commands the generated settings deny, for tests and doctor."""
+    """The Edit/Write patterns and commands the generated settings deny, for tests."""
     data = json.loads(permissions_json())
     return [str(r) for r in data["permissions"]["deny"]]

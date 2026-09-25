@@ -134,10 +134,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         marks: dict[str, list[list[float]]] = {}
         for rid, r in results.items():
             xml = table.boxes_of(r.anchor.page)
-            # An anchor that records a span says which words on the page it means, and the page's own text is what
-            # those offsets index; a result read off a page instead carries the words it quoted. A mechanically
-            # extracted result's `source_text` is its LaTeX, which is not what the page says, so matching that was
-            # what left an extracted digest with no geometry at all.
+            # An anchor that records a span says which words on the page it means, and the page's own text is what those offsets index; a result read off a page instead carries the words it quoted. A mechanically extracted result's `source_text` is its LaTeX, which is not what the page says, so matching that was what left an extracted digest with no geometry at all.
             needle = r.source_text
             if r.anchor.basis == "text" and r.anchor.end > r.anchor.start:
                 page_text = read_page(home, r.anchor.page) or ""
@@ -348,6 +345,10 @@ def build(
     plan = RenderPlan(
         result=result, numbers=numbers, cite_labels=cite_labels, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg"
     )
+    if force:
+        # a remembered SVG failure may have been the machine's, a package since installed; --force tries each once more
+        for failed in plan.svg_cache.glob("*.failed"):
+            failed.unlink()
     renderer = FragmentRenderer(plan)
     index_path = cache_dir / "fragments.json"
     index: dict[str, str] = {}

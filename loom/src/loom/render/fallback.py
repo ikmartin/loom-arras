@@ -98,7 +98,7 @@ def compile_svg(
         return SvgResult(cached.read_text(encoding="utf-8"), key, True)
     failed = cache_dir / f"{key}.failed"
     if failed.exists():
-        # a block that could not be compiled is remembered, so a later cold build does not pay for it again; `loom build --force-svg` clears the cache
+        # a block that could not be compiled is remembered, so a later cold build does not pay for it again; `loom build --force` tries it again
         return SvgResult(None, key, True, failed.read_text(encoding="utf-8"))
     latex = shutil.which(latex_bin)
     dvisvgm = shutil.which(dvisvgm_bin)

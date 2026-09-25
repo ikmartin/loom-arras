@@ -5,7 +5,7 @@
 	//
 	// **The find field narrows this list; nothing else does.** Which sessions' annotations a page draws is the filter's business, in the rail above the content.
 	import { store } from '$lib/manifest/client.svelte';
-	import { grouped, sessionView, summary, titleOf } from './sessions.svelte';
+	import { findSessions, sessionView, summary, titleOf } from './sessions.svelte';
 	import { touched, when } from './when';
 	import { openSession } from './new';
 	import { openChat } from '$lib/workspace/links';
@@ -16,12 +16,7 @@
 
 	const m = $derived(store.manifest);
 	let find = $state('');
-	const groups = $derived.by(() => {
-		const all = grouped(m);
-		const q = find.trim().toLowerCase();
-		const hit = (s: SessionRow) => !q || `${titleOf(s)} ${s.purpose ?? ''}`.toLowerCase().includes(q);
-		return { open: all.open.filter(hit), closed: all.closed.filter(hit), closedCount: all.closed.length };
-	});
+	const groups = $derived(findSessions(m, find));
 
 	let naming = $state(false);
 	let newName = $state('');

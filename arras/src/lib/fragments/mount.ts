@@ -95,12 +95,7 @@ export function wire(
 		const here = opts.master ? manifest?.nodes[owner]?.reached_by?.includes(opts.master) : false;
 		a.href = here ? '#' + anchorId(key) : keyUrl(manifest, owner) + (region ? '#' + anchorId(key) : '');
 	}
-	// **A citation opens the paper, not the transcription of it.** `[1, Proposition 2.1]` means that proposition in that
-	// work, so where a copy is filed the link goes to the work at the result: the reader lands on the page they cited,
-	// with the statement in view. The digest node's own page renders loom's record of the result -- its LaTeX, its
-	// provenance, what depends on it -- which is a thing to go and look at, not what the citation names. With no copy
-	// filed, or no page in the locator, that record is the best there is and the link goes there as before; a citation
-	// with no digest node behind it opens the reference; a citekey the manifest does not know stays text.
+	// **A citation opens the paper, not the transcription of it.** `[1, Proposition 2.1]` means that proposition in that work, so where a copy is filed the link goes to the work at the result: the reader lands on the page they cited, with the statement in view. The digest node's own page renders loom's record of the result -- its LaTeX, its provenance, what depends on it -- which is a thing to go and look at, not what the citation names. With no copy filed, or no page in the locator, that record is the best there is and the link goes there as before; a citation with no digest node behind it opens the reference; a citekey the manifest does not know stays text.
 	for (const c of root.querySelectorAll<HTMLElement>('span.cite[data-citekey]')) {
 		if (c.querySelector('a')) continue;
 		const target = c.dataset.target;

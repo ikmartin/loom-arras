@@ -1,9 +1,6 @@
 // Annotations indexed by what they are about, built once per manifest, and filtered by the session being shown.
 //
-// The session selection governs the page and not only the panel (plan 0.13 §7): what the side panel is showing is what
-// the content marks, so a mark is drawn for a *visible* annotation and the count it carries is of visible ones. The
-// index itself is unfiltered -- it is keyed on the manifest object and a selection change must not rebuild it -- and
-// the filter is applied on the way out.
+// The session selection governs the page and not only the panel (plan 0.13 §7): what the side panel is showing is what the content marks, so a mark is drawn for a *visible* annotation and the count it carries is of visible ones. The index itself is unfiltered -- it is keyed on the manifest object and a selection change must not rebuild it -- and the filter is applied on the way out.
 //
 // Every surface that draws a comment asks "which annotations are on this key", and each of them answered by scanning
 // the whole table. One fragment mount asks it once per key, so a document of a hundred keys scanned a corpus of a

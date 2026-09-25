@@ -9,10 +9,9 @@ const fixture = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) 
 describe('the ledger', () => {
 	it('counts a digest, and of it what the corpus leans on', () => {
 		const r = ledgerRow(fixture, fixture.references.Kre99, reachedExternal(fixture));
-		expect(r.digest).toBe(2);
+		expect(r).toMatchObject({ digest: 2, filed: false });
 		expect(r.used).toBeGreaterThan(0);
 		expect(r.used).toBeLessThanOrEqual(r.digest);
-		expect(r.filed).toBe(false);
 	});
 
 	it('says what needs work: a statement to judge, or a question open on its pages or its results', () => {

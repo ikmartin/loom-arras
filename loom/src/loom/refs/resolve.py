@@ -202,8 +202,8 @@ class Resolver:
     ----------
     cache : Path or None, default None
         A directory of raw responses keyed by request; a request already answered there is not repeated.
-    http : callable, default `http_get`
-        `(url, headers) -> bytes`; injected by tests so nothing touches the network.
+    http : callable, optional
+        `(url, headers) -> bytes`; default the module's `http_get`, looked up when the resolver is made, so a test that replaces either keeps loom off the network.
     contact : str, default ''
         An address sent to Crossref as `mailto`, which routes requests to its polite pool. Sent only when set.
     refresh : bool, default False
@@ -211,10 +211,10 @@ class Resolver:
     """
 
     def __init__(
-        self, cache: Path | None = None, http: Http = http_get, contact: str = "", refresh: bool = False
+        self, cache: Path | None = None, http: Http | None = None, contact: str = "", refresh: bool = False
     ) -> None:
         self.cache = cache
-        self.http = http
+        self.http = http or http_get
         self.contact = contact
         self.refresh = refresh
         self.requests = 0

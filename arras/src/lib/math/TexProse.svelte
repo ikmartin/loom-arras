@@ -1,11 +1,7 @@
 <script lang="ts">
-	// A snippet of LaTeX prose rendered as prose: the math typeset, and the handful of text commands a written sentence
-	// actually uses turned into the markup they mean.
+	// A snippet of LaTeX prose rendered as prose: the math typeset, and the handful of text commands a written sentence actually uses turned into the markup they mean.
 	//
-	// It is not a LaTeX engine and does not pretend to be one. loom renders documents; this renders the sentence or two
-	// an annotation proposes, which arrive as prose with inline math and the occasional `\emph`. Anything it does not
-	// know is left exactly as written, so what is on screen is never a silent misreading of what was proposed -- a
-	// reader who sees a command still in its braces knows to read the verbatim instead.
+	// It is not a LaTeX engine and does not pretend to be one. loom renders documents; this renders the sentence or two an annotation proposes, which arrive as prose with inline math and the occasional `\emph`. Anything it does not know is left exactly as written, so what is on screen is never a silent misreading of what was proposed -- a reader who sees a command still in its braces knows to read the verbatim instead.
 	import { store } from '$lib/manifest/client.svelte';
 	import { typeset } from '$lib/math/mathjax';
 

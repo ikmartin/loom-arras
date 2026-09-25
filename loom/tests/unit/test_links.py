@@ -2,28 +2,17 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
-
-
-def run(*args: str, cwd: Path, env: dict[str, str] | None = None):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args), env=env)
-    finally:
-        os.chdir(old)
+from tests.helpers import ok, refused
+from tests.unit._quilts import demo
 
 
 @pytest.fixture
 def q(tmp_path: Path) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
-    return tmp_path / "q"
+    return demo(tmp_path)
 
 
 def scanned(q: Path):  # type: ignore[no-untyped-def]
@@ -72,7 +61,7 @@ def test_what_the_viewer_does_not_show_is_refused(q: Path) -> None:
 def test_a_deleted_session_is_not_linkable(q: Path) -> None:
     from loom.links import LinkError, resolve
 
-    assert run("session", "delete", "s-2026-09-16-0001", "--author", "A. Author", cwd=q).exit_code == 0
+    ok("session", "delete", "s-2026-09-16-0001", "--author", "A. Author", cwd=q)
     with pytest.raises(LinkError, match="no session"):
         resolve(scanned(q), q, "quilt:s-2026-09-16-0001")
 
@@ -88,9 +77,7 @@ def test_check_names_every_bad_link(q: Path) -> None:
 
 def test_loom_link_prints_what_the_viewer_follows(q: Path) -> None:
     def link(*args: str) -> str:
-        r = run("link", *args, cwd=q)
-        assert r.exit_code == 0, r.output
-        return r.output.strip()
+        return ok("link", *args, cwd=q).output.strip()
 
     assert link("dm-0003") == "[](quilt:dm-0003)"
     assert link("drafting/main.tex", "--at", "dm-0003") == "[](quilt:drafting/main.tex#dm-0003)"
@@ -100,9 +87,8 @@ def test_loom_link_prints_what_the_viewer_follows(q: Path) -> None:
         link("Calloway14", "--page", "2", "--quote", "a phrase")
         == "[](cited:doi:10.4171/demo/14-1?page=2&quote=a%20phrase)"
     )
-    refused = run("link", "nodes/dm-0001.tex", cwd=q)
-    assert refused.exit_code != 0 and "file the documents include" in refused.output
-    assert run("link", "dm-0003", "--page", "2", cwd=q).exit_code != 0  # a page is a work's
+    refused("link", "nodes/dm-0001.tex", cwd=q, code=1, match="file the documents include")
+    refused("link", "dm-0003", "--page", "2", cwd=q, code=2, match="for a cited work")  # a page is a work's
 
 
 def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) -> None:
@@ -110,13 +96,24 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
 
     agent = {"AI_AGENT": "1"}
     sid = "s-2026-09-16-0002"
-    bad = run("session", "say", "See [](quilt:dm-9999).", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
-    assert bad.exit_code != 0 and "dm-9999" in bad.output and "loom link" in bad.output
-    good = run("session", "say", "See [](quilt:dm-0003).", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
-    assert good.exit_code == 0, good.output
+    bad = refused(
+        "session",
+        "say",
+        "See [](quilt:dm-9999).",
+        "--session",
+        sid,
+        "--as",
+        "Referee Agent",
+        cwd=q,
+        env=agent,
+        code=1,
+        match="dm-9999",
+    )
+    assert "loom link" in bad.output
+    ok("session", "say", "See [](quilt:dm-0003).", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
     assert read_events(q, sid)[-1].body == "See [](quilt:dm-0003)."
     # an annotation's body the same way, when an agent writes it
-    c = run(
+    refused(
         "comment",
         "dm-0002",
         "As [](quilt:dm-9999) shows.",
@@ -128,10 +125,11 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "Referee Agent",
         cwd=q,
         env=agent,
+        code=1,
+        match="dm-9999",
     )
-    assert c.exit_code != 0 and "dm-9999" in c.output
     # a person's comment is their own business
-    p = run(
+    ok(
         "comment",
         "dm-0002",
         "As [](quilt:dm-9999) shows.",
@@ -143,7 +141,6 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "A. Author",
         cwd=q,
     )
-    assert p.exit_code == 0, p.output
 
 
 def test_the_formatting_document_is_in_force() -> None:

@@ -132,7 +132,7 @@ def setup_ai(target: Path, choice: str, launch: bool) -> list[str]:
     if choice in ("claude", "codex") and not (target / "ai").exists():
         from loom.ai.layout import init_layer
 
-        init_layer(target, permissions=choice == "claude", codex=choice == "codex")
+        init_layer(target)
     (target / CONFIG).parent.mkdir(parents=True, exist_ok=True)
     (target / CONFIG).write_text(config_text(choice), encoding="utf-8")
     _set_launch(target, launch)

@@ -314,8 +314,7 @@ def _one_comment(
     date = today()
     session, akind, aid = writer
     base = {"when": stamp(), "author": aid, "kind": akind, "session": session}
-    # An agent's links are its contract with the viewer: one that names nothing the viewer shows is refused here, with
-    # the command that prints a good one. A person's are their own business.
+    # An agent's links are its contract with the viewer: one that names nothing the viewer shows is refused here, with the command that prints a good one. A person's are their own business.
     if message and akind == "agent":
         from loom.links import refuse_bad_links
 

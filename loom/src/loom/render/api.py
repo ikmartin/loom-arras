@@ -1,10 +1,8 @@
 """The write API: the HTTP form of loom's record-writing commands (specs/write-api.md, plan 0.11 Part G).
 
-Served by the publisher, never by the viewer. Most endpoints write only Loom's
-private records. The explicit ``sync-incorporate`` endpoint is the narrow
+Served by the publisher, never by the viewer. Most endpoints write only Loom's private records. The explicit ``sync-incorporate`` endpoint is the narrow
 exception: it applies the already displayed pull to author files and records
-two local commits. Every endpoint wraps a library function so its behavior is
-shared with recovery and test surfaces.
+two local commits. Every endpoint wraps a library function so its behavior is shared with recovery and test surfaces.
 
 Nothing here wakes an agent. An agent pulls: it reads open findings with `loom status` and `loom ai findings` and answers with `loom comment --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
 """
@@ -365,7 +363,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     # nothing here reads `.loom/active`, which narrows to `loom comment`'s terminal default. A request naming none is
     # malformed rather than something to paper over: falling back would file work wherever the pointer happened to
     # point, which is the failure this replaced.
-    which = _str(body, "session") or _str(body, "run")
+    which = _str(body, "session")
     if not which:
         raise ApiError("no-session", "a write must name the session it belongs to")
 
@@ -375,7 +373,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         # sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
         writer = _writer(root, which, _str(body, "author"), sniff=False)
     except (EnvError, ContentError) as exc:
-        raise ApiError("no-such-run", str(exc)) from exc
+        raise ApiError("refused", str(exc)) from exc
 
     try:
         # `undo` puts a withdrawn or resolved finding back by appending another event; the viewer offers it in place

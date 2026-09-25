@@ -96,9 +96,7 @@ export async function write(endpoint: string, body: Record<string, unknown>): Pr
 			});
 		};
 		let res = await send();
-		// **A restarted publisher mints a new token**, and the old one is cached for the life of the page — so a tab
-		// left open across a restart refused every write with "this request carries no valid X-Loom-Token" until it
-		// was reloaded, which is not something a reader should have to work out. A 403 is re-probed and retried once;
+		// **A restarted publisher mints a new token**, and the old one is cached for the life of the page — so a tab left open across a restart refused every write with "this request carries no valid X-Loom-Token" until it was reloaded, which is not something a reader should have to work out. A 403 is re-probed and retried once;
 		// if the second answer is also 403, it is a real refusal and is shown.
 		if (res.status === 403) {
 			forgetCapabilities();

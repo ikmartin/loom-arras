@@ -2,42 +2,31 @@
 
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 from typing import Any
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
-
-
-def run(*args: str, cwd: Path, env: dict[str, str] | None = None):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args), env=env)
-    finally:
-        os.chdir(old)
+from tests.helpers import json_of, ok, refused
+from tests.unit._fakes import FakeHandler
+from tests.unit._quilts import demo, new_session
 
 
 @pytest.fixture
 def q(tmp_path: Path) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
-    return tmp_path / "q"
+    return demo(tmp_path)
 
 
 def comment(q: Path, sid: str, *args: str, who: str = "A. Author", agent: bool = False) -> str:
-    r = run("comment", *args, "--session", sid, "--author", who, cwd=q, env={"AI_AGENT": "1"} if agent else None)
-    assert r.exit_code == 0, r.output
-    return r.output.split()[0]
+    r = ok("comment", *args, "--session", sid, "--author", who, cwd=q, env={"AI_AGENT": "1"} if agent else None)
+    return r.stdout.split()[0]
 
 
 def sitting(q: Path) -> tuple[str, Any]:
+    """A fresh session's id, and a callable reading its record anew."""
     from loom.sessions import sessions
 
-    sid = run("session", "new", "reading", "--author", "A. Author", cwd=q).output.split()[0]
+    sid = new_session(q, "reading")
     return sid, lambda: sessions(q)[sid]
 
 
@@ -47,10 +36,9 @@ def test_the_packet_is_what_the_person_marked_and_nothing_else(q: Path) -> None:
     sid, session = sitting(q)
     mine = comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question")
     theirs = comment(q, sid, "dm-0002", "An agent's own note.", "--kind", "note", who="Referee Agent", agent=True)
-    reply = run("comment", "--reply", theirs, "Not here.", "--session", sid, "--author", "A. Author", cwd=q)
-    assert reply.exit_code == 0, reply.output
+    ok("comment", "--reply", theirs, "Not here.", "--session", sid, "--author", "A. Author", cwd=q)
     withdrawn = comment(q, sid, "dm-0002", "Never mind.", "--kind", "note")
-    assert run("comment", "--discard", withdrawn, "--session", sid, "--author", "A. Author", cwd=q).exit_code == 0
+    ok("comment", "--discard", withdrawn, "--session", sid, "--author", "A. Author", cwd=q)
     rows = pending(q, session(), "A. Author")
     assert [r["id"] for r in rows][0] == mine
     assert theirs not in [r["id"] for r in rows] and withdrawn not in [r["id"] for r in rows]
@@ -61,14 +49,14 @@ def test_the_packet_is_what_the_person_marked_and_nothing_else(q: Path) -> None:
 
 
 def test_a_message_carries_only_its_senders_notes(q: Path) -> None:
-    """The 0.14 study (F3): the author's first message carried a second reader's notes too."""
+    """A message carries its sender's notes and no one else's; another reader's wait for their own message (0.14 study F3)."""
     from loom.mailbox import pending, read_events
 
     sid, session = sitting(q)
     mine = comment(q, sid, "dm-0003", "Which orbit?", "--kind", "question")
     wrens = comment(q, sid, "dm-0002", "Split this.", "--kind", "suggestion", who="Wren Halloway")
     assert [r["id"] for r in pending(q, session(), "A. Author")] == [mine]
-    assert run("session", "send", "--session", sid, "--as", "A. Author", cwd=q).exit_code == 0
+    ok("session", "send", "--session", sid, "--as", "A. Author", cwd=q)
     [sent] = read_events(q, sid)
     assert [c["id"] for c in sent.changed] == [mine]
     # Wren's note waits for Wren's own message
@@ -77,6 +65,7 @@ def test_a_message_carries_only_its_senders_notes(q: Path) -> None:
 
 
 def test_a_carried_annotation_is_whole(q: Path) -> None:
+    """What was sent is recorded as sent: the body as typed, never cut short, with every field the agent is asked about."""
     from loom.mailbox import pending
 
     sid, session = sitting(q)
@@ -98,7 +87,7 @@ def test_a_carried_annotation_is_whole(q: Path) -> None:
         "minor",
     )
     [row] = pending(q, session(), "A. Author")
-    assert row["body"] == long.strip() or row["body"] == long
+    assert row["body"] == long
     assert (row["quote"], row["payload"], row["placement"], row["severity"]) == (
         "finite set",
         "a finite set $X$",
@@ -127,7 +116,7 @@ def test_the_preview_is_the_text_the_agent_reads(q: Path) -> None:
     )
     preview = render_changes(pending(q, session(), "A. Author"))
     assert 'on "finite set"' in preview and '"Say which."' in preview and "proposes (after): a finite set" in preview
-    assert run("session", "send", "--session", sid, "--as", "A. Author", cwd=q).exit_code == 0
+    ok("session", "send", "--session", sid, "--as", "A. Author", cwd=q)
     said = render(read_events(q, sid))
     assert said.endswith(preview)
 
@@ -136,10 +125,9 @@ def test_send_with_no_words_sends_the_packet_and_refuses_when_there_is_none(q: P
     from loom.mailbox import read_events
 
     sid, _ = sitting(q)
-    empty = run("session", "send", "--session", sid, "--as", "A. Author", cwd=q)
-    assert empty.exit_code != 0 and "nothing to send" in empty.output
+    refused("session", "send", "--session", sid, "--as", "A. Author", cwd=q, code=2, match="nothing to send")
     comment(q, sid, "dm-0003", "Which orbit?", "--kind", "question")
-    assert run("session", "send", "--session", sid, "--as", "A. Author", cwd=q).exit_code == 0
+    ok("session", "send", "--session", sid, "--as", "A. Author", cwd=q)
     [e] = read_events(q, sid)
     assert e.body == "" and [c["kind"] for c in e.changed] == ["question"]
 
@@ -161,27 +149,14 @@ def test_the_packet_endpoint_previews_rows_and_text(q: Path) -> None:
     sid, _ = sitting(q)
     ann = comment(q, sid, "dm-0003", "Which orbit?", "--kind", "question")
 
-    class Fake:
-        quilt_root = q
-
-        def __init__(self, path: str) -> None:
-            self.path = path
-            self.answer: tuple[int, Any] | None = None
-
-        def _json(self, status: int, body: Any) -> None:
-            self.answer = (int(status), body)
-
-        def send_error(self, status: int) -> None:
-            self.answer = (int(status), None)
-
-    ok = Fake(f"/_api/packet?session={sid}&author=A.%20Author")
-    LoomHandler._packet(ok)  # type: ignore[arg-type]
-    assert ok.answer is not None and ok.answer[0] == 200
-    body = ok.answer[1]
+    good = FakeHandler(q, f"/_api/packet?session={sid}&author=A.%20Author")
+    LoomHandler._packet(good)  # type: ignore[arg-type]
+    assert good.answer is not None and good.answer[0] == 200
+    body = good.answer[1]
     assert [(r["id"], r["kind"], r["target"]) for r in body["rows"]] == [(ann, "question", "dm-0003")]
     assert f"  {ann}  question · dm-0003 · created by A. Author" in body["text"]
     for path, status in ((f"/_api/packet?session=../{sid}", 400), ("/_api/packet?session=s-2026-01-01-0099", 404)):
-        bad = Fake(path)
+        bad = FakeHandler(q, path)
         LoomHandler._packet(bad)  # type: ignore[arg-type]
         assert bad.answer is not None and bad.answer[0] == status
 
@@ -189,8 +164,8 @@ def test_the_packet_endpoint_previews_rows_and_text(q: Path) -> None:
 def test_the_agent_is_handed_the_packet_whole(q: Path) -> None:
     sid, _ = sitting(q)
     comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question")
-    assert run("session", "send", "Have a look.", "--session", sid, "--as", "A. Author", cwd=q).exit_code == 0
-    got = run(
+    ok("session", "send", "Have a look.", "--session", sid, "--as", "A. Author", cwd=q)
+    got = json_of(
         "session",
         "next",
         "--wait",
@@ -203,15 +178,14 @@ def test_the_agent_is_handed_the_packet_whole(q: Path) -> None:
         cwd=q,
         env={"AI_AGENT": "1"},
     )
-    assert got.exit_code == 0, got.output
-    [c] = json.loads(got.output)["events"][0]["changed"]
+    [c] = got["events"][0]["changed"]
     assert (c["body"], c["quote"], c["kind"]) == ("Which orbit?", "finite set", "question")
 
 
 def test_a_message_from_the_viewer_is_the_persons_whatever_shell_serve_runs_in(
     q: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """F17 of the 0.14 study: with `loom serve` started in an agent's terminal, the person's messages were recorded as `agent`, so a launched agent took them for another agent's and never started."""
+    """A message through the viewer is the person's even when `loom serve` runs in an agent's shell; recorded as an agent's, a launched agent would take it for another agent's and never start (0.14 study F17)."""
     from loom.mailbox import read_events
     from loom.render.api import handle
 

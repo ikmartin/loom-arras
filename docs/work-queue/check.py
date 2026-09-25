@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the work queue and the book's freedom from unfinished business.
 
-Run during the end-of-round walk, alongside `docs/deviations.md`. Exits 0 when everything holds, 1 with one line per fault otherwise. The workspace repository has no CI workflows (book 14.4); this is meant to be run by hand or by whatever walks the round.
+Run during the end-of-round walk, alongside `docs/deviations.md`. Exits 0 when everything holds, 1 with one line per fault otherwise. `scripts/verify` runs it in the docs lane, locally and in CI (`docs.yml`, book 14.4).
 """
 
 from __future__ import annotations

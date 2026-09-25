@@ -1,0 +1,32 @@
+name: docs
+
+# The docs lane of scripts/verify, run as it is at a terminal: `full --only docs` (the work queue and the agreement checks under scripts/checks/). hardwrap.py judges the lines this push or pull request adds, which it reads from HARDWRAP_BASE, since a clean checkout has nothing added since HEAD. Book 14.4.
+
+on:
+  push:
+    paths: ['docs/**', 'loom/**', 'arras/**', 'scripts/**', 'demos/**', 'AGENTS.md', 'CLAUDE.md', '.github/workflows/docs.yml']
+  pull_request:
+    paths: ['docs/**', 'loom/**', 'arras/**', 'scripts/**', 'demos/**', 'AGENTS.md', 'CLAUDE.md', '.github/workflows/docs.yml']
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base hardwrap.py diffs against, and the default branch to fall back on
+      - uses: astral-sh/setup-uv@v5
+      - name: the base hardwrap.py judges from
+        # a pull request's base, else the commit the push moved the branch from; a new branch (whose `before` is all zeros), a force push that dropped `before`, or a manual run falls back to where the branch left the default branch
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          base="${PR_BASE:-$BEFORE}"
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base="$(git merge-base HEAD "origin/$DEFAULT_BRANCH")"
+          fi
+          echo "HARDWRAP_BASE=$base" >> "$GITHUB_ENV"
+      - run: scripts/verify full --only docs

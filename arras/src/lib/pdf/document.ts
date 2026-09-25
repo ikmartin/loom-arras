@@ -1,7 +1,4 @@
-// PDF.js, loaded the way MathJax is (`$lib/math/mathjax.ts`): a dynamic import the first time a paper is opened, so a
-// reader who never opens one pays nothing for it. Bundled rather than fetched from a CDN, so a deployed site works
-// offline, and the worker is emitted by the bundler from `import.meta.url` rather than pointed at `static/` — a
-// hand-written path would lose the base prefix, which `tests/e2e/base-path.e2e.ts` exists to catch.
+// PDF.js, loaded the way MathJax is (`$lib/math/mathjax.ts`): a dynamic import the first time a paper is opened, so a reader who never opens one pays nothing for it. Bundled rather than fetched from a CDN, so a deployed site works offline, and the worker is emitted by the bundler from `import.meta.url` rather than pointed at `static/` — a hand-written path would lose the base prefix, which `src/lib/paths.spec.ts` checks.
 
 import { base } from '$app/paths';
 import type { PDFDocumentProxy, PageViewport } from 'pdfjs-dist';

@@ -14,16 +14,13 @@ from loom.cli._quilt import open_quilt, quilt_option
 def upgrade(quilt_path: str | None) -> None:
     """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones."""
     from loom.ai.layout import upgrade_layer
-    from loom.records.lastseen import ensure_gitignore_line
+    from loom.gitignore import ensure
 
     quilt = open_quilt(quilt_path)
     root = quilt.root
-    if ensure_gitignore_line(root):
-        click.echo("wrote .gitignore (loom's last-seen cache)")
-    from loom.agent import ensure_ignored
-
-    if ensure_ignored(root):
-        click.echo("wrote .gitignore (the agent's command and its turns' state)")
+    added = ensure(root)
+    if added:
+        click.echo(f"wrote .gitignore ({', '.join(added)})")
     sty = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")
     p = root / "loom.sty"
     if not p.is_file() or p.read_text(encoding="utf-8") != sty:

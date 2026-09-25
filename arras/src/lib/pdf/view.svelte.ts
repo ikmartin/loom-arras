@@ -1,8 +1,6 @@
 // The reader's view of a document: which tool is in hand, how large the page is drawn, and where in it they are.
 //
-// It is a separate object because the controls and the renderer need not be in the same place. `PdfDoc` draws its own
-// toolbar when nothing else claims one, and a page with a rail of its own creates a view, hands it to both, and puts
-// the controls on one line with everything else it offers.
+// It is a separate object because the controls and the renderer need not be in the same place. `PdfDoc` draws its own toolbar when nothing else claims one, and a page with a rail of its own creates a view, hands it to both, and puts the controls on one line with everything else it offers.
 
 import { prefs } from '$lib/prefs.svelte';
 

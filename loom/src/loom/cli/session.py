@@ -176,7 +176,9 @@ def delete_command(
                 raise EnvError(
                     f"--purge erases {dropped} annotation(s) and cannot be undone; pass --yes when you mean it"
                 )
-            click.echo(f"--purge erases {s.id} and the {dropped} annotation(s) written in it. This cannot be undone.")
+            click.echo(
+                f"--purge erases {s.id} and the {dropped} annotation(s) written in it or answering them. This cannot be undone."
+            )
             click.confirm("erase it?", abort=True)
         log_path(root).write_text("".join(kept), encoding="utf-8")
         _purge_index(root, s.id)
@@ -195,7 +197,10 @@ def delete_command(
 
 
 def _without(root, sid: str) -> tuple[list[str], int]:  # type: ignore[no-untyped-def]
-    """The annotation log's lines with one session's events removed, and how many were removed."""
+    """The annotation log's lines with one session's events removed, and how many annotations went with them.
+
+    Also removes any other session's event that names an erased annotation -- a reply to it, and so on down, or an edit, resolve or discard of it -- which would otherwise be left naming nothing and be reported as `loom:foreign-annotations` for good. A line that is not JSON is kept as it stands.
+    """
     import json
 
     from loom.records.log import log_path
@@ -203,18 +208,24 @@ def _without(root, sid: str) -> tuple[list[str], int]:  # type: ignore[no-untype
     p = log_path(root)
     if not p.is_file():
         return [], 0
-    kept, dropped = [], 0
+    kept: list[str] = []
+    erased: set[str] = set()
     for line in p.read_text(encoding="utf-8").splitlines(keepends=True):
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
             kept.append(line)
             continue
-        if isinstance(event, dict) and str(event.get("session", "")) == sid:
-            dropped += 1
+        if isinstance(event, dict) and (
+            str(event.get("session", "")) == sid
+            or str(event.get("reply_to") or "-") in erased
+            or (event.get("event") not in ("created", "replied") and str(event.get("id") or "-") in erased)
+        ):
+            if event.get("event") in ("created", "replied") and event.get("id"):
+                erased.add(str(event["id"]))
             continue
         kept.append(line)
-    return kept, dropped
+    return kept, len(erased)
 
 
 def _purge_index(root, sid: str) -> None:  # type: ignore[no-untyped-def]
@@ -260,8 +271,7 @@ def send_command(text: str, which: str | None, declared: str | None, quilt_path:
     from loom.mailbox import attached, pending, post, waiting_on
 
     root, found, name, kind = _mail(quilt_path, which, declared)
-    # The same packet the viewer's input sends: a post says what changed, not only what was typed, and a message sent
-    # from the terminal is not a lesser message.
+    # The same packet the viewer's input sends: a post says what changed, not only what was typed, and a message sent from the terminal is not a lesser message.
     packet = pending(root, found, name)
     if not text.strip() and not packet:
         raise EnvError("nothing to send: no words, and nothing marked since the last message")

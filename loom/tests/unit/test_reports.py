@@ -1,9 +1,12 @@
-"""The report parser and the math pass (plan 0.11 Part A)."""
+"""A notes file as a report (plan 0.11 Part A): its blocks, its findings as anchors, its source offsets, and the order of passes. The Markdown pass inside it is `records/test_render_markdown.py`'s."""
 
 from __future__ import annotations
 
-from loom.records.store import render_markdown
+from pathlib import Path
+
 from loom.render.reports import parse_report
+from tests.helpers import ok
+from tests.unit._quilts import demo
 
 SAMPLE = """## [summary]
 Two claims are mixed; one step is unsaid.
@@ -17,25 +20,6 @@ Two claims are mixed; one step is unsaid.
 ## [decision]
 Minor Revision.
 """
-
-
-def test_math_survives_markdown() -> None:
-    """Commonmark has no math: `$a_i b_i$` loses both subscripts to emphasis unless the TeX is lifted out first."""
-    out = render_markdown("The bound $O(n^2)$ is sharp for $a_i b_i$ when *this* holds.")
-    assert '<span class="math inline">\\(O(n^2)\\)</span>' in out
-    assert '<span class="math inline">\\(a_i b_i\\)</span>' in out  # not <em>i b</em>
-    assert "<em>this</em>" in out  # emphasis outside the math still works
-
-
-def test_display_math_is_a_block_not_a_paragraph() -> None:
-    out = render_markdown("Then:\n\n$$\\int_0^1 f = 1$$\n")
-    assert '<div class="math display">\\[\\int_0^1 f = 1\\]</div>' in out
-    assert "<p><div" not in out  # a div inside a p is not HTML
-
-
-def test_math_is_escaped_for_html() -> None:
-    out = render_markdown("Compare $x < y$ and $a \\& b$.")
-    assert "&lt;" in out and "&amp;" in out
 
 
 def test_report_parses_into_its_blocks() -> None:
@@ -87,9 +71,19 @@ def test_an_unparseable_report_is_one_block_not_an_error() -> None:
     assert r.blocks[0].name == "" and "Just prose" in r.html
 
 
-def test_a_second_pass_sorts_after_its_first() -> None:
-    """`referee-x.2.notes.md` sorts before `referee-x.notes.md` by plain name order, which would show pass 2 first."""
-    from loom.render.threads import _pass_of
+def test_a_second_pass_sorts_after_its_first(tmp_path: Path) -> None:
+    """`referee-x.2.notes.md` sorts before `referee-x.notes.md` by plain name order, which would show pass 2 first; a session's pipeline lists the first pass, then the second, whatever order the directory gives."""
+    from loom.render.threads import build_threads
+    from loom.sessions import files_dir, sessions
 
-    assert _pass_of("referee-dm-0003.notes.md") == "1"
-    assert _pass_of("referee-dm-0003.2.notes.md") == "2"
+    q = demo(tmp_path)
+    sid = ok("session", "new", "two passes", "--author", "A. Author", cwd=q).stdout.split()[0]
+    notes = files_dir(q, sessions(q)[sid])
+    notes.mkdir(parents=True, exist_ok=True)
+    (notes / "referee-dm-0003.2.notes.md").write_text("## [summary]\nSecond.\n")
+    (notes / "referee-dm-0003.notes.md").write_text("## [summary]\nFirst.\n")
+    pipeline = build_threads(q)[sid]["pipeline"]
+    assert [(e["report"].rsplit("/", 1)[-1], e.get("pass")) for e in pipeline] == [
+        ("referee-dm-0003.notes.md", None),
+        ("referee-dm-0003.2.notes.md", 2),
+    ]

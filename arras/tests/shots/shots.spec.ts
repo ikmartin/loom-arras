@@ -1,13 +1,9 @@
 // The reference figures of book 15.9: the viewer photographed rendering the vendored fixture, so the chapter shows what exists rather than what was drawn during design.
-// Run with `npm run shots`; the images are committed and supersede the hand-drawn SVGs.
+// Run with `npm run shots`; the images are committed beside the hand-drawn SVGs they supersede, or written to `ARRAS_SHOTS_OUT` when it is set.
 import { test, type Page } from '@playwright/test';
+import { outDir, settle, still } from './settle';
 
-const OUT = '../docs/book/figures';
-
-async function settle(page: Page) {
-	await page.waitForSelector('main h1, [data-pane] > .body > *', { timeout: 15000 });
-	await page.waitForTimeout(700); // MathJax and the force simulation
-}
+const OUT = outDir('../docs/book/figures');
 
 async function shot(page: Page, name: string, path: string, opts: { shell?: 'a' | 'c'; theme?: 'light' | 'dark' } = {}) {
 	await page.goto('/');
@@ -34,7 +30,7 @@ test('the reference figures', async ({ page }) => {
 	await page.screenshot({ path: `${OUT}/page-graph-dots.png` });
 	for (const drawing of ['box', 'sections', 'reading']) {
 		await page.getByTestId(`layout-${drawing}`).click();
-		await page.waitForTimeout(900);
+		await still(page);
 		await page.screenshot({ path: `${OUT}/page-graph-${drawing}.png` });
 	}
 

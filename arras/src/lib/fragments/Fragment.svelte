@@ -254,8 +254,7 @@
 	/** How many places in this fragment carry an annotation: marked phrases and blocks, and the counts beside results whose comments have no mark. */
 	let marks = $state(0);
 	let allOpen = $state(false);
-	// What a rail outside this component needs in order to offer the same two actions: the actions themselves, whether
-	// there is anything to act on, and which way the control should read.
+	// What a rail outside this component needs in order to offer the same two actions: the actions themselves, whether there is anything to act on, and which way the control should read.
 	$effect(() => {
 		const a = annotations;
 		if (!a) return;

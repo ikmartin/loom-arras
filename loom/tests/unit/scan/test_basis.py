@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from click.testing import CliRunner
-
-from loom.cli import main
 from loom.cli.review import write_acceptance
 from loom.records.store import Records
 from loom.reshape.atomize import plan_atomize
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
+from tests.helpers import refused
 from tests.unit.scan.helpers import DEFAULT_CONFIG, PREAMBLE, make_quilt
 
 
@@ -59,16 +57,32 @@ This is quoted later in the block from \cite[Theorem 3]{Paper}.\end{theorem}
     assert not result.nodes["ab-0006"].external
     assert {d.keys[0] for d in result.lint if d.code == "loom:needs-classification"} == {"ab-0006"}
     assert any(d.code == "loom:misplaced-basis" for d in result.lint)
-    bulk = CliRunner().invoke(
-        main, ["accept", "--all-live", "--yes", "--force", "--author", "Test author", "--quilt", str(result.quilt.root)]
+    refused(
+        "accept",
+        "--all-live",
+        "--yes",
+        "--force",
+        "--author",
+        "Test author",
+        "--quilt",
+        str(result.quilt.root),
+        code=1,
+        match="live unclassified keys",
     )
-    assert bulk.exit_code != 0 and "live unclassified keys" in bulk.output
     assert not (result.quilt.root / ".loom" / "state.toml").exists()
-    for key, phrase in (("ab-0004", "open claim"), ("ab-0005", "quotes someone else's result")):
-        attempt = CliRunner().invoke(
-            main, ["accept", key, "--force", "--author", "Test author", "--quilt", str(result.quilt.root)]
+    # an open claim is content the author can change; someone else's result is the wrong command for it (use refs verify)
+    for key, phrase, code in (("ab-0004", "open claim", 1), ("ab-0005", "quotes someone else's result", 2)):
+        refused(
+            "accept",
+            key,
+            "--force",
+            "--author",
+            "Test author",
+            "--quilt",
+            str(result.quilt.root),
+            code=code,
+            match=phrase,
         )
-        assert attempt.exit_code != 0 and phrase in attempt.output
 
 
 def test_basis_controls_settlement_not_theorem_style(tmp_path: Path) -> None:
@@ -152,10 +166,18 @@ def test_accept_all_live_refuses_to_establish_an_open_claim(tmp_path: Path) -> N
 """,
         },
     )
-    attempt = CliRunner().invoke(
-        main, ["accept", "--all-live", "--yes", "--force", "--author", "Test author", "--quilt", str(result.quilt.root)]
+    refused(
+        "accept",
+        "--all-live",
+        "--yes",
+        "--force",
+        "--author",
+        "Test author",
+        "--quilt",
+        str(result.quilt.root),
+        code=1,
+        match="open claims cannot be accepted",
     )
-    assert attempt.exit_code != 0 and "open claims cannot be accepted" in attempt.output
     assert not (result.quilt.root / ".loom" / "state.toml").exists()
 
 
@@ -281,3 +303,27 @@ def test_the_quilts_basis_table_names_its_own_environments(tmp_path: Path) -> No
     }
     assert "[basis] in config.toml" in result.nodes["ab-0002"].basis_reason
     assert any("basis.observation = 'cited-result'" in w for w in result.quilt.config.warnings)
+
+
+def test_a_commented_out_line_does_not_separate_a_proof_from_its_statement(tmp_path: Path) -> None:
+    """A `%` line between a statement and its proof is nothing the reader or TeX sees, so atomize moves the two together; a remark between them still refuses (test_zk_proof_after_explanatory_remark_belongs_to_proposition)."""
+    result = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\begin{document}
+\begin{proposition}\label{ab-0001}
+A claim.
+\end{proposition}
+%\begin{proposition} An older wording.
+ %\end{proposition}
+\begin{proof}
+By the other claim.
+\end{proof}
+\end{document}
+"""
+        },
+    )
+    assert result.nodes["ab-0001"].proofs == ["ab-0001/proof"]
+    plan = plan_atomize(result, "drafting/main.tex", "drafting/spine.tex", keys=["ab-0001"])
+    assert plan.refusals == [], plan.refusals

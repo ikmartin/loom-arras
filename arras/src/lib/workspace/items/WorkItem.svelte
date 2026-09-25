@@ -26,14 +26,12 @@
 	const citekey = $derived(item.id);
 	const ref = $derived(m.references[citekey]);
 	const citers = $derived((id: string) => [...new Set(m.edges.filter((e) => e.to === id).map((e) => e.from))]); // one entry per citing key, however many edges
-	// A full extraction holds every theorem-like result of the cited paper, of which this corpus usually leans on a
-	// handful. The rest is context worth having and not worth reading, so it folds.
+	// A full extraction holds every theorem-like result of the cited paper, of which this corpus usually leans on a handful. The rest is context worth having and not worth reading, so it folds.
 	const reached = $derived(reachedExternal(m));
 	const used = $derived((ref?.digest?.nodes ?? []).filter((id) => reached.has(id)));
 	const rest = $derived((ref?.digest?.nodes ?? []).filter((id) => !reached.has(id)));
 	let showAll = $state(false);
-	// Proposals are merged into the page they are about rather than queued somewhere else: an author meets one while
-	// already thinking about the subject it pertains to, which is when they are best placed to judge it (§5.2).
+	// Proposals are merged into the page they are about rather than queued somewhere else: an author meets one while already thinking about the subject it pertains to, which is when they are best placed to judge it (§5.2).
 	const proposals = $derived(
 		(ref?.proposed?.nodes ?? [])
 			.map((id) => ({ id, record: ref?.results?.[id] }))

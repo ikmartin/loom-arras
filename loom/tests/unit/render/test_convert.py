@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from loom.render.convert import Converter, RenderContext
+from loom.render.convert import Converter, RenderContext, renders_as_math
 from loom.scan.macros import parse_macros
 from loom.scan.source import blank_comments
 from loom.tex.aux import AuxNumber
@@ -64,9 +64,7 @@ def test_convert_math_inline_display_labels() -> None:
 def test_convert_refs_cites_footnote_url() -> None:
     text = "See Lemma~\\ref{lem:a}, \\eqref{eq:b}, \\cref{lem:a,thm:c}, \\ref{nope}; \\cite[Theorem 4.1]{Man12} and \\cite{Har77}.\\footnote{A note with $m$.} \\url{https://x.org} \\href{https://y.org}{Y}."
     labels = {"lem:a": "k-0002", "eq:b": "k-0003#eq:b", "thm:c": "k-0004"}
-    out, ctx, _ = make(text, labels=labels, numbers={"lem:a": AuxNumber("2.1", 1), "eq:b": AuxNumber("7", 2)})
-    ctx.regions["k-0003#eq:b"] = "k-0003"
-    out, ctx2, _ = make(text, labels=labels, numbers={"lem:a": AuxNumber("2.1", 1), "eq:b": AuxNumber("7", 2)})
+    out, _, _ = make(text, labels=labels, numbers={"lem:a": AuxNumber("2.1", 1), "eq:b": AuxNumber("7", 2)})
     # each carries the command as written, for a quote across it (DR-282-ikmartin)
     assert (
         '<a id="cite-f-tex-10-k-0002" class="ref" data-target="k-0002" data-tex="\\ref{lem:a}" data-at="10" href="#k-0002">2.1</a>'
@@ -212,3 +210,14 @@ def test_qedhere_is_dropped_from_a_formula() -> None:
     """`\\qedhere` moves amsthm's tombstone into the last display; the viewer has no tombstone to move and the renderer has no such command, so the whole formula reached the page in error colour (seen on the 10/8 paper)."""
     out, _, _ = make("\\[ a = b. \\qedhere \\]\n")
     assert "qedhere" not in out and "a = b." in out
+
+
+def test_a_display_that_is_a_picture_goes_to_the_fallback() -> None:
+    """A commutative diagram written inside a numbered display is a picture, not a formula: handing it to the viewer's mathematics renderer sets the whole block in error colour, which is what the relative localization and ACGS papers showed."""
+    assert not renders_as_math(r"\[\tag{2}\begin{tikzcd} a \arrow[r] & b \end{tikzcd}\]")
+    assert not renders_as_math(r"\[\xymatrix{A \ar[r] & B}\]")  # a command, not an environment
+    assert not renders_as_math(r"\[\includegraphics{a.pdf}\]")
+    # and everything a renderer does handle stays mathematics
+    assert renders_as_math(r"\begin{align*}\begin{pmatrix}1\end{pmatrix}\end{align*}")
+    assert renders_as_math(r"\[\begin{cases} 1 & x > 0 \end{cases}\]")
+    assert renders_as_math(r"\[x^2 + \frac{1}{2}\]")

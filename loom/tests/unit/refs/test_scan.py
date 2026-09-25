@@ -236,6 +236,7 @@ def test_a_document_that_states_no_identifier_is_reachable_from_its_own_entry(tm
     _pdf(seed / "stated.pdf", text="arXiv:2504.09999v1 A paper that names itself")
     again = scan_bibliography(quilt)
     named = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())[again.added[-1].key]
-    if primary(named) and primary(named).scheme == "arxiv":
-        assert "loom-file" not in named.fields
-        assert work_dir(quilt.root, named) == quilt.root / "digests" / "storage" / primary(named).path
+    stated = primary(named)
+    assert stated is not None and str(stated) == "arXiv:2504.09999v1", named.fields
+    assert "loom-file" not in named.fields
+    assert work_dir(quilt.root, named) == quilt.root / "digests" / "storage" / stated.path

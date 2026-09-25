@@ -1,23 +1,19 @@
-// The write API, end to end (plan 0.11 Part H): the real viewer, served by the real publisher, writing into a real
-// quilt. The other three configs serve a static preview with no write API, which is the right default -- a deployed
-// site has no publisher behind it -- so this is the only suite where an editing affordance exists at all.
+// The write API, end to end (plan 0.11 Part H): the real viewer, served by the real publisher, writing into a real quilt. The other configs serve a static preview with no write API, which is the right default -- a deployed site has no publisher behind it -- so this is the only suite where an editing affordance exists at all.
 //
-// The quilt is a scratch copy, because these tests write to it. LOOM_ARRAS_BUNDLE points loom at the build under test
-// rather than the one vendored into it, which would be whatever was last released.
+// There is no webServer: each test is served by the fixture in tests/served.ts, on its own copy of the synthetic quilt taken from what git tracks, so no test sees another's writes. LOOM_ARRAS_BUNDLE points loom at the build under test rather than the one vendored into it, which would be whatever was last released. The suite runs whatever `../loom/.venv/bin/loom` is installed.
 import { defineConfig } from '@playwright/test';
+import { results, scratch } from './tests/sites';
 
 export default defineConfig({
-	webServer: {
-		command:
-			'npm run build && rm -rf .tmp-write-quilt && cp -R ../loom/tests/quilts/synthetic .tmp-write-quilt && LOOM_ARRAS_BUNDLE="$PWD/build" ../loom/.venv/bin/loom serve --quilt .tmp-write-quilt --port 4178 --no-compile',
-		port: 4178,
-		reuseExistingServer: false,
-		timeout: 180000
-	},
+	outputDir: results('write'),
+	globalSetup: './tests/served-setup.ts',
+	metadata: { quilt: 'synthetic', scratch: scratch('write') },
 	testDir: 'tests/e2e-write',
 	testMatch: '**/*.e2e.ts',
 	// shots.e2e.ts writes the committed pictures under records/images, so it runs only when asked (`npm run shots:write`)
 	testIgnore: process.env.ARRAS_SHOTS ? [] : ['**/shots.e2e.ts'],
-	workers: 1,
-	use: { baseURL: 'http://localhost:4178' }
+	fullyParallel: true,
+	// 15 s rather than 5: a page PDF.js draws under a real publisher settles slowly while other suites share the machine
+	expect: { timeout: 15000 },
+	workers: 4
 });

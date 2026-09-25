@@ -1,12 +1,8 @@
-// The Chat (plan 0.14 phase 2): a session's conversation and its input in one pane, replacing the Discussion. The transcript comes from the build's pages, and — where a publisher serves — from a poll of `/_api/events`; the status line and the input exist only where a publisher answers (P3). Each test is named for the rule it holds.
+// The Chat: a session's conversation and its input in one pane. The transcript comes from the build's pages, and, where a publisher serves, from a poll of `/_api/events`; the status line and the input exist only where a publisher answers (P3). Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
 import { beside, pane } from '../workspace';
 import { openPicker, pickSession } from '../picker';
-
-const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
-const REFEREE = 's-2026-09-16-0001';
-const QUICK = 's-2026-09-15-0001';
+import { QUICK, REFEREE, saying, serve } from '../manifest';
 
 type Ev = { seq: number; kind: string; who: string; when: string; body?: string; body_html?: string };
 
@@ -14,18 +10,14 @@ function said(seq: number, who = seq % 2 ? 'A. Author' : 'Referee Agent'): Ev {
 	return { seq, kind: 'message', who, when: '2026-09-16T10:00:00Z', body: `message ${seq}`, body_html: `<p>message ${seq}</p>` };
 }
 
-/** A transcript of `count` messages, served as the build's pages, with the manifest's count to match. */
-async function transcript(page: Page, count: number, id = REFEREE) {
-	await page.route('**/build/manifest.json', async (route) => {
-		const m = JSON.parse(JSON.stringify(manifest));
-		m.sessions.find((s: { id: string }) => s.id === id).seq = count;
-		await route.fulfill({ json: m });
-	});
-	await page.route(`**/build/transcripts/${id}/*.json`, async (route) => {
+/** A transcript of `count` messages in the referee session, served as the build's pages, with the manifest's count to match; `html` draws a message's body. */
+async function transcript(page: Page, count: number, html?: (seq: number) => string) {
+	await serve(page, (m) => (m.sessions.find((s: { id: string }) => s.id === REFEREE).seq = count));
+	await page.route(`**/build/transcripts/${REFEREE}/*.json`, async (route) => {
 		const n = Number(route.request().url().match(/\/(\d+)\.json$/)![1]);
 		const events: Ev[] = [];
-		for (let s = (n - 1) * 100 + 1; s <= Math.min(n * 100, count); s++) events.push(said(s));
-		await route.fulfill({ json: { session: id, page: n, events } });
+		for (let s = (n - 1) * 100 + 1; s <= Math.min(n * 100, count); s++) events.push(html ? { ...said(s), body_html: html(s) } : said(s));
+		await route.fulfill({ json: { session: REFEREE, page: n, events } });
 	});
 }
 
@@ -46,10 +38,14 @@ async function publisher(page: Page, state: { events: Ev[]; attached: { who: str
 }
 
 test.describe('the transcript', () => {
-	test('the Chat opens on the newest message, with no heading of its own', async ({ page }) => {
-		await transcript(page, 40);
-		await page.goto('/session/' + REFEREE);
-		const chat = page.getByTestId('chat');
+	test('the Chat opens on the newest message once the mathematics in it is typeset, with no heading of its own', async ({ page }) => {
+		// typesetting grows the messages under the landing, so a Chat scrolled to the bottom before it would leave the newest below the fold
+		const display = '<span class="math display">\\[\\sum_{a:t(a)=v} w(a) - \\sum_{a:s(a)=v} w(a) = \\int_0^1 \\frac{x^2}{1+x^2}\\,dx\\]</span>';
+		await transcript(page, 40, (s) => `<p>message ${s}</p><p>${display}</p><p>${display}</p>`);
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		const chat = pane(page, 1).getByTestId('chat');
+		await expect(chat.locator('mjx-container').first()).toBeAttached();
+		await expect.poll(() => chat.locator('.math:not(:has(mjx-container))').count()).toBe(0);
 		await expect(chat.getByTestId('message-40')).toBeInViewport();
 		await expect(chat.getByTestId('message-1')).not.toBeInViewport();
 		await expect(chat.locator('h1, h2')).toHaveCount(0);
@@ -68,12 +64,22 @@ test.describe('the transcript', () => {
 		await expect(chat.getByTestId('message-101')).toBeInViewport();
 	});
 
-	test("a body is rendered, links and mathematics, and the agent's messages carry a rule", async ({ page }) => {
+	test("a body is rendered, and the agent's messages carry a rule", async ({ page }) => {
 		await page.goto('/session/' + REFEREE);
 		const first = page.getByTestId('message-1');
 		await expect(first).toContainText('hostile review of the parity theorem');
 		await expect(first).toHaveClass(/agent/);
-		expect(await first.evaluate((el) => getComputedStyle(el).borderLeftStyle)).toBe('solid');
+		await expect(first).toHaveCSS('border-left-style', 'solid');
+	});
+
+	test('a \\ref in a message reads as written, never as ???', async ({ page }) => {
+		// an agent quoting "the saturation of Proposition~\\ref{sh-0007}" is shown the reference as written, never as `Proposition~???`
+		await saying(page, '<p>by the saturation of Proposition~\\ref{sh-0007}, and <span class="math inline">\\(x\\)</span>.</p>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		const message = pane(page, 1).getByTestId('message-1');
+		await expect(message.locator('mjx-container')).toHaveCount(1); // the mathematics is still typeset
+		await expect(message).toContainText('\\ref{sh-0007}');
+		await expect(message).not.toContainText('???');
 	});
 
 	test('with no publisher, the Chat is the transcript alone', async ({ page }) => {
@@ -87,10 +93,24 @@ test.describe('the transcript', () => {
 test.describe('one Chat at a time', () => {
 	test('the picker opens the Chat beside, focus stays, and the URL remembers it', async ({ page }) => {
 		await page.goto('/node/sy-0003');
+		// one pane at rest: a reader who never wants a second carries no frame for it
+		await expect(pane(page, 1)).toHaveCount(0);
+		// choosing whom to talk to opens the conversation beside, and the reader stays in the node
 		await pickSession(page, REFEREE);
 		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 		await expect(pane(page, 0)).toHaveClass(/focused/);
+		await expect(page.getByTestId('open-context')).toBeVisible();
+		// closed, choosing it again opens it again
+		await pane(page, 1).getByTestId('tab-close').click();
+		await expect(pane(page, 1)).toHaveCount(0);
+		await pickSession(page, REFEREE);
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 		await expect.poll(() => new URL(page.url()).searchParams.get('beside')).toBe('/session/' + REFEREE);
+		await expect(page.getByTestId('divider')).toBeVisible();
+		// and the arrangement is a link: a reload reproduces it
+		await page.reload();
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
+		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
 	});
 
 	test("opening a second session's Chat closes the first, and selects it", async ({ page }) => {
@@ -122,6 +142,54 @@ test.describe('where a publisher serves', () => {
 		await expect(page.getByTestId('message-3')).toContainText('Not reviewed.');
 		await expect(page.getByTestId('chat-status')).toHaveText('Referee Agent is attached');
 		await expect(page.getByTestId('message-3')).toBeInViewport();
+	});
+
+	test('the first poll follows the newest page at once, not a second later', async ({ page }) => {
+		const state = { events: [said(1, 'Referee Agent')], attached: [{ who: 'Referee Agent', kind: 'agent' }] };
+		await publisher(page, state);
+		// the ask for the newest page carries the largest `since`; every other ask is a poll
+		const at: { latest?: number; poll?: number } = {};
+		page.on('request', (r) => {
+			const since = r.url().includes('/_api/events') ? new URL(r.url()).searchParams.get('since') : null;
+			if (since === String(Number.MAX_SAFE_INTEGER)) at.latest ??= Date.now();
+			else if (since !== null) at.poll ??= Date.now();
+		});
+		await page.goto('/session/' + REFEREE);
+		await expect(page.getByTestId('chat-status')).toHaveText('Referee Agent is attached');
+		// the interval is a second; a poll that waited for it would come a second after landing
+		expect(at.poll! - at.latest!).toBeLessThan(600);
+	});
+
+	test('under a publisher the Chat opens on the newest page the publisher holds, not everything since the last build', async ({ page }) => {
+		const asked: string[] = [];
+		await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['message'], token: 't' } }));
+		await page.route('**/_api/packet*', (r) => r.fulfill({ json: { session: REFEREE, rows: [], text: '' } }));
+		await page.route('**/_api/events*', (r) => {
+			const since = Number(new URL(r.request().url()).searchParams.get('since'));
+			asked.push(String(since));
+			r.fulfill({ json: { session: REFEREE, from: since, seq: 250, events: [], attached: [] } });
+		});
+		await page.route(`**/build/transcripts/${REFEREE}/*.json`, (route) => {
+			const n = Number(route.request().url().match(/\/(\d+)\.json$/)![1]);
+			const events = Array.from({ length: n === 3 ? 50 : 100 }, (_, i) => ({ seq: (n - 1) * 100 + i + 1, kind: 'message', who: 'Seed Agent', when: '2026-09-16T10:00:00Z', body: 'x', body_html: '<p>x</p>' }));
+			route.fulfill({ json: { session: REFEREE, page: n, events } });
+		});
+		await page.goto('/session/' + REFEREE);
+		await expect(page.getByTestId('message-250')).toBeInViewport();
+		// a reader at the newest stays there when the log's own height changes: a narrower window, or the tray opening
+		await page.setViewportSize({ width: 1100, height: 600 });
+		await expect(page.getByTestId('message-250')).toBeInViewport();
+		await expect(page.getByTestId('message-200')).toHaveCount(0); // only the newest page, until asked
+		// and not the page the stale manifest names beside it, which would hold 1–100 then 201–250 with nothing between; asserted once the Chat is polling from the newest, which is after landing has fetched all it will
+		await expect.poll(() => asked.filter((s) => s === '250').length).toBeGreaterThan(0);
+		await expect(page.getByTestId('message-100')).toHaveCount(0);
+		// scrolling up fills in from the page before, so what is held is always one unbroken run
+		await page.getByTestId('chat-log').evaluate((e) => (e.scrollTop = 0));
+		await expect(page.getByTestId('message-200')).toHaveCount(1);
+		const held = await page.locator('[data-testid^=message-]').evaluateAll((ms) => ms.map((m) => Number(m.getAttribute('data-testid')!.slice(8))));
+		expect(held).toEqual(Array.from({ length: held.length }, (_, i) => held[0] + i));
+		// every poll after landing asks from the last message held, never from nothing
+		expect(asked).not.toContain('0');
 	});
 
 	test('with nobody listening, it says the message waits', async ({ page }) => {
@@ -195,14 +263,11 @@ test.describe('packets', () => {
 		await expect(page.getByTestId('composer-send')).toBeDisabled();
 	});
 
-	test('a row opens its annotation beside, and the Chat stays', async ({ page }) => {
+	test('a row links its annotation by its quilt: address, which opens where every such link does', async ({ page }) => {
+		// where the link opens, and that the Chat stays, is the one rule's (links.e2e.ts); the row's part is to link the annotation
 		await packet(page, [QUESTION]);
-		await page.goto('/master/main' + beside('/session/' + REFEREE));
-		await pane(page, 1).getByTestId(`packet-row-${QUESTION.id}`).locator('a').click();
-		// the note is on sy-0003, which the open main.tex holds: it opens there, with its box (DR-280-ikmartin)
-		await expect(pane(page, 0).getByTestId('item-tab')).toHaveCount(1);
-		await expect(pane(page, 0).getByTestId('comment-expanded')).toBeVisible();
-		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
+		await page.goto('/session/' + REFEREE);
+		await expect(page.getByTestId(`packet-row-${QUESTION.id}`).locator('a')).toHaveAttribute('href', `quilt:${QUESTION.id}`);
 	});
 
 	test('a packet goes without words, the tray empties, and the message says what it carried', async ({ page }) => {
@@ -222,7 +287,7 @@ test.describe('packets', () => {
 });
 
 test.describe('an agent loom starts', () => {
-	type Agent = { launch: boolean; name: string; state?: string; error?: string; activity?: string };
+	type Agent = { launch: boolean; name: string; state?: string; error?: string; activity?: string; blocked?: string; started?: string };
 
 	/** A publisher whose events answer carries `agent`, as `loom serve` does. */
 	async function starting(page: Page, agent: Agent) {
@@ -268,20 +333,24 @@ test.describe('an agent loom starts', () => {
 		await page.goto('/session/' + REFEREE);
 		await expect(page.getByTestId('chat-status')).toHaveText('nobody is attached — messages wait in the inbox');
 	});
-});
 
-test('a turn that fails after a send says so, rather than that the agent will start', async ({ page }) => {
-	// found by the 0.14 study (F7): the send's own note outranked the turn's failure, so the line said "will start" for ever
-	const agent = { launch: true, name: 'Claude Agent' } as Record<string, unknown>;
-	await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['message'], token: 't' } }));
-	await page.route('**/_api/packet*', (r) => r.fulfill({ json: { session: REFEREE, rows: [], text: '' } }));
-	await page.route('**/_api/events*', (r) => r.fulfill({ json: { session: REFEREE, from: 0, seq: 1, events: [said(1, 'Referee Agent')], attached: [], agent } }));
-	await page.route('**/_api/message', (r) => {
-		Object.assign(agent, { state: 'failed', error: 'Session ID is already in use.', started: new Date(Date.now() + 1000).toISOString().replace(/\.\d{3}Z$/, 'Z') });
-		r.fulfill({ json: { ok: true, result: 'posted', session: REFEREE, seq: 2, attached: [] } });
+	test('where something keeps loom from starting the agent, the Chat says what', async ({ page }) => {
+		await starting(page, { launch: true, name: 'Claude Agent', blocked: 'git tracks ai/ai-config.toml, so loom will not run it' });
+		await page.goto('/session/' + REFEREE);
+		await expect(page.getByTestId('chat-status')).toHaveText('Claude Agent cannot be started: git tracks ai/ai-config.toml, so loom will not run it');
 	});
-	await page.goto('/session/' + REFEREE);
-	await page.getByTestId('composer-text').fill('Hello?');
-	await page.getByTestId('composer-send').click();
-	await expect(page.getByTestId('chat-status')).toHaveText('Claude Agent could not run: Session ID is already in use.');
+
+	test('a turn that fails after a send says so, rather than that the agent will start', async ({ page }) => {
+		// the send's own note must not outrank the turn's failure, or the line says "will start" for ever
+		const state = await starting(page, { launch: true, name: 'Claude Agent' });
+		await page.route('**/_api/message', (r) => {
+			// the turn starts after the send, by the test's clock, which is the browser's on this machine
+			state.agent = { ...state.agent, state: 'failed', error: 'Session ID is already in use.', started: new Date(Date.now() + 1000).toISOString().replace(/\.\d{3}Z$/, 'Z') };
+			r.fulfill({ json: { ok: true, result: 'posted', session: REFEREE, seq: 2, attached: [] } });
+		});
+		await page.goto('/session/' + REFEREE);
+		await page.getByTestId('composer-text').fill('Hello?');
+		await page.getByTestId('composer-send').click();
+		await expect(page.getByTestId('chat-status')).toHaveText('Claude Agent could not run: Session ID is already in use.');
+	});
 });

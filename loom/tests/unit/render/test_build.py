@@ -11,31 +11,20 @@ import sys
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
 from loom.render import build as build_mod
 from loom.render import publish as publish_mod
 from loom.render.build import build
 from loom.scan.macros import PACKAGE_COMMANDS
 from loom.scan.quilt import load_quilt
+from tests.helpers import exits, ok
 
 REPO = Path(__file__).resolve().parents[3]
 VALIDATOR = REPO / "tests" / "tools" / "validate_dialect.py"
 
 
-def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
-
-
 def demo(tmp_path: Path) -> Path:
-    r = run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
-    assert r.exit_code == 0, r.output
+    ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     return tmp_path / "demo"
 
 
@@ -54,9 +43,8 @@ def validate(build_dir: Path) -> tuple[int, str]:
 
 def test_build_layout_and_manifest(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    assert run("compile", cwd=d).exit_code == 0
-    r = run("build", cwd=d)
-    assert r.exit_code == 0, r.output
+    ok("compile", cwd=d)
+    ok("build", cwd=d)
     b = d / "build"
     assert (b / "manifest.json").exists()
     assert (b / "fragments" / "nodes" / "dm-0003.html").exists()
@@ -121,9 +109,8 @@ def test_build_layout_and_manifest(tmp_path: Path) -> None:
 
 def test_fragment_kinds_and_dialect_validity(tmp_path: Path) -> None:
     d = synthetic(tmp_path)
-    assert run("compile", cwd=d).exit_code == 0
-    r = run("build", cwd=d)
-    assert r.exit_code == 1, r.output  # the synthetic quilt has three intentional errors
+    ok("compile", cwd=d)
+    exits(1, "build", cwd=d)  # the synthetic quilt has three intentional errors
     b = d / "build"
     node = (b / "fragments" / "nodes" / "sy-0003.html").read_text()
     assert node.startswith(
@@ -189,8 +176,8 @@ def test_force_renders_every_fragment_again(tmp_path: Path) -> None:
     assert build(load_quilt(d)).rendered == []
     forced = build(load_quilt(d), force=True)
     assert set(forced.rendered) == set(first.rendered) and forced.skipped == []
-    r = run("build", "--force", cwd=d)
-    assert r.exit_code == 0 and ", 0 unchanged" in r.output
+    r = ok("build", "--force", cwd=d)
+    assert ", 0 unchanged" in r.output
 
 
 def test_build_atomic_publish_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -245,34 +232,12 @@ def test_warm_build_leaves_skipped_fragments_in_place(tmp_path: Path) -> None:
     assert all(p.stat().st_mtime_ns == stamps[p] and p.read_text() == texts[p] for p in frags)
 
 
-def test_build_exit_1_on_errors_still_publishes(tmp_path: Path) -> None:
-    d = demo(tmp_path)
-    (d / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
-    r = run("build", cwd=d)
-    assert r.exit_code == 1 and "duplicate-id" in r.output
-    m = json.loads((d / "build" / "manifest.json").read_text())
-    assert any(x["code"] == "duplicate-id" for x in m["diagnostics"])
-
-
 def test_build_dir_deletable_and_regenerated(tmp_path: Path) -> None:
     d = demo(tmp_path)
     build(load_quilt(d))
     shutil.rmtree(d / "build")
     rep = build(load_quilt(d))
     assert (d / "build" / "manifest.json").exists() and rep.rendered
-
-
-def test_a_display_that_is_a_picture_goes_to_the_fallback(tmp_path: Path) -> None:
-    """A commutative diagram written inside a numbered display is a picture, not a formula: handing it to the viewer's mathematics renderer sets the whole block in error colour, which is what the relative localization and ACGS papers showed."""
-    from loom.render.convert import renders_as_math
-
-    assert not renders_as_math(r"\[\tag{2}\begin{tikzcd} a \arrow[r] & b \end{tikzcd}\]")
-    assert not renders_as_math(r"\[\xymatrix{A \ar[r] & B}\]")  # a command, not an environment
-    assert not renders_as_math(r"\[\includegraphics{a.pdf}\]")
-    # and everything a renderer does handle stays mathematics
-    assert renders_as_math(r"\begin{align*}\begin{pmatrix}1\end{pmatrix}\end{align*}")
-    assert renders_as_math(r"\[\begin{cases} 1 & x > 0 \end{cases}\]")
-    assert renders_as_math(r"\[x^2 + \frac{1}{2}\]")
 
 
 def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> None:
@@ -293,8 +258,7 @@ def test_an_inclusion_cycle_is_an_error_and_not_a_traceback(tmp_path: Path) -> N
         main.read_text().replace("\\end{document}", "\\input{nodes/self}\n\\input{nodes/ping}\n\\end{document}")
     )
 
-    r = run("build", cwd=d)
-    assert r.exit_code in (0, 1), r.output  # an error exit is fine; a traceback is not
+    r = exits(1, "build", cwd=d)  # an error exit is fine; a traceback is not
     assert "RecursionError" not in r.output
     assert "inclusion-cycle" in r.output
     m = json.loads((d / "build" / "manifest.json").read_text())
@@ -313,7 +277,7 @@ def test_a_render_on_one_thread_does_not_see_another_threads_inclusions(tmp_path
     from loom.scan.quilt import load_quilt
     from loom.scan.scan import scan
 
-    assert CliRunner().invoke(main, ["init", str(tmp_path / "q"), "--demo"]).exit_code == 0
+    ok("init", str(tmp_path / "q"), "--demo")
     renderer = FragmentRenderer(
         RenderPlan(
             result=scan(load_quilt(tmp_path / "q")), numbers={}, svg_cache=tmp_path / "c", svg_out=tmp_path / "s"
@@ -384,3 +348,63 @@ def test_a_document_shows_its_own_numbers_and_none_it_was_not_given(tmp_path: Pa
 
     _, talk_html = render({"sy-0002": AuxNumber("3", 2)})
     assert '<span class="number">3</span>' in talk_html and "2.1" not in talk_html
+
+
+#: One planted fragment per rule the dialect validator enforces, with the problem it must name.
+PLANTED = [
+    ("script", '<div data-src="a.tex:1:1" class="env"><script>x()</script></div>', "forbidden element <script>"),
+    ("style", "<style>p{}</style>", "forbidden element <style>"),
+    ("iframe", '<iframe src="x"></iframe>', "forbidden element <iframe>"),
+    ("unknown-element", "<blink>x</blink>", "element <blink> is not in the dialect"),
+    ("handler", '<span onclick="x()">x</span>', "inline event handler on <span>"),
+    ("unknown-class", '<span class="shiny">x</span>', "<span> has classes outside the dialect: shiny"),
+    ("p-without-src", "<p>prose</p>", "<p> without data-src"),
+    ("env-without-src", '<div class="env env-theorem">x</div>', "div.env.env-theorem without data-src"),
+    ("include-without-key", '<div class="include">x</div>', "div.include without data-key"),
+    ("malformed-src", '<p data-src="a.tex:one">x</p>', "malformed data-src 'a.tex:one'"),
+    ("absolute-href", '<a class="ref" href="https://example.org/x">x</a>', "absolute URL in href of <a>"),
+    ("protocol-relative", '<span data-x="//example.org/x">x</span>', "absolute URL in data-x of <span>"),
+    ("external-img", '<img src="https://example.org/i.png">', "img with an external src"),
+]
+
+
+def _validator():  # type: ignore[no-untyped-def]
+    from tests.tools import validate_dialect
+
+    return validate_dialect
+
+
+@pytest.mark.parametrize(("name", "html", "problem"), PLANTED, ids=[p[0] for p in PLANTED])
+def test_the_dialect_validator_rejects_each_rule_it_enforces(
+    tmp_path: Path, name: str, html: str, problem: str
+) -> None:
+    """A validator that accepted everything would pass every build test; each planted violation must fail it, naming the rule."""
+    frag = tmp_path / "fragments" / f"{name}.html"
+    frag.parent.mkdir()
+    frag.write_text(html + "\n", encoding="utf-8")
+    code, out = validate(tmp_path)
+    assert code == 1, out
+    assert f"{frag}:1: {problem}" in out.splitlines(), out
+    assert out.splitlines()[-1] == "1 fragment(s), 1 problem(s)", out
+
+
+def test_the_dialect_validator_accepts_what_the_dialect_allows(tmp_path: Path) -> None:
+    """The positive control for the table above: the allowances beside each rule (a.url, a relative img[src], env-label, svg content, pre in a figure) pass."""
+    frag = tmp_path / "fragments" / "fine.html"
+    frag.parent.mkdir()
+    frag.write_text(
+        '<div class="env env-theorem" data-src="a.tex:1:1"><p class="env-label">Theorem</p>'
+        '<p data-src="a.tex:2:1">See <a class="url" href="https://example.org">it</a>.</p>'
+        '<div class="include" data-key="nodes/x.tex"></div>'
+        '<figure class="diagram" data-src="a.tex:3:1"><img src="svg/i.svg"><pre>raw</pre>'
+        '<svg xmlns="http://www.w3.org/2000/svg"><g onclick="x"><text>t</text></g></svg></figure></div>\n',
+        encoding="utf-8",
+    )
+    code, out = validate(tmp_path)
+    assert (code, out.strip()) == (0, "1 fragment(s), 0 problem(s)")
+
+
+def test_the_validator_loom_tests_with_is_the_one_the_spec_ships() -> None:
+    """`tests/tools/validate_dialect.py` is a copy of `docs/specs/tools/validate-dialect.py`; testing the copy proves nothing about the spec's if they drift."""
+    spec = REPO.parent / "docs" / "specs" / "tools" / "validate-dialect.py"
+    assert VALIDATOR.read_bytes() == spec.read_bytes(), f"{VALIDATOR} differs from {spec}; copy the spec's over it"

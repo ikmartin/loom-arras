@@ -2,28 +2,16 @@
 
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
-
-
-def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
+from tests.helpers import json_of, ok, refused
 
 
 @pytest.fixture
 def q(tmp_path: Path) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
+    ok("init", str(tmp_path / "q"), "--demo", cwd=tmp_path)
     q = tmp_path / "q"
     # two compiles that number the same nodes differently: the paper, and an outline of it
     for stem, labels in (
@@ -37,9 +25,7 @@ def q(tmp_path: Path) -> Path:
 
 
 def found(q: Path, *args: str) -> list[dict[str, object]]:
-    r = run("search", *args, "--json", cwd=q)
-    assert r.exit_code == 0, r.output
-    return json.loads(r.output)
+    return json_of("search", *args, "--json", cwd=q)
 
 
 def test_a_number_names_what_every_document_numbers_so_the_default_first(q: Path) -> None:
@@ -58,15 +44,13 @@ def test_a_number_names_what_every_document_numbers_so_the_default_first(q: Path
 def test_in_asks_one_document(q: Path) -> None:
     assert [e["key"] for e in found(q, "1.3", "--in", "outline")] == ["dm-0002"]
     assert [e["key"] for e in found(q, "1.3", "--in", "drafting/main.tex")] == ["dm-0003"]
-    bad = run("search", "1.3", "--in", "nowhere", cwd=q)
-    assert bad.exit_code != 0 and "names no drafting document" in bad.output
-    words = run("search", "widget", "--in", "main", cwd=q)
-    assert words.exit_code != 0 and "resolve a number" in words.output
+    refused("search", "1.3", "--in", "nowhere", code=2, match="names no drafting document", cwd=q)
+    refused("search", "widget", "--in", "main", code=2, match="resolve a number", cwd=q)
 
 
 def test_a_number_nothing_carries_says_so_and_words_are_still_words(q: Path) -> None:
-    none = run("search", "Theorem 9.9", cwd=q)
-    assert none.exit_code == 0 and "nothing is numbered Theorem 9.9" in none.output
+    none = ok("search", "Theorem 9.9", cwd=q)
+    assert "nothing is numbered Theorem 9.9" in none.output
     # a bare number nothing is numbered is looked for as text, as ever
-    assert run("search", "2026", cwd=q).exit_code == 0
+    ok("search", "2026", cwd=q)
     assert [e["key"] for e in found(q, "Widget")][:1] == ["dm-0001"]

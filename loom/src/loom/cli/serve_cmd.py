@@ -19,8 +19,13 @@ from loom.render.serve import DEFAULT_PORT, ServeSession, locate_bundle
 @quilt_option
 def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | None) -> None:
     """Watch, republish, and serve arras at / and build/ at /build/ until interrupted."""
+    from loom.arras_bundle import BundleEnvError
+
     quilt = open_quilt(quilt_path)
-    bundle = locate_bundle()
+    try:
+        bundle = locate_bundle()
+    except BundleEnvError as e:
+        raise EnvError(f"{e}: point it at a built arras (the directory holding index.html), or unset it") from None
     if bundle is None:
         raise EnvError(
             "the arras viewer bundle is not installed: set LOOM_ARRAS_BUNDLE, install the arras package, or use a loom checkout with the vendored bundle"
@@ -34,8 +39,7 @@ def serve(port: int, open_browser: bool, no_compile: bool, quilt_path: str | Non
     note(f"loom serve: {session.url}  (build directory at {session.url}build/; Ctrl-C to stop)")
     if open_browser:
         webbrowser.open(session.url)
-    # A terminal closed or a `kill` stops a server with SIGTERM, not Ctrl-C; either way the turns it started stop with
-    # it, since each runs in a process group of its own that nothing else would ever end (plan 0.14, study F15).
+    # A terminal closed or a `kill` stops a server with SIGTERM, not Ctrl-C; either way the turns it started stop with it, since each runs in a process group of its own that nothing else would ever end (plan 0.14, study F15).
     import signal
 
     def _term(*_: object) -> None:

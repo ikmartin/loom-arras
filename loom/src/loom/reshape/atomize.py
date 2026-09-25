@@ -166,11 +166,12 @@ def plan_atomize(
                 continue
             if _inside_moved(n, nodes_here, claimed):
                 continue
+            # what separates is a block the reader sees: a `%` line between them is not, as it is not to the scanner that attached the proof
             if any(
                 (p := asm.nodes[pk]).file == src_rel
                 and p.attach_via == "adjacent"
                 and p.start >= n.end
-                and text[n.end : p.start].strip()
+                and src.clean[n.end : p.start].strip()
                 for pk in n.proofs
             ):
                 plan.refusals.append(

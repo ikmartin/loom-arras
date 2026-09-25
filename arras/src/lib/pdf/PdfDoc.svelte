@@ -190,10 +190,7 @@
 		const at = spans.find((s) => s.id === id);
 		if (!at) return;
 		here = at.page;
-		// After the page is in the window and has drawn, the mark itself is what to scroll to — and it does not exist
-		// until the page it is on is rendered, which is not the next frame. One frame was enough while the only caller
-		// scrolled to a mark on a page already drawn; the preview card asks for one on a page it has just mounted, and
-		// fell back to the top of the page every time. Wait for the mark, then give up on the page.
+		// After the page is in the window and has drawn, the mark itself is what to scroll to — and it does not exist until the page it is on is rendered, which is not the next frame. One frame was enough while the only caller scrolled to a mark on a page already drawn; the preview card asks for one on a page it has just mounted, and fell back to the top of the page every time. Wait for the mark, then give up on the page.
 		let tries = 0;
 		let frame = 0;
 		const reach = () => {

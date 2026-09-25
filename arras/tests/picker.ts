@@ -1,4 +1,4 @@
-// The session list lives in a picker opened from the side panel's footer (plan 0.13.3 S7), so every suite that selects a session goes through it.
+// The session list lives in a picker opened from the side panel's footer, so every suite that selects a session goes through it.
 
 import type { Page } from '@playwright/test';
 

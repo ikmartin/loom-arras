@@ -2,35 +2,23 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
+from tests.helpers import ok, the
 
 WHO = ("--author", "A. Author")
 
 
-def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
-
-
 @pytest.fixture
 def q(tmp_path: Path) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
+    ok("init", str(tmp_path / "q"), "--demo", cwd=tmp_path)
     return tmp_path / "q"
 
 
 def comment(q: Path, *args: str) -> str:
-    r = run("comment", *args, "--kind", "note", *WHO, cwd=q)
-    assert r.exit_code == 0, r.output
+    r = ok("comment", *args, "--kind", "note", *WHO, cwd=q)
     return r.output.split()[0]
 
 
@@ -75,7 +63,7 @@ def test_an_edit_restates_the_finding_against_the_text_as_it_is_now(q: Path) -> 
 
     ann = comment(q, "dm-0002", "Say which orbits.")
     rewrite(q, "nodes/dm-0002.tex", "Every orbit", "Each orbit")
-    assert run("comment", "--edit", ann, "Still: say which orbits.", *WHO, cwd=q).exit_code == 0
+    ok("comment", "--edit", ann, "Still: say which orbits.", *WHO, cwd=q)
     a = resolved(q)[ann].annotation  # type: ignore[attr-defined]
     assert a.body == "Still: say which orbits." and a.target_hash == key_hash(open_scan(str(q)), "dm-0002")
 
@@ -87,10 +75,9 @@ def test_a_reply_records_the_text_it_was_written_against(q: Path) -> None:
     parent = comment(q, "dm-0002", "Say which orbits.")
     before = key_hash(open_scan(str(q)), "dm-0002")
     rewrite(q, "nodes/dm-0002.tex", "Every orbit", "Each orbit")
-    r = run("comment", "--reply", parent, "Done.", *WHO, cwd=q)
-    assert r.exit_code == 0, r.output
+    ok("comment", "--reply", parent, "Done.", *WHO, cwd=q)
     got = resolved(q)
-    reply = next(x for x in got.values() if x.annotation.in_reply_to == parent)  # type: ignore[attr-defined]
+    reply = the(got.values(), lambda x: x.annotation.in_reply_to == parent, f"reply to {parent}")  # type: ignore[attr-defined]
     now = key_hash(open_scan(str(q)), "dm-0002")
     assert got[parent].annotation.target_hash == before  # type: ignore[attr-defined]
     assert reply.annotation.target_hash == now != before  # type: ignore[attr-defined]
@@ -131,7 +118,7 @@ def test_an_edit_from_the_viewer_changes_the_body(q: Path) -> None:
     from loom.render.api import handle
 
     ann = comment(q, "dm-0002", "Say which orbits.")
-    sid = run("session", "list", cwd=q).output.split()[0]
+    sid = ok("session", "list", cwd=q).output.split()[0]
     handle(
         q, "edit", {"annotation": ann, "message": "Say which orbits, please.", "session": sid, "author": "A. Author"}
     )

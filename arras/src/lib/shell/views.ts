@@ -40,8 +40,7 @@ export function viewsOf(m: Manifest | null): View[] {
 export function viewOf(path: string): string {
 	if (path === '/') return 'home';
 	if (path.startsWith('/master') || path.startsWith('/canon')) return 'read';
-	// The Library left the strip: a work is a document, it is navigated to from the panel's Library section, and the
-	// read view is where every document is read.
+	// The Library left the strip: a work is a document, it is navigated to from the panel's Library section, and the read view is where every document is read.
 	if (path.startsWith('/library')) return 'read';
 	if (path.startsWith('/node')) return 'read';
 	// a session is read beside the work it was done in, so it lights the view its annotations point into

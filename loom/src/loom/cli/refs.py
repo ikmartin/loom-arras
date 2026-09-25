@@ -19,20 +19,20 @@ import click
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.clock import stamp
-from loom.refs.identity import declared, primary
+from loom.refs.identity import declared
 from loom.refs.pages import storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, query_for, save
 from loom.scan.scan import ScanResult
 
 
 def _home(result: ScanResult, citekey: str) -> Path:
-    """The work's directory in loom's store, or a refusal naming what is missing."""
+    """The work's directory in loom's store, where `work_dir` says every other reader looks, or a refusal naming what is missing."""
+    from loom.refs.fetch import work_dir
+
     entry = result.bib.get(citekey)
     if entry is None:
         raise EnvError(f"{citekey} is not in the bibliography, so it has no identity to file under")
-    wid = primary(entry)
-    assert wid is not None  # identify() always yields at least a synthetic id for a real entry
-    return storage_root(result.quilt.root) / wid.path
+    return work_dir(result.quilt.root, entry)
 
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -713,7 +713,9 @@ def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, qu
 @refs.command(name="grep")
 @click.argument("text")
 @click.option("--work", "works_only", multiple=True, help="Limit to these citekeys.")
-@click.option("--limit", default=20, show_default=True, help="Stop after this many hits.")
+@click.option(
+    "--limit", default=20, show_default=True, help="Show at most this many hits; every work is still searched."
+)
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
 @logged("grep")
@@ -814,7 +816,10 @@ def locate_command(
     # differently -- and so this can print the basis and the offsets, which its own `locate_span` could not.
     placed = anchor_on_page(home, page_no, text)
     if not placed.found:
-        click.echo(f"not found on {citekey} p.{page_no}")
+        if as_json:
+            click.echo(json.dumps({"found": False, "citekey": citekey, "page": page_no}))
+        else:
+            click.echo(f"not found on {citekey} p.{page_no}")
         ctx.exit(EXIT_CONTENT)
         return
     anchor = placed.anchor

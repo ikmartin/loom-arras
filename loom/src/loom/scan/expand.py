@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -80,10 +81,17 @@ class Expansion:
         return None
 
 
-@cache
 def _kpsewhich(name: str) -> bool:
-    """Whether the distribution resolves `name`. Memoised because it is a subprocess run once per unresolved inclusion, and a paper's unresolved names repeat: on the Manolache import it was 86 ms of a 166 ms scan, over half the total."""
-    exe = shutil.which("kpsewhich")
+    """Whether the distribution resolves `name`, asked of the `kpsewhich` on PATH now.
+
+    Memoised, since a subprocess per unresolved inclusion was 86 ms of a 166 ms scan on the Manolache import; keyed by executable and TEXINPUTS as well as name, so a run under another installation is never answered from this one's memo.
+    """
+    return _probe(shutil.which("kpsewhich"), os.environ.get("TEXINPUTS", ""), name)
+
+
+@cache
+def _probe(exe: str | None, texinputs: str, name: str) -> bool:
+    """One `kpsewhich NAME`; `texinputs` is only a cache key, since the subprocess inherits the environment it names."""
     if not exe:
         return False
     try:

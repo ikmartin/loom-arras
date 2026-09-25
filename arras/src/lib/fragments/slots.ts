@@ -1,7 +1,6 @@
 // Where each comment on a key stands in a fragment (book 15.3.1).
 //
-// A comment with a mark is reached from its mark; one without gets a count beside its node's label. The `margin`
-// placement, which sorted comments between a gutter slot and the flow by how much they said, is retired.
+// A comment with a mark is reached from its mark; one without gets a count beside its node's label. The `margin` placement, which sorted comments between a gutter slot and the flow by how much they said, is retired.
 
 import type { Annotation, Manifest } from '$lib/manifest/types';
 import type { CommentSlot } from './mount';
@@ -15,8 +14,7 @@ export function commentsOn(m: Manifest, key: string): Annotation[] {
 /**
  * The slot function a `Fragment` takes.
  *
- * A comment with a mark is reached from its mark; one without gets a count beside its node's label. The `margin`
- * placement, which put short comments in the gutter and long ones in the flow, is retired.
+ * A comment with a mark is reached from its mark; one without gets a count beside its node's label. The `margin` placement, which put short comments in the gutter and long ones in the flow, is retired.
  */
 export function slotsFor(m: () => Manifest): (key: string) => CommentSlot[] {
 	return (key) =>

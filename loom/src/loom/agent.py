@@ -43,15 +43,13 @@ AFTER_STOP = (
 
 #: What `loom init` writes for each answer to "which AI do you use".
 PRESETS: dict[str, dict[str, Any]] = {
-    # `--settings` names the permission file `loom ai init --permissions` writes: Claude Code ignores a project's own
-    # settings until someone accepts its trust dialog there, which a turn nobody watches never does.
+    # `--settings` names the permission file every quilt with `ai/` has: Claude Code ignores a project's own settings until someone accepts its trust dialog there, which a turn nobody watches never does.
     "claude": {
         "name": "Claude Agent",
         "start": ["claude", "-p", "{prompt}", "--session-id", "{agent_session}", "--settings", ".claude/settings.json"],
         "resume": ["claude", "-p", "{prompt}", "--resume", "{agent_session}", "--settings", ".claude/settings.json"],
     },
-    # Unverified: Codex was not installed where this was written. It cannot be told which conversation to use, so it
-    # has no resume and regains the thread from `loom ai orient --session` each turn.
+    # Unverified: Codex was not installed where this was written. It cannot be told which conversation to use, so it has no resume and regains the thread from `loom ai orient --session` each turn.
     "codex": {"name": "Codex Agent", "start": ["codex", "exec", "{prompt}"]},
 }
 
@@ -68,39 +66,6 @@ HEADER = """\
 """
 
 
-#: What a quilt keeps out of git for the agent side, which `loom init` writes and `loom upgrade` adds to an older quilt.
-IGNORED = (
-    ".loom/sessions/*/attached.json",
-    ".loom/sessions/*/cursors/",
-    ".loom/sessions/*/agent.*",
-    CONFIG,
-)
-
-
-def unignored(root: Path) -> list[str]:
-    """The lines of IGNORED a quilt's `.gitignore` does not have, as lines."""
-    p = root / ".gitignore"
-    have = set(p.read_text(encoding="utf-8").splitlines()) if p.is_file() else set()
-    return [line for line in IGNORED if line not in have]
-
-
-def ensure_ignored(root: Path) -> list[str]:
-    """Add the missing IGNORED lines to the quilt's `.gitignore`, under one comment; returns what it added.
-
-    A quilt made before 0.14, or one with a `.gitignore` of its own, would otherwise let the person's own command be committed by accident -- after which loom refuses to run it.
-    """
-    missing = unignored(root)
-    if not missing:
-        return []
-    p = root / ".gitignore"
-    existing = p.read_text(encoding="utf-8") if p.is_file() else ""
-    block = "# The agent loom may start: your own command, and each turn's runtime state. None of it is the quilt's.\n"
-    p.write_text(
-        existing.rstrip("\n") + ("\n" if existing else "") + block + "\n".join(missing) + "\n", encoding="utf-8"
-    )
-    return missing
-
-
 def config_text(preset: str | None) -> str:
     """The `ai/ai-config.toml` `loom init` writes: a preset filled in, or every key commented out."""
 
@@ -113,6 +78,10 @@ def config_text(preset: str | None) -> str:
     if preset in PRESETS:
         return HEADER + "\n" + "\n".join(lines(PRESETS[preset])) + "\n"
     return HEADER + "\n" + "\n".join("# " + x for x in lines(PRESETS["claude"])) + "\n"
+
+
+#: What `load` says when neither the quilt nor the user config names an agent.
+UNCONFIGURED = f"no agent is configured: fill in {CONFIG}"
 
 
 @dataclass
@@ -150,7 +119,7 @@ def load(root: Path) -> tuple[AgentConfig | None, list[str]]:
             merged.update(mine)
             sources.append(CONFIG)
     if not merged:
-        return None, [f"no agent is configured: fill in {CONFIG}"]
+        return None, [UNCONFIGURED]
     name = merged.get("name")
     start = merged.get("start")
     resume = merged.get("resume")
@@ -180,6 +149,51 @@ def tracked(root: Path) -> bool:
         ["git", "ls-files", "--error-unmatch", CONFIG], cwd=root, capture_output=True, text=True, check=False
     )
     return proc.returncode == 0
+
+
+@dataclass
+class Diagnosis:
+    """What `loom agent check` finds, which `loom doctor` reports too: whether launching is on, the config, the commands it would run, and every fault that would stop it."""
+
+    launch: bool
+    config: AgentConfig | None
+    faults: list[str] = field(default_factory=list)
+    #: (label, argv with sample values) for `start` and, when given, `resume`
+    commands: list[tuple[str, list[str]]] = field(default_factory=list)
+    #: whether `.gitignore` lacks the agent config's line
+    unignored: bool = False
+
+    @property
+    def configured(self) -> bool:
+        """Whether anything names an agent, sound or not."""
+        return self.config is not None or self.faults[:1] != [UNCONFIGURED]
+
+
+#: What `diagnose` fills a command's placeholders with, since no session exists to fill them.
+SAMPLE = {"session": "s-0000-00-00-0000", "agent_session": "<the session's conversation id>", "prompt": "<the prompt>"}
+
+
+def diagnose(root: Path) -> Diagnosis:
+    """Test the command `loom serve` would start an agent with, without running it.
+
+    A fault is an incomplete config, a command not on PATH, or a config git tracks; each stops loom starting the agent.
+    """
+    cfg, problems = load(root)
+    d = Diagnosis(launching(root), cfg, list(problems))
+    if tracked(root):
+        d.faults.append(f"git tracks {CONFIG}: loom will not run a command the quilt carries; git rm --cached it")
+    if cfg is not None:
+        fill = {**SAMPLE, "quilt": str(root)}
+        for label, template in (("start", cfg.start), ("resume", cfg.resume)):
+            if template:
+                cmd = argv(template, **fill)
+                d.commands.append((label, cmd))
+                if shutil.which(cmd[0]) is None:
+                    d.faults.append(f"{cmd[0]} is not on PATH")
+    from loom.gitignore import missing
+
+    d.unignored = CONFIG in missing(root)
+    return d
 
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
@@ -215,12 +229,14 @@ def state(root: Path, sid: str) -> dict[str, Any]:
 
 
 def write_state(root: Path, sid: str, **fields: Any) -> dict[str, Any]:
+    """Merge `fields` into the session's `agent.json`, replacing the file whole so a reader never sees it half written."""
     from loom.mailbox import session_dir
+    from loom.render.publish import write_atomic
 
     d = session_dir(root, sid)
     d.mkdir(parents=True, exist_ok=True)
     now = {**state(root, sid), **fields}
-    (d / STATE).write_text(json.dumps(now, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(d / STATE, json.dumps(now, indent=1, sort_keys=True) + "\n")
     return now
 
 
@@ -291,12 +307,14 @@ class Launcher:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
+        self._settled = False
 
     def settle(self) -> None:
         """Take every open session's inbox as already answered: only what arrives while serving starts a turn.
 
-        Called by `loom serve` before the first tick. Turning launching on must not wake every old session whose last message nobody answered -- that is a turn per session, at once, for messages nobody is waiting on.
+        Called by `loom serve` before its socket accepts a write, so a message posted during the first build starts a turn rather than being taken as old. Turning launching on must not wake every old session whose last message nobody answered -- that is a turn per session, at once, for messages nobody is waiting on.
         """
+        self._settled = True
         from loom.mailbox import last_seq
         from loom.sessions import sessions
 
@@ -317,7 +335,9 @@ class Launcher:
                 )
 
     def start(self) -> None:
-        self.settle()
+        """Begin ticking on a thread, settling first unless `settle` already ran."""
+        if not self._settled:
+            self.settle()
         self._thread = threading.Thread(target=self._loop, name="loom-launcher", daemon=True)
         self._thread.start()
 
@@ -371,9 +391,7 @@ class Launcher:
 
         before = state(self.root, sid)
         turns = int(before.get("turns", 0)) if before.get("name") == cfg.name else 0
-        # Resume only a conversation a turn finished in; otherwise start a new one under a new id. An id derived from
-        # the quilt and the session was the same after a re-clone or a lost `agent.json`, and the agent refused it as
-        # already in use -- and a start that failed may or may not have made the conversation it named.
+        # Resume only a conversation a turn finished in; otherwise start a new one under a new id. An id derived from the quilt and the session was the same after a re-clone or a lost `agent.json`, and the agent refused it as already in use -- and a start that failed may or may not have made the conversation it named.
         resumable = bool(cfg.resume and before.get("conversation") and before.get("resumable"))
         conversation = str(before["conversation"]) if resumable else str(uuid.uuid4())
         template = cfg.resume if resumable and cfg.resume else cfg.start

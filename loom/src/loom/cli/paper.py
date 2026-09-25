@@ -63,6 +63,8 @@ def id_command(
         allocated = f"{pre_next}-{next_local(visible_locals(result, pre_next))}"
         emit_json({"id": allocated, "prefix": pre_next}) if as_json else click.echo(allocated)
         return
+    if as_json:
+        raise EnvError("--json applies to --next; a file's labels are printed as a diff")
     if file is None:
         click.echo("ERROR: name a file to label, or pass --next for the next free id", err=True)
         ctx.exit(EXIT_USAGE)

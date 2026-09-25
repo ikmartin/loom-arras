@@ -21,8 +21,7 @@ SUFFIXES = {".tex", ".sty", ".cls", ".bib", ".toml", ".json", ".jsonl", ".md", "
 def snapshot(root: Path) -> dict[Path, float]:
     seen: dict[Path, float] = {}
     for p in root.rglob("*"):
-        # A session's inbox is read live through `/_api/events`; rebuilding the manifest per message would re-render
-        # what the reader has open.
+        # A session's inbox is read live through `/_api/events`; rebuilding the manifest per message would re-render what the reader has open.
         if not p.is_file() or p.suffix not in SUFFIXES or p.name in (CACHE, "review-observations.json", INBOX):
             continue
         rel = p.relative_to(root)

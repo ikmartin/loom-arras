@@ -4,7 +4,7 @@ An annotation records `against`: the hash of the text it was written about. When
 
 Noticing requires having the old text, not merely its hash, which is why this keeps a copy of the quilt rather than a table of digests: once the author saves, the previous text exists nowhere else. The copy is bounded -- one text per key, rewritten in place -- and only texts an annotation actually points at are ever frozen, so a quilt nobody has reviewed pays nothing but the cache itself.
 
-Two edits between two scans leave an annotation **unanchored**: loom never saw the text in between and will not pretend it did.
+The version a note is written against is also frozen when the note is written (DR-284), so two edits between two scans lose nothing a note needs.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
 
 CACHE = "last-seen.json"
-GITIGNORE_LINE = CACHE  # derived from the quilt, rebuilt on demand, and never worth committing
 VERSION = 1
 
 
@@ -83,13 +82,3 @@ def freeze_moved(result: ScanResult, records: list[Record], history_dir: Path | 
             frozen.append(key)
     write_last_seen(root, texts, history_dir)
     return sorted(frozen)
-
-
-def ensure_gitignore_line(root: Path) -> bool:
-    """Keep the cache out of version control, as one appended line in a file the author owns; True when it wrote."""
-    p = root / ".gitignore"
-    existing = p.read_text(encoding="utf-8") if p.is_file() else ""
-    if GITIGNORE_LINE in existing.splitlines():
-        return False
-    p.write_text(existing.rstrip("\n") + ("\n" if existing else "") + GITIGNORE_LINE + "\n", encoding="utf-8")
-    return True

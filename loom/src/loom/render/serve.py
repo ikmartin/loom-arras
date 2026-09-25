@@ -446,7 +446,11 @@ class ServeSession:
             self.rebuild()
 
     def listen(self) -> None:
-        """Bind the port and start serving. The build has not run yet, so `/build/` answers 503 until `start` finishes it."""
+        """Settle the launcher, bind the port and start serving. The build has not run yet, so `/build/` answers 503 until `start` finishes it.
+
+        The launcher settles here, before the socket takes a write: what was waiting is old, and a message posted from now on, during the first build included, starts a turn.
+        """
+        self.launcher.settle()
         handler = type(
             "Handler",
             (LoomHandler,),
@@ -505,5 +509,6 @@ class ServeSession:
 
 
 def locate_bundle() -> Path | None:
+    """The bundle to serve, or None; raises BundleEnvError for a LOOM_ARRAS_BUNDLE that names none."""
     info = find_bundle()
     return info.path if info else None

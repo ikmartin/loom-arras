@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { coerce, DEFAULTS } from '$lib/prefs.svelte';
 import { settle } from './divider';
 
 describe('the divider', () => {
@@ -15,10 +14,5 @@ describe('the divider', () => {
 	it('keeps both panes usable however far the pointer goes', () => {
 		expect(settle(1.4)).toBe(0.8);
 		expect(settle(-0.3)).toBe(0.2);
-	});
-
-	it('is one ratio, remembered between visits, and half by default since neither pane is primary', () => {
-		expect(DEFAULTS.divider).toBe(0.5);
-		expect(coerce({ divider: 0.42 }).divider).toBe(0.42);
 	});
 });

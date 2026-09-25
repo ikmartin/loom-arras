@@ -10,24 +10,26 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 ## 2. Endpoints
 
-**[decided]** All requests and responses are JSON. Errors return `{"error": {"code": "...", "message": "..."}}` with 4xx status; the codes are the CLI's exit reasons.
+**[decided]** All requests and responses are JSON. Errors return `{"error": {"code": "...", "message": "..."}}` with 4xx status; the codes are the CLI's exit reasons. `comment`, `reply`, `resolve`, `edit`, `discard` and `refs-note` name the session they are written in, and one naming none is refused with `no-session`: nothing here falls back to the active session.
 
 | method | path | body | effect |
 |---|---|---|---|
-| `POST` | `/_api/comment` | `{target, message, quote?, kind?, severity?, payload?, placement?, page?, rects?, author?, session?}` | writes one finding; with `page`, a note on that page of the cited work `target` names, anchored by `quote` (text on it) or `rects` (drawn) |
-| `POST` | `/_api/reply` | `{annotation, message, author?, session?}` | answers one |
-| `POST` | `/_api/resolve` | `{annotation, message?, undo?, author?, session?}` | closes one that is met |
-| `POST` | `/_api/edit` | `{annotation, message?, severity?, payload?, placement?, author?, session?}` | restates one that still stands |
-| `POST` | `/_api/discard` | `{annotation, reason?, undo?, author?, session?}` | withdraws one that should not have been raised |
-| `POST` | `/_api/refs-note` | `{annotation, decision: "accept" \| "reject", reason?, author?}` | records a citation suggestion's outcome |
+| `POST` | `/_api/comment` | `{target, message, session, quote?, kind?, severity?, payload?, placement?, page?, rects?, author?}` | writes one finding; with `page`, a note on that page of the cited work `target` names, anchored by `quote` (text on it) or `rects` (drawn) |
+| `POST` | `/_api/reply` | `{annotation, message, session, author?}` | answers one |
+| `POST` | `/_api/resolve` | `{annotation, session, message?, undo?, author?}` | closes one that is met; with `undo`, reopens it |
+| `POST` | `/_api/edit` | `{annotation, session, message?, severity?, payload?, placement?, author?}` | restates one that still stands |
+| `POST` | `/_api/discard` | `{annotation, session, reason?, undo?, author?}` | withdraws one that should not have been raised; with `undo`, puts it back |
+| `POST` | `/_api/refs-note` | `{annotation, session, decision: "accept" \| "reject", reason?, author?}` | records a citation suggestion's outcome and resolves it in `session` |
 | `POST` | `/_api/digest-verify` | `{node, statement?, local?, taxon?, author?}` | verifies a proposed result, editing the rendering first when `statement` is given |
 | `POST` | `/_api/digest-discard` | `{node, reason, author?}` | discards a proposed result, keeping the reason |
 | `POST` | `/_api/locate` | `{citekey, page, text? , rects?, span?}` | answers with the anchor loom would record; **writes nothing** |
 | `POST` | `/_api/session-use` | `{session, author?}` | makes one session the one writing lands in, resuming it when closed |
 | `POST` | `/_api/session-rename` | `{session, title, author?}` | retitles one; the id does not change, because it is the address |
 | `POST` | `/_api/session-delete` | `{session, reason?, author?}` | tombstones one; its annotations stay in the log |
-| `POST` | `/_api/session-new` | `{title, author?}` | mints a session named on the spot and makes it the one writing lands in |
-| `POST` | `/_api/session-close` | `{session, author?}` | ends the round; a closed session's annotations are hidden until it is shown or resumed |
+| `POST` | `/_api/session-new` | `{title, purpose?, author?}` | mints a session named on the spot, with what it is for, and makes it the one writing lands in |
+| `POST` | `/_api/session-close` | `{session, author?}` | ends the round; a closed session's annotations are hidden until it is shown or resumed; refused when it is not open |
+| `POST` | `/_api/session-reopen` | `{session, author?}` | resumes a closed session, opening a new round, without making it the one writing lands in; refused when it is already open |
+| `POST` | `/_api/session-purpose` | `{session, purpose?, author?}` | says what the session is for, shown under its title; an empty or absent `purpose` clears it |
 | `POST` | `/_api/agent-stop` | `{session}` | ends the turn loom started in that session; 409 where the quilt does not launch agents |
 | `POST` | `/_api/message` | `{text?, session, as?, author?}` | posts into a session's inbox with what the person marked since the last message, and answers with who was attached; with no text it posts those alone, and refuses when there are none |
 

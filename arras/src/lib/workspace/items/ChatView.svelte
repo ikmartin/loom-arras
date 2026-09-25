@@ -10,7 +10,8 @@
 	import Composer from '$lib/sessions/Composer.svelte';
 	import PacketTray from '$lib/sessions/PacketTray.svelte';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
-	import { carried, isAgent, Transcript, type Listener, type Posted } from '$lib/sessions/transcript.svelte';
+	import { statusLine } from '$lib/sessions/status';
+	import { carried, isAgent, Transcript, type Posted } from '$lib/sessions/transcript.svelte';
 	import { when } from '$lib/sessions/when';
 	import { can, write } from '$lib/write';
 	import type { Item } from '../item';
@@ -81,8 +82,8 @@
 	});
 
 	// The newest page first: from the publisher where one serves, whose count is current, else from the manifest.
-	/** Set once the newest page is in: a poll before it would ask for everything since nothing, which is the whole transcript. */
-	let landed = false;
+	/** Set once the newest page is in: a poll before it would ask for everything since nothing, which is the whole transcript. Polling starts on it, so the status line is there as soon as the page is. */
+	let landed = $state(false);
 	async function land(): Promise<void> {
 		const served = (await can('message')) ? await log.latest() : null;
 		await log.load(served ?? untrack(() => seq));
@@ -114,7 +115,7 @@
 		void can('message').then((ok) => (live = ok));
 	});
 	$effect(() => {
-		if (!live) return;
+		if (!live || !landed) return;
 		void poll();
 		timer = setInterval(() => void poll(), 1000);
 		return () => clearInterval(timer);
@@ -137,27 +138,8 @@
 		return () => seen.disconnect();
 	});
 
-	function names(rows: Listener[]): string {
-		return rows.map((r) => r.who).join(', ');
-	}
-
-	/** One line on who is listening: the turn loom started, where it starts one; else who is attached; and after a send, what became of it. It claims only what the publisher knows — the process's state and the last command it ran (P3). */
-	const status = $derived.by(() => {
-		const agent = log.agent;
-		if (agent?.blocked) return `${agent.name || 'The agent'} cannot be started: ${agent.blocked}`;
-		if (agent?.state === 'running') return `${agent.name} is working` + (agent.activity ? ` · ${agent.activity}` : '');
-		// a turn that began after the send answers what became of it, and outranks "will start"
-		const since = !!(sent && agent?.started && agent.started >= sentAt);
-		if (since && agent?.state === 'failed') return `${agent.name} could not run: ${agent.error || 'it stopped with an error'}`;
-		if (since && agent?.state === 'stopped') return `${agent.name} was stopped`;
-		const rows = (log.attached ?? sent?.attached ?? []).filter((r) => r.who !== agent?.name || agent?.state !== 'done');
-		const listening = rows.length ? `${names(rows)} ${rows.length === 1 ? 'is' : 'are'} attached` : '';
-		if (sent) return listening ? `sent · ${listening}` : agent?.launch ? `sent · ${agent.name} will start` : 'sent · it waits in the inbox';
-		if (agent?.state === 'failed') return `${agent.name} could not run: ${agent.error || 'it stopped with an error'}`;
-		if (agent?.state === 'stopped') return `${agent.name} was stopped`;
-		if (listening) return listening;
-		return agent?.launch && agent.name ? `${agent.name} starts when you send` : 'nobody is attached — messages wait in the inbox';
-	});
+	/** One line on who is listening, and after a send what became of it (`statusLine`). */
+	const status = $derived(statusLine({ agent: log.agent, attached: log.attached, sent, sentAt }));
 	const running = $derived(log.agent?.state === 'running');
 
 	async function stop(): Promise<void> {

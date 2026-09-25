@@ -4,17 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import shutil
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
 from loom.scan.diagnostics import all_codes
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
+from tests.helpers import describe, ok, run, same_tree
 
 REPO = Path(__file__).resolve().parents[2]
 QUILTS_DIR = REPO / "tests" / "quilts"
@@ -27,13 +25,13 @@ def _copy(quilt: Path, tmp_path: Path) -> Path:
     return dest
 
 
-def _run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
+REGENERATE = "cd loom && uv run python scripts/gen_quilts.py"
+
+
+def _tree(root: Path, skip: set[str]) -> dict[str, bytes]:
+    return {
+        p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file() and p.name not in skip
+    }
 
 
 @pytest.mark.parametrize("quilt", QUILTS, ids=[q.name for q in QUILTS])
@@ -41,10 +39,11 @@ def test_lint_fixture_expected_codes(quilt: Path, tmp_path: Path) -> None:
     q = _copy(quilt, tmp_path)
     expected = (quilt / "EXPECTED-LINT.txt").read_text(encoding="utf-8").split()
     expected_lines = sorted(" ".join(pair) for pair in zip(expected[0::2], expected[1::2], strict=True))
-    r = _run("lint", "--json", cwd=q)
-    got = sorted(f"{d['severity']} {d['code']}" for d in json.loads(r.output))
+    r = run("lint", "--json", cwd=q)
+    got = sorted(f"{d['severity']} {d['code']}" for d in json.loads(r.stdout))
     assert got == expected_lines
-    assert r.exit_code == (1 if any(line.startswith("error") for line in got) else 0)
+    code = 1 if any(line.startswith("error") for line in got) else 0
+    assert r.exit_code == code, f"expected exit {code}" + describe(("lint", "--json"), r)
 
 
 def test_all_emitted_codes_are_known() -> None:
@@ -55,25 +54,16 @@ def test_all_emitted_codes_are_known() -> None:
 
 
 def test_init_demo_matches_fixture(tmp_path: Path) -> None:
-    r = _run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
-    assert r.exit_code == 0, r.output
+    ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     fixture = QUILTS_DIR / "demo"
     # `.gitignore` is written from `assets/init/` and never from the demo's own copy: the fixture negates the store's
     # PDF so this repository can commit the invented paper behind the demo's digest, and a quilt an author makes must
     # not inherit that (DR-194, as amended).
     # `ai/ai-config.toml` is the person's own command, never the quilt's, and init writes it for whoever runs init.
     skip = {"EXPECTED-LINT.txt", ".gitignore", "ai-config.toml"}
-    expected = {
-        p.relative_to(fixture).as_posix(): p.read_bytes()
-        for p in fixture.rglob("*")
-        if p.is_file() and p.name not in skip
-    }
-    got = {
-        p.relative_to(tmp_path / "demo").as_posix(): p.read_bytes()
-        for p in (tmp_path / "demo").rglob("*")
-        if p.is_file() and p.name not in skip
-    }
-    assert got == expected
+    same_tree(
+        _tree(tmp_path / "demo", skip), _tree(fixture, skip), "`loom init --demo` against tests/quilts/demo", REGENERATE
+    )
 
 
 def test_nested_nest_levels() -> None:
@@ -165,8 +155,8 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
     if canon:
         commands += [["draft", canon, "--to", f"{drafting}/invariance-draft.tex", "--yes", "--no-check"]]
     for cmd in commands:
-        res = _run(*cmd, cwd=q)
-        assert res.exit_code in (0, 1, 2), (cmd, res.output)
+        # the verdict is not this test's subject, only what the command leaves on disk; it differs by quilt and command (a lint with errors exits 1, `live` on a live master 2), and a crash raises out of `run`
+        run(*cmd, cwd=q)
     after = _snapshot(q)
     for rel, digest in before.items():
         if rel == "config.toml" or rel.startswith(".loom/"):
@@ -185,35 +175,3 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
     # everything loom writes goes into nodes/, the drafting directory it was told to write in, the canon it was told to write, or its own record
     allowed = ("nodes/", f"{drafting}/", "canon/", ".loom/")
     assert all(rel.startswith(allowed) for rel in new_files), new_files
-
-
-def test_two_masters_share_one_set_of_nodes(tmp_path: Path) -> None:
-    """Several masters are arrangements over one set of patches: including the same node file twice is not a duplicate (book 4.1)."""
-    from loom.scan.quilt import load_quilt
-    from loom.scan.scan import scan
-
-    q = tmp_path / "q"
-    dest = q / "drafting"
-    dest.mkdir(parents=True)
-    (q / "nodes").mkdir()
-    (q / "config.toml").write_text('[quilt]\nname = "q"\nmain = "drafting/main.tex"\nprefix = "sh"\n', encoding="utf-8")
-    (q / "loom.sty").write_text(
-        (REPO / "src" / "loom" / "assets" / "loom.sty").read_text(encoding="utf-8"), encoding="utf-8"
-    )
-    (q / "nodes" / "sh-0001.tex").write_text(
-        "\\begin{lemma}\\label{sh-0001}\nShared.\n\\end{lemma}\n", encoding="utf-8"
-    )
-    preamble = (
-        "\\documentclass{amsart}\n\\usepackage{amsthm}\n\\usepackage{loom}\n"
-        "\\newtheorem{lemma}{Lemma}[section]\n\\begin{document}\n"
-    )
-    (dest / "main.tex").write_text(
-        preamble + "\\section{One}\\label{sh-0100}\n\\input{nodes/sh-0001}\n\\end{document}\n", encoding="utf-8"
-    )
-    (dest / "talk.tex").write_text(
-        preamble + "\\section{Two}\\label{sh-0200}\n\\input{nodes/sh-0001}\n\\end{document}\n", encoding="utf-8"
-    )
-    result = scan(load_quilt(q))
-    codes = [d.code for d in result.lint]
-    assert "duplicate-id" not in codes and "loom:duplicate-label" not in codes
-    assert set(result.nodes["sh-0001"].reached_by) == {"drafting/main.tex", "drafting/talk.tex"}

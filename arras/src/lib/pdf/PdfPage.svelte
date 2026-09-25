@@ -203,10 +203,7 @@
 		const sel = window.getSelection();
 		const text = sel?.toString().trim() ?? '';
 		if (!sel || !text || sel.rangeCount === 0) return;
-		// **A range over a text layer yields more rectangles than it has lines.** Every element the range crosses
-		// contributes one, degenerate ones included, and those rectangles are not only drawn: they are mapped to points
-		// and recorded as the annotation's anchor, and their union is where the composer opens. One filter serves all
-		// three — a rectangle with no area, or one outside the page, is not part of what the reader selected.
+		// **A range over a text layer yields more rectangles than it has lines.** Every element the range crosses contributes one, degenerate ones included, and those rectangles are not only drawn: they are mapped to points and recorded as the annotation's anchor, and their union is where the composer opens. One filter serves all three — a rectangle with no area, or one outside the page, is not part of what the reader selected.
 		const at = host.getBoundingClientRect();
 		const client = [...sel.getRangeAt(0).getClientRects()].filter(
 			(r) => r.width > 0.5 && r.height > 0.5 && r.bottom > at.top && r.top < at.bottom && r.right > at.left && r.left < at.right

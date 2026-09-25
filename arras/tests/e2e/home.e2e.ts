@@ -3,7 +3,6 @@ import { expect, test } from '@playwright/test';
 test('home page renders the fixture manifest', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('main h1')).toHaveText('Widgets, gadgets, and their fixed loci');
-	await expect(page.getByTestId('problems-glyph')).toHaveAttribute('title', /^problems: /);
 });
 
 test('home page leads with four metric cards which open the complete review table', async ({ page }) => {

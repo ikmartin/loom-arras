@@ -446,7 +446,7 @@ def build_demo(dest: Path) -> None:
     _copy_sources("demo", dest)
     g = Gen(dest, "The loom demo")
     g.at("2026-09-16T00:00:00Z")
-    g.run("ai", "init", "--skills", "--permissions")
+    g.run("ai", "init", "--skills")
     g.run(
         "comment",
         "dm-0003/proof",
@@ -617,7 +617,7 @@ def build_showcase(dest: Path) -> None:
     g.run("refs", "add", "Arden24", str(WORKS / "arden-cycle-spaces.tex"))
     g.run("digest", "extract", "Arden24", "--no-compile")
     g.at("2026-09-14T09:20:00Z")
-    g.run("ai", "init", "--skills", "--permissions")
+    g.run("ai", "init", "--skills")
 
     # ---- A run reads the work loom could not extract, and proposes its results. -------------------------
     # Bellamy19 is a PDF and nothing else, so every result is read off a page and anchored to it. The run

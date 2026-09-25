@@ -83,20 +83,15 @@ def discard(
 
 
 @ai.command(name="init")
-@click.option(
-    "--permissions",
-    is_flag=True,
-    help="Also write what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules).",
-)
 @click.option("--skills", is_flag=True, help="Also write skill stubs and slash commands for Claude Code.")
 @quilt_option
-def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
-    """Write ai/ (orientation, rules, modes) and the vendor files CLAUDE.md and AGENTS.md; refuses if ai/ exists."""
+def ai_init(skills: bool, quilt_path: str | None) -> None:
+    """Write ai/ (orientation, rules, modes), the vendor files CLAUDE.md and AGENTS.md, and what agents may run for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules); refuses if ai/ exists."""
     from loom.ai.layout import init_layer
 
     quilt = open_quilt(quilt_path)
     try:
-        rep = init_layer(quilt.root, permissions=permissions, skills=skills, codex=permissions)
+        rep = init_layer(quilt.root, skills=skills)
     except FileExistsError:
         raise EnvError("ai/ exists; run loom upgrade to refresh it") from None
     for rel in rep.written:

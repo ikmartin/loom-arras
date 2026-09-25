@@ -620,9 +620,7 @@ def extract_digest(
     body_lines.append(conventions or "\\incomplete{Standing assumptions not extracted; see the paper.}")
     body_lines.append(f"\\end{{{setup_env}}}")
     body_lines.append("")
-    # **Every result that can be located gets its page**, so a digest node's locator points into the paper rather than
-    # only naming the result. The aux gives one when the paper compiled; the store's page text is what confirms it, and
-    # what supplies it when there was no compile at all — which is the state every `--no-compile` extraction is in.
+    # **Every result that can be located gets its page**, so a digest node's locator points into the paper rather than only naming the result. The aux gives one when the paper compiled; the store's page text is what confirms it, and what supplies it when there was no compile at all — which is the state every `--no-compile` extraction is in.
     home = _store_home(result, citekey)
     if home is not None:
         for r in results:

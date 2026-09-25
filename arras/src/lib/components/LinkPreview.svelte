@@ -174,9 +174,7 @@
 			}
 		};
 		const key = (e: KeyboardEvent) => e.key === 'Escape' && hide();
-		// **A scroll inside the card is not the page moving out from under it.** The listener is capturing, so it hears
-		// every scroll in the document — including the one a PDF preview makes when it scrolls its own column to the
-		// page it was asked for, which closed the card in the same frame it opened.
+		// **A scroll inside the card is not the page moving out from under it.** The listener is capturing, so it hears every scroll in the document — including the one a PDF preview makes when it scrolls its own column to the page it was asked for, which closed the card in the same frame it opened.
 		const scroll = (e: Event) => {
 			if (!target) return;
 			const from = e.target as Element | null;

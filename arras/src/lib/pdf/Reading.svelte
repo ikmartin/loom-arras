@@ -61,10 +61,7 @@
 	/**
 	 * A selection waiting to be made into a note, if the reader wants one.
 	 *
-	 * **Selecting text is not a request to annotate it.** The composer used to open on every mouse-up, which meant the
-	 * ordinary thing a reader does with a paper — highlight a phrase and copy it — was impossible without a form
-	 * appearing over the page. Now the selection stays live and a single *annotate* chip offers the other thing; the
-	 * box tool has no such ambiguity and still opens the composer directly.
+	 * **Selecting text is not a request to annotate it.** The composer used to open on every mouse-up, which meant the ordinary thing a reader does with a paper — highlight a phrase and copy it — was impossible without a form appearing over the page. Now the selection stays live and a single *annotate* chip offers the other thing; the box tool has no such ambiguity and still opens the composer directly.
 	 */
 	let offered = $state<{ page: number; text: string; at: { left: number; top: number; width: number; height: number }; range?: Range } | null>(null);
 	onDestroy(clearPending);
@@ -150,8 +147,7 @@
 		if (noting?.rects) out.push({ id: '_noting', page: noting.page, rects: noting.rects, transient: true });
 		return out;
 	});
-	// `result=` names a result of this work, whose rectangles the sidecar already carries under that same id, so it is
-	// focused directly rather than resolved: a link to a cited result works with no publisher answering.
+	// `result=` names a result of this work, whose rectangles the sidecar already carries under that same id, so it is focused directly rather than resolved: a link to a cited result works with no publisher answering.
 	const focusOn = $derived(locator?.annot ?? locator?.result ?? (lit ? '_locator' : active));
 	let at = $state(0);
 	const onPage = $derived(drawn.filter((s) => s.page === (at || page)));

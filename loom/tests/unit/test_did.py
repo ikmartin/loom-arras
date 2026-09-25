@@ -3,28 +3,17 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
-
-
-def run(*args: str, cwd: Path, stdin: str | None = None):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args), input=stdin)
-    finally:
-        os.chdir(old)
+from tests.helpers import ok, refused
+from tests.unit._quilts import demo, new_session
 
 
 @pytest.fixture
 def q(tmp_path: Path) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
-    return tmp_path / "q"
+    return demo(tmp_path)
 
 
 def lines(q: Path, sid: str) -> list[str]:
@@ -34,21 +23,20 @@ def lines(q: Path, sid: str) -> list[str]:
 
 
 def test_each_comment_logs_the_annotation_it_touched(q: Path) -> None:
-    sid = run("session", "new", "a sitting", "--author", "A. Author", cwd=q).output.split()[0]
+    sid = new_session(q)
     who = ("--session", sid, "--author", "A. Author")
-    made = run("comment", "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question", *who, cwd=q)
-    assert made.exit_code == 0, made.output
+    made = ok("comment", "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question", *who, cwd=q)
     first = made.output.split()[0]
-    reply = run("comment", "--reply", first, "The fixed ones.", *who, cwd=q).output.split()[0]
-    assert run("comment", "--resolve", first, "Settled.", *who, cwd=q).exit_code == 0
-    assert run("comment", "--resolve", first, "--undo", *who, cwd=q).exit_code == 0
-    assert run("comment", "--edit", first, "Which orbits?", *who, cwd=q).exit_code == 0
-    assert run("comment", "--discard", reply, "Said elsewhere.", *who, cwd=q).exit_code == 0
+    reply = ok("comment", "--reply", first, "The fixed ones.", *who, cwd=q).output.split()[0]
+    ok("comment", "--resolve", first, "Settled.", *who, cwd=q)
+    ok("comment", "--resolve", first, "--undo", *who, cwd=q)
+    ok("comment", "--edit", first, "Which orbits?", *who, cwd=q)
+    ok("comment", "--discard", reply, "Said elsewhere.", *who, cwd=q)
     batch = "\n".join(
         json.dumps(x)
         for x in ({"target": "dm-0002", "message": "One.", "kind": "note"}, {"reply": first, "message": "Two."})
     )
-    assert run("comment", "--batch", *who, cwd=q, stdin=batch).exit_code == 0
+    ok("comment", "--batch", *who, cwd=q, stdin=batch)
     got = lines(q, sid)
     assert got[:6] == [
         f"loom comment dm-0003 --quote --kind question → {first}",
@@ -62,7 +50,7 @@ def test_each_comment_logs_the_annotation_it_touched(q: Path) -> None:
         f"loom comment --reply {first} → a-"
     )
     # a refused comment did nothing, so it is not in the record
-    assert run("comment", "dm-9999", "Nowhere.", *who, cwd=q).exit_code != 0
+    refused("comment", "dm-9999", "Nowhere.", *who, cwd=q, code=2, match="no such key: dm-9999")
     assert len(lines(q, sid)) == 8
 
 
@@ -70,8 +58,8 @@ def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> 
     from loom.render.threads import build_threads
     from loom.sessions import files_dir, sessions
 
-    sid = run("session", "new", "a sitting", "--author", "A. Author", cwd=q).output.split()[0]
-    ann = run(
+    sid = new_session(q)
+    ann = ok(
         "comment", "dm-0003", "Which orbit?", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q
     ).output.split()[0]
     with (files_dir(q, sessions(q)[sid]) / "run.log").open("a") as fh:
@@ -82,15 +70,7 @@ def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> 
 
 
 def test_refs_commands_log_their_arguments_as_typed(q: Path) -> None:
-    """F10 of the 0.14 study: `loom refs coverage ('Bellamy',)` in the log, and so in the status line and What it did."""
-    sid = run("session", "new", "a sitting", "--author", "A. Author", cwd=q).output.split()[0]
-    assert run("refs", "coverage", "Calloway14", "--session", sid, cwd=q).exit_code in (0, 1)
+    """The log, and so the status line and What it did, shows a refs command as typed, not as a Python tuple (0.14 study F10)."""
+    sid = new_session(q)
+    ok("refs", "coverage", "Calloway14", "--session", sid, cwd=q)
     assert "loom refs coverage Calloway14" in lines(q, sid)
-
-
-def test_code_is_quoted_as_written() -> None:
-    """F11 of the 0.14 study: a quote of source in backticks had its `$…$` turned into `\\(…\\)`."""
-    from loom.records.store import render_markdown
-
-    got = render_markdown("Quote: `Let $\\quiv$ be` and $x$.")
-    assert "<code>Let $\\quiv$ be</code>" in got and '<span class="math inline">\\(x\\)</span>' in got

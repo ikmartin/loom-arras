@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import json
-import os
+import time
 from pathlib import Path
 from typing import Any
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
 from loom.refs import resolve as R
 from loom.refs.identity import identify
+from loom.refs.pages import storage_root
 from loom.scan.bib import BibEntry
+from tests.helpers import json_of, ok, refused
 
 RESPONSES = json.loads((Path(__file__).parent / "resolve_responses.json").read_text(encoding="utf-8"))
 
@@ -125,6 +125,40 @@ def test_a_404_is_no_match_rather_than_a_failure() -> None:
     assert R.Resolver(http=http).candidates(R.Query("Stacks Project", ("The Stacks project authors",))) == []
 
 
+class Clock:
+    """A monotonic clock that moves only when something sleeps on it, for the spacing test."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self.slept: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, s: float) -> None:
+        self.slept.append(round(s, 6))
+        self.now += s
+
+
+def test_requests_to_one_service_are_spaced_and_the_services_are_spaced_apart(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Book 8.9.1: requests to each service are at least SPACING apart, and a request to the other service does not wait on it."""
+    clock = Clock()
+    monkeypatch.setattr(R, "SPACING", 1.0)
+    monkeypatch.setattr(time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(time, "sleep", clock.sleep)
+    http = Recorded(None, None)
+    r = R.Resolver(http=http)
+    r.zbmath(R.query_for(EDIDIN))
+    r.crossref(R.query_for(EDIDIN))
+    assert clock.slept == []  # the first request to each service goes at once
+    clock.now += 0.25
+    r.zbmath(R.query_for(SILVERMAN))
+    assert clock.slept == [0.75]
+    clock.now += 5.0
+    r.crossref(R.query_for(SILVERMAN))
+    assert clock.slept == [0.75] and r.requests == 4
+
+
 def test_biblatex_dates_count_as_years() -> None:
     assert R.query_for(BibEntry("x", "article", {"title": "T", "date": "1998-06"})).year == "1998"
 
@@ -170,17 +204,8 @@ def test_candidates_are_kept_with_the_entry_they_answer_and_forgotten_when_it_ch
 # --- the command, lint and the manifest ---------------------------------------------------------------
 
 
-def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
-
-
 def demo(tmp_path: Path) -> Path:
-    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
+    ok("init", str(tmp_path / "q"), "--demo", cwd=tmp_path)
     q = tmp_path / "q"
     with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write(
@@ -193,9 +218,8 @@ def demo(tmp_path: Path) -> Path:
 
 def test_resolving_is_refused_until_the_author_allows_it(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = run("refs", "resolve", cwd=q)
-    assert r.exit_code == 2 and "resolve = true" in r.output
-    assert not list((q / "refs").rglob("resolved.json")) if (q / "refs").exists() else True
+    refused("refs", "resolve", code=2, match="resolve = true", cwd=q)
+    assert list(storage_root(q).rglob("resolved.json")) == [], "a refused lookup records no candidates"
 
 
 def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_it(
@@ -205,27 +229,25 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
     cfg = q / "config.toml"
     cfg.write_text(cfg.read_text().replace("resolve = false", "resolve = true"))
     before = (q / "digests" / "bibliography.bib").read_text()
-    lint = run("lint", cwd=q)
+    lint = ok("lint", cwd=q)
     assert "Edi98 states no identifier" in lint.output and "loom refs resolve" in lint.output
 
     monkeypatch.setattr(R, "http_get", Recorded("zbmath_edidin_graham"))
-    r = run("refs", "resolve", cwd=q)
-    assert r.exit_code == 0, r.output
+    r = ok("refs", "resolve", cwd=q)
     assert "Edi98: doi:10.1353/ajm.1998.0020" in r.output and "strong" in r.output
     assert (
         q / "digests" / "bibliography.bib"
     ).read_text() == before  # resolve records candidates elsewhere and never writes the bibliography
 
-    r = run("refs", "resolve", "--json", cwd=q)
-    data = json.loads(r.output[r.output.index("{") :])
+    data = json_of("refs", "resolve", "--json", cwd=q)
     assert data["lookups"] == 0  # answered from the cache
     assert data["works"]["Edi98"]["candidates"][0]["strength"] == "strong"
 
-    lint = run("lint", cwd=q)
+    lint = ok("lint", cwd=q)
     assert "a lookup found doi:10.1353/ajm.1998.0020 (strong match, zbMATH Open)" in lint.output
     assert "add doi = {10.1353/ajm.1998.0020}" in lint.output
 
-    assert run("build", cwd=q).exit_code == 0
+    ok("build", cwd=q)
     ref = json.loads((q / "build" / "manifest.json").read_text())["references"]["Edi98"]
     assert ref["candidates"][0] == {
         "id": "doi:10.1353/ajm.1998.0020",
@@ -245,11 +267,9 @@ def test_the_resolve_flag_is_one_runs_consent_and_writes_no_config(
     before = (q / "config.toml").read_text()
     assert "resolve = false" in before
 
-    refused = run("refs", "resolve", cwd=q)
-    assert refused.exit_code == 2 and "--resolve" in refused.output
+    refused("refs", "resolve", code=2, match="--resolve", cwd=q)
 
     monkeypatch.setattr(R, "http_get", Recorded("zbmath_edidin_graham"))
-    r = run("refs", "resolve", "--resolve", cwd=q)
-    assert r.exit_code == 0, r.output
+    r = ok("refs", "resolve", "--resolve", cwd=q)
     assert "Edi98: doi:10.1353/ajm.1998.0020" in r.output
     assert (q / "config.toml").read_text() == before

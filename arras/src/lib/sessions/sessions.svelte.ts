@@ -111,13 +111,24 @@ export function hidden(m: Manifest | null, list: readonly Annotation[]): number 
 /** The one list the picker draws, and the closed ones behind their own section. */
 export function grouped(m: Manifest | null): { open: SessionRow[]; closed: SessionRow[] } {
 	const rows = m?.sessions ?? [];
-	// Most recently touched first. The index is append-only and was shown in creation order, so the sitting you were
-	// in five minutes ago sat at the bottom of the list under everything you had finished with.
+	// Most recently touched first. The index is append-only and was shown in creation order, so the sitting you were in five minutes ago sat at the bottom of the list under everything you had finished with.
 	const recent = (a: SessionRow, b: SessionRow) => (b.opened || b.created).localeCompare(a.opened || a.created);
 	return {
 		open: rows.filter((s) => s.state === 'open').sort(recent),
 		closed: rows.filter((s) => s.state !== 'open').sort(recent)
 	};
+}
+
+/**
+ * The picker's list narrowed by its find field.
+ *
+ * A case-blind match on the title as the reader last set it (a pending rename included) and the purpose; a blank field matches all. `closedCount` counts every closed session, found or not, since it labels the fold that holds them.
+ */
+export function findSessions(m: Manifest | null, find: string): { open: SessionRow[]; closed: SessionRow[]; closedCount: number } {
+	const all = grouped(m);
+	const q = find.trim().toLowerCase();
+	const hit = (s: SessionRow) => !q || `${titleOf(s)} ${s.purpose ?? ''}`.toLowerCase().includes(q);
+	return { open: all.open.filter(hit), closed: all.closed.filter(hit), closedCount: all.closed.length };
 }
 
 /** What one session holds: how many are open in it, who took part, and how many arrived in the current round. */

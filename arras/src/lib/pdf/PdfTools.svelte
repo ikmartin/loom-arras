@@ -1,10 +1,7 @@
 <script lang="ts">
 	// The reading controls, as one row: the two tools, the zoom, and where in the document the reader is.
 	//
-	// The page and the zoom are typed into rather than only stepped, which is what every desktop PDF viewer does and
-	// what a reader on page 1 of 60 needs: `+` twelve times is not navigation. Each box shows the current value while it
-	// is not being edited, takes the typed one on Enter or on leaving, and puts the current one back on Escape or on
-	// anything that is not a number.
+	// The page and the zoom are typed into rather than only stepped, which is what every desktop PDF viewer does and what a reader on page 1 of 60 needs: `+` twelve times is not navigation. Each box shows the current value while it is not being edited, takes the typed one on Enter or on leaving, and puts the current one back on Escape or on anything that is not a number.
 	//
 	// Off the paper — a work's digest or its info — the row stays where it was and greys out: a toolbar that vanished and came back would move everything after it, and a greyed control still says what it would act on.
 	import Icon from '$lib/components/Icon.svelte';
@@ -25,10 +22,8 @@
 
 	const on = $derived(of ? ` in ${of}` : '');
 
-	// Each box is bound to its own text and refilled from the view whenever it is not being edited. Two things fought the
-	// field before: a `value=` bound to a derived string, and a focus handler that rewrote the text as it selected it.
-	// Either one turned `140` replaced by `150` into `140150`, which clamped to the maximum. Focus now only selects, and
-	// the suffix is stripped when the value is read, so what the reader types is the whole of what is parsed.
+	// Each box is bound to its own text and refilled from the view whenever it is not being edited. Two things fought the field before: a `value=` bound to a derived string, and a focus handler that rewrote the text as it selected it.
+	// Either one turned `140` replaced by `150` into `140150`, which clamped to the maximum. Focus now only selects, and the suffix is stripped when the value is read, so what the reader types is the whole of what is parsed.
 	let pageText = $state('1');
 	let pageEditing = $state(false);
 	$effect(() => {
@@ -41,8 +36,7 @@
 		if (!zoomEditing) zoomText = `${Math.round(view.scale * 100)}%`;
 	});
 
-	// Escape has to survive the blur it causes: leaving a box commits it, so a cancel that only dropped focus would
-	// commit the very value it was cancelling.
+	// Escape has to survive the blur it causes: leaving a box commits it, so a cancel that only dropped focus would commit the very value it was cancelling.
 	let dropped = false;
 
 	function commitPage(): void {

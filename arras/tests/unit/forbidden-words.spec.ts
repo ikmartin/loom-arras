@@ -18,13 +18,27 @@ function walk(dir: string, out: string[] = []): string[] {
 	return out;
 }
 
+/** Every `file: pattern` pair the forbidden words flag in `files`, each given as `[path, text]`. */
+function offenders(files: [string, string][]): string[] {
+	const out: string[] = [];
+	for (const [file, text] of files) for (const re of FORBIDDEN) if (re.test(text)) out.push(`${file}: ${re}`);
+	return out;
+}
+
 describe('boundary', () => {
 	it('src/ contains none of the forbidden words', () => {
-		const offenders: string[] = [];
-		for (const file of walk('src')) {
-			const text = readFileSync(file, 'utf8');
-			for (const re of FORBIDDEN) if (re.test(text)) offenders.push(`${file}: ${re}`);
-		}
-		expect(offenders).toEqual([]);
+		const files = walk('src');
+		expect(files).toContain(join('src', 'lib', 'paths.ts'));
+		expect(offenders(files.map((f) => [f, readFileSync(f, 'utf8')]))).toEqual([]);
+	});
+
+	it('reports a planted use of every forbidden word, and passes the words arras may use', () => {
+		const planted: [string, string][] = [
+			['a.ts', 'atomize the file'],
+			['b.ts', 'unravel it'],
+			['c.svelte', 'run `loom lint` to see']
+		];
+		expect(offenders(planted)).toEqual(planted.map(([f], i) => `${f}: ${FORBIDDEN[i]}`));
+		expect(offenders([['d.ts', "a quilt: link names what the loom of the corpus wrote"]])).toEqual([]);
 	});
 });

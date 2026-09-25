@@ -1,21 +1,8 @@
-// The side panel (plan 0.13.3 phase 1): the write target pinned in a footer, the session list in a picker it opens, and the annotation filter in the rail above the content. Each test is named for the rule in the plan's Tests section it holds.
+// The side panel: the documents and their contents, the Nodes and Library sections, the write target pinned in a footer, the session list in a picker it opens, and the annotation filter in the rail above the content. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { beside, pane } from '../workspace';
-import { readFileSync } from 'node:fs';
+import { beside, pane, scrollPane } from '../workspace';
 import { openPicker, pickSession } from '../picker';
-
-const manifest = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8'));
-const REFEREE = 's-2026-09-16-0001';
-const QUICK = 's-2026-09-15-0001';
-
-/** Serve the fixture with `edit` applied to its manifest. */
-async function serve(page: Page, edit: (m: typeof manifest) => void): Promise<void> {
-	await page.route('**/build/manifest.json', async (route) => {
-		const m = JSON.parse(JSON.stringify(manifest));
-		edit(m);
-		await route.fulfill({ json: m });
-	});
-}
+import { QUICK, REFEREE, serve } from '../manifest';
 
 /** Select an element's words as a reader would, and let go. */
 async function selectWithin(at: import('@playwright/test').Locator): Promise<void> {
@@ -29,7 +16,7 @@ async function selectWithin(at: import('@playwright/test').Locator): Promise<voi
 	});
 }
 
-/** Advertise a write API with `caps`; `vite preview` serves none, and the controls appear only where one is. */
+/** Advertise a write API with `caps`; the static server serves none, and the controls appear only where one is. */
 async function writes(page: Page, caps: string[]): Promise<void> {
 	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: caps, token: 't' } }));
 }
@@ -44,7 +31,7 @@ test('the write target is stated once', async ({ page }) => {
 	await expect(pane(page, 1)).toBeVisible();
 	await pickSession(page, REFEREE);
 	await expect(page.getByTestId('session-footer-name')).toHaveText('the refereeing sitting');
-	// choosing it opened its discussion, whose tab names the item that is open, a different question from where writes go
+	// choosing it opened its Chat, whose tab names the item that is open, a different question from where writes go
 	const naming = await page.evaluate(
 		() =>
 			[...document.querySelectorAll('body *')].filter(
@@ -104,28 +91,56 @@ test('the session picker is not in the column', async ({ page }) => {
 	await expect(column.getByTestId('session-picker')).toHaveCount(0);
 });
 
-test('the contents hang open under a document on screen, and nowhere else', async ({ page }) => {
-	await page.goto('/master/main');
-	await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
-	await expect(page.getByTestId('contents-toggle')).toHaveAttribute('aria-expanded', 'true');
-	await page.goto('/node/sy-0002');
-	await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
-	await expect(page.getByRole('navigation', { name: 'Contents' })).toHaveCount(0);
-	await expect(page.getByTestId('contents-toggle')).toHaveCount(0);
-});
+test.describe('the contents', () => {
+	test('the contents hang open under the document in the focused pane, and are absent for anything else', async ({ page }) => {
+		await page.goto('/master/main' + beside('/node/sy-0003'));
+		const contents = page.getByRole('navigation', { name: 'Contents' });
+		await expect(contents).toBeVisible();
+		await expect(page.getByTestId('contents-toggle')).toHaveAttribute('aria-expanded', 'true');
+		// the tree follows the focused pane: a node has none, and the document's comes back with the focus
+		await pane(page, 1).locator('.fragment').first().click();
+		await expect(contents).toHaveCount(0);
+		await pane(page, 0).locator('.fragment').first().click();
+		await expect(contents).toBeVisible();
+		// and a node alone shows neither the tree nor its toggle
+		await page.goto('/node/sy-0002');
+		await expect(pane(page, 0).locator('.fragment').first()).toBeVisible();
+		await expect(contents).toHaveCount(0);
+		await expect(page.getByTestId('contents-toggle')).toHaveCount(0);
+	});
 
-test('the contents bar follows the reader', async ({ page }) => {
-	// DR-112 was the only record of this: the mark moves with the reader's scroll, and exactly one entry carries it
-	await page.setViewportSize({ width: 1280, height: 500 });
-	await page.goto('/master/main');
-	const contents = page.getByRole('navigation', { name: 'Contents' });
-	await expect(contents.locator('a[aria-current]')).toHaveCount(1);
-	const first = await contents.locator('a[aria-current]').innerText();
-	const last = contents.locator('a').last();
-	const target = (await last.getAttribute('href'))!.split('#')[1];
-	await page.evaluate((id) => document.getElementById(id)?.scrollIntoView({ block: 'start' }), target);
-	await expect(contents.locator('a[aria-current]')).toHaveCount(1);
-	await expect.poll(() => contents.locator('a[aria-current]').innerText()).not.toBe(first);
+	test('the contents tree is in document order and stops above paragraph units', async ({ page }) => {
+		await page.goto('/master/main');
+		const entries = page.getByRole('navigation', { name: 'Contents' }).locator('a');
+		await expect(entries.first()).toContainText('Introduction');
+		const texts = await entries.allInnerTexts();
+		expect(texts.join(' | ')).toContain('Results');
+		expect(texts.join(' | ')).not.toContain('paragraph');
+	});
+
+	test('a contents entry scrolls the document instead of navigating away', async ({ page }) => {
+		await page.goto('/master/main');
+		await page.getByRole('navigation', { name: 'Contents' }).getByRole('link', { name: /Results/ }).click();
+		await expect(page).toHaveURL(/\/master\/main#sy-0200$/);
+		await expect(page.locator('#sy-0200')).toBeInViewport();
+	});
+
+	test('the contents always mark where the reader is, and the mark follows the scroll both ways', async ({ page }) => {
+		// the mark moves with the reader's scroll, not with the URL's hash, and exactly one entry carries it, from before any scrolling (DR-112)
+		await page.setViewportSize({ width: 1280, height: 500 });
+		await page.goto('/master/main');
+		const contents = page.getByRole('navigation', { name: 'Contents' });
+		const current = contents.locator('a[aria-current]');
+		await expect(current).toHaveCount(1);
+		const first = await current.innerText();
+		const target = (await contents.locator('a').last().getAttribute('href'))!.split('#')[1];
+		await page.evaluate((id) => document.getElementById(id)?.scrollIntoView({ block: 'start' }), target);
+		await expect.poll(() => current.innerText()).not.toBe(first);
+		await expect(current).toHaveCount(1);
+		// scrolling back returns it; the document scrolls in its pane, not the window
+		await scrollPane(page, 0, 'top');
+		await expect.poll(() => current.innerText()).toBe(first);
+	});
 });
 
 test('a session rename shows at once', async ({ page }) => {
@@ -182,4 +197,82 @@ test('a review decision needs no session', async ({ page }) => {
 	await expect(ok).toBeEnabled();
 	await ok.click();
 	await expect.poll(() => decided).toBe('sy-0001');
+});
+
+test.describe('sessions', () => {
+	test('the chosen session is still chosen after a load', async ({ page }) => {
+		await page.goto('/master/main');
+		await pickSession(page, REFEREE);
+		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
+		await page.reload();
+		await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations are written into/);
+		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
+	});
+
+	test('a stored session the corpus no longer lists is let go', async ({ page }) => {
+		await page.addInitScript(() => localStorage.setItem('arras.session-view', JSON.stringify({ selected: 's-gone', view: 'all', showClosed: false })));
+		await page.goto('/master/main');
+		await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected');
+		await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('arras.session-view') ?? '{}').selected)).toBeFalsy();
+	});
+
+	test('one selection governs the page, and the view filters what the page draws', async ({ page }) => {
+		// the fixture's two sessions, with the closed one opened and one annotation on sy-0002 moved into it, so that one key carries work from two sessions: the state the filter exists for, which the fixture does not happen to contain
+		await serve(page, (m) => {
+			for (const s of m.sessions) if (s.id === QUICK) s.state = 'open';
+			m.annotations['a-2026-09-16-0006'].run = QUICK;
+		});
+		await page.goto('/node/sy-0002');
+		// nothing is selected at rest and the page shows everything
+		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
+		await expect(page.getByTestId('show-current')).toBeDisabled();
+
+		// sy-0002 is now annotated from both sessions: its comment with no mark, from the referee, is counted beside its label
+		const counted = pane(page, 0).locator('.fragment button.comment-count');
+		await expect(counted).toHaveCount(1);
+
+		// selecting a session does not narrow the page by itself: the selection is the write target, the view is the filter
+		await pickSession(page, QUICK);
+		await expect(counted).toHaveCount(1);
+		// and the picker still lists every session, because it is how a reader navigates
+		await openPicker(page);
+		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
+		await page.keyboard.press('Escape');
+
+		// narrowing is the toggle's job, and it is available now that something is selected: the referee's comment goes
+		await page.getByTestId('show-current').click();
+		await expect(counted).toHaveCount(0);
+
+		// and back to everything
+		await page.getByTestId('show-all').click();
+		await expect(counted).toHaveCount(1);
+	});
+});
+
+test.describe('sections', () => {
+	test('the panel has a Nodes section, folded, narrowed by what is typed', async ({ page }) => {
+		await page.goto('/node/sy-0003');
+		await expect(page.getByTestId('nodes-list')).toHaveCount(0); // folded: a corpus of a hundred results would otherwise be the panel
+		await page.getByTestId('nodes-toggle').click();
+		await expect(page.getByTestId('nodes-list')).toBeVisible();
+		await page.getByTestId('nodes-filter').fill('parity');
+		const rows = page.getByTestId('nodes-list').locator('li a');
+		await expect(rows.first()).toContainText('sy-0003');
+		await expect(rows).toHaveCount(1);
+		await page.getByTestId('nodes-filter').fill('zzz');
+		await expect(page.getByTestId('nodes-list')).toContainText('nothing matches');
+	});
+
+	test('the panel never repeats the strip', async ({ page }) => {
+		for (const path of ['/threads', '/tags', '/loose']) {
+			await page.goto(path);
+			await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
+			// the documents stand there instead, with the contents folded under the open one
+			await expect(page.getByTestId('docs-drafts')).toBeVisible();
+		}
+		// the Library fills the panel with its own filters, which is the other half of the same rule
+		await page.goto('/library');
+		await expect(page.locator('.panel .rail-label', { hasText: /^Views$/ })).toHaveCount(0);
+		await expect(page.getByTestId('show-proposed')).toBeVisible();
+	});
 });

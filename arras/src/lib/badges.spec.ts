@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nodeBadge, reviewRowBadge, shortDate, stateBadge } from './badges';
+import { nodeBadge, reviewRowBadge, shortDate, stateBadge, versionLabel } from './badges';
 import type { Key, Manifest, Node } from './manifest/types';
 
 const states = {
@@ -61,5 +61,14 @@ describe('an accepted external node', () => {
 		// what the corpus wrote is unaffected: the manifest's own label still wins
 		const own = { ...base, nodes: { 'sy-0001': node('sy-0001') } } as unknown as Manifest;
 		expect(stateBadge(own, key('sy-0001', 'sy-0001', 'accepted')).map((p) => p.text)).toEqual(['accepted']);
+	});
+});
+
+describe('version label', () => {
+	it('names the step a key\'s current text was recorded at, and says nothing otherwise', () => {
+		expect(versionLabel({ version: { step: '0003', name: 'paper-v2' } } as Key)).toBe('text of @3 (paper-v2)');
+		expect(versionLabel({ version: { step: '0001' } } as Key)).toBe('text of @1');
+		expect(versionLabel({} as Key)).toBe('');
+		expect(versionLabel(undefined)).toBe('');
 	});
 });

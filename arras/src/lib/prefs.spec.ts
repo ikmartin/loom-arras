@@ -31,20 +31,16 @@ describe('the display preferences', () => {
 	});
 
 	it('keeps the divider inside the range a pane is usable in, and reads a stored hover placement as the default', () => {
-		// a ratio outside it leaves one pane too narrow to read, which a stored value from a dragged-off-screen divider
-		// or a hand-edited blob could otherwise do
+		// a ratio outside it leaves one pane too narrow to read, which a stored value from a dragged-off-screen divider or a hand-edited blob could otherwise do; one inside it is kept
+		expect(coerce({ divider: 0.42 }).divider).toBe(0.42);
 		expect(coerce({ divider: 0.95 }).divider).toBe(0.8);
 		expect(coerce({ divider: 0.01 }).divider).toBe(0.2);
 		expect(coerce({ divider: 'wide' }).divider).toBe(DEFAULTS.divider);
 		expect(coerce({ comments: 'hover' }).comments).toBe('floating');
 		// zoom is per renderer kind and remembered, and is clamped for the same reason the divider is
-		expect(coerce({ zoom: 9 }).zoom).toEqual({ pdf: 3 }); // a number is what this stored before it was per kind
-	expect(coerce({ zoom: { pdf: 0.1, other: 2 } }).zoom).toEqual({ pdf: 0.5, other: 2 });
+		expect(coerce({ zoom: 9 }).zoom).toEqual({ pdf: 3 }); // a bare number is read as the pdf zoom
+		expect(coerce({ zoom: { pdf: 0.1, other: 2 } }).zoom).toEqual({ pdf: 0.5, other: 2 });
 		expect(coerce({ zoom: 0.1 }).zoom).toEqual({ pdf: 0.5 });
-	});
-
-	it('ignores a stored shell, now that there is only one arrangement', () => {
-		expect('shell' in coerce({ shell: 'b' })).toBe(false);
 	});
 
 	it('round-trips through storage', () => {

@@ -10,7 +10,7 @@ describe('manifest loader', () => {
 		const c = await hashText('abd');
 		expect(a).toBe(b);
 		expect(a).not.toBe(c);
-		expect(a.startsWith('sha256:')).toBe(true);
+		expect(a).toMatch(/^sha256:/);
 	});
 
 	it('believes a declared capability, and derives one that is absent', async () => {
@@ -19,16 +19,13 @@ describe('manifest loader', () => {
 		const declared = await parseManifest(
 			JSON.stringify({ ...minimal, publishes: { documents: false, review: true }, annotations: {} })
 		);
-		expect(declared.manifest?.publishes.documents).toBe(false);
-		expect(declared.manifest?.publishes.review).toBe(true); // declared true although `annotations` is empty
-		expect(declared.manifest?.publishes.bibliography).toBe(false); // undeclared, and no references: derived
+		// review is declared true although `annotations` is empty; bibliography is undeclared, and with no references derives false
+		expect(declared.manifest?.publishes).toMatchObject({ documents: false, review: true, bibliography: false });
 
 		const derived = await parseManifest(
 			JSON.stringify({ ...minimal, masters: [{ path: 'main.tex' }], threads: { t: {} } })
 		);
-		expect(derived.manifest?.publishes.documents).toBe(true);
-		expect(derived.manifest?.publishes.discussions).toBe(true);
-		expect(derived.manifest?.publishes.review).toBe(false);
+		expect(derived.manifest?.publishes).toMatchObject({ documents: true, discussions: true, review: false });
 	});
 
 	it('accepts interface version 1', async () => {

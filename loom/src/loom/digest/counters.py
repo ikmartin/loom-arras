@@ -1,6 +1,6 @@
 """amsthm counter emulation (book 8.5.2): numbers for results the extractor cannot read from an .aux file.
 
-Sectioning counters step and reset their descendants; a theorem counter shared with `[theorem]` follows the owning declaration's `[section]`-style reset; `\\newtheorem*` results have no number; `\\appendix` letters the section counter. An .aux number, when one exists for a labelled result, resynchronises the emulation.
+Sectioning counters step and reset their descendants; a theorem counter shared with `[theorem]` follows the owning declaration's `[section]`-style reset; a theorem sharing a sectioning counter (`[subsection]`) steps it and prints as it; `\\newtheorem*` results have no number; `\\appendix` letters the section counter. An .aux number, when one exists for a labelled result, resynchronises the emulation.
 """
 
 from __future__ import annotations
@@ -66,6 +66,13 @@ class Numbering:
         if not taxon.numbered:
             return None
         c = self._counter(taxon)
+        if c in LEVELS and c != "part":
+            # `\newtheorem{x}[subsection]{…}` shares a sectioning counter: the result steps it and prints as it would
+            level = LEVELS[c]
+            self.sec[level] += 1
+            for deeper in range(level + 1, len(self.sec)):
+                self.sec[deeper] = 0
+            return self.section_number(level)
         self.counters[c] = self.counters.get(c, 0) + 1
         w = self._within(taxon)
         prefix = self.section_number(LEVELS[w]) if w in LEVELS else ""
@@ -75,8 +82,14 @@ class Numbering:
         """Set the counters from an authoritative number such as `4.1` (from the .aux) so later emulated numbers follow it."""
         pieces = number.split(".")
         last = pieces[-1]
+        c = self._counter(taxon)
+        if c in LEVELS and c != "part":
+            for i, piece in enumerate(pieces[: LEVELS[c]]):
+                if piece.isdigit():
+                    self.sec[i + 1] = int(piece)
+            return
         if last.isdigit():
-            self.counters[self._counter(taxon)] = int(last)
+            self.counters[c] = int(last)
         w = self._within(taxon)
         if w in LEVELS and len(pieces) > 1:
             for i, piece in enumerate(pieces[:-1]):

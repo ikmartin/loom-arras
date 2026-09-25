@@ -17,5 +17,6 @@ Rules that are not negotiable:
 - Adding a queue item means a row in `docs/work-queue/README.md` and a `WQ-NN-<slug>.md` beside it, with an **observable** trigger — a measurement crossing a threshold, a capability existing, a dependency landing. "Someday" is not a trigger. An item's "why deferred" must be its trigger inverted; if the two do not invert cleanly the item is too vague to add. The cap is 45 active items, so a 46th means promoting, merging or dropping one.
 - Closing a queue item means deleting its file and its row and appending one line to `docs/work-queue/closed.md`: a pointer to the plan or record that carries it, or one sentence on why it was dropped. Ids are never reused, so references to a closed item still resolve. An item graduates to `docs/plans/` when the author commits to building it.
 - Author files are never modified by loom; tests enforce it.
+- Verification is `scripts/verify`: `fast` (the default) while working, `full` before a commit, `--only loom|arras|docs` for one lane. A plan's Verification section names it rather than pasting commands. It ends by printing the branch's latest CI runs; read them.
 - Prose in every file is never hard-wrapped (see `CLAUDE.md`).
 - Publishing to PyPI or npm is done by the user, never by an agent.

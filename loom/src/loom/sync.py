@@ -1,8 +1,6 @@
 """The source-only Git bridge for an Overleaf-backed quilt.
 
-The quilt branch owns Loom's records.  The remote branch owns only the files
-needed to compile the selected master.  Git transports both histories.  The
-one operation that writes author files is an explicit, locally served
+The quilt branch owns Loom's records.  The remote branch owns only the files needed to compile the selected master.  Git transports both histories.  The one operation that writes author files is an explicit, locally served
 ``Incorporate pull`` action: it applies the exact reviewed patch and records
 two local commits, without pushing or accepting mathematics.
 """
@@ -237,8 +235,7 @@ def incorporate_pull(quilt: Quilt, state: SyncState) -> dict[str, Any]:
 
     Preparation checks every condition before this function changes an author
     file.  A failed ``git apply --check`` therefore leaves the source alone.
-    The saved transaction also makes a retry able to complete the private sync
-    commit if the source commit was already made.
+    The saved transaction also makes a retry able to complete the private sync commit if the source commit was already made.
     """
     root = quilt.root
     requested = state.incoming
@@ -400,8 +397,7 @@ def mark_incorporated(quilt: Quilt, state: SyncState) -> SyncState:
 def publish(quilt: Quilt, state: SyncState, *, push: bool) -> tuple[str, list[str]]:
     """Commit a clean source projection on the remote lineage and optionally push it.
 
-    A temporary Git index builds the source tree from HEAD blobs.  It never
-    stages a quilt file or modifies the current index or working directory.
+    A temporary Git index builds the source tree from HEAD blobs.  It never stages a quilt file or modifies the current index or working directory.
     """
     root = quilt.root
     if state.incoming and state.incoming != state.integrated:

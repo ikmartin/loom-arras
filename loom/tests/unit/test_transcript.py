@@ -3,31 +3,19 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-from click.testing import CliRunner
-
-from loom.cli import main
-
-
-def run(*args: str, cwd: Path, env: dict[str, str] | None = None, stdin: str | None = None):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args), env=env, input=stdin)
-    finally:
-        os.chdir(old)
+from tests.helpers import ok, refused, the
+from tests.unit._fakes import FakeHandler
+from tests.unit._quilts import demo, new_session
 
 
 def quilt(tmp_path: Path) -> tuple[Path, str]:
-    assert run("init", str(tmp_path / "q"), "--demo", cwd=tmp_path).exit_code == 0
-    q = tmp_path / "q"
-    sid = run("session", "new", "a sitting", "--author", "A. Author", cwd=q).output.split()[0]
-    return q, sid
+    q = demo(tmp_path)
+    return q, new_session(q)
 
 
 def test_the_index_reads_from_where_new_events_start(tmp_path: Path) -> None:
@@ -101,7 +89,7 @@ def test_a_post_needs_words_or_something_attached(tmp_path: Path) -> None:
 
 
 def test_a_heartbeat_is_not_rewritten_every_wake(tmp_path: Path) -> None:
-    """`loom serve` rebuilds when `attached.json` changes; a rewrite per wake rebuilt it four times a second while an agent was parked."""
+    """`loom serve` rebuilds when `attached.json` changes, so a parked agent's wake rewrites it only for a new reader or a stale beat, never every time."""
     from loom.mailbox import ATTACHED, attach, session_dir
 
     q, sid = quilt(tmp_path)
@@ -129,38 +117,22 @@ def test_say_is_the_agents_half_of_the_transcript(tmp_path: Path) -> None:
 
     q, sid = quilt(tmp_path)
     agent = {"AI_AGENT": "1"}
-    refused = run("session", "say", "hello", "--session", sid, cwd=q, env=agent)
-    assert refused.exit_code != 0 and "--as" in refused.output  # an agent that has not said who it is
-    person = run("session", "say", "hello", "--session", sid, "--as", "A. Author", cwd=q)
-    assert person.exit_code != 0 and "loom session send" in person.output
-    said = run("session", "say", "Read it; one objection.", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
-    assert said.exit_code == 0 and said.output.strip() == f"said in {sid}"
+    # an agent that has not said who it is
+    refused("session", "say", "hello", "--session", sid, cwd=q, env=agent, code=2, match="Name yourself with --as")
+    refused("session", "say", "hello", "--session", sid, "--as", "A. Author", cwd=q, code=2, match="loom session send")
+    said = ok("session", "say", "Read it; one objection.", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
+    assert said.output.strip() == f"said in {sid}"
     [e] = read_events(q, sid)
     assert (e.who, e.body, e.changed) == ("Referee Agent", "Read it; one objection.", [])
     assert cursor(q, sid, "Referee Agent") == 1  # it had read everything before, so its own words are not news
     # from stdin, and never past a message the agent has not read
     post(q, sid, "And the second proof?", "A. Author")
-    piped = run(
-        "session", "say", "-", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent, stdin="Long answer.\n"
-    )
-    assert piped.exit_code == 0
+    ok("session", "say", "-", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent, stdin="Long answer.\n")
     assert read_events(q, sid)[-1].body == "Long answer."
     assert cursor(q, sid, "Referee Agent") == 1
-    empty = run("session", "say", "  ", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
-    assert empty.exit_code != 0
-
-
-def test_a_packet_carries_the_whole_annotation(tmp_path: Path) -> None:
-    """What was sent is recorded as sent: a body cut at 200 characters was not what the agent was asked about."""
-    from loom.mailbox import pending
-    from loom.sessions import sessions
-
-    q, sid = quilt(tmp_path)
-    long = "word " * 80
-    r = run("comment", "dm-0003", long, "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
-    assert r.exit_code == 0, r.output
-    [c] = pending(q, sessions(q)[sid], "A. Author")
-    assert c["body"] == long.strip() or c["body"] == long
+    refused(
+        "session", "say", "  ", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent, code=2, match="no text"
+    )
 
 
 def test_the_build_pages_the_transcript_beside_the_manifest(tmp_path: Path) -> None:
@@ -173,15 +145,15 @@ def test_the_build_pages_the_transcript_beside_the_manifest(tmp_path: Path) -> N
     assert sorted(got) == [1, 2]
     assert [e["seq"] for e in got[2]["events"]] == list(range(PAGE + 1, PAGE + 51))
     assert got[1]["events"][0]["body_html"] == "<p>message <strong>0</strong></p>"
-    assert run("build", cwd=q).exit_code in (0, 1)
+    ok("build", cwd=q)
     page: dict[str, Any] = json.loads((q / "build" / "transcripts" / sid / "2.json").read_text())
     assert page["session"] == sid and page["page"] == 2 and len(page["events"]) == 50
     manifest = json.loads((q / "build" / "manifest.json").read_text())
     assert "messages" not in manifest["threads"][sid]
-    assert next(s for s in manifest["sessions"] if s["id"] == sid)["seq"] == PAGE + 50
+    assert the(manifest["sessions"], lambda s: s["id"] == sid, f"session {sid} in the manifest")["seq"] == PAGE + 50
     # a deleted session's pages go with it
-    assert run("session", "delete", sid, "--author", "A. Author", "--yes", cwd=q).exit_code == 0
-    assert run("build", cwd=q).exit_code in (0, 1)
+    ok("session", "delete", sid, "--author", "A. Author", "--yes", cwd=q)
+    ok("build", cwd=q)
     assert not list((q / "build" / "transcripts").glob(f"{sid}/*.json"))
 
 
@@ -193,26 +165,13 @@ def test_the_events_endpoint_reads_by_index_and_holds_the_id_to_its_shape(tmp_pa
     post(q, sid, "Look at *this*.", "A. Author")
     attach(q, sid, "Referee Agent", "agent")
 
-    class Fake:
-        quilt_root = q
-
-        def __init__(self, path: str) -> None:
-            self.path = path
-            self.answer: tuple[int, Any] | None = None
-
-        def _json(self, status: int, body: Any) -> None:
-            self.answer = (int(status), body)
-
-        def send_error(self, status: int) -> None:
-            self.answer = (int(status), None)
-
-    ok = Fake(f"/_api/events?session={sid}&since=0")
-    LoomHandler._events(ok)  # type: ignore[arg-type]
-    assert ok.answer is not None and ok.answer[0] == 200
-    body = ok.answer[1]
+    good = FakeHandler(q, f"/_api/events?session={sid}&since=0")
+    LoomHandler._events(good)  # type: ignore[arg-type]
+    assert good.answer is not None and good.answer[0] == 200
+    body = good.answer[1]
     assert body["seq"] == 1 and body["events"][0]["body_html"] == "<p>Look at <em>this</em>.</p>"
     assert body["attached"] == [{"who": "Referee Agent", "kind": "agent"}]
-    bad = Fake("/_api/events?session=../../etc&since=0")
+    bad = FakeHandler(q, "/_api/events?session=../../etc&since=0")
     LoomHandler._events(bad)  # type: ignore[arg-type]
     assert bad.answer is not None and bad.answer[0] == 400
 

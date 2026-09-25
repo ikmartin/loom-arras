@@ -1,8 +1,7 @@
 // The reading layer's performance floor (plan 0.13 §11): what a page of a paper costs to put on screen, and what an
 // annotated page costs on top of it.
 //
-// A floor rather than a benchmark. These numbers are generous — a page measured at 12–16ms against a 150ms budget in
-// the slice's appendix in `docs/reports/0.13-reading-layer.md` — because the value of a threshold here is that it catches a change of an order
+// A floor rather than a benchmark. These numbers are generous — a page measured at 12–16ms against a 150ms budget in the slice's appendix in `docs/reports/0.13-reading-layer.md` — because the value of a threshold here is that it catches a change of an order
 // of magnitude, and a tight one on a shared CI machine only teaches people to ignore it.
 //
 // It runs against whatever corpus `PERF_BUILD` points at, like the rest of this directory, and skips rather than fails

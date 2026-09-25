@@ -1,4 +1,4 @@
-"""Plan 0.5: the global identity of a cited work, and the migration into the current reference layout."""
+"""Plan 0.5: the global identity of a cited work: which identifier names it, its written form, and the path it is stored under."""
 
 from __future__ import annotations
 

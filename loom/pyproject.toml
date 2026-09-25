@@ -37,6 +37,7 @@ dev = [
   "pytest>=8",
   "ruff>=0.6",
   "mypy>=1.10",
+  "pytest-xdist>=3.8.0",
 ]
 
 [tool.pytest.ini_options]
@@ -44,6 +45,7 @@ testpaths = ["tests"]
 addopts = "-q"
 markers = [
   "tex: needs a real TeX distribution (TeX tier)",
+  "poppler: needs the real pdftotext for page text and word boxes; TeX stays the shim",
   "paper: needs LOOM_PAPER_FIXTURES pointing at the arXiv sources (paper tier)",
   "network: needs network access",
 ]

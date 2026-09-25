@@ -88,8 +88,7 @@
 		const on = e.target as Element;
 		// a press on a link or a control is a click on it, never the start of a box
 		if (on.closest('a, button, input, textarea, select')) return;
-		// On a mark, only the box tool draws, and only once the pointer moves: an annotated equation is still boxable
-		// for a second note, and a click without a drag still opens the mark (study F4).
+		// On a mark, only the box tool draws, and only once the pointer moves: an annotated equation is still boxable for a second note, and a click without a drag still opens the mark (study F4).
 		if (on.closest('mark.annotation, .annotation-block')) {
 			if (boxing) pressed = { x: e.clientX, y: e.clientY };
 			return;
