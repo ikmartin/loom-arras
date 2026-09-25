@@ -36,15 +36,16 @@ test('a comment written from a selection lands in the log as a person, anchored 
 	await statement.locator('mjx-container').first().waitFor();
 	await select(statement);
 	await page.getByTestId('annotate-offer').click();
-	// the place is named as the tab names it (this corpus is not compiled, so by its id), and the quote carries the formula as TeX
-	await expect(page.getByTestId('note-where')).toContainText('sy-0003');
+	// the header names the words, then the place as the tab names it (this corpus is not compiled, so by its id); the quote carries the formula as TeX
+	await expect(page.getByTestId('note-where')).toContainText('finite widget');
+	await expect(page.getByTestId('note-where')).toContainText('in sy-0003');
 	// the selection stays lit while the comment is written, and the composer does not repeat it
 	await expect(page.getByTestId('note-quote')).toHaveCount(0);
 	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('widget');
 	await page.getByTestId('note-body').fill('Does finiteness do any work in the closedness half?');
 	// an objection, because severity grades a fault and only `objection` and `suggestion` claim one (DR-204)
-	await page.getByTestId('note-kind').selectOption('objection');
-	await page.getByTestId('note-severity').selectOption('minor');
+	await page.getByTestId('note-kind').locator('[data-kind="objection"]').click();
+	await page.getByTestId('note-severity').locator('[data-severity="minor"]').click();
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toHaveCount(0);
 
@@ -107,7 +108,8 @@ test('a box drawn round an equation notes the equation itself', async ({ page, s
 	expect(await display.evaluate((d) => getComputedStyle(d).borderLeftWidth)).toBe('0px');
 });
 
-test('a document is written on the same way', async ({ page, served }) => {
+test('a document is written on the same way, and what is written there is filed with the document: marked in it, and on no other page', async ({ page, served }) => {
+	// decision 9 and 11 of the annotation study: the viewer implies `in` from where the reader is, so a claim made while reading main.tex is about sy-0008 as read there, and talk.tex, which also holds sy-0008, and the node's own page carry no mark for it
 	await page.goto('/master/main');
 	await intoASession(page, served);
 	await expect(page.getByTestId('tool-select')).toBeVisible();
@@ -121,19 +123,77 @@ test('a document is written on the same way', async ({ page, served }) => {
 	const mine = served.log().filter((e) => e.body === 'A gadget wants an example.');
 	expect(mine).toHaveLength(1);
 	expect(mine[0].target).toBe('sy-0008');
+	expect(mine[0].in).toBe('drafting/main.tex');
+	const id = mine[0].id as string;
+	const markOf = () => page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`);
+	await expect(markOf()).toHaveCount(1, { timeout: 15000 });
+	await page.goto('/master/talk');
+	await expect(page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"]')).toBeVisible();
+	await expect(markOf()).toHaveCount(0);
+	await page.goto('/node/sy-0008');
+	await expect(page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"]')).toBeVisible();
+	await expect(markOf()).toHaveCount(0);
 });
 
-test('a citation suggestion can be accepted from the context, and leaves a breadcrumb', async ({ page, served }) => {
+test('an annotation written on the node\'s own page is filed with no document', async ({ page, served }) => {
+	await page.goto('/node/sy-0008');
+	await intoASession(page, served);
+	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0008"] > p[data-src]').first();
+	await select(words);
+	await page.getByTestId('annotate-offer').click();
+	await page.getByTestId('note-body').fill('Everywhere a gadget is read.');
+	await page.getByTestId('note-submit').click();
+	await expect(page.getByTestId('note-at')).toHaveCount(0);
+	const mine = served.written('Everywhere a gadget is read.');
+	expect(mine.target).toBe('sy-0008');
+	expect(mine.in ?? null).toBeNull();
+});
+
+/** The served quilt's open citation suggestion on sy-0002, by the id the log gave it. */
+function citationOn(served: Served): string {
+	return served.log().find((e) => e.event === 'created' && e.target === 'sy-0002' && e.annotation_kind === 'citation')!.id as string;
+}
+
+/** Open the box of the annotation `id` from its mark on the node page. */
+async function boxOf(page: import('@playwright/test').Page, id: string) {
+	await page.locator(`[data-pane="0"] .fragment .annotation[data-annotation~="${id}"]`).first().click();
+	const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
+	await expect(box).toHaveCount(1);
+	return box;
+}
+
+test('a citation suggestion is accepted from its box, which then says so, and leaves a breadcrumb', async ({ page, served }) => {
+	const id = citationOn(served);
 	await page.goto('/node/sy-0002');
 	await intoASession(page, served);
-	await page.getByTestId('open-context').click();
-	const notes = page.getByTestId('context').getByTestId('reference-notes');
-	await expect(notes).toContainText('Suggested citations');
-	await page.getByTestId('refnote-accept').first().click();
-	await expect(notes.getByRole('status')).toHaveText('accepted');
+	const box = await boxOf(page, id);
+	await expect(box.getByTestId('work')).toBeVisible();
+	await box.getByTestId('verb-accept').click();
+	// the publisher resolves it and notes the work; the box re-read from the next manifest says so once and offers neither verb again
+	await expect(box.getByTestId('outcome')).toHaveText('· accepted', { timeout: 15000 });
+	await expect(box.getByTestId('verb-accept')).toHaveCount(0);
+	await expect(box.getByTestId('verb-reject')).toHaveCount(0);
 	const written = readFileSync(join(served.root, 'reference-notes.jsonl'), 'utf8');
 	expect(written).toContain('a textbook reference would do');
 	expect(written).toContain('"verified": false'); // never a second source of identity truth
+	expect(served.log().filter((e) => e.event === 'resolved' && e.id === id)).toHaveLength(1);
+	// the context's list still names it as a suggestion no longer open: nothing there decides it
+	await page.getByTestId('open-context').click();
+	await expect(page.getByTestId('context').getByTestId('refnote-open')).toHaveCount(0);
+});
+
+test('a citation suggestion is rejected from its box, which resolves it and notes no work', async ({ page, served }) => {
+	const id = citationOn(served);
+	await page.goto('/node/sy-0002');
+	await intoASession(page, served);
+	const box = await boxOf(page, id);
+	await box.getByTestId('verb-reject').click();
+	await expect(box.getByTestId('outcome')).toHaveText('· rejected', { timeout: 15000 });
+	await expect(box.getByTestId('verb-accept')).toHaveCount(0);
+	await expect(box.getByTestId('verb-reopen')).toBeVisible();
+	const resolved = served.log().filter((e) => e.event === 'resolved' && e.id === id);
+	expect(resolved).toHaveLength(1);
+	expect(existsSync(join(served.root, 'reference-notes.jsonl')) ? readFileSync(join(served.root, 'reference-notes.jsonl'), 'utf8') : '').not.toContain('a textbook reference would do');
 });
 
 /** Comments shown in place (`inline` beneath the block, `floating` at the mark), with the reply written inside the box that is showing them. */
@@ -209,7 +269,7 @@ test('what the person marks goes with their next message, whole, and the agent i
 	await select(statement);
 	await page.getByTestId('annotate-offer').click();
 	await page.getByTestId('note-body').fill('Packet: does the fixed point count once?');
-	await page.getByTestId('note-kind').selectOption('question');
+	await page.getByTestId('note-kind').locator('[data-kind="question"]').click();
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toHaveCount(0);
 	const id = served.written('Packet: does the fixed point count once?').id as string;
@@ -333,7 +393,7 @@ test('an annotation is edited, discarded with a reason and put back, each an eve
 	const mark = page.locator(`[data-pane="0"] .fragment mark.annotation[data-annotation~="${id}"]`).first();
 	await mark.click();
 	const box = page.locator(`[data-testid="comment-expanded"] article.box[data-annotation-id="${id}"]`);
-	const head = box.locator(':scope > header');
+	const head = box.locator(':scope > .meta');
 	await expect(box).toHaveCount(1);
 
 	const restated = 'Finiteness is used in the parity count; state it as a hypothesis.';
@@ -356,8 +416,9 @@ test('an annotation is edited, discarded with a reason and put back, each an eve
 	expect(discarded.body).toBe('raised in error');
 	expect(discarded.session).toBe(sid);
 	expect(discarded.undo).toBeUndefined();
-	// the verb that fired becomes its own undo where it stood
-	const undo = head.getByTestId('verb-undo-discard');
+	// settled, the box says so once and offers reopen alone
+	await expect(head.getByTestId('outcome')).toHaveText('· discarded');
+	const undo = head.getByTestId('verb-reopen');
 	await expect(undo).toBeVisible();
 	await expect(head.getByTestId('verb-discard')).toHaveCount(0);
 
@@ -367,6 +428,7 @@ test('an annotation is edited, discarded with a reason and put back, each an eve
 	expect(reopened.undo).toBe(true);
 	expect(reopened.session).toBe(sid);
 	await expect(head.getByTestId('verb-discard')).toBeVisible();
+	await expect(head.getByTestId('outcome')).toHaveCount(0);
 });
 
 test('deleting a session from the picker tombstones it in the index, and its annotations stay in the log', async ({ page, served }) => {

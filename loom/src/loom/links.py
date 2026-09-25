@@ -2,7 +2,7 @@
 
 Two schemes and one grammar. `quilt:KEY[#PLACE]` names something this quilt owns by its fixed key -- a node, a document, an annotation, a session -- and `cited:SCHEME:VALUE[?page=N&quote=…]` names a place in a cited work by its global identifier. **Only what the viewer can show is linkable**: an included file that is no document, a session's drafts, a deleted session are refused, because a link to something the viewer does not display is a link to nothing.
 
-A link is checked when it is posted (`loom session say`, `loom comment`) and printed correctly by `loom link`, so an agent never composes one by hand.
+A link is checked when it is posted (`loom session say`, `loom annotate`) and printed correctly by `loom link`, so an agent never composes one by hand.
 """
 
 from __future__ import annotations

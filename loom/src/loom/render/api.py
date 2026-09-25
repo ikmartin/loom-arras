@@ -4,7 +4,7 @@ Served by the publisher, never by the viewer. Most endpoints write only Loom's p
 exception: it applies the already displayed pull to author files and records
 two local commits. Every endpoint wraps a library function so its behavior is shared with recovery and test surfaces.
 
-Nothing here wakes an agent. An agent pulls: it reads open findings with `loom status` and `loom ai findings` and answers with `loom comment --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
+Nothing here wakes an agent. An agent pulls: it reads open annotations with `loom status` and `loom ai annotations` and answers with `loom annotate --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
 """
 
 from __future__ import annotations
@@ -17,12 +17,12 @@ from loom.clock import stamp
 #: What this publisher serves. A viewer reads this rather than assuming the specification's table, so an endpoint that
 #: is not here answers 404 and a viewer that hides the affordance is right to.
 CAPABILITIES = [
-    "comment",
+    "annotate",
     "reply",
     "resolve",
     "edit",
     "discard",
-    "refs-note",
+    "refs-cite",
     "digest-verify",
     "digest-discard",
     "locate",
@@ -88,8 +88,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     """
     if endpoint not in CAPABILITIES:
         raise ApiError("unknown-endpoint", f"no endpoint {endpoint}", status=404)
-    if endpoint == "refs-note":
-        return {"ok": True, "result": _refs_note(root, body)}
+    if endpoint == "refs-cite":
+        return {"ok": True, "result": _refs_cite(root, body)}
     if endpoint in ("digest-verify", "digest-discard"):
         return {"ok": True, "result": _digest(root, endpoint, body)}
     if endpoint == "locate":
@@ -354,15 +354,11 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
 
     # Validate the request before touching the quilt: a missing field is the caller's mistake and should be named as
     # one, not reported as whatever the first function to be handed nothing happens to complain about.
-    needs = {"comment": ("target", "message"), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
+    needs = {"annotate": ("target", "message"), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
     for field in needs:
         _str(body, field, required=True)
 
-    # **A write over the API names its session** (plan 0.13.1). The session travels with the write from the writer's
-    # own context -- the author's from the viewer's selection, an agent's from the session it is attached to -- so
-    # nothing here reads `.loom/active`, which narrows to `loom comment`'s terminal default. A request naming none is
-    # malformed rather than something to paper over: falling back would file work wherever the pointer happened to
-    # point, which is the failure this replaced.
+    # **A write over the API names its session** (plan 0.13.1). The session travels with the write from the writer's own context -- the author's from the viewer's selection, an agent's from the session it is attached to -- so nothing here reads `.loom/active`, which narrows to `loom annotate`'s terminal default. A request naming none is malformed rather than something to paper over: falling back would file work wherever the pointer happened to point, which is the failure this replaced.
     which = _str(body, "session")
     if not which:
         raise ApiError("no-session", "a write must name the session it belongs to")
@@ -390,7 +386,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
             fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("severity", "payload", "placement")}}
             return edit_annotation(result, _str(body, "annotation", required=True) or "", writer, **fields)
-        if endpoint == "comment":
+        if endpoint == "annotate":
             # a note on a page of a cited work carries the page and, for a box, the rectangles (plan 0.13 item 2)
             page = body.get("page")
             if page is not None and (not isinstance(page, int) or page < 1):
@@ -410,6 +406,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 _str(body, "placement"),
                 page=page,
                 rects=rects,
+                in_doc=_str(body, "in"),
             )
         annotation = _str(body, "annotation", required=True)
         if endpoint == "reply":
@@ -425,7 +422,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("bad-request", str(exc)) from exc
 
 
-def _refs_note(root: Path, body: dict[str, Any]) -> str:
+def _refs_cite(root: Path, body: dict[str, Any]) -> str:
     """Accept or reject a citation an agent suggested: the log records the decision, the breadcrumb records the work."""
     from loom.records.annotations import find_annotation
     from loom.records.store import Records

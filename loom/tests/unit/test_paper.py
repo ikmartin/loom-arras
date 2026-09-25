@@ -390,7 +390,7 @@ def test_linearize_refuses_shared_nodes_keeps_or_forks_them(tmp_path: Path) -> N
 def test_selector_survives_atomize(tmp_path: Path) -> None:
     """A quote-anchored comment on a theorem stays attached after the theorem moves into nodes/<id>.tex: the key and the text are unchanged, only the file is."""
     q = drafted(tmp_path)
-    ok("comment", "pp-0005", "Which lemma?", "--quote", "Beta uses", "--kind", "question", "--author", "R", cwd=q)
+    ok("annotate", "pp-0005", "Which lemma?", "--quote", "Beta uses", "--kind", "question", "--author", "R", cwd=q)
     before = run("status", "--explain", "pp-0005", cwd=q).output
     assert "1 open question" in before and "detached" not in before
     ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)

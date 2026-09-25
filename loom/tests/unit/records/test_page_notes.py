@@ -48,7 +48,7 @@ def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
     _note_on_page(q, sid, id="a-2026-09-21-0001", sha256="feed" * 16, anchor=text_anchor)
     box_anchor = {"basis": "box", "quads": [[82.8, 278.1, 529.2, 315.7]], "exact": "", "prefix": "", "suffix": ""}
     _note_on_page(q, sid, id="a-2026-09-21-0002", sha256="feed" * 16, kind="note", anchor=box_anchor)
-    ok("comment", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
+    ok("annotate", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
 
     records, problems = load_records(q)
     assert problems == []
@@ -113,5 +113,5 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
         assert said in listed, f"{said!r} not in status --reading:\n{listed}"
     assert "a-2026-09-21" not in ok("status", cwd=q).output
     # and the agent's own list carries the citekey and the page, which is what it can act on
-    mine = json_of("ai", "findings", "--session", sid, "--json", cwd=q)["findings"]
+    mine = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
     assert {(f["work"], f["page"]) for f in mine} == {("Calloway14", 2)}

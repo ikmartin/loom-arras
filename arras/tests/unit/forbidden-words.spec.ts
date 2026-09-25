@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 const FORBIDDEN = [
 	/\batomize\b/i,
 	/\bunravel\b/i,
-	/\bloom\s+(init|doctor|upgrade|new|id|import|draft|canonize|stamp|fork|revert|live|linearize|history|search|delete|deps|build|bundle|compile|lint|check|status|serve|accept|comment|ai|digest)\b/i
+	/\bloom\s+(init|doctor|upgrade|new|id|import|draft|canonize|stamp|fork|revert|live|linearize|history|search|delete|deps|build|bundle|compile|lint|check|status|serve|accept|annotate|ai|digest)\b/i
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

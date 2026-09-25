@@ -10,7 +10,7 @@ Once you have this list, propose an adaptation of the 6 visual principles from 0
 
 Prompt #2
 
-Critique the set of annotations that exist todayt on the basis of the principles. Also critique the annotation system as a whole on the basis of design. Some suggested questions to ask: does every annotation type need its own visual style (no, is my opinion)? What style best achieves the 2-pronged goal of saying "this text is annotated" while also minimizing the effect on readability of the underlying content? Propose your own questions for the critique too and then evaluate the annotation/annotation system against those questions.
+Critique the set of annotations that exist today on the basis of the principles. Also critique the annotation system as a whole on the basis of design. Some suggested questions to ask: does every annotation type need its own visual style (no, is my opinion)? What style best achieves the 2-pronged goal of saying "this text is annotated" while also minimizing the effect on readability of the underlying content? Propose your own questions for the critique too and then evaluate the annotation/annotation system against those questions.
 
 With that done, propose a fix list. What can/should be merged based on the critique? What can be done to fix the style and readability of an annotation as it appears on the text? What can be done to make the annotation popup box more usable/more simple? What can be done to make the add annotation box more usable/more simple? For each propose fix, explain what the error is and how the fix resolves it in no more than two sentences.
 

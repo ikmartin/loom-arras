@@ -1,5 +1,5 @@
 <script lang="ts">
-	// What the next message will carry (plan 0.14): the annotations the person wrote in this session since a message last carried any. Drawn only while it holds something; each row is a link to the annotation, followed by the one rule so the Chat stays; the preview is the text the agent will read, verbatim, since it is the publisher's own rendering of what it will send.
+	// What the next message will carry (plan 0.14): the annotations the person wrote in this session since a message last carried any. Drawn only while it holds something; each row is a dot in the kind's hue (15.3.9; annotation study A2) and a link to the annotation, followed by the one rule so the Chat stays; the preview is the text the agent will read, verbatim, since it is the publisher's own rendering of what it will send.
 	import { base } from '$app/paths';
 	import { store } from '$lib/manifest/client.svelte';
 	import { keyName } from '$lib/workspace/names';
@@ -36,6 +36,10 @@
 		if (r.work) return r.page ? `${r.work} p. ${r.page}` : r.work;
 		return m ? keyName(m, r.target) : r.target;
 	}
+	/** What the dot says for a screen reader: the kind, and that a reply is one. */
+	function kindOf(r: PacketRow): string {
+		return r.act === 'replied' ? `reply, ${r.kind}` : r.kind;
+	}
 </script>
 
 {#if rows.length}
@@ -47,7 +51,7 @@
 		<ul>
 			{#each rows as r (r.id)}
 				<li data-testid="packet-row-{r.id}">
-					<span class="kind kind-{r.kind}">{r.act === 'replied' ? 'reply' : r.kind}</span>
+					<span class="ann-dot k-{r.kind}" class:reply={r.act === 'replied'} role="img" aria-label={kindOf(r)} title={kindOf(r)} data-testid="packet-kind"></span>
 					<a href="quilt:{r.id}" title={r.target}>{name(r)}</a>
 				</li>
 			{/each}
@@ -81,13 +85,8 @@
 	li {
 		display: flex;
 		gap: 6px;
-		align-items: baseline;
+		align-items: center;
 		padding: 1px 0;
-	}
-	.kind {
-		font-size: 10.5px;
-		color: var(--ink-soft);
-		min-width: 5.5em;
 	}
 	pre {
 		margin: 4px 0 0;

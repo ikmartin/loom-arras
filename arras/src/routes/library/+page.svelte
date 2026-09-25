@@ -53,7 +53,7 @@
 				<th class="num" title="results read off it">digest</th>
 				<th class="num" title="of those, what this corpus leans on">used here</th>
 				<th class="num" title="statements nobody has vouched for">unvouched</th>
-				<th class="num" title="notes and findings still awaiting an answer">open</th>
+				<th class="num" title="annotations still awaiting an answer">open</th>
 				<th>links</th>
 			</tr>
 		</thead>

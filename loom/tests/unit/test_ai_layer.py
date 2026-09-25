@@ -247,13 +247,13 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     assert f"{other}  Ingest of Hartshorne" in listing
 
     # "Referee **of**…" and "Ingest **of**…": named, not guessed
-    refused("ai", "findings", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
+    refused("ai", "annotations", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
 
     ok("ai", "name", "Parity, revisited", "--session", "parity", cwd=q)
     assert "Parity, revisited" in ok("session", "list", cwd=q).output
 
     ok(
-        "comment",
+        "annotate",
         "dm-0003",
         "Say where finiteness is used.",
         "--quote",
@@ -268,9 +268,9 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
         env=FIXED,
     )
     # part of a title reaches the session, which is how a person addresses one
-    ok("ai", "findings", "--session", "revisited", cwd=q)
+    ok("ai", "annotations", "--session", "revisited", cwd=q)
 
-    f = ok("ai", "findings", "--session", "parity", cwd=q)
+    f = ok("ai", "annotations", "--session", "parity", cwd=q)
     assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output
 
     ok("ai", "discard", ref, cwd=q)
@@ -306,7 +306,7 @@ def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
 
 
 def test_ai_check_reports_writes_outside_the_session(tmp_path: Path) -> None:
-    """`ai check` names every file changed after the session opened outside its directory and reverts nothing; the annotation log `loom comment` appends to is the agent's to write, and a digest is not (DR-173)."""
+    """`ai check` names every file changed after the session opened outside its directory and reverts nothing; the annotation log `loom annotate` appends to is the agent's to write, and a digest is not (DR-173)."""
     q = bare(tmp_path)
     sid = ok("ai", "start", "audit", cwd=q).stdout.strip()  # the real clock: the check compares mtimes with it
     rel = f".loom/sessions/{sid}"
@@ -318,7 +318,7 @@ def test_ai_check_reports_writes_outside_the_session(tmp_path: Path) -> None:
     assert ok("ai", "check", sid, cwd=q).stdout.strip() == "ok: nothing outside the session changed"
 
     # the annotations the agent was told to write; addressed by title, like every other session (DR-167)
-    ok("comment", "dm-0002", "A finding", "--session", sid, "--author", "A. Author", cwd=q)
+    ok("annotate", "dm-0002", "A finding", "--session", sid, "--author", "A. Author", cwd=q)
     os.utime(q / "annotations" / "log.jsonl", (later, later))
     assert ok("ai", "check", "audit", cwd=q).stdout.strip() == "ok: nothing outside the session changed"
 
@@ -346,7 +346,7 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
     rel = f".loom/sessions/{sid}"
     ok("source", "dm-0003", "--closure", "--session", sid, cwd=q)
     ok(
-        "comment",
+        "annotate",
         "dm-0003/proof",
         "Closedness is asserted.",
         "--quote",
@@ -377,11 +377,11 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
     assert kinds == {"annotations": "annotations", "referee-dm-0003.notes.md": "notes"}  # reading leaves no file
     assert [entry["command"] for entry in t["log"]][:2] == [
         "loom source dm-0003 --closure",
-        "loom comment dm-0003/proof --quote --kind objection",
+        "loom annotate dm-0003/proof --quote --kind objection",
     ]
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
     # a person writing in the same session is a participant in the same thread, which is the point of the split
-    ok("comment", "dm-0002", "Mine.", "--author", "Tom", "--session", sid, cwd=q, env=FIXED)
+    ok("annotate", "dm-0002", "Mine.", "--author", "Tom", "--session", sid, cwd=q, env=FIXED)
     ok("build", cwd=q)
     m2 = json.loads((q / "build" / "manifest.json").read_text())
     again = m2["threads"][sid]
@@ -399,11 +399,11 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
     ok("search", "gadget", "--session", sid, cwd=q / "nodes")  # from a subdirectory
     ok("source", "dm-0003", "--session", sid, cwd=q / "nodes")
     ok(
-        "comment",
+        "annotate",
         "dm-0003",
         "Fine.",
         "--kind",
-        "confirmation",
+        "note",
         "--session",
         sid,
         "--author",
@@ -412,7 +412,7 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
         env=FIXED,
     )
     log = (q / rel / "run.log").read_text()
-    assert "loom search gadget" in log and "loom source dm-0003" in log and "loom comment dm-0003" in log
+    assert "loom search gadget" in log and "loom source dm-0003" in log and "loom annotate dm-0003" in log
     assert (q / "annotations" / "log.jsonl").is_file()  # the record lands in the quilt's one log
     assert not (q / "nodes" / "ai").exists()  # nothing landed relative to the shell's directory
 
@@ -432,7 +432,7 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     # what the table must not admit: every command that writes into the quilt outside the session and build/, both spellings of canonize among them, so `loom canonise` cannot walk past a deny on `loom canonize`
     writes_outside_a_session = {
         "accept", "atomize", "inline", "import", "draft", "canonize", "canonise", "canonicalize", "stamp", "fork",
-        "revert", "live", "linearize", "refs note", "refs add", "upgrade", "digest import", "ai init",
+        "revert", "live", "linearize", "refs cite", "refs add", "upgrade", "digest import", "ai init",
     }  # fmt: skip
     missing = sorted(writes_outside_a_session - denied)
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
@@ -499,7 +499,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "refs discard",
         "refs unreadable",
         "refs forget",
-        "refs note",
+        "refs cite",
         "ai init",
         "upgrade",
         "session use",
@@ -510,12 +510,12 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
 
 
 def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> None:
-    """`ai findings` shows the author's decision on each of the session's proposals, so an agent that reattaches need not ask `refs why` id by id."""
+    """`ai annotations` shows the author's decision on each of the session's proposals, so an agent that reattaches need not ask `refs why` id by id."""
     from tests.unit._quilts import mapped, propose
 
     q, ck = mapped(tmp_path)
     runname = ok("ai", "start", "r", cwd=q).stdout.strip()
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=runname)
     ok("refs", "discard", f"{ck}-thm-1.1", "--reason", "wrong theorem", "--author", "i", cwd=q)
-    out = ok("ai", "findings", "--session", runname, cwd=q).output
+    out = ok("ai", "annotations", "--session", runname, cwd=q).output
     assert f"{ck}-thm-1.1" in out and "discarded -- wrong theorem" in out

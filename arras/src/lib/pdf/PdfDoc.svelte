@@ -33,8 +33,8 @@
 		url: string;
 		/** The page to open at; changing it scrolls there. */
 		page?: number;
-		/** What to draw, by page: a work's results, and the notes on its pages, which carry their kind and are marked `note`. */
-		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[];
+		/** What to draw, by page: a work's results, and the annotations on its pages, which carry their kind, severity, basis and whether they are settled, and are marked `note`. */
+		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[];
 		/** The span to scroll to and show as the one being looked at. */
 		focus?: string;
 		/** Overrides the reader's own zoom, for a pane whose size is not theirs to choose (the proposal box). */
@@ -127,8 +127,8 @@
 	const at = $derived(count ? Math.min(Math.max(here || page, 1), count) : here || page);
 	const shown = $derived(new Set(all.filter((n) => Math.abs(n - at) <= near)));
 	const byPage = $derived.by(() => {
-		const out: Record<number, { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[]> = {};
-		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects, ids: s.ids, note: s.note, kind: s.kind, transient: s.transient });
+		const out: Record<number, { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[]> = {};
+		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects, ids: s.ids, note: s.note, kind: s.kind, severity: s.severity, settled: s.settled, basis: s.basis, transient: s.transient });
 		return out;
 	});
 

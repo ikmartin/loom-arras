@@ -64,7 +64,7 @@
 		{@render row('Width', WIDTHS, prefs.width, (v) => (prefs.width = v as Width), 'width')}
 		{@render row('Theme', THEMES, prefs.theme, (v) => (prefs.theme = v as Theme), 'theme')}
 		{@render row('Format', FORMATS, prefs.format, (v) => (prefs.format = v as Format), 'format')}
-		{@render row('Comments', COMMENTS, prefs.comments, (v) => (prefs.comments = v as Comments), 'comments')}
+		{@render row('Annotations', COMMENTS, prefs.comments, (v) => (prefs.comments = v as Comments), 'comments')}
 		<!-- The result keys and states in the left gutter. -->
 		{@render row(
 			'Show ids',

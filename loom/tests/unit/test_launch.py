@@ -300,7 +300,7 @@ def test_the_activity_is_what_this_turn_ran_not_the_last_line_of_the_log(q: Path
     sid = new_session(q)
     log = files_dir(q, sessions(q)[sid]) / "run.log"
     log.parent.mkdir(parents=True, exist_ok=True)
-    log.write_text("2026-09-01T00:00:00Z  loom comment --reply a-1 → a-2\n")
+    log.write_text("2026-09-01T00:00:00Z  loom annotate --reply a-1 → a-2\n")
     assert activity(q, sid, "2026-09-23T10:00:00Z") == ""
     with log.open("a") as fh:
         fh.write("2026-09-23T10:00:05Z  loom source sh-0009\n")

@@ -84,7 +84,7 @@ def session_thread(root: Path, session: Any, record: Record | None, run_dir: Pat
             if not m:
                 continue
             entry = {"time": m.group(1), "command": m.group(2)}
-            # `loom comment` names the annotation it made or changed after an arrow (plan 0.14)
+            # `loom annotate` names the annotation it made or changed after an arrow (plan 0.14)
             made = _MADE.match(entry["command"])
             if made:
                 entry["command"], entry["annotation"] = made.group(1), made.group(2)

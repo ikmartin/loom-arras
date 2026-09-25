@@ -269,7 +269,7 @@ def _marks_hash(marks: dict[str, list[MarkEntry]], key: str, result: ScanResult)
     h = hashlib.sha256()
     for k in sorted(keys):
         for m in marks.get(k, []):
-            h.update(f"{m.ann_id}|{m.start}|{m.end}".encode())
+            h.update(f"{m.ann_id}|{m.start}|{m.end}|{m.in_doc or ''}".encode())
     return h.hexdigest()[:16]
 
 
@@ -290,7 +290,7 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
         if res.span is None and a.selector is None and region is not None and a.in_reply_to is None:
             host = result.nodes.get(region.container)
             if host is not None:
-                entry = MarkEntry(a.id, "", region.file, region.offset, region.offset)
+                entry = MarkEntry(a.id, "", region.file, region.offset, region.offset, a.in_doc)
                 owner = host.of if host.kind == "proof" and host.of else host.key
                 out.setdefault(owner, []).append(entry)
                 if owner != host.key:
@@ -307,7 +307,7 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
         span = Records.to_file_span(pieces, res.span)
         if span is None:
             continue
-        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1])
+        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], a.in_doc)
         owner = n.of if n.kind == "proof" and n.of else n.key
         out.setdefault(owner, []).append(entry)
         # a labelled proof has a page of its own too, and its marks belong on it as well as under its statement
@@ -380,12 +380,18 @@ def build(
             targets.append((key, "digest"))
 
     def render_one(key: str, kind: str) -> str:
+        # a mark that names a document is drawn in that document and nowhere else (plan 0.15, decision 9)
         if kind == "node":
-            return place_marks(renderer.node_fragment(key), marks.get(key, []))
+            return place_marks(renderer.node_fragment(key), [m for m in marks.get(key, []) if m.in_doc is None])
         if kind == "master":
             return place_marks(
                 renderer.master_fragment(key),
-                [m for k, ms in marks.items() for m in ms if key in result.nodes[k].reached_by],
+                [
+                    m
+                    for k, ms in marks.items()
+                    for m in ms
+                    if key in result.nodes[k].reached_by and m.in_doc in (None, key)
+                ],
             )
         return renderer.digest_fragment(key)
 

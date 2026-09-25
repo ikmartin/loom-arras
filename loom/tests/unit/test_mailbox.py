@@ -34,7 +34,7 @@ def test_a_post_lands_with_nobody_listening_is_read_not_consumed_and_carries_wha
     """The viewer's composer and `loom session send` are one mechanism: both append, and both say who was listening. Refusing a message because nobody is attached would lose what the author typed; a post says what changed since the last one, so a parked agent needs no second call to learn what it is being asked about."""
     q = demo(tmp_path)
     sid = new_session(q, "referee pass", WHO)
-    ok("comment", "dm-0002", "Orbits may be empty.", "--author", WHO, cwd=q)
+    ok("annotate", "dm-0002", "Orbits may be empty.", "--author", WHO, cwd=q)
     assert attached(q, sid) == []
     said = handle(q, "message", {"session": sid, "text": "Have a look at dm-0003.", "author": WHO})
     assert said["ok"] and said["session"] == sid and said["attached"] == []
@@ -88,7 +88,7 @@ def test_an_agent_parked_on_session_next_wakes_when_a_message_lands_with_what_ch
     """
     q = demo(tmp_path)
     sid = new_session(q, "reading", WHO)
-    asked = ("comment", "dm-0003", "Is this the balanced case?", "--kind", "question")
+    asked = ("annotate", "dm-0003", "Is this the balanced case?", "--kind", "question")
     ok(*asked, "--session", sid, "--author", WHO, cwd=q)
     env = {**os.environ, "LOOM_FIXED_TIME": "2026-09-21T12:00:00Z"}
     agent = subprocess.Popen(

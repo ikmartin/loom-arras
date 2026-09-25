@@ -8,7 +8,7 @@ Compared byte for byte, over the files git would commit (tracked, or untracked a
 
 - `docs/specs/fixture/` and its vendored copies `loom/tests/fixture/` and `arras/tests/fixture/`;
 - `docs/specs/fixture-minimal/` and `arras/tests/fixture-minimal/`;
-- `demos/demo/`, `demos/synthetic/` and `demos/showcase/` and the quilts under `loom/tests/quilts/` that `demos/build.py` copies them from, less the `EXPECTED-LINT.txt` it drops from demo and showcase.
+- `demos/demo/`, `demos/synthetic/` and `demos/showcase/` and the quilts under `loom/tests/quilts/` that `demos/build.py` copies them from, less the `EXPECTED-LINT.txt` it drops from demo and showcase, and less `.loom/review-observations.json`, which loom rewrites whenever it scans a quilt, so serving a demo would change it under the check.
 
 Exit 0 when every copy agrees, 1 otherwise.
 """
@@ -22,6 +22,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 REFRESH = "sh docs/specs/tools/refresh-fixture.sh"
 DEMOS = "python demos/build.py --skip-papers"
+#: runtime state loom rewrites on every scan; a served demo changes it without anyone editing anything
+STATE = (".loom/review-observations.json",)
 
 # (source, copy, files the copy leaves out, the command that makes the copy again)
 PAIRS = [
@@ -33,9 +35,9 @@ PAIRS = [
         (),
         "rm -rf arras/tests/fixture-minimal && cp -R docs/specs/fixture-minimal arras/tests/fixture-minimal",
     ),
-    ("loom/tests/quilts/demo", "demos/demo", ("EXPECTED-LINT.txt",), DEMOS),
-    ("loom/tests/quilts/synthetic", "demos/synthetic", (), DEMOS),
-    ("loom/tests/quilts/showcase", "demos/showcase", ("EXPECTED-LINT.txt",), DEMOS),
+    ("loom/tests/quilts/demo", "demos/demo", ("EXPECTED-LINT.txt", *STATE), DEMOS),
+    ("loom/tests/quilts/synthetic", "demos/synthetic", STATE, DEMOS),
+    ("loom/tests/quilts/showcase", "demos/showcase", ("EXPECTED-LINT.txt", *STATE), DEMOS),
 ]
 
 
@@ -58,7 +60,7 @@ def committable(rel: str) -> set[str]:
 
 def compare(source: str, copy: str, left_out: tuple[str, ...]) -> list[str]:
     want = committable(source) - set(left_out)
-    have = committable(copy)
+    have = committable(copy) - set(left_out)
     out = [f"{copy}/{n} is missing (it is in {source}/)" for n in sorted(want - have)]
     out += [f"{copy}/{n} is extra (it is not in {source}/)" for n in sorted(have - want)]
     out += [

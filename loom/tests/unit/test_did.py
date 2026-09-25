@@ -1,4 +1,4 @@
-"""What it did (plan 0.14 phase 6): `run.log` is the session's record of what was done through loom, and `loom comment` says in it which annotation each line made or changed."""
+"""What it did (plan 0.14 phase 6): `run.log` is the session's record of what was done through loom, and `loom annotate` says in it which annotation each line made or changed."""
 
 from __future__ import annotations
 
@@ -25,32 +25,32 @@ def lines(q: Path, sid: str) -> list[str]:
 def test_each_comment_logs_the_annotation_it_touched(q: Path) -> None:
     sid = new_session(q)
     who = ("--session", sid, "--author", "A. Author")
-    made = ok("comment", "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question", *who, cwd=q)
+    made = ok("annotate", "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question", *who, cwd=q)
     first = made.output.split()[0]
-    reply = ok("comment", "--reply", first, "The fixed ones.", *who, cwd=q).output.split()[0]
-    ok("comment", "--resolve", first, "Settled.", *who, cwd=q)
-    ok("comment", "--resolve", first, "--undo", *who, cwd=q)
-    ok("comment", "--edit", first, "Which orbits?", *who, cwd=q)
-    ok("comment", "--discard", reply, "Said elsewhere.", *who, cwd=q)
+    reply = ok("annotate", "--reply", first, "The fixed ones.", *who, cwd=q).output.split()[0]
+    ok("annotate", "--resolve", first, "Settled.", *who, cwd=q)
+    ok("annotate", "--resolve", first, "--undo", *who, cwd=q)
+    ok("annotate", "--edit", first, "Which orbits?", *who, cwd=q)
+    ok("annotate", "--discard", reply, "Said elsewhere.", *who, cwd=q)
     batch = "\n".join(
         json.dumps(x)
         for x in ({"target": "dm-0002", "message": "One.", "kind": "note"}, {"reply": first, "message": "Two."})
     )
-    ok("comment", "--batch", *who, cwd=q, stdin=batch)
+    ok("annotate", "--batch", *who, cwd=q, stdin=batch)
     got = lines(q, sid)
     assert got[:6] == [
-        f"loom comment dm-0003 --quote --kind question → {first}",
-        f"loom comment --reply {first} → {reply}",
-        f"loom comment --resolve {first} → {first}",
-        f"loom comment --resolve {first} --undo → {first}",
-        f"loom comment --edit {first} → {first}",
-        f"loom comment --discard {reply} → {reply}",
+        f"loom annotate dm-0003 --quote --kind question → {first}",
+        f"loom annotate --reply {first} → {reply}",
+        f"loom annotate --resolve {first} → {first}",
+        f"loom annotate --resolve {first} --undo → {first}",
+        f"loom annotate --edit {first} → {first}",
+        f"loom annotate --discard {reply} → {reply}",
     ]
-    assert got[6].startswith("loom comment dm-0002 --kind note → a-") and got[7].startswith(
-        f"loom comment --reply {first} → a-"
+    assert got[6].startswith("loom annotate dm-0002 --kind note → a-") and got[7].startswith(
+        f"loom annotate --reply {first} → a-"
     )
     # a refused comment did nothing, so it is not in the record
-    refused("comment", "dm-9999", "Nowhere.", *who, cwd=q, code=2, match="no such key: dm-9999")
+    refused("annotate", "dm-9999", "Nowhere.", *who, cwd=q, code=2, match="no such key: dm-9999")
     assert len(lines(q, sid)) == 8
 
 
@@ -60,12 +60,12 @@ def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> 
 
     sid = new_session(q)
     ann = ok(
-        "comment", "dm-0003", "Which orbit?", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q
+        "annotate", "dm-0003", "Which orbit?", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q
     ).output.split()[0]
     with (files_dir(q, sessions(q)[sid]) / "run.log").open("a") as fh:
         fh.write("2026-09-01T00:00:00Z  loom source dm-0003\n")  # a line from before, or from any other command
     log = build_threads(q)[sid]["log"]
-    assert log[0]["command"] == "loom comment dm-0003 --kind question" and log[0]["annotation"] == ann
+    assert log[0]["command"] == "loom annotate dm-0003 --kind question" and log[0]["annotation"] == ann
     assert log[1] == {"time": "2026-09-01T00:00:00Z", "command": "loom source dm-0003"}
 
 

@@ -1,0 +1,2 @@
+// What a citation's box decided this session. `refs-cite` resolves the annotation and, on accept, leaves a reference note the manifest carries; a rejection leaves only a resolved annotation, which the manifest cannot tell from one resolved by hand. The word is held here, keyed by annotation id, so the box says `rejected` rather than `resolved` until the page is left.
+export const decided = $state<Record<string, 'accepted' | 'rejected'>>({});

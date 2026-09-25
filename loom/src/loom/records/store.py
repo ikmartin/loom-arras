@@ -161,9 +161,7 @@ class Records:
             row = self.latest.get(key)
             ks = KeyState(key=key, state="draft", row=row)
             if n.kind == "section":
-                # A section is a container, not a claim: no state, and `loom accept` refuses one. It is carried here
-                # only so that its review facts are computed, because `loom comment` accepts a section as a target
-                # and a finding filed on one was stored and then shown nowhere (DR-172).
+                # A section is a container, not a claim: no state, and `loom accept` refuses one. It is carried here only so that its review facts are computed, because `loom annotate` accepts a section as a target and an annotation filed on one was stored and then shown nowhere (DR-172).
                 ks.state = ""
                 states[key] = ks
                 continue
@@ -405,6 +403,10 @@ class Records:
                 if n is None:
                     out.append(ResolvedAnnotation(a, rec, None, True, self._recorded(a, None)))
                     continue
+                if a.in_doc and a.in_doc not in n.reached_by:
+                    # a claim about the node in one document, and that document no longer holds it
+                    out.append(ResolvedAnnotation(a, rec, None, True, self._recorded(a, None)))
+                    continue
                 if n.key not in texts:
                     texts[n.key], _ = self.own_pieces(result, n)
                     hashed[n.key] = own_text(result, n)
@@ -450,7 +452,7 @@ class Records:
     def _recorded(self, a: Annotation, current: str | None) -> bool:
         """Whether loom can still produce the text `a` was written against: its `against` hash is the current text's, or a frozen snapshot's.
 
-        Snapshots come from `loom accept`, from `loom comment`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (P3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai findings --json` reports `recorded`, and `loom status --reading` prints it for page notes; nothing yet shows the old text. A note with no `against` claimed no version and counts as recorded.
+        Snapshots come from `loom accept`, from `loom annotate`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (P3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai annotations --json` reports `recorded`, and `loom status --reading` prints it for page notes; nothing yet shows the old text. A note with no `against` claimed no version and counts as recorded.
         """
         want = a.target_hash
         if not want:
@@ -601,6 +603,8 @@ class Records:
                     "work": res.work or None,
                     "page": a.anchor.page if a.anchor else None,
                 },
+                # the document a claim about a node is read in, or null for the node wherever it appears (plan 0.15, decision 9)
+                "in": a.in_doc,
                 "basis": a.anchor.basis if a.anchor else None,
                 "kind": a.kind,
                 "body_html": render_markdown(a.body),

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { Annotations } from './shown.svelte';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
-	import { card, resetComments, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { card, resetComments, settled, wire, type CommentSlot } from '$lib/fragments/mount';
 	import { flash } from '$lib/travel/travel';
 	import { markPages } from '$lib/fragments/pages';
 	import { typeset } from '$lib/math/mathjax';
@@ -12,7 +12,6 @@
 	import { prefs } from '$lib/prefs.svelte';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
-	import { stackMargins } from './mount';
 
 	let {
 		path,
@@ -134,7 +133,7 @@
 			floating: floats
 		});
 		const trigger = was && opened ? triggerFor(root, was) : null;
-		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? trigger.dataset.comments ?? '').split(/\s+/).filter(Boolean));
+		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? '').split(/\s+/).filter(Boolean));
 	}
 
 	// Changing where comments stand used to re-key the fragment, which re-rendered the HTML and re-typeset every
@@ -155,10 +154,12 @@
 		onmounted?.(el);
 	});
 
-	// The session filter decides which comments are counted beside a result, so a change of it re-counts them, as a change of placement re-wires them; the marks themselves are the fragment's and stay.
+	// The session filter and the settled control govern the marks (15.3.1): a change of either re-wires the fragment, which puts `hidden` on every mark whose annotation the filter excludes and remakes the label marks from what is admitted. The marks themselves are the fragment's and stay.
 	$effect(() => {
 		void sessionView.view;
 		void sessionView.selected;
+		void sessionView.showClosed;
+		void ui.showSettled;
 		if (!el || wiredFor === null) return;
 		const root = el;
 		untrack(() => {
@@ -200,7 +201,6 @@
 		onmounted?.(root);
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
 		counts();
-		if (margins) stackMargins(root);
 		arrive();
 	}
 
@@ -216,10 +216,16 @@
 	}
 
 	/** Go where the item names: its place, and the annotation it names, open at its mark — or, with comments in the gutter, its card. */
-	function arrive() {
+	async function arrive() {
 		scrollToHash();
 		const id = note;
 		if (!id || !el) return;
+		// a link that names a settled annotation is a request to see it: the settled control comes on for the sitting, as `s` would turn it, and the re-wire it causes is waited for, since a settled annotation with no mark of its own has no label mark until then (15.2.5)
+		if (settled(store.manifest?.annotations[id]) && !ui.showSettled) {
+			ui.showSettled = true;
+			await tick();
+			if (!el || note !== id) return;
+		}
 		if (inline) {
 			const at = triggerFor(el, [id]);
 			if (!at) return;
@@ -246,12 +252,12 @@
 	$effect(() => {
 		// in a pane, the item's own anchor, its annotation and each reopening; elsewhere the URL's hash
 		const at = anchor !== undefined ? `${anchor}\u0000${jump}\u0000${note ?? ''}` : page.url.hash;
-		if (html && el && at) untrack(arrive);
+		if (html && el && at) untrack(() => void arrive());
 	});
 
 	onMount(() => {});
 
-	/** How many places in this fragment carry an annotation: marked phrases and blocks, and the counts beside results whose comments have no mark. */
+	/** How many places in this fragment carry an annotation: marked phrases and blocks, and the labels of results whose annotations have no mark. */
 	let marks = $state(0);
 	let allOpen = $state(false);
 	// What a rail outside this component needs in order to offer the same two actions: the actions themselves, whether there is anything to act on, and which way the control should read.
@@ -270,7 +276,7 @@
 	});
 	function counts(): void {
 		if (!el) return;
-		marks = el.querySelectorAll('mark.annotation[data-annotation], .annotation-block[data-annotation], button.comment-count').length;
+		marks = el.querySelectorAll('mark.annotation[data-annotation], .annotation-block[data-annotation]').length;
 	}
 
 	function expandAll(): void {
@@ -284,13 +290,13 @@
 		allOpen = false;
 	}
 
-	// `e` and `h` only while the content has focus, so they never fight the composer. Not on a modifier and not global:
-	// a key that works everywhere is a key that fires while somebody is typing.
+	// `e`, `h` and `s` only while the content has focus, so they never fight the composer. Not on a modifier and not global: a key that works everywhere is a key that fires while somebody is typing. `s` flips the settled control, which is the sitting's and not this fragment's (ui.svelte.ts).
 	function keys(e: KeyboardEvent): void {
 		const typing = (e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]');
 		if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
 		if (e.key === 'e') expandAll();
 		else if (e.key === 'h') hideAll();
+		else if (e.key === 's') ui.showSettled = !ui.showSettled;
 		else return;
 		e.preventDefault();
 	}
@@ -301,32 +307,13 @@
 		// a write lands in the log and comes back on the next poll; the boxes already open must show it
 		inline?.refresh();
 		counts();
-		// the margin column is laid out against the nodes, so it is restacked whenever what is in it changes
-		if (el && margins) requestAnimationFrame(() => el && stackMargins(el));
-	});
-
-	// and whenever the column's own width changes under it, which moves every box in it
-	$effect(() => {
-		if (!el || !margins) return;
-		const watch = new ResizeObserver(() => el && stackMargins(el));
-		watch.observe(el);
-		return () => watch.disconnect();
-	});
-
-	$effect(() => {
-		const id = ui.activeAnnotation;
-		if (!el) return;
-		for (const m of el.querySelectorAll<HTMLElement>('[data-annotation]')) {
-			m.classList.toggle('active', !!id && (m.dataset.annotation ?? '').split(/\s+/).includes(id));
-		}
 	});
 </script>
 
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	<!-- A focusable region with two shortcut keys: the rule below models a static div, not a labelled region a reader
-	     tabs into deliberately to reach the keys its own header names. -->
+	<!-- A focusable region with three shortcut keys: the rule below models a static div, not a labelled region a reader tabs into deliberately to reach the keys its own header names. -->
 	<div class="framed">
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
@@ -334,6 +321,7 @@
 			class:read={margins}
 			class:math-pending={isolatedMacros && !mathReady}
 			class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'}
+			class:show-settled={ui.showSettled}
 			aria-busy={isolatedMacros && !mathReady}
 			bind:this={el}
 			tabindex="-1"

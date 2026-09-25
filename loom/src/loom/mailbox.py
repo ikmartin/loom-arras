@@ -448,7 +448,7 @@ def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
                 "id": a.id,
                 "kind": a.kind,
                 "target": a.target_key,
-                # A page note targets the work's identifier, which no `loom refs` command accepts. An agent handed only that has to find the citekey by trial -- which is what the reading study watched one do. The citekey and the page travel with it, as `ai findings` prints them.
+                # A page note targets the work's identifier, which no `loom refs` command accepts. An agent handed only that has to find the citekey by trial -- which is what the reading study watched one do. The citekey and the page travel with it, as `ai annotations` prints them.
                 "work": work_of(root, a),
                 "page": a.anchor.page if a.anchor else None,
                 "act": "replied" if a.in_reply_to else "created",

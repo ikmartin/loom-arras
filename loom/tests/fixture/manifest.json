@@ -14,6 +14,7 @@
    "discard_reason": null,
    "discarded": false,
    "id": "a-2026-09-16-0001",
+   "in": null,
    "in_reply_to": null,
    "kind": "objection",
    "payload": null,
@@ -45,6 +46,7 @@
    "discard_reason": null,
    "discarded": false,
    "id": "a-2026-09-16-0002",
+   "in": null,
    "in_reply_to": null,
    "kind": "suggestion",
    "payload": "By Lemma~\\ref{sy-0002}, $X$ is the disjoint union of orbits.",
@@ -76,6 +78,7 @@
    "discard_reason": null,
    "discarded": false,
    "id": "a-2026-09-16-0003",
+   "in": null,
    "in_reply_to": null,
    "kind": "suggestion",
    "payload": null,
@@ -107,6 +110,7 @@
    "discard_reason": null,
    "discarded": false,
    "id": "a-2026-09-16-0004",
+   "in": null,
    "in_reply_to": null,
    "kind": "citation",
    "payload": "Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999",
@@ -138,6 +142,7 @@
    "discard_reason": null,
    "discarded": false,
    "id": "a-2026-09-16-0005",
+   "in": null,
    "in_reply_to": null,
    "kind": "citation",
    "payload": "any standard text on group actions",
@@ -169,6 +174,7 @@
    "discard_reason": null,
    "discarded": false,
    "id": "a-2026-09-16-0006",
+   "in": null,
    "in_reply_to": null,
    "kind": "question",
    "payload": null,
@@ -194,12 +200,45 @@
     "label": "The synthetic quilt"
    },
    "basis": null,
-   "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
+   "body_html": "<p>For the slide, the fixed-point clause can go; the talk never uses it.</p>",
    "created": "2026-09-16T00:00:00Z",
    "detached": false,
    "discard_reason": null,
    "discarded": false,
    "id": "a-2026-09-16-0007",
+   "in": "drafting/talk.tex",
+   "in_reply_to": null,
+   "kind": "suggestion",
+   "payload": null,
+   "placement": null,
+   "quote": "Every orbit of a widget",
+   "record": "s-2026-09-16-0001",
+   "recorded": true,
+   "run": "s-2026-09-16-0001",
+   "severity": null,
+   "status": "open",
+   "target": {
+    "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
+    "key": "sy-0002",
+    "page": null,
+    "work": null
+   }
+  },
+  "a-2026-09-16-0008": {
+   "anchored": true,
+   "author": {
+    "id": "The synthetic quilt",
+    "kind": "person",
+    "label": "The synthetic quilt"
+   },
+   "basis": null,
+   "body_html": "<p>Agreed; I will add the hypothesis to the statement.</p>",
+   "created": "2026-09-16T00:00:00Z",
+   "detached": false,
+   "discard_reason": null,
+   "discarded": false,
+   "id": "a-2026-09-16-0008",
+   "in": null,
    "in_reply_to": "a-2026-09-16-0001",
    "kind": "question",
    "payload": null,
@@ -217,7 +256,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0008": {
+  "a-2026-09-16-0009": {
    "anchored": true,
    "author": {
     "id": "The synthetic quilt",
@@ -230,7 +269,8 @@
    "detached": false,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0008",
+   "id": "a-2026-09-16-0009",
+   "in": null,
    "in_reply_to": "a-2026-09-16-0002",
    "kind": "question",
    "payload": null,
@@ -248,7 +288,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0009": {
+  "a-2026-09-16-0010": {
    "anchored": false,
    "author": {
     "id": "The synthetic quilt",
@@ -261,7 +301,8 @@
    "detached": true,
    "discard_reason": null,
    "discarded": false,
-   "id": "a-2026-09-16-0009",
+   "id": "a-2026-09-16-0010",
+   "in": null,
    "in_reply_to": null,
    "kind": "question",
    "payload": null,
@@ -279,7 +320,7 @@
     "work": null
    }
   },
-  "a-2026-09-16-0010": {
+  "a-2026-09-16-0011": {
    "anchored": false,
    "author": {
     "id": "agent",
@@ -292,9 +333,10 @@
    "detached": false,
    "discard_reason": null,
    "discarded": true,
-   "id": "a-2026-09-16-0010",
+   "id": "a-2026-09-16-0011",
+   "in": null,
    "in_reply_to": null,
-   "kind": "confirmation",
+   "kind": "note",
    "payload": null,
    "placement": null,
    "quote": null,
@@ -314,7 +356,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "682919ef37d591971a382e90a43d03c20cb4bf178deb11878c15884b3a70a7cf",
+   "hash": "8a0d748645880f62a0061d21f89fd4b7c0fff48c1c8024828e5f6550d3afb6d4",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -326,7 +368,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "77b3d9890ca6ce214b1739db48c7266f3f8158e4f384e8f2b3d4509ed0c9dc0b",
+   "hash": "79d19ebbd1a7fb5a417e70a7bf7f33b74848258622e0a55e83212276d4efa520",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -338,7 +380,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "7d9c8b23e0a5f170f46a19ec5669265d565b29357a365e2e7774ea4586e6902b",
+   "hash": "3a1402030bc9124fd1315507cf6eea129e572789a3c2b987654a56812854da93",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -1778,7 +1820,8 @@
     },
     "open": {
      "citation": 1,
-     "question": 1
+     "question": 1,
+     "suggestion": 1
     }
    },
    "src": [
@@ -5126,8 +5169,8 @@
    "kind": "session",
    "log": [
     {
-     "annotation": "a-2026-09-16-0010",
-     "command": "loom comment sy-000A --kind confirmation",
+     "annotation": "a-2026-09-16-0011",
+     "command": "loom annotate sy-000A --kind note",
      "time": "2026-09-16T00:00:00Z"
     }
    ],
@@ -5147,7 +5190,7 @@
   "s-2026-09-16-0001": {
    "attachments": [
     {
-     "count": 9,
+     "count": 10,
      "kind": "annotations",
      "name": "annotations"
     },
@@ -5164,52 +5207,57 @@
    "log": [
     {
      "annotation": "a-2026-09-16-0001",
-     "command": "loom comment sy-0003 --quote --kind objection",
+     "command": "loom annotate sy-0003 --quote --kind objection",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0002",
-     "command": "loom comment sy-0004 --quote --kind suggestion",
+     "command": "loom annotate sy-0004 --quote --kind suggestion",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0003",
-     "command": "loom comment drafting/main.tex --kind suggestion",
+     "command": "loom annotate drafting/main.tex --kind suggestion",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0004",
-     "command": "loom comment sy-0003 --kind citation",
+     "command": "loom annotate sy-0003 --kind citation",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0005",
-     "command": "loom comment sy-0002 --kind citation",
+     "command": "loom annotate sy-0002 --kind citation",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0006",
-     "command": "loom comment sy-0002 --quote --kind question",
+     "command": "loom annotate sy-0002 --quote --kind question",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0007",
-     "command": "loom comment --reply a-2026-09-16-0001",
+     "command": "loom annotate sy-0002 --quote --kind suggestion --in drafting/talk.tex",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0008",
-     "command": "loom comment --reply a-2026-09-16-0002",
-     "time": "2026-09-16T00:00:00Z"
-    },
-    {
-     "annotation": "a-2026-09-16-0002",
-     "command": "loom comment --resolve a-2026-09-16-0002",
+     "command": "loom annotate --reply a-2026-09-16-0001",
      "time": "2026-09-16T00:00:00Z"
     },
     {
      "annotation": "a-2026-09-16-0009",
-     "command": "loom comment sy-0001 --quote --kind question",
+     "command": "loom annotate --reply a-2026-09-16-0002",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "annotation": "a-2026-09-16-0002",
+     "command": "loom annotate --resolve a-2026-09-16-0002",
+     "time": "2026-09-16T00:00:00Z"
+    },
+    {
+     "annotation": "a-2026-09-16-0010",
+     "command": "loom annotate sy-0001 --quote --kind question",
      "time": "2026-09-16T00:00:00Z"
     }
    ],

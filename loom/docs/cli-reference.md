@@ -52,7 +52,25 @@ Exits 1 when the config is incomplete, its command is not on PATH, or git tracks
 
 `loom ai [OPTIONS] COMMAND [ARGS]...`
 
-The optional AI layer: orientation, sessions, findings, and discarding review records.
+The optional AI layer: orientation, sessions, annotations, and discarding review records.
+
+### `loom ai annotations`
+
+`loom ai annotations [OPTIONS]`
+
+What this session has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole annotation.
+
+An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+
+| option | description |
+|---|---|
+| `--session` `SESSION` | The session to report on. |
+| `--severity` | Only annotations of this severity. |
+| `--kind` | Only annotations of this kind. |
+| `--status` | Only annotations in this state: open, resolved or discarded. |
+| `--all` | Include withdrawn annotations, with the reason they were withdrawn. |
+| `--json` | Print the annotations as JSON. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom ai check`
 
@@ -70,7 +88,7 @@ Report files outside SESSION, the annotation log, and build/ modified since it o
 
 Flag a session's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
 
-Discarding appends an event like any other change, so a sitting's findings can be dismissed and brought back without anything being rewritten or lost.
+Discarding appends an event like any other change, so a sitting's annotations can be dismissed and brought back without anything being rewritten or lost.
 
 | option | description |
 |---|---|
@@ -78,24 +96,6 @@ Discarding appends an event like any other change, so a sitting's findings can b
 | `--author` | Discard every record whose author matches. |
 | `--target` | Discard every record with an annotation on this key. |
 | `--undo` | Reverse: mark matching records not discarded. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-### `loom ai findings`
-
-`loom ai findings [OPTIONS]`
-
-What this session has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole finding.
-
-An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
-
-| option | description |
-|---|---|
-| `--session` `SESSION` | The session to report on. |
-| `--severity` | Only findings of this severity. |
-| `--kind` | Only findings of this kind. |
-| `--status` | Only findings in this state: open, resolved or discarded. |
-| `--all` | Include withdrawn findings, with the reason they were withdrawn. |
-| `--json` | Print the findings as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom ai init`
@@ -143,6 +143,34 @@ The same session a person opens with `loom session new`, so an agent and the aut
 
 | option | description |
 |---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+## `loom annotate`
+
+`loom annotate [OPTIONS] [TARGET] [MESSAGE]`
+
+Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work.
+
+A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.
+
+| option | description |
+|---|---|
+| `--quote` | Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page. |
+| `--page` `N` | A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box. |
+| `--box` `X0,Y0,X1,Y1` | Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. |
+| `--kind` `objection|suggestion|question|citation|note` |  |
+| `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
+| `--author`, `--as` | Who is writing; an agent names itself, with Agent or AI in the name. |
+| `--reply` `ID` |  |
+| `--resolve` `ID` |  |
+| `--edit` `ID` | Supersede an annotation's body; the history stays in the log. |
+| `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
+| `--severity` | How bad the fault is, not how keen you are. |
+| `--payload` | Suggested text the author may preview and copy. |
+| `--placement` | Where the payload goes, as a hint. |
+| `--in` `DOC` | A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere. |
+| `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
+| `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom atomize`
@@ -232,33 +260,6 @@ lint, then compile every master, then bundles. Exit 1 on any failure. The CI com
 |---|---|
 | `--no-compile` | Lint only. |
 | `--bundles` | Which bundles to compile (stale needs the ledger, milestone M3). |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-## `loom comment`
-
-`loom comment [OPTIONS] [TARGET] [MESSAGE]`
-
-Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work.
-
-A note on a page of a cited work names the work by citekey or identifier and the place by --page with --quote (text on the page) or --box (a rectangle on it). It lands in the same log and the same session as every other annotation, and `loom status --reading` lists it.
-
-| option | description |
-|---|---|
-| `--quote` | Anchor to this exact text: once in a key's own text, or on the page of a cited work given by --page. |
-| `--page` `N` | A note on page N of a cited work (TARGET a citekey or a work identifier); with --quote or --box. |
-| `--box` `X0,Y0,X1,Y1` | Anchor to a rectangle on the page, in points with the origin at the top left; ';' separates several. |
-| `--kind` `objection|suggestion|question|confirmation|citation|note` |  |
-| `--session` | Write into this session: an id, a title, or a unique id suffix. Default the active one. |
-| `--author`, `--as` | Who is writing; an agent names itself, with Agent or AI in the name. |
-| `--reply` `ID` |  |
-| `--resolve` `ID` |  |
-| `--edit` `ID` | Supersede an annotation's body; the history stays in the log. |
-| `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
-| `--severity` | How bad the fault is, not how keen you are. |
-| `--payload` | Suggested text the author may preview and copy. |
-| `--placement` | Where the payload goes, as a hint. |
-| `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
-| `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom compile`
@@ -550,6 +551,24 @@ The one command that starts a digest. It runs `loom refs scan` first, and each s
 | `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom refs cite`
+
+`loom refs cite [OPTIONS]`
+
+Accept or reject an agent's citation suggestion.
+
+Accepting appends to `reference-notes.jsonl` and resolves the annotation; rejecting resolves it and records nothing, the reason riding on the resolve event. Neither touches `refs.bib`: a candidate becomes a work's identity when your own bibliography entry says so, and nothing else (DR-122). This is the breadcrumb for the day you add it.
+
+| option | description |
+|---|---|
+| `--from` `SESSION` | The session whose suggestion this is. |
+| `--accept` `ID` | Record this citation suggestion and resolve it. |
+| `--reject` `ID` | Resolve the suggestion without recording it. |
+| `--reason` | Why, optionally; it rides on the resolve event. |
+| `--author` | Who accepted, when the user config and git do not say. |
+| `--list` | Print what has been accepted. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom refs coverage`
 
 `loom refs coverage [OPTIONS] [CITEKEYS]...`
@@ -742,24 +761,6 @@ Reads disk only; it never fetches and never asks a service. This is the list `lo
 | option | description |
 |---|---|
 | `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-### `loom refs note`
-
-`loom refs note [OPTIONS]`
-
-Accept or reject an agent's citation suggestion.
-
-Accepting appends to `reference-notes.jsonl` and resolves the annotation; rejecting resolves it and records nothing, the reason riding on the resolve event. Neither touches `refs.bib`: a candidate becomes a work's identity when your own bibliography entry says so, and nothing else (DR-122). This is the breadcrumb for the day you add it.
-
-| option | description |
-|---|---|
-| `--from` `SESSION` | The session whose suggestion this is. |
-| `--accept` `ID` | Record this citation suggestion and resolve it. |
-| `--reject` `ID` | Resolve the suggestion without recording it. |
-| `--reason` | Why, optionally; it rides on the resolve event. |
-| `--author` | Who accepted, when the user config and git do not say. |
-| `--list` | Print what has been accepted. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs overview`

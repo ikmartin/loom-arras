@@ -155,7 +155,7 @@ def test_with_names_a_file_first_and_then_an_annotation(tmp_path: Path) -> None:
     assert "Traceback" not in missing.output
 
     text = (d / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
-    c = ok("comment", "dm-0002", "Tighten it", "--payload", text, "--author", "Tom", cwd=d)
+    c = ok("annotate", "dm-0002", "Tighten it", "--payload", text, "--author", "Tom", cwd=d)
     ann = c.stdout.split()[0]
     ok("compile", "dm-0002", "--with", ann, cwd=d)
     assert "at most two points" in (d / "build" / "bundles" / "dm-0002.tex").read_text()

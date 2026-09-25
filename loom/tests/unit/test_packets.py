@@ -18,7 +18,7 @@ def q(tmp_path: Path) -> Path:
 
 
 def comment(q: Path, sid: str, *args: str, who: str = "A. Author", agent: bool = False) -> str:
-    r = ok("comment", *args, "--session", sid, "--author", who, cwd=q, env={"AI_AGENT": "1"} if agent else None)
+    r = ok("annotate", *args, "--session", sid, "--author", who, cwd=q, env={"AI_AGENT": "1"} if agent else None)
     return r.stdout.split()[0]
 
 
@@ -36,9 +36,9 @@ def test_the_packet_is_what_the_person_marked_and_nothing_else(q: Path) -> None:
     sid, session = sitting(q)
     mine = comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question")
     theirs = comment(q, sid, "dm-0002", "An agent's own note.", "--kind", "note", who="Referee Agent", agent=True)
-    ok("comment", "--reply", theirs, "Not here.", "--session", sid, "--author", "A. Author", cwd=q)
+    ok("annotate", "--reply", theirs, "Not here.", "--session", sid, "--author", "A. Author", cwd=q)
     withdrawn = comment(q, sid, "dm-0002", "Never mind.", "--kind", "note")
-    ok("comment", "--discard", withdrawn, "--session", sid, "--author", "A. Author", cwd=q)
+    ok("annotate", "--discard", withdrawn, "--session", sid, "--author", "A. Author", cwd=q)
     rows = pending(q, session(), "A. Author")
     assert [r["id"] for r in rows][0] == mine
     assert theirs not in [r["id"] for r in rows] and withdrawn not in [r["id"] for r in rows]

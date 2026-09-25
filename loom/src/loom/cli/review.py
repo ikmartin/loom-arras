@@ -1,4 +1,4 @@
-"""`loom accept`, `loom comment`, `loom status` (book 7.3, 7.4.3, 7.7, 12.6)."""
+"""`loom accept`, `loom annotate`, `loom status` (book 7.3, 7.4.3, 7.7, 12.6)."""
 
 from __future__ import annotations
 
@@ -250,7 +250,7 @@ def _writer(root: Path, session: str | None, author: str | None, *, sniff: bool 
 
     The two were one field: an agent's annotation recorded its run directory as its author, so the log could say *who* only by naming a place. Now the session says where the work belongs and the author says who did it -- a person by their name, an agent by what it is called, never by the author's git identity that its shell happens to share (DR-185).
 
-    Writing with nothing active opens a session, for a person and an agent alike: refusing would make the first comment of a sitting a two-command ritual.
+    Writing with nothing active opens a session, for a person and an agent alike: refusing would make the first annotation of a sitting a two-command ritual.
 
     The caller says who is writing; the shell is asked only when nobody does, and only where asking it makes sense. `sniff=False` is the API's: a write arriving over HTTP is somebody at a browser, and the shell `loom serve` happens to have been started in says nothing about them. With `loom serve` running in an agent's terminal every note the author wrote in their own browser was recorded `author: "agent"`. Without a name to use it refuses, as a comment from an unnamed author always has, rather than guessing from the environment (plan 0.13 §8).
     """
@@ -304,6 +304,7 @@ def _one_comment(
     undo: bool = False,
     page: int | None = None,
     rects: list[list[float]] | None = None,
+    in_doc: str | None = None,
 ) -> str:
     """Append one review event to the log and describe it; the only writer of review records.
 
@@ -362,6 +363,7 @@ def _one_comment(
                 # the text the reply was written against, which may have moved on since the note it answers
                 "against": _version(result, parent.target_key) or parent.target_hash,
                 "anchor": parent.selector.to_dict() if parent.selector else None,
+                "in": parent.in_doc,
                 "annotation_kind": kind or "question",
                 "body": message or "",
                 "reply_to": reply,
@@ -376,6 +378,13 @@ def _one_comment(
         return _note_on_page(result, base, records, date, target, work, message, quote, kind, severity, page, rects)
     key, text = _target_text(result, target)
     node_key = result.assembly.regions[key].container if key in result.assembly.regions else key
+    if in_doc is not None:
+        # a claim about the node as read in one document (plan 0.15, decision 9): the document must hold the node
+        in_doc = in_doc.strip("/")
+        if in_doc not in result.masters:
+            raise NotFoundError("document", f"{in_doc} is not a document of this quilt; loom status names them")
+        if in_doc not in result.nodes[node_key].reached_by:
+            raise EnvError(f"{in_doc} does not hold {key}, so nothing about {key} is read there")
     selector = None
     if quote:
         spans = find_quote(text, quote)
@@ -385,7 +394,7 @@ def _one_comment(
             raise ContentError(f"quote is ambiguous ({len(spans)} occurrences); give a longer quote")
         selector = make_selector(text, quote)
     if kind is None:
-        kind = "confirmation" if not message else "objection"
+        kind = "note"
     full = full_kind(kind)
     if full is None:
         raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
@@ -408,6 +417,7 @@ def _one_comment(
             "target": key,
             "against": _version(result, key) or key_hash(result, node_key),
             "anchor": selector.to_dict() if selector else None,
+            "in": in_doc,
             "annotation_kind": kind,
             "body": message or "",
             "severity": severity,
@@ -488,7 +498,7 @@ def _note_on_page(
             f"that text is not on {citekey} p.{page}: quote from `loom refs page {citekey} {page}`, or draw a --box"
         )
     if kind is None:
-        kind = "confirmation" if not message else "note"
+        kind = "note"
     full = full_kind(kind)
     if full is None:
         raise EnvError(f"kind must be one of {', '.join(KINDS)} (any unambiguous prefix will do)")
@@ -596,6 +606,7 @@ BATCH_KEYS = (
     "placement",
     "page",
     "box",
+    "in",
 )
 BATCH_VERBS = ("reply", "resolve", "edit", "discard")
 
@@ -603,7 +614,7 @@ BATCH_VERBS = ("reply", "resolve", "edit", "discard")
 def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str, Any]) -> str:
     """One line of `--batch`: a new annotation, or one change to an existing one, named by exactly one verb.
 
-    An unknown key is refused rather than ignored. A batch is written by a program that cannot see the result, so a misspelled `messsage` that silently files an empty annotation is a fault the writer never learns about — and every verb `loom comment` has on the command line is available here, so there is no reason to fall back to one call per change.
+    An unknown key is refused rather than ignored. A batch is written by a program that cannot see the result, so a misspelled `messsage` that silently files an empty annotation is a fault the writer never learns about — and every verb `loom annotate` has on the command line is available here, so there is no reason to fall back to one call per change.
     """
     unknown = sorted(set(item) - set(BATCH_KEYS))
     if unknown:
@@ -638,6 +649,7 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
         item.get("placement"),
         page=int(item["page"]) if item.get("page") is not None else None,
         rects=_rects(str(item["box"])) if item.get("box") else None,
+        in_doc=str(item["in"]) if item.get("in") else None,
     )
 
 
@@ -715,6 +727,13 @@ def _rects(box: str) -> list[list[float]]:
     "--placement", type=click.Choice(list(PLACEMENTS)), default=None, help="Where the payload goes, as a hint."
 )
 @click.option(
+    "--in",
+    "in_doc",
+    default=None,
+    metavar="DOC",
+    help="A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere.",
+)
+@click.option(
     "--undo",
     is_flag=True,
     help="With --resolve or --discard, put the finding back: an undo is another event, never a removal.",
@@ -725,7 +744,7 @@ def _rects(box: str) -> list[list[float]]:
     help="Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
 )
 @quilt_option
-def comment(
+def annotate(
     target: str | None,
     message: str | None,
     quote: str | None,
@@ -741,6 +760,7 @@ def comment(
     severity: str | None,
     payload: str | None,
     placement: str | None,
+    in_doc: str | None,
     undo: bool,
     batch: bool,
     quilt_path: str | None,
@@ -801,6 +821,7 @@ def comment(
             undo,
             page=page,
             rects=_rects(box) if box else None,
+            in_doc=in_doc,
         ),
         target=target,
         quote=quote,
@@ -809,19 +830,20 @@ def comment(
         resolve=resolve,
         undo=undo,
         page=page,
+        **{"in": in_doc},
     )
 
 
 _ANN = re.compile(r"a-\d{4}-\d{2}-\d{2}-\d+")
-_VERB_KEYS = ("target", "quote", "kind", "reply", "resolve", "edit", "discard", "page")
+_VERB_KEYS = ("target", "quote", "kind", "reply", "resolve", "edit", "discard", "page", "in")
 
 
 def _logged(said: str, **verb: Any) -> str:
-    """The `run.log` line for one comment: the verb as it was used, and the annotation it made or changed after `→`.
+    """The `run.log` line for one annotation: the verb as it was used, and the annotation it made or changed after `→`.
 
     The id is read from what the command printed, which names it first for a new note or reply and last for a resolve, an edit or a discard -- the first id in the text either way.
     """
-    parts = ["loom comment"]
+    parts = ["loom annotate"]
     for flag in ("reply", "resolve", "edit", "discard"):
         if verb.get(flag):
             parts.append(f"--{flag} {verb[flag]}")
@@ -835,6 +857,8 @@ def _logged(said: str, **verb: Any) -> str:
             parts.append("--quote")
         if verb.get("kind"):
             parts.append(f"--kind {verb['kind']}")
+        if verb.get("in"):
+            parts.append(f"--in {verb['in']}")
     if verb.get("undo"):
         parts.append("--undo")
     found = _ANN.search(said)

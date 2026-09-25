@@ -30,9 +30,9 @@ TRIGGERS = {
 # forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
 AGENT_COMMANDS = frozenset(
     {
-        "build", "check", "comment", "compile", "deps", "doctor", "history", "id", "link", "lint",
+        "annotate", "build", "check", "compile", "deps", "doctor", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
-        "ai check", "ai discard", "ai findings", "ai name", "ai orient", "ai start",
+        "ai annotations", "ai check", "ai discard", "ai name", "ai orient", "ai start",
         # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
         # session stay the author's, because they are decisions about the work rather than participation in it.
         "session list", "session next", "session say", "session send", "session watch",
@@ -66,7 +66,7 @@ def _asset(*parts: str) -> str:
 
 
 def command_tree() -> list[str]:
-    """Every leaf command loom offers, as the path a person types: `accept`, `ai promote`, `refs note`."""
+    """Every leaf command loom offers, as the path a person types: `accept`, `ai promote`, `refs cite`."""
     import click
 
     from loom.cli import main

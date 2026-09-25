@@ -62,7 +62,7 @@ Each row names a part of `global-rules.md`, where its content lives in the loom 
 |---|---|---|
 | write policy in the first lines of every mode file | every mode file §Before you begin | an agent may load a mode without the orientation |
 | `--run $LOOM_RUN` on every command | `blocks.md` §Inputs, §Findings | the run log and the record files |
-| findings as `loom comment` calls with `--quote` | `blocks.md` §Findings | margins in the viewer; nothing else makes a finding visible |
+| findings as `loom annotate` calls with `--quote` | `blocks.md` §Findings | margins in the viewer; nothing else makes a finding visible |
 | resolving one's own annotations after a re-check | `referee.md`, `audit.md` §On a re-check | the review facts depend on it |
 | never `loom accept`, never write outside the run | `blocks.md` §Never | P7 and the ledger's human-only rule |
 | requesting a dependency's proof is a signal | `blocks.md` §Inputs, item 3 | atomicity: a needed proof is a missing statement |

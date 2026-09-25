@@ -114,7 +114,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
     assert read_events(q, sid)[-1].body == "See [](quilt:dm-0003)."
     # an annotation's body the same way, when an agent writes it
     refused(
-        "comment",
+        "annotate",
         "dm-0002",
         "As [](quilt:dm-9999) shows.",
         "--kind",
@@ -130,7 +130,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
     )
     # a person's comment is their own business
     ok(
-        "comment",
+        "annotate",
         "dm-0002",
         "As [](quilt:dm-9999) shows.",
         "--kind",

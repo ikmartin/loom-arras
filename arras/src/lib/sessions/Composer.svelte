@@ -95,6 +95,6 @@
 		grid-column: 1 / -1;
 		margin: 0;
 		font-size: 0.76rem;
-		color: var(--annotation, #c05621);
+		color: var(--state-incomplete);
 	}
 </style>

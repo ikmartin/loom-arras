@@ -54,7 +54,7 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
 def test_unravel_reports_the_ledger_and_the_annotations_it_heads(tmp_path: Path) -> None:
     """`unravel` lists a node's ledger rows and the annotations on it; `annotations: (none)` on a reviewed node would say it was never reviewed (F13)."""
     q = demo(tmp_path)
-    ok("comment", "dm-0002", "Which orbits?", "--author", "Tom", cwd=q)
+    ok("annotate", "dm-0002", "Which orbits?", "--author", "Tom", cwd=q)
 
     payload = json_of("unravel", "dm-0002", "--json", cwd=q)
     assert [r["key"] for r in payload["ledger"]] == ["dm-0002", "dm-0002/proof"]  # the statement and its proof

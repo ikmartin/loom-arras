@@ -250,7 +250,7 @@ def test_the_author(box: Box) -> None:
     )
     box.author(None)
     got = item(doctor(box, code=0), "author")
-    assert got["status"] == "warn" and got["detail"] == "none: accept and comment refuse without one"
+    assert got["status"] == "warn" and got["detail"] == "none: accept and annotate refuse without one"
     assert 'name = "Your Name" under [author]' in got["remedy"] and "git config --global user.name" in got["remedy"]
 
 

@@ -13,7 +13,7 @@ from loom.cli._quilt import open_quilt, quilt_option
 
 @click.group()
 def ai() -> None:
-    """The optional AI layer: orientation, sessions, findings, and discarding review records."""
+    """The optional AI layer: orientation, sessions, annotations, and discarding review records."""
 
 
 @ai.command()
@@ -30,7 +30,7 @@ def discard(
 ) -> None:
     """Flag a session's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
 
-    Discarding appends an event like any other change, so a sitting's findings can be dismissed and brought back without anything being rewritten or lost.
+    Discarding appends an event like any other change, so a sitting's annotations can be dismissed and brought back without anything being rewritten or lost.
     """
     from loom.cli._common import agent_marker
     from loom.clock import stamp
@@ -75,8 +75,7 @@ def discard(
         if undo:
             event["undo"] = True
         append(root, event)
-        # Discarding a sitting's findings ends the sitting: that is what discarding a run meant, and a session whose
-        # every finding is dismissed has no business in the list of what is open.
+        # Discarding a sitting's annotations ends the sitting: that is what discarding a run meant, and a session whose every annotation is dismissed has no business in the list of what is open.
         if ID.match(rel):
             (resume if undo else close)(root, rel, who)
         click.echo(f"{'restored' if undo else 'discarded'} {rel}")
@@ -193,17 +192,19 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
     return out
 
 
-@ai.command(name="findings")
+@ai.command(name="annotations")
 @click.option(
     "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to report on."
 )
-@click.option("--severity", "f_severity", default=None, help="Only findings of this severity.")
-@click.option("--kind", "f_kind", default=None, help="Only findings of this kind.")
-@click.option("--status", "f_status", default=None, help="Only findings in this state: open, resolved or discarded.")
-@click.option("--all", "f_all", is_flag=True, help="Include withdrawn findings, with the reason they were withdrawn.")
-@click.option("--json", "as_json", is_flag=True, help="Print the findings as JSON.")
+@click.option("--severity", "f_severity", default=None, help="Only annotations of this severity.")
+@click.option("--kind", "f_kind", default=None, help="Only annotations of this kind.")
+@click.option("--status", "f_status", default=None, help="Only annotations in this state: open, resolved or discarded.")
+@click.option(
+    "--all", "f_all", is_flag=True, help="Include withdrawn annotations, with the reason they were withdrawn."
+)
+@click.option("--json", "as_json", is_flag=True, help="Print the annotations as JSON.")
 @quilt_option
-def ai_findings(
+def ai_annotations(
     session: str | None,
     f_severity: str | None,
     f_kind: str | None,
@@ -212,9 +213,9 @@ def ai_findings(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """What this session has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole finding.
+    """What this session has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole annotation.
 
-    An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
     """
     import json
 
@@ -258,7 +259,7 @@ def ai_findings(
     ]
     proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
     if as_json:
-        click.echo(json.dumps({"session": found.id, "findings": rows, "proposals": proposals}, indent=2))
+        click.echo(json.dumps({"session": found.id, "annotations": rows, "proposals": proposals}, indent=2))
         return
     if proposals:
         # what the author did with this run's proposals: a reattaching agent otherwise ran `refs why` on each id it
@@ -278,7 +279,7 @@ def ai_findings(
                 click.echo(f"      {line}")
         click.echo("")
     if not rows:
-        click.echo(f"{rel}: no findings yet")
+        click.echo(f"{rel}: no annotations yet")
         return
     for r in rows:
         sev = f" {r['severity']}" if r["severity"] else ""

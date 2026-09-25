@@ -41,7 +41,7 @@ def test_an_edit_under_an_annotation_freezes_the_text_it_was_written_against(
     if history:
         edit(q / "config.toml", "[refs]", f'history = "{history}"\n\n[refs]')
     hist = q / (history or ".loom/history")
-    ok("comment", "dm-0002", "Which orbits?", "--quote", ORIGINAL, "--author", "Tom", cwd=q)
+    ok("annotate", "dm-0002", "Which orbits?", "--quote", ORIGINAL, "--author", "Tom", cwd=q)
     ok("build", cwd=q)
     # the comment froze the version it was written against, before anything moved
     assert len(texts(q, hist)) == 1 and ORIGINAL in texts(q, hist)[0].read_text()
@@ -87,7 +87,7 @@ def test_a_version_written_against_between_scans_is_kept(tmp_path: Path) -> None
     ok("build", cwd=q)  # last-seen holds the original
 
     edit(q / LEMMA, "the union of the one-point orbits", "the union of the one-point orbits, as we now check")
-    ok("comment", "dm-0002", "Which orbits?", "--quote", ORIGINAL, "--author", "Tom", cwd=q)
+    ok("annotate", "dm-0002", "Which orbits?", "--quote", ORIGINAL, "--author", "Tom", cwd=q)
     # a second edit, far from the quote, before loom scans again
     edit(q / LEMMA, "as we now check", "as we verify below")
     ok("build", cwd=q)

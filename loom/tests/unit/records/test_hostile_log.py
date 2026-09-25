@@ -142,3 +142,11 @@ def test_an_edit_restates_the_fields_it_carries_and_repoints_against(tmp_path: P
     )
     a = replay(tmp_path)[0][0].annotations[0]
     assert (a.body, a.severity, a.target_hash) == ("Again.", "major", "sha256:new")
+
+
+def test_a_confirmation_in_an_older_log_is_read_as_a_note(tmp_path: Path) -> None:
+    """`confirmation` was a kind until plan 0.15 merged it into `note`; a log that says it is a note, and no problem is reported, since the log was right when written."""
+    write(tmp_path, created(annotation_kind="confirmation"))
+    records, problems = replay(tmp_path)
+    assert problems == []
+    assert records[0].annotations[0].kind == "note"

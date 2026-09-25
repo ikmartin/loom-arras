@@ -37,9 +37,13 @@ def source_of(event: dict[str, Any]) -> str:
     return str(event.get("session") or "")
 
 
-#: What `loom comment` writes as an id. An id reaches a DOM id and a URL fragment in the viewer, and would reach a
+#: What `loom annotate` writes as an id. An id reaches a DOM id and a URL fragment in the viewer, and would reach a
 #: filename the first time anything stored one per annotation, so it is the one identifier worth checking on the way in.
 ID = re.compile(r"^a-\d{4}-\d{2}-\d{2}-\d+$")
+
+
+def _kind(given: Any) -> str:
+    return "note" if given == "confirmation" else str(given or "objection")
 
 
 def _annotation(event: dict[str, Any]) -> Annotation:
@@ -55,9 +59,11 @@ def _annotation(event: dict[str, Any]) -> Annotation:
         created=str(event.get("when", "")),
         target_key=str(event.get("target", "")),
         target_hash=str(event.get("against", "")),
+        in_doc=str(event["in"]) if event.get("in") else None,
         selector=Selector.from_dict(anchor) if isinstance(anchor, dict) else None,
         anchor=Anchor.from_dict(anchor) if is_page_anchor(anchor) else None,
-        kind=str(event.get("annotation_kind") or "objection"),
+        # `confirmation` was a kind until plan 0.15 merged it into `note`; a log that says it is read as a note
+        kind=_kind(event.get("annotation_kind")),
         body=str(event.get("body", "")),
         status="open",
         in_reply_to=event.get("reply_to"),
@@ -102,7 +108,7 @@ def replay(root: Path) -> tuple[list[Record], list[str]]:
             # Reported, not corrected. A kind loom does not know is still shown -- `kind` is an open string and a
             # viewer renders one it has never heard of -- but a log line missing the column, or spelling it the way
             # an older draft of the plan spelled it, produced a finding that silently claimed to be an objection.
-            if event.get("annotation_kind") not in KINDS:
+            if event.get("annotation_kind") not in KINDS and event.get("annotation_kind") != "confirmation":
                 problems.append(f"{LOG}:{n}: {event.get('annotation_kind')!r} is not one of {', '.join(KINDS)}")
             if not ID.match(ann.id):
                 problems.append(f"{LOG}:{n}: {ann.id!r} is not an annotation id")

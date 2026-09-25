@@ -18,7 +18,7 @@ def q(tmp_path: Path) -> Path:
 
 
 def comment(q: Path, *args: str) -> str:
-    r = ok("comment", *args, "--kind", "note", *WHO, cwd=q)
+    r = ok("annotate", *args, "--kind", "note", *WHO, cwd=q)
     return r.output.split()[0]
 
 
@@ -63,7 +63,7 @@ def test_an_edit_restates_the_finding_against_the_text_as_it_is_now(q: Path) -> 
 
     ann = comment(q, "dm-0002", "Say which orbits.")
     rewrite(q, "nodes/dm-0002.tex", "Every orbit", "Each orbit")
-    ok("comment", "--edit", ann, "Still: say which orbits.", *WHO, cwd=q)
+    ok("annotate", "--edit", ann, "Still: say which orbits.", *WHO, cwd=q)
     a = resolved(q)[ann].annotation  # type: ignore[attr-defined]
     assert a.body == "Still: say which orbits." and a.target_hash == key_hash(open_scan(str(q)), "dm-0002")
 
@@ -75,7 +75,7 @@ def test_a_reply_records_the_text_it_was_written_against(q: Path) -> None:
     parent = comment(q, "dm-0002", "Say which orbits.")
     before = key_hash(open_scan(str(q)), "dm-0002")
     rewrite(q, "nodes/dm-0002.tex", "Every orbit", "Each orbit")
-    ok("comment", "--reply", parent, "Done.", *WHO, cwd=q)
+    ok("annotate", "--reply", parent, "Done.", *WHO, cwd=q)
     got = resolved(q)
     reply = the(got.values(), lambda x: x.annotation.in_reply_to == parent, f"reply to {parent}")  # type: ignore[attr-defined]
     now = key_hash(open_scan(str(q)), "dm-0002")

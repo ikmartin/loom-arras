@@ -408,3 +408,24 @@ def test_the_validator_loom_tests_with_is_the_one_the_spec_ships() -> None:
     """`tests/tools/validate_dialect.py` is a copy of `docs/specs/tools/validate-dialect.py`; testing the copy proves nothing about the spec's if they drift."""
     spec = REPO.parent / "docs" / "specs" / "tools" / "validate-dialect.py"
     assert VALIDATOR.read_bytes() == spec.read_bytes(), f"{VALIDATOR} differs from {spec}; copy the spec's over it"
+
+
+QUOTE = "one or two points"  # once, in dm-0002's statement
+
+
+def test_a_mark_that_names_a_document_is_baked_into_that_document_alone(tmp_path: Path) -> None:
+    """An annotation read in one document (plan 0.15, decision 9) marks that document's fragment; the other document and the node's own page carry no mark for it, while a mark naming no document is in all three."""
+    d = demo(tmp_path)
+    who = ("--author", "Markas Hecht")
+    both = ok("annotate", "dm-0002", "Everywhere.", "--quote", QUOTE, *who, cwd=d).output.split()[0]
+    only = ok(
+        "annotate", "dm-0002", "Redundant here.", "--quote", QUOTE, "--in", "drafting/outline.tex", *who, cwd=d
+    ).output.split()[0]
+    ok("build", cwd=d)
+    frag = d / "build" / "fragments"
+    outline = (frag / "masters" / "outline.html").read_text()
+    main = (frag / "masters" / "main.html").read_text()
+    node = (frag / "nodes" / "dm-0002.html").read_text()
+    assert only in outline and both in outline
+    assert only not in main and both in main
+    assert only not in node and both in node

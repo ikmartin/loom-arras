@@ -47,6 +47,18 @@
 	--state-loose: #888780;
 	--state-loose-wash: transparent;
 
+	/* annotations: four hues and one neutral, each with its wash (15.3.1). Hue is the kind; nothing else about an annotation is a colour. */
+	--ann-objection: #a32d2d;
+	--ann-objection-wash: rgb(163 45 45 / 10%);
+	--ann-suggestion: #a07a0a;
+	--ann-suggestion-wash: rgb(160 122 10 / 10%);
+	--ann-question: #185fa5;
+	--ann-question-wash: rgb(24 95 165 / 10%);
+	--ann-citation: #6b3fa0;
+	--ann-citation-wash: rgb(107 63 160 / 10%);
+	--ann-neutral: #6f6d66;
+	--ann-neutral-wash: rgb(111 109 102 / 10%);
+
 	/* spacing, radii, fixed widths */
 	--gap-hair: 4px;
 	--gap-tight: 8px;
@@ -103,6 +115,16 @@
 		--state-incomplete: #e8827c;
 		--state-incomplete-wash: rgb(232 130 124 / 14%);
 		--state-loose: #85837c;
+		--ann-objection: #e8827c;
+		--ann-objection-wash: rgb(232 130 124 / 10%);
+		--ann-suggestion: #d9b24f;
+		--ann-suggestion-wash: rgb(217 178 79 / 10%);
+		--ann-question: #7fb0e8;
+		--ann-question-wash: rgb(127 176 232 / 10%);
+		--ann-citation: #b48ee0;
+		--ann-citation-wash: rgb(180 142 224 / 10%);
+		--ann-neutral: #9a988f;
+		--ann-neutral-wash: rgb(154 152 143 / 10%);
 		color-scheme: dark;
 	}
 }
@@ -129,6 +151,16 @@
 	--state-incomplete: #e8827c;
 	--state-incomplete-wash: rgb(232 130 124 / 14%);
 	--state-loose: #85837c;
+	--ann-objection: #e8827c;
+	--ann-objection-wash: rgb(232 130 124 / 10%);
+	--ann-suggestion: #d9b24f;
+	--ann-suggestion-wash: rgb(217 178 79 / 10%);
+	--ann-question: #7fb0e8;
+	--ann-question-wash: rgb(127 176 232 / 10%);
+	--ann-citation: #b48ee0;
+	--ann-citation-wash: rgb(180 142 224 / 10%);
+	--ann-neutral: #9a988f;
+	--ann-neutral-wash: rgb(154 152 143 / 10%);
 	color-scheme: dark;
 }
 
@@ -449,17 +481,6 @@ table.list th {
 .comment-slot.inline > .box:first-child {
 	margin-top: 0;
 }
-/* Two annotations on one phrase is ordinary, and stacked translucent highlights muddy immediately — so the number is
-   said rather than drawn, and stays legible however many overlap (plan 0.13 §7). */
-mark.annotation[data-count]::after {
-	content: attr(data-count);
-	font-family: var(--sans);
-	font-size: 0.62em;
-	vertical-align: super;
-	margin-left: 1px;
-	color: var(--ink-faint);
-}
-
 /* Travel (plan 0.13 §7): a brief scroll, then a flash on what was arrived at, so the eye is told where it landed
    rather than being left to search the pane it was sent to. */
 .travelled {
@@ -467,7 +488,7 @@ mark.annotation[data-count]::after {
 }
 @keyframes travelled {
 	from {
-		background-color: var(--annotation-tint-strong, rgb(217 119 87 / 34%));
+		background-color: var(--ann-neutral-wash);
 	}
 	to {
 		background-color: transparent;
@@ -477,7 +498,7 @@ mark.annotation[data-count]::after {
 	/* the flash is the whole point, so it stays; what goes is the fade, which is the part that moves */
 	.travelled {
 		animation: none;
-		outline: 2px solid var(--annotation, #c05621);
+		outline: 2px solid var(--ann-neutral);
 	}
 }
 /* Where there is nothing to travel to: a notice beside what was double-clicked, and nothing moves. */
@@ -518,43 +539,23 @@ mark.annotation[data-count]::after {
 .comment-slot.floating.behind {
 	box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
 }
-/* **One frame, and it is the shadow.** A floating box drew three edges: the host's border, the card's own border, and
-   the blue stripe that marks the active annotation among several. Stacked a couple of pixels apart they read as a box
-   inside a box inside a box. The host is lifted off the page by its shadow, which is enough to say where it ends, and
-   the stripe says nothing here because a floating box holds one annotation. */
-.comment-slot.floating article.box,
-.comment-slot.floating article.box.active {
-	border: 0;
+/* **One frame, and it is the shadow.** The host is lifted off the page by its shadow, which is enough to say where it ends, so the card's own border goes; the left stripe stays, since it is the kind's hue and says the same thing here as in the flow. */
+.comment-slot.floating article.box {
+	border-width: 0 0 0 3px;
 	border-radius: 0;
 	background: none;
 	margin: 0;
-	padding: 0;
-	/* `.active` rings the selected annotation with a 2px shadow, which is a ring drawn just inside the card's own edge
-	   -- the third rectangle. A floating box holds one annotation and is already the thing the reader is looking at. */
+	padding: 0 0 0 var(--gap-tight);
 	box-shadow: none;
-}
-/* The reply panel escapes upward from its verb row, which is right in the flow of a document and wrong inside a
-   floating box: the host scrolls its own overflow, so a panel that leaves the top of the box is clipped away and the
-   reader is typing into something they cannot see. Inside a floating box it takes its place in the flow instead and
-   the box grows to hold it. */
-.comment-slot.floating .pop {
-	position: static;
-	width: auto;
-	border: 0;
-	box-shadow: none;
-	padding: var(--gap-tight) 0 0;
 }
 .comment-slot.floating .box + .box {
 	margin-top: var(--gap-tight);
 	padding-top: var(--gap-tight);
 	border-top: 1px solid var(--rule);
 }
-/* Every box carries its own ×, because it is now the main way one is closed. */
+/* The ×, at the right of a box's title line (components/AnnotationBox.svelte): the main way an open box is closed. */
 .comment-close {
-	position: absolute;
-	top: 2px;
-	right: 4px;
-	z-index: 1;
+	flex: none;
 	font: inherit;
 	font-size: 14px;
 	line-height: 1;
@@ -566,10 +567,6 @@ mark.annotation[data-count]::after {
 }
 .comment-close:hover {
 	color: var(--ink);
-}
-/* the × is positioned against the box; a floating one is already `fixed`, which this must not undo */
-.comment-slot.expanded:not(.floating) {
-	position: relative;
 }
 @media (prefers-reduced-motion: no-preference) {
 	.comment-slot.floating {
@@ -689,10 +686,6 @@ a.heading-link:focus {
 		radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 10%), transparent) left / 7px 100% no-repeat scroll,
 		radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 10%), transparent) right / 7px 100% no-repeat scroll;
 }
-.fragment mark.annotation,
-.fragment .annotation-block { background: var(--mark); cursor: pointer; }
-.fragment mark.annotation.active,
-.fragment .annotation-block.active { outline: 2px solid var(--state-stale); }
 .fragment .incomplete {
 	color: var(--state-incomplete);
 	border-bottom: 1px dotted var(--state-incomplete);
@@ -962,46 +955,101 @@ a.heading-link:focus {
 	--taxon-definition: #63c0b8;
 }
 
-/* A kind this viewer has never heard of still has to read as a comment. `kind` is an open string -- a publisher may
-   use one arras was never told about, and 0.10's own `citation` was unstyled for exactly this reason -- so the base
-   rule carries the neutral treatment and the four known kinds override it. Found by a corpus built to break things, whose
-   annotations include a kind of `catastrophe`. */
-.fragment mark.annotation {
-	background: var(--leaf);
-	box-shadow: inset 0 -2px 0 var(--rule-strong);
+/* The mark (15.3.1): what is drawn on the text, one rule set for every surface. Hue is the kind, `k-<kind>`; a note and any kind the viewer has never heard of take the neutral. Weight is the severity, `s-<severity>`: 1px minor, 3px major, 2px for moderate and for the kinds that take none. The wash is the hue at 5% at rest and at 10% (`--ann-<kind>-wash`) on the one mark whose box is open (`open`), the same whatever the severity. Nothing else is tinted or outlined. */
+.annotation {
+	--ann-hue: var(--ann-neutral);
+	--ann-wash: var(--ann-neutral-wash);
+	--ann-weight: 2px;
+	/* what is drawn: the hue, the weight and the background as the state leaves them */
+	--ann: var(--ann-hue);
+	--ann-w: var(--ann-weight);
+	--ann-bg: color-mix(in srgb, var(--ann-hue) 5%, transparent);
 }
-.fragment .annotation-block {
-	--underline: var(--rule-strong);
-	background: var(--leaf);
-	text-decoration: underline 2px var(--underline);
-	text-underline-offset: 0.22em;
-	text-decoration-skip-ink: none;
+:is(.annotation, .box, .ann-dot).k-objection { --ann-hue: var(--ann-objection); --ann-wash: var(--ann-objection-wash); }
+:is(.annotation, .box, .ann-dot).k-suggestion { --ann-hue: var(--ann-suggestion); --ann-wash: var(--ann-suggestion-wash); }
+:is(.annotation, .box, .ann-dot).k-question { --ann-hue: var(--ann-question); --ann-wash: var(--ann-question-wash); }
+:is(.annotation, .box, .ann-dot).k-citation { --ann-hue: var(--ann-citation); --ann-wash: var(--ann-citation-wash); }
+/* The box (15.3.1) takes the same hue for its left stripe, from the same class; settled, the stripe keeps the hue at half strength, as the settled mark does. */
+article.box { --ann-hue: var(--ann-neutral); }
+article.box.settled { border-left-color: color-mix(in srgb, var(--ann-hue) 50%, transparent); }
+/* A list names the kind by hue and not by word (15.3.2, 15.3.9): a 7px dot in the kind's hue before the row's link, from the same `k-<kind>` seam; a reply's is a ring, since a reply's kind is its thread's. The word stays in the dot's label for a screen reader. Severity is not shown in a list. */
+.ann-dot {
+	--ann-hue: var(--ann-neutral);
+	display: inline-block;
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--ann-hue);
+	vertical-align: middle;
+}
+.ann-dot.reply {
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--ann-hue);
+}
+.annotation.s-minor { --ann-weight: 1px; }
+.annotation.s-major { --ann-weight: 3px; }
+/* Settled, resolved or discarded: not drawn at rest, the words untouched. Shown by the settled control (`show-settled` on the fragment or the paper), the hue survives at a 3% wash with the underline at half its weight and 50% opacity. A mark the session filter excludes (`hidden`) is not drawn either way. */
+.annotation.settled {
+	--ann: transparent;
+	--ann-bg: transparent;
+	cursor: auto;
+	pointer-events: none;
+}
+.show-settled .annotation.settled {
+	--ann: color-mix(in srgb, var(--ann-hue) 50%, transparent);
+	--ann-w: calc(var(--ann-weight) / 2);
+	--ann-bg: color-mix(in srgb, var(--ann-hue) 3%, transparent);
+	cursor: pointer;
+	pointer-events: auto;
+}
+.annotation.open,
+.show-settled .annotation.settled.open { --ann-bg: var(--ann-wash); }
+.annotation.hidden,
+.show-settled .annotation.hidden {
+	--ann: transparent;
+	--ann-bg: transparent;
+	cursor: auto;
+	pointer-events: none;
 }
 
-/* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. Every mark is an underline in its kind's colour over its kind's wash — a phrase and a whole block alike, a block underlined line by line rather than barred down its edge, since a bar at a paragraph's start reads as punctuation in the text. */
-.fragment mark.annotation.k-objection { background: var(--state-incomplete-wash); box-shadow: inset 0 -2px 0 var(--state-incomplete); }
-.fragment mark.annotation.k-suggestion { background: var(--state-stale-wash); box-shadow: inset 0 -2px 0 var(--state-stale); }
-.fragment mark.annotation.k-question { background: var(--link-wash); box-shadow: inset 0 -2px 0 var(--link); }
-.fragment mark.annotation.k-ok { background: var(--state-accepted-wash); box-shadow: inset 0 -2px 0 var(--state-accepted); }
+/* The shapes, one per anchor. A phrase is bordered beneath, line by line; the border is in the layout at rest and transparent when not drawn, so nothing moves when a mark opens or a settled one is shown. A block is underlined line by line rather than barred down its edge, since a bar at a paragraph's start reads as punctuation; a displayed formula is drawn, not set in lines, so its underline is a rule beneath the display. */
 .fragment mark.annotation {
 	color: inherit;
-	border-radius: 2px;
-	padding: 0 1px;
+	background: var(--ann-bg);
+	padding: 0 0 1px;
+	border-bottom: var(--ann-w) solid var(--ann);
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;
 }
-.fragment .annotation-block.k-objection { --underline: var(--state-incomplete); background: var(--state-incomplete-wash); }
-.fragment .annotation-block.k-suggestion { --underline: var(--state-stale); background: var(--state-stale-wash); }
-.fragment .annotation-block.k-question { --underline: var(--link); background: var(--link-wash); }
-.fragment .annotation-block.k-ok { --underline: var(--state-accepted); background: var(--state-accepted-wash); }
-/* a displayed formula is drawn, not set in lines of text, so its underline is a rule under the display */
-.fragment .math.display.annotation-block {
-	text-decoration: none;
-	box-shadow: inset 0 -2px 0 var(--underline);
+.fragment .annotation-block {
+	background: var(--ann-bg);
+	text-decoration: underline var(--ann-w) var(--ann);
+	text-underline-offset: 0.22em;
+	text-decoration-skip-ink: none;
 }
-.fragment mark.annotation.expanded,
-.fragment .annotation-block.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
+.fragment .math.display.annotation-block {
+	/* beneath the display's scroll shadows, whose `background` shorthand would otherwise clear the wash */
+	background-color: var(--ann-bg);
+	text-decoration: none;
+	box-shadow: inset 0 calc(-1 * var(--ann-w)) 0 var(--ann);
+}
+.fragment mark.annotation,
+.fragment .annotation-block { cursor: pointer; }
+.fragment .annotation.settled,
+.fragment .annotation.hidden { cursor: auto; }
+.show-settled .fragment .annotation.settled,
+.fragment.show-settled .annotation.settled { cursor: pointer; }
 .fragment mark.annotation:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+/* On a PDF page the mark is a button over each line of the span (pdf/PdfPage.svelte): the same underline beneath each line, and a box anchor an outline in the hue. A button has no words under it, so one not drawn is not there at all. */
+button.mark.annotation {
+	background: var(--ann-bg);
+	border: 0;
+	border-bottom: var(--ann-w) solid var(--ann);
+}
+button.mark.annotation.basis-box { border: var(--ann-w) solid var(--ann); }
+button.mark.annotation.settled { display: none; }
+.show-settled button.mark.annotation.settled { display: block; }
 
 /* A comment opened where it is: in the flow beneath its paragraph, raised just enough to read as something that opened. */
 .comment-slot.expanded {
@@ -1013,27 +1061,6 @@ a.heading-link:focus {
 	box-shadow: 0 4px 16px rgb(0 0 0 / 9%);
 }
 
-/* The count beside a node's label for comments that have no mark of their own. */
-.fragment button.comment-count {
-	margin-left: var(--gap-tight);
-	font-family: var(--sans);
-	font-size: 9px;
-	font-style: normal;
-	font-weight: 400;
-	line-height: 14px;
-	padding: 0 6px;
-	border: none;
-	border-radius: var(--rad-pill);
-	cursor: pointer;
-	color: var(--ink-soft);
-	background: var(--leaf);
-	vertical-align: 1px;
-}
-.fragment button.comment-count.k-objection { color: var(--state-incomplete); background: var(--state-incomplete-wash); }
-.fragment button.comment-count.k-suggestion { color: var(--state-stale); background: var(--state-stale-wash); }
-.fragment button.comment-count.k-question { color: var(--link); background: var(--link-wash); }
-.fragment button.comment-count.k-ok { color: var(--state-accepted); background: var(--state-accepted-wash); }
-.fragment button.comment-count.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
 
 /* The place a note is being written against, while its composer is open (fragments/pending.ts): the selected words, as a selection is drawn, since focusing the composer ends the selection itself; a block chosen by a box, outlined. */
 ::highlight(note-pending) {

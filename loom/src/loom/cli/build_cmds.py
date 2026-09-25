@@ -146,7 +146,7 @@ def compile(  # noqa: A001
 def substitution_for(result: ScanResult, key: str, with_file: str) -> str:
     """Resolve `--with`: a file on disk, else an annotation id whose payload is the proposal it names.
 
-    A file is tried first, because a path is what the option has always taken and a filename could otherwise be shadowed by an id. An annotation is accepted because the payload **is** the proposal — it is what `loom comment --payload` was for — and asking an agent to copy its own suggestion into a file before compiling it is a step with nothing in it.
+    A file is tried first, because a path is what the option has always taken and a filename could otherwise be shadowed by an id. An annotation is accepted because the payload **is** the proposal — it is what `loom annotate --payload` was for — and asking an agent to copy its own suggestion into a file before compiling it is a step with nothing in it.
     """
     from loom.records.annotations import find_annotation
     from loom.records.store import Records

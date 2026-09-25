@@ -68,8 +68,8 @@ def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
 
 
 def written(q: Path, sid: str, target: str, body: str) -> str:
-    """One note written into `sid` by `loom comment`; its id."""
-    return ok("comment", target, body, "--session", sid, "--author", WHO, cwd=q).stdout.split()[0]
+    """One note written into `sid` by `loom annotate`; its id."""
+    return ok("annotate", target, body, "--session", sid, "--author", WHO, cwd=q).stdout.split()[0]
 
 
 def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:
@@ -78,10 +78,10 @@ def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:
     gone = new_session(q, "false start", WHO)
     stays = new_session(q, "keeper", WHO)
     ann = written(q, gone, "dm-0003", "Wrong from the start.")
-    ok("comment", "--edit", ann, "Still wrong.", "--session", gone, "--author", WHO, cwd=q)
+    ok("annotate", "--edit", ann, "Still wrong.", "--session", gone, "--author", WHO, cwd=q)
     written(q, stays, "dm-0001", "A note worth keeping.")
-    ok("comment", "--reply", ann, "An answer to it.", "--session", stays, "--author", WHO, cwd=q)
-    ok("comment", "--resolve", ann, "Done.", "--session", stays, "--author", WHO, cwd=q)
+    ok("annotate", "--reply", ann, "An answer to it.", "--session", stays, "--author", WHO, cwd=q)
+    ok("annotate", "--resolve", ann, "Done.", "--session", stays, "--author", WHO, cwd=q)
     with (q / "annotations" / "log.jsonl").open("a", encoding="utf-8") as fh:
         fh.write("not json, kept as it stands\n")
     (q / ".loom" / "sessions" / gone).mkdir(parents=True, exist_ok=True)

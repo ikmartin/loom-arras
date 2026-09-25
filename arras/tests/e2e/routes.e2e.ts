@@ -85,7 +85,7 @@ test('a session opens on its Chat, and reads also as what it did', async ({ page
 	// what it did is the session's log, the comments it made among the commands, and no date raw
 	await page.getByTestId('tab-did').click();
 	const did = page.getByTestId('session-did');
-	await expect(did.getByTestId('did-row').first()).toContainText('loom comment sy-0003 --quote --kind objection');
+	await expect(did.getByTestId('did-row').first()).toContainText('loom annotate sy-0003 --quote --kind objection');
 	await expect(did.getByTestId('session-said')).toHaveCount(0);
 	await expect(did.getByTestId('report-step')).toHaveCount(0);
 	await expect(did).not.toContainText(/\d{4}-\d{2}-\d{2}T/);

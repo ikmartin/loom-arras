@@ -2,7 +2,7 @@
 
 ## Before you begin
 - Write only under your session's directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --session SESSION` calls, quote-anchored.
+- Findings are `loom annotate ... --session SESSION` calls, quote-anchored.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -23,7 +23,7 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind note` (any unambiguous prefix will do, so `--kind conf` is enough).
 
 ## Checklist (copy into the notes and tick)
 - [ ] Every hypothesis has a verdict.

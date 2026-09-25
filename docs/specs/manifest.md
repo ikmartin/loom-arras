@@ -253,6 +253,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "author": {"kind": "agent", "id": "Referee Agent", "label": "Referee Agent"},
   "created": "2026-09-16T14:31:08Z",
   "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f...", "work": null, "page": null},
+  "in": null,
   "basis": null,
   "kind": "objection",
   "body_html": "<p>No rigidity lemma exists in the quilt. ...</p>",
@@ -278,7 +279,9 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 **[decided]** `target.key` is a key in the corpus, or — for a note on a page of a cited work (DR-209) — the work's identifier as `references[].work` spells it; `target.work` is then the citekey and `target.page` the page, so a viewer needs no lookup to say where the note is, and `basis` is `text` (the quotation locates in the page's committed text) or `box` (a drawn rectangle is the record). Both are null on a note on a key. The rectangles are in the work's sidecar (§13) under `marks`; the body is here, with every other annotation.
 
-**[decided]** `kind` is one of six — `objection`, `suggestion`, `question`, `confirmation`, `citation`, `note`. The first three and `citation` **await an answer** and are what an open count counts; `confirmation` and `note` record rather than ask (DR-204).
+**[decided]** `in` is the document a claim about a node is read in, as a master path, or null for the node wherever it appears (plan 0.15, decision 9). A viewer draws an annotation that names a document in that document only, lists it on the node's own page with the document named, and shows it in no other document; the publisher bakes its mark into that document's fragment alone. An annotation whose document no longer holds the node is `detached`.
+
+**[decided]** `kind` is one of five — `objection`, `suggestion`, `question`, `citation`, `note`. The first four **await an answer** and are what an open count counts; `note` records rather than ask, and is where "this checks out" goes (DR-204; plan 0.15, decision 2).
 
 ## 9.1 Sessions
 
@@ -319,14 +322,14 @@ The **id** is minted once and is the address; the **title** is the author's and 
     {"name": "annotations", "kind": "annotations", "count": 3}
   ],
   "log": [{"time": "...", "command": "loom source rl-0004 --closure"},
-          {"time": "...", "command": "loom comment rl-0004 --quote --kind objection", "annotation": "a-2026-09-16-0001"}],
+          {"time": "...", "command": "loom annotate rl-0004 --quote --kind objection", "annotation": "a-2026-09-16-0001"}],
   "discarded": false
 }
 ```
 
 **[decided]** A thread of kind `session` also carries `pipeline`: the modes applied in the session, in order, each `{mode, target, report}` with `pass` when it is a numbered re-run, `fragment` naming the rendered report fragment, and `blocks` indexing that fragment as `{name, title, findings}`. It is **derived, not declared** — every mode writes `<mode>-<target>.notes.md` without exception, so the session's directory already says which modes ran and against what. The order is the files' own, a numbered second pass after its first; name order rather than clock order, because two builds of one quilt must not disagree about it. A publisher with no modes emits no `pipeline`, and a viewer must not recover a mode by parsing a filename itself.
 
-A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `annotation` is the annotation a `loom comment` line made or changed, written after an arrow in the log, and absent on every other line. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` from the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
+A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `annotation` is the annotation a `loom annotate` line made or changed, written after an arrow in the log, and absent on every other line. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` from the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
 
 ## 10.1 Transcripts
 

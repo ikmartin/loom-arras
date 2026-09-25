@@ -219,7 +219,7 @@ def resolve_command(
         ctx.exit(EXIT_CONTENT)
 
 
-@refs.command(name="note")
+@refs.command(name="cite")
 @click.option("--from", "run_dir", default=None, metavar="SESSION", help="The session whose suggestion this is.")
 @click.option(
     "--accept", "accept_id", default=None, metavar="ID", help="Record this citation suggestion and resolve it."
@@ -229,7 +229,7 @@ def resolve_command(
 @click.option("--author", default=None, help="Who accepted, when the user config and git do not say.")
 @click.option("--list", "as_list", is_flag=True, help="Print what has been accepted.")
 @quilt_option
-def note_command(
+def cite_command(
     run_dir: str | None,
     accept_id: str | None,
     reject_id: str | None,
@@ -816,8 +816,7 @@ def locate_command(
     home = work_dir(result.quilt.root, result.bib[citekey])
     if read_map(home) is None or not (home / "paper.pdf").is_file():
         raise ContentError(f"{citekey} has no mapped PDF; run loom refs map {citekey}")
-    # The mapping the viewer previews with and `loom comment` records, so the three cannot spell one place
-    # differently -- and so this can print the basis and the offsets, which its own `locate_span` could not.
+    # The mapping the viewer previews with and `loom annotate` records, so the three cannot spell one place differently -- and so this can print the basis and the offsets, which its own `locate_span` could not.
     placed = anchor_on_page(home, page_no, text)
     if not placed.found:
         if as_json:
@@ -1340,7 +1339,7 @@ def link_command(
     from loom.cli._common import agent_marker
 
     if run_dir:
-        # who asserted it, as `loom comment` records it: an assertion is somebody's, and a reader weighs it by whose
+        # who asserted it, as `loom annotate` records it: an assertion is somebody's, and a reader weighs it by whose
         who = Path(run_dir).name
     elif agent_marker():
         # an agent with no --session would otherwise be recorded as the author, by way of git: eleven links in the second

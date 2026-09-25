@@ -352,7 +352,7 @@ def check_agent_command(name: str, configured: bool) -> Item:
 
 
 def check_author(quilt: Any) -> Item:
-    """The name `accept` and `comment` record, by the book's order (4.3)."""
+    """The name `accept` and `annotate` record, by the book's order (4.3)."""
     from loom.scan.quilt import NoAuthorError, resolve_author, user_config_path
 
     try:
@@ -362,7 +362,7 @@ def check_author(quilt: Any) -> Item:
             remedy = f'set name = "Your Name" under [author] in {quilt.root / "config.toml"}'
         else:
             remedy = f'add name = "Your Name" under [author] in {user_config_path()}, or git config --global user.name "Your Name"'
-        return Item("author", WARN, OPTIONAL, "none: accept and comment refuse without one", remedy)
+        return Item("author", WARN, OPTIONAL, "none: accept and annotate refuse without one", remedy)
     return Item("author", OK, OPTIONAL, f"{name} (from {source})")
 
 

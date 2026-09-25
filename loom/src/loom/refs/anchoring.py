@@ -1,6 +1,6 @@
 """From a place on a page to the anchor loom records (plan 0.13 item 2).
 
-One function, called by everything that turns a selection or a drawn rectangle into an anchor: the `locate` endpoint, which answers and writes nothing; `loom comment` on a page of a cited work; and the same write over the API. **They cannot disagree, because they do not each map.** The client's text layer is a third extraction of the page, after the committed page text and the word boxes; only loom holds the other two, and only loom can say what the committed text says, which is what an anchor is checked against.
+One function, called by everything that turns a selection or a drawn rectangle into an anchor: the `locate` endpoint, which answers and writes nothing; `loom annotate` on a page of a cited work; and the same write over the API. **They cannot disagree, because they do not each map.** The client's text layer is a third extraction of the page, after the committed page text and the word boxes; only loom holds the other two, and only loom can say what the committed text says, which is what an anchor is checked against.
 """
 
 from __future__ import annotations

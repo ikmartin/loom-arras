@@ -1363,12 +1363,12 @@ def test_a_hyphenated_line_and_a_ligature_both_place() -> None:
 
 @pytest.mark.poppler
 def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibly(tmp_path: Path) -> None:
-    """`loom comment` on a cited work (plan 0.13 item 2): the target may be the citekey the agent knows or the identifier a `cited:` link carries, and the record stores the identifier and the artifact's hash. Text is mapped with `refs locate`'s tolerance and recorded with offsets; a box is recorded as drawn. Each way of getting it wrong says what to do instead."""
+    """`loom annotate` on a cited work (plan 0.13 item 2): the target may be the citekey the agent knows or the identifier a `cited:` link carries, and the record stores the identifier and the artifact's hash. Text is mapped with `refs locate`'s tolerance and recorded with offsets; a box is recorded as drawn. Each way of getting it wrong says what to do instead."""
 
     q = showcase(tmp_path)
     who = ("--author", "A. Author")
     said = ok(
-        "comment",
+        "annotate",
         "Bellamy19",
         "Is this needed?",
         "--page",
@@ -1382,11 +1382,11 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
     )
     assert "Bellamy19 p.2 (text)  question" in said.output, said.output
     drawn = ok(
-        "comment", "Bellamy19", "the polytope", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
+        "annotate", "Bellamy19", "the polytope", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
     )
     assert "p.2 (box)  note" in drawn.output, drawn.output
     ok(
-        "comment",
+        "annotate",
         "doi:10.4171/showcase/19-2",
         "by its identifier",
         "--page",
@@ -1413,9 +1413,9 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
     assert ident["target"] == text["target"]  # the citekey and the identifier name one work
 
     # the refusals, each naming what to do
-    refused("comment", "Bellamy19", "no page", "--quote", "x", *who, code=2, match="say which page", cwd=q)
+    refused("annotate", "Bellamy19", "no page", "--quote", "x", *who, code=2, match="say which page", cwd=q)
     refused(
-        "comment",
+        "annotate",
         "sh-0003",
         "page on a key",
         "--page",
@@ -1428,10 +1428,20 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         cwd=q,
     )
     refused(
-        "comment", "doi:10.1/nothing", "unknown", "--page", "2", "--quote", "x", *who, code=2, match="names none", cwd=q
+        "annotate",
+        "doi:10.1/nothing",
+        "unknown",
+        "--page",
+        "2",
+        "--quote",
+        "x",
+        *who,
+        code=2,
+        match="names none",
+        cwd=q,
     )
     refused(
-        "comment",
+        "annotate",
         "Bellamy19",
         "both",
         "--page",
@@ -1446,16 +1456,16 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
         cwd=q,
     )
     refused(
-        "comment", "Bellamy19", "absent", "--page", "2", "--quote", "zebra crossing", *who,
+        "annotate", "Bellamy19", "absent", "--page", "2", "--quote", "zebra crossing", *who,
         code=1, match="loom refs page Bellamy19 2", cwd=q,
     )  # fmt: skip
     refused(
-        "comment", "Bellamy19", "bad box", "--page", "2", "--box", "1,2,3", *who, code=2, match="x0,y0,x1,y1", cwd=q
+        "annotate", "Bellamy19", "bad box", "--page", "2", "--box", "1,2,3", *who, code=2, match="x0,y0,x1,y1", cwd=q
     )
 
     # a batch line carries the same two keys
     batched = ok(
-        "comment",
+        "annotate",
         "--batch",
         "--author",
         "A. Author",
@@ -1477,7 +1487,7 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
     preview = handle(q, "locate", {"citekey": "Bellamy19", "page": 2, "text": text})["anchor"]
     written = handle(
         q,
-        "comment",
+        "annotate",
         {
             "session": open_session(q),
             "target": "Bellamy19",
@@ -1496,7 +1506,7 @@ def test_the_endpoint_and_the_record_map_a_place_the_same_way(tmp_path: Path) ->
     # and a box over the API, rectangles and all
     drawn = handle(
         q,
-        "comment",
+        "annotate",
         {
             "session": open_session(q),
             "target": "Bellamy19",
@@ -1519,7 +1529,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     # the showcase carries reading notes of its own; what is asserted is what these two add
     before = sum(1 for line in (q / "annotations" / "log.jsonl").read_text().splitlines() if '"basis"' in line)
     a = ok(
-        "comment",
+        "annotate",
         "Bellamy19",
         "why unimodular?",
         "--page",
@@ -1532,7 +1542,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
         cwd=q,
     ).stdout.split()[0]
     b = ok(
-        "comment", "Bellamy19", "this display", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
+        "annotate", "Bellamy19", "this display", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
     ).stdout.split()[0]
     # exit 1 is a content problem, which the showcase carries on purpose (a duplicate id); the build still writes
     exits(1, "build", cwd=q)
@@ -1605,7 +1615,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
     q = showcase(tmp_path)
     sid = create(q, "reading", "A. Author").id
     ok(
-        "comment",
+        "annotate",
         "Bellamy19",
         "why unimodular?",
         "--page",
@@ -1621,7 +1631,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         cwd=q,
     )
     ok(
-        "comment",
+        "annotate",
         "sh-0003",
         "and one on a key, which has no work",
         "--kind",

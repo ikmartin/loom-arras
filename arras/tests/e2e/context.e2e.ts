@@ -93,3 +93,15 @@ test('it shows the citations suggested for the node and those already accepted',
 	await page.goto('/node/sy-0002' + beside('/context/sy-0002'));
 	await expect(pane(page, 1).getByTestId('reference-notes')).toContainText('Suggested citations');
 });
+
+test("a detached annotation is a row: a dot in the kind's hue and a link to it, its words one click away rather than restated", async ({ page }) => {
+	// sy-0001's question was written against words the statement no longer has; it is drawn nowhere and listed here (annotation study A2, A3)
+	await page.goto('/context/sy-0001');
+	const rows = page.getByTestId('detached-list').locator('li');
+	await expect(rows).toHaveCount(1);
+	await expect(rows.first()).not.toContainText('question');
+	await expect(rows.first().locator('.ann-dot')).toHaveClass(/k-question/);
+	await expect(rows.first().locator('.ann-dot')).toHaveAttribute('aria-label', 'question');
+	await expect(rows.first().locator('a')).toHaveAttribute('href', 'quilt:a-2026-09-16-0010');
+	await expect(rows.first().locator('a')).toHaveText(/\S/);
+});

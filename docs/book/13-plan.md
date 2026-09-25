@@ -53,7 +53,7 @@ Demonstrated 2026-09-15; see `docs/work-queue/closed/M2.md`: every page kind ren
 ### M3. Review
 
 - The ledger, snapshots, `loom accept`.
-- Review records, selectors, `loom comment` (all flags, `--batch`), detached resolution.
+- Review records, selectors, `loom annotate` (all flags, `--batch`), detached resolution.
 - Computed states, causes with diffs, derived states, review facts.
 - `loom status` with all filters and `--explain`; discard; retired keys; positional-key recovery.
 - Marks in fragments; arras review panel, blockers page, badges, annotation boxes, threads (read-only).

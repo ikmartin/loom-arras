@@ -56,7 +56,7 @@ test('annotations are filtered from one control', async ({ page }) => {
 });
 
 test('a refusal names its condition', async ({ page }) => {
-	await writes(page, ['comment']);
+	await writes(page, ['annotate']);
 	await page.goto('/node/sy-0002');
 	// a selection on the node offers to annotate it, as on a paper's page
 	const words = pane(page, 0).locator('.fragment .env[data-id="sy-0002"] p[data-src]').first();
@@ -227,8 +227,8 @@ test.describe('sessions', () => {
 		await expect(page.getByTestId('show-all')).toHaveAttribute('class', /on/);
 		await expect(page.getByTestId('show-current')).toBeDisabled();
 
-		// sy-0002 is now annotated from both sessions: its comment with no mark, from the referee, is counted beside its label
-		const counted = pane(page, 0).locator('.fragment button.comment-count');
+		// sy-0002 is now annotated from both sessions: its annotation with no mark, from the referee, is a mark on its label
+		const counted = pane(page, 0).locator('.fragment mark.annotation-label');
 		await expect(counted).toHaveCount(1);
 
 		// selecting a session does not narrow the page by itself: the selection is the write target, the view is the filter
@@ -239,7 +239,7 @@ test.describe('sessions', () => {
 		await expect(page.getByTestId('session-list').locator('li')).toHaveCount(2);
 		await page.keyboard.press('Escape');
 
-		// narrowing is the toggle's job, and it is available now that something is selected: the referee's comment goes
+		// narrowing is the toggle's job, and it is available now that something is selected: the referee's label mark goes, and the quick session's mark on the text is what is drawn
 		await page.getByTestId('show-current').click();
 		await expect(counted).toHaveCount(0);
 

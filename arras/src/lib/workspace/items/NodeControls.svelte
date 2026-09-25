@@ -1,16 +1,20 @@
 <script lang="ts">
-	// A node's controls (plan 0.13.3 N3): the annotating tools, as a work's pages have them; `context`, which opens what the node is in and rests on beside it; `source`, naming the reading a click gives; `annotations`.
+	// A node's controls (plan 0.13.3 N3): the annotating tools, as a work's pages have them; `context`, which opens what the node is in and rests on beside it; `source`, naming the reading a click gives; `annotations`, and the settled control beside it.
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Item } from '../item';
 	import { nodeState } from '../state.svelte';
 	import { workspace } from '../store.svelte';
 	import ToolPair from '$lib/pdf/ToolPair.svelte';
+	import { ui } from '$lib/ui.svelte';
 	import { can } from '$lib/write';
+	import { settledOn } from '$lib/annotations';
 
 	let { item, name }: { item: Item; name: string } = $props();
 
 	const node = $derived(store.manifest?.nodes[item.id]);
 	const held = $derived(nodeState(item));
+	// the settled control is offered wherever there is something for it to draw, so a node whose every annotation is settled — nothing drawn at rest — can still show them (15.2.5)
+	const anySettled = $derived(!!store.manifest && !!node && settledOn(store.manifest, [item.id, ...node.proofs]));
 
 	function context(): void {
 		const from = workspace.paneOf(`node:${item.id}`);
@@ -20,7 +24,7 @@
 	// the tools write, so a corpus served without a write API does not offer them
 	let writes = $state(false);
 	$effect(() => {
-		void can('comment').then((ok) => (writes = ok));
+		void can('annotate').then((ok) => (writes = ok));
 	});
 </script>
 
@@ -40,6 +44,17 @@
 			aria-label="{held.notes.allOpen ? 'hide all annotations' : 'show all annotations'} in {name}"
 			data-testid="toggle-annotations"
 			onclick={() => held.notes.toggle()}>{held.notes.allOpen ? 'hide all annotations' : 'show all annotations'}</button
+		>
+	{/if}
+	{#if held.notes.ready || anySettled}
+		<button
+			type="button"
+			class="as-link"
+			aria-pressed={ui.showSettled}
+			aria-label="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"
+			data-testid="toggle-settled"
+			title={ui.showSettled ? 'Hide resolved and discarded annotations again (s)' : 'Draw resolved and discarded annotations, faintly (s)'}
+			onclick={() => (ui.showSettled = !ui.showSettled)}>{ui.showSettled ? 'hide settled' : 'show settled'}</button
 		>
 	{/if}
 {/if}

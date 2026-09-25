@@ -1,10 +1,11 @@
 <script lang="ts">
 	// Writing on the corpus's own text (plan 0.13.3 phase 4): the two tools a cited work's pages have, on a node's or a document's fragment, so annotating is one act wherever a reader is.
 	//
-	// **Select** leaves the selection a selection and offers `annotate` above it, as on a page: highlighting to copy is the ordinary thing to do with text. The note's place is the result the selection is in, and its quote is what was selected, with each formula it touches given as its TeX — loom finds the quote in the source, so a selection across `$c$` anchors where the words on screen alone would not. **Box**, or Alt-drag from select, draws round what a selection cannot hold: a labelled equation is noted as itself, anything else as the words of the block under the box.
+	// **Select** leaves the selection a selection and offers `annotate` at its end, as on a page: highlighting to copy is the ordinary thing to do with text. The note's place is the result the selection is in, and its quote is what was selected, with each formula it touches given as its TeX — loom finds the quote in the source, so a selection across `$c$` anchors where the words on screen alone would not. **Box**, or Alt-drag from select, draws round what a selection cannot hold: a labelled equation is noted as itself, anything else as the words of the block under the box.
 	import type { Snippet } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import NoteAt from '$lib/pdf/NoteAt.svelte';
+	import AnnotateChip from './AnnotateChip.svelte';
 	import type { Tool } from '$lib/pdf/view.svelte';
 	import { can } from '$lib/write';
 	import { nameOf } from '$lib/workspace/registry';
@@ -15,12 +16,15 @@
 	let {
 		holder,
 		fallback,
+		in: inDoc = '',
 		children
 	}: {
 		/** Where the tool in hand is kept: the item's state, which the rail's tool pair sets. */
 		holder: { tool: Tool };
 		/** The key a place belongs to when no result encloses it: the node shown, or the document. */
 		fallback: string;
+		/** The document being read, when the fragment is one: every annotation written here is filed with it (book 7). A node's own page passes nothing. */
+		in?: string;
 		children: Snippet;
 	} = $props();
 
@@ -30,7 +34,7 @@
 	let root = $state<HTMLElement | null>(null);
 	let allowed = $state(false);
 	$effect(() => {
-		void can('comment').then((ok) => (allowed = ok));
+		void can('annotate').then((ok) => (allowed = ok));
 	});
 	/** A selection waiting to be made into a note, if the reader wants one. */
 	let offered = $state<{ target: string; text: string; at: Box; range?: Range } | null>(null);
@@ -173,25 +177,24 @@
 	<div class="drawn" style="left: {b.left}px; top: {b.top}px; width: {b.width}px; height: {b.height}px;" data-testid="drawn-box"></div>
 {/if}
 {#if offered && !noting}
-	<!-- Above the selection, out of the way of the words it is about, and gone the moment the selection is. -->
-	<button
-		type="button"
-		class="offer"
-		data-testid="annotate-offer"
-		style="left: {Math.round(offered.at.left)}px; top: {Math.round(offered.at.top - 34)}px;"
-		onclick={() => {
+	<!-- At the selection's end, out of the way of the words it is about, and gone the moment the selection is or the composer opens. -->
+	<AnnotateChip
+		at={offered.at}
+		range={offered.range}
+		onaccept={() => {
 			if (!offered) return;
 			const { range, ...place } = offered;
 			showPending(range ?? null);
 			noting = place;
 			offered = null;
-		}}>annotate</button
-	>
+		}}
+	/>
 {/if}
 {#if noting}
 	<NoteAt
 		target={noting.target}
 		name={nameFor(noting.target)}
+		in={inDoc}
 		text={noting.text}
 		at={noting.at}
 		onwritten={() => {
@@ -215,20 +218,5 @@
 		border: 1.5px dashed var(--accent);
 		background: var(--accent-wash);
 		border-radius: 2px;
-	}
-	/* Fixed, because the rect it is placed by is the selection's own client rect, and inset like a floating box so it never hangs off the window. */
-	.offer {
-		position: fixed;
-		z-index: 30;
-		font-family: var(--sans);
-		font-size: 11px;
-		line-height: 1;
-		padding: 5px 10px;
-		border-radius: var(--rad-pill);
-		border: 1px solid var(--accent);
-		background: var(--sheet);
-		color: var(--accent);
-		box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
-		cursor: pointer;
 	}
 </style>

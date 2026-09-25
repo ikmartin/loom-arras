@@ -23,7 +23,6 @@ All entries are **[decided]** unless marked.
 - spine : a file consisting of prose, sectioning, and inclusion lines, produced by `atomize`. Not a distinct kind to the scanner; the word is descriptive.
 - `nodes/` : the directory `loom new` and `atomize` write node files to. A convention, not a rule.
 - `digests/` : the directory of digests, with loom's store of other people's documents under `digests/storage/`, named by identifier. `refs/` is the author's seed space: the PDFs and `.bib` files they drop in for loom to read (8.16), and is gitignored.
-- `comments/<author-slug>/<date>` : the grouping key for what one person wrote on one day. A path-shaped **name**, not a directory: every annotation lives in `annotations/log.jsonl`, and nothing is written under `comments/`.
 - `ai/` : the optional AI layer: `orientation.md`, `rules.md`, `formatting.md`, `modes/`. Sessions live in `.loom/sessions/`.
 - `.loom/` : loom's own durable data: `state.toml` (the acceptance ledger) and `history/` (the history ledger, the step directories, and the content-addressed text store).
 - `retired/` : where `atomize --retire` moves a converted file at the author's request. Never scanned.
@@ -68,8 +67,8 @@ All entries are **[decided]** unless marked.
 - ledger : `.loom/state.toml`. Holds acceptance rows and nothing else. Written only by `loom accept`. Never edited.
 - acceptance row : one entry in the ledger: key, author, date, hash of the key's text, hashes of the closure's statements and the preamble closure, references to snapshots.
 - snapshot : the normalized text of a key or preamble at the time of an acceptance, stored content-addressed under `.loom/history/texts/`, the same store the versions use. What lets a stale acceptance be explained with a diff.
-- review record : one session's annotations as they now stand, replayed from `annotations/log.jsonl`. Not a file: the log is the only store, written only by `loom comment` and `loom refs note`.
-- annotation : one comment: id, author (person or agent), session, target key, target hash, selector, kind, body, status, reply-to.
+- review record : one session's annotations as they now stand, replayed from `annotations/log.jsonl`. Not a file: the log is the only store, written only by `loom annotate` and `loom refs cite`.
+- annotation : the one record of review, and the one noun for it in commands, the viewer and the documents: id, author (person or agent), session, target key, target hash, selector, `in` (the document a claim about a node is read in, or none), kind (one of five: objection, suggestion, question, citation, note), severity, body, status, reply-to. Written by `loom annotate`; listed by `loom ai annotations`. A note is one of its kinds (7.2), never the record itself.
 - selector : the text-quote selector: the exact quoted text with prefix and suffix context, resolved within the target's own text.
 - detached : an annotation whose selector no longer matches its target's current text.
 - state : a computed word for a key: `draft`, `accepted`, `incomplete`, with `stale` as a modifier on `accepted`.
@@ -77,6 +76,7 @@ All entries are **[decided]** unless marked.
 - fresh : not stale.
 - proved : a computed display state for a node: statement accepted and at least one proof accepted, none stale, no `\incomplete`.
 - settled : proved, and every node in the closure settled.
+- settled (of an annotation) : resolved or discarded, marked by hand and never by being read; not drawn at rest, and shown faint by the rail's settled control (15.3.1).
 - discard : marking a session ignored so that its annotations vanish from every view, and closing it. Reversible. Never deletes.
 
 ## 3.6 Digests
@@ -105,7 +105,7 @@ All entries are **[decided]** unless marked.
 - thread : the interface's name for a discussion: messages, attachments, targets. A session publishes as a thread.
 - Authoring View : the quilt's own document and nodes — what the author is writing. **Library View** is the same frame turned on a cited work. The split, the panel and the placements are the same machinery in both; what differs is whose text is in the content pane.
 - split view : content on one side, discussion on the other, one divider between them, with one ratio for the whole app.
-- placement : where an opened annotation stands — `floating` over the text, `margin` beside it, or `inline` in the flow, the last in the Authoring View alone.
+- placement : where an opened annotation stands — `floating` over the text or `inline` in the flow, the latter in the Authoring View alone; also the field of a suggestion that says where its text goes (`replace`, `after`, `before`).
 - travel : moving between the panes on a double-click: a brief scroll, then a flash on what was arrived at.
 - write API : the HTTP form of loom's record-writing commands, for a browser. Carries a token, an `Origin` check and a JSON content type (DR-203).
 - runner : an external command that turns one prompt into one response with no interactive session. Specified and declined; loom prepares an agent's context and records what it did, and does not supervise the process (WQ-15).
@@ -119,7 +119,7 @@ All entries are **[decided]** unless marked.
 - attached : listening to a session, recorded by a heartbeat. A stale heartbeat means detached.
 - mode : one of the review procedures (audit, referee, review, simplify, question, quick, draft, ingest, brainstorm) as a prompt template with input and output contracts, under `ai/modes/`.
 - application : one use of a mode on one target inside a session, producing named output files in the session's directory.
-- `run.log` : automatic log of every loom command invoked with `--session`, in the session's directory; `loom comment` adds the annotation it made or changed after an arrow. A session's What it did is this log.
+- `run.log` : automatic log of every loom command invoked with `--session`, in the session's directory; `loom annotate` adds the annotation it made or changed after an arrow. A session's What it did is this log.
 - transcript : a session's conversation, which is its inbox: every message the person and the agent said, in order, and nothing loom wrote. The agent writes its account of the work there with `loom session say`; there is no separate journal.
 - promote : withdrawn (DR-173). Nothing copies what an agent wrote into the quilt: a digest is made by `loom digest extract` and checked by ingest mode, and a drafted node is previewed by the author and pasted by them, taking an id from `loom id --next`.
 - agent : the interactive program a person points at a quilt (Claude Code, Codex). Never a dependency.
@@ -165,4 +165,5 @@ The following words were used during design and are not terms of the system. Do 
 - `reviewed` (as a state) : not a state; reviews are facts and counts.
 - `impact`, `deps --closure` vs `closure`, `dependents`, `resolve`, `ai finish`, `ai resume`, `ai list`, `ai restore`, `digest export`, `state set`, `state refresh`, `ref use`, `bundle --for-review`, `\blocker`, `\block`, `% !LOOM begin preamble` : withdrawn commands and syntax; see the CLI reference for what replaced each.
 - `map.toml`, `map.md` : withdrawn digest form.
+- comment, finding : withdrawn as names for the record (DR-292-ikmartin); it is an annotation, whatever its kind. `loom comment` is `loom annotate`, `loom ai findings` is `loom ai annotations`, `loom refs note` is `loom refs cite`, and the write API's `comment` and `refs-note` are `annotate` and `refs-cite`.
 - `--proofs` on `\nest`, `section-nesting` directive : withdrawn; `\nest` is per-site.

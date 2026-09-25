@@ -75,7 +75,7 @@ async function intoASession(page: Page, served: Served): Promise<string> {
 
 /** A person's note on page 2 of Bellamy19 over `phrase`, written through the API into `session`; returns its id. */
 async function noteOnPage2(served: Served, session: string, phrase: string, body: string): Promise<string> {
-	const result = await served.api('comment', { target: 'Bellamy19', page: 2, quote: phrase, message: body, kind: 'note', session });
+	const result = await served.api('annotate', { target: 'Bellamy19', page: 2, quote: phrase, message: body, kind: 'note', session });
 	return result.split(/\s+/)[0];
 }
 
@@ -111,16 +111,21 @@ test('a selection stays selected and only offers to annotate; a note written fro
 	await expect(page.getByTestId('note-at')).toHaveCount(0);
 	expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).toContain('incidence matrix');
 	await expect(page.getByTestId('annotate-offer')).toBeVisible();
+	// the one chip every surface has: the annotation neutral, after the selection's last line
+	await expect(page.getByTestId('annotate-offer')).toHaveCSS('color', 'rgb(111, 109, 102)');
 	await page.getByTestId('annotate-offer').click();
 	const form = page.getByTestId('note-at');
 	await expect(form).toBeVisible();
-	// the preview: what loom found on the page, in its own words, before the note is typed
-	await expect(page.getByTestId('note-where')).toContainText('anchored by text');
+	// the header names the page and the words, never the work's key; beneath it, what loom found on the page in its own words, before anything is typed
+	await expect(page.getByTestId('note-where')).toContainText('on p. 2,');
+	await expect(page.getByTestId('note-where')).toContainText('incidence matrix');
+	await expect(page.getByTestId('note-where')).not.toContainText(bellamy(served).work);
+	await expect(page.getByTestId('note-located')).toContainText('anchored by text');
 	// the composer is a comment box and nothing else: the words stay lit on the page instead of being quoted in it
 	await expect(page.getByTestId('note-quote')).toHaveCount(0);
 	await expect.poll(() => page.evaluate(() => [...((CSS as unknown as { highlights: Map<string, { values(): Iterable<Range> }> }).highlights.get('note-pending')?.values() ?? [])].map((r) => r.toString()).join(' '))).toContain('incidence matrix');
 	await page.getByTestId('note-body').fill('So the vertices are integral.');
-	await page.getByTestId('note-kind').selectOption('note');
+	await expect(page.getByTestId('note-kind').locator('[aria-pressed="true"]')).toHaveAttribute('data-kind', 'note');
 	await page.getByTestId('note-submit').click();
 	await expect(form).toBeHidden();
 	const written = served.written('So the vertices are integral.');
@@ -130,9 +135,24 @@ test('a selection stays selected and only offers to annotate; a note written fro
 	expect(anchor.page).toBe(2);
 	expect(String(anchor.exact)).toContain('incidence matrix');
 	expect(anchor).not.toHaveProperty('quads'); // derived at build time, never recorded for text
-	// and the mark appears once the publisher has rebuilt the sidecar
-	await expect(page.getByTestId(`mark-${written.id}`)).toBeVisible({ timeout: 15000 });
-	await expect(page.getByTestId(`mark-${written.id}`)).toHaveClass(/k-note/);
+	// and the mark appears once the publisher has rebuilt the sidecar: the underline a fragment draws, beneath each line, over the hue's 5% wash
+	const mark = page.getByTestId(`mark-${written.id}`).first();
+	await expect(mark).toBeVisible({ timeout: 15000 });
+	await expect(mark).toHaveClass(/annotation/);
+	await expect(mark).toHaveClass(/k-note/);
+	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/[ /,] ?0\.05\)$/);
+	await expect(mark).toHaveCSS('border-bottom-width', '2px');
+	await expect(mark).toHaveCSS('border-bottom-color', 'rgb(111, 109, 102)');
+	await expect(mark).toHaveCSS('border-top-width', '0px');
+});
+
+test('Enter on a selection opens the composer, as the chip does', async ({ page, served }) => {
+	await opened(page, served);
+	await selectOnly(page, 'incidence matrix');
+	await expect(page.getByTestId('annotate-offer')).toBeVisible();
+	await page.keyboard.press('Enter');
+	await expect(page.getByTestId('note-at')).toBeVisible();
+	await expect(page.getByTestId('annotate-offer')).toHaveCount(0);
 });
 
 test('a selection across a citation and a reference is quoted as they were written, and anchors', async ({ page, served }) => {
@@ -151,7 +171,7 @@ test('a selection across a citation and a reference is quoted as they were writt
 	});
 	await page.getByTestId('annotate-offer').click();
 	await page.getByTestId('note-body').fill('Which digraph is this the median polytope of?');
-	await page.getByTestId('note-kind').selectOption('question');
+	await page.getByTestId('note-kind').locator('[data-kind="question"]').click();
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toBeHidden();
 	const written = served.written('Which digraph is this the median polytope of?');
@@ -201,7 +221,8 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 	await page.mouse.up();
 	const seen = await page.evaluate(() => (window as unknown as { __ev: string[] }).__ev.slice(0, 10));
 	await expect(page.getByTestId('note-at'), `the pointer saw: ${seen.join(' ')}`).toBeVisible();
-	await expect(page.getByTestId('note-where')).toContainText('anchored by box');
+	await expect(page.getByTestId('note-where')).toHaveText('on p. 2, a box');
+	await expect(page.getByTestId('note-located')).toContainText('anchored by box');
 	await page.getByTestId('note-body').fill('This is the display I want to cite.');
 	await page.getByTestId('note-submit').click();
 	await expect(page.getByTestId('note-at')).toBeHidden();
@@ -209,7 +230,13 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 	const anchor = written.anchor as Record<string, unknown>;
 	expect(anchor.basis).toBe('box');
 	expect(anchor.quads).toHaveLength(1);
-	await expect(page.getByTestId(`mark-${written.id}`)).toBeVisible({ timeout: 15000 });
+	// a box anchor is an outline in the hue, not an underline
+	const mark = page.getByTestId(`mark-${written.id}`);
+	await expect(mark).toBeVisible({ timeout: 15000 });
+	await expect(mark).toHaveClass(/basis-box/);
+	await expect(mark).toHaveCSS('border-top-width', '2px');
+	await expect(mark).toHaveCSS('border-top-color', 'rgb(111, 109, 102)');
+	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/[ /,] ?0\.05\)$/);
 });
 
 test('a mark opens the box a fragment opens, Escape closes it, and the note waits in the Chat for the next message', async ({ page, served }) => {
@@ -240,7 +267,7 @@ test('inline is never offered on a page, and a note opens floating', async ({ pa
 	await expect(page.getByTestId('comment-expanded')).toHaveClass(/floating/);
 });
 
-test('the session selection governs the page: a hidden note is counted, not drawn', async ({ page, served }) => {
+test('the session selection governs the page: a note the view hides is not drawn, and nothing says so', async ({ page, served }) => {
 	const id = await noteOnPage2(served, served.openSessions().at(-1)!, 'incidence matrix', 'a note the empty session hides');
 	await opened(page, served);
 	await expect(page.getByTestId(`mark-${id}`)).toBeVisible();
@@ -253,14 +280,14 @@ test('the session selection governs the page: a hidden note is counted, not draw
 	// `+ new` selects what it opens, since nothing is created automatically any more (plan 0.13.1)
 	await expect(page.getByTestId('session-footer-name')).toContainText('an empty sitting', { timeout: 10000 });
 	await page.getByTestId('show-current').click();
-	await expect(page.getByTestId('reading-hidden')).toContainText('hidden by the session being shown');
+	await expect(page.getByTestId(`mark-${id}`)).toHaveCount(0);
 	expect(await page.locator('[data-testid="pdf-page-2"] .mark.note').count()).toBeLessThan(before);
-	const hiddenUnderThis = Number((await page.getByTestId('reading-hidden').textContent())!.match(/\d+/)![0]);
+	// a hidden mark needs no notice: the filter is in the rail, and the page draws what it admits
+	await expect(page.getByTestId('reading-hidden')).toHaveCount(0);
 	await page.getByTestId('show-all').click();
-	// `all` still hides the showcase's own notes, which sit in a closed session; what changes is that the one written above comes back, so the count drops rather than vanishes
+	// `all` still hides the showcase's own notes, which sit in a closed session; what changes is that the one written above comes back
 	await expect(page.locator('[data-testid="pdf-page-2"] .mark.note')).toHaveCount(before);
-	const hiddenUnderAll = Number((await page.getByTestId('reading-hidden').textContent())!.match(/\d+/)![0]);
-	expect(hiddenUnderAll).toBeLessThan(hiddenUnderThis);
+	await expect(page.getByTestId(`mark-${id}`)).toBeVisible();
 });
 
 test('a locator in the URL is lit while the URL carries it, and a note is focused by its id', async ({ page, served }) => {
@@ -297,7 +324,7 @@ test('a session is named on the spot and closed from the page', async ({ page, s
 	await expect(page.getByTestId('session-footer-name')).toHaveText('no session selected', { timeout: 10000 });
 });
 
-test('two notes on one place are one mark carrying the count, and one box holding both', async ({ page, served }) => {
+test('two notes on one place are one mark with no count drawn, and one box holding both', async ({ page, served }) => {
 	await opened(page, served);
 	for (const body of ['first on this phrase', 'second on this phrase']) {
 		await select(page, 'Boundedness holds');
@@ -306,11 +333,15 @@ test('two notes on one place are one mark carrying the count, and one box holdin
 		await page.getByTestId('note-submit').click();
 		await expect(page.getByTestId('note-at')).toBeHidden();
 	}
-	const stacked = page.locator('[data-testid="pdf-page-2"] .mark.note[data-count]').first();
+	// one mark carries both ids; nothing is drawn to say how many
+	const stacked = page.locator('[data-testid="pdf-page-2"] .mark.note[data-annotation*=" "]').first();
 	await expect(stacked).toBeVisible({ timeout: 15000 });
-	await expect(stacked).toHaveAttribute('data-count', /^[2-9]$/);
+	await expect(stacked).not.toHaveAttribute('data-count');
+	expect(await stacked.evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
+	const ids = (await stacked.getAttribute('data-annotation'))!.split(/\s+/);
+	expect(ids.length).toBeGreaterThanOrEqual(2);
 	await stacked.click();
-	await expect(page.getByTestId('comment-expanded').locator('article.box')).toHaveCount(Number(await stacked.getAttribute('data-count')));
+	await expect(page.getByTestId('comment-expanded').locator('article.box')).toHaveCount(ids.length);
 });
 
 test('a box shows the write it fired, without being closed and reopened', async ({ page, served }) => {
@@ -329,15 +360,15 @@ test('a box shows the write it fired, without being closed and reopened', async 
 	await expect(mark).toBeVisible({ timeout: 15000 });
 	await mark.click();
 	const box = page.getByTestId('comment-expanded');
-	await expect(box.locator('.status').first()).toHaveText('open');
+	await expect(box.getByTestId('outcome')).toHaveCount(0);
 	await box.getByTestId('verb-resolve').first().click();
-	// the same box, still open, still where the reader put it
-	await expect(box.locator('.status').first()).toHaveText('resolved', { timeout: 10000 });
-	// the button that fired it becomes its own undo, where it stood
-	await expect(box.getByTestId('verb-undo-resolve').first()).toBeVisible();
-	const undo = box.getByTestId('verb-undo-resolve').first();
+	// the same box, still open, still where the reader put it, now settled: the outcome said once, and reopen its one verb
+	await expect(box.getByTestId('outcome').first()).toHaveText('· resolved', { timeout: 10000 });
+	await expect(box.locator('article.box').first()).toHaveClass(/settled/);
+	await expect(box.getByTestId('verb-resolve')).toHaveCount(0);
+	const undo = box.getByTestId('verb-reopen').first();
 	await undo.click();
-	await expect(box.locator('.status').first()).toHaveText('open', { timeout: 10000 });
+	await expect(box.getByTestId('outcome')).toHaveCount(0, { timeout: 10000 });
 });
 
 test('a selection records the lines it covers and nothing else', async ({ page, served }) => {

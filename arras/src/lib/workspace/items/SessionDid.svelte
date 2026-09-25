@@ -1,5 +1,5 @@
 <script lang="ts">
-	// What it did (plan 0.14): the plain record of everything done through loom in a session — its `run.log`, in order, newest at the bottom and the first thing seen. A row that made or changed an annotation links it, names what it is on by the key it was filed under — `sh-0009`, `drafting/main.tex`, never `Theorem 3.1`, which a renumbering changes — and says where it stands. Nothing here is inferred: a row is a line the log holds (P3).
+	// What it did (plan 0.14): the plain record of everything done through loom in a session — its `run.log`, in order, newest at the bottom and the first thing seen. A row that made or changed an annotation links it, names what it is on by the key it was filed under — `sh-0009`, `drafting/main.tex`, never `Theorem 3.1`, which a renumbering changes — and says where it stands. The kind is a dot in its hue before the link, not a word (15.3.9; annotation study A2), a reply's a ring. Nothing here is inferred: a row is a line the log holds (P3).
 	import { onMount, tick } from 'svelte';
 	import type { Annotation } from '$lib/manifest/types';
 	import { store } from '$lib/manifest/client.svelte';
@@ -35,6 +35,11 @@
 		return a.discarded ? 'discarded' : a.status;
 	}
 
+	/** What the dot says for a screen reader: the kind, and that a reply is one. */
+	function kindOf(a: Annotation): string {
+		return a.in_reply_to ? `reply, ${a.kind}` : a.kind;
+	}
+
 	function clock(stamp: string): string {
 		const d = new Date(stamp);
 		return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
@@ -58,8 +63,8 @@
 					<code class="command">{e.command}</code>
 					{#if a}
 						<span class="made">
-							<a href="quilt:{a.id}" title={a.id} data-testid="did-annotation">{a.in_reply_to ? 'reply' : a.kind}</a>
-							<span class="on">{fixed(a)}</span>
+							<span class="ann-dot k-{a.kind}" class:reply={!!a.in_reply_to} role="img" aria-label={kindOf(a)} title={kindOf(a)} data-testid="did-kind"></span>
+							<a href="quilt:{a.id}" title={a.id} data-testid="did-annotation">{fixed(a)}</a>
 							<span class="state state-{standing(a)}" data-testid="did-state">{standing(a)}</span>
 						</span>
 					{/if}
@@ -109,12 +114,11 @@
 		grid-column: 2;
 		display: flex;
 		gap: 8px;
-		align-items: baseline;
+		align-items: center;
 	}
-	.on {
+	.made a {
 		font-family: var(--mono, ui-monospace, monospace);
 		font-size: 11px;
-		color: var(--ink-soft);
 	}
 	.state {
 		font-size: 11px;

@@ -32,14 +32,14 @@ def test_a_title_reaches_the_session_it_names(tmp_path: Path) -> None:
     assert (d / ".loom" / "sessions" / sid / "run.log").is_file(), "the title must reach the real session's log"
 
     # and a write command files against the same session
-    ok("comment", "dm-0003", "a finding", "--kind", "question", "--author", "A. Author", cwd=d)
+    ok("annotate", "dm-0003", "a finding", "--kind", "question", "--author", "A. Author", cwd=d)
     events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
     created = [e for e in events if e["event"] == "created"]
     assert created[-1]["session"] == sid, f"filed under {created[-1]['session']!r}, not the session that made it"
 
     # which is what makes the re-check contract work
-    out = json_of("ai", "findings", "--session", "early structural results review", "--json", cwd=d)
-    assert len(out["findings"]) == 1
+    out = json_of("ai", "annotations", "--session", "early structural results review", "--json", cwd=d)
+    assert len(out["annotations"]) == 1
 
 
 @pytest.mark.parametrize("name", ["no-such-session-at-all", "build"])

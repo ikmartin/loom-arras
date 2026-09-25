@@ -10,10 +10,9 @@
 	import LocalGraphPanel from '$lib/graph/LocalGraphPanel.svelte';
 	import { keyUrl, nodeUrl, readUrl, tagUrl, threadUrl, workUrl } from '$lib/nav';
 	import { nodeName } from '../names';
-	import { onAny, repliesTo } from '$lib/annotations';
-	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
+	import { onAny } from '$lib/annotations';
+	import type { Annotation } from '$lib/manifest/types';
 	import Locator from '$lib/components/Locator.svelte';
-	import TexProse from '$lib/math/TexProse.svelte';
 	import ClosurePanel from '$lib/review/ClosurePanel.svelte';
 	import ReferenceNotes from '$lib/review/ReferenceNotes.svelte';
 	import { versionLabel } from '$lib/badges';
@@ -61,9 +60,14 @@
 	const versions = $derived(
 		[key, ...(node?.proofs ?? [])].map((k) => ({ key: k, label: versionLabel(m.keys[k]) })).filter((v) => v.label)
 	);
-	// Discarded annotations are nowhere else in reading mode; they are kept here, folded, only when there are any.
+	// Discarded annotations are drawn only under the settled control; they are listed here, folded, only when there are any, so a reader finds them without turning it on.
 	const discarded = $derived(onAny(m, [key, ...(node?.proofs ?? [])]).filter((a) => a.discarded && a.in_reply_to === null));
 	let showDiscarded = $state(false);
+	/** A row's link text: a short preview of what the annotation says, the words it quoted when it says nothing, its id when it has neither. The row links rather than restates (annotation study A2); the box holds the rest. */
+	function preview(a: Annotation): string {
+		const text = a.body_html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || (a.quote ? `“${a.quote.trim()}”` : a.id);
+		return text.length > 90 ? text.slice(0, 89).trimEnd() + '…' : text;
+	}
 	// Both directions of every declared relation, grouped by kind; an unknown kind renders as a labelled link list like any other.
 	const relations = $derived.by(() => {
 		const out = new Map<string, string[]>();
@@ -163,9 +167,11 @@
 		{/if}
 
 		{#if detached.length}
-			<RailList label="detached comments">
-				<ul class="plain">
-					{#each detached as a (a.id)}<li><em><TexProse text={a.quote ?? ''} /></em></li>{/each}
+			<RailList label="detached annotations">
+				<ul class="plain" data-testid="detached-list">
+					{#each detached as a (a.id)}
+						<li class="ann-row"><span class="ann-dot k-{a.kind}" role="img" aria-label={a.kind} title={a.kind}></span><a href="quilt:{a.id}" title={a.id}>{preview(a)}</a></li>
+					{/each}
 				</ul>
 			</RailList>
 		{/if}
@@ -179,9 +185,11 @@
 				>
 			</p>
 			{#if showDiscarded}
-				<div data-testid="discarded-list">
-					{#each discarded as a (a.id)}<AnnotationBox annotation={a} replies={repliesTo(m, a.id)} />{/each}
-				</div>
+				<ul class="plain" data-testid="discarded-list">
+					{#each discarded as a (a.id)}
+						<li class="ann-row"><span class="ann-dot k-{a.kind}" role="img" aria-label={a.kind} title={a.kind}></span><a href="quilt:{a.id}" title={a.id}>{preview(a)}</a></li>
+					{/each}
+				</ul>
 			{/if}
 		{/if}
 
@@ -225,6 +233,11 @@
 	.discarded button {
 		color: var(--ink-faint);
 		font-size: 11px;
+	}
+	.ann-row {
+		display: flex;
+		gap: 6px;
+		align-items: center;
 	}
 	.crumb .sep {
 		color: var(--ink-faint);

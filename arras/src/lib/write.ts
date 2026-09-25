@@ -9,7 +9,7 @@ import { store } from '$lib/manifest/client.svelte';
 import { sessionView, writable } from '$lib/sessions/sessions.svelte';
 
 /** The endpoints that record work into a session, and therefore must name one. The session verbs carry their own subject and are not among them, and neither is `locate`, which reads. */
-const SESSIONED = new Set(['comment', 'reply', 'resolve', 'edit', 'discard', 'refs-note', 'digest-verify', 'digest-discard', 'message']);
+const SESSIONED = new Set(['annotate', 'reply', 'resolve', 'edit', 'discard', 'refs-cite', 'digest-verify', 'digest-discard', 'message']);
 
 export interface Capabilities {
 	write_api: number;
@@ -69,7 +69,7 @@ export interface WriteResult {
 	error?: { code: string; message: string };
 }
 
-/** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused comment is an answer a reader needs to see. */
+/** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused annotation is an answer a reader needs to see. */
 export async function write(endpoint: string, body: Record<string, unknown>): Promise<WriteResult> {
 	try {
 		// **Every write names its session, and one place puts it there** (plan 0.13.1). The session travels with the

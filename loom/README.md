@@ -53,7 +53,7 @@ loom status                                     # every key, its state, and its 
 loom atomize drafting/main.tex drafting/spine.tex --sections   # one file per node, a spine of \input lines
 loom canonize drafting/spine.tex -m "Submitted"  # a landmark, and a record of what every key was
 loom accept rl-0004 --proofs                    # record what you have checked; later edits show up as stale
-loom comment rl-0004/proof "Why closed?" --quote "the diagonal is closed" --kind question
+loom annotate rl-0004/proof "Why closed?" --quote "the diagonal is closed" --kind question
 loom digest extract Man12 ~/papers/manolache/virtual6.tex  # a cited paper's results as nodes; \cite[Theorem 4.1]{Man12} becomes an edge
 loom ai init --skills --permissions             # the optional AI layer: orientation, modes, runs, permission settings
 ```

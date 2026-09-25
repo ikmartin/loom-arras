@@ -40,11 +40,11 @@ def test_discovery_lists_what_this_publisher_serves(session) -> None:  # type: i
 
 
 def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # type: ignore[no-untyped-def]
-    """One implementation of what a comment is: the endpoint calls the function the CLI calls, so the two cannot drift."""
+    """One implementation of what an annotation is: the endpoint calls the function the CLI calls, so the two cannot drift."""
     s, d = session
     sid = open_session(d)
     status, body = post(
-        s.url + "_api/comment",
+        s.url + "_api/annotate",
         {
             "session": sid,
             "target": "dm-0003",
@@ -89,9 +89,9 @@ def test_the_manifest_is_current_when_a_write_answers(session) -> None:  # type:
 def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ignore[no-untyped-def]
     s, d = session
     sid = open_session(d)
-    status, body = post(s.url + "_api/comment", {"session": sid, "message": "no target"})
+    status, body = post(s.url + "_api/annotate", {"session": sid, "message": "no target"})
     assert status == 400 and body["error"]["code"] == "missing-field", body
-    status, body = post(s.url + "_api/comment", {"session": sid, "target": "nope-9999", "message": "x", "author": "R"})
+    status, body = post(s.url + "_api/annotate", {"session": sid, "target": "nope-9999", "message": "x", "author": "R"})
     assert status == 404 and body["error"] == {"code": "no-such-node", "message": "no such key: nope-9999"}, body
     status, body = post(s.url + "_api/discard", {"session": sid, "annotation": "a-1999-01-01-0001", "author": "R"})
     assert status == 404 and body["error"] == {
@@ -99,12 +99,12 @@ def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ig
         "message": "no annotation a-1999-01-01-0001",
     }, body
     # a write that names no session at all is malformed, not something to file against whatever was last active
-    status, body = post(s.url + "_api/comment", {"target": "dm-0003", "message": "orphan"})
+    status, body = post(s.url + "_api/annotate", {"target": "dm-0003", "message": "orphan"})
     assert status == 400 and body["error"]["code"] == "no-session", body
-    status, body = post(s.url + "_api/comment", {"run": sid, "target": "dm-0003", "message": "orphan"})
+    status, body = post(s.url + "_api/annotate", {"run": sid, "target": "dm-0003", "message": "orphan"})
     assert status == 400 and body["error"]["code"] == "no-session", body  # a session is named `session`, nothing else
     # nobody to sign it: the quilt names no author and the browser gave none
-    status, body = post(s.url + "_api/comment", {"session": sid, "target": "dm-0003", "message": "unsigned"})
+    status, body = post(s.url + "_api/annotate", {"session": sid, "target": "dm-0003", "message": "unsigned"})
     assert status == 400 and body["error"]["code"] == "refused" and "no author name" in body["error"]["message"], body
 
 
@@ -114,7 +114,7 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session, dec
     s, d = session
     sid = open_session(d)
     status, made = post(
-        s.url + "_api/comment",
+        s.url + "_api/annotate",
         {
             "session": sid,
             "target": "dm-0003",
@@ -129,7 +129,7 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session, dec
     before = notes.read_text() if notes.exists() else ""
 
     status, body = post(
-        s.url + "_api/refs-note",
+        s.url + "_api/refs-cite",
         {"session": sid, "annotation": ann, "decision": decision, "reason": "already cited", "author": "R"},
     )
     after = notes.read_text() if notes.exists() else ""
@@ -154,14 +154,14 @@ def test_a_write_without_the_token_is_refused_over_the_wire(session) -> None:  #
     """A browser blocks a cross-origin response and never the request, so any page the author happens to be reading could otherwise POST into their quilt (plan 0.13 §8)."""
     s, d = session
     body = {"session": open_session(d), "target": "dm-0003", "message": "from somewhere else", "author": "Nobody"}
-    status, said = post(s.url + "_api/comment", body, token="")
+    status, said = post(s.url + "_api/annotate", body, token="")
     assert status == 403 and "X-Loom-Token" in said["error"]["message"], said
     assert not [e for e in log(d) if e.get("body") == "from somewhere else"]
 
     # the token is served where the viewer reads it, and the same well-formed write carrying it is written
     _, _, discovery = get(s.url + "_api")
     assert json.loads(discovery)["token"]
-    status, said = post(s.url + "_api/comment", body)
+    status, said = post(s.url + "_api/annotate", body)
     assert status == 200, said
     assert len([e for e in log(d) if e.get("body") == "from somewhere else"]) == 1
 
@@ -199,14 +199,14 @@ def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(
     )
     monkeypatch.setenv("AI_AGENT", "1")
     said = handle(
-        q, "comment", {"session": open_session(q), "target": "dm-0003", "message": "from the browser", "kind": "note"}
+        q, "annotate", {"session": open_session(q), "target": "dm-0003", "message": "from the browser", "kind": "note"}
     )
     assert said["ok"], said
     written = log(q)[-1]
     assert written["author"] == "Wren Halloway" and written["kind"] == "human", written
     handle(
         q,
-        "comment",
+        "annotate",
         {
             "session": open_session(q),
             "target": "dm-0003",
@@ -264,7 +264,7 @@ def index(q: Path, sid: str) -> list[dict[str, Any]]:
 
 def noted(s: ServeSession, q: Path, sid: str, body: str = "A note to act on.") -> str:
     """Write one note on dm-0003 over the wire; its id."""
-    succeeds(s, "comment", {"session": sid, "target": "dm-0003", "message": body, "author": WHO})
+    succeeds(s, "annotate", {"session": sid, "target": "dm-0003", "message": body, "author": WHO})
     return the(log(q), lambda e: e.get("body") == body and e["event"] == "created", body)["id"]  # type: ignore[no-any-return]
 
 
@@ -273,14 +273,14 @@ def on_demo(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path, str]:
     return serve(q), q, new_session(q)
 
 
-@case("comment")
-def _comment(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("annotate")
+def _annotate(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
     ann = noted(s, q, sid)
     assert the(events(q, ann), lambda e: True, "event")["session"] == sid
     refuses(
         s,
-        "comment",
+        "annotate",
         {"session": sid, "target": "nope-9999", "message": "x", "author": WHO},
         404,
         "no-such-node",
@@ -359,11 +359,11 @@ def _discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     refuses(s, "discard", {"annotation": ann, "author": WHO}, 400, "no-session", "must name the session")
 
 
-@case("refs-note")
-def _refs_note(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("refs-cite")
+def _refs_cite(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
     ann = noted(s, q, sid, "Cite Manolache.")
-    said = succeeds(s, "refs-note", {"session": sid, "annotation": ann, "decision": "accept", "author": WHO})
+    said = succeeds(s, "refs-cite", {"session": sid, "annotation": ann, "decision": "accept", "author": WHO})
     assert said["result"].startswith(f"accepted {ann}")
     crumb = json.loads((q / "reference-notes.jsonl").read_text().splitlines()[-1])
     assert (crumb["work"], crumb["for"]) == ("Cite Manolache.", ["dm-0003"]), crumb
@@ -371,7 +371,7 @@ def _refs_note(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     missing = "a-1999-01-01-0001"
     refuses(
         s,
-        "refs-note",
+        "refs-cite",
         {"session": sid, "annotation": missing, "decision": "reject"},
         404,
         "no-such-annotation",

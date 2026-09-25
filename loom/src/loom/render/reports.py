@@ -23,7 +23,7 @@ DECLARATION = re.compile(r"^[ \t]*[-*][ \t]+\$(?P<tex>[^$]+)\$(?P<means>.*)$", r
 #: The elements a finding can be: a list item or a paragraph, with whatever attributes the renderer gave it.
 OPENING = re.compile(r"<(li|p)(\s[^>]*)?>")
 
-#: The annotation id a finding ends with, as `loom comment` prints it.
+#: The annotation id a finding ends with, as `loom annotate` prints it.
 ANNOTATION = re.compile(r"\(\s*(a-\d{4}-\d{2}-\d{2}-\d+)\s*\)")
 
 

@@ -6,7 +6,8 @@
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';
 	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
-	import type { CommentSlot } from '$lib/fragments/mount';
+	import { settled, type CommentSlot } from '$lib/fragments/mount';
+	import { ui } from '$lib/ui.svelte';
 	import type { Annotation } from '$lib/manifest/types';
 	import { anchorId, keyUrl } from '$lib/nav';
 	import { followNodes, followReading, reading, sectionIds } from '$lib/reading.svelte';
@@ -39,16 +40,19 @@
 	const plain = $derived(pathFor(m, { kind: 'document', id: item.id, ...(item.anchor ? { anchor: item.anchor } : {}) }));
 
 	const replies = (id: string) => repliesTo(m, id);
-	const slots = slotsFor(() => m);
+	const slots = slotsFor(() => m, () => master?.path ?? null);
 	const notes = $derived(documentState(item).notes);
-	/** Every comment inline: beside a comparison there is no gutter to put one in. */
-	const inlineSlots = (key: string): CommentSlot[] => commentsOn(m, key).map((a) => ({ id: a.id, where: 'inline' }));
+	/** Beside a comparison every annotation's box stands in the flow; a settled one only while settled annotations are shown, as its mark is (15.3.1). */
+	const inlineSlots = (key: string): CommentSlot[] =>
+		commentsOn(m, key)
+			.filter((a) => !settled(a) || ui.showSettled)
+			.map((a) => ({ id: a.id, where: 'inline' }));
 	/** Only the current item moves the panel's position bar and the local graph: two documents open at once would otherwise fight over one. */
 	const current = $derived(workspace.current ? itemKey(workspace.current) === itemKey(item) : false);
 	/** A context on screen already draws a local graph; a second one beside it, of whatever result the reading position has reached, would be one graph twice, and of a different result. */
 	const contextShown = $derived([0, 1].some((i) => workspace.active(i)?.kind === 'context'));
 
-	// The fragment is injected HTML, so the cards are mounted into the slots its wiring created rather than rendered by this template. They are unmounted whenever the fragment is replaced, so a reload leaves nothing behind.
+	// The fragment is injected HTML, so the cards are mounted into the slots its wiring created rather than rendered by this template. They are unmounted whenever the fragment is replaced, so a reload leaves nothing behind. Beside a comparison every card stands in the flow and is the annotation's one box: its mark travels to it rather than opening a second (`expand.ts`).
 	let mounted: Record<string, unknown>[] = [];
 
 	// The local graph follows the result being read (book 15.5.1). Whether it is open is a per-reader convenience kept in this browser, so a reader who put it away is not shown it on every document.
@@ -139,7 +143,7 @@
 			<div class="gutters-host">
 				<div class="gutters">
 					<div class="column">
-						<FragmentNotes holder={documentState(item)} fallback={master.path}>
+						<FragmentNotes holder={documentState(item)} fallback={master.path} in={master.path}>
 							{#key hasComparison}<Fragment
 									path={master.fragment}
 									master={master.path}

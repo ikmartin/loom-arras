@@ -21,7 +21,10 @@ test('the settings panel puts every row on one line, label included, with nothin
 			};
 		});
 	});
-	expect(rows.map((r) => r.label)).toHaveLength(7); // type, size, width, theme, format, comments, show ids
+	expect(rows.map((r) => r.label)).toHaveLength(7); // type, size, width, theme, format, annotations, show ids
+	// the placement row names the record by its one noun, whatever key it is stored under
+	expect(rows.map((r) => r.label)).toContain('Annotations');
+	expect(rows.map((r) => r.label)).not.toContain('Comments');
 	for (const r of rows) {
 		expect(r.lines, `the ${r.label} row wraps`).toBe(1);
 		expect(r.inline, `the ${r.label} label is not on the row's line`).toBe(true);

@@ -1,24 +1,17 @@
 <script lang="ts">
-	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the notes on its pages drawn over it, and
-	// the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it
-	// are the Library View's, so there is one frame and not one inside another.
+	// Reading one work (plan 0.13 item 5, item 6): the paper, its results and the annotations on its pages drawn over it, and the composer at the place a reader selects. Content only -- the split, the discussion and the composer beside it are the Library View's, so there is one frame and not one inside another.
 	//
-	// **The session selection governs the page.** What the panel is showing is what the page marks; a note the
-	// selection hides is counted in the header rather than drawn. **Two notes on one place are one mark** carrying
-	// both, as a phrase shared in a fragment is (§8): stacked translucent highlights muddy immediately, and the box that
-	// opens holds every lead comment in place.
+	// **The session selection governs the page.** What the panel is showing is what the page marks; an annotation the selection hides is not drawn. A settled one is drawn only while the settled control is on (book 15.3.1). **Two annotations on one place are one mark** carrying both, as a phrase shared in a fragment is (§8): stacked marks muddy immediately, and the box that opens holds every lead annotation in place.
 	//
-	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a
-	// link pointed at, lit while the URL carries it and not recorded; `annot=` names a note by id and focuses its mark.
+	// **A locator in the URL is drawn transiently** (§3, §6): `span=`, `box=` or `quote=` name a place a message or a link pointed at, lit while the URL carries it and not recorded; `annot=` names an annotation by id and focuses its mark.
 	import { artifactUrl, dataUrl } from '$lib/paths';
 	import { store } from '$lib/manifest/client.svelte';
-	import { hidden, visible } from '$lib/sessions/sessions.svelte';
+	import { visible } from '$lib/sessions/sessions.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { ui } from '$lib/ui.svelte';
 	import { inlineComments, type InlineComments } from '$lib/fragments/expand';
 	import { repliesTo } from '$lib/annotations';
 	import { travel as goTo } from '$lib/travel/travel';
-	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
 	import type { Sidecar } from './sidecar';
 	import type { Reference } from '$lib/manifest/types';
 	import type { WorkLink } from '$lib/worklink';
@@ -26,6 +19,7 @@
 	import PdfDoc from './PdfDoc.svelte';
 	import type { PdfView } from './view.svelte';
 	import NoteAt from './NoteAt.svelte';
+	import AnnotateChip from '$lib/fragments/AnnotateChip.svelte';
 	import { clearPending, showPending } from '$lib/fragments/pending';
 	import { onDestroy } from 'svelte';
 
@@ -95,13 +89,12 @@
 		boxes?.refresh();
 	});
 
-	/** The notes on this work's pages, top-level and standing. The session selection governs the page (plan 0.13 §7): what the panel is showing is what the page marks, and a note the selection hides is counted rather than drawn. */
+	/** The annotations on this work's pages, top-level and undiscarded; a resolved one is drawn as settled. The session selection governs the page (plan 0.13 §7): what the panel is showing is what the page marks, and one the selection hides is not drawn. */
 	const notes = $derived(
 		Object.values(store.manifest?.annotations ?? {}).filter(
 			(a) => a.target.work === citekey && !a.discarded && a.in_reply_to === null && (a.target.page ?? 0) > 0
 		)
 	);
-	const kept = $derived(hidden(store.manifest, notes));
 	/** The place the URL points at, mapped by loom into rectangles, while the URL carries it. */
 	let lit = $state<{ page: number; rects: number[][] } | null>(null);
 	$effect(() => {
@@ -126,8 +119,8 @@
 		};
 	});
 
-	type Drawn = { id: string; page: number; rects: number[][]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean };
-	/** Every anchor's geometry, by the page it is on: the work's results, the notes the selection shows -- stacked where they share a place -- and the lit locator. The document view draws what belongs to each page it renders. */
+	type Drawn = { id: string; page: number; rects: number[][]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean };
+	/** Every anchor's geometry, by the page it is on: the work's results, the annotations the selection shows -- stacked where they share a place, settled where every one of them is -- and the lit locator. The document view draws what belongs to each page it renders. */
 	const drawn = $derived.by<Drawn[]>(() => {
 		const out: Drawn[] = Object.entries(spans?.quads ?? {})
 			.map(([id, rects]) => ({ id, page: ref.results?.[id]?.page ?? 0, rects }))
@@ -138,8 +131,10 @@
 			if (!rects || !visible(store.manifest, a)) continue;
 			const key = `${a.target.page}:` + rects.map((r) => r.map((v) => Math.round(v)).join(',')).join(';');
 			const same = stacked.get(key);
-			if (same) same.ids!.push(a.id);
-			else stacked.set(key, { id: a.id, ids: [a.id], page: a.target.page ?? 0, rects, note: true, kind: a.kind });
+			if (same) {
+				same.ids!.push(a.id);
+				same.settled = same.settled && a.status !== 'open';
+			} else stacked.set(key, { id: a.id, ids: [a.id], page: a.target.page ?? 0, rects, note: true, kind: a.kind, severity: a.severity, settled: a.status !== 'open', basis: a.basis });
 		}
 		out.push(...stacked.values());
 		if (lit) out.push({ id: '_locator', page: lit.page, rects: lit.rects, transient: true });
@@ -223,8 +218,7 @@
 
 <section class="reading" data-testid="reading">
 	{#if url}
-		{#if kept}<p class="kept" data-testid="reading-hidden">{kept} note{kept === 1 ? '' : 's'} hidden by the session being shown</p>{/if}
-		<div class="paper" bind:this={pane}>
+		<div class="paper" class:show-settled={ui.showSettled} bind:this={pane}>
 			<PdfDoc
 				{url}
 				{page}
@@ -244,18 +238,17 @@
 		<p class="muted" data-testid="reading-absent">{absent}</p>
 	{/if}
 	{#if offered && !noting}
-		<!-- Above the selection, out of the way of the words it is about, and gone the moment the selection is. -->
-		<button
-			type="button"
-			class="offer"
-			data-testid="annotate-offer"
-			style="left: {Math.round(offered.at.left)}px; top: {Math.round(offered.at.top - 34)}px;"
-			onclick={() => {
-				showPending(offered!.range ?? null);
-				noting = { page: offered!.page, text: offered!.text, at: offered!.at };
+		<!-- At the selection's end, out of the way of the words it is about, and gone the moment the selection is or the composer opens. -->
+		<AnnotateChip
+			at={offered.at}
+			range={offered.range}
+			onaccept={() => {
+				if (!offered) return;
+				showPending(offered.range ?? null);
+				noting = { page: offered.page, text: offered.text, at: offered.at };
 				offered = null;
-			}}>annotate</button
-		>
+			}}
+		/>
 	{/if}
 	{#if noting}
 		<NoteAt
@@ -274,27 +267,6 @@
 </section>
 
 <style>
-	/* Fixed, because the rect it is placed by is the selection's own client rect, and inset like a floating box so it
-	   never hangs off the window. */
-	.offer {
-		position: fixed;
-		z-index: 30;
-		font-family: var(--sans);
-		font-size: 11px;
-		line-height: 1;
-		padding: 5px 10px;
-		border-radius: var(--rad-pill, 4px);
-		border: 1px solid var(--annotation, #c05621);
-		background: var(--sheet, #fff);
-		color: var(--annotation, #c05621);
-		box-shadow: 0 2px 8px rgb(0 0 0 / 14%);
-		cursor: pointer;
-	}
-	.offer:hover {
-		background: var(--annotation, #c05621);
-		color: var(--sheet, #fff);
-	}
-
 	.reading {
 		display: flex;
 		flex-direction: column;
@@ -310,12 +282,5 @@
 	.paper > :global(.doc) {
 		flex: 1 1 auto;
 		min-width: 0;
-	}
-	.kept {
-		margin: 0;
-		padding: 2px 8px;
-		font-family: var(--sans);
-		font-size: 11px;
-		color: var(--ink-faint);
 	}
 </style>

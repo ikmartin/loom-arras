@@ -18,6 +18,8 @@ class MarkEntry:
     file: str
     start: int
     end: int
+    #: the document this mark is drawn in, or None for every fragment that holds the node (plan 0.15, decision 9)
+    in_doc: str | None = None
 
 
 @dataclass

@@ -1,6 +1,6 @@
 """What an annotation is, and the record one belongs to (book 7.4).
 
-Annotations are stored as events in `annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom comment` and `loom refs note` write them.
+Annotations are stored as events in `annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom annotate` and `loom refs cite` write them.
 """
 
 from __future__ import annotations
@@ -12,22 +12,17 @@ from typing import Any
 from loom.anchors import Anchor
 from loom.records.selectors import Selector
 
-#: What an annotation is (plan 0.13 §7). `confirmation` replaces `ok`: every other kind is a noun, loom's own prose
-#: already says "three suggestions and one confirmation", and `good` would be praise where the claim is that something
-#: checks out. `checked` and `verified` were rejected for colliding with the anchor check and with `refs verify`.
-#: `note` is the explanation-or-aside kind, and the natural one for teaching.
-KINDS = ("objection", "suggestion", "question", "confirmation", "citation", "note")
-#: The kinds that **await an answer**. `note` and `confirmation` record rather than ask, so a session where a paper was
-#: read closely does not show a number that only ever climbs -- which is the same uselessness as counting notes.
+#: What an annotation says (plan 0.15, decision 2). Four kinds ask something of the author; `note` remarks, and is where "this checks out" goes too, since agreement earns no kind of its own.
+KINDS = ("objection", "suggestion", "question", "citation", "note")
+#: The kinds that **await an answer**. A note records rather than asks, so a session where a paper was read closely does not show a number that only ever climbs.
 ASKING = ("objection", "suggestion", "question", "citation")
 SEVERITIES = ("major", "moderate", "minor")
-#: Severity grades a fault, and only two kinds claim one. A graded question is a category error, and a graded
-#: confirmation says nothing at all.
+#: Severity grades a fault, and only two kinds claim one; a graded question is a category error.
 GRADED = ("objection", "suggestion")
 
 
 def full_kind(given: str) -> str | None:
-    """A kind from any unambiguous prefix of one, so the extra letters of `confirmation` cost nothing."""
+    """A kind from any unambiguous prefix of one: `obj`, `sug`, `q`, `c`, `n`."""
     if given in KINDS:
         return given
     hits = [k for k in KINDS if k.startswith(given.lower())]
@@ -57,6 +52,8 @@ class Annotation:
     discard_reason: str | None = (
         None  # why it was withdrawn, from the discarding event's body; never typed, always replayed
     )
+    #: The document this is read in, for a claim about a node that holds only there (plan 0.15, decision 9); None means the node wherever it appears.
+    in_doc: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,6 +61,7 @@ class Annotation:
             "author": {"kind": self.author_kind, "id": self.author_id},
             "created": self.created,
             "target": {"key": self.target_key, "hash": self.target_hash},
+            "in": self.in_doc,
             "selector": self.selector.to_dict() if self.selector else None,
             "anchor": self.anchor.to_dict() if self.anchor else None,
             "kind": self.kind,
@@ -87,6 +85,7 @@ class Annotation:
             created=str(d.get("created", "")),
             target_key=str(d.get("target", {}).get("key", "")),
             target_hash=str(d.get("target", {}).get("hash", "")),
+            in_doc=d.get("in") or None,
             selector=Selector.from_dict(sel) if isinstance(sel, dict) else None,
             anchor=Anchor.from_dict(anc) if isinstance(anc, dict) else None,
             kind=str(d.get("kind", "objection")),

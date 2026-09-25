@@ -23,7 +23,7 @@ async function transcript(page: Page, count: number, html?: (seq: number) => str
 
 /** A publisher that serves messages: the probe, the events poll and the message endpoint. */
 async function publisher(page: Page, state: { events: Ev[]; attached: { who: string; kind: string }[] }) {
-	await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['message', 'comment'], token: 't' } }));
+	await page.route('**/_api', (r) => r.fulfill({ json: { write_api: 1, capabilities: ['message', 'annotate'], token: 't' } }));
 	await page.route('**/_api/events*', (r) => {
 		const since = Number(new URL(r.request().url()).searchParams.get('since') ?? 0);
 		const events = state.events.filter((e) => e.seq > since);
@@ -230,8 +230,14 @@ test.describe('packets', () => {
 		await packet(page, [QUESTION, NOTE]);
 		await page.goto('/session/' + REFEREE);
 		const tray = page.getByTestId('packet-tray');
-		await expect(tray.getByTestId(`packet-row-${QUESTION.id}`)).toContainText('question');
-		await expect(tray.getByTestId(`packet-row-${QUESTION.id}`)).toContainText('Theorem 2.1');
+		// the kind is a dot in its hue before the link, never a word (annotation study A2); a note's is the neutral
+		const question = tray.getByTestId(`packet-row-${QUESTION.id}`);
+		await expect(question).not.toContainText('question');
+		await expect(question.getByTestId('packet-kind')).toHaveClass(/k-question/);
+		await expect(question.getByTestId('packet-kind')).toHaveAttribute('aria-label', 'question');
+		await expect(question.getByTestId('packet-kind')).toHaveCSS('background-color', 'rgb(24, 95, 165)');
+		await expect(question).toContainText('Theorem 2.1');
+		await expect(tray.getByTestId(`packet-row-${NOTE.id}`).getByTestId('packet-kind')).toHaveCSS('background-color', 'rgb(111, 109, 102)');
 		await expect(tray.getByTestId(`packet-row-${NOTE.id}`)).toContainText('main.tex');
 		// the preview is the publisher's own text, verbatim
 		await tray.getByTestId('packet-preview-toggle').click();
