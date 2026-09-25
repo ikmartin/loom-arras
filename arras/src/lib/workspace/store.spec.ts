@@ -40,10 +40,6 @@ describe('an item and its address', () => {
 		for (const href of ['/', '/graph', '/review?show=all', '/library']) expect(itemFromPath(m, href)).toBeNull();
 	});
 
-	it("reads a run's old address as its session", () => {
-		expect(itemFromPath(m, '/thread/s-1')).toEqual({ kind: 'session', id: 's-1' });
-	});
-
 	it('is one item whatever its place, so a place never makes a second tab', () => {
 		expect(itemKey(itemFromPath(m, '/library/Kre99?page=4')!)).toBe(itemKey(itemFromPath(m, '/library/Kre99?view=info')!));
 	});

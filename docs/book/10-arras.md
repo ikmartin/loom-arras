@@ -74,7 +74,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.8 Threads
 
-**[decided]** `/threads` lists threads newest first; `/thread/<id>` shows a chat-shaped page: participants, messages in order, attachments listed with name, kind, and count (bundles, drafts, proposals, notes, annotation counts), the run log collapsed, targets linked, the discard flag. Read-only in the MVP.
+**[decided]** `/threads` lists the quilt's sessions newest first, each linking to `/session/<id>`, where the session opens in the workspace with its two readings (15.3.9).
 
 ### 10.2.9 Indexes and search
 

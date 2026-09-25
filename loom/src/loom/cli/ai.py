@@ -151,22 +151,6 @@ def ai_start(name: str | None, quilt_path: str | None) -> None:
     click.echo(s.id)
 
 
-@ai.command(name="runs")
-@click.option("--all", "show_all", is_flag=True, help="Include closed sessions, marked.")
-@quilt_option
-def ai_runs(show_all: bool, quilt_path: str | None) -> None:
-    """List this quilt's sessions, newest last, as `YYYY-MM-DD: title`. The same list `loom session list` prints."""
-    from loom.ai.orient import open_sessions
-
-    quilt = open_quilt(quilt_path)
-    rows = open_sessions(quilt.root, include_closed=show_all)
-    if not rows:
-        click.echo("no sessions yet" if show_all else "no open sessions")
-        return
-    for _sid, title, created, closed in rows:
-        click.echo(f"  {created[:10]}: {title}" + (" (closed)" if closed else ""))
-
-
 @ai.command(name="name")
 @click.argument("new_name")
 @click.option(

@@ -54,8 +54,7 @@ export function coerce(raw: unknown): Prefs {
 	const pick = <T extends string>(v: unknown, allowed: T[], fallback: T): T =>
 		typeof v === 'string' && (allowed as string[]).includes(v) ? (v as T) : fallback;
 	const ratio = typeof o.divider === 'number' && Number.isFinite(o.divider) ? o.divider : DEFAULTS.divider;
-	// a number is what this stored before it was per kind; it was the PDF's
-	const stored = typeof o.zoom === 'number' ? { pdf: o.zoom } : typeof o.zoom === 'object' && o.zoom ? o.zoom : {};
+	const stored = typeof o.zoom === 'object' && o.zoom ? o.zoom : {};
 	const zoom: Record<string, number> = { ...DEFAULTS.zoom };
 	for (const [kind, v] of Object.entries(stored as Record<string, unknown>)) {
 		if (typeof v === 'number' && Number.isFinite(v)) zoom[kind] = Math.min(3, Math.max(0.5, v));

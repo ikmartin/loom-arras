@@ -92,9 +92,12 @@ def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ig
     status, body = post(s.url + "_api/comment", {"session": sid, "message": "no target"})
     assert status == 400 and body["error"]["code"] == "missing-field", body
     status, body = post(s.url + "_api/comment", {"session": sid, "target": "nope-9999", "message": "x", "author": "R"})
-    assert status == 400 and body["error"] == {"code": "bad-request", "message": "no such key: nope-9999"}, body
+    assert status == 404 and body["error"] == {"code": "no-such-node", "message": "no such key: nope-9999"}, body
     status, body = post(s.url + "_api/discard", {"session": sid, "annotation": "a-1999-01-01-0001", "author": "R"})
-    assert status == 400 and body["error"] == {"code": "refused", "message": "no annotation a-1999-01-01-0001"}, body
+    assert status == 404 and body["error"] == {
+        "code": "no-such-annotation",
+        "message": "no annotation a-1999-01-01-0001",
+    }, body
     # a write that names no session at all is malformed, not something to file against whatever was last active
     status, body = post(s.url + "_api/comment", {"target": "dm-0003", "message": "orphan"})
     assert status == 400 and body["error"]["code"] == "no-session", body
@@ -279,8 +282,8 @@ def _comment(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
         s,
         "comment",
         {"session": sid, "target": "nope-9999", "message": "x", "author": WHO},
-        400,
-        "bad-request",
+        404,
+        "no-such-node",
         "no such key",
     )
 
@@ -310,7 +313,12 @@ def _resolve(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     ]
     missing = "a-1999-01-01-0001"
     refuses(
-        s, "resolve", {"session": sid, "annotation": missing, "author": WHO}, 400, "refused", f"no annotation {missing}"
+        s,
+        "resolve",
+        {"session": sid, "annotation": missing, "author": WHO},
+        404,
+        "no-such-annotation",
+        f"no annotation {missing}",
     )
 
 
@@ -322,7 +330,14 @@ def _edit(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     edited = events(q, ann)[-1]
     assert (edited["event"], edited["body"], edited["severity"]) == ("edited", "Restated.", "minor"), edited
     missing = "a-1999-01-01-0001"
-    refuses(s, "edit", {"session": sid, "annotation": missing, "message": "x", "author": WHO}, 400, "refused", missing)
+    refuses(
+        s,
+        "edit",
+        {"session": sid, "annotation": missing, "message": "x", "author": WHO},
+        404,
+        "no-such-annotation",
+        missing,
+    )
 
 
 @case("discard")
@@ -352,6 +367,7 @@ def _refs_note(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     assert said["result"].startswith(f"accepted {ann}")
     crumb = json.loads((q / "reference-notes.jsonl").read_text().splitlines()[-1])
     assert (crumb["work"], crumb["for"]) == ("Cite Manolache.", ["dm-0003"]), crumb
+    assert crumb["from"] == {"session": sid, "annotation": ann}, crumb
     missing = "a-1999-01-01-0001"
     refuses(
         s,

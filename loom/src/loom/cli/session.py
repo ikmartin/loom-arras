@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import click
 
-from loom.cli._common import ContentError, EnvError, note
+from loom.cli._common import ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.sessions import (
     active,
@@ -63,7 +63,7 @@ def use_command(which: str, author: str | None, quilt_path: str | None) -> None:
     root = quilt.root  # type: ignore[attr-defined]
     s = resolve(root, which)
     if s is None:
-        raise ContentError(f"no session matches {which!r}; loom session list shows them")
+        raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     if s.state == "deleted":
         raise ContentError(f"{s.id} was deleted; nothing new can be written to it")
     if s.state == "closed":
@@ -123,7 +123,7 @@ def rename_command(which: str, title: str, author: str | None, quilt_path: str |
     root = quilt.root  # type: ignore[attr-defined]
     s = resolve(root, which)
     if s is None:
-        raise ContentError(f"no session matches {which!r}; loom session list shows them")
+        raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     rename(root, s.id, title, who)
     click.echo(f"{s.id}  {title}")
 
@@ -139,7 +139,7 @@ def close_command(which: str | None, author: str | None, quilt_path: str | None)
     here = active(root)
     s = resolve(root, which) if which else (sessions(root).get(here or ""))
     if s is None:
-        raise ContentError(f"no session matches {which!r}" if which else "no session is active")
+        raise NotFoundError("session", f"no session matches {which!r}" if which else "no session is active")
     close(root, s.id, who)
     if s.id == here:
         set_active(root, None)
@@ -168,7 +168,7 @@ def delete_command(
     root = quilt.root  # type: ignore[attr-defined]
     s = resolve(root, which)
     if s is None:
-        raise ContentError(f"no session matches {which!r}; loom session list shows them")
+        raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     if purge:
         kept, dropped = _without(root, s.id)
         if not yes:

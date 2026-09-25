@@ -16,7 +16,7 @@ from typing import Any, TypeVar, cast
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.clock import stamp
 from loom.refs.identity import declared
@@ -31,7 +31,7 @@ def _home(result: ScanResult, citekey: str) -> Path:
 
     entry = result.bib.get(citekey)
     if entry is None:
-        raise EnvError(f"{citekey} is not in the bibliography, so it has no identity to file under")
+        raise NotFoundError("work", f"{citekey} is not in the bibliography, so it has no identity to file under")
     return work_dir(result.quilt.root, entry)
 
 
@@ -170,7 +170,7 @@ def resolve_command(
     if citekeys:
         missing = [ck for ck in citekeys if ck not in result.bib]
         if missing:
-            raise EnvError(f"not in the bibliography: {', '.join(missing)}")
+            raise NotFoundError("work", f"not in the bibliography: {', '.join(missing)}")
         wanted = list(citekeys)
     else:
         cited = {c.citekey for c in result.edges.cites}
@@ -266,7 +266,7 @@ def note_command(
     assert ann_id is not None
     found = find_annotation(Records(root).records, ann_id)
     if found is None:
-        raise ContentError(f"no annotation {ann_id}")
+        raise NotFoundError("annotation", f"no annotation {ann_id}")
     _rec, ann = found
     if ann.kind != "citation":
         raise ContentError(f"{ann_id} is a {ann.kind}, not a citation suggestion")
@@ -284,7 +284,7 @@ def note_command(
                 "claim": ann.body,
                 "identifier": {"verified": False},
                 "accepted": {"when": stamp(), "who": who},
-                "from": {"run": _rec.rel, "annotation": ann_id},
+                "from": {"session": _rec.rel, "annotation": ann_id},
             },
         )
     append(
@@ -295,7 +295,6 @@ def note_command(
             "when": stamp(),
             "author": who,
             "kind": "human",
-            "run": None,
             "body": reason or ("accepted" if accept_id else "rejected"),
         },
     )
@@ -443,6 +442,11 @@ def fetch_command(
     missing = [ck for ck in citekeys if ck not in result.bib]
     if missing:
         raise EnvError(f"not in the bibliography: {', '.join(missing)}")
+    if not result.quilt.config.fetch:
+        # consent is the environment's to give, like every other refusal before loom does anything
+        raise EnvError(
+            "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
+        )
     wanted = (
         [w for w in survey(result) if w.citekey in set(citekeys)]
         if citekeys
@@ -1332,7 +1336,7 @@ def link_command(
             try:
                 find_result(result, end)
             except LookupError as exc:
-                raise ContentError(f"{end} is not a result in any digest: {exc}") from exc
+                raise NotFoundError("result", f"{end} is not a result in any digest: {exc}") from exc
     from loom.cli._common import agent_marker
 
     if run_dir:
@@ -1681,7 +1685,7 @@ def unreadable_command(citekey: str, why: str | None, undo: bool, author: str | 
     result = open_scan(quilt_path)
     root = result.quilt.root
     if citekey not in result.bib:
-        raise ContentError(f"{citekey} is not in the bibliography; this declaration is keyed by citekey")
+        raise NotFoundError("work", f"{citekey} is not in the bibliography; this declaration is keyed by citekey")
     standing = declarations(root, "unreadable").get(citekey)
     if undo and standing is None:
         raise ContentError(f"{citekey} is not declared unreadable")
@@ -1745,4 +1749,4 @@ def _forget_key(root: Path, target: str, bib: dict[str, Any]) -> str:
             return f"sha256:{hits[0]}"
         if len(want) == 64:
             return f"sha256:{want}"
-    raise ContentError(f"{target} is neither a citekey in the bibliography nor a hash in the copy ledger")
+    raise NotFoundError("work", f"{target} is neither a citekey in the bibliography nor a hash in the copy ledger")

@@ -227,7 +227,7 @@ def test_import_digest_as_rewrites_prefix(tmp_path: Path) -> None:
 def test_fetch_refused_without_config(tmp_path: Path) -> None:
     q = demo(tmp_path)
     before = sorted(p.relative_to(q) for p in storage_root(q).rglob("*"))
-    refused("refs", "fetch", "Ref20", code=1, match="fetch = true", cwd=q)
+    refused("refs", "fetch", "Ref20", code=2, match="fetch = true", cwd=q)
     assert sorted(p.relative_to(q) for p in storage_root(q).rglob("*")) == before, "a refused fetch writes nothing"
 
 

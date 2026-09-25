@@ -118,7 +118,7 @@ def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> Iden
     for name in plan.outside:
         note(f"  {name} -> not copied; it lies outside the paper directory (loom:import-outside-tree)")
     if plan.exists:
-        raise ContentError(f"{plan.canon_rel} exists; import never overwrites a canon document")
+        raise EnvError(f"{plan.canon_rel} exists; import never overwrites a canon document")
     from loom.tex.runner import compile_tex, stage_sources
 
     ident: IdentityResult | None = None

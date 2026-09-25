@@ -10,7 +10,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 ## 2. Endpoints
 
-**[decided]** All requests and responses are JSON. Errors return `{"error": {"code": "...", "message": "..."}}` with 4xx status; the codes are the CLI's exit reasons. `comment`, `reply`, `resolve`, `edit`, `discard` and `refs-note` name the session they are written in, and one naming none is refused with `no-session`: nothing here falls back to the active session.
+**[decided]** All requests and responses are JSON. Errors return `{"error": {"code": "...", "message": "..."}}` with 4xx status; the codes are the CLI's exit reasons. A request that names something that does not exist answers 404 with `no-such-node`, `no-such-annotation`, `no-such-session`, `no-such-work` or `no-such-result`, the same refusals the CLI exits 2 for; 400 is a malformed request or a write refused on its merits, 403 the CSRF gate, 409 a conflict with the quilt's state. `comment`, `reply`, `resolve`, `edit`, `discard` and `refs-note` name the session they are written in, and one naming none is refused with `no-session`: nothing here falls back to the active session.
 
 | method | path | body | effect |
 |---|---|---|---|

@@ -208,7 +208,7 @@ def _locator(node: NodeRec) -> str | None:
 
 
 def _published_notes(root: Path) -> list[dict[str, Any]]:
-    """Reference notes as the manifest carries them; `from.run` is the session id, the same key an annotation groups by."""
+    """Reference notes as the manifest carries them; `from.session` is the session the suggestion was written in."""
     from loom.refs.notes import read_notes
 
     return list(read_notes(root))

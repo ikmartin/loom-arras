@@ -411,7 +411,7 @@ def test_the_link_cli_refuses_an_end_that_is_not_a_result(tmp_path: Path) -> Non
         "same-notion",
         "--why",
         "w",
-        code=1,
+        code=2,
         match="not a result",
         cwd=q,
     )
@@ -1238,7 +1238,7 @@ def test_forget_is_keyed_by_citekey_or_by_a_prefix_of_a_stored_hash(tmp_path: Pa
         "A. Author",
         "--why",
         "x",
-        code=1,
+        code=2,
         match="neither a citekey",
         cwd=q,
     )

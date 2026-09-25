@@ -85,7 +85,6 @@ The author may be talking to you. A session carries an inbox; `loom session next
   - `loom ai findings`
   - `loom ai name`
   - `loom ai orient`
-  - `loom ai runs`
   - `loom ai start`
   - `loom build`
   - `loom check`

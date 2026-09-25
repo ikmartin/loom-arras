@@ -133,17 +133,6 @@ This is also how an agent joins a session it did not open: `loom ai orient --ses
 | `--session` `SESSION` | Attach to this session: also print the end of its chat and its command log. An id, a title, or a unique id suffix. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-### `loom ai runs`
-
-`loom ai runs [OPTIONS]`
-
-List this quilt's sessions, newest last, as `YYYY-MM-DD: title`. The same list `loom session list` prints.
-
-| option | description |
-|---|---|
-| `--all` | Include closed sessions, marked. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 ### `loom ai start`
 
 `loom ai start [OPTIONS] [NAME]`

@@ -10,7 +10,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError, emit_json
+from loom.cli._common import ContentError, EnvError, NotFoundError, emit_json
 from loom.cli._quilt import describe, open_quilt, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for, log_run
 from loom.clock import stamp, today
@@ -268,7 +268,7 @@ def _writer(root: Path, session: str | None, author: str | None, *, sniff: bool 
     if session:
         s = resolve_session(root, session)
         if s is None:
-            raise ContentError(f"no session matches {session!r}; loom session list shows them")
+            raise NotFoundError("session", f"no session matches {session!r}; loom session list shows them")
         if s.state == "deleted":
             raise ContentError(f"{s.id} was deleted; nothing new can be written to it")
     else:
@@ -336,7 +336,7 @@ def _one_comment(
     if resolve:
         found = find_annotation(records, resolve)
         if found is None:
-            raise ContentError(f"no annotation {resolve}")
+            raise NotFoundError("annotation", f"no annotation {resolve}")
         _, parent = found
         event: dict[str, Any] = {**base, "event": "resolved", "id": resolve, "body": message or ""}
         if undo:
@@ -349,7 +349,7 @@ def _one_comment(
             raise EnvError("a reply with no message says nothing; give the text as the argument after the id")
         found = find_annotation(records, reply)
         if found is None:
-            raise ContentError(f"no annotation {reply}")
+            raise NotFoundError("annotation", f"no annotation {reply}")
         _, parent = found
         ann_id = next_id(records, date)
         append(
@@ -532,7 +532,7 @@ def discard_annotation(
     """
     records = Records(root).records
     if find_annotation(records, ann_id) is None:
-        raise ContentError(f"no annotation {ann_id}")
+        raise NotFoundError("annotation", f"no annotation {ann_id}")
     session, akind, aid = writer
     event: dict[str, Any] = {
         "event": "discarded",
@@ -565,7 +565,7 @@ def edit_annotation(result: ScanResult, ann_id: str, writer: tuple[str, str, str
     root = result.quilt.root
     found = find_annotation(Records(root).records, ann_id)
     if found is None:
-        raise ContentError(f"no annotation {ann_id}")
+        raise NotFoundError("annotation", f"no annotation {ann_id}")
     session, akind, aid = writer
     event: dict[str, Any] = {
         "event": "edited",

@@ -314,7 +314,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "1292459b893a51eb5808ae3d2c48611168b5e1cacae7b0876354b9981b9420e5",
+   "hash": "682919ef37d591971a382e90a43d03c20cb4bf178deb11878c15884b3a70a7cf",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -326,7 +326,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "050fd5b58c8d61116a72a6b2953fa1e9510dfb09693fddbc7bb87472d3f149d0",
+   "hash": "77b3d9890ca6ce214b1739db48c7266f3f8158e4f384e8f2b3d4509ed0c9dc0b",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -338,7 +338,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "145b7ea25eee8c070a1acc78664fa73b2f3afeec034a8c7bf5b993363c826359",
+   "hash": "7d9c8b23e0a5f170f46a19ec5669265d565b29357a365e2e7774ea4586e6902b",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -4476,7 +4476,7 @@
    ],
    "from": {
     "annotation": "a-2026-09-16-0004",
-    "run": "s-2026-09-16-0001"
+    "session": "s-2026-09-16-0001"
    },
    "identifier": {
     "verified": false

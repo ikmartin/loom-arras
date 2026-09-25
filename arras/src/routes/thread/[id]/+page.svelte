@@ -1,1 +1,0 @@
-<!-- A session's address, kept under its old name so a link written before the workspace still lands (plan 0.13.3): the layout reads it into the workspace as a session item. The route draws nothing of its own. -->

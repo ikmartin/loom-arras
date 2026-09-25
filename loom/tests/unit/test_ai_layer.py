@@ -238,19 +238,19 @@ def test_ai_start_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> 
 def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -> None:
     """A session is addressed by what the author called it; remembering the minute it opened is not a workflow."""
     q = bare(tmp_path)
-    assert ok("ai", "runs", cwd=q).output.strip() == "no open sessions"
+    assert ok("session", "list", cwd=q).output.startswith("no sessions yet")
     ref = ok("ai", "start", "Referee of the parity theorem", cwd=q, env=FIXED).output.strip()
     other = ok("ai", "start", "Ingest of Hartshorne", cwd=q, env=FIXED).output.strip()
     assert ref != other
-    listing = ok("ai", "runs", cwd=q).output
-    assert "2026-09-16: Referee of the parity theorem" in listing
-    assert "2026-09-16: Ingest of Hartshorne" in listing
+    listing = ok("session", "list", cwd=q).output
+    assert f"{ref}  Referee of the parity theorem" in listing
+    assert f"{other}  Ingest of Hartshorne" in listing
 
     # "Referee **of**…" and "Ingest **of**…": named, not guessed
     refused("ai", "findings", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
 
     ok("ai", "name", "Parity, revisited", "--session", "parity", cwd=q)
-    assert "Parity, revisited" in ok("ai", "runs", cwd=q).output
+    assert "Parity, revisited" in ok("session", "list", cwd=q).output
 
     ok(
         "comment",
@@ -274,8 +274,9 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     assert "dm-0003" in f.output and "suggestion" in f.output and "a finite set" in f.output
 
     ok("ai", "discard", ref, cwd=q)
-    assert "Parity, revisited" not in ok("ai", "runs", cwd=q).output
-    assert "(closed)" in ok("ai", "runs", "--all", cwd=q).output
+    assert "Parity, revisited" not in ok("session", "list", cwd=q).output
+    assert "Parity, revisited" in ok("session", "list", "--all", cwd=q).output
+    refused("ai", "runs", cwd=q, code=2, match="No such command 'runs'")
 
 
 def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:

@@ -348,7 +348,7 @@ def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
 def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     # Imported here rather than at module scope: the CLI package pulls in click and the whole command tree, and a
     # server that is only ever asked for files should not pay for it at startup.
-    from loom.cli._common import ContentError, EnvError
+    from loom.cli._common import ContentError, EnvError, NotFoundError
     from loom.cli._quilt import open_scan
     from loom.cli.review import _one_comment, _writer, discard_annotation, edit_annotation
 
@@ -372,6 +372,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         # terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped
         # sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
         writer = _writer(root, which, _str(body, "author"), sniff=False)
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except (EnvError, ContentError) as exc:
         raise ApiError("refused", str(exc)) from exc
 
@@ -415,6 +417,8 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 result, writer, None, _str(body, "message", required=True), None, None, annotation, None
             )
         return _one_comment(result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo)
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except ContentError as exc:
         raise ApiError("refused", str(exc)) from exc
     except EnvError as exc:
@@ -452,7 +456,7 @@ def _refs_note(root: Path, body: dict[str, Any]) -> str:
             "claim": annotation.selector.exact if annotation.selector else None,
             "identifier": {"verified": False},
             "accepted": {"when": stamp(), "who": _str(body, "author") or "viewer"},
-            "from": {"run": record.rel, "annotation": ann_id},
+            "from": {"session": record.rel, "annotation": ann_id},
         },
     )
     return f"accepted {ann_id}; {resolved}"

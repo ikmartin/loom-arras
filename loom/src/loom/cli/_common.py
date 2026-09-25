@@ -34,6 +34,14 @@ class EnvError(click.ClickException):
         return self.message
 
 
+class NotFoundError(EnvError):
+    """An argument names something that does not exist: a node, an annotation, a session, a cited work, a result. Exit 2, like any argument that names nothing; the write API answers it 404 `no-such-<what>`."""
+
+    def __init__(self, what: str, message: str) -> None:
+        super().__init__(message)
+        self.what = what
+
+
 def emit_json(obj: Any) -> None:
     """Print one JSON document to stdout and nothing else there; diagnostics go to stderr."""
     click.echo(json.dumps(obj, indent=2, sort_keys=True, ensure_ascii=False))
@@ -75,7 +83,7 @@ def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
             # naming the matches rather than guessing, as `refs resolve` does with candidates
             named = ", ".join(f"{x.id} ({x.title})" for x in hits[:4])
             raise EnvError(f"{which!r} matches {len(hits)} sessions: {named}")
-    raise EnvError(f"no session matches {which!r}; loom session list shows them")
+    raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
 
 
 #: Environment variables an agent's shell carries. `AI_AGENT` is the generic one; the rest name a particular tool.

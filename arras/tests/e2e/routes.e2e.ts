@@ -71,11 +71,11 @@ test('live reload follows the manifest only', async ({ page }) => {
 	await expect(page.locator('main h1')).toHaveText('Renamed corpus', { timeout: 5000 });
 });
 
-test("a session's old address opens it, read as its Chat and as what it did", async ({ page }) => {
+test('a session opens on its Chat, and reads also as what it did', async ({ page }) => {
 	await page.goto('/threads');
 	await expect(page.getByText('referee').first()).toBeVisible();
-	// a run's old address is its session's, and it opens on the Chat, one of the session's two readings
-	await page.goto('/thread/' + REFEREE);
+	// a session opens on the Chat, one of its two readings
+	await page.goto('/session/' + REFEREE);
 	const chat = page.getByTestId('chat');
 	await expect(chat).toBeVisible();
 	await expect(page.getByTestId('tab-chat')).toHaveAttribute('aria-pressed', 'true');

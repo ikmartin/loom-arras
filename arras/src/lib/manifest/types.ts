@@ -306,7 +306,7 @@ export interface ReferenceNote {
   claim?: string | null;
   identifier?: { verified: boolean; id?: string };
   accepted?: { when: string; who: string };
-  from?: { run: string; annotation: string };
+  from?: { session: string; annotation: string };
 }
 
 /** One session as the selector shows it. The id is the address and never changes; the title is the author's and may. */

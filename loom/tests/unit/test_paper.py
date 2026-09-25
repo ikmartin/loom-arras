@@ -127,7 +127,7 @@ def test_import_leaves_the_paper_directory_and_no_scratch_behind(tmp_path: Path,
 def test_import_refuses_an_existing_canon_document(tmp_path: Path) -> None:
     q = imported(tmp_path)
     p = tmp_path / "paper"
-    refused("import", str(p / "main.tex"), "--yes", cwd=q, code=1, match="canon/main.tex exists")
+    refused("import", str(p / "main.tex"), "--yes", cwd=q, code=2, match="canon/main.tex exists")
     assert len((q / ".loom" / "history" / "ledger.jsonl").read_text().splitlines()) == 1
 
 

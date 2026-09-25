@@ -439,7 +439,7 @@ def test_a_recheck_edits_a_finding_rather_than_replying(tmp_path: Path) -> None:
         sid,
         cwd=d,
         env=AGENT,
-        code=1,
+        code=2,
         match="no annotation a-nope-0001",
     )
 
@@ -470,7 +470,7 @@ def test_a_finding_raised_in_error_is_discarded_not_resolved(tmp_path: Path) -> 
         sid,
         cwd=d,
         env=AGENT,
-        code=1,
+        code=2,
         match="no annotation a-nope-0001",
     )
 
@@ -556,6 +556,7 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
     assert len(notes) == 1
     assert notes[0]["for"] == ["dm-0002"] and notes[0]["identifier"] == {"verified": False}
     assert notes[0]["from"]["annotation"] == first and "Kreck" in notes[0]["claim"]
+    assert set(notes[0]["from"]) == {"session", "annotation"} and notes[0]["from"]["session"].startswith("s-")
 
     ok("refs", "note", "--reject", second, "--reason", "Har77 is about something else.", *AUTHOR, cwd=d)
     still = [json.loads(ln) for ln in (d / "reference-notes.jsonl").read_text().splitlines() if ln.strip()]

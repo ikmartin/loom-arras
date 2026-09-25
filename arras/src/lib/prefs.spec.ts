@@ -38,9 +38,9 @@ describe('the display preferences', () => {
 		expect(coerce({ divider: 'wide' }).divider).toBe(DEFAULTS.divider);
 		expect(coerce({ comments: 'hover' }).comments).toBe('floating');
 		// zoom is per renderer kind and remembered, and is clamped for the same reason the divider is
-		expect(coerce({ zoom: 9 }).zoom).toEqual({ pdf: 3 }); // a bare number is read as the pdf zoom
+		expect(coerce({ zoom: { pdf: 9 } }).zoom).toEqual({ pdf: 3 });
 		expect(coerce({ zoom: { pdf: 0.1, other: 2 } }).zoom).toEqual({ pdf: 0.5, other: 2 });
-		expect(coerce({ zoom: 0.1 }).zoom).toEqual({ pdf: 0.5 });
+		expect(coerce({ zoom: 0.1 }).zoom).toEqual(DEFAULTS.zoom); // zoom is kept per kind, so a bare number is not one
 	});
 
 	it('round-trips through storage', () => {

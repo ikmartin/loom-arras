@@ -102,8 +102,6 @@ export function itemFromPath(m: Documents | null, href: string): Item | null {
 		case 'context':
 			return { kind: 'context', id: keyFromParam(tail) };
 		case 'session':
-		// a run's record was a page of its own; its address now names the session it belongs to, so old links still land
-		case 'thread':
 			return { kind: 'session', id: safe(tail), ...(query.get('view') ? { view: query.get('view')! } : {}) };
 		default:
 			return null;

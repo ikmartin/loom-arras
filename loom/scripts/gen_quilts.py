@@ -167,7 +167,7 @@ def build_synthetic(dest: Path) -> None:
 
     # A first pass that was discarded; its one annotation is written with the rest, below.
     g.at("2026-09-15T10:00:00Z")
-    (dest / "ai" / "runs").mkdir(parents=True)
+    (dest / "ai").mkdir(parents=True)
     quick = g.run("ai", "start", "quick").strip().splitlines()[-1].strip()
 
     # The author rewrites the definition, so everything that depends on it goes stale.
