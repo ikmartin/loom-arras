@@ -1,1 +1,0 @@
-import{o as e}from"./DOw5dt_h.js";var t=``;function n(e){return e.replace(/\/+$/,``)+`/`}function r(){return t||n(e+`/build`)}function i(e){return r()+e.replace(/^\/+/,``)}function a(e){return r().replace(/build\/$/,``)+e.replace(/^\/+|\/+$/g,``)+`/paper.pdf`}function o(t){return e+t}export{i as n,o as r,a as t};

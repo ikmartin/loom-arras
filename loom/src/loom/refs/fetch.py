@@ -116,7 +116,7 @@ def work_dir(root: Path, entry: BibEntry | None) -> Path:
 
 
 def _get(url: str, attempts: int = 3) -> bytes:
-    """GET with loom's User-Agent; arXiv answers a burst of requests with 406, so a failed attempt is retried after a pause."""
+    """GET with loom's User-Agent; a 406 (arXiv's answer to a burst), 429 or 5xx, or an unreachable host, is retried after a pause of 3 s, then 6 s."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
     last: Exception | None = None
     for attempt in range(attempts):
@@ -127,7 +127,7 @@ def _get(url: str, attempts: int = 3) -> bytes:
                 return bytes(resp.read())
         except urllib.error.HTTPError as exc:
             last = FetchRefused(f"{url}: HTTP {exc.code} {exc.reason}")
-            if exc.code not in (406, 429, 500, 502, 503):
+            if exc.code not in (406, 429) and not 500 <= exc.code < 600:
                 break
         except urllib.error.URLError as exc:
             last = FetchRefused(f"{url}: {exc.reason}")
@@ -149,9 +149,11 @@ def _unpack(data: bytes, dest: Path) -> list[Path]:
         raw = data
     try:
         with tarfile.open(fileobj=io.BytesIO(raw), mode="r:") as tar:
+            inside = dest.resolve()
             for member in tar.getmembers():
                 target = (dest / member.name).resolve()
-                if not str(target).startswith(str(dest.resolve())) or member.issym() or member.islnk():
+                # is_relative_to, not a string prefix: `../src-evil/x` resolves under a sibling whose name begins `src`
+                if not target.is_relative_to(inside) or member.issym() or member.islnk():
                     continue
                 if member.isdir():
                     target.mkdir(parents=True, exist_ok=True)

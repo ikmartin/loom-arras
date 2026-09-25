@@ -1,12 +1,11 @@
 <script lang="ts">
-	// Shell C, the default (book 15.2.3): a 44px icon strip of the views this corpus has, search and the settings control, beside a panel holding the page's own panel when it has one and the document's contents otherwise.
+	// The navigation shell (book 15.2.3): a 44px icon strip of the views this corpus has, search, and at its foot the problems glyph and the settings control, beside a panel holding the page's own panel when it has one and the documents otherwise, with the write target pinned beneath.
 	// The strip carries no separate home mark: home is one of the views, and a second control going to the same place is a puzzle, not a shortcut.
 	import Contents from './Contents.svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { canonUrl, masterUrl, nodeUrl, workUrl } from '$lib/nav';
 	import { bibText } from '$lib/works';
-	import SessionPicker from '$lib/sessions/SessionPicker.svelte';
-	import { openSession } from '$lib/sessions/new';
+	import SessionFooter from '$lib/sessions/SessionFooter.svelte';
 	import DevShelf from './DevShelf.svelte';
 	import Icon from '$lib/components/Icon.svelte';
 	import Settings from './Settings.svelte';
@@ -14,15 +13,21 @@
 	import { route } from '$lib/paths';
 	import type { ShellProps } from './props';
 
-	let { label, views, indexes, currentView, masters, canon, currentDoc, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
+	let { label, views, indexes, currentView, masters, canon, currentDoc, onDocument, contents, currentSection, counts, search, children, rail, panel, panelLabel }: ShellProps = $props();
 
-	// Sessions stand in the panel whenever the corpus has any: which one is being written to is a standing fact about
-	// the corpus, not a property of whichever page is open.
-	const sessions = $derived(store.manifest?.sessions ?? []);
-	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes.
-	const works = $derived(Object.values(store.manifest?.references ?? {}));
-	const library = $derived(works.slice(0, 6));
-	const more = $derived(works.length > 6 ? works.length : 0);
+	// The problems view stands at the strip's foot as a warning glyph (plan 0.13.3 S9): it answers whether anything is wrong, so it carries the counts and takes their colour.
+	const problems = $derived(views.find((v) => v.id === 'problems'));
+	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
+	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes. This is the list's one home (plan 0.13.3 P2): the `/library` route is a ledger of what each work needs, not a second list. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs.
+	const works = $derived(
+		Object.values(store.manifest?.references ?? {}).sort((a, b) => (bibText(a.bib.title) || a.citekey).localeCompare(bibText(b.bib.title) || b.citekey))
+	);
+	let workFilter = $state('');
+	const WORKS_SHOWN = 30;
+	const library = $derived.by(() => {
+		const q = workFilter.trim().toLowerCase();
+		return q ? works.filter((r) => `${r.citekey} ${bibText(r.bib.title)} ${bibText(r.bib.author ?? '')}`.toLowerCase().includes(q)) : works;
+	});
 	// Nodes (plan 0.13 §7): the corpus's own statements, by id, narrowed by what is typed. Folded by default -- a
 	// corpus of a hundred results would otherwise be the panel -- and never the digests' nodes, which the Library
 	// lists as works.
@@ -33,6 +38,20 @@
 	);
 	let nodeFilter = $state('');
 	let nodesOpen = $state(false);
+
+	// **On a narrow window the panel goes first** (plan 0.13 §7): below 1200px the workspace and its rail need the width, so the panel shows folded whatever the reader's stored choice, and the fold opens it for this visit without rewriting that choice. A window widened again shows the stored choice.
+	const SQUEEZED = 1200;
+	let windowWidth = $state(typeof window === 'undefined' ? SQUEEZED : window.innerWidth);
+	let peek = $state<boolean | null>(null);
+	const squeezed = $derived(windowWidth < SQUEEZED);
+	const shown = $derived(squeezed ? (peek ?? false) : prefs.panel);
+	$effect(() => {
+		if (!squeezed) peek = null;
+	});
+	function fold(): void {
+		if (squeezed) peek = !shown;
+		else prefs.panel = !prefs.panel;
+	}
 	const NODES_SHOWN = 30;
 	const matching = $derived.by(() => {
 		const q = nodeFilter.trim().toLowerCase();
@@ -48,28 +67,18 @@
 	// is what the author types and what `--master` and the read view's URL name them by.
 	const filename = (path: string) => path.split('/').pop() || path;
 
-	let naming = $state(false);
-	let newName = $state('');
-
-	async function start(): Promise<void> {
-		const want = newName.trim();
-		naming = false;
-		newName = '';
-		if (want) await openSession(want);
-	}
-
 	let docsOpen = $state(true);
-	// Folded at rest: the contents now hang off the open document, and a disclosure that is already open is a section
-	// with extra steps.
-	let contentsOpen = $state(false);
+	// Open at rest (plan 0.13.3 S2): where am I in this is the question asked most often while reading, and should not cost a click.
+	let contentsOpen = $state(true);
 	let libraryOpen = $state(true);
-	let sessionsOpen = $state(true);
 </script>
+
+<svelte:window bind:innerWidth={windowWidth} />
 
 <div class="shell-c">
 	<nav class="strip" aria-label="Views">
 		<ul>
-			{#each views as v (v.id)}
+			{#each views.filter((v) => v.id !== 'problems') as v (v.id)}
 				<li>
 					<a
 						href={v.href}
@@ -84,21 +93,36 @@
 			<li><button onclick={search} aria-label="Search" title="search"><Icon name="search" /></button></li>
 			<li><DevShelf {indexes} /></li>
 		</ul>
-		<div class="foot"><Settings placement="above" /></div>
+		<div class="foot">
+			{#if problems}
+				<a
+					href={problems.href}
+					class="problems"
+					class:errors={counts.errors > 0}
+					class:warnings={!counts.errors && counts.warnings > 0}
+					class:current={currentView === 'problems'}
+					aria-current={currentView === 'problems' ? 'page' : undefined}
+					aria-label="problems: {tally}"
+					title="problems: {tally}"
+					data-testid="problems-glyph"><Icon name={problems.icon} /></a
+				>
+			{/if}
+			<Settings />
+		</div>
 	</nav>
 
-	<div class="panel" class:away={!prefs.panel}>
+	<div class="panel" class:away={!shown}>
 		<div class="head">
 			<a href={route('/')} class="name">{label}</a>
 			<!-- The panel collapses independently of the split and goes first: on a narrow window it is the column a
 			     reader needs least, and the content and the discussion want the width. -->
 			<button
 				class="fold"
-				title={prefs.panel ? 'Hide the panel' : 'Show the panel'}
-				aria-label={prefs.panel ? 'Hide the panel' : 'Show the panel'}
-				aria-expanded={prefs.panel}
+				title={shown ? 'Hide the panel' : 'Show the panel'}
+				aria-label={shown ? 'Hide the panel' : 'Show the panel'}
+				aria-expanded={shown}
 				data-testid="panel-fold"
-				onclick={() => (prefs.panel = !prefs.panel)}>{prefs.panel ? '«' : '»'}</button
+				onclick={fold}>{shown ? '«' : '»'}</button
 			>
 		</div>
 		<div class="sections rail-scroll">
@@ -119,7 +143,7 @@
 					     and on a corpus of several drafts that is the first question. Only the open document has the
 					     disclosure, because it is the only one whose contents this page knows. -->
 					{#snippet doc(path: string, href: string, step?: string)}
-						{@const here = path === currentDoc}
+						{@const here = onDocument && path === currentDoc}
 						<li>
 							<span class="row">
 								<a {href} class:here aria-current={here ? 'page' : undefined}>
@@ -176,46 +200,33 @@
 				</ul>
 			{/if}
 		{/if}
-		{#if library.length}
+		{#if works.length}
 			<p class="rail-label">
 				<button class="shelf" aria-expanded={libraryOpen} data-testid="library-toggle" onclick={() => (libraryOpen = !libraryOpen)}>
 					{libraryOpen ? '▾' : '▸'} Library <span class="aside">({works.length})</span>
 				</button>
 			</p>
 			{#if libraryOpen}
-				<ul class="plain library">
-					{#each library as r (r.citekey)}
+				{#if works.length > 6}<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />{/if}
+				<ul class="plain library" data-testid="library-list">
+					{#each library.slice(0, WORKS_SHOWN) as r (r.citekey)}
 						<li>
-							<a href={workUrl(r.citekey)}>{bibText(r.bib.title) || r.citekey}</a>
+							<a href={workUrl(r.citekey)}
+								><span class="dot" class:filed={!!r.artifacts?.pdf} role="img" aria-label={r.artifacts?.pdf ? 'filed here' : 'not filed here'}></span>{bibText(r.bib.title) || r.citekey}</a
+							>
 							{#if r.unreadable}<span class="aside">unreadable</span>{/if}
 						</li>
+					{:else}
+						<li class="aside">nothing matches</li>
 					{/each}
-					{#if more}<li><a href={route('/library')}>all {more} works</a></li>{/if}
+					{#if library.length > WORKS_SHOWN}<li class="aside">{library.length - WORKS_SHOWN} more; narrow it</li>{/if}
+					<li><a href={route('/library')} data-testid="ledger-link">ledger</a></li>
 				</ul>
 			{/if}
 		{/if}
-		<p class="rail-label">
-			<button class="shelf" aria-expanded={sessionsOpen} data-testid="sessions-toggle" onclick={() => (sessionsOpen = !sessionsOpen)}>
-				{sessionsOpen ? '▾' : '▸'} Session list <span class="aside">({sessions.length})</span>
-			</button>
-			<!-- Opening a session is the only way to get one, now that the first write no longer opens one behind the
-			     reader, so the control stands in the header where it is always reachable rather than inside the fold. -->
-			{#if naming}
-				<input
-					class="new-title"
-					bind:value={newName}
-					placeholder="what this sitting is for"
-					aria-label="The new session's title"
-					data-testid="session-new-title"
-					onkeydown={(e) => (e.key === 'Enter' ? start() : e.key === 'Escape' ? (naming = false) : undefined)}
-				/>
-			{:else}
-				<button class="new" title="Start a new session" data-testid="session-new" onclick={() => ((naming = true), (sessionsOpen = true))}>+ new</button>
-			{/if}
-		</p>
-		{#if sessionsOpen}<SessionPicker />{/if}
 		</div>
-		<p class="counts" data-testid="counts">{counts.nodes} nodes · {counts.errors} errors · {counts.warnings} warnings</p>
+		<!-- Pinned outside the scroll (S5): writes land in the selected session whatever is shown, so a reader must never go looking for where their work will go. -->
+		<div class="write-target"><SessionFooter /></div>
 	</div>
 
 	<div class="content">{@render children()}</div>
@@ -284,6 +295,17 @@
 	}
 	.foot {
 		margin-top: auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 12px;
+	}
+	/* The glyph takes the colour of the worst thing it counts, so whether anything is wrong is legible without a number. */
+	.strip a.problems.errors {
+		color: var(--state-incomplete);
+	}
+	.strip a.problems.warnings {
+		color: var(--state-stale);
 	}
 	.panel {
 		background: var(--leaf);
@@ -317,7 +339,7 @@
 		padding-right: 4px;
 	}
 	.panel.away .sections,
-	.panel.away .counts,
+	.panel.away .write-target,
 	.panel.away .name {
 		display: none;
 	}
@@ -402,10 +424,8 @@
 		color: var(--ink);
 		text-decoration: none;
 	}
-	.counts {
-		font-size: 10px;
-		color: var(--ink-faint);
-		margin: auto 0 0;
+	.write-target {
+		flex: none;
 	}
 	.content {
 		min-width: 0;
@@ -497,36 +517,20 @@
 	.docs :global(.contents) {
 		margin: var(--gap-hair) 0 var(--gap-tight) 6px;
 	}
-	.new {
-		margin-left: auto;
-		font: inherit;
-		font-size: 10px;
-		text-transform: none;
-		letter-spacing: 0;
-		color: var(--ink-faint);
-		background: none;
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-pill);
-		padding: 1px 6px;
-		cursor: pointer;
+	/* Filled where a copy is filed, hollow where none is. */
+	.library .dot {
+		display: inline-block;
+		flex: none;
+		width: 6px;
+		height: 6px;
+		margin-right: 6px;
+		border-radius: 50%;
+		vertical-align: 1px;
+		box-shadow: inset 0 0 0 1.2px var(--ink-faint);
 	}
-	.new:hover {
-		color: var(--ink);
-		border-color: var(--rule-strong);
-	}
-	.new-title {
-		margin-left: auto;
-		min-width: 0;
-		flex: 1 1 auto;
-		font-family: var(--sans);
-		font-size: 11px;
-		text-transform: none;
-		letter-spacing: 0;
-		padding: 1px 5px;
-		border: 1px solid var(--rule-strong);
-		border-radius: var(--rad-pill);
-		background: var(--sheet);
-		color: var(--ink);
+	.library .dot.filed {
+		background: var(--state-accepted);
+		box-shadow: none;
 	}
 	.library .aside,
 	.docs .aside {

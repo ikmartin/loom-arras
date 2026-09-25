@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
+from tests.helpers import ok
 
 MASTER = r"""\documentclass{amsart}
 \usepackage{amsthm}
@@ -31,25 +29,16 @@ By the orbit decomposition.
 """
 
 
-def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
-
-
 def quilt(tmp_path: Path) -> Path:
     q = tmp_path / "q"
-    assert run("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path).exit_code == 0
+    ok("init", str(q), "--prefix", "pp", "--yes", cwd=tmp_path)
     (q / "drafting" / "main.tex").write_text(MASTER, encoding="utf-8")
     return q
 
 
 def test_inline_environment_renders_as_html_not_a_picture(tmp_path: Path) -> None:
     q = quilt(tmp_path)
-    assert run("build", cwd=q).exit_code in (0, 1)
+    ok("build", cwd=q)
     master = (q / "build" / "fragments" / "masters" / "main.html").read_text(encoding="utf-8")
     assert "figure" not in master and "<pre>" not in master  # never an SVG picture of a theorem, never verbatim LaTeX
     assert '<div class="env env-definition"' in master and 'data-style="definition"' in master
@@ -69,14 +58,16 @@ def test_failed_fallback_is_cached_and_not_recompiled(tmp_path: Path, monkeypatc
     log = tmp_path / "tex.log"
     monkeypatch.setenv("FAKE_TEX_LOG", str(log))
     monkeypatch.setenv("FAKE_TEX_FAIL", "1")
-    assert run("build", cwd=q).exit_code in (0, 1)
+    ok("build", cwd=q)
     first = log.read_text(encoding="utf-8").count("\n") if log.exists() else 0
     assert first, "the unknown environment should have reached the fallback"
     assert list((q / "build" / "cache" / "svg").glob("*.failed")), "the failure is remembered"
     log.write_text("", encoding="utf-8")
-    import shutil
-
-    shutil.rmtree(q / "build" / "cache" / "fragments.json", ignore_errors=True)
     (q / "build" / "cache" / "fragments.json").unlink(missing_ok=True)
-    assert run("build", cwd=q).exit_code in (0, 1)
+    ok("build", cwd=q)
     assert log.read_text(encoding="utf-8").strip() == "", "a remembered failure costs no further latex runs"
+    # the failure may have been the machine's: --force tries once more, and works once the TeX installation does
+    monkeypatch.delenv("FAKE_TEX_FAIL")
+    ok("build", "--force", cwd=q)
+    assert log.read_text(encoding="utf-8").strip(), "--force compiles a remembered failure again"
+    assert not list((q / "build" / "cache" / "svg").glob("*.failed"))

@@ -8,7 +8,7 @@
 Write a complete node from a plan the author supplies. The plan states the intended statement, its role, and a proof plan with the estimates, computations, case division, and conclusion. You complete the local argument. You do not change the plan's strategy; where the plan is wrong, say so in the notes and stop at that step with `\incomplete`.
 
 ## Input
-- The plan: `plan-ID.md` in the run, or the author's message; if absent, ask for it and stop.
+- The plan: `plan-ID.md` in your session's directory, or the author's message; if absent, ask for it and stop.
 - `loom new TAXON "Title" --print` for the skeleton in the quilt's environment names, or the id of a skeleton file the author created.
 - `loom source DEP --closure --session SESSION` for each intended dependency, so the statements you rely on are in front of you.
 
@@ -18,7 +18,7 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 ## Output
 1. `draft-ID.tex`: one complete node obeying the source contract (`% !LOOM author:` and `created:` lines; one environment with the title and `\label{ID}` if an id was given; adjacent proof; `\uses`).
 2. `draft-ID.notes.md`: [summary]; what the plan asked; what you did; what you could not do and why; every trial.
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] The statement matches the plan.

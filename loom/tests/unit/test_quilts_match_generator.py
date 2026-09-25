@@ -5,7 +5,7 @@ Editing a quilt by hand, or an asset the generator draws on, fails here; that is
 
 from __future__ import annotations
 
-import shutil
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -16,15 +16,12 @@ REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "scripts" / "gen_quilts.py"
 
 
-# The demo and the showcase are TeX-tier because `loom refs scan` reads the page text of the PDFs they file, which
-# needs the real poppler; the shim on the unit tier writes nothing, so the work is filed under a content hash rather
-# than the identifier its first page prints and the check fails on the path as well as on empty pages.
+# The demo and the showcase need the real poppler: `loom refs scan` reads the page text of the PDFs they file, and the shim on the unit tier writes nothing, so the work would be filed under a content hash rather than the identifier its first page prints.
 @pytest.mark.parametrize(
-    "which", [pytest.param("demo", marks=pytest.mark.tex), "synthetic", pytest.param("showcase", marks=pytest.mark.tex)]
+    "which",
+    [pytest.param("demo", marks=pytest.mark.poppler), "synthetic", pytest.param("showcase", marks=pytest.mark.poppler)],
 )
 def test_the_checked_in_quilt_is_what_the_generator_writes(which: str) -> None:
-    if which in ("demo", "showcase") and not shutil.which("pdftotext"):
-        pytest.skip(f"the {which} files a PDF into its store, and its page text comes from poppler")
     proc = subprocess.run(
         [sys.executable, str(SCRIPT), which, "--check"],
         cwd=REPO,
@@ -49,3 +46,12 @@ def test_the_showcase_carries_the_faults_it_is_meant_to_show() -> None:
     assert [line.split()[1] for line in lines if line.startswith("error")] == ["duplicate-id"]
     for code in ("loom:detached-annotation", "loom:missing-proof", "loom:unmatched-postnote", "unreachable"):
         assert code in codes, code
+
+
+def test_the_showcase_referee_findings_are_the_agents() -> None:
+    """The showcase's referee findings are recorded as the agent's, so none goes back to the agent in the author's packet."""
+    log = REPO / "tests" / "quilts" / "showcase" / "annotations" / "log.jsonl"
+    events = [json.loads(line) for line in log.read_text().splitlines()]
+    first = {f"a-2026-09-16-000{i}" for i in range(1, 6)}
+    got = {e["id"]: (e["author"], e["kind"]) for e in events if e.get("event") == "created" and e.get("id") in first}
+    assert got == {i: ("Referee (Agent)", "agent") for i in first}

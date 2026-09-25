@@ -76,6 +76,8 @@
 				window.scrollBy({ top: paneTop - 16, behavior: 'auto' });
 			}
 		}
+		// and the citation itself is on screen, not only the box it scrolled to: a box whose top is in view can still hold it below the fold
+		first?.scrollIntoView({ block: 'nearest' });
 		return () => { for (const target of targets) target.classList.remove('review-citation-target'); };
 	});
 	async function reviewDecision(entry: UnresolvedReview, status: 'ok' | 'requires-attention') {

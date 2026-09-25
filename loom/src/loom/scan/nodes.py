@@ -31,12 +31,22 @@ _BASIS_NAMES = {
         "rmk",
         "rem",
         "comment",
+        "example",
+        "examples",
+        "exmp",
+        "caveat",
+        "warning",
+        "note",
+        "recall",
+        "terminology",
     },
     "local-proof": {"theorem", "thm", "lemma", "lem", "proposition", "prop", "corollary", "cor", "claim", "fact"},
     "assumption": {"assumption", "axiom", "postulate", "hypothesis"},
     "open-claim": {"conjecture", "conj", "question", "problem"},
 }
 _BASES = frozenset((*_BASIS_NAMES, "cited-result"))
+#: What a `[basis]` table may map a name to: `cited-result` needs a locator in each block, so no name can imply it.
+NAMED_BASES = tuple(_BASIS_NAMES)
 
 
 @dataclass
@@ -143,7 +153,9 @@ def assemble(
     taxa: dict[str, Taxon],
     citekeys: set[str],
     default_master: str | None,
+    basis_names: dict[str, str] | None = None,
 ) -> Assembly:
+    """Every node of the quilt from its scanned files; `basis_names` is the quilt's `[basis]` table, which extends and overrides the built-in names."""
     asm = Assembly()
     masters = list(closures)
     theorem_names = set(taxa)
@@ -181,7 +193,7 @@ def assemble(
     _container_nodes(asm, files, masters)
     _proof_nodes(asm, files, slugs, expansions, default_master)
     _partition(asm, files)
-    _regions_and_details(asm, files, expansions, default_master)
+    _regions_and_details(asm, files, expansions, default_master, basis_names or {})
     return asm
 
 
@@ -514,7 +526,11 @@ def _partition(asm: Assembly, files: dict[str, SourceFile]) -> None:
 
 
 def _regions_and_details(
-    asm: Assembly, files: dict[str, SourceFile], expansions: dict[str, Expansion], default_master: str | None
+    asm: Assembly,
+    files: dict[str, SourceFile],
+    expansions: dict[str, Expansion],
+    default_master: str | None,
+    basis_names: dict[str, str],
 ) -> None:
     exp = expansions.get(default_master) if default_master else None
     reached: dict[str, list[str]] = {}
@@ -560,17 +576,19 @@ def _regions_and_details(
     envs = {(path, env.start): env for path, fe in asm.envs.items() for env in fe.theorem_envs}
     for n in asm.nodes.values():
         if n.kind == "environment":
-            n.basis, n.basis_reason = _classify_basis(n, files[n.file], envs.get((n.file, n.start)))
+            n.basis, n.basis_reason = _classify_basis(n, files[n.file], envs.get((n.file, n.start)), basis_names)
             n.external = n.basis == "cited-result"
     _collect_labels(asm, files)
 
 
-def _classify_basis(n: NodeRec, src: SourceFile, env: Env | None) -> tuple[str, str]:
-    """A basis is a source-level claim about why this block may be relied on, never a TeX style."""
+def _classify_basis(
+    n: NodeRec, src: SourceFile, env: Env | None, configured: dict[str, str] | None = None
+) -> tuple[str, str]:
+    """A basis is a source-level claim about why this block may be relied on, never a TeX style.
+
+    `configured` is the quilt's `[basis]` table, environment name to basis; a name it gives wins over the built-in table for that name only.
+    """
     explicit = n.directives.get("basis", "").strip().lower()
-    legacy_definition = explicit == "definition"
-    if legacy_definition:
-        explicit = "expository"
     if explicit and explicit not in _BASES:
         return "unclassified", f"unknown basis {explicit!r}; choose {', '.join(sorted(_BASES))}"
     if n.digest:
@@ -587,11 +605,7 @@ def _classify_basis(n: NodeRec, src: SourceFile, env: Env | None) -> tuple[str, 
             m.group(1) for a, b in n.own for m in _CITE.finditer(src.clean, a, b)
         ):
             return "unclassified", "cited-result needs a citation with a result locator in its block"
-        return explicit, (
-            "legacy % !LOOM basis: definition migrated to expository"
-            if legacy_definition
-            else "classified by % !LOOM basis in the source"
-        )
+        return explicit, "classified by % !LOOM basis in the source"
     if attributed:
         if not located:
             return "unclassified", "attribution has no result locator; classify the block explicitly"
@@ -599,7 +613,10 @@ def _classify_basis(n: NodeRec, src: SourceFile, env: Env | None) -> tuple[str, 
             return "unclassified", "a cited result also has a local proof; classify the block explicitly"
         return "cited-result", "attributed to a cited result with a locator"
     names = {str(v).lower().replace(" ", "-") for v in (n.env, n.taxon) if v}
-    matches = {basis for basis, aliases in _BASIS_NAMES.items() if names & aliases}
+    configured = configured or {}
+    matches = {configured[x] for x in names if x in configured} | {
+        basis for basis, aliases in _BASIS_NAMES.items() if (names - configured.keys()) & aliases
+    }
     if len(matches) != 1:
         return "unclassified", "environment name does not identify one basis; add % !LOOM basis: ... inside the block"
     basis = matches.pop()
@@ -608,7 +625,8 @@ def _classify_basis(n: NodeRec, src: SourceFile, env: Env | None) -> tuple[str, 
             "unclassified",
             "this block has a proof but its environment suggests no local proof; classify it explicitly",
         )
-    return basis, f"inferred from environment {n.taxon or n.env}"
+    by = " by [basis] in config.toml" if names & configured.keys() else ""
+    return basis, f"inferred from environment {n.taxon or n.env}{by}"
 
 
 def _incomplete_texts(clean: str, own: list[tuple[int, int]]) -> list[str]:

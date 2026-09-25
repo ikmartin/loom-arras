@@ -34,12 +34,14 @@ const HELP = `steer a browser, one step per call
   goto PATH                 navigate, relative to --url
   click SEL                 click the first match
   dblclick SEL              double-click it, which is what travels
+  hover SEL                 move the real mouse onto it: a link's preview
   press KEY [SEL]           a key, on SEL or on the page
   fill SEL TEXT             type into a field
   drag SEL x0 y0 x1 y1      drag inside SEL, in fractions of its box: the box tool
   select SEL                select SEL's text and release, which is what the selection tool reads
   see [SEL]                 the visible text of SEL, or of the page
   shot NAME                 a screenshot into --shots
+  size W H                  resize the window, as a narrower screen would be
   eval JS                   run it in the page and print the result
   stop                      close the browser
 `;
@@ -51,7 +53,7 @@ async function serve(args) {
 	const { chromium } = await import('playwright');
 	const base = args.url ?? 'http://127.0.0.1:8791/';
 	const port = Number(args.port ?? 4399);
-	const shots = resolve(ROOT, args.shots ?? '../docs/reports/0.13-reading-layer/shots');
+	const shots = resolve(ROOT, args.shots ?? '../docs/reports/images/0.13-reading-layer/shots');
 	mkdirSync(shots, { recursive: true });
 
 	const browser = await chromium.launch({ headless: !args.headed });
@@ -72,6 +74,8 @@ async function serve(args) {
 		},
 		click: async ([sel]) => (await el(sel).click(), 'clicked ' + sel),
 		dblclick: async ([sel]) => (await el(sel).dblclick(), 'double-clicked ' + sel),
+		hover: async ([sel]) => (await el(sel).hover(), 'hovered ' + sel),
+		size: async ([w, h]) => (await page.setViewportSize({ width: Number(w), height: Number(h) }), `sized ${w}x${h}`),
 		press: async ([key, sel]) => (sel ? await el(sel).press(key) : await page.keyboard.press(key), 'pressed ' + key),
 		fill: async ([sel, ...text]) => (await el(sel).fill(text.join(' ')), 'filled ' + sel),
 		drag: async ([sel, x0, y0, x1, y1]) => {

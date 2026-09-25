@@ -1,6 +1,6 @@
 """`.loom/sessions/<id>/`: the mailbox a session carries, and who is listening to it (plan 0.13 §8).
 
-**Loom is a mailbox and not an orchestrator.** A message is appended and a parked reader wakes; nothing is launched, no model is called, and no task is assigned. Two attached agents both see everything and neither is handed anything to do, which is the honest behaviour for a tool that is not orchestrating.
+**Loom is a mailbox and not an orchestrator.** A message is appended and a parked reader wakes; no model is called and no task is assigned. The one thing loom may start is the author's own agent command, for a turn, where the quilt allows it (`loom.agent`). Two attached agents both see everything and neither is handed anything to do, which is the honest behaviour for a tool that is not orchestrating.
 
 **Read, never consumed.** The inbox is append-only and each reader keeps a cursor of its own, so a message survives being read, a second reader sees it too, and an agent that crashed resumes where it was rather than losing the turn.
 
@@ -11,6 +11,8 @@ Events are sequence-numbered so a reader that missed some knows it missed them: 
 
 from __future__ import annotations
 
+import bisect
+import fcntl
 import json
 import os
 from dataclasses import dataclass
@@ -26,6 +28,10 @@ CURSORS = "cursors"
 ATTACHED = "attached.json"
 #: How long a heartbeat stands before the reader that wrote it is called detached.
 STALE = 90.0
+#: How often a parked reader's heartbeat is rewritten; well inside STALE, and slow enough that the watcher is not rebuilding the manifest for every beat.
+BEAT = 30.0
+#: Events per transcript page in the build.
+PAGE = 100
 
 
 def session_dir(root: Path, sid: str) -> Path:
@@ -57,6 +63,26 @@ class Event:
         return out
 
 
+def _event(line: str | bytes) -> Event | None:
+    """One inbox line as an Event, or None for a blank or malformed one."""
+    if not line.strip():
+        return None
+    try:
+        e = json.loads(line)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    if not isinstance(e, dict):
+        return None
+    return Event(
+        seq=int(e.get("seq", 0)),
+        kind=str(e.get("kind", "message")),
+        who=str(e.get("who", "")),
+        when=str(e.get("when", "")),
+        body=str(e.get("body", "")),
+        changed=[c for c in e.get("changed", []) if isinstance(c, dict)],
+    )
+
+
 def read_events(root: Path, sid: str, since: int = 0) -> list[Event]:
     """Every event after `since`, in order; a malformed line is skipped rather than stopping the rest."""
     p = inbox_path(root, sid)
@@ -64,30 +90,121 @@ def read_events(root: Path, sid: str, since: int = 0) -> list[Event]:
         return []
     out: list[Event] = []
     for line in p.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        try:
-            e = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(e, dict) or int(e.get("seq", 0)) <= since:
-            continue
-        out.append(
-            Event(
-                seq=int(e.get("seq", 0)),
-                kind=str(e.get("kind", "message")),
-                who=str(e.get("who", "")),
-                when=str(e.get("when", "")),
-                body=str(e.get("body", "")),
-                changed=[c for c in e.get("changed", []) if isinstance(c, dict)],
-            )
-        )
+        e = _event(line)
+        if e is not None and e.seq > since:
+            out.append(e)
     return out
 
 
 def last_seq(root: Path, sid: str) -> int:
-    events = read_events(root, sid)
-    return events[-1].seq if events else 0
+    """The last event's sequence number, read from the end of the file rather than the whole of it."""
+    p = inbox_path(root, sid)
+    try:
+        size = p.stat().st_size
+    except OSError:
+        return 0
+    with p.open("rb") as fh:
+        pos, tail = size, b""
+        while pos > 0:
+            n = min(4096, pos)
+            pos -= n
+            fh.seek(pos)
+            tail = fh.read(n) + tail
+            lines = tail.split(b"\n")
+            # the first piece may be the end of a line that started further back
+            whole = lines if pos == 0 else lines[1:]
+            for line in reversed(whole):
+                e = _event(line)
+                if e is not None:
+                    return e.seq
+    return 0
+
+
+class Transcript:
+    """A session's inbox, indexed by where each event starts, so a reader polling it reads only what is new.
+
+    Held by `loom serve` for as long as it runs (`transcript()`); a file that shrank was rewritten, and the index starts again. A line still being written, with no newline yet, is left for the next refresh.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.size = 0
+        self.seqs: list[int] = []
+        self.offsets: list[int] = []
+
+    def refresh(self) -> None:
+        try:
+            size = self.path.stat().st_size
+        except OSError:
+            size = 0
+        if size < self.size:
+            self.size, self.seqs, self.offsets = 0, [], []
+        if size == self.size:
+            return
+        with self.path.open("rb") as fh:
+            fh.seek(self.size)
+            pos = self.size
+            for raw in fh:
+                if not raw.endswith(b"\n"):
+                    break
+                e = _event(raw)
+                if e is not None and (not self.seqs or e.seq > self.seqs[-1]):
+                    self.seqs.append(e.seq)
+                    self.offsets.append(pos)
+                pos += len(raw)
+        self.size = pos
+
+    @property
+    def seq(self) -> int:
+        self.refresh()
+        return self.seqs[-1] if self.seqs else 0
+
+    def since(self, seq: int) -> list[Event]:
+        """Every event after `seq`, reading from the first of them rather than from the top of the file."""
+        self.refresh()
+        i = bisect.bisect_right(self.seqs, seq)
+        if i == len(self.seqs):
+            return []
+        with self.path.open("rb") as fh:
+            fh.seek(self.offsets[i])
+            raw = fh.read(self.size - self.offsets[i])
+        return [e for e in (_event(line) for line in raw.split(b"\n")) if e is not None and e.seq > seq]
+
+
+_TRANSCRIPTS: dict[Path, Transcript] = {}
+
+
+def transcript(root: Path, sid: str) -> Transcript:
+    """The one index of a session's inbox this process keeps."""
+    p = inbox_path(root, sid)
+    if p not in _TRANSCRIPTS:
+        _TRANSCRIPTS[p] = Transcript(p)
+    return _TRANSCRIPTS[p]
+
+
+def public(e: Event) -> dict[str, Any]:
+    """An event as a viewer reads it: the stored fields, and the body rendered as annotation bodies are."""
+    from loom.records.store import render_markdown
+
+    out = e.to_json()
+    if e.body:
+        out["body_html"] = render_markdown(e.body)
+    return out
+
+
+def page(root: Path, sid: str, n: int) -> dict[str, Any]:
+    """Page `n` of a session's transcript as it stands now, read through the session's index: what `loom serve` answers for a page, since a message rebuilds nothing and the build's copy goes stale."""
+    events = [e for e in transcript(root, sid).since(PAGE * (n - 1)) if e.seq <= PAGE * n]
+    return {"session": sid, "page": n, "events": [public(e) for e in events]}
+
+
+def pages(root: Path, sid: str) -> dict[int, dict[str, Any]]:
+    """The transcript in the build's pages: page n holds seqs PAGE*(n-1)+1 to PAGE*n, so a reader that knows the last seq knows which pages exist."""
+    out: dict[int, dict[str, Any]] = {}
+    for e in read_events(root, sid):
+        n = (e.seq - 1) // PAGE + 1
+        out.setdefault(n, {"session": sid, "page": n, "events": []})["events"].append(public(e))
+    return out
 
 
 def post(
@@ -108,17 +225,30 @@ def post(
     kind : str, default 'message'
         `message` from a person or an agent; other kinds are loom's own notes about the session.
     changed : list of dict, optional
-        Annotations changed alongside it, carried inline so a reader needs no second call.
+        Annotations changed alongside it, carried inline so a reader needs no second call. A post with these may have no body.
 
     Returns
     -------
     Event
+
+    Raises
+    ------
+    ValueError
+        When there is neither a body nor anything changed.
     """
+    if not body.strip() and not changed:
+        raise ValueError("a message with no text and nothing attached says nothing")
     d = session_dir(root, sid)
     d.mkdir(parents=True, exist_ok=True)
-    e = Event(seq=last_seq(root, sid) + 1, kind=kind, who=who, when=stamp(), body=body, changed=changed or [])
+    # Two writers -- the person through the viewer and an agent through `say` -- must not draw the same number.
     with inbox_path(root, sid).open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(e.to_json(), ensure_ascii=False, sort_keys=True) + "\n")
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            e = Event(seq=last_seq(root, sid) + 1, kind=kind, who=who, when=stamp(), body=body, changed=changed or [])
+            fh.write(json.dumps(e.to_json(), ensure_ascii=False, sort_keys=True) + "\n")
+            fh.flush()
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
     return e
 
 
@@ -142,10 +272,16 @@ def _slug(who: str) -> str:
 
 
 def attach(root: Path, sid: str, who: str, kind: str = "person") -> None:
-    """Record that somebody is listening, with a fresh heartbeat. Called on attaching and on every wake."""
+    """Record that somebody is listening, with a fresh heartbeat. Called on attaching and on every wake.
+
+    The file is rewritten only when the row is new or its beat is `BEAT` old: `loom serve` watches it, and a rewrite per wake would rebuild the manifest four times a second while an agent is parked.
+    """
     d = session_dir(root, sid)
     d.mkdir(parents=True, exist_ok=True)
     rows = {r["who"]: r for r in attached(root, sid, stale=True)}
+    prev = rows.get(who)
+    if prev and prev.get("kind") == kind and prev.get("pid") == os.getpid() and _age(str(prev.get("beat", ""))) < BEAT:
+        return
     rows[who] = {
         "who": who,
         "kind": kind,
@@ -190,6 +326,16 @@ def waiting_on(root: Path, sid: str, name: str = "") -> str:
     return f"{who} is not listening this second — last here{mins}, probably working. It waits in the inbox and they will see it when they next look."
 
 
+def _age(when: str) -> float:
+    """Seconds since an ISO stamp; infinite for one that does not parse."""
+    from datetime import datetime
+
+    try:
+        return (datetime.now(UTC) - datetime.fromisoformat(when.replace("Z", "+00:00"))).total_seconds()
+    except ValueError:
+        return float("inf")
+
+
 def attached(root: Path, sid: str, *, stale: bool = False) -> list[dict[str, Any]]:
     """Who is listening now.
 
@@ -230,13 +376,25 @@ def render(events: list[Event]) -> str:
     lines: list[str] = []
     for e in events:
         lines.append(f"{e.when[11:16]} {e.who}: {e.body}" if e.kind == "message" else f"{e.when[11:16]} — {e.body}")
-        for c in e.changed:
-            who = c.get("by", "")
-            # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
-            where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
-            lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}")
-            if c.get("body"):
-                lines.append(f'      "{c["body"]}"')
+        if e.changed:
+            lines.append(render_changes(e.changed))
+    return "\n".join(lines)
+
+
+def render_changes(changed: list[dict[str, Any]]) -> str:
+    """The annotations a message carries, as the agent reads them beneath it -- and as the viewer's tray previews them before it is sent, so the preview is the text itself."""
+    lines: list[str] = []
+    for c in changed:
+        who = c.get("by", "")
+        # what a reader can act on: the citekey and the page for a note on a page, the key otherwise
+        where = f"{c['work']} p.{c['page']}" if c.get("work") and c.get("page") else c.get("target", "")
+        lines.append(f"  {c.get('id', '')}  {c.get('kind', '')} · {where} · {c.get('act', '')} by {who}")
+        if c.get("quote"):
+            lines.append(f'      on "{c["quote"]}"')
+        if c.get("body"):
+            lines.append(f'      "{c["body"]}"')
+        if c.get("payload"):
+            lines.append(f"      proposes ({c.get('placement') or 'replace'}): {c['payload']}")
     return "\n".join(lines)
 
 
@@ -263,12 +421,12 @@ def work_of(root: Path, annotation: Any) -> str | None:
     return None
 
 
-def changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
-    """The annotations that changed in this session since its last message, carried inline with the next one.
+def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
+    """The packet: what `who` wrote in this session since a message last carried any, carried by their next one (plan 0.14).
 
-    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Without this, "have another look" arrives with nothing attached and the agent must go and diff the log to learn what moved.
+    A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Only the sender's own annotations and replies go: another person's wait for that person's next message, and an agent's are its own -- sending them back would be telling it what it said. Each is carried whole -- its body, the words it is on, what it proposes -- because the inbox is the record of what was sent.
 
-    It lives here rather than beside the write API because **both surfaces post**: `loom session send` and the composer must attach the same thing, and when this was the API's own helper the terminal's messages went out bare.
+    Both surfaces post -- `loom session send` and the viewer's input -- so both take the packet from here, and the viewer's tray previews it from here too.
     """
     from loom.records.annotations import load_records
 
@@ -279,24 +437,28 @@ def changed_since(root: Path, session: Any) -> list[dict[str, Any]]:
     records, _ = load_records(root)
     out: list[dict[str, Any]] = []
     for record in records:
-        if record.rel not in (session.id, session.source):
+        if record.rel != session.id:
             continue
         for a in record.annotations:
-            if a.id in sent or a.created < since or a.status == "discarded":
+            if a.id in sent or a.created < since or a.status == "discarded" or a.author_kind != "person":
                 continue
-            out.append(
-                {
-                    "id": a.id,
-                    "kind": a.kind,
-                    "target": a.target_key,
-                    # A page note targets the work's identifier, which no `loom refs` command accepts. An agent
-                    # handed only that has to find the citekey by trial -- which is what the reading study watched
-                    # one do. The citekey and the page travel with it, as `ai findings` prints them.
-                    "work": work_of(root, a),
-                    "page": a.anchor.page if a.anchor else None,
-                    "act": "replied" if a.in_reply_to else "created",
-                    "by": a.author_id,
-                    "body": a.body[:200],
-                }
-            )
+            if a.author_id != who:
+                continue
+            row: dict[str, Any] = {
+                "id": a.id,
+                "kind": a.kind,
+                "target": a.target_key,
+                # A page note targets the work's identifier, which no `loom refs` command accepts. An agent handed only that has to find the citekey by trial -- which is what the reading study watched one do. The citekey and the page travel with it, as `ai annotations` prints them.
+                "work": work_of(root, a),
+                "page": a.anchor.page if a.anchor else None,
+                "act": "replied" if a.in_reply_to else "created",
+                "by": a.author_id,
+                "body": a.body,
+            }
+            if a.selector is not None and a.selector.exact:
+                row["quote"] = a.selector.exact
+            for field in ("severity", "payload", "placement"):
+                if getattr(a, field):
+                    row[field] = getattr(a, field)
+            out.append(row)
     return out

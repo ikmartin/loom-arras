@@ -175,7 +175,7 @@ def build_synthetic(dest: Path) -> None:
 
     # A first pass that was discarded; its one annotation is written with the rest, below.
     g.at("2026-09-15T10:00:00Z")
-    (dest / "ai" / "runs").mkdir(parents=True)
+    (dest / "ai").mkdir(parents=True)
     quick = g.run("ai", "start", "quick").strip().splitlines()[-1].strip()
 
     # The author rewrites the definition, so everything that depends on it goes stale.
@@ -229,7 +229,7 @@ def build_synthetic(dest: Path) -> None:
     g.at("2026-09-16T00:00:00Z")
     referee = g.run("ai", "start", "referee").strip().splitlines()[-1].strip()
     g.run(
-        "comment",
+        "annotate",
         "sy-0003",
         "The hypothesis 'finite' is essential for the parity count; say so in the statement.",
         "--kind",
@@ -243,7 +243,7 @@ def build_synthetic(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sy-0004",
         "Cite the orbit lemma by number here.",
         "--kind",
@@ -261,7 +261,7 @@ def build_synthetic(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "drafting/main.tex",
         "The paper never says which conventions it inherits from the setup section; one sentence at the top would fix it.",
         "--kind",
@@ -275,7 +275,7 @@ def build_synthetic(dest: Path) -> None:
     # Two citation suggestions: one the author accepts, which leaves a breadcrumb in reference-notes.jsonl, and one
     # left open, so the viewer has both a decided suggestion and an undecided one to show.
     g.run(
-        "comment",
+        "annotate",
         "sy-0003",
         "Kreschmer's cycle-group paper proves this for permutations; cite it rather than reproving the parity count.",
         "--kind",
@@ -287,7 +287,7 @@ def build_synthetic(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sy-0002",
         "The orbit decomposition is standard; a textbook reference would do.",
         "--kind",
@@ -298,15 +298,21 @@ def build_synthetic(dest: Path) -> None:
         referee,
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{referee}/thread.md",
-        "# Thread: referee sy-0003\n\n## 2026-09-16 00:00 referee of sy-0003\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on "
         "the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: "
-        "nothing; the author decides. Remains: the second proof was not reviewed.\n",
+        "nothing; the author decides. Remains: the second proof was not reviewed.",
+        "--session",
+        referee,
+        "--as",
+        "Referee Agent",
+        agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sy-0002",
         "Is the orbit of a fixed point counted as one point or two?",
         "--kind",
@@ -316,16 +322,30 @@ def build_synthetic(dest: Path) -> None:
         "--author",
         AUTHOR,
     )
+    # A claim that holds in one document only (plan 0.15, decision 9): read in the talk, not on the node's own page.
+    g.run(
+        "annotate",
+        "sy-0002",
+        "For the slide, the fixed-point clause can go; the talk never uses it.",
+        "--kind",
+        "suggestion",
+        "--quote",
+        "Every orbit of a widget",
+        "--in",
+        "drafting/talk.tex",
+        "--author",
+        AUTHOR,
+    )
     objection, suggestion, document, cited, _open = _annotation_ids(dest, referee)[:5]
     g.at("2026-09-16T09:00:00Z")
-    g.run("refs", "note", "--from", referee, "--accept", cited, "--reason", "worth citing", "--author", AUTHOR)
+    g.run("refs", "cite", "--from", referee, "--accept", cited, "--reason", "worth citing", "--author", AUTHOR)
     g.at("2026-09-16T00:00:00Z")
     g.write(f".loom/sessions/{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
-    g.run("comment", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--author", AUTHOR)
-    g.run("comment", "--reply", suggestion, "Done in the next revision.", "--author", AUTHOR)
-    g.run("comment", "--resolve", suggestion, "--author", AUTHOR)
+    g.run("annotate", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--author", AUTHOR)
+    g.run("annotate", "--reply", suggestion, "Done in the next revision.", "--author", AUTHOR)
+    g.run("annotate", "--resolve", suggestion, "--author", AUTHOR)
     g.run(
-        "comment",
+        "annotate",
         "sy-0001",
         "Is the involution required to be a bijection, or does that follow?",
         "--kind",
@@ -336,11 +356,11 @@ def build_synthetic(dest: Path) -> None:
         AUTHOR,
     )
     g.run(
-        "comment",
+        "annotate",
         "sy-000A",
         "Gadgets of odd order cannot exist.",
         "--kind",
-        "confirmation",
+        "note",
         "--session",
         quick,
         agent=True,
@@ -448,9 +468,9 @@ def build_demo(dest: Path) -> None:
     _copy_sources("demo", dest)
     g = Gen(dest, "The loom demo")
     g.at("2026-09-16T00:00:00Z")
-    g.run("ai", "init", "--skills", "--permissions")
+    g.run("ai", "init", "--skills")
     g.run(
-        "comment",
+        "annotate",
         "dm-0003/proof",
         "Closedness only needs that the diagonal is closed; say where Hausdorff is used.",
         "--kind",
@@ -486,7 +506,7 @@ def build_demo(dest: Path) -> None:
     run_dir = g.run("ai", "start", "referee-dm-0003").strip().splitlines()[-1].strip()
     g.at("2026-09-16T14:31:00Z")
     g.run(
-        "comment",
+        "annotate",
         "dm-0003",
         "The theorem assumes $X$ finite for the parity claim, but the closedness claim needs no finiteness; consider splitting the statement.",
         "--kind",
@@ -503,7 +523,7 @@ def build_demo(dest: Path) -> None:
         run_dir,
     )
     g.run(
-        "comment",
+        "annotate",
         "dm-0003/proof",
         "Continuity of $(\\mathrm{id},\\sigma)$ into the product is used without being said; it follows from $\\sigma$ continuous, but say so.",
         "--kind",
@@ -517,7 +537,7 @@ def build_demo(dest: Path) -> None:
     )
     # A whole-document annotation: its target is the master's path, which loom has written since 0.6 and nothing showed.
     g.run(
-        "comment",
+        "annotate",
         "drafting/main.tex",
         "The setup section introduces $\\Fix$ twice, once in prose and once in the definition; keep the definition.",
         "--kind",
@@ -528,11 +548,17 @@ def build_demo(dest: Path) -> None:
         run_dir,
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{run_dir}/thread.md",
-        "# Thread: referee dm-0003\n\n## 2026-09-16 14:31 referee\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Refereed dm-0003. One major objection in the proof, one moderate suggestion on the statement "
-        "with a proposed replacement, and one minor point about the document as a whole.\n",
+        "with a proposed replacement, and one minor point about the document as a whole.",
+        "--session",
+        run_dir,
+        "--as",
+        "Referee Agent",
+        agent=True,
     )
     # in creation order: the statement suggestion, the proof objection, the whole-document point
     suggestion, objection, document = _annotation_ids(dest, run_dir)[:3]
@@ -613,7 +639,7 @@ def build_showcase(dest: Path) -> None:
     g.run("refs", "add", "Arden24", str(WORKS / "arden-cycle-spaces.tex"))
     g.run("digest", "extract", "Arden24", "--no-compile")
     g.at("2026-09-14T09:20:00Z")
-    g.run("ai", "init", "--skills", "--permissions")
+    g.run("ai", "init", "--skills")
 
     # ---- A run reads the work loom could not extract, and proposes its results. -------------------------
     # Bellamy19 is a PDF and nothing else, so every result is read off a page and anchored to it. The run
@@ -727,13 +753,19 @@ def build_showcase(dest: Path) -> None:
         survey,
         agent=True,
     )
-    g.write(
-        f".loom/sessions/{survey}/thread.md",
-        "# Thread: survey Bellamy19\n\n## 2026-09-15 10:00 survey-bellamy\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Asked: find in Bellamy19 whatever the counting argument of Section 3 could rest on. Did: read pages 1 to 3, "
         "proposed four results, and asserted two links. Decided: nothing; the four proposals wait for the author. "
         "Remains: the examples of Section 4 are not proposed, since the paper states no result there beyond the "
-        "definition of the defect.\n",
+        "definition of the defect.",
+        "--session",
+        survey,
+        "--as",
+        "Survey Agent",
+        agent=True,
     )
     g.write(
         f".loom/sessions/{survey}/survey-bellamy.notes.md",
@@ -775,7 +807,7 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-16T11:00:00Z")
     referee = g.run("ai", "start", "referee-sh-0009").strip().splitlines()[-1].strip()
     g.run(
-        "comment",
+        "annotate",
         "sh-0009",
         "The rank formula is stated for the underlying graph's component count, but nothing in the statement says "
         "that a loop counts as an arrow and contributes to the rank. Arden is explicit about it on "
@@ -788,9 +820,12 @@ def build_showcase(dest: Path) -> None:
         "underlying graph has $c$ connected components",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0009/proof",
         "The kernel--image count is right but compressed into one clause. A reader checking it has to supply the "
         "rank--nullity step and the saturation step themselves. A replacement is attached.",
@@ -807,9 +842,12 @@ def build_showcase(dest: Path) -> None:
         "replace",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-000C/proof",
         "Integrality of the vertices of $\\Pi$ does not follow from saturation of the cycle lattice: saturation is "
         "about the lattice, integrality is about the polytope's vertices, and Bellamy assumes the second "
@@ -823,9 +861,12 @@ def build_showcase(dest: Path) -> None:
         "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0006/proof",
         "Is the walk required to be a walk in the quiver, or only in the support? The two differ when an arrow of "
         "weight zero joins two arrows of the support.",
@@ -835,9 +876,12 @@ def build_showcase(dest: Path) -> None:
         "we obtain an infinite walk inside $\\supp(w)$",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0004",
         "Worth naming the quotient here: it is the group the divergence map lands in, and it is used twice later.",
         "--kind",
@@ -850,9 +894,12 @@ def build_showcase(dest: Path) -> None:
         "after",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "drafting/main-atomic.tex",
         "The paper never says whether quivers are assumed connected. Convention~sh-0001 says finite and says nothing "
         "about connectedness, and the rank formula is the only place it would matter.",
@@ -862,10 +909,12 @@ def build_showcase(dest: Path) -> None:
         "moderate",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0200",
         "This section introduces the divergence map twice, once in prose and once as Definition sh-0003. Keep the "
         "definition.",
@@ -875,10 +924,12 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0009#eq:rank",
         "The formula is right, and it is the one place the component count $c$ appears without being defined in the "
         "same breath.",
@@ -888,10 +939,12 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "Arden24-prop-2.1",
         "The transcription drops Arden's hypothesis that the quiver is finite, which is in his standing assumptions "
         "and not in the proposition. It is harmless here and would not be in a quilt that cited him for an infinite "
@@ -904,20 +957,24 @@ def build_showcase(dest: Path) -> None:
         "whose underlying graph has $c$ connected components",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0005",
         "Both examples check out, and the second is the smallest quiver with trivial cycle lattice.",
         "--kind",
-        "confirmation",
+        "note",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-000F",
         "The infinite case has a standard reference; cite it rather than pointing at a survey.",
         "--kind",
@@ -926,10 +983,12 @@ def build_showcase(dest: Path) -> None:
         "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0008",
         "The remark asserts that no index creeps in, which is what Proposition sh-0007 says; the remark is redundant.",
         "--kind",
@@ -938,10 +997,12 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-000B",
         "Height is defined for every weighting but only used for balanced ones.",
         "--kind",
@@ -950,10 +1011,12 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0007/proof",
         "This proof uses that the target of the divergence map is torsion-free, which is true of $\\ZZ^{V}$ and is "
         "never said. One clause fixes it.",
@@ -965,6 +1028,8 @@ def build_showcase(dest: Path) -> None:
         "a homomorphism into a torsion-free group",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     (
@@ -983,13 +1048,19 @@ def build_showcase(dest: Path) -> None:
         height,
         torsion,
     ) = _annotation_ids(dest, referee)[:14]
-    g.write(
-        f".loom/sessions/{referee}/thread.md",
-        "# Thread: referee sh-0009\n\n## 2026-09-16 11:00 referee-sh-0009\n\n"
+    # The agent's account of the run, said in the chat (plan 0.14).
+    g.run(
+        "session",
+        "say",
         "Asked: referee the rank theorem and everything its proof reaches. Did: read the closure of sh-0009 and of "
         "sh-000C, and left fourteen findings -- three major, four moderate, five minor, one question and one clean "
         "read. Decided: nothing; every one of them is the author's to answer. Remains: the appendix (sh-0400) was "
-        "not read, and Lemma sh-000E is marked incomplete, so there was nothing there to referee.\n",
+        "not read, and Lemma sh-000E is marked incomplete, so there was nothing there to referee.",
+        "--session",
+        referee,
+        "--as",
+        "Referee (Agent)",
+        agent=True,
     )
     g.write(
         f".loom/sessions/{referee}/referee-sh-0009.notes.md",
@@ -999,49 +1070,56 @@ def build_showcase(dest: Path) -> None:
     # edit is not a reply (DR-171, DR-174).
     g.at("2026-09-16T11:40:00Z")
     g.run(
-        "comment",
+        "annotate",
         "--discard",
         redundant,
         "Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "--edit",
         height,
         "Height is defined for every weighting but only used for balanced ones, and $N_{\\quiv}(k)$ silently "
         "restricts to them. Say so in the definition rather than in the theorem that uses it.",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
+        agent=True,
     )
 
     # ---- The author answers. ------------------------------------------------------------------------------
     g.at("2026-09-16T15:00:00Z")
     g.run(
-        "comment",
+        "annotate",
         "--reply",
         formula,
         "A loop contributes an arrow and no divergence, so it adds one to the rank. I will say it in Convention sh-0001 rather than in the theorem.",
     )
     g.at("2026-09-16T15:05:00Z")
     g.run(
-        "comment",
+        "annotate",
         "--reply",
         formula,
         "Then the convention is the right place, and this finding can stand until it is there.",
         "--session",
         referee,
+        "--author",
+        "Referee (Agent)",
         agent=True,
     )
     g.at("2026-09-16T15:10:00Z")
-    g.run("comment", "--resolve", expand, "Taken, with the exact sequence written out.")
-    g.run("comment", "--resolve", walk, "The walk is a walk in the support, which is a subquiver.")
-    g.run("comment", "--resolve", walk, "--undo")
+    g.run("annotate", "--resolve", expand, "Taken, with the exact sequence written out.")
+    g.run("annotate", "--resolve", walk, "The walk is a walk in the support, which is a subquiver.")
+    g.run("annotate", "--resolve", walk, "--undo")
     g.run(
         "refs",
-        "note",
+        "cite",
         "--from",
         referee,
         "--accept",
@@ -1050,7 +1128,7 @@ def build_showcase(dest: Path) -> None:
         "worth citing when the infinite case is written up",
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-000A",
         "Does this need the quiver to be connected, or does the component count handle it?",
         "--kind",
@@ -1058,14 +1136,12 @@ def build_showcase(dest: Path) -> None:
         "--quote",
         "A quiver whose underlying graph is a forest",
     )
-    g.run(
-        "comment", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "confirmation"
-    )
+    g.run("annotate", "sh-0003", "Read against the definition in Arden24-def-1.2; the two agree.", "--kind", "note")
 
     # A second person, so the viewer has two comment sessions and not one.
     g.at("2026-09-17T09:00:00Z")
     g.run(
-        "comment",
+        "annotate",
         "sh-000C",
         "I would split this: the polynomiality and the degree are two claims and only the first needs Bellamy.",
         "--kind",
@@ -1076,7 +1152,7 @@ def build_showcase(dest: Path) -> None:
         "Wren Halloway",
     )
     g.run(
-        "comment",
+        "annotate",
         "--reply",
         integrality,
         "Agreed that this is the gap. I will not accept sh-000C until sh-000E is proved.",
@@ -1088,7 +1164,7 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-17T09:30:00Z")
     quick = g.run("ai", "start", "quick-pass").strip().splitlines()[-1].strip()
     g.run(
-        "comment",
+        "annotate",
         "sh-0002",
         "A quiver should be required to be connected.",
         "--kind",
@@ -1100,7 +1176,7 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "sh-0005",
         "The bouquet is not a quiver.",
         "--kind",
@@ -1119,7 +1195,7 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-17T11:00:00Z")
     reading = g.run("session", "new", "reading Bellamy 19").strip().splitlines()[0].split()[0]
     g.run(
-        "comment",
+        "annotate",
         "Bellamy19-prop-3.1",
         "This is the form we use; the balanced case is the one that matters here.",
         "--kind",
@@ -1128,7 +1204,7 @@ def build_showcase(dest: Path) -> None:
         reading,
     )
     g.run(
-        "comment",
+        "annotate",
         "Bellamy19-thm-3.2",
         "Does this need the weights to be integral, or only bounded?",
         "--kind",
@@ -1139,7 +1215,7 @@ def build_showcase(dest: Path) -> None:
     # Notes on the page itself (plan 0.13 item 2): one anchored to text the reader selected, one to a box drawn
     # around the display, both recorded against the work by its identifier.
     g.run(
-        "comment",
+        "annotate",
         "Bellamy19",
         "Is total unimodularity really needed here, or only that the vertices are integral?",
         "--page",
@@ -1152,7 +1228,7 @@ def build_showcase(dest: Path) -> None:
         reading,
     )
     g.run(
-        "comment",
+        "annotate",
         "Bellamy19",
         "This is the display we cite; the balanced case is the one that matters.",
         "--page",
@@ -1187,7 +1263,7 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "Bellamy19",
         "Answered on the page: unimodularity is the mechanism, integrality of the vertices is what is used downstream.",
         "--page",
@@ -1203,7 +1279,7 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "comment",
+        "annotate",
         "Bellamy19-thm-3.2",
         "Please verify the transcription of 3.2 against p.2: the digest says 'integral' where the page says 'bounded'.",
         "--kind",
@@ -1390,7 +1466,10 @@ BUILDERS = {"synthetic": build_synthetic, "demo": build_demo, "showcase": build_
 def _sync(src: Path, dest: Path) -> None:
     if dest.exists():
         shutil.rmtree(dest)
-    shutil.copytree(src, dest, ignore=shutil.ignore_patterns("build", "__pycache__", ".git"))
+    # A session's readers' cursors and heartbeat are runtime state the quilt's .gitignore keeps out.
+    shutil.copytree(
+        src, dest, ignore=shutil.ignore_patterns("build", "__pycache__", ".git", "cursors", "attached.json")
+    )
 
 
 def _differences(a: Path, b: Path) -> list[str]:
@@ -1401,6 +1480,7 @@ def _differences(a: Path, b: Path) -> list[str]:
         # quilt's .gitignore deliberately keeps them out of its committed copy.
         return not (
             rel.startswith("refs/")
+            or (rel.startswith(".loom/sessions/") and ("/cursors/" in rel or rel.endswith("/attached.json")))
             or rel.startswith("digests/storage/cache/")
             or (rel.startswith("digests/storage/") and "/src/" in rel)
         )

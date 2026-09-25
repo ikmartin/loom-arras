@@ -33,6 +33,9 @@ disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched
 
 [author]
 name = "{author}"{author_pad}# who this quilt's records name; empty until you write it here or pass --author
+
+[ai]
+launch = {launch}              # may loom serve run the command in ai/ai-config.toml for a turn when a message waits
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.
@@ -79,6 +82,72 @@ def ask_prefix(default: str, yes: bool) -> str:
         return default
     value = click.prompt("Id prefix for new nodes (letters and digits, no hyphen)", default=default)
     return str(value).strip()
+
+
+AI_CHOICES = ("claude", "codex", "other", "none")
+AI_LABELS = {"claude": "Claude (Claude Code)", "codex": "ChatGPT (Codex)", "other": "another agent", "none": "none"}
+
+
+def ask_ai(yes: bool) -> str:
+    """Which AI the person works with: `claude`, `codex`, `other` or `none`, asked when a terminal is attached.
+
+    Anything but 1, 2 or 3 is 4, no AI; without a terminal, or with `--yes`, the answer is `none` -- loom starts nothing it was not told about.
+    """
+    if yes or not sys.stdin.isatty():
+        return "none"
+    click.echo(
+        "Which AI do you use with this quilt?\n  1. Claude (Claude Code)\n  2. ChatGPT (Codex)\n  3. Other\n  4. No AI"
+    )
+    value = click.prompt("Enter 1, 2, 3 or 4", default="4")
+    return {"1": "claude", "2": "codex", "3": "other"}.get(str(value).strip(), "none")
+
+
+def _set_launch(target: Path, launch: bool) -> None:
+    """Say in `config.toml` whether `loom serve` may start the agent; written only when it differs from what the file says."""
+    from loom.agent import launching
+
+    if launching(target) == launch:
+        return
+    p = target / "config.toml"
+    text = p.read_text(encoding="utf-8")
+    value = "true" if launch else "false"
+    import re as _re
+
+    if _re.search(r"(?m)^launch\s*=", text):
+        text = _re.sub(r"(?m)^launch\s*=\s*\w+", f"launch = {value}", text, count=1)
+    elif _re.search(r"(?m)^\[ai\]\s*$", text):
+        text = _re.sub(r"(?m)^\[ai\]\s*$", f"[ai]\nlaunch = {value}", text, count=1)
+    else:
+        text = text.rstrip("\n") + f"\n\n[ai]\nlaunch = {value}\n"
+    p.write_text(text, encoding="utf-8")
+
+
+def setup_ai(target: Path, choice: str, launch: bool) -> list[str]:
+    """Write `ai/ai-config.toml` for the answer, install the AI layer for Claude or Codex, and say what will happen.
+
+    Returns the lines `loom init` prints: which AI, where its command lives, and whether `loom serve` will start it.
+    """
+    from loom.agent import CONFIG, config_text
+
+    if choice in ("claude", "codex") and not (target / "ai").exists():
+        from loom.ai.layout import init_layer
+
+        init_layer(target)
+    (target / CONFIG).parent.mkdir(parents=True, exist_ok=True)
+    (target / CONFIG).write_text(config_text(choice), encoding="utf-8")
+    _set_launch(target, launch)
+    said = {
+        "claude": f"AI: {AI_LABELS['claude']}. The command loom would run is in {CONFIG}; loom agent check tests it.",
+        "codex": f"AI: {AI_LABELS['codex']}, unverified. The command loom would run is in {CONFIG}; loom agent check tests it.",
+        "other": f"AI: another agent. Fill in {CONFIG} with the command that starts it for one turn -- its header says how -- and loom agent check tests it.",
+        "none": f"AI: none. {CONFIG} is there, commented out, should that change.",
+    }[choice]
+    when = (
+        "Agents will be launched by loom serve when a message waits: set launch = false under [ai] in config.toml to stop that."
+        if launch
+        else "Agents will not be launched by loom serve: set launch = true under [ai] in config.toml to change that."
+    )
+    return [said, when]
 
 
 def ask_author(default: str, yes: bool) -> str:
@@ -148,6 +217,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
             canon=canon,
             author=author,
             author_pad=" " * max(1, 22 - len(author)),
+            launch="false",
         ),
     )
     write(target / "loom.sty", (ASSETS / "loom.sty").read_text(encoding="utf-8"))
@@ -220,6 +290,18 @@ def write_demo_quilt(target: Path) -> None:
     help="Who this quilt's records name; written to config.toml. Asked for when not given, and left empty when nobody answers.",
 )
 @click.option("--git", "git_init", is_flag=True, help="Also run git init. A quilt is files; loom reads no history.")
+@click.option(
+    "--ai",
+    "ai",
+    type=click.Choice(AI_CHOICES),
+    default=None,
+    help="Which AI you use, instead of being asked: its command goes in ai/ai-config.toml.",
+)
+@click.option(
+    "--launch-agents/--no-launch-agents",
+    default=False,
+    help="Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default.",
+)
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
 @click.pass_context
 def init(
@@ -230,6 +312,8 @@ def init(
     prefix: str | None,
     author: str | None,
     git_init: bool,
+    ai: str | None,
+    launch_agents: bool,
     yes: bool,
 ) -> None:
     """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it as its first canon document (then: loom draft)."""
@@ -269,11 +353,15 @@ def init(
         named = author.strip() if author is not None else ask_author("", yes)
         made = write_minimal_quilt(target, chosen, minimal_master=paper is None, author=named)
     _write_user_config_template()
+    choice = ai or ask_ai(yes)
 
     def announce() -> None:
-        """Say what was created, once the quilt is certain to outlive the command."""
+        """Set up the AI side and say what was created, once the quilt is certain to outlive the command."""
+        said_ai = setup_ai(target, choice, launch_agents)
         note(f"wrote the demo quilt to {target}" if demo else f"created quilt {target} with prefix {chosen}")
         note(GITIGNORE_NOTE)
+        for line in said_ai:
+            note(line)
         if git_init and _git_init(target):
             note(f"git init {target} (--git asked; loom itself reads no history)")
 

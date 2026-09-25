@@ -1,7 +1,6 @@
-// The viewer's own preferences (book 15.2, 15.7): the navigation shell, the body typeface, the body size, the line width, the theme, how a document is set, and where comments stand.
+// The viewer's own preferences (book 15.2, 15.7): the body typeface, the body size, the line width, the theme, how a document is set, and where comments stand.
 // They are arras's and never the corpus's, so they live in this browser and are written nowhere else. Every storage access is guarded: a private window, cleared site data, or a thumbnail capture can make localStorage throw or come back empty, and the viewer must render anyway.
 
-export type Shell = 'a' | 'c';
 export type Face = 'serif' | 'sans';
 export type Size = 's' | 'm' | 'l';
 export type Width = 'narrow' | 'mid' | 'wide';
@@ -19,20 +18,19 @@ export type Format = 'p1' | 'p2' | 'b1' | 'b2';
  *
  * `floating` opens a box over the text, anchored to the mark and inset from the window; `margin` stands it in a column beside the text; `inline` opens it in place, pushing the text apart, and is the Authoring View's alone. A click opens one and hovering never does — the box a pointer brought up could not be read without holding the pointer still, and could not be clicked into at all.
  */
-export type Comments = 'floating' | 'margin' | 'inline';
+export type Comments = 'floating' | 'inline';
 
 const KEY = 'arras.prefs';
 
 export interface Prefs {
-	shell: Shell;
-	/** The split's global ratio: how much of the frame the content pane takes, 0.2 to 0.8. One ratio, not one per route — a reader sets the shape of their screen once. */
+	/** The workspace's ratio: how much of the frame the left pane takes, 0.2 to 0.8, half by default since neither pane is primary. One ratio — a reader sets the shape of their screen once. */
 	divider: number;
-	/** Whether the discussion stands on the left. A settings toggle, expected to be deprecated once one side is known to be right. */
-	swap: boolean;
 	/** Whether the side panel is showing. It collapses independently of the split and goes first, because on a narrow window it is the column the reader needs least (plan 0.13 §7). */
 	panel: boolean;
 	/** How large a rendered page is drawn, per renderer kind (`pdf` today): a reader who wants a paper larger wants every paper larger, and the document's own size is the `size` setting. A second renderer gets its own entry rather than the PDF's number. */
 	zoom: Record<string, number>;
+	/** Whether each result's id and state stand in the left gutter. Off by default: a reader reading the paper does not need every key beside it, and the reader who does is working on the corpus rather than reading it. */
+	ids: boolean;
 	face: Face;
 	size: Size;
 	width: Width;
@@ -41,18 +39,14 @@ export interface Prefs {
 	comments: Comments;
 }
 
-export const DEFAULTS: Prefs = { shell: 'c', divider: 0.62, swap: false, panel: true, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
 
-// A stored `b`, the retired tabs shell, is not in the list, so it falls back to the default like any unknown value.
-// The same carries the format rename: a browser holding `paper` or `blog` gets the default back, which is what the
-// reader would have chosen anyway now that the compiled page is on offer.
-const SHELLS: Shell[] = ['a', 'c'];
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
 const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
 const FORMATS: Format[] = ['p1', 'p2', 'b1', 'b2'];
-const COMMENTS: Comments[] = ['floating', 'margin', 'inline'];
+const COMMENTS: Comments[] = ['floating', 'inline'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */
 export function coerce(raw: unknown): Prefs {
@@ -60,17 +54,15 @@ export function coerce(raw: unknown): Prefs {
 	const pick = <T extends string>(v: unknown, allowed: T[], fallback: T): T =>
 		typeof v === 'string' && (allowed as string[]).includes(v) ? (v as T) : fallback;
 	const ratio = typeof o.divider === 'number' && Number.isFinite(o.divider) ? o.divider : DEFAULTS.divider;
-	// a number is what this stored before it was per kind; it was the PDF's
-	const stored = typeof o.zoom === 'number' ? { pdf: o.zoom } : typeof o.zoom === 'object' && o.zoom ? o.zoom : {};
+	const stored = typeof o.zoom === 'object' && o.zoom ? o.zoom : {};
 	const zoom: Record<string, number> = { ...DEFAULTS.zoom };
 	for (const [kind, v] of Object.entries(stored as Record<string, unknown>)) {
 		if (typeof v === 'number' && Number.isFinite(v)) zoom[kind] = Math.min(3, Math.max(0.5, v));
 	}
 	return {
-		shell: pick(o.shell, SHELLS, DEFAULTS.shell),
 		divider: Math.min(0.8, Math.max(0.2, ratio)),
-		swap: o.swap === true,
 		panel: o.panel !== false,
+		ids: o.ids === true,
 		zoom,
 		face: pick(o.face, FACES, DEFAULTS.face),
 		size: pick(o.size, SIZES, DEFAULTS.size),
@@ -101,22 +93,20 @@ export function write(p: Prefs): void {
 /** The attributes the stylesheet keys off. `theme: 'system'` sets none, leaving the media query in charge. */
 export function attributes(p: Prefs): Record<string, string | null> {
 	return {
-		'data-shell': p.shell,
 		'data-face': p.face,
 		'data-size': p.size,
 		'data-width': p.width,
 		'data-theme': p.theme === 'system' ? null : p.theme,
 		'data-format': p.format,
 		'data-comments': p.comments,
-		'data-swap': p.swap ? 'yes' : null
+		'data-ids': p.ids ? 'yes' : null,
 	};
 }
 
 class PrefsState {
-	shell = $state<Shell>(DEFAULTS.shell);
 	divider = $state<number>(DEFAULTS.divider);
-	swap = $state<boolean>(DEFAULTS.swap);
 	panel = $state<boolean>(DEFAULTS.panel);
+	ids = $state<boolean>(DEFAULTS.ids);
 	zoom = $state<Record<string, number>>({ ...DEFAULTS.zoom });
 	face = $state<Face>(DEFAULTS.face);
 	size = $state<Size>(DEFAULTS.size);
@@ -126,15 +116,14 @@ class PrefsState {
 	comments = $state<Comments>(DEFAULTS.comments);
 
 	get current(): Prefs {
-		return { shell: this.shell, divider: this.divider, swap: this.swap, panel: this.panel, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { divider: this.divider, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
 	}
 
 	load(override?: Partial<Prefs>): void {
 		const p = coerce({ ...read(), ...(override ?? {}) });
-		this.shell = p.shell;
 		this.divider = p.divider;
-		this.swap = p.swap;
 		this.panel = p.panel;
+		this.ids = p.ids;
 		this.zoom = { ...p.zoom };
 		this.face = p.face;
 		this.size = p.size;

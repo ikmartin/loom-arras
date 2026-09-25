@@ -63,6 +63,26 @@
 	{:else if name === 'close'}
 		<path d="M18 6 6 18" />
 		<path d="m6 6 12 12" />
+	{:else if name === 'cursor'}
+		<!-- the select tool: a pointer, because in this mode the page behaves like any other text -->
+		<path d="m4 3 6.5 16 2.4-6.6L19.5 10z" />
+	{:else if name === 'marquee'}
+		<!-- the box tool: a dashed rectangle being dragged, which is the gesture it names -->
+		<path d="M4 8V6a2 2 0 0 1 2-2h2" />
+		<path d="M16 4h2a2 2 0 0 1 2 2v2" />
+		<path d="M20 16v2a2 2 0 0 1-2 2h-2" />
+		<path d="M8 20H6a2 2 0 0 1-2-2v-2" />
+		<path d="M11 4h2" />
+		<path d="M11 20h2" />
+		<path d="M4 11v2" />
+		<path d="M20 11v2" />
+	{:else if name === 'fit-width'}
+		<!-- match width: two edges and the span between them -->
+		<path d="M3 5v14" />
+		<path d="M21 5v14" />
+		<path d="M7 12h10" />
+		<path d="m9 9-3 3 3 3" />
+		<path d="m15 9 3 3-3 3" />
 	{/if}
 </svg>
 

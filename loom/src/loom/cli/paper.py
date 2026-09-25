@@ -68,6 +68,8 @@ def id_command(
         allocated = f"{pre_next}-{next_local(visible_locals(result, pre_next))}"
         emit_json({"id": allocated, "prefix": pre_next}) if as_json else click.echo(allocated)
         return
+    if as_json:
+        raise EnvError("--json applies to --next; a file's labels are printed as a diff")
     if file is None:
         click.echo("ERROR: name a file to label, or pass --next for the next free id", err=True)
         ctx.exit(EXIT_USAGE)
@@ -124,7 +126,7 @@ def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> Iden
     for name in plan.outside:
         note(f"  {name} -> not copied; it lies outside the paper directory (loom:import-outside-tree)")
     if plan.exists:
-        raise ContentError(f"{plan.canon_rel} exists; import never overwrites a canon document")
+        raise EnvError(f"{plan.canon_rel} exists; import never overwrites a canon document")
     from loom.tex.runner import compile_tex, stage_sources
 
     ident: IdentityResult | None = None

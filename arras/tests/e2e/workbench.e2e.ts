@@ -1,9 +1,8 @@
-// The workbench in the viewer (book 15.2, 15.3.1, 15.3.5): landmarks as documents of their own, a corpus with nothing being worked on, a doubly-defined id, the fixes a diagnostic offers, and the badge that says a text is one a landmark recorded.
+// The workbench in the viewer (book 15.2, 15.3.1, 15.3.5): landmarks as documents of their own, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
 import { expect, test } from '@playwright/test';
 
 test('the documents section lists the landmarks and the working drafts in two groups', async ({ page }) => {
-	// A list rather than a dropdown (plan 0.13.1's panel work): a dropdown shows one name at a time, cannot say which
-	// draft is conflicted, and hides the landmarks behind a click.
+	// a list rather than a dropdown: a dropdown shows one name at a time, cannot say which draft is conflicted, and hides the landmarks behind a click
 	await page.goto('/');
 	await expect(page.getByTestId('docs-drafts')).toBeVisible();
 	const canon = page.getByTestId('docs-canon').locator('li');
@@ -17,7 +16,8 @@ test('the documents section lists the landmarks and the working drafts in two gr
 test('a landmark is a document, with no identity and nothing to review', async ({ page }) => {
 	await page.goto('/canon/widgets-v1');
 	await expect(page.locator('main').getByRole('heading', { level: 1 }).first()).toContainText('Widgets');
-	await expect(page.locator('main')).toContainText('landmark @1');
+	// its step is its identity, so it stands in its tab
+	await expect(page.getByTestId('item-tab')).toContainText('widgets-v1 @1');
 	const fragment = page.locator('.fragment');
 	await expect(fragment.locator('.env').first()).toBeVisible();
 	await expect(fragment.locator('.env[data-key], .env[data-id]')).toHaveCount(0); // no theorem in a landmark is a node
@@ -49,54 +49,6 @@ test('a doubly defined id has no text, and says where both definitions are', asy
 	await expect(conflicted.locator('code')).toHaveCount(2);
 	await expect(conflicted.getByRole('link', { name: 'problems' })).toBeVisible();
 	await expect(page.locator('.fragment')).toHaveCount(0);
-});
-
-test('Review scopes rows and counts to working-document tabs while sharing one block state', async ({ page }) => {
-	await page.goto('/review');
-	const tabs = page.getByRole('navigation', { name: 'Review views' });
-	await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
-	await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
-	await expect(page.locator('#review-sy-0003')).toBeVisible();
-	await expect(page.locator('#review-sy-999a')).toHaveCount(0);
-	await expect(page.locator('#review-sy-0002')).toBeVisible();
-	await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
-	const mainCounts = await page.getByTestId('review-counts').innerText();
-
-	await tabs.getByRole('link', { name: 'talk.tex' }).click();
-	await expect(page).toHaveURL(/\/review\?document=drafting%2Ftalk\.tex$/);
-	await expect(page.locator('#review-sy-999a')).toBeVisible();
-	await expect(page.locator('#review-sy-0003')).toHaveCount(0);
-	await expect(page.locator('#review-sy-0002')).toBeVisible();
-	await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
-	await expect(page.getByTestId('review-counts')).not.toHaveText(mainCounts);
-	await expect(page.getByText('Runs and comment sessions')).toHaveCount(0);
-	await expect(page.getByText('Undigested citations')).toHaveCount(0);
-
-	await page.goto('/review?document=drafting%2Fmissing.tex');
-	await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
-});
-
-test('the problems page groups by subject and copies a fix', async ({ page, context, browserName }) => {
-	await page.goto('/problems');
-	const headings = page.getByTestId('subject-heading');
-	await expect(headings.first()).toHaveText('The source');
-	await expect(headings.nth(1)).toHaveText('The record');
-	await page.getByTestId('filter-subject').selectOption('record');
-	await expect(page.locator('section.group')).toContainText('loom:canon-edited');
-	const fix = page.getByTestId('fix').first();
-	await expect(fix).toHaveText('copy');
-	if (browserName === 'chromium') {
-		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-		await fix.click();
-		await expect(fix).toHaveText('copied');
-		const copied = await page.evaluate(() => navigator.clipboard.readText());
-		expect(copied.length).toBeGreaterThan(0); // the command as the publisher wrote it, whatever it is
-	}
-});
-
-test('a key whose text a landmark recorded says which', async ({ page }) => {
-	await page.goto('/node/sy-0002');
-	await expect(page.getByTestId('version')).toContainText('text of @1');
 });
 
 test('with nothing being worked on, every view says so and points at the landmarks', async ({ page }) => {

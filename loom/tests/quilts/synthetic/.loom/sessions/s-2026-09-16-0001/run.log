@@ -1,10 +1,11 @@
-2026-09-16T00:00:00Z  loom comment sy-0003 --quote --kind objection
-2026-09-16T00:00:00Z  loom comment sy-0004 --quote --kind suggestion
-2026-09-16T00:00:00Z  loom comment drafting/main.tex --kind suggestion
-2026-09-16T00:00:00Z  loom comment sy-0003 --kind citation
-2026-09-16T00:00:00Z  loom comment sy-0002 --kind citation
-2026-09-16T00:00:00Z  loom comment sy-0002 --quote --kind question
-2026-09-16T00:00:00Z  loom comment Agreed; I will add the hypothesis to the statement.
-2026-09-16T00:00:00Z  loom comment Done in the next revision.
-2026-09-16T00:00:00Z  loom comment 
-2026-09-16T00:00:00Z  loom comment sy-0001 --quote --kind question
+2026-09-16T00:00:00Z  loom annotate sy-0003 --quote --kind objection → a-2026-09-16-0001
+2026-09-16T00:00:00Z  loom annotate sy-0004 --quote --kind suggestion → a-2026-09-16-0002
+2026-09-16T00:00:00Z  loom annotate drafting/main.tex --kind suggestion → a-2026-09-16-0003
+2026-09-16T00:00:00Z  loom annotate sy-0003 --kind citation → a-2026-09-16-0004
+2026-09-16T00:00:00Z  loom annotate sy-0002 --kind citation → a-2026-09-16-0005
+2026-09-16T00:00:00Z  loom annotate sy-0002 --quote --kind question → a-2026-09-16-0006
+2026-09-16T00:00:00Z  loom annotate sy-0002 --quote --kind suggestion --in drafting/talk.tex → a-2026-09-16-0007
+2026-09-16T00:00:00Z  loom annotate --reply a-2026-09-16-0001 → a-2026-09-16-0008
+2026-09-16T00:00:00Z  loom annotate --reply a-2026-09-16-0002 → a-2026-09-16-0009
+2026-09-16T00:00:00Z  loom annotate --resolve a-2026-09-16-0002 → a-2026-09-16-0002
+2026-09-16T00:00:00Z  loom annotate sy-0001 --quote --kind question → a-2026-09-16-0010

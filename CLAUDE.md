@@ -21,7 +21,7 @@ def f():
 
 This applies to prose only. **Keep** structural line breaks: blank lines between paragraphs, bullet and numbered lists, tables, usage/example blocks, ASCII diagrams, and `key: value` definition lines. Code is formatted normally — this is not a rule about code width.
 
-If a hard-wrapped docstring needs editing, unwrap it while you are in there.
+If a hard-wrapped docstring needs editing, unwrap it while you are in there. `scripts/checks/hardwrap.py` enforces this on every line added since the last commit, and runs in `scripts/verify`; `--all` measures what is still wrapped elsewhere.
 
 ## Docstrings: brief, and about the CURRENT state
 

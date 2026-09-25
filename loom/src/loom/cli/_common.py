@@ -34,6 +34,14 @@ class EnvError(click.ClickException):
         return self.message
 
 
+class NotFoundError(EnvError):
+    """An argument names something that does not exist: a node, an annotation, a session, a cited work, a result. Exit 2, like any argument that names nothing; the write API answers it 404 `no-such-<what>`."""
+
+    def __init__(self, what: str, message: str) -> None:
+        super().__init__(message)
+        self.what = what
+
+
 def emit_json(obj: Any) -> None:
     """Print one JSON document to stdout and nothing else there; diagnostics go to stderr."""
     click.echo(json.dumps(obj, indent=2, sort_keys=True, ensure_ascii=False))
@@ -42,27 +50,6 @@ def emit_json(obj: Any) -> None:
 def note(message: str) -> None:
     """Progress or diagnostic text, always on stderr so --json stdout stays clean."""
     click.echo(message, err=True)
-
-
-def resolve_run(root: Path, run_dir: str | None) -> Path | None:
-    """A `--run` directory as a path: absolute as given, otherwise relative to the quilt root (never to the shell's cwd), so `--run ai/runs/x` means the quilt's run from any directory.
-
-    See Also
-    --------
-    find_session : a session by id, title or unique suffix.
-    """
-    if not run_dir:
-        return None
-    p = Path(run_dir).expanduser()
-    return p if p.is_absolute() else root / p
-
-
-def under_runs(root: Path, p: Path) -> bool:
-    """Whether a resolved `--run` path is inside `ai/runs/`, which is the only place an agent may write."""
-    try:
-        return p.resolve().is_relative_to((root / "ai" / "runs").resolve())
-    except (OSError, ValueError):
-        return False
 
 
 def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
@@ -96,7 +83,7 @@ def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
             # naming the matches rather than guessing, as `refs resolve` does with candidates
             named = ", ".join(f"{x.id} ({x.title})" for x in hits[:4])
             raise EnvError(f"{which!r} matches {len(hits)} sessions: {named}")
-    raise EnvError(f"no session matches {which!r}; loom session list shows them")
+    raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
 
 
 #: Environment variables an agent's shell carries. `AI_AGENT` is the generic one; the rest name a particular tool.
@@ -174,16 +161,16 @@ def writer(root: Path, declared: str | None) -> tuple[str, str]:
     return whoever(root), "person"
 
 
-def whoever(root: Path, author: str | None = None) -> str:
+def whoever(root: Path, author: str | None = None, *, sniff: bool = True) -> str:
     """Who is running this, for a record that wants provenance and must not refuse for want of it.
 
-    Opening, retitling or closing a session is not an authored claim about anybody's mathematics, so an unconfigured author name costs the record a name and never the command. The verbs that *are* claims -- `accept`, `refs verify`, a comment -- keep asking.
+    Opening, retitling or closing a session is not an authored claim about anybody's mathematics, so an unconfigured author name costs the record a name and never the command. The verbs that *are* claims -- `accept`, `refs verify`, a comment -- keep asking. `sniff=False` is the write API's: a write over HTTP is somebody at a browser, and the shell `loom serve` was started in says nothing about them.
     """
     from loom.scan.quilt import NoAuthorError, resolve_author
 
     if (author or "").strip():
         return str(author).strip()
-    robot = agent_name()
+    robot = agent_name() if sniff else None
     if robot:
         return robot
     try:

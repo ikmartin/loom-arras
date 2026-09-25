@@ -1,9 +1,10 @@
 <script lang="ts">
 	// Reading a text as it was written rather than as it renders (plan 0.11 Part E).
 	//
-	// The control appears only where there is something behind it: a corpus that publishes no source shows nothing at all, rather than a button that explains itself by failing. Copy is beside it because reading the source and taking it somewhere are the same errand -- usually into a conversation with an agent, which is what "copy for chat" is for.
-	import { copyText } from '$lib/clipboard';
-	import { fetchSource, forChat } from '$lib/source';
+	// The control appears only where there is something behind it: a corpus that publishes no source shows nothing at all, rather than a button that explains itself by failing. It names what a click gives you rather than what is on screen, so the reader picks a view instead of decoding a state.
+	//
+	// It used to carry `copy` and `copy for chat` beside it. Both are gone: selecting the text is how anyone copies text, the second wrapped it in a tag syntax nobody asked for, and three controls where one was wanted is what made the row unreadable when it was narrow.
+	import { fetchSource } from '$lib/source';
 
 	let {
 		sourceKey,
@@ -19,7 +20,6 @@
 
 	let fetched = $state<string | null>(null);
 	let tried = $state(false);
-	let said = $state('');
 
 	const body = $derived(text ?? fetched);
 
@@ -29,27 +29,18 @@
 		fetchSource(sourceKey).then((s) => (fetched = s));
 	});
 
-	async function copy(what: 'plain' | 'chat') {
-		if (!body) return;
-		const ok = await copyText(what === 'chat' ? forChat(sourceKey, body) : body);
-		said = ok ? 'copied' : 'could not copy';
-		setTimeout(() => (said = ''), 1600);
-	}
 </script>
 
 {#if body}
 	<span class="tools" data-testid="source-tools">
 		<button class:on={open} onclick={() => (open = !open)} aria-pressed={open} data-testid="source-toggle">
-			{open ? 'rendered' : 'source'}
+			{open ? 'rendered latex' : 'verbatim code'}
 		</button>
-		<button onclick={() => copy('plain')} data-testid="source-copy">copy</button>
-		<button onclick={() => copy('chat')} title="the key in the author's tag syntax, then the text" data-testid="source-copy-chat">copy for chat</button>
-		{#if said}<span class="said" role="status">{said}</span>{/if}
 	</span>
 {/if}
 
 {#if open && body}
-	<pre class="verbatim" data-testid="verbatim">{body}</pre>
+	<pre class="verbatim" data-testid="verbatim" aria-label="the LaTeX behind this block">{body}</pre>
 {/if}
 
 <style>
@@ -79,9 +70,6 @@
 	.tools button.on {
 		color: var(--ink);
 		border-color: var(--rule-strong);
-	}
-	.said {
-		color: var(--ink-faint);
 	}
 	.verbatim {
 		white-space: pre-wrap;

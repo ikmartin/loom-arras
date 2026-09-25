@@ -8,7 +8,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError
+from loom.cli._common import ContentError, EnvError, NotFoundError
 from loom.scan.quilt import NoQuiltError, Quilt, find_quilt
 from loom.scan.scan import ScanResult, scan
 
@@ -46,7 +46,7 @@ def resolve_key(result: ScanResult, key: str) -> str:
         cand = f"{base}/proof{rest}"
         if cand in nodes:
             return cand
-    raise EnvError(f"no such key: {key}")
+    raise NotFoundError("node", f"no such key: {key}")
 
 
 def describe(result: ScanResult, key: str) -> str:

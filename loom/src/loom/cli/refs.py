@@ -16,23 +16,23 @@ from typing import Any, TypeVar, cast
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.clock import stamp
-from loom.refs.identity import declared, primary
+from loom.refs.identity import declared
 from loom.refs.pages import storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, query_for, save
 from loom.scan.scan import ScanResult
 
 
 def _home(result: ScanResult, citekey: str) -> Path:
-    """The work's directory in loom's store, or a refusal naming what is missing."""
+    """The work's directory in loom's store, where `work_dir` says every other reader looks, or a refusal naming what is missing."""
+    from loom.refs.fetch import work_dir
+
     entry = result.bib.get(citekey)
     if entry is None:
-        raise EnvError(f"{citekey} is not in the bibliography, so it has no identity to file under")
-    wid = primary(entry)
-    assert wid is not None  # identify() always yields at least a synthetic id for a real entry
-    return storage_root(result.quilt.root) / wid.path
+        raise NotFoundError("work", f"{citekey} is not in the bibliography, so it has no identity to file under")
+    return work_dir(result.quilt.root, entry)
 
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -57,7 +57,13 @@ def logged(name: str) -> Callable[[F], F]:
                 from loom.cli._quilt import open_quilt
                 from loom.cli.build_cmds import log_run
 
-                shown = [str(v) for k, v in kwargs.items() if v not in (None, False, (), "") and k != "quilt_path"]
+                # a multiple option or argument arrives as a tuple; the log says what was typed, not Python's repr of it
+                shown = [
+                    str(x)
+                    for k, v in kwargs.items()
+                    if v not in (None, False, (), "") and k != "quilt_path"
+                    for x in (v if isinstance(v, (tuple, list)) else (v,))
+                ]
                 log_run(run_dir, " ".join(["loom refs", name, *shown]), open_quilt(kwargs.get("quilt_path")).root)
             return f(*args, **kwargs)
 
@@ -164,7 +170,7 @@ def resolve_command(
     if citekeys:
         missing = [ck for ck in citekeys if ck not in result.bib]
         if missing:
-            raise EnvError(f"not in the bibliography: {', '.join(missing)}")
+            raise NotFoundError("work", f"not in the bibliography: {', '.join(missing)}")
         wanted = list(citekeys)
     else:
         cited = {c.citekey for c in result.edges.cites}
@@ -213,7 +219,7 @@ def resolve_command(
         ctx.exit(EXIT_CONTENT)
 
 
-@refs.command(name="note")
+@refs.command(name="cite")
 @click.option("--from", "run_dir", default=None, metavar="SESSION", help="The session whose suggestion this is.")
 @click.option(
     "--accept", "accept_id", default=None, metavar="ID", help="Record this citation suggestion and resolve it."
@@ -223,7 +229,7 @@ def resolve_command(
 @click.option("--author", default=None, help="Who accepted, when the user config and git do not say.")
 @click.option("--list", "as_list", is_flag=True, help="Print what has been accepted.")
 @quilt_option
-def note_command(
+def cite_command(
     run_dir: str | None,
     accept_id: str | None,
     reject_id: str | None,
@@ -260,7 +266,7 @@ def note_command(
     assert ann_id is not None
     found = find_annotation(Records(root).records, ann_id)
     if found is None:
-        raise ContentError(f"no annotation {ann_id}")
+        raise NotFoundError("annotation", f"no annotation {ann_id}")
     _rec, ann = found
     if ann.kind != "citation":
         raise ContentError(f"{ann_id} is a {ann.kind}, not a citation suggestion")
@@ -278,7 +284,7 @@ def note_command(
                 "claim": ann.body,
                 "identifier": {"verified": False},
                 "accepted": {"when": stamp(), "who": who},
-                "from": {"run": _rec.rel if _rec.is_run else None, "annotation": ann_id},
+                "from": {"session": _rec.rel, "annotation": ann_id},
             },
         )
     append(
@@ -289,7 +295,6 @@ def note_command(
             "when": stamp(),
             "author": who,
             "kind": "human",
-            "run": None,
             "body": reason or ("accepted" if accept_id else "rejected"),
         },
     )
@@ -437,6 +442,11 @@ def fetch_command(
     missing = [ck for ck in citekeys if ck not in result.bib]
     if missing:
         raise EnvError(f"not in the bibliography: {', '.join(missing)}")
+    if not result.quilt.config.fetch:
+        # consent is the environment's to give, like every other refusal before loom does anything
+        raise EnvError(
+            "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
+        )
     wanted = (
         [w for w in survey(result) if w.citekey in set(citekeys)]
         if citekeys
@@ -707,7 +717,9 @@ def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, qu
 @refs.command(name="grep")
 @click.argument("text")
 @click.option("--work", "works_only", multiple=True, help="Limit to these citekeys.")
-@click.option("--limit", default=20, show_default=True, help="Stop after this many hits.")
+@click.option(
+    "--limit", default=20, show_default=True, help="Show at most this many hits; every work is still searched."
+)
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
 @logged("grep")
@@ -804,11 +816,13 @@ def locate_command(
     home = work_dir(result.quilt.root, result.bib[citekey])
     if read_map(home) is None or not (home / "paper.pdf").is_file():
         raise ContentError(f"{citekey} has no mapped PDF; run loom refs map {citekey}")
-    # The mapping the viewer previews with and `loom comment` records, so the three cannot spell one place
-    # differently -- and so this can print the basis and the offsets, which its own `locate_span` could not.
+    # The mapping the viewer previews with and `loom annotate` records, so the three cannot spell one place differently -- and so this can print the basis and the offsets, which its own `locate_span` could not.
     placed = anchor_on_page(home, page_no, text)
     if not placed.found:
-        click.echo(f"not found on {citekey} p.{page_no}")
+        if as_json:
+            click.echo(json.dumps({"found": False, "citekey": citekey, "page": page_no}))
+        else:
+            click.echo(f"not found on {citekey} p.{page_no}")
         ctx.exit(EXIT_CONTENT)
         return
     anchor = placed.anchor
@@ -1295,7 +1309,13 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
     envvar="LOOM_SESSION",
     help="The session asserting it; an agent must say which.",
 )
-@click.option("--author", default=None, help="Who asserted it, when the user config and git do not say.")
+@click.option(
+    "--author",
+    "--as",
+    "author",
+    default=None,
+    help="Who asserted it; an agent names itself, with Agent or AI in the name.",
+)
 @quilt_option
 def link_command(
     frm: str, to: str, kind: str, why: str, run_dir: str | None, author: str | None, quilt_path: str | None
@@ -1315,11 +1335,11 @@ def link_command(
             try:
                 find_result(result, end)
             except LookupError as exc:
-                raise ContentError(f"{end} is not a result in any digest: {exc}") from exc
+                raise NotFoundError("result", f"{end} is not a result in any digest: {exc}") from exc
     from loom.cli._common import agent_marker
 
     if run_dir:
-        # who asserted it, as `loom comment` records it: an assertion is somebody's, and a reader weighs it by whose
+        # who asserted it, as `loom annotate` records it: an assertion is somebody's, and a reader weighs it by whose
         who = Path(run_dir).name
     elif agent_marker():
         # an agent with no --session would otherwise be recorded as the author, by way of git: eleven links in the second
@@ -1664,7 +1684,7 @@ def unreadable_command(citekey: str, why: str | None, undo: bool, author: str | 
     result = open_scan(quilt_path)
     root = result.quilt.root
     if citekey not in result.bib:
-        raise ContentError(f"{citekey} is not in the bibliography; this declaration is keyed by citekey")
+        raise NotFoundError("work", f"{citekey} is not in the bibliography; this declaration is keyed by citekey")
     standing = declarations(root, "unreadable").get(citekey)
     if undo and standing is None:
         raise ContentError(f"{citekey} is not declared unreadable")
@@ -1728,4 +1748,4 @@ def _forget_key(root: Path, target: str, bib: dict[str, Any]) -> str:
             return f"sha256:{hits[0]}"
         if len(want) == 64:
             return f"sha256:{want}"
-    raise ContentError(f"{target} is neither a citekey in the bibliography nor a hash in the copy ledger")
+    raise NotFoundError("work", f"{target} is neither a citekey in the bibliography nor a hash in the copy ledger")

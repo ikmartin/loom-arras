@@ -13,7 +13,7 @@ from loom.cli._quilt import open_quilt, quilt_option
 
 @click.group()
 def ai() -> None:
-    """The optional AI layer: runs, orientation, promotion, and discarding review records."""
+    """The optional AI layer: orientation, sessions, annotations, and discarding review records."""
 
 
 @ai.command()
@@ -30,7 +30,7 @@ def discard(
 ) -> None:
     """Flag a session's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
 
-    Discarding appends an event like any other change, so a sitting's findings can be dismissed and brought back without anything being rewritten or lost.
+    Discarding appends an event like any other change, so a sitting's annotations can be dismissed and brought back without anything being rewritten or lost.
     """
     from loom.cli._common import agent_marker
     from loom.clock import stamp
@@ -43,8 +43,7 @@ def discard(
     sources: list[str] = []
     if run:
         found = find_session(root, run)
-        # a migrated session's annotations still carry the grouping they were written with
-        sources.append(found.source or found.id)
+        sources.append(found.id)
     elif before or author or target:
         for rec in records:
             created = min((a.created for a in rec.annotations), default="")
@@ -61,10 +60,9 @@ def discard(
         click.echo("no matching records")
         return
     from loom.cli._common import whoever
-    from loom.sessions import ID, by_source, close, resume
+    from loom.sessions import ID, close, resume
 
     who = whoever(root)
-    known = by_source(root)
     for rel in sources:
         event: dict[str, object] = {
             "event": "discarded",
@@ -72,36 +70,33 @@ def discard(
             "when": stamp(),
             "author": who,
             "kind": "agent" if agent_marker() else "human",
-            "session": rel if ID.match(rel) else known.get(rel),
+            "session": rel,
         }
         if undo:
             event["undo"] = True
         append(root, event)
-        # Discarding a sitting's findings ends the sitting: that is what discarding a run meant, and a session whose
-        # every finding is dismissed has no business in the list of what is open.
-        sid = rel if ID.match(rel) else known.get(rel)
-        if sid:
-            (resume if undo else close)(root, sid, who)
+        # Discarding a sitting's annotations ends the sitting: that is what discarding a run meant, and a session whose every annotation is dismissed has no business in the list of what is open.
+        if ID.match(rel):
+            (resume if undo else close)(root, rel, who)
         click.echo(f"{'restored' if undo else 'discarded'} {rel}")
 
 
 @ai.command(name="init")
-@click.option("--permissions", is_flag=True, help="Also write the agents' permission settings (.claude/settings.json).")
 @click.option("--skills", is_flag=True, help="Also write skill stubs and slash commands for Claude Code.")
 @quilt_option
-def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
-    """Write ai/ (orientation, modes, runs/) and the vendor files CLAUDE.md and AGENTS.md; refuses if ai/ exists."""
+def ai_init(skills: bool, quilt_path: str | None) -> None:
+    """Write ai/ (orientation, rules, modes), the vendor files CLAUDE.md and AGENTS.md, and what agents may run for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules); refuses if ai/ exists."""
     from loom.ai.layout import init_layer
 
     quilt = open_quilt(quilt_path)
     try:
-        rep = init_layer(quilt.root, permissions=permissions, skills=skills)
+        rep = init_layer(quilt.root, skills=skills)
     except FileExistsError:
         raise EnvError("ai/ exists; run loom upgrade to refresh it") from None
     for rel in rep.written:
         click.echo(f"wrote {rel}")
     click.echo(
-        'next: start your agent here; it reads CLAUDE.md and runs loom ai orient. loom ai start "a name" opens a run.'
+        'next: start your agent here; it reads CLAUDE.md and runs loom ai orient. loom ai start "a name" opens a session.'
     )
 
 
@@ -112,13 +107,13 @@ def ai_init(permissions: bool, skills: bool, quilt_path: str | None) -> None:
     default=None,
     envvar="LOOM_SESSION",
     metavar="SESSION",
-    help="Attach to this session: also print its journal and command log. An id, a title, or a unique id suffix.",
+    help="Attach to this session: also print the end of its chat and its command log. An id, a title, or a unique id suffix.",
 )
 @quilt_option
 def ai_orient(session: str | None, quilt_path: str | None) -> None:
-    """Print the orientation document followed by the quilt's live state, and with --session that session's own journal.
+    """Print the orientation documents followed by the quilt's live state, and with --session the end of that session's chat.
 
-    This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and that session's journal and command log, which is the scrollback a later sitting resumes from.
+    This is also how an agent joins a session it did not open: `loom ai orient --session <id>` prints the orientation, the quilt's live state, and the last messages of that session's chat with its command log, which is what a later sitting resumes from.
     """
     from loom.ai.orient import live_text, static_text
     from loom.cli._quilt import open_scan
@@ -132,7 +127,7 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
     found = find_session(root, session) if session else None
     where = files_dir(root, found) if found else None
     click.echo(static_text(root), nl=False)
-    click.echo(live_text(result, Records(root, result.quilt.history_dir), where), nl=False)
+    click.echo(live_text(result, Records(root, result.quilt.history_dir), where, found.id if found else None), nl=False)
     log_run(found.id if found else None, "loom ai orient", root)
 
 
@@ -142,7 +137,7 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
 def ai_start(name: str | None, quilt_path: str | None) -> None:
     """Open a session named NAME and make it active, printing its id.
 
-    The same session a person opens with `loom session new`: an agent and the author working the same job land in one place, which they could not when a run was the agent's alone. Loom does not launch your agent -- `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`.
+    The same session a person opens with `loom session new`, so an agent and the author working the same job land in one place. Loom does not launch your agent -- `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`.
     """
     from loom.cli._common import whoever
     from loom.sessions import create, set_active
@@ -153,22 +148,6 @@ def ai_start(name: str | None, quilt_path: str | None) -> None:
     s = create(quilt.root, (name or "").strip() or "untitled", whoever(quilt.root))
     set_active(quilt.root, s.id)
     click.echo(s.id)
-
-
-@ai.command(name="runs")
-@click.option("--all", "show_all", is_flag=True, help="Include closed sessions, marked.")
-@quilt_option
-def ai_runs(show_all: bool, quilt_path: str | None) -> None:
-    """List this quilt's sessions, newest last, as `YYYY-MM-DD: title`. The same list `loom session list` prints."""
-    from loom.ai.orient import open_sessions
-
-    quilt = open_quilt(quilt_path)
-    rows = open_sessions(quilt.root, include_closed=show_all)
-    if not rows:
-        click.echo("no sessions yet" if show_all else "no open sessions")
-        return
-    for _sid, title, created, closed in rows:
-        click.echo(f"  {created[:10]}: {title}" + (" (closed)" if closed else ""))
 
 
 @ai.command(name="name")
@@ -213,17 +192,19 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
     return out
 
 
-@ai.command(name="findings")
+@ai.command(name="annotations")
 @click.option(
     "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to report on."
 )
-@click.option("--severity", "f_severity", default=None, help="Only findings of this severity.")
-@click.option("--kind", "f_kind", default=None, help="Only findings of this kind.")
-@click.option("--status", "f_status", default=None, help="Only findings in this state: open, resolved or discarded.")
-@click.option("--all", "f_all", is_flag=True, help="Include withdrawn findings, with the reason they were withdrawn.")
-@click.option("--json", "as_json", is_flag=True, help="Print the findings as JSON.")
+@click.option("--severity", "f_severity", default=None, help="Only annotations of this severity.")
+@click.option("--kind", "f_kind", default=None, help="Only annotations of this kind.")
+@click.option("--status", "f_status", default=None, help="Only annotations in this state: open, resolved or discarded.")
+@click.option(
+    "--all", "f_all", is_flag=True, help="Include withdrawn annotations, with the reason they were withdrawn."
+)
+@click.option("--json", "as_json", is_flag=True, help="Print the annotations as JSON.")
 @quilt_option
-def ai_findings(
+def ai_annotations(
     session: str | None,
     f_severity: str | None,
     f_kind: str | None,
@@ -232,9 +213,9 @@ def ai_findings(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """What this run has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole finding.
+    """What this session has annotated: id, target, kind, status, and the quoted text; `--json` carries the whole annotation.
 
-    An agent re-reading its own findings is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
+    An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
     """
     import json
 
@@ -244,7 +225,7 @@ def ai_findings(
     result = open_scan(quilt_path)
     root = result.quilt.root
     found = find_session(root, session)
-    rel = found.source or found.id
+    rel = found.id
     rows = [
         {
             "id": a.annotation.id,
@@ -278,7 +259,7 @@ def ai_findings(
     ]
     proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
     if as_json:
-        click.echo(json.dumps({"session": found.id, "findings": rows, "proposals": proposals}, indent=2))
+        click.echo(json.dumps({"session": found.id, "annotations": rows, "proposals": proposals}, indent=2))
         return
     if proposals:
         # what the author did with this run's proposals: a reattaching agent otherwise ran `refs why` on each id it
@@ -298,7 +279,7 @@ def ai_findings(
                 click.echo(f"      {line}")
         click.echo("")
     if not rows:
-        click.echo(f"{rel}: no findings yet")
+        click.echo(f"{rel}: no annotations yet")
         return
     for r in rows:
         sev = f" {r['severity']}" if r["severity"] else ""

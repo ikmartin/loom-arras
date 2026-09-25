@@ -14,8 +14,8 @@ export type ColorClass =
   | (string & {});
 
 export interface Author {
-  /** Who wrote it. `run` is what an agent's annotation said before sessions separated the author from the place (plan 0.13 §5); records written then still carry it. */
-  kind: "agent" | "person" | "run" | (string & {});
+  /** Who wrote it; where it belongs is the annotation's session. */
+  kind: "agent" | "person" | (string & {});
   id: string;
   label?: string;
 }
@@ -238,6 +238,8 @@ export interface Annotation {
   created: string;
   /** What it is about. A key in the corpus -- or, for a note on a page of a cited work, the work's identifier, with `work` the citekey the viewer knows it by and `page` where on it (plan 0.13 item 2). */
   target: { key: string; hash: string; work?: string | null; page?: number | null };
+  /** The document a claim about a node is read in, as a master path; null for the node wherever it appears. Drawn in that document, listed on the node's page, absent elsewhere. */
+  in?: string | null;
   /** On a note on a page: `text` when the quotation is located in the page's committed text, `box` when a drawn rectangle is the record. */
   basis?: "text" | "box" | null;
   kind: string;
@@ -262,12 +264,6 @@ export interface Annotation {
   /** @deprecated Use `run`. Kept while publishers that wrote a file path are still in use. */
   record: string;
   discarded: boolean;
-}
-
-export interface ThreadMessage {
-  author: Author;
-  time: string;
-  body_html: string;
 }
 
 export interface Attachment {
@@ -312,7 +308,7 @@ export interface ReferenceNote {
   claim?: string | null;
   identifier?: { verified: boolean; id?: string };
   accepted?: { when: string; who: string };
-  from?: { run: string; annotation: string };
+  from?: { session: string; annotation: string };
 }
 
 /** One session as the selector shows it. The id is the address and never changes; the title is the author's and may. */
@@ -337,16 +333,14 @@ export interface SessionRow {
 
 export interface Thread {
   id: string;
-  /** `session` since plan 0.13 §5; `run` and `comments` are what a thread written before it says. */
-  kind: "session" | "run" | "comments" | (string & {});
+  kind: "session" | (string & {});
   title: string;
   created: string;
   participants: Author[];
   targets: string[];
-  messages: ThreadMessage[];
   attachments: Attachment[];
   pipeline?: PipelineStep[];
-  log: { time: string; command: string }[];
+  log: { time: string; command: string; annotation?: string }[];
   discarded: boolean;
 }
 

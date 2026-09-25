@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from loom.scan.source import blank_comments, discover_files, read_source
 
 
@@ -12,16 +14,21 @@ def test_blank_comments_preserves_offsets() -> None:
     assert "% keep" in clean
 
 
-def test_scan_all_tex_recursively_skips_build(tmp_path: Path) -> None:
-    """Nothing under refs/ is the quilt's text: it holds fetched works, and a digest lives in digests/ (DR-108)."""
-    for rel in [
-        "drafting/main.tex",
-        "nodes/a.tex",
-        "digests/Kre99.tex",
-        "build/x.tex",
-        "refs/arxiv/1/src/d.tex",
-        "notes.txt",
-    ]:
+@pytest.mark.parametrize(
+    "excluded",
+    [
+        pytest.param("build/x.tex", id="build-output"),
+        pytest.param("refs/theirs.tex", id="the-authors-seed-space"),
+        pytest.param("refs/arxiv/1/src/d.tex", id="the-seed-space-at-any-depth"),
+        pytest.param("digests/storage/arxiv/1/src/paper.tex", id="the-store-of-fetched-works"),
+        pytest.param("notes.txt", id="not-tex"),
+    ],
+)
+def test_the_quilts_text_is_every_tex_file_but_build_the_seed_space_and_the_store(
+    tmp_path: Path, excluded: str
+) -> None:
+    """A fetched e-print is a whole paper carrying its own labels, and the author's seed space `refs/` holds other people's files; neither is scanned, while a digest beside the store is the quilt's own (DR-108, book 8.16)."""
+    for rel in ["drafting/main.tex", "nodes/a.tex", "digests/Kre99.tex", excluded]:
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("x", encoding="utf-8")
@@ -99,12 +106,3 @@ def test_notes_is_the_authors_reference_material_and_never_scanned(tmp_path: Pat
     )
     assert "ab-0001" not in result.nodes
     assert not any(f.startswith("notes/") for f in result.files)
-
-
-def test_the_seed_space_and_the_store_are_not_the_quilts_text(tmp_path: Path) -> None:
-    """A fetched e-print is a whole paper carrying its own labels, and the author's seed space holds other people's files; neither is scanned (book 8.16)."""
-    for rel in ["drafting/main.tex", "refs/theirs.tex", "digests/storage/arxiv/1/src/paper.tex", "digests/Kre99.tex"]:
-        p = tmp_path / rel
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text("x", encoding="utf-8")
-    assert discover_files(tmp_path) == ["digests/Kre99.tex", "drafting/main.tex"]

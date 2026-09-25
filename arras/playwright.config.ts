@@ -1,8 +1,13 @@
+// The end-to-end suite: the built app, with the conformance fixture staged into its own copy, served statically (tests/sites.ts).
 import { defineConfig } from '@playwright/test';
+import { results, site } from './tests/sites';
+
+const { webServer, baseURL } = site('e2e', 'tests/fixture');
 
 export default defineConfig({
-	webServer: { command: 'npm run build:fixture && npm run preview', port: 4173, reuseExistingServer: false },
+	outputDir: results('e2e'),
+	webServer,
 	testDir: 'tests/e2e',
 	testMatch: '**/*.e2e.{ts,js}',
-	use: { baseURL: 'http://localhost:4173' }
+	use: { baseURL }
 });

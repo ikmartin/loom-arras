@@ -12,8 +12,7 @@
 	// It is deliberately NOT keyed on the manifest store: arras polls every second and swaps the manifest whenever its
 	// hash changes, so a pane that re-derived from it would re-render a page a second — the failure `Fragment.svelte`
 	// has been patched for twice.
-	import { untrack } from 'svelte';
-	import { prefs } from '$lib/prefs.svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { asPercent, document_, pdfjs } from './document';
 
 	type Rect = readonly number[];
@@ -34,8 +33,8 @@
 	}: {
 		url: string;
 		page?: number;
-		/** Rectangles to draw, in loom's space: points, origin top left, one per line. A note carries its kind, for colour, and is marked `note`; a result is not. */
-		quads?: { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[];
+		/** Rectangles to draw, in loom's space: points, origin top left, one per line. An annotation is marked `note` and carries its kind, severity, basis and whether it is settled, which the mark's classes say and theme.css draws; a result carries none of these. */
+		quads?: { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[];
 		scale?: number;
 		/** Whether to draw at all. False keeps the page's size and releases everything that costs memory. */
 		render?: boolean;
@@ -77,13 +76,44 @@
 		performance.measure(`pdf:${name}`, { start: from, end: to });
 	}
 
+	// **One draw at a time on a canvas.** A page drawn again — at a new zoom, say — cancels the render still running on its canvas and waits for it to let go before touching it; pdf.js refuses a second render on a busy canvas, and that refusal was shown at the top of the page. A draw that a later one superseded stops at its next step and shows nothing.
+	type Cancellable = { cancel(): void; promise: Promise<unknown> };
+	let running: Cancellable | null = null;
+	let layerRunning: { cancel(): void } | null = null;
+	let drawSeq = 0;
+
+	async function settle(): Promise<void> {
+		layerRunning?.cancel();
+		layerRunning = null;
+		const task = running;
+		running = null;
+		if (task) {
+			task.cancel();
+			await task.promise.catch(() => {});
+		}
+	}
+
+	onDestroy(() => {
+		drawSeq++;
+		void settle();
+	});
+
+	/** pdf.js's own word for a render that was called off: not a problem with the page. */
+	const cancelled = (exc: unknown) => exc instanceof Error && (exc.name === 'RenderingCancelledException' || /cancel/i.test(exc.message));
+
 	async function draw(): Promise<void> {
 		if (!canvas || !textLayer) return;
+		const seq = ++drawSeq;
+		const stale = () => seq !== drawSeq;
 		try {
+			await settle();
+			if (stale()) return;
+			problem = '';
 			const t0 = performance.now();
 			const lib = await pdfjs();
 			const doc = await document_(url);
 			const p = await doc.getPage(page);
+			if (stale()) return;
 			const viewport = p.getViewport({ scale });
 			box = { width: viewport.width / scale, height: viewport.height / scale };
 			size = { width: viewport.width, height: viewport.height };
@@ -96,11 +126,20 @@
 			if (!ctx) return;
 			ctx.scale(ratio, ratio);
 			const t1 = performance.now();
-			await p.render({ canvasContext: ctx, viewport, canvas }).promise;
+			const task = p.render({ canvasContext: ctx, viewport, canvas }) as unknown as Cancellable;
+			running = task;
+			await task.promise;
+			if (running === task) running = null;
+			if (stale()) return;
 			const t2 = performance.now();
+			const content = await p.getTextContent();
+			if (stale() || !textLayer) return;
 			textLayer.replaceChildren();
-			const layer = new lib.TextLayer({ textContentSource: await p.getTextContent(), container: textLayer, viewport });
+			const layer = new lib.TextLayer({ textContentSource: content, container: textLayer, viewport });
+			layerRunning = layer;
 			await layer.render();
+			if (layerRunning === layer) layerRunning = null;
+			if (stale()) return;
 			const t3 = performance.now();
 			// The paper's links, drawn by us rather than by PDF.js's annotation layer, which wants a link service with a
 			// contract of its own; a `Link` annotation is a rectangle and a destination, and that is all a reader needs.
@@ -127,6 +166,7 @@
 					}
 				}
 			}
+			if (stale()) return;
 			links = found;
 			timed('open', t0, t1);
 			timed('render', t1, t2);
@@ -135,6 +175,7 @@
 			empty = textLayer.textContent?.trim() === '';
 			drawn = true;
 		} catch (exc) {
+			if (stale() || cancelled(exc)) return;
 			problem = exc instanceof Error ? exc.message : String(exc);
 		}
 	}
@@ -162,7 +203,12 @@
 		const sel = window.getSelection();
 		const text = sel?.toString().trim() ?? '';
 		if (!sel || !text || sel.rangeCount === 0) return;
-		const client = [...sel.getRangeAt(0).getClientRects()];
+		// **A range over a text layer yields more rectangles than it has lines.** Every element the range crosses contributes one, degenerate ones included, and those rectangles are not only drawn: they are mapped to points and recorded as the annotation's anchor, and their union is where the composer opens. One filter serves all three — a rectangle with no area, or one outside the page, is not part of what the reader selected.
+		const at = host.getBoundingClientRect();
+		const client = [...sel.getRangeAt(0).getClientRects()].filter(
+			(r) => r.width > 0.5 && r.height > 0.5 && r.bottom > at.top && r.top < at.bottom && r.right > at.left && r.left < at.right
+		);
+		if (!client.length) return;
 		const rects = client.map((r) => toPoints(r));
 		onselect?.({ page, text, rects, client: union(client) });
 	}
@@ -224,7 +270,7 @@
 		<div
 			class="text"
 			bind:this={textLayer}
-			style="--scale-factor: {scale};"
+			style="--total-scale-factor: {scale};"
 			onmouseup={readSelection}
 			onpointerdown={startBox}
 			onpointermove={moveBox}
@@ -242,40 +288,26 @@
 				{/each}
 			</div>
 		{/if}
-		{#if quads.some((q) => q.note)}
-			<!-- the tick column beside the page, on the discussion side (§8): one per note, the count where several share a place -->
-			<div class="ticks" class:swap={prefs.swap} aria-label="annotated places">
-				{#each quads.filter((q) => q.note) as q (q.id)}
-					{@const at = asPercent(q.rects[0] ?? [0, 0, 0, 0], box)}
-					<button
-						type="button"
-						class="tick"
-						style="top: {at.top};"
-						data-count={q.ids && q.ids.length > 1 ? q.ids.length : undefined}
-						data-testid="tick-{q.id}"
-						aria-label={q.ids && q.ids.length > 1 ? `${q.ids.length} notes here` : 'a note here'}
-						onclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: false, note: true, el: e.currentTarget })}
-						ondblclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: true, note: true, el: e.currentTarget })}
-					></button>
-				{/each}
-			</div>
-		{/if}
 		<!-- Marks belong to a drawn page and to nothing else (plan 0.13 item 2): a held page has no box of its own to
-		     position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once. -->
+		     position them against, and a book of hundreds of pages would otherwise carry every mark in the DOM at once.
+		     An annotation's mark is one button per line of its span, classed as a mark in a fragment is (`annotation`,
+		     `k-<kind>`, `s-<severity>`, `settled`, `basis-box`), so theme.css draws both surfaces from one rule. -->
 		<div class="marks" aria-hidden={quads.length === 0}>
 			{#each quads as q (q.id)}
 				{#each q.rects as r, i (i)}
 					{@const at = asPercent(r, box)}
 					<button
-						class="mark {q.kind ? 'k-' + q.kind : ''}"
+						class="mark {q.note ? 'annotation' : ''} {q.note && q.kind ? 'k-' + q.kind : ''} {q.note && q.severity ? 's-' + q.severity : ''}"
 						class:note={q.note}
+						class:settled={q.note && q.settled}
+						class:basis-box={q.note && q.basis === 'box'}
 						class:transient={q.transient}
 						class:on={focus === q.id}
+						class:lead={i === 0}
 						data-mark={q.id}
 						data-annotation={q.note ? (q.ids ?? [q.id]).join(' ') : undefined}
-						data-count={q.ids && q.ids.length > 1 ? q.ids.length : undefined}
 						data-testid="mark-{q.id}"
-						aria-label="{q.transient ? 'the place this link points at' : q.note ? `${q.kind ?? 'note'} ${q.id}` : `result ${q.id}`}{q.ids && q.ids.length > 1 ? `, and ${q.ids.length - 1} more` : ''}"
+						aria-label="{q.transient ? 'the place this link points at' : q.note ? `${q.kind ?? 'annotation'} ${q.id}` : `result ${q.id}`}{q.ids && q.ids.length > 1 ? `, and ${q.ids.length - 1} more` : ''}"
 						style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"
 						onclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: false, note: !!q.note, el: e.currentTarget })}
 						ondblclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: true, note: !!q.note, el: e.currentTarget })}
@@ -314,18 +346,50 @@
 		position: absolute;
 		inset: 0;
 	}
+	/* **PDF.js's own text-layer geometry, and it has to be its own.** The layer was styled by hand: spans were made
+	   transparent and absolute and nothing else, so they took the browser's default 16px with no horizontal scale and
+	   their boxes sat above and beside the glyphs they stand for. A selection then highlighted the wrong rectangles,
+	   and `<br>`, left in normal flow, piled empty line boxes at the layer's top-left — the stray block. The variable
+	   was wrong too: this build reads `--total-scale-factor`, and `--scale-factor` is the older name it ignores.
+	   The declarations below are `pdfjs-dist/web/pdf_viewer.css` (`.textLayer`, lines 647-693) and should be re-read
+	   from it on an upgrade rather than adjusted here. */
 	.text {
 		position: absolute;
 		inset: 0;
-		overflow: hidden;
+		overflow: clip;
 		line-height: 1;
-		opacity: 0.2;
+		text-align: initial;
+		letter-spacing: normal;
+		word-spacing: normal;
+		text-size-adjust: none;
+		forced-color-adjust: none;
+		transform-origin: 0 0;
 	}
-	.text :global(span) {
+	.text :global(span),
+	.text :global(br) {
 		color: transparent;
 		position: absolute;
 		white-space: pre;
+		cursor: text;
 		transform-origin: 0 0;
+	}
+	.text :global(> :not(.markedContent)),
+	.text :global(.markedContent span:not(.markedContent)) {
+		z-index: 1;
+		font-size: calc(var(--total-scale-factor) * var(--font-height, 0));
+		transform: rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1));
+	}
+	.text :global(.markedContent) {
+		display: contents;
+	}
+	/* Translucent, because the glyphs are on the canvas *under* this layer: a solid wash covers the very words the
+	   reader is selecting. A highlighter, not a block. */
+	.text :global(span::selection) {
+		background: rgb(24 95 165 / 0.25);
+	}
+	/* While the box tool is up a drag draws a rectangle, so the text must not take the drag instead. */
+	.page.boxing .text {
+		user-select: none;
 	}
 	.text :global(.endOfContent) {
 		display: none;
@@ -334,43 +398,13 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
-	}
-	.ticks {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		right: -12px;
-		width: 10px;
-		pointer-events: none;
-	}
-	.ticks.swap {
-		right: auto;
-		left: -12px;
-	}
-	.tick {
-		position: absolute;
-		left: 0;
-		width: 10px;
-		height: 3px;
-		border: 0;
-		padding: 0;
-		background: var(--annotation, #c05621);
-		opacity: 0.6;
-		cursor: pointer;
-		pointer-events: auto;
-	}
-	.tick[data-count]::after {
-		content: attr(data-count);
-		position: absolute;
-		left: 12px;
-		top: -0.5em;
-		font: 600 9px/1 var(--sans, sans-serif);
-		color: var(--annotation, #c05621);
+		z-index: 2;
 	}
 	.links {
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
+		z-index: 2;
 	}
 	.link {
 		position: absolute;
@@ -385,36 +419,42 @@
 		outline: 1px solid var(--link, #35618f);
 		outline-offset: 1px;
 	}
+	/* A result's mark is a tint in the link wash, since a result is what a link into the paper lands on; an annotation's mark is drawn by theme.css from its classes and takes nothing from here but its place. Flat colour at low alpha: a blend mode or a shadow here is what makes a highlight layer expensive. */
 	.mark {
 		position: absolute;
 		border: 0;
 		padding: 0;
-		/* flat colour at low alpha: a blend mode or a shadow here is what makes a highlight layer expensive */
-		background: var(--annotation-tint, rgb(217 119 87 / 0.22));
+		background: var(--link-wash);
 		cursor: pointer;
 		pointer-events: auto;
+		/* scrolled to, a mark stops short of the column's edge by the landing dot's room */
+		scroll-margin-left: 18px;
 	}
-	/* with the box tool, what is under the pointer is the page and nothing on it: a reader drawing over a mark, a
-	   link or a tick is drawing, not clicking, and a mark that took the press would end the box before it began */
+	/* with the box tool, what is under the pointer is the page and nothing on it: a reader drawing over a mark or a
+	   link is drawing, not clicking, and a mark that took the press would end the box before it began */
 	.page.boxing .mark,
-	.page.boxing .link,
-	.page.boxing .tick {
+	.page.boxing .link {
 		pointer-events: none;
 	}
-	.mark:hover,
-	.mark.on {
-		background: var(--annotation-tint-strong, rgb(217 119 87 / 0.34));
+	.mark:not(.annotation):hover,
+	.mark.on:not(.annotation) {
+		background: color-mix(in srgb, var(--link) 30%, transparent);
 	}
-	/* a note is coloured by its kind, as a mark in a fragment is (theme.css); a tint only, since a shadow per mark is
-	   what would make the overlay expensive, and a result keeps the neutral tint */
-	.mark.note.k-objection {
-		background: var(--state-incomplete-wash, rgb(196 88 60 / 0.22));
-	}
-	.mark.note.k-suggestion {
-		background: var(--state-stale-wash, rgb(190 140 40 / 0.22));
-	}
-	.mark.note.k-question {
-		background: var(--link-wash, rgb(53 97 143 / 0.18));
+	/* **Where a link landed, marked at its start rather than boxed.** Following a link, the one thing the reader does not
+	   know is where the thing begins; they can see its extent for themselves once they are looking at it. A dot beside
+	   the first line says that and leaves the words alone, and it is the same dot the hover preview draws, so the mark
+	   means the same thing before and after the click. Sized from the mark's own height, so it holds at every zoom. */
+	.mark.on.lead::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 50%;
+		height: 46%;
+		aspect-ratio: 1;
+		transform: translate(-160%, -50%);
+		border-radius: 50%;
+		background: rgb(224 168 32 / 0.55);
+		pointer-events: none;
 	}
 	/* the place a link points at: lit while the URL carries it, never a record, so it is drawn as an outline */
 	.mark.transient {
@@ -423,24 +463,12 @@
 		outline-offset: 1px;
 		pointer-events: none;
 	}
-	/* several notes on one place are one mark carrying the count, as a shared phrase is in a fragment */
-	.mark[data-count]::after {
-		content: attr(data-count);
-		position: absolute;
-		right: -2px;
-		top: -0.9em;
-		font: 600 9px/1 var(--sans, sans-serif);
-		color: var(--annotation, #c05621);
-	}
-	.mark.note.k-citation,
-	.mark.note.k-note,
-	.mark.note.k-confirmation {
-		background: var(--annotation-tint, rgb(217 119 87 / 0.22));
-	}
+	/* the box being drawn, as a fragment draws one (fragments/FragmentNotes.svelte) */
 	.drawn {
 		position: absolute;
-		border: 1px solid var(--annotation, #c05621);
-		background: rgb(217 119 87 / 0.14);
+		border: 1.5px dashed var(--accent);
+		background: var(--accent-wash);
+		border-radius: 2px;
 		pointer-events: none;
 	}
 	.waiting,

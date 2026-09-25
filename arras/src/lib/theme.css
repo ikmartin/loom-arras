@@ -29,6 +29,9 @@
 	--link: #185fa5;
 	--link-wash: #e6f1fb;
 	--mark: #faeeda;
+	/* the chrome's one warm colour: the active view's underline and the active tool's fill */
+	--accent: #d97757;
+	--accent-wash: rgb(217 119 87 / 18%);
 
 	/* states: text and wash, named for the state rather than for a severity role */
 	--state-accepted: #0f6e56;
@@ -44,6 +47,18 @@
 	--state-loose: #888780;
 	--state-loose-wash: transparent;
 
+	/* annotations: four hues and one neutral, each with its wash (15.3.1). Hue is the kind; nothing else about an annotation is a colour. */
+	--ann-objection: #a32d2d;
+	--ann-objection-wash: rgb(163 45 45 / 10%);
+	--ann-suggestion: #a07a0a;
+	--ann-suggestion-wash: rgb(160 122 10 / 10%);
+	--ann-question: #185fa5;
+	--ann-question-wash: rgb(24 95 165 / 10%);
+	--ann-citation: #6b3fa0;
+	--ann-citation-wash: rgb(107 63 160 / 10%);
+	--ann-neutral: #6f6d66;
+	--ann-neutral-wash: rgb(111 109 102 / 10%);
+
 	/* spacing, radii, fixed widths */
 	--gap-hair: 4px;
 	--gap-tight: 8px;
@@ -55,6 +70,7 @@
 	--rail-left: 252px;
 	--rail-right: 236px;
 	--strip: 44px;
+	--reading-rail: 34px; /* the global rail above the workspace (plan 0.13.3 F1) */
 	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
 	--rail-a: 267px;
 
@@ -86,6 +102,8 @@
 		--link: #7fb0e8;
 		--link-wash: rgb(127 176 232 / 14%);
 		--mark: rgb(250 238 218 / 18%);
+		--accent: #e08d70;
+		--accent-wash: rgb(224 141 112 / 22%);
 		--state-conflicted: #d98ac4;
 		--state-conflicted-wash: rgb(217 138 196 / 16%);
 		--state-accepted: #5cc4a3;
@@ -97,6 +115,16 @@
 		--state-incomplete: #e8827c;
 		--state-incomplete-wash: rgb(232 130 124 / 14%);
 		--state-loose: #85837c;
+		--ann-objection: #e8827c;
+		--ann-objection-wash: rgb(232 130 124 / 10%);
+		--ann-suggestion: #d9b24f;
+		--ann-suggestion-wash: rgb(217 178 79 / 10%);
+		--ann-question: #7fb0e8;
+		--ann-question-wash: rgb(127 176 232 / 10%);
+		--ann-citation: #b48ee0;
+		--ann-citation-wash: rgb(180 142 224 / 10%);
+		--ann-neutral: #9a988f;
+		--ann-neutral-wash: rgb(154 152 143 / 10%);
 		color-scheme: dark;
 	}
 }
@@ -112,6 +140,8 @@
 	--link: #7fb0e8;
 	--link-wash: rgb(127 176 232 / 14%);
 	--mark: rgb(250 238 218 / 18%);
+	--accent: #e08d70;
+	--accent-wash: rgb(224 141 112 / 22%);
 	--state-accepted: #5cc4a3;
 	--state-accepted-wash: rgb(92 196 163 / 14%);
 	--state-stale: #d9a44f;
@@ -121,6 +151,16 @@
 	--state-incomplete: #e8827c;
 	--state-incomplete-wash: rgb(232 130 124 / 14%);
 	--state-loose: #85837c;
+	--ann-objection: #e8827c;
+	--ann-objection-wash: rgb(232 130 124 / 10%);
+	--ann-suggestion: #d9b24f;
+	--ann-suggestion-wash: rgb(217 178 79 / 10%);
+	--ann-question: #7fb0e8;
+	--ann-question-wash: rgb(127 176 232 / 10%);
+	--ann-citation: #b48ee0;
+	--ann-citation-wash: rgb(180 142 224 / 10%);
+	--ann-neutral: #9a988f;
+	--ann-neutral-wash: rgb(154 152 143 / 10%);
 	color-scheme: dark;
 }
 
@@ -235,18 +275,21 @@ ul.plain li {
 .tone-conflicted { --tone: var(--state-conflicted); --tone-wash: var(--state-conflicted-wash); border-style: dashed; }
 .tone-loose { --tone: var(--state-loose); --tone-wash: var(--state-loose-wash); }
 
-/* The content region of every page: the shell owns the chrome, the page owns its own <main> (15.3). */
-main.page {
+/* The content region of every page: the shell owns the chrome, the page owns its own <main> (15.3). An item in a pane is laid out as a page is, inside the pane's scroll. */
+main.page,
+.page.item {
 	padding: var(--gap-wide) 28px var(--gap-wide) 24px;
 	min-width: 0;
 }
-main.page > h1 {
+main.page > h1,
+.page.item > h1 {
 	font-family: var(--sans);
 	font-size: 19px;
 	font-weight: 500;
 	margin: 0 0 var(--gap-hair);
 }
-main.page > h2 {
+main.page > h2,
+.page.item > h2 {
 	font-family: var(--sans);
 	font-size: 12px;
 	font-weight: 500;
@@ -398,7 +441,23 @@ table.list th {
 	align-items: flex-end;
 	gap: 1px;
 	line-height: 1.3;
-	overflow-wrap: anywhere;
+	/* **Never break inside an id.** `overflow-wrap: anywhere` set one character per line the moment the gutter got
+	   narrow -- which is every split view -- turning `sh-0001 accepted` into a vertical ribbon of letters. Clipping is
+	   the honest failure: the id is a link, and the whole of it is in the node it points at. */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* Off unless the reader asks (Settings > Show ids). The gutter is the corpus talking about the document -- keys and
+   states -- which is what an author wants while working on it and not what anyone wants while reading it. */
+.arras:not([data-ids='yes']) .node-margin {
+	display: none;
+}
+/* Below about this width the gutter cannot hold an id at all, so it holds nothing rather than a column of initials. */
+@container (max-width: 34rem) {
+	.node-margin {
+		display: none;
+	}
 }
 .node-margin .mid {
 	font-family: var(--mono);
@@ -415,17 +474,6 @@ table.list th {
 .comment-slot {
 	display: block;
 }
-.comment-slot.gutter {
-	position: absolute;
-	/* Above the grid it overhangs: the slot is positioned out of the text column into the gutter track, and until it
-	   carried buttons nothing needed to be clicked in it, so `.gutters` caught the pointer first. */
-	z-index: 2;
-	left: 100%; /* the content column's right edge */
-	top: 0;
-	width: calc(var(--gutter) - var(--gap-wide));
-	margin-left: var(--gap);
-	font-family: var(--sans);
-}
 .comment-slot.inline {
 	margin: var(--gap) 0 var(--gap-wide);
 	font-family: var(--sans);
@@ -433,46 +481,6 @@ table.list th {
 .comment-slot.inline > .box:first-child {
 	margin-top: 0;
 }
-/* The content pane's header: the two annotation states as buttons with their keys named, and what is being hidden. */
-.content-head {
-	display: flex;
-	align-items: baseline;
-	gap: var(--gap-hair);
-	font-family: var(--sans);
-	font-size: 0.74rem;
-	color: var(--ink-faint);
-	margin-bottom: var(--gap-hair);
-}
-.content-head button {
-	font: inherit;
-	color: inherit;
-	background: none;
-	border: 1px solid var(--rule);
-	border-radius: var(--rad-control);
-	padding: 0 6px;
-	cursor: pointer;
-}
-.content-head button.on {
-	background: var(--annotation-tint, rgb(217 119 87 / 18%));
-}
-.content-head .count {
-	margin-left: auto;
-}
-.content-head .concealed {
-	color: var(--annotation, #c05621);
-}
-
-/* Two annotations on one phrase is ordinary, and stacked translucent highlights muddy immediately — so the number is
-   said rather than drawn, and stays legible however many overlap (plan 0.13 §7). */
-mark.annotation[data-count]::after {
-	content: attr(data-count);
-	font-family: var(--sans);
-	font-size: 0.62em;
-	vertical-align: super;
-	margin-left: 1px;
-	color: var(--ink-faint);
-}
-
 /* Travel (plan 0.13 §7): a brief scroll, then a flash on what was arrived at, so the eye is told where it landed
    rather than being left to search the pane it was sent to. */
 .travelled {
@@ -480,7 +488,7 @@ mark.annotation[data-count]::after {
 }
 @keyframes travelled {
 	from {
-		background-color: var(--annotation-tint-strong, rgb(217 119 87 / 34%));
+		background-color: var(--ann-neutral-wash);
 	}
 	to {
 		background-color: transparent;
@@ -490,7 +498,7 @@ mark.annotation[data-count]::after {
 	/* the flash is the whole point, so it stays; what goes is the fade, which is the part that moves */
 	.travelled {
 		animation: none;
-		outline: 2px solid var(--annotation, #c05621);
+		outline: 2px solid var(--ann-neutral);
 	}
 }
 /* Where there is nothing to travel to: a notice beside what was double-clicked, and nothing moves. */
@@ -516,39 +524,38 @@ mark.annotation[data-count]::after {
 	z-index: 40;
 	font-family: var(--sans);
 	background: var(--sheet);
-	border: 1px solid var(--rule-strong);
 	border-radius: var(--rad-panel, var(--rad-control));
 	box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
 	padding: var(--gap-tight);
 	max-height: 60vh;
 	overflow-y: auto;
 }
-/* Clicking outside backgrounds rather than collapses (plan 0.13 §7): clamped to about two lines, a lighter shadow and
-   a lower z, and a click on it brings it forward again. Nothing a reader opened disappears because they looked
-   elsewhere, which is the one thing one-at-a-time could not promise. */
+/* A box that is open but not the one in front. It stays a box: the old treatment clamped it to about two lines and
+   faded it under a gradient, which made a backgrounded box read as a ghost when it was alone and as a second border
+   when another box sat over it. Only the shadow and the stacking say which is in front now. */
 .comment-slot.expanded.behind {
 	z-index: 30;
-	opacity: 0.82;
 }
 .comment-slot.floating.behind {
-	max-height: 4.4em;
-	overflow: hidden;
 	box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
 }
-.comment-slot.floating.behind::after {
-	content: '';
-	position: absolute;
-	inset: auto 0 0 0;
-	height: 1.4em;
-	background: linear-gradient(to bottom, transparent, var(--sheet));
-	pointer-events: none;
+/* **One frame, and it is the shadow.** The host is lifted off the page by its shadow, which is enough to say where it ends, so the card's own border goes; the left stripe stays, since it is the kind's hue and says the same thing here as in the flow. */
+.comment-slot.floating article.box {
+	border-width: 0 0 0 3px;
+	border-radius: 0;
+	background: none;
+	margin: 0;
+	padding: 0 0 0 var(--gap-tight);
+	box-shadow: none;
 }
-/* Every box carries its own ×, because it is now the main way one is closed. */
+.comment-slot.floating .box + .box {
+	margin-top: var(--gap-tight);
+	padding-top: var(--gap-tight);
+	border-top: 1px solid var(--rule);
+}
+/* The ×, at the right of a box's title line (components/AnnotationBox.svelte): the main way an open box is closed. */
 .comment-close {
-	position: absolute;
-	top: 2px;
-	right: 4px;
-	z-index: 1;
+	flex: none;
 	font: inherit;
 	font-size: 14px;
 	line-height: 1;
@@ -561,21 +568,6 @@ mark.annotation[data-count]::after {
 .comment-close:hover {
 	color: var(--ink);
 }
-/* the × is positioned against the box; a floating one is already `fixed`, which this must not undo */
-.comment-slot.expanded:not(.floating) {
-	position: relative;
-}
-.comment-slot.floating > .box {
-	margin: 0;
-	border: none;
-	border-left: 3px solid var(--rule-strong);
-	background: none;
-}
-.comment-slot.floating > .box + .box {
-	margin-top: var(--gap-tight);
-	border-top: 1px solid var(--rule);
-	padding-top: var(--gap-tight);
-}
 @media (prefers-reduced-motion: no-preference) {
 	.comment-slot.floating {
 		animation: comment-appear 90ms ease-out;
@@ -586,13 +578,8 @@ mark.annotation[data-count]::after {
 		}
 	}
 }
-/* Below the width the gutters exist at, a gutter comment and a margin annotation have nowhere to stand and rejoin the flow. */
+/* Below the width the gutters exist at, the margin annotation has nowhere to stand and rejoins the flow. */
 @media (max-width: 1100px) {
-	.comment-slot.gutter {
-		position: static;
-		width: auto;
-		margin-left: 0;
-	}
 	.node-margin {
 		position: static;
 		width: auto;
@@ -699,10 +686,6 @@ a.heading-link:focus {
 		radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 10%), transparent) left / 7px 100% no-repeat scroll,
 		radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 10%), transparent) right / 7px 100% no-repeat scroll;
 }
-.fragment mark.annotation,
-.fragment .annotation-block { background: var(--mark); cursor: pointer; }
-.fragment mark.annotation.active,
-.fragment .annotation-block.active { outline: 2px solid var(--state-stale); }
 .fragment .incomplete {
 	color: var(--state-incomplete);
 	border-bottom: 1px dotted var(--state-incomplete);
@@ -972,64 +955,119 @@ a.heading-link:focus {
 	--taxon-definition: #63c0b8;
 }
 
-/* A kind this viewer has never heard of still has to read as a comment. `kind` is an open string -- a publisher may
-   use one arras was never told about, and 0.10's own `citation` was unstyled for exactly this reason -- so the base
-   rule carries the neutral treatment and the four known kinds override it. Found by a corpus built to break things, whose
-   annotations include a kind of `catastrophe`. */
-.fragment mark.annotation,
-.fragment .annotation-block {
-	background: var(--leaf);
-	box-shadow: inset 0 -2px 0 var(--rule-strong);
+/* The mark (15.3.1): what is drawn on the text, one rule set for every surface. Hue is the kind, `k-<kind>`; a note and any kind the viewer has never heard of take the neutral. Weight is the severity, `s-<severity>`: 1px minor, 3px major, 2px for moderate and for the kinds that take none. The wash is the hue at 5% at rest and at 10% (`--ann-<kind>-wash`) on the one mark whose box is open (`open`), the same whatever the severity. Nothing else is tinted or outlined. */
+.annotation {
+	--ann-hue: var(--ann-neutral);
+	--ann-wash: var(--ann-neutral-wash);
+	--ann-weight: 2px;
+	/* what is drawn: the hue, the weight and the background as the state leaves them */
+	--ann: var(--ann-hue);
+	--ann-w: var(--ann-weight);
+	--ann-bg: color-mix(in srgb, var(--ann-hue) 5%, transparent);
+}
+:is(.annotation, .box, .ann-dot).k-objection { --ann-hue: var(--ann-objection); --ann-wash: var(--ann-objection-wash); }
+:is(.annotation, .box, .ann-dot).k-suggestion { --ann-hue: var(--ann-suggestion); --ann-wash: var(--ann-suggestion-wash); }
+:is(.annotation, .box, .ann-dot).k-question { --ann-hue: var(--ann-question); --ann-wash: var(--ann-question-wash); }
+:is(.annotation, .box, .ann-dot).k-citation { --ann-hue: var(--ann-citation); --ann-wash: var(--ann-citation-wash); }
+/* The box (15.3.1) takes the same hue for its left stripe, from the same class; settled, the stripe keeps the hue at half strength, as the settled mark does. */
+article.box { --ann-hue: var(--ann-neutral); }
+article.box.settled { border-left-color: color-mix(in srgb, var(--ann-hue) 50%, transparent); }
+/* A list names the kind by hue and not by word (15.3.2, 15.3.9): a 7px dot in the kind's hue before the row's link, from the same `k-<kind>` seam; a reply's is a ring, since a reply's kind is its thread's. The word stays in the dot's label for a screen reader. Severity is not shown in a list. */
+.ann-dot {
+	--ann-hue: var(--ann-neutral);
+	display: inline-block;
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--ann-hue);
+	vertical-align: middle;
+}
+.ann-dot.reply {
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--ann-hue);
+}
+.annotation.s-minor { --ann-weight: 1px; }
+.annotation.s-major { --ann-weight: 3px; }
+/* Settled, resolved or discarded: not drawn at rest, the words untouched. Shown by the settled control (`show-settled` on the fragment or the paper), the hue survives at a 3% wash with the underline at half its weight and 50% opacity. A mark the session filter excludes (`hidden`) is not drawn either way. */
+.annotation.settled {
+	--ann: transparent;
+	--ann-bg: transparent;
+	cursor: auto;
+	pointer-events: none;
+}
+.show-settled .annotation.settled {
+	--ann: color-mix(in srgb, var(--ann-hue) 50%, transparent);
+	--ann-w: calc(var(--ann-weight) / 2);
+	--ann-bg: color-mix(in srgb, var(--ann-hue) 3%, transparent);
+	cursor: pointer;
+	pointer-events: auto;
+}
+.annotation.open,
+.show-settled .annotation.settled.open { --ann-bg: var(--ann-wash); }
+.annotation.hidden,
+.show-settled .annotation.hidden {
+	--ann: transparent;
+	--ann-bg: transparent;
+	cursor: auto;
+	pointer-events: none;
 }
 
-/* Comment marks, coloured by kind in both placements (15.3.1): an objection, a suggestion, a question and a confirmation read differently before anyone opens them. A whole marked block carries the colour down its edge rather than under every line. */
-.fragment mark.annotation.k-objection { background: var(--state-incomplete-wash); box-shadow: inset 0 -2px 0 var(--state-incomplete); }
-.fragment mark.annotation.k-suggestion { background: var(--state-stale-wash); box-shadow: inset 0 -2px 0 var(--state-stale); }
-.fragment mark.annotation.k-question { background: var(--link-wash); box-shadow: inset 0 -2px 0 var(--link); }
-.fragment mark.annotation.k-ok { background: var(--state-accepted-wash); box-shadow: inset 0 -2px 0 var(--state-accepted); }
+/* The shapes, one per anchor. A phrase is bordered beneath, line by line; the border is in the layout at rest and transparent when not drawn, so nothing moves when a mark opens or a settled one is shown. A block is underlined line by line rather than barred down its edge, since a bar at a paragraph's start reads as punctuation; a displayed formula is drawn, not set in lines, so its underline is a rule beneath the display. */
 .fragment mark.annotation {
 	color: inherit;
-	border-radius: 2px;
-	padding: 0 1px;
+	background: var(--ann-bg);
+	padding: 0 0 1px;
+	border-bottom: var(--ann-w) solid var(--ann);
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;
 }
-.fragment .annotation-block.k-objection { box-shadow: inset 3px 0 0 var(--state-incomplete); }
-.fragment .annotation-block.k-suggestion { box-shadow: inset 3px 0 0 var(--state-stale); }
-.fragment .annotation-block.k-question { box-shadow: inset 3px 0 0 var(--link); }
-.fragment .annotation-block.k-ok { box-shadow: inset 3px 0 0 var(--state-accepted); }
-.fragment mark.annotation.expanded,
-.fragment .annotation-block.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
+.fragment .annotation-block {
+	background: var(--ann-bg);
+	text-decoration: underline var(--ann-w) var(--ann);
+	text-underline-offset: 0.22em;
+	text-decoration-skip-ink: none;
+}
+.fragment .math.display.annotation-block {
+	/* beneath the display's scroll shadows, whose `background` shorthand would otherwise clear the wash */
+	background-color: var(--ann-bg);
+	text-decoration: none;
+	box-shadow: inset 0 calc(-1 * var(--ann-w)) 0 var(--ann);
+}
+.fragment mark.annotation,
+.fragment .annotation-block { cursor: pointer; }
+.fragment .annotation.settled,
+.fragment .annotation.hidden { cursor: auto; }
+.show-settled .fragment .annotation.settled,
+.fragment.show-settled .annotation.settled { cursor: pointer; }
 .fragment mark.annotation:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+/* On a PDF page the mark is a button over each line of the span (pdf/PdfPage.svelte): the same underline beneath each line, and a box anchor an outline in the hue. A button has no words under it, so one not drawn is not there at all. */
+button.mark.annotation {
+	background: var(--ann-bg);
+	border: 0;
+	border-bottom: var(--ann-w) solid var(--ann);
+}
+button.mark.annotation.basis-box { border: var(--ann-w) solid var(--ann); }
+button.mark.annotation.settled { display: none; }
+.show-settled button.mark.annotation.settled { display: block; }
 
 /* A comment opened where it is: in the flow beneath its paragraph, raised just enough to read as something that opened. */
 .comment-slot.expanded {
 	margin: var(--gap-tight) 0 var(--gap);
 	font-family: var(--sans);
 }
-.comment-slot.expanded > .box {
+.comment-slot.expanded:not(.floating) > .box {
 	margin: 0 0 var(--gap-hair);
 	box-shadow: 0 4px 16px rgb(0 0 0 / 9%);
 }
 
-/* The count beside a node's label for comments that have no mark of their own. */
-.fragment button.comment-count {
-	margin-left: var(--gap-tight);
-	font-family: var(--sans);
-	font-size: 9px;
-	font-style: normal;
-	font-weight: 400;
-	line-height: 14px;
-	padding: 0 6px;
-	border: none;
-	border-radius: var(--rad-pill);
-	cursor: pointer;
-	color: var(--ink-soft);
-	background: var(--leaf);
-	vertical-align: 1px;
+
+/* The place a note is being written against, while its composer is open (fragments/pending.ts): the selected words, as a selection is drawn, since focusing the composer ends the selection itself; a block chosen by a box, outlined. */
+::highlight(note-pending) {
+	background-color: rgb(24 95 165 / 26%);
 }
-.fragment button.comment-count.k-objection { color: var(--state-incomplete); background: var(--state-incomplete-wash); }
-.fragment button.comment-count.k-suggestion { color: var(--state-stale); background: var(--state-stale-wash); }
-.fragment button.comment-count.k-question { color: var(--link); background: var(--link-wash); }
-.fragment button.comment-count.k-ok { color: var(--state-accepted); background: var(--state-accepted-wash); }
-.fragment button.comment-count.expanded { outline: 2px solid var(--link); outline-offset: 1px; }
+.note-pending {
+	outline: 2px dashed var(--accent);
+	outline-offset: 2px;
+	background: var(--accent-wash);
+}

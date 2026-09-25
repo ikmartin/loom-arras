@@ -130,7 +130,7 @@
 			<h4>{record.page ? 'the page says' : 'the source says'}</h4>
 			{#if paper && record.page}
 				<div class="paper" data-testid="proposal-paper">
-					<PdfDoc url={paper} page={record.page} spans={quoted} focus={id} scale={1.1} window={0} toolbar={false} />
+					<PdfDoc url={paper} page={record.page} spans={quoted} focus={id} scale={1.1} window={0} />
 				</div>
 			{:else if record.page_text}
 				<p class="verbatim" data-testid="proposal-page">{#each marked(record.page_text, record.source_text ?? '') as part, i (i)}{#if part.hit}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</p>

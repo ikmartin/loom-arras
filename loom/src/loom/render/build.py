@@ -103,7 +103,7 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
     Runs after `Records.apply`, so it reads the published annotations and writes each reference's `reading` count.
     """
     from loom.records.annotations import load_records
-    from loom.refs.pages import read_map
+    from loom.refs.pages import read_map, read_page
     from loom.refs.proposals import load_results
     from loom.refs.search import locate_span
 
@@ -134,7 +134,12 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         marks: dict[str, list[list[float]]] = {}
         for rid, r in results.items():
             xml = table.boxes_of(r.anchor.page)
-            span = locate_span(xml, r.source_text, r.anchor.page) if xml else None
+            # An anchor that records a span says which words on the page it means, and the page's own text is what those offsets index; a result read off a page instead carries the words it quoted. A mechanically extracted result's `source_text` is its LaTeX, which is not what the page says, so matching that was what left an extracted digest with no geometry at all.
+            needle = r.source_text
+            if r.anchor.basis == "text" and r.anchor.end > r.anchor.start:
+                page_text = read_page(home, r.anchor.page) or ""
+                needle = page_text[r.anchor.start : r.anchor.end] or needle
+            span = locate_span(xml, needle, r.anchor.page) if xml else None
             if span is not None:
                 quads[rid] = [list(q) for q in span.lines]
         for a in notes:
@@ -264,20 +269,37 @@ def _marks_hash(marks: dict[str, list[MarkEntry]], key: str, result: ScanResult)
     h = hashlib.sha256()
     for k in sorted(keys):
         for m in marks.get(k, []):
-            h.update(f"{m.ann_id}|{m.start}|{m.end}".encode())
+            h.update(f"{m.ann_id}|{m.start}|{m.end}|{m.in_doc or ''}".encode())
     return h.hexdigest()[:16]
 
 
 def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkEntry]]:
-    """Mark entries grouped by the node whose fragment shows them (a proof's marks belong to its statement's node)."""
+    """Mark entries grouped by the node whose fragment shows them: a proof's marks under its statement, and on the proof's own page.
+
+    A comment on an equation with no quote (a box drawn round it) marks the display itself, found by the offset of its label.
+    """
     out: dict[str, list[MarkEntry]] = {}
     for res in records.resolved(result):
-        if res.span is None or res.record.discarded:
+        if res.record.discarded:
+            continue
+        # a note whose version is gone is not pinned to the text that replaced it; it is counted beside its key instead
+        if not res.recorded:
             continue
         a = res.annotation
+        region = result.assembly.regions.get(a.target_key)
+        if res.span is None and a.selector is None and region is not None and a.in_reply_to is None:
+            host = result.nodes.get(region.container)
+            if host is not None:
+                entry = MarkEntry(a.id, "", region.file, region.offset, region.offset, a.in_doc)
+                owner = host.of if host.kind == "proof" and host.of else host.key
+                out.setdefault(owner, []).append(entry)
+                if owner != host.key:
+                    out.setdefault(host.key, []).append(entry)
+            continue
+        if res.span is None:
+            continue
         n = result.nodes.get(a.target_key)
         if n is None:
-            region = result.assembly.regions.get(a.target_key)
             n = result.nodes.get(region.container) if region else None
         if n is None:
             continue
@@ -285,11 +307,26 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
         span = Records.to_file_span(pieces, res.span)
         if span is None:
             continue
+        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], a.in_doc)
         owner = n.of if n.kind == "proof" and n.of else n.key
-        out.setdefault(owner, []).append(
-            MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1])
-        )
+        out.setdefault(owner, []).append(entry)
+        # a labelled proof has a page of its own too, and its marks belong on it as well as under its statement
+        if owner != n.key:
+            out.setdefault(n.key, []).append(entry)
     return out
+
+
+def _write_transcripts(root: Path, files: dict[str, str | bytes]) -> None:
+    """Every session's transcript as pages under `transcripts/<id>/<n>.json`, so a viewer with no publisher running still reads the chat.
+
+    Out of the manifest, which every viewer polls: a long conversation would make every poll pay for it.
+    """
+    from loom.mailbox import pages
+    from loom.sessions import sessions
+
+    for sid in sessions(root):
+        for n, page in pages(root, sid).items():
+            files[f"transcripts/{sid}/{n}.json"] = json.dumps(page, ensure_ascii=False, indent=1, sort_keys=True)
 
 
 def build(
@@ -308,6 +345,10 @@ def build(
     plan = RenderPlan(
         result=result, numbers=numbers, cite_labels=cite_labels, svg_cache=cache_dir / "svg", svg_out=build_dir / "svg"
     )
+    if force:
+        # a remembered SVG failure may have been the machine's, a package since installed; --force tries each once more
+        for failed in plan.svg_cache.glob("*.failed"):
+            failed.unlink()
     renderer = FragmentRenderer(plan)
     index_path = cache_dir / "fragments.json"
     index: dict[str, str] = {}
@@ -339,12 +380,18 @@ def build(
             targets.append((key, "digest"))
 
     def render_one(key: str, kind: str) -> str:
+        # a mark that names a document is drawn in that document and nowhere else (plan 0.15, decision 9)
         if kind == "node":
-            return place_marks(renderer.node_fragment(key), marks.get(key, []))
+            return place_marks(renderer.node_fragment(key), [m for m in marks.get(key, []) if m.in_doc is None])
         if kind == "master":
             return place_marks(
                 renderer.master_fragment(key),
-                [m for k, ms in marks.items() for m in ms if key in result.nodes[k].reached_by],
+                [
+                    m
+                    for k, ms in marks.items()
+                    for m in ms
+                    if key in result.nodes[k].reached_by and m.in_doc in (None, key)
+                ],
             )
         return renderer.digest_fragment(key)
 
@@ -419,11 +466,12 @@ def build(
     manifest["unresolved"] = rows_for(result, manifest)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
+    _write_transcripts(result.quilt.root, files)
     report.diagnostics = [d for d in report.diagnostics] + [
         Diagnostic(d["severity"], d["code"], d["message"]) for d in manifest["diagnostics"][len(report.diagnostics) :]
     ]
     report.manifest = manifest
-    prune = ("fragments/", "source/", "spans/") if wanted is None else ()
+    prune = ("fragments/", "source/", "spans/", "transcripts/") if wanted is None else ()
     if wanted is None:
         for rel in list(index):
             if rel not in fragments.values():

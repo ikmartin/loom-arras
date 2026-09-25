@@ -90,7 +90,7 @@ def test_kpsewhich_is_probed_once_per_name(tmp_path: Path, monkeypatch: pytest.M
     """The probe is a subprocess run once per unresolved inclusion, and a paper's unresolved names repeat; on the Manolache import it was 86 ms of a 166 ms scan."""
     from loom.scan import expand as expand_mod
 
-    expand_mod._kpsewhich.cache_clear()
+    expand_mod._probe.cache_clear()
     calls: list[str] = []
 
     def fake(cmd, **kw):  # type: ignore[no-untyped-def]
@@ -102,4 +102,10 @@ def test_kpsewhich_is_probed_once_per_name(tmp_path: Path, monkeypatch: pytest.M
     for _ in range(5):
         assert expand_mod._kpsewhich("amsmath.sty") is True
     assert calls == ["amsmath.sty"]
-    expand_mod._kpsewhich.cache_clear()
+    # another installation on PATH is asked afresh, never answered from the first one's memo
+    monkeypatch.setattr(expand_mod.shutil, "which", lambda _n: "/opt/other/kpsewhich")
+    assert expand_mod._kpsewhich("amsmath.sty") is True
+    assert calls == ["amsmath.sty", "amsmath.sty"]
+    monkeypatch.setattr(expand_mod.shutil, "which", lambda _n: None)
+    assert expand_mod._kpsewhich("amsmath.sty") is False
+    expand_mod._probe.cache_clear()

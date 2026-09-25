@@ -38,13 +38,13 @@ Field names are fixed; unknown fields must be ignored by viewers. All timestamps
 
 `corpus.name` is the project's name — what a viewer shows as the corpus's name — and `root_label` the default document's display title. They are different things: the first names the body of work, the second names one document in it.
 
-**[decided]** `reference_notes` lists works an agent proposed citing and a person accepted: `{"work": "…the work the suggestion named", "for": ["rl-0004"], "claim": "…the argument for citing it", "identifier": {"verified": false}, "accepted": {"when": "…", "who": "…"}, "from": {"run": "…", "annotation": "a-…"}}`. **[decided]** `work` is the work and `claim` is what the agent said it supports, in that order and not the other way round: a note whose `work` held the argument could never become a bibliography entry, which is the one thing the breadcrumb exists for (DR-170). It is a **breadcrumb and never a second source of identity truth**: `identifier.verified` is false until a person confirms it in the bibliography, and nothing here enters `references`, the bibliography, or any closure. A viewer shows them on the keys in `for`. Optional, like every other section.
+**[decided]** `reference_notes` lists works an agent proposed citing and a person accepted: `{"work": "…the work the suggestion named", "for": ["rl-0004"], "claim": "…the argument for citing it", "identifier": {"verified": false}, "accepted": {"when": "…", "who": "…"}, "from": {"session": "s-…", "annotation": "a-…"}}`. **[decided]** `work` is the work and `claim` is what the agent said it supports, in that order and not the other way round: a note whose `work` held the argument could never become a bibliography entry, which is the one thing the breadcrumb exists for (DR-170). It is a **breadcrumb and never a second source of identity truth**: `identifier.verified` is false until a person confirms it in the bibliography, and nothing here enters `references`, the bibliography, or any closure. A viewer shows them on the keys in `for`. Optional, like every other section.
 
 **[decided]** Beside `manifest.json` and `fragments/`, a publisher may write **`source/<key>.tex`**: one file per key holding that key's own source text before macro expansion, which a viewer fetches lazily for a verbatim view. It is beside the manifest rather than inside it because the manifest is loaded whole on every poll and already runs to hundreds of kilobytes, while source is wanted one key at a time and only when a reader asks. Optional: a viewer that finds nothing there shows the rendered form and no toggle.
 
 **[decided]** `publishes` is the read side's capability block, and it answers a question the data cannot: **what this corpus *has*, never what a viewer should draw.** Four booleans — `documents`, `review`, `bibliography`, `discussions` — each saying whether the corpus is the kind of thing that has one. `"documents": false` says this corpus is not assembled into documents; it does not say "hide the read view", and a viewer decides what to make of it, as `GET /_api`'s capability list works on the write side (`write-api.md` §1).
 
-It exists because deriving the answer from emptiness cannot distinguish **empty because not yet** from **empty because never**. A quilt with no runs yet would lose a view and get it back later, and since the manifest is re-polled every second the furniture would move while someone worked. A publisher declares once instead.
+It exists because deriving the answer from emptiness cannot distinguish **empty because not yet** from **empty because never**. A quilt with no sessions yet would lose a view and get it back later, and since the manifest is re-polled every second the furniture would move while someone worked. A publisher declares once instead.
 
 The values are properties of the publisher and its corpora, not of this corpus's current contents: loom writes all four `true` for every quilt, because a quilt with no documents yet is still a project that assembles into them. `publishes` is optional, and a manifest that omits it leaves the viewer to derive what it can from the data — which is what every version 1 manifest written before this field gets. Additive, so `interface_version` is unchanged.
 
@@ -128,7 +128,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 }
 ```
 
-Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for cited-result blocks and digest nodes, with `digest` naming the citekey for the latter and `locator` present when available; `basis` on environment nodes is `expository`, `local-proof`, `cited-result`, `assumption`, `open-claim`, or `unclassified`, with `basis_reason` explaining the scan's choice or uncertainty; `inline_proof` is true when an explicitly `local-proof` remark or comment has its whole argument inside the block and no separate attached proof; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments. The basis fields are additive in interface version 1 (DR-212); DR-213 replaces the `definition` value with `expository` and adds `inline_proof`.
+Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes); a section node also carries `"level"`, its sectioning depth (1 for `\section`, 2 for `\subsection`, and so on, shifted by any `\nest`), so a viewer can stop a contents list at a chosen depth; `numbers` and `parent` are per master; `reached_by` empty means loose; `external` true for cited-result blocks and digest nodes, with `digest` naming the citekey for the latter and `locator` present when available — carrying the page the result is printed on, `Proposition 2.1, p.~7`, wherever extraction could locate it in the work's filed copy (DR-224); `basis` on environment nodes is `expository`, `local-proof`, `cited-result`, `assumption`, `open-claim`, or `unclassified`, with `basis_reason` explaining the scan's choice or uncertainty; `inline_proof` is true when an explicitly `local-proof` remark or comment has its whole argument inside the block and no separate attached proof; `incomplete` lists the `\incomplete` texts in the node's statement; `state` and `derived` summarize the statement key (see 4); `children` lists included nodes in order for section nodes and nested environments. The basis fields are additive in interface version 1 (DR-212); DR-213 replaces the `definition` value with `expository` and adds `inline_proof`.
 
 ## 4. Keys
 
@@ -157,7 +157,7 @@ Rules: `kind` is `environment`, `section`, or `proof` (for labelled proof nodes)
     ]
   },
   "reviews": {
-    "latest_current": {"author": {"kind": "run", "id": "2026-09-16T14-02-referee"},
+    "latest_current": {"author": {"kind": "agent", "id": "Referee Agent"},
                        "date": "2026-09-16T14:31:08Z"},
     "latest_any": {"author": {"kind": "person", "id": "Tom Graber"}, "date": "2026-09-10T09:00:00Z"},
     "open": {"objection": 2, "suggestion": 0, "question": 1, "ok": 0},
@@ -253,6 +253,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "author": {"kind": "agent", "id": "Referee Agent", "label": "Referee Agent"},
   "created": "2026-09-16T14:31:08Z",
   "target": {"key": "rl-0004/proof", "hash": "sha256:5d2f...", "work": null, "page": null},
+  "in": null,
   "basis": null,
   "kind": "objection",
   "body_html": "<p>No rigidity lemma exists in the quilt. ...</p>",
@@ -274,11 +275,13 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 `body_html` is the Markdown body rendered by the publisher into the dialect's inline subset.
 
-**[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**; `run` is the **session** the annotation belongs to, which is where it was written rather than who wrote it. The two were one field: an agent's annotation recorded its run directory as its author, so the log could say who only by naming a place (DR-199). The field keeps the name `run` because readers written before sessions read it, and an annotation written before them still carries the old grouping key.
+**[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**; `run` is the **session** the annotation belongs to, which is where it was written rather than who wrote it. The two were one field: an agent's annotation recorded its run directory as its author, so the log could say who only by naming a place (DR-199). The field keeps the name `run` because viewers read it by that name.
 
 **[decided]** `target.key` is a key in the corpus, or — for a note on a page of a cited work (DR-209) — the work's identifier as `references[].work` spells it; `target.work` is then the citekey and `target.page` the page, so a viewer needs no lookup to say where the note is, and `basis` is `text` (the quotation locates in the page's committed text) or `box` (a drawn rectangle is the record). Both are null on a note on a key. The rectangles are in the work's sidecar (§13) under `marks`; the body is here, with every other annotation.
 
-**[decided]** `kind` is one of six — `objection`, `suggestion`, `question`, `confirmation`, `citation`, `note`. The first three and `citation` **await an answer** and are what an open count counts; `confirmation` and `note` record rather than ask (DR-204).
+**[decided]** `in` is the document a claim about a node is read in, as a master path, or null for the node wherever it appears (plan 0.15, decision 9). A viewer draws an annotation that names a document in that document only, lists it on the node's own page with the document named, and shows it in no other document; the publisher bakes its mark into that document's fragment alone. An annotation whose document no longer holds the node is `detached`.
+
+**[decided]** `kind` is one of five — `objection`, `suggestion`, `question`, `citation`, `note`. The first four **await an answer** and are what an open count counts; `note` records rather than ask, and is where "this checks out" goes (DR-204; plan 0.15, decision 2).
 
 ## 9.1 Sessions
 
@@ -293,43 +296,54 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 
 The **id** is minted once and is the address; the **title** is the author's and may change. `opened` is when the current round began, which is what "changed since last time" is measured from. `active` marks the one session writing lands in. A tombstoned session is not published at all.
 
-**[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash` — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
+**[decided]** Three fields say how well the annotation is still attached, and they answer different questions. `detached` is false while the quoted text is still found in the target. `recorded` is false when the text the annotation was written against — the `target.hash`, taken over the key's own text with its children's places marked (book 5.13) — is neither the target's current text nor a version the publisher kept, so a reader cannot be shown what was being objected to. Loom keeps every version a note is written against, so this is a version lost outside loom, or a paper on file that is not the one the note was written on; a fragment marks no unrecorded annotation, which is counted beside its key instead (DR-284-ikmartin). `anchored` is the conjunction a viewer draws a margin mark from: an annotation is anchored when it has a selector, that selector still resolves, and the version it names can still be produced. A publisher that keeps no versions reports `recorded: false` and `anchored: false` on everything it cannot show, which is the honest answer; it never reports `anchored: true` for an annotation whose subject it has lost.
 
 **[decided]** `discard_reason` is the text given when the annotation was withdrawn, or null. Discarding is the one state change that carries a reason, because withdrawing a finding says the finding should not have been raised and the record is worth nothing without the why.
 
 **[decided]** `severity` grades the fault a finding names — `major`, `moderate`, `minor` — and is null where the annotation names no fault. It is unrelated to a diagnostic's `severity`, which grades a message. `payload` is text the annotation proposes and `placement` (`replace`, `after`, `before`) is a hint for where a viewer shows it relative to the anchor; a viewer previews a payload and never applies one.
 
-**[decided]** `run` is the run or comment session the annotation belongs to, and is the key a viewer groups by. `record` carries the same string and is deprecated: it once named the file an annotation lived in, and annotations now live in one append-only log per corpus, so a path would name the same file for every one of them. A viewer that treated `record` as an opaque grouping key needs no change.
+**[decided]** `run` is the id of the session the annotation belongs to, and is the key a viewer groups by. `record` carries the same string and is deprecated: it once named the file an annotation lived in, and annotations now live in one append-only log per corpus, so a path would name the same file for every one of them. A viewer that treated `record` as an opaque grouping key needs no change.
 
 ## 10. Threads
 
-**[decided]** Discussions the viewer displays read-only: runs, comment sessions, or anything else a publisher chooses.
+**[decided]** Sessions as the viewer displays them, keyed by session id. Loom publishes one thread of `kind` `session` per session; `kind` is an open string, and a viewer shows a kind it does not know generically.
 
 ```json
-"2026-09-16T14-02-referee": {
-  "id": "2026-09-16T14-02-referee",
-  "kind": "run",
+"s-2026-09-16-0002": {
+  "id": "s-2026-09-16-0002",
+  "kind": "session",
   "title": "referee rl-0004",
   "created": "2026-09-16T14:02:00Z",
   "participants": [{"kind": "person", "id": "Markas Hecht"}, {"kind": "agent", "id": "claude-code"}],
   "targets": ["rl-0004", "rl-0004/proof"],
-  "messages": [
-    {"author": {"kind": "agent", "id": "claude-code"}, "time": "2026-09-16T14:31:00Z",
-     "body_html": "<p>Refereed rl-0004; three objections.</p>"}
-  ],
   "attachments": [
-    {"name": "referee-rl-0004.notes.md", "kind": "notes", "path": "ai/runs/.../referee-rl-0004.notes.md"},
+    {"name": "referee-rl-0004.notes.md", "kind": "notes", "path": ".loom/sessions/s-2026-09-16-0002/referee-rl-0004.notes.md"},
     {"name": "draft-rl-0019.tex", "kind": "draft", "path": "..."},
-    {"name": "referee-rl-0004.annotations", "kind": "annotations", "count": 3}
+    {"name": "annotations", "kind": "annotations", "count": 3}
   ],
-  "log": [{"time": "...", "command": "loom source rl-0004 --closure"}],
+  "log": [{"time": "...", "command": "loom source rl-0004 --closure"},
+          {"time": "...", "command": "loom annotate rl-0004 --quote --kind objection", "annotation": "a-2026-09-16-0001"}],
   "discarded": false
 }
 ```
 
-**[decided]** A thread of kind `run` also carries `pipeline`: the modes the run applied, in order, each `{mode, target, report}` with `pass` when it is a numbered re-run, `fragment` naming the rendered report fragment, and `blocks` indexing that fragment as `{name, title, findings}`. It is **derived, not declared** — every mode writes `<mode>-<target>.notes.md` without exception, so the run directory already says which modes ran and against what, and says it retroactively for runs written before the field existed. The order is the files' own, a numbered second pass after its first; name order rather than clock order, because two builds of one quilt must not disagree about it. A publisher with no modes emits no `pipeline`, and a viewer must not recover a mode by parsing a filename itself.
+**[decided]** A thread of kind `session` also carries `pipeline`: the modes applied in the session, in order, each `{mode, target, report}` with `pass` when it is a numbered re-run, `fragment` naming the rendered report fragment, and `blocks` indexing that fragment as `{name, title, findings}`. It is **derived, not declared** — every mode writes `<mode>-<target>.notes.md` without exception, so the session's directory already says which modes ran and against what. The order is the files' own, a numbered second pass after its first; name order rather than clock order, because two builds of one quilt must not disagree about it. A publisher with no modes emits no `pipeline`, and a viewer must not recover a mode by parsing a filename itself.
 
-`messages` comes from `thread.md` (rendered) or, later, from the write API; `log` from `run.log`. As published by loom (M6): every run under `ai/runs/` is a thread of `kind` `run` with `path` (the run directory), `title` from the first heading of `thread.md` or the run's name, `participants` from the run's name and the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`; every comment session — one author on one day, replayed from the annotation log — is a thread of `kind` `comments` whose messages are its annotations. Each thread also has a `search` entry with `kind` `thread`.
+A thread carries no conversation: that is its transcript (§10.1). `log` comes from `run.log`, one entry per line; `annotation` is the annotation a `loom annotate` line made or changed, written after an arrow in the log, and absent on every other line. As published by loom (M6): every session is a thread of `kind` `session` with `path` (the session directory), `title` the session's title, `participants` from the annotations' authors, `targets` from the annotations, `attachments` named by file with kinds `annotations` (with `count`), `draft`, `proposal`, `digest`, `plan`, `notes`, `script`, or `file`. Each thread also has a `search` entry with `kind` `thread`.
+
+## 10.1 Transcripts
+
+**[decided]** A session's conversation is published beside the manifest, never in it, because every viewer polls the manifest and a long conversation would make every poll pay for it. The build writes `transcripts/<session>/<n>.json`, page `n` (from 1) holding the events numbered `100(n-1)+1` to `100n`:
+
+```json
+{"session": "s-2026-09-17-0002", "page": 1, "events": [
+  {"seq": 1, "kind": "message", "who": "A. Author", "when": "2026-09-17T11:00:00Z",
+   "body": "Have a look at Theorem 3.2.", "body_html": "<p>Have a look at Theorem 3.2.</p>",
+   "changed": [{"id": "a-2026-09-17-0001", "kind": "question", "target": "Bellamy19-thm-3.2", "act": "created", "by": "A. Author", "body": "…"}]}
+]}
+```
+
+The session's `seq` in `sessions` is the last event's number, so a viewer knows which pages exist without an index. `body` is what was written and `body_html` its rendering, by the same rules as an annotation's body; `changed` lists the annotations a message carried, each whole: `id`, `kind`, `target`, `work` and `page` for a note on a page, `act` (`created` or `replied`), `by`, `body`, and `quote`, `severity`, `payload` and `placement` where the annotation has them. A publisher that serves live answers the pages itself, from the inbox, so they are never stale under it, and adds new events through its own channel (specs/write-api.md; DR-278-ikmartin). `messages` was dropped from threads when transcripts arrived; the interface version stays 1 because no corpus outside the fixtures carried it (DR-264-ikmartin).
 
 ## 11. Diagnostics
 

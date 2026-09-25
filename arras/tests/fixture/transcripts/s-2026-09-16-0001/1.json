@@ -1,0 +1,14 @@
+{
+ "events": [
+  {
+   "body": "Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: nothing; the author decides. Remains: the second proof was not reviewed.",
+   "body_html": "<p>Asked: hostile review of the parity theorem. Did: read the statement and its closure, left one objection on the statement, one suggestion on the first proof, and one point about the document as a whole. Decided: nothing; the author decides. Remains: the second proof was not reviewed.</p>",
+   "kind": "message",
+   "seq": 1,
+   "when": "2026-09-16T00:00:00Z",
+   "who": "Referee Agent"
+  }
+ ],
+ "page": 1,
+ "session": "s-2026-09-16-0001"
+}

@@ -23,7 +23,7 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 - `digests/` — cited papers' results as external nodes, one file per citekey. Read only.
 - `refs/` — what was fetched for each cited work: its source and PDF, under a directory named by the work's identifier. `loom refs path CITEKEY` prints it. Read only, and not in version control.
 - `notes/` — the author's reference material, if the quilt has one: files, excerpts and research notes that are not cited works and not in any digest. Read it when it bears on the task; it is context, not a source to cite, digest or propose from. Never scanned, in version control. Read only.
-- `annotations/log.jsonl` — every review event, appended. Written only by `loom comment` and `loom refs note`; never edit it by hand, and never read it directly when `loom ai findings` or `loom status` will answer the question.
+- `annotations/log.jsonl` — every review event, appended. Written only by `loom annotate` and `loom refs cite`; never edit it by hand, and never read it directly when `loom ai annotations` or `loom status` will answer the question.
 - `.loom/` — the acceptance ledger, the history of steps and the texts they froze, and loom's caches. Never touch, except your own session's directory below.
 - `build/` — derived; ignore.
 - `ai/orientation.md` — this file. `ai/modes/` — the mode templates. Read only.
@@ -58,7 +58,7 @@ A session is shared: the author may be working in the one you are in, and their 
 Working in the quilt:
 
 - `loom status` (first, always): every key, its state, causes, open annotations; `--stale`, `--draft`, `--incomplete`, `--undigested`, `--explain KEY`; `--json` for tools. This is the to-do list.
-- `loom search QUERY --json`: find ids by title, alias, tag or citekey; get a node's file.
+- `loom search QUERY --json`: find ids by title, alias, tag or citekey; get a node's file. **When the author names a result by its number** — `Theorem 3.4`, `(3)` — resolve it here before reading anything: it lists every key the drafting documents number so, the default document's first, and `--in DOC` asks one document.
 - `loom source TARGET [--closure]`: prints a key's own text, and with `--closure` exactly the statements it depends on first. Give it a document's path instead and it prints that document flattened, every inclusion expanded in place, for when a plan or a paper is the context. Read this, not the directories. It writes no file, so nothing you read can go stale behind you.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.
 - `loom lint`: what is structurally wrong. `loom check`: lint, then compile every master; with `--bundles all` it also compiles every key's closure, which the default does not.
@@ -73,7 +73,7 @@ Reading the literature the quilt cites. **Ask the digest before you read a paper
 - `loom refs grep TEXT`: search the raw page text of every cited PDF for a phrase — a literal phrase, not a pattern. The cold-start path. A hit is a page to read, never a quotation: page text is mathematics after a text layer.
 - `loom refs page CITEKEY N[-M]`: a page's text and the section it falls in. **The sanctioned read.** Quote only from this.
 - `loom refs propose CITEKEY --local thm-4.1 --page N --source-text "…" --statement "…" [--level 1]`: record a result you read. `--source-text` must be the page's own words — **the whole statement, not the first clause**, because it is what the author reads your rendering against; if the statement runs onto the next page, give `--page 353-354` — and it is checked against the page; `--statement` is your LaTeX rendering and is never checked for faithfulness — loom names any of its words the quotation does not contain, and those are usually yours: **the body only** (loom writes the environment, the locator and the label, and refuses a statement that carries its own), and **the paper's words only** — no gloss, no "Equivalently…", no definition of a symbol the statement does not define, no note about which page something is on. Those go in your session's own notes; in the second study run five of six corrections an author had to make were an agent's additions. A proposal is not verified by passing the page check: only the author verifies it, and until then call it a proposal, waiting for the author. Refused with the page attached if the quotation is not there. A work needs its main results (`--level 1`) before anything deeper. `--local` is the paper's own number — `thm-4.1`, `cor-2.3.1` for the first corollary under 2.3, `eq-1` for a numbered display the paper calls a result, `thm-star-1` for an unnumbered one — and a name that is not one is refused.
-- `loom comment CITEKEY "message" --page N --quote "…" --kind KIND --session SESSION`: a note on a page of a cited work, anchored to text you quoted from `loom refs page` (loom refuses text that is not on that page); `--box x0,y0,x1,y1` anchors to a rectangle instead, in points with the origin at the top left, which `loom refs locate CITEKEY "phrase" --page N` prints. Where a proposal claims a result is on the page, a note says something about what is there. `loom status --reading` lists them by work; `loom ai findings` shows yours with the citekey and the page.
+- `loom annotate CITEKEY "message" --page N --quote "…" --kind KIND --session SESSION`: a note on a page of a cited work, anchored to text you quoted from `loom refs page` (loom refuses text that is not on that page); `--box x0,y0,x1,y1` anchors to a rectangle instead, in points with the origin at the top left, which `loom refs locate CITEKEY "phrase" --page N` prints. Where a proposal claims a result is on the page, a note says something about what is there. `loom status --reading` lists them by work; `loom ai annotations` shows yours with the citekey and the page.
 - **A work with a LaTeX source** (`coverage` says `src yes`) has a mechanical digest; read that first. A result the extractor missed is quoted from the source, not the PDF: `--source-file main.tex` in place of `--page`, with `--source-text` the LaTeX itself, because the PDF's text layer has lost the mathematics — a formula there is often control bytes.
 - `loom refs link --from ID --to ID --kind same-notion|generalises|specialises|depends-on|contradicts --why "…" --session SESSION`: **record a relation between two results, with a reason.** When you work out how two papers' results relate, record it here rather than in a notes file: a link is drawn in the author's digest view and found from either end, and prose in your session is found by nobody. A link is an assertion, never checked, never citable.
 - `loom refs why ID`, `loom refs links ID`: where a result came from, and what it has been related to.
@@ -83,26 +83,26 @@ Reading the literature the quilt cites. **Ask the digest before you read a paper
 
 Recording what you found:
 
-- `loom comment KEY "message" --quote "exact text" --kind objection|suggestion|question|confirmation|citation|note --session SESSION`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
-- `--severity major|moderate|minor` grades the fault; `--payload` carries text you are proposing and `--placement replace|after|before` says where it would go; `--reply ID` answers the author; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
+- `loom annotate KEY "message" --quote "exact text" --kind objection|suggestion|question|citation|note --session SESSION`: a finding anchored to the sentence it concerns. This is how every review result is recorded.
+- `--severity major|moderate|minor` grades the fault; `--payload` carries text you are proposing and `--placement replace|after|before` says where it would go; `--reply ID` answers the author, in text only; `--resolve ID` closes a finding that is met; `--edit ID` restates one that still stands; `--batch` reads JSON lines from stdin.
 
-Your run:
+Your session:
 
-- `loom ai runs [--all]`, or `loom session list`: the quilt's sessions, as `YYYY-MM-DD: title`.
-- `loom ai start "A name"`: open a new run and print its directory. Name it for what you were asked to do.
-- `loom ai orient --session SESSION`: this document, the quilt's live state, and that session's journal — how you rejoin a session, yours, the author's, or another agent's.
-- `loom ai findings --session SESSION [--json]`: what that session has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a session.
+- `loom session list [--all]`: the quilt's open sessions by id and title, the active one marked; `--all` adds the closed ones.
+- `loom ai start "A name"`: open a new session, make it active, and print its id. Name it for what you were asked to do.
+- `loom ai orient --session SESSION`: this document, the quilt's live state, and the end of that session's chat and its command log — how you rejoin a session, yours, the author's, or another agent's.
+- `loom ai annotations --session SESSION [--json]`: what that session has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a session.
 - `loom ai name "A better title" --session SESSION`: retitle a session once you know what it turned into.
 
 ## 6. Messages, and how to wait for one
 
-**The author may be talking to you.** A session carries an inbox, and the composer in the viewer posts into it. Nothing launches you and nothing assigns you work — loom appends a line, and you find it because you asked.
+**The author may be talking to you.** A session carries an inbox, and the Chat in the viewer posts into it. Nothing assigns you work: loom appends a line, and you find it because you asked. **If loom started you**, for one turn because a message was waiting, its prompt says so: read what is waiting with `loom session next --wait 0 --json --as "…"`, answer with `loom session say`, and stop — loom starts you again when the next message arrives. **If the author started you**, park on `next` as below.
 
 - `loom session next --wait 120 --json --as "Referee Agent"`: **park until something lands**, print it, and exit. One call is one turn. It returns the moment a message arrives rather than on a poll interval; with nothing waiting it comes back empty and you park again. Keep `--wait` under whatever timeout your harness puts on a tool call.
-- `loom session send "…" --as "Referee Agent"`: say something back.
+- `loom session say "…" --as "Referee Agent"`: say something back. `-` in place of the text reads it from stdin, for anything long.
 - Your cursor moves as you read, so a message survives being read and you resume where you were after a crash. The inbox is a **broadcast**: another agent attached to the same session sees everything you see, and neither of you is handed a task.
 
-**Name yourself.** `--as` is how the record says what wrote a thing. Choose a name that fits the role you were invoked in — `Referee Agent`, `Simplify Agent`, `Tutor Agent` — and **include `Agent` or `AI` in it**. Identity is declared, not sniffed: a command run under an agent's shell with no `--as` is refused rather than guessed at, because an author may ask you to run something and an environment variable is not a claim about who is speaking.
+**Name yourself.** `--as` is how the record says what wrote a thing. Choose a name that fits the role you were invoked in — `Referee Agent`, `Simplify Agent`, `Tutor Agent` — and **include `Agent` or `AI` in it**. Every command you write with takes it. Identity is declared, not sniffed, because an author may ask you to run something and an environment variable is not a claim about who is speaking: unnamed, the session commands refuse you and an annotation is recorded under your tool's name, never the author's.
 
 **These commands are the author's and will refuse you**, whatever shell you are in, because each makes a claim only a person can make — *I have checked this*, *I accept this mathematics*:
 
@@ -115,7 +115,7 @@ Your run:
 A session is a stretch of work on this quilt, and it may be shared with the author. It has no mode: it is opened, worked in, and closed when the work is done, and you rejoin one with `loom session use` or by naming it with `--session`. Write in its directory:
 
 - outputs named by mode and target: `referee-rl-0004.notes.md`, `draft-rl-0019.tex`, `proposal-rl-0004.diff`, `ingest-Man12.tex`. Where a mode's template says a second pass is numbered, as referee's and review's do, it is: `referee-rl-0004.2.notes.md`.
-- `thread.md`: after each significant exchange, append a dated entry saying what was asked, what you did, what you decided and what remains. Keep it; a later session, yours or another agent's, resumes from it.
+- nothing else: your account of the work goes in the chat. After each significant exchange, say there (`loom session say`) what was asked, what you did, what you decided and what remains. A later session, yours or another agent's, resumes from the chat: `loom ai orient --session` prints its end.
 
 Loom writes `run.log` there for you. The session's title and state live in `.loom/sessions/index.jsonl`, which is loom's to append to and never yours to edit.
 
@@ -138,7 +138,7 @@ You never write a digest. `loom refs build` extracts one mechanically from every
 
 ## 9. Context economy
 
-Read a key's closure, not directories: it is complete by construction. Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`, and do not read the annotation log when `loom ai findings` answers the question. `ai/rules.md` §Inputs is the contract; a digest's overview is `loom refs overview CITEKEY`.
+Read a key's closure, not directories: it is complete by construction. Do not read `nodes/` wholesale, do not read `build/`, do not read `.loom/`, and do not read the annotation log when `loom ai annotations` answers the question. `ai/rules.md` §Inputs is the contract; a digest's overview is `loom refs overview CITEKEY`.
 
 ## 10. What you never do
 
@@ -146,4 +146,4 @@ Read a key's closure, not directories: it is complete by construction. Do not re
 
 ## 11. When you are done
 
-Update `thread.md`, list your outputs, and tell the author which are drafted nodes to paste, which are diffs to apply, and which annotations need their decision.
+Say in the chat what you did, list your outputs, and tell the author which are drafted nodes to paste, which are diffs to apply, and which annotations need their decision.

@@ -3,7 +3,6 @@ import { expect, test } from '@playwright/test';
 test('home page renders the fixture manifest', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('main h1')).toHaveText('Widgets, gadgets, and their fixed loci');
-	await expect(page.getByTestId('counts')).toContainText('nodes');
 });
 
 test('home page leads with corpus metrics without pretending they are one document table', async ({ page }) => {

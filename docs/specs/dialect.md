@@ -107,9 +107,11 @@ Review comparison fragments may mark changed prose with `<mark class="review-cha
 
 **[decided]** `table`, `thead`, `tbody`, `tr`, `th`, `td`; cell content limited to inline markup and math. Anything else falls back.
 
-### 2.13 Links into cited works
+### 2.13 Links
 
-**[decided]** `<a href="cited:SCHEME:VALUE#page=N">` or `#quote=TEXT` names a place in a cited work by its global identifier — `SCHEME` one of `doi`, `arxiv`, `mr`, `zbl`, compared case-insensitively, and `VALUE` as the manifest's `works` writes it — never by a citekey, so a link survives a bibliography re-export and means the same thing in a collaborator's corpus. It appears in annotation and message bodies, written in their Markdown as `[text](cited:arxiv:0805.2065v2#page=9)`. `page` is 1-based; `quote` is URL-encoded text to look for. A viewer resolves the identifier through the manifest's references and opens a fetched copy only when it is filed under that identifier (DR-123).
+**[decided]** `<a href="quilt:KEY">` or `quilt:KEY#PLACE` names something the corpus itself owns by its fixed key (DR-268-ikmartin): a node, or any key it holds — a proof, a labelled equation — as the manifest's `keys` and `regions` write them; a document by its path, with a key it reaches after `#`; an annotation by its id; a session by its id. It appears in annotation and message bodies, written in their Markdown as `[text](quilt:sh-0009)` or, with no text, `[](quilt:sh-0009)`, which a viewer names itself as a reader names the thing — `Theorem 3.1` — so the name follows a renumbering. A viewer opens what the link names and, for an annotation, opens what it is on with the annotation shown. A publisher refuses such a link from an agent when it names nothing a viewer shows; a viewer shows a key it does not know as the key.
+
+**[decided]** **Links into cited works.** `<a href="cited:SCHEME:VALUE#page=N">` or `#quote=TEXT` names a place in a cited work by its global identifier — `SCHEME` one of `doi`, `arxiv`, `mr`, `zbl`, compared case-insensitively, and `VALUE` as the manifest's `works` writes it — never by a citekey, so a link survives a bibliography re-export and means the same thing in a collaborator's corpus. It appears in annotation and message bodies, written in their Markdown as `[text](cited:arxiv:0805.2065v2#page=9)`. `page` is 1-based; `quote` is URL-encoded text to look for. A viewer resolves the identifier through the manifest's references and opens a fetched copy only when it is filed under that identifier (DR-123).
 
 ## 3. Forbidden
 

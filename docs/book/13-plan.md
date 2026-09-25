@@ -53,7 +53,7 @@ Demonstrated 2026-09-15; see `docs/work-queue/closed/M2.md`: every page kind ren
 ### M3. Review
 
 - The ledger, snapshots, `loom accept`.
-- Review records, selectors, `loom comment` (all flags, `--batch`), detached resolution.
+- Review records, selectors, `loom annotate` (all flags, `--batch`), detached resolution.
 - Computed states, causes with diffs, derived states, review facts.
 - `loom status` with all filters and `--explain`; discard; retired keys; positional-key recovery.
 - Marks in fragments; arras review panel, blockers page, badges, annotation boxes, threads (read-only).
@@ -131,6 +131,7 @@ What became of them since is in `docs/work-queue/`, and three were not merely cu
 loom-arras/                 workspace; a git repository tracking docs/, demos/, and the root files
   .gitignore                loom/  arras/  tests/fixtures/  demos/relloc/  demos/man12/  demos/acgs/
   CLAUDE.md, AGENTS.md      orientation for agents working across both tools
+  .github/workflows/        loom.yml, arras.yml, docs.yml (the lanes of scripts/verify), clients.yml, mirror-nvim.yml; 14.4
   LICENSE, COPYRIGHT        GPL-3.0-or-later, ikmartin
   clone.sh                  clones the two tool repositories beside itself
   docs/
@@ -188,7 +189,6 @@ loom/                       GPL-3.0-or-later; NOTICE names the files ported from
     tex/                    the real toolchain, isolated
     papers/                 skipped unless LOOM_PAPER_FIXTURES is set
     tools/validate_dialect.py   a copy of the workspace validator
-  .github/workflows/        unit.yml (Python matrix plus an install-from-clone job), tex.yml (TeX Live container)
 ```
 
 ```
@@ -198,16 +198,15 @@ arras/                      AGPL-3.0-or-later; NOTICE
   README.md, CONTRIBUTING.md, LICENSE, NOTICE
   src/
     app.html, app.d.ts
-    lib/                    manifest/ (types, loader, client), fragments/ (fetch, mount, Fragment.svelte), math/ (mathjax), graph/ (layout), components/ (Badge, AnnotationBox, AnnotationPanel, Diagnostics, Palette), badges.ts, diagnostics.ts, nav.ts, ui.svelte.ts, theme.css; the vitest specs (*.spec.ts) sit beside the modules they test
+    lib/                    manifest/ (types, loader, client), fragments/ (fetch, mount, Fragment.svelte), math/ (mathjax), graph/ (layout), components/ (Badge, AnnotationBox, Diagnostics, Palette), badges.ts, diagnostics.ts, nav.ts, ui.svelte.ts, theme.css; the vitest specs (*.spec.ts) sit beside the modules they test
     routes/                 +layout, home, node/[...key], master/[stem], digest/[citekey], review, problems, blockers, graph, threads, thread/[id], tags, tag/[tag], taxa, taxon/[slug], references, loose
   static/robots.txt
-  scripts/                  stage-fixture.mjs (copies tests/fixture into static/build for dev and e2e), build-prerender.mjs, copy-bundle.mjs (into python/)
+  scripts/                  stage-fixture.mjs (copies tests/fixture into static/build for dev), bundle.mjs and serve-static.mjs (each Playwright config's own copy of the build, served), build-prerender.mjs, copy-bundle.mjs (into python/)
   python/                   the optional arras pip package: pyproject.toml, README.md, src/arras/{__init__.py, bundle/}; unpublished
   tests/
     fixture/                vendored snapshot with VERSION
     unit/forbidden-words.spec.ts   the 10.8 guard (DR-39)
     e2e/                    home.e2e.ts, routes.e2e.ts: Playwright over the fixture
-  .github/workflows/ci.yml  svelte-check, vitest, build, Playwright, the bundle as an artefact; no publish job
 ```
 
 **[decided]** `LICENSE` files: GPL-3.0-or-later in `loom/`, AGPL-3.0-or-later in `arras/`, MIT in `loom/src/loom/assets/` for `loom.sty` and the demo quilt (with a `LICENSE` in that directory and a header in `loom.sty`), the workspace repository under GPL-3.0-or-later for the book and specs. Done at M0 with `ikmartin` as the holder (`docs/plans/implementation-plan.md`); arras's GitHub-generated MIT file was replaced.
@@ -219,7 +218,7 @@ arras/                      AGPL-3.0-or-later; NOTICE
 1. The unit, TeX, and paper tiers green; `ruff`, `mypy`, and `scripts/gen_cli_reference.py --check` clean.
 2. `loom check` on the demo, the synthetic quilt, and locally on the Manolache and ACGS imports (`demos/man12`, `demos/acgs`).
 3. The fixture regenerated with `docs/specs/tools/refresh-fixture.sh` and both vendored snapshots equal to it; the dialect validator passing on every fragment.
-4. The arras bundle re-vendored from an arras build at the commit the release notes name (`scripts/vendor_arras.py ../arras/build`), and `loom doctor` reporting that bundle and interface version 1.
+4. The arras bundle re-vendored from an arras build at the commit the release notes name (`scripts/vendor_arras.py ../arras/build`), and `loom doctor` reporting that bundle `ok` at interface version 1.
 5. Every command in `README.md` and `docs/cli-reference.md` exists in this release.
 6. The Overleaf manual test on the demo quilt (14.5), with Overleaf's TeX Live version in the release notes.
 7. `loom doctor` on a clean machine with a fresh TeX Live, following `README.md` literally by both install paths.

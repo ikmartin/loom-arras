@@ -1,12 +1,10 @@
 """The write API: the HTTP form of loom's record-writing commands (specs/write-api.md, plan 0.11 Part G).
 
-Served by the publisher, never by the viewer. Most endpoints write only Loom's
-private records. The explicit ``sync-incorporate`` endpoint is the narrow
+Served by the publisher, never by the viewer. Most endpoints write only Loom's private records. The explicit ``sync-incorporate`` endpoint is the narrow
 exception: it applies the already displayed pull to author files and records
-two local commits. Every endpoint wraps a library function so its behavior is
-shared with recovery and test surfaces.
+two local commits. Every endpoint wraps a library function so its behavior is shared with recovery and test surfaces.
 
-Nothing here wakes an agent. An agent pulls: it reads open findings with `loom status` and `loom ai findings` and answers with `loom comment --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
+Nothing here wakes an agent. An agent pulls: it reads open annotations with `loom status` and `loom ai annotations` and answers with `loom annotate --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
 """
 
 from __future__ import annotations
@@ -19,12 +17,12 @@ from loom.clock import stamp
 #: What this publisher serves. A viewer reads this rather than assuming the specification's table, so an endpoint that
 #: is not here answers 404 and a viewer that hides the affordance is right to.
 CAPABILITIES = [
-    "comment",
+    "annotate",
     "reply",
     "resolve",
     "edit",
     "discard",
-    "refs-note",
+    "refs-cite",
     "digest-verify",
     "digest-discard",
     "locate",
@@ -36,6 +34,7 @@ CAPABILITIES = [
     "session-reopen",
     "session-purpose",
     "message",
+    "agent-stop",
     "sync-incorporate",
     "review-decision",
     "review-finish",
@@ -89,8 +88,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     """
     if endpoint not in CAPABILITIES:
         raise ApiError("unknown-endpoint", f"no endpoint {endpoint}", status=404)
-    if endpoint == "refs-note":
-        return {"ok": True, "result": _refs_note(root, body)}
+    if endpoint == "refs-cite":
+        return {"ok": True, "result": _refs_cite(root, body)}
     if endpoint in ("digest-verify", "digest-discard"):
         return {"ok": True, "result": _digest(root, endpoint, body)}
     if endpoint == "locate":
@@ -220,26 +219,30 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
 def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     """Post a message into a session, and say whether anybody was listening (plan 0.13 §8, DR-195).
 
-    **Loom appends; nothing is launched.** A parked reader wakes because a file grew. Loom holds no credentials, calls no model, and hands the message to nobody -- the agent is already running in the author's own terminal, and this is the mailbox it reads.
+    **Loom appends.** A parked reader wakes because a file grew; where the quilt lets it, `loom serve` starts the author's own agent command for the turn (`loom.agent`). Loom holds no credentials, calls no model, and hands the message to nobody -- this is the mailbox the agent reads.
 
     **The message lands whether or not anybody is attached**, and the answer says which. Refusing would lose what the author typed, for a reason the browser cannot fix; saying nothing would let them believe it was delivered.
     """
     from loom.cli._common import whoever, writer
-    from loom.mailbox import attached, changed_since, post, waiting_on
+    from loom.mailbox import attached, pending, post, waiting_on
     from loom.sessions import resolve
 
-    text = _str(body, "text", required=True) or ""
+    # the words may be left out: a message may be what the person marked, and nothing else (plan 0.14)
+    text = (_str(body, "text") or "").strip()
     said = _str(body, "as")
     # A declared identity is taken as declared; with none, this is the author at their own keyboard, which is what the
     # viewer's composer is. `writer` is what refuses an agent that has not named itself.
-    name, kind = writer(root, said) if said else (_str(body, "author") or whoever(root), "person")
+    name, kind = writer(root, said) if said else (_str(body, "author") or whoever(root, sniff=False), "person")
     # A message names its session like every other write (plan 0.13.1): it is addressed to whoever is attached there,
     # and a message posted to "whatever was last active" would reach the wrong reader.
     which = _str(body, "session", required=True) or ""
     found = resolve(root, which)
     if found is None:
         raise ApiError("no-such-session", f"no session matches {which}", status=404)
-    event = post(root, found.id, text, name, kind="message", changed=changed_since(root, found))
+    packet = pending(root, found, name)
+    if not text and not packet:
+        raise ApiError("nothing-to-send", "nothing to send: no words, and nothing marked since the last message")
+    event = post(root, found.id, text, name, kind="message", changed=packet)
     here = [r for r in attached(root, found.id) if r.get("who") != name]
     return {
         "ok": True,
@@ -259,7 +262,7 @@ def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     from loom.cli._common import whoever
     from loom.sessions import active, close, create, delete, purpose, rename, resolve, resume, sessions, set_active
 
-    who = _str(body, "author") or whoever(root)
+    who = _str(body, "author") or whoever(root, sniff=False)
     if endpoint == "session-new":
         # named by the author on the spot, and made the one writing lands in: what §16's example does from the page
         title = _str(body, "title", required=True) or ""
@@ -347,22 +350,18 @@ def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
 def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     # Imported here rather than at module scope: the CLI package pulls in click and the whole command tree, and a
     # server that is only ever asked for files should not pay for it at startup.
-    from loom.cli._common import ContentError, EnvError
+    from loom.cli._common import ContentError, EnvError, NotFoundError
     from loom.cli._quilt import open_scan
     from loom.cli.review import _one_comment, _writer, discard_annotation, edit_annotation
 
     # Validate the request before touching the quilt: a missing field is the caller's mistake and should be named as
     # one, not reported as whatever the first function to be handed nothing happens to complain about.
-    needs = {"comment": ("target", "message"), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
+    needs = {"annotate": ("target", "message"), "reply": ("annotation", "message")}.get(endpoint, ("annotation",))
     for field in needs:
         _str(body, field, required=True)
 
-    # **A write over the API names its session** (plan 0.13.1). The session travels with the write from the writer's
-    # own context -- the author's from the viewer's selection, an agent's from the session it is attached to -- so
-    # nothing here reads `.loom/active`, which narrows to `loom comment`'s terminal default. A request naming none is
-    # malformed rather than something to paper over: falling back would file work wherever the pointer happened to
-    # point, which is the failure this replaced.
-    which = _str(body, "session") or _str(body, "run")
+    # **A write over the API names its session** (plan 0.13.1). The session travels with the write from the writer's own context -- the author's from the viewer's selection, an agent's from the session it is attached to -- so nothing here reads `.loom/active`, which narrows to `loom annotate`'s terminal default. A request naming none is malformed rather than something to paper over: falling back would file work wherever the pointer happened to point, which is the failure this replaced.
+    which = _str(body, "session")
     if not which:
         raise ApiError("no-session", "a write must name the session it belongs to")
 
@@ -371,8 +370,10 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         # terminal every note the author wrote in their own browser was recorded `author: "agent"` until this stopped
         # sniffing. An agent posting here declares itself, and `is_agent` still guards the author's verbs by that name.
         writer = _writer(root, which, _str(body, "author"), sniff=False)
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except (EnvError, ContentError) as exc:
-        raise ApiError("no-such-run", str(exc)) from exc
+        raise ApiError("refused", str(exc)) from exc
 
     try:
         # `undo` puts a withdrawn or resolved finding back by appending another event; the viewer offers it in place
@@ -382,11 +383,12 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return discard_annotation(
                 root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"), undo
             )
-        if endpoint == "edit":
-            fields = {k: _str(body, k) for k in ("message", "severity", "payload", "placement")}
-            return edit_annotation(root, _str(body, "annotation", required=True) or "", writer, **fields)
         result = open_scan(str(root))
-        if endpoint == "comment":
+        if endpoint == "edit":
+            # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
+            fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("severity", "payload", "placement")}}
+            return edit_annotation(result, _str(body, "annotation", required=True) or "", writer, **fields)
+        if endpoint == "annotate":
             # a note on a page of a cited work carries the page and, for a box, the rectangles (plan 0.13 item 2)
             page = body.get("page")
             if page is not None and (not isinstance(page, int) or page < 1):
@@ -406,6 +408,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 _str(body, "placement"),
                 page=page,
                 rects=rects,
+                in_doc=_str(body, "in"),
             )
         annotation = _str(body, "annotation", required=True)
         if endpoint == "reply":
@@ -413,15 +416,16 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
                 result, writer, None, _str(body, "message", required=True), None, None, annotation, None
             )
         return _one_comment(result, writer, None, _str(body, "message"), None, None, None, annotation, undo=undo)
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
     except ContentError as exc:
         raise ApiError("refused", str(exc)) from exc
     except EnvError as exc:
         raise ApiError("bad-request", str(exc)) from exc
 
 
-def _refs_note(root: Path, body: dict[str, Any]) -> str:
+def _refs_cite(root: Path, body: dict[str, Any]) -> str:
     """Accept or reject a citation an agent suggested: the log records the decision, the breadcrumb records the work."""
-    from loom.ai.runs import thread_id
     from loom.records.annotations import find_annotation
     from loom.records.store import Records
     from loom.refs.notes import append_note
@@ -451,7 +455,7 @@ def _refs_note(root: Path, body: dict[str, Any]) -> str:
             "claim": annotation.selector.exact if annotation.selector else None,
             "identifier": {"verified": False},
             "accepted": {"when": stamp(), "who": _str(body, "author") or "viewer"},
-            "from": {"run": thread_id(record.rel), "annotation": ann_id},
+            "from": {"session": record.rel, "annotation": ann_id},
         },
     )
     return f"accepted {ann_id}; {resolved}"

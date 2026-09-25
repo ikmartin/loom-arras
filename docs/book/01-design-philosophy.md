@@ -26,7 +26,7 @@ A stored state can disagree with the source; a computed one cannot. Consequence:
 
 ### P4. One mechanism per concept, one write path per kind of record.
 
-Two ways to say the same thing drift apart. Consequence: `\input` is transclusion, `\ref` is dependency, `\newtheorem` is taxon, `loom accept` is the only writer of the ledger, `loom comment` is the only writer of annotation records.
+Two ways to say the same thing drift apart. Consequence: `\input` is transclusion, `\ref` is dependency, `\newtheorem` is taxon, `loom accept` is the only writer of the ledger, `loom annotate` is the only writer of annotation records.
 
 ### P5. The graph is defined by labels and environments, never by paths.
 

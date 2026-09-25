@@ -19,7 +19,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 3. Every mathematical claim carries an epistemic label:
    - `file-verified`: checked against printed source, a digest node, or a file in the quilt; name which.
    - `memory-grade`: from your own knowledge; say so.
-   - `proved-here`: proved in this run; the proof is in the notes.
+   - `proved-here`: proved in this session; the proof is in the notes.
 
    Never present a memory-grade claim as verified. When a digest for a cited paper exists, prefer it to memory for anything about that paper.
 4. Cite by id. A fact from the quilt is cited as its key — `<prefix>-0002`, `<prefix>-0004/proof`, where the prefix is this quilt's from `[quilt] prefix` — and a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters, and then from the closure.
@@ -34,7 +34,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
    - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
-2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`**, including `Agent` or `AI` — identity is declared, not sniffed, and a command run under an agent's shell with no `--as` is refused rather than guessed at. The author's own verbs refuse you whatever shell you are in: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result.
+2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and an annotation is recorded under your tool's name (`claude-code`), never the author's. The author's own verbs refuse you whatever shell you are in: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --session SESSION`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
 ## Outputs
@@ -46,21 +46,21 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
 ## Findings
 
-1. A finding about a key is an annotation: `loom comment KEY "message" --quote "exact text" --kind KIND --session SESSION`, where `KIND` is one of the six below. One finding per call; `--batch` (JSON lines on stdin) for many.
-2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom comment CITEKEY "…" --page N --quote "…"`, the quote copied from `loom refs page CITEKEY N` — or a rectangle on it with `--box`; it lands in the same log and the same session, and `loom status` lists it only under `--reading`.
+1. A finding about a key is an annotation: `loom annotate KEY "message" --quote "exact text" --kind KIND --session SESSION`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
+2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom annotate CITEKEY "…" --page N --quote "…"`, the quote copied from `loom refs page CITEKEY N` — or a rectangle on it with `--box`; it lands in the same log and the same session, and `loom status` lists it only under `--reading`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The notes file holds the reasoning and refers to the annotation by the id loom printed.
-4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `confirmation` for a clean read with nothing to report; `citation` for a work worth citing that the bibliography does not have; `note` for an explanation or an aside that asks nothing. Any unambiguous prefix names one, so `conf` is enough. `objection` and `suggestion` are the only kinds that take a `--severity`; the others name no fault to grade.
+4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `citation` for a work worth citing that the bibliography does not have; `note` for an explanation or an aside that asks nothing. Any unambiguous prefix names one, so `conf` is enough. `objection` and `suggestion` are the only kinds that take a `--severity`; the others name no fault to grade.
 5. `--severity major|moderate|minor` grades the fault a finding names, not how strongly you feel about it: a grammar note is minor because the fault is small. Review mode requires one on every item; elsewhere give one only when something is actually wrong.
 6. `--payload` carries text you are proposing -- a proof, a paragraph, a rewritten passage -- and `--placement replace|after|before` says where it would go relative to the anchor. It is preview and copy: the author reads it and pastes it if they want it. Nothing applies it for them.
 7. On a re-check, the event says what you found:
    - the fault is met: `--resolve ID "reason"`;
    - the fault stands and you would put it better: `--edit ID "the restated finding"`. One finding, restated. Do not reply to yourself; a reply is for talking to the author, and three passes of replies leave one finding wearing three copies of itself;
    - you were wrong to raise it: `--discard`, since resolved would claim the author addressed something;
-   - it has become a different fault: resolve this one and make a new one. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
+   - it has become a different fault: resolve this one and make a new one. Record a clean re-read with `--kind note` (any unambiguous prefix will do, so `--kind n` is enough).
 
 ## Sequential applications
 
-Modes are applied one at a time inside a run and each writes its own files. When a second mode is applied to the same target, read the earlier notes file first, refer to its annotations by id, and do not repeat findings already recorded. Do not insert dividers; the files are the divisions. The intended pipeline audit → simplify holds: simplify's starting list is audit's [patch-list] when one exists in the run.
+Modes are applied one at a time inside a session and each writes its own files. When a second mode is applied to the same target, read the earlier notes file first, refer to its annotations by id, and do not repeat findings already recorded. Do not insert dividers; the files are the divisions. The intended pipeline audit → simplify holds: simplify's starting list is audit's [patch-list] when one exists in the session.
 
 ## When no mode is named
 
@@ -70,29 +70,29 @@ The blocks below are the vocabulary, not furniture belonging to the templates. W
 
 **Loom is still how anything durable is recorded, and a question is not a reason to stop using it.** Most of what an agent notices while answering something else is worth keeping, and a chat reply loses it the moment the session ends. So, with no mode named:
 
-- you find a fault in a key while answering a question about something else: annotate it (`loom comment KEY "..." --quote "..." --kind objection --severity ... --session SESSION`), and say in your reply that you did;
+- you find a fault in a key while answering a question about something else: annotate it (`loom annotate KEY "..." --quote "..." --kind objection --severity ... --session SESSION`), and say in your reply that you did;
 - you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
-- you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs note`;
+- you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs cite`;
 - you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;
-- you read something and it was fine: `--kind confirmation` is a record that it was read, which is worth more than silence; `--kind note` is for an explanation or an aside that asks nothing.
+- you read something and it was fine: `--kind note` saying so is a record that it was read, which is worth more than silence; a note is also for an explanation or an aside that asks nothing.
 
-Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, your session's directory for every file, `loom comment` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
+Two things do not change. **The standing rules, the Inputs and Outputs contracts, the Findings contract and Never below apply whatever you are doing** — an epistemic label on every claim, your session's directory for every file, `loom annotate` for every finding. And **say what you did**: if the answer was worth keeping, that is quick mode and it belongs in a notes file; if it was a clarification of something you just said, it is chat and nothing is written. Ask which the author wants when it is not obvious.
 
 ## Messages
 
-The author may be talking to you. A session carries an inbox; `loom session next --wait 120 --json --as "…"` parks until something lands and exits, and `loom session send "…" --as "…"` answers. Nothing launches you and nothing assigns you work: loom appends a line and you find it because you asked. The inbox is a broadcast — another agent in the same session sees everything you see — and it is read, never consumed, so a message survives being read and you resume where you were.
+The author may be talking to you. A session carries an inbox; `loom session next --wait 120 --json --as "…"` parks until something lands and exits, and `loom session say "…" --as "…"` answers. Nothing assigns you work: loom appends a line and you find it because you asked. When the author has let it, loom starts you for one turn because a message waited; then read with `--wait 0`, answer, and stop. The inbox is a broadcast — another agent in the same session sees everything you see — and it is read, never consumed, so a message survives being read and you resume where you were.
 
 ## Never
 
 - Never edit a file outside your session's directory, including any scratch directory your harness provides: the session's directory is your scratch directory. The exception is a file this quilt's own orientation names.
-- Never write `annotations/log.jsonl` by hand; `loom comment` appends to it.
+- Never write `annotations/log.jsonl` by hand; `loom annotate` appends to it.
 - **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written:
 
 {allowed_commands}
 
   `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your session's directory.
 - Never delete anything outside your own session's directory. Inside it, you may remove what you created.
-- **Name yourself with `--as`**, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: a command run under an agent's shell with no `--as` is refused rather than guessed at.
+- **Name yourself with `--as`** on everything you write, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: unnamed, the session commands refuse you and an annotation is recorded under your tool's name, never the author's.
 - **These five are the author's and refuse you whatever shell you are in**, because each makes a claim only a person can make: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
@@ -129,10 +129,10 @@ Write each block under a heading with its name in brackets.
 - [rejected] Simplifications considered and not made, with reasons. If nothing was rejected, name the areas examined and found already tight.
 - [revised] The revised text as `proposal-KEY.diff`, a unified diff against the node's file, and the result of compiling with it applied.
 - [meaning-drift-check] For each modified passage, compare against the original and confirm the meaning is unchanged. If it has changed, flag the drift explicitly and explain the reason. If preservation is non-obvious, say why it holds.
-- [candidates] One entry per candidate statement produced in this run: its draft file name, its taxon, a one-line statement, the hypotheses the author must still decide, and what it would depend on (ids).
+- [candidates] One entry per candidate statement produced in this session: its draft file name, its taxon, a one-line statement, the hypotheses the author must still decide, and what it would depend on (ids).
 - [dead-ends] One entry per approach tried and abandoned: what it was, why it fails (a computation, a counterexample, a known obstruction with a digest node id), and whether anything was salvaged.
 - [known-results] What the digests already say about the topic: digest node ids with locators, each with one line on how it bears on the candidates (gives it, contradicts it, gives it under other hypotheses).
-- [open-questions] What could not be decided in this run and what would decide it (a computation to run, a paper to digest, a definition to fix).
+- [open-questions] What could not be decided in this session and what would decide it (a computation to run, a paper to digest, a definition to fix).
 
 ---
 
@@ -140,7 +140,7 @@ Write each block under a heading with its name in brackets.
 
 ## Before you begin
 - Write only under your session's directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --session SESSION` calls, quote-anchored.
+- Findings are `loom annotate ... --session SESSION` calls, quote-anchored.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -158,10 +158,10 @@ Read the closure once completely. Then build the six blocks in order, beginning 
 ## Output
 1. `audit-KEY.notes.md`: [summary], [hypothesis-ledger], [citation-ledger], [uses-ledger], [self-containedness], [sharpenings], [patch-list].
 2. Annotations for every item of [uses-ledger], [self-containedness], and [patch-list] (kind suggestion; kind objection for an incidental error; kind question where you could not decide), each anchored to the sentence it concerns; the notes list their ids.
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Record a clean re-read with `--kind note` (any unambiguous prefix will do, so `--kind conf` is enough).
 
 ## Checklist (copy into the notes and tick)
 - [ ] Every hypothesis has a verdict.
@@ -198,7 +198,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 1. `brainstorm-SLUG.notes.md`: [summary], [candidates], [dead-ends], [known-results], [open-questions].
 2. `draft-cand-*.tex` per candidate.
 3. `brainstorm-SLUG.check.py` with outputs.
-4. An entry in `thread.md` after each significant exchange. No annotations unless an existing key was found wanting (then as audit would record it).
+4. A message in the chat (`loom session say`) after each significant exchange. No annotations unless an existing key was found wanting (then as audit would record it).
 
 ## Checklist
 - [ ] Every candidate is a draft file with explicit hypotheses.
@@ -218,7 +218,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 Write a complete node from a plan the author supplies. The plan states the intended statement, its role, and a proof plan with the estimates, computations, case division, and conclusion. You complete the local argument. You do not change the plan's strategy; where the plan is wrong, say so in the notes and stop at that step with `\incomplete`.
 
 ## Input
-- The plan: `plan-ID.md` in the run, or the author's message; if absent, ask for it and stop.
+- The plan: `plan-ID.md` in your session's directory, or the author's message; if absent, ask for it and stop.
 - `loom new TAXON "Title" --print` for the skeleton in the quilt's environment names, or the id of a skeleton file the author created.
 - `loom source DEP --closure --session SESSION` for each intended dependency, so the statements you rely on are in front of you.
 
@@ -228,7 +228,7 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 ## Output
 1. `draft-ID.tex`: one complete node obeying the source contract (`% !LOOM author:` and `created:` lines; one environment with the title and `\label{ID}` if an id was given; adjacent proof; `\uses`).
 2. `draft-ID.notes.md`: [summary]; what the plan asked; what you did; what you could not do and why; every trial.
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] The statement matches the plan.
@@ -254,7 +254,7 @@ Check a mechanically extracted digest of a cited paper against the paper itself,
 ## When there is no source
 Some cited works exist only as a PDF — a thesis, a journal-only paper, most of the classical literature. There is nothing to extract, and a digest you typed would be exactly the unverifiable artefact this mode exists to avoid (DR-173). What you do instead is read and propose: `loom refs page CITEKEY N` for the text, then `loom refs propose` for each result, main results first (`--level 1`). A proposal is not typed in DR-173's sense: its `--source-text` is checked against the page before anything is stored, and its `--statement` — your rendering, in the paper's words only — waits in a file nothing inputs until the author compares the two and verifies it. You never write `digests/` yourself, and a proposal that passed the check is **waiting for the author**, not verified.
 
-For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the `thread.md` entry; there is no extractor output to keep and no diff to write.
+For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the message in the chat; there is no extractor output to keep and no diff to write.
 
 ## What to check, in this order
 1. **Completeness.** Every numbered result in the paper is a node, and nothing that is not a result became one. Name what is missing by the paper's own number.
@@ -262,15 +262,15 @@ For a work with no source the checks below apply to what you propose, and the ou
 3. **Standing assumptions.** The `-setup` node holds what the paper assumes outside numbered results: conventions, notation, blanket hypotheses. The extractor fills it from a conventions or notation heading, or else gathers the sentences that state an assumption and says it did; check each for its scope, and name what it missed — assumptions stated in passing are the ones a reader loses.
 4. **`\uses` edges.** A proof invokes lemmas it never `\ref`s. The extractor sees only what the source cites, so the dependency graph is systematically thin.
 5. **Locators.** Every node's title carries the paper's own number and page. The extractor leaves what it could not resolve as `\incomplete`. A digest extracted from a preprint carries the preprint's numbers, pages and statements; when the bibliography cites the published version `loom lint` says so (`loom:unverified-locators`), and then every number is checked against the cited PDF with `loom refs page` — versions renumber, and they change statements.
-6. **Notes on the page.** What you notice while reading that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a note on the page, not a proposal: `loom comment CITEKEY "…" --page N --quote "…" --kind note` (or `question`), the quote from `loom refs page`. It lands in your session beside your proposals, `loom ai findings` lists it with the page, and the author sees it on the page in arras.
+6. **Notes on the page.** What you notice while reading that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a note on the page, not a proposal: `loom annotate CITEKEY "…" --page N --quote "…" --kind note` (or `question`), the quote from `loom refs page`. It lands in your session beside your proposals, `loom ai annotations` lists it with the page, and the author sees it on the page in arras.
 6. **Macros.** What could not be expanded sits in `% !LOOM begin macros`. Check the statements still say what the paper says with those definitions.
 
 ## Output
 1. `ingest-CITEKEY.tex` — the extractor's output, unedited, so the author can see what it produced.
 2. `proposal-CITEKEY.diff` — a unified diff against it carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
 3. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
-4. A finding per defect that matters, with `loom comment <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
-5. An entry in `thread.md`.
+4. A finding per defect that matters, with `loom annotate <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
+5. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] For a work with a source: `loom digest extract` was run and its output is in your session's directory, unedited.
@@ -298,7 +298,7 @@ The closure of the key concerned, or `loom status --json` for quilt-level questi
 ## Output
 1. `question-SLUG.notes.md`: [summary], [definition], [worked-examples], [edge-cases], [stress-test], [answer].
 2. Annotations only if the question revealed a defect in a key (then as audit would record it).
-3. An entry in `thread.md`.
+3. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] Every claim carries an epistemic label.
@@ -318,7 +318,7 @@ A short, durable answer. Use quick when the author asks something in passing tha
 If the answer needs worked examples, edge cases or a stress test, that is `question`. If it turns up a defect, annotate it and say so.
 
 ## Output
-`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no [summary], because a summary of a quick answer is longer than the answer. An entry in `thread.md`.
+`quick-SLUG.notes.md`: [answer] alone. This is the only mode with no [summary], because a summary of a quick answer is longer than the answer. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
 - [ ] The answer was checked once against the source or a digest.
@@ -330,7 +330,7 @@ If the answer needs worked examples, edge cases or a stress test, that is `quest
 
 ## Before you begin
 - Write only under your session's directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --session SESSION` calls, quote-anchored.
+- Findings are `loom annotate ... --session SESSION` calls, quote-anchored.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -340,17 +340,17 @@ A hostile review of one key. You are a referee at a top-tier journal looking for
 As audit. You can run code: save every trial per standing rule 7.
 
 ## Procedure
-Read the closure. Produce the blocks of the output contract in order. Every gap, error, or unjustified step is an objection anchored to the exact sentence; every improvement a suggestion; every doubt a question. If an earlier audit notes file exists in this run, read it first and do not repeat its findings.
+Read the closure. Produce the blocks of the output contract in order. Every gap, error, or unjustified step is an objection anchored to the exact sentence; every improvement a suggestion; every doubt a question. If an earlier audit notes file exists in this session, read it first and do not repeat its findings.
 
 ## Output
 1. `referee-KEY.notes.md`: [summary], [gaps-and-ambiguities], [worked-examples], [counterexample], [referee-review], [referee-revised], [decision].
 2. Annotations for every item of [gaps-and-ambiguities] and [referee-review], ids listed in the notes.
 3. `proposal-KEY.diff` when [referee-revised] is nonempty, and the result of `loom compile KEY --with proposal-KEY.diff --session SESSION`, which compiles your text in place of the quilt's without changing it.
 4. `referee-KEY.check.py` with its output, for every trial.
-5. An entry in `thread.md`.
+5. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
-Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind confirmation` (any unambiguous prefix will do, so `--kind conf` is enough).
+Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. Then a fresh [decision] in a new numbered notes file, `referee-KEY.2.notes.md`, so each pass stays readable as what you thought at the time. Record a clean re-read with `--kind note` (any unambiguous prefix will do, so `--kind n` is enough).
 
 ## Checklist
 - [ ] At least two worked examples with exact outputs.
@@ -365,7 +365,7 @@ Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what
 
 ## Before you begin
 - Write only under your session's directory. Never edit source. Never run `loom accept`.
-- Findings are `loom comment ... --session SESSION` calls, quote-anchored, every one carrying `--severity`.
+- Findings are `loom annotate ... --session SESSION` calls, quote-anchored, every one carrying `--severity`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -393,7 +393,7 @@ Errors and prose both go in [referee-review], which already groups by severity a
 1. `review-KEY.notes.md`: [summary], [referee-review], [citation-ledger], [self-containedness], [sharpenings], [simplifications].
 2. An annotation per item, every one with `--severity`, and a `--payload` wherever you are proposing text. Ids listed in the notes.
 3. `review-KEY.check.py` with its output, for every trial.
-4. An entry in `thread.md`.
+4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 There is no compiled LaTeX or PDF pair. The annotations carry the findings and the viewer renders them in place; exporting an annotated document for a reader who cannot open the viewer is a separate feature, and not this mode's job.
 
@@ -420,7 +420,7 @@ Revise the text of one key to be simpler and shorter while preserving mathematic
 
 ## Input
 - `loom source KEY --closure --session SESSION`.
-- If `audit-KEY.notes.md` exists in this run, its [patch-list] is your starting list.
+- If `audit-KEY.notes.md` exists in this session, its [patch-list] is your starting list.
 - Digest nodes for candidate citations (standing rule 5).
 
 ## Procedure
@@ -430,7 +430,7 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected], [revised], [meaning-drift-check].
 2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --session SESSION` recorded under [revised].
 3. One suggestion annotation per simplification, anchored to the old text.
-4. An entry in `thread.md`.
+4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
 Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.

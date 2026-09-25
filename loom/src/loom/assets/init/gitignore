@@ -13,6 +13,14 @@ digests/storage/cache/
 # loom's cache of the last text it saw for every key: one copy of the quilt, rebuilt on demand
 last-seen.json
 .loom/serve.json
+# Who is listening to a session and how far each reader has read: runtime state, rewritten as it happens. The
+# session's inbox.jsonl beside them is the conversation itself, and is committed.
+.loom/sessions/*/attached.json
+.loom/sessions/*/cursors/
+# A turn loom started for an agent: its state and its output, this machine's alone.
+.loom/sessions/*/agent.*
+# The command that starts your agent is yours, not the quilt's: loom refuses to run one that git tracks.
+ai/ai-config.toml
 # LaTeX artifacts a hand compile scatters at the root or in drafting/; loom's own outputs all land under build/
 /*.aux
 /*.log

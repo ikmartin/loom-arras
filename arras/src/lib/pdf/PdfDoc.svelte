@@ -9,6 +9,7 @@
 	// creep down a long paper. Page one's size is the placeholder until a page reports its own.
 	import { onMount } from 'svelte';
 	import { prefs } from '$lib/prefs.svelte';
+	import { PdfView } from './view.svelte';
 	import { document_ } from './document';
 	import PdfPage from './PdfPage.svelte';
 
@@ -22,7 +23,7 @@
 		focus = '',
 		scale,
 		window: near = 2,
-		toolbar = true,
+		view,
 		onselect,
 		onbox,
 		onmark,
@@ -32,15 +33,16 @@
 		url: string;
 		/** The page to open at; changing it scrolls there. */
 		page?: number;
-		/** What to draw, by page: a work's results, and the notes on its pages, which carry their kind and are marked `note`. */
-		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[];
+		/** What to draw, by page: a work's results, and the annotations on its pages, which carry their kind, severity, basis and whether they are settled, and are marked `note`. */
+		spans?: { id: string; page: number; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[];
 		/** The span to scroll to and show as the one being looked at. */
 		focus?: string;
 		/** Overrides the reader's own zoom, for a pane whose size is not theirs to choose (the proposal box). */
 		scale?: number;
 		/** How many pages either side of the one in view are drawn. */
 		window?: number;
-		toolbar?: boolean;
+		/** The reader's view of this document, which the caller's controls act on. Left out, the renderer keeps its own. */
+		view?: PdfView;
 		onselect?: (e: { page: number; text: string; rects: number[][]; client: Box }) => void;
 		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
 		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
@@ -50,14 +52,71 @@
 		onlink?: (e: { page: number }) => void;
 	} = $props();
 
+	// The renderer's own view, used when no caller supplied one; `v` is the one in force either way.
+	const own = new PdfView();
+	const v = $derived(view ?? own);
+	let columnWidth = $state(0);
+	const PAGE_GUTTER = 24;
+	const fitted = $derived.by(() => {
+		const w = sizes[at]?.width ?? sizes[1]?.width ?? 612;
+		if (!v.fitWidth || !columnWidth) return null;
+		return Math.min(3, Math.max(0.5, (columnWidth - PAGE_GUTTER) / w));
+	});
+
+	/** Where the text of the paper runs, in points, from every result and note the sidecar places: the margins either side are paper, not reading. */
+	const textBlock = $derived.by(() => {
+		let x0 = Infinity;
+		let x1 = -Infinity;
+		for (const s of spans)
+			for (const r of s.rects) {
+				x0 = Math.min(x0, r[0]);
+				x1 = Math.max(x1, r[2]);
+			}
+		return x1 > x0 ? { x0, x1 } : null;
+	});
+	/** Room left of the text for the landing dot, which is drawn just outside a result's first line. */
+	const LANDING = 18;
+	// A page wider than its column at the reader's zoom is drawn so its text block fits, with room for the dot: in half a pane the reader's zoom would cut every line. With nothing placed on the paper, the page fits instead.
+	const textFitted = $derived.by(() => {
+		const reader = prefs.zoom.pdf ?? 1.4;
+		const w = sizes[at]?.width ?? sizes[1]?.width ?? 612;
+		if (!v.fitText || !columnWidth || w * reader <= columnWidth - PAGE_GUTTER) return null;
+		const room = textBlock ? (columnWidth - LANDING - 12) / (textBlock.x1 - textBlock.x0) : (columnWidth - PAGE_GUTTER) / w;
+		return Math.min(reader, Math.max(0.5, room));
+	});
+
+	/** Whether the zoom a page is drawn at is settled: while it may still fit the text to a column not yet measured, a page drawn now would be drawn again a frame later. */
+	const ready = $derived(scale !== undefined || !v.fitText || columnWidth > 0);
+
 	// The reader's zoom for this kind of renderer, remembered across papers and across visits, unless a caller fixes it.
-	const drawAt = $derived(scale ?? prefs.zoom.pdf ?? 1.4);
-	const zoomTo = (v: number) => (prefs.zoom = { ...prefs.zoom, pdf: Math.min(3, Math.max(0.5, Math.round(v * 10) / 10)) });
+	const drawAt = $derived(scale ?? fitted ?? textFitted ?? prefs.zoom.pdf ?? 1.4);
+
+	/** With the page wider than the column, start the view at the text's left edge, less the dot's room, rather than at the paper's. */
+	function toText(): void {
+		if (!column || !textBlock || column.scrollWidth <= column.clientWidth) return;
+		const holder = column.querySelector<HTMLElement>('[data-holder]');
+		if (!holder) return;
+		const left = holder.getBoundingClientRect().left - column.getBoundingClientRect().left + column.scrollLeft;
+		column.scrollLeft = Math.max(0, left + textBlock.x0 * drawAt - LANDING);
+	}
+	/** Whether the text block fits the column at the zoom drawn, so the page is read from its left edge whatever it lands on. */
+	function textFits(): boolean {
+		return !!column && !!textBlock && (textBlock.x1 - textBlock.x0) * drawAt + LANDING <= column.clientWidth;
+	}
+	$effect(() => {
+		void drawAt;
+		void columnWidth;
+		void count;
+		if (!focus) requestAnimationFrame(toText);
+	});
+	// The controls read the scale actually drawn, which is the fitted one while fit-width holds.
+	$effect(() => {
+		v.scale = drawAt;
+	});
 	let column = $state<HTMLDivElement | null>(null);
 	let count = $state(0);
 	// `page` is the page the parent asked for; `here` is the one the reader is on, which scrolling also moves.
 	let here = $state(0);
-	let tool = $state<'select' | 'box'>('select');
 	let problem = $state('');
 	/** Each page's own size in points, filled in as pages draw; page one's stands in for the undrawn. */
 	let sizes = $state<Record<number, { width: number; height: number }>>({});
@@ -68,14 +127,33 @@
 	const at = $derived(count ? Math.min(Math.max(here || page, 1), count) : here || page);
 	const shown = $derived(new Set(all.filter((n) => Math.abs(n - at) <= near)));
 	const byPage = $derived.by(() => {
-		const out: Record<number, { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; transient?: boolean }[]> = {};
-		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects, ids: s.ids, note: s.note, kind: s.kind, transient: s.transient });
+		const out: Record<number, { id: string; rects: Rect[]; ids?: string[]; note?: boolean; kind?: string; severity?: string | null; settled?: boolean; basis?: string | null; transient?: boolean }[]> = {};
+		for (const s of spans) (out[s.page] ??= []).push({ id: s.id, rects: s.rects, ids: s.ids, note: s.note, kind: s.kind, severity: s.severity, settled: s.settled, basis: s.basis, transient: s.transient });
 		return out;
 	});
 
 	function sizeOf(n: number): { width: number; height: number } {
 		return sizes[n] ?? sizes[1] ?? { width: 612, height: 792 };
 	}
+
+	// what the controls show, wherever they are drawn
+	$effect(() => {
+		v.count = count;
+	});
+	$effect(() => {
+		v.page = at;
+	});
+	// A control asking for a page, by nonce so that asking for the one already shown still scrolls to it.
+	$effect(() => {
+		const want = v.jump;
+		if (!want || !column || !count) return;
+		const n = Math.min(Math.max(want.page, 1), count);
+		const target = column.querySelector(`[data-holder="${n}"]`);
+		if (!target) return;
+		here = n;
+		toPage(target, 'smooth');
+		onpage?.({ page: n });
+	});
 
 	onMount(() => {
 		let dropped = false;
@@ -99,32 +177,59 @@
 		const target = column.querySelector(`[data-holder="${Math.min(Math.max(want, 1), count)}"]`);
 		if (target) {
 			here = Math.min(Math.max(want, 1), count);
-			target.scrollIntoView({ block: 'start' });
+			toPage(target);
 		}
 	});
 
 	$effect(() => {
 		const id = focus;
+		// a redraw at another zoom or width moves the result: land again, which also re-reads whether the text now fits
+		void drawAt;
+		void columnWidth;
 		if (!id || !column) return;
 		const at = spans.find((s) => s.id === id);
 		if (!at) return;
 		here = at.page;
-		// after the page is in the window and has drawn, the mark itself is what to scroll to
-		requestAnimationFrame(() => {
+		// After the page is in the window and has drawn, the mark itself is what to scroll to — and it does not exist until the page it is on is rendered, which is not the next frame. One frame was enough while the only caller scrolled to a mark on a page already drawn; the preview card asks for one on a page it has just mounted, and fell back to the top of the page every time. Wait for the mark, then give up on the page.
+		let tries = 0;
+		let frame = 0;
+		const reach = () => {
 			const mark = column?.querySelector(`[data-mark="${CSS.escape(id)}"]`);
-			(mark ?? column?.querySelector(`[data-holder="${at.page}"]`))?.scrollIntoView({
-				block: 'center',
-				behavior: 'smooth'
-			});
-		});
+			// and for the page to be drawn at the zoom about to be reasoned with: a page told its new zoom but not yet redrawn still places the mark at the old one, and a landing measured there scrolls to the wrong place
+			const holder = column?.querySelector<HTMLElement>(`[data-holder="${at.page}"]`);
+			const drawn = !holder || Math.abs(holder.getBoundingClientRect().width - sizeOf(at.page).width * drawAt) <= 2;
+			if ((!mark || !drawn) && tries++ < 30) {
+				frame = requestAnimationFrame(reach);
+				return;
+			}
+			// A text block that fits the column is read from its left edge: `toText` sets the sideways place first, so the whole block is in view and the result needs no sideways move, which would otherwise go to where its first line starts, mid-line, cutting its every other line. Wider than the column, a result is read from its first word, with the dot in view.
+			const fits = textFits();
+			if (fits) toText();
+			if (!mark) {
+				// no mark after all: the page, which is wider than a half-pane column, so vertically only
+				const holder = column?.querySelector(`[data-holder="${at.page}"]`);
+				if (holder) toPage(holder, 'smooth');
+				return;
+			}
+			mark.scrollIntoView({ block: 'center', inline: fits ? 'nearest' : 'start', behavior: 'smooth' });
+		};
+		frame = requestAnimationFrame(reach);
+		return () => cancelAnimationFrame(frame);
 	});
+
+	/** Scroll a page's top to the top of the column, and nothing sideways: a page is wider than a half-pane column, and scrolling it into view let the browser align its right edge, over a landing that had just set where the text starts. */
+	function toPage(target: Element, behavior: ScrollBehavior = 'auto'): void {
+		if (!column) return;
+		const top = column.scrollTop + target.getBoundingClientRect().top - column.getBoundingClientRect().top;
+		column.scrollTo({ top, behavior });
+	}
 
 	/** Sent to a page by a link inside the paper: scroll there and say so, as a scroll would. */
 	function goTo(n: number): void {
 		const target = column?.querySelector(`[data-holder="${n}"]`);
 		if (!target) return;
 		here = n;
-		target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+		toPage(target, 'smooth');
 		onpage?.({ page: n });
 	}
 
@@ -143,33 +248,7 @@
 </script>
 
 <div class="doc" data-testid="pdf-doc">
-	{#if toolbar}
-		<div class="tools" role="toolbar" aria-label="reading tools">
-			<button
-				type="button"
-				class:on={tool === 'select'}
-				title="Select text. Hold Alt to draw a box without switching."
-				aria-pressed={tool === 'select'}
-				data-testid="tool-select"
-				onclick={() => (tool = 'select')}>select</button
-			>
-			<button
-				type="button"
-				class:on={tool === 'box'}
-				title="Draw a box around a formula or a figure. A click without a drag leaves a point."
-				aria-pressed={tool === 'box'}
-				data-testid="tool-box"
-				onclick={() => (tool = 'box')}>box</button
-			>
-			<span class="zoom" role="group" aria-label="zoom">
-				<button type="button" title="Smaller" aria-label="Smaller" data-testid="zoom-out" onclick={() => zoomTo(drawAt - 0.2)}>−</button>
-				<span class="at" data-testid="zoom-at">{Math.round(drawAt * 100)}%</span>
-				<button type="button" title="Larger" aria-label="Larger" data-testid="zoom-in" onclick={() => zoomTo(drawAt + 0.2)}>+</button>
-			</span>
-			<span class="where" data-testid="pdf-where">{count ? `page ${at} of ${count}` : ''}</span>
-		</div>
-	{/if}
-	<div class="column" bind:this={column} onscroll={scrolled}>
+	<div class="column" bind:this={column} bind:clientWidth={columnWidth} onscroll={scrolled}>
 		{#if problem}
 			<p class="problem" data-testid="pdf-problem">{problem}</p>
 		{/if}
@@ -180,9 +259,9 @@
 					{url}
 					page={n}
 					scale={drawAt}
-					{tool}
+					tool={v.tool}
 					{focus}
-					render={shown.has(n)}
+					render={shown.has(n) && ready}
 					quads={byPage[n] ?? []}
 					{onselect}
 					{onbox}
@@ -205,46 +284,13 @@
 		min-height: 0;
 		height: 100%;
 	}
-	.tools {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		padding: 4px 6px;
-		border-bottom: 1px solid var(--rule, #ddd9cf);
-		font-size: 0.8rem;
-	}
-	.tools button {
-		font: inherit;
-		color: inherit;
-		background: none;
-		border: 1px solid var(--rule, #ddd9cf);
-		border-radius: 3px;
-		padding: 1px 8px;
-		cursor: pointer;
-	}
-	.tools button.on {
-		background: var(--annotation-tint, rgb(217 119 87 / 0.18));
-	}
-	.zoom {
-		margin-left: auto;
-		display: inline-flex;
-		align-items: center;
-		gap: 2px;
-	}
-	.zoom .at {
-		min-width: 3.2em;
-		text-align: center;
-		color: var(--muted, #6b6b6b);
-	}
-	.where {
-		color: var(--muted, #6b6b6b);
-	}
 	.column {
 		flex: 1 1 auto;
 		overflow: auto;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
+		/* `safe`: a page wider than the column overflows to the right, where it can be scrolled to, rather than off the left edge */
+		align-items: safe center;
 		gap: 12px;
 		padding: 12px 0;
 		min-height: 0;

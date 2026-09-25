@@ -6,13 +6,16 @@ from importlib import resources
 from pathlib import Path
 
 from loom.records.store import Records
+from loom.render.threads import SESSION_FILES
 from loom.scan.scan import ScanResult
 
-STATIC = ("orientation.md", "rules.md")
+STATIC = ("orientation.md", "rules.md", "formatting.md")
+#: How much of a session's chat `orient --session` prints: enough to pick the conversation up, not its history.
+TAIL = 20
 
 
 def static_text(root: Path) -> str:
-    """Both standing documents, the quilt's own copies where it has them: where an agent is, then how it works.
+    """The standing documents, the quilt's own copies where it has them: where an agent is, how it works, and how to write what the author reads.
 
     Printed together because the alternative is a two-part instruction — run a command, then read a file — whose second half fails silently. A command either ran or it did not.
     """
@@ -41,7 +44,7 @@ def open_sessions(root: Path, include_closed: bool = False) -> list[tuple[str, s
     return out
 
 
-def live_text(result: ScanResult, records: Records, run: Path | None) -> str:
+def live_text(result: ScanResult, records: Records, run: Path | None, session_id: str | None = None) -> str:
     from loom.cli.review import status_payload
 
     root = result.quilt.root
@@ -74,17 +77,20 @@ def live_text(result: ScanResult, records: Records, run: Path | None) -> str:
         rel = run.relative_to(root).as_posix() if run.is_absolute() else run.as_posix()
         lines += ["", f"# Your session: `{rel}`", ""]
         lines.append("Writing lands in the active session; `--session` names another one where a command takes it.")
-        thread = run / "thread.md"
-        lines += ["", "## thread.md", ""]
-        lines.append(
-            thread.read_text(encoding="utf-8").rstrip("\n") if thread.is_file() else "(no thread.md yet; write one)"
-        )
+        if session_id is not None:
+            from loom.mailbox import read_events, render
+
+            events = read_events(root, session_id)
+            lines += ["", "## the chat", ""]
+            if len(events) > TAIL:
+                lines.append(
+                    f"(the last {TAIL} of {len(events)} messages; `loom session next --since 0 --wait 0 --json` prints them all)"
+                )
+            lines.append(render(events[-TAIL:]) if events else "(nothing said yet)")
         log = run / "run.log"
         lines += ["", "## the command log", ""]
         lines.append(log.read_text(encoding="utf-8").rstrip("\n") if log.is_file() else "(empty)")
-        outputs = sorted(
-            p.name for p in run.iterdir() if p.is_file() and p.name not in ("run.toml", "run.log", "thread.md")
-        )
+        outputs = sorted(p.name for p in run.iterdir() if p.is_file() and p.name not in SESSION_FILES)
         lines += ["", "## files in the session", ""]
         lines.append(", ".join(outputs) if outputs else "(none)")
     return "\n".join(lines) + "\n"

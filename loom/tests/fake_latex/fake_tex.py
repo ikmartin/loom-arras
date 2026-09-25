@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fake TeX toolchain for the unit tier: one script installed under the names latexmk, pdflatex, latex, lualatex, xelatex, dvisvgm, bibtex, biber, pdftotext, pdfinfo, kpsewhich.
 
-It parses the input enough to find \\newtheorem declarations, sectioning, theorem-like environments, equations, and \\label commands through expanded inclusions; emits a plausible .aux with sequential numbering by section; writes a placeholder PDF carrying the document's plain text so the fake pdftotext returns it; emits a fixed SVG for dvisvgm. Every invocation is appended to $FAKE_TEX_LOG. FAKE_TEX_FAIL=1 makes the engines fail with a "! LaTeX Error" line and exit 12; FAKE_TEX_FAIL_MATCH=substring fails only inputs whose path contains it. Never install this on a real PATH.
+It parses the input enough to find \\newtheorem declarations, sectioning, theorem-like environments, equations, and \\label commands through expanded inclusions; emits a plausible .aux with sequential numbering by section; writes a placeholder PDF carrying the document's plain text so the fake pdftotext returns it; emits a fixed SVG for dvisvgm; `pdftotext -bbox-layout` answers with a letter-sized page box. Every invocation is appended to $FAKE_TEX_LOG. FAKE_TEX_FAIL=1 makes the engines fail with a "! LaTeX Error" line and exit 12; FAKE_TEX_FAIL_MATCH=substring fails only inputs whose path contains it. Never install this on a real PATH.
 """
 
 from __future__ import annotations
@@ -242,11 +242,14 @@ def read_fake_pdf(path: Path) -> tuple[str, int]:
 
 
 def run_pdftotext(args: list[str]) -> int:
-    positional = [a for a in args if not a.startswith("-") or a == "-"]
+    valued = {i + 1 for i, a in enumerate(args) if a in ("-f", "-l")}  # the page numbers of -f and -l
+    positional = [a for i, a in enumerate(args) if i not in valued and (not a.startswith("-") or a == "-")]
     if not positional:
         return 1
     text, _ = read_fake_pdf(Path(positional[0]))
     target = positional[1] if len(positional) > 1 else str(Path(positional[0]).with_suffix(".txt"))
+    if "-bbox-layout" in args:
+        text = '<doc>\n<page width="612.000000" height="792.000000">\n</page>\n</doc>'
     if target == "-":
         sys.stdout.write(text + "\n")
     else:

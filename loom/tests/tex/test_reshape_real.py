@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
 from loom.tex.identity import identity_test
+from tests.helpers import Once, copy, ok
 
 PAPER = r"""\documentclass{amsart}
 \usepackage{amsthm}
@@ -46,15 +44,6 @@ Later.
 """
 
 
-def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
-
-
 def paper(tmp_path: Path) -> Path:
     p = tmp_path / "paper"
     (p / "sections").mkdir(parents=True)
@@ -63,61 +52,80 @@ def paper(tmp_path: Path) -> Path:
     return p
 
 
-def imported(tmp_path: Path) -> Path:
-    """init --from: one flat canon document that typesets as the original."""
-    p = paper(tmp_path)
-    r = run("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
-    assert r.exit_code == 0, r.output
-    assert "Identity test: pass" in r.output
-    return tmp_path / "q"
+@pytest.fixture(scope="module")
+def once(tmp_path_factory: pytest.TempPathFactory) -> Once:
+    return Once(tmp_path_factory)
 
 
-def drafted(tmp_path: Path) -> Path:
-    q = imported(tmp_path)
-    r = run("draft", "canon/main.tex", "--yes", cwd=q)
-    assert r.exit_code == 0, r.output
-    assert "Identity test: pass" in r.output
-    return q
+def imported(once: Once) -> tuple[Path, str]:
+    """init --from, made once: one flat canon document that typesets as the original. Read only; the quilt and what init said."""
+
+    def make(base: Path) -> tuple[Path, str]:
+        p = paper(base)
+        r = ok("init", str(base / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=base)
+        assert "Identity test: pass" in r.output, r.output
+        return base / "q", r.output
+
+    return once.get("imported", make)
+
+
+def drafted(once: Once) -> tuple[Path, str]:
+    """The imported quilt drafted, made once. Read only; the quilt and what draft said."""
+
+    def make(base: Path) -> tuple[Path, str]:
+        q = copy(imported(once)[0], base / "q")
+        r = ok("draft", "canon/main.tex", "--yes", cwd=q)
+        assert "Identity test: pass" in r.output, r.output
+        return q, r.output
+
+    return once.get("drafted", make)
+
+
+def atomized(once: Once) -> tuple[Path, str]:
+    """The drafted quilt atomized into drafting/spine.tex, made once. Read only; the quilt and what atomize said."""
+
+    def make(base: Path) -> tuple[Path, str]:
+        q = copy(drafted(once)[0], base / "q")
+        r = ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+        return q, r.output
+
+    return once.get("atomized", make)
 
 
 @pytest.mark.tex
-def test_import_is_flat_and_draft_labels_it(tmp_path: Path) -> None:
-    q = imported(tmp_path)
+def test_import_is_flat_and_draft_labels_it(once: Once) -> None:
+    q, _ = imported(once)
     canon = (q / "canon" / "main.tex").read_text()
     assert "\\input{sections/results}" not in canon and "Beta uses Lemma" in canon
     assert "\\label{pp-" not in canon and not (q / "sections").exists()
-    r = run("draft", "canon/main.tex", "--yes", cwd=q)
-    assert r.exit_code == 0 and "Identity test: pass" in r.output, r.output
+    q, said = drafted(once)
+    assert "Identity test: pass" in said, said
     assert (q / "drafting" / "main.tex").read_text().count("\\label{pp-") == 5
 
 
 @pytest.mark.tex
-def test_atomize_identity_and_inline_identity(tmp_path: Path) -> None:
-    q = drafted(tmp_path)
-    r = run("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
-    assert r.exit_code == 0 and "Identity test: pass" in r.output, r.output
-    assert {f.name for f in (q / "nodes").glob("*.tex")} == {
+def test_atomize_identity_and_inline_identity(once: Once, tmp_path: Path) -> None:
+    atomic, said = atomized(once)
+    assert "Identity test: pass" in said, said
+    assert {f.name for f in (atomic / "nodes").glob("*.tex")} == {
         "pp-0002.tex",
         "pp-0004.tex",
         "pp-0005.tex",
         "pp-0005.proof.tex",
     }
-    r2 = run("inline", "drafting/spine.tex", "drafting/flat.tex", "--all", cwd=q)
-    assert r2.exit_code == 0 and "Identity test: pass" in r2.output, r2.output
+    q = copy(atomic, tmp_path / "q")
+    r2 = ok("inline", "drafting/spine.tex", "drafting/flat.tex", "--all", cwd=q)
+    assert "Identity test: pass" in r2.output, r2.output
     flat = (q / "drafting" / "flat.tex").read_text()
     assert "\\input{nodes/" not in flat and flat.count("\\begin{proof}") == 2
 
 
 @pytest.mark.tex
-def test_canonize_writes_a_landmark_that_compiles_alone(tmp_path: Path) -> None:
+def test_canonize_writes_a_landmark_that_compiles_alone(once: Once, tmp_path: Path) -> None:
     """A canon document carries loom.sty's macros inline, so it compiles in a directory holding nothing else."""
-    import shutil
-    import subprocess
-
-    q = drafted(tmp_path)
-    assert run("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q).exit_code == 0
-    r = run("canonize", "drafting/spine.tex", "--to", "canon/main-v1.tex", "-m", "First landmark", cwd=q)
-    assert r.exit_code == 0 and "Identity test: pass" in r.output, r.output
+    q = copy(atomized(once)[0], tmp_path / "q")
+    r = ok("canonize", "drafting/spine.tex", "--to", "canon/main-v1.tex", "-m", "First landmark", cwd=q)
+    assert "Identity test: pass" in r.output, r.output
     alone = tmp_path / "alone"
     alone.mkdir()
     shutil.copy(q / "canon" / "main-v1.tex", alone / "main-v1.tex")
@@ -133,14 +141,13 @@ def test_canonize_writes_a_landmark_that_compiles_alone(tmp_path: Path) -> None:
 
 
 @pytest.mark.tex
-def test_inline_nest_shifts(tmp_path: Path) -> None:
-    q = drafted(tmp_path)
+def test_inline_nest_shifts(once: Once, tmp_path: Path) -> None:
+    q = copy(drafted(once)[0], tmp_path / "q")
     (q / "sections").mkdir(exist_ok=True)
     (q / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nNested text.\n")
     m = q / "drafting" / "main.tex"
     m.write_text(m.read_text().replace("\\end{document}", "\\nest{sections/nested}\n\\end{document}"))
-    r = run("inline", "drafting/main.tex", "drafting/flat.tex", "--all", cwd=q)
-    assert r.exit_code == 0, r.output
+    r = ok("inline", "drafting/main.tex", "drafting/flat.tex", "--all", cwd=q)
     flat = (q / "drafting" / "flat.tex").read_text()
     assert "\\subsection{Nested}\\label{pp-0100}" in flat and "\\nest{" not in flat
     assert "Identity test: pass" in r.output  # loom.sty shifted the heading in the original exactly as inline did
@@ -188,6 +195,5 @@ def test_import_neither_reads_nor_writes_the_authors_build_files(tmp_path: Path)
     before = {f.name: f.read_bytes() for f in p.iterdir()}
     assert "main.fdb_latexmk" in before
 
-    r = run("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
-    assert r.exit_code == 0, r.output
+    ok("init", str(tmp_path / "q"), "--from", str(p / "main.tex"), "--prefix", "pp", "--yes", cwd=tmp_path)
     assert {f.name: f.read_bytes() for f in p.iterdir()} == before

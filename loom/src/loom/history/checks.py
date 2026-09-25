@@ -175,11 +175,13 @@ def verify(result: ScanResult, history: History) -> list[Diagnostic]:
         elif e.action == "draft":
             frm = e.get("from") or {}
             if isinstance(frm, dict) and isinstance(frm.get("step"), int) and history.step(frm["step"]) is None:
+                to = e.get("to") or {}
+                drafted = to.get("path") if isinstance(to, dict) else to
                 out.append(
                     Diagnostic(
                         "warning",
                         "loom:dangling-ancestry",
-                        f"{e.get('to')} was drafted from step {frm['step']:04d}, which the history no longer has",
+                        f"{drafted} was drafted from step {frm['step']:04d}, which the history no longer has",
                         [],
                         subject="record",
                     )

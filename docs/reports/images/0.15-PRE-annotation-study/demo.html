@@ -1,0 +1,444 @@
+<title>Annotation Revision</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --paper: #fbfaf8; --leaf: #f4f2ed; --sheet: #ffffff;
+  --rule: #d8d5cd; --rule-strong: #b4b2a9;
+  --ink: #2c2c2a; --ink-soft: #5f5e5a; --ink-faint: #888780;
+  /* the viewer's tokens as they are today, for the before cells */
+  --link: #185fa5; --link-wash: #e6f1fb; --mark: #faeeda;
+  --accent: #d97757; --accent-wash: rgb(217 119 87 / 18%);
+  --st-accepted: #0f6e56; --st-accepted-wash: #e1f5ee;
+  --st-stale: #854f0b; --st-stale-wash: #faeeda;
+  --st-draft: #5f5e5a;
+  --st-incomplete: #a32d2d; --st-incomplete-wash: #fcebeb;
+  --orange: #c05621; --orange-tint: rgb(217 119 87 / .22);
+  /* the five annotation colours the fix list defines, for the after cells */
+  --ann-objection: #a32d2d; --ann-objection-wash: rgb(163 45 45 / 10%);
+  --ann-suggestion: #a07a0a; --ann-suggestion-wash: rgb(160 122 10 / 12%);
+  --ann-question: #185fa5; --ann-question-wash: rgb(24 95 165 / 10%);
+  --ann-citation: #6b3fa0; --ann-citation-wash: rgb(107 63 160 / 10%);
+  --ann-neutral: #6f6d66; --ann-neutral-wash: rgb(111 109 102 / 10%);
+  --serif: 'Source Serif 4', 'Palatino Linotype', Palatino, Georgia, serif;
+  --sans: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #17171a; --leaf: #1e1e22; --sheet: #202025;
+    --rule: #34343a; --rule-strong: #4a4a52;
+    --ink: #e6e4de; --ink-soft: #a8a69f; --ink-faint: #85837c;
+    --link: #7fb0e8; --link-wash: rgb(127 176 232 / 14%); --mark: rgb(250 238 218 / 18%);
+    --accent: #e08d70; --accent-wash: rgb(224 141 112 / 22%);
+    --st-accepted: #5cc4a3; --st-accepted-wash: rgb(92 196 163 / 14%);
+    --st-stale: #d9a44f; --st-stale-wash: rgb(217 164 79 / 14%);
+    --st-draft: #a8a69f;
+    --st-incomplete: #e8827c; --st-incomplete-wash: rgb(232 130 124 / 14%);
+    --ann-objection: #e8827c; --ann-objection-wash: rgb(232 130 124 / 14%);
+    --ann-suggestion: #d9b24f; --ann-suggestion-wash: rgb(217 178 79 / 14%);
+    --ann-question: #7fb0e8; --ann-question-wash: rgb(127 176 232 / 14%);
+    --ann-citation: #b48ee0; --ann-citation-wash: rgb(180 142 224 / 14%);
+    --ann-neutral: #9a988f; --ann-neutral-wash: rgb(154 152 143 / 14%);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #17171a; --leaf: #1e1e22; --sheet: #202025;
+  --rule: #34343a; --rule-strong: #4a4a52;
+  --ink: #e6e4de; --ink-soft: #a8a69f; --ink-faint: #85837c;
+  --link: #7fb0e8; --link-wash: rgb(127 176 232 / 14%); --mark: rgb(250 238 218 / 18%);
+  --accent: #e08d70; --accent-wash: rgb(224 141 112 / 22%);
+  --st-accepted: #5cc4a3; --st-accepted-wash: rgb(92 196 163 / 14%);
+  --st-stale: #d9a44f; --st-stale-wash: rgb(217 164 79 / 14%);
+  --st-draft: #a8a69f;
+  --st-incomplete: #e8827c; --st-incomplete-wash: rgb(232 130 124 / 14%);
+  --ann-objection: #e8827c; --ann-objection-wash: rgb(232 130 124 / 14%);
+  --ann-suggestion: #d9b24f; --ann-suggestion-wash: rgb(217 178 79 / 14%);
+  --ann-question: #7fb0e8; --ann-question-wash: rgb(127 176 232 / 14%);
+  --ann-citation: #b48ee0; --ann-citation-wash: rgb(180 142 224 / 14%);
+  --ann-neutral: #9a988f; --ann-neutral-wash: rgb(154 152 143 / 14%);
+}
+
+body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+.page { max-width: 1180px; margin: 0 auto; padding-block: 32px 64px; padding-inline: 16px; }
+h1 { font-family: var(--serif); font-weight: 600; font-size: 28px; margin: 0 0 6px; text-wrap: balance; }
+.lede { color: var(--ink-soft); max-width: 68ch; margin: 0 0 8px; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-faint); font-size: 12px; margin: 0 0 28px; }
+.key b { color: var(--ink); font-weight: 500; }
+.key i { display: inline-block; width: 22px; height: 0; border-bottom: 2px solid currentColor; vertical-align: middle; margin-right: 4px; }
+
+.row { display: grid; grid-template-columns: 9.5rem 1fr 1fr; gap: 0 20px; padding: 22px 0; border-top: 1px solid var(--rule); }
+.row:last-child { border-bottom: 1px solid var(--rule); }
+.row > .name h2 { font-family: var(--serif); font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+.row > .name p { margin: 0; color: var(--ink-soft); font-size: 12.5px; }
+.row > .name .merged { margin-top: 8px; color: var(--ann-neutral); }
+.cell { display: grid; grid-template-rows: auto 1fr; gap: 8px; min-width: 0; }
+.cell + .cell { border-left: 1px dashed var(--rule); padding-left: 20px; }
+.cap { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); }
+.cap b { color: var(--ink); font-weight: 600; }
+.slides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.slide { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 12px 14px; min-width: 0; }
+.slide .sl { font-size: 10.5px; color: var(--ink-faint); margin: 0 0 8px; letter-spacing: .04em; text-transform: uppercase; }
+.text { font-family: var(--serif); font-size: 14.5px; line-height: 1.55; }
+.text .lab { font-weight: 600; }
+.text .ttl { font-style: italic; }
+.text p { margin: 0 0 6px; }
+.fix { margin: 10px 0 0; font-size: 12px; color: var(--ink-soft); max-width: 60ch; }
+.fix b { color: var(--ink); font-weight: 500; }
+
+/* BEFORE: the viewer's marks as theme.css draws them */
+mark.b { color: inherit; border-radius: 2px; padding: 0 1px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+mark.b.objection { background: var(--st-incomplete-wash); box-shadow: inset 0 -2px 0 var(--st-incomplete); }
+mark.b.suggestion { background: var(--st-stale-wash); box-shadow: inset 0 -2px 0 var(--st-stale); }
+mark.b.question { background: var(--link-wash); box-shadow: inset 0 -2px 0 var(--link); }
+mark.b.neutral { background: var(--leaf); box-shadow: inset 0 -2px 0 var(--rule-strong); }
+mark.b.pdf { background: var(--orange-tint); box-shadow: none; }
+mark.b.active { outline: 2px solid var(--st-stale); outline-offset: 1px; }
+.chip { display: inline-block; margin-left: 6px; font-family: var(--sans); font-size: 9px; font-style: normal; font-weight: 400; line-height: 14px; padding: 0 6px; border-radius: 999px; color: var(--ink-soft); background: var(--leaf); vertical-align: 1px; }
+.chip.objection { color: var(--st-incomplete); background: var(--st-incomplete-wash); }
+.chip.neutral { color: var(--ink-soft); background: var(--leaf); }
+sup.n { font-family: var(--sans); font-size: 9px; color: var(--ink-faint); margin-left: 1px; }
+
+/* AFTER: an underline in the kind's hue, weight for severity; the wash only on the open one */
+u.a { text-decoration: none; border-bottom: 2px solid var(--ann-neutral); padding-bottom: 1px; }
+u.a.objection { border-color: var(--ann-objection); }
+u.a.suggestion { border-color: var(--ann-suggestion); }
+u.a.question { border-color: var(--ann-question); }
+u.a.citation { border-color: var(--ann-citation); }
+u.a.w1 { border-bottom-width: 1px; } u.a.w3 { border-bottom-width: 3px; }
+u.a.open.objection { background: var(--ann-objection-wash); }
+u.a.open.suggestion { background: var(--ann-suggestion-wash); }
+u.a.open.question { background: var(--ann-question-wash); }
+u.a.open.citation { background: var(--ann-citation-wash); }
+u.a.open { background: var(--ann-neutral-wash); }
+u.a.settled { border-bottom-width: 1px; border-bottom-color: color-mix(in srgb, var(--ann-neutral) 50%, transparent); background: rgb(111 109 102 / 3%); }
+u.a.settled.objection { border-bottom-color: color-mix(in srgb, var(--ann-objection) 50%, transparent); background: rgb(163 45 45 / 3%); }
+u.a.settled.suggestion { border-bottom-color: color-mix(in srgb, var(--ann-suggestion) 50%, transparent); background: rgb(160 122 10 / 3%); }
+u.a.settled.question { border-bottom-color: color-mix(in srgb, var(--ann-question) 50%, transparent); background: rgb(24 95 165 / 3%); }
+u.a.settled.citation { border-bottom-color: color-mix(in srgb, var(--ann-citation) 50%, transparent); background: rgb(107 63 160 / 3%); }
+
+/* BEFORE box: AnnotationBox.svelte + VerbRow.svelte as rendered */
+.bbox { background: var(--sheet); border: 1px solid var(--rule); border-left: 3px solid var(--rule-strong); border-radius: 3px; padding: 8px; font-size: 12.4px; line-height: 1.5; box-shadow: 0 6px 24px rgb(0 0 0 / 14%); }
+.bbox.objection { border-left-color: var(--st-incomplete); background: var(--st-incomplete-wash); }
+.bbox.suggestion { border-left-color: var(--st-stale); }
+.bbox.question { border-left-color: var(--link); }
+.bbox header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; color: var(--ink-faint); font-size: 10.3px; letter-spacing: .02em; margin-bottom: 4px; }
+.bbox header .kind { color: var(--ink); }
+.bbox .sev { text-transform: uppercase; font-size: 9px; letter-spacing: .04em; }
+.bbox .sev.major { color: var(--st-incomplete); }
+.bbox .grow { flex: 1 1 auto; }
+.bbox .verb { font-size: .85em; background: none; border: 1px solid transparent; color: var(--ink-faint); border-radius: 3px; padding: .1em .5em; font-family: var(--sans); line-height: 1.5; cursor: default; }
+.bbox .verb.danger { color: var(--ink-faint); }
+.bbox .verb.undo { color: var(--link); }
+.bbox .quote { margin: 4px 0; padding-left: 8px; border-left: 2px solid var(--mark); color: var(--ink-soft); font-style: italic; font-family: var(--serif); font-size: 13px; }
+.bbox .body { font-family: var(--serif); font-size: 13px; margin: 4px 0; }
+.bbox .payload-head { display: flex; justify-content: space-between; font-size: 9.6px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .03em; margin: 6px 0 3px; }
+.bbox .payload-head .as-view { border: 1px solid var(--rule); border-radius: 2px; padding: 0 .4em; text-transform: none; color: var(--ink-soft); font-size: 9.6px; }
+.bbox .payload { margin: 0; padding: 4px 6px; border-left: 2px solid var(--rule); font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--st-incomplete); white-space: pre-wrap; }
+.bbox .status { }
+
+/* AFTER box */
+.abox { background: var(--sheet); border: 1px solid var(--rule); border-left: 3px solid var(--ann-neutral); border-radius: 4px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 6px 24px rgb(0 0 0 / 12%); }
+.abox.objection { border-left-color: var(--ann-objection); }
+.abox.suggestion { border-left-color: var(--ann-suggestion); }
+.abox.question { border-left-color: var(--ann-question); }
+.abox.citation { border-left-color: var(--ann-citation); }
+.abox .body { font-family: var(--serif); font-size: 13.5px; margin: 0 0 6px; }
+.abox .body :is(b) { font-weight: 600; }
+.abox .meta { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; color: var(--ink-faint); font-size: 11px; }
+.abox .meta > span:first-child { white-space: nowrap; }
+.abox .verbs { display: flex; gap: 10px; margin-left: auto; }
+.abox .verbs span { color: var(--ink-faint); }
+.abox .verbs span.do { color: var(--ink-soft); }
+.abox .pay { margin: 4px 0 8px; padding: 2px 0 2px 10px; border-left: 2px solid var(--ann-suggestion); font-family: var(--serif); font-size: 13px; }
+.abox .pay .word { font-family: var(--sans); font-size: 10.5px; color: var(--ann-suggestion); letter-spacing: .04em; text-transform: uppercase; display: block; margin-bottom: 2px; }
+.abox .pay .verbatim { color: var(--ink-faint); font-size: 11px; }
+.abox .cite { margin: 4px 0 8px; padding: 2px 0 2px 10px; border-left: 2px solid var(--ann-citation); font-size: 12.5px; }
+.abox .cite .work { font-family: var(--serif); }
+.abox .reply { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--rule); }
+.abox .reply textarea { width: 100%; box-sizing: border-box; font: inherit; font-family: var(--serif); font-size: 13px; border: 1px solid var(--rule); border-radius: 3px; padding: 5px 7px; background: var(--sheet); color: var(--ink); resize: none; }
+
+/* BEFORE composer: NoteAt.svelte */
+.bcomp { background: var(--sheet); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; box-shadow: 0 6px 24px rgb(0 0 0 / 14%); }
+.bcomp .place { display: flex; gap: 6px; color: var(--ink-faint); }
+.bcomp .place .where { flex: 1; }
+.bcomp textarea, .bcomp select, .bcomp button { font: inherit; border: 1px solid var(--rule); border-radius: 2px; padding: 3px 5px; background: var(--sheet); color: var(--ink); }
+.bcomp textarea { font-family: var(--serif); font-size: 13px; height: 3.6em; resize: vertical; width: 100%; box-sizing: border-box; }
+.bcomp .r { display: flex; gap: 6px; flex-wrap: wrap; }
+.bcomp select { min-width: 7em; appearance: auto; }
+
+/* AFTER composer */
+.acomp { background: var(--sheet); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px; display: grid; gap: 8px; font-size: 12.5px; box-shadow: 0 6px 24px rgb(0 0 0 / 12%); }
+.acomp .on { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-faint); font-size: 11px; }
+.acomp .on q { font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: 12.5px; }
+.acomp textarea { font: inherit; font-family: var(--serif); font-size: 13.5px; border: 1px solid var(--rule); border-radius: 3px; padding: 6px 8px; background: var(--sheet); color: var(--ink); height: 3.4em; resize: none; width: 100%; box-sizing: border-box; }
+.acomp .kinds { display: flex; gap: 4px; flex-wrap: wrap; }
+.acomp .k { font: inherit; font-size: 11.5px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--rule); background: none; color: var(--ink-soft); }
+.acomp .k.objection { border-color: var(--ann-objection); color: var(--ann-objection); }
+.acomp .k.suggestion { border-color: var(--ann-suggestion); color: var(--ann-suggestion); }
+.acomp .k.question { border-color: var(--ann-question); color: var(--ann-question); }
+.acomp .k.citation { border-color: var(--ann-citation); color: var(--ann-citation); }
+.acomp .k.note { border-color: var(--ann-neutral); color: var(--ann-neutral); }
+.acomp .k.on-k.objection { background: var(--ann-objection-wash); }
+.acomp .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.acomp .sev { display: flex; gap: 2px; align-items: center; color: var(--ink-faint); font-size: 11px; }
+.acomp .sev span { padding: 1px 7px; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink-soft); }
+.acomp .sev span.w { background: var(--ann-objection-wash); color: var(--ann-objection); border-color: var(--ann-objection); }
+.acomp .sev.off span { opacity: .35; }
+.acomp .go { font: inherit; font-size: 12px; padding: 3px 12px; border-radius: 3px; border: 1px solid var(--ann-objection); background: var(--ann-objection); color: #fff; }
+.acomp .x { color: var(--ink-faint); }
+
+@media (max-width: 860px) {
+  .row { grid-template-columns: 1fr; gap: 12px; }
+  .cell + .cell { border-left: 0; padding-left: 0; border-top: 1px dashed var(--rule); padding-top: 12px; }
+}
+@media (max-width: 560px) { .slides { grid-template-columns: 1fr; } }
+</style>
+
+<div class="page">
+<h1>Annotation Revision</h1>
+<p class="lede">One row per annotation kind: how it is marked on the text and how its box reads, as the viewer draws them today and with the fix list applied. The sample is Theorem 2.1 of the synthetic quilt. The last row is the composer.</p>
+<p class="key"><b>After:</b> <span><i style="color:var(--ann-objection)"></i>objection</span> <span><i style="color:var(--ann-suggestion)"></i>suggestion</span> <span><i style="color:var(--ann-question)"></i>question</span> <span><i style="color:var(--ann-citation)"></i>citation</span> <span><i style="color:var(--ann-neutral)"></i>note</span> · weight is severity · the wash marks whichever annotation's box is open · the wash is one strength for every severity · settled: not drawn at rest, then the wash at 3% and the underline at half weight and 50% opacity</p>
+
+<!-- OBJECTION -->
+<section class="row">
+  <div class="name"><h2>objection</h2><p>graded; asks the author to fix something</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a finite widget. Then <mark class="b objection active">|X| ≡ |Fix(σ)| (mod 2)</mark>.</p><p><span class="lab">Proof.</span> Pair each x with σ(x). The <mark class="b objection">unpaired points are the fixed points</mark><sup class="n">2</sup>, which gives the parity.</p></div>
+        <p class="fix">Wash and underline on every objection, open or not. The active one is outlined in the stale-state amber; a second annotation on the phrase is a superscript count.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="bbox objection"><header><span class="kind">objection</span><span class="sev major">major</span><span>Sep 16</span><span class="status">open</span><span>Referee Agent</span><span class="grow"></span><span class="verb">reply</span><span class="verb">resolve</span><span class="verb">edit</span><span class="verb danger">discard</span></header><div class="quote">|X| ≡ |Fix(σ)| (mod 2)</div><div class="body">The congruence needs σ to be an involution; nothing above says σ² = id.</div></div>
+        <p class="fix">Six header items, then the quote it sits on, then the body. Reply, edit and discard each open a second popup above this one.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a finite widget. Then <u class="a objection w3 open">|X| ≡ |Fix(σ)| (mod 2)</u>.</p><p><span class="lab">Proof.</span> Pair each x with σ(x). The <u class="a objection w1 open">unpaired points are the fixed points</u>, which gives the parity.</p></div>
+        <p class="fix">An underline in red, 3px for major and 1px for minor; both shown open here, and the wash is the same strength for both, since only the underline carries severity. The wash marks whichever annotation's box is open, whatever its kind: every after row shows its own open. A phrase with two annotations is one underline whose box lists both.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="abox objection"><div class="body">The congruence needs σ to be an involution; nothing above says σ² = id.</div><div class="meta"><span>Referee Agent · Sep 16</span><span class="verbs"><span class="do">reply</span><span class="do">resolve</span><span>edit</span><span>discard</span></span></div></div>
+        <p class="fix">The hue says objection and the weight says major, so the box begins with the body. Author and date on one line with the verbs; reply and edit open in place below the body.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUGGESTION -->
+<section class="row">
+  <div class="name"><h2>suggestion</h2><p>graded; proposes text with a placement</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a <mark class="b suggestion">finite widget</mark>. Then |X| ≡ |Fix(σ)| (mod 2).</p></div>
+        <p class="fix">Amber wash and underline, the same amber as the stale-state badge on the node.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="bbox suggestion"><header><span class="kind">suggestion</span><span class="sev">moderate</span><span>Sep 16</span><span class="status">open</span><span>Referee Agent</span><span class="grow"></span><span class="verb">reply</span><span class="verb">resolve</span><span class="verb">⋯</span></header><div class="quote">finite widget</div><div class="body">Say what finite means here.</div><div class="payload-head"><span>proposed in place of</span><span class="as-view">rendered latex</span></div><pre class="payload">finite widget (a widget whose underlying set is finite)</pre></div>
+        <p class="fix">The proposed text is set in red, headed by an uppercase label and a mode toggle. When the box is narrow, edit and discard fold behind ⋯.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a <u class="a suggestion open">finite widget</u>. Then |X| ≡ |Fix(σ)| (mod 2).</p></div>
+        <p class="fix">A yellow underline, 2px for moderate, with the wash because its box (right) is open.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="abox suggestion"><div class="body">Say what finite means here.</div><div class="pay"><span class="word">replace</span>finite widget (a widget whose underlying set is finite) <span class="verbatim">· verbatim</span></div><div class="meta"><span>Referee Agent · Sep 16</span><span class="verbs"><span class="do">reply</span><span class="do">resolve</span><span>edit</span><span>discard</span></span></div></div>
+        <p class="fix">The proposal sits at a rule in the suggestion's own yellow, headed by one word, rendered by default with verbatim behind a link.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUESTION -->
+<section class="row">
+  <div class="name"><h2>question</h2><p>asks; takes no severity</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Proof.</span> Pair each x with σ(x). The unpaired points are the fixed points, <mark class="b question">which gives the parity</mark>.</p></div>
+        <p class="fix">Blue wash and underline, the link colour, so a question mark and a link look alike.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="bbox question"><header><span class="kind">question</span><span>Sep 16</span><span class="status">open</span><span>A. Author</span><span class="grow"></span><span class="verb">reply</span><span class="verb">resolve</span><span class="verb">edit</span><span class="verb danger">discard</span></header><div class="quote">which gives the parity</div><div class="body">Gives it how? The pairing argument needs a sentence.</div></div>
+        <p class="fix">Same header, same repeated quote.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Proof.</span> Pair each x with σ(x). The unpaired points are the fixed points, <u class="a question open">which gives the parity</u>.</p></div>
+        <p class="fix">A blue underline at the middle weight, since a question takes no severity; washed because its box is open.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="abox question"><div class="body">Gives it how? The pairing argument needs a sentence.</div><div class="meta"><span>A. Author · Sep 16</span><span class="verbs"><span class="do">reply</span><span class="do">resolve</span><span>edit</span><span>discard</span></span></div><div class="reply"><textarea rows="2" placeholder="reply"></textarea></div></div>
+        <p class="fix">Shown with reply open: the textarea appears inside the box, below the body, and the box grows to hold it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CITATION -->
+<section class="row">
+  <div class="name"><h2>citation</h2><p>proposes a work to cite; accepted or rejected into the reference notes</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a finite widget. Then <mark class="b neutral">|X| ≡ |Fix(σ)| (mod 2)</mark>.</p></div>
+        <p class="fix">No colour of its own: the neutral treatment an unknown kind gets, grey wash and grey underline. On a PDF page it is orange.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="bbox"><header><span class="kind">citation</span><span>Sep 16</span><span class="status">open</span><span>Referee Agent</span><span class="grow"></span><span class="verb">reply</span><span class="verb">resolve</span><span class="verb">edit</span><span class="verb danger">discard</span></header><div class="quote">|X| ≡ |Fix(σ)| (mod 2)</div><div class="body">Kreschmer proves this for permutations; cite it rather than reproving the parity count.</div><div class="payload-head"><span>proposed</span><span class="as-view">rendered latex</span></div><pre class="payload">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</pre></div>
+        <p class="fix">The work is shown as a suggestion's payload, in red, with a LaTeX toggle it does not need. Accept and reject live on a separate page.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a finite widget. Then <u class="a citation open">|X| ≡ |Fix(σ)| (mod 2)</u>.</p></div>
+        <p class="fix">A violet underline, the one hue no node state uses; washed because its box is open.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="abox citation"><div class="body">Kreschmer proves this for permutations; cite it rather than reproving the parity count.</div><div class="cite"><span class="work">Kreschmer, Cycle groups of finite permutation actions, J. Alg. 1999</span></div><div class="meta"><span>Referee Agent · Sep 16</span><span class="verbs"><span class="do">accept</span><span class="do">reject</span><span>reply</span><span>discard</span></span></div></div>
+        <p class="fix">The work at a violet rule, as prose. Accept and reject are the citation's own verbs, here in the box.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NOTE -->
+<section class="row">
+  <div class="name"><h2>note</h2><p>remarks; asks nothing; resolved by hand like the rest</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span><span class="chip neutral">1 comment</span> Let (X,σ) be a finite widget. Then |X| ≡ |Fix(σ)| (mod 2).</p></div>
+        <p class="fix">A note on the whole theorem has no anchor, so it is a 9px chip inside the theorem's label line.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="bbox"><header><span class="kind">note</span><span>Sep 16</span><span class="status">open</span><span>A. Author</span><span class="grow"></span><span class="verb">reply</span><span class="verb">resolve</span><span class="verb">edit</span><span class="verb danger">discard</span></header><div class="body">Compare with the orbit-counting form in §3.</div></div>
+        <p class="fix">Neutral stripe; the same six-item header.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><u class="a open"><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span></u> Let (X,σ) be a finite widget. Then |X| ≡ |Fix(σ)| (mod 2).</p></div>
+        <p class="fix">An unanchored annotation is an underline under the node's label, in the note's neutral, washed while its box is open. No chip, no count.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="abox"><div class="body">Compare with the orbit-counting form in §3.</div><div class="meta"><span>A. Author · Sep 16</span><span class="verbs"><span class="do">reply</span><span class="do">resolve</span><span>edit</span><span>discard</span></span></div></div>
+        <p class="fix">The neutral stripe says note. Once resolved, the box and its underline are not drawn at rest.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONFIRMATION, merged -->
+<section class="row">
+  <div class="name"><h2>confirmation</h2><p>"this is right"; no severity</p><p class="merged">merged into note: the after slides are note's</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Proof.</span> Pair each x with σ(x). The unpaired points are the fixed points, <mark class="b neutral">which gives the parity</mark>.</p><p style="margin-top:8px"><span class="cap" style="font-size:10px">on a pdf page</span> <mark class="b pdf">which gives the parity</mark></p></div>
+        <p class="fix">Grey on text, because the CSS styles a kind named <code>ok</code> that no composer produces; orange on a PDF, where every non-graded kind is forced to the fallback tint.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="bbox"><header><span class="kind">confirmation</span><span>Sep 16</span><span class="status">open</span><span>A. Author</span><span class="grow"></span><span class="verb">reply</span><span class="verb">resolve</span><span class="verb">edit</span><span class="verb danger">discard</span></header><div class="quote">which gives the parity</div><div class="body">Checked; the pairing is correct.</div></div>
+        <p class="fix">A confirmation with no text is a bare tick with a six-item header.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b> · as a note</div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Proof.</span> Pair each x with σ(x). The unpaired points are the fixed points, <u class="a open">which gives the parity</u>.</p></div>
+        <p class="fix">A neutral underline, the same on text and on a PDF page, washed while its box is open.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="abox"><div class="body">Checked; the pairing is correct.</div><div class="meta"><span>A. Author · Sep 16</span><span class="verbs"><span class="do">reply</span><span class="do">resolve</span><span>edit</span><span>discard</span></span></div></div>
+        <p class="fix">Identical to note's.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SETTLED -->
+<section class="row">
+  <div class="name"><h2>settled</h2><p>any kind, once resolved or discarded</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a finite widget. Then <mark class="b objection">|X| ≡ |Fix(σ)| (mod 2)</mark>.</p></div>
+        <p class="fix">A resolved objection is drawn exactly as an open one.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="bbox objection"><header><span class="kind">objection</span><span class="sev major">major</span><span>Sep 16</span><span class="status">resolved</span><span>Referee Agent</span><span class="grow"></span><span class="verb">reply</span><span class="verb undo">undo resolve</span><span class="verb">edit</span><span class="verb danger">discard</span></header><div class="quote">|X| ≡ |Fix(σ)| (mod 2)</div><div class="body">The congruence needs σ to be an involution; nothing above says σ² = id.</div></div>
+        <p class="fix">Only the word "resolved", at 76% size in faint grey, and an "undo resolve" verb in link blue, say it is settled.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b></div>
+    <div class="slides">
+      <div class="slide"><p class="sl">on the text, settled shown</p>
+        <div class="text"><p><span class="lab">Theorem 2.1</span> <span class="ttl">(Parity).</span> Let (X,σ) be a finite widget. Then <u class="a objection settled" style="border-bottom-width:1.5px">|X| ≡ |Fix(σ)| (mod 2)</u>.</p></div>
+        <p class="fix">Not drawn at rest. With settled annotations turned on, the kind's wash at 3% and its underline at half the weight it had and 50% opacity (a major objection's 3px becomes a half-strength 1.5px); the words are untouched.</p>
+      </div>
+      <div class="slide"><p class="sl">the box</p>
+        <div class="abox objection" style="border-left-color: color-mix(in srgb, var(--ann-objection) 50%, transparent)"><div class="body" style="color:var(--ink-soft)">The congruence needs σ to be an involution; nothing above says σ² = id.</div><div class="meta"><span>Referee Agent · Sep 16 · resolved</span><span class="verbs"><span class="do">reopen</span></span></div></div>
+        <p class="fix">The stripe keeps its hue at 50%, as the underline does; the box says resolved once and offers one verb.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPOSER -->
+<section class="row">
+  <div class="name"><h2>the composer</h2><p>writing a new annotation on a selection</p></div>
+  <div class="cell">
+    <div class="cap"><b>Before</b></div>
+    <div class="slides" style="grid-template-columns:1fr">
+      <div class="slide"><p class="sl">note-at</p>
+        <div class="bcomp"><div class="place"><span class="where">sy-0003</span><span>×</span></div><textarea placeholder="what you want to say"></textarea><div class="r"><select><option>question</option><option>objection</option><option>suggestion</option><option>confirmation</option><option>citation</option><option>note</option></select><select><option>severity</option><option>major</option><option>moderate</option><option>minor</option></select><button>note it</button><button>cancel</button></div></div>
+        <p class="fix">The header shows the key, not the words. Kind is a select; severity is a second select that appears and disappears as the kind changes. The submit says "note it" whatever the kind, and there are three ways to cancel.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cell">
+    <div class="cap"><b>After</b></div>
+    <div class="slides" style="grid-template-columns:1fr">
+      <div class="slide"><p class="sl">annotate</p>
+        <div class="acomp"><div class="on"><span>on <q>|X| ≡ |Fix(σ)| (mod 2)</q> in Theorem 2.1</span><span class="x">×</span></div><textarea placeholder="what you want to say"></textarea><div class="kinds"><span class="k objection on-k">objection</span><span class="k suggestion">suggestion</span><span class="k question">question</span><span class="k citation">citation</span><span class="k note">note</span></div><div class="foot"><span class="sev"><span class="w">major</span><span>moderate</span><span>minor</span></span><span class="go">Object</span></div></div>
+        <p class="fix">The words being annotated, in the header. Five kinds as buttons in their hues, one click each. Severity is three buttons that stay put and disable for the kinds that take none. The submit is the kind's verb. × and Escape cancel.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>

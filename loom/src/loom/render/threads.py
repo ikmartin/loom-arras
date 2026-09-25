@@ -1,6 +1,6 @@
 """Threads for the manifest (specs/manifest.md §10, book 11.4.7): every session, read-only.
 
-One thread per session, which since plan 0.13 §5 is what a run and a day's comments both are. A session the migration made from a run reads its journal and its attachments from the run directory those bytes are still in.
+One thread per session; its attachments are the files the session wrote into its own directory.
 """
 
 from __future__ import annotations
@@ -12,8 +12,9 @@ from typing import Any
 from loom.ai.layout import MODES
 from loom.records.annotations import Record
 
-_HEADING = re.compile(r"^##\s+(.*)$", re.M)
-_DATE = re.compile(r"(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}):(\d{2}))?")
+#: What loom keeps in a session's directory for itself, as opposed to what the session wrote there.
+SESSION_FILES = ("run.log", "inbox.jsonl", "attached.json", "agent.json", "agent.log")
+_MADE = re.compile(r"^(.*?)\s+→\s+(a-\d{4}-\d{2}-\d{2}-\d+)$")
 KINDS = {"draft-": "draft", "proposal-": "proposal", "ingest-": "digest", "plan-": "plan"}
 
 
@@ -53,38 +54,9 @@ def _pass_of(name: str) -> str:
     return (m.group("pass") or "1") if m else "1"
 
 
-def _messages(thread: str, agent: str, fallback_time: str) -> list[dict[str, Any]]:
-    """`thread.md` as messages: one per `##` heading (a dated entry), the text before the first heading as an opening message."""
-    from loom.records.store import render_markdown
-
-    out: list[dict[str, Any]] = []
-    parts = _HEADING.split(thread)
-    intro = parts[0]
-    intro = re.sub(r"^#\s+.*$", "", intro, count=1, flags=re.M).strip()
-    if intro:
-        out.append(
-            {"author": {"kind": "agent", "id": agent}, "time": fallback_time, "body_html": render_markdown(intro)}
-        )
-    for i in range(1, len(parts), 2):
-        heading, body = parts[i].strip(), parts[i + 1].strip() if i + 1 < len(parts) else ""
-        m = _DATE.search(heading)
-        time = fallback_time
-        if m:
-            time = m.group(1) + (f"T{m.group(2)}:{m.group(3)}:00Z" if m.group(2) else "T00:00:00Z")
-        out.append(
-            {
-                "author": {"kind": "agent", "id": agent},
-                "time": time,
-                "body_html": render_markdown(f"**{heading}**\n\n{body}" if body else f"**{heading}**"),
-            }
-        )
-    return out
-
-
 def session_thread(root: Path, session: Any, record: Record | None, run_dir: Path) -> dict[str, Any]:
-    """One session as a thread: its journal, what it wrote, who took part, and what it touched."""
+    """One session as a thread: what it wrote, who took part, what it touched, and its command log. Its conversation is not here: the build pages the transcript separately (`mailbox.pages`)."""
     rel = run_dir.relative_to(root).as_posix() if run_dir.is_relative_to(root) else run_dir.as_posix()
-    agent = session.title
     created = session.created
     participants: list[dict[str, str]] = []
     targets: list[str] = []
@@ -97,32 +69,34 @@ def session_thread(root: Path, session: Any, record: Record | None, run_dir: Pat
             if a.target_key not in targets:
                 targets.append(a.target_key)
             # every party who wrote in the session, which is the point of separating the author from the place
-            who = {"kind": "agent" if a.author_kind in ("agent", "run") else "person", "id": a.author_id}
+            who = {"kind": "agent" if a.author_kind == "agent" else "person", "id": a.author_id}
             if who not in participants:
                 participants.append(who)
     for p in sorted(run_dir.iterdir()) if run_dir.is_dir() else []:
-        if not p.is_file() or p.name in ("run.toml", "run.log", "thread.md", "annotations.json"):
+        if not p.is_file() or p.name in SESSION_FILES:
             continue
         attachments.append({"name": p.name, "kind": _attachment_kind(p.name), "path": f"{rel}/{p.name}"})
-    thread_text = (run_dir / "thread.md").read_text(encoding="utf-8") if (run_dir / "thread.md").is_file() else ""
-    title_m = re.match(r"^#\s+(?:Thread:\s*)?(.+)$", thread_text.strip(), re.M) if thread_text else None
-    title = title_m.group(1).strip() if title_m else agent
     log: list[dict[str, str]] = []
     log_path = run_dir / "run.log"
     if log_path.is_file():
         for line in log_path.read_text(encoding="utf-8").splitlines():
             m = re.match(r"^(\S+)\s+(.*)$", line)
-            if m:
-                log.append({"time": m.group(1), "command": m.group(2)})
+            if not m:
+                continue
+            entry = {"time": m.group(1), "command": m.group(2)}
+            # `loom annotate` names the annotation it made or changed after an arrow (plan 0.14)
+            made = _MADE.match(entry["command"])
+            if made:
+                entry["command"], entry["annotation"] = made.group(1), made.group(2)
+            log.append(entry)
     return {
         "id": session.id,
         "kind": "session",
-        "title": title,
+        "title": session.title,
         "created": created,
         "path": rel,
         "participants": participants,
         "targets": targets,
-        "messages": _messages(thread_text, agent, created) if thread_text else [],
         "attachments": attachments,
         "pipeline": _pipeline(run_dir, rel) if run_dir.is_dir() else [],
         "log": log,
@@ -140,8 +114,7 @@ def build_threads(root: Path, records: list[Record] | None = None) -> dict[str, 
     by_rel = {r.rel: r for r in records}
     out: dict[str, Any] = {}
     for s in sessions(root).values():
-        # a migrated session's annotations still carry the grouping they were written with
-        record = by_rel.get(s.id) or (by_rel.get(s.source) if s.source else None)
+        record = by_rel.get(s.id)
         where = files_dir(root, s)
         out[s.id] = session_thread(root, s, record, where)
     return out

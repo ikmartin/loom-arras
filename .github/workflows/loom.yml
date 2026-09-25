@@ -1,0 +1,91 @@
+name: loom
+
+# loom's lane of scripts/verify, run as it is at a terminal: `fast --only loom` (ruff, the format check, mypy and the unit tier) over the Python matrix, and the TeX tier alone in a TeX Live container; and loom installed from the clone on a bare runner, where doctor must fail for want of TeX and serve must start. Book 14.4.
+
+on:
+  push:
+    paths: ['loom/**', 'scripts/**', '.github/workflows/loom.yml']
+  pull_request:
+    paths: ['loom/**', 'scripts/**', '.github/workflows/loom.yml']
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    env:
+      UV_PYTHON: ${{ matrix.python }} # every uv command scripts/verify runs takes the matrix's Python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: poppler, which the unit tier's `poppler` tests use and skip without
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: uv sync
+        working-directory: loom
+      - run: scripts/verify fast --only loom
+
+  install-from-clone:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: loom
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pipx install .
+      - run: loom --version
+      - name: doctor fails without TeX, names what is missing, and finds the vendored bundle at loom's interface
+        run: |
+          loom doctor || true
+          set +e
+          loom doctor --json > "$RUNNER_TEMP/doctor.json"
+          status=$?
+          set -e
+          test "$status" -eq 2
+          iface=$(sed -n 's/^INTERFACE_VERSION = \([0-9]*\)$/\1/p' src/loom/version.py)
+          jq -e --argjson iface "$iface" '
+            .ok == false
+            and (.failing | index("latexmk")) != null
+            and any(.items[]; .name == "latexmk" and .status == "fail" and .path == null)
+            and any(.items[]; .name == "arras bundle" and .status == "ok" and .source == "vendored" and .interface == $iface)
+          ' "$RUNNER_TEMP/doctor.json"
+      - name: loom serve starts on the demo quilt and serves the viewer and the build
+        working-directory: ${{ runner.temp }}
+        run: |
+          loom init demo --demo --yes
+          cd demo
+          loom serve --no-compile > "$RUNNER_TEMP/serve.log" 2>&1 &
+          pid=$!
+          up=""
+          for _ in $(seq 60); do
+            if curl -fsS http://127.0.0.1:8791/build/manifest.json -o "$RUNNER_TEMP/manifest.json"; then up=1; break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8791/ -o "$RUNNER_TEMP/index.html" || up=""
+          kill "$pid"
+          wait "$pid" || true
+          cat "$RUNNER_TEMP/serve.log"
+          test -n "$up"
+          grep -q "_app/" "$RUNNER_TEMP/index.html"
+          jq -e '.nodes | length > 0' "$RUNNER_TEMP/manifest.json"
+
+  tex:
+    runs-on: ubuntu-latest
+    # the medium scheme (about 0.9 GB against the full scheme's 2.7 GB) carries amsart, amsmath, pgf, beamer, geometry, latexmk and dvisvgm; the next step adds the rest of what the TeX tier compiles
+    container: texlive/texlive:latest-medium
+    steps:
+      - name: git for the checkout, python3 for scripts/verify, poppler for pdftotext, curl for uv
+        run: apt-get update && apt-get install -y git python3 poppler-utils curl
+      - name: what the TeX tier loads that the medium scheme lacks
+        # found from the .fls files of a TeX-tier run: biblatex and biber (the reshape test's bibliography), tikz-cd and xypic (the quilts' and the fallback test's diagrams), standalone and preview (every fallback SVG), sansmathaccent (the synthetic quilt's beamer talk), logreq (biblatex); a "File `x.sty' not found" here names the package to add
+        run: tlmgr update --self && tlmgr install biber biblatex logreq preview sansmathaccent standalone tikz-cd xypic
+      - uses: actions/checkout@v4
+      - run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: uv sync
+        working-directory: loom
+      - run: scripts/verify --steps "pytest tex"

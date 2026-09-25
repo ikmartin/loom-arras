@@ -1,31 +1,17 @@
 <script lang="ts">
-	// The composer: what a person types to an agent working in the same session (plan 0.13 §8).
+	// The input at the foot of the Chat (plan 0.14): what a person types to the agent working in the same session.
 	//
-	// **Loom is a mailbox.** This posts; loom appends; nothing is launched. A parked agent wakes because a file grew,
-	// and an agent mid-compile sees the message when it finishes and asks again. Loom holds no credentials and calls no
-	// model — the agent is already running in the author's own terminal (DR-195).
-	//
-	// **A message lands whether or not anybody is listening**, and this says which. Refusing would lose what was typed,
-	// for a reason the browser cannot fix; saying nothing would let the author believe it was delivered.
-	import { can, write, type WriteResult } from '$lib/write';
-	import { store } from '$lib/manifest/client.svelte';
-	import { selected } from './sessions.svelte';
+	// **Loom is a mailbox.** This posts; loom appends; a parked agent wakes because a file grew. What happened to the message — who was listening, or that it waits — is the Chat's status line to say, from the answer this hands back (`onsent`), so it is said in one place.
+	import { can, write } from '$lib/write';
+	import type { Posted } from './transcript.svelte';
 
-	let { session = '' }: { session?: string } = $props();
+	let { session, packed = 0, onsent }: { session: string; packed?: number; onsent?: (res: Posted) => void } = $props();
 
-	interface Posted {
-		session?: string;
-		attached?: { who: string; kind: string }[];
-	}
-
-	const here = $derived(selected(store.manifest));
-	const into = $derived(session || here?.id || '');
 	let allowed = $state(false);
 	let text = $state('');
 	let busy = $state(false);
-	let said = $state('');
-	let listening = $state<{ who: string; kind: string }[] | null>(null);
-	/** Docked at two lines; a message worth writing at length gets the pane's full width rather than a scrollbar. */
+	let refused = $state('');
+	/** Two lines, or eight for a message worth writing at length. */
 	let wide = $state(false);
 
 	$effect(() => {
@@ -34,20 +20,18 @@
 
 	async function send(): Promise<void> {
 		const body = text.trim();
-		if (!body || busy) return;
+		// words, or what was marked, or both; a packet goes on its own when there are no words
+		if ((!body && !packed) || busy) return;
 		busy = true;
-		said = '';
-		const res: WriteResult & Posted = await write('message', into ? { text: body, session: into } : { text: body });
+		refused = '';
+		const res: Posted = await write('message', { text: body, session });
 		busy = false;
 		if (!res.ok) {
-			said = res.error?.message ?? 'the publisher refused it';
+			refused = res.error?.message ?? 'the publisher refused it';
 			return;
 		}
 		text = '';
-		listening = res.attached ?? [];
-		said = listening.length
-			? 'sent to ' + listening.map((a) => `${a.who} (${a.kind})`).join(', ')
-			: `nobody is attached — it waits in the inbox. Start one with: loom session watch ${res.session ?? into}`;
+		onsent?.(res);
 	}
 
 	function keys(e: KeyboardEvent): void {
@@ -60,27 +44,18 @@
 </script>
 
 {#if allowed}
-	<form class="composer" class:wide data-testid="composer" onsubmit={(e) => (e.preventDefault(), send())}>
+	<form class="composer" data-testid="composer" onsubmit={(e) => (e.preventDefault(), send())}>
 		<textarea
 			rows={wide ? 8 : 2}
-			placeholder="say something…"
+			placeholder={packed ? 'say something, or send what you marked…' : 'say something…'}
 			aria-label="Post a message to this session"
 			bind:value={text}
 			onkeydown={keys}
 			data-testid="composer-text"
 		></textarea>
-		<button
-			type="button"
-			class="grow"
-			title={wide ? 'Dock it again' : 'Give it the full pane'}
-			aria-expanded={wide}
-			data-testid="composer-expand"
-			onclick={() => (wide = !wide)}>{wide ? '⌄' : '⌃'}</button
-		>
-		<button type="submit" disabled={busy || !text.trim()} data-testid="composer-send">send</button>
-		{#if said}
-			<p class="said" role="status" data-testid="composer-said">{said}</p>
-		{/if}
+		<button type="button" class="grow" title={wide ? 'Fewer lines' : 'More lines'} aria-expanded={wide} data-testid="composer-expand" onclick={() => (wide = !wide)}>{wide ? '⌄' : '⌃'}</button>
+		<button type="submit" disabled={busy || (!text.trim() && !packed)} data-testid="composer-send">send</button>
+		{#if refused}<p class="refused" role="alert" data-testid="composer-refused">{refused}</p>{/if}
 	</form>
 {/if}
 
@@ -113,20 +88,13 @@
 		opacity: 0.5;
 		cursor: default;
 	}
-	.composer.wide {
-		position: absolute;
-		inset: auto 0 0 0;
-		background: var(--sheet, #fff);
-		box-shadow: 0 -2px 12px rgb(0 0 0 / 10%);
-		z-index: 20;
-	}
 	.grow {
 		padding: 2px 6px;
 	}
-	.said {
+	.refused {
 		grid-column: 1 / -1;
 		margin: 0;
 		font-size: 0.76rem;
-		color: var(--ink-faint, #6b6b6b);
+		color: var(--state-incomplete);
 	}
 </style>

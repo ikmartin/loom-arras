@@ -7,9 +7,7 @@ from pathlib import Path
 
 from loom.sessions import Session, files_dir
 
-# `annotations/` holds the log every `loom comment` appends to, which is the agent's own sanctioned write and not a
-# write outside its session; `comments/` is the name that directory had before the log replaced it. `.loom/` is skipped
-# wholesale, which is where the session's own directory lives.
+# `annotations/` holds the log every `loom annotate` appends to, which is the agent's own sanctioned write and not a write outside its session. `.loom/` is skipped wholesale, which is where the session's own directory lives.
 SKIP = {".git", "build", "annotations", ".loom", "node_modules"}
 
 

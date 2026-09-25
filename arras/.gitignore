@@ -30,9 +30,8 @@ test-results
 # served build directory, staged from tests/fixture by scripts/stage-fixture.mjs
 /static/build
 /site
-.tmp-write-quilt/
+.tmp-e2e/
 static/pdfjs/
 
 # the exploratory browser records where it is listening; it is a running process, not a file to keep
 .drive.json
-.tmp-reading-quilt/

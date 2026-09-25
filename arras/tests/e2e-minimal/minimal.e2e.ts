@@ -1,10 +1,6 @@
-// Plan 0.9.5 §11, checks 1 and 2: the app against the interface's floor.
+// The app against the interface's floor: every route renders without an error, and in no publisher's vocabulary.
 //
-// `tests/fixture-minimal` is written by nobody's publisher and omits eleven top-level sections outright rather than
-// writing them empty, because absence is what the loader's `normalise()` widens the floor for and `{}` would have
-// passed before it. The assertions here are deliberately thin: this suite exists to prove that nothing *crashes* and
-// that no view is furniture over nothing, not to check any particular content. The conformance fixture's suite is
-// where behaviour is asserted, and it must stay pointed at that fixture.
+// `tests/fixture-minimal` is written by nobody's publisher and omits eleven top-level sections outright rather than writing them empty, because absence is what the loader's `normalise()` widens the floor for, and an empty `{}` would pass without it. The assertions here are deliberately thin: this suite proves that nothing crashes and that no view is furniture over nothing, not any particular content. The conformance fixture's suite is where behaviour is asserted, and it must stay pointed at that fixture.
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -30,32 +26,18 @@ function watch(page: Page): string[] {
 	return bad;
 }
 
+// Arras's own copy never names a publisher's vocabulary. A name read from the manifest and shown as attribution is the viewer being neutral (the home page renders `manifest.publisher.name`, correctly); a name compiled into the source is the violation, which is why the list is of literal words.
+const FORBIDDEN = ['not yet compiled', 'loose', 'working drafts', 'quilt', 'loom'];
+
 for (const path of ROUTES) {
-	test(`${path} renders against the floor`, async ({ page }) => {
+	test(`${path} renders against the floor, in no publisher's words`, async ({ page }) => {
 		const bad = watch(page);
 		await page.goto(path);
 		await expect(page.locator('main')).toBeVisible();
 		// the shell resolved: the loading placeholder is gone and a heading or an empty state stands in its place
 		await expect(page.locator('main').getByText('Loading manifest…')).toHaveCount(0);
 		expect(bad, `${path} logged errors`).toEqual([]);
-	});
-}
-
-// Check 2 of §11, and R2b is done: the list of phrases awaiting it is gone rather than empty, because an empty list
-// invites a fifth entry. "not yet compiled" became "not yet numbered" and is shown only where the corpus declares it
-// has documents; "loose" became "not in a document" everywhere it was copy. Every phrase below is asserted absent.
-const FORBIDDEN = ['not yet compiled', 'loose', 'working drafts', 'quilt', 'loom'];
-
-for (const path of ROUTES) {
-	test(`${path} speaks no publisher's vocabulary`, async ({ page }) => {
-		await page.goto(path);
-		await expect(page.locator('main')).toBeVisible();
 		const text = ((await page.locator('main').textContent()) ?? '').toLowerCase();
-		for (const word of FORBIDDEN) {
-			expect(text, `${path} contains "${word}"`).not.toContain(word);
-		}
-		// Note what is NOT asserted: the home page renders `manifest.publisher.name`, and that is correct. A name read
-		// from the manifest and shown as attribution is the viewer being neutral; a name compiled into the source is
-		// the violation. Check 2 is about arras's own copy, which is why the list above is of literal words.
+		for (const word of FORBIDDEN) expect(text, `${path} contains "${word}"`).not.toContain(word);
 	});
 }

@@ -12,17 +12,16 @@ describe('the local graph', () => {
 		const n = neighbourhood(m, id, 1);
 		expect(n.nodes[0]).toBe(id);
 		expect(n.distance.get(id)).toBe(0);
-		for (const other of n.nodes.slice(1)) {
-			expect(n.distance.get(other)).toBe(1);
-			expect(n.links.some((l) => (l.from === id && l.to === other) || (l.to === id && l.from === other))).toBe(true);
-		}
+		const rest = n.nodes.slice(1);
+		expect(rest.filter((other) => n.distance.get(other) !== 1)).toEqual([]);
+		expect(rest.filter((other) => !n.links.some((l) => (l.from === id && l.to === other) || (l.to === id && l.from === other)))).toEqual([]);
 	});
 
 	it('grows with depth and never loses a node', () => {
 		const id = Object.keys(m.nodes).find((k) => m.edges.some((e) => e.from === k || e.to === k))!;
 		const one = new Set(neighbourhood(m, id, 1).nodes);
 		const two = new Set(neighbourhood(m, id, 2).nodes);
-		for (const x of one) expect(two.has(x)).toBe(true);
+		expect([...one].filter((x) => !two.has(x))).toEqual([]);
 		expect(neighbourhood(m, id, 0).nodes).toEqual([id]);
 	});
 
@@ -41,15 +40,13 @@ describe('the work graph', () => {
 	it('draws each cited work as one node and keeps the corpus own results', () => {
 		const { nodes, edges } = graphInput(m, { external: 'papers' });
 		const ids = new Set(nodes.map((n) => n.id));
-		expect(ids.has(PAPER + 'Kre99')).toBe(true); // digested, and used
-		expect(ids.has(PAPER + 'Har77')).toBe(true); // cited and never digested, which the expanded graph cannot show
-		expect([...ids].some((id) => m.nodes[id]?.external)).toBe(false); // no external result survives as itself
-		for (const e of edges) {
-			expect(ids.has(e.from) && ids.has(e.to)).toBe(true);
-		}
+		expect([...ids]).toContain(PAPER + 'Kre99'); // digested, and used
+		expect([...ids]).toContain(PAPER + 'Har77'); // cited and never digested, which the expanded graph cannot show
+		expect([...ids].filter((id) => m.nodes[id]?.external)).toEqual([]); // no external result survives as itself
+		expect(edges.filter((e) => !ids.has(e.from) || !ids.has(e.to))).toEqual([]);
 		const toKre = edges.filter((e) => e.to === PAPER + 'Kre99');
 		expect(toKre.length).toBeGreaterThan(0);
-		expect(toKre.every((e) => (e.count ?? 0) >= 1)).toBe(true);
+		expect(toKre.filter((e) => (e.count ?? 0) < 1)).toEqual([]);
 	});
 
 	it('contracts a digest section, which is not marked external, into its paper', () => {
@@ -58,8 +55,8 @@ describe('the work graph', () => {
 		fake.nodes['Kre99-sec-1'] = { ...fake.nodes['Kre99-thm-2.1'], id: 'Kre99-sec-1', kind: 'section', external: false, digest: null, file };
 		fake.edges = [...fake.edges, { from: 'sy-0003', to: 'Kre99-sec-1', kind: 'prose' } as (typeof fake.edges)[number]];
 		const { nodes, edges } = graphInput(fake, { external: 'papers' });
-		expect(nodes.some((n) => n.id === 'Kre99-sec-1')).toBe(false);
-		expect(edges.some((e) => e.from === 'sy-0003' && e.to === PAPER + 'Kre99')).toBe(true);
+		expect(nodes.map((n) => n.id)).not.toContain('Kre99-sec-1');
+		expect(edges).toContainEqual(expect.objectContaining({ from: 'sy-0003', to: PAPER + 'Kre99' }));
 	});
 
 	it('is the expanded graph with its external results removed, apart from the paper nodes', () => {

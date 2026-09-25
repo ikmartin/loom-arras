@@ -1,49 +1,27 @@
 <script lang="ts">
 	// The PDF viewer (book 15.3.7): a link into a cited work, `cited:<scheme>:<value>#page=N`, opens the fetched paper at that page in the browser's own renderer. A link naming an artifact that is not on this machine says so and offers the identifier's own resolver instead, and a copy of a different version of the work is offered only with a warning, since that is where page numbers disagree.
-	// Clicks on work links anywhere are caught here, so a comment body, a thread message and a report all behave alike without each wiring its links.
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	// It opens only where the copy on file is not the artifact a link names: a link to a filed copy opens that work as an item, and which pane it opens in is `workspace/links.ts`'s to decide.
 	import { store } from '$lib/manifest/client.svelte';
 	import { pdf } from '$lib/pdf.svelte';
-	import { workUrl } from '$lib/nav';
-	import { locate, parseWorkLink, isWorkLink, placeQuery } from '$lib/worklink';
+	import { locate } from '$lib/worklink';
 	import { bibText } from '$lib/works';
-	import { dismiss } from '$lib/dismiss';
+	import Popover from './Popover.svelte';
 	import Tex from '$lib/math/Tex.svelte';
 	import Icon from './Icon.svelte';
 	import PdfDoc from '$lib/pdf/PdfDoc.svelte';
+	import PdfTools from '$lib/pdf/PdfTools.svelte';
+	import { PdfView } from '$lib/pdf/view.svelte';
 
 	const m = $derived(store.manifest);
 	const link = $derived(pdf.link);
 	const target = $derived(m && link ? locate(m, link) : null);
 	let anyway = $state(false);
+	/** The modal's view of the paper, which its own tools act on. */
+	const paper = new PdfView();
 
 	$effect(() => {
 		void link;
 		anyway = false;
-	});
-
-	onMount(() => {
-		const click = (e: MouseEvent) => {
-			if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-			const a = (e.target as Element | null)?.closest?.('a');
-			const href = a?.getAttribute('href');
-			if (!isWorkLink(href)) return;
-			const parsed = parseWorkLink(href!);
-			if (!parsed) return;
-			e.preventDefault();
-			// A copy on this machine opens in the Library View, where the page is read beside its discussion and the
-			// place is lit (plan 0.13 item 6, §16); the modal is for a copy that is another version, or none.
-			const where = m ? locate(m, parsed) : null;
-			if (where?.local && where.ref) {
-				const q = placeQuery({ ...parsed, page: parsed.page ?? 1 });
-				void goto(workUrl(where.ref.citekey) + (q ? '?' + q : ''));
-				return;
-			}
-			pdf.open(parsed);
-		};
-		document.addEventListener('click', click);
-		return () => document.removeEventListener('click', click);
 	});
 
 	const title = $derived(target?.ref ? bibText(target.ref.bib.title) || target.ref.citekey : link?.id ?? '');
@@ -53,13 +31,14 @@
 </script>
 
 {#if link && target}
-	<div class="backdrop">
-		<div class="viewer" role="dialog" aria-modal="true" aria-label="the paper {title}" use:dismiss={() => pdf.close()} data-testid="pdf-viewer">
+	<Popover modal open label="the paper {title}" testid="pdf-viewer" onclose={() => pdf.close()}>
+		<div class="viewer">
 			<header>
 				<div class="what">
 					<span class="title"><Tex text={title} /></span>
 					<span class="id">{link.id}{link.page ? ` · page ${link.page}` : ''}</span>
 				</div>
+				{#if shown}<PdfTools view={paper} />{/if}
 				{#if shown}<a class="tab" href={shown} target="_blank" rel="noopener" data-testid="pdf-open-tab">open in a tab</a>{/if}
 				<button class="close" onclick={() => pdf.close()} aria-label="Close the paper" title="close"><Icon name="close" size={14} /></button>
 			</header>
@@ -68,7 +47,7 @@
 			{/if}
 			{#if shown}
 				<div class="frame" data-testid="pdf-frame">
-					<PdfDoc url={shown} page={opensAt} />
+					<PdfDoc url={shown} page={opensAt} view={paper} />
 				</div>
 			{:else}
 				<div class="absent" data-testid="pdf-absent">
@@ -86,29 +65,15 @@
 				</div>
 			{/if}
 		</div>
-	</div>
+	</Popover>
 {/if}
 
 <style>
-	.backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 55;
-		background: rgb(0 0 0 / 22%);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
 	.viewer {
 		width: min(90vw, 1000px);
 		height: min(90vh, 1200px);
 		display: flex;
 		flex-direction: column;
-		background: var(--sheet);
-		border: 1px solid var(--rule);
-		border-radius: var(--rad-card);
-		box-shadow: 0 10px 40px rgb(0 0 0 / 20%);
-		overflow: hidden;
 	}
 	header {
 		display: flex;

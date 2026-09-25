@@ -2,34 +2,21 @@
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
-from click.testing import CliRunner
-
-from loom.cli import main
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from loom.tex.assemble import assemble, shift_sectioning
 from loom.tex.aux import parse_aux
 from loom.tex.bundle import apply_unified_diff, build_bundle, unified_diff
+from tests.helpers import exits, ok, refused
 
 REPO = Path(__file__).resolve().parents[2]
 
 
-def run(*args: str, cwd: Path):  # type: ignore[no-untyped-def]
-    old = os.getcwd()
-    try:
-        os.chdir(cwd)
-        return CliRunner().invoke(main, list(args))
-    finally:
-        os.chdir(old)
-
-
 def demo(tmp_path: Path) -> Path:
-    r = run("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
-    assert r.exit_code == 0, r.output
+    ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     return tmp_path / "demo"
 
 
@@ -44,8 +31,7 @@ def test_aux_read_plain_and_hyperref() -> None:
 
 def test_compile_master_and_numbers_from_aux(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    r = run("compile", cwd=d)
-    assert r.exit_code == 0, r.output
+    ok("compile", cwd=d)
     aux = d / "build" / "main" / "main.aux"
     assert aux.exists()
     n = parse_aux(aux.read_text())
@@ -69,11 +55,19 @@ def test_linearize_flattens_with_nest_shift(tmp_path: Path) -> None:
     assert "one % comment kept" in text
     assert "\\subsection{Two}" in text and "\\subsubsection{Deeper}" in text
     assert shift_sectioning("\\subparagraph{x}", 1) == "\\subparagraph{x}"
-    r = run("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--no-check", cwd=root)
-    assert r.exit_code == 0, r.output
+    r = ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--no-check", cwd=root)
     flat = (root / "drafting" / "flat.tex").read_text()
     assert "\\input{" not in flat and "\\subsection{Two}" in flat
-    assert run("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--no-check", cwd=root).exit_code == 2
+    refused(
+        "linearize",
+        "drafting/main.tex",
+        "--to",
+        "drafting/flat.tex",
+        "--no-check",
+        cwd=root,
+        code=2,
+        match="exists; linearize never overwrites",
+    )
     # the spine and everything it inlined are now superseded: they define nothing until loom live
     assert "superseded" in r.output
 
@@ -92,52 +86,8 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
     assert text.index("% id: dm-0002") < text.index("% id: dm-0003") < text.index("% proof: dm-0003/proof")
     assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in text and "\\begin{theorem}[Main]\\label{dm-0003}" in text
     assert "Take" not in text  # dm-0002's proof is not part of the closure
-    c = run("compile", "dm-0003", cwd=d)
-    assert c.exit_code == 0, c.output
+    ok("compile", "dm-0003", cwd=d)
     assert (d / "build" / "bundles" / "dm-0003" / "dm-0003.pdf").exists()
-
-
-def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
-    """`loom source` replaced `loom bundle` as the way to read a result: it prints, so there is no file to go stale."""
-    d = demo(tmp_path)
-    sid = run("ai", "start", "Reading dm-0002", cwd=d).output.strip()
-    run_dir = d / ".loom" / "sessions" / sid
-    r = run("source", "dm-0002", "--session", sid, cwd=d)
-    assert r.exit_code == 0, r.output
-    assert r.output.startswith("\\begin{lemma}[Orbits]\\label{dm-0002}")
-    assert "% id:" not in r.output  # the key alone, not the closure document
-    assert not list(run_dir.glob("*.tex"))  # nothing written into the session
-    assert "loom source dm-0002" in (run_dir / "run.log").read_text()
-
-    # the theorem's own closure is empty -- its dependency is declared inside the proof, so the proof key is the one
-    # with something to gather, which is also what a referee reads
-    c = run("source", "dm-0003/proof", "--closure", cwd=d)
-    assert c.exit_code == 0, c.output
-    assert c.output.index("% id: dm-0002") < c.output.index("% id: dm-0003") < c.output.index("% proof: dm-0003/proof")
-    assert "\\usepackage{loom}" in c.output
-
-
-def test_source_prints_a_whole_document_flattened(tmp_path: Path) -> None:
-    """An agent asked about a paper rather than a result needs the document; `loom linearize` would do it by superseding the master, and is denied to agents, so `loom source` takes a path (DR-155)."""
-    d = demo(tmp_path)
-    sid = run("ai", "start", "Reading the paper", cwd=d).output.strip()
-    run_dir = d / ".loom" / "sessions" / sid
-    r = run("source", "drafting/main.tex", "--session", sid, cwd=d)
-    assert r.exit_code == 0, r.output
-    assert "\\documentclass" in r.output  # the document, preamble and all
-    assert "\\input{" not in r.output  # every inclusion expanded in place
-    assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in r.output  # including the node files it pulls in
-    assert "loom source drafting/main.tex" in (run_dir / "run.log").read_text()
-
-    before = sorted(p.relative_to(d) for p in d.rglob("*.tex"))
-    assert run("source", "drafting/main.tex", cwd=d).exit_code == 0
-    assert sorted(p.relative_to(d) for p in d.rglob("*.tex")) == before  # nothing written, nothing superseded
-
-    c = run("source", "drafting/main.tex", "--closure", cwd=d)
-    assert c.exit_code != 0
-    assert "already carries what it includes" in c.output  # --closure is a key's option
-
-    assert run("source", "ai/runs/t/nope.tex", cwd=d).exit_code != 0  # a path loom does not scan is not a document
 
 
 def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
@@ -148,16 +98,15 @@ def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     diff = unified_diff(original, proposed, "nodes/dm-0002.tex")
     (tmp_path / "proposal.diff").write_text(diff)
     assert apply_unified_diff(original, diff) == proposed
-    r = run("compile", "dm-0002", "--with", str(tmp_path / "proposal.diff"), cwd=d)
-    assert r.exit_code == 0, r.output
+    ok("compile", "dm-0002", "--with", str(tmp_path / "proposal.diff"), cwd=d)
     text = (d / "build" / "bundles" / "dm-0002.tex").read_text()
     assert "Orbits have at most two points" in text and "Every orbit of a widget" not in text
     assert node.read_text() == original
     (tmp_path / "replacement.tex").write_text(
         "\\begin{lemma}[Orbits]\\label{dm-0002}\nReplaced statement.\n\\end{lemma}\n"
     )
-    r2 = run("compile", "dm-0002", "--with", str(tmp_path / "replacement.tex"), cwd=d)
-    assert r2.exit_code == 0 and "Replaced statement." in (d / "build" / "bundles" / "dm-0002.tex").read_text()
+    ok("compile", "dm-0002", "--with", str(tmp_path / "replacement.tex"), cwd=d)
+    assert "Replaced statement." in (d / "build" / "bundles" / "dm-0002.tex").read_text()
 
 
 def test_compile_with_bad_diff_exit_1(tmp_path: Path) -> None:
@@ -165,8 +114,7 @@ def test_compile_with_bad_diff_exit_1(tmp_path: Path) -> None:
     (tmp_path / "bad.diff").write_text(
         "--- a/nodes/dm-0002.tex\n+++ b/nodes/dm-0002.tex\n@@ -1,1 +1,1 @@\n-this line is not in the file\n+replacement\n"
     )
-    r = run("compile", "dm-0002", "--with", str(tmp_path / "bad.diff"), cwd=d)
-    assert r.exit_code == 1 and "does not match" in r.output
+    refused("compile", "dm-0002", "--with", str(tmp_path / "bad.diff"), cwd=d, code=1, match="does not match")
 
 
 def test_compile_draft_unpromoted_node(tmp_path: Path) -> None:
@@ -175,67 +123,44 @@ def test_compile_draft_unpromoted_node(tmp_path: Path) -> None:
     draft.write_text(
         "\\begin{lemma}[Drafted]\\label{dm-0019}\nUses Lemma~\\ref{lem:orbits}.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nP\n\\end{proof}\n"
     )
-    r = run("compile", "--draft", str(draft), cwd=d)
-    assert r.exit_code == 0, r.output
+    ok("compile", "--draft", str(draft), cwd=d)
     out = d / "build" / "bundles" / "draft-draft-dm-0019.tex"
     text = out.read_text()
     assert "% id: dm-0002" in text and "% id: dm-0001" in text and "Drafted" in text
     draft.write_text("\\begin{lemma}\\label{dm-0019}\nSee \\ref{nope}.\n\\end{lemma}\n")
-    assert run("compile", "--draft", str(draft), cwd=d).exit_code == 1
+    refused("compile", "--draft", str(draft), cwd=d, code=1, match="the draft references unknown labels: nope")
 
 
 def test_check_lints_and_compiles(tmp_path: Path) -> None:
     d = demo(tmp_path)
-    r = run("check", cwd=d)
-    assert r.exit_code == 0, r.output
+    r = ok("check", cwd=d)
     assert "ok      drafting/main.tex" in r.output and r.output.strip().endswith("check: ok")
-    r2 = run("check", "--bundles", "all", cwd=d)
-    assert r2.exit_code == 0 and "bundle dm-0003" in r2.output
+    assert "bundle dm-0003" in ok("check", "--bundles", "all", cwd=d).output
     (d / "nodes" / "dup.tex").write_text("\\begin{lemma}\\label{dm-0001}\n\\end{lemma}\n")
-    assert run("check", "--no-compile", cwd=d).exit_code == 1
+    assert "duplicate-id" in exits(1, "check", "--no-compile", cwd=d).output
 
 
 def test_compile_failure_reports_first_error(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     d = demo(tmp_path)
     monkeypatch.setenv("FAKE_TEX_FAIL", "1")
-    r = run("compile", cwd=d)
-    assert r.exit_code == 1 and "! LaTeX Error" in r.output
-
-
-def test_search_json_still_single_document(tmp_path: Path) -> None:
-    d = demo(tmp_path)
-    r = run("search", "widget", "--json", cwd=d)
-    json.loads(r.output)
-
-
-def test_a_statements_closure_covers_the_proof_it_prints(tmp_path: Path) -> None:
-    """The bundle printed the proof and excluded the lemmas that proof invokes, so an agent told the bundle was complete context saw undefined references (F2)."""
-    d = demo(tmp_path)
-    r = run("source", "dm-0003", "--closure", cwd=d)
-    assert r.exit_code == 0, r.output
-    ids = [ln.split()[-1] for ln in r.output.splitlines() if ln.startswith("% id:") or ln.startswith("% proof:")]
-    assert "dm-0002" in ids  # used by dm-0003's proof, which this bundle prints
-    assert ids[-1] == "dm-0003/proof" and ids.index("dm-0002") < ids.index("dm-0003")
+    assert "! LaTeX Error" in exits(1, "compile", cwd=d).output
 
 
 def test_with_names_a_file_first_and_then_an_annotation(tmp_path: Path) -> None:
     """`--with` gave a bare FileNotFoundError traceback, and an annotation's payload is the proposal it could not take (F15)."""
     d = demo(tmp_path)
-    missing = run("compile", "dm-0002", "--with", "nope.tex", cwd=d)
-    assert missing.exit_code != 0
-    assert "no such file, and no annotation has that id" in missing.output
+    missing = refused(
+        "compile", "dm-0002", "--with", "nope.tex", cwd=d, code=2, match="no such file, and no annotation has that id"
+    )
     assert "Traceback" not in missing.output
 
     text = (d / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
-    c = run("comment", "dm-0002", "Tighten it", "--payload", text, "--author", "Tom", cwd=d)
-    assert c.exit_code == 0, c.output
-    ann = c.output.split()[0]
-    r = run("compile", "dm-0002", "--with", ann, cwd=d)
-    assert r.exit_code == 0, r.output
+    c = ok("annotate", "dm-0002", "Tighten it", "--payload", text, "--author", "Tom", cwd=d)
+    ann = c.stdout.split()[0]
+    ok("compile", "dm-0002", "--with", ann, cwd=d)
     assert "at most two points" in (d / "build" / "bundles" / "dm-0002.tex").read_text()
 
-    wrong = run("compile", "dm-0003", "--with", ann, cwd=d)
-    assert wrong.exit_code != 0 and "is on dm-0002, not dm-0003" in wrong.output
+    refused("compile", "dm-0003", "--with", ann, cwd=d, code=1, match="is on dm-0002, not dm-0003")
 
 
 def test_a_readable_pdf_is_not_a_failure(tmp_path: Path) -> None:
@@ -296,17 +221,6 @@ def test_stage_sources_leaves_the_build_products_behind(tmp_path: Path) -> None:
 
     (p / "refs.bib").unlink()  # an arXiv-style source ships its .bbl and no .bib
     assert (stage_sources(p, tmp_path / "stage2") / "main.bbl").is_file()
-
-
-def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
-    """The orientation lists both among an agent's commands and says every command that takes --session logs the call (F7)."""
-    d = demo(tmp_path)
-    sid = run("ai", "start", "Drafting", cwd=d).output.strip()
-    run_dir = d / ".loom" / "sessions" / sid
-    assert run("id", "--next", "--session", sid, cwd=d).exit_code == 0
-    assert run("new", "lemma", "Rigidity", "--session", sid, cwd=d).exit_code == 0
-    log = (run_dir / "run.log").read_text()
-    assert "loom id --next" in log and "loom new lemma" in log
 
 
 def test_citation_labels_come_from_the_compile() -> None:

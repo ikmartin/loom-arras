@@ -6,9 +6,7 @@
 // attached to — so nothing reads a global pointer, and an agent asked in one session answers into it however the
 // author has since moved.
 //
-// **The view toggle filters annotations, never the list.** `current` draws the selected session's annotations; `all`
-// draws every session the closed setting admits. The panel's list always shows every session, because it is how a
-// reader navigates and hiding rows would only make sessions hard to find.
+// **The view filters annotations, never the list.** `current` draws the selected session's annotations; `all` draws every session the closed setting admits. The picker always lists every session, because it is how a reader navigates and hiding rows would only make sessions hard to find.
 //
 // A write is available only while an *open* session is selected. Nothing is created automatically: the courtesy of
 // opening a session so the first note has somewhere to go belongs to the terminal, where there is no selection to
@@ -25,6 +23,8 @@ class SessionView {
 	view = $state<'current' | 'all'>('all');
 	/** Whether closed sessions' annotations are drawn at all. Hidden by default, which is what closing one is for. */
 	showClosed = $state(false);
+	/** Names asked for and not yet in the manifest, by session id: a rename shows at once rather than after the publisher rebuilds. */
+	renamed = $state<Record<string, string>>({});
 
 	load(): void {
 		try {
@@ -46,24 +46,24 @@ class SessionView {
 		}
 	}
 
-	/** Select one, or deselect it when it is already selected — which is how the author detaches from every session. */
-	pick(id: string, m: Manifest | null): void {
-		if (this.selected === id) {
-			this.selected = null;
-		} else {
-			this.selected = id;
-			// A closed session cannot be selected and hidden at once, so selecting one admits the closed.
-			if (row(m, id)?.state !== 'open') this.showClosed = true;
-		}
+	/** Select one. Selecting the selected session again keeps it; `clear` is how the author detaches from every session. */
+	select(id: string, m: Manifest | null): void {
+		this.selected = id;
+		// A closed session cannot be selected and hidden at once, so selecting one admits the closed.
+		if (row(m, id)?.state !== 'open') this.showClosed = true;
+		this.save();
+	}
+
+	/** Select nothing: writes are refused until something is selected, and `current` would have nothing to draw. */
+	clear(): void {
+		this.selected = null;
+		if (this.view === 'current') this.view = 'all';
 		this.save();
 	}
 
 	/** After a session closes or goes: the selection cannot stand, and `current` would have nothing to draw. */
 	dropped(id: string): void {
-		if (this.selected !== id) return;
-		this.selected = null;
-		if (this.view === 'current') this.view = 'all';
-		this.save();
+		if (this.selected === id) this.clear();
 	}
 }
 
@@ -71,6 +71,11 @@ export const sessionView = new SessionView();
 
 function row(m: Manifest | null, id: string | null): SessionRow | null {
 	return id ? ((m?.sessions ?? []).find((s) => s.id === id) ?? null) : null;
+}
+
+/** A session's name as the reader last set it: the pending rename while the manifest still carries the old one. */
+export function titleOf(s: SessionRow): string {
+	return sessionView.renamed[s.id] ?? s.title;
 }
 
 /** The selected session, or null. */
@@ -98,15 +103,32 @@ export function visible(m: Manifest | null, a: Annotation): boolean {
 	return !shut.has(a.run);
 }
 
-/** How many of `list` the view is hiding, for the quiet notice in the content pane's header. */
+/** How many of `list` the view is hiding, for the quiet notice beside what it hides. */
 export function hidden(m: Manifest | null, list: readonly Annotation[]): number {
 	return list.filter((a) => !visible(m, a)).length;
 }
 
-/** The one list the panel draws, and the closed ones behind their own section. */
+/** The one list the picker draws, and the closed ones behind their own section. */
 export function grouped(m: Manifest | null): { open: SessionRow[]; closed: SessionRow[] } {
 	const rows = m?.sessions ?? [];
-	return { open: rows.filter((s) => s.state === 'open'), closed: rows.filter((s) => s.state !== 'open') };
+	// Most recently touched first. The index is append-only and was shown in creation order, so the sitting you were in five minutes ago sat at the bottom of the list under everything you had finished with.
+	const recent = (a: SessionRow, b: SessionRow) => (b.opened || b.created).localeCompare(a.opened || a.created);
+	return {
+		open: rows.filter((s) => s.state === 'open').sort(recent),
+		closed: rows.filter((s) => s.state !== 'open').sort(recent)
+	};
+}
+
+/**
+ * The picker's list narrowed by its find field.
+ *
+ * A case-blind match on the title as the reader last set it (a pending rename included) and the purpose; a blank field matches all. `closedCount` counts every closed session, found or not, since it labels the fold that holds them.
+ */
+export function findSessions(m: Manifest | null, find: string): { open: SessionRow[]; closed: SessionRow[]; closedCount: number } {
+	const all = grouped(m);
+	const q = find.trim().toLowerCase();
+	const hit = (s: SessionRow) => !q || `${titleOf(s)} ${s.purpose ?? ''}`.toLowerCase().includes(q);
+	return { open: all.open.filter(hit), closed: all.closed.filter(hit), closedCount: all.closed.length };
 }
 
 /** What one session holds: how many are open in it, who took part, and how many arrived in the current round. */

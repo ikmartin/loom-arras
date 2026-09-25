@@ -10,7 +10,7 @@ Revise the text of one key to be simpler and shorter while preserving mathematic
 
 ## Input
 - `loom source KEY --closure --session SESSION`.
-- If `audit-KEY.notes.md` exists in this run, its [patch-list] is your starting list.
+- If `audit-KEY.notes.md` exists in this session, its [patch-list] is your starting list.
 - Digest nodes for candidate citations (standing rule 5).
 
 ## Procedure
@@ -20,7 +20,7 @@ For each candidate change: classify it; for a new-citation, verify against a dig
 1. `simplify-KEY.notes.md`: [summary], [simplifications], [rejected], [revised], [meaning-drift-check].
 2. `proposal-KEY.diff`: a unified diff against the node's file (path from `loom search KEY --json`); the result of `loom compile KEY --with proposal-KEY.diff --session SESSION` recorded under [revised].
 3. One suggestion annotation per simplification, anchored to the old text.
-4. An entry in `thread.md`.
+4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## On a re-check
 Per `rules.md` rule 7: resolve what is met, edit what still stands, discard what you should not have raised. A second pass over the same key writes `simplify-KEY.2.notes.md` and a fresh `proposal-KEY.diff`, since a diff against changed text no longer applies.

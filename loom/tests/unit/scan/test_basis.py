@@ -4,15 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from click.testing import CliRunner
-
-from loom.cli import main
 from loom.cli.review import write_acceptance
 from loom.records.store import Records
 from loom.reshape.atomize import plan_atomize
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
-from tests.unit.scan.helpers import PREAMBLE, make_quilt
+from tests.helpers import refused
+from tests.unit.scan.helpers import DEFAULT_CONFIG, PREAMBLE, make_quilt
 
 
 def test_drafting_scan_classifies_five_bases_and_flags_uncertainty(tmp_path: Path) -> None:
@@ -59,16 +57,30 @@ This is quoted later in the block from \cite[Theorem 3]{Paper}.\end{theorem}
     assert not result.nodes["ab-0006"].external
     assert {d.keys[0] for d in result.lint if d.code == "loom:needs-classification"} == {"ab-0006"}
     assert any(d.code == "loom:misplaced-basis" for d in result.lint)
-    bulk = CliRunner().invoke(
-        main, ["accept", "--all-live", "--yes", "--author", "Test author", "--quilt", str(result.quilt.root)]
+    refused(
+        "accept",
+        "--all-live",
+        "--yes",
+        "--author",
+        "Test author",
+        "--quilt",
+        str(result.quilt.root),
+        code=1,
+        match="live unclassified keys",
     )
-    assert bulk.exit_code != 0 and "live unclassified keys" in bulk.output
     assert not (result.quilt.root / ".loom" / "state.toml").exists()
-    for key, phrase in (("ab-0004", "open claim"), ("ab-0005", "quotes someone else's result")):
-        attempt = CliRunner().invoke(
-            main, ["accept", key, "--author", "Test author", "--quilt", str(result.quilt.root)]
+    # an open claim is content the author can change; someone else's result is the wrong command for it (use refs verify)
+    for key, phrase, code in (("ab-0004", "open claim", 1), ("ab-0005", "quotes someone else's result", 2)):
+        refused(
+            "accept",
+            key,
+            "--author",
+            "Test author",
+            "--quilt",
+            str(result.quilt.root),
+            code=code,
+            match=phrase,
         )
-        assert attempt.exit_code != 0 and phrase in attempt.output
 
 
 def test_basis_controls_settlement_not_theorem_style(tmp_path: Path) -> None:
@@ -152,10 +164,17 @@ def test_accept_all_live_refuses_to_establish_an_open_claim(tmp_path: Path) -> N
 """,
         },
     )
-    attempt = CliRunner().invoke(
-        main, ["accept", "--all-live", "--yes", "--author", "Test author", "--quilt", str(result.quilt.root)]
+    refused(
+        "accept",
+        "--all-live",
+        "--yes",
+        "--author",
+        "Test author",
+        "--quilt",
+        str(result.quilt.root),
+        code=1,
+        match="open claims cannot be accepted",
     )
-    assert attempt.exit_code != 0 and "open claims cannot be accepted" in attempt.output
     assert not (result.quilt.root / ".loom" / "state.toml").exists()
 
 
@@ -233,7 +252,7 @@ def test_proof_after_remark_needs_a_preceding_claim_or_explicit_reference(tmp_pa
     assert any(d.code == "loom:unattached-proof" for d in result.diagnostics)
 
 
-def test_legacy_definition_directive_maps_to_expository(tmp_path: Path) -> None:
+def test_an_unknown_basis_is_named_and_the_known_ones_offered(tmp_path: Path) -> None:
     result = make_quilt(
         tmp_path,
         {
@@ -247,5 +266,61 @@ This only fixes terminology.
 """
         },
     )
-    assert result.nodes["ab-0001"].basis == "expository"
-    assert "legacy" in result.nodes["ab-0001"].basis_reason
+    node = result.nodes["ab-0001"]
+    assert node.basis == "unclassified", node.basis_reason
+    assert "unknown basis 'definition'" in node.basis_reason and "expository" in node.basis_reason
+
+
+def test_the_quilts_basis_table_names_its_own_environments(tmp_path: Path) -> None:
+    """An example is expository without being told; `[basis]` gives a quilt's own names a basis and overrides a built-in one, and a value that is no basis is warned about and ignored."""
+    config = (
+        DEFAULT_CONFIG + '\n[basis]\nexercise = "open-claim"\nremark = "local-proof"\nobservation = "cited-result"\n'
+    )
+    result = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\newtheorem{exercise}{Exercise}
+\newtheorem{observation}{Observation}
+\begin{document}
+\begin{example}\label{ab-0001}The empty widget.\end{example}
+\begin{exercise}\label{ab-0002}Find a widget.\end{exercise}
+\begin{remark}\label{ab-0003}Every widget is a set, since sets are.\end{remark}
+\begin{observation}\label{ab-0004}Widgets exist.\end{observation}
+\end{document}
+"""
+        },
+        config=config,
+    )
+    assert {k: result.nodes[k].basis for k in ("ab-0001", "ab-0002", "ab-0003", "ab-0004")} == {
+        "ab-0001": "expository",
+        "ab-0002": "open-claim",
+        "ab-0003": "local-proof",
+        "ab-0004": "unclassified",
+    }
+    assert "[basis] in config.toml" in result.nodes["ab-0002"].basis_reason
+    assert any("basis.observation = 'cited-result'" in w for w in result.quilt.config.warnings)
+
+
+def test_a_commented_out_line_does_not_separate_a_proof_from_its_statement(tmp_path: Path) -> None:
+    """A `%` line between a statement and its proof is nothing the reader or TeX sees, so atomize moves the two together; a remark between them still refuses (test_zk_proof_after_explanatory_remark_belongs_to_proposition)."""
+    result = make_quilt(
+        tmp_path,
+        {
+            "drafting/main.tex": PREAMBLE
+            + r"""\begin{document}
+\begin{proposition}\label{ab-0001}
+A claim.
+\end{proposition}
+%\begin{proposition} An older wording.
+ %\end{proposition}
+\begin{proof}
+By the other claim.
+\end{proof}
+\end{document}
+"""
+        },
+    )
+    assert result.nodes["ab-0001"].proofs == ["ab-0001/proof"]
+    plan = plan_atomize(result, "drafting/main.tex", "drafting/spine.tex", keys=["ab-0001"])
+    assert plan.refusals == [], plan.refusals

@@ -35,7 +35,7 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
       3f9a....tex
 ```
 
-**[decided]** `texts/` is one store, shared by acceptance snapshots (7.2.2), by anything a version points at, and by the anchors of Chapter 0.10 when they arrive. Files in it are named by the sha256 of their normalized text, so identical text is stored once and nothing is ever overwritten. `loom upgrade` moves a pre-0.9 `.loom/snapshots/` into it; every hash still resolves, which is why the move is safe.
+**[decided]** `texts/` is one store, shared by acceptance snapshots (7.2.2), by anything a version points at, and by the anchors of Chapter 0.10 when they arrive. Files in it are named by the sha256 of their normalized text, so identical text is stored once and nothing is ever overwritten.
 
 **[decided]** The history is not a backup and does not try to be. It holds the text of a key at the moments loom was told to record one, the document as it stood at each of those moments, and the preamble that compiled them. It does not hold the files in between, and it does not hold anything about a file the quilt does not define a key in.
 
@@ -86,8 +86,6 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
 | `live` | `path` |
 
 **[decided]** `parent` says which step this one continues: `{step, how: "declared"}` when the author said so or a `draft` line recorded where the document came from, `{step, how: "inferred", matched, of}` when loom matched key hashes against the recorded states, and `{how: "unknown"}` when nothing was shared. A history is a log, not a graph the author maintains; the parent is loom's best reading of it and says which it is.
-
-**[decided]** A run is referenced by its directory name, which is its id (11.4). Nothing in the history refers to a run by any other name.
 
 **[decided]** The line is written **last**, after the step's directory and every file in it. A step that was interrupted leaves a directory the ledger does not name, which `loom history verify` reports and nothing reads.
 
@@ -184,8 +182,6 @@ Example: an author with a paper and a talk stamps `--in drafting/talk.tex` after
 **[decided]** `loom history` prints the steps and the events between them, one per line: the number, the action, the date, the name and message of a step, and how many keys it recorded. `loom history KEY` prints that key's versions, each with its hash and the step that recorded it, and says whether the head is one of them.
 
 **[decided]** `loom history verify` walks every step directory against the ledger and reports the divergences of 17.15; it exits 1 on any error. `loom lint --nodes` is the other reading: one block per node id, carrying what is wrong with that node's identity — conflicted, unreachable, referenced but absent, reused, recovered — and then the superseded files. It is the hygiene report for the rule of 5.3.5.
-
-**[decided]** `loom upgrade` brings a quilt written before 0.9 to this layout: `.loom/snapshots/` moves into `history/texts/`, and `[quilt] drafts` is renamed `drafting` in `config.toml` with nothing moved on disk. Both are idempotent.
 
 ## 17.17 A worked timeline
 

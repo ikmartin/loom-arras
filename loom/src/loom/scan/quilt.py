@@ -23,16 +23,15 @@ def no_author_in_quilt(root: Path) -> str:
 
 
 CONFIG_KEYS: dict[str, set[str]] = {
-    # `drafts` is the pre-0.9 name of `drafting` and is read as it (DR-132); `history` is the record's directory, documented and never written by init
-    "quilt": {"name", "main", "drafting", "drafts", "canon", "history", "prefix", "engine"},
+    # `history` is the record's directory, documented and never written by init
+    "quilt": {"name", "main", "drafting", "canon", "history", "prefix", "engine"},
     "refs": {"fetch", "resolve", "contact"},
     "lint": {"disable"},
     "author": {"name"},
-    # `[crawl]` is retired: the crawl went to weft (DR-144). `runner` was declined (closed.md, WQ-15) and `agent` is
-    # retired with the launcher (DR-149). All stay accepted and ignored so that a quilt loom itself wrote them into
-    # does not now report them as unknown; `loom upgrade` removes the table and the lines.
-    "crawl": {"depth", "subjects", "categories", "cap"},
-    "ai": {"agent", "runner"},
+    # `launch`: whether `loom serve` may start the agent `ai/ai-config.toml` names (plan 0.14)
+    "ai": {"launch"},
+    # `[basis]` names environments, so any key is valid there and each value is checked instead
+    "basis": set(),
 }
 
 
@@ -63,10 +62,9 @@ class QuiltConfig:
     author: str = ""  # [author] name: who this quilt's records name (book 4.3)
     author_declared: bool = False  # the quilt states an `[author]` table, even with an empty name
     lint_disable: list[str] = field(default_factory=list)
+    basis: dict[str, str] = field(default_factory=dict)  # [basis]: environment name -> basis, over the built-in names
+    launch: bool = False  # [ai] launch: whether `loom serve` may start the configured agent for a turn (plan 0.14)
     warnings: list[str] = field(default_factory=list)
-    deprecations: list[str] = field(
-        default_factory=list
-    )  # keys loom still reads under their old names (loom:deprecated-config-key)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], user: dict[str, Any] | None = None) -> QuiltConfig:
@@ -87,7 +85,7 @@ class QuiltConfig:
                 cfg.warnings.append(f"config.toml: unknown table [{table_name}]; ignored")
                 continue
             for key in keys:
-                if key not in known:
+                if key not in known and table_name != "basis":
                     cfg.warnings.append(f"config.toml: unknown key {table_name}.{key}; ignored")
         q = dict(table("quilt"))
         uq = (user or {}).get("quilt", {})
@@ -95,10 +93,6 @@ class QuiltConfig:
             for key in USER_QUILT_KEYS:
                 if key in uq and key not in q:
                     q[key] = uq[key]
-        if "drafts" in q:
-            if "drafting" not in q:
-                q["drafting"] = q["drafts"]
-            cfg.deprecations.append("[quilt] drafts is now drafting; loom upgrade renames the key, nothing is moved")
         cfg.name = str(q.get("name", cfg.name)).strip()
         cfg.drafting = str(q.get("drafting", cfg.drafting)).strip("/") or cfg.drafting
         cfg.canon = str(q.get("canon", cfg.canon)).strip("/") or cfg.canon
@@ -110,6 +104,16 @@ class QuiltConfig:
         cfg.resolve = bool(table("refs").get("resolve", False))
         cfg.contact = str(table("refs").get("contact", ""))
         cfg.lint_disable = [str(x) for x in table("lint").get("disable", [])]
+        cfg.launch = bool(table("ai").get("launch", False))
+        from loom.scan.nodes import NAMED_BASES
+
+        for env_name, basis in table("basis").items():
+            if basis in NAMED_BASES:
+                cfg.basis[str(env_name).lower().replace(" ", "-")] = basis
+            else:
+                cfg.warnings.append(
+                    f"config.toml: basis.{env_name} = {basis!r} is not one of {', '.join(NAMED_BASES)}; ignored"
+                )
         cfg.author_declared = isinstance(data.get("author"), dict)
         cfg.author = str(table("author").get("name", "")).strip()
         return cfg

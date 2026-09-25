@@ -1,4 +1,4 @@
-"""`loom session new | use | list | rename | close | delete | migrate` (plan 0.13 §5, book 11).
+"""`loom session new | use | list | rename | close | delete` (plan 0.13 §5, book 11).
 
 A session is where work belongs; the author is who did it. These commands say which session is current, and the record says the rest.
 """
@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import click
 
-from loom.cli._common import ContentError, EnvError, note
+from loom.cli._common import ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.sessions import (
     active,
@@ -63,7 +63,7 @@ def use_command(which: str, author: str | None, quilt_path: str | None) -> None:
     root = quilt.root  # type: ignore[attr-defined]
     s = resolve(root, which)
     if s is None:
-        raise ContentError(f"no session matches {which!r}; loom session list shows them")
+        raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     if s.state == "deleted":
         raise ContentError(f"{s.id} was deleted; nothing new can be written to it")
     if s.state == "closed":
@@ -96,7 +96,6 @@ def list_command(show_all: bool, as_json: bool, quilt_path: str | None) -> None:
                         "created": s.created,
                         "rounds": len(s.rounds),
                         "active": s.id == here,
-                        "source": s.source,
                     }
                     for s in standing
                 ],
@@ -124,7 +123,7 @@ def rename_command(which: str, title: str, author: str | None, quilt_path: str |
     root = quilt.root  # type: ignore[attr-defined]
     s = resolve(root, which)
     if s is None:
-        raise ContentError(f"no session matches {which!r}; loom session list shows them")
+        raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     rename(root, s.id, title, who)
     click.echo(f"{s.id}  {title}")
 
@@ -140,7 +139,7 @@ def close_command(which: str | None, author: str | None, quilt_path: str | None)
     here = active(root)
     s = resolve(root, which) if which else (sessions(root).get(here or ""))
     if s is None:
-        raise ContentError(f"no session matches {which!r}" if which else "no session is active")
+        raise NotFoundError("session", f"no session matches {which!r}" if which else "no session is active")
     close(root, s.id, who)
     if s.id == here:
         set_active(root, None)
@@ -169,7 +168,7 @@ def delete_command(
     root = quilt.root  # type: ignore[attr-defined]
     s = resolve(root, which)
     if s is None:
-        raise ContentError(f"no session matches {which!r}; loom session list shows them")
+        raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     if purge:
         kept, dropped = _without(root, s.id)
         if not yes:
@@ -177,7 +176,9 @@ def delete_command(
                 raise EnvError(
                     f"--purge erases {dropped} annotation(s) and cannot be undone; pass --yes when you mean it"
                 )
-            click.echo(f"--purge erases {s.id} and the {dropped} annotation(s) written in it. This cannot be undone.")
+            click.echo(
+                f"--purge erases {s.id} and the {dropped} annotation(s) written in it or answering them. This cannot be undone."
+            )
             click.confirm("erase it?", abort=True)
         log_path(root).write_text("".join(kept), encoding="utf-8")
         _purge_index(root, s.id)
@@ -196,7 +197,10 @@ def delete_command(
 
 
 def _without(root, sid: str) -> tuple[list[str], int]:  # type: ignore[no-untyped-def]
-    """The annotation log's lines with one session's events removed, and how many were removed."""
+    """The annotation log's lines with one session's events removed, and how many annotations went with them.
+
+    Also removes any other session's event that names an erased annotation -- a reply to it, and so on down, or an edit, resolve or discard of it -- which would otherwise be left naming nothing and be reported as `loom:foreign-annotations` for good. A line that is not JSON is kept as it stands.
+    """
     import json
 
     from loom.records.log import log_path
@@ -204,18 +208,24 @@ def _without(root, sid: str) -> tuple[list[str], int]:  # type: ignore[no-untype
     p = log_path(root)
     if not p.is_file():
         return [], 0
-    kept, dropped = [], 0
+    kept: list[str] = []
+    erased: set[str] = set()
     for line in p.read_text(encoding="utf-8").splitlines(keepends=True):
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
             kept.append(line)
             continue
-        if isinstance(event, dict) and str(event.get("session", "")) == sid:
-            dropped += 1
+        if isinstance(event, dict) and (
+            str(event.get("session", "")) == sid
+            or str(event.get("reply_to") or "-") in erased
+            or (event.get("event") not in ("created", "replied") and str(event.get("id") or "-") in erased)
+        ):
+            if event.get("event") in ("created", "replied") and event.get("id"):
+                erased.add(str(event["id"]))
             continue
         kept.append(line)
-    return kept, dropped
+    return kept, len(erased)
 
 
 def _purge_index(root, sid: str) -> None:  # type: ignore[no-untyped-def]
@@ -238,26 +248,6 @@ def _purge_index(root, sid: str) -> None:  # type: ignore[no-untyped-def]
     p.write_text("".join(kept), encoding="utf-8")
 
 
-@session.command(name="migrate")
-@click.option("--author", default=None, help="Who ran the migration, when the user config and git do not say.")
-@quilt_option
-def migrate_command(author: str | None, quilt_path: str | None) -> None:
-    """Give every existing run and every day's comments a session, so nothing written before sessions is orphaned.
-
-    Nothing in the annotation log is rewritten: each session records the grouping its annotations already carry, and reading an annotation's session follows that. Running it twice adds nothing.
-    """
-    from loom.sessions import migrate
-
-    quilt, who = _who(quilt_path, author)
-    made = migrate(quilt.root, who)  # type: ignore[attr-defined]
-    if not made:
-        click.echo("nothing to migrate: every run and comment group already has a session")
-        return
-    for s in made:
-        click.echo(f"{s.id}  {s.title}   <- {s.source}")
-    click.echo(f"{len(made)} session(s) made")
-
-
 def _mail(quilt_path: str | None, which: str | None, declared: str | None):  # type: ignore[no-untyped-def]
     """(root, session, name, kind) for a dispatch command: the session it is about and who is at the keyboard."""
     from loom.cli._common import find_session, writer
@@ -269,29 +259,61 @@ def _mail(quilt_path: str | None, which: str | None, declared: str | None):  # t
 
 
 @session.command(name="send")
-@click.argument("text")
+@click.argument("text", required=False, default="")
 @click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to post into.")
 @click.option("--as", "declared", default=None, help="Who is speaking. An agent names itself, including Agent or AI.")
 @quilt_option
 def send_command(text: str, which: str | None, declared: str | None, quilt_path: str | None) -> None:
-    """Post TEXT into a session, from the terminal.
+    """Post TEXT into a session, from the terminal, with what you marked since the last message; with no TEXT, what you marked alone.
 
-    The symmetric verb to the composer in the viewer: both append to the same inbox, and a message lands whether or not anybody is listening. Nothing is launched by this -- loom is a mailbox, and a parked reader wakes because a file grew.
+    The symmetric verb to the composer in the viewer: both append to the same inbox, and a message lands whether or not anybody is listening. Loom is a mailbox: a parked reader wakes because a file grew, and where the quilt lets it, `loom serve` starts the configured agent for a turn.
     """
-    from loom.mailbox import attached, changed_since, post, waiting_on
+    from loom.mailbox import attached, pending, post, waiting_on
 
     root, found, name, kind = _mail(quilt_path, which, declared)
-    if not text.strip():
-        raise EnvError("a message with no text says nothing")
-    # The same thing the composer attaches: a post says what changed, not only what was typed, and a message sent from
-    # the terminal is not a lesser message.
-    post(root, found.id, text.strip(), name, kind="message", changed=changed_since(root, found))
+    # The same packet the viewer's input sends: a post says what changed, not only what was typed, and a message sent from the terminal is not a lesser message.
+    packet = pending(root, found, name)
+    if not text.strip() and not packet:
+        raise EnvError("nothing to send: no words, and nothing marked since the last message")
+    post(root, found.id, text.strip(), name, kind="message", changed=packet)
     here = [r for r in attached(root, found.id) if r.get("who") != name]
     click.echo(f"posted to {found.id}")
     if here:
         click.echo("listening: " + ", ".join(f"{r.get('who')} ({r.get('kind')})" for r in here))
     else:
         note(waiting_on(root, found.id, name))
+
+
+@session.command(name="say")
+@click.argument("text")
+@click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to speak in.")
+@click.option("--as", "declared", default=None, help="Who is speaking: your name, including Agent or AI.")
+@quilt_option
+def say_command(text: str, which: str | None, declared: str | None, quilt_path: str | None) -> None:
+    """Say TEXT in a session's chat, as the agent; `-` reads it from stdin.
+
+    The agent's half of the transcript, as `send` is the person's: the message goes into the session's inbox as written and carries no annotations. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one. Your own cursor moves past it when you had read everything before it, so `next` does not hand you your own words, and never past a message you have not read.
+    """
+    import sys
+
+    from loom.mailbox import cursor, post, set_cursor
+
+    root, found, name, kind = _mail(quilt_path, which, declared)
+    if kind != "agent":
+        raise EnvError("say is the agent's; a person uses loom session send")
+    body = (sys.stdin.read() if text == "-" else text).strip()
+    if not body:
+        raise EnvError("a message with no text says nothing")
+    from loom.links import LINK, refuse_bad_links
+
+    if LINK.search(body):
+        from loom.scan.scan import scan
+
+        refuse_bad_links(scan(open_quilt(quilt_path)), root, body)
+    e = post(root, found.id, body, name, kind="message")
+    if cursor(root, found.id, name) == e.seq - 1:
+        set_cursor(root, found.id, name, e.seq)
+    click.echo(f"said in {found.id}")
 
 
 @session.command(name="next")

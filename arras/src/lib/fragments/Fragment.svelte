@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import type { Annotations } from './shown.svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
-	import { resetComments, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { card, resetComments, settled, wire, type CommentSlot } from '$lib/fragments/mount';
+	import { flash } from '$lib/travel/travel';
 	import { markPages } from '$lib/fragments/pages';
 	import { typeset } from '$lib/math/mathjax';
 	import { ui } from '$lib/ui.svelte';
-	import { travel } from '$lib/travel/travel';
 	import { page } from '$app/state';
 	import { prefs } from '$lib/prefs.svelte';
+	import { sessionView } from '$lib/sessions/sessions.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
-	import { stackMargins } from './mount';
-	import { hidden } from '$lib/sessions/sessions.svelte';
 
 	let {
 		path,
@@ -20,9 +20,13 @@
 		master = '',
 		headingLinks = false,
 		margins = false,
+		annotations,
 		standalone = false,
 		comments,
 		authoring = true,
+		anchor,
+		jump = 0,
+		note,
 		onmounted
 	}: {
 		path: string;
@@ -32,13 +36,24 @@
 		master?: string;
 		headingLinks?: boolean;
 		margins?: boolean;
+		/** Shared state for a rail that offers to open every annotation: this fragment registers the actions on it. */
+		annotations?: Annotations;
 		/** A document that carries no identity: its own references are already in-page anchors, and nothing in it is a key. */
 		standalone?: boolean;
 		comments?: (key: string) => CommentSlot[];
 		/** Whether this is the corpus's own text. `inline` is the Authoring View's alone (plan 0.13 §7): a cited work's rendering is read, not written, and opens floating under that setting. */
 		authoring?: boolean;
+		/** The element to scroll to, by its published id. Given by a renderer in a pane, which then ignores the URL's hash: in two panes the hash is only one of them's. */
+		anchor?: string;
+		/** Changes each time the item is opened again, so the fragment goes to `anchor` even when it is unchanged. */
+		jump?: number;
+		/** An annotation to open at its mark on arrival: what a followed link to an annotation names. */
+		note?: string;
 		onmounted?: (root: HTMLElement) => void;
 	} = $props();
+
+	/** The element the reader is sent to: the pane's own anchor when one is given, else the URL's hash. */
+	const target = (): string => (anchor !== undefined ? anchor : decodeURIComponent(location.hash.slice(1)));
 
 	let html = $state('');
 	let error = $state('');
@@ -118,7 +133,7 @@
 			floating: floats
 		});
 		const trigger = was && opened ? triggerFor(root, was) : null;
-		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? trigger.dataset.comments ?? '').split(/\s+/).filter(Boolean));
+		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? '').split(/\s+/).filter(Boolean));
 	}
 
 	// Changing where comments stand used to re-key the fragment, which re-rendered the HTML and re-typeset every
@@ -139,8 +154,25 @@
 		onmounted?.(el);
 	});
 
+	// The session filter and the settled control govern the marks (15.3.1): a change of either re-wires the fragment, which puts `hidden` on every mark whose annotation the filter excludes and remakes the label marks from what is admitted. The marks themselves are the fragment's and stay.
+	$effect(() => {
+		void sessionView.view;
+		void sessionView.selected;
+		void sessionView.showClosed;
+		void ui.showSettled;
+		if (!el || wiredFor === null) return;
+		const root = el;
+		untrack(() => {
+			resetComments(root);
+			wireComments(root);
+			counts();
+		});
+	});
+
 	async function mount(root: HTMLElement) {
 		const version = ++mountVersion;
+		// Each formula's TeX, kept before MathJax replaces it: a reader's selection across a formula is quoted as that TeX, which is what loom finds in the source (FragmentNotes).
+		for (const m of root.querySelectorAll<HTMLElement>('.math')) if (m.dataset.tex === undefined) m.dataset.tex = m.textContent ?? '';
 		wireComments(root);
 		wiredFor = prefs.comments;
 		// counted as soon as the marks are wired, not after the mathematics is set: the header is about what is in the
@@ -149,8 +181,8 @@
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
-		const id = decodeURIComponent(location.hash.slice(1));
-		const target = id ? document.getElementById(id) : null;
+		const id = target();
+		const landing = id ? root.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`) : null;
 		// a long document typesets the part the reader lands on first, and everything above it, before revealing and scrolling there
 		if (isolatedMacros) {
 			try {
@@ -164,22 +196,49 @@
 				return;
 			}
 		} else {
-			await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], target && root.contains(target) ? target : null);
+			await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], landing);
 		}
 		onmounted?.(root);
-		requestAnimationFrame(() => tickAt()); // after typesetting, which is what moves the lines
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
 		counts();
-		if (margins) stackMargins(root);
-		scrollToHash();
+		arrive();
 	}
 
-	/** The browser cannot honour `location.hash` for an element that did not exist at navigation time, and none of a fragment's elements do. */
+	/** The browser cannot honour `location.hash` for an element that did not exist at navigation time, and none of a fragment's elements do. Looked up inside this fragment: the same document open twice, or a node beside the document holding it, repeats every id. */
 	function scrollToHash() {
-		const id = decodeURIComponent(location.hash.slice(1));
-		if (!id) return;
-		const target = document.getElementById(id);
-		if (target) target.scrollIntoView({ block: 'start' });
+		const id = target();
+		if (!id || !el) return;
+		const at = el.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
+		if (!at) return;
+		at.scrollIntoView({ block: 'start' });
+		// a place a pane was sent to is marked briefly, so the eye is told where it arrived (plan 0.14)
+		if (anchor) flash(at);
+	}
+
+	/** Go where the item names: its place, and the annotation it names, open at its mark — or, with comments in the gutter, its card. */
+	async function arrive() {
+		scrollToHash();
+		const id = note;
+		if (!id || !el) return;
+		// a link that names a settled annotation is a request to see it: the settled control comes on for the sitting, as `s` would turn it, and the re-wire it causes is waited for, since a settled annotation with no mark of its own has no label mark until then (15.2.5)
+		if (settled(store.manifest?.annotations[id]) && !ui.showSettled) {
+			ui.showSettled = true;
+			await tick();
+			if (!el || note !== id) return;
+		}
+		if (inline) {
+			const at = triggerFor(el, [id]);
+			if (!at) return;
+			if (!inline.current()?.includes(id)) inline.toggle(at, [id]);
+			at.scrollIntoView({ block: 'center' });
+			flash(at);
+			return;
+		}
+		const box = card(el, id);
+		if (!box) return;
+		ui.activeAnnotation = id;
+		box.scrollIntoView({ block: 'center' });
+		flash(box);
 	}
 
 	// Mounting reads the comments setting, and an effect that tracked it re-mounted the whole fragment on every change of placement: a second wiring, a pass of MathJax over every formula, and a jump back to the URL's anchor. The effect above answers that setting; this one follows the markup and what the wiring is built from.
@@ -191,43 +250,33 @@
 
 	// A contents entry on the page already changes only the hash, so nothing re-mounts and the browser will not scroll to an element the fragment created after navigation.
 	$effect(() => {
-		const hash = page.url.hash;
-		if (html && el && hash) scrollToHash();
+		// in a pane, the item's own anchor, its annotation and each reopening; elsewhere the URL's hash
+		const at = anchor !== undefined ? `${anchor}\u0000${jump}\u0000${note ?? ''}` : page.url.hash;
+		if (html && el && at) untrack(() => void arrive());
 	});
 
 	onMount(() => {});
 
-	/** How many phrases in this fragment carry an annotation, and how many the session selection is keeping out of it. */
+	/** How many places in this fragment carry an annotation: marked phrases and blocks, and the labels of results whose annotations have no mark. */
 	let marks = $state(0);
-	let concealed = $state(0);
 	let allOpen = $state(false);
-	/** The margin ticks (plan 0.13 §8): one per annotated line, on the discussion side, carrying the count where several share a line. */
-	let ticks = $state<{ top: number; ids: string[]; lead: string }[]>([]);
-
-	function tickAt(): void {
-		if (!el) return;
-		const rows = new Map<number, { top: number; ids: string[]; lead: string }>();
-		for (const mark of el.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
-			const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
-			if (!ids.length) continue;
-			// marks on one line share a tick: the line is the unit a reader's eye finds, not the phrase
-			const line = Math.round(mark.offsetTop / 8) * 8;
-			const row = rows.get(line);
-			if (row) row.ids.push(...ids.filter((i) => !row.ids.includes(i)));
-			else rows.set(line, { top: mark.offsetTop, ids: [...ids], lead: ids[0] });
-		}
-		ticks = [...rows.values()].sort((a, b) => a.top - b.top);
-	}
-
-	function tickTravel(t: { lead: string }, from: HTMLElement): void {
-		travel(el?.querySelector(`[data-annotation~="${CSS.escape(t.lead)}"]`) ?? null, from);
-	}
-
+	// What a rail outside this component needs in order to offer the same two actions: the actions themselves, whether there is anything to act on, and which way the control should read.
+	$effect(() => {
+		const a = annotations;
+		if (!a) return;
+		a.expand = expandAll;
+		a.collapse = hideAll;
+		a.ready = marks > 0;
+		return () => {
+			a.ready = false;
+		};
+	});
+	$effect(() => {
+		if (annotations) annotations.allOpen = allOpen;
+	});
 	function counts(): void {
 		if (!el) return;
-		marks = el.querySelectorAll('mark.annotation[data-annotation]').length;
-		const m = store.manifest;
-		concealed = m ? hidden(m, Object.values(m.annotations ?? {}).filter((a) => !a.in_reply_to && !a.discarded)) : 0;
+		marks = el.querySelectorAll('mark.annotation[data-annotation], .annotation-block[data-annotation]').length;
 	}
 
 	function expandAll(): void {
@@ -241,13 +290,13 @@
 		allOpen = false;
 	}
 
-	// `e` and `h` only while the content has focus, so they never fight the composer. Not on a modifier and not global:
-	// a key that works everywhere is a key that fires while somebody is typing.
+	// `e`, `h` and `s` only while the content has focus, so they never fight the composer. Not on a modifier and not global: a key that works everywhere is a key that fires while somebody is typing. `s` flips the settled control, which is the sitting's and not this fragment's (ui.svelte.ts).
 	function keys(e: KeyboardEvent): void {
 		const typing = (e.target as HTMLElement | null)?.closest('input, textarea, [contenteditable]');
 		if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
 		if (e.key === 'e') expandAll();
 		else if (e.key === 'h') hideAll();
+		else if (e.key === 's') ui.showSettled = !ui.showSettled;
 		else return;
 		e.preventDefault();
 	}
@@ -258,69 +307,21 @@
 		// a write lands in the log and comes back on the next poll; the boxes already open must show it
 		inline?.refresh();
 		counts();
-		// the margin column is laid out against the nodes, so it is restacked whenever what is in it changes
-		if (el && margins) requestAnimationFrame(() => el && stackMargins(el));
-		// and the ticks are laid out against the marks, which typesetting moves
-		requestAnimationFrame(() => tickAt());
-	});
-
-	// the ticks follow the text when its width changes, which reflows every line
-	$effect(() => {
-		if (!el) return;
-		const watch = new ResizeObserver(() => tickAt());
-		watch.observe(el);
-		return () => watch.disconnect();
-	});
-
-	// and whenever the column's own width changes under it, which moves every box in it
-	$effect(() => {
-		if (!el || !margins) return;
-		const watch = new ResizeObserver(() => el && stackMargins(el));
-		watch.observe(el);
-		return () => watch.disconnect();
-	});
-
-	$effect(() => {
-		const id = ui.activeAnnotation;
-		if (!el) return;
-		for (const m of el.querySelectorAll<HTMLElement>('[data-annotation]')) {
-			m.classList.toggle('active', !!id && (m.dataset.annotation ?? '').split(/\s+/).includes(id));
-		}
 	});
 </script>
 
 {#if error}
 	<p class="problem">Fragment unavailable: {error}</p>
 {:else}
-	{#if marks}
-		<!-- The content pane's header. A key nobody has been told about does not exist, so the two states sit here as
-		     buttons with their keys named, beside the count of what is marked and what the session filter is hiding. -->
-		<div class="content-head" data-testid="content-head">
-			<button
-				type="button"
-				class:on={allOpen}
-				title="Expand every annotation at its own mark (e)"
-				data-testid="expand-all"
-				onclick={expandAll}>expand all</button
-			>
-			<button type="button" title="Close everything open, wherever it is (h)" data-testid="hide-all" onclick={hideAll}
-				>hide all</button
-			>
-			<span class="count" data-testid="content-count">{marks} annotated</span>
-			{#if concealed}
-				<span class="concealed" data-testid="content-hidden">{concealed} hidden by the session filter</span>
-			{/if}
-		</div>
-	{/if}
-	<!-- A focusable region with two shortcut keys: the rule below models a static div, not a labelled region a reader
-	     tabs into deliberately to reach the keys its own header names. -->
-	<div class="framed" class:swap={prefs.swap}>
+	<!-- A focusable region with three shortcut keys: the rule below models a static div, not a labelled region a reader tabs into deliberately to reach the keys its own header names. -->
+	<div class="framed">
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			class="fragment"
 			class:read={margins}
 			class:math-pending={isolatedMacros && !mathReady}
 			class:inline-comments={prefs.comments === 'inline' || prefs.comments === 'floating'}
+			class:show-settled={ui.showSettled}
 			aria-busy={isolatedMacros && !mathReady}
 			bind:this={el}
 			tabindex="-1"
@@ -328,27 +329,6 @@
 			aria-label="the document"
 			onkeydown={keys}
 		>{@html html}</div>
-		{#if ticks.length}
-			<!-- The persistent marks' other half (§8): a tick in the margin on the discussion side for every annotated
-			     line, so a page can be scanned for where the discussion is without reading it. Click selects, double-click
-			     travels; the count says how many share the line. -->
-			<div class="ticks" data-testid="ticks" aria-label="annotated lines">
-				{#each ticks as t (t.top + ':' + t.lead)}
-					<button
-						type="button"
-						class="tick"
-						class:many={t.ids.length > 1}
-						style="top: {t.top}px;"
-						data-count={t.ids.length > 1 ? t.ids.length : undefined}
-						data-testid="tick-{t.lead}"
-						title={t.ids.length > 1 ? `${t.ids.length} annotations on this line` : 'an annotation on this line'}
-						aria-label={t.ids.length > 1 ? `${t.ids.length} annotations on this line` : 'an annotation on this line'}
-						onclick={() => (ui.activeAnnotation = t.lead)}
-						ondblclick={(e) => tickTravel(t, e.currentTarget)}
-					></button>
-				{/each}
-			</div>
-		{/if}
 	</div>
 {/if}
 
@@ -366,43 +346,5 @@
 	}
 	.framed {
 		position: relative;
-	}
-	/* the tick column: on the discussion side, following the swap; outside the text, never over it */
-	.ticks {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		right: -14px;
-		width: 10px;
-		pointer-events: none;
-	}
-	.framed.swap .ticks {
-		right: auto;
-		left: -14px;
-	}
-	.tick {
-		position: absolute;
-		left: 0;
-		width: 10px;
-		height: 3px;
-		margin-top: 0.55em;
-		border: 0;
-		padding: 0;
-		background: var(--annotation, #c05621);
-		opacity: 0.55;
-		cursor: pointer;
-		pointer-events: auto;
-	}
-	.tick:hover,
-	.tick.many {
-		opacity: 0.95;
-	}
-	.tick[data-count]::after {
-		content: attr(data-count);
-		position: absolute;
-		left: 12px;
-		top: -0.55em;
-		font: 600 9px/1 var(--sans, sans-serif);
-		color: var(--annotation, #c05621);
 	}
 </style>

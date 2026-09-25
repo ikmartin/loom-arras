@@ -125,7 +125,7 @@ suite('finding a quilt', () => {
 	test('accepts a directory whose config.toml declares a quilt', () => {
 		const d = temp();
 		fs.mkdirSync(path.join(d, 'nodes'));
-		fs.writeFileSync(path.join(d, 'config.toml'), '[quilt]\nmain = "drafts/main.tex"\n');
+		fs.writeFileSync(path.join(d, 'config.toml'), '[quilt]\nmain = "drafting/main.tex"\n');
 		fs.writeFileSync(path.join(d, 'nodes', 'a.tex'), 'x');
 		assert.strictEqual(findQuilt(path.join(d, 'nodes', 'a.tex')), d);
 	});
@@ -226,7 +226,7 @@ suite('compiling with LaTeX Workshop', () => {
 	test('sets fromFolder on a recent version', () => {
 		assert.deepStrictEqual(plan(state({})), { kind: 'fromFolder', value: '.' });
 		assert.deepStrictEqual(plan(state({ quiltRoot: path.join(folder, 'sub', 'q') })), { kind: 'fromFolder', value: 'sub/q' });
-		assert.deepStrictEqual(plan(state({ currentFromFolder: 'drafts' })), { kind: 'fromFolder', value: '.' });
+		assert.deepStrictEqual(plan(state({ currentFromFolder: 'drafting' })), { kind: 'fromFolder', value: '.' });
 	});
 
 	test('does nothing when fromFolder already names the root', () => {

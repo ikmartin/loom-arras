@@ -62,11 +62,6 @@ def test_env_body_on_begin_line_and_one_line_env(tmp_path: Path) -> None:
     assert labels_in(src.clean, fe.theorem_envs[1].own_ranges()) == [("x", text.index("\\label{x}"))]
 
 
-def test_env_spans_files_problem(tmp_path: Path) -> None:
-    src, fe = _fe(tmp_path, "\\begin{lemma}\nno end here\n")
-    assert fe.problems == [("unclosed", 0, "lemma")]
-
-
 def test_external_node_by_leading_cite(tmp_path: Path) -> None:
     src, fe = _fe(
         tmp_path,

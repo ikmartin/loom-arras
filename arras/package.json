@@ -25,12 +25,11 @@
     "test:e2e": "playwright test",
     "stage:fixture": "node scripts/stage-fixture.mjs tests/fixture",
     "build:prerender": "node scripts/build-prerender.mjs",
-    "build:fixture": "node scripts/pdfjs-assets.mjs && node scripts/stage-fixture.mjs tests/fixture && vite build",
     "shots": "playwright test --config playwright.shots.config.ts",
-    "build:fixture-minimal": "node scripts/pdfjs-assets.mjs && node scripts/stage-fixture.mjs tests/fixture-minimal && vite build",
     "test:minimal": "playwright test --config playwright.minimal.config.ts",
     "shots:report": "playwright test --config playwright.shots.config.ts tests/shots/report.spec.ts",
     "shots:floor": "playwright test --config playwright.shots-minimal.config.ts",
+    "shots:write": "ARRAS_SHOTS=1 playwright test --config playwright.write.config.ts shots.e2e.ts",
     "test:write": "playwright test --config playwright.write.config.ts",
     "test:reading": "playwright test --config playwright.reading.config.ts",
     "pdfjs:assets": "node scripts/pdfjs-assets.mjs"

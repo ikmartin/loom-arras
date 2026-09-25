@@ -1,10 +1,12 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
 import { anchorId, workUrl, keyUrl, nodeUrl } from '$lib/nav';
 import { dataUrl } from '$lib/paths';
+import { pageOf } from '$lib/worklink';
 import { taxonTone } from '$lib/taxonomy';
 import { toneClass } from '$lib/state';
 import type { Manifest } from '$lib/manifest/types';
 import { travel } from '$lib/travel/travel';
+import { visible } from '$lib/sessions/sessions.svelte';
 
 export interface WireOptions {
 	/** The master being read, when the fragment is part of a whole document: a reference to a node the same document reaches becomes an in-page jump rather than a navigation (book 15.3.1). */
@@ -13,21 +15,23 @@ export interface WireOptions {
 	headingLinks?: boolean;
 	/** Renders the read view's margin column: the key and its state beside every node (book 15.3.1). */
 	margins?: boolean;
-	/** Places a slot for each node's comments: in the right gutter when the comment is short, in the flow when it is long (book 15.3.1). The caller fills the slots; this only decides where they go. */
+	/** Where each of a node's annotations without a mark of its own stands (book 15.3.1): as a mark on the node's label, or as a box in the flow that the caller fills. */
 	comments?: (key: string) => CommentSlot[];
 	/** A fragment with no node identity (a landmark): its references are the publisher's own in-page anchors and must be left alone, and nothing in it is a key to look up. */
 	keyless?: boolean;
-	/** Expands comments in place instead of pointing at a card elsewhere: marks and counts call this with the comments they stand for (the `inline` comments preference). */
+	/** Expands comments in place instead of pointing at a card elsewhere: a mark calls this with the annotations it stands for (the `inline` and `floating` preferences). */
 	expand?: (trigger: HTMLElement, ids: string[]) => void;
 	/** Where an opened box stands: over the text, anchored to the mark, rather than in place. Nothing about how it opens. */
 	floating?: boolean;
 }
 
-/** One comment and which slot it occupies beside the node it is about.\n *\n * Named `slot` rather than `placement` because an annotation now carries a `placement` of its own, which is a different\n * thing: this is the viewer's layout decision, that is the publisher's hint about where a payload's text would go. */
+/** One annotation and where it stands beside the node it is about.
+ *
+ * Named `slot` rather than `placement` because an annotation carries a `placement` of its own, which is a different thing: this is the viewer's layout decision, that the publisher's hint about where a payload's text would go. */
 export interface CommentSlot {
 	id: string;
-	/** `gutter` stands beside the node; `inline` stays in the text as a box; `count` is a small control beside the node's label that expands it, for a comment with no mark of its own when comments are shown in place. */
-	where: 'gutter' | 'inline' | 'count';
+	/** `inline` stays in the text as a box the caller fills; `label` is a mark on the node's label, for an annotation with no mark of its own (no quote, or one that no longer resolves), opening its box like any mark. */
+	where: 'inline' | 'label';
 }
 
 export function labelFor(manifest: Manifest | null, key: string): string {
@@ -45,10 +49,49 @@ export function labelFor(manifest: Manifest | null, key: string): string {
  */
 const LIVE = new WeakMap<HTMLElement, WireOptions>();
 
-/** Take out what the comment setting put in, so `wire` can put the other setting's back without the fragment being rebuilt. */
+/** Take out what the comment setting put in, so `wire` can put the other setting's back without the fragment being rebuilt. A label mark is unwrapped: its words are the label's and go back where they were. */
 export function resetComments(root: HTMLElement): void {
-	for (const el of root.querySelectorAll('aside.comment-slot, button.comment-count')) el.remove();
+	for (const el of root.querySelectorAll('aside.comment-slot')) el.remove();
+	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation-label')) {
+		while (mark.firstChild) mark.parentNode?.insertBefore(mark.firstChild, mark);
+		mark.remove();
+	}
 	for (const el of root.querySelectorAll<HTMLElement>('[data-wired-comments]')) delete el.dataset.wiredComments;
+}
+
+/** Whether an annotation is settled: resolved or discarded, so its mark is not drawn at rest (book 15.3.1). */
+export function settled(a: { status: string; discarded: boolean } | undefined): boolean {
+	return !!a && (a.discarded || a.status !== 'open');
+}
+
+/** Whether a mark is not drawn, so it is nothing to click, open or tab to: settled with the settled control off, or excluded by the session filter. */
+export function inert(mark: HTMLElement): boolean {
+	return mark.classList.contains('hidden') || (mark.classList.contains('settled') && !mark.closest('.show-settled'));
+}
+
+/**
+ * Where a cited result is in the work itself: its page, and the result whose rectangles the sidecar carries.
+ *
+ * Empty when no copy is filed or the locator names no page, in which case the caller falls back to the digest node.
+ */
+/** An annotation's card, looked for in the pane the mark stands in before anywhere else: two open items can both hold a card for one annotation. */
+export function card(root: HTMLElement, id: string): HTMLElement | null {
+	const scope = root.closest('[data-pane]');
+	return scope?.querySelector<HTMLElement>(`[id="ann-${CSS.escape(id)}"]`) ?? document.getElementById('ann-' + id);
+}
+
+/** The annotation's box, or the reply inside one, open in the pane the mark stands in; null when none is. A box carries `ann-<id>` wherever it is placed, so this is one query. */
+export function boxFor(root: HTMLElement, id: string): HTMLElement | null {
+	return (root.closest('[data-pane]') ?? root).querySelector<HTMLElement>(`:is(article.box, article.reply)[id="ann-${CSS.escape(id)}"]`);
+}
+
+function atResult(manifest: Manifest | null, node: string): string {
+	const nd = manifest?.nodes[node];
+	const ck = nd?.digest;
+	const ref = ck ? manifest?.references[ck] : undefined;
+	const at = pageOf(nd?.locator);
+	if (!ref?.artifacts?.pdf || !at) return '';
+	return `${workUrl(ref.citekey)}?page=${at}&result=${encodeURIComponent(node)}`;
 }
 
 export function wire(
@@ -74,12 +117,12 @@ export function wire(
 		const here = opts.master ? manifest?.nodes[owner]?.reached_by?.includes(opts.master) : false;
 		a.href = here ? '#' + anchorId(key) : keyUrl(manifest, owner) + (region ? '#' + anchorId(key) : '');
 	}
-	// A citation with a digest node behind it opens that result; one without opens the reference, which links out to the work. A citekey the manifest does not know stays text.
+	// **A citation opens the paper, not the transcription of it.** `[1, Proposition 2.1]` means that proposition in that work, so where a copy is filed the link goes to the work at the result: the reader lands on the page they cited, with the statement in view. The digest node's own page renders loom's record of the result -- its LaTeX, its provenance, what depends on it -- which is a thing to go and look at, not what the citation names. With no copy filed, or no page in the locator, that record is the best there is and the link goes there as before; a citation with no digest node behind it opens the reference; a citekey the manifest does not know stays text.
 	for (const c of root.querySelectorAll<HTMLElement>('span.cite[data-citekey]')) {
 		if (c.querySelector('a')) continue;
 		const target = c.dataset.target;
 		const citekey = c.dataset.citekey ?? '';
-		const href = target ? nodeUrl(target) : manifest?.references[citekey] ? workUrl(citekey) : '';
+		const href = (target ? atResult(manifest, target) : '') || (target ? nodeUrl(target) : manifest?.references[citekey] ? workUrl(citekey) : '');
 		if (!href) continue;
 		const a = document.createElement('a');
 		a.href = href;
@@ -95,44 +138,6 @@ export function wire(
 	for (const img of root.querySelectorAll<HTMLImageElement>('img[src]')) {
 		const src = img.getAttribute('src') ?? '';
 		if (!/^(\/|https?:)/.test(src)) img.src = dataUrl(src);
-	}
-	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
-		if (mark.dataset.wiredMark) continue;
-		mark.dataset.wiredMark = '1';
-		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
-		// several comments can share one phrase, and the mark lists them in no particular order; the one to select is the one with a card of its own, since a reply is shown inside its parent
-		const lead = ids.find((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to) ?? ids[0] ?? '';
-		const first = manifest?.annotations[lead];
-		if (first) {
-			mark.title = `${first.kind}: ${first.author.label ?? first.author.id}`;
-			// coloured by what the comment is, so an objection reads differently from a question before anyone opens it
-			mark.classList.add('k-' + first.kind);
-		}
-		mark.setAttribute('role', 'button');
-		mark.setAttribute('tabindex', '0');
-		mark.setAttribute('aria-expanded', 'false');
-		mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
-		const go = () => {
-			const now = LIVE.get(root) ?? opts;
-			if (now.expand) return now.expand(mark, ids);
-			select(lead);
-			document.getElementById('ann-' + lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-		};
-		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made
-		// passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be
-		// clicked into at all — a box that appears under the pointer and vanishes when it moves toward the box.
-		mark.addEventListener('click', go);
-		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go());
-		// and a double-click travels to the annotation's own card, wherever the discussion is standing. Nothing is
-		// invented for an annotation with no card here: the notice says so and the pane stays put.
-		mark.addEventListener('dblclick', (e) => {
-			e.preventDefault();
-			travel(document.getElementById('ann-' + lead), mark);
-		});
-		// how many are on this phrase: stacked translucent highlights muddy at two, so the number is said rather than
-		// drawn, and the tick stays legible however many overlap
-		const many = ids.filter((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to).length;
-		if (many > 1) mark.dataset.count = String(many);
 	}
 	if (opts.margins) {
 		for (const el of root.querySelectorAll<HTMLElement>('div.env[data-key], details.env-proof[data-key]')) {
@@ -164,35 +169,74 @@ export function wire(
 			const placements = key ? opts.comments(key) : [];
 			if (!placements.length) continue;
 			el.dataset.wiredComments = '1';
-			const counted = placements.filter((p) => p.where === 'count').map((p) => p.id);
+			// **One annotation, one mark** (15.3.1). An annotation with no mark of its own -- no quote, or one that no longer resolves -- is a mark on the node's label, in its hue, opening its box like any mark; several share one label mark whose box lists them. The label's own words are moved into the mark, so the underline is under them and nothing is added to the text; the heading link a heading carries stays outside it.
+			const onLabel = placements.filter((p) => p.where === 'label').map((p) => p.id);
 			const label = el.querySelector<HTMLElement>(':scope > p.env-label, :scope > summary.env-label, :scope > :is(h1,h2,h3,h4,h5,h6)');
-			if (counted.length && label && opts.expand) {
-				const kind = manifest?.annotations[counted[0]]?.kind ?? '';
-				const btn = document.createElement('button');
-				btn.type = 'button';
-				btn.className = `comment-count k-${kind}`;
-				btn.textContent = counted.length === 1 ? '1 comment' : `${counted.length} comments`;
-				btn.setAttribute('aria-expanded', 'false');
-				btn.dataset.countFor = key;
-				btn.dataset.comments = counted.join(' ');
-				btn.addEventListener('click', (e) => {
-					e.preventDefault(); // inside a proof's summary a click would also fold the proof
-					opts.expand!(btn, counted);
-				});
-				label.appendChild(btn);
+			if (onLabel.length && label && !label.querySelector('mark.annotation-label')) {
+				const mark = document.createElement('mark');
+				mark.className = 'annotation annotation-label';
+				mark.dataset.annotation = onLabel.join(' ');
+				mark.dataset.labelFor = key;
+				for (const child of [...label.childNodes]) if (!(child instanceof Element && child.classList.contains('heading-link'))) mark.appendChild(child);
+				label.prepend(mark);
 			}
-			for (const where of ['gutter', 'inline'] as const) {
-				const ids = placements.filter((p) => p.where === where).map((p) => p.id);
-				if (!ids.length) continue;
+			const inline = placements.filter((p) => p.where === 'inline').map((p) => p.id);
+			if (inline.length) {
+				// a sibling of the node, because it takes room in the text rather than standing beside it
 				const slot = document.createElement('aside');
-				slot.className = `comment-slot ${where}`;
-				slot.dataset.commentSlot = ids.join(' ');
+				slot.className = 'comment-slot inline';
+				slot.dataset.commentSlot = inline.join(' ');
 				slot.dataset.slotFor = key;
-				// a gutter slot is positioned against the node, so it is a child of it; an inline slot is a sibling, because it takes room in the text
-				if (where === 'gutter') el.appendChild(slot);
-				else el.after(slot);
+				el.after(slot);
 			}
 		}
+	}
+	// Every mark, the publisher's and the label marks made above. What a mark looks like is CSS keyed on its classes (theme.css, 15.3.1): `k-<kind>` for the hue, `s-<severity>` for the weight, `settled` for one whose annotation is resolved or discarded, `hidden` for one the session filter excludes. The classes are read from the manifest on every wire, since a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
+	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
+		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
+		// several annotations can share one phrase, and the mark lists them in no particular order; the one to select, and to take the hue from, is an open one with a card of its own, since a reply is shown inside its parent
+		const leads = ids.filter((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to);
+		const lead = leads.find((i) => !settled(manifest?.annotations[i])) ?? leads[0] ?? ids[0] ?? '';
+		const first = manifest?.annotations[lead];
+		const judged = (leads.length ? leads : ids).map((i) => manifest?.annotations[i]).filter((a) => !!a);
+		for (const c of [...mark.classList]) if (/^(k|s)-/.test(c)) mark.classList.remove(c);
+		if (first) {
+			mark.title = `${first.kind}: ${first.author.label ?? first.author.id}`;
+			mark.classList.add('k-' + first.kind);
+			if (first.severity) mark.classList.add('s-' + first.severity);
+		}
+		mark.classList.toggle('settled', judged.length > 0 && judged.every(settled));
+		mark.classList.toggle('hidden', judged.length > 0 && !judged.some((a) => visible(manifest, a)));
+		mark.setAttribute('tabindex', inert(mark) ? '-1' : '0');
+		if (mark.dataset.wiredMark) continue;
+		mark.dataset.wiredMark = '1';
+		mark.setAttribute('role', 'button');
+		mark.setAttribute('aria-expanded', 'false');
+		mark.setAttribute('aria-describedby', ids.map((i) => 'ann-' + i).join(' '));
+		const go = (e: Event) => {
+			if (inert(mark)) return;
+			// inside a proof's summary a click on the label would also fold the proof
+			if (mark.classList.contains('annotation-label')) e.preventDefault();
+			const now = LIVE.get(root) ?? opts;
+			if (now.expand) return now.expand(mark, ids);
+			select(lead);
+			card(root, lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		};
+		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be clicked into at all -- a box that appears under the pointer and vanishes when it moves toward the box.
+		mark.addEventListener('click', go);
+		mark.addEventListener('keydown', (e) => e.key === 'Enter' && go(e));
+		// and a double-click travels to the annotation's box, which carries its id (15.3.1): the one open in this pane, else the one the mark opens for it, else whatever else stands for the annotation on screen. Nothing is invented for one with no box here: the notice says so and the pane stays put.
+		mark.addEventListener('dblclick', (e) => {
+			e.preventDefault();
+			if (inert(mark)) return;
+			let to = boxFor(root, lead);
+			const now = LIVE.get(root) ?? opts;
+			if (!to && now.expand) {
+				now.expand(mark, ids);
+				to = boxFor(root, lead);
+			}
+			travel(to ?? card(root, lead), mark);
+		});
 	}
 	if (opts.headingLinks) {
 		for (const el of root.querySelectorAll<HTMLElement>('section[data-id] > :is(h1,h2,h3,h4,h5,h6), div.env[data-id] > p.env-label')) {
@@ -221,28 +265,5 @@ export function wire(
 		btn.textContent = 'show';
 		btn.addEventListener('click', () => expand(inc, key));
 		inc.append(a, ' ', btn);
-	}
-}
-
-/**
- * Push margin boxes apart so two close anchors do not stack on one another.
- *
- * A gutter slot is positioned against its node, which is right until two nodes are a line apart and their boxes are
- * not. Walked in document order, each box that would start above the previous one's bottom is pushed down to clear it
- * — so the column's honest promise is *beside*, not *level with*, and a reader can tell which box belongs to which
- * node by reading downward (plan 0.13 §7).
- *
- * Idempotent, and cheap enough to run on every layout change: it reads each box's own offset once and writes a
- * transform, so nothing it does feeds back into what it measures.
- */
-export function stackMargins(root: HTMLElement): void {
-	const slots = [...root.querySelectorAll<HTMLElement>('aside.comment-slot.gutter')];
-	let floor = -Infinity;
-	for (const slot of slots) {
-		slot.style.transform = '';
-		const box = slot.getBoundingClientRect();
-		const push = Math.max(0, floor - box.top);
-		if (push > 0) slot.style.transform = `translateY(${Math.round(push)}px)`;
-		floor = box.top + push + box.height + 8;
 	}
 }

@@ -1,65 +1,17 @@
-"""loom serve: static routes with the SPA fallback, ETag on the manifest, republish on change, no outgoing requests."""
+"""loom serve: static routes with the SPA fallback, ETag on the manifest, the fetched-work store, republish on change, no outgoing requests. The write API is test_write_api.py."""
 
 from __future__ import annotations
 
 import json
 import os
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
 
-from loom.cli import main
-from loom.render.serve import ServeSession
-from loom.scan.quilt import load_quilt
-
-
-def _sid(root: Path) -> str:
-    """A session to write into. Every write over the API names one (plan 0.13.1); only the CLI still has a default."""
-    from loom.sessions import create, sessions
-
-    have = [s for s in sessions(root).values() if s.state == "open"]
-    return have[0].id if have else create(root, "test sitting", "tester").id
-
-
-def demo(tmp_path: Path) -> Path:
-    old = os.getcwd()
-    try:
-        os.chdir(tmp_path)
-        r = CliRunner().invoke(main, ["init", str(tmp_path / "demo"), "--demo"])
-    finally:
-        os.chdir(old)
-    assert r.exit_code == 0, r.output
-    return tmp_path / "demo"
-
-
-def fake_bundle(tmp_path: Path) -> Path:
-    b = tmp_path / "bundle"
-    (b / "_app").mkdir(parents=True)
-    (b / "index.html").write_text("<!doctype html><title>arras</title><div id=app></div>")
-    (b / "_app" / "x.js").write_text("console.log(1)")
-    return b
-
-
-def get(url: str, headers: dict[str, str] | None = None):  # type: ignore[no-untyped-def]
-    req = urllib.request.Request(url, headers=headers or {})
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return resp.status, dict(resp.headers), resp.read()
-    except urllib.error.HTTPError as e:
-        return e.code, dict(e.headers), b""
-
-
-@pytest.fixture
-def session(tmp_path: Path):  # type: ignore[no-untyped-def]
-    d = demo(tmp_path)
-    s = ServeSession(load_quilt(d), fake_bundle(tmp_path), port=0, compile_masters=False, interval=0.2)
-    s.start()
-    yield s, d
-    s.stop()
+from tests.helpers import ok, refused
+from tests.unit._quilts import demo
+from tests.unit.render._serve import get
 
 
 def test_serve_static_routes(session) -> None:  # type: ignore[no-untyped-def]
@@ -125,17 +77,21 @@ def test_serve_no_notification_sent(session, monkeypatch: pytest.MonkeyPatch) ->
     assert calls == []
 
 
+def test_serve_refuses_a_loom_arras_bundle_that_names_no_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The variable is the person's choice of viewer: serving another one instead would hide the mistake, and a suite pointed at a fresh build would pass against the old one."""
+    d = tmp_path / "demo"
+    ok("init", str(d), "--demo")
+    monkeypatch.setenv("LOOM_ARRAS_BUNDLE", str(tmp_path / "nowhere"))
+    refused("serve", "--port", "0", cwd=d, code=2, match=f"LOOM_ARRAS_BUNDLE={tmp_path / 'nowhere'} is not a directory")
+
+
 def test_serve_exit_2_without_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     d = demo(tmp_path)
     monkeypatch.delenv("LOOM_ARRAS_BUNDLE", raising=False)
     monkeypatch.setattr("loom.render.serve.find_bundle", lambda: None)
-    old = os.getcwd()
-    try:
-        os.chdir(d)
-        r = CliRunner().invoke(main, ["serve", "--port", "0"])
-    finally:
-        os.chdir(old)
-    assert r.exit_code == 2 and "bundle" in r.output
+    refused("serve", "--port", "0", cwd=d, code=2, match="bundle")
 
 
 def test_serve_spa_fallback_for_dotted_routes(session) -> None:  # type: ignore[no-untyped-def]
@@ -145,7 +101,7 @@ def test_serve_spa_fallback_for_dotted_routes(session) -> None:  # type: ignore[
     status, _h, _b = get(s.url + "_app/immutable/missing.js")
     assert status == 404  # a missing asset stays a 404
     status, _h, _b = get(s.url + "favicon.png")
-    assert status in (200, 404)
+    assert status == 404  # so does a file-typed path the bundle lacks, outside _app/
 
 
 def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignore[no-untyped-def]
@@ -162,168 +118,7 @@ def test_serve_offers_a_works_fetched_artifacts(session) -> None:  # type: ignor
     assert status == 404  # a missing artifact is a 404, never the app shell
 
     status, _, _ = get(s.url + "digests/storage/../../config.toml")
-    assert status in (400, 404)  # nothing outside the store is reachable through it
-
-
-def post(url: str, body: dict, token: str | None = None):  # type: ignore[no-untyped-def]
-    """A write, carrying the token the running server minted. A caller that omits it is refused, which is the point."""
-    data = json.dumps(body).encode("utf-8")
-    headers = {"Content-Type": "application/json"}
-    if token is None:
-        # the same place the viewer gets it: the discovery response this publisher serves
-        base = url.split("/_api/")[0] + "/_api"
-        token = json.loads(urllib.request.urlopen(base, timeout=5).read()).get("token", "")
-    if token:
-        headers["X-Loom-Token"] = token
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return resp.status, json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read() or b"{}")
-
-
-def test_the_write_api_binds_to_loopback_only(session) -> None:  # type: ignore[no-untyped-def]
-    """specs/write-api.md §3 has no authentication and says so, resting entirely on the socket never leaving this machine. That was an assumption until this test."""
-    s, _ = session
-    assert s.httpd is not None
-    assert s.httpd.server_address[0] == "127.0.0.1"
-
-
-def test_discovery_lists_what_this_publisher_serves(session) -> None:  # type: ignore[no-untyped-def]
-    s, _ = session
-    status, body = get(s.url + "/_api")[0], json.loads(get(s.url + "/_api")[2])
-    assert status == 200
-    assert body["write_api"] == 1
-    assert "comment" in body["capabilities"] and "discard" in body["capabilities"]
-    # an endpoint outside the list is a 404, which is what lets a viewer hide the affordance
-    assert post(s.url + "/_api/accept", {"keys": ["dm-0003"]})[0] == 404
-
-
-def test_a_comment_written_over_http_is_the_same_comment(session) -> None:  # type: ignore[no-untyped-def]
-    """One implementation of what a comment is: the endpoint calls the function the CLI calls, so the two cannot drift."""
-    s, d = session
-    status, body = post(
-        s.url + "/_api/comment",
-        {
-            "session": _sid(d),
-            "target": "dm-0003",
-            "message": "Written from the viewer.",
-            "kind": "objection",
-            "severity": "minor",
-            "author": "A Reader",
-        },
-    )
-    assert status == 200, body
-    log = (d / "annotations" / "log.jsonl").read_text(encoding="utf-8").splitlines()
-    written = [json.loads(x) for x in log if x.strip()]
-    mine = [e for e in written if e.get("body") == "Written from the viewer."]
-    assert len(mine) == 1
-    assert mine[0]["kind"] == "human" and mine[0]["author"] == "A Reader"
-    assert mine[0]["severity"] == "minor"
-
-    # and it can be answered, restated and withdrawn over the same surface
-    ann = mine[0]["id"]
-    assert (
-        post(s.url + "/_api/reply", {"session": _sid(d), "annotation": ann, "message": "Noted.", "author": "A Reader"})[
-            0
-        ]
-        == 200
-    )
-    assert (
-        post(
-            s.url + "/_api/edit", {"session": _sid(d), "annotation": ann, "message": "Restated.", "author": "A Reader"}
-        )[0]
-        == 200
-    )
-    assert (
-        post(s.url + "/_api/discard", {"session": _sid(d), "annotation": ann, "reason": "mine", "author": "A Reader"})[
-            0
-        ]
-        == 200
-    )
-    events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
-    assert {e["event"] for e in events if e.get("id") == ann} >= {"created", "edited", "discarded"}
-
-
-def test_the_manifest_is_current_when_a_write_answers(session) -> None:  # type: ignore[no-untyped-def]
-    """**A write rebuilds before it answers** (plan 0.13.1). The watcher's scan and the viewer's poll are a second each, so a rename that costs 40ms to build took ~1.3s to show, and the `refresh()` a viewer runs on the answer raced the rebuild and lost. Asserted as the property -- the manifest carries the write when the POST resolves -- rather than as a duration, which would be a flake on a loaded machine."""
-    s, d = session
-    sid = _sid(d)
-    status, body = post(s.url + "/_api/session-rename", {"session": sid, "title": "renamed in place"})
-    assert status == 200, body
-    # no sleep, no poll: the very next read must already have it
-    _, _, raw = get(s.url + "build/manifest.json")
-    rows = {x["id"]: x for x in json.loads(raw)["sessions"]}
-    assert rows[sid]["title"] == "renamed in place", rows[sid]
-
-
-def test_a_refused_write_answers_rather_than_dying(session) -> None:  # type: ignore[no-untyped-def]
-    s, d = session
-    status, body = post(s.url + "/_api/comment", {"session": _sid(d), "message": "no target"})
-    assert status == 400 and body["error"]["code"] == "missing-field"
-    status, body = post(s.url + "/_api/comment", {"session": _sid(d), "target": "nope-9999", "message": "x"})
-    assert status in (400, 404) and "error" in body
-    status, body = post(s.url + "/_api/discard", {"session": _sid(d), "annotation": "a-1999-01-01-0001"})
-    assert status in (400, 404) and "error" in body
-    # a write that names no session at all is malformed, not something to file against whatever was last active
-    status, body = post(s.url + "/_api/comment", {"target": "dm-0003", "message": "orphan"})
-    assert status == 400 and body["error"]["code"] == "no-session"
-
-
-def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session) -> None:  # type: ignore[no-untyped-def]
-    """0.10 shipped reference notes as a command only; this is where they become something a reader can answer."""
-    s, d = session
-    _, made = post(
-        s.url + "/_api/comment",
-        {
-            "session": _sid(d),
-            "target": "dm-0003",
-            "message": "Cite Manolache, Prop 3.2.",
-            "kind": "citation",
-            "author": "A Reader",
-        },
-    )
-    ann = [
-        json.loads(x)
-        for x in (d / "annotations" / "log.jsonl").read_text().splitlines()
-        if x.strip() and "Manolache" in x
-    ][0]["id"]
-
-    status, body = post(
-        s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "accept", "author": "A Reader"}
-    )
-    assert status == 200, body
-    notes = [json.loads(x) for x in (d / "reference-notes.jsonl").read_text().splitlines() if x.strip()]
-    assert notes[-1]["for"] == ["dm-0003"]
-    assert notes[-1]["identifier"] == {"verified": False}  # a breadcrumb, never a second source of identity truth
-    # accepting also closes the finding, so the same suggestion is not answered twice
-    events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
-    assert any(e.get("id") == ann and e["event"] == "resolved" for e in events)
-
-    status, body = post(s.url + "/_api/refs-note", {"session": _sid(d), "annotation": ann, "decision": "sideways"})
-    assert status == 400 and body["error"]["code"] == "bad-field"
-
-
-def test_rejecting_a_citation_writes_no_breadcrumb(session) -> None:  # type: ignore[no-untyped-def]
-    s, d = session
-    post(
-        s.url + "/_api/comment",
-        {"session": _sid(d), "target": "dm-0002", "message": "Cite something else.", "kind": "citation", "author": "R"},
-    )
-    ann = [
-        json.loads(x)
-        for x in (d / "annotations" / "log.jsonl").read_text().splitlines()
-        if x.strip() and "something else" in x
-    ][0]["id"]
-    before = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
-    status, _ = post(
-        s.url + "/_api/refs-note",
-        {"session": _sid(d), "annotation": ann, "decision": "reject", "reason": "already cited", "author": "R"},
-    )
-    assert status == 200
-    after = (d / "reference-notes.jsonl").read_text() if (d / "reference-notes.jsonl").exists() else ""
-    assert after == before  # the reason rides on the resolve event; nothing is filed for a work nobody wanted
+    assert status == 404  # nothing outside the store is reachable through it
 
 
 def test_the_watcher_watches_what_the_write_api_writes(tmp_path: Path) -> None:
@@ -344,10 +139,18 @@ def test_the_watcher_watches_what_the_write_api_writes(tmp_path: Path) -> None:
     assert {"config.toml", "nodes/n.tex"} <= watched
 
 
-def test_the_watcher_does_not_chase_its_own_build(session) -> None:  # type: ignore[no-untyped-def]
+def test_the_watcher_does_not_chase_its_own_build(session, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
     """Every build rewrites `.loom/last-seen.json`, so a watcher that watches it rebuilds once a second for ever after the first change: the manifest gets a new `generated` each time, and the viewer, which re-renders on a new hash, closed every comment box a second after it was opened."""
+    from loom.render import watch
     from loom.render.watch import snapshot
 
+    polls = [0]
+
+    def counted(root: Path) -> dict[Path, float]:
+        polls[0] += 1
+        return snapshot(root)
+
+    monkeypatch.setattr(watch, "snapshot", counted)
     s, d = session
     assert not [p for p in snapshot(d) if p.name == "last-seen.json"]
 
@@ -358,23 +161,13 @@ def test_the_watcher_does_not_chase_its_own_build(session) -> None:  # type: ign
     while s.builds < 2 and time.time() < deadline:
         time.sleep(0.1)
     assert s.builds >= 2, "the change was not picked up"
-    settled = s.builds
-    time.sleep(2)  # ten watcher intervals with nothing changing
+    settled, seen = s.builds, polls[0]
+    # a watcher that chased its own build would rebuild on the first poll after it, so three polls settle it
+    deadline = time.time() + 6
+    while polls[0] < seen + 3 and time.time() < deadline:
+        time.sleep(0.05)
+    assert polls[0] >= seen + 3, "the watcher stopped polling"
     assert s.builds == settled
-
-
-def test_a_write_without_the_token_is_refused_over_the_wire(session) -> None:  # type: ignore[no-untyped-def]
-    """A browser blocks a cross-origin response and never the request, so any page the author happens to be reading could otherwise POST into their quilt (plan 0.13 §8)."""
-    s, _ = session
-    body = {"target": "sy-0001", "message": "from somewhere else", "author": "Nobody"}
-    status, said = post(s.url + "_api/comment", body, token="")
-    assert status == 403 and "X-Loom-Token" in said["error"]["message"]
-
-    # and the token is served where the viewer reads it, so a legitimate write is not made harder
-    _, _, discovery = get(s.url + "_api")
-    assert json.loads(discovery)["token"]
-    # carrying it gets past the gate; whether the write itself is well formed is another test's business
-    assert post(s.url + "_api/comment", body)[0] != 403
 
 
 def test_a_link_into_the_running_viewer_is_offered_only_while_one_is_running(tmp_path: Path) -> None:

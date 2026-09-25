@@ -60,7 +60,7 @@ The LaTeX compiles in loom's tests run with an empty `HOME` and empty TeX trees,
 
 A change that crosses the tools — a language server feature and its two editor sides, say — is one branch and one pull request. That is why they are one repository (DR-196); they were five, and nothing tied the three halves of such a change together.
 
-CI runs per directory: `loom unit`, `loom tex` and `arras ci` each trigger only on their own paths. `loom-nvim/` is additionally pushed to `ikmartin/loom-nvim` by the `mirror loom-nvim` workflow, because a Neovim plugin manager installs a plugin from a repository whose root is the plugin. That repository is a mirror: it takes no pull requests, and what is pushed there is exactly what `loom-nvim/` splits to, so a commit pinned in someone's `lazy-lock.json` keeps resolving.
+CI runs `scripts/verify`, one workflow per lane: `loom`, `arras` and `docs`, each triggered only by the paths its lane reads (book 14.4). `loom-nvim/` is additionally pushed to `ikmartin/loom-nvim` by the `mirror loom-nvim` workflow, because a Neovim plugin manager installs a plugin from a repository whose root is the plugin. That repository is a mirror: it takes no pull requests, and what is pushed there is exactly what `loom-nvim/` splits to, so a commit pinned in someone's `lazy-lock.json` keeps resolving.
 
 Releases stay separate: `loom` to PyPI, `arras` to npm, the extension to the Marketplace. Publishing is done by hand, never by CI.
 

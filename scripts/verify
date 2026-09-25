@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""Run the workspace's verification: one command, one table, CI's state last (plan 0.14.1, book 14.4).
+
+Usage:
+    scripts/verify [fast|full|paper] [--only loom|arras|docs]
+    scripts/verify --steps NAME[,NAME...] [--only loom|arras|docs]
+
+    fast     the inner loop: loom lint, types and unit tier; arras check and vitest; the docs checks
+    full     before a commit: fast, plus loom's TeX tier and every arras Playwright suite
+    paper    the paper tier, which needs LOOM_PAPER_FIXTURES; run by hand
+    --steps  exactly the named steps (the table's names without the lane, e.g. "pytest tex"), whatever their tier
+
+CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (book 14.4). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
+
+Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Every deselection and skip lives here with its reason, never in a plan. The editor clients are not a lane: they are deprecated and breakable (WQ-49), and `clients.yml` runs them when they change.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+UNIT = "not tex and not paper and not network"
+LOOM_XDIST = ["-n", "auto", "--dist", "loadgroup"]
+# the one arras build of a run, which every Playwright suite copies; slot 1 gives the suites ports and scratch directories apart from a suite started by hand (arras/tests/sites.ts)
+ARRAS_BUILD = ".tmp-e2e/slot-1/bundle"
+ARRAS_SUITE_ENV = {"ARRAS_SLOT": "1", "ARRAS_PREBUILT": str(ROOT / "arras" / ARRAS_BUILD)}
+
+
+@dataclass
+class Step:
+    lane: str
+    name: str
+    cwd: str
+    cmd: list[str]
+    tiers: tuple[str, ...]
+    env: dict[str, str] = field(default_factory=dict)
+    #: run at the same time as the adjacent concurrent steps, after every step before them
+    concurrent: bool = False
+
+
+STEPS = [
+    Step("loom", "ruff", "loom", ["uv", "run", "ruff", "check", "src", "tests", "scripts"], ("fast", "full")),
+    Step(
+        "loom",
+        "ruff format",
+        "loom",
+        ["uv", "run", "ruff", "format", "--check", "src", "tests", "scripts"],
+        ("fast", "full"),
+    ),
+    Step("loom", "mypy", "loom", ["uv", "run", "mypy", "src"], ("fast", "full")),
+    # the unit tier holds the tracked-file guard, the CLI reference check and the quilts-match-generator check, so neither `gen_quilts --check` nor `gen_cli_reference --check` runs again here
+    # every loom tier runs on xdist workers, one process each; nothing is serialised, and `loadgroup` only keeps the tests sharing a module's `once` quilt on one worker so it is built once (tests/conftest.py)
+    Step("loom", "pytest unit", "loom", ["uv", "run", "pytest", *LOOM_XDIST, "-m", UNIT], ("fast", "full")),
+    # the biber test skips itself where biber is absent; nothing is deselected by hand
+    Step("loom", "pytest tex", "loom", ["uv", "run", "pytest", *LOOM_XDIST, "-m", "tex"], ("full",)),
+    Step("loom", "pytest paper", "loom", ["uv", "run", "pytest", *LOOM_XDIST, "-m", "paper"], ("paper",)),
+    Step("arras", "svelte-check", "arras", ["npm", "run", "check"], ("fast", "full")),
+    Step("arras", "vitest", "arras", ["npx", "vitest", "--run"], ("fast", "full")),
+    Step("arras", "build", "arras", ["node", "scripts/bundle.mjs", ARRAS_BUILD], ("full",)),
+    *(
+        Step("arras", name, "arras", cmd, ("full",), env=ARRAS_SUITE_ENV, concurrent=True)
+        for name, cmd in (
+            ("e2e", ["npx", "playwright", "test"]),
+            ("minimal", ["npm", "run", "test:minimal"]),
+            ("write", ["npm", "run", "test:write"]),
+            ("reading", ["npm", "run", "test:reading"]),
+        )
+    ),
+    Step(
+        "docs",
+        "work queue",
+        ".",
+        ["uv", "run", "--project", "loom", "python", "docs/work-queue/check.py"],
+        ("fast", "full"),
+    ),
+    # the agreement checks: each standard library only, runnable alone, printing what disagrees and the command that fixes it
+    *(
+        Step("docs", name, ".", [sys.executable, f"scripts/checks/{script}"], ("fast", "full"))
+        for name, script in (
+            ("appendices", "appendices.py"),
+            ("fixtures", "fixtures.py"),
+            ("bundle", "bundle.py"),
+            ("book tests", "book_tests.py"),
+            ("hard wrap", "hardwrap.py"),
+        )
+    ),
+]
+
+
+@dataclass
+class Result:
+    step: Step
+    ok: bool
+    seconds: float
+    output: str
+
+
+def env() -> dict[str, str]:
+    """The caller's environment without what would leak into the suites: an activated virtualenv, which uv then warns about, and an agent's session. The tier gates pass through."""
+    gates = ("LOOM_PAPER_FIXTURES", "LOOM_NETWORK")
+    out = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV" and (not k.startswith("LOOM_") or k in gates)}
+    out["NO_COLOR"] = "1"
+    out.pop("FORCE_COLOR", None)
+    return out
+
+
+def share_cores(chosen: list[Step]) -> list[Step]:
+    """When loom's pytest and the concurrent Playwright suites run at once, split the cores between them.
+
+    Each takes every core by default, which on eight cores put eight pytest workers beside sixteen browsers and timed out the heaviest reading tests. Loom's pytest takes half the cores; each Playwright suite a share of the rest by its weight. A lane run alone keeps its defaults.
+    """
+    suites = [s for s in chosen if s.concurrent]
+    pytest = [s for s in chosen if s.lane == "loom" and "pytest" in s.cmd]
+    if not suites or not pytest:
+        return chosen
+    cores = os.cpu_count() or 4
+    weight = {"e2e": 2, "minimal": 1, "write": 1, "reading": 1}
+    total = sum(weight.get(s.name, 1) for s in suites)
+    out: list[Step] = []
+    for s in chosen:
+        if s in pytest:
+            s = replace(s, env=s.env | {"PYTEST_XDIST_AUTO_NUM_WORKERS": str(max(2, cores // 2))})
+        elif s in suites:
+            workers = max(1, (cores - cores // 2) * weight.get(s.name, 1) // total)
+            extra = ["--workers", str(workers)]
+            s = replace(s, cmd=s.cmd + (["--", *extra] if s.cmd[:2] == ["npm", "run"] else extra))
+        out.append(s)
+    return out
+
+
+def run(step: Step) -> Result:
+    start = time.monotonic()
+    try:
+        proc = subprocess.run(
+            step.cmd, cwd=ROOT / step.cwd, env=env() | step.env, capture_output=True, text=True, errors="replace"
+        )
+        ok, output = proc.returncode == 0, proc.stdout + proc.stderr
+    except OSError as e:
+        ok, output = False, f"could not run {step.cmd[0]}: {e}"
+    return Result(step, ok, time.monotonic() - start, output)
+
+
+def lane(steps: list[Step]) -> list[Result]:
+    """Run a lane's steps in order, each run of adjacent `concurrent` steps as one group."""
+    results: list[Result] = []
+    i = 0
+    while i < len(steps):
+        j = i + 1
+        if steps[i].concurrent:
+            while j < len(steps) and steps[j].concurrent:
+                j += 1
+        with ThreadPoolExecutor(max_workers=j - i) as pool:
+            results += pool.map(run, steps[i:j])
+        i = j
+    return results
+
+
+def summary(output: str) -> str:
+    """The line a reader wants from a passing suite: pytest's, vitest's or Playwright's count."""
+    keys = (
+        "passed",
+        "failed",
+        "Tests ",
+        "COMPLETED",
+        "work queue ok",
+        ": ok (",
+        "All checks passed",
+        "already formatted",
+        "Success:",
+    )
+    for line in reversed(output.splitlines()):
+        if any(k in line for k in keys):
+            return re.sub(r"^\d{10,} ", "", " ".join(line.split()).strip("= "))[:70]
+    return ""
+
+
+def ci_state() -> str:
+    """The branch's latest CI runs, from `gh`; never called inside CI itself."""
+    if shutil.which("gh") is None:
+        return "gh is not installed; CI state unknown"
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"], cwd=ROOT, capture_output=True, text=True
+    ).stdout.strip()
+    proc = subprocess.run(
+        ["gh", "run", "list", "--branch", branch, "--limit", "3"], cwd=ROOT, capture_output=True, text=True
+    )
+    return (proc.stdout or proc.stderr).rstrip() or f"no CI runs on {branch}"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
+    parser.add_argument("tier", nargs="?", choices=("fast", "full", "paper"), help="default fast")
+    parser.add_argument("--only", choices=("loom", "arras", "docs"))
+    parser.add_argument("--steps", help="comma-separated step names to run whatever their tier, instead of a tier")
+    args = parser.parse_args()
+    if args.steps is None:
+        tier = args.tier or "fast"
+        chosen = [s for s in STEPS if tier in s.tiers and (args.only is None or s.lane == args.only)]
+    else:
+        if args.tier:
+            parser.error("--steps names the steps to run; give it without a tier")
+        names = [n.strip() for n in args.steps.split(",") if n.strip()]
+        unknown = [n for n in names if n not in {s.name for s in STEPS}]
+        if unknown or not names:
+            parser.error(f"no step {', '.join(map(repr, unknown)) or 'named'}; the steps are {', '.join(s.name for s in STEPS)}")
+        chosen = [s for s in STEPS if s.name in names and (args.only is None or s.lane == args.only)]
+    chosen = share_cores(chosen)
+    lanes: dict[str, list[Step]] = {}
+    for s in chosen:
+        lanes.setdefault(s.lane, []).append(s)
+    started = time.monotonic()
+    with ThreadPoolExecutor(max_workers=len(lanes) or 1) as pool:
+        results = [r for rs in pool.map(lane, lanes.values()) for r in rs]
+    width = max((len(f"{r.step.lane} {r.step.name}") for r in results), default=10)
+    print(f"\n{'suite':<{width}}  result  seconds  summary")
+    for r in results:
+        print(
+            f"{r.step.lane + ' ' + r.step.name:<{width}}  {'ok' if r.ok else 'FAIL':<6}  {r.seconds:7.1f}  {summary(r.output)}"
+        )
+    print(f"{'wall':<{width}}          {time.monotonic() - started:7.1f}")
+    failed = [r for r in results if not r.ok]
+    # a CI log is the only record of a failure there, so it gets the whole output; a terminal gets the tail
+    ci = bool(os.environ.get("GITHUB_ACTIONS"))
+    for r in failed:
+        print(f"\n===== {r.step.lane} {r.step.name}: {' '.join(r.step.cmd)} (in {r.step.cwd}) =====")
+        print(r.output.rstrip() if ci else r.output.rstrip()[-8000:])
+    if not ci:
+        print("\nCI on this branch:\n" + ci_state())
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

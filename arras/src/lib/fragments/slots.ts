@@ -1,38 +1,27 @@
-// Where each comment on a key stands in a fragment, for the Comments setting (book 15.3.1, plan 0.13 §7).
+// Where each annotation on a key stands in a fragment (book 15.3.1).
 //
-// Shown in place, a comment with a mark is reached from its mark and one without gets a count beside its node's label;
-// in the margin column, every comment gets a gutter slot unless it is long, when it stands inline below the node. One
-// function for every route, because `margin` chosen on a node page or in the Library View used to disable the in-place
-// controller and build no gutter either -- the annotations there could only be opened from the list below.
+// An annotation with a mark is reached from its mark; one without -- no quote, or an anchor that no longer resolves -- is a mark on its node's label. One that names the document it is read in is marked there and nowhere else.
 
 import type { Annotation, Manifest } from '$lib/manifest/types';
-import type { CommentSlot } from './mount';
-import { openOn, repliesTo } from '$lib/annotations';
-import { prefs } from '$lib/prefs.svelte';
+import { settled, type CommentSlot } from './mount';
+import { on } from '$lib/annotations';
+import { ui } from '$lib/ui.svelte';
 
-/** How much a comment may say before a gutter is the wrong place for it. Measured on the rendered text of the comment and its replies. */
-export const GUTTER_LIMIT = 220;
-
-/** The rendered length of a comment and its replies, which is what decides whether it fits a gutter. */
-export function plainLength(m: Manifest, a: Annotation): number {
-	const own = a.body_html.replace(/<[^>]*>/g, '').trim().length + (a.quote?.length ?? 0);
-	return own + repliesTo(m, a.id).reduce((n, r) => n + r.body_html.replace(/<[^>]*>/g, '').trim().length, 0);
-}
-
-/** The undiscarded top-level comments on exactly this key, in manifest order. A proof has an element of its own, so matching a node's proofs here as well would place the same comment twice. */
+/** The top-level annotations on exactly this key, in manifest order, settled ones included: a discarded annotation is settled like a resolved one, hidden at rest and drawn faintly by the settled control (15.3.1). A proof has an element of its own, so matching a node's proofs here as well would place the same annotation twice. */
 export function commentsOn(m: Manifest, key: string): Annotation[] {
-	return openOn(m, key);
+	return on(m, key);
 }
 
-/** The slot function a `Fragment` takes, reading the placement setting live. */
-export function slotsFor(m: () => Manifest): (key: string) => CommentSlot[] {
-	return (key) => {
-		const manifest = m();
-		if (prefs.comments !== 'margin') {
-			return commentsOn(manifest, key)
-				.filter((a) => !(a.anchored && a.quote))
-				.map((a) => ({ id: a.id, where: 'count' }));
-		}
-		return commentsOn(manifest, key).map((a) => ({ id: a.id, where: plainLength(manifest, a) > GUTTER_LIMIT ? 'inline' : 'gutter' }));
-	};
+/**
+ * The slot function a `Fragment` takes: every annotation on the key that has no mark of its own goes on the label.
+ *
+ * `master` is the document the fragment is read in, when it is one; an annotation that names a document is placed only in that document, and never on a node's own page. A settled one gets a label mark only while settled annotations are shown, since at rest it would be nothing to see and nothing to click.
+ */
+export function slotsFor(m: () => Manifest, master: () => string | null = () => null): (key: string) => CommentSlot[] {
+	return (key) =>
+		commentsOn(m(), key)
+			.filter((a) => !(a.anchored && a.quote))
+			.filter((a) => !a.in || a.in === master())
+			.filter((a) => !settled(a) || ui.showSettled)
+			.map((a) => ({ id: a.id, where: 'label' }));
 }

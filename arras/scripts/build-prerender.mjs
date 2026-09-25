@@ -23,7 +23,6 @@ for (const c of manifest.canon ?? []) routes.add('/canon/' + encodeURIComponent(
 for (const ck of Object.keys(manifest.references ?? {})) routes.add('/library/' + encodeURIComponent(ck));
 for (const t of Object.keys(manifest.tags ?? {})) routes.add('/tag/' + encodeURIComponent(t));
 for (const t of Object.values(manifest.taxa ?? {})) routes.add('/taxon/' + encodeURIComponent(t.slug));
-for (const id of Object.keys(manifest.threads ?? {})) routes.add('/thread/' + encodeURIComponent(id));
 for (const s of manifest.sessions ?? []) routes.add('/session/' + encodeURIComponent(s.id));
 rmSync(outDir, { recursive: true, force: true });
 // With a base, the whole site lives under it: the assets the shell names are `<base>/_app/...`, so the built files

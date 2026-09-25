@@ -6,8 +6,13 @@
 
 import { anchorId } from "$lib/nav";
 
-/** The reading line: a heading counts as the one you are in once it has passed this far up the viewport. */
-const LINE = 96;
+/** The reading line: a heading counts as the one you are in once it has passed this far below the top of what scrolls. */
+const LINE = 32;
+
+/** The top of the reader's view: the pane's scrolling body when there is one, else the window. */
+function topOf(scroller: HTMLElement | null): number {
+  return scroller ? scroller.getBoundingClientRect().top : 0;
+}
 
 class Reading {
   /** The published element id of the section on screen, or '' when no document is being read. */
@@ -23,15 +28,19 @@ export const reading = new Reading();
  *
  * Parameters
  * ----------
+ * root : HTMLElement
+ *     The mounted document; ids are looked up inside it, since two open documents repeat them.
  * ids : string[]
  *     The published element ids of the contents entries, in document order. Only these are considered, so a heading too deep to appear in the contents never steals the bar and leaves it pointing at nothing.
+ * scroller : HTMLElement | null
+ *     What scrolls: the pane's body. A document in a pane never scrolls the window.
  *
  * Returns
  * -------
  * () => void
  *     Cleanup; also clears the section, so leaving the read view returns the rail to the hash.
  */
-export function followReading(ids: string[]): () => void {
+export function followReading(root: HTMLElement, ids: string[], scroller: HTMLElement | null): () => void {
   if (typeof window === "undefined" || !ids.length) return () => {};
   let frame = 0;
 
@@ -40,9 +49,10 @@ export function followReading(ids: string[]): () => void {
     // the last heading at or above the reading line; the first entry stands until one reaches it, so the bar
     // is showing before a reader has scrolled at all
     let found = ids[0];
+    const line = topOf(scroller) + LINE;
     for (const id of ids) {
-      const el = document.getElementById(id);
-      if (el && el.getBoundingClientRect().top <= LINE) found = id;
+      const el = root.querySelector(`[id="${CSS.escape(id)}"]`);
+      if (el && el.getBoundingClientRect().top <= line) found = id;
     }
     reading.section = found;
   };
@@ -52,11 +62,12 @@ export function followReading(ids: string[]): () => void {
   };
 
   pick();
-  window.addEventListener("scroll", onScroll, { passive: true });
+  const on = scroller ?? window;
+  on.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", onScroll, { passive: true });
   return () => {
     if (frame) cancelAnimationFrame(frame);
-    window.removeEventListener("scroll", onScroll);
+    on.removeEventListener("scroll", onScroll);
     window.removeEventListener("resize", onScroll);
     reading.section = "";
   };
@@ -79,18 +90,20 @@ const NODE_LINE = 0.35;
  * ----------
  * root : HTMLElement
  *     The mounted document. Its results are re-read on each frame, so expanding an inclusion or a proof needs no notice.
+ * scroller : HTMLElement | null
+ *     What scrolls: the pane's body.
  *
  * Returns
  * -------
  * () => void
  *     Cleanup; also clears the node.
  */
-export function followNodes(root: HTMLElement): () => void {
+export function followNodes(root: HTMLElement, scroller: HTMLElement | null): () => void {
   if (typeof window === "undefined") return () => {};
   let frame = 0;
   const pick = () => {
     frame = 0;
-    const line = window.innerHeight * NODE_LINE;
+    const line = scroller ? topOf(scroller) + scroller.clientHeight * NODE_LINE : window.innerHeight * NODE_LINE;
     const results = root.querySelectorAll<HTMLElement>("div.env[data-key], details.env-proof[data-key]");
     // tops increase in document order, so the last one above the line is found by bisection rather than by measuring every result on every frame
     let lo = 0;
@@ -112,11 +125,12 @@ export function followNodes(root: HTMLElement): () => void {
     if (!frame) frame = requestAnimationFrame(pick);
   };
   pick();
-  window.addEventListener("scroll", onScroll, { passive: true });
+  const on = scroller ?? window;
+  on.addEventListener("scroll", onScroll, { passive: true });
   window.addEventListener("resize", onScroll, { passive: true });
   return () => {
     if (frame) cancelAnimationFrame(frame);
-    window.removeEventListener("scroll", onScroll);
+    on.removeEventListener("scroll", onScroll);
     window.removeEventListener("resize", onScroll);
     reading.node = "";
   };
