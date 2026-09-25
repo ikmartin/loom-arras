@@ -5,17 +5,15 @@ test('home page renders the fixture manifest', async ({ page }) => {
 	await expect(page.locator('main h1')).toHaveText('Widgets, gadgets, and their fixed loci');
 });
 
-test('home page leads with four metric cards which open the complete review table', async ({ page }) => {
+test('home page leads with corpus metrics without pretending they are one document table', async ({ page }) => {
 	await page.goto('/');
 	for (const name of ['accepted', 'stale', 'incomplete', 'errors']) {
 		await expect(page.getByTestId(`card-${name}`)).toBeVisible();
 	}
-	await expect(page.getByTestId('card-accepted')).toHaveAttribute('href', '/review?show=all');
-	await expect(page.getByTestId('card-stale')).toHaveAttribute('href', '/review?show=all');
+	await expect(page.getByTestId('card-accepted')).not.toHaveAttribute('href', /./);
+	await expect(page.getByTestId('card-stale')).not.toHaveAttribute('href', /./);
+	await expect(page.getByTestId('card-incomplete')).not.toHaveAttribute('href', /./);
 	await expect(page.getByTestId('card-errors')).toHaveAttribute('href', '/problems?severity=error');
-	await page.getByTestId('card-incomplete').click();
-	await expect(page).toHaveURL(/\/review\?show=all$/);
-	await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'All' })).toHaveAttribute('aria-current', 'page');
 });
 
 test('home page lists the documents and what needs attention', async ({ page }) => {

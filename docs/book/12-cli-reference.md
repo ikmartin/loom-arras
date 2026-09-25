@@ -47,8 +47,9 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 | `--proofs` | Also accept every proof attached to each statement given. |
 | `--stale` | Accept every key that is currently accepted-stale, after confirmation. |
 | `--all-live` | Accept every live author-owned statement and proof, after confirmation. |
+| `--master` | Accept every statement and proof reached by MASTER. |
 | `--author` |  |
-| `--force` | Accept even when the master does not compile. |
+| `--force` | Accept even when the document the acceptance is recorded against does not compile. |
 | `--yes`, `-y` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -423,6 +424,7 @@ Print a patch (or write a copy with --to) inserting \label{<id>} on every untagg
 | `--sections`, `--no-sections` | Also label sections through subsubsection (default on). |
 | `--all-levels` | Also label paragraphs and subparagraphs. |
 | `--prefix` |  |
+| `--fix-anchoring` | Include line-anchoring repairs in the patch or written copy. |
 | `--next` | Print the next free id and nothing else; inserts nothing. |
 | `--json` | With --next: print it as JSON. |
 | `--session` `SESSION` | Log this call to the session. |
@@ -1203,6 +1205,16 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 `loom sync [OPTIONS] COMMAND [ARGS]...`
 
 Fetch and publish the document source through a Git remote.
+
+#### `loom sync documents`
+
+`loom sync documents [OPTIONS] [add|remove] [DOCUMENT]`
+
+List, add, or remove documents in the persistent Overleaf projection.
+
+| option | description |
+|---|---|
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync fetch`
 

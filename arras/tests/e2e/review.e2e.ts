@@ -1,20 +1,48 @@
-// Review: the table of recorded states and its three views, the causes a stale key opens beside its document, what an incoming pull changes, and the guided review of what needs a decision. Each test is named for the rule it holds.
+// Review: a table of recorded states per working document beside the two quilt-wide views, the causes a stale key opens beside its document, what an incoming pull changes, and the guided review of what needs a decision. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
 import { serve } from '../manifest';
 
 test.describe('the views', () => {
-	test('All is the default and the only other views are Needs review and Incoming', async ({ page }) => {
+	test('working documents replace All while Needs review and Incoming stay global', async ({ page }) => {
 		await page.goto('/review?show=stale');
 		const tabs = page.getByRole('navigation', { name: 'Review views' });
-		await expect(tabs.getByRole('link')).toHaveText([/All/, /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
-		await expect(tabs.getByRole('link', { name: 'All' })).toHaveAttribute('aria-current', 'page');
+		await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
+		await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
 		await expect(page.locator('main table.list')).toBeVisible();
 		await expect(page.getByTestId('filter-show')).toHaveCount(0);
 	});
 
-	test('the blockers address lands on All', async ({ page }) => {
+	test('Review scopes rows and counts to working-document tabs while sharing one block state', async ({ page }) => {
+		await page.goto('/review');
+		const tabs = page.getByRole('navigation', { name: 'Review views' });
+		await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
+		await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+		await expect(page.locator('#review-sy-0003')).toBeVisible();
+		await expect(page.locator('#review-sy-999a')).toHaveCount(0);
+		await expect(page.locator('#review-sy-0002')).toBeVisible();
+		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
+		const mainCounts = await page.getByTestId('review-counts').innerText();
+
+		await tabs.getByRole('link', { name: 'talk.tex' }).click();
+		await expect(page).toHaveURL(/\/review\?document=drafting%2Ftalk\.tex$/);
+		await expect(page.locator('#review-sy-999a')).toBeVisible();
+		await expect(page.locator('#review-sy-0003')).toHaveCount(0);
+		await expect(page.locator('#review-sy-0002')).toBeVisible();
+		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
+		await expect(page.getByTestId('review-counts')).not.toHaveText(mainCounts);
+		// sessions and undigested works have surfaces of their own, and are not repeated under a document's table
+		await expect(page.getByRole('heading', { name: 'Sessions' })).toHaveCount(0);
+		await expect(page.getByText('Undigested citations')).toHaveCount(0);
+
+		// a document the quilt does not have falls back to the default
+		await page.goto('/review?document=drafting%2Fmissing.tex');
+		await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+	});
+
+	test('the blockers address lands on the default working document', async ({ page }) => {
 		await page.goto('/blockers');
-		await expect(page).toHaveURL(/\/review\?show=all$/);
+		await expect(page).toHaveURL(/\/review$/);
+		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
 	});
 
 	test('the review panel explains itself and names the command behind each state, and its help closes on a press outside it', async ({ page }) => {
@@ -37,8 +65,9 @@ test.describe('recorded states', () => {
 			m.keys['sy-0002'].acceptance.fresh = true;
 		});
 		await page.goto('/review');
+		// counted over the default document's rows, not the whole quilt
 		await expect(page.getByTestId('review-counts')).toContainText('2 proved');
-		await expect(page.getByTestId('review-counts')).toContainText('3 settled');
+		await expect(page.getByTestId('review-counts')).toContainText('1 settled');
 		await expect(page.locator('#review-sy-0003 .badge .chip')).toHaveText(['accepted', 'proved', 'settled']);
 		await expect(page.locator('#review-sy-0002 .badge .chip')).toHaveText(['accepted', 'proved']);
 	});
@@ -97,7 +126,8 @@ test.describe('incoming and guided review', () => {
 		await page.goto('/review?show=incoming');
 		await expect(page.getByTestId('incoming-sy-0003')).toBeVisible();
 		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'Incoming (1)' })).toBeVisible();
-		await expect(page.getByTestId('review-counts')).toContainText('stale');
+		// the counts belong to a document's table, which this view is not
+		await expect(page.getByTestId('review-counts')).toHaveCount(0);
 		await expect(page.getByTestId('incoming-incorporation')).toContainText('neither push nor accept mathematics');
 		const files = page.getByRole('heading', { name: 'Changed source files' }).locator('xpath=following-sibling::ul[1]');
 		await expect(files).toContainText('drafting/main.tex');

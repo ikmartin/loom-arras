@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
-	// All is the complete ledger. Needs review is the ordered block queue. Incoming is the exact collaborator pull before it changes local source.
+	// Working-document tabs keep the ledger aligned with the file being edited. Needs review and Incoming remain corpus-wide tasks.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Cause, IncomingChange, Key, UnresolvedReview } from '$lib/manifest/types';
@@ -11,14 +11,17 @@
 	import HelpDot from '$lib/components/HelpDot.svelte';
 	import { reviewFacts, reviewRowBadge, shortDate } from '$lib/badges';
 	import { downstream } from '$lib/graph/layout';
-	import { anchorId, keyUrl, masterUrl, threadUrl } from '$lib/nav';
-	import { reachedExternal } from '$lib/reached';
+	import { anchorId, keyUrl, masterUrl } from '$lib/nav';
+	import { documentKeys } from '$lib/review/documents';
 	import { can, write } from '$lib/write';
 
 	const m = $derived(store.manifest!);
-	const SHOWS = ['all', 'needs-review', 'incoming'] as const;
+	const SHOWS = ['needs-review', 'incoming'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
-	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'all');
+	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'document');
+	const defaultDocument = $derived(m.masters.find((master) => master.default) ?? m.masters[0]);
+	const selectedDocument = $derived(m.masters.find((master) => master.path === q('document')) ?? defaultDocument);
+	const filename = (path: string) => path.split('/').pop() || path;
 	let open = $state('');
 	let blocksOpen = $state('');
 	let syncWritable = $state(false);
@@ -102,29 +105,18 @@
 		syncBusy = false;
 	}
 
-	// An external node owes no proof and counts as settled as a dependency (7.6.3), so leaving the ones nothing
-	// depends on out of the queue removes noise without hiding work. What is left is the handful whose acceptance
-	// means something precise: this digest faithfully states what the source says.
-	const reached = $derived(reachedExternal(m));
-	const keys = $derived(
-		Object.values(m.keys).filter((k) => {
-			const n = m.nodes[k.node];
-			return !n?.external || !!n.reached_by.length || reached.has(k.node);
-		})
-	);
-	const isStale = (k: (typeof keys)[number]) => !!k.acceptance && k.acceptance.fresh === false;
+	const rows = $derived(selectedDocument ? documentKeys(m, selectedDocument.path) : []);
+	const isStale = (k: (typeof rows)[number]) => !!k.acceptance && k.acceptance.fresh === false;
 	const missingProof = $derived(new Set(m.diagnostics.filter((d) => d.code === 'loom:missing-proof').flatMap((d) => d.keys)));
 	const counts = $derived({
-		accepted: keys.filter((k) => k.state === 'accepted').length,
-		stale: keys.filter(isStale).length,
-		draft: keys.filter((k) => k.state === 'draft').length,
-		incomplete: keys.filter((k) => k.state === 'incomplete').length,
-		proved: keys.filter((k) => k.kind === 'statement' && m.nodes[k.node]?.derived?.proved).length,
-		settled: keys.filter((k) => k.kind === 'statement' && m.nodes[k.node]?.derived?.settled).length,
-		missingProof: keys.filter((k) => k.kind === 'statement' && missingProof.has(k.key)).length
+		accepted: rows.filter((k) => k.state === 'accepted').length,
+		stale: rows.filter(isStale).length,
+		draft: rows.filter((k) => k.state === 'draft').length,
+		incomplete: rows.filter((k) => k.state === 'incomplete').length,
+		proved: rows.filter((k) => k.kind === 'statement' && m.nodes[k.node]?.derived?.proved).length,
+		settled: rows.filter((k) => k.kind === 'statement' && m.nodes[k.node]?.derived?.settled).length,
+		missingProof: rows.filter((k) => k.kind === 'statement' && missingProof.has(k.key)).length
 	});
-	const undigested = $derived(Object.values(m.references).filter((r) => !r.digest && r.cited_by.length).map((r) => r.citekey));
-	const rows = $derived(keys);
 	// What a gap blocks: everything that rests on the node carrying it. Computed only for rows that mark one, since the walk is per node.
 	const blocks = $derived(new Map(rows.filter((k) => k.incomplete.length).map((k) => [k.key, [...downstream(m, k.node)].sort()])));
 	// A column nothing in the current rows fills is not drawn, so a filtered table is not mostly empty headings.
@@ -133,8 +125,6 @@
 	const hasCauses = $derived(rows.some((k) => k.acceptance?.causes?.length || k.previous_key_match));
 	const cols = $derived(5 + (hasCauses ? 1 : 0) + (hasFacts ? 1 : 0) + (hasIncomplete ? 2 : 0));
 
-	const records = $derived([...new Set(Object.values(m.annotations).map((a) => a.run ?? a.record))].sort());
-	const threads = $derived(Object.values(m.threads));
 	const causes = (k: string) => m.keys[k]?.acceptance?.causes ?? [];
 	function incomingUrl(change: IncomingChange, dependent?: { key: string; citation: string | null }): string {
 		const target = dependent?.key ?? change.key;
@@ -155,7 +145,7 @@
 	}
 
 	const LEADS: Record<string, string> = {
-		all: 'Every statement and proof in this corpus, with its recorded state and review facts.',
+		document: 'Every statement and proof in this working document, with its recorded state and review facts.',
 		'needs-review': 'An ordered block queue. OK decisions remain pending until Finish review records their acceptances together.',
 		incoming: 'The exact collaborator revision, its changed files, and its potential effects before incorporation.'
 	};
@@ -167,14 +157,22 @@
 		<NoDrafts what="keys to review" />
 	{/if}
 	<nav class="review-tabs" aria-label="Review views">
-		<a class:active={filter === 'all'} aria-current={filter === 'all' ? 'page' : undefined} href="?show=all">All</a>
+		{#each m.masters as master (master.path)}
+			<a
+				class:active={filter === 'document' && selectedDocument?.path === master.path}
+				aria-current={filter === 'document' && selectedDocument?.path === master.path ? 'page' : undefined}
+				href={`?document=${encodeURIComponent(master.path)}`}>{filename(master.path)}</a
+			>
+		{/each}
 		<a class:active={filter === 'needs-review'} aria-current={filter === 'needs-review' ? 'page' : undefined} href="?show=needs-review">Needs Review ({needsReview.length})</a>
 		<a class:active={filter === 'incoming'} aria-current={filter === 'incoming' ? 'page' : undefined} href="?show=incoming">Incoming ({m.incoming?.changes.length ?? 0})</a>
 	</nav>
-	<p class="lead">{LEADS[filter]} {filter === 'all' ? 'Recorded states are read from this corpus’s review history.' : 'When served locally, review actions save private decisions.'}</p>
-	<p class="counts" data-testid="review-counts">
-		{counts.accepted} accepted <span class="sep">·</span>{counts.stale} stale <span class="sep">·</span>{counts.draft} draft <span class="sep">·</span>{counts.incomplete} incomplete <span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
-	</p>
+	<p class="lead">{LEADS[filter]} {filter === 'document' ? 'Recorded states are read from this corpus’s review history.' : 'When served locally, review actions save private decisions.'}</p>
+	{#if filter === 'document'}
+		<p class="counts" data-testid="review-counts">
+			{counts.accepted} accepted <span class="sep">·</span>{counts.stale} stale <span class="sep">·</span>{counts.draft} draft <span class="sep">·</span>{counts.incomplete} incomplete <span class="sep">·</span>{counts.proved} proved <span class="sep">·</span>{counts.settled} settled
+		</p>
+	{/if}
 
 	{#if filter === 'incoming'}
 		{#if m.incoming}
@@ -334,27 +332,11 @@
 	</table>
 	{/if}
 
-	{#if undigested.length && filter === 'all'}
-		<h2>Undigested citations</h2>
-		<p class="faint">{undigested.join(', ')}</p>
-	{/if}
-
-	{#if filter === 'all'}
-		<h2>Sessions</h2>
-		{#if threads.length || records.length}
-			<ul class="plain">
-				{#each threads as t (t.id)}<li><a href={threadUrl(t.id)}>{t.title}</a> {#if t.discarded}<span class="faint">discarded</span>{/if}</li>{/each}
-				{#each records as r (r)}<li><code>{r}</code></li>{/each}
-			</ul>
-		{:else}
-			<p class="faint">None yet.</p>
-		{/if}
-	{/if}
 </main>
 
 <style>
-	.review-tabs { display: flex; gap: var(--gap-tight); margin: 0 0 var(--gap); border-bottom: 1px solid var(--rule); }
-	.review-tabs a { padding: var(--gap-tight) 0; color: var(--ink-soft); text-decoration: none; border-bottom: 2px solid transparent; }
+	.review-tabs { display: flex; gap: var(--gap-tight); margin: 0 0 var(--gap); border-bottom: 1px solid var(--rule); overflow-x: auto; }
+	.review-tabs a { flex: none; padding: var(--gap-tight) 0; color: var(--ink-soft); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
 	.review-tabs a.active { color: var(--ink); border-color: var(--link); }
 	.guided-pair :global(.review-citation-target) { background: var(--state-stale-wash); outline: 2px solid var(--state-stale); outline-offset: 2px; }
 	.guided-pair { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: var(--gap-wide); }

@@ -41,6 +41,7 @@ class SyncState:
     review_changed: dict[str, bool] = field(default_factory=dict)
     review_baselines: dict[str, str] = field(default_factory=dict)
     review_local_changed: dict[str, bool] = field(default_factory=dict)
+    documents: list[str] = field(default_factory=list)
 
     @classmethod
     def read(cls, root: Path) -> SyncState:
@@ -49,11 +50,18 @@ class SyncState:
             raise SyncError("source sync is not configured; run `loom sync init` first")
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            return cls(**data)
+            state = cls(**data)
+            if not state.documents:
+                state.documents = [state.master]
+            elif state.master not in state.documents:
+                state.documents.insert(0, state.master)
+            return state
         except (ValueError, TypeError) as exc:
             raise SyncError(f"{path} is not a valid source-sync record") from exc
 
     def write(self, root: Path) -> None:
+        if self.master not in self.documents:
+            self.documents.insert(0, self.master)
         path = root / ".loom" / "source-sync.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(".tmp")
@@ -76,16 +84,46 @@ def revision(root: Path, ref: str) -> str:
     return git(root, "rev-parse", "--verify", f"{ref}^{{commit}}").decode().strip()
 
 
-def source_paths(quilt: Quilt) -> list[str]:
-    """The master closure, not a broad extension-based copy of the quilt."""
+def selected_documents(quilt: Quilt, state: SyncState) -> list[str]:
+    """Validate and return the persistent source-projection document selection."""
+    from loom.scan.scan import scan
+
+    documents = list(dict.fromkeys(state.documents or [state.master]))
+    if state.master not in documents:
+        documents.insert(0, state.master)
+    live = set(scan(quilt).masters)
+    for document in documents:
+        path = Path(document)
+        if path.is_absolute() or ".." in path.parts:
+            raise SyncError(f"selected document has an unsafe path: {document}")
+        if document not in live:
+            raise SyncError(f"selected document is not a live drafting document: {document}")
+    return documents
+
+
+def source_projection(quilt: Quilt, state: SyncState) -> tuple[list[str], dict[str, str]]:
+    """Selected masters and their union of local-to-remote source paths."""
     root = quilt.root
-    master = quilt.config.main
-    if not master or not (root / master).is_file():
-        raise SyncError("the configured main drafting document is missing")
-    found, outside = closure_of(root, root / master)
-    if outside:
-        raise SyncError("the document reaches files outside the quilt: " + ", ".join(outside))
-    return sorted(found)
+    documents = selected_documents(quilt, state)
+    projected: dict[str, str] = {}
+    remote_sources: dict[str, str] = {}
+    for document in documents:
+        found, outside = closure_of(root, root / document)
+        if outside:
+            raise SyncError(f"{document} reaches files outside the quilt: " + ", ".join(outside))
+        for local in found:
+            remote = state.published_main if local == state.master else local
+            previous = remote_sources.get(remote)
+            if previous is not None and previous != local:
+                raise SyncError(f"two quilt files would publish as {remote}: {previous}, {local}")
+            remote_sources[remote] = local
+            projected[local] = remote
+    return documents, projected
+
+
+def source_paths(quilt: Quilt, state: SyncState) -> list[str]:
+    """Every committed source path in the selected document projection."""
+    return sorted(source_projection(quilt, state)[1])
 
 
 def configure(quilt: Quilt, remote: str, branch: str, published_main: str = "") -> SyncState:
@@ -103,6 +141,7 @@ def configure(quilt: Quilt, remote: str, branch: str, published_main: str = "") 
         master=quilt.config.main,
         integrated=upstream,
         published_main=published_main or quilt.config.main,
+        documents=[quilt.config.main],
     )
     state.write(root)
     return state
@@ -387,7 +426,7 @@ def mark_incorporated(quilt: Quilt, state: SyncState) -> SyncState:
     if not state.incoming or state.incoming == state.integrated:
         raise SyncError("there is no incoming revision to mark incorporated")
     # This is an author assertion about source incorporation, never a mathematical acceptance.
-    git(quilt.root, "diff", "--quiet", "HEAD", "--", *source_paths(quilt))
+    git(quilt.root, "diff", "--quiet", "HEAD", "--", *source_paths(quilt, state))
     state.integrated = state.incoming
     state.local_commit = revision(quilt.root, "HEAD")
     state.write(quilt.root)
@@ -405,13 +444,15 @@ def publish(quilt: Quilt, state: SyncState, *, push: bool) -> tuple[str, list[st
     remote_tip = revision(root, f"refs/remotes/{state.remote}/{state.branch}")
     if remote_tip != state.integrated:
         raise SyncError("Overleaf advanced; fetch and review the new revision before publishing")
-    paths = source_paths(quilt)
+    documents, projection = source_projection(quilt, state)
     blobs: dict[str, str] = {}
-    for path in paths:
-        blob = git(root, "rev-parse", "--verify", f"HEAD:{path}").decode().strip()
+    for path, projected in projection.items():
+        try:
+            blob = git(root, "rev-parse", "--verify", f"HEAD:{path}").decode().strip()
+        except SyncError as exc:
+            raise SyncError(f"{path} is not committed; commit it before publishing") from exc
         if (root / path).read_bytes() != git(root, "show", f"HEAD:{path}"):
             raise SyncError(f"{path} has uncommitted edits; commit them before publishing")
-        projected = state.published_main if path == state.master else path
         if projected in blobs:
             raise SyncError(f"two quilt files would publish as {projected}")
         blobs[projected] = blob
@@ -421,9 +462,16 @@ def publish(quilt: Quilt, state: SyncState, *, push: bool) -> tuple[str, list[st
             dest = stage / path
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(git(root, "cat-file", "blob", blob))
-        out = compile_tex(stage, state.published_main, stage / "build", quilt.config.engine)
-        if not out.ok:
-            raise SyncError(f"the source-only document does not compile: {out.first_error}")
+        for index, document in enumerate(documents):
+            projected = projection[document]
+            out = compile_tex(
+                stage,
+                projected,
+                stage / "build" / f"{index}-{Path(projected).stem}",
+                quilt.config.engine,
+            )
+            if not out.ok:
+                raise SyncError(f"the source-only document {document} does not compile: {out.first_error}")
         env = dict(os.environ)
         env["GIT_INDEX_FILE"] = str(stage / "source.index")
         git(root, "read-tree", "--empty", env=env)
@@ -444,6 +492,8 @@ def publish(quilt: Quilt, state: SyncState, *, push: bool) -> tuple[str, list[st
             .strip()
         )
     if push:
+        git(root, "var", "GIT_AUTHOR_IDENT")
+        git(root, "var", "GIT_COMMITTER_IDENT")
         git(root, "push", state.remote, f"{source_commit}:refs/heads/{state.branch}")
         git(root, "update-ref", f"refs/remotes/{state.remote}/{state.branch}", source_commit)
         state.integrated = source_commit
@@ -451,7 +501,43 @@ def publish(quilt: Quilt, state: SyncState, *, push: bool) -> tuple[str, list[st
         state.observed = stamp()
         state.local_commit = revision(root, "HEAD")
         state.write(root)
+        git(root, "add", "--", ".loom/source-sync.json")
+        git(
+            root,
+            "commit",
+            "-m",
+            f"Record published {state.remote}/{state.branch} revision {source_commit[:12]}",
+            "--",
+            ".loom/source-sync.json",
+        )
     return source_commit, sorted(blobs)
+
+
+def update_documents(quilt: Quilt, state: SyncState, action: str, document: str) -> SyncState:
+    """Persist one additional live master in the source projection; never commit or publish it."""
+    from loom.scan.scan import scan
+
+    path = Path(document)
+    if path.is_absolute() or ".." in path.parts:
+        raise SyncError(f"document has an unsafe path: {document}")
+    current = list(dict.fromkeys(state.documents or [state.master]))
+    if state.master not in current:
+        current.insert(0, state.master)
+    if action == "add":
+        live = set(scan(quilt).masters)
+        if document not in live:
+            raise SyncError(f"{document} is not a live drafting document")
+        if document not in current:
+            current.append(document)
+    elif action == "remove":
+        if document == state.master:
+            raise SyncError("the primary Overleaf document cannot be removed")
+        current = [item for item in current if item != document]
+    else:
+        raise SyncError(f"unknown document action: {action}")
+    state.documents = current
+    state.write(quilt.root)
+    return state
 
 
 def summary(quilt: Quilt, state: SyncState) -> dict[str, Any]:

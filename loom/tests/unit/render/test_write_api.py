@@ -666,7 +666,7 @@ def _review_finish(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     s, root = synthetic(serve, tmp_path)
     refuses(s, "review-finish", {}, 409, "nothing-pending", "no pending OK decisions")
     succeeds(s, "review-decision", {"key": "sy-0001", "status": "ok"})
-    monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result: (True, ""))
+    monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master=None: (True, ""))
     monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "Test author")
     # the fixture's acceptance of sy-0001 is stale; finishing records a fresh one beside it
     stale = Records(root, load_quilt(root).history_dir).latest["sy-0001"]

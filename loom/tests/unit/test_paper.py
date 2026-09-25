@@ -254,6 +254,49 @@ def test_id_prints_patch_and_to_writes_copy(tmp_path: Path) -> None:
     )
 
 
+def test_id_fix_anchoring_combines_repairs_and_labels_without_editing_source(tmp_path: Path) -> None:
+    q = drafted(tmp_path)
+    source = q / "drafting" / "note.tex"
+    authored = (
+        "\\documentclass{amsart}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\n"
+        "Text \\begin{lemma}Alpha\\end{lemma} tail\n\\section{Another}\n\\end{document}\n"
+    )
+    source.write_text(authored)
+    refused = run("id", "drafting/note.tex", cwd=q)
+    assert refused.exit_code == 1 and "pass --fix-anchoring" in refused.output
+
+    patch = run("id", "drafting/note.tex", "--fix-anchoring", cwd=q)
+    assert patch.exit_code == 0, patch.output
+    assert "+\\begin{lemma}\\label{pp-" in patch.output
+    assert "+\\section{Another}\\label{pp-" in patch.output
+    assert "+Alpha" in patch.output and "+\\end{lemma}" in patch.output
+    assert source.read_text() == authored
+
+    dest = tmp_path / "extra-fixed.tex"
+    copied = run("id", "drafting/note.tex", "--fix-anchoring", "--to", str(dest), cwd=q)
+    assert copied.exit_code == 0, copied.output
+    fixed = dest.read_text()
+    assert "Text\n\\begin{lemma}\\label{pp-" in fixed
+    assert "\nAlpha\n\\end{lemma}\ntail\n" in fixed
+    assert "\\section{Another}\\label{pp-" in fixed
+    assert anchoring_violations(fixed, {"lemma"}) == []
+    assert source.read_text() == authored
+
+
+def test_id_fix_anchoring_can_repair_without_inserting_ids(tmp_path: Path) -> None:
+    q = drafted(tmp_path)
+    source = q / "nodes" / "extra.tex"
+    authored = "Prose \\begin{lemma}\\label{pp-0099}Text\\end{lemma} more\n"
+    source.write_text(authored)
+    patch = run("id", "nodes/extra.tex", "--fix-anchoring", "--no-sections", cwd=q)
+    assert patch.exit_code == 0, patch.output
+    assert "+\\begin{lemma}\\label{pp-0099}" in patch.output
+    assert "nothing to label" not in patch.output
+    assert "pp-009A" not in patch.output
+    assert run("id", "--next", "--fix-anchoring", cwd=q).exit_code == 2
+    assert source.read_text() == authored
+
+
 def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
     q = drafted(tmp_path)
     refused(

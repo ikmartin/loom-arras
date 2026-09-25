@@ -203,6 +203,73 @@ def test_accept_all_live_selects_statements_and_proofs_and_tracks_changes(tmp_pa
     assert s["keys"]["dm-0099"]["state"] == "draft"  # an unreached node is excluded
 
 
+def test_accept_master_uses_that_documents_reachability_and_preamble(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    toy = d / "drafting" / "toy.tex"
+    toy.write_text(
+        "\\documentclass{amsart}\n"
+        "\\usepackage{amsmath,amssymb,amsthm}\n"
+        "\\usepackage{loom}\n"
+        "\\newtheorem{lemma}{Lemma}\n"
+        "\\newcommand{\\ToyMacro}{one}\n"
+        "\\begin{document}\n"
+        "\\input{nodes/dm-0001}\n"
+        "\\begin{lemma}\\label{dm-0098}Toy only.\\end{lemma}\n"
+        "\\end{document}\n",
+        encoding="utf-8",
+    )
+
+    refused("accept", "--master", "drafting/toy.tex", *AUTHOR, cwd=d, code=2, match="--yes")
+    accepted = ok("accept", "--master", "drafting/toy.tex", "--yes", "--force", *AUTHOR, cwd=d)
+    assert "2 statements and 0 proofs" in accepted.output
+
+    from loom.records.ledger import read_ledger
+
+    rows = {row.key: row for row in read_ledger(d)}
+    assert set(rows) == {"dm-0001", "dm-0098"}
+    assert {row.master for row in rows.values()} == {"drafting/toy.tex"}
+    state = status_json(d)["keys"]
+    assert state["dm-0098"]["acceptance"]["fresh"] is True
+    main = d / "drafting" / "main.tex"
+    main.write_text(main.read_text().replace("\\newcommand{\\Fix}", "\\newcommand{\\MainOnly}"))
+    assert status_json(d)["keys"]["dm-0098"]["acceptance"]["fresh"] is True
+    toy.write_text(toy.read_text().replace("{one}", "{two}"))
+    assert status_json(d)["keys"]["dm-0098"]["acceptance"]["fresh"] is False
+
+
+@pytest.mark.parametrize("extra", [("dm-0001",), ("--proofs",), ("--stale",), ("--all-live",)])
+def test_accept_master_refuses_other_target_modes(tmp_path: Path, extra: tuple[str, ...]) -> None:
+    d = demo(tmp_path)
+    refused(
+        "accept", "--master", "drafting/main.tex", *extra, "--yes", *AUTHOR, cwd=d, code=2, match="cannot be combined"
+    )
+
+
+def test_accept_master_refuses_non_master_and_invalid_document_atomically(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    refused(
+        "accept",
+        "--master",
+        "drafting/missing.tex",
+        "--yes",
+        *AUTHOR,
+        cwd=d,
+        code=2,
+        match="not a live drafting document",
+    )
+    refused(
+        "accept",
+        "--master",
+        "drafting/outline.tex",
+        "--yes",
+        *AUTHOR,
+        cwd=d,
+        code=1,
+        match="live incomplete keys prevent --master drafting/outline.tex",
+    )
+    assert not (d / ".loom" / "state.toml").exists()
+
+
 @pytest.mark.parametrize("extra", [("dm-0001",), ("--proofs",), ("--stale",)])
 def test_accept_all_live_refuses_other_target_modes(tmp_path: Path, extra: tuple[str, ...]) -> None:
     d = demo(tmp_path)

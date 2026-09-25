@@ -15,6 +15,7 @@ from loom.cli.build_cmds import engine_for, log_run
 from loom.history.ledger import actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, text_hash, write_step
 from loom.reshape.anchoring import anchoring_violations
+from loom.reshape.anchoring import fix_anchoring as repair_anchoring
 from loom.reshape.atomize import inline as inline_text
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
 from loom.reshape.canon import apply_import, plan_import
@@ -23,7 +24,7 @@ from loom.reshape.importer import set_main_forced
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
 from loom.scan.quilt import Quilt
-from loom.scan.scan import ScanResult
+from loom.scan.scan import ScanResult, scan
 from loom.tex.identity import IdentityResult, identity_test
 
 
@@ -35,6 +36,7 @@ from loom.tex.identity import IdentityResult, identity_test
 @click.option("--sections/--no-sections", default=True, help="Also label sections through subsubsection (default on).")
 @click.option("--all-levels", is_flag=True, help="Also label paragraphs and subparagraphs.")
 @click.option("--prefix", default=None)
+@click.option("--fix-anchoring", is_flag=True, help="Include line-anchoring repairs in the patch or written copy.")
 @click.option("--next", "next_only", is_flag=True, help="Print the next free id and nothing else; inserts nothing.")
 @click.option("--json", "as_json", is_flag=True, help="With --next: print it as JSON.")
 @click.option(
@@ -49,6 +51,7 @@ def id_command(
     sections: bool,
     all_levels: bool,
     prefix: str | None,
+    fix_anchoring: bool,
     next_only: bool,
     as_json: bool,
     run_dir: str | None,
@@ -60,6 +63,8 @@ def id_command(
     log_run(run_dir, "loom id" + (" --next" if next_only else f" {file}" if file else ""), root)
     pre_next = prefix or result.quilt.config.prefix
     if next_only:
+        if fix_anchoring:
+            raise EnvError("--fix-anchoring requires a FILE; it cannot be used with --next")
         allocated = f"{pre_next}-{next_local(visible_locals(result, pre_next))}"
         emit_json({"id": allocated, "prefix": pre_next}) if as_json else click.echo(allocated)
         return
@@ -71,16 +76,19 @@ def id_command(
     rel = _rel(root, file)
     if rel not in result.files:
         raise EnvError(f"{file} is not a scanned file of this quilt")
-    v = anchoring_violations(result.files[rel].text, set(result.taxa))
-    if v:
+    before = result.files[rel].text
+    theorem_names = set(result.taxa)
+    v = anchoring_violations(before, theorem_names)
+    if v and not fix_anchoring:
         for x in v:
             note(f"{rel}:{x.line}  \\{x.kind}{{{x.env}}} is not alone on its line")
-        note("loom:line-anchoring: fix these lines first (or import with --fix-anchoring)")
+        note("loom:line-anchoring: fix these lines first or pass --fix-anchoring")
         ctx.exit(EXIT_CONTENT)
+    anchored = repair_anchoring(before, theorem_names) if v else before
+    planning = scan(result.quilt, overlay={rel: anchored}) if v else result
     pre = prefix or result.quilt.config.prefix
-    ins = plan_insertions(result, [rel], pre, next_local(visible_locals(result, pre)), sections, all_levels)
-    before = result.files[rel].text
-    after = apply_insertions(before, ins)
+    ins = plan_insertions(planning, [rel], pre, next_local(visible_locals(planning, pre)), sections, all_levels)
+    after = apply_insertions(anchored, ins)
     if to:
         out = Path(to).expanduser()
         if out.exists():
@@ -90,7 +98,7 @@ def id_command(
         click.echo(f"{out}  ({len(ins)} labels)")
         return
     click.echo(unified_diff(before, after, rel), nl=False)
-    if not ins:
+    if after == before:
         note("nothing to label")
 
 

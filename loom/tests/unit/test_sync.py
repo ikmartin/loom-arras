@@ -23,6 +23,7 @@ from loom.sync import (
     prepare_incorporation,
     publish,
     tree_files,
+    update_documents,
 )
 
 
@@ -165,3 +166,106 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     latest = build(quilt).manifest["unresolved"][0]
     assert latest["pull"] == state.incoming
     assert latest["local_changed"] is False
+
+
+def test_multiple_selected_documents_publish_one_clean_union_and_record_the_push(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    import loom.sync as sync
+
+    root = tmp_path / "quilt"
+    root.mkdir()
+    run(root, "init", "-b", "quilt")
+    run(root, "config", "user.name", "Tester")
+    run(root, "config", "user.email", "tester@example.org")
+    (root / "drafting").mkdir()
+    (root / "shared").mkdir()
+    (root / ".loom").mkdir()
+    (root / "canon").mkdir()
+    (root / "config.toml").write_text(
+        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\ndrafting = "drafting"\ncanon = "canon"\nprefix = "zk"\nengine = "pdflatex"\n',
+        encoding="utf-8",
+    )
+    preamble = "\\documentclass{article}\n\\usepackage{loom}\n\\newtheorem{lemma}{Lemma}\n"
+    (root / "drafting/main.tex").write_text(
+        preamble + "\\begin{document}\n\\input{shared/common}\n\\end{document}\n", encoding="utf-8"
+    )
+    (root / "drafting/toy.tex").write_text(
+        preamble
+        + "\\begin{document}\n\\input{shared/common}\n\\begin{lemma}\\label{zk-0002}Toy.\\end{lemma}\n\\end{document}\n",
+        encoding="utf-8",
+    )
+    (root / "drafting/private.tex").write_text(
+        preamble + "\\begin{document}Not selected.\\end{document}\n", encoding="utf-8"
+    )
+    (root / "shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared.\\end{lemma}\n", encoding="utf-8")
+    (root / "loom.sty").write_text("% local support\n", encoding="utf-8")
+    (root / ".loom/private.txt").write_text("private\n", encoding="utf-8")
+    (root / "canon/main.tex").write_text("private landmark\n", encoding="utf-8")
+    run(root, "add", ".")
+    run(root, "commit", "-m", "private quilt")
+    bare = tmp_path / "overleaf.git"
+    subprocess.check_call(["git", "init", "--bare", str(bare)], stdout=subprocess.DEVNULL)
+    run(root, "remote", "add", "origin", str(bare))
+    run(root, "push", "origin", "HEAD:main")
+    run(root, "fetch", "origin", "main")
+    quilt = load_quilt(root)
+    state = configure(quilt, "origin", "main", "main.tex")
+    state = update_documents(quilt, state, "add", "drafting/toy.tex")
+    assert SyncState.read(root).documents == ["drafting/main.tex", "drafting/toy.tex"]
+    run(root, "add", ".loom/source-sync.json")
+    run(root, "commit", "-m", "select Overleaf documents")
+
+    compiled: list[str] = []
+
+    remote_before = run(root, "rev-parse", "refs/remotes/origin/main")
+
+    def compile_secondary_failure(_root: Path, master: str, *_args: object, **_kwargs: object) -> SimpleNamespace:
+        return SimpleNamespace(ok=master != "drafting/toy.tex", first_error="toy failed")
+
+    monkeypatch.setattr(sync, "compile_tex", compile_secondary_failure)  # type: ignore[attr-defined]
+    try:
+        publish(quilt, state, push=True)
+    except SyncError as exc:
+        assert "drafting/toy.tex does not compile" in str(exc)
+    else:
+        raise AssertionError("a broken secondary document must prevent publication")
+    assert run(root, "rev-parse", "refs/remotes/origin/main") == remote_before
+
+    def compile_ok(_root: Path, master: str, *_args: object, **_kwargs: object) -> SimpleNamespace:
+        compiled.append(master)
+        return SimpleNamespace(ok=True)
+
+    monkeypatch.setattr(sync, "compile_tex", compile_ok)  # type: ignore[attr-defined]
+    commit, paths = publish(quilt, state, push=True)
+    assert compiled == ["main.tex", "drafting/toy.tex"]
+    assert paths == ["drafting/toy.tex", "loom.sty", "main.tex", "shared/common.tex"]
+    assert set(tree_files(root, commit)) == set(paths)
+    assert ".loom/private.txt" not in tree_files(root, commit)
+    assert "canon/main.tex" not in tree_files(root, commit)
+    assert "drafting/private.tex" not in tree_files(root, commit)
+    assert run(root, "show", "--format=", "--name-only", "HEAD") == ".loom/source-sync.json"
+    assert "Record published origin/main revision" in run(root, "log", "-1", "--format=%s")
+
+    try:
+        update_documents(quilt, state, "remove", "drafting/main.tex")
+    except SyncError as exc:
+        assert "cannot be removed" in str(exc)
+    else:
+        raise AssertionError("the primary selected document must not be removable")
+    state = update_documents(quilt, state, "remove", "drafting/toy.tex")
+    assert state.documents == ["drafting/main.tex"]
+    state = update_documents(quilt, state, "add", "drafting/toy.tex")
+    (root / "drafting/toy.tex").unlink()
+    state = update_documents(quilt, state, "remove", "drafting/toy.tex")
+    assert state.documents == ["drafting/main.tex"]
+
+
+def test_old_sync_state_defaults_to_the_primary_document(tmp_path: Path) -> None:
+    root = tmp_path
+    (root / ".loom").mkdir()
+    (root / ".loom/source-sync.json").write_text(
+        '{"remote":"origin","branch":"main","master":"drafting/main.tex","integrated":"abc"}\n',
+        encoding="utf-8",
+    )
+    assert SyncState.read(root).documents == ["drafting/main.tex"]

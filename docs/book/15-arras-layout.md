@@ -119,7 +119,7 @@ See 15.5.
 
 ![Home](figures/page-home.png)
 
-**[decided]** Four metric cards (48px tall, `--leaf`, `--rad-control`, 9px muted label, 18px value in the state colour) — accepted, stale, incomplete, errors — then the documents, what needs attention, what is blocked, what is loose, and what is recent. Every line links. The first three cards open Review's complete All table; errors opens `/problems?severity=error` (DR-220). This is the landing route.
+**[decided]** Four metric cards (48px tall, `--leaf`, `--rad-control`, 9px muted label, 18px value in the state colour) — accepted, stale, incomplete, errors — then the documents, what needs attention, what is blocked, what is loose, and what is recent. The first three cards summarize the corpus without pretending that Review has a quilt-wide document table; errors opens `/problems?severity=error`, and blocked work links to Review's default document (DR-220, DR-225-VelascoL). This is the landing route.
 
 ### 15.3.4a Answering a finding
 
@@ -143,7 +143,7 @@ See 15.5.
 
 ### 15.3.5 Review panel, problems, threads, indexes
 
-**[decided]** The Review page has three tabs only: All, Needs review, and Incoming. All is the default complete table; specialist state, basis, proof, gap, and reachability information stays in its rows and counts. Needs review is a dependency-ordered block queue. Incoming shows the exact fetched revision, comparisons, affected dependents, and changed files. No review filters occupy the left panel. A column no row fills is not drawn, and stale cause details still expand in place. `/blockers` redirects to All.
+**[decided]** The Review page has one tab per working document, followed by Needs review and Incoming. The configured default document opens first; a document tab shows the state, basis, proof, gap and reachability information for keys that document reaches, and its counts come from exactly those rows. A shared node appears in every document that reaches it with one shared state. Needs review is one quilt-wide dependency-ordered block queue. Incoming shows the exact fetched revision, comparisons, affected dependents, and changed files. No review filters occupy the left panel. A column no row fills is not drawn, stale cause details still expand in place, and `/blockers` redirects to the default document. Sessions belong to the session item and undigested works to Library; neither is repeated below a document's table.
 
 `/review?show=incoming` is a separate view of a fetched source revision (DR-217). It lists changed block IDs and files, places the current local block beside the incoming rendering, offers source diffs for changed TeX and bibliography files, and links potentially affected dependents to their citations. One **Incorporate pull** click verifies and applies that exact revision and creates two local commits. Conflicts stop before author files change. The action never pushes or accepts mathematics.
 
@@ -180,7 +180,7 @@ See 15.5.
 | home, tags, taxa, loose, threads | documents with the current contents, nodes, library | none |
 | reading mode (a document, a work, a node, a context, a session) | documents with the current document's contents, nodes, library | none; a node's context is an item beside it, and a document's local graph floats in its pane when opened |
 | graph | drawing, document, taxon, tag, state, depth, highlight, cited results | the selection and what rests on it, or the selected paper and its links |
-| review | none | none; tabs choose All, Needs review, or Incoming, and an All row expands in place |
+| review | none | none; tabs choose a working document, Needs review, or Incoming, and a document row expands in place |
 | library (the ledger) | documents, nodes, library — the ledger's filters are its own | none |
 | problems | severity and code filters | none |
 | search | the command palette's own list | none |

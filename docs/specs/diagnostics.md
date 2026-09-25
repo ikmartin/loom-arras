@@ -61,7 +61,7 @@ Source and structure:
 - `loom:unexpected-proof` (info): a proof attached to a block explicitly classified as definition, assumption, or open claim.
 - `loom:missing-proof` (warning): a local-proof block with no proof and no `\incomplete`, regardless of TeX style.
 
-Arras displays this diagnostic on the block with a link to its Review row and provides a Review filter for affected blocks. It does not change the recorded acceptance state.
+Arras displays this diagnostic on the block with a link to its row in a working-document Review tab. It does not change the recorded acceptance state.
 - `loom:needs-classification` (warning): a live theorem-like block whose basis is unknown or whose signals conflict; add `% !LOOM basis:` inside it after deciding what the block asserts.
 - `loom:misplaced-basis` (warning): a `% !LOOM basis:` directive outside a theorem-like block; it cannot classify a whole file or a proof.
 - `loom:equation-in-proof-referenced` (warning): another node references an equation inside this node's proof.

@@ -32,6 +32,8 @@ Recorded: canonize as step 0002 (0002-paper-v2)
 
 `--to` defaults to the same stem in the other directory, and `-m` is required: a landmark nobody named is a landmark nobody can ask for. Both commands compile before and after and compare the text of the two PDFs; a failure refuses and writes nothing. `loom history` then lists the landmarks, `loom history q-0001` the versions that key has had, and `loom revert q-0001@2` prints the patch that puts a recorded text back.
 
+For an Overleaf Git project, source sync publishes only committed inputs, never the private quilt wholesale. The configured main document is selected automatically; `loom sync documents add drafting/toy.tex` persistently adds another live document. Commit author-source edits normally, inspect the projection with `loom sync publish`, and send it with `loom sync publish --push`. Loom compiles every selected document first, pushes a source-only commit, and records the resulting remote revision in its own private bookkeeping commit. Acceptance remains a separate mathematical act.
+
 ## The contract
 
 Everything loom reads is a label, an environment, a citation, a comment, or one of three macros that print nothing. The paper compiles with plain `pdflatex` from this directory, and on Overleaf with `drafting/main.tex` chosen as the main document from Overleaf's menu.
