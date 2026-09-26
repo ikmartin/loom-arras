@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from loom.records.store import Records
-from loom.render.manifest import key_hash
+from loom.render.manifest import own_text
+from loom.scan.hashing import mathematical_hash
 from loom.scan.scan import ScanResult, scan
 from loom.sync import SyncError, SyncState, git
 
@@ -33,8 +34,10 @@ def _write(root: Path, rows: dict[str, dict[str, str]]) -> None:
 def fingerprint(result: ScanResult, key: str) -> str:
     node = result.nodes[key]
     context = {
-        "text": key_hash(result, key),
-        "closure": Records.closure_hashes(result, key),
+        "text": mathematical_hash(own_text(result, node)),
+        "closure": {
+            dep: mathematical_hash(own_text(result, result.nodes[dep])) for dep in Records.closure_hashes(result, key)
+        },
         "preamble": Records.preamble_hash(result, result.default_master),
         "basis": node.basis,
         "incomplete": node.incomplete,

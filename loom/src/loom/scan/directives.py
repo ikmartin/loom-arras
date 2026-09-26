@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 
 from loom.scan.model import Directive, SourceFile
+from loom.scan.source import _protected_ranges
 
 # `source` is the pre-0.5 spelling of `extracted-from` and stays known, so a quilt that has not been upgraded lints clean (DR-109)
 KNOWN_KEYS = {
@@ -27,6 +28,7 @@ KNOWN_KEYS = {
     "numbering",
     "shared",
     "basis",
+    "name",
 }
 LIST_KEYS = {"author", "tags", "see", "requires"}
 BARE_KEYS = {"ignore"}
@@ -41,6 +43,7 @@ _LINE = re.compile(r"^[ \t]*%[ \t]*!(LOOM|TEX)[ \t]+(.*?)[ \t]*$", re.M)
 
 def parse_directives(src: SourceFile) -> list[Directive]:
     out: list[Directive] = []
+    protected = _protected_ranges(src.text)
     for m in _LINE.finditer(src.text):
         family, rest = m.group(1), m.group(2)
         line = src.line_of(m.start())
@@ -58,6 +61,8 @@ def parse_directives(src: SourceFile) -> list[Directive]:
             continue
         km = re.match(r"([a-z][a-z-]*)\s*:\s*(.*)$", rest)
         if km:
+            if km.group(1) == "name" and any(a <= m.start() < b for a, b in protected):
+                continue
             out.append(Directive(km.group(1), km.group(2).strip(), src.path, m.start(), line, "kv"))
             continue
         out.append(Directive(rest.split()[0] if rest.split() else rest, rest, src.path, m.start(), line, "unknown"))

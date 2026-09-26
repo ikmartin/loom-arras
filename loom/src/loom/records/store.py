@@ -19,7 +19,7 @@ from loom.records.ledger import AcceptRow, latest_rows, read_ledger
 from loom.records.selectors import resolve_selector
 from loom.records.snapshots import read_snapshot
 from loom.render.manifest import key_hash, own_text
-from loom.scan.hashing import hash_text, normalize
+from loom.scan.hashing import hash_text, mathematical_hash, normalize
 from loom.scan.model import Diagnostic
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
@@ -148,6 +148,15 @@ class Records:
             direct.append(n.of)
         return direct
 
+    def same_mathematics(self, result: ScanResult, key: str, before: str, current: str | None) -> bool:
+        """Compare saved source to current mathematics, conservatively retaining missing-snapshot differences."""
+        if before == current:
+            return True
+        if current is None or key not in result.nodes:
+            return False
+        old = read_snapshot(self.root, before, self.history_dir)
+        return old is not None and mathematical_hash(old) == mathematical_hash(own_text(result, result.nodes[key]))
+
     # ---- states -----------------------------------------------------------------
 
     def key_states(self, result: ScanResult) -> dict[str, KeyState]:
@@ -177,7 +186,7 @@ class Records:
                 ks.state = "incomplete" if n.incomplete else "accepted"
                 current = current_hashes[key]
                 closure_now = self.closure_hashes(result, key)
-                if row.text != current:
+                if not self.same_mathematics(result, key, row.text, current):
                     # What moved under an external node is loom's copy of somebody else's theorem, not the author's
                     # own text, and the cause is the useful half of the seal: the transcription you checked has moved.
                     moved = "transcription-changed" if n.external else "own-text-changed"
@@ -191,7 +200,7 @@ class Records:
                 for dep, h in accepted_direct.items():
                     if dep not in result.nodes:
                         ks.causes.append(Cause("dependency-removed", id=dep, before=h))
-                    elif direct_now.get(dep) != h:
+                    elif not self.same_mathematics(result, dep, h, direct_now.get(dep)):
                         ks.causes.append(
                             Cause(
                                 "dependency-changed",
@@ -227,7 +236,7 @@ class Records:
                 for dep in self.direct_keys(result, key):
                     if dep not in result.nodes or dep not in ks.row.closure:
                         continue
-                    if current_hashes.get(dep) != ks.row.closure[dep]:
+                    if not self.same_mathematics(result, dep, ks.row.closure[dep], current_hashes.get(dep)):
                         continue  # the direct dependency already has its own cause
                     upstream = states.get(dep)
                     if upstream and upstream.row:
@@ -239,7 +248,9 @@ class Records:
                             for ancestor in result.graph.closure(dep)
                             if ancestor != dep
                             and ancestor in ks.row.closure
-                            and current_hashes.get(ancestor) != ks.row.closure[ancestor]
+                            and not self.same_mathematics(
+                                result, ancestor, ks.row.closure[ancestor], current_hashes.get(ancestor)
+                            )
                         ]
                     for origin in origins:
                         if origin == key or origin not in result.nodes or any(c.id == origin for c in ks.causes):

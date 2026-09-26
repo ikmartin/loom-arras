@@ -86,6 +86,8 @@ The values are properties of the publisher and its corpora, not of this corpus's
 
 ## 3. Nodes
 
+`name`, when present on a node, is an optional plain-text display name from its own `% !LOOM name:` directive. It is not unique, a reference alias, or a replacement for `id` or `title`. Display prefers `name`, then `title`, then type and document number in an explicitly selected document, then ID. Search entries prefer the name as their title and retain the original title in the excerpt; aliases are unchanged (DR-301-luisa).
+
 **[decided]** Keyed by id, or by qualified key for untagged nodes.
 
 **[decided]** A node whose id two files define is published with `"state": "conflicted"`, an empty `fragment` and `file`, `"src": [0, 0]`, no children and no proofs, and an additional `conflict` listing the files that define it. It has no text: a publisher that cannot say which of two definitions is the node's says neither. Its key entry carries the same `state` and `conflict`, an empty `hash`, an empty `uses`, and no acceptance.

@@ -104,7 +104,7 @@ export async function sectionLayout(m: Manifest, f: Filters): Promise<Sections> 
 		if (id === LOOSE + 'rest') return 'outside every section';
 		const n = m.nodes[id];
 		const number = n?.numbers[master]?.number;
-		return clip([number, n?.title ?? id].filter(Boolean).join(' '), 28);
+		return clip([number, n?.name ?? n?.title ?? id].filter(Boolean).join(' '), 28);
 	};
 	const cards: Card[] = [...rows.entries()]
 		.map(([id, list]) => ({ id, label: label(id), rows: list, x: 0, y: 0, w: CARD_W, h: HEAD + Math.max(1, list.length) * ROW + 6 }))
@@ -151,7 +151,7 @@ export async function sectionLayout(m: Manifest, f: Filters): Promise<Sections> 
 	for (const e of laid.edges ?? []) {
 		const src = list[Number(e.id.slice(1))];
 		if (!src) continue;
-		src.points = (e.sections ?? []).flatMap((s) => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]);
+		src.points = (e.sections ?? []).flatMap((s) => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]).reverse();
 	}
 	return { cards, edges: list.filter((e) => e.points.length), width: laid.width ?? 800, height: laid.height ?? 600 };
 }

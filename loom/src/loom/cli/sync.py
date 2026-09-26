@@ -27,7 +27,7 @@ from loom.sync import (
 
 @click.group()
 def sync() -> None:
-    """Fetch and publish the document source through a Git remote."""
+    """Prepare and review a source-only document workspace; the quilt uses ordinary Git."""
 
 
 T = TypeVar("T")
@@ -43,20 +43,24 @@ def _run(action: Callable[[], T]) -> T:
 @sync.command("init")
 @click.option("--remote", default="origin", show_default=True)
 @click.option("--branch", default="main", show_default=True)
-@click.option("--publish-main", default="", help="Overleaf's main TeX path when it differs from the quilt master.")
+@click.option(
+    "--publish-main", default="", help="Document workspace main TeX path when it differs from the quilt master."
+)
 @quilt_option
 def init_sync(remote: str, branch: str, publish_main: str, quilt_path: str | None) -> None:
-    """Pair the current Overleaf revision with this quilt's drafting master."""
+    """Configure the document workspace for this quilt's selected documents."""
     quilt = open_quilt(quilt_path)
     state = _run(lambda: configure(quilt, remote, branch, publish_main))
     assert isinstance(state, SyncState)
-    click.echo(f"source sync: {remote}/{branch} at {state.integrated[:12]}; {state.master} -> {state.published_main}")
+    click.echo(
+        f"Document workspace: {remote}/{branch} at {state.integrated[:12]}; {state.master} -> {state.published_main}"
+    )
 
 
 @sync.command("fetch")
 @quilt_option
 def fetch_sync(quilt_path: str | None) -> None:
-    """Fetch Overleaf without changing author files, then publish Incoming review."""
+    """Fetch document workspace changes for Incoming review without changing author files."""
     from loom.render.build import build
 
     quilt = open_quilt(quilt_path)
@@ -67,16 +71,27 @@ def fetch_sync(quilt_path: str | None) -> None:
     state = _run(action)
     assert isinstance(state, SyncState)
     build(quilt)
-    click.echo(f"incoming {state.incoming[:12]} observed {state.observed}; review updated")
+    if state.incoming == state.prepared:
+        click.echo(f"Document workspace publication {state.incoming[:12]} recognized; no incoming changes")
+    elif state.incoming == state.integrated:
+        click.echo(f"Document workspace {state.incoming[:12]}; no incoming changes")
+    else:
+        click.echo(f"Document workspace incoming {state.incoming[:12]} observed {state.observed}; review updated")
 
 
 @sync.command("status")
 @quilt_option
 def status_sync(quilt_path: str | None) -> None:
-    """Show the integrated and incoming source revisions."""
+    """Show document workspace revisions, selection, and the prepared local ref."""
     quilt = open_quilt(quilt_path)
     report = _run(lambda: summary(quilt, SyncState.read(quilt.root)))
     assert isinstance(report, dict)
+    click.echo(f"Document workspace: {report['remote']}/{report['branch']}")
+    if report["prepared"]:
+        click.echo(f"Prepared {str(report['prepared'])[:12]} at {report['publication_ref']}")
+        click.echo(f"From quilt commit {report['prepared_from']}")
+    for document in report["documents"]:
+        click.echo(f"  {document}")
     click.echo(f"integrated {str(report['integrated'])[:12]}")
     click.echo(f"incoming   {str(report['incoming'])[:12]}")
     for file in report["files"]:
@@ -88,7 +103,7 @@ def status_sync(quilt_path: str | None) -> None:
 @click.argument("document", required=False)
 @quilt_option
 def documents_sync(action: str | None, document: str | None, quilt_path: str | None) -> None:
-    """List, add, or remove documents in the persistent Overleaf projection."""
+    """Change the persistent document workspace selection without staging, committing, or publishing."""
     quilt = open_quilt(quilt_path)
     state = _run(lambda: SyncState.read(quilt.root))
     assert isinstance(state, SyncState)
@@ -100,10 +115,10 @@ def documents_sync(action: str | None, document: str | None, quilt_path: str | N
     else:
         state = _run(lambda: update_documents(quilt, state, action, document))
         verb = "added" if action == "add" else "removed"
-        click.echo(f"{verb} {document}; sync selection updated (not committed or published)")
+        click.echo(f"{verb} {document}; document workspace selection updated (not staged, committed, or published)")
     for selected in state.documents or [state.master]:
         mapped = state.published_main if selected == state.master else selected
-        suffix = " (Overleaf main)" if selected == state.master else ""
+        suffix = " (document workspace main)" if selected == state.master else ""
         click.echo(f"  {selected} -> {mapped}{suffix}")
 
 
@@ -156,14 +171,17 @@ def finish_sync(quilt_path: str | None) -> None:
 
 
 @sync.command("publish")
-@click.option("--push", is_flag=True, help="Push the checked source-only commit to Overleaf.")
 @quilt_option
-def publish_sync(push: bool, quilt_path: str | None) -> None:
-    """Project committed LaTeX inputs onto the Overleaf branch and check compilation."""
+def publish_sync(quilt_path: str | None) -> None:
+    """Build and compile the committed document workspace projection locally."""
     quilt = open_quilt(quilt_path)
-    result = _run(lambda: publish(quilt, SyncState.read(quilt.root), push=push))
-    assert isinstance(result, tuple)
-    commit, paths = result
-    click.echo(f"source-only commit {commit[:12]} ({len(paths)} files){' pushed' if push else '; pass --push to send'}")
-    for path in paths:
-        click.echo(f"  {path}")
+    state = _run(lambda: SyncState.read(quilt.root))
+    commit, paths = _run(lambda: publish(quilt, state))
+    click.echo(f"Prepared document workspace revision {commit[:12]}")
+    click.echo(f"Local ref: {state.publication_ref}")
+    click.echo(f"From quilt commit: {state.prepared_from}")
+    click.echo("Documents:")
+    for document in state.documents:
+        click.echo(f"  {document}")
+    click.echo(f"Files: {len(paths)}")
+    click.echo("Remote unchanged")

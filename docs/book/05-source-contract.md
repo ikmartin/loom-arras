@@ -299,6 +299,7 @@ Rules:
 | `ignore` | bare | file | do not scan this file |
 | `author: NAME[, NAME]` | key-value | file or node | author(s) of the node(s) |
 | `created: YYYY-MM-DD` | key-value | file or node | creation date |
+| `name: SHORT NAME` | key-value | own node only | optional plain-text display name; nonunique, not printed in the paper or used as an alias (DR-301-luisa) |
 | `tags: a, b` | key-value | file or node | thematic labels |
 | `see: ID, ID` | key-value | file or node | related nodes for the viewer; never a dependency |
 | `environment: ENV = Name, style` | key-value | master file | declare a taxon the preamble does not (5.5.1) |
@@ -308,6 +309,8 @@ Rules:
 | `requires: pkg, pkg` | key-value | digest file | packages the digest's statements need |
 | `numbering: emulated` | key-value | digest file | the results were numbered by counter emulation because the reference produced no `.aux` (8.5.2, DR-68) |
 | `begin macros` / `end macros` | region | digest file | scoped macro block |
+
+A name belongs inside the node it names and never inherits from a file header or parent. Empty, duplicate and misplaced names produce `loom:invalid-name`; repeated names on one node use the scanner’s last value.
 
 Any other key is unknown.
 
@@ -338,6 +341,8 @@ The preamble closure's hash is the hash of the concatenation of the normalized p
 **[decided]** Snapshots and versions are stored together under `.loom/history/texts/`, named by the hash of their normalized text (17.2). A canon document is hashed differently, over its exact text rather than its normalized text, because a landmark is a file rather than a key and a comment changed in one is a change to it (17.15).
 
 **[decided]** Whitespace inside a line is not normalized, so a reflowed paragraph changes the hash. Reflow is an edit; the author re-accepts.
+
+**[decided]** Display-name edits alone do not stale mathematical acceptance, dependencies, or pending review OKs (DR-301-luisa). Freshness compares normalized own text with standalone `name` directives removed outside verbatim regions. Snapshot addresses and recorded hashes retain the complete normalized source including names; a missing historical snapshot cannot establish equivalence and remains stale. Other directives and mathematical edits retain their existing effect.
 
 ## 5.14 Lint
 

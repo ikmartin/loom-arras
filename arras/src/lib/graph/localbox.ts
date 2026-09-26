@@ -31,7 +31,7 @@ export const BOX_H = 22;
 /** A box wide enough for its label at the drawing's type size, within bounds. */
 export const boxWidth = (label: string) => Math.round(Math.max(56, Math.min(170, 18 + label.length * 5.8)));
 
-/** Dependency kinds, drawn from what is rested on to what rests on it; anything else is a relation between peers. */
+/** Dependency kinds, placed above their users and drawn with arrows toward the dependency; anything else is a relation between peers. */
 const DEPENDS = new Set(['statement', 'proof', 'prose']);
 
 /**
@@ -82,7 +82,7 @@ export async function boxLayout(m: Manifest, hood: Neighbourhood, master?: strin
 		const l = hood.links[Number(e.id.slice(1))];
 		if (!l) continue;
 		const points = (e.sections ?? []).flatMap((s) => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint]);
-		out.push({ from: l.from, to: l.to, kind: l.kind, points });
+		out.push({ from: l.from, to: l.to, kind: l.kind, points: DEPENDS.has(l.kind) ? points.reverse() : points });
 	}
 	return { nodes, edges: out, width: laid.width ?? 0, height: laid.height ?? 0 };
 }

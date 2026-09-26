@@ -71,6 +71,7 @@ export interface NumberEntry {
 }
 
 export interface Node {
+  name?: string;
   id: string;
   kind: "environment" | "section" | "proof" | (string & {});
   /** Sections only: the sectioning depth, 1 for \section. A contents list stops at a chosen depth with it. */

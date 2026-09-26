@@ -1,3 +1,4 @@
+import { displayNode } from '$lib/nodes/display';
 // The force layout (book 15.5), the default: a neighbourhood, circular nodes, labels beneath, no direction encoded. It answers what sits near what, where the layered drawing answers what this rests on.
 
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
@@ -65,7 +66,7 @@ export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: num
 			const p = at.get(n.id)!;
 			return {
 				id: n.id,
-				label: n.kind === 'work' ? (n.title ?? n.id) : n.id,
+				label: n.kind === 'work' ? (n.title ?? n.id) : displayNode(m, n.id, f.master).name,
 				taxon: n.taxon,
 				state: n.state,
 				color: colorOf(m, n.state),

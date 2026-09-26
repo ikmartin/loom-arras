@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { displayNode } from '$lib/nodes/display';
 	import { onMount } from 'svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	// Working-document tabs keep the ledger aligned with the file being edited. Needs review and Incoming remain corpus-wide tasks.
@@ -221,7 +222,7 @@
 		{#if pendingOk.length && reviewWritable}<button disabled={reviewBusy} onclick={finishReview}>Finish review · record {pendingOk.length} acceptances</button>{/if}
 		{#if activeEntry}
 			<section class="incoming-change" data-testid="guided-review">
-				<h2>{activeEntry.key} · {reviewOrigin(activeEntry)}</h2>
+				<h2 title={activeEntry.key}>{displayNode(m, activeEntry.key).name} · {reviewOrigin(activeEntry)}</h2>
 				<p><a href={keyUrl(m, activeEntry.key)}>Open in document</a></p>
 				<div class="guided-pair">
 					<div class="guided-current" class:guided-proof={m.keys[activeEntry.key]?.kind === 'proof'} class:guided-statement={m.keys[activeEntry.key]?.kind === 'statement'}>
@@ -235,7 +236,7 @@
 						</div>
 					{/if}
 				</div>
-				{#each causes(activeEntry.key) as c, i}<p>{c.kind === 'own-text-changed' ? 'Text edit' : c.kind === 'dependency-changed' ? `Dependency changed: ${c.id}` : c.kind}{#if causeUrl(m.keys[activeEntry.key], c, i)} · <a href={causeUrl(m.keys[activeEntry.key], c, i)!}>Compare</a>{/if}</p>{/each}
+				{#each causes(activeEntry.key) as c, i}<p>{c.kind === 'own-text-changed' ? 'Text edit' : c.kind === 'dependency-changed' ? `Dependency changed: ${c.id ? displayNode(m, c.id).name : ""}` : c.kind}{#if causeUrl(m.keys[activeEntry.key], c, i)} · <a href={causeUrl(m.keys[activeEntry.key], c, i)!}>Compare</a>{/if}</p>{/each}
 				{#if reviewWritable && activeEntry.status === 'needs-review'}
 					<p>{activeEntry.changed_text ? 'OK confirms the revised text and its dependencies.' : 'OK confirms this block in its current dependency context.'}</p>
 					<button disabled={reviewBusy} onclick={() => reviewDecision(activeEntry, 'ok')}>OK</button>{' '}
@@ -254,7 +255,7 @@
 		{/if}
 		{#each reviewGroups as group}
 			<h2>{group.heading}</h2>
-				{#if group.entries.length}<ul>{#each group.entries as entry (entry.key)}<li><button class="as-link" onclick={() => (activeReview = entry.key)}>{entry.key}</button> · {reviewOrigin(entry)}{#if entry.invalidated} · changed since decision{/if}</li>{/each}</ul>{:else}<p class="faint">None.</p>{/if}
+				{#if group.entries.length}<ul>{#each group.entries as entry (entry.key)}<li><button class="as-link" onclick={() => (activeReview = entry.key)}>{displayNode(m, entry.key).name}</button> · {reviewOrigin(entry)}{#if entry.invalidated} · changed since decision{/if}</li>{/each}</ul>{:else}<p class="faint">None.</p>{/if}
 		{/each}
 	{:else}
 	<table class="list">
@@ -270,7 +271,7 @@
 		<tbody>
 			{#each rows as k (k.key)}
 				<tr id={`review-${anchorId(k.key)}`}>
-					<td><a href={keyUrl(m, k.key)}>{k.key}</a></td>
+					<td><a href={keyUrl(m, k.key)} title={k.key}>{displayNode(m, k.key, filter === 'document' ? selectedDocument?.path : undefined).name}</a></td>
 					<td><Badge parts={reviewRowBadge(m, k)} />{#if missingProof.has(k.key)}<div class="faint">missing proof</div>{/if}</td>
 					<td>{#if m.nodes[k.node]?.kind === 'environment'}{m.nodes[k.node]?.basis === 'unclassified' ? 'needs classification' : m.nodes[k.node]?.basis}{m.nodes[k.node]?.inline_proof ? ' (inline)' : ''}{#if m.nodes[k.node]?.basis === 'unclassified'}<div class="faint">{m.nodes[k.node]?.basis_reason}</div>{/if}{/if}</td>
 					<td class="faint nowrap">{k.acceptance ? shortDate(k.acceptance.date) : ''}</td>
@@ -282,7 +283,7 @@
 									{#if c.kind === 'own-text-changed'}
 										{#if href}<a {href}>text edit</a>{:else}text edit{/if}
 									{:else if c.kind === 'dependency-changed'}
-										dependency changed: {#if href}<a {href}>{c.id}</a>{:else}{c.id}{/if}{#if c.via}{' '}via {c.via}{/if}
+										dependency changed: {#if href}<a {href} title={c.id}>{c.id ? displayNode(m, c.id).name : ""}</a>{:else}{c.id ? displayNode(m, c.id).name : ""}{/if}{#if c.via}{' '}via {c.via}{/if}
 									{:else}{c.kind}{c.id ? ' ' + c.id : ''}{/if}{c.when ? ` (${shortDate(c.when)})` : ''}
 									{#if c.diff && !href && !c.via && !redundantProofCause(k, c)}
 										· <button class="as-link" onclick={() => (open = open === k.key ? '' : k.key)} data-testid="expand-{k.key}">{open === k.key ? 'hide details' : 'details'}</button>
@@ -321,7 +322,7 @@
 					<tr class="expansion">
 						<td colspan={cols}>
 							<p class="cause">not proved while {k.key} is incomplete</p>
-							<p class="blocked">{#each blocks.get(k.key) ?? [] as b, i (b)}{#if i}, {/if}<a href={keyUrl(m, b)}>{b}</a>{/each}</p>
+							<p class="blocked">{#each blocks.get(k.key) ?? [] as b, i (b)}{#if i}, {/if}<a href={keyUrl(m, b)} title={b}>{displayNode(m, b, filter === 'document' ? selectedDocument?.path : undefined).name}</a>{/each}</p>
 						</td>
 					</tr>
 				{/if}

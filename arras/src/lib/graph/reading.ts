@@ -82,7 +82,7 @@ export function readingOrder(m: Manifest, f: Filters): Reading {
 			return {
 				id,
 				kind: section ? ('section' as const) : ('result' as const),
-				label: section ? [number, n?.title ?? id].filter(Boolean).join(' ') : [shortLabel(m, id, master), n?.title && n.numbers[master]?.number ? n.title : ''].filter(Boolean).join(' · '),
+				label: section ? [number, n?.name ?? n?.title ?? id].filter(Boolean).join(' ') : shortLabel(m, id, master),
 				depth: depth.get(id) ?? 0,
 				y: TOP + i * ROW,
 				color: colorOf(m, n?.state ?? ''),

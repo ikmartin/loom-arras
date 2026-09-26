@@ -1,3 +1,5 @@
+import { relationships } from './relationships';
+import { displayNode } from '$lib/nodes/display';
 // The dependency graph as a layered drawing (book 10.2.7): ELK lays the results out in layers, what a result rests on above it. Edges keep their kind so the drawing can dash proof-edges and dot prose-edges.
 import { taxonTone } from "$lib/taxonomy";
 import type { Manifest, Node } from "$lib/manifest/types";
@@ -39,6 +41,8 @@ export interface Layout {
 }
 
 export interface Filters {
+  /** Keep every node, including sections and external nodes outside the default document. */
+  allNodes?: boolean;
   master?: string;
   taxon?: string;
   tag?: string;
@@ -52,7 +56,7 @@ export const PAPER = "paper:";
 
 export function graphInput(m: Manifest, f: Filters): { nodes: Node[]; edges: { from: string; to: string; kind: string; count?: number }[] } {
   const passes = (n: Node) => {
-    if (f.master && !n.reached_by.includes(f.master) && !n.external)
+    if (f.master && !n.reached_by.includes(f.master) && (!n.external || f.allNodes))
       return false;
     if (f.taxon && n.taxon !== f.taxon) return false;
     if (f.tag && !n.tags.includes(f.tag)) return false;
@@ -74,7 +78,7 @@ export function graphInput(m: Manifest, f: Filters): { nodes: Node[]; edges: { f
     endpoints.add(stmtOf(e.to));
   }
   const nodes = Object.values(m.nodes).filter((n) => {
-    if (n.kind === "section" && !endpoints.has(n.id)) return false;
+    if (!f.allNodes && n.kind === "section" && !endpoints.has(n.id)) return false;
     return passes(n);
   });
   const ids = new Set(nodes.map((n) => n.id));
@@ -180,25 +184,7 @@ export function colorOf(m: Manifest, state: string): string {
 
 export function downstream(m: Manifest, id: string): Set<string> {
   const stmtOf = (key: string) => m.keys[key]?.node ?? key;
-  const rev = new Map<string, string[]>();
-  for (const e of m.edges) {
-    const a = stmtOf(e.from);
-    const b = stmtOf(e.to);
-    if (!rev.has(b)) rev.set(b, []);
-    rev.get(b)!.push(a);
-  }
-  const out = new Set<string>();
-  const stack = [id];
-  while (stack.length) {
-    const cur = stack.pop()!;
-    for (const nxt of rev.get(cur) ?? []) {
-      if (!out.has(nxt) && nxt !== id) {
-        out.add(nxt);
-        stack.push(nxt);
-      }
-    }
-  }
-  return out;
+  return relationships(m.edges.map((e) => ({ ...e, from: stmtOf(e.from), to: stmtOf(e.to) })), id, 'downstream').reached;
 }
 
 export function closureOf(m: Manifest, id: string): Set<string> {
@@ -231,14 +217,14 @@ type ElkEdge = {
 /**
  * Lay the filtered graph out in layers with ELK, dependencies above what uses them.
  *
- * Results only: a section is a container, not a result, so it is not drawn, and the references that run from or to one are left out with it. Sections drawn as groups around their results is what made this drawing sprawl — a group spanning several layers reserves the whole column and every edge leaving it is routed around the rest — and what each result belongs to is written in its box instead. The Sections drawing (15.5) is where a section is a thing you can see.
+ * `allNodes` includes sections as ordinary boxes and preserves their connections. Without it, the drawing keeps results only. Section membership is written in each box rather than nesting layout groups.
  */
 export async function layout(m: Manifest, f: Filters): Promise<Layout> {
   const { nodes, edges } = graphInput(m, f);
-  const master = f.master ?? m.masters.find((x) => x.default)?.path ?? m.masters[0]?.path ?? "";
-  const W = 132;
-  const H = 34;
-  const drawn = nodes.filter((n) => n.kind !== "section");
+  const master = f.master ?? "";
+  const W = 220;
+  const H = 72;
+  const drawn = nodes.filter((n) => f.allNodes || n.kind !== "section");
   const ids = new Set(drawn.map((n) => n.id));
   const routed = edges.filter((e) => ids.has(e.from) && ids.has(e.to));
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
@@ -264,7 +250,7 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
     if (!b) continue;
     out.nodes.push({
       id: n.id,
-      label: n.kind === "work" ? (n.title ?? n.id) : n.id,
+      label: n.kind === "work" ? (n.title ?? n.id) : displayNode(m, n.id, master).name,
       taxon: n.taxon,
       state: n.state,
       color: colorOf(m, n.state),
@@ -272,7 +258,7 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
       style: n.style ?? "plain",
       external: n.external,
       section: false,
-      note: n.kind === "work" ? "paper" : sectionLabel(m, n.id, master),
+      note: n.kind === "work" ? "paper" : displayNode(m, n.id, master).context,
       ...b,
     });
   }
@@ -286,7 +272,7 @@ export async function layout(m: Manifest, f: Filters): Promise<Layout> {
       const b = box.get(src.from);
       if (a && b) pts.push({ x: a.x + a.w / 2, y: a.y + a.h }, { x: b.x + b.w / 2, y: b.y });
     }
-    out.edges.push({ from: src.from, to: src.to, kind: src.kind, points: pts, count: src.count });
+    out.edges.push({ from: src.from, to: src.to, kind: src.kind, points: pts.reverse(), count: src.count });
   }
   return out;
 }
@@ -305,4 +291,19 @@ export function sectionOf(m: Manifest, id: string, master: string): string {
   let p = m.nodes[id]?.parent[master];
   while (p && m.nodes[p] && m.nodes[p].kind !== "section") p = m.nodes[p].parent[master];
   return p && m.nodes[p]?.kind === "section" ? p : "";
+}
+
+
+/** A document's color depends only on its path, never on its source files or list position. */
+export function documentColor(path: string): string {
+	let hash = 0;
+	for (const char of path) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0;
+	const palette = ['#3478b8', '#b38418', '#8f62b5', '#34866b', '#be6255', '#3c8290', '#a65583', '#72783a'];
+	return palette[hash % palette.length];
+}
+
+/** Shared nodes keep every live document that reaches them. */
+export function memberships(m: Manifest, id: string): string[] {
+	const live = new Set(m.masters.map((master) => master.path));
+	return (m.nodes[id]?.reached_by ?? []).filter((path) => live.has(path)).sort();
 }

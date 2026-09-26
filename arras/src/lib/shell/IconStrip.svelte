@@ -538,4 +538,12 @@
 		color: var(--ink-faint);
 		font-size: 0.9em;
 	}
+	/* A graph needs room beside its selection; on a narrow screen the selection follows it. */
+	@media (max-width: 800px) {
+		.shell-c:has(:global(main.graph)) > .strip,
+		.shell-c:has(:global(main.graph)) > .panel { grid-row: 1 / span 2; }
+		.shell-c:has(:global(main.graph)) > .content { grid-column: 3; grid-row: 1; }
+		.shell-c:has(:global(main.graph)) > aside.right { grid-column: 3; grid-row: 2; width: auto; max-height: none; position: static; border-left: 0; border-top: 1px solid var(--rule); }
+		.shell-c :global(main.graph) { height: 70vh; min-height: 400px; }
+	}
 </style>

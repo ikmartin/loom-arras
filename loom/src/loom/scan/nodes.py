@@ -571,7 +571,8 @@ def _regions_and_details(
         for n in asm.nodes.values():
             if n.file == path and n.kind in ("environment", "proof", "section"):
                 for k, v in file_dirs.items():
-                    if k != "basis":  # a support claim belongs to one block, never every block in the file
+                    # Names and support claims belong to one block, never every block in a file.
+                    if k not in ("basis", "name"):
                         n.directives.setdefault(k, v)
     envs = {(path, env.start): env for path, fe in asm.envs.items() for env in fe.theorem_envs}
     for n in asm.nodes.values():

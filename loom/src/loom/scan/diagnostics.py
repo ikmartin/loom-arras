@@ -27,6 +27,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:taxon-conflict": ("warning", False),
     "loom:prefix-is-citekey": ("warning", False),
     "loom:unknown-directive": ("warning", False),
+    "loom:invalid-name": ("warning", False),
     "loom:documentclass-outside-drafts": ("info", False),
     "loom:unknown-config-key": ("warning", False),
     "loom:unlabelled-node": ("info", False),

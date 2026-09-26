@@ -601,7 +601,9 @@ def pulled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     quilt = load_quilt(root)
     state = sync.configure(quilt, "origin", "main", "main.tex")
     monkeypatch.setattr(sync, "compile_tex", lambda *_a, **_k: SimpleNamespace(ok=True))
-    sync.publish(quilt, state, push=True)
+    sync.publish(quilt, state)
+    git(root, "push", "origin", f"{state.publication_ref}:main")
+    sync.fetch(quilt, state)
     other = tmp_path / "collaborator"
     subprocess.check_call(["git", "clone", "-q", "-b", "main", str(bare), str(other)])
     git(other, "config", "user.name", "Colleague")

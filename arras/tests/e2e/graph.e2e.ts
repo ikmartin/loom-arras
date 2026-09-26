@@ -3,30 +3,104 @@ import { expect, test } from '@playwright/test';
 import { beside, pane, scrollPane } from '../workspace';
 
 test.describe('the graph page', () => {
-	test('the graph page offers four drawings by name', async ({ page }) => {
+	test('Scope offers two quilt drawings and four document drawings', async ({ page }) => {
 		await page.goto('/graph');
+		await expect(page.locator('.toggle button')).toHaveText(['Dots', 'Box']);
+		await page.getByLabel('Scope', { exact: true }).selectOption({ index: 1 });
 		await expect(page.locator('.toggle button')).toHaveText(['Dots', 'Box', 'Sections', 'Reading Order']);
+		await page.getByTestId('layout-sections').click();
+		await page.getByLabel('Scope', { exact: true }).selectOption('');
+		await expect(page.getByTestId('layout-dots')).toHaveAttribute('aria-pressed', 'true');
 	});
 
-	test('it shows what the corpus wrote, and none of the literature it cites', async ({ page }) => {
-		// digesting one cited paper brings in a hundred external nodes of which two or three carry weight, and they crowded out what the view exists to show; they have their own place, the Library
+	test('readable names identify dots and boxes while hovering keeps the selected statement pinned', async ({ page }) => {
+		await page.route('**/build/manifest.json', async (route) => {
+			const response = await route.fetch();
+			const m = await response.json();
+			m.nodes['sy-0003'].name = 'Uniform <energy> bound Ω';
+			await route.fulfill({ response, json: m });
+		});
+		await page.goto('/graph');
+		const node = page.getByTestId('gnode-sy-0003');
+		await expect(node).toHaveAttribute('aria-label', /Uniform <energy> bound Ω/);
+		await node.focus();
+		await page.keyboard.press('Enter');
+		const rail = page.locator('aside').filter({ has: page.getByRole('link', { name: 'Open in document', exact: true }) });
+		await expect(rail.locator('.label').filter({ hasText: 'Uniform <energy> bound Ω' })).toBeVisible();
+		await expect(rail.locator('.body.fragment')).not.toBeEmpty();
+		await page.getByTestId('gnode-sy-0001').hover();
+		await expect(rail.locator('.label').filter({ hasText: 'Uniform <energy> bound Ω' })).toBeVisible();
+		await expect(rail.getByText('Direct dependents', { exact: true })).toBeVisible();
+		await page.getByTestId('layout-box').click();
+		await expect(node.locator('.box-name')).toHaveText('Uniform <energy> bound Ω');
+		await expect(node.locator('.id')).toHaveText('sy-0003');
+		await expect(page.locator('g.node.selected')).toHaveAttribute('data-testid', 'gnode-sy-0003');
+	});
+
+	test('Whole quilt includes the corpus and external nodes', async ({ page }) => {
 		await page.goto('/graph');
 		await expect(page.getByTestId('gnode-sy-0003')).toHaveCount(1); // the corpus's own results are unchanged
-		await expect(page.getByTestId('gnode-Kre99-thm-2.1')).toHaveCount(0);
+		await expect(page.getByTestId('gnode-Kre99-thm-2.1')).toHaveCount(1);
 		await expect(page.locator('[data-testid^="gnode-paper:"]')).toHaveCount(0);
+	});
+
+	test('scope lists only documents and the legend highlights without changing scope', async ({ page }) => {
+		await page.goto('/graph');
+		const panel = page.getByRole('button', { name: 'Show the panel', exact: true });
+		if (await panel.isVisible()) await panel.click();
+		const scope = page.getByLabel('Scope', { exact: true });
+		await expect(scope).toHaveValue('');
+		const legend = page.getByRole('group', { name: 'Document membership' });
+		const documents = await legend.getByRole('button').allTextContents();
+		await expect(scope.locator('option')).toHaveText(['Whole quilt', ...documents.map((d) => d.trim())]);
+		const count = await page.locator('g.node').count();
+		await legend.getByRole('button').first().click();
+		await expect(legend.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
+		await expect(scope).toHaveValue('');
+		await expect(page.locator('g.node')).toHaveCount(count);
+		await expect.poll(() => page.locator('g.node.dim').count()).toBeGreaterThan(0);
+		await expect.poll(() => page.locator('.membership [data-document]').count()).toBeGreaterThan(0);
+		await scope.selectOption({ label: documents[0].trim() });
+		await expect(page.getByTestId('gnode-Kre99-thm-2.1')).toHaveCount(0);
+	});
+
+	test('shared membership survives modular source paths in every drawing', async ({ page }) => {
+		await page.route('**/build/manifest.json', async (route) => {
+			const response = await route.fetch();
+			const m = await response.json();
+			const primary = m.masters[0].path;
+			m.masters.push({ ...m.masters[0], path: 'drafting/toy.tex' });
+			m.nodes['sy-0003'].reached_by = [primary, 'drafting/toy.tex'];
+			m.nodes['sy-0003'].file = 'sections/local-theory.tex';
+			await route.fulfill({ response, json: m });
+		});
+		await page.goto('/graph');
+		const panel = page.getByRole('button', { name: 'Show the panel', exact: true });
+		if (await panel.isVisible()) await panel.click();
+		const node = page.getByTestId('gnode-sy-0003');
+		await expect(node.locator('.membership path')).toHaveCount(2);
+		await node.click();
+		await expect(page.getByText('Source: sections/local-theory.tex')).toBeVisible();
+		await page.getByLabel('Scope', { exact: true }).selectOption('drafting/toy.tex');
+		await expect(node.locator('.membership path')).toHaveCount(2);
+		for (const mode of ['box', 'sections', 'reading']) {
+			await page.getByTestId(`layout-${mode}`).click();
+			const item = page.getByTestId(`${mode === 'box' ? 'gnode' : 'grow'}-sy-0003`);
+			await expect(item.locator('.membership path')).toHaveCount(2);
+		}
 	});
 
 	test('the toggle keeps the selection, and in the Box drawing every edge begins and ends on a box it joins', async ({ page }) => {
 		await page.goto('/graph');
 		await expect(page.getByTestId('layout-dots')).toHaveAttribute('aria-pressed', 'true');
 		await page.getByTestId('gnode-sy-0003').click();
-		await expect(page.locator('aside').getByRole('link', { name: /Theorem/ })).toBeVisible();
+		await expect(page.locator('aside').getByRole('link', { name: 'Open in document', exact: true })).toBeVisible();
 		const dotEdges = await page.locator('svg path.edge').count();
 		expect(dotEdges).toBeGreaterThan(0);
 
 		await page.getByTestId('layout-box').click();
 		await expect(page.getByTestId('layout-box')).toHaveAttribute('aria-pressed', 'true');
-		await expect(page.locator('aside').getByRole('link', { name: /Theorem/ })).toBeVisible();
+		await expect(page.locator('aside').getByRole('link', { name: 'Open in document', exact: true })).toBeVisible();
 		await expect.poll(() => page.locator('svg g.node rect').count()).toBeGreaterThan(3);
 		// the layered drawing leaves out an edge from a node into the section that contains it, which ELK cannot route into an ancestor, so it can draw fewer
 		await expect.poll(() => page.locator('svg path.edge').count()).toBeGreaterThan(0);
@@ -69,13 +143,14 @@ test.describe('the graph page', () => {
 
 	test('Sections draws a card per section with its results inside, and a row selects the result', async ({ page }) => {
 		await page.goto('/graph');
+		await page.getByLabel('Scope', { exact: true }).selectOption({ index: 1 });
 		await page.getByTestId('layout-sections').click();
 		await expect.poll(() => page.locator('g.card').count()).toBeGreaterThan(1);
 		const row = page.getByTestId('grow-sy-0003');
 		await expect(row).toBeVisible();
 		await expect(page.locator('g.card').filter({ has: row })).toHaveCount(1); // the result sits inside its section's card
 		await row.click();
-		await expect(page.locator('aside').getByRole('link', { name: /Theorem/ })).toBeVisible();
+		await expect(page.locator('aside').getByRole('link', { name: 'Open in document', exact: true })).toBeVisible();
 		// a line between two cards stands for every dependency behind it
 		const widths = await page.locator('svg path.edge').evaluateAll((ps) => ps.map((p) => Number(p.getAttribute('stroke-width'))));
 		expect(Math.max(...widths)).toBeGreaterThan(1);
@@ -83,6 +158,7 @@ test.describe('the graph page', () => {
 
 	test('Reading Order lists the document in order with arcs, and fades the rest only halfway', async ({ page }) => {
 		await page.goto('/graph');
+		await page.getByLabel('Scope', { exact: true }).selectOption({ index: 1 });
 		await page.getByTestId('layout-reading').click();
 		const canvas = page.getByTestId('reading-canvas');
 		await expect(canvas).toBeVisible();
@@ -91,7 +167,7 @@ test.describe('the graph page', () => {
 		const ys = await canvas.locator('g.row').evaluateAll((gs) => gs.map((g) => g.getBoundingClientRect().top));
 		expect(ys).toEqual([...ys].sort((a, b) => a - b)); // rows follow the document, top to bottom
 		await canvas.getByTestId('grow-sy-0003').click();
-		await expect(page.locator('aside').getByRole('link', { name: /Theorem/ })).toBeVisible();
+		await expect(page.locator('aside').getByRole('link', { name: 'Open in document', exact: true })).toBeVisible();
 		const faded = canvas.locator('g.row.soft').first();
 		await expect(faded).toHaveCount(1);
 		await expect(faded).toHaveCSS('opacity', '0.55');

@@ -321,6 +321,8 @@ def build_manifest(
             "state": "draft",
             "derived": {"proved": False, "settled": False},
         }
+        if n.directives.get("name", "").strip():
+            entry["name"] = n.directives["name"].strip()
         if n.kind == "section":
             entry["level"] = n.level  # the sectioning depth, so a viewer's contents can stop at subsubsection
         if n.kind == "environment":
@@ -490,12 +492,14 @@ def build_manifest(
         manifest["search"].append(
             {
                 "key": key,
-                "title": entry["title"] or key,
+                "title": entry.get("name") or entry["title"] or key,
                 "taxon": entry["taxon"],
                 "kind": entry["kind"],
                 "aliases": entry["aliases"],
                 "tags": entry["tags"],
-                "excerpt": _excerpt(result, asm.nodes[key]),
+                "excerpt": " ".join(filter(None, [entry["title"], _excerpt(result, asm.nodes[key])]))
+                if entry.get("name")
+                else _excerpt(result, asm.nodes[key]),
             }
         )
     for m in manifest["masters"]:

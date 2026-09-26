@@ -503,3 +503,47 @@ def test_serve_on_sigterm_ends_the_turn_it_started(q: Path, tmp_path: Path) -> N
     assert state(q, sid)["state"] == "stopped"
     assert "loom serve: stopping" in said.read_text()
     assert not (q / ".loom" / "serve.json").exists()
+
+
+def test_codex_uses_the_reported_conversation_for_continuation(
+    q: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from loom.agent import PRESETS, Launcher, state
+    from loom.mailbox import post
+
+    fake = tmp_path / "codex"
+    fake.write_text(
+        f"#!{sys.executable}\n"
+        + """import json, sys
+conversation = "12345678-1234-4234-8234-123456789abc"
+if "resume" in sys.argv:
+    assert conversation in sys.argv
+print(json.dumps({"type": "thread.started", "thread_id": conversation}))
+print(json.dumps({"type": "turn.completed"}))
+"""
+    )
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
+    configure(q, start=PRESETS["codex"]["start"], resume=PRESETS["codex"]["resume"])
+    sid = new_session(q)
+    post(q, sid, "First message", "A. Author")
+    launcher = Launcher(q)
+    launcher.tick()
+    finish(launcher, sid)
+    assert state(q, sid)["conversation"] == "12345678-1234-4234-8234-123456789abc"
+    post(q, sid, "Second message", "A. Author")
+    launcher.tick()
+    finish(launcher, sid)
+    assert state(q, sid)["state"] == "done"
+    assert state(q, sid)["turns"] == 2
+    launcher.close()
+
+
+def test_codex_event_reader_ignores_message_bodies_and_invalid_ids(tmp_path: Path) -> None:
+    from loom.agent import codex_conversation
+
+    log = tmp_path / "agent.log"
+    log.write_text(
+        'diagnostic\n{"type":"item.completed","item":{"thread_id":"wrong"}}\n{"type":"thread.started","thread_id":"not-a-uuid"}\n'
+    )
+    assert codex_conversation(log) is None

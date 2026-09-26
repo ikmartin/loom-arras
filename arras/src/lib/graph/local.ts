@@ -1,3 +1,4 @@
+import { displayNode } from '$lib/nodes/display';
 // The neighbourhood of one node, for the local graph (book 15.5.1): what it depends on and what depends on it, out to a chosen number of steps in either direction, plus the `see` relations, which are drawn but never followed.
 
 import type { Manifest } from '$lib/manifest/types';
@@ -73,13 +74,8 @@ export function neighbourhood(m: Manifest, center: string, depth = 1): Neighbour
 	return { nodes, links, distance };
 }
 
-/** A short name for a node in a small drawing: its taxon and number when it has one, otherwise its title, otherwise its id. */
+/** The common readable name in this document, clipped for compact drawings. */
 export function shortLabel(m: Manifest, id: string, master?: string): string {
-	const n = m.nodes[id];
-	if (!n) return id;
-	const path = master ?? m.masters.find((x) => x.default)?.path ?? '';
-	const number = n.numbers[path]?.number;
-	if (number) return `${n.taxon} ${number}`;
-	if (n.title) return n.title.length > 28 ? n.title.slice(0, 27) + '…' : n.title;
-	return n.id;
+	const name = displayNode(m, id, master).name;
+	return name.length > 36 ? name.slice(0, 35) + '…' : name;
 }

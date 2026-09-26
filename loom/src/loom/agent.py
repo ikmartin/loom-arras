@@ -19,6 +19,7 @@ import time
 import tomllib
 import uuid
 from dataclasses import dataclass, field
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -49,20 +50,21 @@ PRESETS: dict[str, dict[str, Any]] = {
         "start": ["claude", "-p", "{prompt}", "--session-id", "{agent_session}", "--settings", ".claude/settings.json"],
         "resume": ["claude", "-p", "{prompt}", "--resume", "{agent_session}", "--settings", ".claude/settings.json"],
     },
-    # Unverified: Codex was not installed where this was written. It cannot be told which conversation to use, so it has no resume and regains the thread from `loom ai orient --session` each turn.
-    "codex": {"name": "Codex Agent", "start": ["codex", "exec", "{prompt}"]},
+    "codex": tomllib.loads(files("loom").joinpath("assets/ai/vendor/codex/agent.toml").read_text(encoding="utf-8")),
 }
 
 HEADER = """\
 # How loom starts an agent in a session, for one turn, when config.toml says launch = true under [ai].
 # Loom never calls a model itself: it runs this command, with these placeholders filled in:
 #   {session}        the session id
-#   {agent_session}  a conversation id loom chooses at a session's first turn and keeps, for an agent that resumes by id
+#   {agent_session}  the conversation id (reported by Codex, otherwise chosen by loom) kept for continuation
 #   {prompt}         what loom asks the agent to do this turn
 #   {quilt}          the quilt's root
 # `name` is who the agent says it is in the chat, and must include Agent or AI. `resume`, when given, is used from the
 # second turn on. This file is yours: it is not committed, and loom refuses to run it if git tracks it.
-# `loom agent check` tests it without running anything.
+# `loom agent check` tests configuration and executable availability without checking authentication.
+# For Codex, install the CLI, run `codex login`, and trust this quilt in an interactive `codex` session first.
+# Automatic launching is a separate opt-in: [ai] launch = true in config.toml.
 """
 
 
@@ -292,6 +294,25 @@ def policy_line(cmd: list[str]) -> str:
     return ""
 
 
+def codex_conversation(log: Path) -> str | None:
+    """Read the CLI's conversation id from structured events, ignoring diagnostics and message bodies."""
+    try:
+        with log.open(encoding="utf-8", errors="replace") as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(event, dict) and event.get("type") == "thread.started":
+                    try:
+                        return str(uuid.UUID(event["thread_id"]))
+                    except (KeyError, ValueError, TypeError, AttributeError):
+                        continue
+    except OSError:
+        pass
+    return None
+
+
 class Launcher:
     """Starts a turn when a message is waiting for the configured agent and no other agent is listening; one process per session at a time.
 
@@ -441,6 +462,7 @@ class Launcher:
             error="",
             turns=turns + 1,
             conversation=conversation,
+            codex_json=Path(cmd[0]).name == "codex" and "--json" in cmd,
         )
 
     def _reap(self) -> None:
@@ -456,7 +478,15 @@ class Launcher:
                 continue
             code = proc.returncode
             error = ""
-            if code != 0:
+            conversation = str(now.get("conversation", ""))
+            if now.get("codex_json"):
+                reported = codex_conversation(session_dir(self.root, sid) / LOG)
+                if reported:
+                    conversation = reported
+                elif code == 0:
+                    code = 1
+                    error = "Codex returned no thread.started event; check the --json command in ai/ai-config.toml"
+            if code != 0 and not error:
                 try:
                     tail = (session_dir(self.root, sid) / LOG).read_text(encoding="utf-8", errors="replace").strip()
                     error = tail.splitlines()[-1] if tail else f"exited with code {code}"
@@ -470,6 +500,7 @@ class Launcher:
                 error=error,
                 ended=stamp(),
                 resumable=code == 0 or bool(now.get("resumable")),
+                conversation=conversation,
             )
             # the turn's heartbeat outlives it by up to 90 s; left standing, it would read as someone listening
             if now.get("name"):

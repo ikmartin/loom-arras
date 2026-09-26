@@ -138,7 +138,7 @@ def setup_ai(target: Path, choice: str, launch: bool) -> list[str]:
     _set_launch(target, launch)
     said = {
         "claude": f"AI: {AI_LABELS['claude']}. The command loom would run is in {CONFIG}; loom agent check tests it.",
-        "codex": f"AI: {AI_LABELS['codex']}, unverified. The command loom would run is in {CONFIG}; loom agent check tests it.",
+        "codex": f"AI: {AI_LABELS['codex']} configured. Run codex login if needed, then loom agent check. Start and resume commands are in {CONFIG}.",
         "other": f"AI: another agent. Fill in {CONFIG} with the command that starts it for one turn -- its header says how -- and loom agent check tests it.",
         "none": f"AI: none. {CONFIG} is there, commented out, should that change.",
     }[choice]
