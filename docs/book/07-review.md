@@ -46,7 +46,7 @@ master = "drafting/main.tex"
 
 Rules:
 
-1. **[decided]** Rows are appended; the latest row for a key is its current acceptance; earlier rows are history. Nothing is ever removed.
+1. **[decided]** Rows are appended; the latest row for a key and author is that reviewer's current acceptance; earlier rows are history. Nothing is ever removed.
 2. **[decided]** `closure` lists every statement the key depends on transitively (5.7.2) with the hash of each statement's own text at acceptance time. For a proof key, the closure includes its own statement.
 3. **[decided]** `preamble` is the hash of the preamble closure (5.13) of the default master at the time of acceptance, which is the master named in `master` (settled at M3).
 4. **[decided]** `author` comes from the resolution order in 4.3; the row is refused without one.
@@ -288,3 +288,12 @@ Day 3. The author decides the hypothesis objection is wrong, runs `loom annotate
 Day 9. The author edits Definition `rl-0002`, which `rl-0004`'s statement uses. `status --stale` lists `rl-0004` and `rl-0004/proof` with `dependency-changed rl-0002`; `status --explain rl-0004` shows the diff of the definition. The author reads it, decides nothing is affected, and runs `loom accept --stale`. Two new rows; both keys `accepted` again.
 
 **[decided]** The timeline runs as one test (`test_timeline_7_11`) on the demo quilt, and the synthetic quilt's shipped records were produced by running these commands on a copy, then editing the definition and deleting the retired lemma (settled at M3).
+
+
+## 7.12 Personal review perspective
+
+**[decided]** Acceptance, freshness comparisons, previous-key matching, acceptance selection and proved/settled use the active local reviewer (DR-303-luisa). The same algorithms evaluate each author's latest rows for read-only collaborator summaries. External transcription verification remains shared. Structural incompleteness and diagnostics do not depend on reviewer identity.
+
+Pending choices in `.loom/review-decisions.json` use schema 2 with `reviewers` mapping names to the existing block/status/fingerprint maps. Finish review checks only that reviewer's pending choices and freshness and clears only their completed choices. The stale observation cache partitions dates by reviewer and preserves other partitions. Old authorless decisions remain under `legacy`, create review candidates, and are never adopted as OK; the viewer explains that a new personal decision is needed. Source incorporation metadata and baselines remain shared source history.
+
+Review keeps existing labels and tabs, with a small Reviewing as line. Missing identity allows reading but disables decisions and acceptance until configured in Settings. Source-only Incoming inspection and incorporation remain usable. Another author accepting changed mathematics cannot resolve the active reviewer's stale cause or change the snapshot used for comparison.

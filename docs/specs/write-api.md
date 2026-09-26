@@ -54,8 +54,8 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | method | path | body | effect |
 |---|---|---|---|
 | `POST` | `/_api/sync-incorporate` | `{incoming, base}` | verifies the displayed revision and base, preflights and applies its exact patch, then commits only its source paths and the private sync record in separate local commits |
-| `POST` | `/_api/review-decision` | `{key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision without accepting mathematics |
-| `POST` | `/_api/review-finish` | `{}` | validates pending OK decisions and records eligible acceptances together |
+| `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision without accepting mathematics |
+| `POST` | `/_api/review-finish` | `{reviewer}` | validates pending OK decisions and records eligible acceptances together |
 
 Every successful write triggers a republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, creates one local source commit and one local sync-record commit, and never pushes to Overleaf or accepts mathematics.
 
@@ -80,3 +80,10 @@ A browser blocks a cross-origin *response* and never the *request*, so any page 
 ## 5. Selection to quote
 
 **[decided]** The viewer computes the `quote` for an annotation from the user's selection in a fragment: the selected text mapped back through the block's `data-src` to source text. When the selection crosses converted markup and the source text cannot be recovered exactly, the viewer sends the rendered text and the publisher attempts the whitespace-normalized match; failure returns the CLI's "quote not found" error and the viewer offers a whole-block annotation instead.
+
+
+| method | path | body | effect |
+|---|---|---|---|
+| `POST` | `/_api/reviewer-settings` | `{name?: string}` | reads effective local reviewer and source; when name is supplied, trims and atomically saves only local author.name, preserving other keys; response includes reviewer `{name, source}` and rebuilds before returning |
+
+Personal review writes require the displayed `reviewer` to equal the current local identity; missing identity returns `no-reviewer`, changed or missing displayed context returns `reviewer-changed` (409) before mutation. Review decision validation also checks the build's reviewer. The local settings capability uses the existing localhost and token protections and exposes no arbitrary path or configuration write. Unsupported TOML author-table forms refuse rather than risking unrelated keys. Settings changes select a history, never rename it.

@@ -427,3 +427,10 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 ```
 
 `from` is the node that declared the relation, so the declaring side is known; display is symmetric and a viewer shows the relation on both nodes. `kind` is `see` in this version. Adding a kind is a decision-record event, and a viewer renders a kind it does not know as a labelled list of links. Nodes gain no field: a viewer derives per-node lists from this one.
+
+
+## Personal review metadata
+
+`reviewer?: {name: string, source: string}` identifies the build perspective; empty name means no local identity. `keys[K].acceptance` remains the selected reviewer's acceptance, and optional `keys[K].acceptances` lists each author's latest `{author, date, fresh}` for author-owned blocks. Each summary uses the same freshness rules, without writing another reviewer's caches. External verification retains shared acceptance semantics. Nodes, derived states, counts and unresolved rows all use the selected perspective; structural incompleteness and errors remain independent.
+
+`legacy_review_decisions?: boolean` signals preserved authorless pending choices requiring a new decision. The reader can dismiss the migration explanation. Unknown metadata remains optional for backward compatibility. Static viewers label the named perspective once; when absent, they show an unspecified perspective only if acceptance information exists.

@@ -1,7 +1,25 @@
 <script lang="ts">
-	// The display preferences (book 15.7): shell, typeface, size, line width, theme, and where comments stand. Every control writes through `prefs`, which applies the data-* attributes and persists. Nothing here is published anywhere; the corpus is read-only to arras.
+	// Display preferences persist in this browser; reviewer identity is saved through the local publisher and refreshes the manifest. Static viewers offer display preferences only.
 	import { prefs, type Face, type Size, type Width, type Theme, type Format, type Comments } from '$lib/prefs.svelte';
+	import { onMount } from 'svelte';
+	import { can, write } from '$lib/write';
+	import { store } from '$lib/manifest/client.svelte';
 	import Popover from '$lib/components/Popover.svelte';
+
+	let editable = $state(false);
+	let name = $state('');
+	let busy = $state(false);
+	let error = $state('');
+	onMount(() => { void can('reviewer-settings').then((yes) => editable = yes); });
+	const effectiveName = $derived(store.manifest?.reviewer?.name ?? '');
+	$effect(() => { name = effectiveName; });
+	async function save() {
+		busy = true; error = '';
+		const answer = await write('reviewer-settings', { name });
+		if (answer.ok) await store.refresh();
+		else error = answer.error?.message ?? 'Could not save reviewer name';
+		busy = false;
+	}
 
 	const FACES: { v: Face; label: string }[] = [
 		{ v: 'serif', label: 'serif' },
@@ -42,6 +60,16 @@
 		<button class="toggle" aria-label="Display settings" aria-expanded={open} title="Display settings" onclick={toggle} data-testid="settings-toggle">⚙</button>
 	{/snippet}
 	<div class="panel">
+		{#if editable}
+			<form class="reviewer" onsubmit={(event) => { event.preventDefault(); void save(); }}>
+				<label for="reviewer-name">Reviewer name</label>
+				<input id="reviewer-name" bind:value={name} autocomplete="name" required />
+				<p>Author name on this computer; used across local quilts. A different name selects a different review history.</p>
+				{#if store.manifest?.reviewer?.source}<p>From {store.manifest.reviewer.source}</p>{/if}
+				<button disabled={busy || !name.trim()} type="submit">{busy ? 'Saving…' : 'Save'}</button>
+				{#if error}<p role="alert">{error}</p>{/if}
+			</form>
+		{/if}
 		{#snippet row(label: string, options: { v: string; label: string; title?: string }[], current: string, pick: (v: string) => void, test: string)}
 			<div class="row" role="group" aria-label={label}>
 				<span class="lbl">{label}</span>
@@ -80,6 +108,9 @@
 </Popover>
 
 <style>
+	.reviewer { display: grid; gap: 6px; width: 17rem; max-width: 75vw; overflow-wrap: anywhere; }
+	.reviewer p { font-size: 12px; margin: 0; color: var(--ink-soft); }
+	.reviewer input { min-width: 0; width: 100%; box-sizing: border-box; }
 	.toggle {
 		background: none;
 		border: none;
@@ -94,6 +125,12 @@
 		color: var(--ink);
 		background: var(--link-wash);
 	}
+	.reviewer input, .reviewer button {
+		font: inherit; font-size: 12px; color: var(--ink); background: var(--leaf);
+		border: 1px solid var(--rule); border-radius: var(--rad-control); padding: 5px 8px;
+	}
+	.reviewer button { cursor: pointer; }
+	.reviewer button:hover { background: var(--link-wash); }
 	/* Sized by its widest row, never by the control it hangs off; rows never wrap (book 15.2.3). */
 	.panel {
 		width: max-content;

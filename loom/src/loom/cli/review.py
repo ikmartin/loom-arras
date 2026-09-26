@@ -164,7 +164,7 @@ def accept(
     result = open_scan(quilt_path)
     root = result.quilt.root
     name = _author(author, root)
-    records = Records(root, result.quilt.history_dir)
+    records = Records(root, result.quilt.history_dir, reviewer=name)
     targets: list[str] = []
     contexts: dict[str, str] = {}
     if all_live or accept_master:

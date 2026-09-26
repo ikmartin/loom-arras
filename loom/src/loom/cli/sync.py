@@ -20,6 +20,7 @@ from loom.sync import (
     mark_incorporated,
     prepare_incorporation,
     publish,
+    push_publication,
     summary,
     update_documents,
 )
@@ -171,8 +172,9 @@ def finish_sync(quilt_path: str | None) -> None:
 
 
 @sync.command("publish")
+@click.option("--push", is_flag=True, help="Push the validated revision to the configured document workspace.")
 @quilt_option
-def publish_sync(quilt_path: str | None) -> None:
+def publish_sync(push: bool, quilt_path: str | None) -> None:
     """Build and compile the committed document workspace projection locally."""
     quilt = open_quilt(quilt_path)
     state = _run(lambda: SyncState.read(quilt.root))
@@ -184,4 +186,8 @@ def publish_sync(quilt_path: str | None) -> None:
     for document in state.documents:
         click.echo(f"  {document}")
     click.echo(f"Files: {len(paths)}")
-    click.echo("Remote unchanged")
+    if push:
+        _run(lambda: push_publication(quilt, state, commit))
+        click.echo(f"Published to document workspace {state.remote}/{state.branch}")
+    else:
+        click.echo("Remote unchanged")

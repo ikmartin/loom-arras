@@ -8,6 +8,8 @@
 	import SessionFooter from '$lib/sessions/SessionFooter.svelte';
 	import DevShelf from './DevShelf.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { onMount } from 'svelte';
+	import { can } from '$lib/write';
 	import Settings from './Settings.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { route } from '$lib/paths';
@@ -22,6 +24,11 @@
 	const works = $derived(
 		Object.values(store.manifest?.references ?? {}).sort((a, b) => (bibText(a.bib.title) || a.citekey).localeCompare(bibText(b.bib.title) || b.citekey))
 	);
+	let readOnly = $state(false);
+	onMount(() => { void can('review-decision').then((yes) => readOnly = !yes); });
+	const reviewPerspective = $derived(store.manifest?.reviewer?.name
+		? `Review status for ${store.manifest.reviewer.name}`
+		: Object.values(store.manifest?.keys ?? {}).some((key) => key.acceptance) ? 'Review perspective unspecified' : '');
 	let workFilter = $state('');
 	const WORKS_SHOWN = 30;
 	const library = $derived.by(() => {
@@ -229,11 +236,13 @@
 		<div class="write-target"><SessionFooter /></div>
 	</div>
 
-	<div class="content">{@render children()}</div>
+	<div class="content">
+		{#if readOnly && reviewPerspective}<p class="review-perspective">{reviewPerspective}</p>{/if}{@render children()}</div>
 	{#if rail}<aside class="right rail-scroll">{@render rail()}</aside>{/if}
 </div>
 
 <style>
+	.review-perspective { margin: 8px 16px; font-size: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
 	.shell-c {
 		display: grid;
 		grid-template-columns: var(--strip) var(--rail-left) minmax(0, 1fr) auto;

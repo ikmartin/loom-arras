@@ -1,5 +1,7 @@
 // The write client against a stubbed publisher: a restarted publisher mints a new token, and a 403 re-probes `/_api` once for it.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { store } from '$lib/manifest/client.svelte';
+import type { Manifest } from '$lib/manifest/types';
 import { forgetCapabilities, write } from './write';
 
 /** A stub publisher. `token` is what a probe answers now (set it to restart the publisher); `answer` decides a POST's status from the token it carries. Every request is logged as `GET <url>` or `POST <url> <token>`. */
@@ -48,4 +50,21 @@ describe('a write carrying a stale token', () => {
 		expect(await write('session-close', { session: 's-1' })).toEqual({ ok: false, error: { code: 'bad-request', message: 'refused with 400' } });
 		expect(p.log).toEqual(['GET /_api', 'POST /_api/session-close first']);
 	});
+});
+
+
+it('carries the displayed reviewer through a request even when the view changes while awaiting discovery', async () => {
+	store.manifest = { reviewer: { name: 'Bob', source: 'local' } } as Manifest;
+	let sent: Record<string, unknown> = {};
+	vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
+		if (!init) {
+			store.manifest = { reviewer: { name: 'Alice', source: 'local' } } as Manifest;
+			return Response.json({ write_api: 1, capabilities: ['review-finish'], token: 'token' });
+		}
+		sent = JSON.parse(String(init.body));
+		return Response.json({ ok: false, error: { code: 'reviewer-changed', message: 'Reload Review' } }, { status: 409 });
+	});
+	expect((await write('review-finish', {})).error?.code).toBe('reviewer-changed');
+	expect(sent.reviewer).toBe('Bob');
+	store.manifest = null;
 });

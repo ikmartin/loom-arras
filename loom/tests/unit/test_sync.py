@@ -269,7 +269,7 @@ def test_multiple_selected_documents_prepare_one_clean_union_locally(tmp_path: P
     assert state.publication_ref in result.output
     assert "Remote unchanged" in result.output
     assert "git push" not in result.output
-    assert "--push" not in CliRunner().invoke(sync_cli, ["publish", "--help"]).output
+    assert "--push" in CliRunner().invoke(sync_cli, ["publish", "--help"]).output
     assert "document workspace" in CliRunner().invoke(sync_cli, ["init", "--help"]).output
     state = SyncState.read(root)
     prepared = state.prepared
@@ -304,6 +304,53 @@ def test_multiple_selected_documents_prepare_one_clean_union_locally(tmp_path: P
     assert incoming_patch(quilt, state) == b""
     assert not build(quilt).manifest.get("incoming")
 
+    # The opt-in command shares preparation, compiles both documents and leaves quilt Git state alone.
+    head = run(root, "rev-parse", "HEAD")
+    index = run(root, "write-tree")
+    state.review_origins = {"zk-0001": "previous-pull"}
+    state.write(root)
+    compiled.clear()
+    pushed = CliRunner().invoke(sync_cli, ["publish", "--push", "--quilt", str(root)])
+    assert pushed.exit_code == 0, pushed.output
+    assert "Published to document workspace origin/main" in pushed.output
+    assert "Remote unchanged" not in pushed.output
+    assert compiled == ["main.tex", "drafting/toy.tex"]
+    state = SyncState.read(root)
+    assert run(bare, "rev-parse", "main") == state.prepared == state.integrated == state.incoming
+    assert run(root, "rev-parse", "HEAD") == head and run(root, "write-tree") == index
+    assert state.review_origins == {"zk-0001": "previous-pull"}
+
+    from loom.sync import push_publication
+
+    commit, _ = publish(quilt, state)
+    saved_git = sync.git
+
+    def transport_failure(root, *args, **kwargs):
+        if args[0] == "push":
+            raise SyncError("connection lost")
+        return saved_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(sync, "git", transport_failure)
+    with pytest.raises(SyncError, match="outcome uncertain"):
+        push_publication(quilt, state, commit)
+    assert SyncState.read(root).prepared == commit
+    assert SyncState.read(root).integrated != commit
+    assert run(root, "rev-parse", state.publication_ref) == commit
+    monkeypatch.setattr(sync, "git", saved_git)
+    saved_write = SyncState.write
+
+    def disk_failure(self, root):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(SyncState, "write", disk_failure)
+    with pytest.raises(SyncError, match="recording local success failed"):
+        push_publication(quilt, state, commit)
+    assert run(bare, "rev-parse", "main") == commit
+    monkeypatch.setattr(SyncState, "write", saved_write)
+    state = fetch(quilt, SyncState.read(root))
+    assert state.integrated == state.incoming == commit
+    assert run(root, "rev-parse", "HEAD") == head and run(root, "write-tree") == index
+
     main = root / "drafting/main.tex"
     main.write_text(
         main.read_text().replace(r"\usepackage{loom}", r"\usepackage{loom}" + "\n" + r"\usepackage{amsmath}")
@@ -327,6 +374,20 @@ def test_multiple_selected_documents_prepare_one_clean_union_locally(tmp_path: P
     (root / "drafting/toy.tex").unlink()
     state = update_documents(quilt, state, "remove", "drafting/toy.tex")
     assert state.documents == ["drafting/main.tex"]
+
+    # A remote advance after preparation is rejected, preserving the exact prepared revision.
+    commit, _ = publish(quilt, state)
+    tree = run(root, "rev-parse", f"{state.integrated}^{{tree}}")
+    competing = git(root, "commit-tree", tree, "-p", state.integrated, input=b"collaborator update\n").decode().strip()
+    run(root, "push", "origin", f"{competing}:main")
+    with pytest.raises(SyncError, match="Publication rejected"):
+        push_publication(quilt, state, commit)
+    assert run(bare, "rev-parse", "main") == competing
+    assert run(root, "rev-parse", state.publication_ref) == commit
+    state = fetch(quilt, SyncState.read(root))
+    assert state.incoming == competing and state.integrated != competing
+    with pytest.raises(SyncError, match="incoming"):
+        publish(quilt, state)
 
 
 def test_old_sync_state_defaults_to_the_primary_document(tmp_path: Path) -> None:

@@ -58,6 +58,9 @@ def test_fixture_matches_vendored(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     if not (FIXTURE / "manifest.json").exists():
         pytest.skip("no vendored fixture")
     monkeypatch.setenv("LOOM_FIXED_TIME", "2026-09-16T00:00:00Z")
+    from loom.scan.quilt import save_author
+
+    save_author("The synthetic quilt")
     q = tmp_path / "synthetic"
     shutil.copytree(REPO / "tests" / "quilts" / "synthetic", q)
     ok("compile", "drafting/main.tex", cwd=q)

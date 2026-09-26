@@ -105,3 +105,20 @@ test("a detached annotation is a row: a dot in the kind's hue and a link to it, 
 	await expect(rows.first().locator('a')).toHaveAttribute('href', 'quilt:a-2026-09-16-0010');
 	await expect(rows.first().locator('a')).toHaveText(/\S/);
 });
+
+test('Accepted by starts collapsed and distinguishes statement and proof histories', async ({ page }) => {
+	await page.route('**/build/manifest.json', (route) => {
+		const m = structuredClone(manifest);
+		m.keys['sy-0002'].acceptances = [{ author: 'Alice', date: '2026-09-26T12:00:00Z', fresh: true }];
+		m.keys['sy-0002/proof'].acceptances = [{ author: 'Bob', date: '2026-09-25T12:00:00Z', fresh: false }];
+		return route.fulfill({ json: m });
+	});
+	await page.goto('/node/sy-0002' + beside('/context/sy-0002'));
+	const details = page.getByTestId('context').locator('details.acceptances');
+	await expect(details).not.toHaveAttribute('open');
+	await details.locator('summary').focus();
+	await page.keyboard.press('Enter');
+	await expect(details).toHaveAttribute('open');
+	await expect(details).toContainText('Statement · Alice · 2026-09-26 · Current');
+	await expect(details).toContainText('Proof · Bob · 2026-09-25 · Stale');
+});

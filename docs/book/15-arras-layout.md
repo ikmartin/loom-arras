@@ -293,3 +293,8 @@ The original `.svg` drawings remain beside them for the record of what was inten
 ## 15.10 Accessibility
 
 **[decided]** Every icon-only control carries an `aria-label`; the icon strip is a `nav` with a list; marks are `mark` elements with `aria-describedby` naming their annotation's box and `aria-expanded` saying whether it is open, reachable by keyboard, and out of the tab order while they are not drawn; a list's kind dot is an `img` whose label is the kind word the hue replaced; the contents tree is a `nav` with `aria-current` on the current section; focus order runs shell then page then right rail; the graph canvas is preceded by a visually hidden summary and is not the only route to any information. Contrast: every state text colour on its tint meets AA at 11px.
+
+
+## Personal acceptance display
+
+**[decided]** Review confirms “Reviewing as NAME” above the tabs; Settings edits the local reviewer name and explains its scope across local quilts (DR-303-luisa, DR-304-luisa). Changing identity refreshes the manifest and clears the client's selected review step, without deleting stored decisions. Context has a native collapsed “Accepted by” disclosure when records exist, listing statement/proof, author, date and Current/Stale. Existing labels, colours and Home cards are unchanged. A read-only viewer instead identifies “Review status for NAME” once in the shell; older manifests displaying acceptance show “Review perspective unspecified”, and minimal manifests show no notice. Static exports have no identity editing controls.

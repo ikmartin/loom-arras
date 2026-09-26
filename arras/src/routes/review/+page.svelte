@@ -29,16 +29,26 @@
 	let syncBusy = $state(false);
 	let syncError = $state('');
 	let syncResult = $state<{ source_commit: string; sync_commit: string; integrated: string; paths: string[] } | null>(null);
-	let reviewWritable = $state(false);
+	let reviewLocal = $state(false);
+	const reviewWritable = $derived(reviewLocal && !!m.reviewer?.name);
+	const reviewerName = $derived(m.reviewer?.name ?? '');
+	$effect(() => { void reviewerName; activeReview = ''; reviewHistory = []; reviewError = ''; });
 	let activeReview = $state('');
 	let reviewHistory = $state<string[]>([]);
 	let reviewError = $state('');
 	let reviewBusy = $state(false);
+	let legacyDismissed = $state(false);
+	const legacyNoticeKey = $derived(`review-migration:${m.corpus.root_label}:${m.corpus.name}`);
+	function dismissLegacy() {
+		legacyDismissed = true;
+		try { localStorage.setItem(legacyNoticeKey, 'dismissed'); } catch { /* Storage is optional. */ }
+	}
 	let guidedRoot = $state<HTMLElement | null>(null);
 	let guidedMount = $state(0);
 	onMount(() => {
+		try { legacyDismissed = localStorage.getItem(legacyNoticeKey) === 'dismissed'; } catch { /* Storage is optional. */ }
 		void can('sync-incorporate').then((yes) => (syncWritable = yes));
-		void can('review-decision').then((yes) => (reviewWritable = yes));
+		void can('review-decision').then((yes) => (reviewLocal = yes));
 	});
 	const unresolved = $derived(m.unresolved ?? []);
 	const needsReview = $derived(unresolved.filter((r) => r.status === 'needs-review'));
@@ -86,7 +96,7 @@
 		reviewBusy = true; reviewError = '';
 		const next = needsReview.find((r) => r.key !== entry.key)?.key ?? '';
 		const answer = await write('review-decision', { key: entry.key, status });
-		if (answer.ok) { reviewHistory = [...reviewHistory, entry.key]; activeReview = next; }
+		if (answer.ok) { await store.refresh(); reviewHistory = [...reviewHistory, entry.key]; activeReview = next; }
 		else reviewError = answer.error?.message ?? 'Could not save the decision';
 		reviewBusy = false;
 	}
@@ -94,7 +104,8 @@
 		if (reviewBusy) return;
 		reviewBusy = true; reviewError = '';
 		const answer = await write('review-finish', {});
-		if (!answer.ok) reviewError = answer.error?.message ?? 'Could not finish review';
+		if (answer.ok) await store.refresh();
+		else reviewError = answer.error?.message ?? 'Could not finish review';
 		reviewBusy = false;
 	}
 	async function incorporatePull() {
@@ -156,6 +167,12 @@
 	<h1>Review <HelpDot label="what the review panel shows" topic="review" /></h1>
 	{#if !m.masters.length}
 		<NoDrafts what="keys to review" />
+	{/if}
+	{#if reviewLocal}
+		<p class="faint">{m.reviewer?.name ? `Reviewing as ${m.reviewer.name}` : 'Choose your reviewer name in Settings'}</p>
+	{/if}
+	{#if reviewLocal && m.legacy_review_decisions && !legacyDismissed}
+		<p class="faint">Earlier pending decisions have no reviewer and were preserved. Review those blocks again under your name. <button onclick={dismissLegacy}>Dismiss</button></p>
 	{/if}
 	<nav class="review-tabs" aria-label="Review views">
 		{#each m.masters as master (master.path)}

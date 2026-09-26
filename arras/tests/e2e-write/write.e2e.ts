@@ -549,7 +549,7 @@ function acceptedKeys(served: Served): string[] {
 /** The copy's private review decisions, by key. */
 function decisions(served: Served): Record<string, { status: string }> {
 	const path = join(served.root, '.loom/review-decisions.json');
-	return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
+	return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')).reviewers?.['The synthetic quilt'] ?? {} : {};
 }
 
 /** Open a key of the Needs review queue and mark it OK, as the guided review does. */

@@ -181,6 +181,7 @@ export interface Key {
   incomplete: string[];
   state: string;
   acceptance?: Acceptance;
+  acceptances?: Acceptance[];
   reviews: Reviews;
   uses: string[];
   closure: string[];
@@ -465,6 +466,8 @@ export interface AssertedLink {
 }
 
 export interface Manifest {
+  reviewer?: { name: string; source: string };
+  legacy_review_decisions?: boolean;
   interface_version: number;
   publisher: Publisher;
   publishes: Publishes;

@@ -452,7 +452,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--from` `FILE` | Import an existing paper: FILE is its main .tex file, anywhere on disk. |
 | `--demo` | Write the demo quilt instead of a minimal master. |
 | `--prefix` | Id prefix for new nodes. |
-| `--author` `NAME` | Who this quilt's records name; written to config.toml. Asked for when not given, and left empty when nobody answers. |
+| `--author` `NAME` | Legacy quilt attribution in config.toml; reviewer identity comes from local Settings or Git. |
 | `--git` | Also run git init. A quilt is files; loom reads no history. |
 | `--ai` | Which AI you use, instead of being asked: its command goes in ai/ai-config.toml. |
 | `--launch-agents`, `--no-launch-agents` | Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default. |
@@ -1288,6 +1288,7 @@ Build and compile the committed document workspace projection locally.
 
 | option | description |
 |---|---|
+| `--push` | Push the validated revision to the configured document workspace. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync status`

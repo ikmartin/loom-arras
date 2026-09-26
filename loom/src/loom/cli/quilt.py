@@ -32,7 +32,7 @@ resolve = false             # may loom look identifiers up at zbMATH Open and Cr
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
 
 [author]
-name = "{author}"{author_pad}# who this quilt's records name; empty until you write it here or pass --author
+name = "{author}"{author_pad}# legacy attribution; reviewer comes from local Settings or Git
 
 [ai]
 launch = {launch}              # may loom serve run the command in ai/ai-config.toml for a turn when a message waits
@@ -148,19 +148,6 @@ def setup_ai(target: Path, choice: str, launch: bool) -> list[str]:
         else "Agents will not be launched by loom serve: set launch = true under [ai] in config.toml to change that."
     )
     return [said, when]
-
-
-def ask_author(default: str, yes: bool) -> str:
-    """The name this quilt's records will carry, written to `[author] name` (book 4.2).
-
-    Asked under the same rule as the prefix: once, when a terminal is attached and `--yes` is absent. An empty answer is a fine one -- the key is then written empty and the author fills it in, which is what a quilt with no terminal and no `--author` gets.
-    """
-    if yes or not sys.stdin.isatty():
-        return default
-    value = click.prompt(
-        "Author name for this quilt's records (empty to fill in later)", default=default, show_default=False
-    )
-    return str(value).strip()
 
 
 GITIGNORE_NOTE = """wrote .gitignore, ignores:
@@ -287,7 +274,7 @@ def write_demo_quilt(target: Path) -> None:
     "--author",
     default=None,
     metavar="NAME",
-    help="Who this quilt's records name; written to config.toml. Asked for when not given, and left empty when nobody answers.",
+    help="Legacy quilt attribution in config.toml; reviewer identity comes from local Settings or Git.",
 )
 @click.option("--git", "git_init", is_flag=True, help="Also run git init. A quilt is files; loom reads no history.")
 @click.option(
@@ -349,8 +336,8 @@ def init(
         chosen = prefix or ask_prefix("q", yes)
         if not PREFIX.match(chosen):
             raise EnvError(f"prefix {chosen!r} must be letters and digits without hyphens")
-        # `--author ""` is an answer, so the prompt is offered only when the flag was absent altogether
-        named = author.strip() if author is not None else ask_author("", yes)
+        # Retain explicit legacy attribution without configuring the local reviewer.
+        named = author.strip() if author is not None else ""
         made = write_minimal_quilt(target, chosen, minimal_master=paper is None, author=named)
     _write_user_config_template()
     choice = ai or ask_ai(yes)

@@ -358,12 +358,14 @@ def check_author(quilt: Any) -> Item:
     try:
         name, source = resolve_author(None, cwd=quilt.root if quilt else None)
     except NoAuthorError:
-        if quilt is not None and quilt.config.author_declared:
-            remedy = f'set name = "Your Name" under [author] in {quilt.root / "config.toml"}'
-        else:
-            remedy = f'add name = "Your Name" under [author] in {user_config_path()}, or git config --global user.name "Your Name"'
+        remedy = f'add name = "Your Name" under [author] in {user_config_path()}, or git config --global user.name "Your Name"'
         return Item("author", WARN, OPTIONAL, "none: accept and annotate refuse without one", remedy)
-    return Item("author", OK, OPTIONAL, f"{name} (from {source})")
+    note = (
+        "; tracked quilt author ignored; configure the reviewer in local Settings"
+        if quilt is not None and quilt.config.author_declared
+        else ""
+    )
+    return Item("author", OK, OPTIONAL, f"{name} (from {source}){note}")
 
 
 def check_bundle() -> Item:

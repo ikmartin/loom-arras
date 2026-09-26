@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import copy
 import difflib
 import json
 import os
@@ -84,14 +85,25 @@ class ResolvedAnnotation:
 
 
 class Records:
-    def __init__(self, root: Path, history_dir: Path | None = None) -> None:
+    def __init__(self, root: Path, history_dir: Path | None = None, *, reviewer: str | None = None) -> None:
         self.root = root
         self.history_dir = history_dir
         self.rows = read_ledger(root)
-        self.latest = latest_rows(self.rows)
+        from loom.scan.quilt import reviewer_identity
+
+        local, source = reviewer_identity(root)
+        self.reviewer = local if reviewer is None else reviewer
+        self.reviewer_source = (
+            (source if source in ("", "git config user.name") else "local user configuration")
+            if reviewer is None
+            else "--author"
+        )
+        self.latest = latest_rows(self.rows, self.reviewer)
+        self.shared_latest = latest_rows(self.rows)
         self.records, self.problems = load_records(root)
         self._resolved_cache: tuple[ScanResult, list[ResolvedAnnotation]] | None = None
         self._snapshot_seen: dict[str, bool] = {}
+        self._hash_cache: tuple[ScanResult, dict[str, str]] | None = None
 
     # ---- text helpers --------------------------------------------------------
 
@@ -159,14 +171,16 @@ class Records:
 
     # ---- states -----------------------------------------------------------------
 
-    def key_states(self, result: ScanResult) -> dict[str, KeyState]:
+    def key_states(self, result: ScanResult, *, observe: bool = True) -> dict[str, KeyState]:
         states: dict[str, KeyState] = {}
         kinds = ("environment", "proof", "section")
-        current_hashes = {k: key_hash(result, k) for k, n in result.nodes.items() if n.kind in kinds}
+        if self._hash_cache is None or self._hash_cache[0] is not result:
+            self._hash_cache = (result, {k: key_hash(result, k) for k, n in result.nodes.items() if n.kind in kinds})
+        current_hashes = self._hash_cache[1]
         for key, n in result.nodes.items():
             if n.kind not in kinds:
                 continue
-            row = self.latest.get(key)
+            row = (self.shared_latest if n.external else self.latest).get(key)
             ks = KeyState(key=key, state="draft", row=row)
             if n.kind == "section":
                 # A section is a container, not a claim: no state, and `loom accept` refuses one. It is carried here only so that its review facts are computed, because `loom annotate` accepts a section as a target and an annotation filed on one was stored and then shown nowhere (DR-172).
@@ -271,7 +285,8 @@ class Records:
 
         for key in states:
             propagate(key, set())
-        self._observe_causes(states)
+        if observe and self.reviewer:
+            self._observe_causes(states)
         self._review_facts(result, states, current_hashes)
         self._previous_key_matches(result, states, current_hashes)
         return states
@@ -285,6 +300,8 @@ class Records:
             old = {}
         if not isinstance(old, dict):
             old = {}
+        partitions = old.get("reviewers", {})
+        old_partition = partitions.get(self.reviewer, {})
         active: dict[str, str] = {}
         for key, state in states.items():
             if not state.row:
@@ -294,13 +311,16 @@ class Records:
                     [key, state.row.date, state.row.text, cause.kind, cause.id, cause.via],
                     separators=(",", ":"),
                 )
-                first = old.get(identity)
+                first = old_partition.get(identity)
                 active[identity] = first if isinstance(first, str) else today()
                 cause.when = active[identity]
-        if active != old:
+        if active != old_partition:
+            partitions[self.reviewer] = active
             path.parent.mkdir(parents=True, exist_ok=True)
             temporary = path.with_suffix(".json.tmp")
-            temporary.write_text(json.dumps(active, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            temporary.write_text(
+                json.dumps({"reviewers": partitions}, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
             os.replace(temporary, path)
 
     def _review_facts(self, result: ScanResult, states: dict[str, KeyState], current: dict[str, str]) -> None:
@@ -551,6 +571,18 @@ class Records:
     def apply(self, result: ScanResult, manifest: dict[str, Any], build_dir: Path | None = None) -> None:
         states = self.key_states(result)
         derived = self.derived(result, states)
+        manifest["reviewer"] = {"name": self.reviewer, "source": self.reviewer_source}
+        for author in sorted({row.author for row in self.rows if row.author}):
+            # One ledger/source snapshot for every perspective; summaries never observe or write.
+            other = copy.copy(self)
+            other.reviewer = author
+            other.latest = latest_rows(self.rows, author)
+            summaries = states if author == self.reviewer else other.key_states(result, observe=False)
+            for key, state in summaries.items():
+                if state.row and key in manifest["keys"] and not result.nodes[key].external:
+                    manifest["keys"][key].setdefault("acceptances", []).append(
+                        {"author": author, "date": state.row.date, "fresh": state.fresh}
+                    )
         diffs_dir = build_dir / "diffs" if build_dir else None
         for key, entry in manifest["keys"].items():
             ks = states.get(key)

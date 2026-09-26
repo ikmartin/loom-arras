@@ -10,6 +10,9 @@ from tests.unit._quilts import demo
 
 
 def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_path: Path) -> None:
+    from loom.scan.quilt import save_author
+
+    save_author("A. Author")
     q = demo(tmp_path)
     ok("accept", "dm-0001", "dm-0002", "--proofs", "--author", "A. Author", cwd=q)
     before = open_scan(str(q))
@@ -35,6 +38,9 @@ def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_pat
 
 
 def test_name_metadata_is_node_local_and_invalid_names_are_diagnosed(tmp_path: Path) -> None:
+    from loom.scan.quilt import save_author
+
+    save_author("A. Author")
     q = demo(tmp_path)
     source = q / "nodes/dm-0001.tex"
     source.write_text("% !LOOM name: must not inherit\n" + source.read_text())
@@ -51,7 +57,9 @@ def test_name_metadata_is_node_local_and_invalid_names_are_diagnosed(tmp_path: P
 
 def test_manifest_names_are_searchable_without_becoming_reference_aliases(tmp_path: Path) -> None:
     from loom.render.manifest import build_manifest
+    from loom.scan.quilt import save_author
 
+    save_author("A. Author")
     q = demo(tmp_path)
     source = q / "nodes/dm-0001.tex"
     source.write_text(
@@ -101,7 +109,9 @@ def test_names_survive_inline_and_atomize_without_rendering(tmp_path: Path) -> N
 
 def test_missing_old_snapshot_never_establishes_name_equivalence(tmp_path: Path) -> None:
     from loom.records.snapshots import snapshots_dir
+    from loom.scan.quilt import save_author
 
+    save_author("A. Author")
     q = demo(tmp_path)
     ok("accept", "dm-0001", "--author", "A. Author", cwd=q)
     original = Records(q).latest["dm-0001"].text
@@ -112,6 +122,9 @@ def test_missing_old_snapshot_never_establishes_name_equivalence(tmp_path: Path)
 
 
 def test_empty_names_fall_back_and_nested_names_stay_with_their_owner(tmp_path: Path) -> None:
+    from loom.scan.quilt import save_author
+
+    save_author("A. Author")
     q = demo(tmp_path)
     source = q / "nodes/dm-0001.tex"
     source.write_text(

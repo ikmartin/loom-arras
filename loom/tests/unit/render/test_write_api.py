@@ -197,6 +197,9 @@ def test_a_browser_write_is_the_person_at_the_browser_not_the_servers_shell(
     (q / "config.toml").write_text(
         (q / "config.toml").read_text() + '\n[author]\nname = "Wren Halloway"\n', encoding="utf-8"
     )
+    from loom.scan.quilt import save_author
+
+    save_author("Wren Halloway")
     monkeypatch.setenv("AI_AGENT", "1")
     said = handle(
         q, "annotate", {"session": open_session(q), "target": "dm-0003", "message": "from the browser", "kind": "note"}
@@ -647,17 +650,30 @@ def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
     """A copy of loom's synthetic quilt, served (which builds it)."""
     root = tmp_path / "synthetic"
     shutil.copytree(REPO / "tests" / "quilts" / "synthetic", root, ignore=shutil.ignore_patterns("build", ".git"))
+    from loom.scan.quilt import save_author
+
+    save_author("The synthetic quilt")
     return serve(root), root
 
 
 @case("review-decision")
 def _review_decision(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, root = synthetic(serve, tmp_path)
-    assert succeeds(s, "review-decision", {"key": "sy-0002", "status": "ok"})["result"] == "sy-0002: ok"
+    assert (
+        succeeds(s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "ok"})["result"]
+        == "sy-0002: ok"
+    )
     raw = get(s.url + "build/manifest.json")[2]
     row = the(json.loads(raw)["unresolved"], lambda r: r["key"] == "sy-0002", "sy-0002's review row")
     assert row["status"] == "ok"
-    refuses(s, "review-decision", {"key": "sy-9999", "status": "ok"}, 409, "not-unresolved", "sy-9999")
+    refuses(
+        s,
+        "review-decision",
+        {"reviewer": "The synthetic quilt", "key": "sy-9999", "status": "ok"},
+        409,
+        "not-unresolved",
+        "sy-9999",
+    )
 
 
 @case("review-finish")
@@ -666,17 +682,27 @@ def _review_finish(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     from loom.scan.quilt import load_quilt
 
     s, root = synthetic(serve, tmp_path)
-    refuses(s, "review-finish", {}, 409, "nothing-pending", "no pending OK decisions")
-    succeeds(s, "review-decision", {"key": "sy-0001", "status": "ok"})
+    refuses(s, "review-finish", {"reviewer": "The synthetic quilt"}, 409, "nothing-pending", "no pending OK decisions")
+    succeeds(s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0001", "status": "ok"})
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master: (True, ""))
     monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "Test author")
     # the fixture's acceptance of sy-0001 is stale; finishing records a fresh one beside it
     stale = Records(root, load_quilt(root).history_dir).latest["sy-0001"]
-    assert succeeds(s, "review-finish", {})["result"] == "accepted 1 keys"
+    assert succeeds(s, "review-finish", {"reviewer": "The synthetic quilt"})["result"] == "accepted 1 keys"
     fresh = Records(root, load_quilt(root).history_dir).latest["sy-0001"]
-    assert fresh != stale and fresh.author == "Test author", fresh
+    assert fresh != stale and fresh.author == "The synthetic quilt", fresh
     raw = get(s.url + "build/manifest.json")[2]
     assert not [r for r in json.loads(raw)["unresolved"] if r["key"] == "sy-0001"]
+
+
+@case("reviewer-settings")
+def _reviewer_settings(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, root = synthetic(serve, tmp_path)
+    assert succeeds(s, "reviewer-settings", {"name": "Bob"})["reviewer"]["name"] == "Bob"
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert manifest["reviewer"]["name"] == "Bob"
+    refuses(s, "review-finish", {"reviewer": "The synthetic quilt"}, 409, "reviewer-changed", "Reviewer changed")
+    refuses(s, "reviewer-settings", {"name": " "}, 409, "settings-refused", "nonempty")
 
 
 @pytest.mark.parametrize(

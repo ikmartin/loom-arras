@@ -114,7 +114,9 @@ def test_init_readme_orients_the_author_in_this_quilts_own_names(tmp_path: Path,
     assert "drafting/" not in text and "canon/" not in text and "q-0" not in text
 
 
-def test_init_asks_for_an_author_name_and_writes_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_init_preserves_explicit_legacy_attribution_without_prompting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`[author] name` comes from `--author`, or is asked for once when a terminal is attached and `--yes` is absent, or is written empty for the author to fill in (book 4.2, 4.3, 4.7). An agent or a script sees no question."""
     from loom.cli import quilt as quilt_cli
 
@@ -135,8 +137,8 @@ def test_init_asks_for_an_author_name_and_writes_it(tmp_path: Path, monkeypatch:
     monkeypatch.setattr(quilt_cli.click, "prompt", prompt)
     ok("init", str(tmp_path / "asked"), "--prefix", "ab")
     # the author's name, then which AI they use, which is what decides what ai/ai-config.toml holds
-    assert len(asked) == 2 and "Author name" in asked[0] and asked[1] == "Enter 1, 2, 3 or 4"
-    assert 'name = "Markas Hecht"' in (tmp_path / "asked" / "config.toml").read_text()  # trimmed
+    assert asked == ["Enter 1, 2, 3 or 4"]
+    assert 'name = ""' in (tmp_path / "asked" / "config.toml").read_text()
 
     # the flag is an answer, an empty one included: a quilt told to have no name is not asked for one
     asked.clear()
@@ -144,8 +146,6 @@ def test_init_asks_for_an_author_name_and_writes_it(tmp_path: Path, monkeypatch:
     assert (
         not any("Author name" in q for q in asked) and 'name = ""' in (tmp_path / "flagged" / "config.toml").read_text()
     )
-    before = len(asked)
-    assert quilt_cli.ask_author("", yes=True) == "" and len(asked) == before  # --yes never asks
 
 
 def test_init_asks_which_ai_and_says_whether_it_will_be_started(tmp_path: Path) -> None:

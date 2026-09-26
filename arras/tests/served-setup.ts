@@ -4,7 +4,7 @@ import type { FullConfig } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { ARRAS, LOOM, scratchDir, suiteOf } from './served';
+import { ARRAS, LOOM, scratchDir, suiteOf, reviewerEnv } from './served';
 
 export default function setup(config: FullConfig): void {
 	const suite = suiteOf({ config });
@@ -29,7 +29,7 @@ export default function setup(config: FullConfig): void {
 	}
 	// built once here, so each served copy starts from a warm cache; the quilt's own errors make loom exit 1, which is not a failure to build
 	try {
-		execFileSync(LOOM, ['build', '--quilt', join(dir, 'template')], { cwd: ARRAS, stdio: 'pipe' });
+		execFileSync(LOOM, ['build', '--quilt', join(dir, 'template')], { cwd: ARRAS, stdio: 'pipe', env: reviewerEnv(suite, join(dir, 'config')) });
 	} catch (err) {
 		if ((err as { status?: number }).status !== 1) throw err;
 	}

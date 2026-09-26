@@ -15,6 +15,14 @@ REPO = Path(__file__).resolve().parents[3]
 AUTHOR = ["--author", "Markas Hecht"]
 
 
+@pytest.fixture(autouse=True)
+def local_reviewer(request):
+    from loom.scan.quilt import save_author
+
+    if request.node.name != "test_ledger_refuses_without_author_exact_message":
+        save_author("Markas Hecht")
+
+
 AGENT = {"AI_AGENT": "1"}
 
 
@@ -43,6 +51,9 @@ def demo(tmp_path: Path, clean: bool = True) -> Path:
 
 def test_demo_ships_two_accepted_one_stale_and_a_finished_session(tmp_path: Path) -> None:
     d = demo(tmp_path, clean=False)
+    from loom.scan.quilt import save_author
+
+    save_author("The loom demo")
     s = status_json(d)
     assert s["summary"]["accepted"] == 1 and s["summary"]["stale"] == 1
     assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "dm-0001"
@@ -93,6 +104,9 @@ def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
 
 def test_review_build_publishes_rendered_comparison_and_citation(tmp_path: Path) -> None:
     d = demo(tmp_path, clean=False)
+    from loom.scan.quilt import save_author
+
+    save_author("The loom demo")
     ok("review", cwd=d)
     manifest = json.loads((d / "build" / "manifest.json").read_text())
     cause = manifest["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]
@@ -125,6 +139,9 @@ def test_observation_date_resets_after_a_cause_disappears(tmp_path: Path, monkey
 
 def test_comparison_uses_preamble_saved_with_dependent_acceptance(tmp_path: Path) -> None:
     d = demo(tmp_path, clean=False)
+    from loom.scan.quilt import save_author
+
+    save_author("The loom demo")
     master = d / "drafting" / "main.tex"
     master.write_text(master.read_text().replace("\\operatorname{Fix}", "\\operatorname{Fixed}"))
     ok("review", cwd=d)

@@ -18,16 +18,36 @@ def _path(root: Path) -> Path:
     return root / ".loom" / "review-decisions.json"
 
 
-def _read(root: Path) -> dict[str, dict[str, str]]:
+def _data(root: Path) -> dict[str, Any]:
     path = _path(root)
-    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    data = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    return data if data.get("schema") == 2 else {"schema": 2, "reviewers": {}, "legacy": data}
 
 
-def _write(root: Path, rows: dict[str, dict[str, str]]) -> None:
+def has_legacy(root: Path) -> bool:
+    return bool(_data(root).get("legacy"))
+
+
+def _name(root: Path, reviewer: str | None) -> str:
+    from loom.scan.quilt import resolve_author
+
+    return resolve_author(reviewer, root)[0]
+
+
+def _read(root: Path, reviewer: str | None = None) -> dict[str, dict[str, str]]:
+    from loom.scan.quilt import reviewer_identity
+
+    name = reviewer if reviewer is not None else reviewer_identity(root)[0]
+    return dict(_data(root).get("reviewers", {}).get(name, {})) if name else {}
+
+
+def _write(root: Path, rows: dict[str, dict[str, str]], reviewer: str | None = None) -> None:
+    data = _data(root)
+    data["reviewers"][_name(root, reviewer)] = rows
     path = _path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(rows, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary.replace(path)
 
 
@@ -71,7 +91,7 @@ def _latest_pull_baselines(result: ScanResult, sync: SyncState) -> dict[str, str
 
 def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     root = result.quilt.root
-    decisions = _read(root)
+    decisions = _read(root, manifest.get("reviewer", {}).get("name"))
     try:
         sync = SyncState.read(root)
         pull = sync.last_pull
@@ -93,6 +113,7 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
     pull_keys = set(origins)
     candidates = (
         pull_keys
+        | set(_data(root).get("legacy", {}))
         | set(decisions)
         | {key for key, entry in manifest["keys"].items() if entry.get("acceptance", {}).get("fresh") is False}
     )
@@ -170,18 +191,18 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
     return out
 
 
-def decide(result: ScanResult, key: str, status: str) -> None:
+def decide(result: ScanResult, key: str, status: str, reviewer: str | None = None) -> None:
     if status not in ("ok", "requires-attention"):
         raise ValueError("decision must be ok or requires-attention")
     if key not in result.nodes or result.nodes[key].kind not in ("environment", "proof"):
         raise ValueError(f"{key} is not a reviewable statement or proof")
-    rows = _read(result.quilt.root)
+    rows = _read(result.quilt.root, reviewer)
     rows[key] = {"status": status, "fingerprint": fingerprint(result, key)}
-    _write(result.quilt.root, rows)
+    _write(result.quilt.root, rows, reviewer)
 
 
-def pending(result: ScanResult) -> list[str]:
-    rows = _read(result.quilt.root)
+def pending(result: ScanResult, reviewer: str | None = None) -> list[str]:
+    rows = _read(result.quilt.root, reviewer)
     keys = sorted(key for key, row in rows.items() if row["status"] == "ok")
     for key in keys:
         if key not in result.nodes or rows[key]["fingerprint"] != fingerprint(result, key):
@@ -189,8 +210,8 @@ def pending(result: ScanResult) -> list[str]:
     return keys
 
 
-def clear_accepted(root: Path, keys: list[str]) -> None:
-    rows = _read(root)
+def clear_accepted(root: Path, keys: list[str], reviewer: str | None = None) -> None:
+    rows = _read(root, reviewer)
     for key in keys:
         rows.pop(key, None)
-    _write(root, rows)
+    _write(root, rows, reviewer)

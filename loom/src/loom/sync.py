@@ -79,6 +79,8 @@ def git(root: Path, *args: str, env: dict[str, str] | None = None, input: bytes 
         raise SyncError("Git is required for source sync") from exc
     if run.returncode:
         detail = run.stderr.decode("utf-8", errors="replace").strip()
+        if args and args[0] == "push":
+            detail += "\n" + run.stdout.decode("utf-8", errors="replace").strip()
         raise SyncError(f"git {' '.join(args)}: {detail or f'exited {run.returncode}'}")
     return run.stdout
 
@@ -157,13 +159,47 @@ def fetch(quilt: Quilt, state: SyncState) -> SyncState:
     # Keep a ref to the reviewed object even when a later fetch moves FETCH_HEAD.
     git(root, "update-ref", f"refs/loom/incoming/{new}", new)
     if state.prepared and new == state.prepared:
-        state.integrated = new
-        state.local_commit = state.prepared_from
+        _recognize_publication(state)
     if new != state.incoming:
         state.incoming = new
         state.observed = stamp()
     state.write(root)
     return state
+
+
+def _recognize_publication(state: SyncState) -> None:
+    """The same exact-revision recognition after push and fetch; review work stays intact."""
+    state.integrated = state.prepared
+    state.local_commit = state.prepared_from
+    if state.incoming != state.prepared:
+        state.incoming = state.prepared
+        state.observed = stamp()
+
+
+def push_publication(quilt: Quilt, state: SyncState, commit: str) -> None:
+    """Send the persisted prepared revision without moving quilt HEAD or its index."""
+    if not commit or commit != state.prepared:
+        raise SyncError("publication does not match the prepared revision")
+    try:
+        git(quilt.root, "push", "--porcelain", state.remote, f"{commit}:refs/heads/{state.branch}")
+    except SyncError as exc:
+        outcome = (
+            "Publication rejected"
+            if "[rejected]" in str(exc) or "[remote rejected]" in str(exc)
+            else "Publication was not confirmed"
+        )
+        raise SyncError(
+            f"{outcome}: {exc}. The prepared revision remains at {state.publication_ref}. "
+            "Fetch to reconcile the remote before retrying; a transport failure can leave the outcome uncertain."
+        ) from exc
+    _recognize_publication(state)
+    try:
+        state.write(quilt.root)
+    except OSError as exc:
+        raise SyncError(
+            f"Published {commit[:12]} to {state.remote}/{state.branch}, but recording local success failed: {exc}. "
+            "Fetch to reconcile the prepared revision."
+        ) from exc
 
 
 def changed_files(root: Path, before: str, after: str) -> list[dict[str, str]]:

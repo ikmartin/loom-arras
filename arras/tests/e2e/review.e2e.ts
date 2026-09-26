@@ -204,3 +204,23 @@ test.describe('incoming and guided review', () => {
 		expect(viewportPosition.citationTop).toBeLessThan(viewportPosition.viewportHeight);
 	});
 });
+
+test('a static export identifies its review perspective once without identity editing', async ({ page }) => {
+	await serve(page, (m) => { m.reviewer = { name: 'Alice', source: 'local configuration' }; });
+	await page.goto('/review');
+	await expect(page.getByText('Review status for Alice', { exact: true })).toHaveCount(1);
+	await expect(page.getByText('Reviewing as Alice', { exact: true })).toHaveCount(0);
+	await page.getByTestId('settings-toggle').click();
+	await expect(page.getByLabel('Reviewer name', { exact: true })).toHaveCount(0);
+});
+
+test('a local viewer confirms its reviewer and exposes the computer-wide setting', async ({ page }) => {
+	await serve(page, (m) => { m.reviewer = { name: 'Bob', source: 'local configuration' }; });
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['review-decision', 'reviewer-settings'] } }));
+	await page.goto('/review');
+	await expect(page.getByText('Reviewing as Bob', { exact: true })).toBeVisible();
+	await expect(page.getByText('Review status for Bob', { exact: true })).toHaveCount(0);
+	await page.getByTestId('settings-toggle').click();
+	await expect(page.getByLabel('Reviewer name', { exact: true })).toHaveValue('Bob');
+	await expect(page.getByText(/Author name on this computer; used across local quilts/)).toBeVisible();
+});
