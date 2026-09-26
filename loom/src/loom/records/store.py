@@ -20,7 +20,7 @@ from loom.records.selectors import resolve_selector
 from loom.records.snapshots import read_snapshot
 from loom.render.manifest import key_hash, own_text
 from loom.scan.hashing import hash_text, normalize
-from loom.scan.model import Diagnostic
+from loom.scan.model import Diagnostic, Fix
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
 
@@ -81,6 +81,13 @@ class ResolvedAnnotation:
     detached: bool
     recorded: bool = True  # the text this was written against is still recoverable: it is the current text, or frozen
     work: str = ""  # the citekey, when the target is a page of a cited work rather than a key (plan 0.13 item 2)
+    target: str = ""  # the target key now: a whole document's path followed across moves, else the key as written
+    in_doc: str | None = None  # the document `in` names now, followed across moves; as written when it is gone
+
+
+def is_document_path(result: ScanResult, path: str) -> bool:
+    """Whether `path` names a drafting document, live or not: a `.tex` file directly in the drafting directory, as masters are."""
+    return path.endswith(".tex") and Path(path).parent.as_posix() == result.quilt.config.drafting
 
 
 class Records:
@@ -120,6 +127,16 @@ class Records:
         return None
 
     # ---- hashes ---------------------------------------------------------------
+
+    @staticmethod
+    def row_document(result: ScanResult, row: AcceptRow) -> str | None:
+        """The document an acceptance row is read against now: its `master` followed across moves (`ScanResult.current_document`), or the default master for a row that names none.
+
+        None when the recorded document is gone; the row's key is then stale with `document-gone`, and `loom accept --stale` falls back to `_acceptance_master`.
+        """
+        if not row.master:
+            return result.default_master
+        return result.current_document(row.master)
 
     @staticmethod
     def preamble_hash(result: ScanResult, master: str | None) -> str:
@@ -210,9 +227,14 @@ class Records:
                     for dep, h in row.closure.items():
                         if dep not in closure_now and dep not in accepted_direct:
                             ks.causes.append(Cause("dependency-removed", id=dep, before=h))
-                pre = self.preamble_hash(result, row.master or result.default_master)
-                if row.preamble and row.preamble != pre:
-                    ks.causes.append(Cause("preamble-changed", before=row.preamble, after=pre))
+                document = self.row_document(result, row)
+                if row.master and document is None:
+                    # the document the row was compiled against is gone and nothing records where it went: its preamble cannot be compared, and saying it changed would be false
+                    ks.causes.append(Cause("document-gone", id=result.document_trail(row.master)[-1]))
+                else:
+                    pre = self.preamble_hash(result, document)
+                    if row.preamble and row.preamble != pre:
+                        ks.causes.append(Cause("preamble-changed", before=row.preamble, after=pre))
             states[key] = ks
         # A stable direct dependency is an acceptance boundary. Its own unresolved edit
         # propagates; reaccepting it without changing its text resolves the indirect cause.
@@ -394,28 +416,39 @@ class Records:
         for rec in self.records:
             for a in rec.annotations:
                 if a.anchor is not None:
-                    out.append(self._on_page(result, a, rec, works))
+                    res = self._on_page(result, a, rec, works)
+                    res.target = a.target_key
+                    out.append(res)
                     continue
-                n = result.nodes.get(a.target_key)
+                # a document named by path is wherever the history's moves have taken it (book 17.12)
+                in_doc = (result.current_document(a.in_doc) or a.in_doc) if a.in_doc else None
+                target = a.target_key
+                if target not in result.nodes and is_document_path(result, target):
+                    target = result.current_document(target) or target
+                n = result.nodes.get(target)
                 if n is None:
-                    region = result.assembly.regions.get(a.target_key)
+                    region = result.assembly.regions.get(target)
                     n = result.nodes.get(region.container) if region else None
                 if n is None:
-                    out.append(ResolvedAnnotation(a, rec, None, True, self._recorded(a, None)))
+                    out.append(
+                        ResolvedAnnotation(a, rec, None, True, self._recorded(a, None), target=target, in_doc=in_doc)
+                    )
                     continue
-                if a.in_doc and a.in_doc not in n.reached_by:
+                if in_doc and in_doc not in n.reached_by:
                     # a claim about the node in one document, and that document no longer holds it
-                    out.append(ResolvedAnnotation(a, rec, None, True, self._recorded(a, None)))
+                    out.append(
+                        ResolvedAnnotation(a, rec, None, True, self._recorded(a, None), target=target, in_doc=in_doc)
+                    )
                     continue
                 if n.key not in texts:
                     texts[n.key], _ = self.own_pieces(result, n)
                     hashed[n.key] = own_text(result, n)
                 kept = self._recorded(a, hashed[n.key])
                 if a.selector is None:
-                    out.append(ResolvedAnnotation(a, rec, None, False, kept))
+                    out.append(ResolvedAnnotation(a, rec, None, False, kept, target=target, in_doc=in_doc))
                     continue
                 span = resolve_selector(texts[n.key], a.selector)
-                out.append(ResolvedAnnotation(a, rec, span, span is None, kept))
+                out.append(ResolvedAnnotation(a, rec, span, span is None, kept, target=target, in_doc=in_doc))
         self._resolved_cache = (result, out)
         return out
 
@@ -472,7 +505,7 @@ class Records:
         detached: dict[str, int] = {}
         for res in self.resolved(result):
             if res.detached and not res.record.discarded:
-                detached[res.annotation.target_key] = detached.get(res.annotation.target_key, 0) + 1
+                detached[res.target] = detached.get(res.target, 0) + 1
         for key, n in sorted(detached.items()):
             diags.append(
                 Diagnostic(
@@ -483,6 +516,7 @@ class Records:
                     [key],
                 )
             )
+        diags.extend(self._gone_documents(result, states))
         for key in sorted(self.latest):
             if key not in result.nodes:
                 diags.append(
@@ -507,6 +541,51 @@ class Records:
                 )
         return diags
 
+    def _gone_documents(self, result: ScanResult, states: dict[str, KeyState]) -> list[Diagnostic]:
+        """One `loom:document-gone` per vanished document: the rows stale with `document-gone` and the live annotations whose `in` or whole-document target leads nowhere.
+
+        A document is named by the last path its trail reached, which is where `loom mv` records it went.
+        """
+        rows: dict[str, list[str]] = {}
+        notes: dict[str, set[str]] = {}
+        for key, ks in states.items():
+            for c in ks.causes:
+                if c.kind == "document-gone" and c.id:
+                    rows.setdefault(c.id, []).append(key)
+        for res in self.resolved(result):
+            a = res.annotation
+            if res.record.discarded or not res.detached:
+                continue
+            named = [a.in_doc] if a.in_doc else []
+            if a.anchor is None and a.target_key not in result.nodes and is_document_path(result, a.target_key):
+                named.append(a.target_key)
+            for path in named:
+                if result.current_document(path) is None:
+                    notes.setdefault(result.document_trail(path)[-1], set()).add(a.id)
+        out: list[Diagnostic] = []
+        for path in sorted(set(rows) | set(notes)):
+            n_rows, n_notes = len(rows.get(path, [])), len(notes.get(path, set()))
+            named_by = " and ".join(
+                part
+                for part in (
+                    f"{n_rows} acceptance row{'s' if n_rows != 1 else ''}" if n_rows else "",
+                    f"{n_notes} annotation{'s' if n_notes != 1 else ''}" if n_notes else "",
+                )
+                if part
+            )
+            out.append(
+                Diagnostic(
+                    "warning",
+                    "loom:document-gone",
+                    f"{path} is gone and the history does not say where it went; {named_by} name{'s' if n_rows + n_notes == 1 else ''} it",
+                    [],
+                    sorted(rows.get(path, [])),
+                    [Fix("record where it went, NEW being its path now", f"loom mv {path} NEW")],
+                    subject="record",
+                )
+            )
+        return out
+
     # ---- diffs -------------------------------------------------------------------
 
     def diff_for(self, result: ScanResult, cause: Cause, key: str) -> str | None:
@@ -520,7 +599,9 @@ class Records:
         target = cause.id or key
         n = result.nodes.get(target)
         if cause.kind == "preamble-changed":
-            closure = result.closures.get(result.default_master) if result.default_master else None
+            row = self.latest.get(key)
+            document = self.row_document(result, row) if row is not None else result.default_master
+            closure = result.closures.get(document) if document else None
             after = normalize(closure.raw_text()) if closure else ""
         elif n is None:
             after = ""
@@ -598,13 +679,13 @@ class Records:
                 # a note on a page of a cited work names the work by identifier; the citekey and the page travel
                 # beside it so a viewer needs no lookup to say where it is (plan 0.13 item 2)
                 "target": {
-                    "key": a.target_key,
+                    "key": res.target,
                     "hash": a.target_hash,
                     "work": res.work or None,
                     "page": a.anchor.page if a.anchor else None,
                 },
-                # the document a claim about a node is read in, or null for the node wherever it appears (plan 0.15, decision 9)
-                "in": a.in_doc,
+                # the document a claim about a node is read in, or null for the node wherever it appears (plan 0.15, decision 9); where the history's moves have taken it, so a viewer draws it on the document as it is now
+                "in": res.in_doc,
                 "basis": a.anchor.basis if a.anchor else None,
                 "kind": a.kind,
                 "body_html": render_markdown(a.body),

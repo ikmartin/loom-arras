@@ -23,3 +23,10 @@ export async function scrollPane(page: Page, index: number, to: 'top' | 'bottom'
 export async function prefs(page: Page, p: Record<string, unknown>): Promise<void> {
 	await page.addInitScript((v) => localStorage.setItem('arras.prefs', JSON.stringify(v)), p);
 }
+
+/** Open the focused pane's *view* menu, where a toolbar keeps every control but its bar's; open already, it is left open. */
+export async function viewMenu(page: Page): Promise<void> {
+	const view = page.getByTestId('toolbar-view');
+	if ((await view.getAttribute('aria-expanded')) !== 'true') await view.click();
+	await page.getByTestId('toolbar-menu').waitFor();
+}

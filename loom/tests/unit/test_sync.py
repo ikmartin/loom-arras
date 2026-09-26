@@ -16,6 +16,7 @@ from loom.sync import (
     SyncState,
     changed_files,
     configure,
+    exact_renames,
     fetch,
     finish_incorporation,
     git,
@@ -25,6 +26,7 @@ from loom.sync import (
     tree_files,
     update_documents,
 )
+from tests.helpers import json_of, ok
 
 
 def run(root: Path, *args: str) -> str:
@@ -269,3 +271,180 @@ def test_old_sync_state_defaults_to_the_primary_document(tmp_path: Path) -> None
         encoding="utf-8",
     )
     assert SyncState.read(root).documents == ["drafting/main.tex"]
+
+
+def test_sync_follows_a_linearized_main_and_overleaf_keeps_its_file_name(tmp_path: Path, monkeypatch: object) -> None:
+    """A sync record written before `loom linearize` publishes the flat document as Overleaf's main, and a pull lands in it; the record keeps the path it was written with (plan 0.16 phase 1)."""
+    import loom.sync as sync
+
+    root = tmp_path / "quilt"
+    root.mkdir()
+    run(root, "init", "-b", "quilt")
+    run(root, "config", "user.name", "Tester")
+    run(root, "config", "user.email", "tester@example.org")
+    (root / "drafting").mkdir()
+    (root / "sections").mkdir()
+    (root / "config.toml").write_text(
+        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\ndrafting = "drafting"\ncanon = "canon"\nprefix = "zk"\nengine = "pdflatex"\n',
+        encoding="utf-8",
+    )
+    (root / "drafting/main.tex").write_text(
+        "\\documentclass{article}\n\\usepackage{loom}\n\\newtheorem{lemma}{Lemma}\n"
+        "\\begin{document}\n\\input{sections/one}\n\\end{document}\n",
+        encoding="utf-8",
+    )
+    (root / "sections/one.tex").write_text("\\begin{lemma}\\label{zk-0001}A\\end{lemma}\n", encoding="utf-8")
+    (root / "loom.sty").write_text("% local support\n", encoding="utf-8")
+    run(root, "add", ".")
+    run(root, "commit", "-m", "private quilt")
+    bare = tmp_path / "overleaf.git"
+    subprocess.check_call(["git", "init", "--bare", str(bare)], stdout=subprocess.DEVNULL)
+    run(root, "remote", "add", "origin", str(bare))
+    monkeypatch.setattr(sync, "compile_tex", lambda *_args, **_kwargs: SimpleNamespace(ok=True))  # type: ignore[attr-defined]
+    run(root, "push", "origin", "HEAD:main")
+    run(root, "fetch", "origin", "main")
+    quilt = load_quilt(root)
+    state = configure(quilt, "origin", "main", "main.tex")
+    run(root, "add", ".loom/source-sync.json")
+    run(root, "commit", "-m", "pair with Overleaf")
+
+    ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--no-check", cwd=root)
+    run(root, "add", ".")
+    run(root, "commit", "-m", "linearize")
+    quilt = load_quilt(root)
+    state = SyncState.read(root)
+    assert state.master == "drafting/main.tex"
+    commit, paths = publish(quilt, state, push=True)
+    assert paths == ["loom.sty", "main.tex"]  # the same name on Overleaf; the inlined section is no longer an input
+    assert git(root, "show", f"{commit}:main.tex") == (root / "drafting/flat.tex").read_bytes()
+    assert SyncState.read(root).master == "drafting/main.tex"  # resolved when read, never rewritten
+
+    collaborator = tmp_path / "collaborator"
+    subprocess.check_call(["git", "clone", "-b", "main", str(bare), str(collaborator)], stdout=subprocess.DEVNULL)
+    run(collaborator, "config", "user.name", "Colleague")
+    run(collaborator, "config", "user.email", "colleague@example.org")
+    text = (collaborator / "main.tex").read_text(encoding="utf-8")
+    (collaborator / "main.tex").write_text(text.replace("zk-0001}A", "zk-0001}B"), encoding="utf-8")
+    run(collaborator, "commit", "-am", "edit statement")
+    run(collaborator, "push", "origin", "main")
+    state = fetch(quilt, SyncState.read(root))
+    patch = incoming_patch(quilt, state)
+    assert b"a/drafting/flat.tex" in patch and b"drafting/main.tex" not in patch
+    assert [c["key"] for c in build(quilt).manifest["incoming"]["changes"]] == ["zk-0001"]
+    original = (root / "drafting/main.tex").read_bytes()
+    handle(root, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
+    assert "zk-0001}B" in (root / "drafting/flat.tex").read_text(encoding="utf-8")
+    assert (root / "drafting/main.tex").read_bytes() == original
+
+
+# ---- a collaborator's rename (plan 0.16 phase 2) ------------------------------------------------
+
+
+def _paired(tmp_path: Path, monkeypatch: object) -> tuple[Path, Path]:
+    """A quilt paired with a bare Overleaf remote whose main is `drafting/main.tex`, `zk-0001` accepted in it, and a collaborator's clone."""
+    import loom.sync as sync
+
+    root = tmp_path / "quilt"
+    root.mkdir()
+    run(root, "init", "-b", "quilt")
+    run(root, "config", "user.name", "Tester")
+    run(root, "config", "user.email", "tester@example.org")
+    (root / "drafting").mkdir()
+    (root / "config.toml").write_text(
+        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\ndrafting = "drafting"\ncanon = "canon"\nprefix = "zk"\nengine = "pdflatex"\n',
+        encoding="utf-8",
+    )
+    (root / "drafting/main.tex").write_text(
+        "\\documentclass{article}\n\\usepackage{loom}\n\\newtheorem{lemma}{Lemma}\n"
+        "\\begin{document}\n\\begin{lemma}\\label{zk-0001}A\\end{lemma}\n\\end{document}\n",
+        encoding="utf-8",
+    )
+    (root / "loom.sty").write_text("% local support\n", encoding="utf-8")
+    ok("accept", "zk-0001", "--force", "--author", "Tester", cwd=root)
+    run(root, "add", ".")
+    run(root, "commit", "-m", "private quilt")
+    bare = tmp_path / "overleaf.git"
+    subprocess.check_call(["git", "init", "--bare", str(bare)], stdout=subprocess.DEVNULL)
+    run(root, "remote", "add", "origin", str(bare))
+    monkeypatch.setattr(sync, "compile_tex", lambda *_args, **_kwargs: SimpleNamespace(ok=True))  # type: ignore[attr-defined]
+    run(root, "push", "origin", "HEAD:main")
+    run(root, "fetch", "origin", "main")
+    configure(load_quilt(root), "origin", "main")
+    run(root, "add", ".loom/source-sync.json")
+    run(root, "commit", "-m", "pair with Overleaf")
+    collaborator = tmp_path / "collaborator"
+    subprocess.check_call(["git", "clone", "-b", "main", str(bare), str(collaborator)], stdout=subprocess.DEVNULL)
+    run(collaborator, "config", "user.name", "Colleague")
+    run(collaborator, "config", "user.email", "colleague@example.org")
+    return root, collaborator
+
+
+def _moves(root: Path) -> list[dict]:
+    import json
+
+    p = root / ".loom" / "history" / "ledger.jsonl"
+    lines = [json.loads(x) for x in p.read_text().splitlines() if x.strip()] if p.is_file() else []
+    return [x for x in lines if x["action"] == "move"]
+
+
+def test_a_collaborator_s_exact_rename_is_recorded_when_the_pull_is_incorporated(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    root, collaborator = _paired(tmp_path, monkeypatch)
+    run(collaborator, "mv", "drafting/main.tex", "drafting/paper.tex")
+    run(collaborator, "commit", "-m", "rename")
+    run(collaborator, "push", "origin", "main")
+    quilt = load_quilt(root)
+    state = fetch(quilt, SyncState.read(root))
+    assert _moves(root) == []  # never on fetch
+    handle(root, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
+    moves = _moves(root)
+    assert [{k: m[k] for k in ("from", "to", "moved", "via")} for m in moves] == [
+        {"from": "drafting/main.tex", "to": "drafting/paper.tex", "moved": False, "via": "sync"}
+    ]
+    assert 'main = "drafting/paper.tex"' in (root / "config.toml").read_text()
+    state = SyncState.read(root)
+    assert state.published_main == "drafting/paper.tex"  # Overleaf keeps the collaborator's name at the next publish
+    assert state.master == "drafting/main.tex"  # the record is followed, never rewritten
+    assert json_of("status", "--json", cwd=root)["keys"]["zk-0001"]["acceptance"]["fresh"] is True
+    assert not [x for x in json_of("lint", "--json", cwd=root) if x["code"] == "loom:document-gone"]
+    assert "drafting/main.tex -> drafting/paper.tex (renamed in a pull)" in ok("history", cwd=root).stdout
+
+
+def test_a_rename_with_an_edit_is_not_recorded_and_the_document_is_gone(tmp_path: Path, monkeypatch: object) -> None:
+    root, collaborator = _paired(tmp_path, monkeypatch)
+    text = (collaborator / "drafting/main.tex").read_text(encoding="utf-8")
+    run(collaborator, "rm", "-q", "drafting/main.tex")
+    (collaborator / "drafting").mkdir(exist_ok=True)
+    (collaborator / "drafting/paper.tex").write_text(text.replace("zk-0001}A", "zk-0001}B"), encoding="utf-8")
+    run(collaborator, "add", ".")
+    run(collaborator, "commit", "-m", "rename and edit")
+    run(collaborator, "push", "origin", "main")
+    quilt = load_quilt(root)
+    state = fetch(quilt, SyncState.read(root))
+    handle(root, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
+    assert _moves(root) == []
+    gone = [x for x in json_of("lint", "--json", cwd=root) if x["code"] == "loom:document-gone"]
+    assert [g["fixes"][0]["command"] for g in gone] == ["loom mv drafting/main.tex NEW"]
+
+
+def test_only_an_unambiguous_identical_pair_is_a_rename(tmp_path: Path) -> None:
+    """Two identical files deleted and one added, or one deleted and two added, cannot say which went where."""
+    root = tmp_path / "r"
+    root.mkdir()
+    run(root, "init", "-b", "main")
+    run(root, "config", "user.name", "Tester")
+    run(root, "config", "user.email", "tester@example.org")
+    for name, body in (("a.tex", "same\n"), ("b.tex", "same\n"), ("c.tex", "c\n"), ("d.tex", "d\n")):
+        (root / name).write_text(body, encoding="utf-8")
+    run(root, "add", ".")
+    run(root, "commit", "-m", "before")
+    before = run(root, "rev-parse", "HEAD")
+    run(root, "rm", "-q", "a.tex", "b.tex", "c.tex", "d.tex")
+    (root / "e.tex").write_text("same\n", encoding="utf-8")
+    (root / "f.tex").write_text("c\n", encoding="utf-8")
+    (root / "g.tex").write_text("d\n", encoding="utf-8")
+    (root / "h.tex").write_text("d\n", encoding="utf-8")
+    run(root, "add", ".")
+    run(root, "commit", "-m", "after")
+    assert exact_renames(root, before, run(root, "rev-parse", "HEAD")) == [("c.tex", "f.tex")]

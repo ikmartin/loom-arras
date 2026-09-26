@@ -479,7 +479,7 @@ readOnly('a document never compiled shows none of another document’s numbers',
 	await page.goto('/master/talk');
 	await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
 	await expect(page.locator('[data-pane="0"] .fragment .env-label .number')).toHaveCount(0);
-	await expect(page.getByTestId('cluster')).not.toContainText('not yet numbered');
+	await expect(page.getByTestId('item-controls')).not.toContainText('not yet numbered');
 });
 
 readOnly('a paper opened into half a pane fits its text, and its landing dot is in the pane', async ({ page }) => {

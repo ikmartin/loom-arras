@@ -84,6 +84,7 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
 | `fork` | `new`, `from` (id, step, hash), `in`, `to` |
 | `revert` | `key`, `step`, `hash`, `in` |
 | `live` | `path` |
+| `move` | `from`, `to`, `moved` (whether loom renamed the file), `via` (`"sync"` when an incorporated pull recorded it, else absent) |
 
 **[decided]** `parent` says which step this one continues: `{step, how: "declared"}` when the author said so or a `draft` line recorded where the document came from, `{step, how: "inferred", matched, of}` when loom matched key hashes against the recorded states, and `{how: "unknown"}` when nothing was shared. A history is a log, not a graph the author maintains; the parent is loom's best reading of it and says which it is.
 
@@ -139,7 +140,9 @@ Example: an author with a paper and a talk stamps `--in drafting/talk.tex` after
 
 **[decided]** `loom live FILE` appends a line that makes the file live again. Nothing is moved and nothing is edited; the record simply says the conversion no longer stands.
 
-**[decided]** `atomize --retire` moves the input into `retired/` instead, which is not scanned either. It is opt-in because moving an author's file is the one thing 4.8 otherwise forbids, and it exists because an author who has finished with a file would rather it were out of the way than inert in place.
+**[decided]** `atomize --retire` moves the input into `retired/` instead, which is not scanned either. It is opt-in because loom moves an author's file only when asked (4.8), and it exists because an author who has finished with a file would rather it were out of the way than inert in place.
+
+**[decided]** **Where a document is now** is the history's to say (DR-297-ikmartin). A conversion's line records a move: `linearize` from its `from` to its `to`, `atomize` from each path in `from` to the path at the same place in `to`. So does a `move` line, from its `from` to its `to`, whether `loom mv` renamed the file, recorded a rename made elsewhere, or an incorporated pull found a collaborator's exact rename (4.4, 4.6, DR-298-ikmartin); a `move` line also makes its `to` a document of its own again, neither superseded nor leading anywhere, since a document now stands there. A path that is a live document is itself. Otherwise the latest line that moved it names its successor, and a later `live` line makes it its own again; the walk follows successors until it reaches a live document, and a path with no successor that is not live is gone. `retired/` is never a successor: `atomize --retire` sends the document to its spine like any atomize, and the retired copy is not a document. Every record that names a document by path is resolved this way whenever it is read and never rewritten: an acceptance row's `master` (7.3), an annotation's `in` and a whole-document target (7.4.2, 7.5.4), and the sync record's main and selected documents (4.6). `loom live` therefore undoes a move for everything that follows it.
 
 ## 17.13 `loom linearize`
 

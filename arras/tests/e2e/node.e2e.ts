@@ -1,6 +1,6 @@
 // A node's own page: its statement and proofs and nothing about them, read as it was written on asking, and a missing proof said where the proof would be. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
-import { beside, pane } from '../workspace';
+import { beside, pane, viewMenu } from '../workspace';
 import { serve } from '../manifest';
 
 test('a node draws its statement, typeset, and its proofs, and nothing about them', async ({ page }) => {
@@ -26,14 +26,17 @@ test('a node can be read as it was written', async ({ page }) => {
 	// the source is fetched one key at a time from build/source/, only when asked
 	await page.goto('/node/sy-0003');
 	await expect(page.locator('.fragment .env').first()).toBeVisible();
+	await viewMenu(page);
 	const toggle = page.getByTestId('source-toggle').first();
-	await expect(toggle).toHaveText('verbatim code'); // the control names what a click gives, not what is on screen
+	await expect(toggle).toHaveText('show verbatim code'); // the control names what a click gives, not what is on screen
 	await toggle.click();
 	const verbatim = page.getByTestId('verbatim').first();
 	await expect(verbatim).toBeVisible();
 	await expect(verbatim).toContainText('\\begin{theorem}'); // the LaTeX, not the rendering
 	await expect(page.locator('.fragment .env')).toHaveCount(0); // and the rendering stands aside
-	await expect(toggle).toHaveText('rendered latex');
+	await viewMenu(page);
+	await expect(toggle).toHaveText('show rendered latex');
+	await expect(toggle).toHaveAttribute('aria-checked', 'true');
 	await toggle.click();
 	await expect(page.locator('.fragment .env').first()).toBeVisible();
 });

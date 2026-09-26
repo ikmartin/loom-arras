@@ -11,7 +11,19 @@ from loom.cli.build_cmds import check, compile, source
 from loom.cli.digest import digest
 from loom.cli.doctor import doctor
 from loom.cli.graph import deps, unravel
-from loom.cli.history_cmds import canonicalize, canonise, canonize, draft, fork, history, linearize, live, revert, stamp
+from loom.cli.history_cmds import (
+    canonicalize,
+    canonise,
+    canonize,
+    draft,
+    fork,
+    history,
+    linearize,
+    live,
+    mv,
+    revert,
+    stamp,
+)
 from loom.cli.link_cmd import link_command
 from loom.cli.lint_cmd import lint_command
 from loom.cli.nodes import delete, new, search
@@ -78,6 +90,7 @@ main.add_command(stamp)
 main.add_command(fork)
 main.add_command(revert)
 main.add_command(live)
+main.add_command(mv)
 main.add_command(linearize)
 main.add_command(history)
 main.add_command(sync)

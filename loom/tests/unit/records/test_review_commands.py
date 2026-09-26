@@ -1241,3 +1241,96 @@ def test_an_annotation_whose_document_stops_holding_the_node_is_detached(tmp_pat
     exits(1, "build", cwd=d, match="reference-to-loose")
     m = json.loads((d / "build" / "manifest.json").read_text())
     assert m["annotations"][ann]["detached"] is True
+
+
+# ---- documents that move (plan 0.16 phase 1) ---------------------------------------------------
+
+FLAT = ("drafting/main.tex", "--to", "drafting/main-flat.tex", "--keep-shared", "--no-check")
+
+
+def test_an_acceptance_follows_its_document_through_a_linearize_and_back(tmp_path: Path) -> None:
+    """The 2026-09-26 reproduction: dm-0001 accepted in main.tex stays fresh when main.tex is linearized, and stays fresh when `loom live` makes main.tex its own again."""
+    d = demo(tmp_path)
+    ok("accept", "dm-0001", "--force", *AUTHOR, cwd=d)
+    ok("linearize", *FLAT, cwd=d)
+    acc = status_json(d)["keys"]["dm-0001"]["acceptance"]
+    assert acc["fresh"] is True, acc
+    ok("live", "drafting/main.tex", cwd=d)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["fresh"] is True
+
+
+def test_a_changed_preamble_is_still_found_in_the_document_it_moved_to(tmp_path: Path) -> None:
+    """Following the move compares against the document as it is now, so a real preamble change after a linearize still reads as one."""
+    d = demo(tmp_path)
+    ok("accept", "dm-0001", "--force", *AUTHOR, cwd=d)
+    ok("linearize", *FLAT, cwd=d)
+    edit(d / "drafting" / "main-flat.tex", "\\begin{document}", "\\newcommand{\\widgetset}{W}\n\\begin{document}")
+    causes = status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"]
+    assert [c["kind"] for c in causes] == ["preamble-changed"]
+
+
+def test_accept_stale_after_a_linearize_records_the_new_document_and_is_fresh(tmp_path: Path) -> None:
+    d = demo(tmp_path)
+    ok("accept", "dm-0001", "--force", *AUTHOR, cwd=d)
+    edit(d / "nodes" / "dm-0001.tex", "Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    ok("linearize", *FLAT, cwd=d)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["fresh"] is False
+    ok("accept", "--stale", "--yes", "--force", *AUTHOR, cwd=d)
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["fresh"] is True
+    rows = (d / ".loom" / "state.toml").read_text().split("[[accept]]")
+    assert 'master = "drafting/main-flat.tex"' in rows[-1]
+
+
+def test_a_document_deleted_by_hand_is_gone_not_changed(tmp_path: Path) -> None:
+    """With nothing recording where it went, the rows read `document-gone` naming the path, `loom lint` says so once with the command that records the move, and `accept --stale` writes against a live document."""
+    d = demo(tmp_path)
+    ok("accept", "dm-0001", "dm-0002", "--force", *AUTHOR, cwd=d)
+    ok("annotate", "dm-0001", "Read here.", "--in", "drafting/main.tex", *AUTHOR, cwd=d)
+    (d / "drafting" / "main.tex").unlink()
+    causes = status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"]
+    assert causes == [{"kind": "document-gone", "id": "drafting/main.tex", "diff": None, "when": causes[0]["when"]}]
+    assert "document-gone drafting/main.tex" in ok("status", cwd=d).output
+    gone = [x for x in json_of("lint", "--json", cwd=d) if x["code"] == "loom:document-gone"]
+    assert gone == [
+        {
+            "severity": "warning",
+            "code": "loom:document-gone",
+            "message": "drafting/main.tex is gone and the history does not say where it went; 2 acceptance rows and 1 annotation name it",
+            "locations": [],
+            "keys": ["dm-0001", "dm-0002"],
+            "fixes": [
+                {"label": "record where it went, NEW being its path now", "command": "loom mv drafting/main.tex NEW"}
+            ],
+            "subject": "record",
+        }
+    ]
+    ok("accept", "--stale", "--yes", "--force", *AUTHOR, cwd=d)
+    assert 'master = "drafting/outline.tex"' in (d / ".loom" / "state.toml").read_text().split("[[accept]]")[-1]
+    assert status_json(d)["keys"]["dm-0001"]["acceptance"]["fresh"] is True
+
+
+def test_an_annotation_in_a_linearized_document_is_drawn_in_what_it_became(tmp_path: Path) -> None:
+    """`in` and a whole-document target follow the document: the manifest publishes where it is now, and the mark is baked into that document's fragment."""
+    d = demo(tmp_path)
+    ann = ok(
+        "annotate",
+        "dm-0003",
+        "Say which topology.",
+        "--quote",
+        "closed in every topology",
+        "--in",
+        "drafting/main.tex",
+        *AUTHOR,
+        cwd=d,
+    ).output.split()[0]
+    whole = ok("annotate", "drafting/main.tex", "The title is too long.", *AUTHOR, cwd=d).output.split()[0]
+    ok("linearize", *FLAT, cwd=d)
+    ok("build", cwd=d)
+    m = json.loads((d / "build" / "manifest.json").read_text())
+    got = m["annotations"][ann]
+    assert got["in"] == "drafting/main-flat.tex" and got["detached"] is False and got["anchored"] is True, got
+    assert m["annotations"][whole]["target"]["key"] == "drafting/main-flat.tex"
+    assert m["annotations"][whole]["detached"] is False
+    assert ann in (d / "build" / "fragments" / "masters" / "main-flat.html").read_text()
+    # the record keeps the path it was written with
+    assert [e["in"] for e in events(d) if e.get("id") == ann] == ["drafting/main.tex"]

@@ -10,10 +10,12 @@ from typing import TypeVar
 import click
 
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.scan.scan import scan
 from loom.sync import (
     SyncError,
     SyncState,
     configure,
+    current_selection,
     fetch,
     finish_incorporation,
     incoming_patch,
@@ -101,9 +103,11 @@ def documents_sync(action: str | None, document: str | None, quilt_path: str | N
         state = _run(lambda: update_documents(quilt, state, action, document))
         verb = "added" if action == "add" else "removed"
         click.echo(f"{verb} {document}; sync selection updated (not committed or published)")
-    for selected in state.documents or [state.master]:
-        mapped = state.published_main if selected == state.master else selected
-        suffix = " (Overleaf main)" if selected == state.master else ""
+    # each document where it is now: the record keeps the paths it was written with (book 4.6)
+    main, selected_now = current_selection(state, scan(quilt))
+    for selected in selected_now:
+        mapped = state.published_main if selected == main else selected
+        suffix = " (Overleaf main)" if selected == main else ""
         click.echo(f"  {selected} -> {mapped}{suffix}")
 
 

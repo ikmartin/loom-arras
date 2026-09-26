@@ -1,7 +1,7 @@
 <script lang="ts">
 	// A cited work (plan 0.13.3 K1–K5): the paper, the digest read off it, and what the corpus knows about it.
 	//
-	// **The paper opens first, always.** A work in the Library is a document a reader came to read, and the digest is a derived index of it — useful, and never the thing you meant when you clicked the title. The three views are the first thing in the rail, and everything that is *about* the work rather than *of* it stands behind **Info**, so the reading surface is the paper and nothing else, full bleed in its pane.
+	// **The paper opens first**, wherever a copy can be read; with none, its Paper view is greyed and the work opens on the first view that can be. A work in the Library is a document a reader came to read, and the digest is a derived index of it — useful, and never the thing you meant when you clicked the title. The three views stand at the end of the pane's tab strip, and everything that is *about* the work rather than *of* it stands behind **Info**, so the reading surface is the paper and nothing else, full bleed in its pane.
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import { keyUrl, nodeUrl } from '$lib/nav';
@@ -16,7 +16,7 @@
 	import type { WorkLink } from '$lib/worklink';
 	import type { Item } from '../item';
 	import { workState } from '../state.svelte';
-	import { workViews } from '../views';
+	import { currentView, workViews } from '../views';
 
 	let { item }: { item: Item } = $props();
 	import { slotsFor } from '$lib/fragments/slots';
@@ -39,13 +39,12 @@
 	);
 	/** The page to open at: whatever the item's place names, else the first. A paper always opens somewhere. */
 	const reading = $derived(item.place?.page || 1);
-	const readable = $derived(!ref?.unreadable && !!ref?.artifacts?.pdf);
 	// The place the item points at, in the one locator syntax `cited:` links share (plan 0.13 item 6).
 	const locator = $derived<WorkLink | null>(ref?.work ? { id: ref.work, ...(item.place ?? {}) } : null);
 
-	/** Which of the three views is open: the item's, and the paper when it names none or one this work lacks. */
-	const tab = $derived(workViews(m, item.id).some((v) => v.id === item.view) ? item.view! : 'paper');
-	/** The reader's view of the paper, shared with the rail's controls, which draw it once for the current item. */
+	/** Which of the three views is open: the item's, else the first that can be read — the paper, unless no copy of it can be. */
+	const tab = $derived(currentView(workViews(m, item.id), item.view) ?? 'paper');
+	/** The reader's view of the paper, shared with the controls, which the focused pane draws for its item. */
 	const pdf = $derived(workState(item).pdf);
 
 	let asBibtex = $state(false);
@@ -87,17 +86,9 @@
 {:else}
 	<div class="page item work" class:reading={tab === 'paper'}>
 		{#if tab === 'paper'}
-			{#if readable}
-				<div class="reader" data-testid="reader">
-					<Reading {citekey} {ref} page={reading} {locator} view={pdf} />
-				</div>
-			{:else if ref.unreadable}
-				<p class="muted" data-testid="unreadable">
-					Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}. Nothing here can be checked against a page.
-				</p>
-			{:else}
-				<p class="muted" data-testid="no-copy">No copy of this paper is filed here. <WorkLinks {ref} /></p>
-			{/if}
+			<div class="reader" data-testid="reader">
+				<Reading {citekey} {ref} page={reading} {locator} view={pdf} />
+			</div>
 		{:else if tab === 'digest'}
 			<div class="prose">
 				{#if proposals.length}

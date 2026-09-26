@@ -155,7 +155,7 @@ export function soleSession(id: string): void {
 /**
  * Select a session and open its Chat beside what is being read, or reveal it where it is, without taking focus. `select` is false for a caller that has set the selection itself.
  *
- * Choosing whom to talk to is not a change of what is being read, so the rail keeps the tools of the item the reader was in.
+ * Choosing whom to talk to is not a change of what is being read, so the focused pane, and with it the controls, stays with the item the reader was in.
  */
 export function openChat(id: string, m: Manifest | null, select = true): void {
 	if (select) sessionView.select(id, m);

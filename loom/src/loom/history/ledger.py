@@ -6,6 +6,7 @@ Read once per scan and cached by the file's mtime and size, since a served quilt
 from __future__ import annotations
 
 import json
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,9 @@ from loom.scan.labels import is_id_shaped
 LEDGER = "ledger.jsonl"
 TEXTS = "texts"
 STEP_ACTIONS = ("import", "canonize", "stamp")
-ACTIONS = (*STEP_ACTIONS, "draft", "atomize", "linearize", "fork", "revert", "live")
+ACTIONS = (*STEP_ACTIONS, "draft", "atomize", "linearize", "fork", "revert", "live", "move")
+#: The actions that move a document, and the fields naming where from and where to; two lists pair by position. `retired` is never a destination: a retired source is gone, and the document it became is its `to`.
+MOVES: dict[str, tuple[str, str]] = {"atomize": ("from", "to"), "linearize": ("from", "to"), "move": ("from", "to")}
 
 
 @dataclass
@@ -71,6 +74,7 @@ class History:
     dir: Path
     entries: list[Entry] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)
+    _successors: dict[str, str] | None = field(default=None, init=False, repr=False, compare=False)
 
     @property
     def ledger(self) -> Path:
@@ -115,15 +119,93 @@ class History:
         return None
 
     def superseded_paths(self) -> dict[str, Entry]:
-        """Documents a conversion replaced (its `superseded` list), minus those a later `live` line restored; path -> the superseding entry."""
+        """Documents a conversion replaced (its `superseded` list), minus those a later `live` line restored or a later `move` line moved a document into; path -> the superseding entry."""
         out: dict[str, Entry] = {}
         for e in self.entries:
             if e.action == "live":
                 out.pop(str(e.get("path", "")), None)
                 continue
+            if e.action == "move":
+                out.pop(str(e.get("to", "")), None)
+                continue
             for p in e.get("superseded") or []:
                 out[str(p)] = e
         return out
+
+    def successors(self) -> dict[str, str]:
+        """path -> the path the latest entry moving it sent it to (`MOVES`), minus those a later `live` line made their own again or a later `move` line moved a document into.
+
+        Built once per History; the ledger is append-only, and appending drops the cached History.
+        """
+        if self._successors is None:
+            out: dict[str, str] = {}
+            for e in self.entries:
+                if e.action == "live":
+                    out.pop(str(e.get("path", "")), None)
+                    continue
+                fields = MOVES.get(e.action)
+                if fields is None:
+                    continue
+                src, dest = e.get(fields[0]), e.get(fields[1])
+                if isinstance(src, str) and isinstance(dest, str):
+                    if e.action == "move":
+                        out.pop(dest, None)  # a document moved into a path makes it that document's own
+                    out[src] = dest
+                elif isinstance(src, list) and isinstance(dest, list):
+                    out.update((str(s), str(d)) for s, d in zip(src, dest, strict=False))
+            self._successors = out
+        return self._successors
+
+    def document_trail(self, path: str, live: Collection[str]) -> list[str]:
+        """The paths a document recorded at `path` has had, from `path` to where it is now.
+
+        Parameters
+        ----------
+        path : str
+            A document path as a record wrote it, quilt-relative.
+        live : collection of str
+            The live drafting documents: a scan's `masters`.
+
+        Returns
+        -------
+        list of str
+            `path` first; each successor after it (`successors`); stops at the first live document, or at a path nothing moved, or before a path already walked. The last item is where the document is now when it is in `live`, and otherwise where it was last known before it vanished.
+
+        See Also
+        --------
+        current_document : the last item, or None when it is gone.
+        """
+        moved = self.successors()
+        trail = [path]
+        while trail[-1] not in live:
+            nxt = moved.get(trail[-1])
+            if nxt is None or nxt in trail:
+                break
+            trail.append(nxt)
+        return trail
+
+    def current_document(self, path: str, live: Collection[str]) -> str | None:
+        """Where the document recorded at `path` is now.
+
+        Parameters
+        ----------
+        path : str
+            A document path as a record wrote it.
+        live : collection of str
+            The live drafting documents: a scan's `masters`.
+
+        Returns
+        -------
+        str or None
+            `path` itself when it is live; otherwise the live document the chain of moves reaches; None when the chain ends at a document that is gone.
+
+        See Also
+        --------
+        document_trail : every path on the way.
+        loom.scan.scan.ScanResult.current_document : the same, memoised per scan.
+        """
+        end = self.document_trail(path, live)[-1]
+        return end if end in live else None
 
     def _walk(self) -> tuple[dict[str, tuple[int, str]], dict[str, tuple[int, str]], dict[str, int]]:
         """(state, ever, removed_at) after the last step: the live versions, every key's last version, and the step at which a key was last removed without being restored since."""

@@ -1,10 +1,11 @@
-"""`loom draft`, `loom canonize`, `loom stamp`, `loom fork`, `loom revert`, `loom live`, `loom linearize`, `loom history` (book chapter 17).
+"""`loom draft`, `loom canonize`, `loom stamp`, `loom fork`, `loom revert`, `loom live`, `loom mv`, `loom linearize`, `loom history` (book chapter 17).
 
 Usage refusals are EnvError (exit 2), content refusals ContentError (exit 1); every command that writes ends with one `Recorded:` note naming the ledger line or step. Patches are printed for the editor to apply; loom rewrites no author file.
 """
 
 from __future__ import annotations
 
+import shutil
 import sys
 import tempfile
 from collections.abc import Callable
@@ -29,7 +30,7 @@ from loom.reshape.linearize import flatten, to_canon
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local, split_id
 from loom.scan.quilt import load_quilt
-from loom.scan.scan import ScanResult, scan
+from loom.scan.scan import ScanResult, scan, skipped_dirs
 from loom.tex.assemble import shift_sectioning
 from loom.tex.identity import identity_test
 
@@ -481,6 +482,125 @@ def live(file: str, quilt_path: str | None) -> None:
     note(f"Recorded: live (ledger line {entry.line})")
 
 
+# ---- mv -----------------------------------------------------------------------
+
+
+def _document_path(result: ScanResult, rel: str, given: str) -> None:
+    """Refuse `rel` unless it can name a drafting document: a `.tex` directly in the drafting directory, inside the quilt.
+
+    `given` is the argument as typed, for a path `_rel` could not make quilt-relative. The directories the scan never enters are named, since a canon or retired path is the likeliest slip.
+    """
+    drafting = result.quilt.config.drafting
+    if Path(rel).is_absolute() or ".." in Path(rel).parts:
+        raise EnvError(f"{given} is outside the quilt; loom mv moves drafting documents within {drafting}/")
+    for d in skipped_dirs(result.quilt):
+        if rel == d or rel.startswith(f"{d}/"):
+            raise EnvError(
+                f"{rel} is inside {d}/, not the drafting directory {drafting}/; loom mv moves only drafting documents"
+            )
+    if not rel.endswith(".tex"):
+        raise EnvError(f"{rel} is not a .tex file; a drafting document is a .tex directly in {drafting}/")
+    if Path(rel).parent.as_posix() != drafting:
+        raise EnvError(
+            f"{rel} is not directly in the drafting directory {drafting}/; loom mv moves only drafting documents"
+        )
+
+
+def _named_documents(result: ScanResult) -> set[str]:
+    """Every drafting-document path a record or the history names: `[quilt] main`, acceptance rows' `master`, annotations' `in` and whole-document targets, the sync record's main and documents, and any path a ledger line carries.
+
+    `loom mv`'s record-only form refuses a path outside this set, since nothing would follow it. Ledger lines are read by value shape (a string, a list of strings, or `{path}`) so a new action needs no case here.
+    """
+    from loom.records.store import Records, is_document_path
+    from loom.sync import SyncError, SyncState
+
+    root = result.quilt.root
+    records = Records(root, result.quilt.history_dir)
+    named: set[str] = {result.quilt.config.main, *(row.master for row in records.rows if row.master)}
+    for rec in records.records:
+        for a in rec.annotations:
+            named.update(p for p in (a.in_doc, a.target_key) if p)
+    try:
+        state = SyncState.read(root)
+        named.update([state.master, *state.documents])
+    except SyncError:
+        pass
+    for e in _history(result).entries:
+        for v in e.data.values():
+            for item in v if isinstance(v, list) else [v]:
+                if isinstance(item, dict):
+                    item = item.get("path")
+                if isinstance(item, str):
+                    named.add(item)
+    return {p for p in named if is_document_path(result, p)}
+
+
+@click.command("mv")
+@click.argument("old")
+@click.argument("new")
+@click.option("--json", "as_json", is_flag=True)
+@quilt_option
+def mv(old: str, new: str, as_json: bool, quilt_path: str | None) -> None:
+    """Move the drafting document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
+
+    Both are .tex files directly in the drafting directory. Moving the default document moves [quilt] main with it.
+    """
+    result = open_scan(quilt_path)
+    root = result.quilt.root
+    old_rel, new_rel = _rel(root, old), _rel(root, new)
+    _document_path(result, old_rel, old)
+    _document_path(result, new_rel, new)
+    if old_rel == new_rel:
+        raise EnvError(f"{old_rel} and {new_rel} are the same path")
+    old_here, new_here = (root / old_rel).exists(), (root / new_rel).exists()
+    if old_here and new_here:
+        raise EnvError(
+            f"{old_rel} and {new_rel} both exist; loom mv never overwrites, and records a rename only once {old_rel} is gone"
+        )
+    if not old_here and not new_here:
+        raise EnvError(f"neither {old_rel} nor {new_rel} exists: there is nothing to move and no rename to record")
+    if old_here:
+        if old_rel not in result.masters:
+            src = result.files.get(old_rel)
+            if src is not None and src.superseded:
+                raise EnvError(
+                    f"{old_rel} is superseded ({src.superseded}); `loom live {old_rel}` first, or move what superseded it"
+                )
+            raise EnvError(
+                f"{old_rel} is not a live drafting document (it has no \\documentclass, or is ignored); loom mv moves only documents"
+            )
+        shutil.move(str(root / old_rel), str(root / new_rel))
+        moved = True
+    else:
+        if new_rel not in result.masters:
+            raise EnvError(
+                f"{new_rel} is not a live drafting document; a rename is recorded only to a document loom scans"
+            )
+        if old_rel not in _named_documents(result):
+            raise EnvError(
+                f"{old_rel} is not a document any record or the history names; there is nothing to follow to {new_rel}"
+            )
+        if result.current_document(old_rel) == new_rel:
+            raise EnvError(f"the history already takes {old_rel} to {new_rel}; nothing to record")
+        moved = False
+    entry = append_entry(
+        result.quilt.history_dir, "move", {"from": old_rel, "to": new_rel, "moved": moved}, actor_for(root)
+    )
+    main = result.quilt.config.main
+    main_moved = (main == old_rel or result.current_document(main) == old_rel) and set_main_forced(
+        result.quilt, new_rel
+    )
+    if as_json:
+        emit_json({**entry.to_dict(), "line": entry.line})
+    elif moved:
+        click.echo(f"Moved {old_rel} to {new_rel}")
+    else:
+        click.echo(f"{old_rel} was renamed to {new_rel} outside loom; records naming it follow")
+    if main_moved:
+        note(f"main = {new_rel}")
+    note(f"Recorded: move (ledger line {entry.line})")
+
+
 # ---- linearize ----------------------------------------------------------------
 
 
@@ -685,6 +805,11 @@ def _detail(e: Entry) -> str:
         return f"{e.get('key')}@{e.get('step')} in {e.get('in')}"
     if e.action == "live":
         return str(e.get("path"))
+    if e.action == "move":
+        how = (
+            "" if e.get("moved") else (" (renamed in a pull)" if e.get("via") == "sync" else " (renamed outside loom)")
+        )
+        return f"{frm} -> {to}{how}"
     return ""
 
 

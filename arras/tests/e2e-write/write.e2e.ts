@@ -3,6 +3,7 @@ import { expect, test, type Served } from '../served';
 import { openPicker, pickSession } from '../picker';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { viewMenu } from '../workspace';
 
 /**
  * Select the quilt's newest open session, because a write names one (plan 0.13.1) and nothing is selected at rest; returns its id.
@@ -178,6 +179,7 @@ test('a citation suggestion is accepted from its box, which then says so, and le
 	expect(written).toContain('"verified": false'); // never a second source of identity truth
 	expect(served.log().filter((e) => e.event === 'resolved' && e.id === id)).toHaveLength(1);
 	// the context's list still names it as a suggestion no longer open: nothing there decides it
+	await viewMenu(page);
 	await page.getByTestId('open-context').click();
 	await expect(page.getByTestId('context').getByTestId('refnote-open')).toHaveCount(0);
 });

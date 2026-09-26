@@ -118,3 +118,106 @@ def test_names_addresses_and_slugs() -> None:
     assert parse_address("rl-0001/proof@paper-v2") == ("rl-0001/proof", "paper-v2")
     assert parse_address("rl-0001") is None
     assert slug("After the referee!") == "after-the-referee" and step_dirname(7, "paper-v2") == "0007-paper-v2"
+
+
+def _moves(tmp_path: Path, *lines: dict) -> Path:
+    """A ledger of conversions and moves, each line given its `when` and `actor`."""
+    return _write(tmp_path, *({"when": str(i), "actor": None, **x} for i, x in enumerate(lines, start=1)))
+
+
+def test_a_document_follows_a_chain_of_moves(tmp_path: Path) -> None:
+    """atomize then linearize: the first path is wherever the last conversion put it, and a live path is itself."""
+    d = _moves(
+        tmp_path,
+        {"action": "atomize", "from": ["drafting/a.tex"], "to": ["drafting/b.tex"], "superseded": ["drafting/a.tex"]},
+        {"action": "linearize", "from": "drafting/b.tex", "to": "drafting/c.tex", "superseded": ["drafting/b.tex"]},
+    )
+    h = load_history(d)
+    live = {"drafting/c.tex", "drafting/other.tex"}
+    assert h.document_trail("drafting/a.tex", live) == ["drafting/a.tex", "drafting/b.tex", "drafting/c.tex"]
+    assert h.current_document("drafting/a.tex", live) == "drafting/c.tex"
+    assert h.current_document("drafting/b.tex", live) == "drafting/c.tex"
+    assert h.current_document("drafting/other.tex", live) == "drafting/other.tex"
+    # a live document is itself, even one a move once left: the walk stops at the first live path
+    assert h.current_document("drafting/a.tex", live | {"drafting/a.tex"}) == "drafting/a.tex"
+
+
+def test_live_makes_a_moved_path_its_own_again(tmp_path: Path) -> None:
+    d = _moves(
+        tmp_path,
+        {"action": "linearize", "from": "drafting/a.tex", "to": "drafting/b.tex", "superseded": ["drafting/a.tex"]},
+        {"action": "live", "path": "drafting/a.tex"},
+    )
+    h = load_history(d)
+    assert h.successors() == {}
+    assert h.current_document("drafting/a.tex", {"drafting/a.tex", "drafting/b.tex"}) == "drafting/a.tex"
+    # made its own again and then gone: nothing leads anywhere
+    assert h.current_document("drafting/a.tex", {"drafting/b.tex"}) is None
+
+
+def test_a_path_nothing_moved_and_no_longer_live_is_gone(tmp_path: Path) -> None:
+    d = _moves(
+        tmp_path,
+        {"action": "linearize", "from": "drafting/a.tex", "to": "drafting/b.tex", "superseded": ["drafting/a.tex"]},
+    )
+    h = load_history(d)
+    assert h.current_document("drafting/x.tex", {"drafting/b.tex"}) is None
+    assert h.document_trail("drafting/x.tex", {"drafting/b.tex"}) == ["drafting/x.tex"]
+    # the chain ends at a document deleted by hand: gone, and the trail names where it was last
+    assert h.current_document("drafting/a.tex", set()) is None
+    assert h.document_trail("drafting/a.tex", set()) == ["drafting/a.tex", "drafting/b.tex"]
+
+
+def test_a_retired_source_is_gone_and_its_atomized_spine_is_the_successor(tmp_path: Path) -> None:
+    """atomize --retire moves the source to retired/; that copy is not a document, and the spine it wrote is where the document went."""
+    d = _moves(
+        tmp_path,
+        {
+            "action": "atomize",
+            "from": ["drafting/a.tex", "drafting/b.tex"],
+            "to": ["drafting/a2.tex", "drafting/b2.tex"],
+            "superseded": [],
+            "retired": ["retired/drafting/a.tex", "retired/drafting/b.tex"],
+        },
+    )
+    h = load_history(d)
+    live = {"drafting/a2.tex", "drafting/b2.tex"}
+    assert h.successors() == {"drafting/a.tex": "drafting/a2.tex", "drafting/b.tex": "drafting/b2.tex"}
+    assert h.current_document("drafting/b.tex", live) == "drafting/b2.tex"
+    assert h.current_document("retired/drafting/a.tex", live) is None
+
+
+def test_a_move_line_is_followed_the_latest_move_wins_and_a_cycle_ends(tmp_path: Path) -> None:
+    d = _moves(
+        tmp_path,
+        {"action": "move", "from": "drafting/a.tex", "to": "drafting/b.tex"},
+        {"action": "move", "from": "drafting/b.tex", "to": "drafting/a.tex"},
+        {"action": "move", "from": "drafting/a.tex", "to": "drafting/c.tex"},
+        # a landmark's `from` and `to` name a document and the canon copy it froze: not a move
+        {
+            "action": "canonize",
+            "step": 1,
+            "dir": "0001-v1",
+            "from": {"path": "drafting/c.tex"},
+            "to": {"path": "canon/v1.tex"},
+        },
+    )
+    h = load_history(d)
+    assert h.current_document("drafting/b.tex", {"drafting/c.tex"}) == "drafting/c.tex"
+    assert h.current_document("drafting/c.tex", {"canon/v1.tex"}) is None
+    # b -> a -> c, and with nothing live the walk stops rather than going round
+    assert h.document_trail("drafting/b.tex", set()) == ["drafting/b.tex", "drafting/a.tex", "drafting/c.tex"]
+
+
+def test_a_move_into_a_path_makes_it_that_document_s_own(tmp_path: Path) -> None:
+    """`loom mv` into a path a conversion superseded or moved away from: the path is live again and no longer leads to where the old document went."""
+    d = _moves(
+        tmp_path,
+        {"action": "linearize", "from": "drafting/a.tex", "to": "drafting/b.tex", "superseded": ["drafting/a.tex"]},
+        {"action": "move", "from": "drafting/b.tex", "to": "drafting/a.tex", "moved": True},
+    )
+    h = load_history(d)
+    assert h.superseded_paths() == {}
+    assert h.successors() == {"drafting/b.tex": "drafting/a.tex"}
+    assert h.current_document("drafting/b.tex", {"drafting/a.tex"}) == "drafting/a.tex"
+    assert h.current_document("drafting/a.tex", {"drafting/a.tex"}) == "drafting/a.tex"

@@ -502,6 +502,19 @@ Make a superseded document live again: it defines its nodes once more.
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+## `loom mv`
+
+`loom mv [OPTIONS] OLD NEW`
+
+Move the drafting document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
+
+Both are .tex files directly in the drafting directory. Moving the default document moves [quilt] main with it.
+
+| option | description |
+|---|---|
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## `loom new`
 
 `loom new [OPTIONS] TAXON [TITLE]`

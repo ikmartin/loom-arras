@@ -1,6 +1,6 @@
 // Annotations as a reader meets them: marks in the text, the boxes they open floating or inline, all of them opened at once, what a suggestion proposes, and the verbs and tools that write one where a publisher serves. Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
-import { beside, pane, prefs } from '../workspace';
+import { beside, pane, prefs, viewMenu } from '../workspace';
 import { openPicker, pickSession } from '../picker';
 import { manifest, QUICK, REFEREE, serve } from '../manifest';
 
@@ -171,10 +171,13 @@ test.describe('marks', () => {
 		// nothing to open: a click on the words is a click on the words, and show all opens nothing
 		await m.dispatchEvent('click');
 		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
+		await viewMenu(page);
 		await page.getByTestId('toggle-annotations').click();
 		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
+		await viewMenu(page);
 		await page.getByTestId('toggle-annotations').click();
-		// shown by the rail's control: the hue at half strength on a 3% wash, and the mark opens again
+		// shown by the toolbar's control: the hue at half strength on a 3% wash, and the mark opens again
+		await viewMenu(page);
 		await page.getByTestId('toggle-settled').click();
 		const shown = await drawn(m);
 		expect(shown.hue).toMatchObject(SUGGESTION);
@@ -251,10 +254,12 @@ test.describe('marks and boxes', () => {
 		await expect(opened.locator('header')).toHaveCount(0); // the box begins with the body
 		await expect(opened.locator('article.reply')).toHaveCount(1);
 		await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(1);
-		// the rail opens every one at once, each at its mark or beside its result's label, in the flow rather than floating
+		// the toolbar's show all opens every one at once, each at its mark or beside its result's label, in the flow rather than floating
+		await viewMenu(page);
 		await page.getByTestId('toggle-annotations').click();
 		await expect(opened).toHaveCount(open);
 		await expect(page.locator('.comment-slot.expanded.floating')).toHaveCount(0);
+		await viewMenu(page);
 		await page.getByTestId('toggle-annotations').click();
 		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(0);
 		// and with them closed, a single mark still floats
@@ -569,6 +574,7 @@ test.describe('the box', () => {
 		// a-2026-09-16-0002 is resolved: its mark is drawn only once settled annotations are shown
 		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0002"]');
 		await expect(mark).toHaveClass(/settled/);
+		await viewMenu(page);
 		await page.getByTestId('toggle-settled').click();
 		await mark.click();
 		const box = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0002"]');
@@ -844,31 +850,44 @@ test.describe('the composer', () => {
 	});
 });
 
-// The settled control (book 15.2.5, 15.3.1): a resolved or discarded annotation is not drawn at rest; the rail's `show settled`, or `s`, draws it faintly for the sitting and on every page, and a fresh visit starts with it off.
+// The settled control (book 15.2.5, 15.3.1): a resolved or discarded annotation is not drawn at rest; `show settled annotations` under the toolbar's *view*, or `s`, draws it faintly for the sitting and on every page, and a fresh visit starts with it off.
 test.describe('the settled control', () => {
 	const settledMark = (page: Page) => page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0002"]');
+
+	/** The control, read where it stands: under *view*, which is opened to read it. */
+	async function settled(page: Page) {
+		await viewMenu(page);
+		return page.getByTestId('toggle-settled');
+	}
+
+	/** Close the menu with Escape, which leaves the page as it was. */
+	const shut = (page: Page) => page.keyboard.press('Escape');
 
 	test('on a document it shows and hides the settled marks, and their boxes open only while it is on', async ({ page }) => {
 		await page.goto('/master/main');
 		const m = settledMark(page);
 		await expect(m).toHaveClass(/settled/);
 		expect((await drawn(m)).hue.a).toBe(0);
-		const control = page.getByTestId('toggle-settled');
-		await expect(control).toHaveText('show settled');
-		await expect(control).toHaveAttribute('aria-pressed', 'false');
+		const control = await settled(page);
+		await expect(control).toHaveText(/^show settled annotations/);
+		await expect(control).toHaveAttribute('aria-checked', 'false');
 		await control.click();
-		await expect(control).toHaveText('hide settled');
-		await expect(control).toHaveAttribute('aria-pressed', 'true');
+		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
+		await expect(control).toHaveAttribute('aria-checked', 'true');
+		await shut(page);
+		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		await expect(page.locator('.fragment').first()).toHaveClass(/show-settled/);
 		expect((await drawn(m)).hue).toMatchObject(SUGGESTION);
 		expect((await drawn(m)).hue.a).toBeCloseTo(0.5, 2);
 		// the resolved citation on the theorem has no quote, so shown it is a mark on the theorem's label
 		await expect(page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-0004"]')).toHaveCount(1);
 		// show all now opens the settled boxes too
+		await viewMenu(page);
 		await page.getByTestId('toggle-annotations').click();
 		await expect(page.locator('article.box[data-annotation-id="a-2026-09-16-0002"]')).toBeVisible();
-		await control.click();
-		await expect(control).toHaveText('show settled');
+		await (await settled(page)).click();
+		await expect(await settled(page)).toHaveText(/^show settled annotations/);
+		await shut(page);
 		expect((await drawn(m)).hue.a).toBe(0);
 		await expect(page.locator('article.box[data-annotation-id="a-2026-09-16-0002"]')).toHaveCount(0);
 		await expect(page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-0004"]')).toHaveCount(0);
@@ -878,25 +897,28 @@ test.describe('the settled control', () => {
 		await page.goto('/node/sy-0004');
 		const m = settledMark(page);
 		expect((await drawn(m)).hue.a).toBe(0);
-		await page.getByTestId('toggle-settled').click();
-		await expect(page.getByTestId('toggle-settled')).toHaveText('hide settled');
+		await (await settled(page)).click();
+		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
+		await shut(page);
 		expect((await drawn(m)).hue.a).toBeCloseTo(0.5, 2);
 		// the key, from inside the document, flips it back and forth
 		await page.locator('.fragment').first().focus();
 		await page.keyboard.press('s');
-		await expect(page.getByTestId('toggle-settled')).toHaveText('show settled');
 		expect((await drawn(m)).hue.a).toBe(0);
+		await expect(await settled(page)).toHaveText(/^show settled annotations/);
+		await shut(page);
+		await page.locator('.fragment').first().focus();
 		await page.keyboard.press('s');
-		await expect(page.getByTestId('toggle-settled')).toHaveText('hide settled');
 		expect((await drawn(m)).hue.a).toBeCloseTo(0.5, 2);
+		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
 	});
 
 	test('it is off again on a fresh visit', async ({ page }) => {
 		await page.goto('/master/main');
-		await page.getByTestId('toggle-settled').click();
-		await expect(page.getByTestId('toggle-settled')).toHaveText('hide settled');
+		await (await settled(page)).click();
+		await expect(await settled(page)).toHaveText(/^hide settled annotations/);
 		await page.goto('/master/main');
-		await expect(page.getByTestId('toggle-settled')).toHaveText('show settled');
+		await expect(await settled(page)).toHaveText(/^show settled annotations/);
 		expect((await drawn(settledMark(page))).hue.a).toBe(0);
 	});
 
@@ -906,12 +928,13 @@ test.describe('the settled control', () => {
 		await serve(page, (m) => (m.annotations['a-2026-09-16-0011'].run = REFEREE));
 		await page.goto(`/session/${REFEREE}?view=did`);
 		await page.locator('[data-testid="did-row"] a[href="quilt:a-2026-09-16-0002"]').first().click();
-		await expect(page.getByTestId('toggle-settled')).toHaveText('hide settled');
+		await expect(page.getByTestId('toolbar-view-on')).toBeVisible();
 		await expect(page.locator('[data-pane="1"] article.box.settled[data-annotation-id="a-2026-09-16-0002"]')).toBeVisible();
 		// a discarded annotation with no quote is a label mark only while settled annotations are drawn, and its box opens from it and says it was discarded
 		await page.goto('/node/sy-000A');
 		const label = page.locator('.fragment mark.annotation-label[data-annotation~="a-2026-09-16-0011"]');
 		await expect(label).toHaveCount(0);
+		await viewMenu(page);
 		await page.getByTestId('toggle-settled').click();
 		await label.click();
 		const box = page.locator('article.box[data-annotation-id="a-2026-09-16-0011"]');

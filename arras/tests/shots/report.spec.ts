@@ -1,6 +1,7 @@
 // Screenshots for the workspace's feature reports (records/), as distinct from the book's reference figures in shots.spec.ts. Run with `npm run shots:report`; the images land in records/images/, or in `ARRAS_SHOTS_OUT` when it is set.
 import { expect, test, type Page } from '@playwright/test';
 import { outDir, settle, still } from './settle';
+import { viewMenu } from '../workspace';
 
 const OUT = outDir('../records/images');
 
@@ -54,12 +55,17 @@ test('a node read three ways', async ({ page }) => {
 
 	await page.goto('/node/sy-0003');
 	await page.waitForSelector('[data-pane] .fragment');
+	await viewMenu(page);
 	await page.getByTestId('source-toggle').first().click();
 	await expect(page.getByTestId('verbatim').first()).toBeVisible();
 	await still(page);
 	await page.screenshot({ path: `${OUT}/verbatim.png` });
 
+	// the fixture's suggestion is resolved, so settled annotations are shown before all are opened
 	await page.goto('/node/sy-0004');
+	await viewMenu(page);
+	await page.getByTestId('toggle-settled').click();
+	await viewMenu(page);
 	await page.getByTestId('toggle-annotations').click();
 	await expect(page.getByTestId('payload').first()).toBeVisible();
 	await settle(page);

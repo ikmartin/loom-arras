@@ -15,7 +15,7 @@ function stub(initial: Record<string, string> = {}) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the display preferences', () => {
-	it('defaults to serif, medium, mid, system, the compiled page, a floating comment box, and no ids', () => {
+	it('defaults to serif, medium, mid, system, the compiled page, a floating comment box, no ids, and a pinned toolbar', () => {
 		expect(DEFAULTS).toEqual({
 			divider: 0.5,
 			panel: true,
@@ -26,7 +26,8 @@ describe('the display preferences', () => {
 			width: 'mid',
 			theme: 'system',
 			format: 'p1',
-			comments: 'floating'
+			comments: 'floating',
+			controls: 'pinned'
 		});
 	});
 
@@ -43,9 +44,18 @@ describe('the display preferences', () => {
 		expect(coerce({ zoom: 0.1 }).zoom).toEqual(DEFAULTS.zoom); // zoom is kept per kind, so a bare number is not one
 	});
 
+	it('reads the pin as pinned unless it says fade', () => {
+		// one choice for every toolbar; anything else stored, or nothing, is the default, so the controls are never lost to a bad blob
+		expect(coerce({ controls: 'fade' }).controls).toBe('fade');
+		expect(coerce({ controls: 'pinned' }).controls).toBe('pinned');
+		expect(coerce({ controls: 'hidden' }).controls).toBe('pinned');
+		expect(coerce({ controls: false }).controls).toBe('pinned');
+		expect(coerce({}).controls).toBe('pinned');
+	});
+
 	it('round-trips through storage', () => {
 		stub();
-		const p = { ...DEFAULTS, theme: 'dark' as const, size: 'l' as const };
+		const p = { ...DEFAULTS, theme: 'dark' as const, size: 'l' as const, controls: 'fade' as const };
 		write(p);
 		expect(read()).toEqual(p);
 	});

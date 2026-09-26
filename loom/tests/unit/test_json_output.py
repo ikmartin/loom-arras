@@ -46,6 +46,7 @@ CASES: dict[str, tuple[list[str], Setup, int]] = {
     "id": (["--next"], nothing, 0),
     "linearize": (["drafting/solo.tex", "--to", "drafting/flat.tex"], solo_spine, 0),
     "lint": ([], nothing, 0),
+    "mv": (["drafting/outline.tex", "drafting/plan.tex"], nothing, 0),
     "pop": (["dm-0001"], nothing, 0),
     "reach": (["dm-0001"], nothing, 0),
     "refs build": ([], nothing, 0),

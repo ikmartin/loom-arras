@@ -15,16 +15,17 @@ from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import ScanResult, scan
 from loom.scan.source import blank_comments
-from loom.sync import SyncError, SyncState, changed_files, git, tree_files
+from loom.sync import SyncError, SyncState, changed_files, current_selection, git, tree_files
 
 
-def _scan_tree(root: Path, commit: str, config: bytes, home: Path, state: SyncState) -> ScanResult:
+def _scan_tree(root: Path, commit: str, config: bytes, home: Path, state: SyncState, main: str) -> ScanResult:
+    """A scan of one remote revision staged under `home`, Overleaf's main written at `main`, the local path it maps to now."""
     stage = home / commit[:12]
     stage.mkdir()
     (stage / "config.toml").write_bytes(config)
     for rel, data in tree_files(root, commit).items():
         if rel == state.published_main:
-            rel = state.master
+            rel = main
         target = stage / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
@@ -78,8 +79,9 @@ def attach_incoming(
     with tempfile.TemporaryDirectory(prefix="loom-incoming-") as temporary:
         home = Path(temporary)
         try:
-            base = _scan_tree(root, state.integrated, config, home, state)
-            incoming = _scan_tree(root, state.incoming, config, home, state)
+            main = current_selection(state, result)[0]
+            base = _scan_tree(root, state.integrated, config, home, state, main)
+            incoming = _scan_tree(root, state.incoming, config, home, state, main)
         except (OSError, ValueError, SyncError) as exc:
             manifest["incoming"] = {
                 "remote": state.remote,

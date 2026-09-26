@@ -99,7 +99,7 @@ test.describe('one Chat at a time', () => {
 		await pickSession(page, REFEREE);
 		await expect(pane(page, 1).getByTestId('chat')).toBeVisible();
 		await expect(pane(page, 0)).toHaveClass(/focused/);
-		await expect(page.getByTestId('open-context')).toBeVisible();
+		await expect(pane(page, 0).getByTestId('item-controls')).toHaveAttribute('aria-label', /^controls for /);
 		// closed, choosing it again opens it again
 		await pane(page, 1).getByTestId('tab-close').click();
 		await expect(pane(page, 1)).toHaveCount(0);

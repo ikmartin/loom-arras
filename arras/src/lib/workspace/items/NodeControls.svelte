@@ -1,9 +1,11 @@
 <script lang="ts">
-	// A node's controls (plan 0.13.3 N3): the annotating tools, as a work's pages have them; `context`, which opens what the node is in and rests on beside it; `source`, naming the reading a click gives; `annotations`, and the settled control beside it.
+	// A node's toolbar (plan 0.16, the table of the final design): the annotating tools on the bar, as a work's pages have them; under *view*, `show all annotations` and `show settled annotations` with their keys, then `open its context beside`, which opens what the node is in and rests on in the other pane, and `show verbatim code`, naming the reading a click gives.
 	import { store } from '$lib/manifest/client.svelte';
 	import type { Item } from '../item';
 	import { nodeState } from '../state.svelte';
 	import { workspace } from '../store.svelte';
+	import ItemToolbar from '../ItemToolbar.svelte';
+	import ToolbarItem from '../ToolbarItem.svelte';
 	import ToolPair from '$lib/pdf/ToolPair.svelte';
 	import { ui } from '$lib/ui.svelte';
 	import { can } from '$lib/write';
@@ -28,41 +30,42 @@
 	});
 </script>
 
-{#if node}
-	{#if writes}<ToolPair holder={held} of={name} /><span class="bar" aria-hidden="true"></span>{/if}
-	<button type="button" class="as-link" aria-label="context of {name}" data-testid="open-context" onclick={context}>context</button>
-	{#if held.source}
-		<button type="button" class="as-link" aria-pressed={held.verbatim} aria-label="{held.verbatim ? 'rendered latex' : 'verbatim code'} of {name}" data-testid="source-toggle" onclick={() => (held.verbatim = !held.verbatim)}
-			>{held.verbatim ? 'rendered latex' : 'verbatim code'}</button
-		>
-	{/if}
-	{#if held.notes.ready}
-		<button
-			type="button"
-			class="as-link"
-			aria-expanded={held.notes.allOpen}
-			aria-label="{held.notes.allOpen ? 'hide all annotations' : 'show all annotations'} in {name}"
-			data-testid="toggle-annotations"
-			onclick={() => held.notes.toggle()}>{held.notes.allOpen ? 'hide all annotations' : 'show all annotations'}</button
-		>
-	{/if}
-	{#if held.notes.ready || anySettled}
-		<button
-			type="button"
-			class="as-link"
-			aria-pressed={ui.showSettled}
-			aria-label="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"
-			data-testid="toggle-settled"
-			title={ui.showSettled ? 'Hide resolved and discarded annotations again (s)' : 'Draw resolved and discarded annotations, faintly (s)'}
-			onclick={() => (ui.showSettled = !ui.showSettled)}>{ui.showSettled ? 'hide settled' : 'show settled'}</button
-		>
-	{/if}
-{/if}
+{#snippet tools()}<ToolPair holder={held} of={name} />{/snippet}
 
-<style>
-	.bar {
-		width: 1px;
-		height: 14px;
-		background: var(--rule);
-	}
-</style>
+{#if node}
+	<ItemToolbar {name} bar={writes ? tools : undefined} on={held.notes.allOpen || ui.showSettled || held.verbatim}>
+		{#snippet view()}
+			{#if held.notes.ready}
+				<ToolbarItem
+					label={held.notes.allOpen ? 'hide all annotations' : 'show all annotations'}
+					name="{held.notes.allOpen ? 'hide all annotations' : 'show all annotations'} in {name}"
+					key={held.notes.allOpen ? 'h' : 'e'}
+					checked={held.notes.allOpen}
+					testid="toggle-annotations"
+					onclick={() => held.notes.toggle()}
+				/>
+			{/if}
+			{#if held.notes.ready || anySettled}
+				<ToolbarItem
+					label={ui.showSettled ? 'hide settled annotations' : 'show settled annotations'}
+					name="{ui.showSettled ? 'hide settled' : 'show settled'} annotations in {name}"
+					key="s"
+					checked={ui.showSettled}
+					testid="toggle-settled"
+					onclick={() => (ui.showSettled = !ui.showSettled)}
+				/>
+			{/if}
+			{#if held.notes.ready || anySettled}<hr />{/if}
+			<ToolbarItem label="open its context beside" name="open the context of {name} beside" testid="open-context" onclick={context} />
+			{#if held.source}
+				<ToolbarItem
+					label={held.verbatim ? 'show rendered latex' : 'show verbatim code'}
+					name="{held.verbatim ? 'rendered latex' : 'verbatim code'} of {name}"
+					checked={held.verbatim}
+					testid="source-toggle"
+					onclick={() => (held.verbatim = !held.verbatim)}
+				/>
+			{/if}
+		{/snippet}
+	</ItemToolbar>
+{/if}

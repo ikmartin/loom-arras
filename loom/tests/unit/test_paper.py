@@ -349,6 +349,16 @@ def test_atomize_retire_moves_the_source(tmp_path: Path) -> None:
     assert "duplicate-id" not in run("lint", cwd=q).output  # retired/ is not scanned
 
 
+def test_an_acceptance_follows_its_document_through_atomize(tmp_path: Path) -> None:
+    """A key accepted in main.tex stays fresh when main.tex is atomized into a spine, retired or superseded (plan 0.16 phase 1)."""
+    for retire in ([], ["--retire"]):
+        q = drafted(tmp_path / ("retired" if retire else "superseded"))
+        ok("accept", "pp-0005", "--force", "--author", "R", cwd=q)
+        ok("atomize", "drafting/main.tex", "drafting/spine.tex", *retire, cwd=q)
+        acc = json_of("status", "--json", cwd=q)["keys"]["pp-0005"]["acceptance"]
+        assert acc["fresh"] is True, acc
+
+
 def test_atomize_proofs_separate_directives_sections_and_all(tmp_path: Path) -> None:
     q = imported(tmp_path)
     canon = q / "canon" / "main.tex"

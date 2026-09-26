@@ -1,10 +1,11 @@
 <script lang="ts">
 	// The workspace (plan 0.13.3 W1, W6): one pane, or two of equal rank with one divider between them. Neither is primary — *what I am working on* is a fact about the reader's intent, not a property of a document, and a layout that encoded it would assert something only the reader knows.
 	//
-	// **One ratio, remembered.** A reader sets the shape of their screen once, so the ratio is a preference; it defaults to half, snaps at the middle and nowhere else, and a double-click puts it back there. The divider is one 3px rule, with a wider target than it draws, beneath the panes so what they open over the text stands over it. While a work is in either pane the divider stops short of squeezing its reading controls below about 420px (K5). **Below 700px one pane shows at a time**, under one strip holding both panes' tabs: two panes on a phone are two unusable panes, and a switch above the strip would name the same item twice.
+	// **One ratio, remembered.** A reader sets the shape of their screen once, so the ratio is a preference; it defaults to half, snaps at the middle and nowhere else, and a double-click puts it back there. The divider is one 3px rule, with a wider target than it draws, beneath the panes so what they open over the text stands over it. While a work is in either pane the divider stops short of squeezing its reading controls below about 420px (K5). **Below 700px one pane shows at a time**, under one strip holding both panes' tabs and, at its end, the shown item's views: two panes on a phone are two unusable panes, and a switch above the strip would name the same item twice.
 	import { prefs } from '$lib/prefs.svelte';
 	import Pane from './Pane.svelte';
 	import PaneHead from './PaneHead.svelte';
+	import PaneViews from './PaneViews.svelte';
 	import { workspace } from './store.svelte';
 	import { settle, SNAP } from './divider';
 
@@ -61,9 +62,12 @@
 		<p class="muted empty">Nothing is open. Choose a document in the panel.</p>
 	{:else if narrow && two}
 		<div class="strip" data-testid="narrow-strip">
-			{#each [0, 1] as i (i)}
-				<div class="part" class:away={workspace.focus !== i}><PaneHead index={i} /></div>
-			{/each}
+			<div class="parts">
+				{#each [0, 1] as i (i)}
+					<div class="part" class:away={workspace.focus !== i}><PaneHead index={i} views={false} /></div>
+				{/each}
+			</div>
+			<PaneViews index={workspace.focus} />
 		</div>
 		{#key workspace.focus}<Pane index={workspace.focus} head={false} style="flex: 1 1 auto" />{/key}
 	{:else}
@@ -136,15 +140,20 @@
 	.divider:hover::before {
 		background: var(--ink-faint);
 	}
-	/* Below the two-pane width: both panes' tabs in one strip, the unfocused pane's quieter, and one body under it. */
+	/* Below the two-pane width: both panes' tabs in one strip, the unfocused pane's quieter, the shown item's views at its end, and one body under it. */
 	.strip {
 		display: flex;
-		flex: 0 0 30px;
+		flex: 0 0 var(--tab-h);
+		min-width: 0;
+		background: var(--leaf);
+		border-bottom: 1px solid var(--rule);
+	}
+	.parts {
+		display: flex;
+		flex: 0 1 auto;
 		min-width: 0;
 		overflow-x: auto;
 		scrollbar-width: none;
-		background: var(--leaf);
-		border-bottom: 1px solid var(--rule);
 	}
 	.strip .part {
 		display: flex;

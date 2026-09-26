@@ -19,7 +19,7 @@
 		in: inDoc = '',
 		children
 	}: {
-		/** Where the tool in hand is kept: the item's state, which the rail's tool pair sets. */
+		/** Where the tool in hand is kept: the item's state, which the controls' tool pair sets. */
 		holder: { tool: Tool };
 		/** The key a place belongs to when no result encloses it: the node shown, or the document. */
 		fallback: string;

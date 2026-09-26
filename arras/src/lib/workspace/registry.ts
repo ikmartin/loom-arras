@@ -1,4 +1,4 @@
-// One entry per kind of item (plan 0.13.3): how its tab is named, what renders it, what it acts with in the rail, and which internal views it has. Nothing else in the viewer knows what kinds exist.
+// One entry per kind of item (plan 0.13.3): how its tab is named, what renders it, its toolbar on the focused pane, and which internal views it has. Nothing else in the viewer knows what kinds exist.
 
 import type { Component } from 'svelte';
 import type { Manifest } from '$lib/manifest/types';
@@ -21,14 +21,14 @@ import { fetchFragment } from '$lib/fragments/fetch';
 import { store } from '$lib/manifest/client.svelte';
 
 export interface Kind {
-	/** What the tab says: the thing's identity, short enough for a fixed 148px tab. */
+	/** What the tab says: the thing's identity, short enough for a 148px tab. */
 	tab(item: Item, m: Manifest): string;
 	/** A glyph drawn before the tab's name, for a kind that is *about* the item its name names; `says` precedes the name wherever it is read as text. */
 	marker?: { icon: string; says: string };
 	renderer: Component<{ item: Item }>;
-	/** Drawn in the rail's cluster for the current item; `name` is the tab's, for the controls' accessible names. */
+	/** The item's toolbar (ItemToolbar: its bar, its *view* menu, the pin), drawn by the focused pane for its active item; `name` is the tab's, for the controls' accessible names. A kind without one draws no toolbar. */
 	controls?: Component<{ item: Item; name: string }>;
-	/** Several readings of one thing, switched in the cluster. */
+	/** Several readings of one thing, switched at the end of its pane's tab strip. */
 	views?(item: Item, m: Manifest): View[];
 	/** The item rendered small, for a hover card (H1–H7); a kind without one previews nothing rather than something made up (P3). `onresize` asks the card to place itself again once the content has its size. */
 	preview?: Component<{ item: Item; onresize: () => void }>;

@@ -1,0 +1,844 @@
+<title>Document Controls</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --paper: #fbfaf8; --leaf: #f4f2ed; --sheet: #ffffff;
+  --rule: #d8d5cd; --rule-strong: #b4b2a9;
+  --ink: #2c2c2a; --ink-soft: #5f5e5a; --ink-faint: #888780;
+  --link: #185fa5; --link-wash: #e6f1fb;
+  --accent: #d97757; --accent-wash: rgb(217 119 87 / 18%);
+  --ann-objection: #a32d2d; --ann-question: #185fa5; --ann-suggestion: #a07a0a;
+  --float-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+  --serif: 'Source Serif 4', 'Palatino Linotype', Palatino, Georgia, serif;
+  --sans: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #17171a; --leaf: #1e1e22; --sheet: #202025;
+    --rule: #34343a; --rule-strong: #4a4a52;
+    --ink: #e6e4de; --ink-soft: #a8a69f; --ink-faint: #85837c;
+    --link: #7fb0e8; --link-wash: rgb(127 176 232 / 14%);
+    --accent: #e08d70; --accent-wash: rgb(224 141 112 / 22%);
+    --ann-objection: #e8827c; --ann-question: #7fb0e8; --ann-suggestion: #d9b24f;
+    --float-shadow: 0 6px 24px rgb(0 0 0 / 45%);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #17171a; --leaf: #1e1e22; --sheet: #202025;
+  --rule: #34343a; --rule-strong: #4a4a52;
+  --ink: #e6e4de; --ink-soft: #a8a69f; --ink-faint: #85837c;
+  --link: #7fb0e8; --link-wash: rgb(127 176 232 / 14%);
+  --accent: #e08d70; --accent-wash: rgb(224 141 112 / 22%);
+  --ann-objection: #e8827c; --ann-question: #7fb0e8; --ann-suggestion: #d9b24f;
+  --float-shadow: 0 6px 24px rgb(0 0 0 / 45%);
+}
+
+[hidden] { display: none !important; }
+body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+.page { max-width: 1080px; margin: 0 auto; padding-block: 32px 72px; padding-inline: 16px; }
+h1 { font-family: var(--serif); font-weight: 600; font-size: 28px; margin: 0 0 6px; text-wrap: balance; }
+h2.part { font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 34px 0 10px; }
+.lede { color: var(--ink-soft); max-width: 72ch; margin: 0 0 16px; }
+
+/* critiques */
+.crit { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px 24px; margin: 0 0 8px; }
+.crit article { background: var(--leaf); border-radius: 8px; padding: 12px 14px; font-size: 12.5px; color: var(--ink-soft); }
+.crit h3 { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 6px; }
+.crit ol { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.crit b { color: var(--ink); font-weight: 600; }
+.asks { margin: 18px 0 8px; padding: 12px 16px; border-left: 3px solid var(--accent); background: var(--sheet); font-size: 13px; }
+.asks p { margin: 0 0 6px; font-weight: 600; }
+.asks ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; color: var(--ink-soft); }
+.asks li b { color: var(--ink); font-weight: 600; }
+
+section.variant { padding: 24px 0 30px; border-top: 1px solid var(--rule); }
+.vhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.vhead .letter { font-family: var(--serif); font-weight: 600; font-size: 22px; color: var(--accent); }
+.vhead h2 { font-family: var(--serif); font-size: 19px; font-weight: 600; margin: 0; }
+.vdesc { margin: 0 0 14px; color: var(--ink-soft); max-width: 74ch; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 6px 24px; margin-top: 14px; font-size: 12.5px; color: var(--ink-soft); }
+.notes p { margin: 0; }
+.notes b { color: var(--ink); font-weight: 600; }
+
+/* ---------- the mock workspace: rail, then two panes ---------- */
+.frame { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.rail { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: var(--paper); font-size: 12.5px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; }
+.filter { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; }
+.filter span { padding: 1px 10px; color: var(--ink-soft); }
+.filter span.on { background: var(--link-wash); color: var(--link); }
+.rail .compare { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--link); font: inherit; background: none; border: 0; cursor: pointer; padding: 0; position: relative; }
+.rail .compare svg { width: 14px; height: 14px; }
+.rail .compare::after { content: '0.17'; font-size: 9px; color: var(--ink-faint); margin-left: 2px; letter-spacing: .04em; }
+.panes { display: grid; grid-template-columns: 1fr 3px 1fr; min-height: 300px; }
+.divider { background: var(--rule); }
+.pane { display: flex; flex-direction: column; min-width: 0; }
+.pane.focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--link) 25%, transparent); }
+.tabs { display: flex; height: 30px; background: var(--leaf); border-bottom: 1px solid var(--rule); font-size: 12.5px; flex: none; }
+.tab { display: flex; align-items: center; padding: 0 12px; width: 148px; max-width: 60%; box-sizing: border-box; color: var(--ink-soft); border-right: 1px solid var(--rule); }
+.tab.on { background: var(--paper); color: var(--ink); }
+.tab small { margin-left: auto; color: var(--ink-faint); }
+.doc { position: relative; padding: 18px 22px 22px; flex: 1; }
+.text { max-width: 440px; margin: 0 auto; font-family: var(--serif); font-size: 15.5px; line-height: 1.55; }
+.text .title { text-align: center; font-variant: small-caps; letter-spacing: .03em; font-size: 16px; margin: 4px 0 12px; }
+.text h3 { text-align: center; font-weight: 400; font-variant: small-caps; font-size: 15px; margin: 12px 0 8px; }
+.text p { margin: 0 0 8px; }
+.mk { border-bottom: 2px solid var(--ann-objection); background: color-mix(in srgb, var(--ann-objection) 5%, transparent); }
+.mk.q { border-bottom-color: var(--ann-question); background: color-mix(in srgb, var(--ann-question) 5%, transparent); }
+.lbl { border-bottom: 2px solid var(--ann-suggestion); background: color-mix(in srgb, var(--ann-suggestion) 5%, transparent); }
+.graph-toggle { position: absolute; right: 14px; bottom: 14px; width: 30px; height: 30px; border-radius: 50%; background: var(--sheet); border: 1px solid var(--rule); box-shadow: var(--float-shadow); display: grid; place-items: center; color: var(--ink-soft); }
+.graph-toggle svg { width: 15px; height: 15px; }
+
+/* control atoms */
+.ctl { font: inherit; font-family: var(--sans); font-size: 12.5px; color: var(--ink-soft); background: none; border: 0; padding: 0; cursor: pointer; white-space: nowrap; }
+.ctl:hover { color: var(--link); }
+.ctl.on { color: var(--link); }
+.ctl:focus-visible, .ico:focus-visible, .more:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 4px; }
+.ico { display: inline-grid; place-items: center; width: 26px; height: 24px; border-radius: 5px; border: 0; background: none; color: var(--ink-soft); cursor: pointer; padding: 0; flex: none; }
+.ico:hover { background: var(--leaf); color: var(--ink); }
+.ico.on { background: var(--accent-wash); color: var(--ink); }
+.ico svg { width: 15px; height: 15px; }
+.sep { width: 1px; height: 14px; background: var(--rule); flex: none; }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--link); vertical-align: middle; margin-left: 5px; }
+
+/* A′ · pane strip */
+.strip { display: flex; align-items: center; gap: 12px; height: 28px; padding: 0 12px; border-bottom: 1px solid var(--rule); background: var(--paper); flex: none; overflow: hidden; }
+
+/* B′ · corner bar */
+.cbar { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 10px; padding: 2px 10px 2px 3px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; box-shadow: var(--float-shadow); max-width: calc(100% - 20px); flex-wrap: wrap; }
+
+/* C′ · corner menu */
+.cmenu { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 2px; padding: 2px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; box-shadow: var(--float-shadow); }
+.more { font: inherit; font-family: var(--sans); font-size: 12.5px; color: var(--ink-soft); background: none; border: 0; border-left: 1px solid var(--rule); margin-left: 2px; padding: 2px 8px 2px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.more:hover { color: var(--ink); }
+.popover { position: absolute; top: 44px; right: 10px; width: 230px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; box-shadow: var(--float-shadow); padding: 6px 0; font-size: 12.5px; z-index: 2; }
+.popover button { display: flex; width: 100%; justify-content: space-between; align-items: center; font: inherit; background: none; border: 0; color: var(--ink); padding: 5px 12px; cursor: pointer; text-align: left; }
+.popover button:hover { background: var(--leaf); }
+.popover kbd { font-family: var(--sans); font-size: 11px; color: var(--ink-faint); border: 1px solid var(--rule); border-radius: 4px; padding: 0 5px; }
+.popover .on-mark { color: var(--link); }
+.popover hr { border: 0; border-top: 1px solid var(--rule); margin: 5px 0; }
+.drawn-open { position: absolute; top: 44px; right: 250px; font-size: 11px; color: var(--ink-faint); font-style: italic; }
+
+/* C′ floating demos */
+.fdemo .pane.focus .body { position: relative; flex: 1; min-height: 0; }
+.fdemo .scroll { height: 330px; overflow-y: auto; }
+.fdemo .scroll .doc { padding-top: 46px; }
+.fdemo .cmenu { transition: opacity var(--fade, 0s) ease; z-index: 3; }
+.fdemo .cmenu.gone { opacity: 0; pointer-events: none; }
+.fdemo .other .doc { padding-top: 46px; }
+.pin { display: inline-grid; place-items: center; width: 24px; height: 22px; margin-left: 2px; border: 0; border-left: 1px solid var(--rule); background: none; color: var(--ink-faint); cursor: pointer; position: relative; padding: 0 0 0 2px; }
+.pin svg { width: 14px; height: 14px; transform: rotate(35deg); transition: transform .15s; }
+/* off: a loose pin, tilted, a thin outline in the faint ink; on: upright, filled and heavier in the link's colour, on its wash */
+.pin svg { --pin-fill: none; --pin-w: 1.2px; }
+.pin .tip { transform: none; }
+.pin:hover { color: var(--ink-soft); }
+.pin[aria-pressed="true"] { color: var(--link); background: var(--link-wash); border-radius: 0 6px 6px 0; }
+.pin[aria-pressed="true"] svg { transform: none; --pin-fill: currentColor; --pin-w: 1.8px; }
+.pin-head { fill: var(--pin-fill); stroke-width: var(--pin-w); }
+.pin-needle { stroke-width: var(--pin-w); }
+.pin:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 4px; }
+.pin .tip { position: absolute; top: calc(100% + 8px); right: -4px; width: 220px; padding: 6px 9px; background: var(--ink); color: var(--paper); font-size: 11.5px; line-height: 1.4; border-radius: 6px; text-align: left; white-space: normal; opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 5; }
+.pin:hover .tip, .pin:focus-visible .tip { opacity: 1; }
+.fstate { font-size: 11.5px; color: var(--ink-faint); margin: 8px 0 0; }
+.fstate b { color: var(--ink-soft); font-weight: 600; }
+.rules { margin: 0 0 16px; padding: 10px 14px; background: var(--leaf); border-radius: 8px; font-size: 12.5px; color: var(--ink-soft); }
+.rules b { color: var(--ink); font-weight: 600; }
+.rules ul { margin: 4px 0 0; padding-left: 18px; }
+
+.zone { position: absolute; left: 6px; right: 6px; top: 6px; height: calc(20% - 6px); border: 1.5px dashed color-mix(in srgb, var(--ann-suggestion) 55%, transparent); border-radius: 6px; pointer-events: none; z-index: 2; }
+.zone span { position: absolute; left: 8px; bottom: 4px; font-size: 10.5px; color: color-mix(in srgb, var(--ann-suggestion) 80%, var(--ink-faint)); }
+.spot { position: absolute; top: 6px; right: 6px; border: 1.5px dashed color-mix(in srgb, var(--ann-suggestion) 55%, transparent); border-radius: 10px; pointer-events: none; z-index: 2; }
+
+.zone-unused { position: absolute; left: 6px; right: 6px; top: 6px; height: calc(20% - 6px); border: 1.5px dashed color-mix(in srgb, var(--ann-suggestion) 55%, transparent); border-radius: 6px; pointer-events: none; z-index: 2; }
+.zone span { position: absolute; left: 8px; bottom: 4px; font-size: 10.5px; color: color-mix(in srgb, var(--ann-suggestion) 80%, var(--ink-faint)); }
+.spot { position: absolute; top: 6px; right: 6px; border: 1.5px dashed color-mix(in srgb, var(--ann-suggestion) 55%, transparent); border-radius: 10px; pointer-events: none; z-index: 2; }
+
+.gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: 26px 22px; }
+.gcard .zone { display: none; }
+.tab.wide { width: auto; min-width: 148px; max-width: 80%; gap: 6px; }
+.tabname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabview { font: inherit; font-size: 12.5px; color: var(--ink-soft); background: none; border: 0; padding: 0 2px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.tabview:hover { color: var(--ink); }
+.tabview:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 4px; }
+.popover.tab-pop { top: 4px; width: 170px; }
+.tabrow { display: flex; flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.tabrow .tab { flex: 0 1 148px; min-width: calc(var(--tab-h, 30px) * 1.5); width: auto; max-width: none; gap: 6px; padding: 0 8px; box-sizing: border-box; cursor: default; }
+.tabrow .tab .tabname { flex: 1 1 auto; min-width: 0; }
+.tabrow .tab small { flex: none; }
+.tabrow .tab.narrow small { display: none; }
+.tabrow .tab.narrow:hover small { display: inline; }
+.tabcount { font-variant-numeric: tabular-nums; }
+.strip-views { margin-left: auto; flex: none; display: flex; align-items: stretch; gap: 12px; padding: 0 12px; }
+.strip-views button { font: inherit; font-size: 12.5px; color: var(--link); background: none; border: 0; padding: 0; cursor: pointer; box-shadow: none; }
+.strip-views button[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.strip-views button[disabled] { color: var(--ink-faint); opacity: .5; cursor: default; }
+.strip-views button:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+.cmenu > .more:first-child { border-left: 0; margin-left: 0; padding-left: 8px; }
+.views-btn { color: var(--ink); font-weight: 500; }
+.views-btn + .gsep { margin-left: 4px; }
+.popover .check { visibility: hidden; color: var(--link); }
+.popover [aria-checked="true"] .check { visibility: visible; }
+.tab.wide { width: auto; min-width: 148px; max-width: 80%; gap: 6px; }
+.tabname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabview { font: inherit; font-size: 12.5px; color: var(--ink-soft); background: none; border: 0; padding: 0 2px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.tabview:hover { color: var(--ink); }
+.tabview:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 4px; }
+.popover.tab-pop { top: 4px; width: 170px; }
+.strip-views { margin-left: auto; display: flex; align-items: stretch; gap: 12px; padding: 0 12px; }
+.strip-views button { font: inherit; font-size: 12.5px; color: var(--link); background: none; border: 0; padding: 0; cursor: pointer; box-shadow: none; }
+.strip-views button[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.strip-views button[disabled] { color: var(--ink-faint); opacity: .5; cursor: default; }
+.strip-views button:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+.cmenu > .more:first-child { border-left: 0; margin-left: 0; padding-left: 8px; }
+.views-btn { color: var(--ink); font-weight: 500; }
+.views-btn + .gsep { margin-left: 4px; }
+.popover .check { visibility: hidden; color: var(--link); }
+.popover [aria-checked="true"] .check { visibility: visible; }
+.tab.wide { width: auto; min-width: 148px; max-width: 80%; gap: 6px; }
+.tabname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabview { font: inherit; font-size: 12.5px; color: var(--ink-soft); background: none; border: 0; padding: 0 2px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.tabview:hover { color: var(--ink); }
+.tabview:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 4px; }
+.popover.tab-pop { top: 4px; width: 170px; }
+.cmenu > .more:first-child { border-left: 0; margin-left: 0; padding-left: 8px; }
+.views-btn { color: var(--ink); font-weight: 500; }
+.views-btn + .gsep { margin-left: 4px; }
+.popover .check { visibility: hidden; color: var(--link); }
+.popover [aria-checked="true"] .check { visibility: visible; }
+.cmenu > .more:first-child { border-left: 0; margin-left: 0; padding-left: 8px; }
+.views-btn { color: var(--ink); font-weight: 500; }
+.views-btn + .gsep { margin-left: 4px; }
+.popover .check { visibility: hidden; color: var(--link); }
+.popover [aria-checked="true"] .check { visibility: visible; }
+.gcard h3 { font-family: var(--serif); font-size: 16px; font-weight: 600; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+.gcard .gl { color: var(--accent); font-size: 15px; }
+.gcard .pane { display: flex; flex-direction: column; }
+.gcard .body { position: relative; }
+.gcard .small-scroll { height: 230px; overflow-y: auto; }
+.gcard .doc { padding: 50px 18px 18px; }
+.gcard .text { font-size: 14.5px; max-width: 400px; }
+.gcard .text.small { font-size: 13.5px; }
+.holds2 { font-size: 12px; color: var(--ink-soft); margin: 8px 0 2px; }
+.holds2 b { color: var(--ink); font-weight: 600; }
+.gnote { font-size: 12px; color: var(--ink-faint); margin: 0; }
+.rsep { width: 1px; height: 14px; background: var(--rule); }
+.views { display: inline-flex; gap: 12px; }
+.views span { color: var(--link); }
+.views span.cur { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.gsep { width: 1px; height: 14px; background: var(--rule); margin: 0 3px; flex: none; }
+.num { font-size: 12px; color: var(--ink-soft); padding: 0 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num.off, .ico[disabled] { opacity: .35; }
+.ico[disabled] { cursor: default; background: none; }
+.ico { font-size: 14px; }
+.popover button[disabled] { color: var(--ink-faint); opacity: .6; cursor: default; }
+.paper { margin: 0 auto; width: 70%; min-height: 250px; background: var(--sheet); border: 1px solid var(--rule); padding: 22px 20px; display: grid; gap: 9px; align-content: start; }
+.pl { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 16%, transparent); }
+.pl.w90 { width: 90%; height: 9px; margin-bottom: 6px; } .pl.w70 { width: 70%; } .pl.w80 { width: 80%; } .pl.w60 { width: 60%; } .pl.w85 { width: 85%; }
+.pl.hl { box-shadow: 0 3px 0 -1px var(--ann-objection); }
+.dh { font-family: var(--sans); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 6px; }
+.dl { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.ctx { margin: 0 0 4px; }
+.ctx b { font-family: var(--sans); font-size: 11.5px; font-weight: 500; color: var(--ink-faint); margin-right: 6px; }
+.at { font-family: var(--sans); font-size: 11px; color: var(--ink-faint); font-variant: normal; }
+.chat { display: grid; gap: 10px; max-width: 420px; margin: 0 auto; font-size: 13px; }
+.msg { padding: 8px 11px; border-radius: 8px; background: var(--leaf); }
+.msg.me { justify-self: end; background: var(--link-wash); }
+
+@media (max-width: 760px) {
+  .panes { grid-template-columns: 1fr; }
+  .divider, .pane.other { display: none; }
+  .drawn-open { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) { .ctl, .ico, .more, .popover button { transition: color .12s, background-color .12s; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-select" viewBox="0 0 16 16"><path d="M3.5 2.5 L12.5 8.2 L8.4 9.1 L10.6 13.3 L9.1 14 L6.9 9.9 L3.9 12.6 Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+  <symbol id="i-box" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2.2 1.6"/></symbol>
+  <symbol id="i-compare" viewBox="0 0 16 16"><rect x="2" y="3" width="5" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="3" width="5" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 6 H5.5 M4 8.5 H5.5 M10.5 6 H12 M10.5 8.5 H12" stroke="currentColor" stroke-width="1.1"/></symbol>
+  <symbol id="i-graph" viewBox="0 0 16 16"><circle cx="4" cy="8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="4" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="12" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.6 7.2 L10.4 4.8 M5.6 8.8 L10.4 11.2" stroke="currentColor" stroke-width="1.2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 16 16"><path d="M2.5 8 H13.5 M5 5.5 L2.5 8 L5 10.5 M11 5.5 L13.5 8 L11 10.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 L8 10 L11.5 6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="page">
+  <h1>Document Controls</h1>
+  <p class="lede">Drafts of the look for a document's controls once they leave the rail. The first round's A, B and C are critiqued below, and the critiques are turned into requirements; the three drafts after them are the revision. Compare now sits on the rail, because it concerns both documents on screen rather than one; it is a dummy until 0.17. When the control appears and fades is still left for later.</p>
+
+  <h2 class="part">The first round, critiqued</h2>
+  <div class="crit">
+    <article>
+      <h3>A · a line of the page</h3>
+      <ol>
+        <li><b>It cannot float.</b> It has no surface of its own, so over scrolled text the words show through it. Floating, it has to grow a background, and then it is B.</li>
+        <li><b>It reads as the paper's.</b> A rule across the text column looks like a running head, which blurs P1's line between the document and the application.</li>
+        <li><b>It moves the text.</b> It sits in the flow, so appearing, wrapping in a narrow pane, or fading all move the text beneath; drawn on the focused pane only, a change of focus moves one pane's text.</li>
+        <li><b>A mode is only a word.</b> Whether settled annotations are shown is legible only as <i>show</i> or <i>hide</i>.</li>
+      </ol>
+    </article>
+    <article>
+      <h3>B · a pill</h3>
+      <ol>
+        <li><b>Centred is the wrong place.</b> The title and the section headings are centred, so a centred control lands on the lines a reader orients by.</li>
+        <li><b>"show all" lost its noun</b>, and with it half its question (P4); kept in full, the pill is long.</li>
+        <li><b>The shadow is not the objection it seemed.</b> The book says "no shadows", yet the floating box and the local graph's toggle both cast one: in practice, what floats over the text casts one.</li>
+        <li><b>Two pills, two jobs.</b> The rail's filter is a pill too; two like shapes that do unlike things invite confusion.</li>
+        <li><b>It grows per item.</b> A node adds <i>context</i> and <i>verbatim code</i>, and the pill stretches across the page.</li>
+      </ol>
+    </article>
+    <article>
+      <h3>C · a corner stack</h3>
+      <ol>
+        <li><b>Icons must be learned.</b> Show all and show settled have no established glyph, so the reader asks what a button is before what it does (P4); a tooltip needs a hover, and keyboard and touch have none.</li>
+        <li><b>State is a wash</b> on a sixteen-pixel icon.</li>
+        <li><b>It is tall.</b> Six rows in a narrow pane reach down beside the first paragraph.</li>
+        <li><b>The corner is right.</b> Off the centre line, opposite the local graph's toggle, and taking the least of the text column (P1).</li>
+      </ol>
+    </article>
+  </div>
+  <div class="asks">
+    <p>What the critiques ask of the revision</p>
+    <ul>
+      <li><b>A surface of its own</b>, since it will float (A1).</li>
+      <li><b>Anchored at a corner, never on the centre line</b> (B1, C4).</li>
+      <li><b>Words in full</b>, except the two tools, whose glyphs are established (B2, C1).</li>
+      <li><b>One line, never a column</b> (C3).</li>
+      <li><b>Standing over the page, not in its flow</b>, so the text never moves for it (A3).</li>
+      <li><b>On the focused pane only</b>, which answers F4 without a second copy.</li>
+    </ul>
+  </div>
+
+  <h2 class="part">The revision</h2>
+
+  <!-- A′ -->
+  <section class="variant" aria-labelledby="a-h">
+    <div class="vhead"><span class="letter">A′</span><h2 id="a-h">A pane strip</h2></div>
+    <p class="vdesc">A's words kept, and given the surface A lacked: a thin strip along the focused pane's top edge, under its tabs, across the pane rather than the text column. It is chrome, drawn as the pane's own, so nothing about it looks printed.</p>
+    <div class="frame">
+      <div class="rail"><span>showing annotations from</span><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+      <div class="panes">
+        <div class="pane focus">
+          <div class="tabs"><div class="tab on">main.tex <small>×</small></div></div>
+          <div class="strip" role="toolbar" aria-label="main.tex controls">
+            <button class="ico on" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button>
+            <button class="ico" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button>
+            <span class="sep"></span>
+            <button class="ctl">show all annotations</button>
+            <button class="ctl on">hide settled</button>
+            <button class="ctl">PDF</button>
+          </div>
+          <div class="doc">
+            <div class="text">
+              <div class="title">Widgets, gadgets, and their fixed loci</div>
+              <h3>1 Introduction</h3>
+              <p>This paper studies widgets. <span class="lbl">Definition 1.1.</span> A <em>widget</em> is a pair of a set and an involution of it, so that its <span class="mk">fixed locus</span> is well defined; every orbit of a widget has <span class="mk q">one or two points</span>.</p>
+            </div>
+            <div class="graph-toggle" aria-hidden="true"><svg><use href="#i-graph"/></svg></div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="pane other">
+          <div class="tabs"><div class="tab on">talk.tex <small>×</small></div></div>
+          <div class="doc">
+            <div class="text">
+              <div class="title">Widgets in twenty minutes</div>
+              <p>A <em>widget</em> is a set with an involution. The one theorem of this talk: the number of points of a widget and of its <span class="mk">fixed locus</span> have the same parity.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <p><b>For.</b> The rail's words, unchanged, on a surface that is plainly the pane's, so nothing is relearned and nothing reads as the paper's. Full width means a node's extra controls fit on the one line.</p>
+      <p><b>Against.</b> On the focused pane only, the two panes' text starts at different heights, and focus moves the text by 28px, unless the strip is drawn over the page rather than above it. It is the rail again, one pane down, which is close to what F4 moved away from.</p>
+    </div>
+  </section>
+
+  <!-- B′ -->
+  <section class="variant" aria-labelledby="b-h">
+    <div class="vhead"><span class="letter">B′</span><h2 id="b-h">A corner bar</h2></div>
+    <p class="vdesc">B moved to the top-right corner of the focused pane, its words in full and on one line, standing over the page with the floating box's hairline and shadow. Off the centre line; the text never moves for it. Settled shown is drawn in the link's colour, as a mode that is on.</p>
+    <div class="frame">
+      <div class="rail"><span>showing annotations from</span><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+      <div class="panes">
+        <div class="pane focus">
+          <div class="tabs"><div class="tab on">main.tex <small>×</small></div></div>
+          <div class="doc" style="padding-top:44px">
+            <div class="cbar" role="toolbar" aria-label="main.tex controls">
+              <button class="ico on" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button>
+              <button class="ico" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button>
+              <span class="sep"></span>
+              <button class="ctl">show all annotations</button>
+              <button class="ctl on">hide settled</button>
+              <button class="ctl">PDF</button>
+            </div>
+            <div class="text">
+              <div class="title">Widgets, gadgets, and their fixed loci</div>
+              <h3>1 Introduction</h3>
+              <p>This paper studies widgets. <span class="lbl">Definition 1.1.</span> A <em>widget</em> is a pair of a set and an involution of it, so that its <span class="mk">fixed locus</span> is well defined; every orbit of a widget has <span class="mk q">one or two points</span>.</p>
+            </div>
+            <div class="graph-toggle" aria-hidden="true"><svg><use href="#i-graph"/></svg></div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="pane other">
+          <div class="tabs"><div class="tab on">talk.tex <small>×</small></div></div>
+          <div class="doc" style="padding-top:44px">
+            <div class="text">
+              <div class="title">Widgets in twenty minutes</div>
+              <p>A <em>widget</em> is a set with an involution. The one theorem of this talk: the number of points of a widget and of its <span class="mk">fixed locus</span> have the same parity.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <p><b>For.</b> Meets every requirement: a surface, a corner, full words, one line, over the page, one pane. The corners become the page's tools, the local graph's toggle in the opposite one.</p>
+      <p><b>Against.</b> In half a pane the words make it wide: here it spans most of the pane, and a node's two extra controls would wrap it to two lines. At rest it is the one shadowed object on the page.</p>
+    </div>
+  </section>
+
+  <!-- C′ -->
+  <section class="variant" aria-labelledby="c-h">
+    <div class="vhead"><span class="letter">C′</span><h2 id="c-h">A corner menu</h2></div>
+    <p class="vdesc">The two tools stay out, because a reader switches between them while working; everything else goes into one word, <i>view</i>, that opens the Popover the book already calls "the one floating surface". Inside, each control is in full words with its key. A dot on <i>view</i> says a mode is on. It is drawn open here to show what it holds.</p>
+    <div class="frame">
+      <div class="rail"><span>showing annotations from</span><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+      <div class="panes">
+        <div class="pane focus">
+          <div class="tabs"><div class="tab on">main.tex <small>×</small></div></div>
+          <div class="doc" style="padding-top:44px; min-height:250px">
+            <div class="cmenu" role="toolbar" aria-label="main.tex controls">
+              <button class="ico on" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button>
+              <button class="ico" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button>
+              <button class="more" aria-haspopup="menu" aria-expanded="true">view<span class="dot" aria-label="a mode is on"></span><svg width="12" height="12"><use href="#i-chev"/></svg></button>
+            </div>
+            <div class="popover" role="menu" aria-label="main.tex view">
+              <button role="menuitem">show all annotations <kbd>e</kbd></button>
+              <button role="menuitemcheckbox" aria-checked="true"><span>settled annotations <span class="on-mark">· shown</span></span> <kbd>s</kbd></button>
+              <hr>
+              <button role="menuitem">open the PDF</button>
+            </div>
+            <div class="text">
+              <div class="title">Widgets, gadgets, and their fixed loci</div>
+              <h3>1 Introduction</h3>
+              <p>This paper studies widgets. <span class="lbl">Definition 1.1.</span> A <em>widget</em> is a pair of a set and an involution of it, so that its <span class="mk">fixed locus</span> is well defined; every orbit of a widget has <span class="mk q">one or two points</span>.</p>
+            </div>
+            <div class="graph-toggle" aria-hidden="true"><svg><use href="#i-graph"/></svg></div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="pane other">
+          <div class="tabs"><div class="tab on">talk.tex <small>×</small></div></div>
+          <div class="doc" style="padding-top:44px">
+            <div class="text">
+              <div class="title">Widgets in twenty minutes</div>
+              <p>A <em>widget</em> is a set with an involution. The one theorem of this talk: the number of points of a widget and of its <span class="mk">fixed locus</span> have the same parity.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <p><b>For.</b> The least at rest of any draft (P6): three small things in a corner. The words are full and carry their keys, so the menu also teaches e and s. It adds no new kind of floating surface. A node's extra controls go in the same menu without widening anything.</p>
+      <p><b>Against.</b> Show all and show settled cost two clicks instead of one; the keys are the fast path, and the menu is where they are learnt. A mode that is on is a dot until the menu is opened, though a settled mark is visible on the page itself.</p>
+    </div>
+  </section>
+
+
+
+  <h2 class="part">C′, final: how it floats</h2>
+  <div class="rules">
+    <b>The fade is 0.4 s and the region is a band across the top of the pane, fixed in size rather than a proportion of it.</b> The band is <i>h</i> tall from the top of the pane and inset from the pane's sides by a padding that differs left and right. It always contains the controls: the right padding stops short of them, and the band is never shorter than they reach, whatever the values.
+    <ul>
+      <li>The controls show while the pointer is inside the band and fade when it leaves; they stay while the pointer is on them, while the <i>view</i> menu is open, and while the pin is on.</li>
+      <li>Keyboard focus inside the pane brings them back.</li>
+      <li>The dashed yellow band is drawn here only to show the region, and would not be drawn in arras.</li>
+    </ul>
+  </div>
+  <section class="variant fdemo" aria-labelledby="z1-h" data-region="96/96/4">
+    <div class="vhead"><span class="letter">C′</span><h2 id="z1-h">The finalized behaviour</h2></div>
+    <p class="vdesc">A band 96px tall across the top of the pane, inset 96px from the left and 4px from the right, wakes the controls; they fade over 0.4 s when the pointer leaves it. Drawn on the focused pane only. Drawn on the focused pane only. Drawn on the focused pane only. Drawn on the focused pane only. <b>Pinned by default</b>: the pin is on until you turn it off, and the choice is saved and kept between visits, as the Settings panel's choices are.</p>
+    <div class="frame">
+      <div class="rail"><span>showing annotations from</span><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+      <div class="panes">
+        <div class="pane focus">
+          <div class="tabs"><div class="tab on">main.tex <small>×</small></div></div>
+          <div class="body">
+            <div class="zone" aria-hidden="true"><span>h 96px · padding 96px left, 4px right</span></div>
+            <div class="cmenu" role="toolbar" aria-label="main.tex controls" style="--fade: 0.4s">
+              <button class="ico on" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button>
+              <button class="ico" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button>
+              <button class="more" aria-haspopup="menu" aria-expanded="false">view<span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button>
+              <button class="pin" aria-pressed="false" aria-label="don't fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button>
+            </div>
+            <div class="popover" role="menu" aria-label="main.tex view" hidden>
+              <button role="menuitem" data-toggle="all"><span class="lab">show all annotations</span> <kbd>e</kbd></button>
+              <button role="menuitemcheckbox" aria-checked="false" data-toggle="settled"><span class="lab">show settled annotations</span> <kbd>s</kbd></button>
+              <hr>
+              <button role="menuitem">open the PDF</button>
+            </div>
+            <div class="scroll" tabindex="0" aria-label="main.tex">
+              <div class="doc">
+                <div class="text">
+                  <div class="title">Widgets, gadgets, and their fixed loci</div>
+                  <h3>1 Introduction</h3>
+                  <p>This paper studies widgets. <span class="lbl">Definition 1.1.</span> A <em>widget</em> is a pair of a set and an involution of it, so that its <span class="mk">fixed locus</span> is well defined; every orbit of a widget has <span class="mk q">one or two points</span>.</p>
+                  <p>The basic identity is that the involution squares to the identity. From it, a point is either fixed or paired with exactly one other point, and the count of points splits accordingly into fixed points and pairs.</p>
+                  <h3>2 Results</h3>
+                  <p><strong>Theorem 2.1.</strong> <em>Let X be a finite widget. Then the number of points of X and the number of points of its <span class="mk">fixed locus</span> have the same parity.</em></p>
+                  <p><em>Proof.</em> The points that are not fixed come in pairs, by Lemma 1.2, so removing them changes the count by an even number. What remains is the fixed locus.</p>
+                  <p>The theorem fails for infinite widgets, where pairs can no longer be counted, and the appendix gives an incomplete argument for a weaker statement in that case.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="pane other">
+          <div class="tabs"><div class="tab on">talk.tex <small>×</small></div></div>
+          <div class="doc">
+            <div class="text">
+              <div class="title">Widgets in twenty minutes</div>
+              <p>A <em>widget</em> is a set with an involution. The one theorem of this talk: the number of points of a widget and of its <span class="mk">fixed locus</span> have the same parity.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="fstate" aria-live="polite">controls: <b class="st">showing</b></p>
+  </section>
+  <h2 class="part">Every toolbar, by item</h2>
+  <div class="rules">
+    <b>The finalized C′ on every kind of item a pane can hold.</b> <b>Only the focused pane ever shows its toolbar</b>; the other pane shows none, whatever it holds. Each card is shown pinned, the default; the pin is one preference shared by every toolbar, saved when it changes and kept between visits. Turn it off on any card and all of them fade under the finalized rule. The rail holds only what concerns both panes: the annotation filter and compare.
+    <ul>
+      <li>On the bar: the item's views as a dropdown named for the one showing, where it has views; the two annotating tools, where a publisher is serving; and anything used continually while reading.</li>
+      <li>Under <i>view</i>: everything else, each in full words with its key.</li>
+      <li>An item with no controls and no views gets no bar.</li>
+    </ul>
+  </div>
+  <div class="gallery">
+    <article class="gcard fdemo" data-region="96/96/4">
+      <h3><span class="gl">1</span>A document</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">main.tex <small>×</small></div></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="main.tex controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m1"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m1" role="menu" hidden><button role="menuitem"><span class="lab">show all annotations</span> <kbd>e</kbd></button><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text"><div class="title">Widgets, gadgets, and their fixed loci</div><h3>1 Introduction</h3><p>This paper studies widgets. <span class="lbl">Definition 1.1.</span> A <em>widget</em> is a pair of a set and an involution of it, so that its <span class="mk">fixed locus</span> is well defined; every orbit has <span class="mk q">one or two points</span>.</p><p>From it, a point is either fixed or paired with exactly one other point, and the count of points splits into fixed points and pairs.</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>bar</b> select · box · view · pin — <b>view</b> show all annotations (e) · show settled annotations (s) · open the PDF</p>
+      <p class="gnote">A live document where a publisher is serving, so annotations can be written.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4">
+      <h3><span class="gl">2</span>A document, nothing serving</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">main.tex <small>×</small></div></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="main.tex controls" style="--fade: 0.4s"><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m2"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m2" role="menu" hidden><button role="menuitem"><span class="lab">show all annotations</span> <kbd>e</kbd></button><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text"><div class="title">Widgets, gadgets, and their fixed loci</div><h3>1 Introduction</h3><p>This paper studies widgets. <span class="lbl">Definition 1.1.</span> A <em>widget</em> is a pair of a set and an involution of it, so that its <span class="mk">fixed locus</span> is well defined; every orbit has <span class="mk q">one or two points</span>.</p><p>From it, a point is either fixed or paired with exactly one other point, and the count of points splits into fixed points and pairs.</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>bar</b> view · pin — <b>view</b> as a document</p>
+      <p class="gnote">Read from a static build or a publisher that writes nothing: no annotating tools, since nothing can be written (DR-161). The bar is <i>view</i> and the pin.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4">
+      <h3><span class="gl">3</span>A node</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">Theorem 2.1 <small>×</small></div></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Theorem 2.1 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m3"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m3" role="menu" hidden><button role="menuitem"><span class="lab">show all annotations</span> <kbd>e</kbd></button><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open its context beside</span></button><button role="menuitemcheckbox"><span class="lab">show verbatim code</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text"><p><strong>Theorem 2.1.</strong> <strong>(Parity)</strong> <em>Let X be a finite <span class="mk">widget</span>. Then the number of points of X and of its fixed locus have the same parity.</em></p><p><em>Proof.</em> The points that are not fixed come in pairs, by Lemma 1.2, so removing them changes the count by an even number. What remains is the fixed locus. ∎</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>bar</b> select · box · view · pin — <b>view</b> show all annotations (e) · show settled annotations (s) · open its context beside · show verbatim code</p>
+      <p class="gnote">A node's own page: the same tools, and two controls of its own inside <i>view</i>: its context, which opens beside, and its source.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper">
+      <h3><span class="gl">4</span>A paper, views in the toolbar</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">Bellamy 2016 <small>×</small></div></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="more views-btn" aria-haspopup="menu" aria-expanded="false" data-menu="m4"><span class="cur-label">Paper</span><svg width="12" height="12"><use href="#i-chev"/></svg></button><span class="gsep"></span><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width"><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out">−</button><span class="num tool">100%</span><button class="ico tool" title="Zoom in">+</button><span class="gsep"></span><span class="num tool">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m5"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover views-pop" id="m4" role="menu" hidden><button role="menuitemradio" aria-checked="true" data-view="Paper"><span class="lab">Paper</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="Digest"><span class="lab">Digest</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="Info"><span class="lab">Info</span><span class="check">✓</span></button></div><div class="popover" id="m5" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="paper"><div class="pl w90"></div><div class="pl w70"></div><div class="pl"></div><div class="pl"></div><div class="pl w80 hl"></div><div class="pl"></div><div class="pl w60"></div><div class="pl"></div><div class="pl w85"></div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>bar</b> Paper · select · box · fit · zoom · page · view · pin — <b>Paper</b> Paper · Digest · Info — <b>view</b> show settled annotations (s) · open the PDF</p>
+      <p class="gnote">A cited work with a readable copy. Its views are the first dropdown, named for the one showing; pick Digest or Info and the tools, zoom and page stay drawn but grey, so nothing moves and each still says what it would act on (DR-254-ikmartin).</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper">
+      <h3><span class="gl">4′</span>A paper, views in the tab</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on wide"><span class="tabname">Bellamy 2016</span><button class="tabview" aria-haspopup="menu" aria-expanded="false" data-menu="m9">· <span class="cur-label">Paper</span><svg width="12" height="12"><use href="#i-chev"/></svg></button><small>×</small></div></div>
+          <div class="body"><div class="popover tab-pop" id="m9" role="menu" hidden><button role="menuitemradio" aria-checked="true" data-view="Paper"><span class="lab">Paper</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="Digest"><span class="lab">Digest</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="Info"><span class="lab">Info</span><span class="check">✓</span></button></div><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width"><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out">−</button><span class="num tool">100%</span><button class="ico tool" title="Zoom in">+</button><span class="gsep"></span><span class="num tool">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m8"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m8" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="paper"><div class="pl w90"></div><div class="pl w70"></div><div class="pl"></div><div class="pl"></div><div class="pl w80 hl"></div><div class="pl"></div><div class="pl w60"></div><div class="pl"></div><div class="pl w85"></div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>tab</b> Bellamy 2016 · Paper — <b>bar</b> select · box · fit · zoom · page · view · pin</p>
+      <p class="gnote">The same paper with its views in its tab. The tab says which reading the pane holds, on both panes and whether or not the bar is showing; the bar keeps only what acts on the page.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper">
+      <h3><span class="gl">4″</span>A paper, views in the tab strip</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">Bellamy 2016 <small>×</small></div><span class="strip-views" role="tablist" aria-label="views"><button role="tab" aria-selected="true" data-view="Paper">Paper</button><button role="tab" aria-selected="false" data-view="Digest">Digest</button><button role="tab" aria-selected="false" data-view="Info">Info</button></span></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width"><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out">−</button><span class="num tool">100%</span><button class="ico tool" title="Zoom in">+</button><span class="gsep"></span><span class="num tool">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m12"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m12" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="paper"><div class="pl w90"></div><div class="pl w70"></div><div class="pl"></div><div class="pl"></div><div class="pl w80 hl"></div><div class="pl"></div><div class="pl w60"></div><div class="pl"></div><div class="pl w85"></div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>strip</b> Paper · Digest · Info — <b>bar</b> select · box · fit · zoom · page · view · pin</p>
+      <p class="gnote">The recommendation. The views stand at the right end of the pane's tab strip as plain words, the current one underlined: all three visible without opening anything, on both panes, never fading, and the tab stays 148px and one thing. The bar keeps only what acts on the page.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper" data-nocopy>
+      <h3><span class="gl">5</span>A paper with no readable copy, views in the toolbar</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">Bellamy 2016 <small>×</small></div></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="more views-btn" aria-haspopup="menu" aria-expanded="false" data-menu="m6"><span class="cur-label">Info</span><svg width="12" height="12"><use href="#i-chev"/></svg></button><span class="gsep"></span><button class="ico on tool" aria-pressed="true" title="Select text to annotate" disabled><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate" disabled><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width" disabled><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out" disabled>−</button><span class="num tool off">100%</span><button class="ico tool" title="Zoom in" disabled>+</button><span class="gsep"></span><span class="num tool off">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m7"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover views-pop" id="m6" role="menu" hidden><button role="menuitemradio" aria-checked="false" data-view="Paper" disabled aria-disabled="true"><span class="lab">Paper</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="Digest"><span class="lab">Digest</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="true" data-view="Info"><span class="lab">Info</span><span class="check">✓</span></button></div><div class="popover" id="m7" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem" disabled aria-disabled="true"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text small"><p class="dh">No readable copy</p><p>Bellamy 2016 is in the library by its citation alone: no PDF has been fetched, so there is no page to read or annotate.</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>bar</b> as a paper, greyed — <b>Info</b> Paper (greyed) · Digest · Info — <b>view</b> show settled annotations (s) · open the PDF, greyed</p>
+      <p class="gnote">No PDF has been fetched, so the Paper view cannot be chosen, and everything that acts on a page is drawn grey.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper" data-nocopy>
+      <h3><span class="gl">5′</span>A paper with no readable copy, views in the tab</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on wide"><span class="tabname">Bellamy 2016</span><button class="tabview" aria-haspopup="menu" aria-expanded="false" data-menu="m11">· <span class="cur-label">Info</span><svg width="12" height="12"><use href="#i-chev"/></svg></button><small>×</small></div></div>
+          <div class="body"><div class="popover tab-pop" id="m11" role="menu" hidden><button role="menuitemradio" aria-checked="false" data-view="Paper" disabled aria-disabled="true"><span class="lab">Paper</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="Digest"><span class="lab">Digest</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="true" data-view="Info"><span class="lab">Info</span><span class="check">✓</span></button></div><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate" disabled><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate" disabled><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width" disabled><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out" disabled>−</button><span class="num tool off">100%</span><button class="ico tool" title="Zoom in" disabled>+</button><span class="gsep"></span><span class="num tool off">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m10"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m10" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem" disabled aria-disabled="true"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text small"><p class="dh">No readable copy</p><p>Bellamy 2016 is in the library by its citation alone: no PDF has been fetched, so there is no page to read or annotate.</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>tab</b> Bellamy 2016 · Info — <b>bar</b> as a paper, greyed</p>
+      <p class="gnote">As 5, with the views in the tab; Paper is greyed there.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper" data-nocopy>
+      <h3><span class="gl">5″</span>A paper with no readable copy, views in the tab strip</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">Bellamy 2016 <small>×</small></div><span class="strip-views" role="tablist" aria-label="views"><button role="tab" aria-selected="false" data-view="Paper" disabled aria-disabled="true">Paper</button><button role="tab" aria-selected="false" data-view="Digest">Digest</button><button role="tab" aria-selected="true" data-view="Info">Info</button></span></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate" disabled><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate" disabled><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width" disabled><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out" disabled>−</button><span class="num tool off">100%</span><button class="ico tool" title="Zoom in" disabled>+</button><span class="gsep"></span><span class="num tool off">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m13"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m13" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem" disabled aria-disabled="true"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text small"><p class="dh">No readable copy</p><p>Bellamy 2016 is in the library by its citation alone: no PDF has been fetched, so there is no page to read or annotate.</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>strip</b> Paper (greyed) · Digest · Info — <b>bar</b> as a paper, greyed</p>
+      <p class="gnote">As 5, with the views in the strip; Paper is greyed there.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4">
+      <h3><span class="gl">6</span>A session, views in the toolbar</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">referee <small>×</small></div></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="referee controls" style="--fade: 0.4s"><button class="more views-btn" aria-haspopup="menu" aria-expanded="false" data-menu="m14"><span class="cur-label">Chat</span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover views-pop" id="m14" role="menu" hidden><button role="menuitemradio" aria-checked="true" data-view="Chat"><span class="lab">Chat</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="What it did"><span class="lab">What it did</span><span class="check">✓</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="chat"><div class="msg me">Referee Theorem 2.1 and its proof.</div><div class="msg ai">One objection on the statement: <i>finite</i> is essential and should be said. One suggestion on the first proof.</div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>bar</b> Chat · pin — <b>Chat</b> Chat · What it did</p>
+      <p class="gnote">A session's two readings, Chat and What it did, are its one dropdown; it has no other controls, so its bar is that and the pin.</p>
+    </article>
+    <article class="gcard" data-region="96/96/4">
+      <h3><span class="gl">6′</span>A session, views in the tab</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on wide"><span class="tabname">referee</span><button class="tabview" aria-haspopup="menu" aria-expanded="false" data-menu="m15">· <span class="cur-label">Chat</span><svg width="12" height="12"><use href="#i-chev"/></svg></button><small>×</small></div></div>
+          <div class="body"><div class="popover tab-pop" id="m15" role="menu" hidden><button role="menuitemradio" aria-checked="true" data-view="Chat"><span class="lab">Chat</span><span class="check">✓</span></button><button role="menuitemradio" aria-checked="false" data-view="What it did"><span class="lab">What it did</span><span class="check">✓</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="chat"><div class="msg me">Referee Theorem 2.1 and its proof.</div><div class="msg ai">One objection on the statement: <i>finite</i> is essential and should be said. One suggestion on the first proof.</div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>tab</b> referee · Chat — <b>no bar</b></p>
+      <p class="gnote">Chat and What it did in the tab. A session has no other controls, so with its views in the tab it has no bar at all.</p>
+    </article>
+    <article class="gcard" data-region="96/96/4">
+      <h3><span class="gl">6″</span>A session, views in the tab strip</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">referee <small>×</small></div><span class="strip-views" role="tablist" aria-label="views"><button role="tab" aria-selected="true" data-view="Chat">Chat</button><button role="tab" aria-selected="false" data-view="What it did">What it did</button></span></div>
+          <div class="body"><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="chat"><div class="msg me">Referee Theorem 2.1 and its proof.</div><div class="msg ai">One objection on the statement: <i>finite</i> is essential and should be said. One suggestion on the first proof.</div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>strip</b> Chat · What it did — <b>no bar</b></p>
+      <p class="gnote">Chat and What it did at the end of the strip; a session has no other controls, so no bar.</p>
+    </article>
+    <article class="gcard" data-region="96/96/4">
+      <h3><span class="gl">7</span>A landmark</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">main.tex @3 <small>×</small></div></div>
+          <div class="body"><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text"><div class="title">Widgets, gadgets, and their fixed loci</div><h3>1 Introduction <span class="at">@3</span></h3><p>This paper studies widgets. <span class="lbl">Definition 1.1.</span> A <em>widget</em> is a pair of a set and an involution of it, so that its <span class="mk">fixed locus</span> is well defined; every orbit has <span class="mk q">one or two points</span>.</p><p>From it, a point is either fixed or paired with exactly one other point, and the count of points splits into fixed points and pairs.</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>no bar</b></p>
+      <p class="gnote">A recorded version of a document. Nothing acts on it, as today, so there is no bar.</p>
+    </article>
+    <article class="gcard" data-region="96/96/4">
+      <h3><span class="gl">8</span>A node's context</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tab on">Theorem 2.1 · context <small>×</small></div></div>
+          <div class="body"><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="text small"><p class="dh">sy-0003 · Theorem 2.1</p><p class="ctx"><b>depends on</b> Lemma 1.2, Definition 1.1</p><p class="ctx"><b>used by</b> Corollary 2.2</p><p class="ctx"><b>in</b> main.tex, talk.tex</p></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>no bar</b></p>
+      <p class="gnote">Read beside its node, with no controls of its own, as today: no bar.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper">
+      <h3><span class="gl">9</span>Two tabs</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tabrow"><div class="tab" title="main.tex"><span class="tabname">main.tex</span><small>×</small></div><div class="tab on" title="Bellamy 2016"><span class="tabname">Bellamy 2016</span><small>×</small></div></div><span class="strip-views" role="tablist" aria-label="views"><button role="tab" aria-selected="true" data-view="Paper">Paper</button><button role="tab" aria-selected="false" data-view="Digest">Digest</button><button role="tab" aria-selected="false" data-view="Info">Info</button></span></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width"><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out">−</button><span class="num tool">100%</span><button class="ico tool" title="Zoom in">+</button><span class="gsep"></span><span class="num tool">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m16"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m16" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="paper"><div class="pl w90"></div><div class="pl w70"></div><div class="pl"></div><div class="pl"></div><div class="pl w80 hl"></div><div class="pl"></div><div class="pl w60"></div><div class="pl"></div><div class="pl w85"></div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>tabs</b> 2, at 148px</p>
+      <p class="gnote">Room to spare: both tabs at their full 148px.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper">
+      <h3><span class="gl">9′</span>Five tabs</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tabrow"><div class="tab" title="main.tex"><span class="tabname">main.tex</span><small>×</small></div><div class="tab on" title="Bellamy 2016"><span class="tabname">Bellamy 2016</span><small>×</small></div><div class="tab" title="talk.tex"><span class="tabname">talk.tex</span><small>×</small></div><div class="tab" title="Theorem 2.1"><span class="tabname">Theorem 2.1</span><small>×</small></div><div class="tab" title="Lemma 1.2"><span class="tabname">Lemma 1.2</span><small>×</small></div></div><span class="strip-views" role="tablist" aria-label="views"><button role="tab" aria-selected="true" data-view="Paper">Paper</button><button role="tab" aria-selected="false" data-view="Digest">Digest</button><button role="tab" aria-selected="false" data-view="Info">Info</button></span></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width"><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out">−</button><span class="num tool">100%</span><button class="ico tool" title="Zoom in">+</button><span class="gsep"></span><span class="num tool">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m17"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m17" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="paper"><div class="pl w90"></div><div class="pl w70"></div><div class="pl"></div><div class="pl"></div><div class="pl w80 hl"></div><div class="pl"></div><div class="pl w60"></div><div class="pl"></div><div class="pl w85"></div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>tabs</b> 5, narrowed evenly</p>
+      <p class="gnote">The strip is crowded, so every tab narrows by the same amount; the views keep their place at the right.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper">
+      <h3><span class="gl">9″</span>Ten tabs</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tabrow"><div class="tab" title="main.tex"><span class="tabname">main.tex</span><small>×</small></div><div class="tab on" title="Bellamy 2016"><span class="tabname">Bellamy 2016</span><small>×</small></div><div class="tab" title="talk.tex"><span class="tabname">talk.tex</span><small>×</small></div><div class="tab" title="Theorem 2.1"><span class="tabname">Theorem 2.1</span><small>×</small></div><div class="tab" title="Lemma 1.2"><span class="tabname">Lemma 1.2</span><small>×</small></div><div class="tab" title="Definition 1.1"><span class="tabname">Definition 1.1</span><small>×</small></div><div class="tab" title="Kre99"><span class="tabname">Kre99</span><small>×</small></div><div class="tab" title="referee"><span class="tabname">referee</span><small>×</small></div><div class="tab" title="Corollary 2.2"><span class="tabname">Corollary 2.2</span><small>×</small></div><div class="tab" title="Proposition 2.2"><span class="tabname">Proposition 2.2</span><small>×</small></div></div><span class="strip-views" role="tablist" aria-label="views"><button role="tab" aria-selected="true" data-view="Paper">Paper</button><button role="tab" aria-selected="false" data-view="Digest">Digest</button><button role="tab" aria-selected="false" data-view="Info">Info</button></span></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width"><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out">−</button><span class="num tool">100%</span><button class="ico tool" title="Zoom in">+</button><span class="gsep"></span><span class="num tool">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m18"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m18" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="paper"><div class="pl w90"></div><div class="pl w70"></div><div class="pl"></div><div class="pl"></div><div class="pl w80 hl"></div><div class="pl"></div><div class="pl w60"></div><div class="pl"></div><div class="pl w85"></div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>tabs</b> 10, at the floor, scrolling</p>
+      <p class="gnote">Every tab has reached its floor, 1.5 times as wide as it is tall; past it the row scrolls, and the active tab is scrolled into view.</p>
+    </article>
+    <article class="gcard fdemo" data-region="96/96/4" data-kind="paper">
+      <h3><span class="gl">9‴</span>Twenty tabs</h3>
+      <div class="frame">
+        <div class="rail"><span class="filter"><span>this session</span><span class="on">all</span></span><button class="compare"><svg><use href="#i-compare"/></svg>compare</button></div>
+        <div class="pane focus"><div class="tabs"><div class="tabrow"><div class="tab" title="main.tex"><span class="tabname">main.tex</span><small>×</small></div><div class="tab" title="Bellamy 2016"><span class="tabname">Bellamy 2016</span><small>×</small></div><div class="tab" title="talk.tex"><span class="tabname">talk.tex</span><small>×</small></div><div class="tab" title="Theorem 2.1"><span class="tabname">Theorem 2.1</span><small>×</small></div><div class="tab" title="Lemma 1.2"><span class="tabname">Lemma 1.2</span><small>×</small></div><div class="tab" title="Definition 1.1"><span class="tabname">Definition 1.1</span><small>×</small></div><div class="tab" title="Kre99"><span class="tabname">Kre99</span><small>×</small></div><div class="tab" title="referee"><span class="tabname">referee</span><small>×</small></div><div class="tab" title="Corollary 2.2"><span class="tabname">Corollary 2.2</span><small>×</small></div><div class="tab" title="Proposition 2.2"><span class="tabname">Proposition 2.2</span><small>×</small></div><div class="tab" title="widgets-v3.tex"><span class="tabname">widgets-v3.tex</span><small>×</small></div><div class="tab" title="Bellamy 2016 · context"><span class="tabname">Bellamy 2016 · context</span><small>×</small></div><div class="tab" title="Lemma 2.3"><span class="tabname">Lemma 2.3</span><small>×</small></div><div class="tab" title="Gadget"><span class="tabname">Gadget</span><small>×</small></div><div class="tab on" title="Bellamy 2016"><span class="tabname">Bellamy 2016</span><small>×</small></div><div class="tab" title="Proof 2"><span class="tabname">Proof 2</span><small>×</small></div><div class="tab" title="Theorem 4.1"><span class="tabname">Theorem 4.1</span><small>×</small></div><div class="tab" title="quick"><span class="tabname">quick</span><small>×</small></div><div class="tab" title="Definition 2.4"><span class="tabname">Definition 2.4</span><small>×</small></div><div class="tab" title="appendix.tex"><span class="tabname">appendix.tex</span><small>×</small></div></div><span class="strip-views" role="tablist" aria-label="views"><button role="tab" aria-selected="true" data-view="Paper">Paper</button><button role="tab" aria-selected="false" data-view="Digest">Digest</button><button role="tab" aria-selected="false" data-view="Info">Info</button></span></div>
+          <div class="body"><div class="zone" aria-hidden="true"></div><div class="cmenu" role="toolbar" aria-label="Bellamy 2016 controls" style="--fade: 0.4s"><button class="ico on tool" aria-pressed="true" title="Select text to annotate"><svg><use href="#i-select"/></svg></button><button class="ico tool" aria-pressed="false" title="Draw a box to annotate"><svg><use href="#i-box"/></svg></button><span class="gsep"></span><button class="ico tool" title="Fit the width"><svg><use href="#i-fit"/></svg></button><button class="ico tool" title="Zoom out">−</button><span class="num tool">100%</span><button class="ico tool" title="Zoom in">+</button><span class="gsep"></span><span class="num tool">p. 3 / 12</span><button class="more" aria-haspopup="menu" aria-expanded="false" data-menu="m19"><span class="cur-label">view</span><span class="dot" hidden></span><svg width="12" height="12"><use href="#i-chev"/></svg></button><button class="pin" aria-pressed="true" aria-label="fade"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pin-head" d="M6 2.5 H10 L9.3 6.5 L11.5 8.8 H4.5 L6.7 6.5 Z" stroke="currentColor" stroke-linejoin="round"/><path class="pin-needle" d="M8 8.8 V13.5" stroke="currentColor" stroke-linecap="round"/></svg><span class="tip" role="tooltip"></span></button></div><div class="popover" id="m19" role="menu" hidden><button role="menuitemcheckbox"><span class="lab">show settled annotations</span> <kbd>s</kbd></button><hr><button role="menuitem"><span class="lab">open the PDF</span></button></div><div class="scroll small-scroll" tabindex="0"><div class="doc" data-content><div class="paper"><div class="pl w90"></div><div class="pl w70"></div><div class="pl"></div><div class="pl"></div><div class="pl w80 hl"></div><div class="pl"></div><div class="pl w60"></div><div class="pl"></div><div class="pl w85"></div></div></div></div></div>
+        </div>
+      </div>
+      <p class="holds2"><b>tabs</b> 20, at the floor, scrolling</p>
+      <p class="gnote">As ten, further to scroll. The active tab, the fifteenth here, is brought into view.</p>
+    </article>
+  </div>
+</div>
+
+<script>
+(function () {
+  const KEY = 'arras-demo.controls';
+  const TIP_OFF = "Don't fade: keep these controls showing until you click again.";
+  const TIP_ON = 'Fade: let these controls fade when the pointer leaves the top of the pane.';
+  let pinned = true;
+  try { if (localStorage.getItem(KEY) === 'fade') pinned = false; } catch (e) {}
+  const demos = [];
+  const save = () => { try { localStorage.setItem(KEY, pinned ? 'pinned' : 'fade'); } catch (e) {} };
+  const FLIP = [['show all annotations', 'hide all annotations'], ['show settled annotations', 'hide settled annotations'], ['show verbatim code', 'show rendered latex']];
+  // a row of tabs: under 90px a tab keeps its name and shows its close only on hover; the active tab is scrolled into view
+  const narrowTabs = () => document.querySelectorAll('.tabrow .tab').forEach((t) => t.classList.toggle('narrow', t.getBoundingClientRect().width < 90));
+  for (const row of document.querySelectorAll('.tabrow')) { const on = row.querySelector('.tab.on'); if (on) row.scrollLeft = on.offsetLeft - row.clientWidth / 2 + on.offsetWidth / 2; }
+  narrowTabs(); window.addEventListener('resize', narrowTabs);
+  // views at the end of the tab strip: the same choice, in plain words
+  for (const strip of document.querySelectorAll('.strip-views')) {
+    const card = strip.closest('.gcard');
+    strip.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-view]');
+      if (!b || b.disabled) return;
+      strip.querySelectorAll('[data-view]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      if (card.dataset.kind === 'paper' && !('nocopy' in card.dataset)) {
+        const off = b.dataset.view !== 'Paper';
+        card.querySelectorAll('.tool').forEach((x) => { if (x.tagName === 'BUTTON') x.disabled = off; else x.classList.toggle('off', off); });
+        const pdf = [...card.querySelectorAll('.popover .lab')].find((l) => l.textContent === 'open the PDF');
+        if (pdf) pdf.closest('button').disabled = off;
+      }
+    });
+  }
+  // a view dropdown in a tab: pick one reading of the item; on a paper, anything that acts on a page greys off its Paper view
+  for (const btn of document.querySelectorAll('.tabview')) {
+    const card = btn.closest('.gcard');
+    const pop = card.querySelector('#' + btn.dataset.menu);
+    const body = card.querySelector('.body');
+    const close = () => { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+    btn.addEventListener('click', (e) => { e.stopPropagation(); if (!pop.hidden) { close(); return; } const o = body.getBoundingClientRect(), b = btn.getBoundingClientRect(); pop.hidden = false; pop.style.right = 'auto'; pop.style.left = Math.max(6, Math.min(b.left - o.left, o.width - pop.offsetWidth - 6)) + 'px'; btn.setAttribute('aria-expanded', 'true'); });
+    pop.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-view]');
+      if (!b || b.disabled) return;
+      pop.querySelectorAll('[data-view]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+      btn.querySelector('.cur-label').textContent = b.dataset.view;
+      if (card.dataset.kind === 'paper' && !('nocopy' in card.dataset)) {
+        const off = b.dataset.view !== 'Paper';
+        card.querySelectorAll('.tool').forEach((x) => { if (x.tagName === 'BUTTON') x.disabled = off; else x.classList.toggle('off', off); });
+        const pdf = [...card.querySelectorAll('.popover .lab')].find((l) => l.textContent === 'open the PDF');
+        if (pdf) pdf.closest('button').disabled = off;
+      }
+      close();
+    });
+    document.addEventListener('click', (e) => { if (!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) close(); });
+  }
+  for (const sec of document.querySelectorAll('.fdemo')) {
+    const parts = (sec.dataset.region || '96/96/4').split('/').map(Number);
+    const band = { h: parts[0], left: parts[1], right: parts[2] };
+    const pane = sec.querySelector('.pane.focus');
+    const body = sec.querySelector('.body');
+    const bar = sec.querySelector('.cmenu');
+    const pin = sec.querySelector('.pin');
+    const tip = pin.querySelector('.tip');
+    const zone = sec.querySelector('.zone');
+    const st = sec.querySelector('.st');
+    const menus = [...sec.querySelectorAll('.cmenu .more')].map((btn) => ({ btn, pop: sec.querySelector('#' + btn.dataset.menu) || sec.querySelector('.popover') }));
+    let timer = 0, overBar = false, inside = false;
+    const anyOpen = () => !!sec.querySelector('.popover:not([hidden])');
+    const held = () => pinned || overBar || anyOpen();
+    const say = () => { if (st) st.textContent = pinned ? 'pinned' : bar.classList.contains('gone') ? 'faded' : 'showing'; };
+    const show = () => { bar.classList.remove('gone'); say(); };
+    const hide = () => { if (held()) return; bar.classList.add('gone'); say(); };
+    const arm = (ms) => { clearTimeout(timer); timer = setTimeout(hide, ms); };
+    const clamp = () => {
+      const o = body.getBoundingClientRect(), b = bar.getBoundingClientRect();
+      if (!o.width) return;
+      band.r = Math.min(band.right, Math.max(0, o.right - b.right - 4));
+      band.l = Math.min(band.left, Math.max(0, b.left - o.left - 4));
+      band.hh = Math.max(band.h, b.bottom - o.top + 8);
+      if (zone) { zone.style.top = '0'; zone.style.left = band.l + 'px'; zone.style.right = band.r + 'px'; zone.style.height = band.hh + 'px'; }
+    };
+    const within = (e) => { const o = body.getBoundingClientRect(); return e.clientY >= o.top && e.clientY <= o.top + Math.min(band.hh || band.h, o.height) && e.clientX >= o.left + (band.l ?? band.left) && e.clientX <= o.right - (band.r ?? band.right); };
+    pane.addEventListener('pointermove', (e) => { const now = within(e); if (now) { clearTimeout(timer); show(); } else if (inside) arm(0); inside = now; });
+    pane.addEventListener('pointerleave', () => { inside = false; arm(0); });
+    pane.addEventListener('focusin', () => { show(); arm(2500); });
+    bar.addEventListener('pointerenter', () => { overBar = true; });
+    bar.addEventListener('pointerleave', () => { overBar = false; arm(0); });
+    const sync = () => { tip.textContent = pinned ? TIP_ON : TIP_OFF; pin.setAttribute('aria-label', pinned ? 'fade' : "don't fade"); pin.setAttribute('aria-pressed', String(pinned)); if (pinned) show(); else arm(600); say(); };
+    pin.addEventListener('click', (e) => { e.stopPropagation(); pinned = !pinned; save(); demos.forEach((d) => d.sync()); });
+    const close = (m) => { m.pop.hidden = true; m.btn.setAttribute('aria-expanded', 'false'); };
+    for (const m of menus) {
+      if (!m.pop) continue;
+      // each popover sits under its own button
+      const place = () => { const o = body.getBoundingClientRect(), b = m.btn.getBoundingClientRect(); m.pop.hidden = false; const w = m.pop.offsetWidth; m.pop.style.right = 'auto'; m.pop.style.left = Math.max(6, Math.min(b.left - o.left, o.width - w - 6)) + 'px'; };
+      m.btn.addEventListener('click', (e) => { e.stopPropagation(); const open = m.pop.hidden; menus.forEach((x) => x.pop && close(x)); if (open) { place(); m.pop.hidden = false; m.btn.setAttribute('aria-expanded', 'true'); } else arm(600); });
+      m.pop.addEventListener('click', (e) => {
+        const b = e.target.closest('button');
+        if (!b || b.disabled) return;
+        if (b.dataset.view) {
+          m.pop.querySelectorAll('[data-view]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+          m.btn.querySelector('.cur-label').textContent = b.dataset.view;
+          if (sec.dataset.kind === 'paper' && !('nocopy' in sec.dataset)) {
+            const off = b.dataset.view !== 'Paper';
+            sec.querySelectorAll('.tool').forEach((x) => { if (x.tagName === 'BUTTON') x.disabled = off; else x.classList.toggle('off', off); });
+            const pdf = [...sec.querySelectorAll('.popover .lab')].find((l) => l.textContent === 'open the PDF');
+            if (pdf) pdf.closest('button').disabled = off;
+          }
+          close(m); requestAnimationFrame(clamp); return;
+        }
+        const lab = b.querySelector('.lab');
+        if (!lab) return;
+        for (const [a, z] of FLIP) { if (lab.textContent === a) { lab.textContent = z; break; } if (lab.textContent === z) { lab.textContent = a; break; } }
+        if (b.getAttribute('role') === 'menuitemcheckbox') b.setAttribute('aria-checked', String(b.getAttribute('aria-checked') !== 'true'));
+        const dot = m.btn.querySelector('.dot');
+        if (dot) dot.hidden = ![...m.pop.querySelectorAll('.lab')].some((l) => /^hide /.test(l.textContent) || l.textContent === 'show rendered latex');
+      });
+    }
+    document.addEventListener('click', (e) => { for (const m of menus) if (m.pop && !m.pop.hidden && !m.pop.contains(e.target)) { close(m); arm(600); } });
+    demos.push({ sync });
+    requestAnimationFrame(clamp); window.addEventListener('resize', clamp);
+    sync();
+  }
+})();
+</script>

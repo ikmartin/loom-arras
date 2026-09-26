@@ -32,6 +32,8 @@
 	/* the chrome's one warm colour: the active view's underline and the active tool's fill */
 	--accent: #d97757;
 	--accent-wash: rgb(217 119 87 / 18%);
+	/* what floats over the text — the focused pane's toolbar and the boxes it opens — casts this one shadow */
+	--float-shadow: 0 6px 24px rgb(0 0 0 / 12%);
 
 	/* states: text and wash, named for the state rather than for a severity role */
 	--state-accepted: #0f6e56;
@@ -71,6 +73,7 @@
 	--rail-right: 236px;
 	--strip: 44px;
 	--reading-rail: 34px; /* the global rail above the workspace (plan 0.13.3 F1) */
+	--tab-h: 30px; /* a pane's tab strip; a tab narrows to 1.5 times this before the strip scrolls */
 	--env-accent: 3px; /* the per-taxon rule down an environment's left edge, and the boundary the left gutter ends at */
 	--rail-a: 267px;
 
@@ -104,6 +107,7 @@
 		--mark: rgb(250 238 218 / 18%);
 		--accent: #e08d70;
 		--accent-wash: rgb(224 141 112 / 22%);
+		--float-shadow: 0 6px 24px rgb(0 0 0 / 45%);
 		--state-conflicted: #d98ac4;
 		--state-conflicted-wash: rgb(217 138 196 / 16%);
 		--state-accepted: #5cc4a3;
@@ -142,6 +146,7 @@
 	--mark: rgb(250 238 218 / 18%);
 	--accent: #e08d70;
 	--accent-wash: rgb(224 141 112 / 22%);
+	--float-shadow: 0 6px 24px rgb(0 0 0 / 45%);
 	--state-accepted: #5cc4a3;
 	--state-accepted-wash: rgb(92 196 163 / 14%);
 	--state-stale: #d9a44f;

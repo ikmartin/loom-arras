@@ -14,12 +14,15 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loom.clock import stamp
 from loom.reshape.importer import closure_of
 from loom.scan.quilt import Quilt
 from loom.tex.runner import compile_tex
+
+if TYPE_CHECKING:
+    from loom.scan.scan import ScanResult
 
 
 class SyncError(Exception):
@@ -84,27 +87,66 @@ def revision(root: Path, ref: str) -> str:
     return git(root, "rev-parse", "--verify", f"{ref}^{{commit}}").decode().strip()
 
 
-def selected_documents(quilt: Quilt, state: SyncState) -> list[str]:
-    """Validate and return the persistent source-projection document selection."""
+def current_selection(state: SyncState, result: ScanResult) -> tuple[str, list[str]]:
+    """The sync record's main and selected documents as they are now, main first.
+
+    Each recorded path is followed across the history's moves (`ScanResult.current_document`), so a record written before a `linearize` publishes what the document became; the record itself is never rewritten. A path that leads nowhere is kept as written, so `selected_documents` refuses it by name.
+
+    Parameters
+    ----------
+    state : SyncState
+        The sync record as read.
+    result : ScanResult
+        A scan of the quilt, for its live documents and history.
+
+    Returns
+    -------
+    tuple of (str, list of str)
+        The local path Overleaf's main maps to, and every selected document without duplicates.
+    """
+
+    def now(path: str) -> str:
+        return result.current_document(path) or path
+
+    main = now(state.master)
+    documents = list(dict.fromkeys(now(d) for d in (state.documents or [state.master])))
+    if main not in documents:
+        documents.insert(0, main)
+    return main, documents
+
+
+def local_main(quilt: Quilt, state: SyncState) -> str:
+    """The local path Overleaf's main file maps to now: `current_selection`'s main, from a fresh scan."""
     from loom.scan.scan import scan
 
-    documents = list(dict.fromkeys(state.documents or [state.master]))
-    if state.master not in documents:
-        documents.insert(0, state.master)
-    live = set(scan(quilt).masters)
+    return current_selection(state, scan(quilt))[0]
+
+
+def _selection(quilt: Quilt, state: SyncState) -> tuple[str, list[str]]:
+    """`current_selection` from a fresh scan, each document checked safe and live; both `selected_documents` and `source_projection` read it."""
+    from loom.scan.scan import scan
+
+    result = scan(quilt)
+    main, documents = current_selection(state, result)
+    live = set(result.masters)
     for document in documents:
         path = Path(document)
         if path.is_absolute() or ".." in path.parts:
             raise SyncError(f"selected document has an unsafe path: {document}")
         if document not in live:
             raise SyncError(f"selected document is not a live drafting document: {document}")
-    return documents
+    return main, documents
+
+
+def selected_documents(quilt: Quilt, state: SyncState) -> list[str]:
+    """Validate and return the persistent source-projection document selection, each document where it is now (`current_selection`)."""
+    return _selection(quilt, state)[1]
 
 
 def source_projection(quilt: Quilt, state: SyncState) -> tuple[list[str], dict[str, str]]:
-    """Selected masters and their union of local-to-remote source paths."""
+    """Selected masters and their union of local-to-remote source paths; the main document publishes as `published_main` wherever it has moved locally."""
     root = quilt.root
-    documents = selected_documents(quilt, state)
+    main, documents = _selection(quilt, state)
     projected: dict[str, str] = {}
     remote_sources: dict[str, str] = {}
     for document in documents:
@@ -112,7 +154,7 @@ def source_projection(quilt: Quilt, state: SyncState) -> tuple[list[str], dict[s
         if outside:
             raise SyncError(f"{document} reaches files outside the quilt: " + ", ".join(outside))
         for local in found:
-            remote = state.published_main if local == state.master else local
+            remote = state.published_main if local == main else local
             previous = remote_sources.get(remote)
             if previous is not None and previous != local:
                 raise SyncError(f"two quilt files would publish as {remote}: {previous}, {local}")
@@ -168,20 +210,49 @@ def changed_files(root: Path, before: str, after: str) -> list[dict[str, str]]:
     return [{"status": parts[i], "path": parts[i + 1]} for i in range(0, len(parts) - 1, 2)]
 
 
+def exact_renames(root: Path, before: str, after: str) -> list[tuple[str, str]]:
+    """(deleted, added) remote path pairs between two commits whose blobs are identical: a rename Git would call exact.
+
+    A blob deleted or added more than once in the diff pairs nothing, since which went where cannot be told. Paths are the remote's; `prepare_incorporation` maps Overleaf's main to its local path.
+    """
+    if before == after:
+        return []
+    raw = git(root, "diff", "--raw", "--no-renames", "--no-abbrev", "-z", before, after).decode(
+        "utf-8", errors="replace"
+    )
+    parts = raw.split("\0")
+    deleted: dict[str, list[str]] = {}
+    added: dict[str, list[str]] = {}
+    for i in range(0, len(parts) - 1, 2):
+        meta = parts[i].split()
+        if len(meta) < 5:
+            continue
+        old_blob, new_blob, status = meta[2], meta[3], meta[4]
+        if status == "D":
+            deleted.setdefault(old_blob, []).append(parts[i + 1])
+        elif status == "A":
+            added.setdefault(new_blob, []).append(parts[i + 1])
+    return sorted(
+        (gone[0], came[0]) for blob, gone in deleted.items() if len(gone) == 1 and len(came := added.get(blob, [])) == 1
+    )
+
+
 def tree_files(root: Path, commit: str) -> dict[str, bytes]:
     names = git(root, "ls-tree", "-r", "--name-only", "-z", commit).split(b"\0")
     return {name.decode("utf-8"): git(root, "show", f"{commit}:{name.decode('utf-8')}") for name in names if name}
 
 
-def incoming_patch(quilt: Quilt, state: SyncState) -> bytes:
+def incoming_patch(quilt: Quilt, state: SyncState, main: str | None = None) -> bytes:
+    """The pinned pull as a Git patch against local paths: Overleaf's main is rewritten to `main`, default `local_main`."""
     if not state.incoming or state.incoming == state.integrated:
         return b""
     # The remote is source-only, and collaborators may add a new input that
     # cannot yet be in the local master closure.
     patch = git(quilt.root, "diff", "--binary", "--no-renames", state.integrated, state.incoming)
-    if state.published_main != state.master:
+    main = main or local_main(quilt, state)
+    if state.published_main != main:
         old = state.published_main.encode()
-        new = state.master.encode()
+        new = main.encode()
         rewritten = []
         for line in patch.splitlines(keepends=True):
             if line.startswith((b"diff --git ", b"--- ", b"+++ ")):
@@ -191,9 +262,9 @@ def incoming_patch(quilt: Quilt, state: SyncState) -> bytes:
     return patch
 
 
-def _incoming_paths(quilt: Quilt, state: SyncState) -> list[str]:
+def _incoming_paths(quilt: Quilt, state: SyncState, main: str) -> list[str]:
     paths = [
-        state.master if row["path"] == state.published_main else row["path"]
+        main if row["path"] == state.published_main else row["path"]
         for row in changed_files(quilt.root, state.integrated, state.incoming)
     ]
     if len(paths) != len(set(paths)) or any(Path(p).is_absolute() or ".." in Path(p).parts for p in paths):
@@ -210,16 +281,17 @@ def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
     root = quilt.root
     if not state.incoming or state.incoming == state.integrated:
         raise SyncError("there is no incoming revision to incorporate")
-    paths = _incoming_paths(quilt, state)
+    main = local_main(quilt, state)
+    paths = _incoming_paths(quilt, state, main)
     if not paths:
         raise SyncError("the incoming revision changes no files")
-    patch = incoming_patch(quilt, state)
+    patch = incoming_patch(quilt, state, main)
     if not patch:
         raise SyncError("the incoming patch is empty")
     git(root, "diff", "--cached", "--quiet")
     git(root, "diff", "--quiet", "HEAD", "--", *paths)
     for row in changed_files(root, state.integrated, state.incoming):
-        path = state.master if row["path"] == state.published_main else row["path"]
+        path = main if row["path"] == state.published_main else row["path"]
         if row["status"].startswith("A") and (root / path).exists():
             raise SyncError(f"{path} already exists locally; reconcile it before incorporation")
     git(root, "apply", "--check", "-", input=patch)
@@ -256,6 +328,14 @@ def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
     from loom.scan.scan import scan
 
     current = scan(quilt)
+    # a live document deleted and an identical drafting document added is a collaborator's rename, recorded only once the pull is incorporated (book 4.6)
+    prepared["moves"] = [
+        {"from": main if gone == state.published_main else gone, "to": came, "main": gone == state.published_main}
+        for gone, came in exact_renames(root, state.integrated, state.incoming)
+        if (main if gone == state.published_main else gone) in current.masters
+        and came.endswith(".tex")
+        and Path(came).parent.as_posix() == quilt.config.drafting
+    ]
     prepared["local_before"] = {
         key: state.review_local_changed.get(key, False)
         or (
@@ -389,6 +469,7 @@ def finish_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
         from loom.scan.scan import scan
 
         incorporated = scan(quilt)
+        _record_moves(quilt, state, prepared["moves"], incorporated)
         state.integrated = state.incoming
         state.local_commit = head
         state.last_pull = {
@@ -420,6 +501,29 @@ def finish_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
         "integrated": state.integrated,
         "paths": paths,
     }
+
+
+def _record_moves(quilt: Quilt, state: SyncState, moves: list[dict[str, Any]], incorporated: ScanResult) -> None:
+    """Append a `move` line (`via: "sync"`) for each exact rename the prepared pull carries whose new path is now a live document.
+
+    Called once, when `finish_incorporation` first records the pull. Overleaf's main renamed takes `published_main` with it, so a publish keeps the collaborator's name, and moving the default document moves `[quilt] main`, as `loom mv` does.
+    """
+    from loom.history.ledger import actor_for, append_entry
+    from loom.reshape.importer import set_main_forced
+
+    for move in moves:
+        if move["to"] not in incorporated.masters:
+            continue
+        append_entry(
+            quilt.history_dir,
+            "move",
+            {"from": move["from"], "to": move["to"], "moved": False, "via": "sync"},
+            actor_for(quilt.root),
+        )
+        if move["main"]:
+            state.published_main = move["to"]
+        if move["from"] == quilt.config.main:
+            set_main_forced(quilt, move["to"])
 
 
 def mark_incorporated(quilt: Quilt, state: SyncState) -> SyncState:
@@ -523,16 +627,18 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str)
     current = list(dict.fromkeys(state.documents or [state.master]))
     if state.master not in current:
         current.insert(0, state.master)
+    # the record keeps the paths it was written with; what each names now is what an author adds or removes
+    result = scan(quilt)
+    main, now = current_selection(state, result)
     if action == "add":
-        live = set(scan(quilt).masters)
-        if document not in live:
+        if document not in set(result.masters):
             raise SyncError(f"{document} is not a live drafting document")
-        if document not in current:
+        if document not in now:
             current.append(document)
     elif action == "remove":
-        if document == state.master:
+        if document == main:
             raise SyncError("the primary Overleaf document cannot be removed")
-        current = [item for item in current if item != document]
+        current = [item for item in current if item != document and result.current_document(item) != document]
     else:
         raise SyncError(f"unknown document action: {action}")
     state.documents = current

@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from loom.history.ledger import load_history
+from loom.history.ledger import History, load_history
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib
 from loom.scan.edges import EdgeResult, find_edges
 from loom.scan.expand import Expansion, expand_master
@@ -43,10 +43,55 @@ class ScanResult:
     relations: list[RelationRec] = field(default_factory=list)
     graph: Graph | None = None
     lint: list[Diagnostic] = field(default_factory=list)
+    history: History | None = None  # the ledger as this scan read it
+    _trails: dict[str, list[str]] = field(default_factory=dict, repr=False)
 
     @property
     def nodes(self):  # type: ignore[no-untyped-def]
         return self.assembly.nodes
+
+    def document_trail(self, path: str) -> list[str]:
+        """Every path the document a record names by `path` has had, against this scan's masters; memoised per scan, since every record naming a document asks.
+
+        Parameters
+        ----------
+        path : str
+            A document path as a record wrote it.
+
+        Returns
+        -------
+        list of str
+            `path` first and where it is now, or was last known, last.
+
+        See Also
+        --------
+        current_document : the last path, or None when it is gone.
+        loom.history.ledger.History.document_trail : the walk itself.
+        """
+        if path not in self._trails:
+            history = self.history if self.history is not None else load_history(self.quilt.history_dir)
+            self._trails[path] = history.document_trail(path, set(self.masters))
+        return self._trails[path]
+
+    def current_document(self, path: str) -> str | None:
+        """Where the document a record names by `path` is now: a master of this scan, or None when it is gone (book 7.3).
+
+        Parameters
+        ----------
+        path : str
+            A document path as a record wrote it: an acceptance row's `master`, an annotation's `in`, the sync record's documents.
+
+        Returns
+        -------
+        str or None
+            `path` when it is live, else the live document the history's moves lead to, else None.
+
+        See Also
+        --------
+        loom.history.ledger.History.current_document : the lookup itself.
+        """
+        end = self.document_trail(path)[-1]
+        return end if end in self.masters else None
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
@@ -81,7 +126,7 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
     result.canon_files = canon_documents(quilt)
     for rel in paths:
         result.files[rel] = read_source(root, rel, overlay.get(rel))
-    history = load_history(quilt.history_dir)
+    history = result.history = load_history(quilt.history_dir)
     for rel, entry in sorted(history.superseded_paths().items()):
         src = result.files.get(rel)
         if src is None:

@@ -90,8 +90,14 @@ def write_acceptance(
     written = present = 0
     hist = result.quilt.history_dir
     preambles: dict[str, str] = {}
+    fallback = result.default_master or (result.masters[0] if result.masters else "")
+    chosen = {key: (masters or {}).get(key, fallback) for key in keys}
+    for key, master in chosen.items():
+        if master and master not in result.closures:
+            # a row's preamble is its document's; a path that is not a live document has none, and an empty one would read as a change for ever
+            raise ContentError(f"{master} is not a live drafting document; {key} cannot be accepted against it")
     for key in keys:
-        master = (masters or {}).get(key, result.default_master or (result.masters[0] if result.masters else ""))
+        master = chosen[key]
         if master not in preambles:
             closure_obj = result.closures.get(master)
             pre_text = closure_obj.raw_text() if closure_obj else ""
@@ -231,10 +237,10 @@ def accept(
                 raise EnvError("--stale needs confirmation; pass --yes")
             click.confirm(f"accept these {len(stale)} stale keys?", abort=True)
         targets = stale
+        # each row's own document, where the history's moves have taken it; a document that is gone is never written against again
         contexts = {
-            key: (records.latest[key].master or _acceptance_master(result, key))
-            if key in records.latest
-            else _acceptance_master(result, key)
+            key: (Records.row_document(result, records.latest[key]) if key in records.latest else None)
+            or _acceptance_master(result, key)
             for key in targets
         }
     for k in keys:

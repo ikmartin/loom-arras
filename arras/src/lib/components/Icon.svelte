@@ -83,6 +83,14 @@
 		<path d="M7 12h10" />
 		<path d="m9 9-3 3 3 3" />
 		<path d="m15 9 3 3-3 3" />
+	{:else if name === 'compare'}
+		<!-- two documents side by side: two columns, each with its lines -->
+		<rect x="3" y="4" width="7.5" height="16" rx="1.5" />
+		<rect x="13.5" y="4" width="7.5" height="16" rx="1.5" />
+		<path d="M5.5 8.5h2.5" />
+		<path d="M5.5 12h2.5" />
+		<path d="M16 8.5h2.5" />
+		<path d="M16 12h2.5" />
 	{/if}
 </svg>
 

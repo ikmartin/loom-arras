@@ -90,6 +90,7 @@
       "Bash(loom inline*)",
       "Bash(loom linearize*)",
       "Bash(loom live*)",
+      "Bash(loom mv*)",
       "Bash(loom refs add*)",
       "Bash(loom refs cite*)",
       "Bash(loom refs discard*)",

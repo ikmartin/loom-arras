@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A node (plan 0.13.3 N1–N3, phase 4): its statement and its proofs, and nothing else in the flow. The tab names it; Settings ▸ Show ids puts its id and state in the left gutter, as a document's are; its annotations are reached by their marks, which open their cards, and the rail's `show all annotations` opens every one. What the node is in, what it rests on, where its text came from, the citations suggested for it and what was discarded on it are its context, opened beside it.
+	// A node (plan 0.13.3 N1–N3, phase 4): its statement and its proofs, and nothing else in the flow. The tab names it; Settings ▸ Show ids puts its id and state in the left gutter, as a document's are; its annotations are reached by their marks, which open their cards, and `show all annotations` among its controls opens every one. What the node is in, what it rests on, where its text came from, the citations suggested for it and what was discarded on it are its context, opened beside it.
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';
@@ -22,7 +22,7 @@
 	const owner = $derived(!node && stmt?.node && m.nodes[stmt.node] ? stmt.node : '');
 	// by the code's own name: the publisher's namespace in front of it is the manifest's to carry, not this module's to know
 	const missingProof = $derived(m.diagnostics.some((d) => d.keys.includes(key) && d.code.endsWith(':missing-proof')));
-	// The source is fetched as soon as the node is shown, so the rail knows whether to offer it: a corpus that publishes none shows no control (plan 0.11 Part E).
+	// The source is fetched as soon as the node is shown, so the controls know whether to offer it: a corpus that publishes none shows no control (plan 0.11 Part E).
 	$effect(() => {
 		const s = held;
 		if (s.source === null) void fetchSource(key).then((text) => (s.source = text));

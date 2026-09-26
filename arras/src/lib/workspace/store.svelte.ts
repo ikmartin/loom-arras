@@ -1,4 +1,4 @@
-// The one place reading mode puts things (plan 0.13.3 W1–W11): at most two panes of equal rank, each a list of open items with one active, and a focus. `current`, the focused pane's active item, is **the** definition of "the current document": the panel's contents, the rail's control cluster and the preview's `open here` all read it, and nothing computes it independently.
+// The one place reading mode puts things (plan 0.13.3 W1–W11): at most two panes of equal rank, each a list of open items with one active, and a focus. `current`, the focused pane's active item, is **the** definition of "the current document": the panel's contents, the focused pane's controls and the preview's `open here` all read it, and nothing computes it independently.
 //
 // Pure state: it renders nothing and touches no DOM, so its rules are unit-tested without a browser. The URL is derived from it (`canonical`) and read into it (`apply`); only the two active items and their places travel in the URL, and the rest of each pane's list is this session's alone.
 

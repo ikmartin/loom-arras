@@ -29,6 +29,14 @@ The output is a list of proposed commands with the mode that wanted each, which 
 
 **What this is not.** Not a rewrite of the *procedures* — the blocks, the personas and the checklists are the author's and are carried over. Only the inputs, the queries and the output plumbing change.
 
+## Recommended first steps (2026-09-26)
+
+From a review of what would make loom most useful next; the author's own statement of the goal is `docs/long-prompts/ai-quilts.md`, prompt 1.
+
+- **Send what the person is looking at with every message.** A packet carries the sender's annotations and nothing else (specs/write-api.md, `GET /_api/packet`), so "referee my current document" leaves the agent guessing. Add the focused pane's item and the document pane's active tab, down to the section in view. Small, independent, and useful at once.
+- **Selectors that map prompts to commands.** `loom source` takes one key or a whole document; "section 2 of my current document" has no command. Add a section selector and result numbers, which `loom search` already reads (DR-281-ikmartin). The reverse pass's list above is the rest.
+- **Shrink what is read every turn.** The orientation and rules are about 6,700 words and the modes another 3,900 (counted 2026-09-26). One short document built on worked examples of prompt to command, modes as programs that compose, and the blocks looked up rather than read; [WQ-42](WQ-42-the-gradient-with-orientation-held.md) is how the shorter version is shown to be better.
+
 ## Blast radius
 
 `loom/src/loom/assets/ai/modes/*.md` (all of them) and the demo copies; `ai/orientation.md` §7 where each mode is summarised; `docs/book/C-mode-templates.md`, which reproduces every mode verbatim; Chapter 11's mode table; `docs/source/global-rules-mapping.md`, whose rows record what each mode became; and `loom/src/loom/cli/` for whatever the reverse pass justifies.

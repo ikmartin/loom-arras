@@ -14,7 +14,7 @@
 		disabled = false
 	}: {
 		view: PdfView;
-		/** What the controls act on, for their accessible names: in the rail they stand apart from the paper, so each says whose it is. */
+		/** What the controls act on, for their accessible names: they stand apart from the paper, over its pane, so each says whose it is. */
 		of?: string;
 		/** Nothing to act on here: every control is drawn and none acts. */
 		disabled?: boolean;

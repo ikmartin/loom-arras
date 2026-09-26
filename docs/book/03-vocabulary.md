@@ -76,7 +76,7 @@ All entries are **[decided]** unless marked.
 - fresh : not stale.
 - proved : a computed display state for a node: statement accepted and at least one proof accepted, none stale, no `\incomplete`.
 - settled : proved, and every node in the closure settled.
-- settled (of an annotation) : resolved or discarded, marked by hand and never by being read; not drawn at rest, and shown faint by the rail's settled control (15.3.1).
+- settled (of an annotation) : resolved or discarded, marked by hand and never by being read; not drawn at rest, and shown faint by the settled control (15.3.1).
 - discard : marking a session ignored so that its annotations vanish from every view, and closing it. Reversible. Never deletes.
 
 ## 3.6 Digests
@@ -135,6 +135,7 @@ All entries are **[decided]** unless marked.
 - fork : giving a document its own copy of a node under a new id, as a patch the author applies.
 - revert : printing the patch that puts a recorded version's text back in place of the head's.
 - live : making a superseded document define its nodes again.
+- move : recording that a drafting document now has another path, renaming the file when it is still where it was (`loom mv`). Every record naming the document follows it.
 - linearize : flattening a document, every inclusion expanded in place with `\nest`'s level shift applied. The whole-document counterpart of `inline`.
 - atomize : moving each node of a file into its own file, writing a spine to a named destination. Never in place; the history records that the spine superseded the source.
 - inline : the reverse of atomize for one inclusion or for a file's own inclusions, to a named destination.

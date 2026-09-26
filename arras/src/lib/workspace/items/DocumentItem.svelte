@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A document (plan 0.13.3 D1–D4, book 15.3.1): a master or a landmark rendered as a document in a measured column, with each result's id and state in the left gutter behind Show ids. No chrome of its own: its controls are the rail's, drawn once for whichever item is current.
+	// A document (plan 0.13.3 D1–D4, book 15.3.1): a master or a landmark rendered as a document in a measured column, with each result's id and state in the left gutter behind Show ids. No chrome of its own: its controls are drawn by the pane, and only while the pane is focused.
 	// The gutters use the site generator's algebra, so a corpus page and a note page are laid out alike; the environment's taxon accent stands on the boundary between the left gutter and the text.
 	import { mount, unmount, untrack, type Component } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';

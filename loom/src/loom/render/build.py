@@ -286,11 +286,11 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
         if not res.recorded:
             continue
         a = res.annotation
-        region = result.assembly.regions.get(a.target_key)
+        region = result.assembly.regions.get(res.target)
         if res.span is None and a.selector is None and region is not None and a.in_reply_to is None:
             host = result.nodes.get(region.container)
             if host is not None:
-                entry = MarkEntry(a.id, "", region.file, region.offset, region.offset, a.in_doc)
+                entry = MarkEntry(a.id, "", region.file, region.offset, region.offset, res.in_doc)
                 owner = host.of if host.kind == "proof" and host.of else host.key
                 out.setdefault(owner, []).append(entry)
                 if owner != host.key:
@@ -298,7 +298,7 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
             continue
         if res.span is None:
             continue
-        n = result.nodes.get(a.target_key)
+        n = result.nodes.get(res.target)
         if n is None:
             n = result.nodes.get(region.container) if region else None
         if n is None:
@@ -307,7 +307,8 @@ def _marks_by_node(result: ScanResult, records: Records) -> dict[str, list[MarkE
         span = Records.to_file_span(pieces, res.span)
         if span is None:
             continue
-        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], a.in_doc)
+        # `in` as the history's moves leave it, so a note read in a document is drawn in whatever that document became
+        entry = MarkEntry(a.id, a.selector.exact if a.selector else "", n.file, span[0], span[1], res.in_doc)
         owner = n.of if n.kind == "proof" and n.of else n.key
         out.setdefault(owner, []).append(entry)
         # a labelled proof has a page of its own too, and its marks belong on it as well as under its statement

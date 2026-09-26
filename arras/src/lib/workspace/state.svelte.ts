@@ -1,4 +1,4 @@
-// What an open item keeps while another tab stands in front of it, and what its controls in the rail act on (plan 0.13.3 F4). The renderer and the controls are drawn in different places — the renderer in its pane, the controls once in the rail for whichever item is current — so the state they share lives here, keyed by the item, rather than in either.
+// What an open item keeps while another tab stands in front of it, and what its controls act on (plan 0.13.3 F4). The renderer and the controls are drawn apart — the renderer in the pane's body, the controls by the pane, and only while it is focused — so the state they share lives here, keyed by the item, rather than in either.
 
 import { getContext, setContext } from 'svelte';
 import { Annotations } from '$lib/fragments/shown.svelte';

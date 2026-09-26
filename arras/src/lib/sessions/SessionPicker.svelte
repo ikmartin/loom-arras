@@ -3,7 +3,7 @@
 	//
 	// **One selection, and it is where writes land.** Open and closed sessions share it: there is a selected session, or none, and `select none` is the only way to have none.
 	//
-	// **The find field narrows this list; nothing else does.** Which sessions' annotations a page draws is the filter's business, in the rail above the content.
+	// **The find field narrows this list; nothing else does.** Which sessions' annotations a page draws is the filter's business, in the rail above the workspace.
 	import { store } from '$lib/manifest/client.svelte';
 	import { findSessions, sessionView, summary, titleOf } from './sessions.svelte';
 	import { touched, when } from './when';

@@ -1,4 +1,4 @@
-// The viewer's own preferences (book 15.2, 15.7): the body typeface, the body size, the line width, the theme, how a document is set, and where comments stand.
+// The viewer's own preferences (book 15.2, 15.7): the body typeface, the body size, the line width, the theme, how a document is set, where comments stand, and whether an item's toolbar fades.
 // They are arras's and never the corpus's, so they live in this browser and are written nowhere else. Every storage access is guarded: a private window, cleared site data, or a thumbnail capture can make localStorage throw or come back empty, and the viewer must render anyway.
 
 export type Face = 'serif' | 'sans';
@@ -19,6 +19,8 @@ export type Format = 'p1' | 'p2' | 'b1' | 'b2';
  * `floating` opens a box over the text, anchored to the mark and inset from the window; `margin` stands it in a column beside the text; `inline` opens it in place, pushing the text apart, and is the Authoring View's alone. A click opens one and hovering never does — the box a pointer brought up could not be read without holding the pointer still, and could not be clicked into at all.
  */
 export type Comments = 'floating' | 'inline';
+/** Whether the focused pane's toolbar stays (`pinned`) or fades when the pointer leaves the top of the pane (`fade`); one choice for every toolbar, the pin's (book 15.2.5). */
+export type Controls = 'pinned' | 'fade';
 
 const KEY = 'arras.prefs';
 
@@ -37,9 +39,10 @@ export interface Prefs {
 	theme: Theme;
 	format: Format;
 	comments: Comments;
+	controls: Controls;
 }
 
-export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating' };
+export const DEFAULTS: Prefs = { divider: 0.5, panel: true, ids: false, zoom: { pdf: 1.4 }, face: 'serif', size: 'm', width: 'mid', theme: 'system', format: 'p1', comments: 'floating', controls: 'pinned' };
 
 const FACES: Face[] = ['serif', 'sans'];
 const SIZES: Size[] = ['s', 'm', 'l'];
@@ -47,6 +50,7 @@ const WIDTHS: Width[] = ['narrow', 'mid', 'wide'];
 const THEMES: Theme[] = ['light', 'dark', 'system'];
 const FORMATS: Format[] = ['p1', 'p2', 'b1', 'b2'];
 const COMMENTS: Comments[] = ['floating', 'inline'];
+const CONTROLS: Controls[] = ['pinned', 'fade'];
 
 /** A stored blob narrowed to valid values; anything unrecognised falls back to the default for that field. */
 export function coerce(raw: unknown): Prefs {
@@ -69,7 +73,8 @@ export function coerce(raw: unknown): Prefs {
 		width: pick(o.width, WIDTHS, DEFAULTS.width),
 		theme: pick(o.theme, THEMES, DEFAULTS.theme),
 		format: pick(o.format, FORMATS, DEFAULTS.format),
-		comments: pick(o.comments, COMMENTS, DEFAULTS.comments)
+		comments: pick(o.comments, COMMENTS, DEFAULTS.comments),
+		controls: pick(o.controls, CONTROLS, DEFAULTS.controls)
 	};
 }
 
@@ -114,9 +119,10 @@ class PrefsState {
 	theme = $state<Theme>(DEFAULTS.theme);
 	format = $state<Format>(DEFAULTS.format);
 	comments = $state<Comments>(DEFAULTS.comments);
+	controls = $state<Controls>(DEFAULTS.controls);
 
 	get current(): Prefs {
-		return { divider: this.divider, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments };
+		return { divider: this.divider, panel: this.panel, ids: this.ids, zoom: this.zoom, face: this.face, size: this.size, width: this.width, theme: this.theme, format: this.format, comments: this.comments, controls: this.controls };
 	}
 
 	load(override?: Partial<Prefs>): void {
@@ -131,6 +137,7 @@ class PrefsState {
 		this.theme = p.theme;
 		this.format = p.format;
 		this.comments = p.comments;
+		this.controls = p.controls;
 	}
 
 	/** Apply to <html> and persist. Called from one effect in the layout. */

@@ -113,7 +113,7 @@
 		z-index: 40;
 		overflow-y: auto;
 		max-width: min(92vw, 420px);
-		box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+		box-shadow: var(--float-shadow);
 	}
 	.backdrop {
 		position: fixed;
