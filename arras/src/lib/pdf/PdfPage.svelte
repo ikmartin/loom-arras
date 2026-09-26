@@ -29,6 +29,7 @@
 		onbox,
 		onmark,
 		onsized,
+		ondrawn,
 		onlink
 	}: {
 		url: string;
@@ -48,6 +49,8 @@
 		onbox?: (e: { page: number; rects: number[][]; client: Box }) => void;
 		/** The reader acted on an existing mark: one click selects, two travel. `el` is the mark, for a box to open at. */
 		onmark?: (e: { id: string; ids: string[]; travel: boolean; note: boolean; el: HTMLElement }) => void;
+		/** The page and its marks have finished rendering. */
+		ondrawn?: () => void;
 		/** This page's size in points, once known, so a parent can size what it has not drawn. */
 		onsized?: (e: { page: number; width: number; height: number }) => void;
 		/** The reader followed a link inside the paper to another of its pages; a link out of it opens in a new tab and is not reported. */
@@ -174,6 +177,7 @@
 			// a page with no text layer cannot be selected on, so the reader is given the box tool whatever the toolbar says
 			empty = textLayer.textContent?.trim() === '';
 			drawn = true;
+			ondrawn?.();
 		} catch (exc) {
 			if (stale() || cancelled(exc)) return;
 			problem = exc instanceof Error ? exc.message : String(exc);

@@ -52,15 +52,19 @@ test('a doubly defined id has no text, and says where both definitions are', asy
 	await expect(page.locator('.fragment')).toHaveCount(0);
 });
 
-test('with nothing being worked on, every view says so and points at the landmarks', async ({ page }) => {
+test('without working documents, document views point at landmarks and the graph keeps the corpus', async ({ page }) => {
 	await serve(page, (m) => {
 		m.masters = [];
 	});
-	for (const path of ['/', '/graph', '/review', '/master/main']) {
+	for (const path of ['/', '/review', '/master/main']) {
 		await page.goto(path);
 		await expect(page.getByTestId('no-drafts')).toBeVisible();
 		await expect(page.getByTestId('no-drafts')).toContainText('Nothing is being worked on');
 	}
+	await page.goto('/graph');
+	await expect(page.getByTestId('gnode-sy-0003')).toBeVisible();
+	await expect(page.getByTestId('no-drafts')).toHaveCount(0);
+	await expect(page.getByLabel('Scope', { exact: true }).locator('option')).toHaveText(['Whole quilt']);
 	// the read icon falls back to the newest landmark
 	const read = page.locator('a[aria-label="read"], a[title="read"]').first();
 	if (await read.count()) await expect(read).toHaveAttribute('href', '/canon/widgets-v3');

@@ -260,6 +260,8 @@ test("the Chat posts through the publisher, and the agent's answer arrives witho
 
 test('what the person marks goes with their next message, whole, and the agent is handed it', async ({ page, served }) => {
 	// plan 0.14 phase 4: a note written in the document waits in the Chat's tray, goes without words, and reaches a parked agent with its body and the words it is on
+	// A fresh sitting has no unsent notes from the fixture's existing conversation.
+	await served.api('session-new', { title: 'packet delivery' });
 	await page.goto('/node/sy-0003');
 	const sid = await intoASession(page, served);
 	const chat = page.locator('[data-pane="1"]').getByTestId('chat');

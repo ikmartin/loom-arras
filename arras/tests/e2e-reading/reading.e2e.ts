@@ -508,6 +508,11 @@ readOnly('a paper opened into half a pane fits its text, and its landing dot is 
 readOnly('a result that starts mid-line lands with every line of it in half a pane', async ({ page }) => {
 	// the 0.14 study: landing scrolled to the first word of `Theorem 3.2.`'s statement, past the margin its other lines start at, so every line but the first lost its opening words
 	await page.setViewportSize({ width: 1440, height: 900 });
+	// Let the initial 30-frame landing window expire before the PDF arrives.
+	await page.route('**/paper.pdf', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 1200));
+		await route.continue();
+	});
 	await page.goto('/library/Bellamy19?page=2&result=Bellamy19-thm-3.2&beside=%2Fnode%2Fsh-0009');
 	const lines = page.locator('[data-pane="0"] [data-mark="Bellamy19-thm-3.2"]');
 	await expect(lines).toHaveCount(4, { timeout: 10000 });
