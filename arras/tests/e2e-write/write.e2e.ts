@@ -555,9 +555,10 @@ function decisions(served: Served): Record<string, { status: string }> {
 /** Open a key of the Needs review queue and mark it OK, as the guided review does. */
 async function markOk(page: import('@playwright/test').Page, key: string): Promise<void> {
 	await page.goto('/review?show=needs-review');
-	await page.getByRole('button', { name: key, exact: true }).click();
+	const name = key === 'sy-0001' ? 'Widget' : 'Orbits';
+	await page.getByRole('button', { name, exact: true }).click();
 	const guided = page.getByTestId('guided-review');
-	await expect(guided.locator('h2')).toContainText(key);
+	await expect(guided.locator('h2')).toContainText(name);
 	await guided.getByRole('button', { name: 'OK', exact: true }).click();
 }
 
@@ -590,5 +591,5 @@ test('finishing review records an acceptance for each pending OK, and clears the
 	expect(decisions(served)['sy-0001']).toBeUndefined();
 	await expect(page.getByRole('alert')).toHaveCount(0);
 	// and once the publisher has rebuilt, the key has left the queue
-	await expect(page.getByRole('button', { name: 'sy-0001', exact: true })).toHaveCount(0, { timeout: 10000 });
+	await expect(page.getByRole('button', { name: 'Widget', exact: true })).toHaveCount(0, { timeout: 10000 });
 });

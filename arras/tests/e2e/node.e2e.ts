@@ -44,7 +44,8 @@ test('a missing proof is said where the proof would be, and its diagnostic is in
 	});
 	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
 	const said = pane(page, 0).getByTestId('missing-proof');
-	await expect(said).toHaveText('No proof is attached.');
+	await expect(said).toContainText('No proof is attached.');
+	await expect(said.getByRole('link', { name: 'See this block in Review' })).toHaveAttribute('href', '/review?document=drafting%2Fmain.tex#review-sy-0003');
 	// after the statement, not above it: the statement leads
 	const statement = (await pane(page, 0).locator('.fragment .env[data-id="sy-0003"]').boundingBox())!;
 	expect((await said.boundingBox())!.y).toBeGreaterThan(statement.y);

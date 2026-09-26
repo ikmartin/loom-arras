@@ -91,6 +91,7 @@ async function start(suite: Suite, name: string): Promise<Running> {
 	const logPath = `${root}.serve.log`;
 	rmSync(root, { recursive: true, force: true });
 	cpSync(join(dir, 'template'), root, { recursive: true });
+	const env = reviewerEnv(suite, `${root}.config`);
 	let lastLog = '';
 	for (let attempt = 0; attempt < 3; attempt++) {
 		const port = await freePort();
@@ -99,7 +100,7 @@ async function start(suite: Suite, name: string): Promise<Running> {
 		const proc: ChildProcess = spawn(LOOM, ['serve', '--quilt', root, '--port', String(port), '--no-compile'], {
 			cwd: ARRAS,
 			detached: true,
-			env: { ...reviewerEnv(suite, `${root}.config`), LOOM_ARRAS_BUNDLE: join(dir, 'bundle') },
+			env: { ...env, LOOM_ARRAS_BUNDLE: join(dir, 'bundle') },
 			stdio: ['ignore', 'pipe', 'pipe']
 		});
 		proc.stdout!.pipe(out);
@@ -124,6 +125,9 @@ async function start(suite: Suite, name: string): Promise<Running> {
 		while (!exited && Date.now() < deadline) {
 			try {
 				const res = await fetch(`${url}/build/manifest.json`);
+				// Drain even a readiness probe: an unread large HTTP/1.0 response can
+				// leave Node’s parser paused when the server closes the connection.
+				await res.arrayBuffer();
 				if (res.ok) {
 					token = ((await (await fetch(`${url}/_api`)).json()) as { token: string }).token;
 					break;
@@ -167,8 +171,8 @@ async function start(suite: Suite, name: string): Promise<Running> {
 				expect(res.status, `POST /_api/${endpoint} answered ${text}`).toBe(200);
 				return String((JSON.parse(text) as { result: unknown }).result ?? '');
 			},
-			loom(args, env = {}) {
-				return execFileSync(LOOM, [...args, '--quilt', root], { cwd: ARRAS, env: { ...process.env, ...env } }).toString();
+			loom(args, overrides = {}) {
+				return execFileSync(LOOM, [...args, '--quilt', root], { cwd: ARRAS, env: { ...env, ...overrides } }).toString();
 			}
 		};
 		return { served, logPath, stop };

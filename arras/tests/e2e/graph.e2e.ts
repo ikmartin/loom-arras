@@ -1,5 +1,6 @@
 // The graph: the page's four drawings of what the corpus wrote, and the local graph a context and a document carry. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
+import { serve } from '../manifest';
 import { beside, pane, scrollPane } from '../workspace';
 
 test.describe('the graph page', () => {
@@ -14,11 +15,8 @@ test.describe('the graph page', () => {
 	});
 
 	test('readable names identify dots and boxes while hovering keeps the selected statement pinned', async ({ page }) => {
-		await page.route('**/build/manifest.json', async (route) => {
-			const response = await route.fetch();
-			const m = await response.json();
+		await serve(page, (m) => {
 			m.nodes['sy-0003'].name = 'Uniform <energy> bound Ω';
-			await route.fulfill({ response, json: m });
 		});
 		await page.goto('/graph');
 		const node = page.getByTestId('gnode-sy-0003');
@@ -65,14 +63,11 @@ test.describe('the graph page', () => {
 	});
 
 	test('shared membership survives modular source paths in every drawing', async ({ page }) => {
-		await page.route('**/build/manifest.json', async (route) => {
-			const response = await route.fetch();
-			const m = await response.json();
+		await serve(page, (m) => {
 			const primary = m.masters[0].path;
 			m.masters.push({ ...m.masters[0], path: 'drafting/toy.tex' });
 			m.nodes['sy-0003'].reached_by = [primary, 'drafting/toy.tex'];
 			m.nodes['sy-0003'].file = 'sections/local-theory.tex';
-			await route.fulfill({ response, json: m });
 		});
 		await page.goto('/graph');
 		const panel = page.getByRole('button', { name: 'Show the panel', exact: true });

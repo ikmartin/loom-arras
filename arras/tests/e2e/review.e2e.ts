@@ -1,6 +1,7 @@
 // Review: document-scoped tables of recorded states, the causes a stale key opens beside its document, what an incoming pull changes, and the guided review of what needs a decision. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
 import { serve } from '../manifest';
+import { readFileSync } from 'node:fs';
 
 test.describe('the views', () => {
 	test('the default document opens first and the corpus-wide views follow the document tabs', async ({ page }) => {
@@ -70,9 +71,9 @@ test.describe('recorded states', () => {
 	test('review causes open rendered text beside its current context', async ({ page }) => {
 		await page.goto('/review');
 		await expect(page.getByTestId('review-counts')).toContainText('5 stale');
-		const row = page.locator('table.list tr', { hasText: 'sy-0002/proof' });
-		await expect(row).toContainText('sy-0001 via sy-0002');
-		const stale = page.locator('table.list tr', { hasText: 'sy-0001' }).first();
+		const row = page.locator('#review-sy-0002-proof');
+		await expect(row).toContainText('Widget via sy-0002');
+		const stale = page.locator('#review-sy-0001');
 		await expect(stale).toContainText('1 detached');
 		await stale.getByRole('link', { name: 'text edit' }).click();
 		await expect(page).toHaveURL(/\/master\/main\?review=sy-0001&cause=0#sy-0001$/);
@@ -89,8 +90,8 @@ test.describe('recorded states', () => {
 		expect(comparisonLayout.comparisonLeft).toBeGreaterThan(comparisonLayout.documentRight);
 		expect(comparisonLayout.pageWidth).toBeLessThanOrEqual(comparisonLayout.windowWidth);
 		await page.goto('/review');
-		const dependent = page.locator('table.list tr', { hasText: 'sy-0002' }).first();
-		await dependent.getByRole('link', { name: 'sy-0001', exact: true }).click();
+		const dependent = page.locator('#review-sy-0002');
+		await dependent.getByRole('link', { name: 'Widget', exact: true }).click();
 		await expect(page).toHaveURL(/#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix$/);
 		await expect(page.locator('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')).toHaveClass(/review-citation-target/);
 		await expect(page.getByTestId('review-comparison')).toContainText('involution');
@@ -153,22 +154,21 @@ test.describe('incoming and guided review', () => {
 		await expect(page.getByRole('heading', { name: /pending ok/i })).toBeVisible();
 		await expect(page.getByRole('heading', { name: /requires attention/i })).toBeVisible();
 		await page.getByRole('button', { name: 'Start review' }).click();
-		await expect(page.getByTestId('guided-review')).toContainText('sy-0001');
+		await expect(page.getByTestId('guided-review')).toContainText('Widget');
 		await expect(page.getByTestId('guided-review')).toContainText('Incoming pull');
 		await page.getByRole('button', { name: 'Return to Needs review' }).click();
 		await expect(page.getByTestId('guided-review')).toHaveCount(0);
-		await page.getByRole('button', { name: 'sy-0003' }).click();
-		await expect(page.getByTestId('guided-review')).toContainText('sy-0003');
+		await page.getByRole('button', { name: 'Parity', exact: true }).click();
+		await expect(page.getByTestId('guided-review')).toContainText('Parity');
 		await expect(page.getByRole('button', { name: 'Mark OK' })).toHaveCount(0);
 	});
 
 	test('guided review highlights a dependent citation and distinguishes local edits', async ({ page }) => {
 		await page.route('**/fragments/nodes/sy-0002.html', async (route) => {
-			const response = await route.fetch();
-			const body = await response.text();
+			const body = readFileSync('tests/fixture/fragments/nodes/sy-0002.html', 'utf8');
 			const citation = '<a id="cite-nodes-sy-0002-tex-185-sy-0001-eq-fix"';
 			expect(body).toContain(citation);
-			await route.fulfill({ response, body: body.replace(citation, `<span style="display:block;height:1200px"></span>${citation}`) });
+			await route.fulfill({ contentType: 'text/html', body: body.replace(citation, `<span style="display:block;height:1200px"></span>${citation}`) });
 		});
 		await serve(page, (m) => {
 			m.unresolved = [
@@ -188,11 +188,11 @@ test.describe('incoming and guided review', () => {
 		});
 		expect(position.scrollTop).toBeGreaterThan(0);
 		expect(position.citationTop).toBeLessThan(position.paneBottom);
-		await page.getByRole('button', { name: 'sy-0003' }).click();
+		await page.getByRole('button', { name: 'Parity', exact: true }).click();
 		await expect(guided).toContainText('Local change');
 		await expect(guided.locator('.review-citation-target')).toHaveCount(0);
 		await expect(guided.locator('.guided-current')).toHaveJSProperty('scrollTop', 0);
-		await page.getByRole('button', { name: 'sy-0002' }).click();
+		await page.getByRole('button', { name: 'Orbits', exact: true }).click();
 		await expect(guided.locator('.review-citation-target')).toHaveCount(1);
 		const viewportPosition = await guided.evaluate((section) => {
 			const pane = section.querySelector('.guided-current')!;

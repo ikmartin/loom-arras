@@ -1,7 +1,7 @@
 // A node's context, read beside the node: its lists named as a reader names things, what it rests on and what rests on it, its relations and citations, and nothing said about what is absent. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
 import { beside, pane } from '../workspace';
-import { manifest } from '../manifest';
+import { manifest, serve } from '../manifest';
 
 test('it says nothing about absences: no caption over a lone node, no "unreachable", no document it is not in', async ({ page }) => {
 	// sy-0009 is reached by no document, and loom says so in a diagnostic the context must not repeat
@@ -72,11 +72,8 @@ test('see also lists both directions and says where each node is reached', async
 });
 
 test('an unknown relation kind renders as a labelled list of links', async ({ page }) => {
-	await page.route('**/build/manifest.json', async (route) => {
-		const res = await route.fetch();
-		const m = await res.json();
+	await serve(page, (m) => {
 		m.relations = [{ from: 'sy-0003', to: 'sy-0001', kind: 'contradicts', src: { file: 'x', line: 1 } }];
-		await route.fulfill({ response: res, json: m });
 	});
 	await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
 	const list = page.getByTestId('relations-contradicts');
