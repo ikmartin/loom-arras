@@ -1,15 +1,12 @@
-// The app photographed against the interface floor: a manifest written by nobody's publisher, with no documents, no review ledger, no bibliography and no discussions. Paired with tests/shots/report.spec.ts, which photographs a corpus that has all of them. The images land in records/images/, or in `ARRAS_SHOTS_OUT` when it is set.
+// The app photographed against the interface floor: a manifest written by nobody's publisher, with no documents, no review ledger, no bibliography and no discussions. Paired with tests/shots/report.spec.ts, which photographs a corpus that has all of them. The images land in docs/reports/images/, or in `ARRAS_SHOTS_OUT` when it is set.
 import { expect, test, type Page } from '@playwright/test';
 import { outDir, settle } from '../shots/settle';
 
-const OUT = outDir('../records/images');
+const OUT = outDir('../docs/reports/images');
 
-async function shot(page: Page, name: string, path: string, shell: 'a' | 'c' = 'c') {
+async function shot(page: Page, name: string, path: string) {
 	await page.goto('/');
-	await page.evaluate(
-		(s) => localStorage.setItem('arras.prefs', JSON.stringify({ shell: s, face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'margin' })),
-		shell
-	);
+	await page.evaluate(() => localStorage.setItem('arras.prefs', JSON.stringify({ face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'margin' })));
 	await page.goto(path);
 	await settle(page);
 	await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: false });
@@ -19,7 +16,6 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 test('a corpus that has none of it', async ({ page }) => {
 	await shot(page, 'capability-floor-home', '/');
-	await shot(page, 'capability-floor-rail', '/', 'a');
 	// the claim the images are evidence for: no read view, no review, no bibliography, no discussions
 	await page.goto('/');
 	await settle(page);

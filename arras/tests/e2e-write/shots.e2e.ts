@@ -2,13 +2,13 @@
 import { expect, test } from '../served';
 import { pickSession } from '../picker';
 
-const OUT = process.env.ARRAS_SHOTS_OUT ?? '../records/images';
+const OUT = process.env.ARRAS_SHOTS_OUT ?? '../docs/reports/images';
 
 test('the editing surfaces', async ({ page, served }) => {
 	// a write names its session, and nothing is selected at rest (plan 0.13.1), so the pictures are of a reader who has chosen where their work goes -- which is the state the composer is usable in
 	const session = served.openSessions().at(-1)!;
 	await page.setViewportSize({ width: 1440, height: 900 });
-	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ shell: 'c', face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'floating' })));
+	await page.addInitScript(() => localStorage.setItem('arras.prefs', JSON.stringify({ face: 'serif', size: 'm', width: 'mid', theme: 'light', comments: 'floating' })));
 
 	await page.goto('/node/sy-0002');
 	const words = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0002"] > p[data-src]').first();
@@ -25,8 +25,8 @@ test('the editing surfaces', async ({ page, served }) => {
 	});
 	await page.getByTestId('annotate-offer').click();
 	await page.getByTestId('note-body').fill('Is the singleton orbit counted once or twice here?');
-	await page.getByTestId('note-kind').selectOption('question');
-	await expect(page.getByTestId('note-kind')).toHaveValue('question');
+	await page.getByTestId('note-kind').locator('[data-kind="question"]').click();
+	await expect(page.getByTestId('note-kind').locator('[aria-pressed="true"]')).toHaveAttribute('data-kind', 'question');
 	await page.screenshot({ path: `${OUT}/composer.png`, animations: 'disabled' });
 
 	await page.goto('/master/main');

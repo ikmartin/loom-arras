@@ -47,7 +47,7 @@ test.describe('P1 · open on the thing itself', () => {
 		expect((box.width * box.height) / (1440 * 900)).toBeGreaterThanOrEqual(0.7);
 	});
 
-	test("a pane head carries its tabs and its item's views, and nothing else", async ({ page }) => {
+	test("a pane head carries its item's views and its tabs, and nothing else", async ({ page }) => {
 		await withPapers(page);
 		await page.goto('/master/main' + beside('/library/Kre99'));
 		for (const [i, views] of [
@@ -57,7 +57,7 @@ test.describe('P1 · open on the thing itself', () => {
 			const head = page.getByTestId(`pane-head-${i}`);
 			await expect(head).toBeVisible();
 			const parts = await head.evaluate((h) => [...h.children].map((c) => c.getAttribute('role')));
-			expect(parts).toEqual(views ? ['tablist', 'group'] : ['tablist']);
+			expect(parts).toEqual(views ? ['group', 'tablist'] : ['tablist']);
 			const kinds = await head.getByRole('tablist').evaluate((t) => [...t.children].map((c) => (c as HTMLElement).dataset.testid));
 			expect(kinds).toEqual(kinds.map(() => 'item-tab'));
 		}
@@ -300,7 +300,7 @@ test.describe('the tab strip', () => {
 		await page.getByTestId('nodes-list').locator('li a', { hasText: id }).first().click();
 	}
 
-	test("each pane's strip ends in its own item's views", async ({ page }) => {
+	test("each pane's strip begins with its own item's views", async ({ page }) => {
 		await withPapers(page);
 		// a document beside a paper: the paper's pane carries Paper · Digest · Info though the document's pane is focused, and the document's carries none
 		await page.goto('/master/main' + beside('/library/Kre99'));
@@ -310,7 +310,11 @@ test.describe('the tab strip', () => {
 		await expect(views.getByRole('button')).toHaveText(['Paper', 'Digest', 'Info']);
 		const head = (await page.getByTestId('pane-head-1').boundingBox())!;
 		const box = (await views.boundingBox())!;
-		expect(Math.abs(head.x + head.width - (box.x + box.width)), 'the views end at the strip\'s right edge, px').toBeLessThanOrEqual(1);
+		expect(Math.abs(box.x - head.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
+		// a rule parts them from the first tab, which starts where they end
+		const first = (await tabs(page, 1).first().boundingBox())!;
+		expect(Math.abs(first.x - (box.x + box.width)), 'the first tab starts where the views end, px').toBeLessThanOrEqual(1);
+		expect(await views.evaluate((v) => getComputedStyle(v).borderRightWidth)).toBe('1px');
 		// the current view is underlined in the accent, the others are links
 		const paper = pane(page, 1).getByTestId('tab-paper');
 		await expect(paper).toHaveAttribute('aria-pressed', 'true');
@@ -393,7 +397,7 @@ test.describe('the tab strip', () => {
 		await expect(active.getByRole('tab')).toHaveAttribute('title', /Lemma/);
 	});
 
-	test('past the floor the views keep their place', async ({ page }) => {
+	test('past the floor the views keep their place, and the tabs scroll after them', async ({ page }) => {
 		await withPapers(page);
 		await prefs(page, { divider: 0.6 });
 		await page.setViewportSize({ width: 1440, height: 900 });
@@ -406,11 +410,19 @@ test.describe('the tab strip', () => {
 		await tabs(page, 1).first().getByRole('tab').click();
 		const views = pane(page, 1).getByRole('group', { name: 'views of Kre99' });
 		await expect(views).toBeVisible();
-		const row = (await pane(page, 1).getByRole('tablist').boundingBox())!;
+		const tablist = pane(page, 1).getByRole('tablist');
+		const row = (await tablist.boundingBox())!;
 		const box = (await views.boundingBox())!;
 		const head = (await page.getByTestId('pane-head-1').boundingBox())!;
-		expect(row.x + row.width, 'the tabs end before the views begin').toBeLessThanOrEqual(box.x + 0.5);
-		expect(Math.abs(head.x + head.width - (box.x + box.width))).toBeLessThanOrEqual(1);
+		expect(Math.abs(box.x - head.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
+		expect(row.x, 'the tabs begin after the views end').toBeGreaterThanOrEqual(box.x + box.width - 0.5);
+		// the row scrolls to its end, and the views stay where they were
+		const scrolled = await tablist.evaluate((r) => {
+			r.scrollLeft = r.scrollWidth;
+			return r.scrollLeft;
+		});
+		expect(scrolled).toBeGreaterThan(0);
+		expect(await views.boundingBox()).toEqual(box);
 	});
 });
 
@@ -492,11 +504,30 @@ test.describe('a narrow window', () => {
 		await expect(page.getByTestId('reading-rail').getByTestId('show-current')).toBeVisible();
 		await expect(page.getByTestId('rail-compare')).toBeVisible();
 		await expect(page.getByTestId('rail-more-toggle')).toHaveCount(0);
-		// the views end the strip, and the controls stay on the pane
+		// the views lead the strip, and the controls stay on the pane
 		const head = (await page.getByTestId('pane-head-0').boundingBox())!;
 		const views = (await pane(page, 0).getByRole('group', { name: 'views of Kre99' }).boundingBox())!;
-		expect(Math.abs(head.x + head.width - (views.x + views.width)), 'the views end at the strip\'s right edge, px').toBeLessThanOrEqual(1);
+		expect(Math.abs(views.x - head.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
 		await expect(page.getByTestId('zoom-at')).toBeVisible();
+	});
+
+	test("below the two-pane width the one strip begins with the shown item's views, then both panes' tabs", async ({ page }) => {
+		await withPapers(page);
+		await page.setViewportSize({ width: 640, height: 800 });
+		await page.goto('/master/main' + beside('/library/Kre99'));
+		const strip = page.getByTestId('narrow-strip');
+		await expect(strip).toBeVisible();
+		// the document is shown, and has no views: the strip begins with the tabs
+		expect(await strip.evaluate((s) => s.firstElementChild!.getAttribute('role'))).not.toBe('group');
+		await strip.getByTestId('pane-head-1').getByRole('tab').click();
+		const views = strip.getByRole('group', { name: 'views of Kre99' });
+		await expect(views.getByRole('button')).toHaveText(['Paper', 'Digest', 'Info']);
+		expect(await strip.evaluate((s) => s.firstElementChild!.getAttribute('aria-label'))).toBe('views of Kre99');
+		const at = (await strip.boundingBox())!;
+		const box = (await views.boundingBox())!;
+		expect(Math.abs(box.x - at.x), 'the views start at the strip\'s left edge, px').toBeLessThanOrEqual(1);
+		const first = (await strip.getByTestId('item-tab').first().boundingBox())!;
+		expect(first.x).toBeGreaterThanOrEqual(box.x + box.width - 0.5);
 	});
 });
 
@@ -525,6 +556,66 @@ test.describe('the toolbar', () => {
 		expect(await bar.evaluate((b) => getComputedStyle(b).boxShadow)).not.toBe('none');
 		// the pane's text does not move for it: it is on the pane's layer, not in the flow
 		expect(await bar.evaluate((b) => getComputedStyle(b).position)).toBe('absolute');
+	});
+
+	/** The top of the first line of text in a pane's body, px: its first text that is drawn, a title or a first line alike. */
+	const firstLine = (page: Page, index: number) =>
+		pane(page, index)
+			.locator('> .body')
+			.evaluate((body) => {
+				const walk = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+				for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+					if (!n.textContent?.trim()) continue;
+					const range = document.createRange();
+					range.selectNodeContents(n);
+					const box = [...range.getClientRects()].find((r) => r.width > 0 && r.height > 0);
+					if (box) return box.top;
+				}
+				return NaN;
+			});
+	const room = (page: Page, index: number) => pane(page, index).locator('> .body').evaluate((b) => getComputedStyle(b).paddingTop);
+
+	test('pinned, the first line starts below the bar in a half-width pane, on a node and a document, and focus does not move it', async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/node/sy-0003' + beside('/master/main'));
+		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
+		await expect(pane(page, 0)).toHaveClass(/focused/);
+		for (const i of [0, 1]) {
+			// the focused pane draws the bar; each pane in turn, a node and then a document
+			if (i === 1) await tabs(page, 1).first().getByRole('tab').click();
+			await expect(pane(page, i)).toHaveClass(/focused/);
+			const bar = (await controls(page, i).boundingBox())!;
+			const line = await firstLine(page, i);
+			expect(line - (bar.y + bar.height), `pane ${i}: from the bar's foot to the first line, px`).toBeGreaterThanOrEqual(16);
+			expect(line - (bar.y + bar.height), `pane ${i}: from the bar's foot to the first line, px`).toBeLessThanOrEqual(40);
+		}
+		// both panes keep the room, so focus moving back leaves the text where it was
+		const before = await firstLine(page, 1);
+		expect(await room(page, 0)).toBe(await room(page, 1));
+		await tabs(page, 0).first().getByRole('tab').click();
+		await expect(pane(page, 0)).toHaveClass(/focused/);
+		await expect(controls(page, 1)).toHaveCount(0);
+		expect(await firstLine(page, 1)).toBe(before);
+	});
+
+	test('unpinned, no room is kept, and an item with no toolbar never has any', async ({ page }) => {
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto('/node/sy-0003' + beside('/master/main'));
+		await expect(pane(page, 1).locator('.fragment').first()).toBeVisible();
+		const pinned = [await firstLine(page, 0), await firstLine(page, 1)];
+		const height = (await controls(page, 0).boundingBox())!.height;
+		for (const i of [0, 1]) expect(await room(page, i)).toBe(`${height}px`);
+		// the pin let go, the text rises by the bar's height in both panes, and the bar fades over it
+		await page.getByTestId('toolbar-pin').click();
+		for (const i of [0, 1]) {
+			await expect.poll(() => room(page, i)).toBe('0px');
+			expect(pinned[i] - (await firstLine(page, i))).toBeCloseTo(height, 0);
+		}
+		// pinned again, a landmark and a session, which draw no toolbar, keep no room
+		await page.getByTestId('toolbar-pin').click();
+		await page.goto('/canon/widgets-v1' + beside('/session/s-2026-09-16-0001'));
+		await expect(pane(page, 1)).toBeVisible();
+		for (const i of [0, 1]) expect(await room(page, i)).toBe('0px');
 	});
 
 	test('the bar, then view with every other control in full words and its key, then the pin; the divider only when something stands left of view', async ({ page }) => {

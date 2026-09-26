@@ -10,7 +10,7 @@ export default defineConfig({
 	metadata: { quilt: 'synthetic', scratch: scratch('write') },
 	testDir: 'tests/e2e-write',
 	testMatch: '**/*.e2e.ts',
-	// shots.e2e.ts writes the committed pictures under records/images, so it runs only when asked (`npm run shots:write`)
+	// shots.e2e.ts writes the committed pictures under docs/reports/images, so it runs only when asked (`npm run shots:write`)
 	testIgnore: process.env.ARRAS_SHOTS ? [] : ['**/shots.e2e.ts'],
 	fullyParallel: true,
 	// 15 s rather than 5: a page PDF.js draws under a real publisher settles slowly while other suites share the machine

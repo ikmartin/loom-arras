@@ -1,7 +1,7 @@
 <script lang="ts">
-	// The focused pane's toolbar (plan 0.16 decisions 7–9; book 15.2.5): one line at the pane's top right, on the pane's own layer so the text never moves for it — the kind's bar, then **view ▾**, the Popover holding every other control in full words, then the pin. Each kind's controls draw one, so the pane that is not focused draws none.
+	// The focused pane's toolbar (plan 0.16 decisions 7–9; book 15.2.5): one line at the pane's top right, on the pane's own layer — the kind's bar, then **view ▾**, the Popover holding every other control in full words, then the pin. Each kind's controls draw one, so the pane that is not focused draws none.
 	//
-	// **It floats.** It shows while the pointer is in a band across the top of the pane's body — 96px tall, inset 96px from the left and 4px from the right, clamped so it always holds the bar — and fades over 0.4s when the pointer leaves; it is held while the pointer is on it, while its menu is open, while keyboard focus is in it, and while pinned. Keyboard focus anywhere in the pane shows it for a while. Nothing draws the band.
+	// **It floats.** It shows while the pointer is in a band across the top of the pane's body — 96px tall, inset 96px from the left and 4px from the right, clamped so it always holds the bar — and fades over 0.4s when the pointer leaves; it is held while the pointer is on it, while its menu is open, while keyboard focus is in it, and while pinned. Keyboard focus anywhere in the pane shows it for a while. Nothing draws the band. Pinned, its pane keeps room for it above the text (Pane); faded, none.
 	import { tick, type Snippet } from 'svelte';
 	import Popover from '$lib/components/Popover.svelte';
 	import { prefs } from '$lib/prefs.svelte';
@@ -197,6 +197,8 @@
 		display: flex;
 		align-items: center;
 		gap: 2px;
+		box-sizing: border-box;
+		height: var(--toolbar-h, 32px);
 		padding: 2px;
 		font-family: var(--sans);
 		font-size: 12.5px;

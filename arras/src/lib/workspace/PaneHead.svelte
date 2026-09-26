@@ -1,7 +1,7 @@
 <script lang="ts">
-	// A pane's head (plan 0.13.3 W2–W5, plan 0.16 decisions 10 and 11): its row of tabs, and at its right end the active item's views. It answers which item am I looking at, and which reading of it; the item's controls are the focused pane's, not the head's.
+	// A pane's head (plan 0.13.3 W2–W5, plan 0.16 decisions 10 and 11): the active item's views, then its row of tabs. It answers which item am I looking at, and which reading of it; the item's controls are the focused pane's, not the head's.
 	//
-	// **Tabs narrow, then scroll.** A tab is 148px at most, chosen against the corpus's real names (`main-atomic.tex`, `Arden24 · Prop 2.1`) with the controls showing; a crowded strip narrows every tab by the same amount, down to 1.5 times the strip's height, and past that the row of tabs scrolls — by the wheel as well as sideways, with no scrollbar drawn in a 30px strip — while the views keep their place, and the active tab is brought into view whenever it changes. A name that does not fit ends in an ellipsis before the controls, never under them, since a cut that reads as a whole name is a plausible name and not the name (P3); the full name is the tab's title. **A tab's controls sit over it**, at its right behind a gradient in its own colour, on the active tab always and on the others under the pointer or keyboard focus, so a tab never grows on hover and moves what the pointer was travelling towards; below 90px a tab, the active one too, shows only its close under the pointer and both under keyboard focus, so a narrow tab keeps room for its name and a press on its middle still chooses it. **Controls appear only where they can act**: the lone tab of a lone pane has neither, since moving it would empty one pane to refill the other and closing it would leave nothing.
+	// **Tabs narrow, then scroll.** A tab is 148px at most, chosen against the corpus's real names (`main-atomic.tex`, `Arden24 · Prop 2.1`) with the controls showing; a crowded strip narrows every tab by the same amount, down to 1.5 times the strip's height, and past that the row of tabs scrolls — by the wheel as well as sideways, with no scrollbar drawn in a 30px strip — while the views keep their place at its left, and the active tab is brought into view whenever it changes. A name that does not fit ends in an ellipsis before the controls, never under them, since a cut that reads as a whole name is a plausible name and not the name (P3); the full name is the tab's title. **A tab's controls sit over it**, at its right behind a gradient in its own colour, on the active tab always and on the others under the pointer or keyboard focus, so a tab never grows on hover and moves what the pointer was travelling towards; below 90px a tab, the active one too, shows only its close under the pointer and both under keyboard focus, so a narrow tab keeps room for its name and a press on its middle still chooses it. **Controls appear only where they can act**: the lone tab of a lone pane has neither, since moving it would empty one pane to refill the other and closing it would leave nothing.
 	import { tick } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { itemKey } from './item';
@@ -58,6 +58,7 @@
 
 {#if pane}
 	<div class="head" data-testid="pane-head-{index}">
+		{#if views}<PaneViews {index} />{/if}
 		<div class="tabs" class:narrow role="tablist" aria-label="open in this pane" bind:this={row}>
 			{#each pane.items as item (itemKey(item))}
 				{@const key = itemKey(item)}
@@ -85,7 +86,6 @@
 				</div>
 			{/each}
 		</div>
-		{#if views}<PaneViews {index} />{/if}
 	</div>
 {/if}
 

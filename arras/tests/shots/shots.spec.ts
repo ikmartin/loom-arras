@@ -5,12 +5,9 @@ import { outDir, settle, still } from './settle';
 
 const OUT = outDir('../docs/book/figures');
 
-async function shot(page: Page, name: string, path: string, opts: { shell?: 'a' | 'c'; theme?: 'light' | 'dark' } = {}) {
+async function shot(page: Page, name: string, path: string, opts: { theme?: 'light' | 'dark' } = {}) {
 	await page.goto('/');
-	await page.evaluate(
-		([shell, theme]) => localStorage.setItem('arras.prefs', JSON.stringify({ shell, face: 'serif', size: 'm', width: 'mid', theme, comments: 'margin' })),
-		[opts.shell ?? 'c', opts.theme ?? 'light']
-	);
+	await page.evaluate((theme) => localStorage.setItem('arras.prefs', JSON.stringify({ face: 'serif', size: 'm', width: 'mid', theme, comments: 'margin' })), opts.theme ?? 'light');
 	await page.goto(path);
 	await settle(page);
 	await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: false });
@@ -34,7 +31,5 @@ test('the reference figures', async ({ page }) => {
 		await page.screenshot({ path: `${OUT}/page-graph-${drawing}.png` });
 	}
 
-	await shot(page, 'shell-a-rail-sections', '/master/main', { shell: 'a' });
-	await shot(page, 'shell-c-icon-strip', '/master/main', { shell: 'c' });
 	await shot(page, 'page-node-dark', '/node/sy-0003', { theme: 'dark' });
 });

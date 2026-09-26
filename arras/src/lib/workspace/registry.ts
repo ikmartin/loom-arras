@@ -28,7 +28,9 @@ export interface Kind {
 	renderer: Component<{ item: Item }>;
 	/** The item's toolbar (ItemToolbar: its bar, its *view* menu, the pin), drawn by the focused pane for its active item; `name` is the tab's, for the controls' accessible names. A kind without one draws no toolbar. */
 	controls?: Component<{ item: Item; name: string }>;
-	/** Several readings of one thing, switched at the end of its pane's tab strip. */
+	/** An item of a kind with controls that draws no toolbar all the same (a landmark), so no pane reserves the pinned toolbar's room for it. */
+	bare?(item: Item, m: Manifest): boolean;
+	/** Several readings of one thing, switched where its pane's tab strip begins. */
 	views?(item: Item, m: Manifest): View[];
 	/** The item rendered small, for a hover card (H1–H7); a kind without one previews nothing rather than something made up (P3). `onresize` asks the card to place itself again once the content has its size. */
 	preview?: Component<{ item: Item; onresize: () => void }>;
@@ -57,7 +59,7 @@ function nodeTab(id: string, m: Manifest): string {
 }
 
 export const kinds: Record<ItemKind, Kind> = {
-	document: { tab: documentTab, renderer: DocumentItem, controls: DocumentControls },
+	document: { tab: documentTab, renderer: DocumentItem, controls: DocumentControls, bare: (item, m) => isLandmark(m, item.id) },
 	work: {
 		// the citekey, and the result it is at when there is one: `Arden24 · Prop 2.1` says which paper and where
 		tab: (item, m) => {
@@ -98,6 +100,12 @@ export const kinds: Record<ItemKind, Kind> = {
 /** The tab label of an item. */
 export function tabOf(item: Item, m: Manifest): string {
 	return kinds[item.kind].tab(item, m);
+}
+
+/** Whether an item draws a toolbar when its pane is focused: what a pinned toolbar's room is reserved for, in either pane. */
+export function hasToolbar(item: Item, m: Manifest): boolean {
+	const k = kinds[item.kind];
+	return !!k.controls && !k.bare?.(item, m);
 }
 
 /** An item's name as text, where no glyph can be drawn: the tab's label, after what its marker says (`context of Theorem 3.1`). */

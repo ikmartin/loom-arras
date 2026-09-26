@@ -45,7 +45,7 @@ This chapter lists the tests the MVP passes. It defines the tiers, the shim that
 
 `clients.yml` (on the three clients only) runs the loom-lsp, loom-nvim and loom-vscode suites of 14.6; the clients are deprecated and may break with any loom change (WQ-49), so a loom change does not run them. `mirror-nvim.yml` pushes `loom-nvim/` to its mirror repository only after calling `clients.yml` for the nvim suite. Not built: an Overleaf proxy job (compiling the demo and synthetic masters from the root with an empty environment), a publish job on tags, a prerender job, and a workflow running the dialect validator; the validator runs inside `refresh-fixture.sh` and in loom's `test_fragment_kinds_and_dialect_validity` instead.
 
-**[decided]** CI checks out only what is committed, so a shipped file that is untracked or hidden by a workspace `.gitignore` line passes every local run and is missing in CI. `loom/tests/unit/test_tracked.py` fails locally on either, over `loom/src`, `loom/tests/quilts` and `arras/src`; a quilt's own `.gitignore` is exempt. `arras/tests/e2e-write/shots.e2e.ts` writes the committed pictures in `records/images/`, so `test:write` skips it and `npm run shots:write` runs it.
+**[decided]** CI checks out only what is committed, so a shipped file that is untracked or hidden by a workspace `.gitignore` line passes every local run and is missing in CI. `loom/tests/unit/test_tracked.py` fails locally on either, over `loom/src`, `loom/tests/quilts` and `arras/src`; a quilt's own `.gitignore` is exempt. `arras/tests/e2e-write/shots.e2e.ts` writes committed pictures in `docs/reports/images/`, where every report's pictures are written (DR-305-ikmartin), so `test:write` skips it and `npm run shots:write` runs it.
 
 ## 14.5 The Overleaf procedure
 

@@ -505,6 +505,22 @@ readOnly('a paper opened into half a pane fits its text, and its landing dot is 
 	await expect(page.getByTestId('zoom-at')).toHaveValue('140%');
 });
 
+readOnly('a result\'s mark tints the words and never covers them, in either theme', async ({ page }) => {
+	// the glyphs are on the canvas under the marks, so a mark's fill must be translucent or it hides the text it marks
+	for (const scheme of ['light', 'dark'] as const) {
+		await page.emulateMedia({ colorScheme: scheme });
+		await page.goto('/library/Bellamy19?page=2');
+		const mark = page.locator('.page .mark:not(.annotation):not(.transient)').first();
+		await expect(mark).toBeVisible({ timeout: 15000 });
+		const alpha = await mark.evaluate((el) => {
+			const c = getComputedStyle(el).backgroundColor;
+			const n = (c.match(/[\d.]+/g) ?? []).map(Number);
+			return c.startsWith('color(') ? (n[3] ?? 1) : (n[3] ?? 1);
+		});
+		expect(alpha, `${scheme}: a result's mark is opaque`).toBeLessThan(0.5);
+	}
+});
+
 readOnly('a result that starts mid-line lands with every line of it in half a pane', async ({ page }) => {
 	// the 0.14 study: landing scrolled to the first word of `Theorem 3.2.`'s statement, past the margin its other lines start at, so every line but the first lost its opening words
 	await page.setViewportSize({ width: 1440, height: 900 });

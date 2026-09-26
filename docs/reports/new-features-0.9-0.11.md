@@ -92,7 +92,7 @@ Annotations whose target is the **document itself** now appear at the top of the
 
 ### R2b: arras stops speaking one publisher's vocabulary
 
-![The interface floor](images/capability-floor-rail.png) ![A corpus that has everything](images/capability-full-rail.png)
+![The interface floor](images/capability-floor-home.png) ![A corpus that has everything](images/capability-full-home.png)
 
 *The same viewer, two corpora.* The manifest gained `publishes` (DR-156), four booleans saying what a corpus *has* — never what to draw. A capability answers what the data cannot: emptiness cannot tell "not yet" from "never", and since the manifest is re-polled every second, furniture derived from emptiness moves while you work.
 
@@ -106,7 +106,7 @@ Three open items were completed alongside the plan; the fourth is marked FOR HUM
 
 ### The viewer is faster, and the reason was not what it looked like
 
-![Paper](images/format-paper.png) ![Blog](images/format-blog.png)
+![Paper](images/format-p1.png) ![Blog](images/format-b1.png)
 
 The complaint was that "many things feel a little slow" and "clicking buttons in the settings is laggy". The conformance fixture has twelve formulas and could never show a slow page, so the probe ran against a 145-node corpus: **one document page is ~92,000 elements, 85% of them inside typeset math**, and a settings click cost **308 ms** before the next paint.
 

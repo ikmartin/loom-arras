@@ -419,12 +419,12 @@
 		outline: 1px solid var(--link, #35618f);
 		outline-offset: 1px;
 	}
-	/* A result's mark is a tint in the link wash, since a result is what a link into the paper lands on; an annotation's mark is drawn by theme.css from its classes and takes nothing from here but its place. Flat colour at low alpha: a blend mode or a shadow here is what makes a highlight layer expensive. */
+	/* A result's mark is a tint of the link's colour, since a result is what a link into the paper lands on; an annotation's mark is drawn by theme.css from its classes and takes nothing from here but its place. The glyphs are on the canvas under this layer, so the tint must be translucent in every theme: `--link-wash` is opaque in the light one and would cover the words. Flat colour at low alpha, since a blend mode or a shadow here is what makes a highlight layer expensive. */
 	.mark {
 		position: absolute;
 		border: 0;
 		padding: 0;
-		background: var(--link-wash);
+		background: color-mix(in srgb, var(--link) 12%, transparent);
 		cursor: pointer;
 		pointer-events: auto;
 		/* scrolled to, a mark stops short of the column's edge by the landing dot's room */

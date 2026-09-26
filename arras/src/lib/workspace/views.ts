@@ -1,4 +1,4 @@
-// A kind's internal views (plan 0.13.3, plan 0.16 decision 10): several readings of one thing, drawn at the end of its pane's tab strip rather than in a band the renderer draws for itself.
+// A kind's internal views (plan 0.13.3, plan 0.16 decision 10): several readings of one thing, drawn at the head of its pane's tab strip, before the tabs, rather than in a band the renderer draws for itself.
 
 import type { Manifest } from '$lib/manifest/types';
 
