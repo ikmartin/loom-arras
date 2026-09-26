@@ -185,7 +185,7 @@ Digest nodes are nodes: a page each, with the locator in the header, links from 
 
 **[decided]** Since plan 0.12 the cited works have a view of their own (10, DR-184): every cited work with how many of the author's keys cite it, how many results it has and how many proposals wait on the author, filtered in the URL. A work's page carries its asserted links at the top, then its proposals, each as 8.14's verification surface, then the digest. The graph view no longer draws a node that is in a digest and in no document.
 
-**[decided]** A work is also a **document one reads**, not only a list of results: `?page=N` on its page opens the paper itself in the split, with its anchors drawn on the page, a selection or a box sent to loom to be turned into an anchor, and a double-click travelling between a mark and what is anchored to it (DR-201, DR-202).
+**[decided]** A work is also a **document one reads**, not only a list of results: `?page=N` on its page opens the paper itself in the split, with its anchors drawn on the page, a selection or a box sent to loom to be turned into an anchor, and a double-click travelling between an annotation's mark and its box (DR-201, DR-202). A result's place on the page is drawn only where a link lands, and takes no pointer (DR-306-ikmartin).
 
 ## 8.13 A corpus is another tool's business
 

@@ -505,19 +505,30 @@ readOnly('a paper opened into half a pane fits its text, and its landing dot is 
 	await expect(page.getByTestId('zoom-at')).toHaveValue('140%');
 });
 
-readOnly('a result\'s mark tints the words and never covers them, in either theme', async ({ page }) => {
-	// the glyphs are on the canvas under the marks, so a mark's fill must be translucent or it hides the text it marks
+readOnly('a result is drawn only where a link lands, takes no pointer, and its words select like any other, in either theme', async ({ page }) => {
+	// the paper's own typography marks every result; a press on one reaches the words under it, and only a landed result is tinted, translucently, since the glyphs are on the canvas beneath
+	const alpha = (c: string) => { const n = (c.match(/[\d.]+/g) ?? []).map(Number); return n[3] ?? 1; };
 	for (const scheme of ['light', 'dark'] as const) {
 		await page.emulateMedia({ colorScheme: scheme });
 		await page.goto('/library/Bellamy19?page=2');
-		const mark = page.locator('.page .mark:not(.annotation):not(.transient)').first();
-		await expect(mark).toBeVisible({ timeout: 15000 });
-		const alpha = await mark.evaluate((el) => {
-			const c = getComputedStyle(el).backgroundColor;
-			const n = (c.match(/[\d.]+/g) ?? []).map(Number);
-			return c.startsWith('color(') ? (n[3] ?? 1) : (n[3] ?? 1);
-		});
-		expect(alpha, `${scheme}: a result's mark is opaque`).toBeLessThan(0.5);
+		const mark = page.locator('.page .mark.result').first();
+		await expect(mark).toBeAttached({ timeout: 15000 });
+		await mark.scrollIntoViewIfNeeded();
+		expect(alpha(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)), `${scheme}: drawn at rest`).toBe(0);
+		const hit = await mark.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.tagName; });
+		expect(hit, `${scheme}: a press on a result reaches the words`).toBe('SPAN');
+		const box = (await mark.boundingBox())!;
+		await page.mouse.move(box.x + 4, box.y + box.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2, { steps: 8 });
+		await page.mouse.up();
+		expect((await page.evaluate(() => String(window.getSelection()))).trim().length, `${scheme}: a drag across a result selects its words`).toBeGreaterThan(3);
+		await page.goto('/library/Bellamy19?page=2&result=Bellamy19-thm-3.2');
+		const landed = page.locator('.page .mark.result.on').first();
+		await expect(landed).toBeAttached({ timeout: 15000 });
+		const a = alpha(await landed.evaluate((el) => getComputedStyle(el).backgroundColor));
+		expect(a, `${scheme}: a landed result is tinted`).toBeGreaterThan(0);
+		expect(a, `${scheme}: a landed result covers its words`).toBeLessThan(0.5);
 	}
 });
 

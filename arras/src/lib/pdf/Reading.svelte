@@ -205,11 +205,8 @@
 		active = e.id;
 		if (e.note) ui.activeAnnotation = e.id;
 		if (e.travel) {
-			// a note travels to where it is listed — its session's record of it, or its card; a result to its entry beside the page
-			const to = e.note
-				? document.querySelector(`[id="ann-${CSS.escape(e.id)}"]`)
-				: document.querySelector(`[data-anchored="${CSS.escape(e.id)}"]`);
-			goTo(to, e.el);
+			// a note travels to where it is listed: its session's record of it, or its card (a result takes no pointer, so only a note arrives here)
+			goTo(document.querySelector(`[id="ann-${CSS.escape(e.id)}"]`), e.el);
 			return;
 		}
 		if (e.note && boxes) boxes.toggle(e.el, e.ids);

@@ -52,8 +52,9 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 	return loaded;
 }
 
+/** A fragment's macro set as definitions placed before its first formula. `\renewcommand` alone: MathJax's never checks that a macro exists, and it has no `\providecommand`, whose argument it would read as math and fail on, showing the formula's source instead. */
 function macroPrefix(macros: Macro[]): string {
-	return macros.map((m) => `\\providecommand{\\${m.name}}{}${m.args > 0 ? `\\renewcommand{\\${m.name}}[${m.args}]{${m.body}}` : `\\renewcommand{\\${m.name}}{${m.body}}`}`).join('');
+	return macros.map((m) => (m.args > 0 ? `\\renewcommand{\\${m.name}}[${m.args}]{${m.body}}` : `\\renewcommand{\\${m.name}}{${m.body}}`)).join('');
 }
 
 /** Typesetting is serialised: MathJax is not safe to enter twice, and a document typesetting in the background shares it with titles and previews. */

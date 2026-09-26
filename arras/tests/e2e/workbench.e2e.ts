@@ -67,3 +67,14 @@ test('with nothing being worked on, every view says so and points at the landmar
 	const read = page.locator('a[aria-label="read"], a[title="read"]').first();
 	if (await read.count()) await expect(read).toHaveAttribute('href', '/canon/widgets-v3');
 });
+
+test('a landmark\'s formulas typeset with its own macros: no formula falls back to its source', async ({ page }) => {
+	// a landmark's fragment names its macro set, which arras places before the first formula; a definition MathJax cannot read turns that whole formula into its TeX source
+	await page.goto('/canon/widgets-v1');
+	const math = page.locator('.fragment .math');
+	await expect(math.first().locator('mjx-container')).toBeAttached({ timeout: 15000 });
+	await expect(page.locator('.fragment mjx-container [data-mml-node="merror"]')).toHaveCount(0);
+	await expect(page.locator('.fragment')).not.toContainText('\\providecommand');
+	await expect(page.locator('.fragment')).not.toContainText('\\renewcommand');
+	expect(await math.evaluateAll((els) => els.filter((e) => !e.querySelector('mjx-container')).length), 'every formula typeset').toBe(0);
+});

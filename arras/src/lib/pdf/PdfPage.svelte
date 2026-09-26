@@ -296,6 +296,10 @@
 			{#each quads as q (q.id)}
 				{#each q.rects as r, i (i)}
 					{@const at = asPercent(r, box)}
+					{#if !q.note && !q.transient}
+						<!-- A result is drawn only where a link lands, and takes no pointer: the page's words under it select like any other, and a click on it does nothing, since what it would travel to is not beside the page. -->
+						<span class="mark result" class:on={focus === q.id} class:lead={i === 0} data-mark={q.id} data-testid="mark-{q.id}" aria-hidden="true" style="left: {at.left}; top: {at.top}; width: {at.width}; height: {at.height};"></span>
+					{:else}
 					<button
 						class="mark {q.note ? 'annotation' : ''} {q.note && q.kind ? 'k-' + q.kind : ''} {q.note && q.severity ? 's-' + q.severity : ''}"
 						class:note={q.note}
@@ -312,6 +316,7 @@
 						onclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: false, note: !!q.note, el: e.currentTarget })}
 						ondblclick={(e) => onmark?.({ id: q.id, ids: q.ids ?? [q.id], travel: true, note: !!q.note, el: e.currentTarget })}
 					></button>
+					{/if}
 				{/each}
 			{/each}
 		</div>
@@ -419,12 +424,12 @@
 		outline: 1px solid var(--link, #35618f);
 		outline-offset: 1px;
 	}
-	/* A result's mark is a tint of the link's colour, since a result is what a link into the paper lands on; an annotation's mark is drawn by theme.css from its classes and takes nothing from here but its place. The glyphs are on the canvas under this layer, so the tint must be translucent in every theme: `--link-wash` is opaque in the light one and would cover the words. Flat colour at low alpha, since a blend mode or a shadow here is what makes a highlight layer expensive. */
+	/* A result's mark is drawn only where a link lands (`on`): the paper's own typography already marks every result, so a tint on each would say nothing the page does not and make a read page busier than an unread one. It takes no pointer (`.result`), so selection runs through it. An annotation's mark is drawn by theme.css from its classes and takes nothing from here but its place. The glyphs are on the canvas under this layer, so any tint is translucent. */
 	.mark {
 		position: absolute;
 		border: 0;
 		padding: 0;
-		background: color-mix(in srgb, var(--link) 12%, transparent);
+		background: transparent;
 		cursor: pointer;
 		pointer-events: auto;
 		/* scrolled to, a mark stops short of the column's edge by the landing dot's room */
@@ -436,7 +441,10 @@
 	.page.boxing .link {
 		pointer-events: none;
 	}
-	.mark:not(.annotation):hover,
+	.mark.result {
+		pointer-events: none;
+		cursor: auto;
+	}
 	.mark.on:not(.annotation) {
 		background: color-mix(in srgb, var(--link) 30%, transparent);
 	}
