@@ -119,6 +119,8 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 - `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
 - `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.
 - `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes; carries the fix that starts one.
+- `loom:derived-id-in-drafting` (error, subject `source`): a document the drafting directory holds defines or cites an agent copy's derived id (book 5.3.1); the message names the plain id to use.
+- `loom:document-stem-taken` (error, subject `source`): two live documents, in the drafting directory and the agent's, share a stem (book 4.4).
 - `loom:document-gone` (warning): a drafting document that acceptance rows or annotations name is gone, and the history records no move that leads to a live document (book 17.12). One per document, named by the last path the history knows for it, counting the rows and annotations that name it, with its rows' keys in `keys` and `loom mv OLD NEW` as its fix (book 7.6.2; DR-297-ikmartin).
 
 ## 4. Adding a code

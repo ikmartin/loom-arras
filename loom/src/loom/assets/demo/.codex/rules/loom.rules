@@ -3,6 +3,7 @@
 prefix_rule(pattern = ["loom", "ai", "annotations"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "check"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "discard"], decision = "allow")
+prefix_rule(pattern = ["loom", "ai", "drafts"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "name"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "orient"], decision = "allow")
 prefix_rule(pattern = ["loom", "ai", "start"], decision = "allow")

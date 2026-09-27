@@ -74,6 +74,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
   "path": "drafting/main.tex",
   "title": "Relative virtual localization",
   "default": true,
+  "directory": "drafting",
   "fragment": "fragments/masters/main.html",
   "engine": "pdflatex",
   "compiled": "2026-09-16T14:39:10Z",
@@ -82,9 +83,11 @@ The values are properties of the publisher and its corpora, not of this corpus's
 }
 ```
 
-`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile.
+`compiled`, `pdf`, and `numbering_known` are absent or false before the first compile. `directory` is `"drafting"` for a document in the drafting directory and `"drafting-ai"` for one in the agent's drafting directory (book 4.4); only a `"drafting"` master is the default, has a Review tab, or is selected by the document workspace. The list holds the `"drafting"` masters first. An agent's copy also carries `copy_of`, the document it was copied from, where the history's moves have taken it (book 17.7.1).
 
 ## 3. Nodes
+
+`derived_of`, when present, marks an agent copy's node: the plain key its derived id corresponds to (`"zk-0001"` for `zk-0001-ai`, book 5.3.1). Such a node also carries `base`, `{"key", "step", "hash"}`, the version of its plain key it began from, unless the agent wrote it new (book 17.7.1). Such a node is in `nodes` and `keys` like any other, and in neither `tags` nor `search`; a viewer's whole-quilt views leave it out and a view scoped to its document shows it.
 
 `name`, when present on a node, is an optional plain-text display name from its own `% !LOOM name:` directive. It is not unique, a reference alias, or a replacement for `id` or `title`. Display prefers `name`, then `title`, then type and document number in an explicitly selected document, then ID. Search entries prefer the name as their title and retain the original title in the excerpt; aliases are unchanged (DR-301-luisa).
 

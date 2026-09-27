@@ -40,8 +40,10 @@ class FreezePlan:
 
 def versionable(n: NodeRec) -> bool:
     """A statement or proof key with an identity: `rl-0001`, `rl-0001/proof`, `rl-0001/proof/2`, a labelled proof's own id; never a qualified key, a section, or a conflicted placeholder."""
-    if n.kind not in ("environment", "proof") or "#" in n.key:
-        return False
+    if n.kind not in ("environment", "proof") or "#" in n.key or n.derived_of:
+        return (
+            False  # an agent copy's node has no history of its own: its base is its counterpart's version (book 17.7)
+        )
     if n.kind == "environment":
         return bool(n.id)
     return bool(n.id) or bool(n.of and "#" not in n.of)

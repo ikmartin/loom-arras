@@ -1,4 +1,4 @@
-"""`loom ai check SESSION` (book 11.8): files outside the session, the annotation log, and `build/` modified since it opened."""
+"""`loom ai check SESSION` (book 11.8): files outside the session, the annotation log, `build/` and the agent's documents in `[quilt] drafting_ai` modified since it opened."""
 
 from __future__ import annotations
 
@@ -18,6 +18,9 @@ def outside_writes(root: Path, session: Session) -> list[str]:
     if not opened:
         raise ValueError(f"{session.id} has no opening time")
     since = datetime.fromisoformat(opened.replace("Z", "+00:00")).timestamp()
+    from loom.ai.layout import quilt_config
+
+    drafting_ai = Path(quilt_config(root).drafting_ai).parts[0]
     out: list[str] = []
     for p in sorted(root.rglob("*")):
         if not p.is_file():
@@ -26,6 +29,8 @@ def outside_writes(root: Path, session: Session) -> list[str]:
         if any(part in SKIP for part in rel.parts[:-1]) or rel.parts[0] in SKIP:
             continue
         if p.is_relative_to(run_dir):
+            continue
+        if rel.parts[0] == drafting_ai:  # the documents the person and an agent both edit (book 4.1)
             continue
         if (
             p.stat().st_mtime > since + 1.0

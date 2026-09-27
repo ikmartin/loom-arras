@@ -41,6 +41,7 @@ def nothing(_: Path) -> None:
 #: command path -> (arguments before `--json`, setup, exit code); each runs on its own fresh demo.
 CASES: dict[str, tuple[list[str], Setup, int]] = {
     "ai annotations": ([], nothing, 0),
+    "ai drafts": ([], nothing, 0),
     "atomize": (["--key", "dm-0004"], nothing, 0),
     "canonicalize": (["drafting/main.tex", "--message", "m"], nothing, 0),
     "canonise": (["drafting/main.tex", "--message", "m"], nothing, 0),
@@ -48,6 +49,7 @@ CASES: dict[str, tuple[list[str], Setup, int]] = {
     "deps": (["dm-0003"], nothing, 0),
     "doctor": ([], nothing, 0),
     "downstream": (["dm-0001"], nothing, 0),
+    "draft": (["drafting/main.tex", "--ai", "aidoc.tex"], nothing, 0),
     "fork": (["dm-0001", "--in", "drafting/main.tex"], nothing, 0),
     "history": ([], nothing, 0),
     "id": (["--next"], nothing, 0),

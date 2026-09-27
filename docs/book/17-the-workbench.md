@@ -78,6 +78,7 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
 | `import` | `from` (the paper's name and hash), `to` (the canon path and hash), `inlined` |
 | `canonize` | `message`, `document`, `live`, `from`, `to`, `froze` (key to hash), `of`, `reaches`, `removed`, `restored`, `preamble`, `parent` |
 | `stamp` | `message`, `in` (a document, or null), `froze`, `of`, `removed`, `restored`, `preamble` |
+| `copy` | `from` (the source document), `to` (the agent's copy), `bases` (each derived key to `{key, step, hash}`: its plain key, the step whose version is its base, that version's hash), `froze`, `of`, `restored`, `preamble` |
 | `draft` | `from` (canon path, hash, step), `to`, `ids`, `moved` |
 | `atomize` | `from`, `to`, `keys`, `superseded`, `retired` |
 | `linearize` | `from`, `to`, `superseded`, `forks`, `kept` |
@@ -97,6 +98,17 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
 **[decided]** The copy is live because of where it sits. The ledger line records where it came from, including the step, so that the landmark it continues is known without the author saying so.
 
 **[decided]** When the canon file's text is not the text its step recorded, `draft` says so (`loom:canon-edited`) and drafts from the file as it is. The head is always the files on disk.
+
+### 17.7.1 The copy across the border
+
+**[decided]** `loom draft DOC --ai NAME [--json]` copies a live document of the drafting directory into the agent's drafting directory (4.4) as `NAME`, for the person and an agent to edit together. It is the author's command; an agent cannot run it (11.8).
+
+- **The copy is flat**: every inclusion expanded, as `loom linearize` expands them, so an agent edits one file and never the person's node files through an `\input`.
+- **Every label the copy defines is derived** — an id becomes its derived id (`dm-0001` → `dm-0001-ai`, 5.3.1), and any other label takes the same suffix (`eq:fix` → `eq:fix-ai`), since labels are claimed quilt-wide — and every reference to one of them is rewritten. A reference to a label the copy does not define is left as it is.
+- **One copy per document.** A second copy of the same document is refused, naming the first; so is a `NAME` that exists or whose stem another live document has.
+- **A `copy` step records what each node began from.** It freezes, as a stamp does, every key the document reaches whose text no step records yet, so that every **base** is a version loom can read back; the line maps each derived key to its base, `dm-0002-ai` → `dm-0002@1`. The step keeps the source's flat text under the source's own file name, which is what the prose between nodes and the preamble are later compared against. A copy's bases are read from its `copy` line, the copy's path followed across moves; the manifest carries a copy's `copy_of` and each derived node's `base`.
+
+**[decided]** **A copy is stale** when the person's side has moved past it: a node it was based on changed mathematically since its base — a display name alone is no change (5.13) — or left the source, or the source's prose between nodes, or its preamble, is not what the copy step recorded. Comment lines are no prose. `loom ai drafts [--json]` lists each copy, its source, and what moved; an agent checks it before a large instruction on a copy and suggests refreshing a stale one rather than working against text the person has since changed (Appendix D).
 
 ## 17.8 `loom canonize`
 

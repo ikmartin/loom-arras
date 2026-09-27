@@ -39,7 +39,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
 ## Outputs
 
-1. Every output is a file in your session's directory, named by mode and target. Never write anywhere else.
+1. Every output is a file in your session's directory, named by mode and target, except the edits you make to a copy in `drafting-ai/` when the author asks you to work there (orientation §2). Never write anywhere else.
 2. LaTeX outputs (`draft-ID.tex`, `proposal-KEY.diff`, `ingest-CITEKEY.tex`) must compile with the quilt's preamble: use the environment names and macros as they appear in the source; `\ref{ID}` and `\uses{ID, ...}` for dependencies; `\incomplete{...}` for anything you could not do; `\label{ID}` when an id was given. This is real LaTeX; no chat restrictions apply.
 3. Notes files (`MODE-TARGET.notes.md`) are Markdown with `$...$` and `$$...$$` math; the viewer renders them, so keep math in TeX. Headings name blocks: `## [hypothesis-ledger]`. A notes file begins with `## [summary]` and ends with the mode's checklist, ticked — except quick's, which is `[answer]` alone, a summary of it being longer than the answer.
 4. Verification you can do: to check that a proposal or a draft compiles, compile it with your text in place of the quilt's (`loom compile KEY --with proposal-KEY.diff --session SESSION` or `loom compile --draft draft-ID.tex --session SESSION`). Nothing in the quilt changes. Report the result in the notes.
@@ -211,7 +211,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 # Mode: draft
 
 ## Before you begin
-- Write only under your session's directory. Never edit source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
+- Write only under your session's directory, unless the author asks you to draft into a copy in `drafting-ai/`: then run `loom ai drafts` first and write the node there, its id with the `-ai` suffix. Never edit the author's source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -235,7 +235,7 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 - [ ] Every fact used is a `\ref` or `\uses` to an existing id or a digest node.
 - [ ] Every incomplete step is marked `\incomplete`.
 - [ ] The draft compiles.
-- [ ] Nothing was written outside your session's directory.
+- [ ] Nothing was written outside your session's directory. The one exception is a node drafted into the copy in `drafting-ai/` the author named.
 
 ---
 

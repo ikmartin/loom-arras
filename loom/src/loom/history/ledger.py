@@ -12,11 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from loom.clock import stamp
-from loom.scan.labels import is_id_shaped
+from loom.scan.labels import derived_of, is_id_shaped
 
 LEDGER = "ledger.jsonl"
 TEXTS = "texts"
-STEP_ACTIONS = ("import", "canonize", "stamp")
+STEP_ACTIONS = ("import", "canonize", "stamp", "copy")
 ACTIONS = (*STEP_ACTIONS, "draft", "atomize", "linearize", "fork", "revert", "live", "move")
 #: The actions that move a document, and the fields naming where from and where to; two lists pair by position. `retired` is never a destination: a retired source is gone, and the document it became is its `to`.
 MOVES: dict[str, tuple[str, str]] = {"atomize": ("from", "to"), "linearize": ("from", "to"), "move": ("from", "to")}
@@ -207,6 +207,70 @@ class History:
         end = self.document_trail(path, live)[-1]
         return end if end in live else None
 
+    def copies(self, live: Collection[str]) -> dict[str, str]:
+        """Every agent copy still live -> the document it copies, each where the history's moves have taken it (book 4.4)."""
+        out: dict[str, str] = {}
+        for e in self.entries:
+            if e.action != "copy":
+                continue
+            copy = self.current_document(str(e.get("to", "")), live)
+            if copy:
+                source = str(e.get("from", ""))
+                out[copy] = self.current_document(source, live) or source
+        return out
+
+    def copy_of(self, copy: str, live: Collection[str]) -> str | None:
+        """The document an agent copy was made from, where it is now, or as recorded when it is gone; None for a document that is no copy.
+
+        Parameters
+        ----------
+        copy : str
+            The copy's path, as it is now or as a record wrote it.
+        live : collection of str
+            The live documents: a scan's `masters`.
+
+        Returns
+        -------
+        str or None
+            The source document.
+
+        See Also
+        --------
+        bases : what each of the copy's nodes began from.
+        """
+        return self.copies(live).get(self.current_document(copy, live) or copy)
+
+    def bases(self, copy: str, live: Collection[str]) -> dict[str, dict[str, Any]]:
+        """What each of an agent copy's nodes began from, as its latest `copy`, `adopt` or `refresh` line records it (book 17.7).
+
+        Parameters
+        ----------
+        copy : str
+            The copy's path, as it is now or as a record wrote it.
+        live : collection of str
+            The live documents: a scan's `masters`.
+
+        Returns
+        -------
+        dict
+            Derived key -> `{"key", "step", "hash"}`: the plain key, the step whose version of it is the base, and that version's hash. Empty for a document that is no copy.
+
+        See Also
+        --------
+        copy_of : the document the copy was made from.
+        """
+        target = self.current_document(copy, live) or copy
+        out: dict[str, dict[str, Any]] = {}
+        for e in self.entries:
+            if e.action not in ("copy", "adopt", "refresh"):
+                continue
+            path = str(e.get("to" if e.action == "copy" else "copy", ""))
+            if (self.current_document(path, live) or path) != target:
+                continue
+            for key, base in (e.get("bases") or {}).items():
+                out[key] = dict(base)
+        return out
+
     def _walk(self) -> tuple[dict[str, tuple[int, str]], dict[str, tuple[int, str]], dict[str, int]]:
         """(state, ever, removed_at) after the last step: the live versions, every key's last version, and the step at which a key was last removed without being restored since."""
         state: dict[str, tuple[int, str]] = {}
@@ -267,7 +331,7 @@ class History:
                 out.add(k.split("/", 1)[0])
             if e.action == "fork":
                 out.add(str(e.get("new", "")))
-        return {i for i in out if is_id_shaped(i)}
+        return {i for i in out if is_id_shaped(i) and derived_of(i) is None}
 
     def last_preamble(self) -> str | None:
         for e in reversed(self.steps()):

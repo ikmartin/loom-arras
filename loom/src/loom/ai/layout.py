@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
+from loom.scan.quilt import QuiltConfig
+
 MODES = ["audit", "referee", "review", "simplify", "question", "quick", "draft", "ingest", "brainstorm"]
 RULES = "rules.md"  # `ai/rules.md`: not a mode, and no longer filed among them
 TARGET_MODES = ["audit", "referee", "review", "simplify", "draft", "ingest"]
@@ -32,7 +34,7 @@ AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
-        "ai annotations", "ai check", "ai discard", "ai name", "ai orient", "ai start",
+        "ai annotations", "ai check", "ai discard", "ai drafts", "ai name", "ai orient", "ai start",
         # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
         # session stay the author's, because they are decisions about the work rather than participation in it.
         "session list", "session next", "session say", "session send", "session watch",
@@ -43,10 +45,14 @@ AGENT_COMMANDS = frozenset(
         "refs resolve", "refs unlink", "refs why",
     }
 )  # fmt: skip
-AGENT_WRITES = (".loom/sessions", "build")  # the only places an agent may write
+AGENT_WRITES = (
+    ".loom/sessions",
+    "build",
+)  # the only places an agent may write, besides the quilt's `[quilt] drafting_ai`
 # `.loom` is not read-only wholesale any more: a session's own directory is under it and is where an agent writes its
 # journal and its notes, so the parts that are the record -- the history and the acceptance ledger -- are named instead.
-AGENT_READONLY = ("nodes", "drafting", "canon", "retired", "digests", "refs", "annotations", ".loom/history", "ai")
+# The person's drafting and canon directories are read-only too, under the names the quilt gives them (`agent_dirs`).
+AGENT_READONLY = ("nodes", "retired", "digests", "refs", "annotations", ".loom/history", "ai")
 AGENT_READONLY_FILES = (
     "ai/orientation.md",
     "ai/rules.md",
@@ -57,7 +63,7 @@ AGENT_READONLY_FILES = (
     ".loom/sessions/index.jsonl",
 )
 
-CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`."
+CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit."
 VERSION_FILE = ".loom-modes-version"
 
 
@@ -123,18 +129,34 @@ def write_versions(root: Path, texts: dict[str, str]) -> None:
     (root / "ai" / VERSION_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def permissions_json() -> str:
-    """`.claude/settings.json`, generated from the one table rather than written by hand.
+def agent_dirs(config: QuiltConfig) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting, `drafting_ai` and canon names in them (book 11.3)."""
+    return AGENT_WRITES + (config.drafting_ai,), (config.drafting, config.canon) + AGENT_READONLY
 
-    Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71), so the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, rather than a list somebody remembered to extend -- and allows `AGENT_COMMANDS` themselves outright, because an agent `loom serve` starts for one turn cannot answer a permission prompt (plan 0.14). The hand-written one had drifted by seven commands, `loom upgrade` and both spellings of `loom canonize` among them, so `loom canonise` walked through the deny on `loom canonize`.
+
+def quilt_config(root: Path) -> QuiltConfig:
+    """The config of the quilt at `root`, or the defaults where there is none yet: the names the permission file is written with."""
+    from loom.scan.quilt import NoQuiltError, load_quilt
+
+    try:
+        return load_quilt(root).config
+    except NoQuiltError:
+        return QuiltConfig()
+
+
+def permissions_json(config: QuiltConfig) -> str:
+    """`.claude/settings.json` for a quilt, generated from the one table rather than written by hand.
+
+    Claude Code's deny rules beat its allow rules and an allow-only whitelist cannot be expressed (DR-71), so the file enumerates what is refused -- the complement of `AGENT_COMMANDS`, rather than a list somebody remembered to extend -- and allows `AGENT_COMMANDS` themselves outright, because an agent `loom serve` starts for one turn cannot answer a permission prompt (plan 0.14). The directories are the quilt's own names (`agent_dirs`), so a quilt that renames `drafting` keeps it read-only.
     """
     import json
 
+    writes, readonly = agent_dirs(config)
     # `Edit` rules govern every file-editing tool; Claude Code does not match `Write` rules against paths at all
-    allow = [f"Edit(/{d}/**)" for d in AGENT_WRITES]
+    allow = [f"Edit(/{d}/**)" for d in writes]
     # the agent's own commands, allowed outright: an agent `loom serve` starts for a turn cannot answer a prompt
     allow += [f"Bash(loom {c}*)" for c in sorted(AGENT_COMMANDS)]
-    deny = [f"Edit(/{d}/**)" for d in AGENT_READONLY]
+    deny = [f"Edit(/{d}/**)" for d in readonly]
     deny += [f"Edit(/{f})" for f in AGENT_READONLY_FILES]
     deny += [f"Edit(/*.{ext})" for ext in ("tex", "sty", "bib")]
     deny += [f"Bash(loom {c}*)" for c in author_commands()]
@@ -168,11 +190,11 @@ def codex_rules() -> str:
     return "\n".join(head + body) + "\n"
 
 
-def vendor_files(permissions: bool, skills: bool, codex: bool = False) -> dict[str, str]:
-    """Quilt-relative path -> text for the files loom owns whole; the agent root files are not among them (see `ensure_root_line`)."""
+def vendor_files(config: QuiltConfig, permissions: bool, skills: bool, codex: bool = False) -> dict[str, str]:
+    """Quilt-relative path -> text for the files loom owns whole in a quilt with `config`; the agent root files are not among them (see `ensure_root_line`)."""
     out: dict[str, str] = {}
     if permissions:
-        out[CLAUDE_SETTINGS] = permissions_json()
+        out[CLAUDE_SETTINGS] = permissions_json(config)
     if codex:
         out[CODEX_RULES] = codex_rules()
     if skills:
@@ -245,7 +267,7 @@ def init_layer(root: Path, skills: bool = False) -> LayerReport:
         rep.written.append(f"ai/{name}")
     write_versions(root, texts)
     rep.written.append(f"ai/{VERSION_FILE}")
-    for rel, text in vendor_files(True, skills, True).items():
+    for rel, text in vendor_files(quilt_config(root), True, skills, True).items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(text, encoding="utf-8")
@@ -308,7 +330,7 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
             rep.unchanged.append(f"ai/{name}")
     # a quilt with ai/ has both permission files, so a missing one is written like a stale one
     skills = (root / ".claude" / "skills").is_dir() or (root / ".claude" / "commands").is_dir()
-    for rel, text in vendor_files(True, skills, True).items():
+    for rel, text in vendor_files(quilt_config(root), True, skills, True).items():
         p = root / rel
         if p.is_file() and p.read_text(encoding="utf-8") == text:
             rep.unchanged.append(rel)
@@ -321,7 +343,7 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
     return rep
 
 
-def settings_deny_paths() -> list[str]:
-    """The Edit/Write patterns and commands the generated settings deny, for tests."""
-    data = json.loads(permissions_json())
+def settings_deny_paths(config: QuiltConfig) -> list[str]:
+    """The Edit/Write patterns and commands the generated settings deny for a quilt with `config`, for tests."""
+    data = json.loads(permissions_json(config))
     return [str(r) for r in data["permissions"]["deny"]]

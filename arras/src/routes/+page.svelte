@@ -7,12 +7,14 @@
 	import { toneClass } from '$lib/state';
 
 	const m = $derived(store.manifest!);
-	const keys = $derived(Object.values(m.keys));
+	// the person's own work: an agent copy's derived keys are the copy's, and are counted nowhere here
+	const keys = $derived(Object.values(m.keys).filter((k) => !m.nodes[k.node]?.derived_of));
 	const count = (state: string) => keys.filter((k) => k.state === state).length;
 	const stale = $derived(keys.filter((k) => k.acceptance && k.acceptance.fresh === false));
 	const incomplete = $derived(keys.filter((k) => k.state === 'incomplete'));
 	const errors = $derived(m.diagnostics.filter((d) => d.severity === 'error'));
-	const nodes = $derived(Object.values(m.nodes).filter((n) => n.kind !== 'section'));
+	const nodes = $derived(Object.values(m.nodes).filter((n) => n.kind !== 'section' && !n.derived_of));
+	const own = $derived(m.masters.filter((master) => master.directory !== 'drafting-ai'));
 	const loose = $derived(nodes.filter((n) => n.reached_by.length === 0));
 
 	const cards = $derived([
@@ -52,9 +54,10 @@
 	</div>
 
 	<h2>Documents</h2>
-	{#if m.masters.length}
+	<!-- the person's documents: an agent's copy carries its source's title, and the panel lists it under its own directory -->
+	{#if own.length}
 		<ul class="plain">
-			{#each m.masters as master (master.path)}
+			{#each own as master (master.path)}
 				<li>
 					<a href={masterUrl(master.path)}>{master.title || master.path}</a>
 					<span class="faint">{master.path}{master.default ? ' · default' : ''}{master.numbering_known ? '' : ' · not yet numbered'}</span>

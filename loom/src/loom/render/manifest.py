@@ -272,12 +272,18 @@ def build_manifest(
         "macros": {"default": [], "sets": {}},
         "search": [],
     }
-    for m in result.masters:
+    # an agent copy's source and each derived node's base (book 17.7), read from the history the scan loaded
+    record = result.history
+    copies = record.copies(result.masters) if record is not None else {}
+    bases = {c: record.bases(c, result.masters) for c in copies} if record is not None else {}
+    # the person's documents first, then the agent's: every list a viewer draws from this one reads in that order
+    for m in sorted(result.masters, key=lambda m: result.document_role(m) != "drafting"):
         closure = result.closures.get(m)
         entry: dict[str, Any] = {
             "path": m,
             "title": master_title(result, m) or m,
             "default": m == dm,
+            "directory": result.document_role(m),
             "fragment": fragments.get(f"master:{m}", ""),
             "engine": (closure.engine if closure and closure.engine else result.quilt.config.engine),
         }
@@ -287,6 +293,8 @@ def build_manifest(
             entry["compiled"] = _iso(pdf.stat().st_mtime)
             entry["pdf"] = f"{_stem(m)}/{_stem(m)}.pdf"
         entry["numbering_known"] = aux_known
+        if m in copies:
+            entry["copy_of"] = copies[m]
         manifest["masters"].append(entry)
     for key, n in asm.nodes.items():
         if n.kind == "conflict":
@@ -323,6 +331,11 @@ def build_manifest(
         }
         if n.directives.get("name", "").strip():
             entry["name"] = n.directives["name"].strip()
+        if n.derived_of:
+            entry["derived_of"] = n.derived_of
+            base = next((bases[c][key] for c in n.reached_by if key in bases.get(c, {})), None)
+            if base is not None:
+                entry["base"] = base
         if n.kind == "section":
             entry["level"] = n.level  # the sectioning depth, so a viewer's contents can stop at subsubsection
         if n.kind == "environment":
@@ -332,7 +345,9 @@ def build_manifest(
         if n.external:
             entry["locator"] = _locator(n)
         manifest["nodes"][key] = entry
-        for tag in tags:
+        for tag in (
+            tags if not n.derived_of else ()
+        ):  # an agent copy's node is found through its own document, not the quilt's indexes
             manifest["tags"].setdefault(tag, []).append(key)
         if n.kind == "environment" or n.kind == "proof":
             manifest["keys"][key] = _key_entry(result, n)
@@ -489,6 +504,8 @@ def build_manifest(
     mathjax_macros.update(compatibility_macros(mathjax_macros))
     manifest["macros"]["default"] = to_mathjax(mathjax_macros)
     for key, entry in manifest["nodes"].items():
+        if entry.get("derived_of"):
+            continue
         manifest["search"].append(
             {
                 "key": key,

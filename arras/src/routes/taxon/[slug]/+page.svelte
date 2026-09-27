@@ -6,7 +6,7 @@
 	const m = $derived(store.manifest!);
 	const slug = $derived(decodeURIComponent(page.params.slug ?? ''));
 	const name = $derived(Object.entries(m.taxa).find(([, t]) => t.slug === slug)?.[0] ?? slug);
-	const nodes = $derived(Object.values(m.nodes).filter((n) => n.taxon === name));
+	const nodes = $derived(Object.values(m.nodes).filter((n) => n.taxon === name && !n.derived_of));
 </script>
 
 <main class="page">

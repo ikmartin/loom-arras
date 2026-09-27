@@ -76,6 +76,9 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:node-recovered": ("info", False),
     "loom:no-live-document": ("info", False),
     "loom:document-gone": ("warning", False),
+    # the documents an agent edits (plan 0.17.1)
+    "loom:derived-id-in-drafting": ("error", False),
+    "loom:document-stem-taken": ("error", False),
     # the PDF invariant (plan 0.13 §4): a warning and never an error, because loom cannot fetch without consent
     "loom:no-readable-copy": ("warning", False),
 }

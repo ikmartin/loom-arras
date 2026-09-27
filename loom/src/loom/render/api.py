@@ -164,6 +164,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             node = result.nodes[key]
             if (
                 node.external
+                or node.derived_of
                 or node.incomplete
                 or (node.kind == "environment" and node.basis in ("open-claim", "unclassified"))
             ):

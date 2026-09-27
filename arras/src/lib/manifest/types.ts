@@ -63,6 +63,8 @@ export interface Master {
   compiled?: string;
   pdf?: string;
   numbering_known?: boolean;
+  /** Which drafting directory it is in: the person's own, or the one the person and an agent both edit (book 4.1). */
+  directory?: "drafting" | "drafting-ai" | null;
 }
 
 export interface NumberEntry {
@@ -72,6 +74,8 @@ export interface NumberEntry {
 
 export interface Node {
   name?: string;
+  /** An agent copy's node: the plain key it corresponds to, `zk-0001` for `zk-0001-ai` (book 5.3). Whole-quilt views leave such nodes out. */
+  derived_of?: string;
   id: string;
   kind: "environment" | "section" | "proof" | (string & {});
   /** Sections only: the sectioning depth, 1 for \section. A contents list stops at a chosen depth with it. */

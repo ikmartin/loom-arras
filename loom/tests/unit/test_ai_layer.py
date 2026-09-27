@@ -420,12 +420,13 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
 def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) -> None:
     """One table, `AGENT_COMMANDS`, decides what an agent may run: the deny list is its complement, so a command added later is the author's until it is admitted, and the settings file and the prose in rules.md are rendered from it (DR-173)."""
     from loom.ai.layout import AGENT_COMMANDS, author_commands, command_tree, permissions_json, settings_deny_paths
+    from loom.scan.quilt import QuiltConfig
 
     every = set(command_tree())
     assert AGENT_COMMANDS < every, "the allow-list names commands loom does not have"
     assert set(author_commands()) == every - AGENT_COMMANDS  # derived, never listed
 
-    denied_paths = settings_deny_paths()
+    denied_paths = settings_deny_paths(QuiltConfig())
     denied = {d.removeprefix("Bash(loom ").removesuffix("*)") for d in denied_paths if d.startswith("Bash(loom ")}
     assert denied == every - AGENT_COMMANDS
 
@@ -442,7 +443,7 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     assert "Edit(/reference-notes.jsonl)" in denied_paths
 
     q = bare(tmp_path)
-    assert (q / ".claude" / "settings.json").read_text() == permissions_json()
+    assert (q / ".claude" / "settings.json").read_text() == permissions_json(QuiltConfig())
     rules = (q / "ai" / "rules.md").read_text()
     for c in sorted(AGENT_COMMANDS):
         assert f"`loom {c}`" in rules, c  # the prose is the same table
@@ -503,6 +504,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "ai init",
         "upgrade",
         "session use",
+        "draft",  # the orientation names `loom draft DOC --ai NAME` as how the author makes the agent's copy
     }
     told = {c for c in author_commands() if re.search(rf"`loom {re.escape(c)}\b", docs)}
     assert told <= named_to_refuse, sorted(told - named_to_refuse)

@@ -66,13 +66,20 @@ def _master_compiles(result: ScanResult, master: str | None = None) -> tuple[boo
 
 
 def _acceptance_master(result: ScanResult, key: str) -> str:
-    """Choose a deterministic document context for an acceptance not explicitly scoped to one master."""
-    reached = result.nodes[key].reached_by
+    """Choose a deterministic document context for an acceptance not explicitly scoped to one master: never an agent's document, which nothing is accepted in."""
+    reached = [m for m in result.nodes[key].reached_by if result.document_role(m) == "drafting"]
     if result.default_master and result.default_master in reached:
         return result.default_master
     if reached:
         return str(reached[0])
-    return result.default_master or (result.masters[0] if result.masters else "")
+    own = [m for m in result.masters if result.document_role(m) == "drafting"]
+    return result.default_master or (own[0] if own else "")
+
+
+def _owned(result: ScanResult, key: str) -> bool:
+    """A key the person's own documents reach, and not an agent copy's derived key: what `--all-live` and `--master` may accept."""
+    n = result.nodes[key]
+    return not n.derived_of and any(result.document_role(m) == "drafting" for m in n.reached_by)
 
 
 def write_acceptance(
@@ -178,12 +185,15 @@ def accept(
     targets: list[str] = []
     contexts: dict[str, str] = {}
     if all_live or accept_master:
-        if accept_master and accept_master not in result.masters:
-            raise EnvError(f"{accept_master} is not a live drafting document")
+        if accept_master and result.document_role(accept_master) != "drafting":
+            raise EnvError(
+                f"{accept_master} is not a live drafting document"
+                + (": nothing in an agent's document is accepted" if result.document_role(accept_master) else "")
+            )
         conflicts = sorted(
             k
             for k, n in result.nodes.items()
-            if n.kind == "conflict" and (accept_master in n.reached_by if accept_master else bool(n.reached_by))
+            if n.kind == "conflict" and (accept_master in n.reached_by if accept_master else _owned(result, k))
         )
         scope = f"--master {accept_master}" if accept_master else "--all-live"
         if conflicts:
@@ -192,7 +202,8 @@ def accept(
             k
             for k, n in result.nodes.items()
             if n.kind in ("environment", "proof")
-            and (accept_master in n.reached_by if accept_master else bool(n.reached_by))
+            and (accept_master in n.reached_by if accept_master else _owned(result, k))
+            and not n.derived_of
             and not n.external
         )
         if not targets:
@@ -249,6 +260,10 @@ def accept(
         n = result.nodes[key]
         if n.kind not in ("environment", "proof"):
             raise EnvError(f"{key} is not a statement or proof key")
+        if n.derived_of:
+            raise EnvError(
+                f"{key} is an agent copy's node, which is never accepted; acceptance belongs to the node it becomes, {n.derived_of}"
+            )
         # Two claims, two commands. `loom accept` says "I have proved this, or I am satisfied it holds" and is about
         # the author's own mathematics; a digest node's is "this copy is faithful to the paper it came from", which
         # settles nothing mathematical and is not the author's to settle. DR-172 relabelled the output where the
@@ -957,6 +972,8 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         n = result.nodes[key]
         if n.kind == "section" and not live.get(key):
             continue  # a section is a row only when it carries a finding; otherwise it is structure, not work
+        if n.derived_of:
+            continue  # an agent copy's node is the copy's, not the person's work: its counterpart is the row
         entry: dict[str, Any] = {
             "key": key,
             "node": n.of if n.kind == "proof" and n.of else key,

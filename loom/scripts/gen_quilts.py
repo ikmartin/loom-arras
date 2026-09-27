@@ -359,6 +359,29 @@ def build_synthetic(dest: Path) -> None:
     )
     g.run("ai", "discard", quick)
 
+    # An agent's copy of the paper (plan 0.17.1), then the agent's edits in it, one of each kind a copy can differ from its source by: a node changed, a node changed here and again by the author below, a node written new under the author's next number, a node deleted, and a node moved unchanged.
+    g.at("2026-09-16T10:00:00Z")
+    g.run("draft", "drafting/main.tex", "--ai", "aidoc.tex")
+    ai = "drafting-ai/aidoc.tex"
+    g.edit(
+        ai,
+        "Every orbit of a widget has one or two points;",
+        "Every orbit of a widget has at most two points, and one exactly when its point is fixed;",
+    )
+    g.edit(ai, "Its fixed locus is", "Its \\emph{fixed locus} is")
+    # the copy's inherited faults, which an agent tidying it would fix: its lint then adds none to the quilt's
+    g.edit(ai, " Note also the dangling reference to Lemma~\\ref{sy-9999}.", "")
+    g.edit(ai, "\\input{nodes/missing}\n", "")
+    g.edit(ai, "% !LOOM see: sy-7777, def:gadget-ai\n", "")
+    g.edit(
+        ai,
+        "\\begin{lemma}\\label{sy-0202-ai}\n% !LOOM author: A Coauthor\nA lemma written by a coauthor, so its author directive overrides the file's.\n\\end{lemma}\n\\begin{proof}\nTrivial.\n\\end{proof}\n",
+        "",
+    )
+    remark = "\\begin{remark}\\label{sy-000A-ai}\nGadgets exist: take $X = \\{1,2\\}$ with the swap. Compare \\cite[Theorem 2.1]{Kre99}.\n\\end{remark}\n"
+    g.edit(ai, remark, "")
+    g.edit(ai, "\\begin{lemma}[Orbits]\\label{sy-0002-ai}", remark + "\n\\begin{lemma}[Orbits]\\label{sy-0002-ai}")
+
     # The definition is revised once more, and the question that quoted the old wording no longer matches it: an annotation loom cannot place is said to be detached, never quietly moved.
     g.edit(
         "drafting/main.tex",
@@ -382,6 +405,15 @@ def build_synthetic(dest: Path) -> None:
     )
     with (dest / "canon" / "widgets-v1.tex").open("a", encoding="utf-8") as fh:
         fh.write("% A landmark edited after the fact, so loom:canon-edited has something to report.\n")
+
+    # The agent's node written new, last, so it takes the author's next number after every id the author allocated.
+    g.at("2026-09-16T11:00:00Z")
+    fresh = g.run("id", "--next").strip()
+    g.edit(
+        ai,
+        "\\section{Results}",
+        f"\\begin{{definition}}[Orbit pair]\\label{{{fresh}-ai}}\nAn \\emph{{orbit pair}} is an orbit with two points.\n\\end{{definition}}\n\n\\section{{Results}}",
+    )
 
     _write_expected_lint(g)
 

@@ -18,6 +18,8 @@ relloc/
   drafting/                the drafting directory (configurable name): every document in it is live
     main.tex               default master
     talk.tex               another master
+  drafting-ai/             the agent's drafting directory (configurable name): documents the person and an agent both edit (4.4)
+    aidoc.tex              an agent's copy of main.tex
   canon/                   landmarks (configurable name): flat, self-contained, never scanned
     paper-v1.tex
     paper-v2.tex
@@ -88,6 +90,7 @@ Example: a single-file author's quilt has `config.toml`, `loom.sty`, `refs.bib`,
 name = "Relative localization"  # the project's name, which arras shows
 main = "drafting/main.tex"  # default master
 drafting = "drafting"       # the drafting directory: every document in it is live
+drafting_ai = "drafting-ai" # the agent's drafting directory: live, never reviewed, accepted or published (4.4)
 canon = "canon"             # landmarks: flat, self-contained, never scanned
 prefix = "rl"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
@@ -138,7 +141,7 @@ Rules:
 
 ## 4.4 Live documents and the drafting directory
 
-1. **[decided]** A master is a file in the drafting directory containing `\documentclass`; it is what Chapter 17 calls a live document. Files elsewhere containing `\documentclass` are scanned as ordinary files and reported with `loom:documentclass-outside-drafts` (info), because a colleague's habit of keeping `main.tex` at the root is common and harmless until they want it treated as a master.
+1. **[decided]** A master is a file in the drafting directory or the agent's drafting directory containing `\documentclass`; it is what Chapter 17 calls a live document. Files elsewhere containing `\documentclass` are scanned as ordinary files and reported with `loom:documentclass-outside-drafts` (info), because a colleague's habit of keeping `main.tex` at the root is common and harmless until they want it treated as a master.
 2. **[decided]** There is no list of masters. The directory is the list, minus the documents a conversion superseded (17.12). Old versions of the paper are not older files in it: they are canon documents, written by `loom canonize` and never scanned.
 3. **[decided]** The default master is `[quilt] main`. Commands that take an optional master (`compile`, `linearize`, `status` filters by reachability) default to it. A conversion that supersedes the default master moves `main` to its output, and `loom mv` of the default master moves `main` to its new path, so that a quilt is never left without one.
 4. **[decided]** Masters compile from the quilt root: `pdflatex drafting/main.tex` run in the root, or `loom compile`. All paths inside a master are root-relative. This is the one sharp edge the README must state.
@@ -147,7 +150,9 @@ Rules:
 7. **[decided]** A node may be reached by several masters (the paper and a talk). It receives a number in each, read from each master's `.aux`.
 8. **[decided]** `loom compile` runs `latexmk` from the root with `-outdir=build/<master-stem>/`, so auxiliary files and the PDF land under `build/`. An author compiling by hand at the root scatters artifacts there; `.gitignore` covers them, and the scanner falls back to an `.aux` beside the master if none is in `build/`.
 
-9. **[decided]** **Moving a document** is `loom mv OLD NEW`, and it is the author's alone: it is not an agent command (Chapter 11). Both paths are `.tex` files directly in the drafting directory. When `OLD` is a live document and `NEW` does not exist, loom renames the file and records the move. When `OLD` is already gone and `NEW` is a live document, the rename was made elsewhere — in an editor, with `git mv`, by hand — and loom records it without touching a file. Either way the history gains one `move` line (17.6), and every record that names the document by path — an acceptance row's `master`, an annotation's `in` or whole-document target, the sync record's main and selected documents — follows it from then on, without being rewritten (17.12). Moving the default master moves `[quilt] main`, as a conversion does. `loom mv` refuses, with the reason and exit 2, a path outside the drafting directory or not a `.tex`, an `OLD` that is not a live document (a file a document includes, or a superseded one), both paths existing, neither existing, and a rename to record from a path no record and no line of the history names, since nothing would follow it. `loom:document-gone` (Chapter 5) names the command as its fix (DR-298-ikmartin).
+9. **[decided]** **The agent's drafting directory**, `[quilt] drafting_ai` (default `drafting-ai`), holds the documents the person and an agent both edit, and is the one place outside its session an agent may write a document (11.8). Its documents are live like any other — scanned, rendered, compiled, listed — and the nodes they define carry derived ids (5.3.1). Nothing in it is reviewed, accepted or published: Review gives it no tab, `loom accept` refuses its nodes, and the document workspace never selects it (4.6). It is a setting of its own rather than a name derived from `drafting`, so renaming one directory without the other shows in the config. It is the author's content, not loom's, and is not under `ai/`, which the scan skips (4.1, rule 2). **A live document's stem is unique across both directories**, since arras addresses a document and the build writes its PDF by stem; two live documents with one stem are `loom:document-stem-taken` (error).
+
+10. **[decided]** **Moving a document** is `loom mv OLD NEW`, and it is the author's alone: it is not an agent command (Chapter 11). Both paths are `.tex` files directly in the drafting directory. When `OLD` is a live document and `NEW` does not exist, loom renames the file and records the move. When `OLD` is already gone and `NEW` is a live document, the rename was made elsewhere — in an editor, with `git mv`, by hand — and loom records it without touching a file. Either way the history gains one `move` line (17.6), and every record that names the document by path — an acceptance row's `master`, an annotation's `in` or whole-document target, the sync record's main and selected documents — follows it from then on, without being rewritten (17.12). Moving the default master moves `[quilt] main`, as a conversion does. `loom mv` refuses, with the reason and exit 2, a path outside the drafting directory or not a `.tex`, an `OLD` that is not a live document (a file a document includes, or a superseded one), both paths existing, neither existing, and a rename to record from a path no record and no line of the history names, since nothing would follow it. `loom:document-gone` (Chapter 5) names the command as its fix (DR-298-ikmartin).
 
 Example: the drafting directory holds `main.tex` (the paper), `talk.tex` (a beamer talk reusing nine nodes), and `draft3.tex` (the pre-atomize version, which `loom atomize` recorded as superseded when it wrote the spine, so its inline copies define nothing). Arras offers `main.tex` and `talk.tex` as documents to read; `draft3.tex` is not scanned. `% !LOOM ignore` at the top of a file does the same thing by hand, for a file no conversion produced.
 

@@ -61,6 +61,14 @@ def _confirm(yes: bool, what: str) -> None:
 
 @click.command()
 @click.argument("canon")
+@click.option(
+    "--ai",
+    "ai_name",
+    default=None,
+    metavar="NAME",
+    help="Copy a live drafting document into the agent's drafting directory as NAME instead, every label it defines derived.",
+)
+@click.option("--json", "as_json", is_flag=True, help="With --ai: the copy and its step as JSON.")
 @click.option("--to", "to", default=None, metavar="FILE", help="The draft to write (default: <drafting>/<stem>.tex).")
 @click.option("--no-ids", "no_ids", is_flag=True, help="Copy without inserting ids.")
 @click.option(
@@ -75,6 +83,8 @@ def _confirm(yes: bool, what: str) -> None:
 @quilt_option
 def draft(
     canon: str,
+    ai_name: str | None,
+    as_json: bool,
     to: str | None,
     no_ids: bool,
     fix_anchors: bool,
@@ -83,8 +93,14 @@ def draft(
     yes: bool,
     quilt_path: str | None,
 ) -> None:
-    """Copy a canon document into the drafting directory as a working draft, with \\usepackage{loom} and an id on every node; the canon file is not touched."""
+    """Copy a canon document into the drafting directory as a working draft, with \\usepackage{loom} and an id on every node; the canon file is not touched.
+
+    With `--ai NAME`, CANON is a live drafting document instead, copied flat into the agent's drafting directory with every label it defines derived, and a copy step records what each of its nodes began from (book 4.4).
+    """
     result = open_scan(quilt_path)
+    if ai_name is not None:
+        _draft_ai(result, canon, ai_name, as_json)
+        return
     quilt = result.quilt
     root = quilt.root
     canon_rel = _rel(root, canon)
@@ -138,6 +154,63 @@ def draft(
     note(report_counts(after))
     entry = append_entry(quilt.history_dir, "draft", draft_entry(quilt, plan), actor_for(root))
     note(f"Recorded: draft (ledger line {entry.line})")
+
+
+def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None:
+    """`loom draft SOURCE --ai NAME`: one agent copy per document, never over an existing file or a taken name."""
+    from loom.reshape.copy import plan_copy
+
+    quilt = result.quilt
+    root = quilt.root
+    source_rel = _rel(root, source)
+    role = result.document_role(source_rel)
+    if role != "drafting":
+        raise EnvError(
+            f"{source_rel} is an agent's document; only a document in {quilt.config.drafting}/ is copied"
+            if role
+            else f"{source_rel} is not a live document in {quilt.config.drafting}/"
+        )
+    dest_rel = name if "/" in name else f"{quilt.config.drafting_ai}/{name}"
+    if not dest_rel.endswith(".tex"):
+        dest_rel += ".tex"
+    if Path(dest_rel).parent.as_posix() != quilt.config.drafting_ai:
+        raise EnvError(f"an agent's document goes directly under {quilt.config.drafting_ai}/, not at {dest_rel}")
+    if (root / dest_rel).exists():
+        raise EnvError(f"{dest_rel} exists; draft never overwrites")
+    taken = [m for m in result.masters if Path(m).stem == Path(dest_rel).stem]
+    if taken:
+        raise EnvError(
+            f"{taken[0]} is already named {Path(dest_rel).stem}; arras and the build tell documents apart by name"
+        )
+    history = _history(result)
+    existing = [c for c, s in history.copies(result.masters).items() if s == source_rel]
+    if existing:
+        raise EnvError(f"{source_rel} already has an agent copy, {existing[0]}; an agent works in that one")
+    conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and source_rel in n.reached_by)
+    if conflicted:
+        raise ContentError(
+            f"{source_rel} reaches {', '.join(conflicted)}, defined by two files each; a copy needs one text per key"
+        )
+    plan = plan_copy(result, history, source_rel, dest_rel)
+    dest = root / dest_rel
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(plan.text, encoding="utf-8")
+    entry = write_step(
+        history,
+        "copy",
+        f"copy-{Path(dest_rel).stem}",
+        plan.freeze,
+        actor_for(root),
+        extra={"from": source_rel, "to": dest_rel, "bases": plan.bases},
+        document_text=plan.source_text,
+        document_name=Path(source_rel).name,
+    )
+    if as_json:
+        emit_json({**entry.to_dict(), "line": entry.line})
+        return
+    click.echo(f"Wrote {dest_rel}: {source_rel} flat, {len(plan.labels)} labels derived, {len(plan.bases)} nodes based")
+    click.echo(f"step {entry.step:04d} froze {len(plan.freeze.froze)} keys the copy's bases need")
+    note(f"Recorded: copy as step {entry.step:04d} ({entry.dir})")
 
 
 # ---- canonize -----------------------------------------------------------------
@@ -805,6 +878,8 @@ def _detail(e: Entry) -> str:
         return f"{e.get('key')}@{e.get('step')} in {e.get('in')}"
     if e.action == "live":
         return str(e.get("path"))
+    if e.action == "copy":
+        return f"{frm} -> {to} ({len(e.get('bases') or {})} nodes based)"
     if e.action == "move":
         how = (
             "" if e.get("moved") else (" (renamed in a pull)" if e.get("via") == "sync" else " (renamed outside loom)")

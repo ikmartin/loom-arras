@@ -172,6 +172,21 @@ def verify(result: ScanResult, history: History) -> list[Diagnostic]:
                         subject="record",
                     )
                 )
+        elif e.action in ("copy", "adopt", "refresh"):
+            copy = str(e.get("to" if e.action == "copy" else "copy", ""))
+            for derived, base in sorted((e.get("bases") or {}).items()):
+                step, key = base.get("step"), str(base.get("key", ""))
+                if isinstance(step, int) and (history.step(step) is None or key not in history.state_at(step)):
+                    out.append(
+                        Diagnostic(
+                            "warning",
+                            "loom:dangling-ancestry",
+                            f"{derived} in {copy} is based on {key}@{step}, which the history no longer resolves",
+                            [],
+                            [derived],
+                            subject="record",
+                        )
+                    )
         elif e.action == "draft":
             frm = e.get("from") or {}
             if isinstance(frm, dict) and isinstance(frm.get("step"), int) and history.step(frm["step"]) is None:

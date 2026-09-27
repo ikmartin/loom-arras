@@ -99,6 +99,19 @@ Discarding appends an event like any other change, so a sitting's annotations ca
 | `--undo` | Reverse: mark matching records not discarded. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+### `loom ai drafts`
+
+`loom ai drafts [OPTIONS]`
+
+List each agent copy, the document it copies, and what has moved on the person's side since it was made.
+
+Before a large instruction, an agent checks its copy here: a stale copy is refreshed first, or the agent says what it is working against.
+
+| option | description |
+|---|---|
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ### `loom ai init`
 
 `loom ai init [OPTIONS]`
@@ -353,8 +366,12 @@ Each item is ok, warn (works, but you will hit it) or fail (a command you need w
 
 Copy a canon document into the drafting directory as a working draft, with \usepackage{loom} and an id on every node; the canon file is not touched.
 
+With `--ai NAME`, CANON is a live drafting document instead, copied flat into the agent's drafting directory with every label it defines derived, and a copy step records what each of its nodes began from (book 4.4).
+
 | option | description |
 |---|---|
+| `--ai` `NAME` | Copy a live drafting document into the agent's drafting directory as NAME instead, every label it defines derived. |
+| `--json` | With --ai: the copy and its step as JSON. |
 | `--to` `FILE` | The draft to write (default: <drafting>/<stem>.tex). |
 | `--no-ids` | Copy without inserting ids. |
 | `--fix-anchoring` | Rewrite the copy so every theorem-like \begin and \end is alone on its line. |

@@ -58,6 +58,45 @@ COMMON_THEOREM_ENVS = {
 LOOM_MACROS = ("uses", "incomplete", "nest")
 
 
+def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnostic]:
+    """`loom:derived-id-in-drafting`: a person's document defines or cites an agent copy's derived id (book 5.3).
+
+    A document in `[quilt] drafting` reaching a derived node defines it; a node that document reaches referring to one cites it. The derived node itself is reported once, not again for each reference it makes.
+    """
+    nodes = result.assembly.nodes
+
+    def owned(key: str) -> bool:
+        n = nodes.get(key)
+        return n is not None and any(result.document_role(m) == "drafting" for m in n.reached_by)
+
+    out: list[Diagnostic] = []
+    for key, n in nodes.items():
+        if n.derived_of and owned(key):
+            out.append(
+                Diagnostic(
+                    "error",
+                    "loom:derived-id-in-drafting",
+                    f"{key} is an agent copy's id, and {', '.join(m for m in n.reached_by if result.document_role(m) == 'drafting')} defines it; a person's document names the plain id, {n.derived_of}",
+                    [_loc(result, n)],
+                    [key],
+                )
+            )
+    for e in edges.edges:
+        target = nodes.get(e.to)
+        source = nodes.get(e.src)
+        if target and target.derived_of and source and not source.derived_of and owned(e.src):
+            out.append(
+                Diagnostic(
+                    "error",
+                    "loom:derived-id-in-drafting",
+                    f"{e.src} cites {e.to}, an agent copy's id; a person's document cites the plain id, {target.derived_of}",
+                    [Location(e.file, e.line)],
+                    [e.src],
+                )
+            )
+    return out
+
+
 def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic]:
     asm = result.assembly
     files = result.files
@@ -68,7 +107,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     from loom.history.ledger import load_history
 
     diags.extend(quick_checks(result, load_history(result.quilt.history_dir)))
-    if not result.masters and result.canon_files:
+    if not any(result.document_role(m) == "drafting" for m in result.masters) and result.canon_files:
         # every view that is about nodes is empty until a landmark is drafted; the viewer shows that, and this says how to end it
         newest = result.canon_files[-1]
         drafting = result.quilt.config.drafting
@@ -86,6 +125,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 ],
             )
         )
+    diags.extend(_derived_in_drafting(result, edges))
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
     for path, directives in asm.directives.items():

@@ -67,7 +67,7 @@ describe('the work graph', () => {
 	});
 });
 
-it('whole quilt retains all nodes; document scope uses reachability across source files', () => {
+it("whole quilt retains all the person's nodes; document scope uses reachability across source files", () => {
 	const changed = structuredClone(m);
 	const node = changed.nodes['sy-0003'];
 	const primary = changed.masters[0].path;
@@ -75,7 +75,8 @@ it('whole quilt retains all nodes; document scope uses reachability across sourc
 	changed.masters.push({ ...changed.masters[0], path: secondary });
 	node.reached_by = [primary, secondary];
 	const options = { allNodes: true, external: 'all' as const };
-	expect(graphInput(changed, options).nodes).toHaveLength(Object.keys(changed.nodes).length);
+	// every node but an agent copy's derived ones, which only their own document's scope draws
+	expect(graphInput(changed, options).nodes).toHaveLength(Object.values(changed.nodes).filter((n) => !n.derived_of).length);
 	const before = graphInput(changed, { ...options, master: secondary });
 	expect(before.nodes.map((n) => n.id)).toContain(node.id);
 	expect(before.nodes.every((n) => n.reached_by.includes(secondary))).toBe(true);

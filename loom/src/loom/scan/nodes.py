@@ -12,7 +12,7 @@ from loom.scan.bib import citekey_slug
 from loom.scan.directives import HEAD_LINES, file_level, list_value, parse_directives, within
 from loom.scan.envtree import FileEnvs, labels_in, scan_environments
 from loom.scan.expand import Expansion, Segment
-from loom.scan.labels import is_id_shaped
+from loom.scan.labels import is_id_shaped, plain_key
 from loom.scan.model import Diagnostic, Directive, Env, Location, SourceFile, Taxon
 from loom.scan.preamble import PreambleClosure, document_start
 from loom.scan.sections import LEVEL_NAMES, SectionUnit, find_sections
@@ -89,6 +89,14 @@ class NodeRec:
         default_factory=list
     )  # kind "conflict": the files that each define this id (book 5.3.5)
     conflict_of: str | None = None  # a demoted definition: the id it claimed, which a placeholder now holds
+
+    @property
+    def derived_of(self) -> str | None:
+        """The plain key an agent's copy's node corresponds to, `zk-0001/proof` for `zk-0001-ai/proof`; None for any other node (book 5.3)."""
+        if self.external:
+            return None
+        plain = plain_key(self.key)
+        return plain if plain != self.key else None
 
     @property
     def inline_proof(self) -> bool:

@@ -1,0 +1,66 @@
+\section{Introduction}\label{sy-0100-ai}
+
+This paper studies widgets. The basic identity is
+\begin{equation}\label{eq:prose-ai}
+\sigma^2 = \mathrm{id},
+\end{equation}
+which we use throughout.\footnote{The name comes from nowhere.} The \GW{} theory of gadgets is not touched. See \cite[Chapter II]{Har77} for schemes and \cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \cite[Lemma 9]{Kre99} is not in the digest.
+
+\begin{definition}[Widget]\label{sy-0001-ai}
+A \emph{widget} is a pair $(X,\sigma)$ of a set and an involution $\sigma$ of $X$, so that \eqref{eq:prose-ai} holds. Its \emph{fixed locus} is
+\begin{equation}\label{eq:fix-ai}
+\Fix(\sigma) = \{x \in X : \sigma x = x\}.
+\end{equation}
+\end{definition}
+
+% !LOOM author: The synthetic quilt
+% !LOOM created: 2026-09-16
+% !LOOM tags: orbits, setup
+
+\begin{remark}\label{sy-000A-ai}
+Gadgets exist: take $X = \{1,2\}$ with the swap. Compare \cite[Theorem 2.1]{Kre99}.
+\end{remark}
+
+\begin{lemma}[Orbits]\label{sy-0002-ai}
+Every orbit of a widget has at most two points, and one exactly when its point is fixed; compare \eqref{eq:fix-ai} in Definition~\ref{sy-0001-ai}.
+\end{lemma}
+\begin{proof}
+The orbit of $x$ is $\{x, \sigma x\}$ because
+\begin{equation}\label{eq:step-ai}
+\sigma(\sigma x) = x
+\end{equation}
+by \eqref{eq:prose-ai}.
+\end{proof}
+
+
+\begin{itemize}
+\item widgets,
+\item gadgets.
+\end{itemize}
+
+\begin{tabular}{ll}
+object & involution \\
+widget & yes \\
+gadget & no
+\end{tabular}
+
+\begin{center}
+\begin{tikzcd}
+X \arrow[r, "\sigma"] \arrow[d] & X \arrow[d] \\
+Y \arrow[r] & Y
+\end{tikzcd}
+\end{center}
+
+\includegraphics[width=3cm]{figures/fig.pdf}
+
+\parbox{5cm}{A boxed paragraph the converter renders as an image.}
+
+\red{This sentence is in red.}
+
+% !LOOM author: The synthetic quilt
+% !LOOM tags: results
+
+\begin{definition}[Orbit pair]\label{sy-999C-ai}
+An \emph{orbit pair} is an orbit with two points.
+\end{definition}
+

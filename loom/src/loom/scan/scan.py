@@ -93,6 +93,41 @@ class ScanResult:
         end = self.document_trail(path)[-1]
         return end if end in self.masters else None
 
+    def document_role(self, path: str) -> str | None:
+        """Which drafting directory a live document is in (book 4.1).
+
+        Parameters
+        ----------
+        path : str
+            A quilt-relative document path.
+
+        Returns
+        -------
+        str or None
+            `"drafting"` for a document only the person edits, `"drafting-ai"` for one the person and an agent both edit, None for a path that is not a live document.
+        """
+        if path not in self.masters:
+            return None
+        parent = Path(path).parent.as_posix()
+        return "drafting-ai" if parent == self.quilt.config.drafting_ai else "drafting"
+
+
+def _stems_taken(masters: list[str]) -> list[Diagnostic]:
+    """`loom:document-stem-taken` for each stem two live documents share: arras routes a document and loom writes its PDF by stem."""
+    by_stem: dict[str, list[str]] = {}
+    for m in masters:
+        by_stem.setdefault(Path(m).stem, []).append(m)
+    return [
+        Diagnostic(
+            "error",
+            "loom:document-stem-taken",
+            f"{' and '.join(paths)} are both named {stem}; arras and the build tell documents apart by name, so rename one",
+            [Location(p, 1) for p in paths],
+        )
+        for stem, paths in sorted(by_stem.items())
+        if len(paths) > 1
+    ]
+
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
     """Directories the scan never enters: the canon directory, `retired/`, `notes/`, the author's reference material (book 4.1.2), and the history directory wherever `[quilt] history` puts it, whose frozen texts are old versions of the quilt's own keys."""
@@ -154,31 +189,33 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                     [Location(rel, 1)],
                 )
             )
-    drafting = quilt.config.drafting
+    drafting, drafting_ai = quilt.config.drafting, quilt.config.drafting_ai
     for rel, src in result.files.items():
         if src.ignored or not _DOCCLASS.search(src.clean):
             continue
-        if Path(rel).parent.as_posix() == drafting:
+        if Path(rel).parent.as_posix() in (drafting, drafting_ai):
             result.masters.append(rel)
         else:
             result.diagnostics.append(
                 Diagnostic(
                     "info",
                     "loom:documentclass-outside-drafts",
-                    f"{rel} has \\documentclass but is outside the drafting directory {drafting}/; it is scanned as an ordinary file",
+                    f"{rel} has \\documentclass but is outside the drafting directories {drafting}/ and {drafting_ai}/; it is scanned as an ordinary file",
                     [Location(rel, 1)],
                 )
             )
+    result.diagnostics.extend(_stems_taken(result.masters))
     main = quilt.config.main
-    if main in result.masters:
+    own = [m for m in result.masters if result.document_role(m) == "drafting"]
+    if main in own:
         result.default_master = main
-    elif result.masters:
-        result.default_master = result.masters[0]
+    elif own:
+        result.default_master = own[0]
         result.diagnostics.append(
             Diagnostic(
                 "warning",
                 "loom:main-not-found",
-                f"[quilt] main = {main} is not a master; using {result.masters[0]}",
+                f"[quilt] main = {main} is not a master; using {own[0]}",
                 [],
             )
         )

@@ -20,8 +20,10 @@
 	const SHOWS = ['needs-review', 'incoming'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
 	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'document');
-	const defaultDocument = $derived(m.masters.find((master) => master.default) ?? m.masters[0]);
-	const selectedDocument = $derived(m.masters.find((master) => master.path === q('document')) ?? defaultDocument);
+	// Review is the person's: an agent's document is never reviewed, so it has no tab (book 15.3.5)
+	const reviewed = $derived(m.masters.filter((master) => master.directory !== 'drafting-ai'));
+	const defaultDocument = $derived(reviewed.find((master) => master.default) ?? reviewed[0]);
+	const selectedDocument = $derived(reviewed.find((master) => master.path === q('document')) ?? defaultDocument);
 	const filename = (path: string) => path.split('/').pop() || path;
 	let open = $state('');
 	let blocksOpen = $state('');
@@ -175,7 +177,7 @@
 		<p class="faint">Earlier pending decisions have no reviewer and were preserved. Review those blocks again under your name. <button onclick={dismissLegacy}>Dismiss</button></p>
 	{/if}
 	<nav class="review-tabs" aria-label="Review views">
-		{#each m.masters as master (master.path)}
+		{#each reviewed as master (master.path)}
 			<a
 				class:active={filter === 'document' && selectedDocument?.path === master.path}
 				aria-current={filter === 'document' && selectedDocument?.path === master.path ? 'page' : undefined}

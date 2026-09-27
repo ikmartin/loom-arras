@@ -20,10 +20,11 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 
 ## 2. Layout, and what you may write
 
-**Read the paths from the quilt, not from this list.** `[quilt] drafting`, `canon` and `history` in `config.toml` are settable and default to the names below; `loom status --json` reports the masters as they actually are. A quilt that renamed them is still an ordinary quilt.
+**Read the paths from the quilt, not from this list.** `[quilt] drafting`, `drafting_ai`, `canon` and `history` in `config.toml` are settable and default to the names below; `loom status --json` reports the masters as they actually are. A quilt that renamed them is still an ordinary quilt.
 
 - `config.toml` — quilt configuration, including the id prefix and the directory names. Read only.
 - `drafting/` — the working documents, every one live. `[quilt] main` names the default. Read only.
+- `drafting-ai/` — the documents the author and you both edit: yours to edit, the one place outside your session where you may write a document. Each is a copy of one of the author's documents, made by the author with `loom draft DOC --ai NAME`; every id it defines is derived: `<prefix>-<local>-ai`, e.g. `rl-0004-ai` for the author's `rl-0004`. Keep the suffix on every id the copy defines, wherever you cite one; cite the author's other nodes by their plain ids; and label a node you write with the next free id and the suffix, which `loom id --next` names (`rl-0019` becomes `rl-0019-ai`). Nothing here is reviewed or accepted until the author adopts it.
 - `canon/` — landmarks: flat, self-contained copies of a document as it stood at some moment. Nothing in one has an identity, and the scanner never enters it. Read only.
 - `nodes/` — one node per file, by convention rather than by rule; a node may equally live inline in a document. Read only.
 - `digests/` — cited papers' results as external nodes, one file per citekey. Read only.
@@ -35,7 +36,7 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 - `ai/orientation.md` — this file. `ai/modes/` — the mode templates. Read only.
 - `.loom/sessions/<id>/` — YOUR session's directory, the only place you write files.
 
-The rule: you write only under your session's directory, and you write records only through loom commands. Everything else is the author's.
+The rule: you write only under your session's directory and in `drafting-ai/`, and you write records only through loom commands. Everything else is the author's.
 
 ## 3. The source contract in one page
 
@@ -64,6 +65,7 @@ A session is shared: the author may be working in the one you are in, and their 
 Working in the quilt:
 
 - `loom status` (first, always): every key, its state, causes, open annotations; `--stale`, `--draft`, `--incomplete`, `--undigested`, `--explain KEY`; `--json` for tools. This is the to-do list.
+- `loom ai drafts`: each copy in `drafting-ai/`, the document it copies, and what has moved on the author's side since it was made. Check it before a large instruction on a copy: if the copy is stale, say so and suggest the author refresh it before you start, rather than working against text the author has since changed.
 - `loom search QUERY --json`: find ids by title, alias, tag or citekey; get a node's file. **When the author names a result by its number** — `Theorem 3.4`, `(3)` — resolve it here before reading anything: it lists every key the drafting documents number so, the default document's first, and `--in DOC` asks one document.
 - `loom source TARGET [--closure]`: prints a key's own text, and with `--closure` exactly the statements it depends on first. Give it a document's path instead and it prints that document flattened, every inclusion expanded in place, for when a plan or a paper is the context. Read this, not the directories. It writes no file, so nothing you read can go stale behind you.
 - `loom deps KEY [--closure]`, `loom unravel ID`: the graph around a node.

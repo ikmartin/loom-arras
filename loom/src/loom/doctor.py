@@ -460,14 +460,14 @@ def check_agent(d: Any) -> Item:
 
 def check_permissions(root: Path) -> Item:
     """`.claude/settings.json` and `.codex/rules/loom.rules` byte for byte what this loom's table renders (`vendor_files`)."""
-    from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, vendor_files
+    from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, quilt_config, vendor_files
 
     wanted = (CLAUDE_SETTINGS, CODEX_RULES)
     present = [rel for rel in wanted if (root / rel).is_file()]
     layer = (root / "ai").is_dir()
     if not layer and not present:
         return Item("permissions", OK, QUILT, "no ai/ (loom ai init writes it and them)")
-    shipped = vendor_files(True, False, True)
+    shipped = vendor_files(quilt_config(root), True, False, True)
     stale = [rel for rel in present if (root / rel).read_text(encoding="utf-8") != shipped[rel]]
     absent = [rel for rel in wanted if rel not in present] if layer else []
     if not stale and not absent:

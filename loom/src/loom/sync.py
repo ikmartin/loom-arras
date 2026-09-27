@@ -133,12 +133,13 @@ def _selection(quilt: Quilt, state: SyncState) -> tuple[str, list[str]]:
 
     result = scan(quilt)
     main, documents = current_selection(state, result)
-    live = set(result.masters)
     for document in documents:
         path = Path(document)
         if path.is_absolute() or ".." in path.parts:
             raise SyncError(f"selected document has an unsafe path: {document}")
-        if document not in live:
+        if result.document_role(document) == "drafting-ai":
+            raise SyncError(f"selected document is an agent's document, which is never published: {document}")
+        if result.document_role(document) != "drafting":
             raise SyncError(f"selected document is not a live drafting document: {document}")
     return main, documents
 
@@ -676,7 +677,9 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str)
     result = scan(quilt)
     main, now = current_selection(state, result)
     if action == "add":
-        if document not in set(result.masters):
+        if result.document_role(document) == "drafting-ai":
+            raise SyncError(f"{document} is an agent's document, which is never published")
+        if result.document_role(document) != "drafting":
             raise SyncError(f"{document} is not a live drafting document")
         if document not in now:
             current.append(document)

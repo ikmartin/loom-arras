@@ -13,8 +13,9 @@ All entries are **[decided]** unless marked.
 
 ## 3.2 Files and directories of a quilt
 
-- master : a `.tex` file containing `\documentclass`, located in the drafting directory. Compiled as a document. Addressed by path. The root of an inclusion tree. Also called a live document.
+- master : a `.tex` file containing `\documentclass`, located in the drafting directory or the agent's drafting directory. Compiled as a document. Addressed by path. The root of an inclusion tree. Also called a live document.
 - drafting directory : the directory named by `config.toml [quilt] drafting`, by default `drafting/`. Every file in it with `\documentclass` is a master, and every one is live. Read as `drafts` in a quilt written before 0.9.
+- agent's drafting directory : the directory named by `config.toml [quilt] drafting_ai`, by default `drafting-ai/`. Holds the documents the person and an agent both edit: live, and never reviewed, accepted or published (4.4). The one place outside its session an agent may write a document.
 - canon directory : the directory named by `config.toml [quilt] canon`, by default `canon/`. Holds landmarks. Never scanned: nothing in it defines a node.
 - canon document : a flat, self-contained copy of a document as it stood when `loom import` or `loom canonize` wrote it. Compiles on its own, with no `loom.sty` and no `\input`. Shown in arras; never a master.
 - live : a property of a document, not of a file: a document is live when it sits in the drafting directory and no conversion has recorded that its output superseded it. Only live documents define the nodes they hold inline.
@@ -35,6 +36,7 @@ All entries are **[decided]** unless marked.
 - node : a sectioning unit or a theorem-like environment. Has an id if its first label is id-shaped, otherwise a qualified key. May include other nodes.
 - id : the permanent identifier of a node, of the form `<prefix>-<local>`. For nodes made by `loom new`: prefix chosen by the author, local four uppercase base-36 characters (`rl-0004`). For digest nodes: the citekey as prefix and the paper's own label as local (`Man12-thm-4.1`).
 - id-shaped : a label matching the id grammar (Chapter 5).
+- derived id : the id of a node an agent's copy defines, `zk-0001-ai` for the person's `zk-0001`: the counterpart is read from the id by dropping the suffix (5.3.1). An id to the scan, never versioned or accepted.
 - prefix : the part of an id before the first hyphen. Chosen by the author per quilt (default in config) or per command (`--prefix`). Alphanumeric, no hyphens.
 - alias : any label on a node other than its id. Multiple `\label`s in one environment are legal LaTeX; loom resolves all of them to the node.
 - tag : a thematic label attached to a node by a `% !LOOM tags:` directive (`algebraic-geometry`). Any number per node. Never an identifier.

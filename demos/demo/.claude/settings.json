@@ -3,9 +3,11 @@
     "allow": [
       "Edit(/.loom/sessions/**)",
       "Edit(/build/**)",
+      "Edit(/drafting-ai/**)",
       "Bash(loom ai annotations*)",
       "Bash(loom ai check*)",
       "Bash(loom ai discard*)",
+      "Bash(loom ai drafts*)",
       "Bash(loom ai name*)",
       "Bash(loom ai orient*)",
       "Bash(loom ai start*)",
@@ -55,9 +57,9 @@
       "Bash(loom unravel*)"
     ],
     "deny": [
-      "Edit(/nodes/**)",
       "Edit(/drafting/**)",
       "Edit(/canon/**)",
+      "Edit(/nodes/**)",
       "Edit(/retired/**)",
       "Edit(/digests/**)",
       "Edit(/refs/**)",

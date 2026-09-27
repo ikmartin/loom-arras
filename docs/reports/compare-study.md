@@ -125,4 +125,9 @@ The author judged F very useful where the direction is known. With annotations o
 
 ## Part three: what it changes
 
-Filled in by plan 0.17, which carries the file references: the rail and the filter in arras, the pairing and bases in loom's manifest, book chapter 15's account of compare and the filter, and the tests that assert the rail's placeholder.
+Built by [plan 0.17.4](../plans/0.17.4-ikmartin.md), which carries the file references.
+
+- **loom:** every node element in every fragment gains `data-pair` and `data-hash` (`render/fragments.py`); the manifest gains `compare.pairs`, the highlighted renderings of each pair of differing texts with its direction, and a fragment per recorded version of a key.
+- **arras:** the annotation filter's `off` (`sessions/sessions.svelte.ts`, `SessionFilter.svelte`); the rail's counter and compare (`workspace/GlobalRail.svelte`); the comparison itself — pairing, the swapped bodies, the gutter, the rules, stepping, the jump — over the two panes; a node item that shows a recorded version.
+- **The book:** chapter 15 gains a section for compare, and every account of the filter gains `off`; decision records for the two kinds of marks and for `off`.
+- **Tests:** the rail's placeholder test (`tests/e2e/workspace.e2e.ts`) and the filter's two-value tests (`tests/unit/sessions.spec.ts`, `tests/e2e/panel.e2e.ts`) change; compare gets its own.

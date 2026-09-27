@@ -131,6 +131,39 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
     log_run(found.id if found else None, "loom ai orient", root)
 
 
+@ai.command(name="drafts")
+@click.option("--json", "as_json", is_flag=True)
+@quilt_option
+def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
+    """List each agent copy, the document it copies, and what has moved on the person's side since it was made.
+
+    Before a large instruction, an agent checks its copy here: a stale copy is refreshed first, or the agent says what it is working against.
+    """
+    from loom.cli._quilt import open_scan
+    from loom.drafts import copy_states
+    from loom.history.ledger import load_history
+
+    result = open_scan(quilt_path)
+    states = copy_states(result, load_history(result.quilt.history_dir))
+    if as_json:
+        from loom.cli._common import emit_json
+
+        emit_json([st.to_dict() for st in states])
+        return
+    if not states:
+        click.echo(f"no agent copies: loom draft DOC --ai NAME writes one into {result.quilt.config.drafting_ai}/")
+        return
+    for st in states:
+        if not st.stale:
+            click.echo(f"{st.copy}  from {st.source}  fresh")
+            continue
+        moved = [f"{', '.join(st.changed)} changed"] if st.changed else []
+        moved += [f"{', '.join(st.gone)} gone from {st.source}"] if st.gone else []
+        moved += ["the prose between nodes"] if st.prose else []
+        moved += ["the preamble"] if st.preamble else []
+        click.echo(f"{st.copy}  from {st.source}  stale: {'; '.join(moved)}")
+
+
 @ai.command(name="start")
 @click.argument("name", required=False, default=None)
 @quilt_option

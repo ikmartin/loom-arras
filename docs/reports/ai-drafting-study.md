@@ -1,10 +1,10 @@
 # AI drafting: a study
 
-A design for documents that a person and an agent both edit, worked out with the author on 2026-09-26, to be built as plan 0.17. Plan 0.16 comes first and fixes the record defect of §4, on which this depends. It replaces the nested-quilt design of [WQ-24](../work-queue/WQ-24-ai-quilt.md), takes the fork-and-merge half of [WQ-29](../work-queue/WQ-29-node-manager.md) and the apply step of [WQ-33](../work-queue/WQ-33-the-proposed-document.md), and folds `canon/` into the history.
+A design for documents that a person and an agent both edit, worked out with the author on 2026-09-26, to be built as plan 0.17 in four parts, 0.17.1 to 0.17.4. Plan 0.16 comes first and fixes the record defect of §4, on which this depends. It replaces the nested-quilt design of [WQ-24](../work-queue/WQ-24-ai-quilt.md), takes the fork-and-merge half of [WQ-29](../work-queue/WQ-29-node-manager.md) and the apply step of [WQ-33](../work-queue/WQ-33-the-proposed-document.md), and folds `canon/` into the history.
 
 Part one is the settled design. Part two is the adoption analysis that produced its central decision, kept whole because the plan that builds this and the book chapter that documents it must both carry it. Part three is what is still open, part four what the design touches.
 
-**A requirement on the documentation.** When this is built, the book's account of it carries worked examples in the manner of §6 and §8 below — a named document followed from copy to adoption, and the four cases of §8.1 with what each mode does to them. Plan 0.17 carries §8 in full.
+**A requirement on the documentation.** When this is built, the book's account of it carries worked examples in the manner of §6 and §8 below — a named document followed from copy to adoption, and the four cases of §8.1 with what each mode does to them. Plan 0.17 carries §8 in full, and plan 0.17.2 writes the examples into the book.
 
 ## Part one: the design
 
@@ -127,7 +127,7 @@ The scenario of §6 under these recommendations: steps 1 and 2 as posed; then `l
 ### 9. Arras
 
 - **The side panel's Documents section** lists `drafting-ai/` as a subsection under the Working Drafts subsection. They are documents like any other there: arras edits nothing, so there is nothing to mark read-only, and the two directories differ only in who may edit them.
-- **Compare**, a control that puts two open tabs side by side in comparison: corresponding nodes linked and scrolled together, differences marked with Review's change highlighting, a hover on one lighting its partner. Nodes correspond when they share an id (`main.tex` and `talk.tex`), when one is the other's `-ai` copy, or when they are two versions of one key (a landmark against today). It serves any two versions, not only an agent's copy; reading side by side needs nothing, since an agent's document opens as a tab like any other.
+- **Compare**, settled in full in [compare-study.md](compare-study.md), a control that puts two open tabs side by side in comparison: corresponding nodes linked and scrolled together, differences marked with Review's change highlighting, a hover on one lighting its partner. Nodes correspond when they share an id (`main.tex` and `talk.tex`), when one is the other's `-ai` copy, or when they are two versions of one key (a landmark against today). It serves any two versions, not only an agent's copy; reading side by side needs nothing, since an agent's document opens as a tab like any other.
 - **Review** never gives a `drafting-ai/` document a tab and never lists a derived id; an adoption appears in the Incoming view (§7).
 
 ### 10. Canon folds into the history

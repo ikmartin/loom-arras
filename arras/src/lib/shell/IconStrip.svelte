@@ -40,7 +40,7 @@
 	// lists as works.
 	const statements = $derived(
 		Object.values(store.manifest?.nodes ?? {})
-			.filter((n) => n.kind === 'environment' && !n.external)
+			.filter((n) => n.kind === 'environment' && !n.external && !n.derived_of)
 			.sort((a, b) => a.id.localeCompare(b.id))
 	);
 	let nodeFilter = $state('');
@@ -69,6 +69,8 @@
 	// dropdown shows one name at a time and cannot say which draft is conflicted or which landmark a step wrote.
 	// Newest landmark first: the one a reader is most likely to want.
 	const landmarks = $derived([...canon].reverse());
+	const own = $derived(masters.filter((m) => m.directory !== 'drafting-ai'));
+	const withAgent = $derived(masters.filter((m) => m.directory === 'drafting-ai'));
 	const docCount = $derived(masters.length + canon.length);
 	// The file name, not the typeset title: two drafts of one paper share a title and differ only in their path, which
 	// is what the author types and what `--master` and the read view's URL name them by.
@@ -176,10 +178,17 @@
 							{/if}
 						</li>
 					{/snippet}
-					{#if masters.length}
+					{#if own.length}
 						<p class="group">Working Drafts</p>
 						<ul class="plain docs" data-testid="docs-drafts">
-							{#each masters as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
+							{#each own as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
+						</ul>
+					{/if}
+					{#if withAgent.length}
+						<!-- the documents the person and an agent both edit, under the directory they live in, as the person's editor shows it -->
+						<p class="group sub">{withAgent[0].path.split('/').slice(0, -1).join('/')}/</p>
+						<ul class="plain docs" data-testid="docs-drafts-ai">
+							{#each withAgent as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
 						</ul>
 					{/if}
 					{#if landmarks.length}
@@ -467,6 +476,13 @@
 		letter-spacing: 0.04em;
 		color: var(--ink-faint);
 		margin: var(--gap-hair) 0 0 6px;
+	}
+	/* a subsection of Working Drafts: indented under it, and its directory's name as written, not upper-cased */
+	.group.sub {
+		text-transform: none;
+		letter-spacing: 0;
+		font-size: 10.5px;
+		margin-left: 14px;
 	}
 	/* The document being read carries the same weight as the current section in the contents, because they are the same
 	   fact told twice: where you are. */

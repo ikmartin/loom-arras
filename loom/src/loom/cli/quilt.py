@@ -20,6 +20,7 @@ CONFIG_TEMPLATE = """[quilt]
 name = "{name}"
 main = "{drafting}/main.tex"    # default master
 drafting = "{drafting}"           # working documents, every one live
+drafting_ai = "{drafting_ai}"     # documents you and an agent both edit, live but never reviewed or published
 canon = "{canon}"              # landmarks: flat, self-contained, never scanned
 prefix = "{prefix}"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
@@ -157,13 +158,14 @@ GITIGNORE_NOTE = """wrote .gitignore, ignores:
   all stray LaTeX files (.aux, .log, .bbl and the rest)"""
 
 
-def _user_dirs() -> tuple[str, str]:
-    """The drafting and canon directory names a person's user config asks for, else the defaults; init writes them into the quilt so the layout is explicit there."""
+def _user_dirs() -> tuple[str, str, str]:
+    """The drafting, `drafting_ai` and canon directory names a person's user config asks for, else the defaults; init writes them into the quilt so the layout is explicit there."""
     uq = load_user_config().get("quilt", {})
     uq = uq if isinstance(uq, dict) else {}
     drafting = str(uq.get("drafting", "drafting")).strip("/") or "drafting"
+    drafting_ai = str(uq.get("drafting_ai", "drafting-ai")).strip("/") or "drafting-ai"
     canon = str(uq.get("canon", "canon")).strip("/") or "canon"
-    return drafting, canon
+    return drafting, drafting_ai, canon
 
 
 def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, author: str = "") -> list[Path]:
@@ -172,7 +174,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
     Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
     """
     made: list[Path] = []
-    drafting, canon = _user_dirs()
+    drafting, drafting_ai, canon = _user_dirs()
 
     def mkdir(path: Path) -> None:
         # every directory this call brings into being is recorded, parents included, so undo_minimal_quilt leaves nothing behind
@@ -191,6 +193,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
         path.write_text(text, encoding="utf-8")
 
     mkdir(target / drafting)
+    mkdir(target / drafting_ai)
     mkdir(target / canon)
     for d in ("nodes", "digests", "refs"):
         mkdir(target / d)
@@ -201,6 +204,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
             name=target.resolve().name,
             prefix=prefix,
             drafting=drafting,
+            drafting_ai=drafting_ai,
             canon=canon,
             author=author,
             author_pad=" " * max(1, 22 - len(author)),
@@ -212,6 +216,12 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
         write(target / drafting / "main.tex", (ASSETS / "init" / "main.tex").read_text(encoding="utf-8"))
     write(target / ".loom" / "history" / "ledger.jsonl", "")
     gitignore = (ASSETS / "init" / "gitignore").read_text(encoding="utf-8").replace("drafting/", f"{drafting}/")
+    # a hand compile in the agent's directory scatters the same artifacts as one in the person's
+    gitignore += "".join(
+        ln.replace(f"{drafting}/", f"{drafting_ai}/", 1) + "\n"
+        for ln in gitignore.splitlines()
+        if ln.startswith(f"{drafting}/*.")
+    )
     write(target / ".gitignore", gitignore)
     # the orientation is written with this quilt's own directory names and id prefix, so nothing in it is an example the author has to translate
     readme = (

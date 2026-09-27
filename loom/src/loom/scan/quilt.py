@@ -19,7 +19,7 @@ NO_AUTHOR_MESSAGE = (
 
 CONFIG_KEYS: dict[str, set[str]] = {
     # `history` is the record's directory, documented and never written by init
-    "quilt": {"name", "main", "drafting", "canon", "history", "prefix", "engine"},
+    "quilt": {"name", "main", "drafting", "drafting_ai", "canon", "history", "prefix", "engine"},
     "refs": {"fetch", "resolve", "contact"},
     "lint": {"disable"},
     "author": {"name"},
@@ -39,7 +39,7 @@ class NoAuthorError(Exception):
 
 
 # the `[quilt]` keys a person may set for every quilt in their user config; the quilt's own value wins (book 4.3)
-USER_QUILT_KEYS = ("name", "drafting", "canon", "history")
+USER_QUILT_KEYS = ("name", "drafting", "drafting_ai", "canon", "history")
 
 
 @dataclass
@@ -47,6 +47,7 @@ class QuiltConfig:
     name: str = ""
     main: str = ""
     drafting: str = "drafting"
+    drafting_ai: str = "drafting-ai"  # the documents the person and an agent both edit (book 4.1)
     canon: str = "canon"
     history: str = ".loom/history"
     prefix: str = "q"
@@ -90,6 +91,7 @@ class QuiltConfig:
                     q[key] = uq[key]
         cfg.name = str(q.get("name", cfg.name)).strip()
         cfg.drafting = str(q.get("drafting", cfg.drafting)).strip("/") or cfg.drafting
+        cfg.drafting_ai = str(q.get("drafting_ai", cfg.drafting_ai)).strip("/") or cfg.drafting_ai
         cfg.canon = str(q.get("canon", cfg.canon)).strip("/") or cfg.canon
         cfg.history = str(q.get("history", cfg.history)).strip("/") or cfg.history
         cfg.main = str(q.get("main", f"{cfg.drafting}/main.tex"))
@@ -130,6 +132,10 @@ class Quilt:
     @property
     def drafting_dir(self) -> Path:
         return self.root / self.config.drafting
+
+    @property
+    def drafting_ai_dir(self) -> Path:
+        return self.root / self.config.drafting_ai
 
     @property
     def canon_dir(self) -> Path:
