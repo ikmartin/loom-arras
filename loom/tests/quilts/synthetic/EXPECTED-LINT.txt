@@ -30,7 +30,6 @@ info loom:uses-unused
 info loom:uses-unused
 info loom:uses-unused
 info unreachable
-warning loom:canon-edited
 warning loom:equation-in-proof-referenced
 warning loom:equation-in-proof-referenced
 warning loom:multi-target-proof

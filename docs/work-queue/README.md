@@ -30,7 +30,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-19](WQ-19-publishing.md) | publishing to PyPI and npm | loom, arras | the author decides to release |
 | [WQ-22](WQ-22-extraction-node-model.md) | digest extraction shares the node model | loom | extraction and atomize disagree about what a node is |
 | [WQ-24](WQ-24-ai-quilt.md) | an agent's own quilt under `ai/`, sharing the author's id space | loom, arras | the workbench has landed, and a run leaves three or more draft nodes that reference one another |
-| [WQ-25](WQ-25-history-view.md) | the history view in arras: landmarks, stamps, versions per node, the graph at a step | arras, loom | a quilt's ledger holds three or more canonize steps |
+| [WQ-25](WQ-25-history-view.md) | the history view in arras: landmarks, stamps, versions per node, the graph at a step | arras, loom | a quilt's ledger holds three or more landmarks |
 | [WQ-27](WQ-27-applying-suggestions.md) | applying a suggestion: patches, `bundle --with`, editor code actions | loom, editors | one run leaves ten or more payloads |
 | [WQ-28](WQ-28-annotated-export.md) | an annotated view exported as LaTeX and PDF | loom, arras | a review has to reach someone who cannot run arras |
 | [WQ-29](WQ-29-node-manager.md) | the node manager: fork from history, retire, merge, rename (absorbs WQ-11) | loom, arras, loom-lsp | ten or more forks, or a fork or rename by hand goes wrong once |

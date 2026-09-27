@@ -36,7 +36,7 @@ test('a landmark is a document, with no identity and nothing to review', async (
 test('the corpus is named by the project, not by its directory', async ({ page }) => {
 	await page.goto('/');
 	await expect(page).toHaveTitle('The synthetic quilt');
-	await expect(page.locator('main')).toContainText('Canon');
+	await expect(page.locator('main')).toContainText('Landmarks');
 });
 
 test('a doubly defined id has no text, and says where both definitions are', async ({ page }) => {

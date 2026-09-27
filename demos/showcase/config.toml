@@ -2,7 +2,6 @@
 name = "The loom showcase"
 main = "drafting/main-atomic.tex"    # default master
 drafting = "drafting"           # working documents, every one live
-canon = "canon"              # landmarks: flat, self-contained, never scanned
 prefix = "sh"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 

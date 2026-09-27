@@ -46,12 +46,13 @@ def plan_insertions(
             for env in fe.theorem_envs:
                 key = asm.key_of_env(file, env)
                 node = asm.nodes.get(key or "")
-                if node is None or node.id:
+                # a definition demoted because another file defines its id too (`conflict_of`) has an id, and gains no second one
+                if node is None or node.id or node.conflict_of:
                     continue
                 candidates.append((env.body_start, node.key, "env"))
         if sections:
             for node in asm.nodes.values():
-                if node.kind != "section" or node.file != file or node.id or node.level is None:
+                if node.kind != "section" or node.file != file or node.id or node.conflict_of or node.level is None:
                     continue
                 m = re.match(
                     r"\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\s*",

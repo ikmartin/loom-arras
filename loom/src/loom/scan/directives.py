@@ -35,7 +35,7 @@ BARE_KEYS = {"ignore"}
 REGION_KEYS = {
     "macros",
     "loom-macros",
-}  # loom-macros: the block a canon document carries in place of \usepackage{loom} (17.13)
+}  # loom-macros: the block a landmark shown `--plain` carries in place of \usepackage{loom} (17.13)
 HEAD_LINES = 20
 
 _LINE = re.compile(r"^[ \t]*%[ \t]*!(LOOM|TEX)[ \t]+(.*?)[ \t]*$", re.M)

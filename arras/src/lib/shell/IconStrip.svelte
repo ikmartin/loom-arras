@@ -192,7 +192,7 @@
 						</ul>
 					{/if}
 					{#if landmarks.length}
-						<p class="group">Canon</p>
+						<p class="group">Landmarks</p>
 						<ul class="plain docs" data-testid="docs-canon">
 							{#each landmarks as c (c.path)}{@render doc(c.path, canonUrl(c.path), c.step)}{/each}
 						</ul>

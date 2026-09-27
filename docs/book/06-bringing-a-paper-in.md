@@ -1,92 +1,70 @@
 # 6. Bringing a paper in
 
-This chapter specifies how an existing paper becomes a quilt and how a quilt is reshaped afterwards: `init --from`, `import`, `draft`, `id`, `atomize`, `inline`, and the identity test that governs all of them. It ends with the two conversion fixtures: Manolache's virtual pullbacks paper as the first walk-through and ACGS's decomposition paper as the stress test.
+This chapter specifies how an existing paper becomes a quilt and how a quilt is reshaped afterwards: `init --from`, `import`, `id`, `atomize`, `inline`, and the identity test that governs all of them. It ends with the two conversion fixtures: Manolache's virtual pullbacks paper as the first walk-through and ACGS's decomposition paper as the stress test.
 
 The governing rule is P7: loom never modifies an author file. Every operation here either writes copies, writes to a named destination, or prints a patch.
 
-The path a paper takes has three steps, and each does one thing:
+The path a paper takes has two steps, and each does one thing:
 
-1. **`import`** copies the paper into the quilt as one flat canon document — a landmark, exactly as the paper arrived, with nothing inserted.
-2. **`draft`** copies that landmark into the drafting directory as a working document, and *there* inserts `\usepackage{loom}` and an id on every node.
-3. **`atomize`** moves each node of the working document into its own file and writes a spine.
+1. **`import`** brings the paper into the quilt as two texts at once: the paper as it arrived, flat and with nothing inserted, kept in the history as a landmark (17.9); and the working document drafted from it in the drafting directory, where `\usepackage{loom}` and an id on every node are inserted.
+2. **`atomize`** moves each node of the working document into its own file and writes a spine.
 
-The reason for the separation is that a landmark must be the paper as it was, and a working document must be loom's own file. Both are true only if they are two files.
+The reason for the two texts is that a landmark must be the paper as it was, and a working document must be loom's own file. Both are true only if they are two files.
 
 ## 6.1 `loom import PAPER` and `loom init DIR --from PAPER`
 
-**[decided]** `loom init DIR --from PAPER` creates the quilt as in 4.7, then performs `import PAPER` into it. Everything the import prints before `Wrote N files` is a plan: the file list is headed "Plan, nothing written yet", and a refusal says that nothing was written, so no reader takes the arrows for work already done. `PAPER` is the paper's main `.tex` file, anywhere on disk. The two are one command because it is the common case, and they are one transaction: an import that refuses removes the files `init` had written, leaving the directory as it was found, and nothing is announced as created until the import has finished (DR-106). In the in-place case only what `init` itself wrote is removed; the author's paper is not `init`'s to delete. `--yes` passes through to the import; `--git` additionally makes the quilt a repository, which loom otherwise does not do (4.7).
+**[decided]** `loom init DIR --from PAPER` creates the quilt as in 4.7, then performs `import PAPER` into it. Everything the import prints before `Wrote N files` is a plan: the file list is headed "Plan, nothing written yet", and a refusal says that nothing was written, so no reader takes the arrows for work already done. `PAPER` is the paper's main `.tex` file, anywhere on disk. The two are one command because it is the common case, and they are one transaction: an import that refuses removes the files `init` had written, leaving the directory as it was found, and nothing is announced as created until the import has finished (DR-106). In the in-place case only what `init` itself wrote is removed; the author's paper is not `init`'s to delete. `--yes` and `--fix-anchoring` pass through to the import; `--git` additionally makes the quilt a repository, which loom otherwise does not do (4.7).
 
-**[decided]** `loom import PAPER`, run inside an existing quilt, is the same operation without creating the quilt. It may be run more than once, for a second paper or a later version of the same one; it refuses to overwrite a canon document that already exists.
+**[decided]** `loom import PAPER [--yes] [--no-check] [--fix-anchoring]`, run inside an existing quilt, is the same operation without creating the quilt. It may be run more than once, for a second paper or a later version of the same one; it refuses when a document already stands at the drafted document's path, `<drafting>/<the paper's file name>`.
 
 ## 6.2 What `import` does
 
 Given `PAPER`, whose directory is called the paper directory:
 
 1. **[decided]** Resolve the closure: `PAPER`; every file it reaches through `\input`, `\include`, and `\nest` (recursively, the path as written and then with `.tex`, resolved against the paper directory, the braceless `\input name` form included); every local `.sty` named by `\usepackage` or `\RequirePackage` (comma lists included) and every local `.cls` named by `\documentclass` or `\LoadClass`, followed recursively; the `.bib` files named by `\bibliography` or `\addbibresource`; the `.bst` named by `\bibliographystyle`; and every file named by `\includegraphics` (with the usual extension search). Files outside the paper directory are reported and not copied (`loom:import-outside-tree`, warning).
-2. **[decided]** Write the master, flattened, to `<canon>/<name>.tex`: every `\input`, `\include` and `\nest` of a `.tex` file expanded in place, `\nest`'s level shift applied, comments and directives kept (17.13). An inclusion of anything that is not a `.tex` file — a figure's `.pspdftex`, a system file — stays as written, which is why the rest of the closure is still copied. A `\bibliography{…}` naming no `.bib` that exists is replaced by the paper's own `<stem>.bbl` when one sits beside it, which is how arXiv ships a bibliography: LaTeX finds a `.bbl` only by the master's stem, so the canon copy and every draft under another name would otherwise cite `[?]`.
-3. **[decided]** Copy the rest of the closure — the styles, the class, the bibliography, the style file, the figures — into the quilt at their paper-relative paths, so that the flat document compiles from the quilt root exactly as the original compiled from the paper directory. The `.tex` files that were inlined are not copied: their text is in the canon document.
-4. **[decided]** Insert nothing. No `\usepackage{loom}`, no ids, no directives. A landmark is the paper as it arrived.
-5. **[decided]** Print the plan and require confirmation on a terminal; `--yes` skips it for scripts, and without a terminal or `--yes` the import stops with `import needs confirmation; pass --yes`.
-6. **[decided]** Run the identity test (6.7) between the original, compiled from a clean copy of the paper directory, and the flat copy, compiled from the quilt root. A failure removes the copy and refuses, because a landmark that does not typeset as the paper is worse than no landmark; `--no-check` keeps it anyway. A skipped test (no `pdftotext`) is reported and does not fail the command.
-7. **[decided]** Record step `0001-<name>`: the ledger line names the paper and its hash, the canon path and its hash, and the files that were inlined; the step's directory holds the canon document as written (17.6).
+2. **[decided]** Flatten the master into one text: every `\input`, `\include` and `\nest` of a `.tex` file expanded in place, `\nest`'s level shift applied, comments and directives kept (17.13). An inclusion of anything that is not a `.tex` file — a figure's `.pspdftex`, a system file — stays as written, which is why the rest of the closure is still copied. A `\bibliography{…}` naming no `.bib` that exists is replaced by the paper's own `<stem>.bbl` when one sits beside it, which is how arXiv ships a bibliography: LaTeX finds a `.bbl` only by the master's stem, so the landmark and every draft under another name would otherwise cite `[?]`. This flat text is the paper as received.
+3. **[decided]** Copy the rest of the closure — the styles, the class, the bibliography, the style file, the figures — into the quilt at their paper-relative paths, so that the flat paper compiles from the quilt root exactly as the original compiled from the paper directory. The `.tex` files that were inlined are not copied: their text is in the flat paper.
+4. **[decided]** Draft the working document `<drafting>/<the paper's file name>` from the flat text, as 6.3 describes: `\usepackage{loom}` and an id on every node. The flat text itself is kept as it is — no `\usepackage{loom}`, no ids, no directives — because a landmark is the paper as it arrived.
+5. **[decided]** Print the plan, including how many ids the working document takes, and require confirmation on a terminal; `--yes` skips it for scripts, and without a terminal or `--yes` the import stops with `import needs confirmation; pass --yes`.
+6. **[decided]** Run the identity test (6.7) between the original, compiled from a clean copy of the paper directory, and the working document, compiled from the quilt root. A failure removes the working document, records nothing, and refuses, because a working document that does not typeset as the paper is worse than none; `--no-check` keeps it anyway. A skipped test (no `pdftotext`) is reported and does not fail the command.
+7. **[decided]** Record a step, `0001-<name>` in a new quilt, with action `import`: the ledger line names the paper and its hash (`from`), the landmark's file in the step and its hash (`landmark`, `to`), the files that were inlined, and the working document with its hash and the number of ids inserted (`drafted`); the step's directory holds the flat paper, which is the landmark `<name>` (17.6, 17.9). The step records no versions — the paper arrived without ids — so the first `loom stamp` is what records the working document's keys.
+8. **[decided]** Set `[quilt] main` to the working document when `main` is unset or names a file that does not exist; otherwise leave it alone. Then gather the quilt's bibliography from the landmarks, the new one included (8.15).
 
-**[decided]** `import` never: splits files, moves proofs, renames labels, reorders anything, rewrites `\ref`s, inserts anything at all, or writes metadata headers. It refuses only on a paper that does not compile from its own directory — checked first, in a copy of that directory without its build products (DR-186), so that a broken input paper is not mistaken for a loom problem — and on a canon document of that name already existing. Line anchoring is not its business: nothing is inserted, so nothing needs a line to itself. That check belongs to `draft`.
+**[decided]** `import` never: splits files, moves proofs, renames labels, reorders anything, rewrites `\ref`s, or writes metadata headers; the landmark carries nothing loom added, and the working document only the package line, the ids and, with `--fix-anchoring`, the line breaks of 6.3. It refuses on a paper that does not compile from its own directory — checked first, in a copy of that directory without its build products (DR-186), so that a broken input paper is not mistaken for a loom problem — on a document already at the working document's path, and on a paper whose working document cannot take ids (6.3).
 
 Example session, with the relative localization paper:
 
 ```
-$ loom init relloc --from ~/papers/relloc/draft3.tex --prefix rl
+$ loom init relloc --from ~/papers/relloc/draft3.tex --prefix rl --fix-anchoring
 Resolving closure of draft3.tex ... 5 files
 Plan, nothing written yet:
-  draft3.tex -> canon/draft3.tex (linearized, 1 files inlined)
+  draft3.tex -> drafting/draft3.tex (linearized, 1 files inlined; kept as received in step 0001)
+  refs.bib -> refs.bib
   math-env.sty -> math-env.sty
   base-macros.sty -> base-macros.sty
-  refs.bib -> refs.bib
 Compiling original from a clean copy of /home/mh/papers/relloc ... ok
+  drafting/draft3.tex: \usepackage{loom} and 52 ids
 Apply? [y/N]: y
 Wrote 4 files.
 Identity test: pass (pdftotext identical)
-Recorded: import as step 0001 (0001-draft3)
-next: loom draft canon/draft3.tex
+main = drafting/draft3.tex
+Recorded: import as step 0001 (0001-draft3); the paper as received is landmark draft3
+digests/bibliography.bib: 22 added, 0 already there
 ```
 
-## 6.3 `loom draft CANON [--to FILE]`
+Without `--fix-anchoring` the same paper is refused before anything is written: `draft3.tex has 2 line-anchoring violation(s)`, each listed by line.
 
-**[decided]** `loom draft` copies a canon document into the drafting directory and makes it a working document. The canon file is not touched. The destination must sit directly in the drafting directory and must not exist.
+## 6.3 The working document
 
-1. **[decided]** Replace the canon document's macro block with `\usepackage{loom}`, or insert that line after the first uncommented `\documentclass{...}` when there is no block (17.13). It must be the first uncommented one: a commented-out `\documentclass` above the real one would otherwise put the package before the class and break the copy.
-2. **[decided]** For every theorem-like environment (5.5) and every sectioning command from `\part` to `\subsubsection` that has no id-shaped label, insert `\label{<prefix>-<local>}`: for an environment, on the `\begin` line immediately after the optional argument, before any existing `\label`; for a sectioning command, directly after the heading's arguments, before any existing `\label`, so that the id is the heading's first label under the same rule that governs environments (DR-64). Ids are allocated in document order under `[quilt] prefix` (or `--prefix`), starting after the current maximum (5.3.2). Existing labels are left untouched and become aliases. `--no-ids` skips this.
-3. **[decided]** Show the diff before writing and require confirmation on a terminal; `--yes` skips it.
-4. **[decided]** Refuse, before writing, on an environment whose `\begin` or `\end` is not alone on its line (`loom:line-anchoring`, with the lines listed, numbered in the canon document as it stands) unless `--fix-anchoring` is given, in which case the copy is rewritten so that every theorem-like `\begin` and `\end` stands alone on its line, which typesets identically because a line break is a space in TeX and the environments start and end in vertical mode (DR-40). Also refuse on an environment spanning files. The scanner itself reads by character offset and tolerates unanchored environments; only `atomize`, which moves whole lines, and the label insertion here, which places labels on the `\begin` lines, insist on anchoring.
-5. **[decided]** Set `[quilt] main` to the copy if `main` is unset or names a file that does not exist; otherwise leave it alone.
-6. **[decided]** Run the identity test (6.7) between the canon document and the copy. A failure removes the copy and refuses; `--no-check` keeps it.
-7. **[decided]** Rescan and report: counts of nodes by taxon and of sectioning units by level, proofs attached by adjacency, by reference, and by enclosure (DR-41) and unattached, dangling references, citations with locators but no digest, and unknown environments.
-8. **[decided]** Append a `draft` ledger line naming the canon document, its hash, the step that wrote it, the copy, and how many ids were inserted. When the canon file's hash is not the one its step recorded, say so (`loom:canon-edited`) and draft from the file as it is.
+**[decided]** A working document is drafted from a flat text in two places: by `import` from the paper as received (6.2), and by `loom history restore` from a landmark (17.9). Either way the destination sits directly in the drafting directory and must not exist, and the text drafted from is not touched.
 
-```
-$ loom draft canon/draft3.tex --to drafting/main.tex --fix-anchoring --yes
-Plan, nothing written yet:
-  canon/draft3.tex -> drafting/main.tex (53 ids)
---- drafting/main.tex
-+++ drafting/main.tex
-@@ -1,4 +1,5 @@
- \documentclass{amsart}
-+\usepackage{loom}
- ...
--\begin{defn}[Fixed stack]\label{def:fixed-stack}
-+\begin{defn}[Fixed stack]\label{rl-0001}\label{def:fixed-stack}
-Wrote drafting/main.tex
-Identity test: pass (pdftotext identical)
-main = drafting/main.tex
-Nodes: 12 Lemma, 9 Remark, 8 Definition, 6 Proposition, 4 Example, 2 Theorem; 5 sections, 6 subsections
-Proofs: 14 adjacent, 1 by reference, 0 by enclosure, 2 unattached
-References: 1 dangling; 10 citations with locators but no digest
-Recorded: draft (ledger line 2)
-```
+1. **[decided]** Replace the text's macro block with `\usepackage{loom}`, or insert that line after the first uncommented `\documentclass{...}` when there is no block and nothing in the preamble loads the package (17.13). It must be the first uncommented one: a commented-out `\documentclass` above the real one would otherwise put the package before the class and break the document.
+2. **[decided]** For every theorem-like environment (5.5) and every sectioning command from `\part` to `\subsubsection` that has no id-shaped label, insert `\label{<prefix>-<local>}`: for an environment, on the `\begin` line immediately after the optional argument, before any existing `\label`; for a sectioning command, directly after the heading's arguments, before any existing `\label`, so that the id is the heading's first label under the same rule that governs environments (DR-64). Ids are allocated in document order under `[quilt] prefix`, starting after the current maximum (5.3.2). Existing labels are left untouched and become aliases.
+3. **[decided]** Refuse, before writing, on an environment whose `\begin` or `\end` is not alone on its line (`loom:line-anchoring`, with the lines listed, numbered in the flat text as it stands) unless `--fix-anchoring` is given to `import` or `init --from`, in which case the working document is rewritten so that every theorem-like `\begin` and `\end` stands alone on its line, which typesets identically because a line break is a space in TeX and the environments start and end in vertical mode (DR-40); the landmark keeps the lines as they were. `restore` has no `--fix-anchoring`, and a landmark kept by a stamp was a working document already. Also refuse on an environment spanning files. The scanner itself reads by character offset and tolerates unanchored environments; only `atomize`, which moves whole lines, and the label insertion here, which places labels on the `\begin` lines, insist on anchoring.
 
 ## 6.4 `loom id FILE [--to DEST]`
 
-**[decided]** The tagging half of `import`, for files already in the quilt: computes the label insertions of 6.2.4 for `FILE` and prints them as a unified diff to stdout, or writes the resulting file to `DEST` with `--to` (refusing if `DEST` exists). It never modifies `FILE`. It refuses a file with line-anchoring violations, naming the lines, unless `--fix-anchoring` is passed; with that option, the one patch or copy repairs anchoring first and inserts labels at the repaired offsets (DR-296-luisa). A heading's id goes directly after the heading's arguments, ahead of any label the author already placed there (DR-64), and headings in a file no master reaches are labelled too, since such a file is sectioned on its own (DR-62). The single-file author who wrote human labels applies the patch with their editor or `git apply`.
+**[decided]** The tagging half of `import`, for files already in the quilt: computes the label insertions of 6.3.2 for `FILE` and prints them as a unified diff to stdout, or writes the resulting file to `DEST` with `--to` (refusing if `DEST` exists). It never modifies `FILE`. It refuses a file with line-anchoring violations, naming the lines, unless `--fix-anchoring` is passed; with that option, the one patch or copy repairs anchoring first and inserts labels at the repaired offsets (DR-296-luisa). A heading's id goes directly after the heading's arguments, ahead of any label the author already placed there (DR-64), and headings in a file no master reaches are labelled too, since such a file is sectioned on its own (DR-62). The single-file author who wrote human labels applies the patch with their editor or `git apply`.
 
 Options: `--sections` and `--no-sections` (default: sections through subsubsection are labelled); `--all-levels` (also paragraphs and subparagraphs); `--prefix P`; `--fix-anchoring` (repair line anchoring in the proposed patch or copy; not valid with `--next`).
 
@@ -167,24 +145,22 @@ The author then edits the spine: reordering inclusion lines, deleting some, rewr
 
 ## 6.7 The identity test
 
-**[decided]** For `import`, `draft`, `atomize`, `inline`, `linearize`, and `canonize`: the compiled text of the document before and after must be identical modulo whitespace, and no label's number may change. It is what makes every one of these operations safe to run on a paper that is about to be submitted. Which documents are compared:
+**[decided]** For `import`, `atomize`, `inline`, and `linearize`: the compiled text of the document before and after must be identical modulo whitespace, and no label's number may change. It is what makes every one of these operations safe to run on a paper that is about to be submitted. Which documents are compared:
 
 | command | before | after |
 |---|---|---|
-| `import` | the paper, from a clean copy of its directory | the flat canon document, from the quilt root |
-| `draft` | the canon document | the working copy |
+| `import` | the paper, from a clean copy of its directory | the working document, from the quilt root |
 | `atomize`, `inline` | `SRC`, or the first master reaching it | `DEST` in its place |
 | `linearize` | the spine | the flat document |
-| `canonize` | the live document | the canon document |
 
 Procedure:
 
 1. Compile the "before" document with `latexmk` into a scratch output directory, using the document's engine (`% !TEX program`, else `[quilt] engine`): for `import`, the original paper in a scratch copy of its directory that leaves out the build products (`.aux`, `.bbl`, `.fdb_latexmk` and the like; a `.bbl` stays when the directory has no `.bib`) and hidden directories, with any file the paper reaches outside its directory at the same relative position (DR-186); `SRC` itself when it is a master, or the first master that reaches it otherwise (DR-65), for `atomize` and `inline`.
-2. Compile the "after" document the same way: from the quilt root for `import`, `draft`, `linearize`, `canonize`, and for a master `SRC`; for a non-master `SRC`, the same master from a scratch copy of the quilt in which `DEST`'s text stands at `SRC`'s path (DR-65).
+2. Compile the "after" document the same way: from the quilt root for `import`, `linearize`, and for a master `SRC`; for a non-master `SRC`, the same master from a scratch copy of the quilt in which `DEST`'s text stands at `SRC`'s path (DR-65).
 3. Compare `pdftotext -layout` outputs after collapsing runs of whitespace within each line and dropping empty lines. Equal: pass. Unequal: report the first differing line pair.
 4. Additionally compare the `.aux` label tables for the labels present in both; any label whose number changed is reported, and the test fails.
 
-**[decided]** For `atomize` and `inline`, failure never reverts: the author sees what differs, the files stay, and the command exits 1. For `import`, `draft`, `linearize`, and `canonize`, which write one new file, failure removes that file and refuses, because the file is loom's own and a copy that does not typeset as its source is not worth keeping; `--no-check` skips the test and keeps whatever was written.
+**[decided]** For `atomize` and `inline`, failure never reverts: the author sees what differs, the files stay, and the command exits 1. For `import` and `linearize`, which write one new document, failure removes that document and refuses, because the file is loom's own and a copy that does not typeset as its source is not worth keeping; `--no-check` skips the test and keeps whatever was written.
 
 **[decided]** `pdftotext` is from poppler; `loom doctor` lists it as an optional tool, warns when it is missing, and fails one that cannot write `-bbox-layout` word boxes, as xpdf's cannot (DR-288-ikmartin). Without it the identity test is reported skipped (`Identity test: skipped (pdftotext is not installed)`), as it is when either document fails to compile; a skipped test does not fail the command. Every tool's output is decoded with replacement, since TeX writes non-UTF-8 bytes to its terminal (settled at M4).
 
@@ -200,18 +176,18 @@ This is the first conversion fixture (Chapter 14). Source: the arXiv e-print of 
 
 **[decided]** What the fixture did (settled at M4, the digest at M5):
 
-1. `loom init man12 --from tests/fixtures/0805.2065/virtual6.tex --prefix man` writes `canon/virtual6.tex`, byte for byte the paper (it is one file, so flattening changes nothing), and records step 0001; identity test: pass. `loom draft canon/virtual6.tex --to drafting/main.tex` is then refused: `51 line-anchoring violation(s) (loom:line-anchoring)`, listed by line, and nothing is written. With `--fix-anchoring` the working copy is rewritten and the draft completes: 96 environments (30 Remark, 16 Definition, 12 Proposition, 11 Example, 7 Lemma, 6 Theorem, 6 Corollary, 3 Convention, 3 Construction, 1 Condition, 1 Setting) and 21 sectioning units (5 sections, 9 subsections, 2 subsubsections, 5 paragraphs); 25 proofs adjacent, 0 by reference, 5 by enclosure (proofs inside `example` environments, DR-41), 0 unattached; 0 dangling references. Identity test: pass.
-2. `loom atomize drafting/main.tex drafting/main-atomic.tex --sections`: 110 files under `nodes/` (96 environments and 14 sections and subsections, the subsections included from their section files), a 79-line spine for the 1246-line master; identity test: pass; the history records that the spine superseded `drafting/main.tex`, so the quilt defines each of the 110 nodes exactly once although two files hold their text, and `main` moves to the spine. `loom inline --all` on the spine rebuilds a 1229-line master that passes the identity test and differs from the drafted file only in blank lines between nodes.
-3. `loom canonize drafting/main-atomic.tex --to canon/virtual6-v1.tex -m "Atomized"`: a flat 1246-line landmark, identity test pass, a step holding a version of each of the 96 statements and their proofs. The landmark compiles in a directory holding nothing but itself and the paper's styles — the paper-tier test does exactly that, with `loom.sty` and `nodes/` absent.
+1. `loom init man12 --from tests/fixtures/0805.2065/virtual6.tex --prefix man` is refused: 51 line-anchoring violations (`loom:line-anchoring`), listed by line, and nothing is written. With `--fix-anchoring` the import completes: step 0001 keeps the landmark `virtual6`, byte for byte the paper (it is one file, so flattening changes nothing), and the working document `drafting/virtual6.tex` is rewritten for anchoring and drafted: 96 environments (30 Remark, 16 Definition, 12 Proposition, 11 Example, 7 Lemma, 6 Theorem, 6 Corollary, 3 Convention, 3 Construction, 1 Condition, 1 Setting) and 21 sectioning units (5 sections, 9 subsections, 2 subsubsections, 5 paragraphs); 25 proofs adjacent, 0 by reference, 5 by enclosure (proofs inside `example` environments, DR-41), 0 unattached; 0 dangling references. Identity test: pass.
+2. `loom atomize drafting/virtual6.tex drafting/main-atomic.tex --sections`: 110 files under `nodes/` (96 environments and 14 sections and subsections, the subsections included from their section files), a 79-line spine for the 1246-line master; identity test: pass; the history records that the spine superseded `drafting/virtual6.tex`, so the quilt defines each of the 110 nodes exactly once although two files hold their text, and `main` moves to the spine. `loom inline --all` on the spine rebuilds a 1229-line master that passes the identity test and differs from the drafted file only in blank lines between nodes.
+3. `loom stamp drafting/main-atomic.tex -m "Atomized"`: a step holding a version of each of the 96 statements and their proofs, and the landmark `atomized`, the atomized document flattened back into one file. `loom history show atomized --plain` prints it with loom's macros inline, and that text compiles in a directory holding nothing but itself and the paper's styles, with `loom.sty` and `nodes/` absent.
 4. `loom digest extract manolache_VirtualPullbacks2012 tests/fixtures/0805.2065/virtual6.tex` in the relloc quilt: `refs/manolache_VirtualPullbacks2012.tex` with 96 results; every Manolache postnote in the paper resolves to a digest node, `\cite[Theorem 4.3]{manolache_VirtualPullbacks2012}` among them, and a bundle of a relloc proof compiles with the theorem stated inside it (M5).
 
-What the fixture tests: import on a real paper, line-anchoring in the wild and its repair, proofs by enclosure, `\newtheorem` discovery, atomize with sections, the inline round trip, identity at every step, supersession on a real paper, a self-contained landmark, and mechanical digest extraction of the same source. The paper-tier tests (`tests/papers`, run with `LOOM_PAPER_FIXTURES` pointing at the fixtures) pin the verbatim landmark and its step, the 51 violations, the 96 environment and 16 heading ids, the 5 proofs by enclosure, the one superseded file with no duplicate id, and identity on import, draft, atomize and canonize.
+What the fixture tests: import on a real paper, line-anchoring in the wild and its repair, proofs by enclosure, `\newtheorem` discovery, atomize with sections, the inline round trip, identity at every step, supersession on a real paper, a self-contained landmark, and mechanical digest extraction of the same source. The paper-tier tests (`tests/papers`, run with `LOOM_PAPER_FIXTURES` pointing at the fixtures) pin the verbatim landmark and its step, the 51 violations, the 96 environment and 16 heading ids, the 5 proofs by enclosure, the one superseded file with no duplicate id, identity on import and atomize, and a landmark's plain text compiling alone.
 
 ## 6.10 Stress test: ACGS, decomposition of degenerate Gromov–Witten invariants
 
 Source: arXiv `1709.09864`, version 4, local only under `tests/fixtures/1709.09864/`; the main file is `decomposition-formula.tex`, one file of 4567 lines, with 11 `.pspdftex` figure inputs and their PDFs, 23 files in the closure.
 
-**[decided]** What was found (settled at M4, re-run on the new path): no hand edits were needed. `import` writes `canon/decomposition-formula.tex`, flattening nothing (the paper is one file) and copying the 11 `.pspdftex` figures and their PDFs at their own paths, since a non-`.tex` inclusion is opaque and stays as written (DR-44); identity test: pass. The source has 5 line-anchoring violations, all repaired by `loom draft --fix-anchoring`. The drafted copy: 71 environments (18 Definition, 16 Proposition, 10 Lemma, 9 Theorem, 9 Remark, 3 Example, 3 Corollary, 1 Examples, 1 Construction, 1 Notation) and 74 sectioning units (5 sections, 19 subsections, 42 subsubsections, 8 paragraphs); 31 proofs adjacent, 1 unattached; 0 dangling references; 27 citations with locators but no digest; identity test: pass. The one unattached proof (line 3596) follows its proposition after a prose paragraph, which the adjacency rule does not bridge; it is the author's to attach with `\begin{proof}[Proof of Proposition~\ref{...}]`. `atomize` moves 67 node files (four environments nested inside others travel with their parents), writes a 2838-line spine, identity pass; `inline --all` rebuilds a 4567-line master with zero non-blank line differences from the imported file, identity pass. A full scan of the imported quilt takes about one second and well under 100 MB. Of the failures the fixture was written to find (environments not alone on their lines in dense passages; `\begin{proof}` with optional arguments the reference rule does not match ("Proof of the theorem" without a `\ref`); `\label`s inside titles; equation labels reused across sections), the anchoring violations occurred and one proof was separated from its statement by prose; neither needed a hand edit.
+**[decided]** What was found (settled at M4, re-run on the new path): no hand edits were needed. `import` keeps the landmark `decomposition-formula`, flattening nothing (the paper is one file), and copies the 11 `.pspdftex` figures and their PDFs at their own paths, since a non-`.tex` inclusion is opaque and stays as written (DR-44); identity test: pass. The source has 5 line-anchoring violations, all repaired by `--fix-anchoring`. The drafted working document: 71 environments (18 Definition, 16 Proposition, 10 Lemma, 9 Theorem, 9 Remark, 3 Example, 3 Corollary, 1 Examples, 1 Construction, 1 Notation) and 74 sectioning units (5 sections, 19 subsections, 42 subsubsections, 8 paragraphs); 31 proofs adjacent, 1 unattached; 0 dangling references; 27 citations with locators but no digest; identity test: pass. The one unattached proof (line 3596) follows its proposition after a prose paragraph, which the adjacency rule does not bridge; it is the author's to attach with `\begin{proof}[Proof of Proposition~\ref{...}]`. `atomize` moves 67 node files (four environments nested inside others travel with their parents), writes a 2838-line spine, identity pass; `inline --all` rebuilds a 4567-line master with zero non-blank line differences from the imported file, identity pass. A full scan of the imported quilt takes about one second and well under 100 MB. Of the failures the fixture was written to find (environments not alone on their lines in dense passages; `\begin{proof}` with optional arguments the reference rule does not match ("Proof of the theorem" without a `\ref`); `\label`s inside titles; equation labels reused across sections), the anchoring violations occurred and one proof was separated from its statement by prose; neither needed a hand edit.
 
 Pass criterion, met at M4: import completes with an empty hand-edit list; identity test passes; `atomize` and `inline` pass; the scanner handles the file in about a second (the paper-tier test allows ten seconds and 300 MB for the source map, 5.9.2).
 

@@ -1,4 +1,4 @@
-"""`loom refs scan`: the quilt's bibliography gathered from the canon documents, and only ever appended to (book 8.15)."""
+"""`loom refs scan`: the quilt's bibliography gathered from the landmarks, and only ever appended to (book 8.15)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from loom.refs.scan import bibitem_fields, bibitems, scan_bibliography
 from loom.scan.bib import BIBLIOGRAPHY, parse_bib
 from loom.scan.quilt import load_quilt
 
-CANON = r"""\documentclass{amsart}
+PAPER = r"""\documentclass{amsart}
 \begin{document}
 Text \cite{GP99} and \cite{Kre99}.
 \bibliographystyle{amsplain}
@@ -21,18 +21,30 @@ Text \cite{GP99} and \cite{Kre99}.
 """
 
 
+def landmark(n: int, name: str) -> str:
+    """The quilt-relative path of the landmark `name` kept by step `n`, as `loom stamp DOCUMENT -m NAME` writes it."""
+    return f".loom/history/{n:04d}-{name}/{name}.tex"
+
+
 def _quilt(tmp_path: Path, files: dict[str, str]):  # type: ignore[no-untyped-def]
+    """A quilt holding `files`; each under `.loom/history/` is a landmark, recorded by a step line as a stamp records one."""
+    from loom.history.ledger import append_entry
+
     root = tmp_path / "q"
     root.mkdir()
     (root / "config.toml").write_text('[quilt]\nmain = "drafting/main.tex"\nprefix = "ab"\n', encoding="utf-8")
     for rel, text in files.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(text, encoding="utf-8")
+        if rel.startswith(".loom/history/"):
+            step_dir, name = rel.split("/")[2], rel.split("/")[3]
+            data = {"step": int(step_dir[:4]), "dir": step_dir, "landmark": name, "froze": {}}
+            append_entry(root / ".loom" / "history", "stamp", data, "A. Author")
     return load_quilt(root)
 
 
 def test_a_bibitem_yields_its_identifiers_and_a_heuristic_title_author_and_year() -> None:
-    items = bibitems(CANON)
+    items = bibitems(PAPER)
     assert list(items) == ["GP99", "Inline"]
     gp = bibitem_fields(items["GP99"])
     assert gp["title"] == "Localization of virtual classes"
@@ -54,19 +66,19 @@ def test_scan_copies_named_bib_entries_verbatim_and_converts_bibitems(tmp_path: 
     quilt = _quilt(
         tmp_path,
         {
-            "canon/paper.tex": CANON,
+            landmark(1, "paper"): PAPER,
             "refs.bib": "@article{Kre99,\n  author = {Kresch, A.},\n  title = {Cycle groups},\n  note = {kept as written},\n}\n",
         },
     )
     report = scan_bibliography(quilt)
     assert [c.key for c in report.added] == ["Kre99", "GP99", "Inline"]
     text = (quilt.root / BIBLIOGRAPHY).read_text()
-    assert "note = {kept as written}" in text and "% from canon/paper.tex via refs.bib" in text
+    assert "note = {kept as written}" in text and f"% from {landmark(1, 'paper')} via refs.bib" in text
     assert set(parse_bib(text)) == {"Kre99", "GP99", "Inline"}
 
 
 def test_scan_only_appends_and_never_rewrites_a_corrected_entry(tmp_path: Path) -> None:
-    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
     scan_bibliography(quilt)
     path = quilt.root / BIBLIOGRAPHY
     path.write_text(path.read_text().replace("Localization of virtual classes", "Localization of Virtual Classes"))
@@ -74,15 +86,15 @@ def test_scan_only_appends_and_never_rewrites_a_corrected_entry(tmp_path: Path) 
     again = scan_bibliography(quilt)
     assert again.added == [] and again.present == 2 and path.read_text() == corrected
 
-    (quilt.root / "canon" / "paper.tex").unlink()  # a canon document gone removes nothing
+    (quilt.root / landmark(1, "paper")).unlink()  # a landmark gone removes nothing
     assert scan_bibliography(quilt).added == [] and path.read_text() == corrected
 
 
-def test_two_canon_documents_disagreeing_on_a_key_keep_the_first_and_say_so(tmp_path: Path) -> None:
-    other = CANON.replace("Localization of virtual classes", "Something else entirely")
-    quilt = _quilt(tmp_path, {"canon/a.tex": CANON, "canon/b.tex": other, "canon/c.tex": CANON})
+def test_two_landmarks_disagreeing_on_a_key_keep_the_first_and_say_so(tmp_path: Path) -> None:
+    other = PAPER.replace("Localization of virtual classes", "Something else entirely")
+    quilt = _quilt(tmp_path, {landmark(1, "a"): PAPER, landmark(2, "b"): other, landmark(3, "c"): PAPER})
     report = scan_bibliography(quilt, write=False)
-    assert report.conflicts == [("GP99", "canon/a.tex", "canon/b.tex")]
+    assert report.conflicts == [("GP99", landmark(1, "a"), landmark(2, "b"))]
     assert not (quilt.root / BIBLIOGRAPHY).exists()
     assert any("conflict: GP99" in line for line in report.lines())
 
@@ -112,7 +124,7 @@ def _pdf(path: Path, text: str = "A paper about widgets") -> None:
 
 def test_a_document_in_the_seed_space_is_copied_once_and_offered_an_entry(tmp_path: Path) -> None:
     """`refs/` is the author's: loom reads it, files what it has not seen before under `digests/storage`, and writes an entry for a document the bibliography does not name. A second scan copies nothing, and neither does a third after the author renames the file, because the ledger is keyed by content (DR-190)."""
-    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
     seed = quilt.root / "refs"
     seed.mkdir()
     _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
@@ -139,7 +151,7 @@ def test_a_document_in_the_seed_space_is_copied_once_and_offered_an_entry(tmp_pa
 
 def test_a_document_the_store_holds_and_no_entry_names_is_adopted_once(tmp_path: Path) -> None:
     """The store outlives the bibliography (plan 0.13 §12). An entry deleted by hand leaves a directory holding a PDF and its page text that nothing can reach: the viewer lists works by entry, and the ledger will not offer the file again because it remembers copying it. The scan offers an entry for it -- and **once**, which is the half that is easy to get wrong: a hash-named home is not claimed by any identifier, so a scan that checked identifiers alone would adopt the same directory again under a new key every time it ran."""
-    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
     seed = quilt.root / "refs"
     seed.mkdir()
     _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
@@ -176,7 +188,7 @@ def test_a_forgotten_document_is_not_offered_again(tmp_path: Path) -> None:
     """
     from loom.refs.unreadable import declare
 
-    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
     seed = quilt.root / "refs"
     seed.mkdir()
     _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
@@ -201,7 +213,7 @@ def test_a_forgotten_document_is_not_offered_again(tmp_path: Path) -> None:
 
 def test_a_bib_file_in_the_seed_space_is_read_like_one_a_document_names(tmp_path: Path) -> None:
     quilt = _quilt(
-        tmp_path, {"canon/paper.tex": CANON, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"}
+        tmp_path, {landmark(1, "paper"): PAPER, "refs/theirs.bib": "@book{Dropped, title={Dropped in by hand}}\n"}
     )
     report = scan_bibliography(quilt)
     assert "Dropped" in {c.key for c in report.added}
@@ -217,7 +229,7 @@ def test_a_document_that_states_no_identifier_is_reachable_from_its_own_entry(tm
     from loom.refs.identity import primary
     from loom.scan.bib import parse_bib
 
-    quilt = _quilt(tmp_path, {"canon/paper.tex": CANON})
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
     seed = quilt.root / "refs"
     seed.mkdir()
     _pdf(seed / "Ekedahl - 1988 - The order of the tautological ring.pdf", text="The order of the tautological ring")

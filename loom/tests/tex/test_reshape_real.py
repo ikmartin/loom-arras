@@ -58,7 +58,7 @@ def once(tmp_path_factory: pytest.TempPathFactory) -> Once:
 
 
 def imported(once: Once) -> tuple[Path, str]:
-    """init --from, made once: one flat canon document that typesets as the original. Read only; the quilt and what init said."""
+    """init --from, made once: the paper as received kept as landmark `main`, and the working document drafted from it, which typesets as the original. Read only; the quilt and what init said."""
 
     def make(base: Path) -> tuple[Path, str]:
         p = paper(base)
@@ -69,23 +69,11 @@ def imported(once: Once) -> tuple[Path, str]:
     return once.get("imported", make)
 
 
-def drafted(once: Once) -> tuple[Path, str]:
-    """The imported quilt drafted, made once. Read only; the quilt and what draft said."""
+def atomized(once: Once) -> tuple[Path, str]:
+    """The imported quilt atomized into drafting/spine.tex, made once. Read only; the quilt and what atomize said."""
 
     def make(base: Path) -> tuple[Path, str]:
         q = copy(imported(once)[0], base / "q")
-        r = ok("draft", "canon/main.tex", "--yes", cwd=q)
-        assert "Identity test: pass" in r.output, r.output
-        return q, r.output
-
-    return once.get("drafted", make)
-
-
-def atomized(once: Once) -> tuple[Path, str]:
-    """The drafted quilt atomized into drafting/spine.tex, made once. Read only; the quilt and what atomize said."""
-
-    def make(base: Path) -> tuple[Path, str]:
-        q = copy(drafted(once)[0], base / "q")
         r = ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
         return q, r.output
 
@@ -93,12 +81,11 @@ def atomized(once: Once) -> tuple[Path, str]:
 
 
 @pytest.mark.tex
-def test_import_is_flat_and_draft_labels_it(once: Once) -> None:
-    q, _ = imported(once)
-    canon = (q / "canon" / "main.tex").read_text()
-    assert "\\input{sections/results}" not in canon and "Beta uses Lemma" in canon
-    assert "\\label{pp-" not in canon and not (q / "sections").exists()
-    q, said = drafted(once)
+def test_import_keeps_the_paper_flat_and_drafts_it_labelled(once: Once) -> None:
+    q, said = imported(once)
+    received = (q / ".loom" / "history" / "0001-main" / "main.tex").read_text()
+    assert "\\input{sections/results}" not in received and "Beta uses Lemma" in received
+    assert "\\label{pp-" not in received and not (q / "sections").exists()
     assert "Identity test: pass" in said, said
     assert (q / "drafting" / "main.tex").read_text().count("\\label{pp-") == 5
 
@@ -121,14 +108,13 @@ def test_atomize_identity_and_inline_identity(once: Once, tmp_path: Path) -> Non
 
 
 @pytest.mark.tex
-def test_canonize_writes_a_landmark_that_compiles_alone(once: Once, tmp_path: Path) -> None:
-    """A canon document carries loom.sty's macros inline, so it compiles in a directory holding nothing else."""
+def test_a_landmark_shown_plain_compiles_alone(once: Once, tmp_path: Path) -> None:
+    """`loom history show --plain` carries loom.sty's macros inline, so a landmark printed that way compiles in a directory holding nothing else."""
     q = copy(atomized(once)[0], tmp_path / "q")
-    r = ok("canonize", "drafting/spine.tex", "--to", "canon/main-v1.tex", "-m", "First landmark", cwd=q)
-    assert "Identity test: pass" in r.output, r.output
+    ok("stamp", "drafting/spine.tex", "-m", "main-v1", cwd=q)
     alone = tmp_path / "alone"
     alone.mkdir()
-    shutil.copy(q / "canon" / "main-v1.tex", alone / "main-v1.tex")
+    (alone / "main-v1.tex").write_text(ok("history", "show", "main-v1", "--plain", cwd=q).stdout, encoding="utf-8")
     proc = subprocess.run(
         ["latexmk", "-pdf", "-interaction=nonstopmode", "-halt-on-error", "main-v1.tex"],
         cwd=alone,
@@ -142,7 +128,7 @@ def test_canonize_writes_a_landmark_that_compiles_alone(once: Once, tmp_path: Pa
 
 @pytest.mark.tex
 def test_inline_nest_shifts(once: Once, tmp_path: Path) -> None:
-    q = copy(drafted(once)[0], tmp_path / "q")
+    q = copy(imported(once)[0], tmp_path / "q")
     (q / "sections").mkdir(exist_ok=True)
     (q / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nNested text.\n")
     m = q / "drafting" / "main.tex"

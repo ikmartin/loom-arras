@@ -12,7 +12,7 @@ Anchors are frozen on edit, only for texts an annotation points at, and deduplic
 
 ## Rough design
 
-`loom history gc` lists, then with `--apply` removes, anchors that no annotation references and no step includes — an annotation discarded, or a run deleted, leaves its anchors behind. Never automatic; loom deletes only what a person named, and prints what it would delete first. Canon steps and stamps are never candidates.
+`loom history gc` lists, then with `--apply` removes, anchors that no annotation references and no step includes — an annotation discarded, or a run deleted, leaves its anchors behind. Never automatic; loom deletes only what a person named, and prints what it would delete first. Landmarks and stamps are never candidates.
 
 ## Blast radius
 

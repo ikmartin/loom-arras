@@ -1,6 +1,6 @@
 // The problems page: every diagnostic the publisher reports, grouped by what it is about, filtered from the URL, with the fix it offers ready to copy. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
-import { manifest } from '../manifest';
+import { manifest, serve } from '../manifest';
 
 test('the problems page lists every diagnostic code', async ({ page }) => {
 	await page.goto('/problems');
@@ -16,12 +16,24 @@ test('the problems page filters by severity from the URL, with its filters in th
 });
 
 test('the problems page groups by subject and copies a fix', async ({ page, context, browserName }) => {
+	// the fixture's record is sound, so one fault in it is added: a document the records name that is gone, with the command that finds it
+	await serve(page, (m) => {
+		m.diagnostics.push({
+			severity: 'warning',
+			code: 'loom:document-gone',
+			message: 'drafting/draft0.tex is gone, and 1 acceptance row names it; loom mv records where it went',
+			locations: [],
+			keys: [],
+			subject: 'record',
+			fixes: [{ label: 'record where it went', command: 'loom mv drafting/draft0.tex NEW' }]
+		});
+	});
 	await page.goto('/problems');
 	const headings = page.getByTestId('subject-heading');
 	await expect(headings.first()).toHaveText('The source');
 	await expect(headings.nth(1)).toHaveText('The record');
 	await page.getByTestId('filter-subject').selectOption('record');
-	await expect(page.locator('section.group')).toContainText('loom:canon-edited');
+	await expect(page.locator('section.group')).toContainText('loom:document-gone');
 	const fix = page.getByTestId('fix').first();
 	await expect(fix).toHaveText('copy');
 	if (browserName === 'chromium') {

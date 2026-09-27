@@ -1,6 +1,6 @@
-"""Canon documents as fragments (book 9.3, 17.1): a landmark is rendered as the document it is, with no node identity, no marks, and no numbers loom did not compile itself.
+"""Landmarks as fragments (book 9.3, 17.9): a landmark is rendered as the document it is, with no node identity, no marks, and no numbers loom did not compile itself.
 
-The canon directory is never scanned, so nothing here goes through the assembly: the file is read on its own, its preamble closure is built from itself, and its labels anchor within the page.
+A landmark's text lives in its step's directory, which the scan never enters, so nothing here goes through the assembly: the file is read on its own, its preamble closure is built from itself, and its labels anchor within the page.
 """
 
 from __future__ import annotations
@@ -49,7 +49,8 @@ def title_of(src: SourceFile) -> str | None:
 
 
 def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[CanonDoc]:
-    """One CanonDoc per canon document, read outside the scan (`result.files` is left alone) and closed over its own preamble."""
+    """One CanonDoc per landmark, read outside the scan (`result.files` is left alone) and closed over its own preamble."""
+    steps = {history.landmark_path(e).relative_to(quilt.root).as_posix(): e for e in history.landmarks()}
     out: list[CanonDoc] = []
     for rel in result.canon_files:
         src = read_source(quilt.root, rel)
@@ -65,7 +66,7 @@ def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[Canon
                 src=src,
                 closure=closure,
                 title=title_of(src) or stem,
-                step=history.step_for_path(rel),
+                step=steps.get(rel),
                 labels=labels,
             )
         )
@@ -90,7 +91,7 @@ def macro_set(doc: CanonDoc) -> list[dict[str, Any]]:
 
 
 class CanonRenderer:
-    """Renders canon documents with the FragmentRenderer's fallback machinery but none of its identity."""
+    """Renders landmarks with the FragmentRenderer's fallback machinery but none of its identity."""
 
     def __init__(self, renderer: FragmentRenderer) -> None:
         self.renderer = renderer

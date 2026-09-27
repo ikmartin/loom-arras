@@ -1,6 +1,6 @@
 """What the record says against what the files say (book 17.14, 17.15): reported with the commands that would resolve it, repaired never.
 
-`quick_checks` runs on every scan and costs one hash per canon document; `verify` walks every step directory and runs only from `loom lint` and `loom history verify`.
+`quick_checks` runs on every scan and reads only the ledger; `verify` walks every step directory and runs only from `loom lint` and `loom history verify`.
 """
 
 from __future__ import annotations
@@ -26,34 +26,6 @@ def quick_checks(result: ScanResult, history: History) -> list[Diagnostic]:
         )
     if not history.exists:
         return out
-    root = result.quilt.root
-    hist_rel = history.dir.relative_to(root).as_posix() if history.dir.is_relative_to(root) else str(history.dir)
-    seen: set[str] = set()
-    for e in reversed(history.steps()):
-        to = e.get("to") or {}
-        path, recorded = (to.get("path"), to.get("hash")) if isinstance(to, dict) else (None, None)
-        if not path or not recorded or path in seen:
-            continue
-        seen.add(str(path))
-        f = root / str(path)
-        if not f.is_file():
-            continue  # deletion is absence; the step keeps its copy
-        if file_hash(f) != recorded:
-            stem = Path(str(path)).stem
-            drafting = result.quilt.config.drafting
-            out.append(
-                Diagnostic(
-                    "warning",
-                    "loom:canon-edited",
-                    f"{path} is not the text step {e.step:04d} recorded; the landmark's copy is {hist_rel}/{e.dir}/{Path(str(path)).name}",
-                    [Location(str(path), 1)],
-                    subject="record",
-                    fixes=[
-                        Fix("restore the landmark", f"cp {hist_rel}/{e.dir}/{Path(str(path)).name} {path}"),
-                        Fix("work on it as a draft instead", f"loom draft {path} --to {drafting}/{stem}.tex"),
-                    ],
-                )
-            )
     removed = history.removed_ids()
     for key, step in sorted(removed.items()):
         n = result.nodes.get(key)
@@ -172,6 +144,21 @@ def verify(result: ScanResult, history: History) -> list[Diagnostic]:
                         subject="record",
                     )
                 )
+        elif e.action == "restore":
+            frm = e.get("from") or {}
+            if isinstance(frm, dict) and isinstance(frm.get("step"), int):
+                st = history.step(frm["step"])
+                if st is None or not st.get("landmark"):
+                    to = e.get("to") or {}
+                    out.append(
+                        Diagnostic(
+                            "warning",
+                            "loom:dangling-ancestry",
+                            f"{to.get('path') if isinstance(to, dict) else to} was restored from landmark {frm.get('landmark')} (@{frm['step']}), which the history no longer has",
+                            [],
+                            subject="record",
+                        )
+                    )
         elif e.action in ("copy", "adopt", "refresh"):
             copy = str(e.get("to" if e.action == "copy" else "copy", ""))
             for derived, base in sorted((e.get("bases") or {}).items()):
@@ -187,18 +174,4 @@ def verify(result: ScanResult, history: History) -> list[Diagnostic]:
                             subject="record",
                         )
                     )
-        elif e.action == "draft":
-            frm = e.get("from") or {}
-            if isinstance(frm, dict) and isinstance(frm.get("step"), int) and history.step(frm["step"]) is None:
-                to = e.get("to") or {}
-                drafted = to.get("path") if isinstance(to, dict) else to
-                out.append(
-                    Diagnostic(
-                        "warning",
-                        "loom:dangling-ancestry",
-                        f"{drafted} was drafted from step {frm['step']:04d}, which the history no longer has",
-                        [],
-                        subject="record",
-                    )
-                )
     return out

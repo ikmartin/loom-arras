@@ -1,6 +1,6 @@
-"""The quilt's own bibliography (book 8.15): `digests/bibliography.bib`, gathered from the canon documents and only ever appended to.
+"""The quilt's own bibliography (book 8.15): `digests/bibliography.bib`, gathered from the landmarks and only ever appended to.
 
-A canon document cites through a `.bib` it names or through an inline `thebibliography`; both are read. An entry from a `.bib` is copied verbatim, so nothing the author wrote is lost. A `\\bibitem` is free text, so it becomes an entry holding that text in `loom-text`, the identifiers found in it, and a best-effort author, title and year, marked `loom-parsed = {heuristic}`. An entry already in the file is never rewritten or removed: the author corrects a heuristic entry by hand, and the next scan leaves the correction alone.
+A landmark cites through a `.bib` it names or through an inline `thebibliography`; both are read. An entry from a `.bib` is copied verbatim, so nothing the author wrote is lost. A `\\bibitem` is free text, so it becomes an entry holding that text in `loom-text`, the identifiers found in it, and a best-effort author, title and year, marked `loom-parsed = {heuristic}`. An entry already in the file is never rewritten or removed: the author corrects a heuristic entry by hand, and the next scan leaves the correction alone.
 """
 
 from __future__ import annotations
@@ -19,12 +19,12 @@ from loom.refs.pages import STORAGE, page_texts, sha256_of, storage_root, write_
 from loom.refs.unreadable import declarations
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
-from loom.scan.scan import canon_documents
+from loom.scan.scan import landmark_documents
 from loom.scan.source import blank_comments
 from loom.scan.tokenize import match_group, read_args, read_optional, tokenize
 
 HEADER = (
-    "% The quilt's bibliography, written by `loom refs scan` from the canon documents (book 8.15).\n"
+    "% The quilt's bibliography, written by `loom refs scan` from the landmarks (book 8.15).\n"
     "% Loom only appends: an entry here is never rewritten or removed, so correct one by hand and it stays corrected.\n"
 )
 
@@ -47,17 +47,17 @@ _TITLE_GROUP = re.compile(r"\{\s*\\(?:it|em|sl|itshape)\b\s*")
 class Candidate:
     key: str
     text: str  # BibTeX, ready to append
-    source: str  # the canon document it came from
+    source: str  # the landmark it came from
     compare: str = ""  # the text two sources are compared by
 
 
 @dataclass
 class ScanReport:
-    canon: int = 0  # canon documents read
+    canon: int = 0  # landmarks read
     added: list[Candidate] = field(default_factory=list)
     present: int = 0  # entries the file already had
     conflicts: list[tuple[str, str, str]] = field(default_factory=list)  # (key, kept source, other source)
-    missing_bib: list[tuple[str, str]] = field(default_factory=list)  # (canon document, .bib it names that is absent)
+    missing_bib: list[tuple[str, str]] = field(default_factory=list)  # (landmark, .bib it names that is absent)
     copied: list[tuple[str, str]] = field(default_factory=list)  # (seed file, where it was filed)
     already: int = 0  # documents the ledger had seen before
     derived: list[str] = field(default_factory=list)  # entries offered for a document that stated an identifier
@@ -97,7 +97,9 @@ class ScanReport:
         out += [f"{name}: no page text ({why})" for name, why in self.unmapped]
         out += [f"{doc} names {name}.bib, which does not exist" for doc, name in self.missing_bib]
         if not self.canon:
-            out.append("no canon documents to gather from: the bibliography grows when you `loom canonize` a document")
+            out.append(
+                "no landmarks to gather from: the bibliography grows when you `loom stamp DOCUMENT -m NAME` a document"
+            )
         return out
 
 
@@ -218,7 +220,7 @@ def _named_bibs(root: Path, text: str) -> tuple[list[Path], list[str]]:
 
 
 def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
-    """Every entry the canon documents carry, first source winning; a second source disagreeing is a conflict."""
+    """Every entry the landmarks carry, first source winning; a second source disagreeing is a conflict."""
     root = quilt.root
     out: dict[str, Candidate] = {}
 
@@ -231,7 +233,7 @@ def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
         ):
             report.conflicts.append((c.key, kept.source, c.source))
 
-    docs = canon_documents(quilt)
+    docs = landmark_documents(quilt)
     report.canon = len(docs)
     for bib in sorted((root / SEED).glob("*.bib")) if (root / SEED).is_dir() else []:
         raw = bib.read_text(encoding="utf-8", errors="replace")
@@ -265,7 +267,7 @@ def _append(path: Path, entries: list[Candidate]) -> None:
 
 
 def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
-    """Append every canon entry the quilt's bibliography does not have yet.
+    """Append every entry a landmark carries that the quilt's bibliography does not have yet.
 
     Parameters
     ----------
@@ -277,7 +279,7 @@ def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
     Returns
     -------
     ScanReport
-        What was added, how many entries were already there, conflicts between canon documents, and named `.bib` files that do not exist.
+        What was added, how many entries were already there, conflicts between landmarks, and named `.bib` files that do not exist.
     """
     report = ScanReport()
     path = quilt.root / BIBLIOGRAPHY

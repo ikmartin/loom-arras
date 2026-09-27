@@ -44,7 +44,7 @@ Viewers group by code, filter by severity, code and subject, and link locations 
 Source and structure:
 
 - `loom:environment-spans-files` (error): a theorem-like environment opens in one file and closes in another.
-- `loom:line-anchoring` (error, fixed): a `\begin` or `\end` of a theorem-like environment is not alone on its line; reported by `draft` and `atomize`.
+- `loom:line-anchoring` (error, fixed): a `\begin` or `\end` of a theorem-like environment is not alone on its line; reported by `import`, `id` and `atomize`.
 - `loom:unknown-environment` (error): a theorem-like environment the preamble closure does not declare; fix with `% !LOOM environment:`.
 - `loom:unattached-proof` (error): a `proof` neither adjacent to a node nor referencing one.
 - `loom:multi-target-proof` (warning): a proof's optional argument references several nodes; attached to the first.
@@ -111,14 +111,13 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 **[decided]** These concern loom's own record of the quilt (Chapter 17) and carry `subject: "record"` except where noted.
 
 - `loom:superseded-file` (info): a document a conversion replaced; it defines nothing until `loom live`.
-- `loom:canon-edited` (warning): a canon document is not the text the step that wrote it recorded.
 - `loom:history-missing` (error): a step directory or one of its files is gone.
-- `loom:history-edited` (error): a version file, a preamble, or a step's document copy does not hash to what the ledger recorded.
+- `loom:history-edited` (error): a version file, a preamble, or a step's document — a landmark, or a copy step's source — does not hash to what the ledger recorded.
 - `loom:history-corrupt` (error): a ledger line cannot be read, or a step number does not follow the last.
-- `loom:dangling-ancestry` (warning): a `fork`, `revert`, or `draft` line names a step or version the history no longer resolves.
+- `loom:dangling-ancestry` (warning): a `fork`, `revert`, `restore` or `copy` line names a step, a landmark or a version the history no longer resolves.
 - `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
 - `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.
-- `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes; carries the fix that starts one.
+- `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes; carries the fix that starts one from the newest landmark, `loom history restore NAME --to <drafting>/main.tex`.
 - `loom:derived-id-in-drafting` (error, subject `source`): a document the drafting directory holds defines or cites an agent copy's derived id (book 5.3.1); the message names the plain id to use.
 - `loom:document-stem-taken` (error, subject `source`): two live documents, in the drafting directory and the agent's, share a stem (book 4.4).
 - `loom:document-gone` (warning): a drafting document that acceptance rows or annotations name is gone, and the history records no move that leads to a live document (book 17.12). One per document, named by the last path the history knows for it, counting the rows and annotations that name it, with its rows' keys in `keys` and `loom mv OLD NEW` as its fix (book 7.6.2; DR-297-ikmartin).

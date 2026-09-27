@@ -1,4 +1,4 @@
-"""Canon documents in the build (book 9.3, 17.1): a landmark is rendered as a document, with no node identity, its own macros, and a place in the manifest."""
+"""Landmarks in the build (book 9.3, 17.9): a landmark is rendered as a document, with no node identity, its own macros, and a place in the manifest."""
 
 from __future__ import annotations
 
@@ -31,19 +31,19 @@ By Lemma~\ref{lem:a} and Section~\ref{sec:setup}.
 """
 
 FIXED = {"LOOM_FIXED_TIME": "2026-09-16T00:00:00Z"}
+LANDMARK = ".loom/history/0001-main/main.tex"  # the paper as received, which the import keeps as landmark `main`
 
 
 def quilt(tmp_path: Path) -> Path:
-    """PAPER imported and drafted at a fixed time, from a per-worker template."""
+    """PAPER imported at a fixed time, which keeps it as landmark `main` and drafts it, from a per-worker template."""
 
     def make(base: Path) -> None:
         paper = base / "paper"
         paper.mkdir()
         (paper / "main.tex").write_text(PAPER, encoding="utf-8")
         ok("init", str(base / "q"), "--from", str(paper / "main.tex"), "--prefix", "pp", "--yes", cwd=base, env=FIXED)
-        ok("draft", "canon/main.tex", "--yes", cwd=base / "q", env=FIXED)
 
-    templated("canon-drafted", tmp_path, make)
+    templated("landmark-imported", tmp_path, make)
     return tmp_path / "q"
 
 
@@ -51,7 +51,7 @@ def manifest(q: Path) -> dict:
     return json.loads((q / "build" / "manifest.json").read_text())
 
 
-def test_a_canon_document_is_a_fragment_without_identity(tmp_path: Path) -> None:
+def test_a_landmark_is_a_fragment_without_identity(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     ok("build", cwd=q, env=FIXED)
     frag = (q / "build" / "fragments" / "canon" / "main.html").read_text()
@@ -64,12 +64,12 @@ def test_a_canon_document_is_a_fragment_without_identity(tmp_path: Path) -> None
 
     m = manifest(q)
     (entry,) = m["canon"]
-    assert entry["path"] == "canon/main.tex" and entry["stem"] == "main" and entry["title"] == "Widgets"
+    assert entry["path"] == LANDMARK and entry["stem"] == "main" and entry["title"] == "Widgets"
     assert entry["fragment"] == "fragments/canon/main.html"
     assert entry["step"] == "0001" and entry["name"] == "main"
     assert entry["macros"] == "canon:main"
     assert any(mac["name"] == "gadget" for mac in m["macros"]["sets"]["canon:main"])
-    assert "canon/main.tex" not in m["nodes"]  # never scanned: it defines nothing
+    assert LANDMARK not in m["nodes"]  # never scanned: it defines nothing
     assert any(s["kind"] == "canon" for s in m["search"])
 
 
@@ -83,12 +83,12 @@ def test_the_project_name_is_the_corpus_name(tmp_path: Path) -> None:
     assert manifest(q)["corpus"]["name"] == "The widget paper"
 
 
-def test_a_canon_fragment_is_cached_and_pruned(tmp_path: Path) -> None:
+def test_a_landmark_fragment_is_cached_and_pruned(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     ok("build", cwd=q, env=FIXED)
     warm = build(load_quilt(q))
-    assert "canon:canon/main.tex" in warm.skipped and warm.rendered == []  # unchanged: skipped
-    (q / "canon" / "main.tex").unlink()
+    assert f"canon:{LANDMARK}" in warm.skipped and warm.rendered == []  # unchanged: skipped
+    (q / LANDMARK).unlink()
     ok("build", cwd=q, env=FIXED)
     assert not (q / "build" / "fragments" / "canon" / "main.html").exists()
     assert manifest(q)["canon"] == []
@@ -117,7 +117,7 @@ def test_a_conflicted_key_is_published_with_no_text(tmp_path: Path) -> None:
 
 def test_a_key_whose_text_a_landmark_recorded_carries_its_version(tmp_path: Path) -> None:
     q = quilt(tmp_path)
-    ok("canonize", "drafting/main.tex", "--to", "canon/main-v1.tex", "-m", "one", cwd=q, env=FIXED)
+    ok("stamp", "drafting/main.tex", "-m", "main-v1", cwd=q, env=FIXED)
     ok("build", cwd=q, env=FIXED)
     m = manifest(q)
     assert m["keys"]["pp-0002"]["version"] == {"step": "0002", "name": "main-v1"}

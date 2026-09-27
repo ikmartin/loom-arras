@@ -21,7 +21,6 @@ name = "{name}"
 main = "{drafting}/main.tex"    # default master
 drafting = "{drafting}"           # working documents, every one live
 drafting_ai = "{drafting_ai}"     # documents you and an agent both edit, live but never reviewed or published
-canon = "{canon}"              # landmarks: flat, self-contained, never scanned
 prefix = "{prefix}"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 
@@ -158,14 +157,13 @@ GITIGNORE_NOTE = """wrote .gitignore, ignores:
   all stray LaTeX files (.aux, .log, .bbl and the rest)"""
 
 
-def _user_dirs() -> tuple[str, str, str]:
-    """The drafting, `drafting_ai` and canon directory names a person's user config asks for, else the defaults; init writes them into the quilt so the layout is explicit there."""
+def _user_dirs() -> tuple[str, str]:
+    """The drafting and `drafting_ai` directory names a person's user config asks for, else the defaults; init writes them into the quilt so the layout is explicit there."""
     uq = load_user_config().get("quilt", {})
     uq = uq if isinstance(uq, dict) else {}
     drafting = str(uq.get("drafting", "drafting")).strip("/") or "drafting"
     drafting_ai = str(uq.get("drafting_ai", "drafting-ai")).strip("/") or "drafting-ai"
-    canon = str(uq.get("canon", "canon")).strip("/") or "canon"
-    return drafting, drafting_ai, canon
+    return drafting, drafting_ai
 
 
 def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, author: str = "") -> list[Path]:
@@ -174,7 +172,7 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
     Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
     """
     made: list[Path] = []
-    drafting, drafting_ai, canon = _user_dirs()
+    drafting, drafting_ai = _user_dirs()
 
     def mkdir(path: Path) -> None:
         # every directory this call brings into being is recorded, parents included, so undo_minimal_quilt leaves nothing behind
@@ -194,7 +192,6 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
 
     mkdir(target / drafting)
     mkdir(target / drafting_ai)
-    mkdir(target / canon)
     for d in ("nodes", "digests", "refs"):
         mkdir(target / d)
     mkdir(target / ".loom" / "history")
@@ -205,7 +202,6 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
             prefix=prefix,
             drafting=drafting,
             drafting_ai=drafting_ai,
-            canon=canon,
             author=author,
             author_pad=" " * max(1, 22 - len(author)),
             launch="false",
@@ -227,8 +223,8 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
     readme = (
         (ASSETS / "init" / "readme.md")
         .read_text(encoding="utf-8")
+        .replace("drafting-ai/", f"{drafting_ai}/")
         .replace("drafting/", f"{drafting}/")
-        .replace("canon/", f"{canon}/")
         .replace("q-0", f"{prefix}-0")
     )
     write(target / "README.md", readme)
@@ -299,6 +295,12 @@ def write_demo_quilt(target: Path) -> None:
     default=False,
     help="Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default.",
 )
+@click.option(
+    "--fix-anchoring",
+    "fix_anchors",
+    is_flag=True,
+    help="With --from: rewrite the drafted document so every theorem-like \\begin and \\end is alone on its line.",
+)
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
 @click.pass_context
 def init(
@@ -311,9 +313,10 @@ def init(
     git_init: bool,
     ai: str | None,
     launch_agents: bool,
+    fix_anchors: bool,
     yes: bool,
 ) -> None:
-    """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it as its first canon document (then: loom draft)."""
+    """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it: the paper as received kept as the first landmark, and the working document drafted from it."""
     here = directory is None  # the message says so: "<path> is not empty" reads oddly when the path was never typed
     target = Path(directory).expanduser() if directory else Path.cwd()
     if is_quilt_root(target) or any(is_quilt_root(p) for p in target.resolve().parents):
@@ -367,7 +370,7 @@ def init(
         from loom.scan.quilt import load_quilt
 
         try:
-            ident = run_import(load_quilt(target), paper, yes)
+            ident = run_import(load_quilt(target), paper, yes, fix_anchors=fix_anchors)
         except BaseException:
             # the import writes nothing into the quilt until it says "Wrote N files", so a failure before that leaves only the skeleton above; leaving that behind would refuse the obvious retry -- the same command with --fix-anchoring -- as "already inside a quilt"
             undo_minimal_quilt(target, existed, made)

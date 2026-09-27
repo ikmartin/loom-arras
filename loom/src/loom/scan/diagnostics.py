@@ -67,7 +67,6 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:agent-wrote-outside-run": ("error", False),
     # the workbench and the record (book chapter 17; docs/specs/diagnostics.md §3)
     "loom:superseded-file": ("info", False),
-    "loom:canon-edited": ("warning", False),
     "loom:history-missing": ("error", False),
     "loom:history-edited": ("error", False),
     "loom:history-corrupt": ("error", False),

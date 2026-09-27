@@ -58,7 +58,6 @@
     ],
     "deny": [
       "Edit(/drafting/**)",
-      "Edit(/canon/**)",
       "Edit(/nodes/**)",
       "Edit(/retired/**)",
       "Edit(/digests/**)",
@@ -80,9 +79,6 @@
       "Bash(loom agent check*)",
       "Bash(loom ai init*)",
       "Bash(loom atomize*)",
-      "Bash(loom canonicalize*)",
-      "Bash(loom canonise*)",
-      "Bash(loom canonize*)",
       "Bash(loom delete*)",
       "Bash(loom digest import*)",
       "Bash(loom draft*)",

@@ -16,8 +16,7 @@ All entries are **[decided]** unless marked.
 - master : a `.tex` file containing `\documentclass`, located in the drafting directory or the agent's drafting directory. Compiled as a document. Addressed by path. The root of an inclusion tree. Also called a live document.
 - drafting directory : the directory named by `config.toml [quilt] drafting`, by default `drafting/`. Every file in it with `\documentclass` is a master, and every one is live. Read as `drafts` in a quilt written before 0.9.
 - agent's drafting directory : the directory named by `config.toml [quilt] drafting_ai`, by default `drafting-ai/`. Holds the documents the person and an agent both edit: live, and never reviewed, accepted or published (4.4). The one place outside its session an agent may write a document.
-- canon directory : the directory named by `config.toml [quilt] canon`, by default `canon/`. Holds landmarks. Never scanned: nothing in it defines a node.
-- canon document : a flat, self-contained copy of a document as it stood when `loom import` or `loom canonize` wrote it. Compiles on its own, with no `loom.sty` and no `\input`. Shown in arras; never a master.
+- landmark : a document's flat text as it stood at a step, kept in that step's directory under `.loom/history/`: the paper as received, kept by `loom import`, or a drafting document with its ids and `\usepackage{loom}`, kept by `loom stamp DOCUMENT -m NAME` (17.9). Named by the slug of its message (`widgets-v3`), its step, or `DOC@STEP`. Never scanned, so nothing in it defines a node; shown in arras as a document; `loom history show` prints it and `loom history restore` starts a working document from it.
 - live : a property of a document, not of a file: a document is live when it sits in the drafting directory and no conversion has recorded that its output superseded it. Only live documents define the nodes they hold inline.
 - superseded : a document a conversion (`atomize`, `linearize`) replaced, recorded in the history. It defines nothing until `loom live` says otherwise.
 - default master : the master named by `config.toml [quilt] main`.
@@ -44,7 +43,7 @@ All entries are **[decided]** unless marked.
 - style class : amsthm's `plain`, `definition`, or `remark`, read from the `\theoremstyle` in force when the environment was declared. It controls presentation, not proof obligation.
 - basis : the reason a theorem-like block may be relied on: `expository`, `local-proof`, `cited-result`, `assumption`, or `open-claim`; `unclassified` means the drafting scan needs the author's choice. `expository` covers definitions, notation, and explanatory remarks or comments that make no claim requiring mathematical justification. A remark or comment with a claim and its justification inline may declare `local-proof`; its acceptance covers the entire block. The author may declare a basis with `% !LOOM basis:` inside the block.
 - version : the text a key had at a step, stored in that step's directory and addressed `rl-0001@3`.
-- address : a key and a step, `rl-0001@3` or `rl-0001@paper-v2`; the step may be named by number or by the canon document it wrote.
+- address : a key and a step, `rl-0001@3` or `rl-0001@paper-v2`; the step may be named by number or by the name of the landmark it kept.
 - retired id : an id the history has recorded and no live document defines. Never allocated again.
 - conflicted : the state of an id two live files both define. It has no text: loom reports both and chooses neither.
 - key : the unit the ledger accepts and annotations target: a statement (its id) or a proof (`<id>/proof`, `<id>/proof/2`, ..., or a labelled proof's own id). Equations and masters are also annotation targets but never ledger keys.
@@ -130,10 +129,10 @@ All entries are **[decided]** unless marked.
 
 - atomic format : a file written around inclusion lines, with each node in a file of its own.
 - linear format : a file written as one document, with its environments in place. Neither is rigorous; they name the two shapes loom's conversions move between.
-- import : copying a paper into a quilt as one flat canon document, with its styles, bibliography and figures at the root; nothing is inserted and step 0001 records it.
-- draft : copying a canon document into the drafting directory as a working document, with `\usepackage{loom}` and an id on every node. The canon document is not touched.
-- canonize : writing a live document as a flat, self-contained canon document and recording a step: what every key was at that moment, quilt-wide.
-- stamp : recording a step without writing a canon document: every key whose text has moved since the last one.
+- import : bringing a paper into a quilt, with its styles, bibliography and figures at the root: the paper as received, flattened, is kept as a landmark in the history, and the working document is drafted from it at once, with `\usepackage{loom}` and an id on every node.
+- draft : copying a live drafting document into the agent's drafting directory as a flat copy with derived ids, recorded as a `copy` step (17.7).
+- stamp : recording a step: every key whose text has moved since the last one, quilt-wide; given a document, only the keys it reaches, and the document's flat text kept as a landmark.
+- restore : writing a new working document in the drafting directory from a landmark, with `\usepackage{loom}` and an id on every node that has none (17.9).
 - fork : giving a document its own copy of a node under a new id, as a patch the author applies.
 - revert : printing the patch that puts a recorded version's text back in place of the head's.
 - live : making a superseded document define its nodes again.
@@ -141,8 +140,8 @@ All entries are **[decided]** unless marked.
 - linearize : flattening a document, every inclusion expanded in place with `\nest`'s level shift applied. The whole-document counterpart of `inline`.
 - atomize : moving each node of a file into its own file, writing a spine to a named destination. Never in place; the history records that the spine superseded the source.
 - inline : the reverse of atomize for one inclusion or for a file's own inclusions, to a named destination.
-- step : a numbered, directory-creating event in the history: an import, a canonize, or a stamp. Numbered once over the whole quilt.
-- identity test : the compiled output (`pdftotext`) of a document must be unchanged by import, draft, atomize, inline, linearize, or canonize.
+- step : a numbered, directory-creating event in the history: an import, a stamp, or an agent copy. Numbered once over the whole quilt.
+- identity test : the compiled output (`pdftotext`) of a document must be unchanged by import, atomize, inline, or linearize.
 - unravel : the report of everything downstream of a node: transitive dependents, inclusion sites, ledger rows, annotations. Aliases `downstream`, `reach`, `pop`.
 - publish (verb) : writing the build directory. The command is `loom build`.
 
@@ -161,7 +160,8 @@ The following words were used during design and are not terms of the system. Do 
 - `drafts/` : the pre-0.9 name of the drafting directory. Still read from an old `config.toml`, with a warning; never written.
 - `assemble` : withdrawn; `linearize` flattens a document, `inline` reverses one atomization.
 - expanded format, assembled format : now linear format.
-- work, bench, revise : considered and rejected as verbs; the pair is atomize and linearize, and the passage between the two states is draft and canonize.
+- work, bench, revise : considered and rejected as verbs; the pair is atomize and linearize, and the passage between a working document and a landmark is stamp and restore.
+- canon directory, canon document, `canonize` : withdrawn; a landmark is kept in its step by `loom stamp DOCUMENT -m NAME`, and `loom history show --plain` prints it without loom. The interface still names a landmark's manifest entry, route and fragment `canon` (specs/manifest.md §2).
 - `--ignore-src` : withdrawn from `atomize`; the history records that the output superseded the input, and `--retire` moves it.
 - `loose/`, `attic/`, `archive/` : not loom directories; an author may use any of them, and `% !LOOM ignore` handles a file that must not be scanned.
 - sidecar, `block.toml` : no per-node metadata files exist.

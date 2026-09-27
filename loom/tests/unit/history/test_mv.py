@@ -151,7 +151,7 @@ REFUSALS: dict[str, tuple[Callable[[Path], None], str, str, str]] = {
     "OLD outside drafting": (_nothing, "nodes/dm-0001.tex", "drafting/x.tex", "is not directly in the drafting directory"),
     "NEW below drafting": (_nothing, "drafting/main.tex", "drafting/sub/main.tex", "is not directly in the drafting"),
     "NEW not .tex": (_nothing, "drafting/main.tex", "drafting/main.txt", "is not a .tex file"),
-    "NEW in canon": (_nothing, "drafting/main.tex", "canon/main.tex", "is inside canon/, not the drafting directory"),
+    "NEW in retired": (_nothing, "drafting/main.tex", "retired/main.tex", "is inside retired/, not the drafting directory"),
     "NEW in the history": (_nothing, "drafting/main.tex", ".loom/history/x.tex", "is inside .loom/history/"),
     "OLD outside the quilt": (_nothing, "/nonexistent/a.tex", "drafting/x.tex", "is outside the quilt"),
     "OLD a node file": (_part, "drafting/part.tex", "drafting/part2.tex", "is not a live drafting document"),

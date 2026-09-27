@@ -50,20 +50,20 @@ The values are properties of the publisher and its corpora, not of this corpus's
 
 **[decided]** **A publisher may omit any top-level section it has nothing to say about, and a viewer treats an absent section as an empty one.** `interface_version` and `publisher` are the two exceptions; everything else may be missing. A publisher with no masters, no review ledger or no bibliography writes no `masters`, no `annotations` and no `references`, and is conforming. This is what makes the interface publisher-neutral rather than loom-shaped: a corpus tool and a site generator publish very different subsets of it, and neither should have to write empty objects to prove it read the specification. Absence and emptiness mean the same thing, so a viewer must never distinguish them, and a publisher may use whichever is more natural. A malformed *value* is a different matter and remains the publisher's error. `docs/specs/fixture-minimal/` is the fixture that holds this floor.
 
-## 2. Masters and canon
+## 2. Masters and landmarks
 
-**[decided]** `masters` lists the documents a reader may work in; `canon` lists the landmarks, in the order the publisher recorded them, oldest first. A document the publisher considers superseded appears in neither.
+**[decided]** `masters` lists the documents a reader may work in; `canon` lists the landmarks — documents as they stood at a recorded moment, fixed and never worked in — in the order the publisher recorded them, oldest first. A document the publisher considers superseded appears in neither. Loom builds one entry from each step that keeps a document's text, an import or a stamp given a document (book 17.9), and its `path` is that text's file in the step's directory.
 
 ```json
 "canon": [
-  {"path": "canon/paper-v1.tex", "stem": "paper-v1", "title": "Relative virtual localization",
+  {"path": ".loom/history/0002-paper-v1/paper-v1.tex", "stem": "paper-v1", "title": "Relative virtual localization",
    "fragment": "fragments/canon/paper-v1.html", "hash": "3f9a...",
    "step": "0002", "name": "paper-v1", "message": "Submitted to the Journal", "when": "2026-09-13T09:00:00Z",
    "macros": "canon:paper-v1"}
 ]
 ```
 
-`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `macros` names an entry of `macros.sets` (§14). A canon fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
+`path`, `stem`, `title` and `fragment` are required; the rest are present when the publisher knows them. `macros` names an entry of `macros.sets` (§14). A landmark's fragment carries no identity at all: no element in it has `data-id` or `data-key`, nothing in it appears in `nodes` or `keys`, and a viewer renders it as a document and nothing more.
 
 ## 2a. Masters
 
@@ -416,7 +416,7 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 ## 15. Search
 
-**[decided]** Entries for the viewer's search box: `{"key": "rl-0004", "title": "...", "taxon": "Lemma", "aliases": [...], "tags": [...], "excerpt": "..."}` for every node and every digest node; masters, canon documents and threads have entries with `kind` (`master`, `canon`, `thread`).
+**[decided]** Entries for the viewer's search box: `{"key": "rl-0004", "title": "...", "taxon": "Lemma", "aliases": [...], "tags": [...], "excerpt": "..."}` for every node and every digest node; masters, landmarks and threads have entries with `kind` (`master`, `canon`, `thread`).
 
 ## 16. Relations
 

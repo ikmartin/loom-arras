@@ -125,7 +125,7 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
     key = next((k for k, n in r.nodes.items() if n.kind == "environment"), None)
     env = next(iter(r.taxa), None)
     master = r.default_master
-    canon = next(iter(r.canon_files), None)
+    landmark = next(iter(r.canon_files), None)
     drafting = r.quilt.config.drafting
     commands: list[list[str]] = [
         ["lint"],
@@ -153,12 +153,12 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
         commands += [["new", env, "--print"], ["new", env, "Written by the invariance test"]]
     if master:
         commands += [
-            ["canonize", master, "--to", "canon/invariance.tex", "-m", "written by the invariance test"],
+            ["stamp", master, "-m", "written by the invariance test on a document"],
             ["linearize", master, "--to", f"{drafting}/invariance-flat.tex", "--no-check"],
             ["live", master],
         ]
-    if canon:
-        commands += [["draft", canon, "--to", f"{drafting}/invariance-draft.tex", "--yes", "--no-check"]]
+    if landmark:
+        commands += [["history", "restore", Path(landmark).stem, "--to", f"{drafting}/invariance-draft.tex"]]
     for cmd in commands:
         # the verdict is not this test's subject, only what the command leaves on disk; it differs by quilt and command (a lint with errors exits 1, `live` on a live master 2), and a crash raises out of `run`
         run(*cmd, cwd=q)
@@ -177,6 +177,6 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
         old = (quilt / ledger).read_text(encoding="utf-8")
         assert (q / ledger).read_text(encoding="utf-8").startswith(old), "the history ledger is append-only"
     new_files = set(after) - set(before)
-    # everything loom writes goes into nodes/, the drafting directory it was told to write in, the canon it was told to write, or its own record
-    allowed = ("nodes/", f"{drafting}/", "canon/", ".loom/")
+    # everything loom writes goes into nodes/, the drafting directory it was told to write in, or its own record, where a landmark's text is kept
+    allowed = ("nodes/", f"{drafting}/", ".loom/")
     assert all(rel.startswith(allowed) for rel in new_files), new_files

@@ -18,7 +18,7 @@ An ordinary quilt inside the author's, at `ai/quilt/`, which the author's scan a
 
 **One id space, allocated lazily.** Ids come from the same allocator as the author's, which consults the author's live ids, the retired ids in the ledger, and the ai quilt — so a node is the same object before and after it is copied, and `\label`, `\ref` and `\uses` survive the copy untouched, including references from an agent's new lemma to the author's existing ones. Scratch work carries paper-local labels (`\label{lem:contraction}`) and no id; the agent asks for an id the moment a node becomes a candidate. Provenance is a ledger line naming the run the node arrived from, never a prefix in the id, which would go on saying "an agent wrote this" after the author had rewritten it twice.
 
-**No canon and no history of its own.** The ai quilt is scratch; the author's quilt holds the record, and a node's history begins when it arrives.
+**No landmarks and no history of its own.** The ai quilt is scratch; the author's quilt holds the record, and a node's history begins when it arrives.
 
 **Serving.** Cheaply, `loom serve --quilt ai/quilt --port 8792` in a second terminal. A quilt switcher in arras is the nicer form and waits for this to be used.
 

@@ -356,11 +356,11 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "39cc3ef4d8563d5bf076b29c3b80fd86475caab927e1560f04fd960691924d04",
+   "hash": "6fe86e9bdc5b2c97e08242f2d6548b31f9234cc37d84d23b5a215085a97b2463",
    "macros": "canon:widgets-v1",
-   "message": "First landmark",
+   "message": "widgets-v1",
    "name": "widgets-v1",
-   "path": "canon/widgets-v1.tex",
+   "path": ".loom/history/0001-widgets-v1/widgets-v1.tex",
    "stem": "widgets-v1",
    "step": "0001",
    "title": "Widgets, gadgets, and their fixed loci",
@@ -368,11 +368,11 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "0409ac661e6e1c708e98b3a71cd1b582d1d15ff7cd45eb7c2fb24d678e2e1881",
+   "hash": "d00717aa935a471cade7107eea723212f2e9769a2d630061e47772e114310e31",
    "macros": "canon:widgets-v2",
-   "message": "After the referee",
+   "message": "widgets-v2",
    "name": "widgets-v2",
-   "path": "canon/widgets-v2.tex",
+   "path": ".loom/history/0003-widgets-v2/widgets-v2.tex",
    "stem": "widgets-v2",
    "step": "0003",
    "title": "Widgets, gadgets, and their fixed loci",
@@ -380,11 +380,11 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "0d9ba39dfd28fa5576077b73f4fbcd7d5fdbe4f77dce9c3a3f781f77d0e33407",
+   "hash": "2c5bf306ccf721cef169d67d1eae4a6c231483c342fb6d71efad3327b5b92930",
    "macros": "canon:widgets-v3",
-   "message": "Third landmark",
+   "message": "widgets-v3",
    "name": "widgets-v3",
-   "path": "canon/widgets-v3.tex",
+   "path": ".loom/history/0005-widgets-v3/widgets-v3.tex",
    "stem": "widgets-v3",
    "step": "0005",
    "title": "Widgets, gadgets, and their fixed loci",
@@ -483,29 +483,6 @@
    ],
    "message": "\\input{nodes/missing} names no file",
    "severity": "error"
-  },
-  {
-   "code": "loom:canon-edited",
-   "fixes": [
-    {
-     "command": "cp .loom/history/0001-widgets-v1/widgets-v1.tex canon/widgets-v1.tex",
-     "label": "restore the landmark"
-    },
-    {
-     "command": "loom draft canon/widgets-v1.tex --to drafting/widgets-v1.tex",
-     "label": "work on it as a draft instead"
-    }
-   ],
-   "keys": [],
-   "locations": [
-    {
-     "file": "canon/widgets-v1.tex",
-     "line": 1
-    }
-   ],
-   "message": "canon/widgets-v1.tex is not the text step 0001 recorded; the landmark's copy is .loom/history/0001-widgets-v1/widgets-v1.tex",
-   "severity": "warning",
-   "subject": "record"
   },
   {
    "code": "loom:equation-in-proof-referenced",
@@ -1048,43 +1025,43 @@
   {
    "code": "loom:converter-fallback",
    "keys": [
-    "canon/widgets-v1.tex"
+    ".loom/history/0001-widgets-v1/widgets-v1.tex"
    ],
    "locations": [
     {
-     "file": "canon/widgets-v1.tex",
+     "file": ".loom/history/0001-widgets-v1/widgets-v1.tex",
      "line": 0
     }
    ],
-   "message": "unknown command \\parbox in canon/widgets-v1.tex; rendered as SVG",
+   "message": "unknown command \\parbox in .loom/history/0001-widgets-v1/widgets-v1.tex; rendered as SVG",
    "severity": "info"
   },
   {
    "code": "loom:converter-fallback",
    "keys": [
-    "canon/widgets-v2.tex"
+    ".loom/history/0003-widgets-v2/widgets-v2.tex"
    ],
    "locations": [
     {
-     "file": "canon/widgets-v2.tex",
+     "file": ".loom/history/0003-widgets-v2/widgets-v2.tex",
      "line": 0
     }
    ],
-   "message": "unknown command \\parbox in canon/widgets-v2.tex; rendered as SVG",
+   "message": "unknown command \\parbox in .loom/history/0003-widgets-v2/widgets-v2.tex; rendered as SVG",
    "severity": "info"
   },
   {
    "code": "loom:converter-fallback",
    "keys": [
-    "canon/widgets-v3.tex"
+    ".loom/history/0005-widgets-v3/widgets-v3.tex"
    ],
    "locations": [
     {
-     "file": "canon/widgets-v3.tex",
+     "file": ".loom/history/0005-widgets-v3/widgets-v3.tex",
      "line": 0
     }
    ],
-   "message": "unknown command \\parbox in canon/widgets-v3.tex; rendered as SVG",
+   "message": "unknown command \\parbox in .loom/history/0005-widgets-v3/widgets-v3.tex; rendered as SVG",
    "severity": "info"
   },
   {
@@ -2051,8 +2028,8 @@
    "state": "draft",
    "uses": [],
    "version": {
-    "name": "widgets-v1",
-    "step": "0001"
+    "name": "stamp-referee-points",
+    "step": "0002"
    }
   },
   "Kre99-thm-2.1": {
@@ -2082,8 +2059,8 @@
     "Kre99-setup"
    ],
    "version": {
-    "name": "widgets-v1",
-    "step": "0001"
+    "name": "stamp-referee-points",
+    "step": "0002"
    }
   },
   "drafting-ai/aidoc.tex#remark:2": {
@@ -3313,8 +3290,8 @@
     "sy-0002"
    ],
    "version": {
-    "name": "widgets-v1",
-    "step": "0001"
+    "name": "stamp-referee-points",
+    "step": "0002"
    }
   },
   "sy-0009/proof": {
@@ -3347,8 +3324,8 @@
     "sy-0002"
    ],
    "version": {
-    "name": "widgets-v1",
-    "step": "0001"
+    "name": "stamp-referee-points",
+    "step": "0002"
    }
   },
   "sy-000A": {
@@ -3981,8 +3958,8 @@
    "state": "draft",
    "uses": [],
    "version": {
-    "name": "widgets-v2",
-    "step": "0003"
+    "name": "stamp-talk-prepared",
+    "step": "0004"
    }
   },
   "sy-999B": {
@@ -6807,21 +6784,21 @@
  "search": [
   {
    "aliases": [],
-   "key": "canon/widgets-v1.tex",
+   "key": ".loom/history/0001-widgets-v1/widgets-v1.tex",
    "kind": "canon",
    "tags": [],
    "title": "Widgets, gadgets, and their fixed loci"
   },
   {
    "aliases": [],
-   "key": "canon/widgets-v2.tex",
+   "key": ".loom/history/0003-widgets-v2/widgets-v2.tex",
    "kind": "canon",
    "tags": [],
    "title": "Widgets, gadgets, and their fixed loci"
   },
   {
    "aliases": [],
-   "key": "canon/widgets-v3.tex",
+   "key": ".loom/history/0005-widgets-v3/widgets-v3.tex",
    "kind": "canon",
    "tags": [],
    "title": "Widgets, gadgets, and their fixed loci"

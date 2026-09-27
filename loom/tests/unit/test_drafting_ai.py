@@ -173,7 +173,7 @@ def test_the_agent_may_write_in_its_directory_under_the_quilts_own_names(tmp_pat
     ok("ai", "init", cwd=q)
     perms = json.loads((q / ".claude" / "settings.json").read_text())["permissions"]
     assert "Edit(/with-agent/**)" in perms["allow"] and "Edit(/drafting-ai/**)" not in perms["allow"]
-    assert "Edit(/drafting/**)" in perms["deny"] and "Edit(/canon/**)" in perms["deny"]
+    assert "Edit(/drafting/**)" in perms["deny"]
     doctor = {i["name"]: i["status"] for i in json.loads(run("doctor", "--json", cwd=q).stdout)["items"]}
     assert doctor["permissions"] == "ok"
 

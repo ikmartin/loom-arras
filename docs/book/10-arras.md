@@ -44,13 +44,13 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.2 Read view
 
-**[decided]** `/master/<stem>` for each live document, and `/canon/<stem>` for each landmark. The picker names both, in two headed groups — Canon, newest first, each named by the step that wrote it; then Working Drafts — so that "the version we submitted" is one click from the version being written.
+**[decided]** `/master/<stem>` for each live document, and `/canon/<stem>` for each landmark. The side panel names both under Documents (15.2.3): Working Drafts, then Landmarks, newest first, each named by the step that kept it, so that "the version we submitted" is one click from the version being written.
 
 **[decided]** `/master/<stem>` renders the master fragment as a document: headings, prose, every node in place with its id in the margin linking to its node page (the Stacks pattern), review badges in the margin, marks in the text, a table of contents built from the master's section nodes, hanging under the document's row in the side panel. Numbers are the document's own compile's; a master that is not yet compiled renders with none, and its references name their targets' titles (DR-245-ikmartin). A citation opens the digest result it names, or the cited work's page when it names none (DR-119). The local graph can be opened over the document and follows the result being read (DR-116).
 
-**[decided]** `/canon/<stem>` renders a landmark as the document it is: its title and the text, with the step that wrote it in its tab. Nothing in it is a node, so it offers no margins, no heading links, no comments, no review badges and no local graph, and its theorems link nowhere; its own references are in-page links, because a landmark is self-contained. It typesets with its own macros (9.3).
+**[decided]** `/canon/<stem>` renders a landmark as the document it is: its title and the text, with the step that kept it in its tab. Nothing in it is a node, so it offers no margins, no heading links, no comments, no review badges and no local graph, and its theorems link nowhere; its own references are in-page links, because a landmark is self-contained. It typesets with its own macros (9.3).
 
-**[decided]** When the drafting directory holds no document — the state a quilt is in between `loom import` and `loom draft` — every view that is about nodes says so rather than showing an empty table, names the newest landmark as somewhere to read, and points at the problems page, where the publisher's own diagnostic carries the command that starts one. Arras never names a loom command itself (10.8).
+**[decided]** When the drafting directory holds no document — a quilt with landmarks and no working document, until one is restored from a landmark — every view that is about nodes says so rather than showing an empty table, names the newest landmark as somewhere to read, and points at the problems page, where the publisher's own diagnostic carries the command that starts one. Arras never names a loom command itself (10.8).
 
 ### 10.2.3 The Library
 

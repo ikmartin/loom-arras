@@ -2,7 +2,6 @@
 name = "Hostile"
 main = "drafting/main.tex"
 drafting = "drafting"
-canon = "canon"
 prefix = "hx"
 engine = "pdflatex"
 

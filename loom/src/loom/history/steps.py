@@ -52,7 +52,7 @@ def versionable(n: NodeRec) -> bool:
 def plan_freeze(
     result: ScanResult, history: History, document: str | None = None, narrow_to: str | None = None
 ) -> FreezePlan:
-    """What a step at this moment records. `document` names the canonized document (its keys become `reaches`, its preamble is the one hashed); `narrow_to` restricts a stamp to the keys one document reaches."""
+    """What a step at this moment records. `document` names the document a landmark keeps (its keys become `reaches`, its preamble is the one hashed); `narrow_to` restricts a stamp to the keys one document reaches."""
     plan = FreezePlan()
     latest = history.latest_versions()
     live = history.state_at(history.next_step() - 1)
@@ -94,22 +94,6 @@ def plan_freeze(
     plan.reaches.sort()
     plan.restored.sort()
     return plan
-
-
-def infer_parent(history: History, current: dict[str, str], declared: int | None) -> dict[str, Any]:
-    """Which step this one continues: declared by the author, else the step whose recorded state shares the most key hashes with the head, else unknown."""
-    if declared is not None:
-        return {"step": declared, "how": "declared"}
-    best: tuple[int, int] | None = None  # (matched, step)
-    for e in history.steps():
-        n = e.step or 0
-        state = history.state_at(n)
-        matched = sum(1 for k, h in current.items() if state.get(k, (0, ""))[1] == h)
-        if matched and (best is None or matched >= best[0]):
-            best = (matched, n)
-    if best is None:
-        return {"how": "unknown"}
-    return {"step": best[1], "how": "inferred", "matched": best[0], "of": len(current)}
 
 
 _SLUG = re.compile(r"[^a-z0-9]+")
@@ -161,7 +145,7 @@ def write_step(
 
 
 def file_hash(path: Path) -> str:
-    """sha256 over a file's exact text, so a comment-only edit to a canon document is seen (book 17.15)."""
+    """sha256 over a file's exact text, so a comment-only edit to a landmark's text is seen (book 17.15)."""
     return sha256(path.read_text(encoding="utf-8", errors="replace"))
 
 

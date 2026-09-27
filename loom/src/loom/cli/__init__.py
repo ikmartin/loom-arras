@@ -12,9 +12,6 @@ from loom.cli.digest import digest
 from loom.cli.doctor import doctor
 from loom.cli.graph import deps, unravel
 from loom.cli.history_cmds import (
-    canonicalize,
-    canonise,
-    canonize,
     draft,
     fork,
     history,
@@ -83,9 +80,6 @@ main.add_command(ai)
 main.add_command(digest)
 main.add_command(upgrade)
 main.add_command(draft)
-main.add_command(canonize)
-main.add_command(canonicalize)
-main.add_command(canonise)
 main.add_command(stamp)
 main.add_command(fork)
 main.add_command(revert)

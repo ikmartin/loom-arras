@@ -1,4 +1,4 @@
-"""`loom draft`, `loom canonize`, `loom stamp`, `loom fork`, `loom revert`, `loom live`, `loom mv`, `loom linearize`, `loom history` (book chapter 17).
+"""`loom draft`, `loom stamp`, `loom fork`, `loom revert`, `loom live`, `loom mv`, `loom linearize`, `loom history` (book chapter 17).
 
 Usage refusals are EnvError (exit 2), content refusals ContentError (exit 1); every command that writes ends with one `Recorded:` note naming the ledger line or step. Patches are printed for the editor to apply; loom rewrites no author file.
 """
@@ -8,7 +8,6 @@ from __future__ import annotations
 import shutil
 import sys
 import tempfile
-from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -19,13 +18,13 @@ from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for
 from loom.history.checks import verify
 from loom.history.ledger import Entry, History, Version, actor_for, append_entry, load_history
-from loom.history.steps import file_hash, infer_parent, plan_freeze, slug, text_hash, write_step
+from loom.history.steps import file_hash, plan_freeze, slug, text_hash, write_step
 from loom.history.versions import matching_version, materialize, parse_address, read_version
 from loom.reshape.atomize import _single_node_file
-from loom.reshape.canon import draft_entry, plan_draft
+from loom.reshape.canon import plan_draft
 from loom.reshape.fork import _relabel, _rewrite_refs, plan_fork
 from loom.reshape.ids import unified_diff
-from loom.reshape.importer import report_counts, set_main, set_main_forced
+from loom.reshape.importer import set_main_forced
 from loom.reshape.linearize import flatten, to_canon
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local, split_id
@@ -60,100 +59,22 @@ def _confirm(yes: bool, what: str) -> None:
 
 
 @click.command()
-@click.argument("canon")
+@click.argument("document")
 @click.option(
     "--ai",
     "ai_name",
-    default=None,
+    required=True,
     metavar="NAME",
-    help="Copy a live drafting document into the agent's drafting directory as NAME instead, every label it defines derived.",
+    help="The copy to write in the agent's drafting directory.",
 )
-@click.option("--json", "as_json", is_flag=True, help="With --ai: the copy and its step as JSON.")
-@click.option("--to", "to", default=None, metavar="FILE", help="The draft to write (default: <drafting>/<stem>.tex).")
-@click.option("--no-ids", "no_ids", is_flag=True, help="Copy without inserting ids.")
-@click.option(
-    "--fix-anchoring",
-    "fix_anchors",
-    is_flag=True,
-    help="Rewrite the copy so every theorem-like \\begin and \\end is alone on its line.",
-)
-@click.option("--prefix", default=None, help="Id prefix for the ids inserted.")
-@click.option("--no-check", "no_check", is_flag=True, help="Skip the identity test.")
-@click.option("--yes", "-y", is_flag=True)
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def draft(
-    canon: str,
-    ai_name: str | None,
-    as_json: bool,
-    to: str | None,
-    no_ids: bool,
-    fix_anchors: bool,
-    prefix: str | None,
-    no_check: bool,
-    yes: bool,
-    quilt_path: str | None,
-) -> None:
-    """Copy a canon document into the drafting directory as a working draft, with \\usepackage{loom} and an id on every node; the canon file is not touched.
+def draft(document: str, ai_name: str, as_json: bool, quilt_path: str | None) -> None:
+    """Copy a live drafting document into the agent's drafting directory as NAME, flat, with every label it defines derived; a copy step records what each of its nodes began from (book 17.7).
 
-    With `--ai NAME`, CANON is a live drafting document instead, copied flat into the agent's drafting directory with every label it defines derived, and a copy step records what each of its nodes began from (book 4.4).
+    Starting a document from an old version of one is `loom history restore`.
     """
-    result = open_scan(quilt_path)
-    if ai_name is not None:
-        _draft_ai(result, canon, ai_name, as_json)
-        return
-    quilt = result.quilt
-    root = quilt.root
-    canon_rel = _rel(root, canon)
-    if not (root / canon_rel).is_file():
-        raise EnvError(f"{canon} is not a file of this quilt")
-    if Path(canon_rel).parent.as_posix() != quilt.config.canon:
-        raise EnvError(f"{canon_rel} is not a canon document; the canon directory is {quilt.config.canon}/")
-    dest_rel = _rel(root, to) if to else f"{quilt.config.drafting}/{Path(canon_rel).name}"
-    if Path(dest_rel).parent.as_posix() != quilt.config.drafting:
-        raise EnvError(f"a draft goes directly under {quilt.config.drafting}/, not at {dest_rel}")
-    if (root / dest_rel).exists():
-        raise EnvError(f"{dest_rel} exists; draft never overwrites")
-    history = _history(result)
-    plan = plan_draft(result, history, canon_rel, dest_rel, ids=not no_ids, fix_anchors=fix_anchors, prefix=prefix)
-    if plan.moved and plan.step is not None:
-        note(
-            f"loom:canon-edited: {canon_rel} is not the text step {plan.step.step:04d} recorded; drafting from the file as it is"
-        )
-    if plan.violations:
-        note(f"Nothing was written. {canon_rel} has {len(plan.violations)} line-anchoring violation(s):")
-        for v in plan.violations[:20]:
-            note(f"  line {v.line}: \\{v.kind}{{{v.env}}} is not alone on its line")
-        raise ContentError(
-            "loom needs a theorem-like \\begin and \\end alone on their lines to find a node's exact span. "
-            "Pass --fix-anchoring to rewrite the draft and leave the canon document alone."
-        )
-    if plan.spans:
-        raise ContentError("an environment spans files: " + "; ".join(plan.spans))
-    note("Plan, nothing written yet:")
-    note(f"  {canon_rel} -> {dest_rel} ({len(plan.insertions)} ids)")
-    if plan.diff:
-        click.echo(plan.diff, nl=False)
-    _confirm(yes, "draft")
-    dest = root / dest_rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(plan.text, encoding="utf-8")
-    note(f"Wrote {dest_rel}")
-    if not no_check:
-        with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
-            ident = identity_test(root, canon_rel, root, dest_rel, Path(tmp), quilt.config.engine)
-        note(ident.summary())
-        if not ident.passed and not ident.skipped:
-            dest.unlink(missing_ok=True)
-            raise ContentError(
-                f"the draft does not typeset as {canon_rel}; {dest_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway."
-            )
-    changed = set_main(quilt, dest_rel)
-    if changed:
-        note(f"main = {dest_rel}")
-    after = scan(load_quilt(root))
-    note(report_counts(after))
-    entry = append_entry(quilt.history_dir, "draft", draft_entry(quilt, plan), actor_for(root))
-    note(f"Recorded: draft (ledger line {entry.line})")
+    _draft_ai(open_scan(quilt_path), document, ai_name, as_json)
 
 
 def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None:
@@ -213,201 +134,63 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
     note(f"Recorded: copy as step {entry.step:04d} ({entry.dir})")
 
 
-# ---- canonize -----------------------------------------------------------------
-
-
-def _canonize_params(f: Callable[..., Any]) -> Callable[..., Any]:
-    decos: list[Any] = [
-        click.argument("document"),
-        click.option("--to", "to", default=None, metavar="FILE", help="The canon file (default: <canon>/<stem>.tex)."),
-        click.option("--message", "-m", "message", required=True, help="What this landmark is."),
-        click.option("--no-check", "no_check", is_flag=True, help="Skip the identity test."),
-        click.option("--parent", "parent", type=int, default=None, help="The step this one continues."),
-        click.option("--json", "as_json", is_flag=True),
-        quilt_option,
-    ]
-    for deco in reversed(decos):
-        f = deco(f)
-    return f
-
-
-def _run_canonize(
-    document: str,
-    to: str | None,
-    message: str,
-    no_check: bool,
-    parent: int | None,
-    as_json: bool,
-    quilt_path: str | None,
-) -> None:
-    result = open_scan(quilt_path)
-    quilt = result.quilt
-    root = quilt.root
-    doc_rel = _rel(root, document)
-    if doc_rel not in result.files:
-        raise EnvError(f"{document} is not a scanned file of this quilt")
-    src = result.files[doc_rel]
-    if "\\documentclass" not in src.text:
-        raise EnvError(f"{doc_rel} is not a document (no \\documentclass)")
-    live = doc_rel in result.masters
-    to_rel = _rel(root, to) if to else f"{quilt.config.canon}/{Path(doc_rel).name}"
-    if Path(to_rel).parent.as_posix() != quilt.config.canon:
-        raise EnvError(f"a canon document goes directly under {quilt.config.canon}/, not at {to_rel}")
-    if (root / to_rel).exists():
-        raise EnvError(f"{to_rel} exists; canonize never overwrites a landmark")
-    conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and doc_rel in n.reached_by)
-    if conflicted:
-        raise ContentError(
-            f"{doc_rel} reaches {', '.join(conflicted)}, defined by two files each; a landmark needs one text per key. loom lint --nodes shows them."
-        )
-    spans = [
-        d
-        for d in result.lint
-        if d.code == "loom:environment-spans-files" and any(loc.file == doc_rel for loc in d.locations)
-    ]
-    if spans:
-        raise ContentError(f"an environment spans files in {doc_rel}; loom lint --nodes shows it")
-    if not live:
-        why = "superseded" if src.superseded else ("ignored" if src.ignored else "outside the drafting directory")
-        note(f"warning: {doc_rel} is {why}; canonizing it anyway, recorded as not live")
-    flat = flatten(root, doc_rel)
-    text = to_canon(flat.text)
-    dest = root / to_rel
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(text, encoding="utf-8")
-    if not no_check:
-        with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
-            ident = identity_test(root, doc_rel, root, to_rel, Path(tmp), engine_for(result, doc_rel))
-        note(ident.summary())
-        if not ident.passed and not ident.skipped:
-            dest.unlink(missing_ok=True)
-            raise ContentError(
-                f"the flat copy does not typeset as {doc_rel}; {to_rel} was removed and nothing was recorded. Pass --no-check to write it anyway."
-            )
-    history = _history(result)
-    plan = plan_freeze(result, history, document=doc_rel)
-    declared = parent
-    if declared is None:
-        for e in reversed(history.entries):
-            if e.action == "draft" and (e.get("to") or {}).get("path") == doc_rel:
-                step = (e.get("from") or {}).get("step")
-                if isinstance(step, int):
-                    declared = step
-                break
-    ancestry = infer_parent(history, plan.current, declared)
-    entry = write_step(
-        history,
-        "canonize",
-        Path(to_rel).stem,
-        plan,
-        actor_for(root),
-        extra={
-            "message": message,
-            "document": doc_rel,
-            "live": live,
-            "from": {"path": doc_rel, "hash": file_hash(root / doc_rel)},
-            "to": {"path": to_rel, "hash": text_hash(text)},
-            "inlined": list(flat.inlined),
-            "reaches": plan.reaches,
-            "parent": ancestry,
-        },
-        document_text=text,
-        document_name=Path(to_rel).name,
-    )
-    reached_frozen = sum(1 for k in plan.froze if k in plan.reaches)
-    elsewhere = len(plan.froze) - reached_frozen
-    how = ancestry.get("how", "unknown")
-    parent_text = f"parent {ancestry['step']:04d} ({how})" if "step" in ancestry else "parent unknown"
-    if as_json:
-        emit_json({**entry.to_dict(), "line": entry.line})
-    else:
-        click.echo(f"Wrote {to_rel} (flat, {text.count(chr(10))} lines)")
-        click.echo(
-            f"step {entry.step:04d} froze {len(plan.froze)} keys ({reached_frozen} reached by {doc_rel}, {elsewhere} elsewhere), "
-            f"{plan.unchanged} unchanged, {parent_text}"
-        )
-        if plan.skipped:
-            note(f"skipped (conflicted): {', '.join(plan.skipped)}")
-    note(f"Recorded: canonize as step {entry.step:04d} ({entry.dir})")
-    from loom.refs.scan import scan_bibliography
-
-    for line in scan_bibliography(result.quilt).lines():
-        note(line)
-
-
-@click.command()
-@_canonize_params
-def canonize(
-    document: str,
-    to: str | None,
-    message: str,
-    no_check: bool,
-    parent: int | None,
-    as_json: bool,
-    quilt_path: str | None,
-) -> None:
-    """Write DOCUMENT as one flat, self-contained canon file and record a step: every key's text at this moment, quilt-wide, with what the document reaches named."""
-    _run_canonize(document, to, message, no_check, parent, as_json, quilt_path)
-
-
-@click.command(hidden=True)
-@_canonize_params
-def canonicalize(
-    document: str,
-    to: str | None,
-    message: str,
-    no_check: bool,
-    parent: int | None,
-    as_json: bool,
-    quilt_path: str | None,
-) -> None:
-    """The same as canonize."""
-    note("canonicalize → canonize")
-    _run_canonize(document, to, message, no_check, parent, as_json, quilt_path)
-
-
-@click.command(hidden=True)
-@_canonize_params
-def canonise(
-    document: str,
-    to: str | None,
-    message: str,
-    no_check: bool,
-    parent: int | None,
-    as_json: bool,
-    quilt_path: str | None,
-) -> None:
-    """The same as canonize."""
-    note("canonise → canonize")
-    _run_canonize(document, to, message, no_check, parent, as_json, quilt_path)
-
-
 # ---- stamp --------------------------------------------------------------------
 
 
 @click.command()
-@click.option("--message", "-m", "message", required=True, help="What this stamp marks.")
-@click.option("--in", "in_doc", default=None, metavar="FILE", help="Only the keys this document reaches.")
+@click.argument("document", required=False, default=None)
+@click.option(
+    "--message",
+    "-m",
+    "message",
+    required=True,
+    help="What this stamp marks; given a DOCUMENT, it names the landmark (`widgets-v3`).",
+)
 @click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def stamp(message: str, in_doc: str | None, as_json: bool, quilt_path: str | None) -> None:
-    """Record every key whose text moved since the last step, quilt-wide (or within one document with --in), without writing a canon file."""
+def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | None) -> None:
+    """Record every key whose text moved since the last step, quilt-wide; given DOCUMENT, only the keys it reaches, and its flat text kept as a landmark.
+
+    A landmark is how a document stood at a moment worth returning to: `loom history show NAME` prints it and `loom history restore NAME --to FILE` starts a document from it (book 17.9).
+    """
     result = open_scan(quilt_path)
     root = result.quilt.root
-    narrow = _rel(root, in_doc) if in_doc else None
-    if narrow is not None and narrow not in result.masters:
-        raise EnvError(f"{in_doc} is not a live document of this quilt")
     history = _history(result)
-    plan = plan_freeze(result, history, narrow_to=narrow)
-    if not plan.froze and not plan.removed and not plan.restored:
+    doc = _rel(root, document) if document else None
+    if doc is not None and result.document_role(doc) != "drafting":
+        raise EnvError(f"{document} is not a live document in {result.quilt.config.drafting}/")
+    name = slug(message)
+    if doc is not None and history.landmark(name) is not None:
+        raise EnvError(f"a landmark is already named {name}; name this one differently")
+    conflicted = (
+        sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and doc in n.reached_by) if doc else []
+    )
+    if conflicted:
+        raise ContentError(
+            f"{doc} reaches {', '.join(conflicted)}, defined by two files each; a landmark needs one text per key. loom lint --nodes shows them."
+        )
+    plan = plan_freeze(result, history, document=doc, narrow_to=doc)
+    if doc is None and not plan.froze and not plan.removed and not plan.restored:
         last = history.next_step() - 1
         raise ContentError(
             f"nothing to stamp: no key has moved since step {last:04d}"
             if last
             else "nothing to stamp: no key has an id"
         )
+    extra: dict[str, Any] = {"message": message, "in": doc}
+    text = None
+    if doc is not None:
+        text = flatten(root, doc).text
+        extra.update(landmark=f"{name}.tex", to={"path": f"{name}.tex", "hash": text_hash(text)}, reaches=plan.reaches)
     entry = write_step(
-        history, "stamp", f"stamp-{slug(message)}", plan, actor_for(root), extra={"message": message, "in": narrow}
+        history,
+        "stamp",
+        name if doc is not None else f"stamp-{name}",
+        plan,
+        actor_for(root),
+        extra=extra,
+        document_text=text,
+        document_name=f"{name}.tex" if text is not None else None,
     )
     if as_json:
         emit_json({**entry.to_dict(), "line": entry.line})
@@ -416,11 +199,17 @@ def stamp(message: str, in_doc: str | None, as_json: bool, quilt_path: str | Non
             f"step {entry.step:04d} froze {len(plan.froze)} keys"
             + (f", {len(plan.removed)} removed" if plan.removed else "")
             + (f", {len(plan.restored)} restored" if plan.restored else "")
-            + (f" (in {narrow})" if narrow else "")
+            + (f"; landmark {name}, {doc} as it stands" if doc else "")
         )
         if plan.skipped:
             note(f"skipped (conflicted): {', '.join(plan.skipped)}")
     note(f"Recorded: stamp as step {entry.step:04d} ({entry.dir})")
+    if doc is not None:
+        # a landmark is what the quilt's bibliography is gathered from, so a new one may carry entries it lacks (book 8.15)
+        from loom.refs.scan import scan_bibliography
+
+        for line in scan_bibliography(result.quilt).lines():
+            note(line)
 
 
 # ---- fork ---------------------------------------------------------------------
@@ -561,7 +350,7 @@ def live(file: str, quilt_path: str | None) -> None:
 def _document_path(result: ScanResult, rel: str, given: str) -> None:
     """Refuse `rel` unless it can name a drafting document: a `.tex` directly in the drafting directory, inside the quilt.
 
-    `given` is the argument as typed, for a path `_rel` could not make quilt-relative. The directories the scan never enters are named, since a canon or retired path is the likeliest slip.
+    `given` is the argument as typed, for a path `_rel` could not make quilt-relative. The directories the scan never enters are named, since a retired path or one in the history is the likeliest slip.
     """
     drafting = result.quilt.config.drafting
     if Path(rel).is_absolute() or ".." in Path(rel).parts:
@@ -811,17 +600,36 @@ def _version_lines(result: ScanResult, history: History, key: str) -> tuple[list
 
 
 @click.command()
-@click.argument("key", required=False, default=None)
+@click.argument("words", nargs=-1)
+@click.option(
+    "--to",
+    "to",
+    default=None,
+    metavar="FILE",
+    help="With restore: the new document, directly in the drafting directory.",
+)
+@click.option(
+    "--plain", is_flag=True, help="With show: the paper without loom, its package line swapped for the macro block."
+)
 @click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def history(key: str | None, as_json: bool, quilt_path: str | None) -> None:
-    """The steps and stamps of this quilt, one per line; with KEY, that key's versions and whether the head equals one. `loom history verify` walks every step directory against the ledger.
+def history(words: tuple[str, ...], to: str | None, plain: bool, as_json: bool, quilt_path: str | None) -> None:
+    """The steps and stamps of this quilt, one per line; with KEY, that key's versions and whether the head equals one.
 
-    KEY is an id, a proof key, or the word `verify`.
+    `loom history show LANDMARK [--plain]` prints a landmark's text; `loom history restore LANDMARK --to FILE` starts a document from it; `loom history verify` walks every step directory against the ledger. A landmark is named by its name, its step, or `DOC@STEP` (book 17.9).
     """
-    if key == "verify":
+    verb = words[0] if words else None
+    if verb == "verify":
         _verify(as_json, quilt_path)
         return
+    if verb in ("show", "restore"):
+        if len(words) != 2:
+            raise EnvError(f"loom history {verb} needs one LANDMARK: its name, its step, or DOC@STEP")
+        (_show if verb == "show" else _restore)(words[1], to, plain, as_json, quilt_path)
+        return
+    if len(words) > 1:
+        raise EnvError("loom history takes one KEY, or show, restore or verify")
+    key = verb
     result = open_scan(quilt_path)
     hist = _history(result)
     if key is not None:
@@ -848,7 +656,7 @@ def history(key: str | None, as_json: bool, quilt_path: str | None) -> None:
         emit_json([{**e.to_dict(), "line": e.line} for e in hist.entries])
         return
     if not hist.entries:
-        click.echo("no history yet: loom canonize or loom stamp records the first step")
+        click.echo("no history yet: loom stamp records the first step")
         return
     for e in hist.entries:
         when = e.when[:10]
@@ -864,10 +672,81 @@ def history(key: str | None, as_json: bool, quilt_path: str | None) -> None:
             click.echo(f"      {e.action:<9} {when}  {_detail(e)}")
 
 
+def _landmark(quilt_path: str | None, ref: str) -> tuple[ScanResult, History, Entry, str]:
+    """The scan, the history, the landmark `ref` names and its text; EnvError naming the landmarks there are."""
+    result = open_scan(quilt_path)
+    hist = _history(result)
+    e = hist.landmark(ref)
+    if e is None:
+        names = ", ".join(f"{Path(str(x.get('landmark'))).stem} (@{x.step})" for x in hist.landmarks()) or "none yet"
+        raise EnvError(f"no landmark answers to {ref}; the landmarks are {names}")
+    path = hist.landmark_path(e)
+    if not path.is_file():
+        raise ContentError(f"the text of landmark {ref} is missing: {path.relative_to(result.quilt.root)}")
+    return result, hist, e, path.read_text(encoding="utf-8")
+
+
+def _show(ref: str, to: str | None, plain: bool, as_json: bool, quilt_path: str | None) -> None:
+    """`loom history show LANDMARK [--plain]`: the text as the step kept it, or without loom."""
+    if to is not None:
+        raise EnvError("--to belongs to loom history restore")
+    _, _, e, text = _landmark(quilt_path, ref)
+    text = to_canon(text) if plain else text
+    if as_json:
+        emit_json({"landmark": Path(str(e.get("landmark"))).stem, "step": e.step, "in": e.get("in"), "text": text})
+        return
+    click.echo(text, nl=False)
+
+
+def _restore(ref: str, to: str | None, plain: bool, as_json: bool, quilt_path: str | None) -> None:
+    """`loom history restore LANDMARK --to FILE`: a new drafting document from a landmark, with the package line and an id on every node that has none; the author's alone."""
+    from loom.cli._common import refuse_under_agent
+
+    refuse_under_agent("loom history restore", "Ask the author to start the document.")
+    if plain:
+        raise EnvError("--plain belongs to loom history show")
+    if to is None:
+        raise EnvError("loom history restore needs --to FILE, the new document")
+    result, hist, e, text = _landmark(quilt_path, ref)
+    quilt = result.quilt
+    root = quilt.root
+    dest_rel = _rel(root, to)
+    if Path(dest_rel).parent.as_posix() != quilt.config.drafting:
+        raise EnvError(f"a restored document goes directly under {quilt.config.drafting}/, not at {dest_rel}")
+    if (root / dest_rel).exists():
+        raise EnvError(f"{dest_rel} exists; restore never overwrites")
+    plan = plan_draft(result, text, dest_rel)
+    if plan.violations or plan.spans:
+        raise ContentError(
+            f"landmark {ref} cannot be drafted as it is: "
+            + "; ".join(plan.spans or [f"line {v.line}" for v in plan.violations])
+        )
+    dest = root / dest_rel
+    dest.write_text(plan.text, encoding="utf-8")
+    name = Path(str(e.get("landmark"))).stem
+    entry = append_entry(
+        quilt.history_dir,
+        "restore",
+        {
+            "from": {"landmark": name, "step": e.step},
+            "to": {"path": dest_rel, "hash": text_hash(plan.text)},
+            "ids": len(plan.insertions),
+        },
+        actor_for(root),
+    )
+    if as_json:
+        emit_json({**entry.to_dict(), "line": entry.line})
+        return
+    click.echo(f"Wrote {dest_rel} from landmark {name} (@{e.step}), {len(plan.insertions)} ids inserted")
+    if any(n.kind == "conflict" and dest_rel in n.conflict for n in scan(load_quilt(root)).nodes.values()):
+        note(
+            f"{dest_rel} defines ids another live document also defines; loom lint lists them, and loom fork or retiring one resolves each"
+        )
+    note(f"Recorded: restore (ledger line {entry.line})")
+
+
 def _detail(e: Entry) -> str:
     frm, to = e.get("from"), e.get("to")
-    if e.action == "draft":
-        return f"{(frm or {}).get('path')} -> {(to or {}).get('path')}"
     if e.action == "atomize":
         return f"{', '.join(frm or [])} -> {', '.join(to or [])}"
     if e.action == "linearize":
@@ -878,6 +757,8 @@ def _detail(e: Entry) -> str:
         return f"{e.get('key')}@{e.get('step')} in {e.get('in')}"
     if e.action == "live":
         return str(e.get("path"))
+    if e.action == "restore":
+        return f"{(frm or {}).get('landmark')} (@{(frm or {}).get('step')}) -> {(to or {}).get('path')}"
     if e.action == "copy":
         return f"{frm} -> {to} ({len(e.get('bases') or {})} nodes based)"
     if e.action == "move":

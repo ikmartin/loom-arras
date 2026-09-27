@@ -69,7 +69,7 @@
 	{/if}
 
 	{#if m.canon?.length}
-		<h2>Canon</h2>
+		<h2>Landmarks</h2>
 		<ul class="plain">
 			{#each [...m.canon].reverse() as doc (doc.path)}
 				<li>

@@ -51,7 +51,7 @@ AGENT_WRITES = (
 )  # the only places an agent may write, besides the quilt's `[quilt] drafting_ai`
 # `.loom` is not read-only wholesale any more: a session's own directory is under it and is where an agent writes its
 # journal and its notes, so the parts that are the record -- the history and the acceptance ledger -- are named instead.
-# The person's drafting and canon directories are read-only too, under the names the quilt gives them (`agent_dirs`).
+# The person's drafting directory is read-only too, under the name the quilt gives it (`agent_dirs`).
 AGENT_READONLY = ("nodes", "retired", "digests", "refs", "annotations", ".loom/history", "ai")
 AGENT_READONLY_FILES = (
     "ai/orientation.md",
@@ -130,8 +130,8 @@ def write_versions(root: Path, texts: dict[str, str]) -> None:
 
 
 def agent_dirs(config: QuiltConfig) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting, `drafting_ai` and canon names in them (book 11.3)."""
-    return AGENT_WRITES + (config.drafting_ai,), (config.drafting, config.canon) + AGENT_READONLY
+    """(where an agent may write, what it may not) for a quilt: the fixed tables with the quilt's own drafting and `drafting_ai` names in them (book 11.8)."""
+    return AGENT_WRITES + (config.drafting_ai,), (config.drafting,) + AGENT_READONLY
 
 
 def quilt_config(root: Path) -> QuiltConfig:

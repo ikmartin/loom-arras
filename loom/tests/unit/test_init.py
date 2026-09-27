@@ -96,22 +96,24 @@ def test_init_minimal_master_declares_candidate_taxa(tmp_path: Path) -> None:
 
 
 def test_init_readme_orients_the_author_in_this_quilts_own_names(tmp_path: Path, home: Path) -> None:
-    """The README init writes is an orientation for the author: what each directory holds, the promise that a canon file is only ever copied, the draft-canonize loop with a worked example, and the contract page as its last section. Its paths and ids are this quilt's own, so a quilt that renamed its directories reads its own names back and nothing in the example has to be translated."""
+    """The README init writes is an orientation for the author: what each directory holds, the loop of stamping a landmark and restoring from one with a worked example, and the contract page as its last section. Its paths and ids are this quilt's own, so a quilt that renamed its directories reads its own names back and nothing in the example has to be translated."""
     cfg = home / ".config" / "loom"
     cfg.mkdir(parents=True, exist_ok=True)
-    (cfg / "config.toml").write_text('[quilt]\ndrafting = "work"\ncanon = "fixed"\n', encoding="utf-8")
+    (cfg / "config.toml").write_text('[quilt]\ndrafting = "work"\ndrafting_ai = "shared"\n', encoding="utf-8")
     ok("init", str(tmp_path / "q"), "--prefix", "ab", "--yes")
     text = (tmp_path / "q" / "README.md").read_text()
 
-    for heading in ("**`work/`**", "**`fixed/`**", "**`nodes/`**", "**`refs/`**"):
+    for heading in ("**`work/`**", "**`shared/`**", "**`nodes/`**", "**`refs/`**"):
         assert heading in text, heading
-    assert "at the quilt root" in text and "Created empty" in text  # refs/ is the author's seed space, not canon/refs/
-    assert "is never touched" in text and "only ever read and copied somewhere else" in text
-    assert "$ loom draft fixed/paper.tex --to work/main.tex" in text
-    assert '$ loom canonize work/main.tex --to fixed/paper-v2.tex -m "Referee revisions"' in text
+    assert "at the quilt root" in text and "Created empty" in text  # refs/ is the author's seed space
+    assert '$ loom stamp work/main.tex -m "referee revisions"' in text
+    assert (
+        "$ loom history show referee-revisions --plain" in text
+        and "loom history restore NAME --to work/FILE.tex" in text
+    )
     assert "## The contract" in text
     assert "\\label{ab-0004}" in text  # the example id carries this quilt's prefix, not one to be copied blindly
-    assert "drafting/" not in text and "canon/" not in text and "q-0" not in text
+    assert "drafting/" not in text and "drafting-ai/" not in text and "canon" not in text and "q-0" not in text
 
 
 def test_init_preserves_explicit_legacy_attribution_without_prompting(
@@ -168,7 +170,7 @@ def test_init_asks_which_ai_and_says_whether_it_will_be_started(tmp_path: Path) 
 
 
 def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
-    """`--from` adopts a paper as it is: one flat canon document, no package line, no ids, nothing added to the author's preamble."""
+    """`--from` keeps the paper as it is for its first landmark, verbatim, and drafts the working document from it: the package line and ids are added there, and nothing else is added to the author's preamble."""
     src = tmp_path / "paper.tex"
     src.write_text(
         "\\documentclass{article}\n\\newtheorem{thm}{Theorem}\n\\begin{document}\nHello.\n\\end{document}\n",
@@ -176,11 +178,11 @@ def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:
     )
     r = ok("init", str(tmp_path / "q"), "--from", str(src), "--yes")
     q = tmp_path / "q"
-    canon = q / "canon" / "paper.tex"
-    assert canon.read_text() == src.read_text()  # verbatim: the paper has nothing to inline
-    assert "conjecture" not in canon.read_text() and "usepackage{loom}" not in canon.read_text()
-    assert not any((q / "drafting").iterdir())  # work begins with loom draft
-    assert "next: loom draft canon/paper.tex" in r.output
+    landmark = q / ".loom" / "history" / "0001-paper" / "paper.tex"
+    assert landmark.read_text() == src.read_text()  # verbatim: the paper has nothing to inline
+    drafted = (q / "drafting" / "paper.tex").read_text()
+    assert "\\usepackage{loom}" in drafted and "conjecture" not in drafted
+    assert "the paper as received is landmark paper" in r.output
 
 
 def test_init_from_leaves_nothing_behind_when_the_import_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -208,7 +210,7 @@ def test_init_from_leaves_nothing_behind_when_the_import_fails(tmp_path: Path, m
 
     monkeypatch.delenv("FAKE_TEX_FAIL")
     again = ok("init", str(tmp_path / "q"), "--from", str(src), "--prefix", "pp", "--yes")
-    assert (tmp_path / "q" / "canon" / "paper.tex").is_file() and "created quilt" in again.output
+    assert (tmp_path / "q" / "drafting" / "paper.tex").is_file() and "created quilt" in again.output
 
 
 def test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fails(

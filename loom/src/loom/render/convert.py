@@ -1314,7 +1314,7 @@ class Converter:
             parts.append(f' <span class="number">{esc(num)}</span>')
         if title:
             parts.append(f' <span class="title">({self.inline_text(title, spans[0][0])})</span>')
-        # an unclaimed environment carries no identity (DR-86) but still needs an anchor, or no link into a canon document can land
+        # an unclaimed environment carries no identity (DR-86) but still needs an anchor, or no link into a landmark can land
         first_label = next((norm_label(m.group(1)) for m in _LABEL_IN_ENV.finditer(ctx.clean, t.start, body_end)), None)
         ident = f' id="{slug(first_label)}"' if first_label else ""
         attrs = (

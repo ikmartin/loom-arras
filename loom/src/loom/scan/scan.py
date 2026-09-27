@@ -19,7 +19,7 @@ from loom.scan.nodes import Assembly, assemble
 from loom.scan.preamble import PreambleClosure, build_closure, taxa_conflicts, taxa_union
 from loom.scan.quilt import Quilt
 from loom.scan.relations import RelationRec, find_relations
-from loom.scan.source import IGNORE_RE, discover_files, read_source
+from loom.scan.source import discover_files, read_source
 
 _DOCCLASS = re.compile(r"\\documentclass\b")
 
@@ -32,7 +32,7 @@ class ScanResult:
     default_master: str | None = None
     canon_files: list[str] = field(
         default_factory=list
-    )  # the canon documents, never scanned; the renderer draws them on its own
+    )  # the landmarks' texts, kept in their steps' directories and never scanned; the renderer draws them on its own
     closures: dict[str, PreambleClosure] = field(default_factory=dict)
     expansions: dict[str, Expansion] = field(default_factory=dict)
     taxa: dict[str, Taxon] = field(default_factory=dict)
@@ -130,21 +130,20 @@ def _stems_taken(masters: list[str]) -> list[Diagnostic]:
 
 
 def skipped_dirs(quilt: Quilt) -> tuple[str, ...]:
-    """Directories the scan never enters: the canon directory, `retired/`, `notes/`, the author's reference material (book 4.1.2), and the history directory wherever `[quilt] history` puts it, whose frozen texts are old versions of the quilt's own keys."""
-    return (quilt.config.canon, "retired", "notes", Path(quilt.config.history).as_posix())
+    """Directories the scan never enters: `retired/`, `notes/`, the author's reference material (book 4.1), and the history directory wherever `[quilt] history` puts it, whose frozen texts and landmarks are old versions of the quilt's own."""
+    return ("retired", "notes", Path(quilt.config.history).as_posix())
 
 
-def canon_documents(quilt: Quilt) -> list[str]:
-    """The `.tex` files directly under the canon directory, sorted; `% !LOOM ignore` in the first twenty lines is honoured."""
-    d = quilt.canon_dir
-    if not d.is_dir():
-        return []
+def landmark_documents(quilt: Quilt) -> list[str]:
+    """The quilt-relative path of every landmark's text, oldest first: the file each landmark step keeps in its directory (book 17.9)."""
+    from loom.history.ledger import load_history
+
+    history = load_history(quilt.history_dir)
     out: list[str] = []
-    for p in sorted(d.glob("*.tex")):
-        head = "\n".join(p.read_text(encoding="utf-8", errors="replace").split("\n", 20)[:20])
-        if IGNORE_RE.search(head):
-            continue
-        out.append(p.relative_to(quilt.root).as_posix())
+    for e in history.landmarks():
+        path = history.landmark_path(e)
+        if path.is_file():
+            out.append(path.relative_to(quilt.root).as_posix())
     return out
 
 
@@ -158,7 +157,7 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
     for extra in sorted(overlay):
         if extra not in paths and not extra.startswith(tuple(f"{d}/" for d in skip)):
             paths.append(extra)
-    result.canon_files = canon_documents(quilt)
+    result.canon_files = landmark_documents(quilt)
     for rel in paths:
         result.files[rel] = read_source(root, rel, overlay.get(rel))
     history = result.history = load_history(quilt.history_dir)
@@ -219,7 +218,7 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                 [],
             )
         )
-    # the quilt's own bibliography, gathered from the canon documents by `loom refs scan`; an author's `.bib` reaches it only through a canon document that names it (book 8.2)
+    # the quilt's own bibliography, gathered from the landmarks by `loom refs scan`; an author's `.bib` reaches it only through a landmark that names it (book 8.2)
     if (root / BIBLIOGRAPHY).is_file():
         result.bib.update(parse_bib(read_source(root, BIBLIOGRAPHY).text))
     from loom.scan.directives import parse_directives

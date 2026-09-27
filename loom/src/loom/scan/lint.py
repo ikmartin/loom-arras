@@ -108,7 +108,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
 
     diags.extend(quick_checks(result, load_history(result.quilt.history_dir)))
     if not any(result.document_role(m) == "drafting" for m in result.masters) and result.canon_files:
-        # every view that is about nodes is empty until a landmark is drafted; the viewer shows that, and this says how to end it
+        # every view that is about nodes is empty until a landmark is restored; the viewer shows that, and this says how to end it
         newest = result.canon_files[-1]
         drafting = result.quilt.config.drafting
         diags.append(
@@ -119,8 +119,8 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 [],
                 fixes=[
                     Fix(
-                        f"start from the newest landmark, {newest}",
-                        f"loom draft {newest} --to {drafting}/{Path(newest).name}",
+                        f"start from the newest landmark, {Path(newest).stem}",
+                        f"loom history restore {Path(newest).stem} --to {drafting}/main.tex",
                     )
                 ],
             )

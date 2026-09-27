@@ -62,7 +62,7 @@ Portability is a property of the source, not of the tool. Consequence: all paths
 
 ### P13. Loom verifies what it can, reports what diverges, repairs nothing, and never blocks work.
 
-The head is always the files on disk, and the history is a log of what loom was told, never a claim about the filesystem; a divergence between the two is a fact to report, not a fault to mend. Consequence: an edited canon document, a hand-edited record, a retired id written under again, and two live definitions of one id are each reported with the exact commands that would resolve them, the rest of the quilt builds normally, and no command creates a step, moves a file, or rewrites a record of its own accord to make the report go away.
+The head is always the files on disk, and the history is a log of what loom was told, never a claim about the filesystem; a divergence between the two is a fact to report, not a fault to mend. Consequence: an edited landmark, a hand-edited record, a retired id written under again, and two live definitions of one id are each reported with the exact commands that would resolve them, the rest of the quilt builds normally, and no command creates a step, moves a file, or rewrites a record of its own accord to make the report go away.
 
 ## 1.3 Signs that a feature is bad
 

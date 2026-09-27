@@ -178,7 +178,7 @@ class FragmentRenderer:
         return self.plan.fallback_preamble[master]
 
     def _fallback_for_preamble(self, preamble_text: str, key: str) -> Callable[[str, str, str], str]:
-        """The SVG fallback for a document that is not a master: a canon file, closed over its own preamble (book 9.3)."""
+        """The SVG fallback for a document that is not a master: a landmark, closed over its own preamble (book 9.3)."""
         preamble = prepare_preamble(preamble_text)
 
         def render(latex: str, css: str, data_src: str) -> str:

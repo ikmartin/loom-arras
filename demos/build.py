@@ -103,15 +103,13 @@ def build_papers(only: list[str] | None = None) -> None:
             shutil.rmtree(quilt)
         rel = f"demos/{name}"
         stem = Path(master).stem
-        run(loom, "init", rel, "--from", str(FIXTURES / fixture / master), "--prefix", prefix, "--yes", env=env)
-        run(loom, "draft", f"canon/{master}", "--to", "drafting/main.tex", "--fix-anchoring", "--yes",
-            "--quilt", rel, env=env)
-        atomize = [loom, "atomize", "drafting/main.tex", "drafting/main-atomic.tex"]
+        run(loom, "init", rel, "--from", str(FIXTURES / fixture / master), "--prefix", prefix, "--fix-anchoring",
+            "--yes", env=env)
+        atomize = [loom, "atomize", f"drafting/{master}", "drafting/main-atomic.tex"]
         if sections:
             atomize.append("--sections")
         run(*atomize, "--quilt", rel, env=env)
-        run(loom, "canonize", "drafting/main-atomic.tex", "--to", f"canon/{stem}-v1.tex",
-            "-m", "Atomized", "--quilt", rel, env=env)
+        run(loom, "stamp", "drafting/main-atomic.tex", "-m", f"{stem}-v1", "--quilt", rel, env=env)
         run(loom, "compile", "--quilt", rel, env=env)
         print(f"wrote demos/{name}")
     digest = FIXTURES / "0805.2065" / "virtual6.tex"

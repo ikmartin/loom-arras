@@ -1,6 +1,6 @@
 """The history ledger `<history>/ledger.jsonl` (book 17.2, 17.6): one JSON object per line, appended only, never rewritten.
 
-Read once per scan and cached by the file's mtime and size, since a served quilt rescans on every keystroke. Steps (`import`, `canonize`, `stamp`) carry a quilt-wide number and a directory; every other action is a plain line.
+Read once per scan and cached by the file's mtime and size, since a served quilt rescans on every keystroke. Steps (`import`, `stamp`, `copy`) carry a quilt-wide number and a directory; every other action is a plain line.
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from loom.scan.labels import derived_of, is_id_shaped
 
 LEDGER = "ledger.jsonl"
 TEXTS = "texts"
-STEP_ACTIONS = ("import", "canonize", "stamp", "copy")
-ACTIONS = (*STEP_ACTIONS, "draft", "atomize", "linearize", "fork", "revert", "live", "move")
+STEP_ACTIONS = ("import", "stamp", "copy")
+ACTIONS = (*STEP_ACTIONS, "restore", "atomize", "linearize", "fork", "revert", "live", "move")
 #: The actions that move a document, and the fields naming where from and where to; two lists pair by position. `retired` is never a destination: a retired source is gone, and the document it became is its `to`.
 MOVES: dict[str, tuple[str, str]] = {"atomize": ("from", "to"), "linearize": ("from", "to"), "move": ("from", "to")}
 
@@ -110,13 +110,39 @@ class History:
                 return e
         return None
 
-    def step_for_path(self, path: str) -> Entry | None:
-        """The latest import or canonize step that wrote `path` (a canon document)."""
-        for e in reversed(self.steps()):
-            to = e.get("to") or {}
-            if isinstance(to, dict) and to.get("path") == path:
+    def landmarks(self) -> list[Entry]:
+        """Every step that keeps a document's text, oldest first: an import's paper as received, and each stamp given a document (book 17.9)."""
+        return [e for e in self.steps() if e.get("landmark")]
+
+    def landmark(self, ref: str) -> Entry | None:
+        """A landmark by its name (`widgets-v3`), its step's number, or `DOC@STEP` (`main@5`, the document's stem and the step).
+
+        Parameters
+        ----------
+        ref : str
+            How the author names it.
+
+        Returns
+        -------
+        Entry or None
+            The step, or None when no landmark answers to `ref`.
+        """
+        ref = ref.strip()
+        stem, at, n = ref.rpartition("@")
+        if at and n.isdigit():
+            e = self.step(int(n))
+            if e is None or not e.get("landmark"):
+                return None
+            named = {Path(str(e.get("in") or "")).stem, Path(str(e.get("landmark"))).stem}
+            return e if not stem or stem in named else None
+        for e in reversed(self.landmarks()):
+            if ref in (Path(str(e.get("landmark"))).stem, e.name, e.dir, str(e.step), f"{e.step:04d}"):
                 return e
         return None
+
+    def landmark_path(self, e: Entry) -> Path:
+        """Where a landmark's text lives: its file in the step's own directory."""
+        return self.dir / (e.dir or "") / str(e.get("landmark"))
 
     def superseded_paths(self) -> dict[str, Entry]:
         """Documents a conversion replaced (its `superseded` list), minus those a later `live` line restored or a later `move` line moved a document into; path -> the superseding entry."""

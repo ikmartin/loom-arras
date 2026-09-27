@@ -20,7 +20,7 @@ from loom.reshape.atomize import inline as inline_text
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
 from loom.reshape.canon import apply_import, plan_import
 from loom.reshape.ids import apply_insertions, plan_insertions, unified_diff
-from loom.reshape.importer import set_main_forced
+from loom.reshape.importer import report_counts, set_main, set_main_forced
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
 from loom.scan.quilt import Quilt
@@ -111,8 +111,14 @@ def _rel(root: Path, file: str) -> str:
         return file
 
 
-def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> IdentityResult | None:
-    """The import of 6.1: one flat canon document, the assets at the root, the identity test, and step 0001. Returns the identity result (None when skipped)."""
+def run_import(
+    quilt: Quilt, paper: Path, yes: bool, check: bool = True, fix_anchors: bool = False
+) -> IdentityResult | None:
+    """The import of 6.1: the assets at the root, the paper as received kept as step 0001's landmark, and the working document drafted from it at once, with the identity test between them. Returns the identity result (None when skipped)."""
+    from loom.history.steps import slug
+    from loom.reshape.canon import plan_draft
+    from loom.scan.quilt import load_quilt
+
     if not paper.is_file():
         raise EnvError(f"{paper} is not a file")
     root = quilt.root
@@ -120,13 +126,15 @@ def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> Iden
     note(f"Resolving closure of {paper.name} ... {len(plan.assets) + len(plan.inlined) + 1} files")
     # the arrows are what would be written, not what was: everything below is a plan until "Wrote N files" at the end
     note("Plan, nothing written yet:")
-    note(f"  {plan.master_rel} -> {plan.canon_rel} (linearized, {len(plan.inlined)} files inlined)")
+    note(
+        f"  {plan.master_rel} -> {plan.dest_rel} (linearized, {len(plan.inlined)} files inlined; kept as received in step 0001)"
+    )
     for dest, src in plan.assets.items():
         note(f"  {Path(src).relative_to(plan.paper_dir).as_posix()} -> {dest}")
     for name in plan.outside:
         note(f"  {name} -> not copied; it lies outside the paper directory (loom:import-outside-tree)")
     if plan.exists:
-        raise EnvError(f"{plan.canon_rel} exists; import never overwrites a canon document")
+        raise EnvError(f"{plan.dest_rel} exists; import never overwrites a document")
     from loom.tex.runner import compile_tex, stage_sources
 
     ident: IdentityResult | None = None
@@ -140,42 +148,63 @@ def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> Iden
                 f"the original does not compile from a clean copy of {plan.paper_dir} ({before.first_error}); fix it before importing"
             )
         note(f"Compiling original from a clean copy of {plan.paper_dir} ... ok")
+        draft = plan_draft(scan(quilt), plan.text, plan.dest_rel, fix_anchors=fix_anchors, assets=plan.assets)
+        if draft.violations:
+            note(f"Nothing was written. {plan.master_rel} has {len(draft.violations)} line-anchoring violation(s):")
+            for v in draft.violations[:20]:
+                note(f"  line {v.line}: \\{v.kind}{{{v.env}}} is not alone on its line")
+            raise ContentError(
+                "loom needs a theorem-like \\begin and \\end alone on their lines to find a node's exact span. "
+                "Pass --fix-anchoring to rewrite the draft; the paper as received is kept as it is."
+            )
+        if draft.spans:
+            raise ContentError("an environment spans files: " + "; ".join(draft.spans))
+        note(f"  {plan.dest_rel}: \\usepackage{{loom}} and {len(draft.insertions)} ids")
         if not yes:
             if not sys.stdin.isatty():
                 raise EnvError("import needs confirmation; pass --yes")
             click.confirm("Apply?", abort=True)
         written = apply_import(quilt, plan)
+        drafted = root / plan.dest_rel
+        drafted.parent.mkdir(parents=True, exist_ok=True)
+        drafted.write_text(draft.text, encoding="utf-8")
+        written.append(plan.dest_rel)
         note(f"Wrote {len(written)} files.")
         if check:
-            ident = identity_test(staged, plan.master_rel, root, plan.canon_rel, scratch, quilt.config.engine)
+            ident = identity_test(staged, plan.master_rel, root, plan.dest_rel, scratch, quilt.config.engine)
             note(ident.summary())
             if not ident.passed and not ident.skipped:
-                (root / plan.canon_rel).unlink(missing_ok=True)
+                drafted.unlink(missing_ok=True)
                 raise ContentError(
-                    f"the flat copy does not typeset as the original; {plan.canon_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway."
+                    f"the drafted document does not typeset as the original; {plan.dest_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway."
                 )
     history = load_history(quilt.history_dir)
     original = (plan.paper_dir / plan.master_rel).read_text(encoding="utf-8", errors="replace")
+    name = slug(Path(plan.master_rel).stem)
     entry = write_step(
         history,
         "import",
-        Path(plan.canon_rel).stem,
+        name,
         FreezePlan(),
         actor_for(root),
         extra={
             "from": {"name": plan.master_rel, "hash": text_hash(original)},
-            "to": {"path": plan.canon_rel, "hash": text_hash(plan.text)},
+            "landmark": f"{name}.tex",
+            "to": {"path": f"{name}.tex", "hash": text_hash(plan.text)},
             "inlined": list(plan.inlined),
+            "drafted": {"path": plan.dest_rel, "hash": text_hash(draft.text), "ids": len(draft.insertions)},
         },
         document_text=plan.text,
-        document_name=Path(plan.canon_rel).name,
+        document_name=f"{name}.tex",
     )
-    note(f"Recorded: import as step {entry.step:04d} ({entry.dir})")
+    if set_main(load_quilt(root), plan.dest_rel):
+        note(f"main = {plan.dest_rel}")
+    note(report_counts(scan(load_quilt(root))))
+    note(f"Recorded: import as step {entry.step:04d} ({entry.dir}); the paper as received is landmark {name}")
     from loom.refs.scan import scan_bibliography
 
     for line in scan_bibliography(quilt).lines():
         note(line)
-    note(f"next: loom draft {plan.canon_rel}")
     return ident
 
 
@@ -183,12 +212,20 @@ def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True) -> Iden
 @click.argument("file")
 @click.option("--yes", "-y", is_flag=True)
 @click.option("--no-check", "no_check", is_flag=True, help="Skip the identity test.")
+@click.option(
+    "--fix-anchoring",
+    "fix_anchors",
+    is_flag=True,
+    help="Rewrite the drafted document so every theorem-like \\begin and \\end is alone on its line.",
+)
 @quilt_option
 @click.pass_context
-def import_command(ctx: click.Context, file: str, yes: bool, no_check: bool, quilt_path: str | None) -> None:
-    """Copy a paper into the quilt as one flat canon document, its styles, bibliography and figures at the root, changing nothing else; step 0001 of the history."""
+def import_command(
+    ctx: click.Context, file: str, yes: bool, no_check: bool, fix_anchors: bool, quilt_path: str | None
+) -> None:
+    """Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark in step 0001, and the working document drafted from it at once in the drafting directory."""
     quilt = open_quilt(quilt_path)
-    ident = run_import(quilt, Path(file).expanduser(), yes, check=not no_check)
+    ident = run_import(quilt, Path(file).expanduser(), yes, check=not no_check, fix_anchors=fix_anchors)
     if ident is not None and not ident.passed and not ident.skipped:
         ctx.exit(EXIT_CONTENT)
 

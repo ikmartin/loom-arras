@@ -4,7 +4,7 @@
 
 ## Trigger
 
-A quilt that is not a fixture or a demo holds three or more canonize steps. Before that there is no history worth a view: one step is a copy, two is a diff you can read in git. The synthetic quilt holds three on purpose, to have something for the manifest and the badge to be built against; a trigger a fixture can fire is not a signal.
+A quilt that is not a fixture or a demo holds three or more landmarks (an import, or a stamp given a document, book 17.9). Before that there is no history worth a view: one step is a copy, two is a diff you can read in git. The synthetic quilt holds three on purpose, to have something for the manifest and the badge to be built against; a trigger a fixture can fire is not a signal.
 
 ## Why deferred
 
@@ -14,7 +14,7 @@ The history exists first in loom (plan 0.9, built 2026-09-17); a view of it is w
 
 One view, three settings, decided with the author on 2026-09-17:
 
-- **Landmarks** (default): canonize steps only, as labelled major ticks. What a coauthor or referee opening a shared quilt expects — versions of the paper.
+- **Landmarks** (default): the steps that keep a document's text only, as labelled major ticks. What a coauthor or referee opening a shared quilt expects — versions of the paper.
 - **Working history**: landmarks plus stamps as minor ticks; the slider snaps to landmarks and steps through stamps when zoomed. What the author opening their own quilt expects.
 - **Everything** (deferred within the deferred): the annotation log's events layered on the timeline, so a step shows what stood against the versions it replaced.
 

@@ -219,51 +219,6 @@ Rendering is cached per fragment by its inputs, which include loom's own version
 | `--force` | Render every fragment again, ignoring the cache and retrying remembered SVG failures. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-## `loom canonicalize`
-
-`loom canonicalize [OPTIONS] DOCUMENT`
-
-The same as canonize.
-
-| option | description |
-|---|---|
-| `--to` `FILE` | The canon file (default: <canon>/<stem>.tex). |
-| `--message`, `-m` | What this landmark is. |
-| `--no-check` | Skip the identity test. |
-| `--parent` | The step this one continues. |
-| `--json` |  |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-## `loom canonise`
-
-`loom canonise [OPTIONS] DOCUMENT`
-
-The same as canonize.
-
-| option | description |
-|---|---|
-| `--to` `FILE` | The canon file (default: <canon>/<stem>.tex). |
-| `--message`, `-m` | What this landmark is. |
-| `--no-check` | Skip the identity test. |
-| `--parent` | The step this one continues. |
-| `--json` |  |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-## `loom canonize`
-
-`loom canonize [OPTIONS] DOCUMENT`
-
-Write DOCUMENT as one flat, self-contained canon file and record a step: every key's text at this moment, quilt-wide, with what the document reaches named.
-
-| option | description |
-|---|---|
-| `--to` `FILE` | The canon file (default: <canon>/<stem>.tex). |
-| `--message`, `-m` | What this landmark is. |
-| `--no-check` | Skip the identity test. |
-| `--parent` | The step this one continues. |
-| `--json` |  |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 ## `loom check`
 
 `loom check [OPTIONS]`
@@ -362,22 +317,16 @@ Each item is ok, warn (works, but you will hit it) or fail (a command you need w
 
 ## `loom draft`
 
-`loom draft [OPTIONS] CANON`
+`loom draft [OPTIONS] DOCUMENT`
 
-Copy a canon document into the drafting directory as a working draft, with \usepackage{loom} and an id on every node; the canon file is not touched.
+Copy a live drafting document into the agent's drafting directory as NAME, flat, with every label it defines derived; a copy step records what each of its nodes began from (book 17.7).
 
-With `--ai NAME`, CANON is a live drafting document instead, copied flat into the agent's drafting directory with every label it defines derived, and a copy step records what each of its nodes began from (book 4.4).
+Starting a document from an old version of one is `loom history restore`.
 
 | option | description |
 |---|---|
-| `--ai` `NAME` | Copy a live drafting document into the agent's drafting directory as NAME instead, every label it defines derived. |
-| `--json` | With --ai: the copy and its step as JSON. |
-| `--to` `FILE` | The draft to write (default: <drafting>/<stem>.tex). |
-| `--no-ids` | Copy without inserting ids. |
-| `--fix-anchoring` | Rewrite the copy so every theorem-like \begin and \end is alone on its line. |
-| `--prefix` | Id prefix for the ids inserted. |
-| `--no-check` | Skip the identity test. |
-| `--yes`, `-y` |  |
+| `--ai` `NAME` | The copy to write in the agent's drafting directory. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom fork`
@@ -396,14 +345,16 @@ Give FILE its own copy of a node under a new id: a node file when FILE includes 
 
 ## `loom history`
 
-`loom history [OPTIONS] [KEY]`
+`loom history [OPTIONS] [WORDS]...`
 
-The steps and stamps of this quilt, one per line; with KEY, that key's versions and whether the head equals one. `loom history verify` walks every step directory against the ledger.
+The steps and stamps of this quilt, one per line; with KEY, that key's versions and whether the head equals one.
 
-KEY is an id, a proof key, or the word `verify`.
+`loom history show LANDMARK [--plain]` prints a landmark's text; `loom history restore LANDMARK --to FILE` starts a document from it; `loom history verify` walks every step directory against the ledger. A landmark is named by its name, its step, or `DOC@STEP` (book 17.9).
 
 | option | description |
 |---|---|
+| `--to` `FILE` | With restore: the new document, directly in the drafting directory. |
+| `--plain` | With show: the paper without loom, its package line swapped for the macro block. |
 | `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -429,19 +380,20 @@ Print a patch (or write a copy with --to) inserting \label{<id>} on every untagg
 
 `loom import [OPTIONS] FILE`
 
-Copy a paper into the quilt as one flat canon document, its styles, bibliography and figures at the root, changing nothing else; step 0001 of the history.
+Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark in step 0001, and the working document drafted from it at once in the drafting directory.
 
 | option | description |
 |---|---|
 | `--yes`, `-y` |  |
 | `--no-check` | Skip the identity test. |
+| `--fix-anchoring` | Rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## `loom init`
 
 `loom init [OPTIONS] [DIRECTORY]`
 
-Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it as its first canon document (then: loom draft).
+Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it: the paper as received kept as the first landmark, and the working document drafted from it.
 
 | option | description |
 |---|---|
@@ -452,6 +404,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--git` | Also run git init. A quilt is files; loom reads no history. |
 | `--ai` | Which AI you use, instead of being asked: its command goes in ai/ai-config.toml. |
 | `--launch-agents`, `--no-launch-agents` | Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default. |
+| `--fix-anchoring` | With --from: rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
 
 ## `loom inline`
@@ -890,9 +843,9 @@ Asks zbMATH Open, then Crossref, and prints candidates with how well each matche
 
 `loom refs scan [OPTIONS]`
 
-Add every bibliography entry the canon documents carry to digests/bibliography.bib.
+Add every bibliography entry the landmarks carry to digests/bibliography.bib.
 
-Reads each canon document's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
+Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
 
 It also files what the author dropped in `refs/`, and **adopts** any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. Adoption happens once per document; a later scan leaves it alone.
 
@@ -1166,14 +1119,15 @@ With --closure, a key is preceded by exactly the statements it depends on, in de
 
 ## `loom stamp`
 
-`loom stamp [OPTIONS]`
+`loom stamp [OPTIONS] [DOCUMENT]`
 
-Record every key whose text moved since the last step, quilt-wide (or within one document with --in), without writing a canon file.
+Record every key whose text moved since the last step, quilt-wide; given DOCUMENT, only the keys it reaches, and its flat text kept as a landmark.
+
+A landmark is how a document stood at a moment worth returning to: `loom history show NAME` prints it and `loom history restore NAME --to FILE` starts a document from it (book 17.9).
 
 | option | description |
 |---|---|
-| `--message`, `-m` | What this stamp marks. |
-| `--in` `FILE` | Only the keys this document reaches. |
+| `--message`, `-m` | What this stamp marks; given a DOCUMENT, it names the landmark (`widgets-v3`). |
 | `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

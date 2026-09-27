@@ -430,15 +430,15 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     denied = {d.removeprefix("Bash(loom ").removesuffix("*)") for d in denied_paths if d.startswith("Bash(loom ")}
     assert denied == every - AGENT_COMMANDS
 
-    # what the table must not admit: every command that writes into the quilt outside the session and build/, both spellings of canonize among them, so `loom canonise` cannot walk past a deny on `loom canonize`
+    # what the table must not admit: every command that writes into the quilt outside the session and build/, the history's restore among them, so `loom canonise` cannot walk past a deny on `loom canonize`
     writes_outside_a_session = {
-        "accept", "atomize", "inline", "import", "draft", "canonize", "canonise", "canonicalize", "stamp", "fork",
+        "accept", "atomize", "inline", "import", "draft", "stamp", "fork",
         "revert", "live", "mv", "linearize", "refs cite", "refs add", "upgrade", "digest import", "ai init",
     }  # fmt: skip
     missing = sorted(writes_outside_a_session - denied)
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
     # and the files those commands own, which a direct edit would otherwise reach
-    for d in ("nodes", "drafting", "canon", "digests", "refs", "annotations", ".loom/history", "ai"):
+    for d in ("nodes", "drafting", "digests", "refs", "annotations", ".loom/history", "ai"):
         assert f"Edit(/{d}/**)" in denied_paths, d
     assert "Edit(/reference-notes.jsonl)" in denied_paths
 

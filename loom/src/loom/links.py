@@ -85,10 +85,11 @@ def _quilt(result: Any, root: Path, href: str, records: list[Any] | None) -> Tar
         if key not in sessions(root):
             raise LinkError(f"{href}: no session {key}")
         return Target("session", key, href=href)
-    if key in result.canon_files:
+    landmarks = {**{Path(p).stem: p for p in result.canon_files}, **{p: p for p in result.canon_files}}
+    if key in landmarks:
         if place:
             raise LinkError(f"{href}: a landmark is linked whole")
-        return Target("document", key, href=href)
+        return Target("document", landmarks[key], href=href)
     try:
         canonical = resolve_key(result, key)
     except EnvError:

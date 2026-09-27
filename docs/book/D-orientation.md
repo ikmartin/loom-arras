@@ -20,12 +20,12 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 
 ## 2. Layout, and what you may write
 
-**Read the paths from the quilt, not from this list.** `[quilt] drafting`, `drafting_ai`, `canon` and `history` in `config.toml` are settable and default to the names below; `loom status --json` reports the masters as they actually are. A quilt that renamed them is still an ordinary quilt.
+**Read the paths from the quilt, not from this list.** `[quilt] drafting`, `drafting_ai` and `history` in `config.toml` are settable and default to the names below; `loom status --json` reports the masters as they actually are. A quilt that renamed them is still an ordinary quilt.
 
 - `config.toml` — quilt configuration, including the id prefix and the directory names. Read only.
 - `drafting/` — the working documents, every one live. `[quilt] main` names the default. Read only.
 - `drafting-ai/` — the documents the author and you both edit: yours to edit, the one place outside your session where you may write a document. Each is a copy of one of the author's documents, made by the author with `loom draft DOC --ai NAME`; every id it defines is derived: `<prefix>-<local>-ai`, e.g. `rl-0004-ai` for the author's `rl-0004`. Keep the suffix on every id the copy defines, wherever you cite one; cite the author's other nodes by their plain ids; and label a node you write with the next free id and the suffix, which `loom id --next` names (`rl-0019` becomes `rl-0019-ai`). Nothing here is reviewed or accepted until the author adopts it.
-- `canon/` — landmarks: flat, self-contained copies of a document as it stood at some moment. Nothing in one has an identity, and the scanner never enters it. Read only.
+- Landmarks — a document as it stood at a moment the author named, or a paper as it arrived — live in the history, not in a directory: `loom history` lists the steps and `loom history show NAME` prints a landmark. Nothing in one has an identity, and the scanner never reads it. Read only.
 - `nodes/` — one node per file, by convention rather than by rule; a node may equally live inline in a document. Read only.
 - `digests/` — cited papers' results as external nodes, one file per citekey. Read only.
 - `refs/` — what was fetched for each cited work: its source and PDF, under a directory named by the work's identifier. `loom refs path CITEKEY` prints it. Read only, and not in version control.

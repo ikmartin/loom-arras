@@ -150,13 +150,13 @@ def _later(name: str, rel: str, dest: Path) -> None:
 
 
 def build_synthetic(dest: Path) -> None:
-    """The synthetic quilt: the author's paper, then a year of landmarks, stamps, a fork, a revert, a review, and the two faults a quilt can be left in."""
+    """The synthetic quilt: the author's paper, then a year of landmarks, stamps, a fork, a revert, a review, and the fault a quilt can be left in."""
     _copy_sources("synthetic", dest)
     g = Gen(dest, AUTHOR)
 
     # The first landmark, with every node as the author first wrote it.
     g.at("2026-09-13T09:00:00Z")
-    g.run("canonize", "drafting/main.tex", "--to", "canon/widgets-v1.tex", "-m", "First landmark", "--no-check")
+    g.run("stamp", "drafting/main.tex", "-m", "widgets-v1")
 
     # Acceptance, on that same text. --force skips the compile: the rows it writes do not depend on it, and the generator must produce the same bytes with or without a TeX distribution.
     g.at("2026-09-14T09:00:00Z")
@@ -188,7 +188,7 @@ def build_synthetic(dest: Path) -> None:
     fork_id = forked.group(1)
 
     g.at("2026-09-15T13:00:00Z")
-    g.run("canonize", "drafting/main.tex", "--to", "canon/widgets-v2.tex", "-m", "After the referee", "--no-check")
+    g.run("stamp", "drafting/main.tex", "-m", "widgets-v2")
 
     # An edit the author thinks better of: revert puts the recorded text back, and the head is then the text of @1.
     g.edit("nodes/sy-0002.tex", "one or two points", "at most two points")
@@ -196,14 +196,14 @@ def build_synthetic(dest: Path) -> None:
     out = g.run("revert", "sy-0002@1")
     g.apply_patch(out[out.index("--- nodes/sy-0002.tex") :])
 
-    # The talk's own copy is shortened for the slide; a stamp narrowed to the talk records that and nothing else.
+    # The talk's own copy is shortened for the slide; a stamp records it, the only key that moved.
     g.edit(
         f"nodes/{fork_id}.tex",
         "A widget with $|X| = 1$ has a fixed point.",
         "A widget with one point has a fixed point.",
     )
     g.at("2026-09-15T15:00:00Z")
-    g.run("stamp", "-m", "Talk prepared", "--in", "drafting/talk.tex")
+    g.run("stamp", "-m", "Talk prepared")
 
     # The retired lemma: accepted, then dropped, so its ledger rows retire and its id is never allocated again.
     g.edit(
@@ -215,7 +215,7 @@ def build_synthetic(dest: Path) -> None:
         "",
     )
     g.at("2026-09-15T16:00:00Z")
-    g.run("canonize", "drafting/main.tex", "--to", "canon/widgets-v3.tex", "-m", "Third landmark", "--no-check")
+    g.run("stamp", "drafting/main.tex", "-m", "widgets-v3")
 
     # The review that stands: a run with two annotations, the author's own comments, one reply, one resolution.
     g.at("2026-09-16T00:00:00Z")
@@ -389,7 +389,7 @@ def build_synthetic(dest: Path) -> None:
         "a pair of a set and an involution of it, so that",
     )
 
-    # The two faults a quilt can be left in, last: canonize refuses a document that reaches a conflicted id.
+    # The fault a quilt can be left in, last, since a stamp given a document refuses one that reaches a conflicted id: an id two files define.
     twice = g.run("id", "--next").strip()
     body = (
         f"\\begin{{lemma}}[Doubly defined]\\label{{{twice}}}\n"
@@ -403,8 +403,6 @@ def build_synthetic(dest: Path) -> None:
         "\\begin{frame}{Two arguments}",
         "\\begin{frame}{The doubly defined lemma}\n" + body + "\\end{frame}\n\n\\begin{frame}{Two arguments}",
     )
-    with (dest / "canon" / "widgets-v1.tex").open("a", encoding="utf-8") as fh:
-        fh.write("% A landmark edited after the fact, so loom:canon-edited has something to report.\n")
 
     # The agent's node written new, last, so it takes the author's next number after every id the author allocated.
     g.at("2026-09-16T11:00:00Z")
@@ -505,15 +503,7 @@ def build_demo(dest: Path) -> None:
         "The loom demo",
     )
     g.run("accept", "dm-0002", "--proofs", "--author", "The loom demo", "--force")
-    g.run(
-        "canonize",
-        "drafting/main.tex",
-        "--to",
-        "canon/widgets-v1.tex",
-        "-m",
-        "The demo's first landmark",
-        "--no-check",
-    )
+    g.run("stamp", "drafting/main.tex", "-m", "widgets-v1")
 
     # The cited work, the showcase's way: an invented paper this repository compiles, so the demo has a real document
     # behind its digest rather than prose about a paper nobody holds. The author drops the PDF into the seed space and
@@ -639,19 +629,10 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-14T09:00:00Z")
     g.run("atomize", "drafting/main.tex", "drafting/main-atomic.tex", "--sections")
     g.at("2026-09-14T09:05:00Z")
-    g.run(
-        "canonize",
-        "drafting/main-atomic.tex",
-        "--to",
-        "canon/flows-v1.tex",
-        "-m",
-        "The paper as it arrived",
-        "--no-check",
-    )
+    g.run("stamp", "drafting/main-atomic.tex", "-m", "flows-v1")
 
     # ---- The seed space, and loom's store. --------------------------------------------------------------
-    # The author drops the two PDFs they hold into `refs/`; `refs scan` reads the canon document's
-    # bibliography and files each document under the identifier it states on its own first page.
+    # The author drops the two PDFs they hold into `refs/`; `refs scan` reads the landmark's bibliography and files each document under the identifier it states on its own first page.
     (dest / "refs").mkdir(exist_ok=True)
     for pdf in sorted(WORKS.glob("*.pdf")):
         shutil.copy(pdf, dest / "refs" / pdf.name)
@@ -1360,7 +1341,7 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-17T10:05:00Z")
     g.run("stamp", "-m", "Referee points answered")
     g.at("2026-09-17T10:10:00Z")
-    g.run("canonize", "drafting/main-atomic.tex", "--to", "canon/flows-v2.tex", "-m", "After the referee", "--no-check")
+    g.run("stamp", "drafting/main-atomic.tex", "-m", "flows-v2")
 
     # An edit the author thinks better of: revert puts the recorded text back.
     g.at("2026-09-17T11:00:00Z")
@@ -1389,7 +1370,7 @@ def build_showcase(dest: Path) -> None:
         "which is finite, so some vertex repeats",
     )
     g.at("2026-09-17T12:05:00Z")
-    g.run("stamp", "-m", "Talk prepared", "--in", "drafting/talk.tex")
+    g.run("stamp", "-m", "Talk prepared")
 
     # ---- A lemma the author started and has not placed. ---------------------------------------------------
     g.at("2026-09-18T09:00:00Z")

@@ -251,7 +251,7 @@ def _input_hash(result: ScanResult, key: str, aux: bytes) -> str:
 
 
 def _canon_hash(doc, root: Path) -> str:  # type: ignore[no-untyped-def]
-    """The cache key of a canon fragment: loom's version and code, the document's text, and its closure's."""
+    """The cache key of a landmark's fragment: loom's version and code, the landmark's text, and its closure's."""
     h = hashlib.sha256()
     h.update(__version__.encode())
     h.update(_code_hash().encode())
@@ -425,7 +425,7 @@ def build(
         fragments[f"canon:{doc.path}"] = rel
         canon_entries.append(canon_entry(doc, rel, digest))
     # Rendered on a pool, assembled in order. The expensive part is waiting on LaTeX -- a diagram the converter cannot draw is compiled to SVG, twice through latex and once through dvisvgm, up to three times with different preambles -- and with sixteen real digests carrying 74 diagrams the first build of the study quilt took 454 seconds on one thread. Waiting on a subprocess releases the GIL, so threads overlap exactly that.
-    # Canon documents share the pool and are submitted first: each is one long job that compiles its own preamble's diagrams one after another, so started last it would run alone after every node had finished.
+    # Landmarks share the pool and are submitted first: each is one long job that compiles its own preamble's diagrams one after another, so started last it would run alone after every node had finished.
     from concurrent.futures import ThreadPoolExecutor
     from functools import partial
 
@@ -439,7 +439,7 @@ def build(
     with ThreadPoolExecutor(max_workers=max(1, os.cpu_count() or 1)) as pool:
         done = list(pool.map(render_job, tasks))
     canon_done, node_done = done[: len(canon_jobs)], done[len(canon_jobs) :]
-    # every job's diagnostics, nodes then canon, each in job order: the order a single thread would have produced, whatever order they finished
+    # every job's diagnostics, nodes then landmarks, each in job order: the order a single thread would have produced, whatever order they finished
     for _, diags in node_done + canon_done:
         plan.diagnostics.extend(diags)
     for (key, _kind, rel, digest), (html_out, _) in zip(jobs, node_done, strict=True):

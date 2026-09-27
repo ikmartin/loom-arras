@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from loom.history.ledger import append_entry, load_history
-from loom.history.steps import infer_parent, slug, step_dirname
+from loom.history.steps import slug, step_dirname
 from loom.history.versions import parse_address, version_filename
 
 
@@ -30,14 +30,14 @@ def test_steps_versions_and_addresses(tmp_path: Path) -> None:
         {
             "when": "2026-09-14T09:00:00Z",
             "actor": "A",
-            "action": "canonize",
+            "action": "stamp",
             "step": 2,
             "dir": "0002-paper-v1",
             "message": "First landmark",
             "froze": {"rl-0001": "sha256:a", "rl-0001/proof": "sha256:p"},
             "of": {"rl-0001/proof": "rl-0001@2"},
         },
-        {"when": "2026-09-15T09:00:00Z", "actor": "A", "action": "draft", "from": {"path": "canon/paper.tex"}},
+        {"when": "2026-09-15T09:00:00Z", "actor": "A", "action": "restore", "from": {"landmark": "paper", "step": 1}},
         {
             "when": "2026-09-16T09:00:00Z",
             "actor": "A",
@@ -59,16 +59,16 @@ def test_steps_versions_and_addresses(tmp_path: Path) -> None:
     assert h.versions_of("rl-0001/proof")[0].of == "rl-0001@2"
     assert h.recorded_ids() == {"rl-0001", "rl-0002"}  # a removed id is recorded, and never allocated again
     assert h.removed_ids() == {"rl-0002": 3}
-    assert h.entries[2].action == "draft" and h.entries[2].step is None  # not every line is a step
+    assert h.entries[2].action == "restore" and h.entries[2].step is None  # not every line is a step
 
 
 def test_a_malformed_line_is_reported_and_skipped(tmp_path: Path) -> None:
     d = tmp_path / ".loom" / "history"
     d.mkdir(parents=True)
     (d / "ledger.jsonl").write_text(
-        json.dumps({"when": "x", "actor": None, "action": "canonize", "step": 2, "dir": "0002-a", "froze": {}})
+        json.dumps({"when": "x", "actor": None, "action": "stamp", "step": 2, "dir": "0002-a", "froze": {}})
         + "\nnot json\n"
-        + json.dumps({"when": "x", "actor": None, "action": "canonize", "step": 1, "dir": "0001-b", "froze": {}})
+        + json.dumps({"when": "x", "actor": None, "action": "stamp", "step": 1, "dir": "0001-b", "froze": {}})
         + "\n",
         encoding="utf-8",
     )
@@ -96,18 +96,6 @@ def test_supersession_and_live(tmp_path: Path) -> None:
     )
     h = load_history(d)
     assert set(h.superseded_paths()) == {"drafting/c.tex"}
-
-
-def test_parent_is_declared_inferred_or_unknown(tmp_path: Path) -> None:
-    d = _write(
-        tmp_path,
-        {"when": "1", "actor": None, "action": "canonize", "step": 1, "dir": "0001-a", "froze": {"k": "h1", "j": "h2"}},
-        {"when": "2", "actor": None, "action": "canonize", "step": 2, "dir": "0002-b", "froze": {"k": "h3"}},
-    )
-    h = load_history(d)
-    assert infer_parent(h, {"k": "h3", "j": "h2"}, 1) == {"step": 1, "how": "declared"}
-    assert infer_parent(h, {"k": "h3", "j": "h2"}, None)["step"] == 2  # the newest state sharing the most hashes
-    assert infer_parent(h, {"k": "nope"}, None) == {"how": "unknown"}
 
 
 def test_names_addresses_and_slugs() -> None:
@@ -193,18 +181,19 @@ def test_a_move_line_is_followed_the_latest_move_wins_and_a_cycle_ends(tmp_path:
         {"action": "move", "from": "drafting/a.tex", "to": "drafting/b.tex"},
         {"action": "move", "from": "drafting/b.tex", "to": "drafting/a.tex"},
         {"action": "move", "from": "drafting/a.tex", "to": "drafting/c.tex"},
-        # a landmark's `from` and `to` name a document and the canon copy it froze: not a move
+        # a landmark's `in` and `to` name a document and the copy of it the step keeps: not a move
         {
-            "action": "canonize",
+            "action": "stamp",
             "step": 1,
             "dir": "0001-v1",
-            "from": {"path": "drafting/c.tex"},
-            "to": {"path": "canon/v1.tex"},
+            "in": "drafting/c.tex",
+            "landmark": "v1.tex",
+            "to": {"path": "v1.tex"},
         },
     )
     h = load_history(d)
     assert h.current_document("drafting/b.tex", {"drafting/c.tex"}) == "drafting/c.tex"
-    assert h.current_document("drafting/c.tex", {"canon/v1.tex"}) is None
+    assert h.current_document("drafting/c.tex", {"v1.tex"}) is None
     # b -> a -> c, and with nothing live the walk stops rather than going round
     assert h.document_trail("drafting/b.tex", set()) == ["drafting/b.tex", "drafting/a.tex", "drafting/c.tex"]
 

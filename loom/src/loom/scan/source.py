@@ -22,7 +22,7 @@ _VERBATIM_RE = re.compile(r"\\begin\{(verbatim\*?|lstlisting|comment|filecontent
 
 
 def discover_files(root: Path, skip_top: tuple[str, ...] = ()) -> list[str]:
-    """Quilt-relative posix paths of every .tex file under root, sorted, skipping build/ and tool directories and the directories in `skip_top`, given relative to root (the canon directory, `retired/`, `notes/` and the history directory, whose files are never source)."""
+    """Quilt-relative posix paths of every .tex file under root, sorted, skipping build/ and tool directories and the directories in `skip_top`, given relative to root (`retired/`, `notes/` and the history directory, whose files are never source)."""
     found: list[str] = []
     for path in root.rglob("*.tex"):
         rel = path.relative_to(root)
