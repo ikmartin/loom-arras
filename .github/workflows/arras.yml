@@ -45,6 +45,14 @@ jobs:
         run: npx playwright install-deps chromium
         working-directory: arras
       - run: scripts/verify full --only arras
+      - name: Preserve browser failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arras-test-results
+          path: arras/test-results
+          if-no-files-found: ignore
+          retention-days: 7
       # the product build: scripts/verify's build step writes it with no fixture staged, and each suite serves a copy of it with its own fixture staged
       - uses: actions/upload-artifact@v4
         with:

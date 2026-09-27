@@ -55,7 +55,12 @@
 	// The renderer's own view, used when no caller supplied one; `v` is the one in force either way.
 	const own = new PdfView();
 	const v = $derived(view ?? own);
-	let columnWidth = $state(0);
+	// The content box shrinks when a vertical scrollbar appears, even if the border box does not.
+	let columnSize = $state<DOMRectReadOnly>();
+	const columnWidth = $derived(columnSize?.width ?? 0);
+	let focusedRender = $state(0);
+	// The result a landing reached, drawn at the zoom it was measured at; a later draw of its page does not land again, since landing again cancels the smooth scroll still under way.
+	let landed = '';
 	const PAGE_GUTTER = 24;
 	const fitted = $derived.by(() => {
 		const w = sizes[at]?.width ?? sizes[1]?.width ?? 612;
@@ -183,6 +188,8 @@
 
 	$effect(() => {
 		const id = focus;
+		// A slow render can finish after the initial landing attempts have expired.
+		void focusedRender;
 		// a redraw at another zoom or width moves the result: land again, which also re-reads whether the text now fits
 		void drawAt;
 		void columnWidth;
@@ -190,6 +197,7 @@
 		const at = spans.find((s) => s.id === id);
 		if (!at) return;
 		here = at.page;
+		landed = '';
 		// After the page is in the window and has drawn, the mark itself is what to scroll to — and it does not exist until the page it is on is rendered, which is not the next frame. One frame was enough while the only caller scrolled to a mark on a page already drawn; the preview card asks for one on a page it has just mounted, and fell back to the top of the page every time. Wait for the mark, then give up on the page.
 		let tries = 0;
 		let frame = 0;
@@ -211,6 +219,7 @@
 				if (holder) toPage(holder, 'smooth');
 				return;
 			}
+			if (drawn) landed = id;
 			mark.scrollIntoView({ block: 'center', inline: fits ? 'nearest' : 'start', behavior: 'smooth' });
 		};
 		frame = requestAnimationFrame(reach);
@@ -248,7 +257,7 @@
 </script>
 
 <div class="doc" data-testid="pdf-doc">
-	<div class="column" bind:this={column} bind:clientWidth={columnWidth} onscroll={scrolled}>
+	<div class="column" bind:this={column} bind:contentRect={columnSize} onscroll={scrolled}>
 		{#if problem}
 			<p class="problem" data-testid="pdf-problem">{problem}</p>
 		{/if}
@@ -263,6 +272,7 @@
 					{focus}
 					render={shown.has(n) && ready}
 					quads={byPage[n] ?? []}
+					ondrawn={() => { if (landed !== focus && spans.some((s) => s.id === focus && s.page === n)) focusedRender++; }}
 					{onselect}
 					{onbox}
 					{onmark}

@@ -16,6 +16,14 @@ from tests.helpers import json_of, ok, refused
 AUTHOR = ["--author", "Markas Hecht"]
 
 
+@pytest.fixture(autouse=True)
+def local_reviewer() -> None:
+    """Status reports the local reviewer's acceptance, so the reviewer is the author who accepts."""
+    from loom.scan.quilt import save_author
+
+    save_author("Markas Hecht")
+
+
 def demo(tmp_path: Path) -> Path:
     """The demo quilt with its shipped ledger and annotation log removed, so the history starts blank."""
     ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)

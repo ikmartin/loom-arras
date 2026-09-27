@@ -1,9 +1,10 @@
-// Review: a table of recorded states per working document beside the two quilt-wide views, the causes a stale key opens beside its document, what an incoming pull changes, and the guided review of what needs a decision. Each test is named for the rule it holds.
+// Review: document-scoped tables of recorded states, the causes a stale key opens beside its document, what an incoming pull changes, and the guided review of what needs a decision. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
 import { serve } from '../manifest';
+import { readFileSync } from 'node:fs';
 
 test.describe('the views', () => {
-	test('working documents replace All while Needs review and Incoming stay global', async ({ page }) => {
+	test('the default document opens first and the corpus-wide views follow the document tabs', async ({ page }) => {
 		await page.goto('/review?show=stale');
 		const tabs = page.getByRole('navigation', { name: 'Review views' });
 		await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
@@ -12,34 +13,7 @@ test.describe('the views', () => {
 		await expect(page.getByTestId('filter-show')).toHaveCount(0);
 	});
 
-	test('Review scopes rows and counts to working-document tabs while sharing one block state', async ({ page }) => {
-		await page.goto('/review');
-		const tabs = page.getByRole('navigation', { name: 'Review views' });
-		await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
-		await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
-		await expect(page.locator('#review-sy-0003')).toBeVisible();
-		await expect(page.locator('#review-sy-999a')).toHaveCount(0);
-		await expect(page.locator('#review-sy-0002')).toBeVisible();
-		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
-		const mainCounts = await page.getByTestId('review-counts').innerText();
-
-		await tabs.getByRole('link', { name: 'talk.tex' }).click();
-		await expect(page).toHaveURL(/\/review\?document=drafting%2Ftalk\.tex$/);
-		await expect(page.locator('#review-sy-999a')).toBeVisible();
-		await expect(page.locator('#review-sy-0003')).toHaveCount(0);
-		await expect(page.locator('#review-sy-0002')).toBeVisible();
-		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
-		await expect(page.getByTestId('review-counts')).not.toHaveText(mainCounts);
-		// sessions and undigested works have surfaces of their own, and are not repeated under a document's table
-		await expect(page.getByRole('heading', { name: 'Sessions' })).toHaveCount(0);
-		await expect(page.getByText('Undigested citations')).toHaveCount(0);
-
-		// a document the quilt does not have falls back to the default
-		await page.goto('/review?document=drafting%2Fmissing.tex');
-		await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
-	});
-
-	test('the blockers address lands on the default working document', async ({ page }) => {
+	test('the blockers address lands on the default document', async ({ page }) => {
 		await page.goto('/blockers');
 		await expect(page).toHaveURL(/\/review$/);
 		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
@@ -72,12 +46,35 @@ test.describe('recorded states', () => {
 		await expect(page.locator('#review-sy-0002 .badge .chip')).toHaveText(['accepted', 'proved']);
 	});
 
+	test('rows and counts follow the selected document while a shared block keeps one state', async ({ page }) => {
+		await page.goto('/review');
+		const tabs = page.getByRole('navigation', { name: 'Review views' });
+		await expect(page.locator('#review-sy-0003')).toBeVisible();
+		await expect(page.locator('#review-sy-999a')).toHaveCount(0);
+		await expect(page.locator('#review-sy-0002')).toBeVisible();
+		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
+		const mainCounts = await page.getByTestId('review-counts').innerText();
+
+		await tabs.getByRole('link', { name: 'talk.tex' }).click();
+		await expect(page).toHaveURL(/\/review\?document=drafting%2Ftalk\.tex$/);
+		await expect(page.locator('#review-sy-999a')).toBeVisible();
+		await expect(page.locator('#review-sy-0003')).toHaveCount(0);
+		await expect(page.locator('#review-sy-0002')).toBeVisible();
+		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
+		await expect(page.getByTestId('review-counts')).not.toHaveText(mainCounts);
+		await expect(page.getByText('Sessions')).toHaveCount(0);
+		await expect(page.getByText('Undigested citations')).toHaveCount(0);
+
+		await page.goto('/review?document=drafting%2Fmissing.tex');
+		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+	});
+
 	test('review causes open rendered text beside its current context', async ({ page }) => {
 		await page.goto('/review');
 		await expect(page.getByTestId('review-counts')).toContainText('5 stale');
-		const row = page.locator('table.list tr', { hasText: 'sy-0002/proof' });
-		await expect(row).toContainText('sy-0001 via sy-0002');
-		const stale = page.locator('table.list tr', { hasText: 'sy-0001' }).first();
+		const row = page.locator('#review-sy-0002-proof');
+		await expect(row).toContainText('Widget via sy-0002');
+		const stale = page.locator('#review-sy-0001');
 		await expect(stale).toContainText('1 detached');
 		await stale.getByRole('link', { name: 'text edit' }).click();
 		await expect(page).toHaveURL(/\/master\/main\?review=sy-0001&cause=0#sy-0001$/);
@@ -94,8 +91,8 @@ test.describe('recorded states', () => {
 		expect(comparisonLayout.comparisonLeft).toBeGreaterThan(comparisonLayout.documentRight);
 		expect(comparisonLayout.pageWidth).toBeLessThanOrEqual(comparisonLayout.windowWidth);
 		await page.goto('/review');
-		const dependent = page.locator('table.list tr', { hasText: 'sy-0002' }).first();
-		await dependent.getByRole('link', { name: 'sy-0001', exact: true }).click();
+		const dependent = page.locator('#review-sy-0002');
+		await dependent.getByRole('link', { name: 'Widget', exact: true }).click();
 		await expect(page).toHaveURL(/#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix$/);
 		await expect(page.locator('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')).toHaveClass(/review-citation-target/);
 		await expect(page.getByTestId('review-comparison')).toContainText('involution');
@@ -159,22 +156,21 @@ test.describe('incoming and guided review', () => {
 		await expect(page.getByRole('heading', { name: /pending ok/i })).toBeVisible();
 		await expect(page.getByRole('heading', { name: /requires attention/i })).toBeVisible();
 		await page.getByRole('button', { name: 'Start review' }).click();
-		await expect(page.getByTestId('guided-review')).toContainText('sy-0001');
+		await expect(page.getByTestId('guided-review')).toContainText('Widget');
 		await expect(page.getByTestId('guided-review')).toContainText('Incoming pull');
 		await page.getByRole('button', { name: 'Return to Needs review' }).click();
 		await expect(page.getByTestId('guided-review')).toHaveCount(0);
-		await page.getByRole('button', { name: 'sy-0003' }).click();
-		await expect(page.getByTestId('guided-review')).toContainText('sy-0003');
+		await page.getByRole('button', { name: 'Parity', exact: true }).click();
+		await expect(page.getByTestId('guided-review')).toContainText('Parity');
 		await expect(page.getByRole('button', { name: 'Mark OK' })).toHaveCount(0);
 	});
 
 	test('guided review highlights a dependent citation and distinguishes local edits', async ({ page }) => {
 		await page.route('**/fragments/nodes/sy-0002.html', async (route) => {
-			const response = await route.fetch();
-			const body = await response.text();
+			const body = readFileSync('tests/fixture/fragments/nodes/sy-0002.html', 'utf8');
 			const citation = '<a id="cite-nodes-sy-0002-tex-185-sy-0001-eq-fix"';
 			expect(body).toContain(citation);
-			await route.fulfill({ response, body: body.replace(citation, `<span style="display:block;height:1200px"></span>${citation}`) });
+			await route.fulfill({ contentType: 'text/html', body: body.replace(citation, `<span style="display:block;height:1200px"></span>${citation}`) });
 		});
 		await serve(page, (m) => {
 			m.unresolved = [
@@ -194,11 +190,11 @@ test.describe('incoming and guided review', () => {
 		});
 		expect(position.scrollTop).toBeGreaterThan(0);
 		expect(position.citationTop).toBeLessThan(position.paneBottom);
-		await page.getByRole('button', { name: 'sy-0003' }).click();
+		await page.getByRole('button', { name: 'Parity', exact: true }).click();
 		await expect(guided).toContainText('Local change');
 		await expect(guided.locator('.review-citation-target')).toHaveCount(0);
 		await expect(guided.locator('.guided-current')).toHaveJSProperty('scrollTop', 0);
-		await page.getByRole('button', { name: 'sy-0002' }).click();
+		await page.getByRole('button', { name: 'Orbits', exact: true }).click();
 		await expect(guided.locator('.review-citation-target')).toHaveCount(1);
 		const viewportPosition = await guided.evaluate((section) => {
 			const pane = section.querySelector('.guided-current')!;
@@ -209,4 +205,24 @@ test.describe('incoming and guided review', () => {
 		expect(viewportPosition.citationTop).toBeGreaterThanOrEqual(0);
 		expect(viewportPosition.citationTop).toBeLessThan(viewportPosition.viewportHeight);
 	});
+});
+
+test('a static export identifies its review perspective once without identity editing', async ({ page }) => {
+	await serve(page, (m) => { m.reviewer = { name: 'Alice', source: 'local configuration' }; });
+	await page.goto('/review');
+	await expect(page.getByText('Review status for Alice', { exact: true })).toHaveCount(1);
+	await expect(page.getByText('Reviewing as Alice', { exact: true })).toHaveCount(0);
+	await page.getByTestId('settings-toggle').click();
+	await expect(page.getByLabel('Reviewer name', { exact: true })).toHaveCount(0);
+});
+
+test('a local viewer confirms its reviewer and exposes the computer-wide setting', async ({ page }) => {
+	await serve(page, (m) => { m.reviewer = { name: 'Bob', source: 'local configuration' }; });
+	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['review-decision', 'reviewer-settings'] } }));
+	await page.goto('/review');
+	await expect(page.getByText('Reviewing as Bob', { exact: true })).toBeVisible();
+	await expect(page.getByText('Review status for Bob', { exact: true })).toHaveCount(0);
+	await page.getByTestId('settings-toggle').click();
+	await expect(page.getByLabel('Reviewer name', { exact: true })).toHaveValue('Bob');
+	await expect(page.getByText(/Author name on this computer; used across local quilts/)).toBeVisible();
 });

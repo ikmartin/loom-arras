@@ -2,7 +2,7 @@
 
 import { test as base, expect, type TestInfo } from '@playwright/test';
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
-import { cpSync, createWriteStream, existsSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, createWriteStream, existsSync, readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -77,12 +77,21 @@ interface Running {
  *
  * The server is started in its own process group, so stopping it also stops an agent turn it launched. A port lost to a race with another worker shows as an early exit, and is retried on a new one. The pristine copy carries a build, so the server's first one only checks its cache.
  */
+export function reviewerEnv(suite: Suite, directory: string): NodeJS.ProcessEnv {
+	const config = join(directory, 'loom');
+	mkdirSync(config, { recursive: true });
+	const name = suite.quilt === 'synthetic' ? 'The synthetic quilt' : 'The loom showcase';
+	writeFileSync(join(config, 'config.toml'), `[author]\nname = ${JSON.stringify(name)}\n`);
+	return { ...process.env, XDG_CONFIG_HOME: directory };
+}
+
 async function start(suite: Suite, name: string): Promise<Running> {
 	const dir = scratchDir(suite);
 	const root = join(dir, 'quilts', name);
 	const logPath = `${root}.serve.log`;
 	rmSync(root, { recursive: true, force: true });
 	cpSync(join(dir, 'template'), root, { recursive: true });
+	const env = reviewerEnv(suite, `${root}.config`);
 	let lastLog = '';
 	for (let attempt = 0; attempt < 3; attempt++) {
 		const port = await freePort();
@@ -91,7 +100,7 @@ async function start(suite: Suite, name: string): Promise<Running> {
 		const proc: ChildProcess = spawn(LOOM, ['serve', '--quilt', root, '--port', String(port), '--no-compile'], {
 			cwd: ARRAS,
 			detached: true,
-			env: { ...process.env, LOOM_ARRAS_BUNDLE: join(dir, 'bundle') },
+			env: { ...env, LOOM_ARRAS_BUNDLE: join(dir, 'bundle') },
 			stdio: ['ignore', 'pipe', 'pipe']
 		});
 		proc.stdout!.pipe(out);
@@ -116,6 +125,9 @@ async function start(suite: Suite, name: string): Promise<Running> {
 		while (!exited && Date.now() < deadline) {
 			try {
 				const res = await fetch(`${url}/build/manifest.json`);
+				// Drain even a readiness probe: an unread large HTTP/1.0 response can
+				// leave Node’s parser paused when the server closes the connection.
+				await res.arrayBuffer();
 				if (res.ok) {
 					token = ((await (await fetch(`${url}/_api`)).json()) as { token: string }).token;
 					break;
@@ -159,8 +171,8 @@ async function start(suite: Suite, name: string): Promise<Running> {
 				expect(res.status, `POST /_api/${endpoint} answered ${text}`).toBe(200);
 				return String((JSON.parse(text) as { result: unknown }).result ?? '');
 			},
-			loom(args, env = {}) {
-				return execFileSync(LOOM, [...args, '--quilt', root], { cwd: ARRAS, env: { ...process.env, ...env } }).toString();
+			loom(args, overrides = {}) {
+				return execFileSync(LOOM, [...args, '--quilt', root], { cwd: ARRAS, env: { ...env, ...overrides } }).toString();
 			}
 		};
 		return { served, logPath, stop };

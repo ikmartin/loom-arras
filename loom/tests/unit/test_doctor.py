@@ -254,12 +254,12 @@ def test_the_author(box: Box) -> None:
     assert 'name = "Your Name" under [author]' in got["remedy"] and "git config --global user.name" in got["remedy"]
 
 
-def test_an_empty_author_in_the_quilt_names_the_quilts_config(box: Box) -> None:
+def test_an_empty_tracked_author_does_not_override_local_identity(box: Box) -> None:
     q = quilt(box)
     with (q / "config.toml").open("a", encoding="utf-8") as fh:
         fh.write('\n[author]\nname = ""\n')
     got = item(doctor(box, cwd=q), "author")
-    assert got["status"] == "warn" and got["remedy"] == f'set name = "Your Name" under [author] in {q / "config.toml"}'
+    assert got["status"] == "ok" and "tracked quilt author ignored" in got["detail"]
 
 
 # ---- machine: the bundle, from each source

@@ -16,16 +16,23 @@ from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 
 
+@pytest.fixture(autouse=True)
+def local_reviewer():
+    from loom.scan.quilt import save_author
+
+    save_author("The synthetic quilt")
+
+
 def test_pending_ok_survives_build_and_waits_for_upstream(tmp_path: Path) -> None:
     source = Path(__file__).resolve().parents[1] / "quilts" / "synthetic"
     root = tmp_path / "quilt"
     shutil.copytree(source, root, ignore=shutil.ignore_patterns("build", ".git"))
     build(load_quilt(root))
-    assert handle(root, "review-decision", {"key": "sy-0002", "status": "ok"})["ok"]
+    assert handle(root, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "ok"})["ok"]
     row = next(row for row in build(load_quilt(root)).manifest["unresolved"] if row["key"] == "sy-0002")
     assert row["status"] == "ok"
     with pytest.raises(ApiError, match="review sy-0001 before finishing sy-0002"):
-        handle(root, "review-finish", {})
+        handle(root, "review-finish", {"reviewer": "The synthetic quilt"})
 
 
 def test_requires_attention_returns_to_queue_when_block_changes(tmp_path: Path) -> None:
@@ -53,7 +60,7 @@ def test_transitive_attention_clears_after_upstream_ok_is_finished(
     root = tmp_path / "quilt"
     shutil.copytree(source, root, ignore=shutil.ignore_patterns("build", ".git"))
     quilt = load_quilt(root)
-    write_acceptance(scan(quilt), ["sy-0001", "sy-0002", "sy-0002/proof"], "Test author")
+    write_acceptance(scan(quilt), ["sy-0001", "sy-0002", "sy-0002/proof"], "The synthetic quilt")
     proof_acceptance = Records(root, quilt.history_dir).latest["sy-0002/proof"]
 
     path = root / "drafting" / "main.tex"
@@ -63,9 +70,13 @@ def test_transitive_attention_clears_after_upstream_ok_is_finished(
     manifest = build(quilt).manifest
     assert manifest["keys"]["sy-0002/proof"]["acceptance"]["fresh"] is False
     assert any(c.get("via") == "sy-0002" for c in manifest["keys"]["sy-0002/proof"]["acceptance"]["causes"])
-    assert handle(root, "review-decision", {"key": "sy-0002/proof", "status": "requires-attention"})["ok"]
+    assert handle(
+        root,
+        "review-decision",
+        {"reviewer": "The synthetic quilt", "key": "sy-0002/proof", "status": "requires-attention"},
+    )["ok"]
     for key in ("sy-0001", "sy-0002"):
-        assert handle(root, "review-decision", {"key": key, "status": "ok"})["ok"]
+        assert handle(root, "review-decision", {"reviewer": "The synthetic quilt", "key": key, "status": "ok"})["ok"]
     covered = build(quilt).manifest
     assert covered["keys"]["sy-0002/proof"]["acceptance"]["fresh"] is False
     assert not any(row["key"] == "sy-0002/proof" for row in covered["unresolved"])
@@ -80,8 +91,8 @@ def test_transitive_attention_clears_after_upstream_ok_is_finished(
     node_path.write_text(original_node, encoding="utf-8")
 
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master=None: (True, ""))
-    monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "Test author")
-    assert handle(root, "review-finish", {})["ok"]
+    monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "The synthetic quilt")
+    assert handle(root, "review-finish", {"reviewer": "The synthetic quilt"})["ok"]
     after = build(quilt).manifest
     assert after["keys"]["sy-0002/proof"]["acceptance"]["fresh"] is True
     assert not any(row["key"] == "sy-0002/proof" for row in after["unresolved"])
@@ -93,7 +104,7 @@ def test_fresh_pending_ok_remains_visible_until_finish(tmp_path: Path) -> None:
     root = tmp_path / "quilt"
     shutil.copytree(source, root, ignore=shutil.ignore_patterns("build", ".git"))
     quilt = load_quilt(root)
-    write_acceptance(scan(quilt), ["sy-0001"], "Test author")
+    write_acceptance(scan(quilt), ["sy-0001"], "The synthetic quilt")
     decide(scan(quilt), "sy-0001", "ok")
     row = next(row for row in build(quilt).manifest["unresolved"] if row["key"] == "sy-0001")
     assert row["status"] == "ok"
@@ -120,7 +131,7 @@ def test_a_decision_is_refused_for_a_bad_status_or_a_key_that_is_not_reviewable(
     assert pending(result) == []  # nothing refused was written
     build(load_quilt(root))
     with pytest.raises(ApiError, match="sy-0200 is not awaiting review") as e:
-        handle(root, "review-decision", {"key": "sy-0200", "status": "ok"})
+        handle(root, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0200", "status": "ok"})
     assert (e.value.code, e.value.status) == ("not-unresolved", 409)
 
 
@@ -129,7 +140,7 @@ def test_an_ok_whose_block_changed_is_refused_at_finish_until_it_is_decided_agai
     root = _synthetic(tmp_path)
     build(load_quilt(root))
     before = Records(root, load_quilt(root).history_dir).latest.get("sy-0001")
-    assert handle(root, "review-decision", {"key": "sy-0001", "status": "ok"})["ok"]
+    assert handle(root, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0001", "status": "ok"})["ok"]
     assert pending(scan(load_quilt(root))) == ["sy-0001"]
     path = root / "drafting" / "main.tex"
     path.write_text(
@@ -138,7 +149,7 @@ def test_an_ok_whose_block_changed_is_refused_at_finish_until_it_is_decided_agai
     with pytest.raises(ValueError, match="sy-0001 changed since OK; review it again"):
         pending(scan(load_quilt(root)))
     with pytest.raises(ApiError, match="sy-0001 changed since OK") as e:
-        handle(root, "review-finish", {})
+        handle(root, "review-finish", {"reviewer": "The synthetic quilt"})
     assert e.value.code == "review-changed"
     assert Records(root, load_quilt(root).history_dir).latest.get("sy-0001") == before
     decide(scan(load_quilt(root)), "sy-0001", "ok")  # decided again, on the new text

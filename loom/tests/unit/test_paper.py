@@ -351,6 +351,9 @@ def test_atomize_retire_moves_the_source(tmp_path: Path) -> None:
 
 def test_an_acceptance_follows_its_document_through_atomize(tmp_path: Path) -> None:
     """A key accepted in main.tex stays fresh when main.tex is atomized into a spine, retired or superseded (plan 0.16 phase 1)."""
+    from loom.scan.quilt import save_author
+
+    save_author("R")  # status reports the local reviewer's acceptance
     for retire in ([], ["--retire"]):
         q = drafted(tmp_path / ("retired" if retire else "superseded"))
         ok("accept", "pp-0005", "--force", "--author", "R", cwd=q)

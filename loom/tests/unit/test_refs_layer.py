@@ -1671,6 +1671,9 @@ def test_refs_path_prints_where_an_artifact_would_go_and_says_when_nothing_is_th
     home = work_home(q, "Calloway14")
     assert ok("refs", "path", "Calloway14", cwd=q).stdout.strip() == str(home)
     assert ok("refs", "path", "Calloway14", "--pdf", cwd=q).stdout.strip() == str(home / "paper.pdf")
+    # Git does not preserve empty source directories; file a source explicitly.
+    (home / "src").mkdir(exist_ok=True)
+    (home / "src" / "main.tex").write_text("Source text.\n")
     assert ok("refs", "path", "Calloway14", "--src", cwd=q).stdout.strip() == str(home / "src")
     r = refused("refs", "path", "Man12", "--pdf", cwd=q, code=1, match="nothing there yet; loom refs fetch Man12")
     assert r.stdout.strip() == str(work_home(q, "Man12") / "paper.pdf")  # printed anyway: it is where it would go

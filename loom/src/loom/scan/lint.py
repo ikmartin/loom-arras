@@ -208,6 +208,34 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                         "warning", "loom:unknown-directive", f"unknown directive {d.key}", [Location(path, d.line)]
                     )
                 )
+    for path, ds in asm.directives.items():
+        owners: set[str] = set()
+        for d in ds:
+            if d.form != "kv" or d.key != "name":
+                continue
+            owner = next(
+                (
+                    n
+                    for n in asm.nodes.values()
+                    if n.file == path
+                    and n.kind in ("environment", "section", "proof")
+                    and any(a <= d.offset < b for a, b in n.own)
+                ),
+                None,
+            )
+            problem = (
+                "name belongs inside a node"
+                if owner is None
+                else "name must not be empty"
+                if not d.value
+                else "multiple names in this node; the last one is used"
+                if owner.key in owners
+                else ""
+            )
+            if owner:
+                owners.add(owner.key)
+            if problem:
+                diags.append(Diagnostic("warning", "loom:invalid-name", problem, [Location(path, d.line)]))
     # theorem-like environments the preamble does not declare
     for path, fe in asm.envs.items():
         seen: set[str] = set()

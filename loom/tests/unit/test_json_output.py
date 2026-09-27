@@ -14,7 +14,7 @@ import pytest
 
 from loom.cli import main
 from tests.helpers import describe, run
-from tests.unit._quilts import demo
+from tests.unit._quilts import demo, work_home
 
 Setup = Callable[[Path], None]
 
@@ -25,6 +25,13 @@ def solo_spine(q: Path) -> None:
         "\\documentclass{article}\n\\begin{document}\n\\input{drafting/solo-part}\n\\end{document}\n", encoding="utf-8"
     )
     (q / "drafting" / "solo-part.tex").write_text("Words.\n", encoding="utf-8")
+
+
+def ingest_pdf(q: Path) -> None:
+    """An input PDF exists even in a checkout containing only tracked files."""
+    inbox = q / "refs"
+    inbox.mkdir(exist_ok=True)
+    (inbox / "paper.pdf").write_bytes((work_home(q, "Calloway14") / "paper.pdf").read_bytes())
 
 
 def nothing(_: Path) -> None:
@@ -53,7 +60,7 @@ CASES: dict[str, tuple[list[str], Setup, int]] = {
     "refs coverage": ([], nothing, 0),
     "refs find": (["widget"], nothing, 0),
     "refs grep": (["involution"], nothing, 0),
-    "refs ingest": (["refs"], nothing, 0),
+    "refs ingest": (["refs"], ingest_pdf, 0),
     "refs links": ([], nothing, 0),
     "refs locate": (["Calloway14", "Fixed loci of involutions", "--page", "1"], nothing, 0),
     "refs match": ([], nothing, 0),

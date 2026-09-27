@@ -61,7 +61,6 @@ This is quoted later in the block from \cite[Theorem 3]{Paper}.\end{theorem}
         "accept",
         "--all-live",
         "--yes",
-        "--force",
         "--author",
         "Test author",
         "--quilt",
@@ -75,7 +74,6 @@ This is quoted later in the block from \cite[Theorem 3]{Paper}.\end{theorem}
         refused(
             "accept",
             key,
-            "--force",
             "--author",
             "Test author",
             "--quilt",
@@ -108,7 +106,7 @@ Every widget is finite by the preceding construction.\end{remark}
     )
     keys = ["ab-0001", "ab-0002", "ab-0003", "ab-0004", "ab-0004/proof", "ab-0005"]
     write_acceptance(result, keys, "Test author")
-    records = Records(result.quilt.root, result.quilt.history_dir)
+    records = Records(result.quilt.root, result.quilt.history_dir, reviewer="Test author")
     derived = records.derived(result, records.key_states(result))
     assert derived["ab-0001"]["settled"]
     assert derived["ab-0002"]["settled"]  # relative to an explicit assumption
@@ -119,7 +117,9 @@ Every widget is finite by the preceding construction.\end{remark}
     master = result.quilt.root / "drafting" / "main.tex"
     master.write_text(master.read_text().replace("% !LOOM basis: local-proof", "% !LOOM basis: expository"))
     rescanned = scan(load_quilt(result.quilt.root))
-    changed = Records(result.quilt.root, result.quilt.history_dir).key_states(rescanned)["ab-0005"]
+    changed = Records(result.quilt.root, result.quilt.history_dir, reviewer="Test author").key_states(rescanned)[
+        "ab-0005"
+    ]
     assert not changed.fresh
     assert "basis-changed" in {cause.kind for cause in changed.causes}
 
@@ -145,7 +145,7 @@ def test_section_reference_is_context_not_a_settlement_obligation(tmp_path: Path
         result, ["ab-0002", "ab-0003", "ab-0003/proof", "ab-0004", "ab-0005", "ab-0005/proof"], "Test author"
     )
     assert "ab-0001" in result.graph.closure("ab-0002")
-    records = Records(result.quilt.root, result.quilt.history_dir)
+    records = Records(result.quilt.root, result.quilt.history_dir, reviewer="Test author")
     derived = records.derived(result, records.key_states(result))
     assert derived["ab-0002"] == {"proved": True, "settled": True}
     assert derived["ab-0003"] == {"proved": True, "settled": True}
@@ -170,7 +170,6 @@ def test_accept_all_live_refuses_to_establish_an_open_claim(tmp_path: Path) -> N
         "accept",
         "--all-live",
         "--yes",
-        "--force",
         "--author",
         "Test author",
         "--quilt",
@@ -197,11 +196,11 @@ def test_zk_proof_after_explanatory_remark_belongs_to_proposition(tmp_path: Path
     plan = plan_atomize(result, "drafting/main.tex", "drafting/spine.tex", keys=["zk-000P"])
     assert any("add an explicit \\ref" in refusal for refusal in plan.refusals)
 
-    records = Records(result.quilt.root, result.quilt.history_dir)
+    records = Records(result.quilt.root, result.quilt.history_dir, reviewer="Test author")
     before = records.derived(result, records.key_states(result))
     assert not before["zk-000P"]["proved"] and not before["zk-000Q"]["settled"]
     write_acceptance(result, ["zk-000P", "zk-000P/proof", "zk-000Q"], "Test author")
-    after = Records(result.quilt.root, result.quilt.history_dir)
+    after = Records(result.quilt.root, result.quilt.history_dir, reviewer="Test author")
     derived = after.derived(result, after.key_states(result))
     assert derived["zk-000P"] == {"proved": True, "settled": True}
     assert derived["zk-000Q"] == {"proved": True, "settled": True}
@@ -228,11 +227,11 @@ The comparison holds by Definition \ref{ab-0001}: both sides describe the same s
     assert "ab-0001" in result.graph.direct("ab-0002")
     assert not any(d.code == "loom:missing-proof" and "ab-0002" in d.keys for d in result.lint)
     write_acceptance(result, ["ab-0002"], "Test author")
-    records = Records(result.quilt.root, result.quilt.history_dir)
+    records = Records(result.quilt.root, result.quilt.history_dir, reviewer="Test author")
     derived = records.derived(result, records.key_states(result))
     assert derived["ab-0002"] == {"proved": True, "settled": False}
     write_acceptance(result, ["ab-0001"], "Test author")
-    records = Records(result.quilt.root, result.quilt.history_dir)
+    records = Records(result.quilt.root, result.quilt.history_dir, reviewer="Test author")
     assert records.derived(result, records.key_states(result))["ab-0002"]["settled"]
 
 

@@ -63,7 +63,7 @@ Names are the test functions as written. Unmarked tests are unit tier on the shi
 ### Chapter 4: the quilt
 
 - Discovery and config: `test_quilt_discovery_walks_up`, `test_quilt_discovery_fails_outside`, `test_quilt_discovery_env_override`, `test_quilt_config_unknown_key_warns`
-- Author: `test_the_author_is_the_flag_then_the_quilt_then_the_user_config_then_git` (and the error with its exact message)
+- Author: `test_the_author_is_the_flag_then_local_config_then_git` (and the error with its exact message)
 - Init and new: `test_init_creates_layout`, `test_init_refuses_in_quilt_and_nonempty`, `test_init_writes_gitignore_always_and_a_repository_only_when_asked` (DR-105), `test_init_from_leaves_nothing_behind_when_the_import_fails` and `test_init_from_inside_a_paper_directory_keeps_the_paper_when_the_import_fails` (DR-106), `test_init_demo_matches_fixture`, `test_new_allocates_and_print`, `test_demo_ships_two_accepted_one_stale_and_a_finished_session`
 - `\nest`: `test_nested_nest_levels` (the scanner's levels under a nested `\nest`), `test_linearize_flattens_with_nest_shift`, `test_inline_nest_shifts` (tex), `test_real_latexmk_compiles_minimal_document` (tex)
 - Ignore and build directory: `test_ignore_directive_and_lines`, `test_build_dir_deletable_and_regenerated`

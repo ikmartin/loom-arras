@@ -1,5 +1,6 @@
 // The workbench in the viewer (book 15.2, 15.3.1, 15.3.5): landmarks as documents of their own, a corpus named by its project, a corpus with nothing being worked on, and a doubly-defined id. The fixes a diagnostic offers are in problems.e2e.ts, and the badge that says a text is one a landmark recorded is in context.e2e.ts.
 import { expect, test } from '@playwright/test';
+import { serve } from '../manifest';
 
 test('the documents section lists the landmarks and the working drafts in two groups', async ({ page }) => {
 	// a list rather than a dropdown: a dropdown shows one name at a time, cannot say which draft is conflicted, and hides the landmarks behind a click
@@ -51,18 +52,19 @@ test('a doubly defined id has no text, and says where both definitions are', asy
 	await expect(page.locator('.fragment')).toHaveCount(0);
 });
 
-test('with nothing being worked on, every view says so and points at the landmarks', async ({ page }) => {
-	await page.route('**/build/manifest.json', async (route) => {
-		const res = await route.fetch();
-		const m = await res.json();
+test('without working documents, document views point at landmarks and the graph keeps the corpus', async ({ page }) => {
+	await serve(page, (m) => {
 		m.masters = [];
-		await route.fulfill({ response: res, json: m });
 	});
-	for (const path of ['/', '/graph', '/review', '/master/main']) {
+	for (const path of ['/', '/review', '/master/main']) {
 		await page.goto(path);
 		await expect(page.getByTestId('no-drafts')).toBeVisible();
 		await expect(page.getByTestId('no-drafts')).toContainText('Nothing is being worked on');
 	}
+	await page.goto('/graph');
+	await expect(page.getByTestId('gnode-sy-0003')).toBeVisible();
+	await expect(page.getByTestId('no-drafts')).toHaveCount(0);
+	await expect(page.getByLabel('Scope', { exact: true }).locator('option')).toHaveText(['Whole quilt']);
 	// the read icon falls back to the newest landmark
 	const read = page.locator('a[aria-label="read"], a[title="read"]').first();
 	if (await read.count()) await expect(read).toHaveAttribute('href', '/canon/widgets-v3');

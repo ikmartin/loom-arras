@@ -48,6 +48,8 @@
 		}
 		return [...out.entries()].map(([k, kinds]) => ({ key: k, kinds: [...kinds].sort() }));
 	}
+	const acceptances = $derived([key, ...(node?.proofs ?? [])].flatMap((k, index) =>
+		(m.keys[k]?.acceptances ?? []).map((acceptance) => ({ ...acceptance, key: k, label: index === 0 ? 'Statement' : (node?.proofs.length ?? 0) > 1 ? `Proof ${index}` : 'Proof' }))));
 	const deps = $derived(collapse(m.edges.filter((e) => e.from === key || node?.proofs.includes(e.from)), 'to'));
 	const usedBy = $derived(collapse(m.edges.filter((e) => e.to === key || (node?.proofs ?? []).includes(e.to)), 'from'));
 	// `unreachable` is "in no document" in the system's words: the problems page's business, and an absence here (C2)
@@ -94,6 +96,14 @@
 		<h1>Unknown key</h1>
 		<p class="muted">The manifest has no node <code>{key}</code>.</p>
 	{:else}
+		{#if acceptances.length}
+			<details class="acceptances">
+				<summary>Accepted by</summary>
+				{#each acceptances as acceptance (`${acceptance.key}:${acceptance.author}`)}
+					<p>{acceptance.label} · {acceptance.author} · {acceptance.date.slice(0, 10)} · {acceptance.fresh ? 'Current' : 'Stale'}</p>
+				{/each}
+			</details>
+		{/if}
 		{#if node.reached_by.length}
 			<RailList label="in">
 				{#each node.reached_by as mp (mp)}
@@ -205,6 +215,8 @@
 </div>
 
 <style>
+	.acceptances { margin-block: 12px; overflow-wrap: anywhere; }
+	.acceptances summary { cursor: pointer; }
 	.item.context {
 		max-width: 44rem;
 		font-family: var(--sans);

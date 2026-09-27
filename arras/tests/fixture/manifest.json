@@ -356,7 +356,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "77e84361bde75a83b79f59f7f35daa9016fc2038f1ab141098d9afa256922778",
+   "hash": "a8fca37aec8748e40768577c0a83edac40994618ceaf600f91b79687a8b7abea",
    "macros": "canon:widgets-v1",
    "message": "First landmark",
    "name": "widgets-v1",
@@ -368,7 +368,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "1d373b7cafbb40420d76e0b4537346a1d4aa9e4d775933b2938207653269eec0",
+   "hash": "59d56ac917e64d78035814d150c7ab73f16541f3f90e8fba210fab4e04d41b91",
    "macros": "canon:widgets-v2",
    "message": "After the referee",
    "name": "widgets-v2",
@@ -380,7 +380,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "37c763bd80489de21ea2d3f88f57e8e68b0009533c3776b002aa9559e1329178",
+   "hash": "7271ff1eacd14e78358947e2cf9ee7613b628b775f956629a7cb68ef47a885c3",
    "macros": "canon:widgets-v3",
    "message": "Third landmark",
    "name": "widgets-v3",
@@ -1676,6 +1676,13 @@
     "date": "2026-09-14T09:00:00Z",
     "fresh": false
    },
+   "acceptances": [
+    {
+     "author": "The synthetic quilt",
+     "date": "2026-09-14T09:00:00Z",
+     "fresh": false
+    }
+   ],
    "closure": [
     "sy-0100",
     "sy-0001"
@@ -1790,6 +1797,13 @@
     "date": "2026-09-14T09:00:00Z",
     "fresh": false
    },
+   "acceptances": [
+    {
+     "author": "The synthetic quilt",
+     "date": "2026-09-14T09:00:00Z",
+     "fresh": false
+    }
+   ],
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -1876,6 +1890,13 @@
     "date": "2026-09-14T09:00:00Z",
     "fresh": false
    },
+   "acceptances": [
+    {
+     "author": "The synthetic quilt",
+     "date": "2026-09-14T09:00:00Z",
+     "fresh": false
+    }
+   ],
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -1914,6 +1935,13 @@
     "date": "2026-09-14T09:00:00Z",
     "fresh": true
    },
+   "acceptances": [
+    {
+     "author": "The synthetic quilt",
+     "date": "2026-09-14T09:00:00Z",
+     "fresh": true
+    }
+   ],
    "closure": [
     "sy-0003"
    ],
@@ -1970,6 +1998,13 @@
     "date": "2026-09-14T09:00:00Z",
     "fresh": false
    },
+   "acceptances": [
+    {
+     "author": "The synthetic quilt",
+     "date": "2026-09-14T09:00:00Z",
+     "fresh": false
+    }
+   ],
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -2095,6 +2130,13 @@
     "date": "2026-09-14T09:00:00Z",
     "fresh": false
    },
+   "acceptances": [
+    {
+     "author": "The synthetic quilt",
+     "date": "2026-09-14T09:00:00Z",
+     "fresh": false
+    }
+   ],
    "closure": [
     "sy-0100",
     "sy-0001",
@@ -2797,6 +2839,7 @@
    "uses": []
   }
  },
+ "legacy_review_decisions": false,
  "links": [],
  "macros": {
   "default": [
@@ -4690,6 +4733,10 @@
    "to": "sy-0008"
   }
  ],
+ "reviewer": {
+  "name": "The synthetic quilt",
+  "source": "local user configuration"
+ },
  "search": [
   {
    "aliases": [],

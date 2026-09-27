@@ -462,9 +462,10 @@ def build(
     from loom.render.incoming import attach_incoming
 
     attach_incoming(result, renderer, manifest, files)
-    from loom.review_queue import rows_for
+    from loom.review_queue import has_legacy, rows_for
 
     manifest["unresolved"] = rows_for(result, manifest)
+    manifest["legacy_review_decisions"] = has_legacy(root)
     _attach_reports(result.quilt.root, manifest, fragments, files)
     _write_source(result, fragments, files)
     _write_transcripts(result.quilt.root, files)

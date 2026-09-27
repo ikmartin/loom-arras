@@ -64,7 +64,13 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     quilt = load_quilt(root)
     state = configure(quilt, "origin", "main", "main.tex")
     monkeypatch.setattr(sync, "compile_tex", lambda *_args, **_kwargs: SimpleNamespace(ok=True))  # type: ignore[attr-defined]
-    commit, paths = publish(quilt, state, push=True)
+    commit, paths = publish(quilt, state)
+    assert run(root, "rev-parse", state.publication_ref) == commit
+    assert run(bare, "rev-parse", "main") != commit
+    run(root, "push", "origin", f"{state.publication_ref}:main")
+    state = fetch(quilt, state)
+    assert state.integrated == state.incoming == commit
+    assert incoming_patch(quilt, state) == b""
     assert paths == ["loom.sty", "main.tex"]
     assert set(tree_files(root, commit)) == set(paths)
     assert b"private acceptance" not in b"".join(tree_files(root, commit).values())
@@ -98,7 +104,7 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     assert "A collaborator reference" in bib["diff"]
     assert report.manifest["keys"]["zk-0001"]["state"] == "draft"
     try:
-        publish(quilt, state, push=True)
+        publish(quilt, state)
     except SyncError as exc:
         assert "awaiting incorporation" in str(exc)
     else:
@@ -170,9 +176,7 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     assert latest["local_changed"] is False
 
 
-def test_multiple_selected_documents_publish_one_clean_union_and_record_the_push(
-    tmp_path: Path, monkeypatch: object
-) -> None:
+def test_multiple_selected_documents_prepare_one_clean_union_locally(tmp_path: Path, monkeypatch: object) -> None:
     import loom.sync as sync
 
     root = tmp_path / "quilt"
@@ -213,7 +217,10 @@ def test_multiple_selected_documents_publish_one_clean_union_and_record_the_push
     run(root, "fetch", "origin", "main")
     quilt = load_quilt(root)
     state = configure(quilt, "origin", "main", "main.tex")
+    selection_head = run(root, "rev-parse", "HEAD")
     state = update_documents(quilt, state, "add", "drafting/toy.tex")
+    assert run(root, "rev-parse", "HEAD") == selection_head
+    assert run(root, "diff", "--cached", "--name-only") == ""
     assert SyncState.read(root).documents == ["drafting/main.tex", "drafting/toy.tex"]
     run(root, "add", ".loom/source-sync.json")
     run(root, "commit", "-m", "select Overleaf documents")
@@ -227,7 +234,7 @@ def test_multiple_selected_documents_publish_one_clean_union_and_record_the_push
 
     monkeypatch.setattr(sync, "compile_tex", compile_secondary_failure)  # type: ignore[attr-defined]
     try:
-        publish(quilt, state, push=True)
+        publish(quilt, state)
     except SyncError as exc:
         assert "drafting/toy.tex does not compile" in str(exc)
     else:
@@ -239,7 +246,7 @@ def test_multiple_selected_documents_publish_one_clean_union_and_record_the_push
         return SimpleNamespace(ok=True)
 
     monkeypatch.setattr(sync, "compile_tex", compile_ok)  # type: ignore[attr-defined]
-    commit, paths = publish(quilt, state, push=True)
+    commit, paths = publish(quilt, state)
     assert compiled == ["main.tex", "drafting/toy.tex"]
     assert paths == ["drafting/toy.tex", "loom.sty", "main.tex", "shared/common.tex"]
     assert set(tree_files(root, commit)) == set(paths)
@@ -247,7 +254,109 @@ def test_multiple_selected_documents_publish_one_clean_union_and_record_the_push
     assert "canon/main.tex" not in tree_files(root, commit)
     assert "drafting/private.tex" not in tree_files(root, commit)
     assert run(root, "show", "--format=", "--name-only", "HEAD") == ".loom/source-sync.json"
-    assert "Record published origin/main revision" in run(root, "log", "-1", "--format=%s")
+    assert "select Overleaf documents" in run(root, "log", "-1", "--format=%s")
+    assert run(root, "rev-parse", state.publication_ref) == commit
+    assert state.prepared_from == run(root, "rev-parse", "HEAD")
+    assert state.integrated == remote_before
+    assert run(bare, "rev-parse", "main") == remote_before
+    assert run(root, "diff", "--cached", "--name-only") == ""
+
+    result = ok("sync", "publish", "--quilt", str(root))
+    assert "Prepared document workspace revision" in result.output
+    assert state.publication_ref in result.output
+    assert "Remote unchanged" in result.output
+    assert "git push" not in result.output
+    assert "--push" in ok("sync", "publish", "--help").output
+    assert "document workspace" in ok("sync", "init", "--help").output
+    state = SyncState.read(root)
+    prepared = state.prepared
+    original = (root / "drafting/toy.tex").read_text()
+    for path in ["drafting/toy.tex", "shared/common.tex"]:
+        target = root / path
+        content = target.read_text()
+        target.write_text(content + "% uncommitted edit\n")
+        import pytest
+
+        with pytest.raises(SyncError, match="uncommitted"):
+            publish(quilt, state)
+        target.write_text(content)
+    (root / "drafting/toy.tex").write_text(original + "% staged change\n")
+    run(root, "add", "drafting/toy.tex")
+    (root / "drafting/toy.tex").write_text(original)
+    with pytest.raises(SyncError, match="staged"):
+        publish(quilt, state)
+    run(root, "reset", "HEAD", "--", "drafting/toy.tex")
+    (root / "shared/common.tex").unlink()
+    with pytest.raises(SyncError, match="uncommitted"):
+        publish(quilt, state)
+    run(root, "restore", "shared/common.tex")
+    assert run(root, "rev-parse", state.publication_ref) == prepared
+    collision = SyncState.read(root)
+    collision.published_main = "drafting/toy.tex"
+    with pytest.raises(SyncError, match="two quilt files"):
+        publish(quilt, collision)
+    run(root, "push", "origin", f"{state.publication_ref}:main")
+    state = fetch(quilt, SyncState.read(root))
+    assert state.integrated == state.incoming == prepared
+    assert incoming_patch(quilt, state) == b""
+    assert not build(quilt).manifest.get("incoming")
+
+    # The opt-in command shares preparation, compiles both documents and leaves quilt Git state alone.
+    head = run(root, "rev-parse", "HEAD")
+    index = run(root, "write-tree")
+    state.review_origins = {"zk-0001": "previous-pull"}
+    state.write(root)
+    compiled.clear()
+    pushed = ok("sync", "publish", "--push", "--quilt", str(root))
+    assert "Published to document workspace origin/main" in pushed.output
+    assert "Remote unchanged" not in pushed.output
+    assert compiled == ["main.tex", "drafting/toy.tex"]
+    state = SyncState.read(root)
+    assert run(bare, "rev-parse", "main") == state.prepared == state.integrated == state.incoming
+    assert run(root, "rev-parse", "HEAD") == head and run(root, "write-tree") == index
+    assert state.review_origins == {"zk-0001": "previous-pull"}
+
+    from loom.sync import push_publication
+
+    commit, _ = publish(quilt, state)
+    saved_git = sync.git
+
+    def transport_failure(root, *args, **kwargs):
+        if args[0] == "push":
+            raise SyncError("connection lost")
+        return saved_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(sync, "git", transport_failure)
+    with pytest.raises(SyncError, match="outcome uncertain"):
+        push_publication(quilt, state, commit)
+    assert SyncState.read(root).prepared == commit
+    assert SyncState.read(root).integrated != commit
+    assert run(root, "rev-parse", state.publication_ref) == commit
+    monkeypatch.setattr(sync, "git", saved_git)
+    saved_write = SyncState.write
+
+    def disk_failure(self, root):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(SyncState, "write", disk_failure)
+    with pytest.raises(SyncError, match="recording local success failed"):
+        push_publication(quilt, state, commit)
+    assert run(bare, "rev-parse", "main") == commit
+    monkeypatch.setattr(SyncState, "write", saved_write)
+    state = fetch(quilt, SyncState.read(root))
+    assert state.integrated == state.incoming == commit
+    assert run(root, "rev-parse", "HEAD") == head and run(root, "write-tree") == index
+
+    main = root / "drafting/main.tex"
+    main.write_text(
+        main.read_text().replace(r"\usepackage{loom}", r"\usepackage{loom}" + "\n" + r"\usepackage{amsmath}")
+    )
+    run(root, "add", "drafting/main.tex")
+    run(root, "commit", "-m", "use a system package")
+    (root / "amsmath.sty").write_text("% uncommitted local package shadows the system copy\n")
+    with pytest.raises(SyncError, match="amsmath.sty is not committed"):
+        publish(quilt, state)
+    (root / "amsmath.sty").unlink()
 
     try:
         update_documents(quilt, state, "remove", "drafting/main.tex")
@@ -261,6 +370,20 @@ def test_multiple_selected_documents_publish_one_clean_union_and_record_the_push
     (root / "drafting/toy.tex").unlink()
     state = update_documents(quilt, state, "remove", "drafting/toy.tex")
     assert state.documents == ["drafting/main.tex"]
+
+    # A remote advance after preparation is rejected, preserving the exact prepared revision.
+    commit, _ = publish(quilt, state)
+    tree = run(root, "rev-parse", f"{state.integrated}^{{tree}}")
+    competing = git(root, "commit-tree", tree, "-p", state.integrated, input=b"collaborator update\n").decode().strip()
+    run(root, "push", "origin", f"{competing}:main")
+    with pytest.raises(SyncError, match="Publication rejected"):
+        push_publication(quilt, state, commit)
+    assert run(bare, "rev-parse", "main") == competing
+    assert run(root, "rev-parse", state.publication_ref) == commit
+    state = fetch(quilt, SyncState.read(root))
+    assert state.incoming == competing and state.integrated != competing
+    with pytest.raises(SyncError, match="incoming"):
+        publish(quilt, state)
 
 
 def test_old_sync_state_defaults_to_the_primary_document(tmp_path: Path) -> None:
@@ -276,6 +399,7 @@ def test_old_sync_state_defaults_to_the_primary_document(tmp_path: Path) -> None
 def test_sync_follows_a_linearized_main_and_overleaf_keeps_its_file_name(tmp_path: Path, monkeypatch: object) -> None:
     """A sync record written before `loom linearize` publishes the flat document as Overleaf's main, and a pull lands in it; the record keeps the path it was written with (plan 0.16 phase 1)."""
     import loom.sync as sync
+    from loom.sync import push_publication
 
     root = tmp_path / "quilt"
     root.mkdir()
@@ -314,7 +438,8 @@ def test_sync_follows_a_linearized_main_and_overleaf_keeps_its_file_name(tmp_pat
     quilt = load_quilt(root)
     state = SyncState.read(root)
     assert state.master == "drafting/main.tex"
-    commit, paths = publish(quilt, state, push=True)
+    commit, paths = publish(quilt, state)
+    push_publication(quilt, SyncState.read(root), commit)
     assert paths == ["loom.sty", "main.tex"]  # the same name on Overleaf; the inlined section is no longer an input
     assert git(root, "show", f"{commit}:main.tex") == (root / "drafting/flat.tex").read_bytes()
     assert SyncState.read(root).master == "drafting/main.tex"  # resolved when read, never rewritten

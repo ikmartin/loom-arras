@@ -14,7 +14,6 @@ from loom.scan.quilt import (
     QuiltConfig,
     find_quilt,
     load_quilt,
-    no_author_in_quilt,
     resolve_author,
 )
 
@@ -60,8 +59,8 @@ def test_a_table_that_is_not_a_table_warns() -> None:
     assert any("[refs] is not a table" in w for w in cfg.warnings)
 
 
-def test_the_author_is_the_flag_then_the_quilt_then_the_user_config_then_git(home: Path, tmp_path: Path) -> None:
-    """`resolve_author`'s order (book 4.3). A quilt that states an `[author]` table answers for itself, so a command records that name rather than the git identity of whatever machine or agent shell it ran in; an empty name there means ask, and a quilt with no table falls through to the user config."""
+def test_the_author_is_the_flag_then_local_config_then_git(home: Path, tmp_path: Path) -> None:
+    """A tracked author never identifies the person working in a clone."""
     repo = tmp_path / "repo"
     repo.mkdir()
     with pytest.raises(NoAuthorError) as exc:
@@ -80,10 +79,8 @@ def test_the_author_is_the_flag_then_the_quilt_then_the_user_config_then_git(hom
     cfg.write_text('[quilt]\nprefix = "ab"\n', encoding="utf-8")
     assert resolve_author(None, repo) == ("Config Person", str(user))  # no [author] table: the user config answers
     cfg.write_text('[quilt]\nprefix = "ab"\n\n[author]\nname = "Markas Hecht"\n', encoding="utf-8")
-    assert resolve_author(None, repo) == ("Markas Hecht", str(cfg))
+    assert resolve_author(None, repo) == ("Config Person", str(user))
     assert resolve_author("Someone Else", repo) == ("Someone Else", "--author")  # the flag still wins
 
     cfg.write_text('[quilt]\nprefix = "ab"\n\n[author]\nname = ""\n', encoding="utf-8")
-    with pytest.raises(NoAuthorError) as exc:
-        resolve_author(None, repo)
-    assert str(exc.value) == no_author_in_quilt(repo)
+    assert resolve_author(None, repo) == ("Config Person", str(user))

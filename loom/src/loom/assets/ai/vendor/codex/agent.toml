@@ -1,0 +1,4 @@
+# Codex CLI 0.155.1 invocation contract. Loom records the thread.started event for continuation.
+name = "Codex Agent"
+start = ["codex", "exec", "--json", "--skip-git-repo-check", "--sandbox", "workspace-write", "{prompt}"]
+resume = ["codex", "exec", "--sandbox", "workspace-write", "resume", "--json", "--skip-git-repo-check", "{agent_session}", "{prompt}"]

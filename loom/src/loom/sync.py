@@ -45,12 +45,15 @@ class SyncState:
     review_baselines: dict[str, str] = field(default_factory=dict)
     review_local_changed: dict[str, bool] = field(default_factory=dict)
     documents: list[str] = field(default_factory=list)
+    prepared: str = ""
+    prepared_from: str = ""
+    publication_ref: str = "refs/loom/publication"
 
     @classmethod
     def read(cls, root: Path) -> SyncState:
         path = root / ".loom" / "source-sync.json"
         if not path.is_file():
-            raise SyncError("source sync is not configured; run `loom sync init` first")
+            raise SyncError("document workspace is not configured; run `loom sync init` first")
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             state = cls(**data)
@@ -79,6 +82,8 @@ def git(root: Path, *args: str, env: dict[str, str] | None = None, input: bytes 
         raise SyncError("Git is required for source sync") from exc
     if run.returncode:
         detail = run.stderr.decode("utf-8", errors="replace").strip()
+        if args and args[0] == "push":
+            detail += "\n" + run.stdout.decode("utf-8", errors="replace").strip()
         raise SyncError(f"git {' '.join(args)}: {detail or f'exited {run.returncode}'}")
     return run.stdout
 
@@ -176,7 +181,7 @@ def configure(quilt: Quilt, remote: str, branch: str, published_main: str = "") 
     git(root, "remote", "get-url", remote)
     upstream = revision(root, f"refs/remotes/{remote}/{branch}")
     if published_main and (Path(published_main).is_absolute() or ".." in Path(published_main).parts):
-        raise SyncError("the Overleaf main path must stay within the project")
+        raise SyncError("the document workspace main path must stay within the project")
     state = SyncState(
         remote=remote,
         branch=branch,
@@ -195,11 +200,48 @@ def fetch(quilt: Quilt, state: SyncState) -> SyncState:
     new = revision(root, "FETCH_HEAD")
     # Keep a ref to the reviewed object even when a later fetch moves FETCH_HEAD.
     git(root, "update-ref", f"refs/loom/incoming/{new}", new)
+    if state.prepared and new == state.prepared:
+        _recognize_publication(state)
     if new != state.incoming:
         state.incoming = new
         state.observed = stamp()
     state.write(root)
     return state
+
+
+def _recognize_publication(state: SyncState) -> None:
+    """The same exact-revision recognition after push and fetch; review work stays intact."""
+    state.integrated = state.prepared
+    state.local_commit = state.prepared_from
+    if state.incoming != state.prepared:
+        state.incoming = state.prepared
+        state.observed = stamp()
+
+
+def push_publication(quilt: Quilt, state: SyncState, commit: str) -> None:
+    """Send the persisted prepared revision without moving quilt HEAD or its index."""
+    if not commit or commit != state.prepared:
+        raise SyncError("publication does not match the prepared revision")
+    try:
+        git(quilt.root, "push", "--porcelain", state.remote, f"{commit}:refs/heads/{state.branch}")
+    except SyncError as exc:
+        outcome = (
+            "Publication rejected"
+            if "[rejected]" in str(exc) or "[remote rejected]" in str(exc)
+            else "Publication was not confirmed"
+        )
+        raise SyncError(
+            f"{outcome}: {exc}. The prepared revision remains at {state.publication_ref}. "
+            "Fetch to reconcile the remote before retrying; a transport failure can leave the outcome uncertain."
+        ) from exc
+    _recognize_publication(state)
+    try:
+        state.write(quilt.root)
+    except OSError as exc:
+        raise SyncError(
+            f"Published {commit[:12]} to {state.remote}/{state.branch}, but recording local success failed: {exc}. "
+            "Fetch to reconcile the prepared revision."
+        ) from exc
 
 
 def changed_files(root: Path, before: str, after: str) -> list[dict[str, str]]:
@@ -537,25 +579,43 @@ def mark_incorporated(quilt: Quilt, state: SyncState) -> SyncState:
     return state
 
 
-def publish(quilt: Quilt, state: SyncState, *, push: bool) -> tuple[str, list[str]]:
-    """Commit a clean source projection on the remote lineage and optionally push it.
+def publish(quilt: Quilt, state: SyncState) -> tuple[str, list[str]]:
+    """Prepare a validated document workspace revision at a stable local ref.
 
-    A temporary Git index builds the source tree from HEAD blobs.  It never stages a quilt file or modifies the current index or working directory.
+    A temporary Git index builds the source tree from committed blobs. It never stages quilt source or modifies the current index or author files; only the local publication ref and sync record are updated.
     """
     root = quilt.root
     if state.incoming and state.incoming != state.integrated:
         raise SyncError("an incoming revision is still awaiting incorporation")
     remote_tip = revision(root, f"refs/remotes/{state.remote}/{state.branch}")
     if remote_tip != state.integrated:
-        raise SyncError("Overleaf advanced; fetch and review the new revision before publishing")
-    documents, projection = source_projection(quilt, state)
+        raise SyncError("Document workspace advanced; fetch and review the new revision before publishing")
+    quilt_commit = revision(root, "HEAD")
+    # Discover the closure from committed content, so a deleted or edited input cannot hide a required file.
+    with tempfile.TemporaryDirectory(prefix="loom-committed-source-") as temporary:
+        snapshot = Path(temporary)
+        for path, content in tree_files(root, quilt_commit).items():
+            dest = snapshot / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(content)
+        documents, projection = source_projection(Quilt(snapshot, quilt.config), state)
+    for path in ["config.toml", *projection]:
+        committed = git(root, "show", f"{quilt_commit}:{path}")
+        if not (root / path).is_file() or (root / path).read_bytes() != committed:
+            raise SyncError(f"{path} has uncommitted edits; commit them before publishing")
+        if git(root, "diff", "--cached", "--name-only", quilt_commit, "--", path).strip():
+            raise SyncError(f"{path} has uncommitted staged edits; commit them before publishing")
+    # An untracked input may shadow an installed TeX package; it must not silently disappear from the projection.
+    _, live_projection = source_projection(quilt, state)
+    for path in live_projection.keys() - projection.keys():
+        raise SyncError(f"{path} is not committed; commit it before publishing")
     blobs: dict[str, str] = {}
     for path, projected in projection.items():
         try:
-            blob = git(root, "rev-parse", "--verify", f"HEAD:{path}").decode().strip()
+            blob = git(root, "rev-parse", "--verify", f"{quilt_commit}:{path}").decode().strip()
         except SyncError as exc:
             raise SyncError(f"{path} is not committed; commit it before publishing") from exc
-        if (root / path).read_bytes() != git(root, "show", f"HEAD:{path}"):
+        if (root / path).read_bytes() != git(root, "show", f"{quilt_commit}:{path}"):
             raise SyncError(f"{path} has uncommitted edits; commit them before publishing")
         if projected in blobs:
             raise SyncError(f"two quilt files would publish as {projected}")
@@ -590,30 +650,15 @@ def publish(quilt: Quilt, state: SyncState, *, push: bool) -> tuple[str, list[st
                 "-p",
                 remote_tip,
                 "-m",
-                f"Publish Loom source from {revision(root, 'HEAD')[:12]}",
+                f"Publish Loom source from {quilt_commit}",
             )
             .decode()
             .strip()
         )
-    if push:
-        git(root, "var", "GIT_AUTHOR_IDENT")
-        git(root, "var", "GIT_COMMITTER_IDENT")
-        git(root, "push", state.remote, f"{source_commit}:refs/heads/{state.branch}")
-        git(root, "update-ref", f"refs/remotes/{state.remote}/{state.branch}", source_commit)
-        state.integrated = source_commit
-        state.incoming = source_commit
-        state.observed = stamp()
-        state.local_commit = revision(root, "HEAD")
-        state.write(root)
-        git(root, "add", "--", ".loom/source-sync.json")
-        git(
-            root,
-            "commit",
-            "-m",
-            f"Record published {state.remote}/{state.branch} revision {source_commit[:12]}",
-            "--",
-            ".loom/source-sync.json",
-        )
+    git(root, "update-ref", state.publication_ref, source_commit)
+    state.prepared = source_commit
+    state.prepared_from = quilt_commit
+    state.write(root)
     return source_commit, sorted(blobs)
 
 
@@ -637,7 +682,7 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str)
             current.append(document)
     elif action == "remove":
         if document == main:
-            raise SyncError("the primary Overleaf document cannot be removed")
+            raise SyncError("the primary document workspace document cannot be removed")
         current = [item for item in current if item != document and result.current_document(item) != document]
     else:
         raise SyncError(f"unknown document action: {action}")
@@ -649,6 +694,10 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str)
 def summary(quilt: Quilt, state: SyncState) -> dict[str, Any]:
     target = state.incoming or state.integrated
     return {
+        "prepared": state.prepared,
+        "prepared_from": state.prepared_from,
+        "publication_ref": state.publication_ref,
+        "documents": state.documents or [state.master],
         "remote": state.remote,
         "branch": state.branch,
         "integrated": state.integrated,

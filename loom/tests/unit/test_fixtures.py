@@ -37,6 +37,11 @@ def _tree(root: Path, skip: set[str]) -> dict[str, bytes]:
 @pytest.mark.parametrize("quilt", QUILTS, ids=[q.name for q in QUILTS])
 def test_lint_fixture_expected_codes(quilt: Path, tmp_path: Path) -> None:
     q = _copy(quilt, tmp_path)
+    from loom.scan.quilt import save_author
+
+    names = {"synthetic": "The synthetic quilt", "demo": "The loom demo", "showcase": "The loom showcase"}
+    if quilt.name in names:
+        save_author(names[quilt.name])
     expected = (quilt / "EXPECTED-LINT.txt").read_text(encoding="utf-8").split()
     expected_lines = sorted(" ".join(pair) for pair in zip(expected[0::2], expected[1::2], strict=True))
     r = run("lint", "--json", cwd=q)

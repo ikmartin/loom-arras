@@ -4,7 +4,7 @@
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';
 	import { slotsFor } from '$lib/fragments/slots';
-	import { keyUrl, nodeUrl } from '$lib/nav';
+	import { keyUrl, nodeUrl, reviewUrl } from '$lib/nav';
 	import { fetchSource } from '$lib/source';
 	import { route } from '$lib/paths';
 	import type { Item } from '../item';
@@ -48,7 +48,7 @@
 					<FragmentNotes holder={held} fallback={key}>
 						<Fragment path={node.fragment} macroSet={node.digest ?? ''} margins comments={slots} authoring={!node.external} annotations={held.notes} anchor={item.anchor ?? ''} jump={item.seq} note={item.note} />
 					</FragmentNotes>
-					{#if missingProof}<p class="muted absent" data-testid="missing-proof">No proof is attached.</p>{/if}
+					{#if missingProof}<p class="muted absent" data-testid="missing-proof">No proof is attached. <a href={reviewUrl(node.reached_by[0], key)}>See this block in Review</a>.</p>{/if}
 					{#if node.children.length}
 						<ul class="plain children">
 							{#each node.children as ck (ck)}

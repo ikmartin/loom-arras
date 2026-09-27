@@ -8,6 +8,8 @@
 	import SessionFooter from '$lib/sessions/SessionFooter.svelte';
 	import DevShelf from './DevShelf.svelte';
 	import Icon from '$lib/components/Icon.svelte';
+	import { onMount } from 'svelte';
+	import { can } from '$lib/write';
 	import Settings from './Settings.svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { route } from '$lib/paths';
@@ -22,6 +24,11 @@
 	const works = $derived(
 		Object.values(store.manifest?.references ?? {}).sort((a, b) => (bibText(a.bib.title) || a.citekey).localeCompare(bibText(b.bib.title) || b.citekey))
 	);
+	let readOnly = $state(false);
+	onMount(() => { void can('review-decision').then((yes) => readOnly = !yes); });
+	const reviewPerspective = $derived(store.manifest?.reviewer?.name
+		? `Review status for ${store.manifest.reviewer.name}`
+		: Object.values(store.manifest?.keys ?? {}).some((key) => key.acceptance) ? 'Review perspective unspecified' : '');
 	let workFilter = $state('');
 	const WORKS_SHOWN = 30;
 	const library = $derived.by(() => {
@@ -125,6 +132,8 @@
 				onclick={fold}>{shown ? '«' : '»'}</button
 			>
 		</div>
+		<!-- Whose review a read-only view shows is said once, under the quilt it belongs to, and never above the document. -->
+		{#if readOnly && reviewPerspective}<p class="review-perspective">{reviewPerspective}</p>{/if}
 		<div class="sections rail-scroll">
 		{#if panel}
 			<p class="rail-label">{panelLabel}</p>
@@ -229,11 +238,13 @@
 		<div class="write-target"><SessionFooter /></div>
 	</div>
 
-	<div class="content">{@render children()}</div>
+	<div class="content">
+		{@render children()}</div>
 	{#if rail}<aside class="right rail-scroll">{@render rail()}</aside>{/if}
 </div>
 
 <style>
+	.review-perspective { margin: 0 0 var(--gap-tight); font-size: 11.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
 	.shell-c {
 		display: grid;
 		grid-template-columns: var(--strip) var(--rail-left) minmax(0, 1fr) auto;
@@ -537,5 +548,13 @@
 		margin-left: 0.3em;
 		color: var(--ink-faint);
 		font-size: 0.9em;
+	}
+	/* A graph needs room beside its selection; on a narrow screen the selection follows it. */
+	@media (max-width: 800px) {
+		.shell-c:has(:global(main.graph)) > .strip,
+		.shell-c:has(:global(main.graph)) > .panel { grid-row: 1 / span 2; }
+		.shell-c:has(:global(main.graph)) > .content { grid-column: 3; grid-row: 1; }
+		.shell-c:has(:global(main.graph)) > aside.right { grid-column: 3; grid-row: 2; width: auto; max-height: none; position: static; border-left: 0; border-top: 1px solid var(--rule); }
+		.shell-c :global(main.graph) { height: 70vh; min-height: 400px; }
 	}
 </style>

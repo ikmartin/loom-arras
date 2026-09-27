@@ -262,6 +262,8 @@ test("the Chat posts through the publisher, and the agent's answer arrives witho
 
 test('what the person marks goes with their next message, whole, and the agent is handed it', async ({ page, served }) => {
 	// plan 0.14 phase 4: a note written in the document waits in the Chat's tray, goes without words, and reaches a parked agent with its body and the words it is on
+	// A fresh sitting has no unsent notes from the fixture's existing conversation.
+	await served.api('session-new', { title: 'packet delivery' });
 	await page.goto('/node/sy-0003');
 	const sid = await intoASession(page, served);
 	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
@@ -551,15 +553,16 @@ function acceptedKeys(served: Served): string[] {
 /** The copy's private review decisions, by key. */
 function decisions(served: Served): Record<string, { status: string }> {
 	const path = join(served.root, '.loom/review-decisions.json');
-	return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
+	return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')).reviewers?.['The synthetic quilt'] ?? {} : {};
 }
 
 /** Open a key of the Needs review queue and mark it OK, as the guided review does. */
 async function markOk(page: import('@playwright/test').Page, key: string): Promise<void> {
 	await page.goto('/review?show=needs-review');
-	await page.getByRole('button', { name: key, exact: true }).click();
+	const name = key === 'sy-0001' ? 'Widget' : 'Orbits';
+	await page.getByRole('button', { name, exact: true }).click();
 	const guided = page.getByTestId('guided-review');
-	await expect(guided.locator('h2')).toContainText(key);
+	await expect(guided.locator('h2')).toContainText(name);
 	await guided.getByRole('button', { name: 'OK', exact: true }).click();
 }
 
@@ -592,5 +595,5 @@ test('finishing review records an acceptance for each pending OK, and clears the
 	expect(decisions(served)['sy-0001']).toBeUndefined();
 	await expect(page.getByRole('alert')).toHaveCount(0);
 	// and once the publisher has rebuilt, the key has left the queue
-	await expect(page.getByRole('button', { name: 'sy-0001', exact: true })).toHaveCount(0, { timeout: 10000 });
+	await expect(page.getByRole('button', { name: 'Widget', exact: true })).toHaveCount(0, { timeout: 10000 });
 });

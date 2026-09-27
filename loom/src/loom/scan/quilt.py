@@ -17,11 +17,6 @@ NO_AUTHOR_MESSAGE = (
 )
 
 
-def no_author_in_quilt(root: Path) -> str:
-    """The refusal when the quilt states an `[author]` table with no name: its own config is the one to fill in, never the machine's."""
-    return f'no author name: add name = "Your Name" under [author] in {root / "config.toml"}, or pass --author'
-
-
 CONFIG_KEYS: dict[str, set[str]] = {
     # `history` is the record's directory, documented and never written by init
     "quilt": {"name", "main", "drafting", "canon", "history", "prefix", "engine"},
@@ -224,24 +219,63 @@ def git_user_name(cwd: Path | None = None) -> str | None:
 
 
 def resolve_author(explicit: str | None, cwd: Path | None = None) -> tuple[str, str]:
-    """Return (name, source) by the book's order: --author, the quilt's own `[author] name`, the user config, git config; else NoAuthorError.
-
-    A quilt that states an `[author]` table settles the question by itself, empty or not: whoever works in it records that name or is asked for one, rather than the name of whichever machine or agent shell the command happened to run in.
-    """
-    if explicit:
-        return explicit, "--author"
-    try:
-        quilt = find_quilt(cwd)
-    except (NoQuiltError, OSError):
-        quilt = None
-    if quilt is not None and quilt.config.author_declared:
-        if quilt.config.author:
-            return quilt.config.author, str(quilt.root / "config.toml")
-        raise NoAuthorError(no_author_in_quilt(quilt.root))
-    name = load_user_config().get("author", {}).get("name")
+    """Resolve a human identity locally; tracked quilt authors never identify its reader."""
+    if explicit and explicit.strip():
+        return explicit.strip(), "--author"
+    author = load_user_config().get("author", {})
+    name = author.get("name") if isinstance(author, dict) else None
     if isinstance(name, str) and name.strip():
         return name.strip(), str(user_config_path())
     git_name = git_user_name(cwd)
     if git_name:
         return git_name, "git config user.name"
     raise NoAuthorError(NO_AUTHOR_MESSAGE)
+
+
+def reviewer_identity(cwd: Path) -> tuple[str, str]:
+    """Reading without a configured identity is allowed; acceptance writes still refuse."""
+    try:
+        return resolve_author(None, cwd)
+    except NoAuthorError:
+        return "", ""
+
+
+def save_author(name: str) -> None:
+    """Atomically edit only the local author name, preserving the rest of the config."""
+    import json
+    import re
+    import tempfile
+
+    name = name.strip()
+    if not name or any(ord(c) < 32 for c in name):
+        raise ValueError("choose a nonempty author name without control characters")
+    path = user_config_path()
+    original = path.read_text(encoding="utf-8") if path.exists() else ""
+    before = tomllib.loads(original)
+    expected = {**before, "author": {**before.get("author", {}), "name": name}}
+    line = "name = " + json.dumps(name, ensure_ascii=False) + "\n"
+    table = re.search(r"(?m)^\s*\[author\][^\n]*\n?", original)
+    if table:
+        following = original[table.end() :]
+        end = re.search(r"(?m)^\s*\[", following)
+        boundary = table.end() + (end.start() if end else len(following))
+        body = original[table.end() : boundary]
+        field = re.search(r"(?m)^\s*name\s*=.*(?:\n|$)", body)
+        body = body[: field.start()] + line + body[field.end() :] if field else line + body
+        updated = original[: table.end()].rstrip("\n") + "\n" + body + original[boundary:]
+    else:
+        updated = original.rstrip() + "\n\n[author]\n" + line
+    try:
+        unchanged = tomllib.loads(updated) == expected
+    except tomllib.TOMLDecodeError:
+        unchanged = False
+    if not unchanged:
+        raise ValueError(f"cannot safely edit this author table; set author.name in {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as temp:
+        temp.write(updated)
+        temporary = Path(temp.name)
+    try:
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)

@@ -18,6 +18,11 @@ export function masterStem(path: string): string {
 	return path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
 }
 
+export function reviewUrl(masterPath?: string, key?: string): string {
+	const query = masterPath ? '?document=' + encodeURIComponent(masterPath) : '';
+	return route('/review') + query + (key ? '#review-' + anchorId(key) : '');
+}
+
 export function canonUrl(path: string): string {
 	const stem = path.split('/').pop()?.replace(/\.tex$/, '') ?? path;
 	return route('/canon/' + encodeURIComponent(stem));

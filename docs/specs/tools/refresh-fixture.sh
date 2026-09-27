@@ -12,6 +12,8 @@ TMP=$(mktemp -d)
 EMPTY=$(mktemp -d)
 cp -R "$SRC" "$TMP/synthetic"
 Q="$TMP/synthetic"
+mkdir -p "$EMPTY/.config/loom"
+printf '[author]\nname = "The synthetic quilt"\n' > "$EMPTY/.config/loom/config.toml"
 TEXBIN=$(dirname "$(command -v latexmk)")
 POPPLER=$(dirname "$(command -v pdftotext)")
 run() { env -i PATH="$TEXBIN:$POPPLER:/usr/bin:/bin:$LOOM/.venv/bin" HOME="$EMPTY" TEXMFHOME="$EMPTY" TEXMFLOCAL="$EMPTY" TEXMFVAR="$EMPTY/var" TEXMFCONFIG="$EMPTY/config" LOOM_FIXED_TIME="$LOOM_FIXED_TIME" "$@"; }

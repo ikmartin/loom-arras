@@ -453,7 +453,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--from` `FILE` | Import an existing paper: FILE is its main .tex file, anywhere on disk. |
 | `--demo` | Write the demo quilt instead of a minimal master. |
 | `--prefix` | Id prefix for new nodes. |
-| `--author` `NAME` | Who this quilt's records name; written to config.toml. Asked for when not given, and left empty when nobody answers. |
+| `--author` `NAME` | Legacy quilt attribution in config.toml; reviewer identity comes from local Settings or Git. |
 | `--git` | Also run git init. A quilt is files; loom reads no history. |
 | `--ai` | Which AI you use, instead of being asked: its command goes in ai/ai-config.toml. |
 | `--launch-agents`, `--no-launch-agents` | Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default. |
@@ -1217,13 +1217,13 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 
 `loom sync [OPTIONS] COMMAND [ARGS]...`
 
-Fetch and publish the document source through a Git remote.
+Prepare and review a source-only document workspace; the quilt uses ordinary Git.
 
 #### `loom sync documents`
 
 `loom sync documents [OPTIONS] [add|remove] [DOCUMENT]`
 
-List, add, or remove documents in the persistent Overleaf projection.
+Change the persistent document workspace selection without staging, committing, or publishing.
 
 | option | description |
 |---|---|
@@ -1233,7 +1233,7 @@ List, add, or remove documents in the persistent Overleaf projection.
 
 `loom sync fetch [OPTIONS]`
 
-Fetch Overleaf without changing author files, then publish Incoming review.
+Fetch document workspace changes for Incoming review without changing author files.
 
 | option | description |
 |---|---|
@@ -1264,13 +1264,13 @@ Record that the author has incorporated a pull; accept no mathematics.
 
 `loom sync init [OPTIONS]`
 
-Pair the current Overleaf revision with this quilt's drafting master.
+Configure the document workspace for this quilt's selected documents.
 
 | option | description |
 |---|---|
 | `--remote` |  |
 | `--branch` |  |
-| `--publish-main` | Overleaf's main TeX path when it differs from the quilt master. |
+| `--publish-main` | Document workspace main TeX path when it differs from the quilt master. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync patch`
@@ -1298,18 +1298,18 @@ Prepare a pinned patch for the author to apply with Git.
 
 `loom sync publish [OPTIONS]`
 
-Project committed LaTeX inputs onto the Overleaf branch and check compilation.
+Build and compile the committed document workspace projection locally.
 
 | option | description |
 |---|---|
-| `--push` | Push the checked source-only commit to Overleaf. |
+| `--push` | Push the validated revision to the configured document workspace. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync status`
 
 `loom sync status [OPTIONS]`
 
-Show the integrated and incoming source revisions.
+Show document workspace revisions, selection, and the prepared local ref.
 
 | option | description |
 |---|---|

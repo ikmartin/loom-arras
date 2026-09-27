@@ -66,7 +66,7 @@ Each page is a route; the manifest supplies everything but the fragment text.
 
 ### 10.2.6 Blockers
 
-**[decided]** `/blockers` redirects to Review's default working document. Every incomplete key carries its gap and an expandable list of what it blocks in each document table that reaches it (DR-220, DR-225-VelascoL).
+**[decided]** `/blockers` redirects to Review's default working document. Every incomplete key carries its gap and an expandable list of what it blocks in each document table that reaches it (DR-220, DR-297-luisa).
 
 ### 10.2.7 Graph
 

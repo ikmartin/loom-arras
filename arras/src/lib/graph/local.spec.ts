@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { neighbourhood } from './local';
-import { graphInput, PAPER } from './layout';
+import { documentColor, memberships, graphInput, PAPER } from './layout';
 import type { Manifest } from '$lib/manifest/types';
 
 const m = JSON.parse(readFileSync('tests/fixture/manifest.json', 'utf8')) as Manifest;
@@ -65,4 +65,26 @@ describe('the work graph', () => {
 		const own = new Set(expanded.nodes.map((n) => n.id));
 		expect(papers.nodes.filter((n) => !n.id.startsWith(PAPER)).map((n) => n.id).sort()).toEqual([...own].sort());
 	});
+});
+
+it('whole quilt retains all nodes; document scope uses reachability across source files', () => {
+	const changed = structuredClone(m);
+	const node = changed.nodes['sy-0003'];
+	const primary = changed.masters[0].path;
+	const secondary = 'drafting/toy.tex';
+	changed.masters.push({ ...changed.masters[0], path: secondary });
+	node.reached_by = [primary, secondary];
+	const options = { allNodes: true, external: 'all' as const };
+	expect(graphInput(changed, options).nodes).toHaveLength(Object.keys(changed.nodes).length);
+	const before = graphInput(changed, { ...options, master: secondary });
+	expect(before.nodes.map((n) => n.id)).toContain(node.id);
+	expect(before.nodes.every((n) => n.reached_by.includes(secondary))).toBe(true);
+	expect(memberships(changed, node.id)).toEqual([primary, secondary].sort());
+	node.file = 'sections/local-theory.tex';
+	expect(graphInput(changed, { ...options, master: secondary }).nodes.map((n) => n.id)).toEqual(before.nodes.map((n) => n.id));
+	expect(memberships(changed, node.id)).toEqual([primary, secondary].sort());
+	const color = documentColor(primary);
+	changed.masters.reverse();
+	expect(documentColor(primary)).toBe(color);
+	expect(documentColor(secondary)).not.toBe(color);
 });

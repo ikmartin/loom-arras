@@ -42,3 +42,12 @@ def hash_text(text: str) -> str:
 
 def child_marker(key: str) -> str:
     return f"% !LOOM child: {key}\n"
+
+
+def mathematical_hash(text: str) -> str:
+    """Hash a node's mathematics without its display-name directives; source snapshots retain them."""
+    from loom.scan.source import _protected_ranges
+
+    protected = _protected_ranges(text)
+    pattern = re.compile(r"^[ \t]*%[ \t]*!LOOM[ \t]+name[ \t]*:[^\r\n]*(?:\r?\n|$)", re.M)
+    return hash_text(pattern.sub(lambda m: m.group() if any(a <= m.start() < b for a, b in protected) else "", text))

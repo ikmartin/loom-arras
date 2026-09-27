@@ -71,6 +71,7 @@ export interface NumberEntry {
 }
 
 export interface Node {
+  name?: string;
   id: string;
   kind: "environment" | "section" | "proof" | (string & {});
   /** Sections only: the sectioning depth, 1 for \section. A contents list stops at a chosen depth with it. */
@@ -180,6 +181,7 @@ export interface Key {
   incomplete: string[];
   state: string;
   acceptance?: Acceptance;
+  acceptances?: Acceptance[];
   reviews: Reviews;
   uses: string[];
   closure: string[];
@@ -464,6 +466,8 @@ export interface AssertedLink {
 }
 
 export interface Manifest {
+  reviewer?: { name: string; source: string };
+  legacy_review_decisions?: boolean;
   interface_version: number;
   publisher: Publisher;
   publishes: Publishes;

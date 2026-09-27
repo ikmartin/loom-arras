@@ -92,9 +92,10 @@ def append_rows(root: Path, rows: list[AcceptRow]) -> None:
             fh.write("\n" + row.to_toml())
 
 
-def latest_rows(rows: list[AcceptRow]) -> dict[str, AcceptRow]:
-    """The last row per key; earlier rows are history."""
+def latest_rows(rows: list[AcceptRow], author: str | None = None) -> dict[str, AcceptRow]:
+    """The last row per key for an author; None selects shared verification history."""
     out: dict[str, AcceptRow] = {}
     for r in rows:
-        out[r.key] = r
+        if author is None or r.author == author:
+            out[r.key] = r
     return out
