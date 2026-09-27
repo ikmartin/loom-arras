@@ -1,0 +1,1 @@
+var e={positive:`accepted`,"positive-strong":`accepted`,warning:`stale`,neutral:`draft`,negative:`incomplete`,info:`loose`};function t(t){return e[t??``]??`loose`}function n(e){return`tone-`+t(e)}export{n as t};
