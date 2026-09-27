@@ -15,7 +15,7 @@ from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
 from loom.scan.digests import extracted_from, loaded_packages, published_as, source_version
 from loom.scan.directives import list_value
-from loom.scan.hashing import child_marker, hash_text
+from loom.scan.hashing import child_marker, hash_text, pair_hash
 from loom.scan.macros import compatibility_macros, declared_alphabets, package_macros, to_mathjax
 from loom.scan.model import Diagnostic
 from loom.scan.nodes import NodeRec
@@ -157,6 +157,16 @@ def own_text(result: ScanResult, node: NodeRec) -> str:
     if node.end > pos:
         pieces.append(src.text[pos : node.end])
     return "".join(pieces)
+
+
+def _base_math(record: Any, base: dict[str, Any]) -> dict[str, str]:
+    """`{"math": pair_hash}` of a derived node's base version, so a viewer can tell a node changed on both sides without asking loom; {} when the version cannot be read."""
+    from loom.history.versions import read_version
+
+    try:
+        return {"math": pair_hash(read_version(record, str(base["key"]), str(base["step"]))[1])}
+    except LookupError:
+        return {}
 
 
 def key_hash(result: ScanResult, key: str) -> str:
@@ -334,8 +344,8 @@ def build_manifest(
         if n.derived_of:
             entry["derived_of"] = n.derived_of
             base = next((bases[c][key] for c in n.reached_by if key in bases.get(c, {})), None)
-            if base is not None:
-                entry["base"] = base
+            if base is not None and record is not None:
+                entry["base"] = {**base, **_base_math(record, base)}
         if n.kind == "section":
             entry["level"] = n.level  # the sectioning depth, so a viewer's contents can stop at subsubsection
         if n.kind == "environment":

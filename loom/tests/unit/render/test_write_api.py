@@ -705,6 +705,20 @@ def _reviewer_settings(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> N
     refuses(s, "reviewer-settings", {"name": " "}, 409, "settings-refused", "nonempty")
 
 
+@case("compare")
+def _compare(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+    s, root = synthetic(serve, tmp_path)
+    before = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if "build" not in p.parts)
+    said = succeeds(s, "compare", {"left": "drafting/main.tex", "right": "drafting-ai/aidoc.tex"})
+    pairs = {p["pair"]: p for p in said["pairs"]}
+    assert pairs["sy-0002"]["base"] == "left" and pairs["sy-0001"]["base"] == "both", pairs
+    # the renderings are served from the build directory, and nothing outside it moved
+    raw = get(s.url + "build/" + pairs["sy-0002"]["right"]["fragment"])[2]
+    assert b"review-changed" in raw
+    assert sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if "build" not in p.parts) == before
+    refuses(s, "compare", {"left": "drafting/main.tex", "right": "nowhere-v9"}, 404, "unknown-item", "nowhere-v9")
+
+
 @pytest.mark.parametrize(
     "endpoint",
     [pytest.param(e, marks=pytest.mark.poppler) if e == "locate" else e for e in sorted(CASES)],

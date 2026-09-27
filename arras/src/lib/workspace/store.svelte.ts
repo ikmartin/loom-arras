@@ -15,6 +15,10 @@ export class Workspace {
 	panes = $state<Pane[]>([]);
 	/** The pane interaction last touched (W10). */
 	focus = $state(0);
+	/** The two items compared, pane 0's and pane 1's by key, while compare is on (book 15.2.6); dropped the moment either pane's front tab is another. */
+	compared = $state<[string, string] | null>(null);
+	/** Whether the workspace draws one pane at a time, below its two-pane width; set by the workspace. */
+	narrow = $state(false);
 	/** Whether reading mode is on screen; set by the layout. Outside it the panes are kept but nothing is drawn, so nothing should open into them. */
 	onScreen = $state(false);
 	/** Per-item state a renderer keeps across being hidden behind another tab: a work's view of its pages, a document's open annotations, a scroll offset. */
@@ -27,6 +31,27 @@ export class Workspace {
 	/** The focused pane's active item: the current document, whatever kind it is. */
 	get current(): Item | null {
 		return this.active(this.focus);
+	}
+
+	/** Whether the two panes are being compared: compare was pressed, and the front tabs are still the two it was pressed on. */
+	get comparing(): boolean {
+		const c = this.compared;
+		return !!c && this.panes.length === 2 && this.panes[0].active === c[0] && this.panes[1].active === c[1];
+	}
+
+	/** Compare the two front tabs. Nothing happens with one pane. */
+	compare(): void {
+		if (this.panes.length === 2) this.compared = [this.panes[0].active, this.panes[1].active];
+	}
+
+	/** Stop comparing. */
+	release(): void {
+		this.compared = null;
+	}
+
+	/** A comparison ends when either pane's front tab changes, since it was of those two items; going back to them does not restart it. */
+	#settle(): void {
+		if (this.compared && !this.comparing) this.compared = null;
 	}
 
 	/** A pane's active item, or null. */
@@ -89,6 +114,7 @@ export class Workspace {
 		this.#shown.set(itemKey(item), ++this.#tick);
 		this.panes = [this.panes[0], pane];
 		this.focus = 1;
+		this.#settle();
 	}
 
 	/** Open in a given pane, or reveal where it already is. */
@@ -144,6 +170,7 @@ export class Workspace {
 			this.panes = [this.panes[0], { items: [item], active: key }];
 			this.#shown.set(key, ++this.#tick);
 			this.focus = 1;
+			this.#settle();
 			return;
 		}
 		dest.items.push(item);
@@ -172,6 +199,7 @@ export class Workspace {
 		const url = new URL(pathFor(m, left), 'http://x');
 		const right = this.active(1);
 		if (right) url.searchParams.set('beside', pathFor(m, right));
+		if (this.comparing) url.searchParams.set('compare', '1');
 		return url.pathname + url.search + url.hash;
 	}
 
@@ -183,7 +211,9 @@ export class Workspace {
 	apply(m: Documents | null, href: string): void {
 		const url = new URL(href, 'http://x');
 		const besideRaw = url.searchParams.get('beside');
+		const compare = url.searchParams.has('compare');
 		url.searchParams.delete('beside');
+		url.searchParams.delete('compare');
 		const main = itemFromPath(m, url.pathname + url.search + url.hash);
 		const other = besideRaw ? itemFromPath(m, besideRaw) : null;
 		if (!this.panes.length) {
@@ -193,6 +223,7 @@ export class Workspace {
 			this.focus = 0;
 			if (other && itemKey(other) !== itemKey(main)) this.beside(other, 0);
 			this.focus = 0;
+			if (compare) this.compare();
 			return;
 		}
 		if (main) this.here(main);
@@ -201,11 +232,13 @@ export class Workspace {
 			this.beside(other, at);
 			this.focus = at;
 		}
+		if (compare) this.compare();
 	}
 
 	/** Forget everything: for tests, and nothing else. */
 	reset(): void {
 		this.panes = [];
+		this.compared = null;
 		this.focus = 0;
 		this.#state.clear();
 		this.#shown.clear();
@@ -232,6 +265,7 @@ export class Workspace {
 		if (!p.items.length) {
 			this.panes = this.panes.filter((_, n) => n !== pane);
 			this.focus = Math.min(this.focus > pane ? this.focus - 1 : this.focus, Math.max(0, this.panes.length - 1));
+			this.#settle();
 			return;
 		}
 		if (p.active === key) this.#front(p, itemKey(p.items[Math.min(i, p.items.length - 1)]));
@@ -240,6 +274,7 @@ export class Workspace {
 	#front(p: Pane, key: string): void {
 		p.active = key;
 		this.#shown.set(key, ++this.#tick);
+		this.#settle();
 	}
 }
 

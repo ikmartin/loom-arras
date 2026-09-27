@@ -87,7 +87,7 @@ The values are properties of the publisher and its corpora, not of this corpus's
 
 ## 3. Nodes
 
-`derived_of`, when present, marks an agent copy's node: the plain key its derived id corresponds to (`"zk-0001"` for `zk-0001-ai`, book 5.3.1). Such a node also carries `base`, `{"key", "step", "hash"}`, the version of its plain key it began from, unless the agent wrote it new (book 17.7.1). Such a node is in `nodes` and `keys` like any other, and in neither `tags` nor `search`; a viewer's whole-quilt views leave it out and a view scoped to its document shows it.
+`derived_of`, when present, marks an agent copy's node: the plain key its derived id corresponds to (`"zk-0001"` for `zk-0001-ai`, book 5.3.1). Such a node also carries `base`, `{"key", "step", "hash", "math"}`, the version of its plain key it began from, unless the agent wrote it new (book 17.7.1); `math` is that version's hash as fragments' `data-hash` takes it (specs/dialect.md §2.4), so a viewer can tell a node changed on both sides since, and is absent when the version cannot be read. Such a node is in `nodes` and `keys` like any other, and in neither `tags` nor `search`; a viewer's whole-quilt views leave it out and a view scoped to its document shows it.
 
 `name`, when present on a node, is an optional plain-text display name from its own `% !LOOM name:` directive. It is not unique, a reference alias, or a replacement for `id` or `title`. Display prefers `name`, then `title`, then type and document number in an explicitly selected document, then ID. Search entries prefer the name as their title and retain the original title in the excerpt; aliases are unchanged (DR-301-luisa).
 

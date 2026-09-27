@@ -52,6 +52,8 @@ A fragment is an HTML file with no page shell. It carries structure through a fi
 
 Rules: the class `env-<taxon-slug>` uses the lowercased, hyphenated taxon (`env-lemma`, `env-main-theorem`); `data-taxon` carries the display name; `data-style` one of `plain`, `definition`, `remark`; `number` omitted when unknown; `title` omitted when absent. Untagged nodes have `data-key` only.
 
+**[decided]** A node whose key names an id also carries `data-pair`, its key with any derived id made plain (`rl-0004` for `rl-0004-ai`), and `data-hash`, the `sha256:` hash compare pairs by: the node's own text with its display-name directives dropped and every derived label made plain (book 15.2.6). A landmark's environments carry the two as well, taken from the versions its stamp kept, and still no `data-key` or `data-id`, so no live wiring reaches them; a proof in a landmark takes the pair of the statement before it, `<statement>/proof`, then `/proof/2`.
+
 ### 2.5 Proofs
 
 **[decided]**
@@ -64,7 +66,7 @@ Rules: the class `env-<taxon-slug>` uses the lowercased, hyphenated taxon (`env-
 </details>
 ```
 
-A labelled proof node carries `data-id` as well. `open` is a hint the viewer may ignore.
+A labelled proof node carries `data-id` as well, and a proof of a statement with an id carries `data-pair` and `data-hash` as a statement does (2.4). `open` is a hint the viewer may ignore.
 
 ### 2.6 Paragraphs and inline markup
 

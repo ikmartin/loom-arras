@@ -17,6 +17,8 @@ from pathlib import Path
 from loom.render.assets import publish_graphic
 from loom.render.convert import Converter, RenderContext, esc, slug
 from loom.render.fallback import compile_svg, fallback_figure
+from loom.scan.hashing import pair_hash
+from loom.scan.labels import plain_key
 from loom.scan.model import Diagnostic, Env, Location, Macro
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
@@ -355,6 +357,21 @@ class FragmentRenderer:
             parts.append(f' <span class="title">({conv.inline_text(node.title, base)})</span>')
         return "".join(parts)
 
+    def _pair_attrs(self, node: NodeRec) -> list[str]:
+        """`data-pair` and `data-hash`, what compare pairs a node by (book 15.2.6); none for a node whose key names no id.
+
+        The pair is the key with its derived id made plain; the hash is `pair_hash` over the node's own text, the text the history versions.
+        """
+        from loom.render.manifest import own_text
+
+        head = self.result.nodes.get(node.key.split("/", 1)[0])
+        if head is None or not head.id:
+            return []
+        return [
+            f'data-pair="{html.escape(plain_key(node.key), quote=True)}"',
+            f'data-hash="{pair_hash(own_text(self.result, node))}"',
+        ]
+
     def _environment_html(self, node: NodeRec, mode: str) -> str:
         ctx = self._context(node, mode)
         env = self._env_of(node)
@@ -371,6 +388,7 @@ class FragmentRenderer:
         attrs.append(f'data-taxon="{html.escape(node.taxon or "", quote=True)}"')
         attrs.append(f'data-style="{html.escape(node.style or "plain", quote=True)}"')
         attrs.append(f'data-src="{ctx.src(node.start, node.end)}"')
+        attrs.extend(self._pair_attrs(node))
         if node.digest:
             attrs.append(f'data-macros="{html.escape(node.digest, quote=True)}"')
         label = self._label_html(node, ctx)
@@ -392,6 +410,7 @@ class FragmentRenderer:
         if node.of:
             attrs.append(f'data-of="{html.escape(node.of, quote=True)}"')
         attrs.append(f'data-src="{ctx.src(node.start, node.end)}"')
+        attrs.extend(self._pair_attrs(node))
         return f'<details {" ".join(attrs)} open><summary class="env-label">Proof{title}</summary>{body}</details>'
 
     def _section_html(self, node: NodeRec, mode: str) -> str:

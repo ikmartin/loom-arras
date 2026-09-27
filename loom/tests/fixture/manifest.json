@@ -356,7 +356,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "6fe86e9bdc5b2c97e08242f2d6548b31f9234cc37d84d23b5a215085a97b2463",
+   "hash": "26074e7ace393f64e2ddeaff5c9596067112a2cd22b895d93dbb5f714799539d",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
    "name": "widgets-v1",
@@ -368,7 +368,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "d00717aa935a471cade7107eea723212f2e9769a2d630061e47772e114310e31",
+   "hash": "77907357062057490a516e1b13198e727591652cd2bbd8a5748a68a29ebd91de",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
    "name": "widgets-v2",
@@ -380,7 +380,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "2c5bf306ccf721cef169d67d1eae4a6c231483c342fb6d71efad3327b5b92930",
+   "hash": "875396b7b7f4f293e37b4d8e4fc12335e59f7c9c1d3b9c4fabfadac8dd6fc0a0",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
    "name": "widgets-v3",
@@ -4839,6 +4839,7 @@
    "base": {
     "hash": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
     "key": "sy-0001",
+    "math": "sha256:fb425ed10ccf378e883ac7a8f8f82453194deed3633de48fe6f097a3edaa3716",
     "step": 2
    },
    "basis": "expository",
@@ -4937,6 +4938,7 @@
    "base": {
     "hash": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "key": "sy-0002",
+    "math": "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1",
     "step": 1
    },
    "basis": "local-proof",
@@ -5031,6 +5033,7 @@
    "base": {
     "hash": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "key": "sy-0003",
+    "math": "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8",
     "step": 1
    },
    "basis": "local-proof",
@@ -5120,6 +5123,7 @@
    "base": {
     "hash": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "key": "sy-0004",
+    "math": "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4",
     "step": 1
    },
    "children": [],
@@ -5203,6 +5207,7 @@
    "base": {
     "hash": "sha256:facfa8fd5344b1ccec44ce7b29ccb7a7ab832789095a309373c5a09328cbd7a1",
     "key": "sy-0005",
+    "math": "sha256:facfa8fd5344b1ccec44ce7b29ccb7a7ab832789095a309373c5a09328cbd7a1",
     "step": 1
    },
    "children": [],
@@ -5288,6 +5293,7 @@
    "base": {
     "hash": "sha256:cba9191a047c10fd2aa674bccb9aeda7fb2448c35eb4ef8ca1d5155e7c9e4d54",
     "key": "sy-0006",
+    "math": "sha256:cba9191a047c10fd2aa674bccb9aeda7fb2448c35eb4ef8ca1d5155e7c9e4d54",
     "step": 1
    },
    "basis": "local-proof",
@@ -5380,6 +5386,7 @@
    "base": {
     "hash": "sha256:28ee0b6075e61a0cc4d6393644d351e1a884f05548eb44203ab8110971ba027d",
     "key": "sy-0007",
+    "math": "sha256:28ee0b6075e61a0cc4d6393644d351e1a884f05548eb44203ab8110971ba027d",
     "step": 1
    },
    "basis": "local-proof",
@@ -5479,6 +5486,7 @@
    "base": {
     "hash": "sha256:0dc54f2a1ba940176c36ba5787f42ee257751af4a3873125fe6a64bb538b67a1",
     "key": "sy-0008",
+    "math": "sha256:0dc54f2a1ba940176c36ba5787f42ee257751af4a3873125fe6a64bb538b67a1",
     "step": 1
    },
    "basis": "expository",
@@ -5601,6 +5609,7 @@
    "base": {
     "hash": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
     "key": "sy-000A",
+    "math": "sha256:6fc25354828d1318a4281e3f1f2420889abd8d9f6226908fec5734e1201a45ab",
     "step": 1
    },
    "basis": "expository",
@@ -5688,6 +5697,7 @@
    "base": {
     "hash": "sha256:f0317517ed76d93d697ad2bdde148168abdd443ce83cc0326124e046f56c66fc",
     "key": "sy-000B",
+    "math": "sha256:f0317517ed76d93d697ad2bdde148168abdd443ce83cc0326124e046f56c66fc",
     "step": 1
    },
    "basis": "unclassified",
@@ -5777,6 +5787,7 @@
    "base": {
     "hash": "sha256:cc31920c84f7c9c9d71b8463e4feda5e205baa4385dec612b5b86eafd1706229",
     "key": "sy-000C",
+    "math": "sha256:cc31920c84f7c9c9d71b8463e4feda5e205baa4385dec612b5b86eafd1706229",
     "step": 1
    },
    "basis": "local-proof",
@@ -5866,6 +5877,7 @@
    "base": {
     "hash": "sha256:86437dfaaa8c6fedeca7aad5b4b8fa2f01780c8cdb7b1ecd4614befde8488ad3",
     "key": "sy-000D",
+    "math": "sha256:86437dfaaa8c6fedeca7aad5b4b8fa2f01780c8cdb7b1ecd4614befde8488ad3",
     "step": 1
    },
    "basis": "local-proof",
@@ -5955,6 +5967,7 @@
    "base": {
     "hash": "sha256:f3d078831dd78bc2b5c77c5ba402712fa7b408724f4e954582b82a89100a8eca",
     "key": "sy-000E",
+    "math": "sha256:f3d078831dd78bc2b5c77c5ba402712fa7b408724f4e954582b82a89100a8eca",
     "step": 1
    },
    "basis": "unclassified",

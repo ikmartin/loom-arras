@@ -26,6 +26,8 @@ test('the reference figures', async ({ page }) => {
 	await settle(page);
 	await page.screenshot({ path: `${OUT}/page-graph-dots.png` });
 	for (const drawing of ['box', 'sections', 'reading']) {
+		// Sections and Reading Order draw one document, so the scope is the default document from there on (15.5)
+		if (drawing === 'sections') await page.getByLabel('Scope', { exact: true }).selectOption('drafting/main.tex');
 		await page.getByTestId(`layout-${drawing}`).click();
 		await still(page);
 		await page.screenshot({ path: `${OUT}/page-graph-${drawing}.png` });

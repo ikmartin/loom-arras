@@ -36,6 +36,7 @@ class CanonDoc:
     title: str
     step: Entry | None = None
     labels: dict[str, str] = field(default_factory=dict)
+    pairs: dict[str, str] = field(default_factory=dict)  # key -> pair hash of the version its stamp kept
 
 
 def title_of(src: SourceFile) -> str | None:
@@ -68,8 +69,25 @@ def load_canon(quilt: Quilt, result: ScanResult, history: History) -> list[Canon
                 title=title_of(src) or stem,
                 step=steps.get(rel),
                 labels=labels,
+                pairs=landmark_pairs(history, steps.get(rel)),
             )
         )
+    return out
+
+
+def landmark_pairs(history: History, entry: Entry | None) -> dict[str, str]:
+    """Each key a landmark reaches -> `pair_hash` of the version its stamp kept, what its environments pair by in compare (book 15.2.6)."""
+    if entry is None or entry.step is None:
+        return {}
+    from loom.history.versions import read_version
+    from loom.scan.hashing import pair_hash
+
+    out: dict[str, str] = {}
+    for key in entry.get("reaches") or []:
+        try:
+            out[key] = pair_hash(read_version(history, key, str(entry.step))[1])
+        except LookupError:
+            continue
     return out
 
 
@@ -143,6 +161,7 @@ class CanonRenderer:
             include_html=include,
             fallback=self.renderer._fallback_for_preamble(_preamble_for(doc.closure), doc.path),
             cite_target=self.renderer._cite_target,
+            pairs=doc.pairs,
         )
         return ctx
 

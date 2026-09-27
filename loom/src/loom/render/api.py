@@ -26,6 +26,7 @@ CAPABILITIES = [
     "digest-verify",
     "digest-discard",
     "locate",
+    "compare",
     "session-use",
     "session-rename",
     "session-delete",
@@ -42,6 +43,9 @@ CAPABILITIES = [
 ]
 
 WRITE_API_VERSION = 1
+
+#: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
+READS = ("compare",)
 
 
 class ApiError(Exception):
@@ -95,6 +99,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, "result": _digest(root, endpoint, body)}
     if endpoint == "locate":
         return _locate(root, body)
+    if endpoint == "compare":
+        return _compare(root, body)
     if endpoint == "message":
         return _message(root, body)
     if endpoint == "sync-incorporate":
@@ -234,6 +240,22 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         "text": placed.selector.exact,
         "page_box": {"width": box[0], "height": box[1]} if box else None,
     }
+
+
+def _compare(root: Path, body: dict[str, Any]) -> dict[str, Any]:
+    """The differing pairs of two items, rendered with their changed words (book 15.2.6).
+
+    Body: `left` and `right`, each a live document's path or a landmark (`DOC@STEP`, a name or a step). Writes nothing a record holds: its renderings go to `build/compare/`, named by their inputs.
+    """
+    from loom.cli._quilt import open_scan
+    from loom.render.compare import CompareError, compare
+
+    left = _str(body, "left", required=True) or ""
+    right = _str(body, "right", required=True) or ""
+    try:
+        return {"ok": True, **compare(open_scan(str(root)), left, right)}
+    except CompareError as exc:
+        raise ApiError("unknown-item", str(exc), status=404) from exc
 
 
 def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:

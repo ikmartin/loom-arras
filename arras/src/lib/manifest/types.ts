@@ -65,6 +65,8 @@ export interface Master {
   numbering_known?: boolean;
   /** Which drafting directory it is in: the person's own, or the one the person and an agent both edit (book 4.1). */
   directory?: "drafting" | "drafting-ai" | null;
+  /** An agent copy's source document, where the history's moves have taken it (book 17.7.1). */
+  copy_of?: string;
 }
 
 export interface NumberEntry {
@@ -76,6 +78,8 @@ export interface Node {
   name?: string;
   /** An agent copy's node: the plain key it corresponds to, `zk-0001` for `zk-0001-ai` (book 5.3). Whole-quilt views leave such nodes out. */
   derived_of?: string;
+  /** A derived node's base: the version of its plain key it began from, and that version's hash as `data-hash` takes it (`math`), so compare can tell a node changed on both sides. */
+  base?: { key: string; step: number; hash: string; math?: string };
   id: string;
   kind: "environment" | "section" | "proof" | (string & {});
   /** Sections only: the sectioning depth, 1 for \section. A contents list stops at a chosen depth with it. */

@@ -11,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from loom.scan.envtree import norm_label
+from loom.scan.labels import plain_key
 from loom.scan.macros import expand
 from loom.scan.model import Diagnostic, Location, Macro, Taxon
 from loom.scan.source import blank_comments
@@ -365,6 +366,12 @@ class RenderContext:
     footnotes: int = 0
     region_ids: dict[str, str] = field(default_factory=dict)  # label -> element id
     highlight_spans: list[tuple[int, int]] = field(default_factory=list)  # comparison-only source ranges
+    pairs: dict[str, str] | None = (
+        None  # a landmark's keys -> their pair hashes, so its environments carry `data-pair` (book 15.2.6)
+    )
+    last_pair: list[str] = field(
+        default_factory=list
+    )  # the statement a landmark's next proof belongs to, and the proofs it has had
 
     def src(self, a: int, b: int) -> str:
         return f"{self.file}:{a}:{b}"
@@ -1288,6 +1295,29 @@ class Converter:
         body = re.sub(r'<p data-src="[^"]*">\s*</p>', "", body)
         return f'<figure data-src="{ctx.src(t.start, env_end)}">{body}{caption_html}</figure>'
 
+    def _landmark_pair(self, label: str | None) -> str:
+        """A landmark's `data-pair` and `data-hash` for a statement by its label, or for a proof (`label` None) by the statement before it; '' outside a landmark or for what its stamp did not version.
+
+        A proof takes `<statement>/proof`, then `/proof/2`, as the scan keys proofs that follow their statement.
+        """
+        pairs = self.ctx.pairs
+        if pairs is None:
+            return ""
+        if label is not None:
+            key = plain_key(label)
+            if key not in pairs:
+                return ""
+            self.ctx.last_pair[:] = [key]
+        else:
+            if not self.ctx.last_pair:
+                return ""
+            n = len(self.ctx.last_pair)
+            key = f"{self.ctx.last_pair[0]}/proof" + (f"/{n}" if n > 1 else "")
+            self.ctx.last_pair.append(key)
+            if key not in pairs:
+                return ""
+        return f' data-pair="{html.escape(key, quote=True)}" data-hash="{pairs[key]}"'
+
     def inline_env(self, t: Tok, env: str, env_end: int, end_idx: int | None, toks: list[Tok]) -> str:
         """A theorem-like environment or a proof written inline in a container, as HTML rather than as an SVG picture of itself.
 
@@ -1300,7 +1330,7 @@ class Converter:
         data_src = ctx.src(t.start, env_end)
         if env == "proof":
             title_html = f' <span class="title">{self.inline_text(title, spans[0][0])}</span>' if title else ""
-            return f'<details class="env env-proof" data-src="{data_src}" open><summary class="env-label">Proof{title_html}</summary>{body}</details>'
+            return f'<details class="env env-proof" data-src="{data_src}"{self._landmark_pair(None)} open><summary class="env-label">Proof{title_html}</summary>{body}</details>'
         taxon = ctx.taxa.get(env)
         name = taxon.name if taxon else env.capitalize()
         style = taxon.style if taxon else "plain"
@@ -1319,7 +1349,7 @@ class Converter:
         ident = f' id="{slug(first_label)}"' if first_label else ""
         attrs = (
             f'class="env env-{slug(name)}"{ident} data-taxon="{html.escape(name, quote=True)}" '
-            f'data-style="{html.escape(style, quote=True)}" data-src="{data_src}"'
+            f'data-style="{html.escape(style, quote=True)}" data-src="{data_src}"{self._landmark_pair(first_label)}'
         )
         return f'<div {attrs}><p class="env-label">{"".join(parts)}</p>{body}</div>'
 

@@ -1,5 +1,5 @@
 // One selection and what it governs (plan 0.13.1). The three axes that decide whether an annotation is drawn — the view, the session's state, and whether closed ones are admitted — are independent, so they are tested as a grid rather than as a happy path.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { findSessions, grouped, hidden, selected, sessionView, visible, writable } from '$lib/sessions/sessions.svelte';
 import { touched, when } from '$lib/sessions/when';
 import type { Annotation, Manifest, SessionRow } from '$lib/manifest/types';
@@ -20,6 +20,7 @@ const m = {
 beforeEach(() => {
 	sessionView.selected = null;
 	sessionView.view = 'all';
+	sessionView.displaced = null;
 	sessionView.showClosed = false;
 });
 
@@ -101,6 +102,46 @@ describe('what the page draws', () => {
 
 	it('counts what it is keeping off the page', () => {
 		expect(hidden(m, [note('a', 's-open'), note('c', 's-shut')])).toBe(1);
+	});
+
+	it('under `off`, nothing, whatever is selected or admitted', () => {
+		sessionView.select('s-open', m);
+		sessionView.showClosed = true;
+		sessionView.view = 'off';
+		expect(drawn()).toEqual([]);
+	});
+});
+
+describe('compare and the filter (15.2.6)', () => {
+	it('turns annotations off, and puts back what was chosen when it ends', () => {
+		sessionView.view = 'current';
+		sessionView.suspend();
+		expect(sessionView.view).toBe('off');
+		// the reader may choose again while comparing; releasing still restores what was chosen before
+		sessionView.view = 'all';
+		sessionView.resume();
+		expect(sessionView.view).toBe('current');
+		expect(sessionView.displaced).toBeNull();
+	});
+
+	it('keeps what it set aside across a reload', () => {
+		const kept = new Map<string, string>();
+		vi.stubGlobal('localStorage', { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v) });
+		sessionView.view = 'current';
+		sessionView.suspend();
+		sessionView.view = 'all';
+		sessionView.displaced = null;
+		sessionView.load();
+		expect(sessionView.view).toBe('off');
+		expect(sessionView.displaced).toBe('current');
+		vi.unstubAllGlobals();
+	});
+
+	it('does not set aside `off` itself when pressed twice', () => {
+		sessionView.suspend();
+		sessionView.suspend();
+		sessionView.resume();
+		expect(sessionView.view).toBe('all');
 	});
 });
 

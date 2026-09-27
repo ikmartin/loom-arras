@@ -1,7 +1,7 @@
 // Writing from the viewer, against a publisher that is actually serving the write API.
 import { expect, test, type Served } from '../served';
 import { openPicker, pickSession } from '../picker';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { viewMenu } from '../workspace';
 
@@ -596,4 +596,24 @@ test('finishing review records an acceptance for each pending OK, and clears the
 	await expect(page.getByRole('alert')).toHaveCount(0);
 	// and once the publisher has rebuilt, the key has left the queue
 	await expect(page.getByRole('button', { name: 'Widget', exact: true })).toHaveCount(0, { timeout: 10000 });
+});
+
+test('compare asks the publisher, which narrows a changed node to its changed words, washed by side, and renders nothing twice', async ({ page, served }) => {
+	await page.goto('/master/main?beside=' + encodeURIComponent('/master/aidoc'));
+	await expect(page.getByTestId('rail-compare')).toBeEnabled();
+	await page.getByTestId('rail-compare').click();
+	// the agent changed sy-0002: its rendering replaces the node in each pane, the source's words red, the copy's green
+	const left = page.locator('[data-pane="0"] .compare-swap.compare-del[data-swap-for="sy-0002"]');
+	const right = page.locator('[data-pane="1"] .compare-swap.compare-add[data-swap-for="sy-0002"]');
+	await expect(left.locator('mark.review-changed').first()).toBeVisible();
+	await expect(right.locator('mark.review-changed').first()).toBeVisible();
+	await expect(page.locator('[data-pane="0"] .env[data-pair="sy-0002"]')).toBeHidden();
+	// the rendering is cached under the build directory, and asking again renders nothing new
+	const cached = () => readdirSync(join(served.root, 'build', 'compare')).sort();
+	const first = cached();
+	expect(first.length).toBeGreaterThan(0);
+	await page.getByTestId('rail-compare').click();
+	await page.getByTestId('rail-compare').click();
+	await expect(right.locator('mark.review-changed').first()).toBeVisible();
+	expect(cached()).toEqual(first);
 });

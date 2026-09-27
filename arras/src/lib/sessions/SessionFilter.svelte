@@ -1,11 +1,11 @@
 <script lang="ts">
-	// Which sessions' annotations the page draws (plan 0.13.3 F3). It governs what is drawn on a document, not which sessions are listed, so it stands above the content rather than in the session picker; writes still land in the selected session whatever it shows.
+	// Which sessions' annotations the page draws (plan 0.13.3 F3), or none (`off`, which compare chooses). It governs what is drawn on a document, not which sessions are listed, so it stands above the content rather than in the session picker; writes still land in the selected session whatever it shows.
 	import { store } from '$lib/manifest/client.svelte';
-	import { selected, sessionView } from './sessions.svelte';
+	import { selected, sessionView, type View } from './sessions.svelte';
 
 	const here = $derived(selected(store.manifest));
 
-	function view(v: 'current' | 'all'): void {
+	function view(v: View): void {
 		sessionView.view = v;
 		sessionView.save();
 	}
@@ -22,7 +22,14 @@
 			title={here ? `only ${here.title}` : 'Nothing is selected yet'}
 			data-testid="show-current"
 			onclick={() => view('current')}>this session</button
-		><button type="button" class:on={sessionView.view === 'all'} aria-pressed={sessionView.view === 'all'} data-testid="show-all" onclick={() => view('all')}>all</button>
+		><button type="button" class:on={sessionView.view === 'all'} aria-pressed={sessionView.view === 'all'} data-testid="show-all" onclick={() => view('all')}>all</button
+		><button
+			type="button"
+			class:on={sessionView.view === 'off'}
+			aria-pressed={sessionView.view === 'off'}
+			title="no annotations drawn"
+			data-testid="show-off"
+			onclick={() => view('off')}>off</button>
 	</span>
 </span>
 

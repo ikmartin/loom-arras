@@ -22,6 +22,9 @@
 	const works = $derived([0, 1].some((i) => workspace.active(i)?.kind === 'work'));
 	const floor = $derived(works && width > 2 * WORK_FLOOR ? WORK_FLOOR / width : 0.2);
 	const ratio = $derived(Math.min(1 - floor, Math.max(floor, prefs.divider)));
+	$effect(() => {
+		workspace.narrow = narrow;
+	});
 
 	/** Move the divider. */
 	function set(next: number, snap = true): void {

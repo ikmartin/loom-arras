@@ -127,7 +127,7 @@ The author judged F very useful where the direction is known. With annotations o
 
 Built by [plan 0.17.4](../plans/0.17.4-ikmartin.md), which carries the file references.
 
-- **loom:** every node element in every fragment gains `data-pair` and `data-hash` (`render/fragments.py`); the manifest gains `compare.pairs`, the highlighted renderings of each pair of differing texts with its direction, and a fragment per recorded version of a key.
-- **arras:** the annotation filter's `off` (`sessions/sessions.svelte.ts`, `SessionFilter.svelte`); the rail's counter and compare (`workspace/GlobalRail.svelte`); the comparison itself — pairing, the swapped bodies, the gutter, the rules, stepping, the jump — over the two panes; a node item that shows a recorded version.
+- **loom:** every node element in every fragment gains `data-pair` and `data-hash` (`render/fragments.py`); a publisher endpoint, `compare`, renders the differing pairs of two items with their directions when compare is pressed, cached by content, rather than at build, where their number grows with the square of the landmarks. With nothing serving, arras marks whole nodes from the hashes.
+- **arras:** the annotation filter's `off` (`sessions/sessions.svelte.ts`, `SessionFilter.svelte`); the rail's counter and compare (`workspace/GlobalRail.svelte`); the comparison itself — pairing, the swapped bodies, the gutter, the rules, stepping, the jump — over the two panes. Two versions of one key wait for a node item that shows a recorded version, which is the history view's ([WQ-25](../work-queue/WQ-25-history-view.md)).
 - **The book:** chapter 15 gains a section for compare, and every account of the filter gains `off`; decision records for the two kinds of marks and for `off`.
 - **Tests:** the rail's placeholder test (`tests/e2e/workspace.e2e.ts`) and the filter's two-value tests (`tests/unit/sessions.spec.ts`, `tests/e2e/panel.e2e.ts`) change; compare gets its own.

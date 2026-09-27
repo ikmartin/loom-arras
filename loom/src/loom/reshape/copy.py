@@ -2,21 +2,13 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 
 from loom.history.ledger import History
 from loom.history.steps import FreezePlan, plan_freeze
 from loom.reshape.linearize import flatten
-from loom.scan.labels import LOOMLOCAL, split_id
+from loom.scan.labels import LABEL_DEF, LOOMLOCAL, SUFFIX, rename_labels, split_id
 from loom.scan.scan import ScanResult
-
-SUFFIX = "-ai"
-_LABEL = re.compile(r"(\\label\s*\{\s*)([^}\s]+)(\s*\})")
-# every command that names a label: the reference family, \uses, and hyperref's optional argument
-_REF = re.compile(r"(\\(?:ref|eqref|cref|Cref|autoref|pageref|vref|Vref|nameref|uses)\*?\s*\{)([^}]*)(\})")
-_HYPERREF = re.compile(r"(\\hyperref\s*\[)([^\]]*)(\])")
-_SEE = re.compile(r"^([ \t]*%[ \t]*!LOOM[ \t]+see[ \t]*:[ \t]*)([^\n]*)()$", re.M)
 
 
 @dataclass
@@ -44,22 +36,8 @@ def derive_labels(text: str) -> tuple[str, dict[str, str]]:
 
     Labels are claimed quilt-wide, so an equation's label is suffixed as an id is: the copy defines nothing its source also defines. A reference to a label the copy does not define is left as it is.
     """
-    labels = {m.group(2): m.group(2) + SUFFIX for m in _LABEL.finditer(text)}
-
-    def names(m: re.Match[str]) -> str:
-        # each name in a comma list replaced where the copy defines it, the separators and spacing kept as written
-        parts = re.split(r"(\s*,\s*)", m.group(2))
-        out = [
-            p if i % 2 else (p[: len(p) - len(p.lstrip())] + labels.get(p.strip(), p.strip()) + p[len(p.rstrip()) :])
-            for i, p in enumerate(parts)
-        ]
-        return m.group(1) + "".join(out) + m.group(3)
-
-    text = _LABEL.sub(lambda m: m.group(1) + labels[m.group(2)] + m.group(3), text)
-    text = _REF.sub(names, text)
-    text = _HYPERREF.sub(names, text)
-    text = _SEE.sub(names, text)
-    return text, labels
+    labels = {m.group(2): m.group(2) + SUFFIX for m in LABEL_DEF.finditer(text)}
+    return rename_labels(text, labels), labels
 
 
 def plan_copy(result: ScanResult, history: History, source: str, dest: str) -> CopyPlan:

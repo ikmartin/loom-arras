@@ -51,3 +51,10 @@ def mathematical_hash(text: str) -> str:
     protected = _protected_ranges(text)
     pattern = re.compile(r"^[ \t]*%[ \t]*!LOOM[ \t]+name[ \t]*:[^\r\n]*(?:\r?\n|$)", re.M)
     return hash_text(pattern.sub(lambda m: m.group() if any(a <= m.start() < b for a, b in protected) else "", text))
+
+
+def pair_hash(text: str) -> str:
+    """The hash compare pairs by: `mathematical_hash` with every derived label made plain, so an agent's copy of a node it has not changed hashes as its counterpart does (book 15.2.6)."""
+    from loom.scan.labels import rename_labels
+
+    return mathematical_hash(rename_labels(text, plain=True))

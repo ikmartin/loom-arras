@@ -190,7 +190,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         """The write API (specs/write-api.md). Localhost only, like everything else this server does."""
-        from loom.render.api import ApiError, handle
+        from loom.render.api import READS, ApiError, handle
 
         path = self.path.split("?", 1)[0]
         if not path.startswith("/_api/") or self.quilt_root is None:
@@ -216,10 +216,10 @@ class LoomHandler(SimpleHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": {"code": "bad-json", "message": str(exc)}})
             return
         try:
-            answer = handle(self.quilt_root, path[len("/_api/") :], body)
-            # The manifest is current when the answer arrives, so the viewer's own refresh finds the write on its
-            # first try rather than after two polling loops.
-            if self.rebuild is not None:
+            endpoint = path[len("/_api/") :]
+            answer = handle(self.quilt_root, endpoint, body)
+            # The manifest is current when the answer arrives, so the viewer's own refresh finds the write on its first try rather than after two polling loops; a read changed nothing, and rebuilding would only delay it.
+            if self.rebuild is not None and endpoint not in READS:
                 self.rebuild()
             self._json(HTTPStatus.OK, answer)
         except ApiError as exc:

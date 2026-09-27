@@ -6,7 +6,7 @@
 // attached to — so nothing reads a global pointer, and an agent asked in one session answers into it however the
 // author has since moved.
 //
-// **The view filters annotations, never the list.** `current` draws the selected session's annotations; `all` draws every session the closed setting admits. The picker always lists every session, because it is how a reader navigates and hiding rows would only make sessions hard to find.
+// **The view filters annotations, never the list.** `current` draws the selected session's annotations; `all` draws every session the closed setting admits; `off` draws none, which compare chooses so that its washes and colours mean one thing each (book 15.2.6). The picker always lists every session, because it is how a reader navigates and hiding rows would only make sessions hard to find.
 //
 // A write is available only while an *open* session is selected. Nothing is created automatically: the courtesy of
 // opening a session so the first note has somewhere to go belongs to the terminal, where there is no selection to
@@ -19,8 +19,10 @@ const KEY = 'arras.session-view';
 class SessionView {
 	/** The session writes land in, or null when none is selected. Open or closed — one selection covers both. */
 	selected = $state<string | null>(null);
-	/** `current` draws only the selected session's annotations; `all` draws every session `showClosed` admits. */
-	view = $state<'current' | 'all'>('all');
+	/** `current` draws only the selected session's annotations; `all` draws every session `showClosed` admits; `off` draws none. */
+	view = $state<View>('all');
+	/** What compare set aside when it chose `off`, put back when it is released; kept with the view, so a reload while comparing still restores it. */
+	displaced = $state<View | null>(null);
 	/** Whether closed sessions' annotations are drawn at all. Hidden by default, which is what closing one is for. */
 	showClosed = $state(false);
 	/** Names asked for and not yet in the manifest, by session id: a rename shows at once rather than after the publisher rebuilds. */
@@ -31,7 +33,8 @@ class SessionView {
 			const raw = globalThis.localStorage?.getItem(KEY);
 			const o = raw ? JSON.parse(raw) : {};
 			this.selected = typeof o?.selected === 'string' ? o.selected : null;
-			this.view = o?.view === 'current' ? 'current' : 'all';
+			this.view = view(o?.view);
+			this.displaced = o?.displaced ? view(o.displaced) : null;
 			this.showClosed = o?.showClosed === true;
 		} catch {
 			// a viewer that cannot read its stored view shows everything and selects nothing, which is the honest default
@@ -40,10 +43,25 @@ class SessionView {
 
 	save(): void {
 		try {
-			globalThis.localStorage?.setItem(KEY, JSON.stringify({ selected: this.selected, view: this.view, showClosed: this.showClosed }));
+			globalThis.localStorage?.setItem(KEY, JSON.stringify({ selected: this.selected, view: this.view, displaced: this.displaced, showClosed: this.showClosed }));
 		} catch {
 			// a viewer that cannot store the view still uses it for this visit
 		}
+	}
+
+	/** Compare begins: annotations off, what was chosen set aside. The reader may choose again while comparing. */
+	suspend(): void {
+		if (this.displaced === null) this.displaced = this.view;
+		this.view = 'off';
+		this.save();
+	}
+
+	/** Compare ends: what was chosen before it began comes back, whatever was chosen during it. */
+	resume(): void {
+		if (this.displaced === null) return;
+		this.view = this.displaced;
+		this.displaced = null;
+		this.save();
 	}
 
 	/** Select one. Selecting the selected session again keeps it; `clear` is how the author detaches from every session. */
@@ -58,6 +76,7 @@ class SessionView {
 	clear(): void {
 		this.selected = null;
 		if (this.view === 'current') this.view = 'all';
+		if (this.displaced === 'current') this.displaced = 'all';
 		this.save();
 	}
 
@@ -65,6 +84,13 @@ class SessionView {
 	dropped(id: string): void {
 		if (this.selected === id) this.clear();
 	}
+}
+
+export type View = 'current' | 'all' | 'off';
+
+/** A stored view read back, anything unknown read as `all`. */
+function view(v: unknown): View {
+	return v === 'current' || v === 'off' ? v : 'all';
 }
 
 export const sessionView = new SessionView();
@@ -97,6 +123,7 @@ export function writable(m: Manifest | null): string {
 
 /** Whether an annotation is drawn under the current view. */
 export function visible(m: Manifest | null, a: Annotation): boolean {
+	if (sessionView.view === 'off') return false;
 	if (sessionView.view === 'current') return a.run === sessionView.selected;
 	if (sessionView.showClosed) return true;
 	const shut = new Set((m?.sessions ?? []).filter((s) => s.state !== 'open').map((s) => s.id));

@@ -246,6 +246,14 @@ test.describe('sessions', () => {
 		// and back to everything
 		await page.getByTestId('show-all').click();
 		await expect(counted).toHaveCount(1);
+
+		// `off` draws no annotation at all, whatever is selected
+		await page.getByTestId('show-off').click();
+		await expect(page.getByTestId('show-off')).toHaveAttribute('aria-pressed', 'true');
+		await expect(counted).toHaveCount(0);
+		await expect(pane(page, 0).locator('.fragment mark.annotation:not(.hidden)')).toHaveCount(0);
+		await page.getByTestId('show-all').click();
+		await expect(counted).toHaveCount(1);
 	});
 });
 

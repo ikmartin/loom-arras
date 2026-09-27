@@ -11,6 +11,13 @@ LOOMLOCAL = re.compile(r"^[0-9A-Z]{4}$")
 PAPERLOCAL = re.compile(r"^[A-Za-z0-9.]+(?:-[A-Za-z0-9.]+)*$")
 PREFIX = re.compile(r"^[A-Za-z0-9]+$")
 DERIVED = re.compile(r"^([A-Za-z0-9]+-[0-9A-Z]{4})-ai$")
+SUFFIX = "-ai"
+# every place a source names a label: its definition, the reference family with \uses, hyperref's optional argument, a `see:` directive, and a child marker
+LABEL_DEF = re.compile(r"(\\label\s*\{\s*)([^}\s]+)(\s*\})")
+LABEL_REFS = re.compile(r"(\\(?:ref|eqref|cref|Cref|autoref|pageref|vref|Vref|nameref|uses)\*?\s*\{)([^}]*)(\})")
+HYPERREF = re.compile(r"(\\hyperref\s*\[)([^\]]*)(\])")
+SEE_LINE = re.compile(r"^([ \t]*%[ \t]*!LOOM[ \t]+see[ \t]*:[ \t]*)([^\n]*)()$", re.M)
+CHILD_LINE = re.compile(r"^([ \t]*%[ \t]*!LOOM[ \t]+child:[ \t]*)(\S+)()", re.M)
 _DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
@@ -47,6 +54,34 @@ def plain_key(key: str) -> str:
     head, sep, rest = key.partition("/")
     plain = derived_of(head)
     return plain + sep + rest if plain else key
+
+
+def rename_labels(text: str, rename: dict[str, str] | None = None, *, plain: bool = False) -> str:
+    """Every label `text` names rewritten: through `rename`, or with `plain` each derived name made plain.
+
+    Covers definitions, references (a comma list keeps its separators), `\\hyperref[...]`, `see:` directives and child markers. `plain` strips the suffix from any name ending in it, since a copy suffixes every label it defines, an equation's included (book 17.7).
+    """
+
+    def one(name: str) -> str:
+        if rename is not None:
+            return rename.get(name, name)
+        if plain:
+            head, sep, rest = name.partition("/")
+            return (head[: -len(SUFFIX)] if head.endswith(SUFFIX) else head) + sep + rest
+        return name
+
+    def names(m: re.Match[str]) -> str:
+        parts = re.split(r"(\s*,\s*)", m.group(2))
+        out = [
+            p if i % 2 else (p[: len(p) - len(p.lstrip())] + one(p.strip()) + p[len(p.rstrip()) :])
+            for i, p in enumerate(parts)
+        ]
+        return m.group(1) + "".join(out) + m.group(3)
+
+    text = LABEL_DEF.sub(lambda m: m.group(1) + one(m.group(2)) + m.group(3), text)
+    for pattern in (LABEL_REFS, HYPERREF, SEE_LINE, CHILD_LINE):
+        text = pattern.sub(names, text)
+    return text
 
 
 def base36_decode(local: str) -> int:

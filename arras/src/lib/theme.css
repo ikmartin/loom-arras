@@ -61,6 +61,12 @@
 	--ann-neutral: #6f6d66;
 	--ann-neutral-wash: rgb(111 109 102 / 10%);
 
+	/* compare with a base (15.2.6): git's red on the side holding the base, its green on the other; drawn only while annotations are off, so red is not read as an objection */
+	--diff-del: #a32d2d;
+	--diff-del-wash: #fcebeb;
+	--diff-add: #0f6e56;
+	--diff-add-wash: #e1f5ee;
+
 	/* spacing, radii, fixed widths */
 	--gap-hair: 4px;
 	--gap-tight: 8px;
@@ -114,6 +120,10 @@
 		--state-accepted-wash: rgb(92 196 163 / 14%);
 		--state-stale: #d9a44f;
 		--state-stale-wash: rgb(217 164 79 / 14%);
+		--diff-del: #e8827c;
+		--diff-del-wash: rgb(232 130 124 / 14%);
+		--diff-add: #5cc4a3;
+		--diff-add-wash: rgb(92 196 163 / 14%);
 		--state-draft: #a8a69f;
 		--state-draft-wash: rgb(168 166 159 / 12%);
 		--state-incomplete: #e8827c;
@@ -151,6 +161,10 @@
 	--state-accepted-wash: rgb(92 196 163 / 14%);
 	--state-stale: #d9a44f;
 	--state-stale-wash: rgb(217 164 79 / 14%);
+	--diff-del: #e8827c;
+	--diff-del-wash: rgb(232 130 124 / 14%);
+	--diff-add: #5cc4a3;
+	--diff-add-wash: rgb(92 196 163 / 14%);
 	--state-draft: #a8a69f;
 	--state-draft-wash: rgb(168 166 159 / 12%);
 	--state-incomplete: #e8827c;

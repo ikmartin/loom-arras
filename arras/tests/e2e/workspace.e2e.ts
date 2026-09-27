@@ -123,13 +123,12 @@ test.describe('P4 · name the question', () => {
 		await expect(rail).toBeVisible();
 		expect(await rail.evaluate((r) => r.children.length)).toBe(2);
 		await expect(rail.getByRole('group', { name: 'which annotations the page shows' })).toBeVisible();
-		// compare is drawn, and disabled until it does what its title says
+		// compare is drawn, and disabled with its reason while there is nothing beside the paper to compare it with
 		const compare = rail.getByTestId('rail-compare');
 		await expect(compare).toBeVisible();
 		await expect(compare).toBeDisabled();
-		await expect(compare).toHaveAttribute('aria-disabled', 'true');
 		await expect(compare).toHaveAccessibleName('compare');
-		await expect(compare).toHaveAttribute('title', /^Compare the two open documents.*0\.17$/);
+		await expect(compare).toHaveAttribute('title', /^Open a second document beside this one/);
 		// nothing about one item: its views are in its pane's strip, its controls on its pane
 		await expect(rail.locator('[data-testid^="tab-"], [data-testid="zoom-at"]')).toHaveCount(0);
 	});
