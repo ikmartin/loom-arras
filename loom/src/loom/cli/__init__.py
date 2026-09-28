@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import click
 
+from loom.cli.adopt import adopt
 from loom.cli.agent_cmd import agent
 from loom.cli.ai import ai
 from loom.cli.build_cmd import build_command
@@ -80,6 +81,7 @@ main.add_command(ai)
 main.add_command(digest)
 main.add_command(upgrade)
 main.add_command(draft)
+main.add_command(adopt)
 main.add_command(stamp)
 main.add_command(fork)
 main.add_command(revert)

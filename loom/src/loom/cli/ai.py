@@ -343,3 +343,26 @@ def ai_check(ctx: click.Context, session: str, quilt_path: str | None) -> None:
     if hits:
         ctx.exit(1)
     click.echo("ok: nothing outside the session changed")
+
+
+@ai.command(name="refresh")
+@click.argument("document")
+@click.option("--json", "as_json", is_flag=True)
+@quilt_option
+def refresh_draft(document: str, as_json: bool, quilt_path: str | None) -> None:
+    """Update an AI draft from its working document, preserving outstanding proposals."""
+    import json
+
+    from loom.adopt import refresh
+    from loom.cli._quilt import open_scan
+    from loom.sync import SyncError
+
+    try:
+        answer = refresh(open_scan(quilt_path), document)
+    except (SyncError, ValueError, OSError) as exc:
+        raise EnvError(str(exc)) from exc
+    click.echo(
+        json.dumps(answer, indent=2)
+        if as_json
+        else answer["message"] + ("\n" + "\n".join(answer["conflicts"]) if answer["conflicts"] else "")
+    )

@@ -155,3 +155,5 @@ Read a key's closure, not directories: it is complete by construction. Do not re
 ## 11. When you are done
 
 Say in the chat what you did, list your outputs, and tell the author which are drafted nodes to paste, which are diffs to apply, and which annotations need their decision.
+
+Use `loom ai refresh DOC` to bring the author's changes into your AI draft before continuing. It preserves your outstanding proposals and reports conflicts for reconciliation. Only the author can run `loom adopt`; incorporation and mathematical acceptance are separate actions.

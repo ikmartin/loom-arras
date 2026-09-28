@@ -642,8 +642,46 @@ def _sync_incorporate(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPa
     said = succeeds(s, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
     assert said["result"]["integrated"] == state.incoming
     assert b"zk-0001}B" in (root / "drafting" / "main.tex").read_bytes()
-    assert git(root, "show", "--format=", "--name-only", "HEAD").splitlines() == [".loom/source-sync.json"]
+    assert git(root, "show", "--format=", "--name-only", "HEAD").splitlines() == [
+        ".loom/review-origins.json",
+        ".loom/source-sync.json",
+    ]
     assert git(root, "show", "--format=", "--name-only", "HEAD^").splitlines() == ["drafting/main.tex"]
+
+
+@case("adopt-decision")
+@case("adopt-preview")
+@case("adopt-finish")
+def _adoption(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loom.adopt import comparison
+    from loom.scan.quilt import load_quilt, save_author
+    from loom.scan.scan import scan
+    from tests.helpers import ok
+
+    root = demo(tmp_path)
+    save_author(WHO)
+    ok("draft", "drafting/main.tex", "--ai", "contribution.tex", cwd=root)
+    git(root, "init", "-b", "main")
+    git(root, "config", "user.name", WHO)
+    git(root, "config", "user.email", "reader@example.test")
+    git(root, "add", ".")
+    git(root, "commit", "-m", "baseline")
+    copy = root / "drafting-ai/contribution.tex"
+    text = copy.read_text()
+    # An ordinary source change to an existing inline statement.
+    text = text.replace("Closedness is where", "The revised closedness is where")
+    copy.write_text(text)
+    data = comparison(scan(load_quilt(root)), "contribution")
+    s = serve(root)
+    payload = {"copy": data["copy"], "reviewer": WHO, "fingerprint": data["fingerprint"]}
+    for endpoint in ("adopt-decision", "adopt-preview", "adopt-finish"):
+        refuses(s, endpoint, {**payload, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
+    succeeds(s, "adopt-decision", {**payload, "keys": ["dm-0004"], "document": False})
+    preview = succeeds(s, "adopt-preview", payload)["result"]
+    assert preview["patch"]
+    succeeds(s, "adopt-finish", {**payload, "token": preview["token"]})
+    assert "The revised closedness" in (root / "drafting/main.tex").read_text()
+    assert any(e.action == "adopt" for e in scan(load_quilt(root)).history.entries)
 
 
 def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:

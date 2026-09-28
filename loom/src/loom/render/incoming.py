@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import tempfile
 from pathlib import Path
@@ -15,7 +16,7 @@ from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import ScanResult, scan
 from loom.scan.source import blank_comments
-from loom.sync import SyncError, SyncState, changed_files, current_selection, git, tree_files
+from loom.sync import SyncError, SyncState, changed_files, current_selection, git, source_label, tree_files
 
 
 def _scan_tree(root: Path, commit: str, config: bytes, home: Path, state: SyncState, main: str) -> ScanResult:
@@ -157,3 +158,114 @@ def attach_incoming(
             "files": _source_files(root, state),
             "issues": issues,
         }
+
+
+def attach_adoptions(
+    result: ScanResult, renderer: Any, manifest: dict[str, Any], files: dict[str, str | bytes]
+) -> None:
+    """Publish AI contributions beside the optional workspace pull in Incoming."""
+    from loom.adopt import comparison, decisions
+    from loom.history.ledger import load_history
+    from loom.reshape.copy import derived_key
+
+    contributions = []
+    for copy in sorted(load_history(result.quilt.history_dir).copies(result.masters)):
+        try:
+            data = comparison(result, copy)
+            choices = decisions(result, copy, manifest.get("reviewer", {}).get("name"))
+            rows = []
+            for row in data["changes"]:
+                if not row["offered"]:
+                    continue
+                key = row["key"]
+                original = next(
+                    (old for old, new in data["baseline"].get("mapping", {}).items() if new == key.split("/", 1)[0]),
+                    key.split("/", 1)[0],
+                )
+                derived = derived_key(original + ("/" + key.split("/", 1)[1] if "/" in key else ""))
+                local_node = result.nodes.get(key)
+                proposed_node = result.nodes.get(derived)
+                current_pre = result.closures.get(data["source"])
+                proposal_pre = result.closures.get(copy)
+                macro_name = "adopt:" + data["fingerprint"][:20]
+                manifest["macros"]["sets"][macro_name] = to_mathjax(
+                    parse_macros(blank_comments(proposal_pre.raw_text() if proposal_pre else ""))
+                )
+                before, after = row["current"], row["proposed"]
+                left, right = _changed(before, after)
+                digest = hashlib.sha256((data["fingerprint"] + key).encode()).hexdigest()[:20]
+                local_path = f"fragments/incoming/{digest}-local.html"
+                proposed_path = f"fragments/incoming/{digest}-proposal.html"
+                if local_node:
+                    files[local_path] = _render(
+                        renderer, result, key, before, current_pre.raw_text() if current_pre else "", left
+                    )
+                if proposed_node:
+                    files[proposed_path] = _render(
+                        renderer,
+                        result,
+                        proposed_node.key,
+                        after,
+                        proposal_pre.raw_text() if proposal_pre else "",
+                        right,
+                    )
+                affected = [
+                    {"key": k, "citation": _citation(result, k, key)}
+                    for k, entry in manifest["keys"].items()
+                    if key in entry.get("closure", []) and k != key and not result.nodes[k].derived_of
+                ]
+                rows.append(
+                    {
+                        **row,
+                        "incoming_macros": macro_name,
+                        "local": local_path if local_node else None,
+                        "incoming": proposed_path if proposed_node else None,
+                        "affected": affected,
+                    }
+                )
+            if rows or data["document_changed"]:
+                contributions.append(
+                    {
+                        "kind": "adopt",
+                        "copy": copy,
+                        "source": data["source"],
+                        "label": f"Incoming from AI draft “{Path(copy).stem}”",
+                        "fingerprint": data["fingerprint"],
+                        "changes": rows,
+                        "document_changed": data["document_changed"],
+                        "document_conflict": data["document_conflict"],
+                        "document_diff": "".join(
+                            difflib.unified_diff(
+                                data["current_document"].splitlines(True),
+                                data["proposed_document"].splitlines(True),
+                                fromfile="Working document",
+                                tofile="Proposed document",
+                            )
+                        ),
+                        "choices": choices,
+                        "issues": [],
+                    }
+                )
+        except (SyncError, OSError, ValueError) as exc:
+            contributions.append(
+                {
+                    "kind": "adopt",
+                    "copy": copy,
+                    "label": f"Incoming from AI draft “{Path(copy).stem}”",
+                    "changes": [],
+                    "issues": [str(exc)],
+                }
+            )
+    # Preserve the existing pull field for clients; contributions adds the common source inventory.
+    workspace = manifest.get("incoming")
+    manifest["contributions"] = (
+        [
+            {
+                "kind": "workspace",
+                "label": f"Incoming from {source_label(result.quilt.root, workspace['remote'])}",
+                **workspace,
+            }
+        ]
+        if workspace
+        else []
+    ) + contributions

@@ -617,3 +617,30 @@ test('compare asks the publisher, which narrows a changed node to its changed wo
 	await expect(right.locator('mark.review-changed').first()).toBeVisible();
 	expect(cached()).toEqual(first);
 });
+
+test('AI contributions preview selected changes before incorporation and leave mathematics for review', async ({ page, served }) => {
+	const { execFileSync } = await import('node:child_process');
+	const document = 'drafting/adoption-test.tex';
+	const text = '\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\nIntroduction.\n\\begin{lemma}\\label{sy-0900}\nOriginal statement.\n\\end{lemma}\n\\end{document}\n';
+	writeFileSync(join(served.root, document), text);
+	served.loom(['draft', document, '--ai', 'adoption-proposal']);
+	const git = (...args: string[]) => execFileSync('git', args, {cwd: served.root, encoding: 'utf8'});
+	git('init'); git('config', 'user.name', 'Test Reader'); git('config', 'user.email', 'reader@example.test');
+	git('add', '.'); git('commit', '-m', 'adoption baseline');
+	const copy = join(served.root, 'drafting-ai/adoption-proposal.tex');
+	writeFileSync(copy, readFileSync(copy, 'utf8').replace('Original statement.', 'Proposed statement.'));
+	await page.goto('/review?show=incoming');
+	await expect(page.getByLabel('Contribution')).toContainText('adoption-proposal');
+	await page.getByLabel('Contribution').selectOption('drafting-ai/adoption-proposal.tex');
+	const row = page.getByTestId('adoption-sy-0900');
+	await expect(row).toContainText('Proposed statement');
+	await row.getByRole('button', {name: 'Use proposed version', exact: true}).click();
+	await expect(row.getByRole('button', {name: 'Use proposed version', exact: true})).toHaveAttribute('aria-pressed', 'true');
+	await page.getByRole('button', {name: 'Preview selected changes', exact: true}).click();
+	await expect(page.getByTestId('adoption-preview')).toContainText('Proposed statement');
+	expect(readFileSync(join(served.root, document), 'utf8')).toBe(text);
+	await page.getByRole('button', {name: 'Incorporate selected changes', exact: true}).click();
+	await expect.poll(() => readFileSync(join(served.root, document), 'utf8')).toContain('Proposed statement.');
+	await page.goto('/review?show=needs-review');
+	await expect(page.locator('main')).toContainText('sy-0900');
+});

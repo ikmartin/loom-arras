@@ -153,10 +153,26 @@ export interface IncomingReview {
   prepared?: { patch: string; root: string; incoming: string; paths: string[] };
 }
 
+export interface AdoptionReview {
+  kind: 'adopt';
+  copy: string;
+  source: string;
+  label: string;
+  fingerprint: string;
+  changes: {key: string; name: string | null; class: string; current: string; proposed: string; math_changed: boolean; incoming_macros: string; local: string | null; incoming: string | null; documents: string[]; affected: {key: string; citation: string | null}[]}[];
+  document_changed: boolean;
+  document_conflict: boolean;
+  document_diff: string;
+  choices: {keys: string[]; document: boolean};
+  issues: string[];
+}
+
 export interface UnresolvedReview {
   key: string;
   status: 'needs-review' | 'ok' | 'requires-attention';
-  cause: 'incoming-pull' | 'earlier-change';
+  cause: 'incoming-pull' | 'adopted' | 'earlier-change';
+  source_label?: string;
+  contribution?: string;
   pull: string;
   changed_text: boolean;
   /** Null means an older sync record has no post-pull baseline. */
@@ -487,6 +503,7 @@ export interface Manifest {
   keys: Record<string, Key>;
   /** Fetched source waiting for incorporation; never changes a key's recorded state. */
   incoming?: IncomingReview;
+  contributions?: (AdoptionReview | (IncomingReview & {kind: 'workspace'; label: string}))[];
   unresolved?: UnresolvedReview[];
   regions: Record<string, Region>;
   relations?: Relation[];

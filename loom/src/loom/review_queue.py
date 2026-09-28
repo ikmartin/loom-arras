@@ -92,24 +92,14 @@ def _latest_pull_baselines(result: ScanResult, sync: SyncState) -> dict[str, str
 def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     root = result.quilt.root
     decisions = _read(root, manifest.get("reviewer", {}).get("name"))
-    try:
-        sync = SyncState.read(root)
-        pull = sync.last_pull
-        origins = sync.review_origins
-        changed_by_pull = sync.review_changed
-        baselines = sync.review_baselines
-        local_before = sync.review_local_changed
-        legacy_baselines: dict[str, str] | None = None
-    except SyncError:
-        pull = {}
-        origins = {}
-        changed_by_pull = {}
-        baselines = {}
-        local_before = {}
-        legacy_baselines = None
-    if not origins and pull:
-        origins = {key: pull.get("commit", "") for key in pull.get("keys", [])}
-        changed_by_pull = {key: key in pull.get("changed", []) for key in origins}
+    from loom.review_origins import read
+
+    shared = read(root)
+    origins = {key: row["source"] for key, row in shared.items()}
+    changed_by_pull = {key: row["changed"] for key, row in shared.items()}
+    baselines = {key: row["baseline"] for key, row in shared.items()}
+    local_before = {key: row["local_before"] for key, row in shared.items()}
+    legacy_baselines: dict[str, str] | None = None
     pull_keys = set(origins)
     candidates = (
         pull_keys
@@ -168,11 +158,18 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
             and all(cause.get("kind") == "dependency-changed" and cause.get("via") in pending_ok for cause in causes)
         ):
             continue
-        cause = "incoming-pull" if key in pull_keys else "earlier-change"
+        cause = (
+            ("adopted" if origins.get(key, "").startswith("adopt:") else "incoming-pull")
+            if key in pull_keys
+            else "earlier-change"
+        )
         baseline = baselines.get(key)
         if baseline is None and key in pull_keys:
             if legacy_baselines is None:
-                legacy_baselines = _latest_pull_baselines(result, sync)
+                try:
+                    legacy_baselines = _latest_pull_baselines(result, SyncState.read(root))
+                except SyncError:
+                    legacy_baselines = {}
             baseline = legacy_baselines.get(key)
         local_changed = (local_before.get(key, False) or current != baseline) if baseline else None
         if key not in pull_keys:
@@ -182,7 +179,9 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
                 "key": key,
                 "status": status,
                 "cause": cause,
-                "pull": origins.get(key, ""),
+                "pull": origins.get(key, "").removeprefix("pull:"),
+                "source_label": shared.get(key, {}).get("label", "Local change"),
+                "contribution": shared.get(key, {}).get("copy"),
                 "changed_text": changed_by_pull.get(key, False),
                 "local_changed": local_changed,
                 "invalidated": bool(choice and choice["fingerprint"] != current),

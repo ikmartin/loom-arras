@@ -72,7 +72,7 @@ export interface WriteResult {
 /** Ask the publisher to write. Errors come back as the publisher's own refusal rather than as an exception, because a refused annotation is an answer a reader needs to see. */
 export async function write(endpoint: string, body: Record<string, unknown>): Promise<WriteResult> {
 	try {
-		if (endpoint === 'review-decision' || endpoint === 'review-finish') {
+		if (endpoint === 'review-decision' || endpoint === 'review-finish' || endpoint.startsWith('adopt-')) {
 			body = { reviewer: store.manifest?.reviewer?.name ?? '', ...body };
 		}
 		// **Every write names its session, and one place puts it there** (plan 0.13.1). The session travels with the

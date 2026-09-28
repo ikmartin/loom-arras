@@ -38,10 +38,24 @@ def nothing(_: Path) -> None:
     return None
 
 
+def ai_copy(q: Path) -> None:
+    from loom.sync import git
+    from tests.helpers import ok
+
+    ok("draft", "drafting/main.tex", "--ai", "contribution.tex", cwd=q)
+    git(q, "init", "-b", "main")
+    git(q, "config", "user.name", "Tester")
+    git(q, "config", "user.email", "tester@example.test")
+    git(q, "add", ".")
+    git(q, "commit", "-m", "copy baseline")
+
+
 #: command path -> (arguments before `--json`, setup, exit code); each runs on its own fresh demo.
 CASES: dict[str, tuple[list[str], Setup, int]] = {
     "ai annotations": ([], nothing, 0),
     "ai drafts": ([], nothing, 0),
+    "ai refresh": (["contribution"], ai_copy, 0),
+    "adopt": (["contribution"], ai_copy, 0),
     "atomize": (["--key", "dm-0004"], nothing, 0),
     "deps": (["dm-0003"], nothing, 0),
     "doctor": ([], nothing, 0),

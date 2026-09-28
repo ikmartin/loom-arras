@@ -75,6 +75,34 @@ def copy_states(result: ScanResult, history: History) -> list[CopyState]:
     out: list[CopyState] = []
     for copy, source in sorted(history.copies(result.masters).items()):
         state = CopyState(copy, source)
+        # Incorporation and refresh carry current raw node and document bases, including author versions not yet frozen.
+        if any(
+            e.action in ("adopt", "refresh")
+            and e.get("adoption_base")
+            and history.current_document(str(e.get("copy", "")), result.masters) == copy
+            for e in history.entries
+        ):
+            from loom.adopt import comparison
+            from loom.scan.hashing import pair_hash
+
+            contribution = comparison(result, copy)
+            for row in contribution["changes"]:
+                if row["class"] == "identical":
+                    continue
+                if row["base"] and not row["current"]:
+                    state.gone.append(row["key"])
+                elif pair_hash(row["base"]) != pair_hash(row["current"]):
+                    state.changed.append(row["key"])
+            then_pre, then_body = _split(contribution["baseline"]["document"])
+            now_pre, now_body = _split(contribution["current_document"])
+            proposal_pre, proposal_body = _split(contribution["proposed_document"])
+            state.preamble = normalize(then_pre) != normalize(now_pre) and normalize(proposal_pre) != normalize(now_pre)
+            state.prose = normalize(then_body) != normalize(now_body) and normalize(proposal_body) != normalize(
+                now_body
+            )
+            out.append(state)
+            continue
+
         for base in sorted(history.bases(copy, result.masters).values(), key=lambda b: str(b["key"])):
             key = str(base["key"])
             n = result.nodes.get(key)

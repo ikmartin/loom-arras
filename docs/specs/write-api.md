@@ -1,6 +1,6 @@
 # Write API
 
-The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit Git sync steps. It is served by the publisher (loom's `serve`), never by the viewer. Its sole author-file write is the explicit local `sync-incorporate` action described below. Interface version 1; status: extended for source sync and pending review.
+The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit Git sync steps. It is served by the publisher (loom's `serve`), never by the viewer. Its author-file writes are explicit local incorporation actions: `sync-incorporate` and `adopt-finish`. Interface version 1; status: extended for source sync and pending review.
 
 **[decided]** The commands it wraps are library functions with the same signatures, and a viewer detects it rather than assuming it.
 
@@ -57,10 +57,14 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | method | path | body | effect |
 |---|---|---|---|
 | `POST` | `/_api/sync-incorporate` | `{incoming, base}` | verifies the displayed revision and base, preflights and applies its exact patch, then commits only its source paths and the private sync record in separate local commits |
+| `POST` | `/_api/adopt-decision` | `{copy, reviewer, fingerprint, keys, document}` | saves the reviewer's selected node keys and document-level group against the exact displayed contribution; changes no author source |
+| `POST` | `/_api/adopt-preview` | `{copy, reviewer, fingerprint}` | validates the saved choices and returns an immutable `{token, patch, paths}` preview; writes build cache only, without rebuilding |
+| `POST` | `/_api/adopt-finish` | `{copy, reviewer, token}` | revalidates source, proposal, choices and reviewer, applies exactly the preview and records incorporation locally; never accepts mathematics |
+
 | `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision without accepting mathematics |
 | `POST` | `/_api/review-finish` | `{reviewer}` | validates pending OK decisions and records eligible acceptances together |
 
-Every successful write triggers a republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, creates one local source commit and one local sync-record commit, and never pushes to Overleaf or accepts mathematics.
+Every successful mutation triggers a republish; `compare` and `adopt-preview` only prepare cached inspection results and do not republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, creates one local source commit and one local sync-record commit, and never pushes to Overleaf or accepts mathematics.
 
 ## 3. Authorship
 
