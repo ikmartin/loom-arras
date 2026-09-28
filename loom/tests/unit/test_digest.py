@@ -237,8 +237,8 @@ def test_build_runs_with_the_network_off_and_says_how_to_turn_each_step_on(tmp_p
     r = ok("refs", "build", cwd=q)
     assert "(lookup off)" in r.output and "(fetching off)" in r.output
     assert "needs you" in r.output and "needs an agent" in r.output
-    assert "could be looked up: set resolve = true under [refs] in config.toml, or pass --resolve" in r.output
-    assert "could be fetched: set fetch = true under [refs] in config.toml, or pass --fetch" in r.output
+    assert "could be looked up: pass --resolve, or set resolve = true under [refs] in config.toml" in r.output
+    assert "could be fetched: pass --fetch, or set fetch = true under [refs] in config.toml" in r.output
 
 
 def test_a_digest_is_called_thin_by_the_results_it_has_after_extraction(tmp_path: Path) -> None:
@@ -247,13 +247,45 @@ def test_a_digest_is_called_thin_by_the_results_it_has_after_extraction(tmp_path
     sections = work_home(q, "Ref20") / "sections.json"
     sections.write_text(json.dumps({"sha256": "0" * 64, "pages": 12, "chars": 1, "sections": []}))
     fresh = ok("refs", "build", "--only", "extract", cwd=q)
-    assert "entered the digest  1: Ref20" in fresh.output and "too thin to trust" not in fresh.output, fresh.output
+    assert "entered the digest (1)\n  Ref20" in fresh.output and "too thin to trust" not in fresh.output, fresh.output
     assert "needs an agent 0" in fresh.output, fresh.output
     # the same five results against a paper of forty pages are too few to trust
     sections.write_text(json.dumps({"sha256": "0" * 64, "pages": 40, "chars": 1, "sections": []}))
     thin = ok("refs", "build", "--only", "extract", cwd=q)
     assert "1 too thin to trust: Ref20 (5 results, 40 pages)" in thin.output, thin.output
     assert "needs an agent 1" in thin.output, thin.output
+
+
+def test_the_build_report_lists_every_blocked_work_under_what_would_unblock_it() -> None:
+    """One column of labels; every blocked work listed, under its reason with the fix given once; a DOI without an arXiv id told from no identifier at all, and a source discarded on the title check from one not yet fetched (DR-315-ikmartin)."""
+    from loom.refs.build import LISTED, BuildReport, WorkState
+    from loom.refs.fetch import Fetched
+
+    doi_only = [WorkState(citekey=f"Doi{i:02d}", identified=True, pdf=True) for i in range(LISTED + 3)]
+    report = BuildReport(
+        works=[
+            *doi_only,
+            WorkState(citekey="Bare"),
+            WorkState(citekey="Arx", declared=True),
+            WorkState(
+                citekey="Wrong", declared=True, fetched=Fetched("Wrong", discarded='fetched source is titled "X"')
+            ),
+            WorkState(citekey="Done", declared=True, source=True, digest=True),
+        ],
+        resolve_off=True,
+    )
+    text = "\n".join(report.lines())
+    assert text.splitlines()[0].startswith("resolved      19 entries: 3 state an arXiv id")
+    assert (
+        f"  no arXiv id to fetch a source on ({LISTED + 3}): loom refs build --resolve --fetch looks for the preprint"
+        in text
+    )
+    assert "    Doi00" in text and "    and 3 more; loom refs coverage lists every work" in text
+    assert "  no identifier and no document (1): loom refs resolve CITEKEY" in text and "\n    Bare" in text
+    assert "  source not fetched yet (1): loom refs build --fetch gets it from arXiv\n    Arx" in text
+    assert '    Wrong: fetched source is titled "X"' in text
+    # a work with a DOI is never told to add one
+    assert "add a doi" not in text.split("no identifier and no document")[0]
 
 
 def test_build_refuses_an_unknown_step(tmp_path: Path) -> None:

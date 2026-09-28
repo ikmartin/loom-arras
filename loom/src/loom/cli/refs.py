@@ -365,6 +365,7 @@ def build_command(
     if not as_json:
         for line in report.lines():
             note(line)
+        note("")
     result = open_scan(quilt_path)
     # the flags are this run's consent, and are not written anywhere: the config is the standing answer (DR-193)
     result.quilt.config.fetch = result.quilt.config.fetch or allow_fetch

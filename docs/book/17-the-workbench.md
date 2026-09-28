@@ -98,7 +98,7 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
 
 ### 17.7.1 The copy across the border
 
-**[decided]** `loom draft DOC --ai NAME [--json]` copies a live document of the drafting directory into the agent's drafting directory (4.4) as `NAME`, for the person and an agent to edit together. It is the author's command; an agent cannot run it (11.8).
+**[decided]** `loom draft DOC --ai NAME [--json]` copies a live document of the drafting directory into the agent's drafting directory (4.4) as `NAME`, for the person and an agent to edit together. The person or an agent may run it (DR-314-ikmartin): it writes only into the agent's drafting directory and a `copy` step into the history, and nothing of the person's documents changes; taking the copy back is `loom adopt`, which is the author's.
 
 - **The copy is flat**: every inclusion expanded, as `loom linearize` expands them, so an agent edits one file and never the person's node files through an `\input`.
 - **Every label the copy defines is derived** — an id becomes its derived id (`dm-0001` → `dm-0001-ai`, 5.3.1), and any other label takes the same suffix (`eq:fix` → `eq:fix-ai`), since labels are claimed quilt-wide — and every reference to one of them is rewritten. A reference to a label the copy does not define is left as it is.

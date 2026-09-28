@@ -144,7 +144,12 @@ def _resolve(result: ScanResult, copy: str) -> tuple[str, str]:
     if result.document_role(copy) != "drafting-ai":
         raise SyncError("Adoption requires a live AI draft")
     source = _history(result).copy_of(copy, result.masters)
-    if not source or result.document_role(source) != "drafting":
+    if not source:
+        # a document written straight into the directory has no copy step, so no source and no bases (loom:agent-document-not-a-copy)
+        raise SyncError(
+            f"{copy} is not a copy: no copy step made it, so it has no working document to be incorporated into or updated from; an AI draft starts as `loom draft DOC --ai NAME`"
+        )
+    if result.document_role(source) != "drafting":
         raise SyncError("The original working document is unavailable; restore it before incorporating")
     return copy, source
 

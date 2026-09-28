@@ -83,6 +83,35 @@ test.describe('the one rule', () => {
 		await expect.poll(() => new URL(page.url()).searchParams.get('note')).toBe('a-2026-09-16-0001');
 	});
 
+	test('the place a link went is gone to once: a new manifest leaves the reader where they are', async ({ page }) => {
+		// `loom serve` publishes a new manifest whenever anything changes, an agent's annotation or a compile, and each one mounted the document again and went back to the link's annotation, box open
+		let revision = 0;
+		let served = 0;
+		await serve(page, (m) => {
+			served += 1;
+			m.sessions[0].title = `A sitting, revision ${revision}`;
+		});
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await pane(page, 1).getByTestId('message-1').locator('a').click();
+		const box = pane(page, 0).getByTestId('comment-expanded');
+		await expect(box).toBeVisible();
+		// the reader closes it and reads on, well away from it
+		await pane(page, 0).locator('.fragment').first().press('h');
+		await expect(box).toHaveCount(0);
+		const body = pane(page, 0).locator('> .body');
+		await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+		const at = await body.evaluate((el) => el.scrollTop);
+		// and the quilt changes under them
+		revision = 1;
+		const before = served;
+		await expect.poll(() => served).toBeGreaterThan(before + 1);
+		await expect(pane(page, 0).locator('.fragment').first()).toBeAttached();
+		await page.waitForTimeout(500);
+		await expect(box).toHaveCount(0);
+		expect(Math.abs((await body.evaluate((el) => el.scrollTop)) - at)).toBeLessThan(4);
+	});
+
 	test("a context's link follows the one rule: a new tab in the other pane, the node it came from kept behind it", async ({ page }) => {
 		// sy-0005's context links sy-0002, which the pane holding sy-0005 does not show
 		await page.goto('/node/sy-0005' + beside('/context/sy-0005'));

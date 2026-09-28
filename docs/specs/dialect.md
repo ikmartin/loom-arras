@@ -93,7 +93,7 @@ A labelled proof node carries `data-id` as well, and a proof of a statement with
 
 ### 2.9 Marks
 
-**[decided]** `<mark class="annotation" data-annotation="ID">...</mark>` around resolved quotes; `data-annotation` on a block with class `annotation-block` when a quote could not be located within converted markup. A block may carry several ids space-separated.
+**[decided]** `<mark class="annotation" data-annotation="ID">...</mark>` around resolved quotes; `data-annotation` on a block with class `annotation-block` when a quote could not be located within converted markup; a viewer draws it as it draws a `mark.annotation`, by kind, severity and state. A block may carry several ids space-separated.
 
 Review comparison fragments may mark changed prose with `<mark class="review-changed">`, a changed inline or display formula with the `review-changed` class on its math element, and a zero-width insertion or deletion with `<span class="review-change-point">`. These classes occur only in comparison fragments; ordinary reading fragments keep their original markup.
 

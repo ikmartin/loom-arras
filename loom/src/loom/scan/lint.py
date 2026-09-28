@@ -97,6 +97,46 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
     return out
 
 
+def _agent_documents(result: ScanResult) -> list[Diagnostic]:
+    """`loom:agent-document-not-a-copy` and `loom:plain-id-in-drafting-ai`: the agent's drafting directory holds copies, and a copy defines derived ids only (book 4.4, 5.3.1).
+
+    A document no `copy` step made has no source to be adopted into and no bases to refresh from; a plain id defined there writes into the person's id space from a file no adoption reads.
+    """
+    ai = result.quilt.config.drafting_ai.rstrip("/")
+    record = result.history
+    copies = record.copies(result.masters) if record is not None else {}
+    source = result.default_master or "DOC"
+    out: list[Diagnostic] = []
+    for m in sorted(result.masters):
+        if result.document_role(m) != "drafting-ai" or m in copies:
+            continue
+        out.append(
+            Diagnostic(
+                "error",
+                "loom:agent-document-not-a-copy",
+                f"{m} is in {ai}/ but no copy step made it, so it has no source to be adopted into and no bases to refresh from; an agent's document starts as a copy of one of the person's",
+                [Location(m, 1)],
+                fixes=[
+                    Fix("copy the document it works from, NAME being a new file", f"loom draft {source} --ai NAME.tex")
+                ],
+            )
+        )
+    for key, n in sorted(result.assembly.nodes.items()):
+        if not n.id or n.derived_of or not n.file.startswith(ai + "/"):
+            continue
+        out.append(
+            Diagnostic(
+                "error",
+                "loom:plain-id-in-drafting-ai",
+                f"{n.id} is defined in {n.file}, in the agent's drafting directory, where every id is derived; a new node there takes a fresh id with -ai after it",
+                [_loc(result, n)],
+                [key],
+                fixes=[Fix("take a fresh id, and add -ai to it", "loom id --next")],
+            )
+        )
+    return out
+
+
 def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic]:
     asm = result.assembly
     files = result.files
@@ -126,6 +166,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
             )
         )
     diags.extend(_derived_in_drafting(result, edges))
+    diags.extend(_agent_documents(result))
     digest_keys = set(asm.digest_files.values())
     slugs = {citekey_slug(k) for k in result.bib} | {citekey_slug(k) for k in digest_keys}
     for path, directives in asm.directives.items():

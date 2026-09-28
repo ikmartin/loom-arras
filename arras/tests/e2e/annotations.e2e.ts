@@ -211,6 +211,24 @@ test.describe('marks', () => {
 		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(1);
 	});
 
+	test('a block mark is drawn in its hue: a quote loom could not place marks its whole block, a list among them', async ({ page }) => {
+		// the publisher marks the block with `annotation-block` alone; the viewer gives it `annotation`, which every rule for hue, weight, settled and hidden is keyed on
+		await page.route('**/fragments/masters/main.html', async (route) => {
+			const res = await route.fetch();
+			const body = (await res.text()).replace('<ul data-src=', '<ul class="annotation-block" data-annotation="a-2026-09-16-0001" data-src=');
+			await route.fulfill({ response: res, body });
+		});
+		await page.goto('/master/main');
+		const list = pane(page, 0).locator('.fragment ul.annotation-block');
+		await expect(list).toHaveClass(/\bannotation\b.*k-objection|k-objection.*\bannotation\b/);
+		const drawn = await list.evaluate((el) => {
+			const cs = getComputedStyle(el);
+			return { decoration: cs.textDecorationLine, color: cs.textDecorationColor };
+		});
+		expect(drawn.decoration).toBe('underline');
+		expect(drawn.color).toBe('rgb(163, 45, 45)');
+	});
+
 	test('a displayed formula is ruled beneath, and a block underlined line by line, in the same hue and weight', async ({ page }) => {
 		// no fixture annotation marks a display, so the rule is held on the class alone: the same variables draw every shape
 		await page.goto('/master/main');

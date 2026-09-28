@@ -1,6 +1,6 @@
 """Annotation marks in fragments (book 9.5): a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span.
 
-The quote is TeX and the block is HTML, so both are compared as a projection: inline math reads as `$tex$`, `\\emph{..}` and its kind read as their text, other tags read as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
+The quote is TeX and the block is HTML, so both are compared as a projection: inline math reads as `$tex$`, a reference or citation as the command it carries in `data-tex`, `\\emph{..}` and its kind read as their text, other tags read as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
 """
 
 from __future__ import annotations
@@ -177,6 +177,8 @@ def _norm_positions(text: str) -> tuple[str, list[int]]:
 _MATH_OPEN = re.compile(r'^<(span|div)\b[^>]*\bclass="[^"]*\bmath\b')
 _TEXT_MACRO = re.compile(r"\\(?:emph|textit|textbf|texttt|textrm|textsf|textsc|textup)\{([^{}]*)\}")
 _ENTITY = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[A-Za-z]+);")
+#: An element that carries the source of the command it draws (`convert._said`): a reference, a citation.
+_SAID = re.compile(r'^<([A-Za-z][\w-]*)\b[^>]*\bdata-tex="([^"]*)"')
 
 
 def _is_math(open_tag: str) -> bool:
@@ -196,10 +198,23 @@ def _units(html: str, a: int, b: int) -> list[tuple[int, int, str, bool]]:
     """The block's content between `a` and `b` as (start, end, projected text, atomic): text runs, and each math element whole."""
     out: list[tuple[int, int, str, bool]] = []
     pos = a
+    said_at: str | None = None
     while pos < b:
         if html.startswith("<", pos):
             end = html.index(">", pos) + 1
             tag = html[pos:end]
+            said = _SAID.match(tag)
+            if said and not _is_math(tag):
+                # a reference or a citation reads as the command the quote was copied from, not as the number the reader sees;
+                # a command drawn as several elements shares its `data-at`, and is read once
+                close = _close_of(html, end, b, said.group(1))
+                stop = html.index(">", close) + 1
+                at = (re.search(r'\bdata-at="([^"]*)"', tag) or [None, None])[1]
+                text = "" if at is not None and at == said_at else htmllib.unescape(said.group(2))
+                said_at = at
+                out.append((pos, stop, text, True))
+                pos = stop
+                continue
             if _is_math(tag):
                 name = _MATH_OPEN.match(tag).group(1)  # type: ignore[union-attr]
                 close = _close_of(html, end, b, name)

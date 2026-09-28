@@ -44,9 +44,9 @@ def local_reviewer() -> None:
 
 
 def with_copy(tmp_path: Path, name: str = "aidoc.tex", text: str = AIDOC) -> Path:
-    """The demo quilt with an agent's document written into `drafting-ai/`."""
+    """The demo quilt with an agent's copy of `drafting/main.tex` in `drafting-ai/`, made by `loom draft` and then rewritten to `text`, as an agent edits one."""
     q = demo(tmp_path)
-    (q / "drafting-ai").mkdir(exist_ok=True)
+    ok("draft", "drafting/main.tex", "--ai", name, cwd=q)
     (q / "drafting-ai" / name).write_text(text, encoding="utf-8")
     return q
 
@@ -119,7 +119,10 @@ def test_a_persons_document_neither_defines_nor_cites_a_derived_id(tmp_path: Pat
 
 
 def test_two_live_documents_may_not_share_a_name(tmp_path: Path) -> None:
-    q = with_copy(tmp_path, "main.tex")
+    # `loom draft` refuses the name itself, so the document is written by hand, as a person or a sync might
+    q = demo(tmp_path)
+    (q / "drafting-ai").mkdir(exist_ok=True)
+    (q / "drafting-ai" / "main.tex").write_text(AIDOC, encoding="utf-8")
     taken = [d for d in codes(q, 1) if d["code"] == "loom:document-stem-taken"]
     assert len(taken) == 1 and {x["file"] for x in taken[0]["locations"]} == {
         "drafting/main.tex",
@@ -293,10 +296,32 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
     assert "stale: dm-0002 changed; the prose between nodes; the preamble" in ok("ai", "drafts", cwd=q).stdout
 
 
-def test_an_agent_may_list_copies_but_never_make_one() -> None:
+def test_an_agent_may_make_a_copy_and_never_adopt_one(tmp_path: Path) -> None:
+    """A copy writes only into the agent's drafting directory and records its bases; the person's documents are untouched, so an agent may make one. Taking it back is the author's."""
     from loom.ai.layout import AGENT_COMMANDS
 
-    assert "ai drafts" in AGENT_COMMANDS and "draft" not in AGENT_COMMANDS
+    assert {"draft", "ai drafts", "ai refresh"} <= AGENT_COMMANDS and "adopt" not in AGENT_COMMANDS
+    q = demo(tmp_path)
+    before = {p: p.read_bytes() for p in (q / "drafting").rglob("*") if p.is_file()}
+    ok("draft", "drafting/main.tex", "--ai", "aidoc.tex", cwd=q, env={"CLAUDECODE": "1"})
+    assert (q / "drafting-ai" / "aidoc.tex").is_file()
+    assert {p: p.read_bytes() for p in (q / "drafting").rglob("*") if p.is_file()} == before
+    assert "aidoc.tex" in ok("ai", "drafts", cwd=q, env={"CLAUDECODE": "1"}).stdout
+
+
+def test_the_agents_directory_holds_copies_that_define_derived_ids(tmp_path: Path) -> None:
+    """A document written straight into the directory has no copy step, so nothing can be adopted or refreshed from it, and a plain id defined there writes into the person's id space; lint refuses both, and adoption says why (book 4.4)."""
+    q = demo(tmp_path)
+    (q / "drafting-ai").mkdir(exist_ok=True)
+    (q / "drafting-ai" / "scratch.tex").write_text(
+        AIDOC.replace("dm-0005-ai", "dm-0901").replace("dm-0004-ai", "dm-0900-ai"), encoding="utf-8"
+    )
+    found = {d["code"]: d for d in codes(q, code=1)}
+    assert (
+        found["loom:agent-document-not-a-copy"]["fixes"][0]["command"] == "loom draft drafting/main.tex --ai NAME.tex"
+    )
+    assert "dm-0901 is defined in drafting-ai/scratch.tex" in found["loom:plain-id-in-drafting-ai"]["message"]
+    refused("adopt", "drafting-ai/scratch.tex", "--json", cwd=q, code=2, match="is not a copy")
 
 
 # ---- the interface other plans build on (phase 3) -------------------------------------------------------------

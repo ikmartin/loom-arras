@@ -66,3 +66,18 @@ def test_a_quote_inside_a_formula_never_puts_a_tag_inside_it() -> None:
     display = '<div class="math display" data-src="f.tex:0:40">\\[\\tag{3} a = b + c\\]</div>'
     out = place_marks(display, [MarkEntry("a-2", "b + c", "f.tex", 10, 15)])
     assert "<mark" not in out and 'class="math display annotation-block"' in out
+
+
+def test_a_quote_across_a_reference_and_a_formula_is_marked_where_it_is() -> None:
+    """A quote copied from the source names a reference as `\\ref{..}`, which the page draws as its number; read as the command it carries, the reference no longer stops the quote being found, and the mark stays on the phrase rather than falling back to the whole list (a draft4-ai.tex remark, 2026-09-28)."""
+    html = (
+        '<ol data-src="f.tex:0:300"><li>by Proposition <a class="ref" data-target="zk-0020" data-tex="\\ref{lem:nice}" data-at="40" href="#zk-0020">2.7</a> '
+        '<span class="math inline">\\(\\eta:Y^T\\to Y\\)</span> is representable, and more.</li></ol>'
+    )
+    out = place_marks(
+        html,
+        [MarkEntry("a-1", "by Proposition \\ref{lem:nice} \\(\\eta:Y^T\\to Y\\) is representable", "f.tex", 10, 120)],
+    )
+    assert "annotation-block" not in out
+    assert out.count('<mark class="annotation" data-annotation="a-1">') == 1
+    assert '>by Proposition <a class="ref"' in out and "is representable</mark>" in out
