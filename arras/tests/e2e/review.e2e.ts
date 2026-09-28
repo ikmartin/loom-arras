@@ -109,6 +109,8 @@ test.describe('incoming and guided review', () => {
 		});
 		await serve(page, (m) => {
 			m.macros.sets['incoming:test'] = m.macros.default;
+			// This scenario contains one workspace pull; the shared fixture also has AI contributions.
+			m.contributions = [];
 			m.incoming = {
 				remote: 'origin', branch: 'main', base: 'a'.repeat(40), commit: 'b'.repeat(40), observed: '2026-09-21T15:00:00Z',
 				files: [{ status: 'M', path: 'drafting/main.tex' }, { status: 'M', path: 'references.bib', diff: '+@book{source,title={A collaborator reference}}' }],
