@@ -1,0 +1,1 @@
+import{G as e,ot as t,st as n}from"./BTNz6g-1.js";var r=new class{#e=n(null);get snippet(){return e(this.#e)}set snippet(e){t(this.#e,e,!0)}#t=n(``);get label(){return e(this.#t)}set label(e){t(this.#t,e,!0)}};export{r as t};

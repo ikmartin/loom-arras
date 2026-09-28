@@ -1,1 +1,0 @@
-import{K as e,ct as t,st as n}from"./DXmKqI1j.js";var r=new class{#e=t(null);get snippet(){return e(this.#e)}set snippet(e){n(this.#e,e,!0)}#t=t(``);get label(){return e(this.#t)}set label(e){n(this.#t,e,!0)}};export{r as t};
