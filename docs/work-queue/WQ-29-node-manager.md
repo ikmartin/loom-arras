@@ -12,6 +12,9 @@ A quilt holds ten or more forks, or a fork or rename done by hand goes wrong onc
 
 ## Rough design
 
+**Absorbed by plan 0.17, for an agent's copy only:** the fork is `loom draft DOC --ai NAME`, which gives every node of a document a derived id (`zk-0001-ai`) and records the version it began from, and the merge is `loom adopt`, which takes a copy's node back into its original id; a result that belongs to another document is taken as a separate result through `loom fork` (0.17.2, DR-313-luisa). What follows is still to build for the author's own nodes, with moving a definition between documents, which 0.17.2's E4 declines, added to it.
+
+
 Ancestry is already a ledger entry (`rl-0042 forked from rl-0007@2`) and versions are content-addressed, so none of these needs new storage:
 
 - **Fork from history**, in the history view: pick `rl-0007@2`, name or allocate an id, choose the document it lands in; the same command underneath.
