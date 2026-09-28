@@ -4,6 +4,13 @@
 
 import { itemFromPath, itemKey, pathFor, type Documents, type Item } from './item';
 
+/** A place in a pane: the block at its top, by its `data-src`, and how far below the pane's top it stood; the offset alone where no block was found. The block rather than the offset, because a document's formulas are typeset after it is drawn and move everything below them. */
+export interface Place {
+	top: number;
+	src: string | null;
+	below: number;
+}
+
 export interface Pane {
 	items: Item[];
 	/** The active item's key. */
@@ -21,6 +28,8 @@ export class Workspace {
 	narrow = $state(false);
 	/** Whether reading mode is on screen; set by the layout. Outside it the panes are kept but nothing is drawn, so nothing should open into them. */
 	onScreen = $state(false);
+	/** Where each open item was scrolled to, by key: kept here rather than in its pane, which is made again when the reader comes back to reading from another page. */
+	scrolls = new Map<string, Place>();
 	/** Per-item state a renderer keeps across being hidden behind another tab: a work's view of its pages, a document's open annotations, a scroll offset. */
 	#state = new Map<string, object>();
 	#seq = 0;
@@ -182,7 +191,10 @@ export class Workspace {
 	close(pane: number, key: string): void {
 		if (!this.panes[pane]) return;
 		this.#drop(pane, key);
-		if (this.paneOf(key) < 0) this.#state.delete(key);
+		if (this.paneOf(key) < 0) {
+			this.#state.delete(key);
+			this.scrolls.delete(key);
+		}
 	}
 
 	/**
@@ -242,6 +254,7 @@ export class Workspace {
 		this.focus = 0;
 		this.#state.clear();
 		this.#shown.clear();
+		this.scrolls.clear();
 	}
 
 	#stamp(item: Item): Item {

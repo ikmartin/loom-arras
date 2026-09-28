@@ -131,7 +131,7 @@
 
 <NavShell
 	label={m ? m.corpus.name : 'arras'}
-	views={viewsOf(m)}
+	views={viewsOf(m, workspace.canonical(m))}
 	indexes={indexesOf(m)}
 	currentView={viewOf(page.url.pathname)}
 	masters={m?.masters ?? []}

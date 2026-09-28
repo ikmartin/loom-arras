@@ -6,9 +6,15 @@ import { PdfView, type Tool } from '$lib/pdf/view.svelte';
 import { itemKey, type Item } from './item';
 import { workspace } from './store.svelte';
 
+/** Which request to go somewhere an item's fragment last answered (Fragment's `arrival`): kept with the item, so a fragment made again -- the reader back from Review, a tab brought forward -- does not answer it twice. */
+export interface Arrival {
+	at: string | null;
+}
+
 export class DocumentState {
 	/** Whether every annotation is open at its mark; the fragment registers the doing. */
 	notes = new Annotations();
+	arrival: Arrival = { at: null };
 	/** The annotating tool in hand on the document's text. */
 	tool = $state<Tool>('select');
 }
@@ -20,6 +26,7 @@ export class WorkState {
 
 export class NodeState {
 	notes = new Annotations();
+	arrival: Arrival = { at: null };
 	/** The annotating tool in hand on the node's text. */
 	tool = $state<Tool>('select');
 	/** Whether the node is read as its source rather than rendered. */

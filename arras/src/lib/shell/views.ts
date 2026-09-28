@@ -17,11 +17,12 @@ export interface View {
 	icon: string;
 }
 
-export function viewsOf(m: Manifest | null): View[] {
+export function viewsOf(m: Manifest | null, reading = ''): View[] {
 	const master = m?.masters.find((x) => x.default) ?? m?.masters[0];
 	// a corpus whose drafting directory is empty is still worth reading: the newest landmark stands in for the document
 	const newest = m?.canon?.length ? m.canon[m.canon.length - 1] : undefined;
-	const read = master ? masterUrl(master.path) : newest ? canonUrl(newest.path) : route('/');
+	// back to reading is back to what was open, as it was left (`reading`, the workspace's own address); the default document only on a first visit
+	const read = reading || (master ? masterUrl(master.path) : newest ? canonUrl(newest.path) : route('/'));
 	const has = m?.publishes;
 	// `undefined` keeps a view: before the manifest loads there is nothing to go on, and a shell that draws six items
 	// and then removes two is worse than one that never had them. A declared `false` is the only thing that removes.
