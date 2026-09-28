@@ -72,12 +72,22 @@
 		return () => document.removeEventListener('selectionchange', drop);
 	});
 
+	/** What stands in the fragment without being its text: an annotation's box or card, and what compare draws or swaps in. */
+	const NOT_TEXT = 'aside, article.box, .compare-swap, .compare-tag, .compare-gutter';
+
+	function notText(n: Node): boolean {
+		const el = n instanceof Element ? n : n.parentElement;
+		return !!el?.closest(NOT_TEXT);
+	}
+
 	function selected(): void {
 		if (!allowed || boxing || !root) return;
 		const sel = window.getSelection();
 		if (!sel || sel.isCollapsed || !sel.rangeCount) return;
 		const range = sel.getRangeAt(0);
 		if (!root.contains(range.commonAncestorContainer)) return;
+		// only the document's own words are annotated: a box, a card or compare's drawing stands in the fragment's markup without being its text
+		if ([range.startContainer, range.endContainer, range.commonAncestorContainer].some(notText)) return;
 		const text = quoteOf(range);
 		if (!text) return;
 		const r = range.getBoundingClientRect();
@@ -90,8 +100,8 @@
 	function down(e: PointerEvent): void {
 		if (!allowed || e.button !== 0 || !(boxing || e.altKey)) return;
 		const on = e.target as Element;
-		// a press on a link or a control is a click on it, never the start of a box
-		if (on.closest('a, button, input, textarea, select')) return;
+		// a press on a link or a control is a click on it, never the start of a box; one in a box or a card is not on the document
+		if (on.closest('a, button, input, textarea, select') || notText(on)) return;
 		// On a mark, only the box tool draws, and only once the pointer moves: an annotated equation is still boxable for a second note, and a click without a drag still opens the mark (study F4).
 		if (on.closest('mark.annotation, .annotation-block')) {
 			if (boxing) pressed = { x: e.clientX, y: e.clientY };

@@ -766,6 +766,21 @@ test.describe('writing', () => {
 		await expect(said).toContainText('no author name');
 	});
 
+	test("words selected in an annotation's box are not the document's, and offer nothing to annotate", async ({ page }) => {
+		// a box stands in the fragment's markup, but a note quoting its words would be filed on the node with a quote its source does not hold
+		await writes(page, ['annotate', 'reply']);
+		await page.goto('/node/sy-0003');
+		await page.locator('.fragment .annotation[data-annotation~="a-2026-09-16-0001"]').first().click();
+		const body = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"] .body').first();
+		await expect(body).toBeVisible();
+		await selectWithin(body);
+		await page.waitForTimeout(300);
+		await expect(page.getByTestId('annotate-offer')).toHaveCount(0);
+		// the document's own words still offer it
+		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] p[data-src]').first());
+		await expect(page.getByTestId('annotate-offer')).toHaveCount(1);
+	});
+
 	test('a selection offers one annotate chip at its end, in the annotation neutral at the reader\'s body size, opaque under the pointer, and Enter does what the chip does', async ({ page }) => {
 		await writes(page, ['annotate']);
 		await page.goto('/node/sy-0002');
