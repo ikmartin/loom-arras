@@ -1,0 +1,22 @@
+/* Shared controls and surfaces for the approved Review workspace. */
+.review-page {
+ --review-paper: color-mix(in srgb, var(--paper) 70%, var(--sheet));
+ --review-accent: var(--state-accepted);
+ --review-wash: color-mix(in srgb, var(--state-accepted) 11%, var(--review-paper));
+ --review-add: color-mix(in srgb, var(--state-accepted) 17%, var(--review-paper));
+ --review-remove: color-mix(in srgb, var(--accent) 18%, var(--review-paper));
+ font: 14px/1.5 var(--sans);
+}
+.review-page button, .review-page select { font: inherit; color: var(--ink); }
+.review-page button { cursor:pointer; border:1px solid var(--rule); border-radius:5px; padding:7px 12px; background:var(--review-paper); }
+.review-page button:hover:not(:disabled) { border-color:var(--rule-strong); }
+.review-page button:disabled { opacity:.45; cursor:default; }
+.review-page button:focus-visible, .review-page select:focus-visible, .review-page summary:focus-visible { outline:2px solid var(--review-accent); outline-offset:3px; }
+.review-page button.primary { background:var(--ink); color:var(--review-paper); border-color:var(--ink); }
+.review-page button.quiet { background:transparent; border-color:transparent; color:var(--ink-soft); }
+.review-page select { background:var(--review-paper); border:1px solid var(--rule); border-radius:5px; padding:6px 9px; max-width:100%; }
+.review-page summary { cursor:pointer; }
+.review-page [role=alert] { color:var(--state-incomplete); }
+.review-page .review-card > section, .review-page .review-card > header, .review-page .review-card > footer, .review-page .review-card > details, .review-page .review-card > label, .review-page .review-card > p { margin:20px 26px; }
+
+.review-page mark.review-changed { color:inherit; background:var(--review-add); }

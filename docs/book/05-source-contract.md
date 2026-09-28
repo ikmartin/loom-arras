@@ -215,6 +215,8 @@ By Lemma~\ref{lem:res-indep} and \cite[Theorem 4.1]{Man12}, the pullback commute
 
 Edges from this proof: to `rl-0002` (uses), to `rl-0004` (through the alias), to `Man12-thm-4.1` (postnote, if the digest exists; otherwise `loom:undigested-citekey`, info; a digest that exists but has no node matching the postnote is `loom:unmatched-postnote`, warning).
 
+Mathematical acceptance uses a separate dependency context (DR-314-luisa). Structural edges above continue to describe ownership and navigation. A section or section reference contributes no mathematical obligation. A reference to a labelled equation uses the complete enclosing display, including sibling lines in align/gather; references inside the display provide its explicit support. Containment in a theorem does not inherit that theorem's surrounding prose. A direct reference to the theorem continues to depend on its own text. Labels within one display identify the same displayed source, without creating nested acceptance blocks.
+
 ## 5.8 Equations and other labelled regions
 
 1. **[decided]** A labelled display equation (`equation`, `align`, `gather`, `multline`, and their starred forms with `\tag`, or any environment containing `\label` that is not theorem-like or sectioning) is a region belonging to the node whose own text contains it, addressed by the qualified key `<container>#<label>`.

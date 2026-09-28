@@ -121,12 +121,14 @@ class LoomHandler(SimpleHTTPRequestHandler):
     #: The quilt to write into. `None` serves the corpus read-only and answers `/_api` with 404, which is the
     #: discovery mechanism working: a viewer that gets 404 shows no editing affordances.
     quilt_root: Path | None = None
-    #: Rebuild the manifest, set when the server owns one. **A write rebuilds before it answers** (plan 0.13.1): the
+    #: Rebuild the manifest, set when the server owns one. Most writes rebuild before answering; pending review
+    #: decisions publish queue metadata only (DR-315-luisa). The original immediate-publish rule (plan 0.13.1): the
     #: watcher's filesystem scan and the viewer's manifest poll are a second each, so a change that costs 40ms to
     #: build took ~1.3s to appear, and the `refresh()` a viewer runs on the answer raced the rebuild and lost.
     rebuild: Callable[[], None] | None = None
     #: What starts and stops an agent's turn, set when the server owns one (plan 0.14): `agent-stop` is answered by it.
     launcher: Any = None
+    publication_lock: Any = None
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
@@ -190,7 +192,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         """The write API (specs/write-api.md). Localhost only, like everything else this server does."""
-        from loom.render.api import READS, ApiError, handle
+        from loom.render.api import NO_REBUILD, ApiError, handle
 
         path = self.path.split("?", 1)[0]
         if not path.startswith("/_api/") or self.quilt_root is None:
@@ -217,9 +219,13 @@ class LoomHandler(SimpleHTTPRequestHandler):
             return
         try:
             endpoint = path[len("/_api/") :]
-            answer = handle(self.quilt_root, endpoint, body)
-            # The manifest is current when the answer arrives, so the viewer's own refresh finds the write on its first try rather than after two polling loops; a read changed nothing, and rebuilding would only delay it.
-            if self.rebuild is not None and endpoint not in READS:
+            # Queue-only publication must not race a source rebuild publishing an older queue.
+            from contextlib import nullcontext
+
+            with self.publication_lock if self.publication_lock is not None else nullcontext():
+                answer = handle(self.quilt_root, endpoint, body)
+            # The viewer's refresh finds the write immediately. Reads need no rebuild; review decisions already published queue metadata without touching document renderings.
+            if self.rebuild is not None and endpoint not in NO_REBUILD:
                 self.rebuild()
             self._json(HTTPStatus.OK, answer)
         except ApiError as exc:
@@ -462,6 +468,7 @@ class ServeSession:
                 "quilt_root": self.quilt.root,
                 "rebuild": self.rebuild,
                 "launcher": self.launcher,
+                "publication_lock": self.lock,
             },
         )
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)

@@ -562,8 +562,8 @@ async function markOk(page: import('@playwright/test').Page, key: string): Promi
 	const name = key === 'sy-0001' ? 'Widget' : 'Orbits';
 	await page.getByRole('button', { name, exact: true }).click();
 	const guided = page.getByTestId('guided-review');
-	await expect(guided.locator('h2')).toContainText(name);
-	await guided.getByRole('button', { name: 'OK', exact: true }).click();
+	await expect(page.locator('.reading h2')).toContainText(name);
+	await page.getByRole('button', { name: 'Mark OK', exact: true }).click();
 }
 
 test('finishing review over an OK whose dependency is still stale is refused, and nothing is accepted', async ({ page, served }) => {
@@ -571,7 +571,7 @@ test('finishing review over an OK whose dependency is still stale is refused, an
 	const ledger = acceptedKeys(served);
 	await markOk(page, 'sy-0002');
 	await expect.poll(() => decisions(served)['sy-0002']?.status).toBe('ok');
-	const finish = page.getByRole('button', { name: /^Finish review · record 1 acceptances$/ });
+	const finish = page.getByRole('button', { name: /^Finish review · 1$/ });
 	await finish.click();
 	await expect(page.getByRole('alert')).toHaveText('review sy-0001 before finishing sy-0002');
 	expect(acceptedKeys(served)).toEqual(ledger);
@@ -586,7 +586,7 @@ test('finishing review records an acceptance for each pending OK, and clears the
 	const ledger = acceptedKeys(served);
 	await markOk(page, 'sy-0001');
 	await expect.poll(() => decisions(served)['sy-0001']?.status).toBe('ok');
-	await page.getByRole('button', { name: /^Finish review · record 1 acceptances$/ }).click();
+	await page.getByRole('button', { name: /^Finish review · 1$/ }).click();
 	await expect.poll(() => acceptedKeys(served)).toEqual([...ledger, 'sy-0001']);
 	const row = readFileSync(join(served.root, '.loom/state.toml'), 'utf8').split('[[accept]]').at(-1)!;
 	expect(row).toContain('key = "sy-0001"');

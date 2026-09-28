@@ -35,6 +35,7 @@ CAPABILITIES = [
     "message",
     "agent-stop",
     "sync-incorporate",
+    "sync-preview",
     "adopt-decision",
     "adopt-preview",
     "adopt-finish",
@@ -46,7 +47,10 @@ CAPABILITIES = [
 WRITE_API_VERSION = 1
 
 #: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
-READS = ("compare", "adopt-preview")
+READS = ("compare", "adopt-preview", "sync-preview")
+
+#: Decision writes publish queue metadata themselves, without rendering documents.
+NO_REBUILD = (*READS, "review-decision")
 
 
 class ApiError(Exception):
@@ -104,9 +108,11 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _compare(root, body)
     if endpoint == "message":
         return _message(root, body)
-    if endpoint == "sync-incorporate":
-        from loom.scan.quilt import load_quilt
-        from loom.sync import SyncError, SyncState, incorporate_pull
+    if endpoint in ("sync-incorporate", "sync-preview"):
+        from loom.incorporation_review import finish, preview, validate
+        from loom.scan.quilt import load_quilt, reviewer_identity
+        from loom.scan.scan import scan
+        from loom.sync import SyncError, SyncState, _expected_blobs, git, incorporate_pull, prepare_incorporation
 
         try:
             quilt = load_quilt(root)
@@ -117,7 +123,30 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 raise ApiError("revision-changed", "the fetched revision changed; reload Incoming")
             if base != state.integrated and state.integrated != state.incoming:
                 raise ApiError("revision-changed", "the incorporated base changed; reload Incoming")
+            binding = {"kind": "sync", "incoming": incoming or "", "base": base or ""}
+            reviewer, _ = reviewer_identity(root)
+            if endpoint == "sync-preview" or body.get("review_token") or body.get("accept"):
+                if not reviewer or _str(body, "reviewer") != reviewer:
+                    raise ApiError("reviewer-changed", "Choose your reviewer name and reload Incoming", status=409)
+                before = scan(quilt)
+                if endpoint == "sync-preview":
+                    prepared = prepare_incorporation(quilt, state)
+                    blobs = _expected_blobs(
+                        root, prepared["head"], Path(prepared["patch"]).read_bytes(), prepared["paths"]
+                    )
+                    overlay = {
+                        p: git(root, "cat-file", "blob", b).decode("utf-8") if b else ""
+                        for p, b in blobs.items()
+                        if p.endswith((".tex", ".sty", ".cls", ".bib"))
+                    }
+                    return {"ok": True, "result": preview(before, overlay, binding, reviewer)}
+                accepted = _accept_keys(body)
+                saved = validate(before, _str(body, "review_token", required=True) or "", binding, reviewer, accepted)
+            else:
+                saved = None
             sync_result = incorporate_pull(quilt, state)
+            if saved is not None:
+                sync_result.update(finish(scan(load_quilt(root)), saved, accepted, reviewer or ""))
         except SyncError as exc:
             raise ApiError("sync-refused", str(exc), status=409) from exc
         return {"ok": True, "result": sync_result}
@@ -138,24 +167,49 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         try:
             result = scan(load_quilt(root))
             if endpoint == "adopt-finish":
-                answer = incorporate(result, copy, _str(body, "token", required=True) or "", reviewer)
+                from loom.incorporation_review import finish, validate
+
+                token = _str(body, "token", required=True) or ""
+                accepted = _accept_keys(body)
+                saved = (
+                    validate(
+                        result,
+                        _str(body, "review_token", required=True) or "",
+                        {"kind": "adopt", "token": token},
+                        reviewer,
+                        accepted,
+                    )
+                    if body.get("review_token") or accepted
+                    else None
+                )
+                answer = incorporate(result, copy, token, reviewer)
+                if saved is not None:
+                    answer.update(finish(scan(load_quilt(root)), saved, accepted, reviewer))
             elif endpoint == "adopt-decision":
                 keys = body.get("keys")
                 document = body.get("document")
+                kept = body.get("kept", [])
                 if (
                     not isinstance(keys, list)
                     or not all(isinstance(k, str) for k in keys)
                     or not isinstance(document, bool)
+                    or not isinstance(kept, list)
+                    or not all(isinstance(k, str) for k in kept)
                 ):
                     raise ApiError("bad-field", "keys must be a list of strings and document must be a boolean")
                 answer = adopt_decide(
-                    result, copy, keys, document, _str(body, "fingerprint", required=True) or "", reviewer
+                    result, copy, keys, document, _str(body, "fingerprint", required=True) or "", reviewer, kept
                 )
             else:
                 chosen = decisions(result, copy, reviewer)
                 if _str(body, "fingerprint", required=True) != chosen["fingerprint"]:
                     raise SyncError("Contribution changed; reload Incoming")
                 answer = prepare(result, copy, chosen["keys"], chosen["document"], reviewer)
+                from loom.incorporation_review import preview
+
+                answer["review"] = preview(
+                    result, answer["overlay"], {"kind": "adopt", "token": answer["token"]}, reviewer
+                )
             return {"ok": True, "result": answer}
         except (SyncError, ValueError, OSError) as exc:
             raise ApiError("adoption-refused", str(exc), status=409) from exc
@@ -198,6 +252,10 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 decide(result, key, status, reviewer)
             except ValueError as exc:
                 raise ApiError("review-refused", str(exc), status=409) from exc
+            from loom.render.publish import publish
+
+            manifest["unresolved"] = rows_for(result, manifest)
+            publish(root / "build", {}, manifest)
             return {"ok": True, "result": f"{key}: {status}"}
         try:
             keys = pending(result, reviewer)
@@ -218,7 +276,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
 
         states = Records(root, result.quilt.history_dir, reviewer=reviewer).key_states(result)
         for key in keys:
-            for dep in Records.direct_keys(result, key):
+            for dep in result.dependencies.review_targets(key):
                 dependency = states.get(dep)
                 if dependency and dependency.row and not dependency.fresh and dep not in keys:
                     raise ApiError("dependency-pending", f"review {dep} before finishing {key}", status=409)
@@ -540,3 +598,10 @@ def _refs_cite(root: Path, body: dict[str, Any]) -> str:
         },
     )
     return f"accepted {ann_id}; {resolved}"
+
+
+def _accept_keys(body: dict[str, Any]) -> list[str]:
+    keys = body.get("accept", [])
+    if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
+        raise ApiError("bad-field", "accept must be a list of mathematical block keys")
+    return keys

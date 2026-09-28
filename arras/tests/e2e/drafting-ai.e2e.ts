@@ -13,11 +13,13 @@ test("an agent's document is listed under its own directory, apart from the work
 test("Review gives an agent's document no tab", async ({ page }) => {
 	await page.goto('/review');
 	const tabs = page.getByRole('navigation', { name: 'Review views' });
-	await expect(tabs.getByRole('link', { name: 'main.tex' })).toBeVisible();
+	await tabs.getByRole('link', { name: 'Documents' }).click();
+	await expect(page.getByLabel('Document', {exact:true})).toHaveValue('drafting/main.tex');
 	await expect(tabs.getByRole('link', { name: 'aidoc.tex' })).toHaveCount(0);
 	// an address naming it falls back to the default document
 	await page.goto('/review?document=drafting-ai%2Faidoc.tex');
-	await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
+	await expect(page.getByLabel('Document', {exact:true})).toHaveValue('drafting/main.tex');
+	await expect(page.getByLabel('Document', {exact:true}).locator('option[value="drafting-ai/aidoc.tex"]')).toHaveCount(0);
 });
 
 test("the whole quilt counts each of the person's nodes once, and a scope on the copy shows its own", async ({ page }) => {

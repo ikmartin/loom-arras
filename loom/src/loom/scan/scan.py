@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 
 from loom.history.ledger import History, load_history
@@ -45,6 +46,12 @@ class ScanResult:
     lint: list[Diagnostic] = field(default_factory=list)
     history: History | None = None  # the ledger as this scan read it
     _trails: dict[str, list[str]] = field(default_factory=dict, repr=False)
+
+    @cached_property
+    def dependencies(self):  # type: ignore[no-untyped-def]
+        from loom.records.dependencies import Dependencies
+
+        return Dependencies(self)
 
     @property
     def nodes(self):  # type: ignore[no-untyped-def]

@@ -1,253 +1,126 @@
-// Review: document-scoped tables of recorded states, the causes a stale key opens beside its document, what an incoming pull changes, and the guided review of what needs a decision. Each test is named for the rule it holds.
 import { expect, test } from '@playwright/test';
 import { serve } from '../manifest';
-import { readFileSync } from 'node:fs';
 
-test.describe('the views', () => {
-	test('the default document opens first and the corpus-wide views follow the document tabs', async ({ page }) => {
-		await page.goto('/review?show=stale');
-		const tabs = page.getByRole('navigation', { name: 'Review views' });
-		await expect(tabs.getByRole('link')).toHaveText(['main.tex', 'talk.tex', /Needs Review \(\d+\)/, /Incoming \(\d+\)/]);
-		await expect(tabs.getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
-		await expect(page.locator('main table.list')).toBeVisible();
-		await expect(page.getByTestId('filter-show')).toHaveCount(0);
-	});
+const row = (key: string, status = 'needs-review') => ({key, status, cause:'earlier-change', pull:'', changed_text:true, local_changed:true, invalidated:false});
 
-	test('the blockers address lands on the default document', async ({ page }) => {
-		await page.goto('/blockers');
-		await expect(page).toHaveURL(/\/review$/);
-		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
-	});
-
-	test('the review panel explains itself and names the command behind each state, and its help closes on a press outside it', async ({ page }) => {
-		await page.goto('/review');
-		await expect(page.locator('p.lead')).toContainText('Recorded states are read from this corpus’s review history.');
-		await page.getByTestId('help-review').click();
-		const help = page.getByTestId('help-panel-review');
-		await expect(help).toContainText('stale');
-		await expect(help).toContainText('accept');
-		await page.mouse.click(900, 700);
-		await expect(help).toHaveCount(0);
-	});
+test('Review defaults to the named reviewer’s mathematical queue', async ({page}) => {
+ await serve(page, m => {m.reviewer={name:'Luisa',source:'local'};m.unresolved=[row('sy-0001')];});
+ await page.goto('/review');
+ await expect(page.getByText('Reviewing as Luisa')).toBeVisible();
+ const tabs=page.getByRole('navigation',{name:'Review views'});
+ await expect(tabs.getByRole('link')).toHaveText(['Needs review (1)','Documents','Incoming']);
+ await expect(tabs.getByRole('link',{name:'Needs review (1)'})).toHaveAttribute('aria-current','page');
+ await expect(page.getByTestId('guided-review')).toBeVisible();
+ await expect(page.locator('main table')).toHaveCount(0);
 });
 
-test.describe('recorded states', () => {
-	test('review statement badges agree with proved and settled counts', async ({ page }) => {
-		await serve(page, (m) => {
-			m.nodes['sy-0003'].derived = { proved: true, settled: true };
-			m.nodes['sy-0002'].derived = { proved: true, settled: false };
-			m.keys['sy-0002'].acceptance.fresh = true;
-		});
-		await page.goto('/review');
-		// counted over the default document's rows, not the whole quilt
-		await expect(page.getByTestId('review-counts')).toContainText('2 proved');
-		await expect(page.getByTestId('review-counts')).toContainText('1 settled');
-		await expect(page.locator('#review-sy-0003 .badge .chip')).toHaveText(['accepted', 'proved', 'settled']);
-		await expect(page.locator('#review-sy-0002 .badge .chip')).toHaveText(['accepted', 'proved']);
-	});
-
-	test('rows and counts follow the selected document while a shared block keeps one state', async ({ page }) => {
-		await page.goto('/review');
-		const tabs = page.getByRole('navigation', { name: 'Review views' });
-		await expect(page.locator('#review-sy-0003')).toBeVisible();
-		await expect(page.locator('#review-sy-999a')).toHaveCount(0);
-		await expect(page.locator('#review-sy-0002')).toBeVisible();
-		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
-		const mainCounts = await page.getByTestId('review-counts').innerText();
-
-		await tabs.getByRole('link', { name: 'talk.tex' }).click();
-		await expect(page).toHaveURL(/\/review\?document=drafting%2Ftalk\.tex$/);
-		await expect(page.locator('#review-sy-999a')).toBeVisible();
-		await expect(page.locator('#review-sy-0003')).toHaveCount(0);
-		await expect(page.locator('#review-sy-0002')).toBeVisible();
-		await expect(page.locator('#review-sy-999b')).toContainText('conflicted');
-		await expect(page.getByTestId('review-counts')).not.toHaveText(mainCounts);
-		await expect(page.getByText('Sessions')).toHaveCount(0);
-		await expect(page.getByText('Undigested citations')).toHaveCount(0);
-
-		await page.goto('/review?document=drafting%2Fmissing.tex');
-		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'main.tex' })).toHaveAttribute('aria-current', 'page');
-	});
-
-	test('review causes open rendered text beside its current context', async ({ page }) => {
-		await page.goto('/review');
-		await expect(page.getByTestId('review-counts')).toContainText('5 stale');
-		const row = page.locator('#review-sy-0002-proof');
-		await expect(row).toContainText('Widget via sy-0002');
-		const stale = page.locator('#review-sy-0001');
-		await expect(stale).toContainText('1 detached');
-		await stale.getByRole('link', { name: 'text edit' }).click();
-		await expect(page).toHaveURL(/\/master\/main\?review=sy-0001&cause=0#sy-0001$/);
-		await expect(page.getByTestId('review-comparison').locator('.fragment')).toHaveAttribute('aria-busy', 'false');
-		await expect(page.getByTestId('review-comparison')).toContainText('satisfying');
-		await expect(page.getByTestId('review-comparison').locator('.math mjx-container')).not.toHaveCount(0);
-		await expect(page.getByTestId('review-comparison').locator('.review-changed')).not.toHaveCount(0);
-		await expect(page.getByTestId('review-comparison')).not.toContainText('\\providecommand');
-		const comparisonLayout = await page.evaluate(() => {
-			const document = window.document.querySelector('.gutters-host')!.getBoundingClientRect();
-			const comparison = window.document.querySelector('.review-comparison')!.getBoundingClientRect();
-			return { documentRight: document.right, comparisonLeft: comparison.left, pageWidth: window.document.documentElement.scrollWidth, windowWidth: window.innerWidth };
-		});
-		expect(comparisonLayout.comparisonLeft).toBeGreaterThan(comparisonLayout.documentRight);
-		expect(comparisonLayout.pageWidth).toBeLessThanOrEqual(comparisonLayout.windowWidth);
-		await page.goto('/review');
-		const dependent = page.locator('#review-sy-0002');
-		await dependent.getByRole('link', { name: 'Widget', exact: true }).click();
-		await expect(page).toHaveURL(/#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix$/);
-		await expect(page.locator('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')).toHaveClass(/review-citation-target/);
-		await expect(page.getByTestId('review-comparison')).toContainText('involution');
-	});
+test('Documents selects one document and retains state and cause details', async ({page}) => {
+ await page.goto('/review?document=drafting%2Fmain.tex');
+ await expect(page.locator('#review-sy-0003')).toBeVisible();
+ await page.getByLabel('Document',{exact:true}).selectOption('drafting/talk.tex');
+ await expect(page.locator('#review-sy-0003')).toHaveCount(0);
+ await expect(page.locator('#review-sy-999a')).toBeVisible();
 });
 
-test.describe('incoming and guided review', () => {
-	test('incoming review stays separate from recorded states and opens a document comparison', async ({ page }) => {
-		let incorporated: Record<string, string> | null = null;
-		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['sync-incorporate'] } }));
-		await page.route('**/_api/sync-incorporate', async (route) => {
-			incorporated = route.request().postDataJSON();
-			await route.fulfill({ json: { ok: true, result: { source_commit: 'c'.repeat(40), sync_commit: 'd'.repeat(40), integrated: 'b'.repeat(40), paths: ['drafting/main.tex'] } } });
-		});
-		await serve(page, (m) => {
-			m.macros.sets['incoming:test'] = m.macros.default;
-			// This scenario contains one workspace pull; the shared fixture also has AI contributions.
-			m.contributions = [];
-			m.incoming = {
-				remote: 'origin', branch: 'main', base: 'a'.repeat(40), commit: 'b'.repeat(40), observed: '2026-09-21T15:00:00Z',
-				files: [{ status: 'M', path: 'drafting/main.tex' }, { status: 'M', path: 'references.bib', diff: '+@book{source,title={A collaborator reference}}' }],
-				changes: [{
-					key: 'sy-0003', kind: 'edited', local_changed: false, conflict: false, already_local: false,
-					local: 'fragments/review/800fd03b12dbadcd3f9d-current.html',
-					incoming: 'fragments/review/800fd03b12dbadcd3f9d-accepted.html', incoming_macros: 'incoming:test',
-					affected: [{ key: 'sy-0004', citation: null }]
-				}]
-			};
-		});
-		await page.goto('/review?show=incoming');
-		await expect(page.getByTestId('incoming-sy-0003')).toBeVisible();
-		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'Incoming (1)' })).toBeVisible();
-		// the counts belong to a document's table, which this view is not
-		await expect(page.getByTestId('review-counts')).toHaveCount(0);
-		await expect(page.getByTestId('incoming-incorporation')).toContainText('neither push nor accept mathematics');
-		const files = page.getByRole('heading', { name: 'Changed source files' }).locator('xpath=following-sibling::ul[1]');
-		await expect(files).toContainText('drafting/main.tex');
-		await expect(files).toContainText('references.bib');
-		// in document order, the incorporation stands before the change it incorporates
-		const order = await page.locator('[data-testid="incoming-incorporation"], [data-testid="incoming-sy-0003"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
-		expect(order).toEqual(['incoming-incorporation', 'incoming-sy-0003']);
-		await page.getByRole('button', { name: 'Incorporate pull' }).click();
-		await expect.poll(() => incorporated).toEqual({ incoming: 'b'.repeat(40), base: 'a'.repeat(40) });
-		await page.getByText('references.bib', { exact: true }).last().click();
-		await expect(page.locator('.incoming-file-diff')).toContainText('A collaborator reference');
-		await page.getByTestId('incoming-sy-0003').locator('h2 a').click();
-		await expect(page).toHaveURL(/incoming=sy-0003/);
-		await expect(page.getByTestId('incoming-comparison')).toBeVisible();
-	});
-
-	test('Needs review separates the block queue, pending OK, and attention', async ({ page }) => {
-		await serve(page, (m) => {
-			m.unresolved = [
-				{ key: 'sy-0001', status: 'needs-review', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: true, local_changed: false, invalidated: false },
-				{ key: 'sy-0002', status: 'ok', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: false, invalidated: false },
-				{ key: 'sy-0003', status: 'requires-attention', cause: 'earlier-change', pull: '', changed_text: false, invalidated: false }
-			];
-		});
-		await page.goto('/review?show=needs-review');
-		await expect(page.getByRole('navigation', { name: 'Review views' }).getByRole('link', { name: 'Needs Review (1)' })).toBeVisible();
-		await expect(page.getByText('1 need review · 1 pending OK · 1 require attention')).toBeVisible();
-		await expect(page.getByRole('heading', { name: /needs review/i })).toBeVisible();
-		await expect(page.getByRole('heading', { name: /pending ok/i })).toBeVisible();
-		await expect(page.getByRole('heading', { name: /requires attention/i })).toBeVisible();
-		await page.getByRole('button', { name: 'Start review' }).click();
-		await expect(page.getByTestId('guided-review')).toContainText('Widget');
-		await expect(page.getByTestId('guided-review')).toContainText('Incoming pull');
-		await page.getByRole('button', { name: 'Return to Needs review' }).click();
-		await expect(page.getByTestId('guided-review')).toHaveCount(0);
-		await page.getByRole('button', { name: 'Parity', exact: true }).click();
-		await expect(page.getByTestId('guided-review')).toContainText('Parity');
-		await expect(page.getByRole('button', { name: 'Mark OK' })).toHaveCount(0);
-	});
-
-	test('guided review highlights a dependent citation and distinguishes local edits', async ({ page }) => {
-		await page.route('**/fragments/nodes/sy-0002.html', async (route) => {
-			const body = readFileSync('tests/fixture/fragments/nodes/sy-0002.html', 'utf8');
-			const citation = '<a id="cite-nodes-sy-0002-tex-185-sy-0001-eq-fix"';
-			expect(body).toContain(citation);
-			await route.fulfill({ contentType: 'text/html', body: body.replace(citation, `<span style="display:block;height:1200px"></span>${citation}`) });
-		});
-		await serve(page, (m) => {
-			m.unresolved = [
-				{ key: 'sy-0002', status: 'needs-review', cause: 'incoming-pull', pull: 'b'.repeat(40), changed_text: false, local_changed: true, invalidated: false },
-				{ key: 'sy-0003', status: 'needs-review', cause: 'earlier-change', pull: '', changed_text: false, local_changed: true, invalidated: false }
-			];
-		});
-		await page.goto('/review?show=needs-review');
-		await page.getByRole('button', { name: 'Start review' }).click();
-		const guided = page.getByTestId('guided-review');
-		await expect(guided).toContainText('Pull bbbbbbbbbbbb + local edits');
-		await expect(guided.locator('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')).toHaveClass(/review-citation-target/);
-		const position = await guided.evaluate((section) => {
-			const pane = section.querySelector('.guided-current')!;
-			const citation = pane.querySelector('#cite-nodes-sy-0002-tex-185-sy-0001-eq-fix')!;
-			return { scrollTop: pane.scrollTop, paneBottom: pane.getBoundingClientRect().bottom, citationTop: citation.getBoundingClientRect().top };
-		});
-		expect(position.scrollTop).toBeGreaterThan(0);
-		expect(position.citationTop).toBeLessThan(position.paneBottom);
-		await page.getByRole('button', { name: 'Parity', exact: true }).click();
-		await expect(guided).toContainText('Local change');
-		await expect(guided.locator('.review-citation-target')).toHaveCount(0);
-		await expect(guided.locator('.guided-current')).toHaveJSProperty('scrollTop', 0);
-		await page.getByRole('button', { name: 'Orbits', exact: true }).click();
-		await expect(guided.locator('.review-citation-target')).toHaveCount(1);
-		const viewportPosition = await guided.evaluate((section) => {
-			const pane = section.querySelector('.guided-current')!;
-			const citation = pane.querySelector('.review-citation-target')!;
-			return { paneTop: pane.getBoundingClientRect().top, citationTop: citation.getBoundingClientRect().top, viewportHeight: window.innerHeight };
-		});
-		expect(viewportPosition.paneTop).toBeGreaterThanOrEqual(0);
-		expect(viewportPosition.citationTop).toBeGreaterThanOrEqual(0);
-		expect(viewportPosition.citationTop).toBeLessThan(viewportPosition.viewportHeight);
-	});
+test('all causes can be selected without losing the current block', async ({page}) => {
+ await serve(page,m=>{m.unresolved=[row('sy-0001')];});
+ await page.goto('/review');
+ const reason=page.getByLabel('Reason for review');
+ expect(await reason.locator('option').count()).toBeGreaterThan(1);
+ await expect(reason).toHaveValue('own-text-changed||');
+ await reason.selectOption({index:1});
+ await expect(page).toHaveURL(/cause=/);
+ await expect(page.getByTestId('guided-review').getByRole('heading',{name:'Current statement'})).toBeVisible();
 });
 
-test('a static export identifies its review perspective once without identity editing', async ({ page }) => {
-	await serve(page, (m) => { m.reviewer = { name: 'Alice', source: 'local configuration' }; });
-	await page.goto('/review');
-	await expect(page.getByText('Review status for Alice', { exact: true })).toHaveCount(1);
-	await expect(page.getByText('Reviewing as Alice', { exact: true })).toHaveCount(0);
-	await page.getByTestId('settings-toggle').click();
-	await expect(page.getByLabel('Reviewer name', { exact: true })).toHaveCount(0);
+test('pending and attention are distinct from an empty review', async ({page}) => {
+ await serve(page,m=>{m.unresolved=[row('sy-0001','ok'),row('sy-0002','requires-attention')];});
+ await page.goto('/review');
+ await expect(page.getByRole('heading',{name:'1 decision ready to record'})).toBeVisible();
+ await expect(page.getByText('Requires attention (1)',{exact:true})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Nothing needs review'})).toHaveCount(0);
 });
 
-test('a local viewer confirms its reviewer and exposes the computer-wide setting', async ({ page }) => {
-	await serve(page, (m) => { m.reviewer = { name: 'Bob', source: 'local configuration' }; });
-	await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['review-decision', 'reviewer-settings'] } }));
-	await page.goto('/review');
-	await expect(page.getByText('Reviewing as Bob', { exact: true })).toBeVisible();
-	await expect(page.getByText('Review status for Bob', { exact: true })).toHaveCount(0);
-	await page.getByTestId('settings-toggle').click();
-	await expect(page.getByLabel('Reviewer name', { exact: true })).toHaveValue('Bob');
-	await expect(page.getByText(/Author name on this computer; used across local quilts/)).toBeVisible();
+test('narrow layouts collapse the queue before stacking the comparison', async ({page}) => {
+ await serve(page,m=>{m.unresolved=[row('sy-0001')];});
+ await page.setViewportSize({width:1000,height:900});
+ await page.goto('/review');
+ await expect(page.locator('aside[aria-label="Review queue"] details').first()).not.toHaveAttribute('open');
+ const pair=page.getByTestId('guided-review');
+ const left=await pair.locator(':scope > section').first().boundingBox();
+ const right=await pair.locator(':scope > section').last().boundingBox();
+ expect(right!.x).toBeGreaterThan(left!.x);
+ expect(Math.abs(right!.y-left!.y)).toBeLessThan(2);
 });
 
-test('an adoption preview survives an unrelated manifest refresh and clears when its selection changes', async ({ page }) => {
-	let revision = 0;
-	await page.route('**/_api', route => route.fulfill({ json: { write_api: 1, capabilities: ['adopt-decision', 'adopt-preview'] } }));
-	await page.route('**/_api/adopt-preview', route => route.fulfill({ json: { ok: true, result: { token: 'preview-token', patch: '+Proposed statement', paths: ['drafting/main.tex'] } } }));
-	await serve(page, m => {
-		m.incoming = undefined;
-		const contribution = m.contributions.find((c: {kind: string}) => c.kind === 'adopt');
-		contribution.label = `Contribution refresh ${revision}`;
-		contribution.issues = [];
-		contribution.choices = { keys: revision < 2 ? [contribution.changes[0].key] : [], document: false };
-		m.contributions = [contribution];
-	});
-	await page.goto('/review?show=incoming');
-	await page.getByRole('button', { name: 'Preview selected changes', exact: true }).click();
-	await expect(page.getByTestId('adoption-preview')).toContainText('Proposed statement');
-	revision = 1;
-	await expect(page.getByRole('heading', { name: 'Contribution refresh 1', exact: true })).toBeVisible();
-	await expect(page.getByTestId('adoption-preview')).toContainText('Proposed statement');
-	revision = 2;
-	await expect(page.getByRole('heading', { name: 'Contribution refresh 2', exact: true })).toBeVisible();
-	await expect(page.getByTestId('adoption-preview')).toHaveCount(0);
+test('prose is inspected in Incoming without mathematical acceptance controls', async ({page}) => {
+ await serve(page,m=>{m.contributions=[];m.incoming={remote:'origin',branch:'main',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[{status:'M',path:'drafting/main.tex',diff:'-Old prose\n+New prose'}],changes:[{key:'prose:setup',name:'Introduction',category:'prose',kind:'edited',local_changed:false,conflict:false,already_local:false,current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',kind:'edited',current:'Old definition',proposed:'New definition',local_changed:false,conflict:false,already_local:false,affected:[]}]};});
+ await page.goto('/review?show=incoming');
+ await expect(page.getByText('Old prose',{exact:true})).toBeVisible();
+ await expect(page.getByText('New prose',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Mark OK'})).toHaveCount(0);
+ await expect(page.getByTestId('incoming-incorporation')).toContainText('all changes in this pull');
+ await page.getByRole('button',{name:'Next change'}).click();
+ await expect(page.getByText('New definition',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Previous change'}).click();
+ await expect(page.getByText('New prose',{exact:true})).toBeVisible();
+});
+
+test('AI proof attribution distinguishes the source from the reviewer', async ({page}) => {
+ await serve(page,m=>{m.reviewer={name:'Luisa',source:'local'};m.unresolved=[{...row('sy-0002/proof'),contribution:'drafting-ai/proposal.tex',source_label:'AI revision'}];m.keys['sy-0002/proof'].acceptance.causes=[{kind:'dependency-changed',id:'sy-0002',diff:null}];});
+ await page.goto('/review');
+ await expect(page.getByText('Existing proof · statement changed in the AI revision')).toBeVisible();
+ await expect(page.getByText('Reviewing as Luisa')).toBeVisible();
+});
+
+test('Mark OK stays pending until Finish review records acceptance', async ({page}) => {
+ let status='needs-review', accepted=false;
+ let decision: Record<string,unknown> | undefined;
+ await page.route('**/_api',route=>route.fulfill({json:{write_api:1,capabilities:['review-decision','review-finish']}}));
+ await page.route('**/_api/review-decision',async route=>{decision=route.request().postDataJSON();status=String(decision!.status);await route.fulfill({json:{ok:true}});});
+ await page.route('**/_api/review-finish',async route=>{accepted=true;await route.fulfill({json:{ok:true}});});
+ await serve(page,m=>{m.reviewer={name:'Luisa',source:'local'};m.unresolved=accepted?[]:[row('sy-0001',status)];});
+ await page.goto('/review');
+ await page.getByRole('button',{name:'Mark OK',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'1 decision ready to record'})).toBeVisible();
+ expect(accepted).toBe(false);
+ expect(decision).toMatchObject({key:'sy-0001',status:'ok',reviewer:'Luisa'});
+ await page.getByRole('button',{name:'Finish review · 1',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Nothing needs review'})).toBeVisible();
+ expect(accepted).toBe(true);
+});
+
+test('attention-only review remains accessible without implying completion', async ({page}) => {
+ await serve(page,m=>{m.unresolved=[row('sy-0001','requires-attention')];});
+ await page.goto('/review');
+ await expect(page.getByRole('heading',{name:'1 block still requires attention'})).toBeVisible();
+ await page.getByRole('button',{name:'Widget',exact:true}).click();
+ await expect(page.getByTestId('guided-review')).toBeVisible();
+ await expect(page.getByRole('button',{name:/Finish review/})).toHaveCount(0);
+});
+
+test('Incoming accepts only explicitly chosen mathematics while incorporating the whole pull', async ({page}) => {
+ let submitted: any = null;
+ await serve(page,m=>{m.reviewer={name:'Luisa',source:'local'};m.contributions=[];m.incoming={remote:'origin',branch:'main',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[],changes:[{key:'prose:intro',name:'Introduction',category:'prose',kind:'edited',current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',name:'Lemma',kind:'edited',current:'Old lemma',proposed:'New lemma',affected:[]}]};});
+ await page.route('**/_api',route=>route.fulfill({json:{write_api:1,capabilities:['sync-incorporate','sync-preview'],token:'test'}}));
+ const fragment={path:'incorporation-review/example.html',macros:[]};
+ await page.route('**/build/incorporation-review/example.html',route=>route.fulfill({contentType:'text/html',body:'<div class="env"><p>Inspected mathematics.</p></div>'}));
+ await page.route('**/_api/sync-preview',route=>route.fulfill({json:{ok:true,result:{token:'preview',reviewer:'Luisa',items:[{key:'sy-0001',name:'Lemma',reason:'Statement changed',local:fragment,proposed:fragment,unavailable:''},{key:'sy-0001:proof',name:'Existing proof',reason:'Existing proof · statement changed in this pull',local:fragment,proposed:fragment,unavailable:''}]}}}));
+ await page.route('**/_api/sync-incorporate',async route=>{submitted=route.request().postDataJSON();await route.fulfill({json:{ok:true,result:{accepted:['sy-0001'],pending:['sy-0001:proof']}}});});
+ await page.goto('/review?show=incoming');
+ await expect(page.getByRole('heading',{name:'Introduction',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Accept',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Next change',exact:true}).click();
+ await expect(page.getByRole('button',{name:'Accept',exact:true})).toBeEnabled();
+ await expect(page.getByRole('button',{name:'Accept',exact:true})).toHaveAttribute('aria-pressed','false');
+ await page.getByRole('button',{name:'Accept',exact:true}).click();
+ expect(submitted).toBeNull();
+ await page.getByRole('button',{name:'Next change',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Existing proof',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Accept',exact:true})).toHaveAttribute('aria-pressed','false');
+ await page.getByRole('button',{name:'Keep for review',exact:true}).click();
+ await page.getByRole('button',{name:'Incorporate pull & accept 1 block',exact:true}).click();
+ expect(submitted.accept).toEqual(['sy-0001']);
+ expect(submitted.incoming).toBe('b'.repeat(40));
+ expect(submitted.review_token).toBe('preview');
 });

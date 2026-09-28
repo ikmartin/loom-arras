@@ -99,7 +99,9 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     assert b"b/references.bib" in incoming_patch(quilt, state)
     report = build(quilt)
     assert report.manifest["incoming"]["commit"] == state.incoming
-    assert [change["key"] for change in report.manifest["incoming"]["changes"]] == ["zk-0001"]
+    assert [change["key"] for change in report.manifest["incoming"]["changes"]] == ["zk-0001", "prose:new-section.tex"]
+    prose = report.manifest["incoming"]["changes"][1]
+    assert prose["category"] == "prose" and prose["proposed"] == "New collaborator file.\n"
     bib = next(f for f in report.manifest["incoming"]["files"] if f["path"] == "references.bib")
     assert "A collaborator reference" in bib["diff"]
     assert report.manifest["keys"]["zk-0001"]["state"] == "draft"
@@ -110,7 +112,9 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     else:
         raise AssertionError("publishing an unreviewed incoming revision must refuse")
     assert git(root, "show", f"{state.incoming}:main.tex").startswith(b"\\documentclass")
-    prepare_incorporation(quilt, state)
+    prepared = prepare_incorporation(quilt, state)
+    assert prepared["changed_keys"] == ["zk-0001"]
+    assert not any(key.startswith("prose:") for key in prepared["review_keys"])
     assert (root / "drafting/main.tex").read_bytes() == original
     try:
         finish_incorporation(quilt, state)

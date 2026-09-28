@@ -25,6 +25,9 @@ def snapshot(root: Path) -> dict[Path, float]:
         if not p.is_file() or p.suffix not in SUFFIXES or p.name in (CACHE, "review-observations.json", INBOX):
             continue
         rel = p.relative_to(root)
+        # Review decisions publish only queue metadata through the API; Finish review rebuilds the view.
+        if rel.as_posix() == ".loom/review-decisions.json":
+            continue
         if any(part in SKIP for part in rel.parts[:-1]):
             continue
         # `annotations/log.jsonl` is where every comment, reply and finding lands, and `reference-notes.jsonl` is

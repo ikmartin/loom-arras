@@ -104,6 +104,10 @@ def write_acceptance(
             # a row's preamble is its document's; a path that is not a live document has none, and an empty one would read as a change for ever
             raise ContentError(f"{master} is not a live drafting document; {key} cannot be accepted against it")
     for key in keys:
+        unavailable = [d for d in result.dependencies.closure(key) if result.dependencies.texts.get(d) is None]
+        if unavailable:
+            raise ContentError("Cannot identify the full equation: " + ", ".join(unavailable))
+    for key in keys:
         master = chosen[key]
         if master not in preambles:
             closure_obj = result.closures.get(master)
@@ -117,7 +121,7 @@ def write_acceptance(
         closure: dict[str, str] = {}
         for dep, h in Records.closure_hashes(result, key).items():
             closure[dep] = h
-            _, w2 = write_snapshot(root, own_text(result, result.nodes[dep]), hist)
+            _, w2 = write_snapshot(root, result.dependencies.texts[dep], hist)
             written += w2
             present += not w2
         assert text_hash == key_hash(result, key)
@@ -131,6 +135,7 @@ def write_acceptance(
                 master=master,
                 closure=closure,
                 basis=result.nodes[key].basis if result.nodes[key].kind == "environment" else "",
+                dependency_version=1,
                 direct={dep: closure[dep] for dep in Records.direct_keys(result, key) if dep in closure},
             )
         )

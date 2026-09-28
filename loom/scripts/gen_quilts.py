@@ -502,6 +502,7 @@ def build_demo(dest: Path) -> None:
         "--author",
         "The loom demo",
     )
+    g.edit("nodes/dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
     g.run("accept", "dm-0002", "--proofs", "--author", "The loom demo", "--force")
     g.run("stamp", "drafting/main.tex", "-m", "widgets-v1")
 
@@ -581,6 +582,7 @@ def build_demo(dest: Path) -> None:
         _demo_report(suggestion=suggestion, objection=objection, document=document),
     )
     # the edit that leaves an accepted key stale, so a fresh demo shows a state worth looking at
+    g.edit("nodes/dm-0001.tex", r"\sigma(x) = x", r"\sigma x = x")
     g.edit("nodes/dm-0001.tex", "a pair $(X,\\sigma)$ of a finite set", "a pair $(X,\\sigma)$ of a set")
     _write_expected_lint(g)
 

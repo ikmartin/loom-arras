@@ -649,6 +649,28 @@ def _sync_incorporate(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert git(root, "show", "--format=", "--name-only", "HEAD^").splitlines() == ["drafting/main.tex"]
 
 
+@case("sync-preview")
+def _sync_preview(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loom.records.store import Records
+    from loom.scan.quilt import load_quilt, save_author
+    from loom.sync import SyncState
+
+    save_author(WHO)
+    root = pulled(tmp_path, monkeypatch)
+    s = serve(root)
+    state = SyncState.read(root)
+    body = {"incoming": state.incoming, "base": state.integrated, "reviewer": WHO}
+    before = (root / "drafting/main.tex").read_bytes()
+    refuses(s, "sync-preview", {**body, "reviewer": "Other"}, 409, "reviewer-changed", "reload Incoming")
+    view = succeeds(s, "sync-preview", body)["result"]
+    assert (root / "drafting/main.tex").read_bytes() == before
+    assert [r["key"] for r in view["items"]] == ["zk-0001"]
+    monkeypatch.setattr("loom.cli.review._master_compiles", lambda *_: (True, ""))
+    answer = succeeds(s, "sync-incorporate", {**body, "review_token": view["token"], "accept": ["zk-0001"]})["result"]
+    assert answer["accepted"] == ["zk-0001"]
+    assert Records(root, load_quilt(root).history_dir).latest["zk-0001"].author == WHO
+
+
 @case("adopt-decision")
 @case("adopt-preview")
 @case("adopt-finish")
@@ -697,6 +719,11 @@ def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
 @case("review-decision")
 def _review_decision(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, root = synthetic(serve, tmp_path)
+    from loom.render.watch import snapshot
+
+    builds = s.builds
+    watched = snapshot(root)
+    before = json.loads(get(s.url + "build/manifest.json")[2])
     assert (
         succeeds(s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "ok"})["result"]
         == "sy-0002: ok"
@@ -704,6 +731,24 @@ def _review_decision(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> Non
     raw = get(s.url + "build/manifest.json")[2]
     row = the(json.loads(raw)["unresolved"], lambda r: r["key"] == "sy-0002", "sy-0002's review row")
     assert row["status"] == "ok"
+    assert s.builds == builds
+    assert snapshot(root) == watched
+    after = json.loads(raw)
+    assert {k: v for k, v in after.items() if k not in ("unresolved", "review_covered")} == {
+        k: v for k, v in before.items() if k not in ("unresolved", "review_covered")
+    }
+    succeeds(
+        s, "review-decision", {"reviewer": "The synthetic quilt", "key": "sy-0002", "status": "requires-attention"}
+    )
+    assert s.builds == builds
+    assert (
+        the(
+            json.loads(get(s.url + "build/manifest.json")[2])["unresolved"],
+            lambda r: r["key"] == "sy-0002",
+            "review row",
+        )["status"]
+        == "requires-attention"
+    )
     refuses(
         s,
         "review-decision",
@@ -725,10 +770,12 @@ def _review_finish(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda _result, _master=None: (True, ""))
     monkeypatch.setattr("loom.cli.review._author", lambda _explicit, _root: "Test author")
     # the fixture's acceptance of sy-0001 is stale; finishing records a fresh one beside it
+    builds = s.builds
     stale = Records(root, load_quilt(root).history_dir).latest["sy-0001"]
     assert succeeds(s, "review-finish", {"reviewer": "The synthetic quilt"})["result"] == "accepted 1 keys"
     fresh = Records(root, load_quilt(root).history_dir).latest["sy-0001"]
     assert fresh != stale and fresh.author == "The synthetic quilt", fresh
+    assert s.builds == builds + 1
     raw = get(s.url + "build/manifest.json")[2]
     assert not [r for r in json.loads(raw)["unresolved"] if r["key"] == "sy-0001"]
 
