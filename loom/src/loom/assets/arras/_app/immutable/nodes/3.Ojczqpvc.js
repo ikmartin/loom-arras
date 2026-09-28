@@ -1,1 +1,0 @@
-import{St as e}from"../chunks/BTNz6g-1.js";import{s as t}from"../chunks/C1LDUhM7.js";import{r as n}from"../chunks/C7ORV87Q.js";function r(e,n){throw new t(e,n.toString())}var i=e({load:()=>a});function a(){r(308,n(`/review`))}export{i as universal};
