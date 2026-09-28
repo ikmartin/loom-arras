@@ -11,6 +11,7 @@
  import { documentKeys } from '$lib/review/documents';
  import { causeLabel } from '$lib/review/evidence';
  import { reviewFacts,reviewRowBadge } from '$lib/badges';
+ import NoDrafts from '$lib/components/NoDrafts.svelte';
  import Badge from '$lib/components/Badge.svelte';
  import DiffView from '$lib/components/DiffView.svelte';
  import AdoptionContribution from '$lib/components/AdoptionContribution.svelte';
@@ -38,8 +39,9 @@
   {#if incorporated}<p role="status">{#if !incomingNotice.text}Changes incorporated. {/if}<a href="?show=needs-review">Review affected mathematics</a>{#if incorporated!=='pull'} · <a href={masterUrl(incorporated)}>Original AI draft and annotations</a>{/if}</p>{/if}
   {#if adoptions.length+(m.incoming?1:0)>1}<label>Contribution <select value={selectedSource} onchange={e=>source=e.currentTarget.value}>{#if m.incoming}<option value="">Fetched pull</option>{/if}{#each adoptions as a}<option value={a.copy}>{a.label}</option>{/each}</select></label>{/if}
   {#if adoption}{#key adoption.copy}<AdoptionContribution contribution={adoption} onincorporated={copy=>incorporated=copy}/>{/key}{:else if m.incoming}{#key m.incoming.commit}<IncomingPull incoming={m.incoming} label={m.contributions?.find(c=>c.kind==='workspace')?.label??`Incoming from ${m.incoming.remote}`} writable={sync} onincorporated={()=>incorporated='pull'}/>{/key}{:else}<p>No incoming contribution is waiting for incorporation.</p>{/if}
+ {:else if !reviewed.length}<NoDrafts what="blocks to review"/>
  {:else if view==='document'}
-  {#if document}<label>Document <select value={document.path} onchange={e=>goto(`?document=${encodeURIComponent(e.currentTarget.value)}`)}>{#each reviewed as d}<option value={d.path}>{d.path.split('/').pop()}</option>{/each}</select></label>{/if}
+  {#if document}<label for="review-document">Document</label> <select id="review-document" value={document.path} onchange={e=>goto(`?document=${encodeURIComponent(e.currentTarget.value)}`)}>{#each reviewed as d}<option value={d.path}>{d.path.split('/').pop()}</option>{/each}</select>{/if}
   <table class="list"><thead><tr><th>Block</th><th>State</th><th>Reason</th></tr></thead><tbody>{#each rows as k}<tr id={`review-${anchorId(k.key)}`}><td><a href={keyUrl(m,k.key)}>{displayNode(m,k.key,document?.path).name}</a></td><td><Badge parts={reviewRowBadge(m,k)}/></td><td>{#each k.acceptance?.causes??[] as c}<a href={`?show=needs-review&block=${encodeURIComponent(k.key)}&cause=${encodeURIComponent(c.identity??[c.kind,c.id??'',c.via??''].join('|'))}`}>{causeLabel(m,c)}</a><br/>{/each}{#each k.incomplete as text}<p>{text}</p>{/each}{#if m.nodes[k.node]?.basis==='unclassified'}<p>Needs classification</p>{/if}{#if m.diagnostics.some(d=>d.code==='loom:missing-proof'&&d.keys.includes(k.key))}<p>Missing proof</p>{/if}<details><summary>Details</summary><p>{k.file} · {m.nodes[k.node]?.basis}</p>{#if k.acceptance}<p>Last accepted by {k.acceptance.author} · {k.acceptance.date}</p>{/if}<p>{reviewFacts(k)}</p><p>Reached by: {m.nodes[k.node]?.reached_by.join(', ')}</p>{#each k.acceptance?.causes??[] as c}{#if c.diff}<DiffView path={c.diff}/>{/if}{/each}</details></td></tr>{:else}<tr><td colspan="3">No blocks in this document.</td></tr>{/each}</tbody></table>
  {:else}<ReviewWorkspace writable={local&&!!m.reviewer?.name}/>{/if}
 </div></main>

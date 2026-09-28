@@ -23,10 +23,10 @@ test('Documents selects one document and retains state and cause details', async
 });
 
 test('all causes can be selected without losing the current block', async ({page}) => {
- await serve(page,m=>{m.unresolved=[row('sy-0001')];});
+ await serve(page,m=>{m.unresolved=[row('sy-0001')];m.keys['sy-0001'].acceptance.causes.push({kind:'dependency-changed',id:'sy-0002',diff:null});});
  await page.goto('/review');
  const reason=page.getByLabel('Reason for review');
- expect(await reason.locator('option').count()).toBeGreaterThan(1);
+ await expect(reason.locator('option')).toHaveCount(2);
  await expect(reason).toHaveValue('own-text-changed||');
  await reason.selectOption({index:1});
  await expect(page).toHaveURL(/cause=/);
@@ -59,7 +59,7 @@ test('prose is inspected in Incoming without mathematical acceptance controls', 
  await expect(page.getByText('Old prose',{exact:true})).toBeVisible();
  await expect(page.getByText('New prose',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Mark OK'})).toHaveCount(0);
- await expect(page.getByTestId('incoming-incorporation')).toContainText('all changes in this pull');
+ await expect(page.getByTestId('incoming-incorporation')).toContainText('Applies the whole pull.');
  await page.getByRole('button',{name:'Next change'}).click();
  await expect(page.getByText('New definition',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Previous change'}).click();
