@@ -66,16 +66,21 @@ test('the side panel collapses, and the column goes with it', async ({ page }) =
 	await expect(page.getByRole('navigation', { name: 'Contents' })).toBeVisible();
 });
 
-test('the side panel shows its scrollbar only while it is in use', async ({ page }) => {
-	// the panel is the scroll region, so the rule against a grey stripe down the side of every page belongs to it
+test('a scrollbar shows only while its panel or pane is being scrolled', async ({ page }) => {
+	// hidden at rest, whether or not the pointer is over it; shown while it moves, and gone again a moment after
 	await page.setViewportSize({ width: 1440, height: 340 });
 	await page.goto('/master/main');
-	const rail = page.locator('.panel .sections');
-	await expect(rail).toBeVisible();
-	const atRest = await rail.evaluate((el) => getComputedStyle(el).scrollbarColor);
-	expect(atRest).toContain('rgba(0, 0, 0, 0)'); // the thumb is transparent until the rail is used
-	await rail.hover();
-	await expect.poll(async () => rail.evaluate((el) => getComputedStyle(el).scrollbarColor)).not.toContain('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
+	const hidden = 'rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)';
+	const color = (el: import('@playwright/test').Locator) => el.evaluate((e) => getComputedStyle(e).scrollbarColor);
+	for (const region of [page.locator('.panel .sections'), page.getByTestId('pane-0').locator('> .body')]) {
+		await expect(region).toBeVisible();
+		expect(await color(region)).toBe(hidden);
+		await region.hover();
+		expect(await color(region)).toBe(hidden);
+		await region.evaluate((e) => e.scrollBy(0, 60));
+		await expect.poll(() => color(region)).not.toBe(hidden);
+		await expect.poll(() => color(region), { timeout: 3000 }).toBe(hidden);
+	}
 });
 
 test('the shell fits the window: nothing in a rail falls below the fold', async ({ page }) => {

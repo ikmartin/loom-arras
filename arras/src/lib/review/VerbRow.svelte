@@ -2,9 +2,11 @@
 	// The verbs an annotation offers (book 15.3.4a), as one quiet row at the right of its box's meta line, and the place a reply, a restatement or a reason is written: a block that opens inside the box beneath the meta line, so nothing an annotation can do happens outside its box. Each verb is shown only when `GET /_api` says the publisher serves its endpoint.
 	//
 	// An open annotation offers reply, resolve, edit and discard; a citation offers accept and reject in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or discard settled it. A reply's own row (`compact`) is edit and withdraw.
+	import { untrack } from 'svelte';
 	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
 	import { decided } from './decisions.svelte';
+	import { drafts, type Verb } from './drafts';
 	import type { Annotation } from '$lib/manifest/types';
 
 	let {
@@ -16,18 +18,56 @@
 		compact?: boolean;
 	} = $props();
 
-	type Verb = 'reply' | 'edit' | 'discard';
-
 	//: Seeded from the probe's standing answer, so a row re-mounted after a write does not blink out while it asks again.
 	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'refs-cite'];
 	let allowed = $state<Record<string, boolean>>(
 		Object.fromEntries(ENDPOINTS.map((v) => [v, known(v) ?? false]).filter(([, ok]) => ok))
 	);
-	let open = $state<Verb | null>(null);
+	// a box made again -- which happens whenever a new manifest arrives -- opens on what was being written in it
+	const kept = untrack(() => drafts.get(annotation.id));
+	let open = $state<Verb | null>(kept?.open ? kept.verb : null);
 	let busy = $state(false);
 	let said = $state('');
-	let text = $state('');
-	let severity = $state('');
+	let text = $state(kept?.text ?? '');
+	let severity = $state(kept?.severity ?? '');
+
+	$effect(() => {
+		const verb = open;
+		const now = { text, severity };
+		const was = drafts.get(annotation.id);
+		if (verb) drafts.set(annotation.id, { verb, ...now, open: true, focused: was?.focused ?? false, caret: was?.caret ?? now.text.length });
+		else if (was) was.open = false;
+	});
+
+	/** Record where the cursor is, so a box made again can put it back. A textarea taken out of the page with its box is not a reader leaving it, so a blur counts only while it is still on the page. */
+	function track(el: HTMLTextAreaElement) {
+		const note = () => {
+			const d = drafts.get(annotation.id);
+			if (d) (d.focused = document.activeElement === el), (d.caret = el.selectionStart ?? d.caret);
+		};
+		const left = () => setTimeout(() => el.isConnected && note());
+		const d = drafts.get(annotation.id);
+		if (d?.open && d.focused) {
+			el.focus({ preventScroll: true });
+			el.setSelectionRange(d.caret, d.caret);
+		}
+		el.addEventListener('focus', note);
+		el.addEventListener('input', note);
+		el.addEventListener('keyup', note);
+		el.addEventListener('pointerup', note);
+		el.addEventListener('blur', left);
+		return {
+			destroy() {
+				for (const [k, f] of [['focus', note], ['input', note], ['keyup', note], ['pointerup', note], ['blur', left]] as const) el.removeEventListener(k, f);
+			}
+		};
+	}
+
+	/** Close the form and forget what was written in it. */
+	function cancel() {
+		drafts.delete(annotation.id);
+		open = null;
+	}
 	let row = $state<HTMLElement | undefined>();
 
 	$effect(() => {
@@ -41,9 +81,11 @@
 
 	function show(verb: Verb) {
 		if (open === verb) return (open = null);
-		// the block opens on what is there: an edit starts from the body it supersedes
-		text = verb === 'edit' ? stripped(annotation.body_html) : '';
-		severity = verb === 'edit' ? (annotation.severity ?? '') : '';
+		// the block opens on what is there: what was being written for this verb, else an edit starts from the body it supersedes
+		const d = drafts.get(annotation.id);
+		const resume = d?.verb === verb;
+		text = resume ? d.text : verb === 'edit' ? stripped(annotation.body_html) : '';
+		severity = resume ? d.severity : verb === 'edit' ? (annotation.severity ?? '') : '';
 		said = '';
 		open = verb;
 	}
@@ -62,6 +104,7 @@
 		const res = await write(endpoint, { annotation: annotation.id, ...payload });
 		busy = false;
 		if (res.ok) {
+			drafts.delete(annotation.id);
 			open = null;
 			// the poll would find it within the second; refreshing now means the box changes as the button is released
 			void store.refresh();
@@ -124,6 +167,7 @@
 				id="vp-{annotation.id}"
 				rows={open === 'discard' ? 2 : 3}
 				bind:value={text}
+				use:track
 				aria-label={open === 'reply' ? 'your reply' : open === 'edit' ? 'restate the annotation' : 'why it should not have stood'}
 				placeholder={open === 'reply' ? 'reply' : open === 'discard' ? 'why, optionally — published as the reason' : ''}
 				data-testid="verb-text"
@@ -140,7 +184,7 @@
 						</select>
 					</span>
 				{/if}
-				<button type="button" class="verb" onclick={() => (open = null)}>cancel</button>
+				<button type="button" class="verb" onclick={cancel} data-testid="verb-cancel">cancel</button>
 				{#if open === 'reply'}
 					<button type="button" class="verb do" disabled={busy || !text.trim()} onclick={reply} data-testid="verb-send">reply</button>
 				{:else if open === 'edit'}

@@ -444,6 +444,32 @@ test.describe('the box', () => {
 		return box;
 	}
 
+	test('a reply being written survives a new manifest: the box is made again with its text, open, the cursor where it was', async ({ page }) => {
+		// a serving publisher writes a new manifest whenever the quilt changes, an agent's annotation among them, and the document re-draws its boxes: a reply kept only in the box was lost with it
+		let revision = 0;
+		let served = 0;
+		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['reply', 'resolve', 'edit', 'discard'] } }));
+		await serve(page, (m) => {
+			served += 1;
+			m.sessions[0].title = `A sitting, revision ${revision}`;
+		});
+		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-0001');
+		await box.getByTestId('verb-reply').click();
+		const text = box.getByTestId('verb-text');
+		await text.fill('Half of what I meant to say');
+		revision = 1;
+		const before = served;
+		await expect.poll(() => served).toBeGreaterThan(before + 1);
+		await page.waitForTimeout(500);
+		const again = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"]').getByTestId('verb-text');
+		await expect(again).toHaveValue('Half of what I meant to say');
+		await expect(again).toBeFocused();
+		// cancel is what forgets it
+		await page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"]').getByTestId('verb-cancel').click();
+		await page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"]').getByTestId('verb-reply').click();
+		await expect(page.locator('[data-testid="comment-expanded"]').getByTestId('verb-text')).toHaveValue('');
+	});
+
 	test('it is titled by its kind and severity in the hue with the × on that line, then the body; no status word, author and date on one line', async ({ page }) => {
 		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-0001');
 		await expect(box.getByTestId('severity')).toHaveCount(0);

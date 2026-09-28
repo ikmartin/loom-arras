@@ -14,6 +14,7 @@
 	import Workspace from '$lib/workspace/Workspace.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { interceptLinks } from '$lib/workspace/links';
+	import { revealWhileScrolling } from '$lib/shell/scrollbars';
 	import { indexesOf, viewsOf, viewOf } from '$lib/shell/views';
 	import { contentsOf } from '$lib/contents';
 	import { reading } from '$lib/reading.svelte';
@@ -120,6 +121,7 @@
 			() => store.manifest
 		)
 	);
+	onMount(revealWhileScrolling);
 </script>
 
 <svelte:head>
