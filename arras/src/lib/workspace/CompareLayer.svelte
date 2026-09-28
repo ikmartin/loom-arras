@@ -77,6 +77,8 @@
 	/** Put the plan's marks on the nodes: classes, tags, and the publisher's renderings where it gave one. */
 	function decorate(p: Plan): void {
 		strip();
+		// the room for the gutter is made at once, not in the drawing frame: a step taken before that frame would land on text the room then reflows
+		body()?.classList.toggle('compare-room', p.based);
 		const marks = p.marks[index];
 		const side = index === 0 ? 'left' : 'right';
 		const answered = new Map((comparison.answer?.pairs ?? []).map((a) => [a.pair, a[side]]));

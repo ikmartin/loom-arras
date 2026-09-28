@@ -47,7 +47,7 @@
 		if (!preview) return;
 		busy = true; error = '';
 		const answer = await write('adopt-finish', {copy: contribution.copy, token: preview.token, review_token: preview.review.token, accept: accepted});
-		if (answer.ok) { const outcome=answer.result as unknown as IncorporationOutcome; message=outcome.acceptance_error??`Changes incorporated. ${outcome.accepted?.length??0} ${outcome.accepted?.length===1?"block":"blocks"} accepted; ${outcome.pending?.length??0} remain in Needs review.`; incomingNotice.text=message;onincorporated(contribution.copy); preview=null;await store.refresh(); }
+		if (answer.ok) { const outcome=answer.result as unknown as IncorporationOutcome & {landmark?: string}; message=outcome.acceptance_error??`Changes incorporated. ${outcome.accepted?.length??0} ${outcome.accepted?.length===1?"block":"blocks"} accepted; ${outcome.pending?.length??0} remain in Needs review.`; if(outcome.landmark)message+=` The document as it was is kept as ${outcome.landmark}.`; incomingNotice.text=message;onincorporated(contribution.copy); preview=null;await store.refresh(); }
 		else error = answer.error?.message ?? 'Could not incorporate the selected changes';
 		busy = false;
 	}

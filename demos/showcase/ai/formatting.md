@@ -11,6 +11,7 @@ Link to the thing, not to a description of where it is. A reader clicks a link a
 - **Empty text is named by the viewer.** `[](quilt:sh-0009)` reads `Theorem 3.1`, and stays right when the document is renumbered. `[the rank theorem](quilt:sh-0009)` reads as you wrote it. Which to use is your choice.
 - **Link only what the viewer shows.** A session's drafts, notes and diffs are files the viewer does not display, so they are not linkable; a link to one is refused when you post it, and so is a link to a key that does not exist. The message names the bad link, and nothing is written.
 - **Link the annotations you write.** When you tell the author what you found, a link to each annotation takes them to it with its box open.
+- **Working in a copy, link the copy.** A plain key opens the author's version of a node, in their document; while you and the author are editing a copy in `drafting-ai/`, link what is in it: `loom link drafting-ai/NAME.tex --at KEY-ai` for the place in the copy, which is usually what the author wants to see, or `loom link KEY-ai` for the copy's node alone. Link a plain key only when you mean the author's text rather than the copy's.
 
 ## Mathematics
 

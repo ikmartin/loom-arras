@@ -322,25 +322,29 @@ main.page > h2,
 .rail-scroll {
 	overflow-y: auto;
 	overscroll-behavior: contain;
-	/* The bar is there but invisible until the pointer or the keyboard is in the rail, so a contents tree of 74 entries does not carry a grey stripe down the side of every page. The space is reserved either way, so nothing shifts when it appears. */
+}
+
+/* Scrollbars, everywhere in arras: thin and invisible until the element is being scrolled (`is-scrolling`, which `$lib/shell/scrollbars` puts on it while it moves and takes off a moment after), so a panel, a pane or a box does not carry a grey stripe down its side at rest. The space is reserved either way, so nothing shifts when a bar appears. */
+.arras,
+.arras * {
 	scrollbar-width: thin;
 	scrollbar-color: transparent transparent;
 }
-.rail-scroll:hover,
-.rail-scroll:focus-within {
+.arras .is-scrolling {
 	scrollbar-color: var(--rule-strong) transparent;
 }
-.rail-scroll::-webkit-scrollbar {
+.arras ::-webkit-scrollbar {
 	width: 8px;
+	height: 8px;
+	background: transparent;
 }
-.rail-scroll::-webkit-scrollbar-thumb {
+.arras ::-webkit-scrollbar-thumb {
 	background: transparent;
 	border-radius: 4px;
 	border: 2px solid transparent;
 	background-clip: content-box;
 }
-.rail-scroll:hover::-webkit-scrollbar-thumb,
-.rail-scroll:focus-within::-webkit-scrollbar-thumb {
+.arras .is-scrolling::-webkit-scrollbar-thumb {
 	background-color: var(--rule-strong);
 }
 
@@ -1074,6 +1078,10 @@ button.mark.annotation.settled { display: none; }
 .comment-slot.expanded {
 	margin: var(--gap-tight) 0 var(--gap);
 	font-family: var(--sans);
+}
+/* A floating box is placed by its border box (`expand.ts`), so a margin would draw it lower than placed, off the window's foot when it is held there. */
+.comment-slot.expanded.floating {
+	margin: 0;
 }
 .comment-slot.expanded:not(.floating) > .box {
 	margin: 0 0 var(--gap-hair);

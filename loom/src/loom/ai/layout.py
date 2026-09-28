@@ -32,7 +32,7 @@ TRIGGERS = {
 # forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
 AGENT_COMMANDS = frozenset(
     {
-        "annotate", "build", "check", "compile", "deps", "doctor", "history", "id", "link", "lint",
+        "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
         "ai annotations", "ai check", "ai discard", "ai drafts",
     "ai refresh", "ai name", "ai orient", "ai start",

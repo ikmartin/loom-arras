@@ -28,6 +28,7 @@
 		anchor,
 		jump = 0,
 		note,
+		arrival,
 		onmounted
 	}: {
 		path: string;
@@ -51,11 +52,21 @@
 		jump?: number;
 		/** An annotation to open at its mark on arrival: what a followed link to an annotation names. */
 		note?: string;
+		/** Where the request last answered is kept, when it must outlive this fragment: a pane's item keeps it, so coming back to the item does not go to its link's place again. */
+		arrival?: { at: string | null };
 		onmounted?: (root: HTMLElement) => void;
 	} = $props();
 
 	/** The element the reader is sent to: the pane's own anchor when one is given, else the URL's hash. */
 	const target = (): string => (anchor !== undefined ? anchor : decodeURIComponent(location.hash.slice(1)));
+
+	/** One request to go somewhere: in a pane, its anchor, the annotation it names and each reopening (`jump`); elsewhere the URL's hash. */
+	const request = (): string => (anchor !== undefined ? `${anchor}\u0000${jump}\u0000${note ?? ''}` : page.url.hash);
+	/**
+	 * The request last arrived at. **A request is answered once**: the fragment mounts again on every new manifest, which a serving publisher writes whenever anything in the quilt changes -- an agent's annotation, a compile -- and a mount that went where the link had pointed each time sent a reader who had closed the box and scrolled on back to it, box open, every few seconds.
+	 */
+	const own = { at: null as string | null };
+	const arrived = () => arrival ?? own;
 
 	let html = $state('');
 	let error = $state('');
@@ -203,7 +214,7 @@
 		onmounted?.(root);
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
 		counts();
-		arrive();
+		if (request() !== arrived().at) arrive();
 	}
 
 	/** The browser cannot honour `location.hash` for an element that did not exist at navigation time, and none of a fragment's elements do. Looked up inside this fragment: the same document open twice, or a node beside the document holding it, repeats every id. */
@@ -219,6 +230,7 @@
 
 	/** Go where the item names: its place, and the annotation it names, open at its mark — or, with comments in the gutter, its card. */
 	async function arrive() {
+		arrived().at = request();
 		scrollToHash();
 		const id = note;
 		if (!id || !el) return;
@@ -252,9 +264,11 @@
 
 	// A contents entry on the page already changes only the hash, so nothing re-mounts and the browser will not scroll to an element the fragment created after navigation.
 	$effect(() => {
-		// in a pane, the item's own anchor, its annotation and each reopening; elsewhere the URL's hash
-		const at = anchor !== undefined ? `${anchor}\u0000${jump}\u0000${note ?? ''}` : page.url.hash;
-		if (html && el && at) untrack(() => void arrive());
+		// a new request, and only a new one: new markup for the same request (the text edited, the manifest refreshed) is the mount's, which leaves the reader where they are
+		const at = request();
+		untrack(() => {
+			if (html && el && at && at !== arrived().at) void arrive();
+		});
 	});
 
 	onMount(() => {});

@@ -1,4 +1,4 @@
-"""AI contributions preserve author choices and require the exact inspected revision."""
+"""AI contributions preserve author choices, require the exact inspected revision, and need no git repository."""
 
 from pathlib import Path
 
@@ -10,7 +10,7 @@ from loom.history.steps import write_step
 from loom.reshape.copy import plan_copy
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
-from loom.sync import SyncError, git
+from loom.sync import SyncError
 
 DOC = "drafting/main.tex"
 COPY = "drafting-ai/proposal.tex"
@@ -52,12 +52,6 @@ def quilt(tmp_path: Path):
         cp.source_text,
         "main.tex",
     )
-    git(tmp_path, "init", "-b", "main")
-    git(tmp_path, "config", "user.name", "Tester")
-    git(tmp_path, "config", "user.email", "tester@example.test")
-    (tmp_path / ".gitignore").write_text("build/\n")
-    git(tmp_path, "add", ".")
-    git(tmp_path, "commit", "-m", "baseline")
     return q
 
 
@@ -119,8 +113,6 @@ def test_shared_node_is_updated_in_its_home(quilt):
     (root / "drafting/other.tex").write_text(
         "\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\n\\input{nodes/zk-0001}\n\\end{document}\n"
     )
-    git(root, "add", ".")
-    git(root, "commit", "-m", "share first lemma")
     edit(quilt, "First statement.", "Improved statement.")
     preview = prepare(scan(quilt), COPY, ["zk-0001"])
     assert preview["paths"] == ["nodes/zk-0001.tex"]
@@ -145,25 +137,25 @@ def test_refresh_keeps_proposals_and_advances_prose_base(quilt):
 
 
 def test_record_failure_restores_source_and_history(quilt, monkeypatch):
-    import loom.adopt as adoption
+    import loom.review_origins as origins
 
     edit(quilt, "First statement.", "Proposal.")
     preview = prepare(scan(quilt), COPY)
     ledger = (quilt.history_dir / "ledger.jsonl").read_bytes()
-    original_git = adoption.git
+    entries = sorted(p.name for p in quilt.history_dir.iterdir())
+    original_write = origins.write
 
-    def fail_commit(root, *args, **kwargs):
-        if args[0] == "commit":
-            raise SyncError("injected commit failure")
-        return original_git(root, *args, **kwargs)
+    def fail(*args, **kwargs):
+        raise SyncError("injected record failure")
 
-    monkeypatch.setattr(adoption, "git", fail_commit)
+    monkeypatch.setattr(origins, "write", fail)
     with pytest.raises(SyncError, match="injected"):
         incorporate(scan(quilt), COPY, preview["token"])
     assert (quilt.root / DOC).read_text() == TEXT
     assert (quilt.history_dir / "ledger.jsonl").read_bytes() == ledger
-    assert not git(quilt.root, "diff", "--cached").strip()
-    monkeypatch.setattr(adoption, "git", original_git)
+    assert sorted(p.name for p in quilt.history_dir.iterdir()) == entries
+    assert not (quilt.root / ".loom/review-origins.json").exists()
+    monkeypatch.setattr(origins, "write", original_write)
     incorporate(scan(quilt), COPY, preview["token"])
 
 
@@ -197,12 +189,10 @@ def test_document_choices_cannot_remove_a_kept_node(quilt):
         prepare(scan(quilt), COPY, ["zk-0001"], True)
 
 
-def test_prose_merge_preserves_committed_author_edit(quilt):
+def test_prose_merge_preserves_author_edit(quilt):
     edit(quilt, "First statement.", "AI revision.")
     edit(quilt, "\\end{document}", "New closing paragraph.\n\\end{document}")
     edit(quilt, "Original introduction.", "Author introduction.", DOC)
-    git(quilt.root, "add", DOC)
-    git(quilt.root, "commit", "-m", "author introduction")
     preview = prepare(scan(quilt), COPY, ["zk-0001"], True)
     incorporate(scan(quilt), COPY, preview["token"])
     text = (quilt.root / DOC).read_text()
@@ -229,8 +219,6 @@ def test_outside_result_is_forked_without_changing_its_document(quilt):
     other = "drafting/other.tex"
     other_text = TEXT.replace("zk-0001", "zk-0003").replace("zk-0002", "zk-0004")
     (root / other).write_text(other_text)
-    git(root, "add", other)
-    git(root, "commit", "-m", "another document")
     edit(
         quilt,
         "\\end{document}",
@@ -272,8 +260,6 @@ def test_removing_shared_inclusion_preserves_node_file(quilt):
     node_text = TEXT[start:end] + "\n"
     (root / "nodes/zk-0001.tex").write_text(node_text)
     (root / DOC).write_text(TEXT[:start] + "\\input{nodes/zk-0001}" + TEXT[end:])
-    git(root, "add", ".")
-    git(root, "commit", "-m", "move first lemma")
     copy_text = (root / COPY).read_text()
     start = copy_text.index("\\begin{lemma}")
     end = copy_text.index("\\end{lemma}") + len("\\end{lemma}")
@@ -375,13 +361,94 @@ def test_agent_command_surface_cannot_incorporate(quilt):
     assert (quilt.root / DOC).read_text() == TEXT
 
 
-def test_dirty_author_source_is_refused_before_any_write(quilt):
+def test_the_document_as_it_was_is_a_landmark(quilt):
+    from tests.helpers import ok
+
     edit(quilt, "First statement.", "AI revision.")
-    edit(quilt, "Original introduction.", "Uncommitted author prose.", DOC)
-    before = (quilt.root / DOC).read_bytes()
-    with pytest.raises(SyncError):
-        prepare(scan(quilt), COPY, ["zk-0001"])
-    assert (quilt.root / DOC).read_bytes() == before
+    edit(quilt, "Original introduction.", "Author prose since the copy.", DOC)
+    before = (quilt.root / DOC).read_text()
+    preview = prepare(scan(quilt), COPY, ["zk-0001"])
+    answer = incorporate(scan(quilt), COPY, preview["token"])
+    assert (
+        answer["landmark"] == "main-before-adopt-proposal"
+        and "landmark main-before-adopt-proposal" in answer["message"]
+    )
+    assert "AI revision." in (quilt.root / DOC).read_text()
+    steps = list(load_history(quilt.history_dir).steps())
+    assert [e.action for e in steps[-2:]] == ["stamp", "adopt"] and answer["step"] == steps[-1].step
+    assert steps[-2].get("landmark") == "main-before-adopt-proposal.tex"
+    shown = ok("history", "show", "main-before-adopt-proposal", cwd=quilt.root).stdout
+    assert "Author prose since the copy." in shown and "First statement." in shown
+    assert shown == before
+
+
+def test_a_second_adoption_numbers_its_landmark(quilt):
+    edit(quilt, "First statement.", "AI revision.")
+    incorporate(scan(quilt), COPY, prepare(scan(quilt), COPY, ["zk-0001"])["token"])
+    edit(quilt, "Second statement uses", "A second revision uses")
+    answer = incorporate(scan(quilt), COPY, prepare(scan(quilt), COPY, ["zk-0002"])["token"])
+    assert answer["landmark"] == "main-before-adopt-proposal-2"
+
+
+def test_a_git_quilt_is_left_uncommitted(quilt):
+    from loom.sync import git, revision
+
+    git(quilt.root, "init", "-b", "main")
+    git(quilt.root, "config", "user.name", "Tester")
+    git(quilt.root, "config", "user.email", "tester@example.test")
+    git(quilt.root, "add", ".")
+    git(quilt.root, "commit", "-m", "baseline")
+    head = revision(quilt.root, "HEAD")
+    edit(quilt, "First statement.", "AI revision.")
+    incorporate(scan(quilt), COPY, prepare(scan(quilt), COPY, ["zk-0001"])["token"])
+    assert revision(quilt.root, "HEAD") == head
+    assert not git(quilt.root, "diff", "--cached").strip()
+
+
+def test_an_author_edit_after_the_preview_refuses_it(quilt):
+    edit(quilt, "First statement.", "AI revision.")
+    preview = prepare(scan(quilt), COPY, ["zk-0001"])
+    edit(quilt, "Original introduction.", "Edited after the preview.", DOC)
+    with pytest.raises(SyncError, match="changed"):
+        incorporate(scan(quilt), COPY, preview["token"])
+    assert "Edited after the preview." in (quilt.root / DOC).read_text()
+
+
+def test_keys_that_name_no_change_are_answered_with_the_command(quilt):
+    edit(quilt, "First statement.", "AI revision.")
+    with pytest.raises(SyncError) as refused:
+        prepare(scan(quilt), COPY, ["draft5.tex"])
+    message = str(refused.value)
+    assert "never writes another document" in message and "zk-0001" in message
+    assert "loom adopt proposal.tex" in message
+
+
+def test_a_new_result_names_the_flag_that_places_it(quilt):
+    edit(quilt, "\\end{document}", "\\begin{lemma}\\label{zk-0003-ai}\nNew support.\n\\end{lemma}\n\\end{document}")
+    with pytest.raises(SyncError, match="--document-changes"):
+        prepare(scan(quilt), COPY, ["zk-0003"])
+
+
+def test_theorems_declared_in_a_local_style_are_results(quilt):
+    root = quilt.root
+    (root / "thm.sty").write_text("\\newtheorem{claim}{Claim}\n")
+    for path in (DOC, COPY):
+        text = (root / path).read_text()
+        (root / path).write_text(
+            text.replace("\\begin{document}", "\\usepackage{thm}\n\\begin{document}", 1).replace("{lemma}", "{claim}")
+        )
+    rows = {r["key"]: r for r in comparison(scan(quilt), COPY)["changes"]}
+    assert {"zk-0001", "zk-0002"} <= set(rows)
+    assert not [k for k in rows if "#proof:" in k]
+
+
+def test_two_separate_prose_edits_on_each_side_merge(quilt):
+    edit(quilt, "Original introduction.", "AI introduction.")
+    edit(quilt, "\\end{document}", "AI closing.\n\\end{document}")
+    edit(quilt, "\\begin{lemma}\\label{zk-0002}", "Author bridge.\n\\begin{lemma}\\label{zk-0002}", DOC)
+    data = comparison(scan(quilt), COPY)
+    assert not data["document_conflict"]
+    assert "AI introduction." in data["merged_document"] and "Author bridge." in data["merged_document"]
 
 
 def test_changed_preview_proposal_snapshot_is_reported_by_history_verify(quilt):
@@ -398,8 +465,6 @@ def test_changed_preview_proposal_snapshot_is_reported_by_history_verify(quilt):
 
 def test_new_proof_records_its_current_author_statement(quilt):
     edit(quilt, "First statement.", "Author revised statement.", DOC)
-    git(quilt.root, "add", DOC)
-    git(quilt.root, "commit", "-m", "Author revision")
     draft = quilt.root / COPY
     draft.write_text(
         draft.read_text().replace("\\end{lemma}", "\\end{lemma}\n\\begin{proof}\nProposed proof.\n\\end{proof}", 1)
@@ -411,9 +476,10 @@ def test_new_proof_records_its_current_author_statement(quilt):
     preview = prepare(result, COPY, [plain_key(proof)], True)
     incorporate(scan(quilt), COPY, preview["token"])
     history = load_history(quilt.history_dir)
-    entry = list(history.steps())[-1]
-    assert entry.get("of")[plain_key(proof)] == f"zk-0001@{entry.step}"
-    assert "zk-0001" in entry.get("froze")
+    stamp, entry = list(history.steps())[-2:]
+    # the landmark's stamp recorded the author's statement, so the proof is of that version
+    assert entry.get("of")[plain_key(proof)] == f"zk-0001@{stamp.step}"
+    assert "zk-0001" in stamp.get("froze")
     from loom.history.checks import verify
 
     assert not [d for d in verify(scan(quilt), history) if d.severity == "error"]

@@ -87,6 +87,7 @@
 <div class="shell-c">
 	<nav class="strip" aria-label="Views">
 		<ul>
+			<!-- back to reading returns to the workspace's address, which names the place a link last sent a tab to; each pane puts the reader back where they were, so neither scrolling nor focus is let go to that place first -->
 			{#each views.filter((v) => v.id !== 'problems') as v (v.id)}
 				<li>
 					<a
@@ -95,6 +96,8 @@
 						title={v.label}
 						class:current={currentView === v.id}
 						aria-current={currentView === v.id ? 'page' : undefined}
+						data-sveltekit-noscroll={v.id === 'read' ? '' : undefined}
+						data-sveltekit-keepfocus={v.id === 'read' ? '' : undefined}
 						data-testid="view-{v.id}"><Icon name={v.icon} /></a
 					>
 				</li>

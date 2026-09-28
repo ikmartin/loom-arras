@@ -144,6 +144,35 @@ def write_step(
     return append_entry(history.dir, action, data, actor)
 
 
+def stamp_document(
+    result: ScanResult, history: History, doc: str, name: str, message: str, actor: str | None
+) -> tuple[Entry, FreezePlan]:
+    """Stamp a live drafting document: the keys it reaches that moved, and its flat text kept as the landmark `name`.
+
+    Shared by `loom stamp DOCUMENT` and adoption, which stamps the document it is about to write. Raises ValueError when the document reaches a conflicted key, which has no one text to keep; the caller checks the name is free.
+    """
+    from loom.reshape.linearize import flatten
+
+    conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and doc in n.reached_by)
+    if conflicted:
+        raise ValueError(
+            f"{doc} reaches {', '.join(conflicted)}, defined by two files each; a landmark needs one text per key. loom lint --nodes shows them."
+        )
+    plan = plan_freeze(result, history, document=doc, narrow_to=doc)
+    text = flatten(result.quilt.root, doc).text
+    extra: dict[str, Any] = {
+        "message": message,
+        "in": doc,
+        "landmark": f"{name}.tex",
+        "to": {"path": f"{name}.tex", "hash": text_hash(text)},
+        "reaches": plan.reaches,
+    }
+    entry = write_step(
+        history, "stamp", name, plan, actor, extra=extra, document_text=text, document_name=f"{name}.tex"
+    )
+    return entry, plan
+
+
 def file_hash(path: Path) -> str:
     """sha256 over a file's exact text, so a comment-only edit to a landmark's text is seen (book 17.15)."""
     return sha256(path.read_text(encoding="utf-8", errors="replace"))

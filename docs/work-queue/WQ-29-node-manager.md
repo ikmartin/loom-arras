@@ -20,6 +20,7 @@ Ancestry is already a ledger entry (`rl-0042 forked from rl-0007@2`) and version
 - **Fork from history**, in the history view: pick `rl-0007@2`, name or allocate an id, choose the document it lands in; the same command underneath.
 - **Retire**: mark an id as deliberately absent, so `orphan-node` and `undefined-node` stop mentioning it and a later recovery is reported as a recovery, not a reuse.
 - **Merge**: two forks back into one id, as a fork in reverse with both parents recorded.
+- **A document started from another**: `loom history restore LANDMARK --to FILE` starts one and leaves every id the two share as a conflict to resolve by hand; the operation is choosing, per result, to share it (one node file, one id) or fork it, with a preview before anything is written. It absorbs WQ-53's `adopt --as`, which was this with an agent's copy as the source.
 - **Rename**: WQ-11's operation — an id change as a loom command that the editor triggers, rewriting every `\ref`, `\uses` and postnote through the language server rather than by hand.
 
 Arras shows a node's family — ancestors, forks, the version it was forked at — on the node page.

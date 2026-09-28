@@ -138,6 +138,49 @@ test.describe('a work', () => {
 		await page.getByTestId('tab-paper').click();
 		await expect(page.getByTestId('zoom-at')).toBeEnabled();
 	});
+
+	test('a selection draws nothing at the line breaks of the page text', async ({ page }) => {
+		// three lines of real text, so the text layer ends each with a <br>; selected, those drew a column of bars down the page's left edge
+		const stream = 'BT /F1 24 Tf 72 700 Td (First line) Tj 0 -30 Td (Second line) Tj 0 -30 Td (Third line) Tj ET';
+		const pdf = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj
+4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
+5 0 obj<</Length ${stream.length}>>stream
+${stream}
+endstream endobj
+trailer<</Root 1 0 R>>
+%%EOF`;
+		await serve(page, (m) => (m.references.Kre99.artifacts.pdf = true));
+		await page.route('**/paper.pdf', (route) => route.fulfill({ body: pdf, contentType: 'application/pdf' }));
+		await page.goto('/library/Kre99');
+		const layer = page.locator('.page .text').first();
+		await expect(layer.locator('br').first()).toBeAttached();
+		await layer.evaluate((el) => {
+			const range = document.createRange();
+			range.selectNodeContents(el);
+			getSelection()!.removeAllRanges();
+			getSelection()!.addRange(range);
+		});
+		// the strip down the layer's left edge holds no text, only where the breaks stand: count its selection-blue pixels
+		const box = (await layer.boundingBox())!;
+		const shot = await page.screenshot({ clip: { x: box.x, y: box.y, width: 12, height: box.height } });
+		const blue = await page.evaluate(async (data) => {
+			const img = new Image();
+			img.src = `data:image/png;base64,${data}`;
+			await img.decode();
+			const c = document.createElement('canvas');
+			[c.width, c.height] = [img.width, img.height];
+			const ctx = c.getContext('2d')!;
+			ctx.drawImage(img, 0, 0);
+			const px = ctx.getImageData(0, 0, c.width, c.height).data;
+			let n = 0;
+			for (let i = 0; i < px.length; i += 4) if (px[i + 2] - px[i] > 30) n++;
+			return n;
+		}, shot.toString('base64'));
+		expect(blue).toBe(0);
+	});
 });
 
 test.describe('the digest', () => {

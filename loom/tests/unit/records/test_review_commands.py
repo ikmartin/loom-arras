@@ -1351,3 +1351,32 @@ def test_an_annotation_in_a_linearized_document_is_drawn_in_what_it_became(tmp_p
     assert ann in (d / "build" / "fragments" / "masters" / "main-flat.html").read_text()
     # the record keeps the path it was written with
     assert [e["in"] for e in events(d) if e.get("id") == ann] == ["drafting/main.tex"]
+
+
+def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(tmp_path: Path) -> None:
+    """A proposal that is a whole result reached the viewer as TeX, and MathJax drew each environment as an error; the publisher renders it beside the TeX."""
+    d = demo(tmp_path)
+    sid, _ = session(d)
+    payload = "\\begin{lemma}\\label{dm-0002-ai}\nEvery nonempty orbit has \\(1\\) or \\(2\\) points.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nBy definition.\n\\end{proof}"
+    r = ok(
+        "annotate",
+        "dm-0002",
+        "A sharper statement.",
+        "--kind",
+        "suggestion",
+        "--payload",
+        payload,
+        "--placement",
+        "replace",
+        "--session",
+        sid,
+        cwd=d,
+        env=AGENT,
+    )
+    ann = r.output.split()[0]
+    ok("build", cwd=d)
+    entry = json.loads((d / "build/manifest.json").read_text())["annotations"][ann]
+    assert entry["payload"] == payload
+    html = entry["payload_html"]
+    assert 'class="env env-lemma"' in html and "env-proof" in html
+    assert "\\begin{" not in html and "\\uses" not in html and 'id="' not in html

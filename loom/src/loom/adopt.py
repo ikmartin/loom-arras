@@ -12,14 +12,14 @@ from pathlib import Path
 from typing import Any
 
 from loom.history.ledger import History, append_entry, load_history
-from loom.history.steps import plan_freeze, text_hash, write_step
+from loom.history.steps import plan_freeze, slug, stamp_document, text_hash, write_step
 from loom.render.manifest import own_text
 from loom.reshape.linearize import flatten
 from loom.scan.hashing import pair_hash
 from loom.scan.labels import next_local, plain_key, rename_labels
 from loom.scan.quilt import Quilt, resolve_author
 from loom.scan.scan import ScanResult, scan
-from loom.sync import SyncError, git, revision
+from loom.sync import SyncError
 
 _MARKER = re.compile(r"% !LOOM adopt-node: ([^\n]+)\n")
 _INCLUDE = re.compile(r"\\(?:input|include|nest)\s*\{([^}]+)\}")
@@ -92,12 +92,14 @@ def _flat_shape(result: ScanResult, text: str) -> tuple[dict[str, str], str]:
         doc = result.quilt.config.drafting + "/adoption-snapshot.tex"
         (root / doc).parent.mkdir(parents=True)
         (root / doc).write_text(rename_labels(text, plain=True))
-        # Local theorem declarations in style files must remain visible to the scanner.
-        for name, src in result.files.items():
-            if name.endswith((".sty", ".cls", ".bib")):
+        # Local theorem declarations must remain visible to the scanner: every file a preamble loads, read from disk, since the scan reads a local .sty on demand and never lists it in `files`.
+        loaded = {f for c in result.closures.values() for f in c.files if f not in result.masters}
+        for name in sorted(loaded | {n for n in result.files if n.endswith(".bib")}):
+            source = result.quilt.root / name
+            if source.is_file():
                 target = root / name
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(src.text)
+                target.write_text(source.read_text())
         snap = scan(Quilt(root, result.quilt.config))
         bodies, _, skeletons = _shape(snap, doc)
         return bodies, skeletons[doc]
@@ -130,8 +132,14 @@ def _merge(base: str, ours: str, theirs: str) -> tuple[str, bool]:
         paths = [Path(temporary) / name for name in ("working", "base", "proposal")]
         for path, text in zip(paths, (ours, base, theirs), strict=True):
             path.write_text(text)
-        run = subprocess.run(["git", "merge-file", "-p", *map(str, paths)], capture_output=True)
-        if run.returncode not in (0, 1):
+        try:
+            run = subprocess.run(["git", "merge-file", "-p", *map(str, paths)], capture_output=True)
+        except FileNotFoundError:
+            raise SyncError(
+                "Merging the document's prose with your edits needs the git program, which is not installed; install git (loom doctor checks for it)"
+            ) from None
+        # git merge-file exits with the number of conflicts, capped at 127, and negative (255 to a shell) on error
+        if not 0 <= run.returncode <= 127:
             raise SyncError(run.stderr.decode() or "Document merge failed")
         return run.stdout.decode(), run.returncode != 0
 
@@ -144,7 +152,12 @@ def _resolve(result: ScanResult, copy: str) -> tuple[str, str]:
     if result.document_role(copy) != "drafting-ai":
         raise SyncError("Adoption requires a live AI draft")
     source = _history(result).copy_of(copy, result.masters)
-    if not source or result.document_role(source) != "drafting":
+    if not source:
+        # a document written straight into the directory has no copy step, so no source and no bases (loom:agent-document-not-a-copy)
+        raise SyncError(
+            f"{copy} is not a copy: no copy step made it, so it has no working document to be incorporated into or updated from; an AI draft starts as `loom draft DOC --ai NAME`"
+        )
+    if result.document_role(source) != "drafting":
         raise SyncError("The original working document is unavailable; restore it before incorporating")
     return copy, source
 
@@ -324,6 +337,27 @@ def _project(result: ScanResult, source: str, bodies: dict[str, str], document: 
     return overlay
 
 
+def _not_offered(unknown: list[str], data: dict[str, Any], offered: dict[str, Any]) -> str:
+    """The refusal of keys that name no change, with what the copy does offer and the command that lists it.
+
+    A `.tex` name among the keys is a reader asking adoption to write a new document, which it never does, so that case says where the changes go instead.
+    """
+    copy, source = Path(data["copy"]).name, data["source"]
+    lines = [f"{', '.join(unknown)}: not a result with a change in {copy}"]
+    if any(k.endswith(".tex") for k in unknown):
+        lines.append(
+            f"Adoption revises {source}, the document {copy} was copied from; it never writes another document. Name results by key, or name none to take every change."
+        )
+    shown = sorted(offered)[:8]
+    if shown:
+        lines.append(
+            f"Changed results: {', '.join(shown)}"
+            + (f" and {len(offered) - len(shown)} more" if len(offered) > len(shown) else "")
+        )
+    lines.append(f"Run `loom adopt {copy}` to see every change.")
+    return "\n".join(lines)
+
+
 def prepare(
     result: ScanResult, copy: str, keys: list[str] | None = None, document: bool = False, reviewer: str | None = None
 ) -> dict[str, Any]:
@@ -352,8 +386,9 @@ def prepare(
     data = comparison(result, copy)
     offered = {row["key"]: row for row in data["changes"] if row["offered"]}
     selected = sorted(offered if keys is None else set(keys))
-    if set(selected) - offered.keys():
-        raise SyncError("Selection contains a node with no outstanding proposal; refresh Incoming")
+    unknown = sorted(set(selected) - offered.keys())
+    if unknown:
+        raise SyncError(_not_offered(unknown, data, offered))
     issues = [
         f"{key}: both versions changed; reconcile the two copies in your editor, run loom ai refresh, and refresh Incoming"
         for key in selected
@@ -402,7 +437,9 @@ def prepare(
         if not row["proposed"]:
             spine = spine.replace(_marker(key), "")
         elif row["class"] in ("new", "separate-result") and _marker(_mapped(key, new_mapping)) not in spine:
-            raise SyncError(f"{key}: include document-level changes to place the new result")
+            raise SyncError(
+                f"{key} is a new result, and placing it changes the document; run `loom adopt {Path(data['copy']).name} --document-changes`, with the keys you chose"
+            )
     for row in data["changes"]:
         if row["key"] in selected and not row["proposed"]:
             bodies = {key: text.replace(_marker(row["key"]), "") for key, text in bodies.items()}
@@ -430,10 +467,6 @@ def prepare(
     if errors:
         raise SyncError("\n".join(dict.fromkeys(errors)))
     paths = sorted(overlay)
-    head = revision(root, "HEAD")
-    git(root, "diff", "--cached", "--quiet")
-    if paths:
-        git(root, "diff", "--quiet", "HEAD", "--", *paths)
     patch = "".join(
         "".join(
             difflib.unified_diff(
@@ -445,10 +478,6 @@ def prepare(
         )
         for path, text in sorted(overlay.items())
     )
-    if patch:
-        from loom.sync import check_reviewed_patch
-
-        check_reviewed_patch(root, patch.encode(), paths, head)
     moved = json.loads(json.dumps(data["baseline"]))
     for row in data["changes"]:
         if row["key"] in selected or row["class"] == "identical":
@@ -463,7 +492,6 @@ def prepare(
         "copy": data["copy"],
         "source": data["source"],
         "fingerprint": data["fingerprint"],
-        "head": head,
         "reviewer": who,
         "keys": selected,
         "document": document,
@@ -497,7 +525,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     Returns
     -------
     dict
-        Incorporated paths and commit, or a no-change result.
+        Incorporated paths, the adopt step, and the landmark keeping the document as it was; or a no-change result.
     """
     if not re.fullmatch("[0-9a-f]{64}", token):
         raise SyncError("Invalid preview token")
@@ -511,12 +539,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
         raise SyncError("Preview changed; inspect the contribution again")
     data = comparison(result, copy)
     who = resolve_author(reviewer, root)[0]
-    if (
-        data["copy"] != saved["copy"]
-        or data["fingerprint"] != saved["fingerprint"]
-        or who != saved["reviewer"]
-        or revision(root, "HEAD") != saved["head"]
-    ):
+    if data["copy"] != saved["copy"] or data["fingerprint"] != saved["fingerprint"] or who != saved["reviewer"]:
         raise SyncError("Source, proposal or reviewer changed; refresh Incoming and preview again")
     if saved.get("decision") != decisions(result, copy, who):
         raise SyncError("Selection changed; preview the selected changes again")
@@ -528,17 +551,27 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     from loom.records.store import Records
     from loom.review_origins import read, write
     from loom.review_queue import fingerprint
-    from loom.sync import apply_reviewed_patch
 
     history = _history(result)
-    tracked_records = [root / ".loom/review-origins.json", history.dir / "ledger.jsonl"]
-    snapshots = {p: p.read_bytes() if p.exists() else None for p in tracked_records}
-    step_dir = history.dir / f"{history.next_step():04d}-adopt-{Path(data['copy']).stem}"
-
-    if step_dir.exists():
-        raise SyncError(f"History step directory already exists: {step_dir.name}; reconcile it before incorporation")
+    for rel in saved["paths"]:
+        if rel not in result.files and (root / rel).exists():
+            raise SyncError(f"{rel} appeared after the preview; inspect the contribution again")
+    # Everything incorporation may write, as it was: restored byte for byte if any step fails.
+    touched_files = [
+        root / ".loom/review-origins.json",
+        history.dir / "ledger.jsonl",
+        *(root / p for p in saved["paths"]),
+    ]
+    snapshots = {p: p.read_bytes() if p.exists() else None for p in touched_files}
+    kept_entries = {p.name for p in history.dir.iterdir()} if history.dir.is_dir() else set()
+    source_stem = Path(data["source"]).stem
+    landmark = base = slug(f"{source_stem} before adopt {Path(data['copy']).stem}", limit=120)
+    suffix = 2
+    while history.landmark(landmark) is not None:
+        landmark, suffix = f"{base}-{suffix}", suffix + 1
 
     def finish() -> dict[str, Any]:
+        history = _history(result)  # re-read: the landmark's stamp step is now the latest
         after = scan(result.quilt)
         freeze = plan_freeze(after, history, document=data["source"], narrow_to=data["source"])
         freeze.removed = []
@@ -657,42 +690,35 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
                     ),
                 }
         write(root, origins)
-        record_paths = [p.relative_to(root).as_posix() for p in tracked_records] + [
-            p.relative_to(root).as_posix() for p in step_dir.rglob("*") if p.is_file()
-        ]
-        paths = [*saved["paths"], *record_paths]
-        git(root, "add", "--", *paths)
-        git(root, "commit", "-m", f"Incorporate AI contribution {data['copy']}", "--", *paths)
         return {
             "paths": saved["paths"],
-            "commit": revision(root, "HEAD"),
+            "step": entry.step,
+            "landmark": landmark,
             "copy": data["copy"],
-            "message": "Changes incorporated; mathematics remains to be reviewed",
+            "message": f"Changes incorporated; {source_stem} as it was is landmark {landmark}; mathematics remains to be reviewed",
         }
 
     try:
-        return apply_reviewed_patch(root, saved["patch"].encode(), saved["paths"], saved["head"], finish)
-    except Exception:
-        if revision(root, "HEAD") == saved["head"]:
-            import shutil
+        stamp_document(
+            result, history, data["source"], landmark, f"{data['source']} before adopting {data['copy']}", who
+        )
+        for rel, text in saved["overlay"].items():
+            target = root / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+        return finish()
+    except Exception as exc:
+        import shutil
 
-            for record, content in snapshots.items():
-                if content is None:
-                    record.unlink(missing_ok=True)
-                else:
-                    record.write_bytes(content)
-            if step_dir.exists():
-                shutil.rmtree(step_dir)
-            git(
-                root,
-                "reset",
-                "--quiet",
-                saved["head"],
-                "--",
-                *saved["paths"],
-                *[p.relative_to(root).as_posix() for p in tracked_records],
-                step_dir.relative_to(root).as_posix(),
-            )
+        for file, content in snapshots.items():
+            if content is None:
+                file.unlink(missing_ok=True)
+            else:
+                file.write_bytes(content)
+        for made in (e for e in history.dir.iterdir() if e.name not in kept_entries and e.is_dir()):
+            shutil.rmtree(made)
+        if isinstance(exc, ValueError):
+            raise SyncError(str(exc)) from exc
         raise
 
 

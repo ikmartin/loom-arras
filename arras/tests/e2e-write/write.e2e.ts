@@ -619,14 +619,10 @@ test('compare asks the publisher, which narrows a changed node to its changed wo
 });
 
 test('AI contributions preview selected changes before incorporation and leave mathematics for review', async ({ page, served }) => {
-	const { execFileSync } = await import('node:child_process');
 	const document = 'drafting/adoption-test.tex';
 	const text = '\\documentclass{article}\n\\newtheorem{lemma}{Lemma}\n\\begin{document}\nIntroduction.\n\\begin{lemma}\\label{sy-0900}\nOriginal statement.\n\\end{lemma}\n\\end{document}\n';
 	writeFileSync(join(served.root, document), text);
 	served.loom(['draft', document, '--ai', 'adoption-proposal']);
-	const git = (...args: string[]) => execFileSync('git', args, {cwd: served.root, encoding: 'utf8'});
-	git('init'); git('config', 'user.name', 'Test Reader'); git('config', 'user.email', 'reader@example.test');
-	git('add', '.'); git('commit', '-m', 'adoption baseline');
 	const copy = join(served.root, 'drafting-ai/adoption-proposal.tex');
 	writeFileSync(copy, readFileSync(copy, 'utf8').replace('Original statement.', 'Proposed statement.'));
 	await page.goto('/review?show=incoming');
@@ -641,6 +637,8 @@ test('AI contributions preview selected changes before incorporation and leave m
 	expect(readFileSync(join(served.root, document), 'utf8')).toBe(text);
 	await page.getByRole('button', {name: 'Incorporate selected changes', exact: true}).click();
 	await expect.poll(() => readFileSync(join(served.root, document), 'utf8')).toContain('Proposed statement.');
+	// no git: the quilt is not a repository, and what the document was is kept as a landmark instead
+	await expect(page.locator('main')).toContainText('The document as it was is kept as adoption-test-before-adopt-adoption-proposal.');
 	await page.goto('/review?show=needs-review');
 	await expect(page.locator('main')).toContainText('sy-0900');
 });

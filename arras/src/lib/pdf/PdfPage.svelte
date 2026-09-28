@@ -396,6 +396,10 @@
 	.text :global(span::selection) {
 		background: rgb(24 95 165 / 0.25);
 	}
+	/* A line's `<br>` stands at the layer's left edge, so a selected one draws a short bar there, a column of them down the margin for a selection of many lines; pdf_viewer.css (lines 773-778) makes it transparent, and so must this. */
+	.text :global(br::selection) {
+		background: transparent;
+	}
 	/* While the box tool is up a drag draws a rectangle, so the text must not take the drag instead. */
 	.page.boxing .text {
 		user-select: none;

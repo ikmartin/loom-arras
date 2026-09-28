@@ -465,6 +465,9 @@ def build(
     from loom.render.incoming import attach_adoptions
 
     attach_adoptions(result, renderer, manifest, files)
+    from loom.render.payloads import attach_payloads
+
+    attach_payloads(result, renderer, manifest)
     from loom.review_queue import has_legacy, rows_for
 
     manifest["unresolved"] = rows_for(result, manifest)

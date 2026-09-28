@@ -211,6 +211,24 @@ test.describe('marks', () => {
 		await expect(page.locator('aside.comment-slot.expanded')).toHaveCount(1);
 	});
 
+	test('a block mark is drawn in its hue: a quote loom could not place marks its whole block, a list among them', async ({ page }) => {
+		// the publisher marks the block with `annotation-block` alone; the viewer gives it `annotation`, which every rule for hue, weight, settled and hidden is keyed on
+		await page.route('**/fragments/masters/main.html', async (route) => {
+			const res = await route.fetch();
+			const body = (await res.text()).replace('<ul data-src=', '<ul class="annotation-block" data-annotation="a-2026-09-16-0001" data-src=');
+			await route.fulfill({ response: res, body });
+		});
+		await page.goto('/master/main');
+		const list = pane(page, 0).locator('.fragment ul.annotation-block');
+		await expect(list).toHaveClass(/\bannotation\b.*k-objection|k-objection.*\bannotation\b/);
+		const drawn = await list.evaluate((el) => {
+			const cs = getComputedStyle(el);
+			return { decoration: cs.textDecorationLine, color: cs.textDecorationColor };
+		});
+		expect(drawn.decoration).toBe('underline');
+		expect(drawn.color).toBe('rgb(163, 45, 45)');
+	});
+
 	test('a displayed formula is ruled beneath, and a block underlined line by line, in the same hue and weight', async ({ page }) => {
 		// no fixture annotation marks a display, so the rule is held on the class alone: the same variables draw every shape
 		await page.goto('/master/main');
@@ -337,6 +355,27 @@ test.describe('marks and boxes', () => {
 		await expect(slots).toHaveCount(0);
 	});
 
+	test('floating, a box that grows as its content renders stays clear of the window foot', async ({ page }) => {
+		await prefs(page, { comments: 'floating' });
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment[data-comments-wired="floating"] mark.annotation[data-wired-mark]');
+		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
+		// the mark mid-window, so a box grown past the window fits neither below it nor above it and is held at the foot, where nothing is left to scroll to reach it
+		await mark.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+		await mark.click();
+		const slot = page.locator('aside.comment-slot.floating');
+		await expect(slot).toHaveCount(1);
+		// what renders after the box is placed makes it taller, as math and a proposed theorem do
+		await slot.evaluate((el) => {
+			const grown = document.createElement('div');
+			grown.style.height = '2000px';
+			el.querySelector('article.box')!.append(grown);
+		});
+		await expect
+			.poll(() => slot.evaluate((el) => window.innerHeight - el.getBoundingClientRect().bottom))
+			.toBeGreaterThanOrEqual(3.5);
+	});
+
 	test('inline, a mark expands its comment beneath its paragraph; clicking away closes it', async ({ page }) => {
 		await prefs(page, { comments: 'inline' });
 		await page.goto('/master/main');
@@ -426,6 +465,32 @@ test.describe('the box', () => {
 		return box;
 	}
 
+	test('a reply being written survives a new manifest: the box is made again with its text, open, the cursor where it was', async ({ page }) => {
+		// a serving publisher writes a new manifest whenever the quilt changes, an agent's annotation among them, and the document re-draws its boxes: a reply kept only in the box was lost with it
+		let revision = 0;
+		let served = 0;
+		await page.route('**/_api', (route) => route.fulfill({ json: { write_api: 1, capabilities: ['reply', 'resolve', 'edit', 'discard'] } }));
+		await serve(page, (m) => {
+			served += 1;
+			m.sessions[0].title = `A sitting, revision ${revision}`;
+		});
+		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-0001');
+		await box.getByTestId('verb-reply').click();
+		const text = box.getByTestId('verb-text');
+		await text.fill('Half of what I meant to say');
+		revision = 1;
+		const before = served;
+		await expect.poll(() => served).toBeGreaterThan(before + 1);
+		await page.waitForTimeout(500);
+		const again = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"]').getByTestId('verb-text');
+		await expect(again).toHaveValue('Half of what I meant to say');
+		await expect(again).toBeFocused();
+		// cancel is what forgets it
+		await page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"]').getByTestId('verb-cancel').click();
+		await page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"]').getByTestId('verb-reply').click();
+		await expect(page.locator('[data-testid="comment-expanded"]').getByTestId('verb-text')).toHaveValue('');
+	});
+
 	test('it is titled by its kind and severity in the hue with the × on that line, then the body; no status word, author and date on one line', async ({ page }) => {
 		const box = await openBox(page, '/node/sy-0003', 'a-2026-09-16-0001');
 		await expect(box.getByTestId('severity')).toHaveCount(0);
@@ -492,6 +557,51 @@ test.describe('the box', () => {
 		await view.click();
 		await expect(pay.getByTestId('payload-verbatim')).toContainText('\\ref{sy-0002}');
 		await expect(view).toHaveText('· rendered');
+	});
+
+	test('a proposed theorem and proof read as the document prints them, from the publisher, never as a typesetting error', async ({ page }) => {
+		const tex = '\\begin{theorem}\\label{sy-0004-ai}\nEvery orbit has \\(1\\) or \\(2\\) points.\n\\end{theorem}\n\\begin{proof}\nBy definition.\n\\end{proof}';
+		await serve(page, (m) => {
+			m.annotations['a-2026-09-16-0002'].status = 'open';
+			m.annotations['a-2026-09-16-0002'].payload = tex;
+			m.annotations['a-2026-09-16-0002'].payload_html =
+				'<div class="env env-theorem" data-taxon="Theorem" data-style="plain"><p class="env-label"><span class="taxon">Theorem</span></p><p>Every orbit has <span class="math inline">\\(1\\)</span> or <span class="math inline">\\(2\\)</span> points.</p></div><details class="env env-proof" open><summary class="env-label">Proof</summary><p>By definition.</p></details>';
+		});
+		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-0002');
+		const rendered = box.getByTestId('payload-rendered');
+		await expect(rendered.locator('.env-theorem .taxon')).toHaveText('Theorem');
+		await expect(rendered.locator('.env-proof')).toContainText('By definition.');
+		await expect(rendered.locator('mjx-container').first()).toBeAttached();
+		await expect(rendered.locator('mjx-merror')).toHaveCount(0);
+		await expect(rendered).not.toContainText('\\begin');
+		// the verbatim view is still the TeX as written
+		await box.getByTestId('payload-view').click();
+		await expect(box.getByTestId('payload-verbatim')).toHaveText(tex);
+	});
+
+	test('a verbatim proposal is one block: its lines kept, never a strip per line overlapping the one above, the switch beside the placement word', async ({ page }) => {
+		const long = ['if and only if \\(x\\) is in the image of \\(\\eta(U)\\colon\\mathcal Y^G(U)\\to \\mathcal Y(U)\\): indeed \\(\\mathcal Y^G\\) parameterizes group-theoretic sections', '  of \\(\\mathcal Y\\) \\cite[Lemma 4.1.2]{Kre99}.'].join('\n');
+		await serve(page, (m) => {
+			m.annotations['a-2026-09-16-0002'].status = 'open';
+			m.annotations['a-2026-09-16-0002'].payload = long;
+		});
+		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-0002');
+		const pay = box.getByTestId('payload');
+		await pay.getByTestId('payload-view').click();
+		const pre = pay.getByTestId('payload-verbatim');
+		await expect(pre).toBeVisible();
+		const drawn = await pre.evaluate((el) => {
+			const cs = getComputedStyle(el);
+			return { display: cs.display, boxes: el.getClientRects().length, line: parseFloat(cs.lineHeight), size: parseFloat(cs.fontSize), text: el.textContent };
+		});
+		expect(drawn.display).toBe('block');
+		expect(drawn.boxes).toBe(1);
+		expect(drawn.line).toBeGreaterThan(drawn.size * 1.3);
+		expect(drawn.text).toBe(long);
+		// the switch stays on the placement word's line, above the text, whichever way it is shown
+		const word = await pay.locator('.word').boundingBox();
+		const view = await pay.getByTestId('payload-view').boundingBox();
+		expect(Math.abs(view!.y - word!.y)).toBeLessThan(6);
 	});
 
 	test("a citation's work stands at a rule in the citation's hue; accept and reject are its verbs, and once decided the box says so once and they go", async ({ page }) => {
@@ -695,6 +805,21 @@ test.describe('writing', () => {
 		await page.getByTestId('verb-resolve').first().click();
 		await expect(said).toBeVisible();
 		await expect(said).toContainText('no author name');
+	});
+
+	test("words selected in an annotation's box are not the document's, and offer nothing to annotate", async ({ page }) => {
+		// a box stands in the fragment's markup, but a note quoting its words would be filed on the node with a quote its source does not hold
+		await writes(page, ['annotate', 'reply']);
+		await page.goto('/node/sy-0003');
+		await page.locator('.fragment .annotation[data-annotation~="a-2026-09-16-0001"]').first().click();
+		const body = page.locator('[data-testid="comment-expanded"] article.box[data-annotation-id="a-2026-09-16-0001"] .body').first();
+		await expect(body).toBeVisible();
+		await selectWithin(body);
+		await page.waitForTimeout(300);
+		await expect(page.getByTestId('annotate-offer')).toHaveCount(0);
+		// the document's own words still offer it
+		await selectWithin(pane(page, 0).locator('.fragment .env[data-id="sy-0003"] p[data-src]').first());
+		await expect(page.getByTestId('annotate-offer')).toHaveCount(1);
 	});
 
 	test('a selection offers one annotate chip at its end, in the annotation neutral at the reader\'s body size, opaque under the pointer, and Enter does what the chip does', async ({ page }) => {

@@ -400,6 +400,8 @@ def ligatures(s: str) -> str:
 
 
 _LABEL_IN_ENV = re.compile(r"\\label\s*\{([^}]*)\}")
+#: A paragraph of nothing but empty formulas and spaces: `$ $` on a line of its own is how LaTeX is told to start a list on the line after a theorem's heading, and a list in HTML starts on its own line anyway, so it is drawn as nothing rather than as a blank line.
+_SPACER = re.compile(r'^(?:\s|&nbsp;|\u00a0|<span class="math inline"[^>]*>\\\(\s*\\\)</span>)*$')
 
 
 def number_of(ctx: RenderContext, label: str) -> str | None:
@@ -550,7 +552,7 @@ class Converter:
 
         def flush(pend: int) -> None:
             body = "".join(para)
-            if body.strip():
+            if body.strip() and not _SPACER.match(body):
                 if fallback_reason[0]:
                     latex = ctx.text[pstart[0] : pend].strip()
                     ctx.diagnostics.append(

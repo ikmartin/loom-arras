@@ -1,6 +1,7 @@
 <script lang="ts">
 	// An annotation's box (book 15.3.1): a title line of the kind in its hue, and the severity after an objection's or a suggestion's, with the × when the box can be closed; the body; then what its kind adds -- a suggestion's proposed text at a rule in the suggestion's hue, a citation's work at one in the citation's -- then one meta line of author, date and the verbs. The kind is both the title and the stripe's hue; an open box is open, severity is the mark's weight, and an anchored annotation's quote is its mark. A settled box (resolved or discarded) has its stripe at half strength, its body softened, and the outcome once on the meta line.
 	import TexProse from '$lib/math/TexProse.svelte';
+	import TexHtml from '$lib/math/TexHtml.svelte';
 	import VerbRow from '$lib/review/VerbRow.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import type { Annotation } from '$lib/manifest/types';
@@ -64,13 +65,15 @@
 	{:else if annotation.payload}
 		<!-- Text the annotation proposes, where its `placement` says it would go. A preview only: nothing here applies anything. -->
 		<div class="pay" data-testid="payload" data-placement={word}>
-			<span class="word">{word}</span>
+			<!-- the switch stands with the word, so it keeps its place whichever way the text is shown -->
+			<p class="head"><span class="word">{word}</span> <button type="button" class="as-link verbatim" aria-pressed={verbatim} data-testid="payload-view" onclick={() => (verbatim = !verbatim)}>· {verbatim ? 'rendered' : 'verbatim'}</button></p>
 			{#if verbatim}
+				<!-- the source as written: one block, its line breaks and indentation kept, since it is what would be pasted -->
 				<pre data-testid="payload-verbatim">{annotation.payload}</pre>
 			{:else}
-				<span data-testid="payload-rendered"><TexProse text={annotation.payload} /></span>
+				<!-- rendered by the publisher where it could be, since a proposal may be a whole theorem and its proof -->
+				<div data-testid="payload-rendered">{#if annotation.payload_html}<TexHtml html={annotation.payload_html} />{:else}<TexProse text={annotation.payload} />{/if}</div>
 			{/if}
-			<button type="button" class="as-link verbatim" aria-pressed={verbatim} data-testid="payload-view" onclick={() => (verbatim = !verbatim)}>· {verbatim ? 'rendered' : 'verbatim'}</button>
 		</div>
 	{/if}
 	<div class="meta">
@@ -159,9 +162,11 @@
 	.cite {
 		border-left: 2px solid var(--ann-citation);
 	}
+	.pay .head {
+		margin: 0 0 2px;
+		line-height: 1.3;
+	}
 	.pay .word {
-		display: block;
-		margin-bottom: 2px;
 		font-family: var(--sans);
 		font-size: 0.78em;
 		letter-spacing: 0.04em;
@@ -169,10 +174,12 @@
 		color: var(--ann-suggestion);
 	}
 	.pay pre {
-		display: inline;
 		margin: 0;
+		padding: 6px 8px;
 		white-space: pre-wrap;
-		font-size: 0.92em;
+		overflow-wrap: anywhere;
+		font-size: 0.8em;
+		line-height: 1.45;
 	}
 	.verbatim {
 		font-family: var(--sans);

@@ -12,6 +12,9 @@ async function open(page: Page, left: string, right: string): Promise<void> {
 	await expect(compare(page)).toBeEnabled();
 	await compare(page).click();
 	await expect(compare(page)).toHaveAttribute('aria-pressed', 'true');
+	// the comparison drawn in both panes before anything is measured against it
+	await expect(pane(page, 0).locator('.compare-mark').first()).toBeAttached();
+	await expect(pane(page, 1).locator('.compare-mark').first()).toBeAttached();
 }
 
 /** A node's top in the viewport, in one pane. */

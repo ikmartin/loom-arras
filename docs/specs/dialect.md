@@ -72,6 +72,8 @@ A labelled proof node carries `data-id` as well, and a proof of a statement with
 
 **[decided]** `p`; `em`, `strong`, `code`, `span.smallcaps`, `u`; `a.url[href]`; `span.footnote` containing the note text, with `data-n`; `blockquote`; `pre`, `code` for verbatim; `ul`, `ol`, `dl` with `li`, `dt`, `dd`; `hr`.
 
+**[decided]** A paragraph whose only content is empty inline math and space — `$ $` on a line of its own, which LaTeX is given to start a list on the line after a theorem's heading — is not emitted: a list in HTML starts on its own line already, and drawn it was a blank line between the heading and the list (DR-317-ikmartin).
+
 **[decided]** `\textcolor{NAME}{text}` in prose is `<span class="tex-color" data-color="NAME">text</span>`. The colour's LaTeX name travels as written, because a publisher cannot know a document's colour definitions and a viewer knows only the names it chooses to; a name the viewer does not know inherits the surrounding colour. Dropping the colour instead loses an author's own convention, and an author who writes `\red{...}` to mark unverified text means it to be visible.
 
 ### 2.7 Math
@@ -93,7 +95,7 @@ A labelled proof node carries `data-id` as well, and a proof of a statement with
 
 ### 2.9 Marks
 
-**[decided]** `<mark class="annotation" data-annotation="ID">...</mark>` around resolved quotes; `data-annotation` on a block with class `annotation-block` when a quote could not be located within converted markup. A block may carry several ids space-separated.
+**[decided]** `<mark class="annotation" data-annotation="ID">...</mark>` around resolved quotes; `data-annotation` on a block with class `annotation-block` when a quote could not be located within converted markup; a viewer draws it as it draws a `mark.annotation`, by kind, severity and state. A block may carry several ids space-separated.
 
 Review comparison fragments may mark changed prose with `<mark class="review-changed">`, a changed inline or display formula with the `review-changed` class on its math element, and a zero-width insertion or deletion with `<span class="review-change-point">`. These classes occur only in comparison fragments; ordinary reading fragments keep their original markup.
 

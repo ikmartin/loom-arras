@@ -683,11 +683,6 @@ def _adoption(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     root = demo(tmp_path)
     save_author(WHO)
     ok("draft", "drafting/main.tex", "--ai", "contribution.tex", cwd=root)
-    git(root, "init", "-b", "main")
-    git(root, "config", "user.name", WHO)
-    git(root, "config", "user.email", "reader@example.test")
-    git(root, "add", ".")
-    git(root, "commit", "-m", "baseline")
     copy = root / "drafting-ai/contribution.tex"
     text = copy.read_text()
     # An ordinary source change to an existing inline statement.

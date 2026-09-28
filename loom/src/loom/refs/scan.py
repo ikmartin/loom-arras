@@ -73,17 +73,17 @@ class ScanReport:
         # "from \bibitem text" about a PDF that came from no bibliography at all.
         from_seed = {c.key for c in self.added if c.text and "loom-source" in c.text}
         heuristic = sum(1 for c in self.added if "loom-parsed" in c.text and c.key not in from_seed)
+        new = f"{len(self.added)} new" if self.added else "none new"
         out = [
-            f"{BIBLIOGRAPHY}: {len(self.added)} added"
+            f"{'bibliography':<14}{self.present + len(self.added)} entries in {BIBLIOGRAPHY}, {new}"
             + (f" ({heuristic} from \\bibitem text, parsed heuristically)" if heuristic else "")
             + (f" ({len(from_seed)} read from the document itself)" if from_seed else "")
-            + f", {self.present} already there"
         ]
         out += [f"conflict: {key} differs between {kept} (kept) and {other}" for key, kept, other in self.conflicts]
         if self.copied or self.already:
+            copied = f"{len(self.copied)} new" if self.copied else "none new"
             out.append(
-                f"{SEED}/: {len(self.copied)} copied into {STORAGE}"
-                + (f", {self.already} already copied before" if self.already else "")
+                f"{SEED + '/':<14}{len(self.copied) + self.already} documents copied into {STORAGE}, {copied}"
                 + (
                     f", {len(self.derived) + len(self.unnamed)} new entries offered"
                     if self.derived or self.unnamed

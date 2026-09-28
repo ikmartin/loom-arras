@@ -83,6 +83,78 @@ test.describe('the one rule', () => {
 		await expect.poll(() => new URL(page.url()).searchParams.get('note')).toBe('a-2026-09-16-0001');
 	});
 
+	test("a bare id in an annotation reads as the result it names, and follows like any link", async ({ page }) => {
+		// an agent writes `sy-0002(a)` in prose as often as it writes a link; an id the quilt does not know is left as written
+		await serve(page, (m) => {
+			m.annotations['a-2026-09-16-0001'].body_html = '<p>This invokes sy-0002(a), not sy-9999.</p>';
+		});
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await pane(page, 1).getByTestId('message-1').locator('a').click();
+		const body = pane(page, 0).getByTestId('comment-expanded').locator('.body').first();
+		await expect(body).toContainText('This invokes Lemma 1.2(a), not sy-9999.');
+		await expect(body.locator('a[href="quilt:sy-0002"]')).toHaveAttribute('title', 'sy-0002');
+	});
+
+	test('reading is where it was left after a visit to Review: the same tabs, the same place, a closed box still closed', async ({ page }) => {
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		// a link opens the document at an annotation; the reader closes it and reads on
+		await pane(page, 1).getByTestId('message-1').locator('a').click();
+		const box = pane(page, 0).getByTestId('comment-expanded');
+		await expect(box).toBeVisible();
+		await pane(page, 0).locator('.fragment').first().press('h');
+		await expect(box).toHaveCount(0);
+		const body = pane(page, 0).locator('> .body');
+		await body.evaluate((el) => el.scrollTo(0, el.scrollHeight / 2));
+		await page.waitForTimeout(300);
+		const at = await body.evaluate((el) => el.scrollTop);
+		expect(at).toBeGreaterThan(100);
+		const tabs = async () => [0, 1].map(async (i) => (await pane(page, i).getByTestId('item-tab').allInnerTexts()).join('|'));
+		const before = await Promise.all(await tabs());
+
+		await page.getByTestId('view-review').click();
+		await expect(page).toHaveURL(/\/review/);
+		await page.getByTestId('view-read').click();
+
+		await expect(pane(page, 0).locator('.fragment mjx-container').first()).toBeAttached();
+		expect(await Promise.all(await tabs())).toEqual(before);
+		// the place is kept as the block at the pane's top, so it comes back to within a few pixels rather than to the pixel
+		await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThan(at - 12);
+		expect(Math.abs((await body.evaluate((el) => el.scrollTop)) - at)).toBeLessThan(12);
+		await page.waitForTimeout(500);
+		await expect(box).toHaveCount(0);
+	});
+
+	test('the place a link went is gone to once: a new manifest leaves the reader where they are', async ({ page }) => {
+		// `loom serve` publishes a new manifest whenever anything changes, an agent's annotation or a compile, and each one mounted the document again and went back to the link's annotation, box open
+		let revision = 0;
+		let served = 0;
+		await serve(page, (m) => {
+			served += 1;
+			m.sessions[0].title = `A sitting, revision ${revision}`;
+		});
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await pane(page, 1).getByTestId('message-1').locator('a').click();
+		const box = pane(page, 0).getByTestId('comment-expanded');
+		await expect(box).toBeVisible();
+		// the reader closes it and reads on, well away from it
+		await pane(page, 0).locator('.fragment').first().press('h');
+		await expect(box).toHaveCount(0);
+		const body = pane(page, 0).locator('> .body');
+		await body.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+		const at = await body.evaluate((el) => el.scrollTop);
+		// and the quilt changes under them
+		revision = 1;
+		const before = served;
+		await expect.poll(() => served).toBeGreaterThan(before + 1);
+		await expect(pane(page, 0).locator('.fragment').first()).toBeAttached();
+		await page.waitForTimeout(500);
+		await expect(box).toHaveCount(0);
+		expect(Math.abs((await body.evaluate((el) => el.scrollTop)) - at)).toBeLessThan(4);
+	});
+
 	test("a context's link follows the one rule: a new tab in the other pane, the node it came from kept behind it", async ({ page }) => {
 		// sy-0005's context links sy-0002, which the pane holding sy-0005 does not show
 		await page.goto('/node/sy-0005' + beside('/context/sy-0005'));

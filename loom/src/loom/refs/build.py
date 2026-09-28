@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from loom.refs.fetch import Fetched, fetch_work, identifier_for, work_dir
+from loom.refs.identity import declared
 from loom.refs.pages import read_map, storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, load, query_for, save
 from loom.scan.bib import BibEntry
@@ -25,7 +26,8 @@ class WorkState:
     cited_by: int = 0
     pages: int = 0
     sections: int = 0
-    declared: bool = False
+    declared: bool = False  # the entry states an arXiv id, the one kind of identifier a source is fetched on
+    identified: bool = False  # the entry states some global identifier: a DOI, an eprint, an MR or zbl number
     candidate: str = ""
     source: bool = False
     pdf: bool = False
@@ -56,22 +58,30 @@ class WorkState:
 
     @property
     def blocked(self) -> tuple[str, str]:
-        """What stands between this work and a digest, and the command that clears it; ('', '') when nothing does.
+        """What stands between this work and a digest, and the command that clears it with `CITEKEY` standing for the work; ('', '') when nothing does.
 
         Blocked is about entering the digest, so a work with source and no PDF is not blocked -- it extracts, and what it then lacks is a page to read, which the lint reports. A work declared unreadable is never blocked either: the author has said there is nothing to wait for, and it is listed in its own section. Only the first cause is shown, because the second is not yet knowable.
         """
         if self.unreadable or self.digest:
             return ("", "")
-        if not (self.declared or self.candidate or self.pdf or self.source):
-            return ("no identifier", f"loom refs resolve {self.citekey}, or add doi/eprint to the entry")
         if self.extract_error:
             return (f"extraction failed: {self.extract_error}", "")
-        if not self.source:
+        if self.source:
+            return ("", "")
+        if self.fetched is not None and self.fetched.discarded:
+            return (f"discarded on arrival: {self.fetched.discarded}", "")
+        if self.declared or self.candidate:
+            return ("source not fetched yet", "loom refs build --fetch gets it from arXiv")
+        if self.identified or self.pdf:
+            # a DOI names the published article and a dropped PDF is a page image: neither is LaTeX, and only arXiv serves that
             return (
-                "no source to extract from",
-                f"loom refs fetch {self.citekey}, or loom refs add {self.citekey} <FILE>",
+                "no arXiv id to fetch a source on",
+                "loom refs build --resolve --fetch looks for the preprint; or loom refs add CITEKEY FILE with its LaTeX source",
             )
-        return ("", "")
+        return (
+            "no identifier and no document",
+            "loom refs resolve CITEKEY, add a doi or eprint to the entry, or drop its PDF in refs/",
+        )
 
     @property
     def needs_an_agent(self) -> bool:
@@ -152,59 +162,111 @@ class BuildReport:
         return [w for w in self.works if w.needs_an_agent]
 
     def lines(self) -> list[str]:
-        """The report as printed: four counts, then the two handoff lines (§4.4)."""
+        """The report as printed: four counts, what to turn on, what entered the digest, what is blocked and why, then the two handoff lines (§4.4).
+
+        One column of labels, numbers right-aligned in it. A blocked work is listed under its reason, the command that clears it given once for the group with `CITEKEY` in it, since the same command repeated per work, the citekey spelled twice, was most of the old report; every work is listed, a long group ending in a count of the rest.
+        """
         n = len(self.works)
+        w = len(str(max(n, self.sources, self.digests, self.mapped, 1)))
+        sections = sum(1 for x in self.works if x.sections)
+
+        def row(label: str, count: int, text: str) -> str:
+            return f"{label:<{LABEL}}{count:>{w}} {text}"
+
         out = [
-            f"resolved   {n} entries: {self.declared} declared, {self.with_candidate} strong candidates, {self.unresolved} unresolved"
-            + ("  (lookup off)" if self.resolve_off else ""),
-            f"fetched    {self.sources} sources, {self.pdfs} PDFs; {len(self.discarded)} rejected on the title check"
-            + ("  (fetching off)" if self.fetch_off else ""),
-            f"extracted  {self.digests} digests" + (f", {self.recorded} results recorded" if self.recorded else ""),
-            f"mapped     {self.mapped} works from PDF text; {self.pages} pages; sections found for {sum(1 for w in self.works if w.sections)}",
+            row(
+                "resolved",
+                n,
+                f"entries: {self.declared} state an arXiv id, {self.with_candidate} have a strong candidate, {self.unresolved} have neither",
+            )
+            + (" (lookup off)" if self.resolve_off else ""),
+            row(
+                "fetched",
+                self.sources,
+                f"sources and {self.pdfs} PDFs; {len(self.discarded)} rejected on the title check",
+            )
+            + (" (fetching off)" if self.fetch_off else ""),
+            row(
+                "extracted", self.digests, "digests" + (f", {self.recorded} results recorded" if self.recorded else "")
+            ),
+            row("mapped", self.mapped, f"works from PDF text, {self.pages} pages, sections found for {sections}"),
         ]
         # a step that was off and had nothing to do says nothing; one that was off with work waiting says how to turn it on
+        hints: list[str] = []
         if self.resolve_off and self.unresolved:
-            out.append(
-                f"           {self.unresolved} entries could be looked up: set resolve = true under [refs] in config.toml, or pass --resolve, and run again"
+            hints.append(
+                f"{self.unresolved} entries could be looked up: pass --resolve, or set resolve = true under [refs] in config.toml"
             )
         if self.fetch_off and self.fetchable:
-            out.append(
-                f"           {self.fetchable} works could be fetched: set fetch = true under [refs] in config.toml, or pass --fetch, and run again"
+            hints.append(
+                f"{self.fetchable} works could be fetched: pass --fetch, or set fetch = true under [refs] in config.toml"
             )
-        thin = [w for w in self.works if w.thin]
+        thin = [x for x in self.works if x.thin]
         if thin:
-            out.append(
-                f"           {len(thin)} too thin to trust: "
-                + ", ".join(f"{w.citekey} ({w.results} results, {w.pages} pages)" for w in thin[:3])
+            hints.append(
+                f"{len(thin)} too thin to trust: "
+                + ", ".join(f"{x.citekey} ({x.results} results, {x.pages} pages)" for x in thin[:3])
             )
-        errors = [w for w in self.works if w.extract_error and not w.blocked[0]]
-        if errors:
-            out.append(f"           {len(errors)} failed to extract: {', '.join(w.citekey for w in errors[:3])}")
+        if hints:
+            out.append("")
+            out += [f"  {h}" for h in hints]
         # Three sections, because a count says a build happened and a list says what to do next (plan 0.13 §4). A work
         # the author has declared unreadable is in neither of the first two: it is not waiting for anything.
         if self.entered:
-            out.append("")
-            out.append(f"entered the digest  {len(self.entered)}: " + ", ".join(sorted(self.entered)[:8]))
+            out += [
+                "",
+                f"entered the digest ({len(self.entered)})",
+                *_listed(sorted(self.entered, key=str.lower), "  "),
+            ]
         blocked = self.blocked
         if blocked:
-            out.append("")
-            out.append(f"blocked             {len(blocked)}")
-            for w in blocked[:8]:
-                missing, how = w.blocked
-                # padded, never truncated, and always separated: a citekey at or over the column width ran straight
-                # into its reason -- `Atiyah1984Themomentmapanno source to extract from` (reading study, 2026-09-21)
-                out.append(f"  {w.citekey:<22} {missing:<34} {how}".rstrip())
+            out += ["", f"blocked ({len(blocked)})"]
+            groups: dict[tuple[str, str], list[str]] = {}
+            for x in blocked:
+                missing, how = x.blocked
+                own = next((p for p in OWN_REASON if missing.startswith(p + ": ")), None)
+                if own is not None:
+                    # the reason is the work's own, so it stays beside its citekey
+                    groups.setdefault(OWN_REASON[own], []).append(f"{x.citekey}: {missing.removeprefix(own + ': ')}")
+                else:
+                    groups.setdefault((missing, how), []).append(x.citekey)
+            for (missing, how), keys in sorted(groups.items(), key=lambda g: (-len(g[1]), g[0][0])):
+                out.append(f"  {missing} ({len(keys)})" + (f": {how}" if how else ""))
+                out += _listed(sorted(keys, key=str.lower), "    ")
         unreadable = self.unreadable
         if unreadable:
-            out.append("")
-            out.append(f"declared unreadable {len(unreadable)}, not retried")
-            for w in unreadable:
-                out.append(f"  {w.citekey:<22}{w.unreadable}")
-        out.append("")
+            out += ["", f"declared unreadable ({len(unreadable)}), not retried"]
+            out += [f"  {x.citekey}: {x.unreadable}" for x in unreadable]
         person, agent = self.for_a_person, self.for_an_agent
-        out.append(f"needs you      {len(person):<3}loom refs match")
-        out.append(f"needs an agent {len(agent):<3}works with pages and no digest")
+        width = len(str(max(len(person), len(agent))))
+        out += [
+            "",
+            f"{'needs you':<15}{len(person):>{width}}  loom refs match lists them",
+            f"{'needs an agent':<15}{len(agent):>{width}}  works with pages and no digest",
+        ]
         return out
+
+
+#: The width of the report's label column: `extracted`, `bibliography` and `refs/` all fit, and every number starts in one place.
+LABEL = 14
+#: Blocked reasons that differ per work, printed beside each citekey under one heading and fix.
+OWN_REASON = {
+    "extraction failed": ("extraction failed", ""),
+    "discarded on arrival": (
+        "fetched and discarded: its title did not match the entry",
+        "look at it; loom refs add CITEKEY FILE files the right document",
+    ),
+}
+#: How many works a section of the report lists before it counts the rest.
+LISTED = 12
+
+
+def _listed(keys: list[str], indent: str) -> list[str]:
+    """One work per line, a long list cut at LISTED with a count of the rest and where to see them all."""
+    out = [f"{indent}{k}" for k in keys[:LISTED]]
+    if len(keys) > LISTED:
+        out.append(f"{indent}and {len(keys) - LISTED} more; loom refs coverage lists every work")
+    return out
 
 
 def cited_counts(result: ScanResult) -> dict[str, int]:
@@ -269,6 +331,7 @@ def survey(result: ScanResult) -> list[WorkState]:
                 sections=len(m.sections) if m else 0,
                 results=sum(1 for r in load_results(root, ck).values() if r.cls == "mechanical"),
                 declared=via == "declared",
+                identified=bool(declared(entry)),
                 candidate=ident or "" if via == "candidate" else "",
                 source=_has_source(root, entry),
                 pdf=(home / "paper.pdf").is_file(),

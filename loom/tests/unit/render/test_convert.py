@@ -221,3 +221,11 @@ def test_a_display_that_is_a_picture_goes_to_the_fallback() -> None:
     assert renders_as_math(r"\begin{align*}\begin{pmatrix}1\end{pmatrix}\end{align*}")
     assert renders_as_math(r"\[\begin{cases} 1 & x > 0 \end{cases}\]")
     assert renders_as_math(r"\[x^2 + \frac{1}{2}\]")
+
+
+def test_a_paragraph_of_only_an_empty_formula_is_drawn_as_nothing() -> None:
+    """`$ $` on a line of its own is how LaTeX starts a list on the line after a theorem's heading; in HTML the list starts there anyway, and drawn as a paragraph it left a blank line and two margins between the heading and the list (the author's screenshots, 2026-09-28)."""
+    out, ctx, _ = make("  $ $\n  \\begin{enumerate}\n  \\item One.\n  \\end{enumerate}\n")
+    assert "<p " not in out and "<ol " in out and "One." in out
+    out, _, _ = make("Keep $x$ here.\n\n$y$\n")
+    assert out.count("<p ") == 2  # a formula with something in it is a paragraph like any other

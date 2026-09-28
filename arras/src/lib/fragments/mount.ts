@@ -194,6 +194,8 @@ export function wire(
 	// Every mark, the publisher's and the label marks made above. What a mark looks like is CSS keyed on its classes (theme.css, 15.3.1): `k-<kind>` for the hue, `s-<severity>` for the weight, `settled` for one whose annotation is resolved or discarded, `hidden` for one the session filter excludes. The classes are read from the manifest on every wire, since a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
 		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
+		// a block mark answers every rule a phrase's does: its hue, its weight, settled and hidden are all keyed on `.annotation`
+		mark.classList.add('annotation');
 		// several annotations can share one phrase, and the mark lists them in no particular order; the one to select, and to take the hue from, is an open one with a card of its own, since a reply is shown inside its parent
 		const leads = ids.filter((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to);
 		const lead = leads.find((i) => !settled(manifest?.annotations[i])) ?? leads[0] ?? ids[0] ?? '';

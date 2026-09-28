@@ -18,7 +18,7 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 
 - `config.toml` — quilt configuration, including the id prefix and the directory names. Read only.
 - `drafting/` — the working documents, every one live. `[quilt] main` names the default. Read only.
-- `drafting-ai/` — the documents the author and you both edit: yours to edit, the one place outside your session where you may write a document. Each is a copy of one of the author's documents, made by the author with `loom draft DOC --ai NAME`; every id it defines is derived: `<prefix>-<local>-ai`, e.g. `rl-0004-ai` for the author's `rl-0004`. Keep the suffix on every id the copy defines, wherever you cite one; cite the author's other nodes by their plain ids; and label a node you write with the next free id and the suffix, which `loom id --next` names (`rl-0019` becomes `rl-0019-ai`). Nothing here is reviewed or accepted until the author adopts it.
+- `drafting-ai/` — the documents the author and you both edit: yours to edit, the one place outside your session where you may write a document. Each is a copy of one of the author's documents, made with `loom draft DOC --ai NAME` — by the author, or by you when you need a copy to work in; it writes the copy and records in the history the version of each node it began from, and changes nothing in `drafting/`. Never write a document there by hand: one no copy step made can be neither adopted nor refreshed, and `loom lint` refuses it. Every id a copy defines is derived: `<prefix>-<local>-ai`, e.g. `rl-0004-ai` for the author's `rl-0004`. Keep the suffix on every id the copy defines, wherever you cite one; cite the author's other nodes by their plain ids in the copy's TeX; in the chat, link the copy's nodes, not the author's (`ai/formatting.md`); and label a node you write with the next free id and the suffix, which `loom id --next` names (`rl-0019` becomes `rl-0019-ai`). Nothing here is reviewed or accepted until the author adopts it.
 - Landmarks — a document as it stood at a moment the author named, or a paper as it arrived — live in the history, not in a directory: `loom history` lists the steps and `loom history show NAME` prints a landmark. Nothing in one has an identity, and the scanner never reads it. Read only.
 - `nodes/` — one node per file, by convention rather than by rule; a node may equally live inline in a document. Read only.
 - `digests/` — cited papers' results as external nodes, one file per citekey. Read only.
@@ -30,7 +30,7 @@ Nothing you produce enters the project or the ledger unless a person copies it o
 - `ai/orientation.md` — this file. `ai/modes/` — the mode templates. Read only.
 - `.loom/sessions/<id>/` — YOUR session's directory, the only place you write files.
 
-The rule: you write only under your session's directory and in `drafting-ai/`, and you write records only through loom commands. Everything else is the author's.
+The rule: you write only under your session's directory and in `drafting-ai/`, and you write records only through loom commands. Everything else is the author's. Your session's directory holds what you hand the author, and nothing in it is deleted, since an annotation or your notes may point at a file there; put your own intermediates — a script, a backup of a file before you change it, a list you file annotations from — under `build/SESSION/`, which is not committed and which you may overwrite.
 
 ## 3. The source contract in one page
 
