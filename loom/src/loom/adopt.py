@@ -849,7 +849,13 @@ def decisions(result: ScanResult, copy: str, reviewer: str | None) -> dict[str, 
 
 
 def decide(
-    result: ScanResult, copy: str, keys: list[str], document: bool, expected: str, reviewer: str
+    result: ScanResult,
+    copy: str,
+    keys: list[str],
+    document: bool,
+    expected: str,
+    reviewer: str,
+    kept: list[str] | None = None,
 ) -> dict[str, Any]:
     """Save explicit choices against the displayed contribution, without incorporating it.
 
@@ -877,9 +883,14 @@ def decide(
     if expected != data["fingerprint"]:
         raise SyncError("Contribution changed; refresh Incoming before selecting changes")
     offered = {r["key"] for r in data["changes"] if r["offered"]}
-    if set(keys) - offered:
+    if set(keys) - offered or set(kept or []) - {r["key"] for r in data["changes"]}:
         raise SyncError("Selection contains an unavailable proposal")
-    row = {"fingerprint": expected, "keys": sorted(set(keys)), "document": document}
+    row = {
+        "fingerprint": expected,
+        "keys": sorted(set(keys)),
+        "document": document,
+        "kept": sorted(set(kept or []) - set(keys)),
+    }
     path = result.quilt.root / ".loom/adoption-decisions.json"
     stored = json.loads(path.read_text()) if path.is_file() else {}
     stored.setdefault(reviewer, {})[data["copy"]] = row

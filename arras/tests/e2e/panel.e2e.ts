@@ -192,8 +192,7 @@ test('a review decision needs no session', async ({ page }) => {
 	});
 	await page.goto('/review?show=needs-review');
 	await expect(page.getByTestId('session-footer')).toHaveAttribute('aria-label', /^annotations cannot be written/);
-	await page.getByRole('button', { name: 'Start review' }).click();
-	const ok = page.getByRole('button', { name: 'OK', exact: true });
+	const ok = page.getByRole('button', { name: 'Mark OK', exact: true });
 	await expect(ok).toBeEnabled();
 	await ok.click();
 	await expect.poll(() => decided).toBe('sy-0001');

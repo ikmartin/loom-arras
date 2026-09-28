@@ -16,6 +16,7 @@
 	let {
 		path,
 		macroSet = '',
+		previewMacros,
 		isolatedMacros = false,
 		master = '',
 		headingLinks = false,
@@ -32,6 +33,7 @@
 	}: {
 		path: string;
 		macroSet?: string;
+		previewMacros?: import('$lib/manifest/types').Macro[];
 		/** Accepted review text uses its saved preamble without modifying the live MathJax instance. */
 		isolatedMacros?: boolean;
 		master?: string;
@@ -199,7 +201,7 @@
 			try {
 				const { typesetScoped } = await import('$lib/math/scoped');
 				if (version !== mountVersion || root !== el) return;
-				await typesetScoped(root, setName ? (sets[setName] ?? []) : []);
+				await typesetScoped(root, previewMacros ?? (setName ? (sets[setName] ?? []) : []));
 				if (version !== mountVersion || root !== el) return;
 				mathReady = true;
 			} catch (err) {
@@ -255,7 +257,7 @@
 
 	// Mounting reads the comments setting, and an effect that tracked it re-mounted the whole fragment on every change of placement: a second wiring, a pass of MathJax over every formula, and a jump back to the URL's anchor. The effect above answers that setting; this one follows the markup and what the wiring is built from.
 	$effect(() => {
-		void [store.manifest, macroSet, isolatedMacros, master, headingLinks, margins, standalone, comments];
+		void [store.manifest, macroSet, previewMacros, isolatedMacros, master, headingLinks, margins, standalone, comments];
 		const root = el;
 		if (html && root) untrack(() => void mount(root));
 	});

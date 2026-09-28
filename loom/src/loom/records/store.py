@@ -10,7 +10,7 @@ import difflib
 import json
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -110,6 +110,7 @@ class Records:
         self.records, self.problems = load_records(root)
         self._resolved_cache: tuple[ScanResult, list[ResolvedAnnotation]] | None = None
         self._snapshot_seen: dict[str, bool] = {}
+        self._recovered: dict[str, str] = {}
         self._hash_cache: tuple[ScanResult, dict[str, str]] | None = None
 
     # ---- text helpers --------------------------------------------------------
@@ -157,34 +158,67 @@ class Records:
 
     @staticmethod
     def closure_hashes(result: ScanResult, key: str) -> dict[str, str]:
-        assert result.graph is not None
-        n = result.nodes[key]
-        stmt = n.of if n.kind == "proof" and n.of else key
-        out: dict[str, str] = {}
-        for k in result.graph.closure(key):
-            if k == stmt and n.kind != "proof":
-                continue
-            if k in result.nodes and result.nodes[k].kind in ("environment", "section"):
-                out[k] = key_hash(result, k)
-        return out
+        return result.dependencies.hashes(key)  # type: ignore[no-any-return]
 
     @staticmethod
     def direct_keys(result: ScanResult, key: str) -> list[str]:
-        assert result.graph is not None
-        n = result.nodes[key]
-        direct = result.graph.direct(key)
-        if n.kind == "proof" and n.of and n.of not in direct:
-            direct.append(n.of)
-        return direct
+        return result.dependencies.direct(key)  # type: ignore[no-any-return]
+
+    def snapshot(self, digest: str) -> str | None:
+        return self._recovered.get(digest) or read_snapshot(self.root, digest, self.history_dir)
+
+    def dependency_row(self, result: ScanResult, row: AcceptRow) -> AcceptRow:
+        """Recover exact displays from old owner snapshots without rewriting acceptance history."""
+        if row.dependency_version:
+            return row
+        from loom.records.dependencies import historical_display
+
+        deps = result.dependencies
+        closure = dict(row.closure)
+        replaced_owners: set[str] = set()
+        for target in deps.closure(row.key):
+            if not target.startswith("equation:"):
+                continue
+            candidates = {
+                owner: display
+                for owner, digest in row.closure.items()
+                if (old := self.snapshot(digest)) is not None
+                and (display := historical_display(old, target.removeprefix("equation:"))) is not None
+            }
+            replaced_owners.update(candidates)
+            displays = set(candidates.values())
+            display = next(iter(displays)) if len(displays) == 1 else None
+            if display is not None:
+                digest = hash_text(display)
+                self._recovered[digest] = normalize(display)
+                closure[target] = digest
+            else:
+                closure[target] = "unavailable"
+        direct_now = self.direct_keys(result, row.key)
+        old_direct = row.direct if row.direct_recorded else {d: closure[d] for d in direct_now if d in closure}
+        direct = {
+            d: h
+            for d, h in old_direct.items()
+            if not (d in result.nodes and result.nodes[d].kind == "section")
+            and not re.match(
+                r"\\(?:part|chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\s*[\[{]",
+                (self.snapshot(h) or "").lstrip(),
+            )
+            and not (d in replaced_owners and d not in direct_now)
+        }
+        for d in direct_now:
+            if d.startswith("equation:"):
+                direct[d] = closure.get(d, "unavailable")
+        return replace(row, direct=direct, closure=closure, direct_recorded=True)
 
     def same_mathematics(self, result: ScanResult, key: str, before: str, current: str | None) -> bool:
         """Compare saved source to current mathematics, conservatively retaining missing-snapshot differences."""
         if before == current:
             return True
-        if current is None or key not in result.nodes:
+        if current is None or key not in result.dependencies.texts:
             return False
-        old = read_snapshot(self.root, before, self.history_dir)
-        return old is not None and mathematical_hash(old) == mathematical_hash(own_text(result, result.nodes[key]))
+        old = self.snapshot(before)
+        return old is not None and mathematical_hash(old) == mathematical_hash(result.dependencies.texts[key])
 
     # ---- states -----------------------------------------------------------------
 
@@ -193,11 +227,14 @@ class Records:
         kinds = ("environment", "proof", "section")
         if self._hash_cache is None or self._hash_cache[0] is not result:
             self._hash_cache = (result, {k: key_hash(result, k) for k, n in result.nodes.items() if n.kind in kinds})
-        current_hashes = self._hash_cache[1]
+        current_hashes = dict(self._hash_cache[1])
+        current_hashes.update({k: hash_text(t) for k, t in result.dependencies.texts.items() if t is not None})
         for key, n in result.nodes.items():
             if n.kind not in kinds:
                 continue
             row = (self.shared_latest if n.external else self.latest).get(key)
+            if row is not None:
+                row = self.dependency_row(result, row)
             ks = KeyState(key=key, state="draft", row=row)
             if n.kind == "section":
                 # A section is a container, not a claim: no state, and `loom accept` refuses one. It is carried here only so that its review facts are computed, because `loom annotate` accepts a section as a target and an annotation filed on one was stored and then shown nowhere (DR-172).
@@ -229,7 +266,11 @@ class Records:
                     row.direct if row.direct_recorded else {d: row.closure[d] for d in direct_now if d in row.closure}
                 )
                 for dep, h in accepted_direct.items():
-                    if dep not in result.nodes:
+                    if dep in result.dependencies.texts and result.dependencies.texts[dep] is None:
+                        ks.causes.append(Cause("dependency-scope-unavailable", id=dep))
+                    elif h == "unavailable":
+                        ks.causes.append(Cause("dependency-baseline-unavailable", id=dep))
+                    elif dep not in result.dependencies.texts:
                         ks.causes.append(Cause("dependency-removed", id=dep, before=h))
                     elif not self.same_mathematics(result, dep, h, direct_now.get(dep)):
                         ks.causes.append(
@@ -238,9 +279,16 @@ class Records:
                                 id=dep,
                                 before=h,
                                 after=direct_now.get(dep),
-                                when=_when(result, result.nodes[dep]),
+                                when=_when(result, result.nodes[result.dependencies.owners[dep]]),
                             )
                         )
+                for dep in result.dependencies.closure(key):
+                    if (
+                        dep in result.dependencies.texts
+                        and result.dependencies.texts[dep] is None
+                        and not any(c.id == dep for c in ks.causes)
+                    ):
+                        ks.causes.append(Cause("dependency-scope-unavailable", id=dep))
                 for dep in direct_now:
                     if dep not in accepted_direct and (row.direct_recorded or dep not in row.closure):
                         ks.causes.append(Cause("dependency-added", id=dep))
@@ -270,7 +318,7 @@ class Records:
             ks = states[key]
             if ks.row and result.graph:
                 for dep in self.direct_keys(result, key):
-                    if dep not in result.nodes or dep not in ks.row.closure:
+                    if dep not in result.dependencies.texts or dep not in ks.row.closure:
                         continue
                     if not self.same_mathematics(result, dep, ks.row.closure[dep], current_hashes.get(dep)):
                         continue  # the direct dependency already has its own cause
@@ -281,24 +329,34 @@ class Records:
                     else:
                         origins = [
                             ancestor
-                            for ancestor in result.graph.closure(dep)
+                            for ancestor in result.dependencies.closure(dep)
                             if ancestor != dep
                             and ancestor in ks.row.closure
                             and not self.same_mathematics(
                                 result, ancestor, ks.row.closure[ancestor], current_hashes.get(ancestor)
                             )
                         ]
+                        labels = result.dependencies.references.get(dep, set())
+                        for prior, digest in ks.row.closure.items():
+                            if prior in result.dependencies.texts:
+                                continue
+                            old = self.snapshot(digest) or ""
+                            old_labels = set(re.findall(r"\\label\s*\{([^}]+)\}", old)) | {prior}
+                            if labels & old_labels:
+                                origins.append(prior)
                     for origin in origins:
-                        if origin == key or origin not in result.nodes or any(c.id == origin for c in ks.causes):
+                        if origin == key or any(c.id == origin for c in ks.causes):
                             continue
                         ks.causes.append(
                             Cause(
-                                "dependency-changed",
+                                "dependency-changed" if origin in result.dependencies.texts else "dependency-removed",
                                 id=origin,
                                 via=dep,
                                 before=ks.row.closure.get(origin),
                                 after=current_hashes.get(origin),
-                                when=_when(result, result.nodes[origin]),
+                                when=_when(result, result.nodes[result.dependencies.owners[origin]])
+                                if origin in result.dependencies.owners
+                                else None,
                             )
                         )
                 ks.fresh = not ks.causes
@@ -403,6 +461,14 @@ class Records:
             if key in settled:
                 return settled[key]
             n = result.nodes.get(key)
+            if n is None and key.startswith("equation:"):
+                if key in visiting or result.dependencies.texts.get(key) is None:
+                    return False
+                visiting.add(key)
+                ok = all(is_settled(d) for d in result.dependencies.direct(key))
+                visiting.remove(key)
+                settled[key] = ok
+                return ok
             if n is None:
                 return False
             # A section can be referenced as context, but has no statement or proof
@@ -419,11 +485,11 @@ class Records:
             ok = proved.get(key, False)
             if ok:
                 assert result.graph is not None
-                deps = set(result.graph.closure(key)) - {key}
+                deps = set(result.dependencies.closure(key)) - {key}
                 for p in n.proofs:
                     st = states.get(p)
                     if st and st.state == "accepted" and st.fresh:
-                        deps |= set(result.graph.closure(p)) - {key}
+                        deps |= set(result.dependencies.closure(p)) - {key, p}
                 ok = all(is_settled(d) for d in deps)
             visiting.discard(key)
             settled[key] = ok
@@ -624,7 +690,7 @@ class Records:
             return None  # a source directive changed; no accepted text snapshot represents the old classification
         if not cause.before:
             return None
-        before = read_snapshot(self.root, cause.before, self.history_dir)
+        before = self.snapshot(cause.before)
         if before is None:
             return None
         target = cause.id or key
@@ -634,6 +700,8 @@ class Records:
             document = self.row_document(result, row) if row is not None else result.default_master
             closure = result.closures.get(document) if document else None
             after = normalize(closure.raw_text()) if closure else ""
+        elif target in result.dependencies.texts:
+            after = normalize(result.dependencies.texts[target] or "")
         elif n is None:
             after = ""
         else:
@@ -676,6 +744,14 @@ class Records:
                     causes = []
                     for c in ks.causes:
                         d = c.to_dict()
+                        d["identity"] = "|".join((c.kind, c.id or "", c.via or ""))
+                        if c.id and c.id.startswith("equation:"):
+                            label = c.id.removeprefix("equation:")
+                            region = manifest.get("regions", {}).get(result.assembly.labels.get(label, ""), {})
+                            master = self.row_document(result, ks.row)
+                            number = region.get("numbers", {}).get(master, {}).get("number")
+                            d["label"] = "Equation " + (number or label)
+                            d["owner"] = result.dependencies.owners.get(c.id)
                         if c.kind == "dependency-changed" and c.id and not c.via and result.graph:
                             from loom.render.convert import slug
 
@@ -683,7 +759,14 @@ class Records:
                                 (
                                     e
                                     for e in result.graph.out.get(key, [])
-                                    if e.offset >= 0 and e.via != "uses" and result.graph.statement_key(e.to) == c.id
+                                    if e.offset >= 0
+                                    and e.via != "uses"
+                                    and (
+                                        result.dependencies.resolve_label(e.label)
+                                        if e.label
+                                        else result.dependencies.node_target(e.to)
+                                    )
+                                    == c.id
                                 ),
                                 None,
                             )

@@ -54,9 +54,12 @@ def _write(root: Path, rows: dict[str, dict[str, str]], reviewer: str | None = N
 def fingerprint(result: ScanResult, key: str) -> str:
     node = result.nodes[key]
     context = {
+        "dependency_version": 1,
         "text": mathematical_hash(own_text(result, node)),
         "closure": {
-            dep: mathematical_hash(own_text(result, result.nodes[dep])) for dep in Records.closure_hashes(result, key)
+            dep: mathematical_hash(text) if (text := result.dependencies.texts.get(dep)) is not None else None
+            for dep in result.dependencies.closure(key)
+            if dep != key
         },
         "preamble": Records.preamble_hash(result, result.default_master),
         "basis": node.basis,
@@ -91,6 +94,7 @@ def _latest_pull_baselines(result: ScanResult, sync: SyncState) -> dict[str, str
 
 def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     root = result.quilt.root
+    manifest["review_covered"] = []
     decisions = _read(root, manifest.get("reviewer", {}).get("name"))
     from loom.review_origins import read
 
@@ -124,7 +128,7 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
             return
         visiting.add(key)
         if key in result.nodes:
-            for dep in sorted(set(Records.direct_keys(result, key)) & candidates):
+            for dep in sorted((set(result.dependencies.closure(key)) - {key}) & candidates):
                 visit(dep)
         visiting.remove(key)
         visited.add(key)
@@ -143,7 +147,7 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
         # Once upstream acceptance restores this block's recorded dependency
         # context, an old attention choice is no longer an unresolved review.
         # Keep an explicit OK visible until Finish review clears it.
-        if fresh and (not choice or choice["status"] != "ok"):
+        if fresh and (not choice or (choice["status"] != "ok" and not choice.get("explicit_pending"))):
             continue
         status = "needs-review"
         if choice:
@@ -154,9 +158,11 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
         # and keep its own explicit OK visible until Finish review.
         if (
             status != "ok"
+            and not (choice and choice.get("explicit_pending"))
             and causes
             and all(cause.get("kind") == "dependency-changed" and cause.get("via") in pending_ok for cause in causes)
         ):
+            manifest.setdefault("review_covered", []).append({"key": key, "via": sorted({c["via"] for c in causes})})
             continue
         cause = (
             ("adopted" if origins.get(key, "").startswith("adopt:") else "incoming-pull")
@@ -196,7 +202,11 @@ def decide(result: ScanResult, key: str, status: str, reviewer: str | None = Non
     if key not in result.nodes or result.nodes[key].kind not in ("environment", "proof"):
         raise ValueError(f"{key} is not a reviewable statement or proof")
     rows = _read(result.quilt.root, reviewer)
-    rows[key] = {"status": status, "fingerprint": fingerprint(result, key)}
+    rows[key] = {
+        "status": status,
+        "fingerprint": fingerprint(result, key),
+        **({"explicit_pending": "true"} if rows.get(key, {}).get("explicit_pending") else {}),
+    }
     _write(result.quilt.root, rows, reviewer)
 
 
@@ -214,3 +224,11 @@ def clear_accepted(root: Path, keys: list[str], reviewer: str | None = None) -> 
     for key in keys:
         rows.pop(key, None)
     _write(root, rows, reviewer)
+
+
+def keep_pending(result: ScanResult, keys: list[str], reviewer: str) -> None:
+    """Keep unaccepted Incoming items visible even when upstream acceptance restores an older context."""
+    rows = _read(result.quilt.root, reviewer)
+    for key in keys:
+        rows[key] = {"status": "needs-review", "fingerprint": fingerprint(result, key), "explicit_pending": "true"}
+    _write(result.quilt.root, rows, reviewer)

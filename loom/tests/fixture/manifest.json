@@ -367,7 +367,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "f82c908af3c5446b7fdd64cb55fc99c999b560880b45b3dec69ed02eb6bf7cbf",
+   "hash": "1b3a88bf05908c93bc97f8d98e143d37def48c49de107e40775fa26c7641c852",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
    "name": "widgets-v1",
@@ -379,7 +379,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "d9e4c9737f6d3fc78ef36193eb2ea2c970271562d6f20abe3974f6071b9d5e7d",
+   "hash": "ac460768b194a7ed21ef3b1019f7ca584a4ab04eb5d49f071420b9c056ad6d82",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
    "name": "widgets-v2",
@@ -391,7 +391,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "aa861e88f0ffe991c9767c951dcee625346ccc48bdf9a671930581055d3a57be",
+   "hash": "53568f01064eaff1e5b55b88879abfc6e414c4a620127aa9d7226f6ee0987636",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
    "name": "widgets-v3",
@@ -609,6 +609,13 @@
    },
    "copy": "drafting-ai/aidoc.tex",
    "document_changed": true,
+   "document_comparison": {
+    "current": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n% !LOOM adopt-node: sy-0202\n\n% !LOOM adopt-node: sy-0202/proof\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:1\n\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\input{nodes/missing}\n\\fi\n\n% !LOOM adopt-node: sy-000A\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n% !LOOM adopt-node: sy-999B\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n",
+    "incoming": "fragments/incoming/prose-a78e508153408692b07a8136-incoming.html",
+    "incoming_macros": "adopt:16d859f6e660a76219a7",
+    "local": "fragments/incoming/prose-a78e508153408692b07a8136-local.html",
+    "proposed": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-000A\n\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n% !LOOM adopt-node: sy-999C\n\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:2\n\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\fi\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n"
+   },
    "document_conflict": false,
    "document_diff": "--- Working document\n+++ Proposed document\n@@ -28,7 +28,7 @@\n \\begin{equation}\\label{eq:prose}\n \\sigma^2 = \\mathrm{id},\n \\end{equation}\n-which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n+which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n \n % !LOOM adopt-node: sy-0001\n \n@@ -36,6 +36,9 @@\n % !LOOM author: The synthetic quilt\n % !LOOM created: 2026-09-16\n % !LOOM tags: orbits, setup\n+\n+% !LOOM adopt-node: sy-000A\n+\n \n % !LOOM adopt-node: sy-0002\n \n@@ -69,6 +72,9 @@\n \n % !LOOM author: The synthetic quilt\n % !LOOM tags: results\n+\n+% !LOOM adopt-node: sy-999C\n+\n \n \\section{Results}\\label{sy-0200}\n \n@@ -109,10 +115,6 @@\n % !LOOM adopt-node: sy-0007/proof\n \n \n-% !LOOM adopt-node: sy-0202\n-\n-% !LOOM adopt-node: sy-0202/proof\n-\n \n \n \\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n@@ -127,7 +129,7 @@\n % !LOOM adopt-node: sy-000D\n \n \n-% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:1\n+% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:2\n \n \n % !LOOM adopt-node: sy-000E\n@@ -143,10 +145,7 @@\n \n % A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n \\iffalse\n-\\input{nodes/missing}\n \\fi\n-\n-% !LOOM adopt-node: sy-000A\n \n \n \n@@ -156,10 +155,6 @@\n \n \n \n-% !LOOM adopt-node: sy-999B\n-\n-\n-\n \\bibliographystyle{amsplain}\n \\bibliography{refs}\n \n",
    "fingerprint": "16d859f6e660a76219a7a84d858c85f8e4daa59b3824c4e46bca7257e797b9e8",
@@ -2242,6 +2249,8 @@
    "kind": "statement",
    "node": "Kre99-setup",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/767f71016568930b5fd7-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2271,6 +2280,8 @@
    "kind": "statement",
    "node": "Kre99-thm-2.1",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/4ed27dd4c1d397eb48f5-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2301,6 +2312,8 @@
    "kind": "statement",
    "node": "drafting-ai/aidoc.tex#remark:2",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/42f080dbe27a611b884c-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2325,6 +2338,8 @@
    "kind": "statement",
    "node": "drafting/talk.tex#lemma:1",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/0146616a1c023769c04b-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2349,6 +2364,8 @@
    "kind": "statement",
    "node": "nodes/sy-999B.tex#lemma:1",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/81b701325d16dc7c150f-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2373,6 +2390,8 @@
    "kind": "statement",
    "node": "sections/appendix.tex#remark:1",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/3948987fa147e85aec0b-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2425,6 +2444,7 @@
         ]
        ],
        "current": "fragments/review/b0e87d44e6b71ffd20d9-current.html",
+       "current_macros": "review-current:e7d0afbb3c6e1e4382e0",
        "current_spans": [
         [
          68,
@@ -2457,31 +2477,8 @@
        ]
       },
       "diff": "diffs/sy-0001-own-text-changed.diff",
+      "identity": "own-text-changed||",
       "kind": "own-text-changed",
-      "when": "2026-09-16"
-     },
-     {
-      "citation": "cite-drafting-main-tex-1156-sy-0100-eq-prose",
-      "comparison": {
-       "accepted": "fragments/review/800fd03b12dbadcd3f9d-accepted.html",
-       "accepted_macros": "review:800fd03b12dbadcd3f9d",
-       "accepted_spans": [
-        [
-         1138,
-         1175
-        ]
-       ],
-       "current": "fragments/review/800fd03b12dbadcd3f9d-current.html",
-       "current_spans": [
-        [
-         1138,
-         1163
-        ]
-       ]
-      },
-      "diff": "diffs/sy-0001-dependency-changed-sy-0100.diff",
-      "id": "sy-0100",
-      "kind": "dependency-changed",
       "when": "2026-09-16"
      }
     ],
@@ -2506,6 +2503,8 @@
    "kind": "statement",
    "node": "sy-0001",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/9d3b0c1c814d9e79b9f8-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 1,
     "latest_any": {
@@ -2541,6 +2540,8 @@
    "kind": "statement",
    "node": "sy-0001-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/3983d7120e62eefd0ba0-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2561,7 +2562,7 @@
     "author": "The synthetic quilt",
     "causes": [
      {
-      "citation": "cite-nodes-sy-0002-tex-185-sy-0001-eq-fix",
+      "citation": "cite-nodes-sy-0002-tex-214-sy-0001",
       "comparison": {
        "accepted": "fragments/review/b0e87d44e6b71ffd20d9-accepted.html",
        "accepted_macros": "review:b0e87d44e6b71ffd20d9",
@@ -2596,6 +2597,7 @@
         ]
        ],
        "current": "fragments/review/b0e87d44e6b71ffd20d9-current.html",
+       "current_macros": "review-current:e7d0afbb3c6e1e4382e0",
        "current_spans": [
         [
          68,
@@ -2627,8 +2629,11 @@
         ]
        ]
       },
+      "current_fragment": "fragments/review/9d3b0c1c814d9e79b9f8-dependency.html",
+      "current_macros": "review-current:e7d0afbb3c6e1e4382e0",
       "diff": "diffs/sy-0002-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
+      "identity": "dependency-changed|sy-0001|",
       "kind": "dependency-changed",
       "when": "2026-09-16"
      }
@@ -2655,6 +2660,8 @@
    "kind": "statement",
    "node": "sy-0002",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/c7f7f333dc859e613f61-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": {
@@ -2703,6 +2710,8 @@
    "kind": "statement",
    "node": "sy-0002-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/22ce3f01a96e7296f538-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2732,6 +2741,8 @@
    "node": "sy-0002-ai",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/c679d0087497e34cc5a0-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2752,32 +2763,11 @@
     "author": "The synthetic quilt",
     "causes": [
      {
-      "citation": "cite-nodes-sy-0002-tex-372-sy-0100-eq-prose",
-      "comparison": {
-       "accepted": "fragments/review/800fd03b12dbadcd3f9d-accepted.html",
-       "accepted_macros": "review:800fd03b12dbadcd3f9d",
-       "accepted_spans": [
-        [
-         1138,
-         1175
-        ]
-       ],
-       "current": "fragments/review/800fd03b12dbadcd3f9d-current.html",
-       "current_spans": [
-        [
-         1138,
-         1163
-        ]
-       ]
-      },
-      "diff": "diffs/sy-0002_proof-dependency-changed-sy-0100.diff",
-      "id": "sy-0100",
-      "kind": "dependency-changed",
-      "when": "2026-09-16"
-     },
-     {
+      "current_fragment": "fragments/review/9d3b0c1c814d9e79b9f8-dependency.html",
+      "current_macros": "review-current:e7d0afbb3c6e1e4382e0",
       "diff": "diffs/sy-0002_proof-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
+      "identity": "dependency-changed|sy-0001|sy-0002",
       "kind": "dependency-changed",
       "via": "sy-0002",
       "when": "2026-09-16"
@@ -2806,6 +2796,8 @@
    "node": "sy-0002",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/6749fb83ba28a8018807-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2890,6 +2882,8 @@
    "kind": "statement",
    "node": "sy-0003-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/2448f2ac77a70fe4af5f-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -2908,8 +2902,11 @@
     "author": "The synthetic quilt",
     "causes": [
      {
+      "current_fragment": "fragments/review/9d3b0c1c814d9e79b9f8-dependency.html",
+      "current_macros": "review-current:e7d0afbb3c6e1e4382e0",
       "diff": "diffs/sy-0004-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
+      "identity": "dependency-changed|sy-0001|sy-0002",
       "kind": "dependency-changed",
       "via": "sy-0002",
       "when": "2026-09-16"
@@ -2939,6 +2936,8 @@
    "node": "sy-0003",
    "ordinal": 0,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/136e3b9488d86b038e68-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": {
@@ -2985,6 +2984,8 @@
    "node": "sy-0003-ai",
    "ordinal": 0,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/e18f217e9911e40ae248-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3040,6 +3041,7 @@
         ]
        ],
        "current": "fragments/review/b0e87d44e6b71ffd20d9-current.html",
+       "current_macros": "review-current:e7d0afbb3c6e1e4382e0",
        "current_spans": [
         [
          68,
@@ -3071,8 +3073,11 @@
         ]
        ]
       },
+      "current_fragment": "fragments/review/9d3b0c1c814d9e79b9f8-dependency.html",
+      "current_macros": "review-current:e7d0afbb3c6e1e4382e0",
       "diff": "diffs/sy-0005-dependency-changed-sy-0001.diff",
       "id": "sy-0001",
+      "identity": "dependency-changed|sy-0001|",
       "kind": "dependency-changed",
       "when": "2026-09-16"
      }
@@ -3101,6 +3106,8 @@
    "node": "sy-0003",
    "ordinal": 0,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/9be176fb8ab784b7bc1b-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3136,6 +3143,8 @@
    "node": "sy-0003-ai",
    "ordinal": 0,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/09d8b69ade139e713959-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3163,6 +3172,8 @@
    "kind": "statement",
    "node": "sy-0006",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/7b8192a4cfa4de5baa70-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3191,6 +3202,8 @@
    "kind": "statement",
    "node": "sy-0006-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/91f415a70c58162f87e8-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3216,6 +3229,8 @@
    "node": "sy-0006-ai",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/ba2b9a0e4e3f40c4c6aa-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3242,6 +3257,8 @@
    "node": "sy-0006-ai",
    "ordinal": 2,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/0b874b247c5eb50efcb7-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3269,6 +3286,8 @@
    "node": "sy-0006",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/1065bc07d242e043724a-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3299,6 +3318,8 @@
    "node": "sy-0006",
    "ordinal": 2,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/636c0f2acc440bca57a3-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3329,6 +3350,8 @@
    "kind": "statement",
    "node": "sy-0007",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/ed71fc206e81c975746e-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3357,6 +3380,8 @@
    "kind": "statement",
    "node": "sy-0007-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/6cb3f136edd92269c029-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3385,6 +3410,8 @@
    "node": "sy-0007-ai",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/b9c0e73aa825cb8e8d73-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3416,6 +3443,8 @@
    "node": "sy-0007",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/629642129b6275599503-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3447,6 +3476,8 @@
    "kind": "statement",
    "node": "sy-0008",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/c8248ed6f3fa691461f2-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3475,6 +3506,8 @@
    "kind": "statement",
    "node": "sy-0008-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/840d86bccf6c4f7b4505-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3502,6 +3535,8 @@
    "kind": "statement",
    "node": "sy-0009",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/99dc91d882c769fa86a2-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3536,6 +3571,8 @@
    "node": "sy-0009",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/e6bb8ab6210bb1f4e80d-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3568,6 +3605,8 @@
    "kind": "statement",
    "node": "sy-000A",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/2d53d616cd156d88b454-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3600,6 +3639,8 @@
    "kind": "statement",
    "node": "sy-000A-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/f10bd05c97eb581091f9-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3628,6 +3669,8 @@
    "kind": "statement",
    "node": "sy-000B",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/3986ffc2bef7b89efe07-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3661,6 +3704,8 @@
    "kind": "statement",
    "node": "sy-000B-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/f05b4b41f73a585ceb2d-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3691,6 +3736,8 @@
    "node": "sy-000B-ai",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/89c4315ca46284f45dec-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3721,6 +3768,8 @@
    "node": "sy-000B",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/954548505d1e84a64b1a-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3752,6 +3801,8 @@
    "kind": "statement",
    "node": "sy-000C",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/d8966f62a78e0c2ac214-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3780,6 +3831,8 @@
    "kind": "statement",
    "node": "sy-000C-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/ac85dae6fe4aa0c4878e-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3808,6 +3861,8 @@
    "node": "sy-000C-ai",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/3d0697d63b9e5ce0a8bc-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3838,6 +3893,8 @@
    "node": "sy-000C",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/683d4c772398e32e5545-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3868,6 +3925,8 @@
    "kind": "statement",
    "node": "sy-000D",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/c24d6d66a418277d841e-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3896,6 +3955,8 @@
    "kind": "statement",
    "node": "sy-000D-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/59faf59fcfc7ddca4e00-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3922,6 +3983,8 @@
    "node": "sy-000D-ai",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/cec759d068eafed9a0a8-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3950,6 +4013,8 @@
    "node": "sy-000D",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/33414a03539a583b6662-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -3980,6 +4045,8 @@
    "kind": "statement",
    "node": "sy-000E",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/82252b24c53a42ac2db5-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4008,6 +4075,8 @@
    "kind": "statement",
    "node": "sy-000E-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/1d87b3aff47e57678589-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4033,6 +4102,8 @@
    "node": "sy-000E-ai",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/4587c9ae27d1fc4b3a14-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4058,6 +4129,8 @@
    "node": "sy-000E",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/7ffa819ee59cc2639570-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4086,6 +4159,8 @@
    "kind": "statement",
    "node": "sy-0202",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/bc39f785b1a26d174521-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4115,6 +4190,8 @@
    "node": "sy-0202",
    "ordinal": 1,
    "previous_key_match": "sy-000F/proof",
+   "review_fragment": "fragments/review/a2a1461fba01faf99d0f-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4143,6 +4220,8 @@
    "kind": "statement",
    "node": "sy-999A",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/1993572f51d67c9ecc49-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4172,6 +4251,8 @@
    "node": "sy-999A",
    "ordinal": 1,
    "previous_key_match": null,
+   "review_fragment": "fragments/review/416b38df44a00853cbf4-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4228,6 +4309,8 @@
    "kind": "statement",
    "node": "sy-999C-ai",
    "previous_key_match": null,
+   "review_fragment": "fragments/review/392ce8ec5615c9cbbb24-block.html",
+   "review_macros": "review-current:e7d0afbb3c6e1e4382e0",
    "reviews": {
     "detached": 0,
     "latest_any": null,
@@ -4603,7 +4686,7 @@
      "name": "red"
     }
    ],
-   "review:800fd03b12dbadcd3f9d": [
+   "review-current:e7d0afbb3c6e1e4382e0": [
     {
      "args": 0,
      "body": "\\operatorname{Fix}",
@@ -7079,6 +7162,7 @@
    "to": "sy-0008"
   }
  ],
+ "review_covered": [],
  "reviewer": {
   "name": "The synthetic quilt",
   "source": "local user configuration"

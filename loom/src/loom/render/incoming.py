@@ -10,8 +10,9 @@ from typing import Any
 
 from loom.records.store import Records
 from loom.render.manifest import own_text
+from loom.render.prose_changes import attach_prose, document_body, pair
 from loom.render.review_compare import _changed, _render
-from loom.scan.hashing import normalize
+from loom.scan.hashing import mathematical_hash, normalize
 from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import ScanResult, scan
@@ -130,15 +131,29 @@ def attach_incoming(
             if local_node is not None:
                 files[local_path] = _render(renderer, result, key, local, local_preamble, local_spans)
                 files[incoming_path] = _render(renderer, result, key, after, incoming_preamble, incoming_spans)
+            targets = {key} | {
+                target
+                for target, owner in incoming.dependencies.owners.items()
+                if owner == key
+                and target.startswith("equation:")
+                and mathematical_hash(incoming.dependencies.texts.get(target) or "")
+                != mathematical_hash(base.dependencies.texts.get(target) or "")
+            }
             affected = []
-            for dependent, entry in manifest["keys"].items():
-                if dependent == key or dependent not in accepted or key not in entry.get("closure", []):
+            for dependent in manifest["keys"]:
+                if (
+                    dependent == key
+                    or dependent not in accepted
+                    or not targets.intersection(result.dependencies.closure(dependent))
+                ):
                     continue
                 affected.append({"key": dependent, "citation": _citation(result, dependent, key)})
             changes.append(
                 {
                     "key": key,
                     "kind": "added" if before_node is None else "removed" if after_node is None else "edited",
+                    "current": local,
+                    "proposed": after,
                     "local_changed": local != before,
                     "conflict": local != before and after != before and local != after,
                     "already_local": local == after,
@@ -148,7 +163,23 @@ def attach_incoming(
                     "affected": affected,
                 }
             )
+        changes.extend(
+            attach_prose(
+                result, base, incoming, renderer, files, local_preamble, incoming_preamble, incoming_macro_name
+            )
+        )
+        from loom.review_queue import fingerprint
+
+        affected_keys = [
+            key
+            for key, node in incoming.nodes.items()
+            if node.kind in ("environment", "proof")
+            and not node.derived_of
+            and key in base.nodes
+            and fingerprint(base, key) != fingerprint(incoming, key)
+        ]
         manifest["incoming"] = {
+            "affected": affected_keys,
             "remote": state.remote,
             "branch": state.branch,
             "base": state.integrated,
@@ -209,10 +240,22 @@ def attach_adoptions(
                         proposal_pre.raw_text() if proposal_pre else "",
                         right,
                     )
+                from loom.records.dependencies import historical_display
+
+                changed_targets = {key} if row["math_changed"] else set()
+                for target, owner in result.dependencies.owners.items():
+                    if owner == key and target.startswith("equation:"):
+                        label = target.removeprefix("equation:")
+                        old_display = historical_display(before, label) or ""
+                        new_display = historical_display(after, label) or ""
+                        if mathematical_hash(old_display) != mathematical_hash(new_display):
+                            changed_targets.add(target)
                 affected = [
                     {"key": k, "citation": _citation(result, k, key)}
-                    for k, entry in manifest["keys"].items()
-                    if key in entry.get("closure", []) and k != key and not result.nodes[k].derived_of
+                    for k in manifest["keys"]
+                    if changed_targets.intersection(result.dependencies.closure(k))
+                    and k != key
+                    and not result.nodes[k].derived_of
                 ]
                 rows.append(
                     {
@@ -223,6 +266,23 @@ def attach_adoptions(
                         "affected": affected,
                     }
                 )
+            current_pre = result.closures.get(data["source"])
+            proposal_pre = result.closures.get(copy)
+            context_key = next((k for k, n in result.nodes.items() if data["source"] in n.reached_by), "")
+            prose = pair(
+                renderer,
+                result,
+                context_key,
+                document_body(data["current_document"]),
+                document_body(data["proposed_document"]),
+                current_pre.raw_text() if current_pre else "",
+                proposal_pre.raw_text() if proposal_pre else "",
+                files,
+            )
+            prose["incoming_macros"] = "adopt:" + data["fingerprint"][:20]
+            manifest["macros"]["sets"][prose["incoming_macros"]] = to_mathjax(
+                parse_macros(blank_comments(proposal_pre.raw_text() if proposal_pre else ""))
+            )
             if rows or data["document_changed"]:
                 contributions.append(
                     {
@@ -233,6 +293,7 @@ def attach_adoptions(
                         "fingerprint": data["fingerprint"],
                         "changes": rows,
                         "document_changed": data["document_changed"],
+                        "document_comparison": prose,
                         "document_conflict": data["document_conflict"],
                         "document_diff": "".join(
                             difflib.unified_diff(

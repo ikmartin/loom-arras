@@ -56,7 +56,7 @@ def test_demo_ships_two_accepted_one_stale_and_a_finished_session(tmp_path: Path
     save_author("The loom demo")
     s = status_json(d)
     assert s["summary"]["accepted"] == 1 and s["summary"]["stale"] == 1
-    assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "dm-0001"
+    assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "equation:eq:fix"
     assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {
         "suggestion": 1,
         "objection": 1,
@@ -114,9 +114,9 @@ def test_review_build_publishes_rendered_comparison_and_citation(tmp_path: Path)
     assert cause["citation"] in (d / "build" / manifest["masters"][0]["fragment"]).read_text()
     accepted_html = (d / "build" / comparison["accepted"]).read_text()
     current_html = (d / "build" / comparison["current"]).read_text()
-    assert "fixed locus" in accepted_html
-    assert "fixed locus" in current_html
-    assert 'class="review-changed"' in accepted_html + current_html
+    assert "sigma" in accepted_html
+    assert "sigma" in current_html
+    assert "review-changed" in accepted_html + current_html
     assert '<p class="review-changed"' not in accepted_html + current_html
     assert comparison["accepted_spans"] and comparison["current_spans"]
 
@@ -167,7 +167,7 @@ def test_accept_writes_closure_hashes_and_proofs_flag(tmp_path: Path) -> None:
     from loom.records.ledger import read_ledger
 
     rows = {r.key: r for r in read_ledger(d)}
-    assert set(rows["dm-0002/proof"].closure) == {"dm-0001", "dm-0002"}
+    assert set(rows["dm-0002/proof"].closure) == {"equation:eq:fix", "dm-0002"}
     assert rows["dm-0002"].closure == {}
     assert rows["dm-0002"].preamble.startswith("sha256:") and rows["dm-0002"].master == "drafting/main.tex"
     snaps = list((d / ".loom" / "history" / "texts").glob("*.tex"))
@@ -302,11 +302,13 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     assert s["keys"]["dm-0001"]["state"] == "draft"
     # dependency-changed: edit the definition the proof cites through \eqref
     f = d / "nodes" / "dm-0001.tex"
-    f.write_text(f.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
+    f.write_text(f.read_text().replace(r"\sigma x = x", r"\sigma(x) = x"))
     s = status_json(d)
     proof = s["keys"]["dm-0002/proof"]
     assert proof["state"] == "accepted" and proof["acceptance"]["fresh"] is False
-    assert [c["kind"] + " " + c.get("id", "") for c in proof["acceptance"]["causes"]] == ["dependency-changed dm-0001"]
+    assert [c["kind"] + " " + c.get("id", "") for c in proof["acceptance"]["causes"]] == [
+        "dependency-changed equation:eq:fix"
+    ]
     assert s["keys"]["dm-0002"]["acceptance"]["fresh"] is True
     # own-text-changed
     g = d / "nodes" / "dm-0002.tex"
@@ -347,7 +349,7 @@ def test_status_stale_lists_the_stale_rows_and_accept_stale_reaccepts_them(tmp_p
     """`--stale` lists the stale proof and not its fresh statement; `accept --stale` re-accepts exactly those rows, appending one ledger row to the two already there."""
     d = demo(tmp_path)
     ok("accept", "dm-0002", "--proofs", *AUTHOR, cwd=d)
-    edit(d / "nodes" / "dm-0001.tex", "Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is")
+    edit(d / "nodes" / "dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
     listed = ok("status", "--stale", cwd=d).output.splitlines()
     assert [ln.split()[0] for ln in listed[:-1]] == ["dm-0002/proof"], listed  # the last line is the summary
     ok("accept", "--stale", "--yes", "--force", *AUTHOR, cwd=d)
@@ -832,18 +834,16 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     # Day 9: an upstream definition changes; the lemma's proof (not the theorem) goes stale; re-accept
     ok("accept", "dm-0002", "--proofs", *AUTHOR, cwd=d)
     g = d / "nodes" / "dm-0001.tex"
-    g.write_text(g.read_text().replace("Its \\emph{fixed locus} is", "Its \\emph{fixed locus}, a subset of $X$, is"))
+    g.write_text(g.read_text().replace(r"\sigma x = x", r"\sigma(x) = x"))
     s = status_json(d)
     stale = [k for k, e in s["keys"].items() if e.get("acceptance") and not e["acceptance"]["fresh"]]
     assert stale == ["dm-0002/proof"]
-    assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "dm-0001"
+    assert s["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]["id"] == "equation:eq:fix"
     explain = ok("status", "--explain", "dm-0002/proof", cwd=d)
     diff = [ln.strip() for ln in explain.output.splitlines()]
-    assert "dependency-changed dm-0001" in explain.output
-    assert any(ln.startswith("-") and ln.endswith("Its \\emph{fixed locus} is") for ln in diff), explain.output
-    assert any(ln.startswith("+") and ln.endswith("Its \\emph{fixed locus}, a subset of $X$, is") for ln in diff), (
-        explain.output
-    )
+    assert "dependency-changed equation:eq:fix" in explain.output
+    assert any(ln.startswith("-") and r"\sigma x = x" in ln for ln in diff), explain.output
+    assert any(ln.startswith("+") and r"\sigma(x) = x" in ln for ln in diff), explain.output
     ok("build", cwd=d)
     m = json.loads((d / "build" / "manifest.json").read_text())
     cause = m["keys"]["dm-0002/proof"]["acceptance"]["causes"][0]

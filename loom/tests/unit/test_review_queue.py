@@ -79,6 +79,7 @@ def test_transitive_attention_clears_after_upstream_ok_is_finished(
         assert handle(root, "review-decision", {"reviewer": "The synthetic quilt", "key": key, "status": "ok"})["ok"]
     covered = build(quilt).manifest
     assert covered["keys"]["sy-0002/proof"]["acceptance"]["fresh"] is False
+    assert any(row["key"] == "sy-0002/proof" and row["via"] == ["sy-0002"] for row in covered["review_covered"])
     assert not any(row["key"] == "sy-0002/proof" for row in covered["unresolved"])
     assert {row["key"] for row in covered["unresolved"] if row["status"] == "ok"} == {"sy-0001", "sy-0002"}
 

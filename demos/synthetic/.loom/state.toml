@@ -8,11 +8,12 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 basis = "expository"
 [accept.closure]
-"sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
+"equation:eq:prose" = "sha256:4b3d078e2a5d4d320b5a20dd5194dfa9b85cef432f34eae00280b996e21a8d80"
 [accept.direct]
-"sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
+"equation:eq:prose" = "sha256:4b3d078e2a5d4d320b5a20dd5194dfa9b85cef432f34eae00280b996e21a8d80"
 
 [[accept]]
 key = "sy-0002"
@@ -21,11 +22,14 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 basis = "local-proof"
 [accept.closure]
-"sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
+"equation:eq:fix" = "sha256:d163a45ef24c7772ac1c8ba1f50a5458a744874ae2f6ee60354533ba58d01a01"
+"equation:eq:prose" = "sha256:4b3d078e2a5d4d320b5a20dd5194dfa9b85cef432f34eae00280b996e21a8d80"
 "sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
 [accept.direct]
+"equation:eq:fix" = "sha256:d163a45ef24c7772ac1c8ba1f50a5458a744874ae2f6ee60354533ba58d01a01"
 "sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
 
 [[accept]]
@@ -35,12 +39,14 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:57e15b9a88a2cb06719fc7d1dc7e1599e042189b955244fecd419d9e3497e57c"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 [accept.closure]
-"sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
+"equation:eq:prose" = "sha256:4b3d078e2a5d4d320b5a20dd5194dfa9b85cef432f34eae00280b996e21a8d80"
+"equation:eq:fix" = "sha256:d163a45ef24c7772ac1c8ba1f50a5458a744874ae2f6ee60354533ba58d01a01"
 "sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
 "sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
 [accept.direct]
-"sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
+"equation:eq:prose" = "sha256:4b3d078e2a5d4d320b5a20dd5194dfa9b85cef432f34eae00280b996e21a8d80"
 "sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
 
 [[accept]]
@@ -50,6 +56,7 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 basis = "local-proof"
 [accept.closure]
 [accept.direct]
@@ -61,8 +68,10 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:355d386b10af561f3182fb3c9138a3ae2bd30230a604508d3bc46f8f39f19dd4"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 [accept.closure]
-"sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
+"equation:eq:fix" = "sha256:d163a45ef24c7772ac1c8ba1f50a5458a744874ae2f6ee60354533ba58d01a01"
+"equation:eq:prose" = "sha256:4b3d078e2a5d4d320b5a20dd5194dfa9b85cef432f34eae00280b996e21a8d80"
 "sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
 "sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
 "sy-0003" = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
@@ -77,14 +86,18 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:facfa8fd5344b1ccec44ce7b29ccb7a7ab832789095a309373c5a09328cbd7a1"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 [accept.closure]
-"sy-0100" = "sha256:919ab7f16d4f6cfcb361b49d9ead2dad40dd6598be19079ca22c654fae2629fd"
+"equation:eq:fix" = "sha256:d163a45ef24c7772ac1c8ba1f50a5458a744874ae2f6ee60354533ba58d01a01"
+"equation:eq:prose" = "sha256:4b3d078e2a5d4d320b5a20dd5194dfa9b85cef432f34eae00280b996e21a8d80"
 "sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
 "sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
+"equation:eq:step" = "sha256:063681c22b3a8bf53bd2809e31bd89054f3db8c7f4160eec320ec1dd23c3472a"
 "sy-0003" = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
 [accept.direct]
 "sy-0002" = "sha256:1187e703f085646949a7c6be8fb49bba9c7a0f57700d8d058937f0d5a9447ce1"
 "sy-0001" = "sha256:d5232fdb871ac4cd714f747a61138afe7178ff536a3e94290eb819f9a7b098fd"
+"equation:eq:step" = "sha256:063681c22b3a8bf53bd2809e31bd89054f3db8c7f4160eec320ec1dd23c3472a"
 "sy-0003" = "sha256:5adf73392ff512166c7be2872b1627f56f49b42f1c3b28994973cf60c066eca8"
 
 [[accept]]
@@ -94,6 +107,7 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:263b1e553735064c0cf0375e991ed3a71d9d451c2e39fb38261e10e225a54fb7"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 basis = "local-proof"
 [accept.closure]
 [accept.direct]
@@ -105,6 +119,7 @@ date = 2026-09-14T09:00:00Z
 text = "sha256:ea642431f360d0d3227e6cce804ea09c1e0b6e29e2d4ee3767db4111bd83a007"
 preamble = "sha256:f2a57c6b6e3416f6d636b1958cb00596f9a6d939e22d2deba3424a4635843e12"
 master = "drafting/main.tex"
+dependency_version = 1
 [accept.closure]
 "sy-000F" = "sha256:263b1e553735064c0cf0375e991ed3a71d9d451c2e39fb38261e10e225a54fb7"
 [accept.direct]

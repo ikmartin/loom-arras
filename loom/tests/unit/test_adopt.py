@@ -170,7 +170,8 @@ def test_api_choices_are_pinned_and_never_accept(quilt):
     handle(quilt.root, "adopt-decision", {**base, "keys": ["zk-0001"], "document": False})
     preview = handle(quilt.root, "adopt-preview", base)["result"]
     assert (quilt.root / DOC).read_text() == TEXT
-    handle(quilt.root, "adopt-decision", {**base, "keys": [], "document": False})
+    answer = handle(quilt.root, "adopt-decision", {**base, "keys": [], "document": False, "kept": ["zk-0001"]})
+    assert answer["result"]["kept"] == ["zk-0001"]
     with pytest.raises(ApiError, match="Selection changed"):
         handle(quilt.root, "adopt-finish", {**base, "token": preview["token"]})
 
@@ -482,3 +483,156 @@ def test_new_proof_records_its_current_author_statement(quilt):
     from loom.history.checks import verify
 
     assert not [d for d in verify(scan(quilt), history) if d.severity == "error"]
+
+
+def _incoming_preview(quilt):
+    from loom.render.api import handle
+
+    data = comparison(scan(quilt), COPY)
+    payload = {"copy": COPY, "reviewer": "Tester", "fingerprint": data["fingerprint"]}
+    handle(quilt.root, "adopt-decision", {**payload, "keys": ["zk-0001"], "document": False})
+    return handle(quilt.root, "adopt-preview", payload)["result"]
+
+
+def test_incoming_explicit_acceptance_keeps_unvisited_dependents_pending(quilt, monkeypatch):
+    from loom.records.store import Records
+    from loom.render.api import handle
+    from loom.render.build import build
+
+    edit(quilt, "First statement.", "Improved statement.")
+    preview = _incoming_preview(quilt)
+    assert {r["key"] for r in preview["review"]["items"]} == {"zk-0001", "zk-0002"}
+    monkeypatch.setattr("loom.cli.review._master_compiles", lambda *_: (True, ""))
+    answer = handle(
+        quilt.root,
+        "adopt-finish",
+        {
+            "copy": COPY,
+            "reviewer": "Tester",
+            "token": preview["token"],
+            "review_token": preview["review"]["token"],
+            "accept": ["zk-0001"],
+        },
+    )["result"]
+    assert answer["accepted"] == ["zk-0001"]
+    assert answer["pending"] == ["zk-0002"]
+    assert "zk-0001" in Records(quilt.root, quilt.history_dir).latest
+    rows = build(quilt).manifest["unresolved"]
+    assert "zk-0001" not in {r["key"] for r in rows}
+    assert next(r for r in rows if r["key"] == "zk-0002")["status"] == "needs-review"
+
+
+@pytest.mark.parametrize("accepted", [[], ["zk-9999"], ["zk-0001", "zk-0001"]])
+def test_incoming_defaults_and_invalid_acceptance(quilt, accepted):
+    from loom.records.store import Records
+    from loom.render.api import ApiError, handle
+
+    edit(quilt, "First statement.", "Improved statement.")
+    preview = _incoming_preview(quilt)
+    payload = {
+        "copy": COPY,
+        "reviewer": "Tester",
+        "token": preview["token"],
+        "review_token": preview["review"]["token"],
+        "accept": accepted,
+    }
+    if accepted:
+        with pytest.raises(ApiError, match="distinct mathematical blocks"):
+            handle(quilt.root, "adopt-finish", payload)
+        assert "Improved statement" not in (quilt.root / DOC).read_text()
+    else:
+        answer = handle(quilt.root, "adopt-finish", payload)["result"]
+        assert answer["accepted"] == []
+        assert set(answer["pending"]) == {"zk-0001", "zk-0002"}
+    assert not Records(quilt.root, quilt.history_dir).latest
+
+
+def test_incoming_preview_rejects_changed_source_and_reviewer(quilt):
+    from loom.render.api import ApiError, handle
+
+    edit(quilt, "First statement.", "Improved statement.")
+    preview = _incoming_preview(quilt)
+    payload = {
+        "copy": COPY,
+        "reviewer": "Tester",
+        "token": preview["token"],
+        "review_token": preview["review"]["token"],
+        "accept": ["zk-0001"],
+    }
+    with pytest.raises(ApiError, match="reviewer name"):
+        handle(quilt.root, "adopt-finish", {**payload, "reviewer": "Other"})
+    edit(quilt, "Second statement uses", "Edited support uses", DOC)
+    with pytest.raises(ApiError, match="changed"):
+        handle(quilt.root, "adopt-finish", payload)
+    assert "Improved statement" not in (quilt.root / DOC).read_text()
+
+
+def test_incoming_compile_failure_reports_incorporated_but_pending(quilt, monkeypatch):
+    from loom.records.store import Records
+    from loom.render.api import handle
+
+    edit(quilt, "First statement.", "Improved statement.")
+    preview = _incoming_preview(quilt)
+    monkeypatch.setattr("loom.cli.review._master_compiles", lambda *_: (False, "bad TeX"))
+    answer = handle(
+        quilt.root,
+        "adopt-finish",
+        {
+            "copy": COPY,
+            "reviewer": "Tester",
+            "token": preview["token"],
+            "review_token": preview["review"]["token"],
+            "accept": ["zk-0001"],
+        },
+    )["result"]
+    assert "Improved statement" in (quilt.root / DOC).read_text()
+    assert "bad TeX" in answer["acceptance_error"]
+    assert not answer["accepted"]
+    assert not Records(quilt.root, quilt.history_dir).latest
+
+
+def test_incoming_unchanged_proof_has_its_own_decision(quilt):
+    from loom.incorporation_review import preview
+
+    # Preview a revised statement in a source that already has its proof.
+    edit(quilt, "\\end{lemma}", "\\end{lemma}\n\\begin{proof}An existing proof.\\end{proof}", DOC)
+    before = scan(quilt)
+    source = (quilt.root / DOC).read_text()
+    view = preview(
+        before,
+        {DOC: source.replace("First statement.", "Improved statement.")},
+        {"kind": "adopt", "token": "example"},
+        "Tester",
+    )
+    proofs = [r for r in view["items"] if r["key"] in before.nodes and before.nodes[r["key"]].kind == "proof"]
+    assert proofs
+    assert proofs[0]["reason"] == "Existing proof · statement changed in the AI revision"
+    assert proofs[0]["local"] and proofs[0]["proposed"]
+    assert not proofs[0]["unavailable"]
+
+
+def test_incoming_source_change_during_compile_does_not_accept(quilt, monkeypatch):
+    from loom.records.store import Records
+    from loom.render.api import handle
+
+    edit(quilt, "First statement.", "Improved statement.")
+    preview = _incoming_preview(quilt)
+
+    def compile_and_edit(*_):
+        edit(quilt, "Improved statement.", "Edited during compilation.", DOC)
+        return True, ""
+
+    monkeypatch.setattr("loom.cli.review._master_compiles", compile_and_edit)
+    answer = handle(
+        quilt.root,
+        "adopt-finish",
+        {
+            "copy": COPY,
+            "reviewer": "Tester",
+            "token": preview["token"],
+            "review_token": preview["review"]["token"],
+            "accept": ["zk-0001"],
+        },
+    )["result"]
+    assert "Source changed during compilation" in answer["acceptance_error"]
+    assert not Records(quilt.root, quilt.history_dir).latest

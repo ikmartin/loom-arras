@@ -25,6 +25,8 @@ class AcceptRow:
     direct: dict[str, str] = field(default_factory=dict)  # direct statement dependencies at acceptance
     direct_recorded: bool = True  # legacy rows have only closure; compare them conservatively
 
+    dependency_version: int = 0
+
     def to_toml(self) -> str:
         lines = [
             "[[accept]]",
@@ -35,6 +37,8 @@ class AcceptRow:
             f"preamble = {_q(self.preamble)}",
             f"master = {_q(self.master)}",
         ]
+        if self.dependency_version:
+            lines.append(f"dependency_version = {self.dependency_version}")
         if self.basis:
             lines.append(f"basis = {_q(self.basis)}")
         lines.append("[accept.closure]")
@@ -76,6 +80,7 @@ def read_ledger(root: Path) -> list[AcceptRow]:
                 basis=str(r.get("basis", "")),
                 direct={str(k): str(v) for k, v in dict(r.get("direct", {})).items()},
                 direct_recorded="direct" in r,
+                dependency_version=int(r.get("dependency_version", 0)),
             )
         )
     return rows

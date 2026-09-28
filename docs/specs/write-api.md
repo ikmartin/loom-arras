@@ -56,15 +56,15 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 | method | path | body | effect |
 |---|---|---|---|
-| `POST` | `/_api/sync-incorporate` | `{incoming, base}` | verifies the displayed revision and base, preflights and applies its exact patch, then commits only its source paths and the private sync record in separate local commits |
+| `POST` | `/_api/sync-incorporate` | `{incoming, base, reviewer?, review_token?, accept?: string[]}` | verifies the displayed revision and base, preflights and applies its exact patch, then commits only its source paths and the private sync record in separate local commits |
 | `POST` | `/_api/adopt-decision` | `{copy, reviewer, fingerprint, keys, document}` | saves the reviewer's selected node keys and document-level group against the exact displayed contribution; changes no author source |
 | `POST` | `/_api/adopt-preview` | `{copy, reviewer, fingerprint}` | validates the saved choices and returns an immutable `{token, patch, paths}` preview; writes build cache only, without rebuilding |
-| `POST` | `/_api/adopt-finish` | `{copy, reviewer, token}` | revalidates source, proposal, choices and reviewer, stamps the working document as a landmark, applies exactly the preview and records incorporation; answers `{paths, step, landmark, copy, message}`; commits nothing and needs no git repository; never accepts mathematics |
+| `POST` | `/_api/adopt-finish` | `{copy, reviewer, token, review_token?, accept?: string[]}` | revalidates source, proposal, choices and reviewer, stamps the working document as a landmark, applies exactly the preview and records incorporation; answers `{paths, step, landmark, copy, message}`; commits nothing and needs no git repository; optionally records explicit mathematical acceptances bound to review_token |
 
-| `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision without accepting mathematics |
+| `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision and atomically publishes queue metadata without accepting mathematics or rebuilding document renderings; Finish review rebuilds after the batch (DR-315-luisa) |
 | `POST` | `/_api/review-finish` | `{reviewer}` | validates pending OK decisions and records eligible acceptances together |
 
-Every successful mutation triggers a republish; `compare` and `adopt-preview` only prepare cached inspection results and do not republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, creates one local source commit and one local sync-record commit, and never pushes to Overleaf or accepts mathematics.
+Every successful mutation triggers a republish; `compare` and `adopt-preview` only prepare cached inspection results and do not republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, creates one local source commit and one local sync-record commit, and never pushes to Overleaf. Mathematical acceptance is optional and explicit as described below.
 
 ## 3. Authorship
 
@@ -94,3 +94,13 @@ A browser blocks a cross-origin *response* and never the *request*, so any page 
 | `POST` | `/_api/reviewer-settings` | `{name?: string}` | reads effective local reviewer and source; when name is supplied, trims and atomically saves only local author.name, preserving other keys; response includes reviewer `{name, source}` and rebuilds before returning |
 
 Personal review writes require the displayed `reviewer` to equal the current local identity; missing identity returns `no-reviewer`, changed or missing displayed context returns `reviewer-changed` (409) before mutation. Review decision validation also checks the build's reviewer. The local settings capability uses the existing localhost and token protections and exposes no arbitrary path or configuration write. Unsupported TOML author-table forms refuse rather than risking unrelated keys. Settings changes select a history, never rename it.
+
+The `adopt-decision` body optionally accepts `kept: string[]` beside `keys` and `document`. Kept keys are offered comparison entries explicitly left current; they never enter the incorporation selection or alter the acceptance ledger. Selection, reviewer, revision and preview-token checks remain authoritative. Review finish checks stale support reached through equation targets as well as ordinary statement dependencies (DR-314-luisa).
+
+### Mathematical decisions during incorporation (DR-316-luisa)
+
+| `POST` | `/_api/sync-preview` | `{incoming, base, reviewer}` | prepares the pinned whole pull without applying it and returns a mathematical review preview |
+
+`sync-preview` returns `{ok, result: {token, reviewer, items}}`. `adopt-preview` adds the same object as `result.review` for the selected AI patch. Each mathematical item has `{key, name, reason, local, proposed, unavailable}`; local and proposed hold `{path, macros}` for isolated renderings, local may be null for new blocks, and unavailable explains why acceptance is disabled. Items include unchanged dependent proofs and exclude structural sections and prose. Preview preparation changes no acceptance records or author source.
+
+`sync-incorporate` and `adopt-finish` optionally take `review_token` and `accept: string[]` with the effective `reviewer`. Omitting accept accepts nothing. Tokens bind the exact source, proposed patch and reviewer; foreign keys, repeated keys, changed source and stale selections are refused before application. After incorporation the selected blocks' fingerprints are checked again, applicable masters must compile and stale mathematical support must be included in the acceptance batch. The result adds `accepted` and `pending` lists. All unselected preview items remain explicitly pending. If incorporation succeeded but acceptance validation failed, the success result includes `acceptance_error` and pending mathematics; the UI reports both outcomes without suggesting that source application failed. The final server rebuild publishes the resulting review states. Prose has no acceptance action.

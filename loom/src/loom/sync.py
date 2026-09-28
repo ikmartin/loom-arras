@@ -410,9 +410,12 @@ def prepare_incorporation(quilt: Quilt, state: SyncState) -> dict[str, Any]:
     incoming_review = manifest.get("incoming") or {}
     if incoming_review.get("commit") != state.incoming:
         raise SyncError("the incoming review changed; refresh and prepare again")
-    prepared["changed_keys"] = [change["key"] for change in incoming_review.get("changes", [])]
+    prepared["changed_keys"] = [
+        change["key"] for change in incoming_review.get("changes", []) if change.get("category") != "prose"
+    ]
     prepared["review_keys"] = sorted(
         set(prepared["changed_keys"])
+        | set(incoming_review.get("affected", []))
         | {
             dependent["key"]
             for change in incoming_review.get("changes", [])

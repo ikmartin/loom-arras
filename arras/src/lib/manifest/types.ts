@@ -114,15 +114,21 @@ export interface Node {
 }
 
 export interface Cause {
+  identity?: string;
+  label?: string;
+  owner?: string;
   kind: string;
   id?: string;
   via?: string;
   citation?: string;
   when?: string;
   diff: string | null;
+  current_fragment?: string;
+  current_macros?: string;
   comparison?: {
     accepted: string;
     current: string;
+    current_macros?: string;
     accepted_macros: string;
     accepted_spans: [number, number][];
     current_spans: [number, number][];
@@ -130,6 +136,10 @@ export interface Cause {
 }
 
 export interface IncomingChange {
+  name?: string;
+  category?: "prose";
+  current?: string;
+  proposed?: string;
   key: string;
   kind: 'edited' | 'added' | 'removed';
   local_changed: boolean;
@@ -163,7 +173,8 @@ export interface AdoptionReview {
   document_changed: boolean;
   document_conflict: boolean;
   document_diff: string;
-  choices: {keys: string[]; document: boolean};
+  document_comparison?: {local: string | null; incoming: string | null; current: string; proposed: string; incoming_macros: string};
+  choices: {keys: string[]; document: boolean; kept?: string[]};
   issues: string[];
 }
 
@@ -195,6 +206,8 @@ export interface Reviews {
 }
 
 export interface Key {
+  review_fragment?: string;
+  review_macros?: string;
   key: string;
   node: string;
   kind: "statement" | "proof" | (string & {});
@@ -507,6 +520,7 @@ export interface Manifest {
   incoming?: IncomingReview;
   contributions?: (AdoptionReview | (IncomingReview & {kind: 'workspace'; label: string}))[];
   unresolved?: UnresolvedReview[];
+  review_covered?: {key: string; via: string[]}[];
   regions: Record<string, Region>;
   relations?: Relation[];
   edges: Edge[];
@@ -525,4 +539,23 @@ export interface Manifest {
   links?: AssertedLink[];
   macros: { default: Macro[]; sets: Record<string, Macro[]> };
   search: SearchEntry[];
+}
+
+export interface IncorporationMathItem {
+  key: string;
+  name: string;
+  reason: string;
+  local: {path: string; macros: Macro[]} | null;
+  proposed: {path: string; macros: Macro[]};
+  unavailable: string;
+}
+export interface IncorporationMathReview {
+  token: string;
+  reviewer: string;
+  items: IncorporationMathItem[];
+}
+export interface IncorporationOutcome {
+  accepted?: string[];
+  pending?: string[];
+  acceptance_error?: string;
 }
