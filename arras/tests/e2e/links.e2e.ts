@@ -83,6 +83,19 @@ test.describe('the one rule', () => {
 		await expect.poll(() => new URL(page.url()).searchParams.get('note')).toBe('a-2026-09-16-0001');
 	});
 
+	test("a bare id in an annotation reads as the result it names, and follows like any link", async ({ page }) => {
+		// an agent writes `sy-0002(a)` in prose as often as it writes a link; an id the quilt does not know is left as written
+		await serve(page, (m) => {
+			m.annotations['a-2026-09-16-0001'].body_html = '<p>This invokes sy-0002(a), not sy-9999.</p>';
+		});
+		await saying(page, '<p>My <a href="quilt:a-2026-09-16-0001"></a>.</p>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		await pane(page, 1).getByTestId('message-1').locator('a').click();
+		const body = pane(page, 0).getByTestId('comment-expanded').locator('.body').first();
+		await expect(body).toContainText('This invokes Lemma 1.2(a), not sy-9999.');
+		await expect(body.locator('a[href="quilt:sy-0002"]')).toHaveAttribute('title', 'sy-0002');
+	});
+
 	test('the place a link went is gone to once: a new manifest leaves the reader where they are', async ({ page }) => {
 		// `loom serve` publishes a new manifest whenever anything changes, an agent's annotation or a compile, and each one mounted the document again and went back to the link's annotation, box open
 		let revision = 0;

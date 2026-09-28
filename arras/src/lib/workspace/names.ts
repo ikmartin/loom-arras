@@ -38,7 +38,7 @@ interface Named {
 }
 
 /**
- * A result as a reader refers to it in a list: its taxon and number where the default document numbers it, a result read off a cited work by the work and its short name, else its taxon and title, else its id.
+ * A result as a reader refers to it in a list: its taxon and number where the default document numbers it, or else the document holding it, a result read off a cited work by the work and its short name, else its taxon and title, else its id.
  *
  * A proof is named for the result it proves.
  */
@@ -48,8 +48,9 @@ export function nodeName(m: Named, id: string): string {
 	const owner = m.keys?.[id]?.node;
 	if (n.kind === 'proof' && owner && owner !== id) return `proof of ${nodeName(m, owner)}`;
 	if (n.digest && n.locator) return `${n.digest} · ${shortLocator(n.locator)}`;
+	// numbered as the default document numbers it, else as the document that holds it does: an agent's copy numbers its own nodes, and a node of it named by its id read as a hash
 	const main = m.masters.find((x) => x.default)?.path;
-	const number = main ? n.numbers[main]?.number : undefined;
+	const number = (main ? n.numbers[main]?.number : undefined) ?? Object.values(n.numbers).find((x) => x?.number)?.number;
 	if (number) return `${n.taxon} ${number}`;
 	return n.title ? `${n.taxon} · ${n.title}` : id;
 }

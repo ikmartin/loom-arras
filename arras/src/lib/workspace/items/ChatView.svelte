@@ -178,12 +178,17 @@
 		</ol>
 	</div>
 	{#if live}
-		<p class="status" data-testid="chat-line">
-			<span role="status" data-testid="chat-status">{status}</span>
-			{#if running}<button type="button" class="stop" data-testid="agent-stop" onclick={stop}>stop</button>{/if}
-		</p>
-		<PacketTray session={item.id} refresh={sends} oncount={(n) => (packed = n)} />
-		<Composer session={item.id} {packed} {onsent} />
+		<!-- the foot's rule spans the pane; what stands on it keeps the conversation's column -->
+		<div class="foot">
+			<div class="column">
+				<p class="status" data-testid="chat-line">
+					<span role="status" data-testid="chat-status">{status}</span>
+					{#if running}<button type="button" class="stop" data-testid="agent-stop" onclick={stop}>stop</button>{/if}
+				</p>
+				<PacketTray session={item.id} refresh={sends} oncount={(n) => (packed = n)} />
+				<Composer session={item.id} {packed} {onsent} />
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -203,18 +208,27 @@
 	.top {
 		height: 1px;
 	}
+	/* One column of reading width, centered in the pane however wide it is: a conversation pinned to the left edge of a wide pane left most of it empty on one side. */
+	.messages,
+	.column {
+		max-width: var(--measure);
+		margin-inline: auto;
+	}
 	.messages {
 		list-style: none;
-		margin: 0;
+		margin-block: 0;
 		padding: 0;
-		max-width: var(--measure);
 	}
 	.message + .message {
 		margin-top: var(--gap);
 	}
-	.message.agent {
-		border-left: 2px solid var(--rule);
+	/* both voices stand at one edge: the agent's carries a rule, the person's the same inset with none */
+	.message {
+		border-left: 2px solid transparent;
 		padding-left: var(--gap-tight);
+	}
+	.message.agent {
+		border-left-color: var(--rule);
 	}
 	.meta {
 		margin: 0 0 2px;
@@ -243,14 +257,17 @@
 		font-size: 11px;
 		color: var(--ink-faint);
 	}
+	.foot {
+		border-top: 1px solid var(--rule);
+		padding: 0 var(--gap-wide);
+	}
 	.status {
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
 		gap: var(--gap);
 		margin: 0;
-		padding: 4px var(--gap-wide);
-		border-top: 1px solid var(--rule);
+		padding: 4px 0;
 		font-family: var(--sans);
 		font-size: 11px;
 		color: var(--ink-faint);

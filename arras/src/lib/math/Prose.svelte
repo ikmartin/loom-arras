@@ -5,17 +5,19 @@
 	import { store } from '$lib/manifest/client.svelte';
 	import { typeset } from '$lib/math/mathjax';
 	import { linkName } from '$lib/workspace/names';
+	import { linkIds } from './ids';
 
 	let { html, class: klass = 'body' }: { html: string; class?: string } = $props();
 
 	let el: HTMLElement | undefined = $state();
 
-	// An empty link is named by the viewer, so the name is the one a reader uses and stays right when the document is renumbered.
+	// An empty link is named by the viewer, so the name is the one a reader uses and stays right when the document is renumbered. A bare id in the prose — an agent writes `rl-0020-ai(a)` as often as a link — becomes such a link first, where the manifest knows it.
 	$effect(() => {
 		const node = el;
 		const m = store.manifest;
 		void html;
 		if (!node || !m) return;
+		linkIds(node, (key) => !!m.nodes[key]);
 		for (const a of node.querySelectorAll<HTMLAnchorElement>('a[href^="quilt:"], a[href^="cited:"]')) {
 			if (!a.textContent?.trim()) a.textContent = linkName(m, a.getAttribute('href') ?? '');
 		}

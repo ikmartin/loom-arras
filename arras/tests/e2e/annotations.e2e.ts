@@ -512,6 +512,31 @@ test.describe('the box', () => {
 		await expect(view).toHaveText('· rendered');
 	});
 
+	test('a verbatim proposal is one block: its lines kept, never a strip per line overlapping the one above, the switch beside the placement word', async ({ page }) => {
+		const long = ['if and only if \\(x\\) is in the image of \\(\\eta(U)\\colon\\mathcal Y^G(U)\\to \\mathcal Y(U)\\): indeed \\(\\mathcal Y^G\\) parameterizes group-theoretic sections', '  of \\(\\mathcal Y\\) \\cite[Lemma 4.1.2]{Kre99}.'].join('\n');
+		await serve(page, (m) => {
+			m.annotations['a-2026-09-16-0002'].status = 'open';
+			m.annotations['a-2026-09-16-0002'].payload = long;
+		});
+		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-0002');
+		const pay = box.getByTestId('payload');
+		await pay.getByTestId('payload-view').click();
+		const pre = pay.getByTestId('payload-verbatim');
+		await expect(pre).toBeVisible();
+		const drawn = await pre.evaluate((el) => {
+			const cs = getComputedStyle(el);
+			return { display: cs.display, boxes: el.getClientRects().length, line: parseFloat(cs.lineHeight), size: parseFloat(cs.fontSize), text: el.textContent };
+		});
+		expect(drawn.display).toBe('block');
+		expect(drawn.boxes).toBe(1);
+		expect(drawn.line).toBeGreaterThan(drawn.size * 1.3);
+		expect(drawn.text).toBe(long);
+		// the switch stays on the placement word's line, above the text, whichever way it is shown
+		const word = await pay.locator('.word').boundingBox();
+		const view = await pay.getByTestId('payload-view').boundingBox();
+		expect(Math.abs(view!.y - word!.y)).toBeLessThan(6);
+	});
+
 	test("a citation's work stands at a rule in the citation's hue; accept and reject are its verbs, and once decided the box says so once and they go", async ({ page }) => {
 		// the publisher resolves the annotation and leaves a reference note naming it; the manifest served after the write says so
 		const id = 'a-2026-09-16-0005';

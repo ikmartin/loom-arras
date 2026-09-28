@@ -63,7 +63,7 @@
 <style>
 	.tray {
 		border-top: 1px solid var(--rule);
-		padding: 4px var(--gap-wide) 6px;
+		padding: 4px 0 6px;
 		font-family: var(--sans);
 		font-size: 11.5px;
 		/* its own height, up to the cap: shrinking with the log, it showed one line of the preview under a long transcript */

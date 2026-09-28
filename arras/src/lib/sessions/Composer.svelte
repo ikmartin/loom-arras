@@ -65,14 +65,24 @@
 		grid-template-columns: 1fr auto auto;
 		gap: 4px;
 		align-items: end;
-		padding: 6px;
-		border-top: 1px solid var(--rule, #ddd9cf);
+		padding: 4px 0 10px;
 	}
 	textarea {
 		font: inherit;
 		font-size: 0.85rem;
+		line-height: 1.5;
 		resize: vertical;
-		min-height: 2.4em;
+		min-height: 2.6em;
+		padding: 6px 8px;
+		color: var(--ink);
+		background: var(--sheet);
+		border: 1px solid var(--rule);
+		border-radius: var(--rad-control);
+	}
+	textarea:focus {
+		outline: none;
+		border-color: var(--link);
+		box-shadow: 0 0 0 2px var(--link-wash);
 	}
 	button {
 		font: inherit;
