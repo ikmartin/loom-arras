@@ -283,6 +283,8 @@ export interface Annotation {
   severity?: string | null;
   /** Text the annotation proposes. Preview and copy only; nothing here applies it. */
   payload?: string | null;
+  /** The payload as the publisher's converter renders it, in the context of the result it is on; null when it could not be, and then the TeX is read as prose. */
+  payload_html?: string | null;
   /** Where the payload would go relative to the anchor: `replace` | `after` | `before`. A hint, not an instruction. */
   placement?: string | null;
   /** The run or session this belongs to; the grouping key, since every annotation now lives in one log. */

@@ -77,6 +77,8 @@ interface Opened {
 	ids: string[];
 	/** Whether this box stands over the text; a box opened by `expandAll` stands in the flow whatever the placement. */
 	floats: boolean;
+	/** A floating box's watch on its own size, which places it again as its math and proposed text render and it grows. */
+	sized?: ResizeObserver;
 }
 
 export function inlineComments(
@@ -117,6 +119,7 @@ export function inlineComments(
 	};
 
 	const shut = (box: Opened) => {
+		box.sized?.disconnect();
 		for (const made of box.made) void unmount(made);
 		box.host.remove();
 		box.trigger.classList.remove('open');
@@ -154,7 +157,12 @@ export function inlineComments(
 		trigger.setAttribute('aria-expanded', 'true');
 		boxes = [...boxes, box];
 		host.addEventListener('pointerdown', () => front(box));
-		if (floats) place(host, trigger);
+		if (floats) {
+			place(host, trigger);
+			// placed by the height it had when inserted, a box whose content then rendered taller ran off the window's foot, and at the end of a document there was no scroll left to bring it back
+			box.sized = new ResizeObserver(() => place(host, trigger));
+			box.sized.observe(host);
+		}
 		front(box);
 		return box;
 	};

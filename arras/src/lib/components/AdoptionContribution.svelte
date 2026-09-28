@@ -39,7 +39,8 @@
 		if (!preview) return;
 		busy = true; error = '';
 		const answer = await write('adopt-finish', {copy: contribution.copy, token: preview.token});
-		if (answer.ok) { message = 'Changes incorporated. Continue in Needs review to check the mathematics.'; onincorporated(contribution.copy); preview = null; await store.refresh(); }
+		const kept = (answer.result as unknown as { landmark?: string } | undefined)?.landmark;
+		if (answer.ok) { message = `Changes incorporated.${kept ? ` The document as it was is kept as ${kept}.` : ''} Continue in Needs review to check the mathematics.`; onincorporated(contribution.copy); preview = null; await store.refresh(); }
 		else error = answer.error?.message ?? 'Could not incorporate the selected changes';
 		busy = false;
 	}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	// An annotation's box (book 15.3.1): a title line of the kind in its hue, and the severity after an objection's or a suggestion's, with the × when the box can be closed; the body; then what its kind adds -- a suggestion's proposed text at a rule in the suggestion's hue, a citation's work at one in the citation's -- then one meta line of author, date and the verbs. The kind is both the title and the stripe's hue; an open box is open, severity is the mark's weight, and an anchored annotation's quote is its mark. A settled box (resolved or discarded) has its stripe at half strength, its body softened, and the outcome once on the meta line.
 	import TexProse from '$lib/math/TexProse.svelte';
+	import TexHtml from '$lib/math/TexHtml.svelte';
 	import VerbRow from '$lib/review/VerbRow.svelte';
 	import Prose from '$lib/math/Prose.svelte';
 	import type { Annotation } from '$lib/manifest/types';
@@ -70,7 +71,8 @@
 				<!-- the source as written: one block, its line breaks and indentation kept, since it is what would be pasted -->
 				<pre data-testid="payload-verbatim">{annotation.payload}</pre>
 			{:else}
-				<div data-testid="payload-rendered"><TexProse text={annotation.payload} /></div>
+				<!-- rendered by the publisher where it could be, since a proposal may be a whole theorem and its proof -->
+				<div data-testid="payload-rendered">{#if annotation.payload_html}<TexHtml html={annotation.payload_html} />{:else}<TexProse text={annotation.payload} />{/if}</div>
 			{/if}
 		</div>
 	{/if}

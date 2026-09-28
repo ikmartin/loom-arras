@@ -59,7 +59,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | `POST` | `/_api/sync-incorporate` | `{incoming, base}` | verifies the displayed revision and base, preflights and applies its exact patch, then commits only its source paths and the private sync record in separate local commits |
 | `POST` | `/_api/adopt-decision` | `{copy, reviewer, fingerprint, keys, document}` | saves the reviewer's selected node keys and document-level group against the exact displayed contribution; changes no author source |
 | `POST` | `/_api/adopt-preview` | `{copy, reviewer, fingerprint}` | validates the saved choices and returns an immutable `{token, patch, paths}` preview; writes build cache only, without rebuilding |
-| `POST` | `/_api/adopt-finish` | `{copy, reviewer, token}` | revalidates source, proposal, choices and reviewer, applies exactly the preview and records incorporation locally; never accepts mathematics |
+| `POST` | `/_api/adopt-finish` | `{copy, reviewer, token}` | revalidates source, proposal, choices and reviewer, stamps the working document as a landmark, applies exactly the preview and records incorporation; answers `{paths, step, landmark, copy, message}`; commits nothing and needs no git repository; never accepts mathematics |
 
 | `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision without accepting mathematics |
 | `POST` | `/_api/review-finish` | `{reviewer}` | validates pending OK decisions and records eligible acceptances together |

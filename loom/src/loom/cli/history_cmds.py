@@ -18,7 +18,7 @@ from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for
 from loom.history.checks import verify
 from loom.history.ledger import Entry, History, Version, actor_for, append_entry, load_history
-from loom.history.steps import file_hash, plan_freeze, slug, text_hash, write_step
+from loom.history.steps import file_hash, plan_freeze, slug, stamp_document, text_hash, write_step
 from loom.history.versions import matching_version, materialize, parse_address, read_version
 from loom.reshape.atomize import _single_node_file
 from loom.reshape.canon import plan_draft
@@ -160,38 +160,25 @@ def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | N
     if doc is not None and result.document_role(doc) != "drafting":
         raise EnvError(f"{document} is not a live document in {result.quilt.config.drafting}/")
     name = slug(message)
-    if doc is not None and history.landmark(name) is not None:
-        raise EnvError(f"a landmark is already named {name}; name this one differently")
-    conflicted = (
-        sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and doc in n.reached_by) if doc else []
-    )
-    if conflicted:
-        raise ContentError(
-            f"{doc} reaches {', '.join(conflicted)}, defined by two files each; a landmark needs one text per key. loom lint --nodes shows them."
-        )
-    plan = plan_freeze(result, history, document=doc, narrow_to=doc)
-    if doc is None and not plan.froze and not plan.removed and not plan.restored:
-        last = history.next_step() - 1
-        raise ContentError(
-            f"nothing to stamp: no key has moved since step {last:04d}"
-            if last
-            else "nothing to stamp: no key has an id"
-        )
-    extra: dict[str, Any] = {"message": message, "in": doc}
-    text = None
     if doc is not None:
-        text = flatten(root, doc).text
-        extra.update(landmark=f"{name}.tex", to={"path": f"{name}.tex", "hash": text_hash(text)}, reaches=plan.reaches)
-    entry = write_step(
-        history,
-        "stamp",
-        name if doc is not None else f"stamp-{name}",
-        plan,
-        actor_for(root),
-        extra=extra,
-        document_text=text,
-        document_name=f"{name}.tex" if text is not None else None,
-    )
+        if history.landmark(name) is not None:
+            raise EnvError(f"a landmark is already named {name}; name this one differently")
+        try:
+            entry, plan = stamp_document(result, history, doc, name, message, actor_for(root))
+        except ValueError as exc:
+            raise ContentError(str(exc)) from exc
+    else:
+        plan = plan_freeze(result, history)
+        if not plan.froze and not plan.removed and not plan.restored:
+            last = history.next_step() - 1
+            raise ContentError(
+                f"nothing to stamp: no key has moved since step {last:04d}"
+                if last
+                else "nothing to stamp: no key has an id"
+            )
+        entry = write_step(
+            history, "stamp", f"stamp-{name}", plan, actor_for(root), extra={"message": message, "in": None}
+        )
     if as_json:
         emit_json({**entry.to_dict(), "line": entry.line})
     else:

@@ -1079,6 +1079,10 @@ button.mark.annotation.settled { display: none; }
 	margin: var(--gap-tight) 0 var(--gap);
 	font-family: var(--sans);
 }
+/* A floating box is placed by its border box (`expand.ts`), so a margin would draw it lower than placed, off the window's foot when it is held there. */
+.comment-slot.expanded.floating {
+	margin: 0;
+}
 .comment-slot.expanded:not(.floating) > .box {
 	margin: 0 0 var(--gap-hair);
 	box-shadow: 0 4px 16px rgb(0 0 0 / 9%);

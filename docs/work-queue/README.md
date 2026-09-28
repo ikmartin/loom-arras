@@ -48,7 +48,8 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-52](WQ-52-simultaneous-agent-copies.md) | several agent copies of one document at once (`-ai-01`) | loom, arras | a person wants two agent versions of one document side by side and `loom draft --ai` refuses the second |
 | [WQ-53](WQ-53-adopt-as-a-new-document.md) | adopting an agent's copy as a new document (`adopt --as`) | loom, arras | a person turns an agent's copy into a document of its own by hand, or asks for it |
 | [WQ-54](WQ-54-annotations-follow-adopted-text.md) | open annotations follow the text a person adopts | loom, arras | an adoption leaves an open annotation on the copy, and the person files it again on the adopted node |
+| [WQ-55](WQ-55-digest-review-in-review.md) | reviewing proposed digest results in Review, one at a time, after a design study | arras, loom | `loom refs coverage` shows proposals waiting in two or more works, or ten in one, and the author sets out to verify them |
 
-Twenty-eight active, seventeen slots of headroom.
+Twenty-nine active, sixteen slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

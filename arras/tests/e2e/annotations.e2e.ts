@@ -355,6 +355,27 @@ test.describe('marks and boxes', () => {
 		await expect(slots).toHaveCount(0);
 	});
 
+	test('floating, a box that grows as its content renders stays clear of the window foot', async ({ page }) => {
+		await prefs(page, { comments: 'floating' });
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment[data-comments-wired="floating"] mark.annotation[data-wired-mark]');
+		const mark = page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]');
+		// the mark mid-window, so a box grown past the window fits neither below it nor above it and is held at the foot, where nothing is left to scroll to reach it
+		await mark.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+		await mark.click();
+		const slot = page.locator('aside.comment-slot.floating');
+		await expect(slot).toHaveCount(1);
+		// what renders after the box is placed makes it taller, as math and a proposed theorem do
+		await slot.evaluate((el) => {
+			const grown = document.createElement('div');
+			grown.style.height = '2000px';
+			el.querySelector('article.box')!.append(grown);
+		});
+		await expect
+			.poll(() => slot.evaluate((el) => window.innerHeight - el.getBoundingClientRect().bottom))
+			.toBeGreaterThanOrEqual(3.5);
+	});
+
 	test('inline, a mark expands its comment beneath its paragraph; clicking away closes it', async ({ page }) => {
 		await prefs(page, { comments: 'inline' });
 		await page.goto('/master/main');
@@ -536,6 +557,26 @@ test.describe('the box', () => {
 		await view.click();
 		await expect(pay.getByTestId('payload-verbatim')).toContainText('\\ref{sy-0002}');
 		await expect(view).toHaveText('· rendered');
+	});
+
+	test('a proposed theorem and proof read as the document prints them, from the publisher, never as a typesetting error', async ({ page }) => {
+		const tex = '\\begin{theorem}\\label{sy-0004-ai}\nEvery orbit has \\(1\\) or \\(2\\) points.\n\\end{theorem}\n\\begin{proof}\nBy definition.\n\\end{proof}';
+		await serve(page, (m) => {
+			m.annotations['a-2026-09-16-0002'].status = 'open';
+			m.annotations['a-2026-09-16-0002'].payload = tex;
+			m.annotations['a-2026-09-16-0002'].payload_html =
+				'<div class="env env-theorem" data-taxon="Theorem" data-style="plain"><p class="env-label"><span class="taxon">Theorem</span></p><p>Every orbit has <span class="math inline">\\(1\\)</span> or <span class="math inline">\\(2\\)</span> points.</p></div><details class="env env-proof" open><summary class="env-label">Proof</summary><p>By definition.</p></details>';
+		});
+		const box = await openBox(page, '/node/sy-0004', 'a-2026-09-16-0002');
+		const rendered = box.getByTestId('payload-rendered');
+		await expect(rendered.locator('.env-theorem .taxon')).toHaveText('Theorem');
+		await expect(rendered.locator('.env-proof')).toContainText('By definition.');
+		await expect(rendered.locator('mjx-container').first()).toBeAttached();
+		await expect(rendered.locator('mjx-merror')).toHaveCount(0);
+		await expect(rendered).not.toContainText('\\begin');
+		// the verbatim view is still the TeX as written
+		await box.getByTestId('payload-view').click();
+		await expect(box.getByTestId('payload-verbatim')).toHaveText(tex);
 	});
 
 	test('a verbatim proposal is one block: its lines kept, never a strip per line overlapping the one above, the switch beside the placement word', async ({ page }) => {

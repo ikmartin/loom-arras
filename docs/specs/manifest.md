@@ -270,6 +270,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
   "quote": "the inclusion is open by the rigidity lemma",
   "severity": "major",
   "payload": "\\begin{lemma}\\label{rl-0021}...",
+  "payload_html": "<div class=\"env env-lemma\" ...>...</div>",
   "placement": "after",
   "run": "s-2026-09-16-0001",
   "record": "s-2026-09-16-0001",
@@ -305,7 +306,7 @@ The **id** is minted once and is the address; the **title** is the author's and 
 
 **[decided]** `discard_reason` is the text given when the annotation was withdrawn, or null. Discarding is the one state change that carries a reason, because withdrawing a finding says the finding should not have been raised and the record is worth nothing without the why.
 
-**[decided]** `severity` grades the fault a finding names — `major`, `moderate`, `minor` — and is null where the annotation names no fault. It is unrelated to a diagnostic's `severity`, which grades a message. `payload` is text the annotation proposes and `placement` (`replace`, `after`, `before`) is a hint for where a viewer shows it relative to the anchor; a viewer previews a payload and never applies one.
+**[decided]** `severity` grades the fault a finding names — `major`, `moderate`, `minor` — and is null where the annotation names no fault. It is unrelated to a diagnostic's `severity`, which grades a message. `payload` is text the annotation proposes and `placement` (`replace`, `after`, `before`) is a hint for where a viewer shows it relative to the anchor; a viewer previews a payload and never applies one. `payload_html` is the payload as the publisher's converter renders it (the dialect, without element ids), read in the context of the result the annotation is on, else of the default document, so a proposal that is a whole theorem and its proof reads as the document would print it; it is null where there is no payload or the converter refused it, and a viewer then renders the TeX as prose.
 
 **[decided]** `run` is the id of the session the annotation belongs to, and is the key a viewer groups by. `record` carries the same string and is deprecated: it once named the file an annotation lived in, and annotations now live in one append-only log per corpus, so a path would name the same file for every one of them. A viewer that treated `record` as an opaque grouping key needs no change.
 

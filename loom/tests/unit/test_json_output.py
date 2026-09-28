@@ -39,15 +39,11 @@ def nothing(_: Path) -> None:
 
 
 def ai_copy(q: Path) -> None:
-    from loom.sync import git
+    from loom.scan.quilt import save_author
     from tests.helpers import ok
 
+    save_author("Tester")
     ok("draft", "drafting/main.tex", "--ai", "contribution.tex", cwd=q)
-    git(q, "init", "-b", "main")
-    git(q, "config", "user.name", "Tester")
-    git(q, "config", "user.email", "tester@example.test")
-    git(q, "add", ".")
-    git(q, "commit", "-m", "copy baseline")
 
 
 #: command path -> (arguments before `--json`, setup, exit code); each runs on its own fresh demo.
