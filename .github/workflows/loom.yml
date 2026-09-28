@@ -82,7 +82,10 @@ jobs:
         run: apt-get update && apt-get install -y git python3 poppler-utils curl
       - name: what the TeX tier loads that the medium scheme lacks
         # found from the .fls files of a TeX-tier run: biblatex and biber (the reshape test's bibliography), tikz-cd and xypic (the quilts' and the fallback test's diagrams), standalone and preview (every fallback SVG), sansmathaccent (the synthetic quilt's beamer talk), logreq (biblatex); a "File `x.sty' not found" here names the package to add
-        run: tlmgr update --self && tlmgr install biber biblatex logreq preview sansmathaccent standalone tikz-cd xypic
+        run: |
+          tlmgr option repository https://mirror.ctan.org/systems/texlive/tlnet
+          tlmgr update --self
+          tlmgr install biber biblatex logreq preview sansmathaccent standalone tikz-cd xypic
       - uses: actions/checkout@v4
       - run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"

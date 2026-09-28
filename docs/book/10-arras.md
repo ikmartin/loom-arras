@@ -153,3 +153,7 @@ Like the word list, this is a boundary rather than a style: a violation is in th
 ## 10.9 Accessibility and print
 
 **[decided]** Every page is navigable by keyboard and the master view prints as a document with badges suppressed; marks carry `aria-describedby` to their boxes in the margin placement and `aria-expanded` in place (implemented). Not MVP-gating.
+
+### AI contribution writes
+
+Incoming's adoption controls call `adopt-decision`, `adopt-preview` and `adopt-finish` (DR-313-luisa; the payload contract is in `docs/specs/write-api.md`). Preparing a preview changes no author source. Finishing rechecks its immutable token, current source, proposal, reviewer and choices before using the shared checked patch application. The adoption's source changes, version files and review origins form one local commit; a failure before that commit restores the source and private records. Existing workspace pulls retain their separate source and sync-record commits.

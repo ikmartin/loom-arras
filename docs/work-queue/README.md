@@ -29,7 +29,6 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-17](WQ-17-external-user.md) | acceptance criterion 10: an external user | — | someone outside the project has a paper to bring in |
 | [WQ-19](WQ-19-publishing.md) | publishing to PyPI and npm | loom, arras | the author decides to release |
 | [WQ-22](WQ-22-extraction-node-model.md) | digest extraction shares the node model | loom | extraction and atomize disagree about what a node is |
-| [WQ-24](WQ-24-ai-quilt.md) | an agent's own quilt under `ai/`, sharing the author's id space | loom, arras | the workbench has landed, and a run leaves three or more draft nodes that reference one another |
 | [WQ-25](WQ-25-history-view.md) | the history view in arras: landmarks, stamps, versions per node, the graph at a step | arras, loom | a quilt's ledger holds three or more landmarks |
 | [WQ-27](WQ-27-applying-suggestions.md) | applying a suggestion: patches, `bundle --with`, editor code actions | loom, editors | one run leaves ten or more payloads |
 | [WQ-28](WQ-28-annotated-export.md) | an annotated view exported as LaTeX and PDF | loom, arras | a review has to reach someone who cannot run arras |
@@ -46,7 +45,10 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-49](WQ-49-editor-clients.md) | rework the editor clients; until then they are deprecated and may break | loom-lsp, loom-nvim, loom-vscode | someone starts to work seriously in a quilt and wants loom in their editor |
 | [WQ-50](WQ-50-publish-after-mv-test.md) | a committed test that a publish after `loom mv` keeps Overleaf's file name | loom | the next change to sync's mapping of Overleaf's main, or to `loom mv` |
 | [WQ-51](WQ-51-macro-sets-leak.md) | a view's macros stay its own: no page-wide `\renewcommand` leaking between documents | arras | a real quilt has two macro sets defining one name differently |
+| [WQ-52](WQ-52-simultaneous-agent-copies.md) | several agent copies of one document at once (`-ai-01`) | loom, arras | a person wants two agent versions of one document side by side and `loom draft --ai` refuses the second |
+| [WQ-53](WQ-53-adopt-as-a-new-document.md) | adopting an agent's copy as a new document (`adopt --as`) | loom, arras | a person turns an agent's copy into a document of its own by hand, or asks for it |
+| [WQ-54](WQ-54-annotations-follow-adopted-text.md) | open annotations follow the text a person adopts | loom, arras | an adoption leaves an open annotation on the copy, and the person files it again on the adopted node |
 
-Twenty-six active, nineteen slots of headroom.
+Twenty-eight active, seventeen slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

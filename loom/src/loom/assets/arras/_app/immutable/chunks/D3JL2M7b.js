@@ -1,0 +1,1 @@
+import{Z as e,a as t,ht as n,mt as r}from"./BTNz6g-1.js";import"./xihTtKlq.js";import{t as i}from"./C1WodNmn.js";function a(a,o){n(o,!0);let s=t(o,`label`,3,`Filters`);e(()=>(i.snippet=o.children,i.label=s(),()=>{i.snippet=null,i.label=``})),r()}export{a as t};

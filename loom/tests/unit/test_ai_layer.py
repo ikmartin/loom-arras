@@ -504,6 +504,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "ai init",
         "upgrade",
         "session use",
+        "adopt",  # the orientation names incorporation as author-only
         "draft",  # the orientation names `loom draft DOC --ai NAME` as how the author makes the agent's copy
     }
     told = {c for c in author_commands() if re.search(rf"`loom {re.escape(c)}\b", docs)}

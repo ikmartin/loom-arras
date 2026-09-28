@@ -106,6 +106,13 @@ def verify(result: ScanResult, history: History) -> list[Diagnostic]:
                 out.append(missing("the preamble", n))
             elif hash_text(p.read_text(encoding="utf-8", errors="replace")) != pre:
                 out.append(edited("the preamble", n))
+        proposal = e.get("proposal") or {}
+        if e.action == "adopt" and proposal:
+            proposal_path = d / "proposal.tex"
+            if not proposal_path.is_file():
+                out.append(missing("the inspected AI proposal", n))
+            elif file_hash(proposal_path) != proposal.get("hash"):
+                out.append(edited("the inspected AI proposal", n))
         to = e.get("to") or {}
         if isinstance(to, dict) and to.get("path") and to.get("hash"):
             p = d / Path(str(to["path"])).name

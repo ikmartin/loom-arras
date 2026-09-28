@@ -8,13 +8,13 @@ A quilt that is not a fixture or a demo holds three or more landmarks (an import
 
 ## Why deferred
 
-The history exists first in loom (plan 0.9, built 2026-09-17); a view of it is worth designing against a real ledger rather than an imagined one, and the manifest fields it needs — each key's version list, each step's entry — are cheap to add once the ledger's shape has survived a few weeks of use. The seed is already published: `keys[k].version` and the "text of @N" badge.
+The history exists first in loom (plan 0.9, built 2026-09-17); a view of it is worth designing against a real ledger rather than an imagined one, and the manifest fields it needs — each key's version list, each step's entry — are cheap to add once the ledger's shape has survived a few weeks of use. The seeds are already published: `keys[k].version` and the "text of @N" badge; the landmarks, which plan 0.17.3 made stamps that keep their document's text, listed under Landmarks in the panel and opened as documents; and compare (plan 0.17.4), which already reads a landmark against today or another landmark.
 
 ## Rough design
 
 One view, three settings, decided with the author on 2026-09-17:
 
-- **Landmarks** (default): the steps that keep a document's text only, as labelled major ticks. What a coauthor or referee opening a shared quilt expects — versions of the paper.
+- **Landmarks** (default): the steps that keep a document's text only (`loom stamp DOC -m NAME`, book 17.9), as labelled major ticks, each opening the landmark the panel's Landmarks subsection already lists and offering compare against today. What a coauthor or referee opening a shared quilt expects — versions of the paper.
 - **Working history**: landmarks plus stamps as minor ticks; the slider snaps to landmarks and steps through stamps when zoomed. What the author opening their own quilt expects.
 - **Everything** (deferred within the deferred): the annotation log's events layered on the timeline, so a step shows what stood against the versions it replaced.
 

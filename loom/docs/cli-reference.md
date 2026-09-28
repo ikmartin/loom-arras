@@ -31,6 +31,22 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 | `--yes`, `-y` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+## `loom adopt`
+
+`loom adopt [OPTIONS] DOCUMENT [KEYS]...`
+
+Inspect an AI draft's changes and incorporate them after confirmation; never accept mathematics.
+
+| option | description |
+|---|---|
+| `--document-changes` | Include proposed prose, preamble and ordering changes. |
+| `--document-only` | Include document-level changes while keeping every node version. |
+| `--incorporate` `TOKEN` | Incorporate exactly the previously inspected preview. |
+| `--to` | Export the preview patch without incorporating. |
+| `--json` | Inspect and save a preview without modifying author files. |
+| `--as` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## `loom agent`
 
 `loom agent [OPTIONS] COMMAND [ARGS]...`
@@ -145,6 +161,17 @@ This is also how an agent joins a session it did not open: `loom ai orient --ses
 | option | description |
 |---|---|
 | `--session` `SESSION` | Attach to this session: also print the end of its chat and its command log. An id, a title, or a unique id suffix. |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+### `loom ai refresh`
+
+`loom ai refresh [OPTIONS] DOCUMENT`
+
+Update an AI draft from its working document, preserving outstanding proposals.
+
+| option | description |
+|---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom ai start`

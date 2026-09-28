@@ -467,6 +467,8 @@ class ServeSession:
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
         handler.token = write_serve_json(self.quilt.root, self.port)  # type: ignore[attr-defined]
+        # Capture inputs before clients can change them, including during the first build.
+        self.watcher = Watcher(self.quilt.root, self.rebuild, self.interval)
         threading.Thread(target=self.httpd.serve_forever, name="loom-http", daemon=True).start()
 
     def start(self) -> None:
@@ -474,7 +476,7 @@ class ServeSession:
         if self.httpd is None:
             self.listen()
         self.first_build()
-        self.watcher = Watcher(self.quilt.root, self.rebuild, self.interval)
+        assert self.watcher is not None
         self.watcher.start()
         self.launcher.start()
 

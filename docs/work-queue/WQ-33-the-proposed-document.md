@@ -12,6 +12,9 @@ Carried out of [[WQ-23]] when that item graduated into [plan 0.11](../plans/0.11
 
 ## Rough design
 
+**What plan 0.17 answered.** For a revision of one document the parallel quilt now exists in the form 0.17 chose: the agent edits its own copy of the document under `drafting-ai/` (0.17.1), a person reads it against the source with compare, order included (0.17.4), and the apply step is adoption, which previews, lets the person choose node by node and the prose and order as a group, and incorporates only what was chosen (0.17.2). What remains is the item's other half: a revision assembled from nodes of several documents, or an order proposed without copying a document, which a copy of one document cannot carry. The design below is the item as it stood before 0.17, and its five questions should be re-read against the copy before any is answered.
+
+
 A **proposed document** in the run: an ordered selection of node keys with the agent's own connecting prose between them. It **references** nodes rather than copying them, so rereading it shows current text; the closure document `loom compile` builds copies, which is right for a snapshot and wrong for something returned to. It may include the agent's draft nodes and proposed rewrites of existing ones, and it can be commented on as a whole — `loom annotate drafting/main.tex MESSAGE` already writes an annotation whose target is a document rather than a key, and 0.11 is where arras learns to show one.
 
 What exists, checked on a scratch copy of the demo quilt: an agent can write such a file in its run as `\input` lines under the quilt's preamble, and `loom compile PATH` runs latexmk on it.

@@ -1,8 +1,6 @@
 """The write API: the HTTP form of loom's record-writing commands (specs/write-api.md, plan 0.11 Part G).
 
-Served by the publisher, never by the viewer. Most endpoints write only Loom's private records. The explicit ``sync-incorporate`` endpoint is the narrow
-exception: it applies the already displayed pull to author files and records
-two local commits. Every endpoint wraps a library function so its behavior is shared with recovery and test surfaces.
+Served by the publisher, never by the viewer. Most endpoints write only Loom's private records. Explicit pull and AI incorporation apply exactly a reviewed patch to author files. Every endpoint wraps a library function shared with CLI and test surfaces.
 
 Nothing here wakes an agent. An agent pulls: it reads open annotations with `loom status` and `loom ai annotations` and answers with `loom annotate --reply`. A person writing in the viewer and an agent answering in its own session are the same log seen from two ends.
 """
@@ -37,6 +35,9 @@ CAPABILITIES = [
     "message",
     "agent-stop",
     "sync-incorporate",
+    "adopt-decision",
+    "adopt-preview",
+    "adopt-finish",
     "review-decision",
     "review-finish",
     "reviewer-settings",
@@ -45,7 +46,7 @@ CAPABILITIES = [
 WRITE_API_VERSION = 1
 
 #: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
-READS = ("compare",)
+READS = ("compare", "adopt-preview")
 
 
 class ApiError(Exception):
@@ -120,6 +121,44 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         except SyncError as exc:
             raise ApiError("sync-refused", str(exc), status=409) from exc
         return {"ok": True, "result": sync_result}
+    if endpoint in ("adopt-decision", "adopt-preview", "adopt-finish"):
+        from loom.adopt import decide as adopt_decide
+        from loom.adopt import decisions, incorporate, prepare
+        from loom.cli._common import is_agent
+        from loom.scan.quilt import load_quilt, reviewer_identity
+        from loom.scan.scan import scan
+        from loom.sync import SyncError
+
+        reviewer, _ = reviewer_identity(root)
+        if not reviewer or _str(body, "reviewer") != reviewer:
+            raise ApiError("reviewer-changed", "Choose your reviewer name and reload Incoming", status=409)
+        if is_agent(_str(body, "author") or reviewer):
+            raise ApiError("author-only", "An agent proposes; only the author incorporates", status=403)
+        copy = _str(body, "copy", required=True) or ""
+        try:
+            result = scan(load_quilt(root))
+            if endpoint == "adopt-finish":
+                answer = incorporate(result, copy, _str(body, "token", required=True) or "", reviewer)
+            elif endpoint == "adopt-decision":
+                keys = body.get("keys")
+                document = body.get("document")
+                if (
+                    not isinstance(keys, list)
+                    or not all(isinstance(k, str) for k in keys)
+                    or not isinstance(document, bool)
+                ):
+                    raise ApiError("bad-field", "keys must be a list of strings and document must be a boolean")
+                answer = adopt_decide(
+                    result, copy, keys, document, _str(body, "fingerprint", required=True) or "", reviewer
+                )
+            else:
+                chosen = decisions(result, copy, reviewer)
+                if _str(body, "fingerprint", required=True) != chosen["fingerprint"]:
+                    raise SyncError("Contribution changed; reload Incoming")
+                answer = prepare(result, copy, chosen["keys"], chosen["document"], reviewer)
+            return {"ok": True, "result": answer}
+        except (SyncError, ValueError, OSError) as exc:
+            raise ApiError("adoption-refused", str(exc), status=409) from exc
     if endpoint == "reviewer-settings":
         from loom.scan.quilt import reviewer_identity, save_author
 

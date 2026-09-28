@@ -16,8 +16,8 @@ from loom.scan.labels import derived_of, is_id_shaped
 
 LEDGER = "ledger.jsonl"
 TEXTS = "texts"
-STEP_ACTIONS = ("import", "stamp", "copy")
-ACTIONS = (*STEP_ACTIONS, "restore", "atomize", "linearize", "fork", "revert", "live", "move")
+STEP_ACTIONS = ("import", "stamp", "copy", "adopt")
+ACTIONS = (*STEP_ACTIONS, "restore", "atomize", "linearize", "fork", "revert", "live", "move", "refresh")
 #: The actions that move a document, and the fields naming where from and where to; two lists pair by position. `retired` is never a destination: a retired source is gone, and the document it became is its `to`.
 MOVES: dict[str, tuple[str, str]] = {"atomize": ("from", "to"), "linearize": ("from", "to"), "move": ("from", "to")}
 
@@ -397,7 +397,7 @@ def load_history(hist_dir: Path) -> History:
         when = str(data.pop("when", "") or "")
         actor = data.pop("actor", None)
         e = Entry(i, action, when, str(actor) if actor is not None else None, data)
-        if action in STEP_ACTIONS:
+        if action in STEP_ACTIONS and not (action == "adopt" and "step" not in data and "dir" not in data):
             if not isinstance(data.get("step"), int) or not isinstance(data.get("dir"), str):
                 hist.problems.append(f"line {i}: {action} has no step number or directory")
                 continue

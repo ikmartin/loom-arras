@@ -759,6 +759,10 @@ def _detail(e: Entry) -> str:
         return str(e.get("path"))
     if e.action == "restore":
         return f"{(frm or {}).get('landmark')} (@{(frm or {}).get('step')}) -> {(to or {}).get('path')}"
+    if e.action == "adopt":
+        return f"{e.get('copy')} incorporated ({len(e.get('taken') or [])} selected nodes); mathematics not accepted"
+    if e.action == "refresh":
+        return f"{e.get('copy')} updated from its working document"
     if e.action == "copy":
         return f"{frm} -> {to} ({len(e.get('bases') or {})} nodes based)"
     if e.action == "move":

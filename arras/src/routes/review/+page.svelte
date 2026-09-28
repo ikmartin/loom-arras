@@ -1,11 +1,12 @@
 <script lang="ts">
+	import AdoptionContribution from '$lib/components/AdoptionContribution.svelte';
 	import { displayNode } from '$lib/nodes/display';
 	import { onMount } from 'svelte';
 	import NoDrafts from '$lib/components/NoDrafts.svelte';
 	// Working-document tabs keep the ledger aligned with the file being edited. Needs review and Incoming remain corpus-wide tasks.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
-	import type { Cause, IncomingChange, Key, UnresolvedReview } from '$lib/manifest/types';
+	import type { AdoptionReview, Cause, IncomingChange, Key, UnresolvedReview } from '$lib/manifest/types';
 	import Badge from '$lib/components/Badge.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import DiffView from '$lib/components/DiffView.svelte';
@@ -17,6 +18,11 @@
 	import { can, write } from '$lib/write';
 
 	const m = $derived(store.manifest!);
+	let incomingSource = $state('');
+	let adoptedCopy = $state('');
+	const adoptions = $derived((m.contributions ?? []).filter((c): c is AdoptionReview => c.kind === 'adopt'));
+	const workspaceLabel = $derived(m.contributions?.find(c => c.kind === 'workspace')?.label ?? `Incoming from ${m.incoming?.remote ?? 'document workspace'}`);
+	const selectedAdoption = $derived(adoptions.find(c => c.copy === incomingSource) ?? (!m.incoming ? adoptions[0] : undefined));
 	const SHOWS = ['needs-review', 'incoming'] as const;
 	const q = (name: string) => page.url.searchParams.get(name) ?? '';
 	const filter = $derived((SHOWS as readonly string[]).includes(q('show')) ? q('show') : 'document');
@@ -63,9 +69,12 @@
 	]);
 	const activeEntry = $derived(unresolved.find((r) => r.key === activeReview));
 	const activeComparison = $derived(activeEntry ? m.keys[activeEntry.key]?.acceptance?.causes?.find((cause) => cause.comparison) : null);
-	const reviewOrigin = (entry: UnresolvedReview) => entry.cause === 'incoming-pull'
-		? entry.local_changed === true ? `Pull ${entry.pull.slice(0, 12)} + local edits` : entry.local_changed == null ? `Pull ${entry.pull.slice(0, 12)} · later edits unverified` : `Incoming pull ${entry.pull.slice(0, 12)}`
-		: 'Local change';
+	const reviewOrigin = (entry: UnresolvedReview) => {
+		if (entry.cause === 'earlier-change') return 'Local change';
+		if (entry.source_label || entry.cause === 'adopted') return `${entry.source_label ?? 'Incoming from AI draft'}${entry.local_changed === true ? ' + local edits' : entry.local_changed == null ? ' · later edits unverified' : ''}`;
+		return entry.local_changed === true ? `Pull ${entry.pull.slice(0, 12)} + local edits` : entry.local_changed == null ? `Pull ${entry.pull.slice(0, 12)} · later edits unverified` : `Incoming pull ${entry.pull.slice(0, 12)}`;
+	};
+
 	$effect(() => {
 		void guidedMount;
 		const root = guidedRoot;
@@ -161,7 +170,7 @@
 	const LEADS: Record<string, string> = {
 		document: 'Every statement and proof in this working document, with its recorded state and review facts.',
 		'needs-review': 'An ordered block queue. OK decisions remain pending until Finish review records their acceptances together.',
-		incoming: 'The exact collaborator revision, its changed files, and its potential effects before incorporation.'
+		incoming: 'Inspect incoming contributions and their effects before incorporating them into working documents.'
 	};
 </script>
 
@@ -185,7 +194,7 @@
 			>
 		{/each}
 		<a class:active={filter === 'needs-review'} aria-current={filter === 'needs-review' ? 'page' : undefined} href="?show=needs-review">Needs Review ({needsReview.length})</a>
-		<a class:active={filter === 'incoming'} aria-current={filter === 'incoming' ? 'page' : undefined} href="?show=incoming">Incoming ({m.incoming?.changes.length ?? 0})</a>
+		<a class:active={filter === 'incoming'} aria-current={filter === 'incoming' ? 'page' : undefined} href="?show=incoming">Incoming ({(m.incoming?.changes.length ?? 0) + adoptions.reduce((sum, c) => sum + c.changes.length, 0)})</a>
 	</nav>
 	<p class="lead">{LEADS[filter]} {filter === 'document' ? 'Recorded states are read from this corpus’s review history.' : 'When served locally, review actions save private decisions.'}</p>
 	{#if filter === 'document'}
@@ -195,7 +204,17 @@
 	{/if}
 
 	{#if filter === 'incoming'}
-		{#if m.incoming}
+		{#if adoptedCopy}<p role="status">Changes incorporated. <a href="?show=needs-review">Review affected mathematics</a> · <a href={masterUrl(adoptedCopy)}>Original contribution and annotations</a></p>{/if}
+		{#if adoptions.length}
+			<label>Contribution <select bind:value={incomingSource}>
+				{#if m.incoming}<option value="">{workspaceLabel}</option>{/if}
+				{#each adoptions as contribution}<option value={contribution.copy}>{contribution.label}</option>{/each}
+			</select></label>
+		{/if}
+		{#if selectedAdoption}
+			<AdoptionContribution contribution={selectedAdoption} onincorporated={(copy) => adoptedCopy = copy}/>
+		{:else if m.incoming}
+			<h2>{workspaceLabel}</h2>
 			<p class="faint">{m.incoming.remote}/{m.incoming.branch} · {m.incoming.commit.slice(0, 12)} · first observed {shortDate(m.incoming.observed)} · compared with {m.incoming.base.slice(0, 12)}</p>
 			{#each m.incoming.issues ?? [] as issue}<p class="incoming-warning">{issue}</p>{/each}
 			<h2>Changed source files</h2>

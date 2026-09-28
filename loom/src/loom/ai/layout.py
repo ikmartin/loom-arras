@@ -34,7 +34,8 @@ AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "history", "id", "link", "lint",
         "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
-        "ai annotations", "ai check", "ai discard", "ai drafts", "ai name", "ai orient", "ai start",
+        "ai annotations", "ai check", "ai discard", "ai drafts",
+    "ai refresh", "ai name", "ai orient", "ai start",
         # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
         # session stay the author's, because they are decisions about the work rather than participation in it.
         "session list", "session next", "session say", "session send", "session watch",

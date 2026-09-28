@@ -132,7 +132,10 @@ def test_source_only_publication_and_incoming_fetch(tmp_path: Path, monkeypatch:
     )["result"]
     state = SyncState.read(root)
     assert finished["integrated"] == state.incoming
-    assert run(root, "show", "--format=", "--name-only", "HEAD").splitlines() == [".loom/source-sync.json"]
+    assert run(root, "show", "--format=", "--name-only", "HEAD").splitlines() == [
+        ".loom/review-origins.json",
+        ".loom/source-sync.json",
+    ]
     assert sorted(run(root, "show", "--format=", "--name-only", "HEAD^").splitlines()) == [
         "drafting/main.tex",
         "new-section.tex",

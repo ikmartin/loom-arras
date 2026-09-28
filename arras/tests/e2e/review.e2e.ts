@@ -109,6 +109,8 @@ test.describe('incoming and guided review', () => {
 		});
 		await serve(page, (m) => {
 			m.macros.sets['incoming:test'] = m.macros.default;
+			// This scenario contains one workspace pull; the shared fixture also has AI contributions.
+			m.contributions = [];
 			m.incoming = {
 				remote: 'origin', branch: 'main', base: 'a'.repeat(40), commit: 'b'.repeat(40), observed: '2026-09-21T15:00:00Z',
 				files: [{ status: 'M', path: 'drafting/main.tex' }, { status: 'M', path: 'references.bib', diff: '+@book{source,title={A collaborator reference}}' }],
@@ -225,4 +227,27 @@ test('a local viewer confirms its reviewer and exposes the computer-wide setting
 	await page.getByTestId('settings-toggle').click();
 	await expect(page.getByLabel('Reviewer name', { exact: true })).toHaveValue('Bob');
 	await expect(page.getByText(/Author name on this computer; used across local quilts/)).toBeVisible();
+});
+
+test('an adoption preview survives an unrelated manifest refresh and clears when its selection changes', async ({ page }) => {
+	let revision = 0;
+	await page.route('**/_api', route => route.fulfill({ json: { write_api: 1, capabilities: ['adopt-decision', 'adopt-preview'] } }));
+	await page.route('**/_api/adopt-preview', route => route.fulfill({ json: { ok: true, result: { token: 'preview-token', patch: '+Proposed statement', paths: ['drafting/main.tex'] } } }));
+	await serve(page, m => {
+		m.incoming = undefined;
+		const contribution = m.contributions.find((c: {kind: string}) => c.kind === 'adopt');
+		contribution.label = `Contribution refresh ${revision}`;
+		contribution.issues = [];
+		contribution.choices = { keys: revision < 2 ? [contribution.changes[0].key] : [], document: false };
+		m.contributions = [contribution];
+	});
+	await page.goto('/review?show=incoming');
+	await page.getByRole('button', { name: 'Preview selected changes', exact: true }).click();
+	await expect(page.getByTestId('adoption-preview')).toContainText('Proposed statement');
+	revision = 1;
+	await expect(page.getByRole('heading', { name: 'Contribution refresh 1', exact: true })).toBeVisible();
+	await expect(page.getByTestId('adoption-preview')).toContainText('Proposed statement');
+	revision = 2;
+	await expect(page.getByRole('heading', { name: 'Contribution refresh 2', exact: true })).toBeVisible();
+	await expect(page.getByTestId('adoption-preview')).toHaveCount(0);
 });

@@ -356,7 +356,7 @@
  "canon": [
   {
    "fragment": "fragments/canon/widgets-v1.html",
-   "hash": "c42107e827c9e487332197a38705429f279434b8aa75914931a4421e4ee0fa09",
+   "hash": "45eb42986bef08152e29796362b566ab78dceeef21d1c63422daef71ba80e07e",
    "macros": "canon:widgets-v1",
    "message": "widgets-v1",
    "name": "widgets-v1",
@@ -368,7 +368,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v2.html",
-   "hash": "fdeb8a43cde006a3ff0e3c8b1c862776be98c2f9b0d64f58f85c4308c3703fa0",
+   "hash": "a315fc6927b10b0c4daa6364e9e92597a7a11133ef1dccdfa13770019c0fdaa2",
    "macros": "canon:widgets-v2",
    "message": "widgets-v2",
    "name": "widgets-v2",
@@ -380,7 +380,7 @@
   },
   {
    "fragment": "fragments/canon/widgets-v3.html",
-   "hash": "2f8c4ff686f4c8c3fca955754ba0ec86beecbcab4b4211be74020024fdf77922",
+   "hash": "2e02fe01558d737fb86cb30fefdd330987ccda5a609b80b5d6c6a4f8a7968183",
    "macros": "canon:widgets-v3",
    "message": "widgets-v3",
    "name": "widgets-v3",
@@ -389,6 +389,222 @@
    "step": "0005",
    "title": "Widgets, gadgets, and their fixed loci",
    "when": "2026-09-15T16:00:00Z"
+  }
+ ],
+ "contributions": [
+  {
+   "changes": [
+    {
+     "affected": [],
+     "base": "\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}",
+     "class": "removed",
+     "current": "\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}",
+     "documents": [],
+     "incoming": null,
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "drafting/adoption-snapshot.tex#remark:1",
+     "local": null,
+     "math_changed": true,
+     "name": "drafting/adoption-snapshot.tex#remark:1",
+     "offered": true,
+     "proposed": ""
+    },
+    {
+     "affected": [],
+     "base": "",
+     "class": "new",
+     "current": "",
+     "documents": [],
+     "incoming": null,
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "drafting/adoption-snapshot.tex#remark:2",
+     "local": null,
+     "math_changed": true,
+     "name": "drafting/adoption-snapshot.tex#remark:2",
+     "offered": true,
+     "proposed": "\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}"
+    },
+    {
+     "affected": [
+      {
+       "citation": "cite-nodes-sy-0002-tex-185-sy-0001-eq-fix",
+       "key": "sy-0002"
+      },
+      {
+       "citation": null,
+       "key": "sy-0002/proof"
+      },
+      {
+       "citation": null,
+       "key": "sy-0004"
+      },
+      {
+       "citation": "cite-nodes-sy-0003-tex-569-sy-0001",
+       "key": "sy-0005"
+      },
+      {
+       "citation": null,
+       "key": "sy-0007/proof"
+      },
+      {
+       "citation": null,
+       "key": "sy-0009"
+      },
+      {
+       "citation": null,
+       "key": "sy-0009/proof"
+      }
+     ],
+     "base": "\\begin{definition}[Widget]\\label{sy-0001}\nA \\emph{widget} is a pair $(X,\\sigma)$ of a set and an involution $\\sigma$ of $X$, so that \\eqref{eq:prose} holds. Its fixed locus is\n\\begin{equation}\\label{eq:fix}\n\\Fix(\\sigma) = \\{x \\in X : \\sigma x = x\\}.\n\\end{equation}\n\\end{definition}",
+     "class": "conflict",
+     "current": "\\begin{definition}[Widget]\\label{sy-0001}\nA \\emph{widget} is a pair of a set and an involution of it, so that \\eqref{eq:prose} holds. Its fixed locus is\n\\begin{equation}\\label{eq:fix}\n\\Fix(\\sigma) = \\{x \\in X : \\sigma x = x\\}.\n\\end{equation}\n\\end{definition}",
+     "documents": [
+      "drafting/main.tex"
+     ],
+     "incoming": "fragments/incoming/db20ae758f067927ae6f-proposal.html",
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "sy-0001",
+     "local": "fragments/incoming/db20ae758f067927ae6f-local.html",
+     "math_changed": true,
+     "name": "Widget",
+     "offered": true,
+     "proposed": "\\begin{definition}[Widget]\\label{sy-0001}\nA \\emph{widget} is a pair $(X,\\sigma)$ of a set and an involution $\\sigma$ of $X$, so that \\eqref{eq:prose} holds. Its \\emph{fixed locus} is\n\\begin{equation}\\label{eq:fix}\n\\Fix(\\sigma) = \\{x \\in X : \\sigma x = x\\}.\n\\end{equation}\n\\end{definition}"
+    },
+    {
+     "affected": [
+      {
+       "citation": null,
+       "key": "sy-0002/proof"
+      },
+      {
+       "citation": "cite-nodes-sy-0003-tex-282-sy-0002",
+       "key": "sy-0004"
+      },
+      {
+       "citation": "cite-nodes-sy-0003-tex-500-sy-0002-proof-eq-step",
+       "key": "sy-0005"
+      },
+      {
+       "citation": "cite-nodes-sy-0009-tex-137-sy-0002",
+       "key": "sy-0009"
+      },
+      {
+       "citation": null,
+       "key": "sy-0009/proof"
+      }
+     ],
+     "base": "\\begin{lemma}[Orbits]\\label{sy-0002}\nEvery orbit of a widget has one or two points; compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}.\n\\end{lemma}",
+     "class": "proposal-only",
+     "current": "\\begin{lemma}[Orbits]\\label{sy-0002}\nEvery orbit of a widget has one or two points; compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}.\n\\end{lemma}",
+     "documents": [
+      "drafting/main.tex",
+      "drafting/talk.tex"
+     ],
+     "incoming": "fragments/incoming/02648e92524111d1c7ff-proposal.html",
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "sy-0002",
+     "local": "fragments/incoming/02648e92524111d1c7ff-local.html",
+     "math_changed": true,
+     "name": "Orbits",
+     "offered": true,
+     "proposed": "\\begin{lemma}[Orbits]\\label{sy-0002}\nEvery orbit of a widget has at most two points, and one exactly when its point is fixed; compare \\eqref{eq:fix} in Definition~\\ref{sy-0001}.\n\\end{lemma}"
+    },
+    {
+     "affected": [
+      {
+       "citation": "cite-sections-results-tex-444-sy-0008",
+       "key": "sy-0007/proof"
+      },
+      {
+       "citation": "cite-sections-appendix-tex-318-sy-0008",
+       "key": "sy-000C/proof"
+      }
+     ],
+     "base": "% !LOOM see: sy-7777, def:gadget\n\\begin{definition}[Gadget]\\label{sy-0008}\\label{def:gadget}\\label{defn:gadget-old}\nA \\emph{gadget} is a widget whose involution has no fixed point.\n\\end{definition}",
+     "class": "proposal-only",
+     "current": "% !LOOM see: sy-7777, def:gadget\n\\begin{definition}[Gadget]\\label{sy-0008}\\label{def:gadget}\\label{defn:gadget-old}\nA \\emph{gadget} is a widget whose involution has no fixed point.\n\\end{definition}",
+     "documents": [
+      "drafting/main.tex",
+      "drafting/talk.tex"
+     ],
+     "incoming": "fragments/incoming/b453a84bd4d7c0e94c50-proposal.html",
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "sy-0008",
+     "local": "fragments/incoming/b453a84bd4d7c0e94c50-local.html",
+     "math_changed": true,
+     "name": "Gadget",
+     "offered": true,
+     "proposed": "\\begin{definition}[Gadget]\\label{sy-0008}\\label{def:gadget}\\label{defn:gadget-old}\nA \\emph{gadget} is a widget whose involution has no fixed point.\n\\end{definition}"
+    },
+    {
+     "affected": [
+      {
+       "citation": null,
+       "key": "sy-0202/proof"
+      }
+     ],
+     "base": "\\begin{lemma}\\label{sy-0202}\n% !LOOM author: A Coauthor\nA lemma written by a coauthor, so its author directive overrides the file's.\n\\end{lemma}",
+     "class": "removed",
+     "current": "\\begin{lemma}\\label{sy-0202}\n% !LOOM author: A Coauthor\nA lemma written by a coauthor, so its author directive overrides the file's.\n\\end{lemma}",
+     "documents": [
+      "drafting/main.tex"
+     ],
+     "incoming": null,
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "sy-0202",
+     "local": "fragments/incoming/f98abd725fb4c9b98edd-local.html",
+     "math_changed": true,
+     "name": null,
+     "offered": true,
+     "proposed": ""
+    },
+    {
+     "affected": [],
+     "base": "\\begin{proof}\nTrivial.\n\\end{proof}",
+     "class": "removed",
+     "current": "\\begin{proof}\nTrivial.\n\\end{proof}",
+     "documents": [
+      "drafting/main.tex"
+     ],
+     "incoming": null,
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "sy-0202/proof",
+     "local": "fragments/incoming/45b33e0ed28778d8ab2c-local.html",
+     "math_changed": true,
+     "name": null,
+     "offered": true,
+     "proposed": ""
+    },
+    {
+     "affected": [],
+     "base": "",
+     "class": "new",
+     "current": "",
+     "documents": [],
+     "incoming": "fragments/incoming/6e33bf6b7f6ad346451a-proposal.html",
+     "incoming_macros": "adopt:16d859f6e660a76219a7",
+     "key": "sy-999C",
+     "local": null,
+     "math_changed": true,
+     "name": "sy-999C",
+     "offered": true,
+     "proposed": "\\begin{definition}[Orbit pair]\\label{sy-999C}\nAn \\emph{orbit pair} is an orbit with two points.\n\\end{definition}"
+    }
+   ],
+   "choices": {
+    "document": false,
+    "fingerprint": "16d859f6e660a76219a7a84d858c85f8e4daa59b3824c4e46bca7257e797b9e8",
+    "keys": []
+   },
+   "copy": "drafting-ai/aidoc.tex",
+   "document_changed": true,
+   "document_conflict": false,
+   "document_diff": "--- Working document\n+++ Proposed document\n@@ -28,7 +28,7 @@\n \\begin{equation}\\label{eq:prose}\n \\sigma^2 = \\mathrm{id},\n \\end{equation}\n-which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n+which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n \n % !LOOM adopt-node: sy-0001\n \n@@ -36,6 +36,9 @@\n % !LOOM author: The synthetic quilt\n % !LOOM created: 2026-09-16\n % !LOOM tags: orbits, setup\n+\n+% !LOOM adopt-node: sy-000A\n+\n \n % !LOOM adopt-node: sy-0002\n \n@@ -69,6 +72,9 @@\n \n % !LOOM author: The synthetic quilt\n % !LOOM tags: results\n+\n+% !LOOM adopt-node: sy-999C\n+\n \n \\section{Results}\\label{sy-0200}\n \n@@ -109,10 +115,6 @@\n % !LOOM adopt-node: sy-0007/proof\n \n \n-% !LOOM adopt-node: sy-0202\n-\n-% !LOOM adopt-node: sy-0202/proof\n-\n \n \n \\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n@@ -127,7 +129,7 @@\n % !LOOM adopt-node: sy-000D\n \n \n-% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:1\n+% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:2\n \n \n % !LOOM adopt-node: sy-000E\n@@ -143,10 +145,7 @@\n \n % A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n \\iffalse\n-\\input{nodes/missing}\n \\fi\n-\n-% !LOOM adopt-node: sy-000A\n \n \n \n@@ -156,10 +155,6 @@\n \n \n \n-% !LOOM adopt-node: sy-999B\n-\n-\n-\n \\bibliographystyle{amsplain}\n \\bibliography{refs}\n \n",
+   "fingerprint": "16d859f6e660a76219a7a84d858c85f8e4daa59b3824c4e46bca7257e797b9e8",
+   "issues": [],
+   "kind": "adopt",
+   "label": "Incoming from AI draft “aidoc”",
+   "source": "drafting/main.tex"
   }
  ],
  "corpus": {
@@ -4098,6 +4314,68 @@
      "name": "Hom"
     }
    ],
+   "adopt:16d859f6e660a76219a7": [
+    {
+     "args": 0,
+     "body": "\\operatorname{Fix}",
+     "name": "Fix"
+    },
+    {
+     "args": 0,
+     "body": "Gromov--Witten",
+     "name": "GW"
+    },
+    {
+     "args": 0,
+     "body": "\\operatorname{Hom}",
+     "name": "Hom"
+    },
+    {
+     "args": 0,
+     "body": "\\section",
+     "name": "chapter"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "incomplete"
+    },
+    {
+     "args": 1,
+     "body": "\\begingroup\n  \\let\\chapter\\section\n  \\let\\section\\subsection\n  \\let\\subsection\\subsubsection\n  \\let\\subsubsection\\paragraph\n  \\let\\paragraph\\subparagraph\n  \\input{#1}\\endgroup",
+     "name": "nest"
+    },
+    {
+     "args": 0,
+     "body": "\\subparagraph",
+     "name": "paragraph"
+    },
+    {
+     "args": 1,
+     "body": "\\textcolor{red}{#1}",
+     "name": "red"
+    },
+    {
+     "args": 0,
+     "body": "\\subsection",
+     "name": "section"
+    },
+    {
+     "args": 0,
+     "body": "\\subsubsection",
+     "name": "subsection"
+    },
+    {
+     "args": 0,
+     "body": "\\paragraph",
+     "name": "subsubsection"
+    },
+    {
+     "args": 1,
+     "body": "",
+     "name": "uses"
+    }
+   ],
    "canon:widgets-v1": [
     {
      "args": 0,
@@ -7451,46 +7729,56 @@
   {
    "cause": "earlier-change",
    "changed_text": false,
+   "contribution": null,
    "invalidated": false,
    "key": "sy-0001",
    "local_changed": true,
    "pull": "",
+   "source_label": "Local change",
    "status": "needs-review"
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
+   "contribution": null,
    "invalidated": false,
    "key": "sy-0002",
    "local_changed": true,
    "pull": "",
+   "source_label": "Local change",
    "status": "needs-review"
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
+   "contribution": null,
    "invalidated": false,
    "key": "sy-0002/proof",
    "local_changed": true,
    "pull": "",
+   "source_label": "Local change",
    "status": "needs-review"
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
+   "contribution": null,
    "invalidated": false,
    "key": "sy-0004",
    "local_changed": true,
    "pull": "",
+   "source_label": "Local change",
    "status": "needs-review"
   },
   {
    "cause": "earlier-change",
    "changed_text": false,
+   "contribution": null,
    "invalidated": false,
    "key": "sy-0005",
    "local_changed": true,
    "pull": "",
+   "source_label": "Local change",
    "status": "needs-review"
   }
  ]

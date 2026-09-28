@@ -43,4 +43,4 @@ From a review of what would make loom most useful next; the author's own stateme
 
 ## Related
 
-[[WQ-23]] for the review workflow the modes serve; [[WQ-24]], since an agent with its own quilt would query differently again; `docs/source/global-rules-mapping.md`, which is the record of the first translation and should gain a column or a successor for the second.
+[[WQ-23]] for the review workflow the modes serve; [[WQ-24]] (closed into plan 0.17), since an agent working in its own copy under `drafting-ai/` queries differently again — `loom ai drafts` says whether its copy is stale, and `loom ai refresh` updates it; `docs/source/global-rules-mapping.md`, which is the record of the first translation and should gain a column or a successor for the second.
