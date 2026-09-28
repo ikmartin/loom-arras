@@ -191,3 +191,27 @@ def test_a_link_into_the_running_viewer_is_offered_only_while_one_is_running(tmp
     data["pid"] = 2**22  # above every pid_max this runs on
     p.write_text(_json.dumps(data))
     assert open_url(root) == ""
+
+
+def test_edit_between_initial_publish_and_watcher_start_is_not_lost(tmp_path, serve, monkeypatch):
+    from loom.render.serve import ServeSession
+
+    q = demo(tmp_path)
+    first_build = ServeSession.first_build
+
+    def publish_then_edit(self):
+        first_build(self)
+        node = q / "nodes/dm-0002.tex"
+        node.write_text(node.read_text().replace("[Orbits]", "[Edited at startup]"))
+
+    monkeypatch.setattr(ServeSession, "first_build", publish_then_edit)
+    session = serve(q)
+    deadline = time.monotonic() + 6
+    while time.monotonic() < deadline:
+        _, _, body = get(session.url + "build/manifest.json")
+        if json.loads(body)["nodes"]["dm-0002"]["title"] == "Edited at startup":
+            break
+        time.sleep(0.05)
+    else:
+        pytest.fail("The edit after initial publication was absorbed into the watcher's baseline")
+    assert session.builds >= 2

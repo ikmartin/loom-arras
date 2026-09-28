@@ -15,7 +15,8 @@
 	const reviewer = $derived(store.manifest?.reviewer?.name ?? '');
 	const selected = $derived(contribution.choices?.keys ?? []);
 	const document = $derived(contribution.choices?.document ?? false);
-	$effect(() => { void contribution.fingerprint; void reviewer; void contribution.choices; preview = null; });
+	const previewIdentity = $derived(JSON.stringify([contribution.copy, contribution.fingerprint, reviewer, [...selected].sort(), document]));
+	$effect(() => { void previewIdentity; preview = null; });
 	onMount(() => { void can('adopt-decision').then((yes) => writable = yes); });
 
 	async function choose(keys: string[], includeDocument: boolean) {
@@ -27,8 +28,10 @@
 	}
 	async function inspect() {
 		busy = true; error = ''; preview = null;
+		const inspected = previewIdentity;
 		const answer = await write('adopt-preview', {copy: contribution.copy, fingerprint: contribution.fingerprint});
-		if (answer.ok) preview = answer.result as unknown as typeof preview;
+		if (answer.ok && inspected === previewIdentity) preview = answer.result as unknown as typeof preview;
+		else if (answer.ok) error = 'The contribution changed. Preview the selected changes again.';
 		else error = answer.error?.message ?? 'Could not prepare the selected changes';
 		busy = false;
 	}
