@@ -51,3 +51,4 @@ The project was built to `docs/plans/implementation-plan.md` as milestones M0–
 | WQ-46 | a node link where its document is open | 2026-09-23 | built: DR-280-ikmartin |
 | WQ-47 | the launcher's permission file, apart from the project's | 2026-09-23 | declined in favour of one policy rendered per tool, with `agent.log` saying where a turn's rules came from: DR-283-ikmartin |
 | WQ-48 | an agent's note left `recorded: false` | 2026-09-23 | built: every note on a section or a document was unrecorded, because the check hashed a different text from the writer's; fixed with four related shortcomings of the flag, DR-284-ikmartin |
+| WQ-37 | a digest's version shown where an agent reads it | 2026-09-27 | built: `refs coverage`, `refs overview` and `loom source` say what `loom:unverified-locators` says, from one `other_version` the lint shares: DR-313-ikmartin |

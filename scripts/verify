@@ -12,7 +12,7 @@ Usage:
 
 CI runs this script and nothing else, each lane's workflow in `.github/workflows/` with the arguments it names (book 14.4). Under GitHub Actions (`GITHUB_ACTIONS` set) a failing step's output is printed whole and the CI state is not printed.
 
-Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Every deselection and skip lives here with its reason, never in a plan. The editor clients are not a lane: they are deprecated and breakable (WQ-49), and `clients.yml` runs them when they change.
+Lanes run in parallel and the steps within a lane in order, except that consecutive steps marked `concurrent` run together once the steps before them are done: arras builds once, then its four Playwright suites and the two figure scripts run at the same time, each on its own copy of that build and its own ports (`arras/tests/sites.ts`). Every deselection and skip lives here with its reason, never in a plan. The editor clients are not a lane: they are deprecated and breakable (WQ-49), and `clients.yml` runs them when they change.
 """
 
 from __future__ import annotations
@@ -34,6 +34,8 @@ LOOM_XDIST = ["-n", "auto", "--dist", "loadgroup"]
 # the one arras build of a run, which every Playwright suite copies; slot 1 gives the suites ports and scratch directories apart from a suite started by hand (arras/tests/sites.ts)
 ARRAS_BUILD = ".tmp-e2e/slot-1/bundle"
 ARRAS_SUITE_ENV = {"ARRAS_SLOT": "1", "ARRAS_PREBUILT": str(ROOT / "arras" / ARRAS_BUILD)}
+# where the figure scripts write when verify runs them
+SHOTS_OUT = str(ROOT / "arras" / ".tmp-e2e" / "slot-1" / "shots-out")
 
 
 @dataclass
@@ -74,6 +76,14 @@ STEPS = [
             ("minimal", ["npm", "run", "test:minimal"]),
             ("write", ["npm", "run", "test:write"]),
             ("reading", ["npm", "run", "test:reading"]),
+        )
+    ),
+    # the figure scripts, run to check they still run, into scratch rather than over the committed figures, which a re-run does not reproduce byte for byte; a stale script otherwise surfaces only at the next re-shoot
+    *(
+        Step("arras", name, "arras", cmd, ("full",), env=ARRAS_SUITE_ENV | {"ARRAS_SHOTS_OUT": SHOTS_OUT}, concurrent=True)
+        for name, cmd in (
+            ("shots", ["npm", "run", "shots"]),
+            ("shots floor", ["npm", "run", "shots:floor"]),
         )
     ),
     Step(
@@ -119,7 +129,8 @@ def share_cores(chosen: list[Step]) -> list[Step]:
 
     Each takes every core by default, which on eight cores put eight pytest workers beside sixteen browsers and timed out the heaviest reading tests. Loom's pytest takes half the cores; each Playwright suite a share of the rest by its weight. A lane run alone keeps its defaults.
     """
-    suites = [s for s in chosen if s.concurrent]
+    # the figure scripts keep their one worker, so that a picture is taken with nothing else moving in its browser
+    suites = [s for s in chosen if s.concurrent and not s.name.startswith("shots")]
     pytest = [s for s in chosen if s.lane == "loom" and "pytest" in s.cmd]
     if not suites or not pytest:
         return chosen

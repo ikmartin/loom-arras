@@ -295,6 +295,14 @@ def source(target: str, closure: bool, run_dir: str | None, quilt_path: str | No
         )
         key = region.container
     require_text(result, key)
+    from loom.scan.digests import other_version
+
+    ck = result.assembly.digest_files.get(result.nodes[key].file) if key in result.nodes else None
+    v = other_version(result.assembly, result.nodes[key].file) if ck else None
+    if v is not None:
+        note(
+            f"{key} is read off {ck}'s digest, which {v.why}; its number and page are unverified, so check them with loom refs page {ck}"
+        )
     log_run(run_dir, f"loom source {key}" + (" --closure" if closure else ""), result.quilt.root)
     if not closure:
         click.echo(region_text(result, key).rstrip("\n"))

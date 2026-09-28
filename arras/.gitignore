@@ -30,7 +30,8 @@ test-results
 # served build directory, staged from tests/fixture by scripts/stage-fixture.mjs
 /static/build
 /site
-.tmp-e2e/
+# scratch: the suites' copies of the app (.tmp-e2e/) and any other a session makes
+.tmp-*/
 static/pdfjs/
 
 # the exploratory browser records where it is listening; it is a running process, not a file to keep

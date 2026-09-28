@@ -320,6 +320,36 @@ def test_unverified_locators_when_the_artifact_and_the_cited_work_differ(tmp_pat
     assert "loom:unverified-locators" in r.output and "does not say what it was extracted from" in r.output
 
 
+def test_the_other_version_is_said_where_the_digest_is_read(tmp_path: Path) -> None:
+    """An agent reading a digest through `refs coverage`, `refs overview` or `loom source` is told its numbers are another version's, rather than finding it only in `loom lint` and filing the preprint's numbering as an extraction bug (WQ-37, DR-313-ikmartin)."""
+    q = demo(tmp_path)
+    (q / "digests" / "bibliography.bib").write_text(
+        (q / "digests" / "bibliography.bib").read_text()
+        + "\n@article{Split, title={S}, doi={10.1090/S1}, eprint={2001.00002v1}}\n",
+        encoding="utf-8",
+    )
+    (q / "digests" / "Split.tex").write_text(
+        "% !LOOM digest: Split\n% !LOOM prefix: Split\n% !LOOM extracted-from: arXiv:2001.00002v1\n"
+        "% !LOOM published-as: doi:10.1090/S1\n% !LOOM method: extract\n"
+        "\\section*{Overview}\nO.\n\\begin{theorem}[{\\cite[Theorem 1]{Split}}]\\label{Split-thm-1}\nS.\n\\end{theorem}\n",
+        encoding="utf-8",
+    )
+    said = "was extracted from arXiv:2001.00002v1 but the bibliography cites doi:10.1090/S1"
+    r = ok("refs", "coverage", "Split", cwd=q)
+    assert "preprint" in r.output and said in r.output and "loom refs page Split" in r.output
+    row = next(
+        w for w in json.loads(ok("refs", "coverage", "Split", "--json", cwd=q).stdout) if w["citekey"] == "Split"
+    )
+    assert row["digest_version"] == {"extracted_from": "arXiv:2001.00002v1", "cited_as": "doi:10.1090/S1"}
+    r = ok("refs", "overview", "Split", cwd=q)
+    assert r.stdout.strip() == "O." and said in r.stderr
+    r = ok("source", "Split-thm-1", cwd=q)
+    assert "\\begin{theorem}" in r.stdout and said in r.stderr and said not in r.stdout
+    # a digest cited as it was extracted says nothing
+    other = json.loads(ok("refs", "coverage", "--json", cwd=q).stdout)
+    assert all(w["digest_version"] is None for w in other if w["citekey"] != "Split")
+
+
 WRAPPED = r"""\documentclass{article}
 \usepackage{amsmath,amsthm}
 \newtheorem{prop}{Proposition}[section]

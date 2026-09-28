@@ -90,9 +90,15 @@ def templates(tmp_path_factory: pytest.TempPathFactory) -> None:
     helpers.TEMPLATES = helpers.Once(tmp_path_factory)
 
 
+@pytest.fixture(scope="session")
+def par_cache(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Where the worker's `biber` unpacks itself: its own, not the one shared under the temp directory, which two workers unpacking at once can leave corrupt, after which every biblatex compile on the machine fails with no message."""
+    return tmp_path_factory.mktemp("par")
+
+
 @pytest.fixture(autouse=True)
 def isolated_env(
-    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_bin: Path
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_bin: Path, par_cache: Path
 ) -> Path:
     """Isolate PATH, HOME, XDG_CONFIG_HOME, every TeX tree and every LOOM_* variable but the tier gates; return the temporary HOME. `tex` puts the real TeX first on PATH, `poppler` the real pdftotext, and each skips when it is absent."""
     assert not str(tmp_path.resolve()).startswith(str(NOTES)), "tests must never run under ~/notes"
@@ -107,6 +113,7 @@ def isolated_env(
         if REAL_POPPLER_BIN is not None:
             parts.append(str(REAL_POPPLER_BIN))
         parts += ["/usr/bin", "/bin"]
+        monkeypatch.setenv("PAR_GLOBAL_TEMP", str(par_cache))
     elif request.node.get_closest_marker("poppler"):
         # page text and word boxes from the real poppler; everything TeX is still the shim
         if REAL_POPPLER_BIN is None:

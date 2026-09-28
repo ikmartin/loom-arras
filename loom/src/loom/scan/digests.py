@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from loom.scan.directives import list_value
@@ -40,6 +41,43 @@ def extracted_from(header: dict[str, str]) -> str:
 def published_as(header: dict[str, str]) -> str:
     """The work the bibliography cites, when it differs from the artifact that was parsed."""
     return (header.get("published-as") or "").strip()
+
+
+@dataclass(frozen=True)
+class OtherVersion:
+    """A digest whose numbers belong to another version than the one the bibliography cites (DR-109, DR-313-ikmartin)."""
+
+    extracted_from: str  # '' when the digest does not say
+    cited_as: str
+
+    @property
+    def why(self) -> str:
+        if not self.extracted_from:
+            return "does not say what it was extracted from"
+        return f"was extracted from {self.extracted_from} but the bibliography cites {self.cited_as}"
+
+
+def other_version(asm: Assembly, file: str) -> OtherVersion | None:
+    """Whether a digest's result numbers and pages are unverified against the version a reader will open.
+
+    True of a digest extracted from a preprint whose bibliography entry cites the published work, and of an extracted digest that does not say what it was extracted from. `loom:unverified-locators` reports it, and every command that reads a digest says it where it is read.
+    """
+    from loom.refs.identity import parse
+
+    header = digest_header(asm, file)
+    got, cites_as = extracted_from(header), published_as(header)
+    a, b = parse(got), parse(cites_as)
+    if a is not None and b is not None and a.preprint and b.published:
+        return OtherVersion(got, cites_as)
+    if not got and header.get("method", "") == "extract":
+        return OtherVersion("", cites_as)
+    return None
+
+
+def other_version_of(asm: Assembly, citekey: str) -> OtherVersion | None:
+    """`other_version` of the digest of `citekey`, or None when it has none."""
+    file = next((f for f, ck in asm.digest_files.items() if ck == citekey), None)
+    return other_version(asm, file) if file is not None else None
 
 
 def loaded_packages(closure: PreambleClosure) -> set[str]:

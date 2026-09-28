@@ -8,11 +8,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from loom.refs.identity import declared, parse
+from loom.refs.identity import declared
 from loom.refs.resolve import load as load_candidates
 from loom.scan.bib import citekey_slug
 from loom.scan.diagnostics import can_disable
-from loom.scan.digests import digest_header, extracted_from, missing_packages, published_as, source_version
+from loom.scan.digests import digest_header, extracted_from, missing_packages, other_version, source_version
 from loom.scan.directives import KNOWN_KEYS, REGION_KEYS
 from loom.scan.edges import EdgeResult
 from loom.scan.graph import Graph
@@ -402,19 +402,14 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
     for f, ck in sorted(asm.digest_files.items()):
         header = digest_header(asm, f)
         bib = result.bib.get(ck)
-        got, cites_as = extracted_from(header), published_as(header)
-        a, b = parse(got), parse(cites_as)
-        why = None
-        if a is not None and b is not None and a.preprint and b.published:
-            why = f"was extracted from {got} but the bibliography cites {cites_as}"
-        elif not got and header.get("method", "") == "extract":
-            why = "does not say what it was extracted from"
-        if why:
+        got = extracted_from(header)
+        other = other_version(asm, f)
+        if other is not None:
             diags.append(
                 Diagnostic(
                     "warning",
                     "loom:unverified-locators",
-                    f"digest {ck} {why}; its result numbers and page references are unverified against the version a reader will open",
+                    f"digest {ck} {other.why}; its result numbers and page references are unverified against the version a reader will open",
                     [Location(f, 1)],
                 )
             )

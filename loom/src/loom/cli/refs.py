@@ -598,6 +598,7 @@ def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str |
     from loom.refs.build import survey
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map
+    from loom.scan.digests import other_version_of
 
     result = open_scan(quilt_path)
     root = result.quilt.root
@@ -606,6 +607,8 @@ def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str |
     for w in works:
         m = read_map(work_dir(root, result.bib[w.citekey]))
         w.pages, w.sections = (m.pages, len(m.sections)) if m else (0, 0)
+    # a digest read off another version than the one cited: its numbers are that version's, which is what the agent reading this needs before it trusts one
+    other = {w.citekey: other_version_of(result.assembly, w.citekey) for w in works if w.digest}
     if as_json:
         click.echo(
             json.dumps(
@@ -618,6 +621,11 @@ def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str |
                         "pages": w.pages,
                         "sections": w.sections,
                         "digest": w.digest,
+                        "digest_version": (
+                            {"extracted_from": v.extracted_from, "cited_as": v.cited_as}
+                            if (v := other.get(w.citekey)) is not None
+                            else None
+                        ),
                     }
                     for w in works
                 ],
@@ -634,12 +642,16 @@ def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str |
     for w in works:
         click.echo(
             f"{w.citekey[:43]:<44}{w.cited_by:>6}{'yes' if w.source else '-':>5}"
-            f"{'yes' if w.pdf else '-':>5}{w.pages or '-':>7}{w.sections or '-':>6}{'yes' if w.digest else '-':>8}"
+            f"{'yes' if w.pdf else '-':>5}{w.pages or '-':>7}{w.sections or '-':>6}{('preprint' if other.get(w.citekey) else 'yes') if w.digest else '-':>8}"
             f"{pending[w.citekey] or '-':>9}"
         )
     digested = sum(1 for w in works if w.digest)
     mapped = sum(1 for w in works if w.pages)
     click.echo(f"\n{digested} of {len(works)} works digested; {mapped} have page text")
+    for ck, v in sorted((ck, v) for ck, v in other.items() if v is not None):
+        click.echo(
+            f"{ck}: the digest {v.why}; its numbers and pages are unverified, so check one with loom refs page {ck}"
+        )
     if len(works) == 1 and works[0].cited_by:
         # where, not only how often: agents dumped the whole draft to a file and grepped it to find this
         ck = works[0].citekey
@@ -1651,6 +1663,11 @@ def overview_command(ctx: click.Context, citekey: str, quilt_path: str | None) -
         text,
         re.S,
     )
+    from loom.scan.digests import other_version_of
+
+    v = other_version_of(result.assembly, ck)
+    if v is not None:
+        note(f"{ck}: the digest {v.why}; its numbers and pages are unverified, so check one with loom refs page {ck}")
     if not m or not m.group(1).strip():
         click.echo(f"{ck}'s digest has no Overview")
         ctx.exit(EXIT_CONTENT)
