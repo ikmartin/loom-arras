@@ -83,6 +83,7 @@
       "Bash(loom ai init*)",
       "Bash(loom atomize*)",
       "Bash(loom delete*)",
+      "Bash(loom deloom*)",
       "Bash(loom digest import*)",
       "Bash(loom fork*)",
       "Bash(loom import*)",

@@ -53,6 +53,7 @@ CASES: dict[str, tuple[list[str], Setup, int]] = {
     "ai refresh": (["contribution"], ai_copy, 0),
     "adopt": (["contribution"], ai_copy, 0),
     "atomize": (["--key", "dm-0004"], nothing, 0),
+    "deloom": (["main.tex", "--to", "build/plain.tex", "--keep-referenced-ids", "--keep-incomplete"], nothing, 0),
     "deps": (["dm-0003"], nothing, 0),
     "doctor": ([], nothing, 0),
     "downstream": (["dm-0001"], nothing, 0),

@@ -127,6 +127,20 @@ def test_a_landmark_shown_plain_compiles_alone(once: Once, tmp_path: Path) -> No
 
 
 @pytest.mark.tex
+def test_deloom_gives_back_the_paper_as_received(once: Once, tmp_path: Path) -> None:
+    """Import put ids in, atomize moved results into node files; deloom flattens and takes loom out, and what is left typesets as the loom document did and reads as the paper the author brought."""
+    q = copy(atomized(once)[0], tmp_path / "q")
+    r = ok("deloom", "drafting/spine.tex", "--to", "build/plain.tex", cwd=q)
+    assert r.output.startswith("Wrote build/plain.tex") and "Kept" not in r.output
+    plain = (q / "build" / "plain.tex").read_text()
+    assert "pp-" not in plain and "\\input{nodes/" not in plain and "{loom}" not in plain
+    res = identity_test(q, "drafting/spine.tex", q, "build/plain.tex", tmp_path / "scratch")
+    assert res.passed, res.summary()
+    received = (q / ".loom" / "history" / "0001-main" / "main.tex").read_text()
+    assert [ln for ln in plain.splitlines() if ln.strip()] == [ln for ln in received.splitlines() if ln.strip()]
+
+
+@pytest.mark.tex
 def test_inline_nest_shifts(once: Once, tmp_path: Path) -> None:
     q = copy(imported(once)[0], tmp_path / "q")
     (q / "sections").mkdir(exist_ok=True)

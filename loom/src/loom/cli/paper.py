@@ -459,3 +459,101 @@ def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -
         shutil.copytree(root, after, ignore=shutil.ignore_patterns("build", ".git", ".loom"))
         (after / src_rel).write_text((root / dest_rel).read_text(encoding="utf-8"), encoding="utf-8")
         return identity_test(root, master, after, master, scratch, engine_for(result, master))
+
+
+@click.command(name="deloom")
+@click.argument("source")
+@click.option(
+    "--to",
+    "to",
+    required=True,
+    metavar="TARGET",
+    help="The file to write: one flat document, outside the drafting directories.",
+)
+@click.option(
+    "--keep-referenced-ids",
+    "keep_ids",
+    is_flag=True,
+    help="Keep the id label of a referenced result that has no label of yours, and the references to it.",
+)
+@click.option(
+    "--keep-incomplete",
+    "keep_incomplete",
+    is_flag=True,
+    help="Keep every \\incomplete{…}, defined to print nothing as loom.sty defines it.",
+)
+@click.option("--json", "as_json", is_flag=True)
+@quilt_option
+def deloom_command(
+    source: str, to: str, keep_ids: bool, keep_incomplete: bool, as_json: bool, quilt_path: str | None
+) -> None:
+    """Write TARGET: SOURCE flattened, with loom taken out and every other line as written.
+
+    Removed: `\\usepackage{loom}`, `% !LOOM` lines, `\\uses{…}`, and every label that is a loom id; a reference to an id moves to your own label beside it. A referenced result whose only label is its id, and any `\\incomplete{…}`, block the deloom until you give the result a label or resolve the incomplete, or pass the flag that keeps them.
+    """
+    from loom.reshape.deloom import deloom
+    from loom.reshape.linearize import flatten
+
+    result = open_scan(quilt_path)
+    root = result.quilt.root
+    config = result.quilt.config
+    rel = _rel(root, source)
+    if rel not in result.masters:
+        named = [m for m in result.masters if Path(m).name == source or Path(m).stem == source]
+        if len(named) != 1:
+            raise EnvError(f"{source} is not a document of this quilt; `loom status` lists them")
+        rel = named[0]
+    target = Path(to).expanduser()
+    target = target if target.is_absolute() else Path.cwd() / target
+    target_rel = _rel(root, str(target))
+    if target_rel.split("/", 1)[0] in (config.drafting, config.drafting_ai):
+        raise EnvError(
+            f"{target_rel} is in a drafting directory, where a document without ids would be scanned as a live one; write it under build/ or outside the quilt"
+        )
+    if target_rel in result.files:
+        raise EnvError(f"{target_rel} is one of this quilt's sources; deloom never overwrites them")
+    ids = {n.id for n in result.nodes.values() if n.id} | {k for k, n in result.nodes.items() if n.kind == "conflict"}
+    done = deloom(flatten(root, rel).text, ids, keep_ids=keep_ids, keep_incomplete=keep_incomplete)
+    if done.blocked:
+        lines = [f"{rel} cannot be deloomed as it stands:"]
+        if done.blocked_ids:
+            lines.append(f"  {len(done.blocked_ids)} referenced result(s) whose only label is their id:")
+            for name, count in sorted(done.blocked_ids.items()):
+                node = result.nodes.get(name)
+                what = f" ({node.taxon}{f', “{node.title}”' if node.title else ''})" if node else ""
+                lines.append(f"    {name}{what}: {count} reference(s)")
+            lines.append(
+                "  give each a label of your own beside its id, or pass --keep-referenced-ids to keep those ids"
+            )
+        if done.blocked_incomplete:
+            where = ", ".join(str(n) for n in done.blocked_incomplete)
+            lines.append(
+                f"  {len(done.blocked_incomplete)} \\incomplete{{…}}, line(s) {where}: resolve them, or pass --keep-incomplete to keep them"
+            )
+        raise ContentError("\n".join(lines))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(done.text, encoding="utf-8")
+    shown = target_rel if not Path(target_rel).is_absolute() else str(target)
+    if as_json:
+        emit_json(
+            {
+                "source": rel,
+                "to": shown,
+                "removed": done.removed,
+                "moved": done.moved,
+                "uses": done.uses,
+                "directives": done.directives,
+                "kept_ids": done.kept_ids,
+                "kept_incomplete": done.kept_incomplete,
+            }
+        )
+        return
+    click.echo(
+        f"Wrote {shown}: {len(done.removed)} id label(s), {done.uses} \\uses and {done.directives} % !LOOM line(s) removed; {done.moved} reference(s) moved to your labels"
+    )
+    if done.kept_ids:
+        click.echo("Kept ids, each the only label of a referenced result; give it a label of your own to replace:")
+        for name, line in sorted(done.kept_ids.items(), key=lambda kv: kv[1]):
+            click.echo(f"  {name}  line {line}")
+    if done.kept_incomplete:
+        click.echo(f"Kept \\incomplete{{…}} at line(s) {', '.join(str(n) for n in done.kept_incomplete)}")

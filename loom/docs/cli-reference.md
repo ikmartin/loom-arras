@@ -280,6 +280,22 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 
 Refuse: loom never deletes your notes.
 
+## `loom deloom`
+
+`loom deloom [OPTIONS] SOURCE`
+
+Write TARGET: SOURCE flattened, with loom taken out and every other line as written.
+
+Removed: `\usepackage{loom}`, `% !LOOM` lines, `\uses{…}`, and every label that is a loom id; a reference to an id moves to your own label beside it. A referenced result whose only label is its id, and any `\incomplete{…}`, block the deloom until you give the result a label or resolve the incomplete, or pass the flag that keeps them.
+
+| option | description |
+|---|---|
+| `--to` `TARGET` | The file to write: one flat document, outside the drafting directories. |
+| `--keep-referenced-ids` | Keep the id label of a referenced result that has no label of yours, and the references to it. |
+| `--keep-incomplete` | Keep every \incomplete{…}, defined to print nothing as loom.sty defines it. |
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 ## `loom deps`
 
 `loom deps [OPTIONS] KEY`
