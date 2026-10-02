@@ -1,4 +1,4 @@
-// The Chat: a session's conversation and its input in one pane. The transcript comes from the build's pages, and, where a publisher serves, from a poll of `/_api/events`; the status line and the input exist only where a publisher answers (P3). Each test is named for the rule it holds.
+// The Chat: a session's conversation and its input in one pane. The transcript comes from the build's pages, and, where a publisher serves, from a poll of `/_api/events`; the status line and the input exist only where a publisher answers (V3). Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane } from '../workspace';
 import { openPicker, pickSession } from '../picker';

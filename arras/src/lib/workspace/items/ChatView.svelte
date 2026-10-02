@@ -1,7 +1,7 @@
 <script lang="ts">
-	// A session's Chat (plan 0.14): the conversation and its input in one pane. The transcript is every message the person and the agent said, newest at the bottom and the first thing seen; beneath it one line on who is listening, and the input. Annotations are not here — a message says what it carried, and an agent links what it wrote (P2).
+	// A session's Chat (plan 0.14): the conversation and its input in one pane. The transcript is every message the person and the agent said, newest at the bottom and the first thing seen; beneath it one line on who is listening, and the input. Annotations are not here — a message says what it carried, and an agent links what it wrote (V2).
 	//
-	// **Flat, like a log.** A line saying who and when, then the words at full width; the agent's messages carry a faint rule and nothing else tells the two parties apart (P6).
+	// **Flat, like a log.** A line saying who and when, then the words at full width; the agent's messages carry a faint rule and nothing else tells the two parties apart (V6).
 	//
 	// **One Chat at a time.** The Chat on screen is the selected session's: arriving here by a link or a URL selects it and closes any other session, so the footer and the Chat never name two different conversations.
 	import { onDestroy, tick, untrack } from 'svelte';
@@ -24,7 +24,7 @@
 	const seq = $derived(row?.seq ?? 0);
 
 	const log = new Transcript(untrack(() => item.id));
-	/** Whether a publisher is serving, which is what makes the status line and the input honest (P3). */
+	/** Whether a publisher is serving, which is what makes the status line and the input honest (V3). */
 	let live = $state(false);
 	/** How many annotations the next message will carry, and a nudge that asks the tray again after a send. */
 	let packed = $state(0);
@@ -56,7 +56,7 @@
 		scroller.scrollTop = scroller.scrollHeight;
 	}
 
-	// A reader at the newest stays there when the log's own height changes -- the tray opening, the input growing, the window narrowing -- which otherwise keeps the offset and drops the newest below the fold (P1).
+	// A reader at the newest stays there when the log's own height changes -- the tray opening, the input growing, the window narrowing -- which otherwise keeps the offset and drops the newest below the fold (V1).
 	let pinned = true;
 	$effect(() => {
 		const s = scroller;

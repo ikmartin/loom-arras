@@ -20,7 +20,7 @@
 	// The problems view stands at the strip's foot as a warning glyph (plan 0.13.3 S9): it answers whether anything is wrong, so it carries the counts and takes their colour.
 	const problems = $derived(views.find((v) => v.id === 'problems'));
 	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
-	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes. This is the list's one home (plan 0.13.3 P2): the `/library` route is a ledger of what each work needs, not a second list. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs.
+	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes. This is the list's one home (V2): the `/library` route is a ledger of what each work needs, not a second list. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs.
 	const works = $derived(
 		Object.values(store.manifest?.references ?? {}).sort((a, b) => (bibText(a.bib.title) || a.citekey).localeCompare(bibText(b.bib.title) || b.citekey))
 	);

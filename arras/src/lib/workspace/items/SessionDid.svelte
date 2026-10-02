@@ -1,5 +1,5 @@
 <script lang="ts">
-	// What it did (plan 0.14): the plain record of everything done through loom in a session — its `run.log`, in order, newest at the bottom and the first thing seen. A row that made or changed an annotation links it, names what it is on by the key it was filed under — `sh-0009`, `drafting/main.tex`, never `Theorem 3.1`, which a renumbering changes — and says where it stands. The kind is a dot in its hue before the link, not a word (15.3.9; annotation study A2), a reply's a ring. Nothing here is inferred: a row is a line the log holds (P3).
+	// What it did (plan 0.14): the plain record of everything done through loom in a session — its `run.log`, in order, newest at the bottom and the first thing seen. A row that made or changed an annotation links it, names what it is on by the key it was filed under — `sh-0009`, `drafting/main.tex`, never `Theorem 3.1`, which a renumbering changes — and says where it stands. The kind is a dot in its hue before the link, not a word (15.3.9; A2), a reply's a ring. Nothing here is inferred: a row is a line the log holds (V3).
 	import { onMount, tick } from 'svelte';
 	import type { Annotation } from '$lib/manifest/types';
 	import { store } from '$lib/manifest/client.svelte';

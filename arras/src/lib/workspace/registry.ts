@@ -32,7 +32,7 @@ export interface Kind {
 	bare?(item: Item, m: Manifest): boolean;
 	/** Several readings of one thing, switched where its pane's tab strip begins. */
 	views?(item: Item, m: Manifest): View[];
-	/** The item rendered small, for a hover card (H1–H7); a kind without one previews nothing rather than something made up (P3). `onresize` asks the card to place itself again once the content has its size. */
+	/** The item rendered small, for a hover card (H1–H7); a kind without one previews nothing rather than something made up (V3). `onresize` asks the card to place itself again once the content has its size. */
 	preview?: Component<{ item: Item; onresize: () => void }>;
 	/** The small render is its own frame and runs to the card's edge, as a page does (H3). */
 	bleeds?: boolean;

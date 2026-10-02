@@ -97,6 +97,7 @@ STEPS = [
     *(
         Step("docs", name, ".", [sys.executable, f"scripts/checks/{script}"], ("fast", "full"))
         for name, script in (
+            ("principles", "principles.py"),
             ("appendices", "appendices.py"),
             ("fixtures", "fixtures.py"),
             ("bundle", "bundle.py"),

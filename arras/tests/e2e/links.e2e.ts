@@ -243,7 +243,7 @@ test.describe('previews', () => {
 	});
 
 	test('a link to a kind with no preview opens no card', async ({ page }) => {
-		// a document, a context or a session has no small render: nothing is made up in its place (P3)
+		// a document, a context or a session has no small render: nothing is made up in its place (V3)
 		// the card's delay runs on the page's clock, which the test moves past it rather than sleeping
 		await page.clock.install();
 		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));

@@ -14,7 +14,7 @@ export interface StatusInput {
 	sentAt: string;
 }
 
-/** One line, never empty, on who is listening: the turn loom started, where it starts one; else who is attached; and after a send, what became of it. It claims only what the publisher knows — the process's state and the last command it ran (P3). */
+/** One line, never empty, on who is listening: the turn loom started, where it starts one; else who is attached; and after a send, what became of it. It claims only what the publisher knows — the process's state and the last command it ran (V3). */
 export function statusLine({ agent, attached, sent, sentAt }: StatusInput): string {
 	if (agent?.blocked) return `${agent.name || 'The agent'} cannot be started: ${agent.blocked}`;
 	if (agent?.state === 'running') return `${agent.name} is working` + (agent.activity ? ` · ${agent.activity}` : '');

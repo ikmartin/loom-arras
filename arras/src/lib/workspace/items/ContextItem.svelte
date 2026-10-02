@@ -65,7 +65,7 @@
 	// Discarded annotations are drawn only under the settled control; they are listed here, folded, only when there are any, so a reader finds them without turning it on.
 	const discarded = $derived(onAny(m, [key, ...(node?.proofs ?? [])]).filter((a) => a.discarded && a.in_reply_to === null));
 	let showDiscarded = $state(false);
-	/** A row's link text: a short preview of what the annotation says, the words it quoted when it says nothing, its id when it has neither. The row links rather than restates (annotation study A2); the box holds the rest. */
+	/** A row's link text: a short preview of what the annotation says, the words it quoted when it says nothing, its id when it has neither. The row links rather than restates (A2); the box holds the rest. */
 	function preview(a: Annotation): string {
 		const text = a.body_html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || (a.quote ? `“${a.quote.trim()}”` : a.id);
 		return text.length > 90 ? text.slice(0, 89).trimEnd() + '…' : text;
