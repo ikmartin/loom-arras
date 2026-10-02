@@ -18,8 +18,9 @@ This chapter holds every design principle of loom and arras, and nothing else do
 | P | What loom is | 1.7 | P1–P13 |
 | V | The viewer | 1.8 | V1–V6 |
 | A | Annotations | 1.9 | A1–A6 |
-| T | Terminal output | 1.10 | T1–T6 |
+| T | Terminal output | 1.10 | T1–T8 |
 | C | Construction | 1.11 | C1–C5 |
+| K | The command line | 1.12 | K1–K7 |
 <!-- /principles:sets -->
 
 **[decided]** **A principle's name is its set's letter and its number**, `V3`, and the name is permanent. Numbers run from 1 in the order principles were added and are never reused or reordered, as decision records and work-queue items are not, so a citation written today still names the same principle after the set grows. A principle that stops holding is not deleted: its heading stays, marked *(retired, DR-NNN)*, so its old citations still resolve to the reason it went.
@@ -75,11 +76,20 @@ Names elsewhere in the project that predate this chapter:
 | [T4](#t4-use-the-readers-words-not-the-implementations) | Use the reader's words, not the implementation's. |
 | [T5](#t5-make-the-numbers-add-up-and-fit-the-screen) | Make the numbers add up, and fit the screen. |
 | [T6](#t6-a-command-that-takes-more-than-a-couple-of-seconds-shows-that-it-is-alive) | A command that takes more than a couple of seconds shows that it is alive. |
+| [T7](#t7-say-only-what-happened) | Say only what happened. |
+| [T8](#t8-machine-output-carries-what-the-text-carries) | Machine output carries what the text carries. |
 | [C1](#c1-the-scanner-before-everything) | The scanner before everything. |
 | [C2](#c2-vertical-slices) | Vertical slices. |
 | [C3](#c3-the-fixture-is-the-contracts-executable-form) | The fixture is the contract's executable form. |
 | [C4](#c4-author-files-are-sacred-from-the-first-commit) | Author files are sacred from the first commit. |
 | [C5](#c5-two-tools-in-two-languages-sharing-nothing-but-specs) | Two tools, in two languages, sharing nothing but `specs/`. |
+| [K1](#k1-one-action-one-command-one-name) | One action, one command, one name. |
+| [K2](#k2-one-idea-one-flag-one-meaning) | One idea, one flag, one meaning. |
+| [K3](#k3-refuse-what-is-not-understood) | Refuse what is not understood. |
+| [K4](#k4-a-command-does-what-its-name-says-and-nothing-more) | A command does what its name says, and nothing more. |
+| [K5](#k5-guard-by-consequence-uniformly) | Guard by consequence, uniformly. |
+| [K6](#k6-the-help-is-a-map-of-the-work) | The help is a map of the work. |
+| [K7](#k7-one-thing-one-name-everywhere) | One thing, one name, everywhere. |
 <!-- /principles:index -->
 
 ## 1.4 Signs that a feature is bad
@@ -245,19 +255,19 @@ This is the principle against visual noise.
 
 ## 1.10 T · Terminal output
 
-How what a command prints reads, for a person at a terminal and for an agent reading the same text. 12.1 has the mechanics these rest on: `--json` alone on stdout, diagnostics and progress on stderr. They were drawn from what made `loom refs build`'s report unreadable on a real quilt (DR-323-ikmartin). All are **[decided]**.
+How what a command prints reads, for a person at a terminal and for an agent reading the same text. 12.1 has the mechanics these rest on: `--json` alone on stdout, diagnostics and progress on stderr. T1–T6 were drawn from what made `loom refs build`'s report unreadable on a real quilt (DR-323-ikmartin); the CLI study of 2026-10-02 (`docs/reports/cli-study.md`) sharpened them and added T7 and T8 (DR-324-ikmartin). The shape of the command line itself, as opposed to what one command prints, is the K set (1.12). All are **[decided]**.
 
 ### T1. Lead with the verdict.
 
-The first lines answer "did it work, and do I need to do anything?"; detail comes after, for the reader who wants it. A report that ends without saying whether anything is wrong leaves the reader to work it out from the detail.
+The first lines answer "did it work, and do I need to do anything?"; detail comes after, for the reader who wants it. A report that ends without saying whether anything is wrong leaves the reader to work it out from the detail. A success that leaves work undone says so: "no changes to incorporate" while a change waits behind a flag, or "already up to date" over a conflict, is a verdict that is false.
 
 ### T2. Group, count, then list.
 
-The same sentence is never printed N times: it is written once, as a heading with its count, and only what varies is listed under it, sorted and aligned. A reader should learn how many and of what before reading any one of them.
+The same sentence is never printed N times: it is written once, as a heading with its count, and only what varies is listed under it, sorted and aligned. A reader should learn how many and of what before reading any one of them. Order serves the reader: the author's own results before the cited works' machine-made ones, which must never drown them; and a list cut short says what it left out (`… and 85 more`).
 
 ### T3. Every problem names its next command.
 
-A line that implies action ends with the exact command that resolves it, as P13 asks of every divergence loom reports; what needs no action is summarised as a count rather than enumerated. A refusal names what blocks it and the flag or edit that clears it.
+A line that implies action ends with the exact command that resolves it, as P13 asks of every divergence loom reports; what needs no action is summarised as a count rather than enumerated. A refusal names what blocks it and the flag or edit that clears it. The command named must work in the state that prompts it: advice that names a command which then does nothing (mapping a work that has no PDF, editing a file loom never re-reads) is worse than none, so a suggested command is tested in that state.
 
 ### T4. Use the reader's words, not the implementation's.
 
@@ -265,11 +275,19 @@ Output names what the reader recognises: their file names, citekeys, titles and 
 
 ### T5. Make the numbers add up, and fit the screen.
 
-Parts sum to the totals they claim, and each count says what it counts. Lines stay under about 100 columns, and one indentation pattern holds throughout: a heading, then its items indented beneath it.
+Parts sum to the totals they claim, and each count says what it counts. Lines stay under about 100 columns, and one indentation pattern holds throughout: a heading, then its items indented beneath it. An identifier is never truncated to fit: a cut citekey or id is a different name, and two cut alike are indistinguishable, so a long name goes last on its line, or the line wraps.
 
 ### T6. A command that takes more than a couple of seconds shows that it is alive.
 
-It names the stage it is in, the item it is on, that item's place in the count (`7/18`) and the time elapsed, refreshed at least every few seconds, so a reader never has to guess between waiting and stuck. An item that runs unusually long says so ("still compiling, 40 s") rather than going quiet. Progress goes to stderr, never into what a script or `--json` reads, and where stderr is not a terminal it is one plain line per item rather than a line that rewrites itself.
+It names the stage it is in, the item it is on, that item's place in the count (`7/18`) and the time elapsed, refreshed at least every few seconds, so a reader never has to guess between waiting and stuck. An item that runs unusually long says so ("still compiling, 40 s") rather than going quiet. Progress goes to stderr, never into what a script or `--json` reads, and where stderr is not a terminal it is one plain line per item rather than a line that rewrites itself. Speed comes first: a command a person runs many times a day is made fast enough to need no progress line, and progress is for what is still slow after that.
+
+### T7. Say only what happened.
+
+Output describes what the command did and nothing it did not: no fetch reported for a fetch that did not happen, no "pass" over a result left broken, no "wrote" for a file that was skipped, and a dry run marked as one. This is V3, claim only what is known, for the terminal.
+
+### T8. Machine output carries what the text carries.
+
+Every command that reports offers `--json`, and its JSON holds everything the text says rather than a thinner subset, built from the same report so that the two cannot drift. Stdout holds only that document, on failure as on success.
 
 ## 1.11 C · Construction
 
@@ -294,3 +312,35 @@ The tests that enforce P7 (4.8) are written before any command that touches a fi
 ### C5. Two tools, in two languages, sharing nothing but `specs/`.
 
 Loom and arras began as two repositories and now live in one, each with its own build, tests and release; they still meet only at the specifications, which is what keeps P11 a fact of the code and not only of the design.
+
+## 1.12 K · The command line
+
+The shape of the command line, as opposed to what one command prints (the T set, 1.10): which commands exist, what their flags mean, what they accept and do, and how a person finds them. Drawn from the CLI study of 2026-10-02 (`docs/reports/cli-study.md`), which found that most of what is structurally wrong with the command line is invisible to the T set (DR-324-ikmartin). All are **[decided]**.
+
+### K1. One action, one command, one name.
+
+No command has an alias and no two commands perform one act; a step of a pipeline is a flag of the pipeline, not a command of its own; a refusal is a line of help, not a command. A second name for one thing is a second thing to learn and a doubt about whether they differ.
+
+### K2. One idea, one flag, one meaning.
+
+A flag means the same thing on every command that takes it, and an idea has one flag wherever it appears: who is acting, a reason, the file to write, a session, consent to use the network. A flag whose meaning changes between commands is a mistake waiting for the second command.
+
+### K3. Refuse what is not understood.
+
+Every argument is checked before any work begins, and one that names nothing or holds a value the command does not understand — an unknown key, work, engine, date or level — is refused by name with exit 2, as 12.1 says. Accepting it silently, and acting on a guess or on nothing, reports a success that did not happen.
+
+### K4. A command does what its name says, and nothing more.
+
+A command that reads never writes, a command that prints a patch never records one, a refusal leaves no trace, and a dry run touches nothing. Housekeeping a command did not announce is a side effect the reader cannot see or undo.
+
+### K5. Guard by consequence, uniformly.
+
+Every act that is the author's alone, or that destroys, refuses an agent the same way and asks before destroying, whichever command performs it and whatever name the caller declares. The guard is on the act, not on the command that happens to reach it.
+
+### K6. The help is a map of the work.
+
+`loom --help` groups the commands by the task they serve, puts the person's commands first, marks the agent's and the upkeep commands as such, and gives each a full first sentence. A newcomer finds the command for what they want to do without reading every name.
+
+### K7. One thing, one name, everywhere.
+
+The command line, the viewer and the book call a thing by one name, and a state by one word: if the viewer says Library, so does the command line. Two names for one thing make a reader wonder whether they are two things.
