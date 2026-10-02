@@ -80,6 +80,48 @@ test('a refusal names its condition', async ({ page }) => {
 	await expect(page.locator('.footer.refused')).toHaveCount(0);
 });
 
+test('opening a session says it is working until the publisher answers, and opens one however long that takes', async ({ page }) => {
+	// a large quilt is rebuilt before the publisher answers, which took a minute: the field closed at once and showed nothing, so the reader pressed Enter again and got two sessions
+	await writes(page, ['session-new']);
+	let calls = 0;
+	let release: () => void = () => {};
+	const answered = new Promise<void>((done) => (release = done));
+	await page.route('**/_api/session-new', async (route) => {
+		calls += 1;
+		await answered;
+		await route.fulfill({ json: { ok: true, result: 's-2026-10-02-0009  a long sitting  (active)' } });
+	});
+	await page.goto('/master/main');
+	await openPicker(page);
+	await page.getByTestId('session-new').click();
+	const field = page.getByTestId('session-new-title');
+	await field.fill('a long sitting');
+	await field.press('Enter');
+	const status = page.getByTestId('session-new-status');
+	await expect(status).toHaveText('opening “a long sitting”…');
+	await expect(field).toBeDisabled();
+	await expect(field).toHaveValue('a long sitting');
+	release();
+	await expect(status).toHaveCount(0);
+	expect(calls).toBe(1);
+});
+
+test('a session the publisher refuses to open says why, and keeps what was typed', async ({ page }) => {
+	await writes(page, ['session-new']);
+	await page.route('**/_api/session-new', (route) =>
+		route.fulfill({ status: 409, json: { error: { code: 'refused', message: 'no author name: set one in Settings' } } })
+	);
+	await page.goto('/master/main');
+	await openPicker(page);
+	await page.getByTestId('session-new').click();
+	const field = page.getByTestId('session-new-title');
+	await field.fill('a sitting');
+	await field.press('Enter');
+	await expect(page.getByTestId('session-new-status')).toHaveText('no author name: set one in Settings');
+	await expect(field).toBeEnabled();
+	await expect(field).toHaveValue('a sitting');
+});
+
 test('the session picker is not in the column', async ({ page }) => {
 	await page.goto('/master/main');
 	const column = page.locator('.panel .sections');

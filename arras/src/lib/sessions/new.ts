@@ -11,11 +11,11 @@ import { write } from '$lib/write';
  *
  * **It is selected because nothing is created automatically any more.** With the viewer no longer opening a session on the first write, this is the only way to reach a fresh one, and leaving it unselected would make opening a session a two-step act whose second step is easy to forget — which is how work ends up filed in yesterday's sitting.
  *
- * Returns the new session's id, or `''` when the publisher refused.
+ * Answers the new session's id, or the publisher's reason for refusing, so the caller can say why nothing opened.
  */
-export async function openSession(title: string, purpose = ''): Promise<string> {
+export async function openSession(title: string, purpose = ''): Promise<{ id: string; error: string }> {
 	const res = await write('session-new', purpose ? { title, purpose } : { title });
-	if (!res.ok) return '';
+	if (!res.ok) return { id: '', error: res.error?.message ?? 'the session could not be opened' };
 	// the endpoint answers with what the CLI prints: `<id>  <title>  (active)`
 	const made = typeof res.result === 'string' ? res.result.trim().split(/\s+/)[0] : '';
 	if (made) {
@@ -23,5 +23,5 @@ export async function openSession(title: string, purpose = ''): Promise<string> 
 		sessionView.save();
 	}
 	store.refresh();
-	return made;
+	return { id: made, error: made ? '' : 'the publisher did not name the new session' };
 }

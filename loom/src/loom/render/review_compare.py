@@ -6,6 +6,7 @@ import dataclasses
 import difflib
 import hashlib
 import re
+from functools import lru_cache
 from typing import Any
 
 from loom.records.snapshots import read_snapshot
@@ -14,6 +15,7 @@ from loom.render.convert import Converter
 from loom.render.fragments import FragmentRenderer
 from loom.scan.hashing import normalize
 from loom.scan.macros import parse_macros, to_mathjax
+from loom.scan.model import Macro
 from loom.scan.scan import ScanResult
 from loom.scan.source import blank_comments
 
@@ -36,6 +38,17 @@ def _changed(before: str, after: str) -> tuple[list[list[int]], list[list[int]]]
     return out[0], out[1]
 
 
+@lru_cache(maxsize=64)
+def _preamble_macros(preamble: str) -> dict[str, Macro]:
+    """A preamble's macros, parsed once: a build renders a review fragment per key against one or two preambles."""
+    return parse_macros(blank_comments(preamble))
+
+
+@lru_cache(maxsize=64)
+def _preamble_mathjax(preamble: str) -> list[dict[str, object]]:
+    return to_mathjax(_preamble_macros(preamble))
+
+
 def _render(
     renderer: FragmentRenderer, result: ScanResult, key: str, text: str, preamble: str, spans: list[list[int]]
 ) -> str:
@@ -45,7 +58,7 @@ def _render(
         file="review/" + hashlib.sha256(key.encode()).hexdigest()[:20] + ".tex",
         text=text,
         clean=blank_comments(text),
-        macros=parse_macros(blank_comments(preamble)),
+        macros=dict(_preamble_macros(preamble)),
         child_at={},
         include_html=lambda _arg: "",
         fallback=renderer._fallback_for_preamble(preamble, key),
@@ -73,7 +86,7 @@ def attach_comparisons(
         closure = result.closures.get(document) if document else None
         current_preamble = closure.raw_text() if closure else ""
         current_macros = "review-current:" + hashlib.sha256(current_preamble.encode()).hexdigest()[:20]
-        manifest["macros"]["sets"][current_macros] = to_mathjax(parse_macros(blank_comments(current_preamble)))
+        manifest["macros"]["sets"][current_macros] = list(_preamble_mathjax(current_preamble))
         if (
             key in manifest["keys"]
             and result.nodes[key].kind in ("environment", "proof")
