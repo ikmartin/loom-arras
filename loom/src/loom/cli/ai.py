@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,24 +20,33 @@ def ai() -> None:
 @ai.command()
 @click.argument("run", required=False, default=None)
 @click.option(
-    "--before", default=None, metavar="DATE", help="Discard every record created before this date (YYYY-MM-DD)."
+    "--before",
+    default=None,
+    metavar="DATE",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="Discard every record created before this date (YYYY-MM-DD).",
 )
 @click.option("--author", default=None, help="Discard every record whose author matches.")
 @click.option("--target", default=None, help="Discard every record with an annotation on this key.")
 @click.option("--undo", is_flag=True, help="Reverse: mark matching records not discarded.")
 @quilt_option
 def discard(
-    run: str | None, before: str | None, author: str | None, target: str | None, undo: bool, quilt_path: str | None
+    run: str | None, before: datetime | None, author: str | None, target: str | None, undo: bool, quilt_path: str | None
 ) -> None:
     """Flag a session's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
 
     Discarding appends an event like any other change, so a sitting's annotations can be dismissed and brought back without anything being rewritten or lost.
     """
-    from loom.cli._common import agent_marker
+    from loom.cli._common import agent_marker, refuse_under_agent
     from loom.clock import stamp
     from loom.records.log import append
     from loom.records.store import Records
 
+    # --author here filters whose annotations are discarded, so it is no declared identity
+    refuse_under_agent(
+        "loom ai discard",
+        "Discarding a session's annotations is the author's; ask the author, or withdraw one of your own with loom annotate --discard.",
+    )
     quilt = open_quilt(quilt_path)
     root = quilt.root
     records = Records(root, quilt.history_dir).records
@@ -47,7 +57,8 @@ def discard(
     elif before or author or target:
         for rec in records:
             created = min((a.created for a in rec.annotations), default="")
-            if before and not (created and created[:10] < before):
+            # compared as ISO dates, which order as their strings do once both are YYYY-MM-DD
+            if before and not (created and created[:10] < before.date().isoformat()):
                 continue
             if author and not any(a.author_id == author for a in rec.annotations):
                 continue
@@ -361,8 +372,6 @@ def refresh_draft(document: str, as_json: bool, quilt_path: str | None) -> None:
         answer = refresh(open_scan(quilt_path), document)
     except (SyncError, ValueError, OSError) as exc:
         raise EnvError(str(exc)) from exc
-    click.echo(
-        json.dumps(answer, indent=2)
-        if as_json
-        else answer["message"] + ("\n" + "\n".join(answer["conflicts"]) if answer["conflicts"] else "")
-    )
+    click.echo(json.dumps(answer, indent=2) if as_json else answer["message"])
+    if answer["conflicts"]:
+        raise SystemExit(1)  # a conflict left waiting is not success, in either form

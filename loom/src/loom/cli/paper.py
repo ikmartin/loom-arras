@@ -1,4 +1,4 @@
-"""`loom id`, `loom import`, `loom atomize`, `loom inline` (book 6, 12.3) and the identity test they share."""
+"""`loom id`, `loom import`, `loom atomize`, `loom deloom` (book 6, 12.3) and the identity test they share."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from loom.history.ledger import actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, text_hash, write_step
 from loom.reshape.anchoring import anchoring_violations
 from loom.reshape.anchoring import fix_anchoring as repair_anchoring
-from loom.reshape.atomize import inline as inline_text
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
 from loom.reshape.canon import apply_import, plan_import
 from loom.reshape.ids import apply_insertions, plan_insertions, unified_diff
@@ -359,38 +358,6 @@ def atomize(
     note(f"Recorded: atomize (ledger line {entry.line})")
     if ident is not None and not ident.passed and not ident.skipped:
         ctx.exit(EXIT_CONTENT)
-
-
-@click.command(name="inline")
-@click.argument("src")
-@click.argument("dest", required=False, default=None)
-@click.option("--to", "to", default=None, metavar="DEST")
-@click.option("--all", "recursive", is_flag=True, help="Inline recursively.")
-@quilt_option
-@click.pass_context
-def inline_command(
-    ctx: click.Context, src: str, dest: str | None, to: str | None, recursive: bool, quilt_path: str | None
-) -> None:
-    """Write DEST, a copy of SRC with every \\input of a node file replaced by its contents. The reverse of atomize."""
-    result = open_scan(quilt_path)
-    root = result.quilt.root
-    src_rel = _rel(root, src)
-    target = dest or to
-    if not target:
-        click.echo("ERROR: specify a destination file after the source, or with --to", err=True)
-        ctx.exit(2)
-    d_rel = _rel(root, target)
-    if (root / d_rel).exists():
-        raise EnvError(f"{d_rel} exists; inline never overwrites")
-    text = inline_text(result, src_rel, recursive)
-    (root / d_rel).parent.mkdir(parents=True, exist_ok=True)
-    (root / d_rel).write_text(text, encoding="utf-8")
-    click.echo(f"Wrote {d_rel} ({text.count(chr(10))} lines)")
-    ident = _identity_for(result, root, src_rel, d_rel)
-    if ident is not None:
-        note(ident.summary())
-        if not ident.passed and not ident.skipped:
-            ctx.exit(EXIT_CONTENT)
 
 
 def _atomize_keys(

@@ -432,7 +432,7 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
 
     # what the table must not admit: every command that writes into the quilt outside the session and build/, the history's restore among them, so `loom canonise` cannot walk past a deny on `loom canonize`
     writes_outside_a_session = {
-        "accept", "atomize", "inline", "import", "stamp", "fork",
+        "accept", "atomize", "import", "stamp", "fork",
         "revert", "live", "mv", "linearize", "refs cite", "refs add", "upgrade", "digest import", "ai init",
     }  # fmt: skip
     missing = sorted(writes_outside_a_session - denied)
@@ -501,6 +501,10 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "refs unreadable",
         "refs forget",
         "refs cite",
+        "refs drop",
+        "session delete",
+        "ai discard",
+        "sync publish",
         "ai init",
         "upgrade",
         "session use",

@@ -130,7 +130,7 @@ Fields:
 - `selector`: null for an annotation on the whole target; otherwise the text-quote selector (7.5).
 - `kind`: **[decided]** one of five — `objection`, `suggestion`, `question`, `citation`, `note` (DR-291-ikmartin). `note` is the explanation-or-aside kind, and where a clean read is recorded: agreement earns no kind of its own. `--kind` takes any unambiguous prefix (DR-204).
 - **[decided]** `objection`, `suggestion`, `question` and `citation` **await an answer** and are what an open count counts; `note` records rather than asks, and is where a clean read goes. A session where a paper was read closely would otherwise show a number that only ever climbs, which is the same uselessness as counting notes.
-- `body`: Markdown; the manifest carries it rendered as CommonMark.
+- `body`: Markdown; the manifest carries it rendered as CommonMark with tables.
 - `severity`: **[decided]** `major`, `moderate` or `minor`, grading the *fault a finding names* rather than the enthusiasm of the suggestion — a grammar note is minor because the fault is small. Required by review mode, where every item is grouped by it; optional elsewhere, and absent where nothing is wrong. **[decided]** It belongs on `objection` and `suggestion` alone, and is refused on the other three: a graded question is a category error and a graded note says nothing (DR-169, widened by DR-204).
 - `payload`: **[decided]** text the annotation proposes — a proof, a paragraph, a rewritten passage — with `placement` (`replace`, `after`, `before`) as a hint for where a viewer shows it relative to the anchor. Everything is preview and copy: the author reads it and pastes it where they decide, and nothing in loom applies one.
 - `status`: `open`, `resolved` or `discarded`.

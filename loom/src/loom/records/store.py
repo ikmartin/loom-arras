@@ -956,7 +956,8 @@ def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
     try:
         from markdown_it import MarkdownIt
 
-        md = MarkdownIt("commonmark", {"html": False})
+        # CommonMark has no tables, so an agent's `| a | b |` comparison arrived as one run-on paragraph; the dialect has them (specs/dialect.md §2.12), so the GFM table rule is enabled
+        md = MarkdownIt("commonmark", {"html": False}).enable("table")
         if src is None:
             out = str(md.render(protected)).strip()
         else:
@@ -965,6 +966,8 @@ def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
         import html
 
         out = "<p>" + html.escape(protected) + "</p>"
+    # a column's alignment arrives as an inline style, which the dialect does not carry: the viewer sets a table's look
+    out = re.sub(r' style="text-align:(?:left|right|center)"', "", out)
     return _restore_math(out, spans)
 
 

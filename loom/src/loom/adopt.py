@@ -495,6 +495,8 @@ def prepare(
         "reviewer": who,
         "keys": selected,
         "document": document,
+        # whether prose, preamble or ordering changes wait that this selection leaves out, so an empty patch can say so
+        "document_waiting": bool(data["document_changed"]) and not document,
         "patch": patch,
         "paths": paths,
         "overlay": overlay,
@@ -506,6 +508,13 @@ def prepare(
     home.mkdir(parents=True, exist_ok=True)
     (home / (prepared["token"] + ".json")).write_text(json.dumps(prepared, indent=2) + "\n")
     return prepared
+
+
+def nothing_to_incorporate(prepared: dict[str, Any]) -> str:
+    """What an empty preview says: "nothing" only when nothing waits, and otherwise the flag that shows what does."""
+    if prepared.get("document_waiting"):
+        return f"No result changes to incorporate; the document's prose or ordering changed: run loom adopt {Path(prepared['copy']).name} --document-changes to see it"
+    return "No changes to incorporate"
 
 
 def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None = None) -> dict[str, Any]:
@@ -547,7 +556,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     if checked["overlay"] != saved["overlay"] or checked["adoption_base"] != saved["adoption_base"]:
         raise SyncError("Result identities or dependencies changed; inspect a fresh preview")
     if not saved["patch"]:
-        return {"paths": [], "message": "No changes to incorporate"}
+        return {"paths": [], "message": nothing_to_incorporate(saved)}
     from loom.records.store import Records
     from loom.review_origins import read, write
     from loom.review_queue import fingerprint
@@ -796,12 +805,18 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
                 "step": history.latest_versions()[base["key"]][0],
                 "hash": freeze.current[base["key"]],
             }
+    reconcile = (
+        f"{len(conflicts)} changed on both sides, in the working document and in the copy: {', '.join(conflicts)}; reconcile them in your editor, then run loom ai refresh {Path(data['copy']).name} again"
+        if conflicts
+        else ""
+    )
     if text == original and baseline == data["baseline"]:
+        # nothing written is "up to date" only when nothing waits; a conflict left unwritten is the opposite
         return {
             "copy": data["copy"],
             "updated": [],
             "conflicts": conflicts,
-            "message": "AI draft is already up to date",
+            "message": reconcile or "AI draft is already up to date",
         }
     try:
         temporary = path.with_suffix(".refresh.tmp")
@@ -816,7 +831,7 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
         "copy": data["copy"],
         "updated": updated,
         "conflicts": conflicts,
-        "message": "AI draft updated" if not conflicts else "AI draft partly updated; reconcile the listed conflicts",
+        "message": "AI draft updated" if not conflicts else f"AI draft partly updated; {reconcile}",
     }
 
 

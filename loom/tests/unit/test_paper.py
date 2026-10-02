@@ -332,7 +332,9 @@ def test_live_makes_a_superseded_document_define_again(tmp_path: Path) -> None:
     q = imported(tmp_path)
     ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
     assert "duplicate-id" not in run("lint", cwd=q).output
-    assert "is live" in ok("live", "drafting/main.tex", cwd=q).output
+    said = ok("live", "drafting/main.tex", cwd=q).output
+    # it says what it did: every id the document defines is now defined twice, each named with the command that splits it
+    assert "is live, and" in said and "now defined twice" in said and "loom fork pp-" in said
     lint = run("lint", cwd=q)
     assert "duplicate-id" in lint.output  # both define every node now, and neither wins
     assert "loom:superseded-file" not in lint.output
@@ -373,7 +375,7 @@ def test_atomize_proofs_separate_directives_sections_and_all(tmp_path: Path) -> 
     assert proof.exists()
 
 
-def test_atomize_sections_and_inline_round_trip(tmp_path: Path) -> None:
+def test_atomize_sections_and_linearize_round_trip(tmp_path: Path) -> None:
     q = imported(tmp_path)
     before = (q / "drafting" / "main.tex").read_text()
     ok("atomize", "drafting/main.tex", "drafting/spine.tex", "--sections", cwd=q)
@@ -381,25 +383,26 @@ def test_atomize_sections_and_inline_round_trip(tmp_path: Path) -> None:
     assert "\\input{nodes/pp-" in spine and "\\section{Results}" not in spine
     section_file = next(f for f in (q / "nodes").glob("pp-*.tex") if "\\section{Results}" in f.read_text())
     assert "\\input{nodes/pp-" in section_file.read_text() and "Prose between" in section_file.read_text()
-    ok("inline", "drafting/spine.tex", "drafting/back.tex", "--all", cwd=q)
+    ok("linearize", "drafting/spine.tex", "--to", "drafting/back.tex", "--no-check", cwd=q)
     assert (q / "drafting" / "back.tex").read_text().split() == before.split()
     refused(
-        "inline",
-        "drafting/spine.tex",
+        "linearize",
+        "drafting/back.tex",
+        "--to",
         "drafting/back.tex",
         cwd=q,
         code=2,
-        match="drafting/back.tex exists; inline never overwrites",
+        match="drafting/back.tex exists; linearize never overwrites",
     )
 
 
-def test_inline_nest_shifts_and_identity_on_master(tmp_path: Path) -> None:
+def test_linearize_nest_shifts_and_identity_on_master(tmp_path: Path) -> None:
     q = imported(tmp_path)
     (q / "sections").mkdir(exist_ok=True)
     (q / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nN\n")
     m = q / "drafting" / "main.tex"
     m.write_text(m.read_text().replace("\\end{document}", "\\nest{sections/nested}\n\\end{document}"))
-    r = ok("inline", "drafting/main.tex", "drafting/flat.tex", "--all", cwd=q)
+    r = ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", cwd=q)
     flat = (q / "drafting" / "flat.tex").read_text()
     assert "\\subsection{Nested}" in flat and "\\nest{" not in flat
     assert "Identity test: pass" in r.output

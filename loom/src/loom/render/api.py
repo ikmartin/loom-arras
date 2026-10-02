@@ -109,7 +109,11 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     if endpoint == "message":
         return _message(root, body)
     if endpoint in ("sync-incorporate", "sync-preview"):
+        from loom.cli._common import is_agent
         from loom.incorporation_review import finish, preview, validate
+
+        if endpoint == "sync-incorporate" and is_agent(_str(body, "author") or ""):
+            raise ApiError("author-only", "Incorporating a collaborator's changes is the author's", status=403)
         from loom.scan.quilt import load_quilt, reviewer_identity
         from loom.scan.scan import scan
         from loom.sync import SyncError, SyncState, _expected_blobs, git, incorporate_pull, prepare_incorporation
@@ -565,10 +569,15 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
 
 def _refs_cite(root: Path, body: dict[str, Any]) -> str:
     """Accept or reject a citation an agent suggested: the log records the decision, the breadcrumb records the work."""
+    from loom.cli._common import is_agent
     from loom.records.annotations import find_annotation
     from loom.records.store import Records
     from loom.refs.notes import append_note
 
+    if is_agent(_str(body, "author") or ""):
+        raise ApiError(
+            "author-only", "An agent suggests a citation; only the author accepts or rejects one", status=403
+        )
     decision = _str(body, "decision", required=True)
     if decision not in ("accept", "reject"):
         raise ApiError("bad-field", "decision must be accept or reject")

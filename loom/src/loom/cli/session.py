@@ -170,6 +170,13 @@ def delete_command(
     if s is None:
         raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     if purge:
+        from loom.cli._common import refuse_under_agent
+
+        refuse_under_agent(
+            "loom session delete --purge",
+            "Erasing a session is the author's; an agent removes one from view with loom session delete, without --purge.",
+            author,
+        )
         kept, dropped = _without(root, s.id)
         if not yes:
             if not sys.stdin.isatty():

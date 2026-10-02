@@ -450,18 +450,6 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--fix-anchoring` | With --from: rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
 
-## `loom inline`
-
-`loom inline [OPTIONS] SRC [DEST]`
-
-Write DEST, a copy of SRC with every \input of a node file replaced by its contents. The reverse of atomize.
-
-| option | description |
-|---|---|
-| `--to` `DEST` |  |
-| `--all` | Inline recursively. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 ## `loom linearize`
 
 `loom linearize [OPTIONS] SPINE`
@@ -888,7 +876,7 @@ Asks zbMATH Open, then Crossref, and prints candidates with how well each matche
 
 Add every bibliography entry the landmarks carry to digests/bibliography.bib.
 
-Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
+Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, a stamp given a document, and `refs build` run this themselves.
 
 It also files what the author dropped in `refs/`, and **adopts** any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. Adoption happens once per document; a later scan leaves it alone.
 
@@ -901,7 +889,7 @@ It also files what the author dropped in `refs/`, and **adopts** any document th
 
 `loom refs unlink [OPTIONS] LINK_ID`
 
-Remove a link.
+Remove a link. An agent may remove only a link a session asserted; the author's links are the author's to remove.
 
 | option | description |
 |---|---|
@@ -1241,17 +1229,6 @@ Verify the author's Git application and commit the source and sync record.
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-### `loom sync incorporated`
-
-`loom sync incorporated [OPTIONS]`
-
-Record that the author has incorporated a pull; accept no mathematics.
-
-| option | description |
-|---|---|
-| `--yes` | Confirm that the incoming source was applied and committed. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 ### `loom sync init`
 
 `loom sync init [OPTIONS]`
@@ -1260,8 +1237,8 @@ Configure the document workspace for this quilt's selected documents.
 
 | option | description |
 |---|---|
-| `--remote` |  |
-| `--branch` |  |
+| `--remote` | The git remote of the document workspace, e.g. overleaf; never the quilt's own repository. |
+| `--branch` | The workspace's branch on that remote, e.g. master. |
 | `--publish-main` | Document workspace main TeX path when it differs from the quilt master. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

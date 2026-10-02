@@ -675,3 +675,16 @@ def test_a_result_on_a_sectioning_counter_steps_it_and_an_aux_number_resynchroni
     assert n.theorem(t) == "3.8"
     n.heading("section")
     assert n.theorem(t) == "4.1"
+
+
+def test_an_overview_named_by_a_fragment_matching_two_works_is_refused_by_name(tmp_path: Path) -> None:
+    """`refs overview romagny` printed a different paper's overview on successive runs: a set was asked for its first element (CLI study, defect 12)."""
+    q = demo(tmp_path)
+    bib = q / "digests" / "bibliography.bib"
+    bib.write_text(
+        bib.read_text()
+        + "\n@article{Romagny05, title={Group actions on stacks}, author={Romagny, M.}}\n"
+        + "\n@article{Romagny22, title={Fixed point stacks}, author={Romagny, M.}}\n",
+        encoding="utf-8",
+    )
+    refused("refs", "overview", "romagny", cwd=q, code=2, match="names 2 works: Romagny05, Romagny22")

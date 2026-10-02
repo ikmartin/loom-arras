@@ -25,7 +25,7 @@ from loom.cli.history_cmds import (
 from loom.cli.link_cmd import link_command
 from loom.cli.lint_cmd import lint_command
 from loom.cli.nodes import delete, new, search
-from loom.cli.paper import atomize, deloom_command, id_command, import_command, inline_command
+from loom.cli.paper import atomize, deloom_command, id_command, import_command
 from loom.cli.quilt import init
 from loom.cli.refs import refs
 from loom.cli.review import accept, annotate, review_command, status
@@ -55,7 +55,6 @@ main.add_command(new)
 main.add_command(id_command)
 main.add_command(import_command)
 main.add_command(atomize)
-main.add_command(inline_command)
 main.add_command(deloom_command)
 main.add_command(search)
 main.add_command(delete)

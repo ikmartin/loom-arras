@@ -240,8 +240,24 @@ def test_refresh_reports_both_changed_and_does_not_call_copy_fresh(quilt):
     edit(quilt, "First statement.", "Author revision.", DOC)
     answer = refresh(scan(quilt), COPY)
     assert "zk-0001" in answer["conflicts"]
+    # a conflict left unwritten is not "already up to date": it says what changed on both sides and what to do, and exits 1
+    assert "changed on both sides" in answer["message"] and "zk-0001" in answer["message"]
+    assert "already up to date" not in answer["message"]
+    from tests.helpers import run
+
+    assert run("ai", "refresh", COPY, cwd=quilt.root).exit_code == 1
     assert "AI revision." in (quilt.root / COPY).read_text()
     assert copy_states(scan(quilt), load_history(quilt.history_dir))[0].stale
+
+
+def test_an_empty_selection_says_when_document_changes_wait(quilt):
+    """Adopt said "No changes to incorporate" while a prose change waited behind --document-changes (CLI study, defect 10)."""
+    edit(quilt, "Original introduction.", "Proposed introduction.")
+    preview = prepare(scan(quilt), COPY, [])
+    assert not preview["patch"] and preview["document_waiting"]
+    from loom.adopt import nothing_to_incorporate
+
+    assert "--document-changes" in nothing_to_incorporate(preview)
 
 
 def test_identical_changes_are_not_conflicts(quilt):

@@ -90,7 +90,7 @@ def test_display_name_hash_does_not_hide_math_or_other_directives() -> None:
     )
 
 
-def test_names_survive_inline_and_atomize_without_rendering(tmp_path: Path) -> None:
+def test_names_survive_linearize_and_atomize_without_rendering(tmp_path: Path) -> None:
     from tests.unit.render.test_inline_env import quilt
 
     q = quilt(tmp_path)
@@ -103,7 +103,7 @@ def test_names_survive_inline_and_atomize_without_rendering(tmp_path: Path) -> N
     assert fragments and not any("Invisible display name" in p.read_text() for p in fragments)
     ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
     assert any("% !LOOM name: Invisible display name" in p.read_text() for p in (q / "nodes").glob("*.tex"))
-    ok("inline", "drafting/spine.tex", "drafting/back.tex", "--all", cwd=q)
+    ok("linearize", "drafting/spine.tex", "--to", "drafting/back.tex", "--no-check", cwd=q)
     assert "% !LOOM name: Invisible display name" in (q / "drafting/back.tex").read_text()
 
 

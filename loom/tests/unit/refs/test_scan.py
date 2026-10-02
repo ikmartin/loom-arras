@@ -252,3 +252,79 @@ def test_a_document_that_states_no_identifier_is_reachable_from_its_own_entry(tm
     assert stated is not None and str(stated) == "arXiv:2504.09999v1", named.fields
     assert "loom-file" not in named.fields
     assert work_dir(quilt.root, named) == quilt.root / "digests" / "storage" / stated.path
+
+
+def test_a_document_named_with_doubled_spaces_or_in_a_folder_is_offered_one_entry_however_often_the_scan_runs(
+    tmp_path: Path,
+) -> None:
+    """The bibliography reader collapses whitespace, so a file named with two spaces never matched its own entry's `loom-source`, and every scan adopted it again under a new key: `SiebertPuncturedLogarith`, then `…A`, `…B` (CLI study, defect 4). A file in a subfolder was recorded under one path and ledgered under another, with the same result."""
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
+    seed = quilt.root / "refs"
+    (seed / "older").mkdir(parents=True)
+    _pdf(seed / "Siebert  -  Punctured logarithmic maps.pdf", text="Punctured logarithmic maps")
+    _pdf(seed / "older" / "Wise - 2016 - Moduli of morphisms.pdf", text="Moduli of morphisms")
+    scan_bibliography(quilt)
+    path = quilt.root / BIBLIOGRAPHY
+    entries = set(parse_bib(path.read_text()))
+    for _ in range(3):
+        again = scan_bibliography(quilt)
+        assert again.adopted == [] and again.added == [], again.lines()
+    assert set(parse_bib(path.read_text())) == entries
+
+
+def test_a_dry_run_writes_copies_and_records_nothing(tmp_path: Path) -> None:
+    """A dry run copied the document, mapped it and ledgered it, and the next real scan then adopted the copy as an orphan instead of offering its entry."""
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
+    seed = quilt.root / "refs"
+    seed.mkdir()
+    _pdf(seed / "Manolache - 2012 - Virtual pull-backs.pdf")
+    report = scan_bibliography(quilt, write=False)
+    assert report.copied and report.added
+    assert not (quilt.root / BIBLIOGRAPHY).exists()
+    assert not (quilt.root / "digests" / "storage").exists()
+    first = scan_bibliography(quilt)
+    assert first.adopted == [] and any("Manolache" in c.key for c in first.added)
+
+
+def test_a_second_document_for_a_work_that_states_no_identifier_shows_its_own_pdf(tmp_path: Path) -> None:
+    """A sibling entry was written without `loom-file`, so it was looked for under the synthetic home its author, title and year hash to -- the original's -- and showed the original's PDF, or none (the agent critique of 2026-10-02, §3)."""
+    from loom.refs.fetch import work_dir
+
+    bib = "@article{Eke88,\n  author = {Ekedahl, Torsten},\n  title = {The order of the tautological ring},\n  year = {1988},\n}\n"
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER, "refs/mine.bib": bib})
+    seed = quilt.root / "refs"
+    _pdf(
+        seed / "Ekedahl - 1988 - The order of the tautological ring.pdf",
+        text="The order of the tautological ring Ekedahl",
+    )
+    scan_bibliography(quilt)
+    _pdf(
+        seed / "Ekedahl - 1988 - The order of the tautological ring, preprint.pdf",
+        text="The order of the tautological ring Ekedahl preprint",
+    )
+    report = scan_bibliography(quilt)
+    assert report.siblings, report.lines()
+    sibling, of = report.siblings[0]
+    entries = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())
+    mine, theirs = work_dir(quilt.root, entries[sibling]), work_dir(quilt.root, entries[of])
+    assert mine != theirs and (mine / "paper.pdf").is_file() and (theirs / "paper.pdf").is_file()
+    assert (mine / "paper.pdf").read_bytes() != (theirs / "paper.pdf").read_bytes()
+
+
+def test_entries_naming_one_stored_document_are_reported_once_with_the_fix(tmp_path: Path) -> None:
+    """Earlier scans left the author's quilt with several entries naming one document; the scan names them and the edit, and removes nothing, since the file is the author's to change."""
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER})
+    (quilt.root / "digests").mkdir()
+    twice = "".join(
+        f"@misc{{Siebert{suffix},\n  title = {{Punctured}},\n  loom-file = {{file/0972338306d22915}},\n  loom-source = {{refs/Siebert.pdf}},\n}}\n"
+        for suffix in ("", "A", "B")
+    )
+    (quilt.root / BIBLIOGRAPHY).write_text(twice)
+    lines = "\n".join(scan_bibliography(quilt).lines())
+    assert "3 entries name one document (refs/Siebert.pdf): Siebert, SiebertA, SiebertB" in lines
+    assert "delete the others from digests/bibliography.bib" in lines
+    assert sorted(k for k in parse_bib((quilt.root / BIBLIOGRAPHY).read_text()) if k.startswith("Siebert")) == [
+        "Siebert",
+        "SiebertA",
+        "SiebertB",
+    ]

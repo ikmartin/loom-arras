@@ -19,7 +19,6 @@ from loom.sync import (
     fetch,
     finish_incorporation,
     incoming_patch,
-    mark_incorporated,
     prepare_incorporation,
     publish,
     push_publication,
@@ -44,8 +43,12 @@ def _run(action: Callable[[], T]) -> T:
 
 
 @sync.command("init")
-@click.option("--remote", default="origin", show_default=True)
-@click.option("--branch", default="main", show_default=True)
+@click.option(
+    "--remote",
+    required=True,
+    help="The git remote of the document workspace, e.g. overleaf; never the quilt's own repository.",
+)
+@click.option("--branch", required=True, help="The workspace's branch on that remote, e.g. master.")
 @click.option(
     "--publish-main", default="", help="Document workspace main TeX path when it differs from the quilt master."
 )
@@ -144,19 +147,6 @@ def patch_sync(to: Path | None, quilt_path: str | None) -> None:
         click.echo(f"wrote {to}")
 
 
-@sync.command("incorporated")
-@click.option("--yes", is_flag=True, help="Confirm that the incoming source was applied and committed.")
-@quilt_option
-def incorporated_sync(yes: bool, quilt_path: str | None) -> None:
-    """Record that the author has incorporated a pull; accept no mathematics."""
-    if not yes:
-        click.confirm("Have you applied and committed the whole incoming source update?", abort=True)
-    quilt = open_quilt(quilt_path)
-    state = _run(lambda: mark_incorporated(quilt, SyncState.read(quilt.root)))
-    assert isinstance(state, SyncState)
-    click.echo(f"source incorporated through {state.integrated[:12]}; mathematical acceptances unchanged")
-
-
 @sync.command("prepare")
 @quilt_option
 def prepare_sync(quilt_path: str | None) -> None:
@@ -180,6 +170,13 @@ def finish_sync(quilt_path: str | None) -> None:
 @quilt_option
 def publish_sync(push: bool, quilt_path: str | None) -> None:
     """Build and compile the committed document workspace projection locally."""
+    if push:
+        from loom.cli._common import refuse_under_agent
+
+        refuse_under_agent(
+            "loom sync publish --push",
+            "Publishing to the document workspace is the author's; without --push this prepares and checks the revision.",
+        )
     quilt = open_quilt(quilt_path)
     state = _run(lambda: SyncState.read(quilt.root))
     commit, paths = _run(lambda: publish(quilt, state))

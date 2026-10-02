@@ -281,7 +281,6 @@ def fork(node_id: str, in_doc: str, at: str | None, as_id: str | None, as_json: 
 def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
     """Print the patch that puts KEY@N's recorded text back in place of the head's; the file is the author's to change. Reverting materializes a version, it never points at one."""
     result = open_scan(quilt_path)
-    root = result.quilt.root
     parsed = parse_address(address)
     if parsed is None:
         raise EnvError(f"{address} is not an address; write KEY@N or KEY@name")
@@ -300,16 +299,14 @@ def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
     src = result.files[n.file].text
     patched = src[: n.start] + body.rstrip("\n") + src[n.end :]
     diff = unified_diff(src, patched, n.file)
+    # Nothing is recorded: applying the patch is the author's act (17.11), and whether the head is again @N is read from its text, never from a note that a patch was once printed.
     if as_json:
         emit_json({"key": key, "step": v.step, "hash": v.hash, "file": n.file, "diff": diff, "patched": patched})
+    elif not diff:
+        note(f"{key} already has the text of @{v.step}; nothing to apply")
     else:
         click.echo(diff, nl=False)
-        if not diff:
-            note(f"{key} already has the text of @{v.step}")
-    entry = append_entry(
-        result.quilt.history_dir, "revert", {"key": key, "step": v.step, "hash": v.hash, "in": n.file}, actor_for(root)
-    )
-    note(f"After applying, {key} has the text of @{v.step} ({v.name}). Recorded: revert (ledger line {entry.line})")
+        note(f"Apply the patch to {n.file} and {key} has the text of @{v.step} ({v.name}) again.")
 
 
 # ---- live ---------------------------------------------------------------------
@@ -326,8 +323,20 @@ def live(file: str, quilt_path: str | None) -> None:
     history = _history(result)
     if rel not in history.superseded_paths():
         raise EnvError(f"{rel} is not superseded")
+    before = {k for k, n in result.nodes.items() if n.kind == "conflict"}
     entry = append_entry(result.quilt.history_dir, "live", {"path": rel}, actor_for(root))
-    click.echo(f"{rel} is live")
+    # A live document defines its nodes again, so any id another live file also defines has no text from now on: said here, since it is this command that made it so.
+    now = scan(load_quilt(root))
+    made = sorted(k for k, n in now.nodes.items() if n.kind == "conflict" and k not in before and rel in n.conflict)
+    if made:
+        click.echo(
+            f"{rel} is live, and {len(made)} id(s) it defines are now defined twice, with no text until one definition goes:"
+        )
+        for key in made:
+            others = " and ".join(f for f in now.nodes[key].conflict if f != rel)
+            click.echo(f"  {key}  also in {others}: loom fork {key} --in {rel}")
+    else:
+        click.echo(f"{rel} is live")
     note(f"Recorded: live (ledger line {entry.line})")
 
 

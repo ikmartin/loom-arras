@@ -180,16 +180,15 @@ def whoever(root: Path, author: str | None = None, *, sniff: bool = True) -> str
 
 
 def refuse_under_agent(verb: str, how: str, declared: str | None = None) -> None:
-    """Refuse one of the author's verbs when an agent is the writer.
+    """Refuse one of the author's acts when an agent could be the one performing it.
 
-    The claim these verbs make -- *I checked this*, *I accept this mathematics* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. An agent verified its own proposal in the first study run and loom recorded the author as the verifier, because the author's name comes from git, which an agent's shell shares.
-
-    **The guard is on the identity, not the door** (plan 0.13 §8). A session is now shared by a person and an agent, and the write API is no longer only the author's own click, so neither the session nor the environment says who is writing. A declared name that calls itself an agent is refused whichever surface it came through; a marker with no declared identity is refused too, because it will not guess.
+    The claim these acts make -- *I checked this*, *I accept this mathematics*, *erase this* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. A declared name that calls itself an agent is refused wherever it came from; and under an agent marker the act is refused **whatever name is declared**, because a name cannot be checked and an agent that types the author's name is exactly the case to stop (DR-325-ikmartin). The author runs these in a shell of their own.
     """
     if declared and is_agent(declared):
         raise EnvError(f"{verb} is the author's, and {declared} is an agent.\n{how}")
-    if declared:
-        return  # an explicit identity wins: a person who named themselves is a person, whatever shell they are in
     marker = agent_marker()
     if marker:
-        raise EnvError(f"{verb} is the author's, and an agent is running this shell ({marker} is set).\n{how}")
+        named = f", whatever --author or --as says ({declared})" if declared else ""
+        raise EnvError(
+            f"{verb} is the author's, and an agent is running this shell ({marker} is set){named}; run it in a terminal of your own.\n{how}"
+        )

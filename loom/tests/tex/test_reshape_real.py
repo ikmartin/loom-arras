@@ -91,7 +91,7 @@ def test_import_keeps_the_paper_flat_and_drafts_it_labelled(once: Once) -> None:
 
 
 @pytest.mark.tex
-def test_atomize_identity_and_inline_identity(once: Once, tmp_path: Path) -> None:
+def test_atomize_identity_and_linearize_identity(once: Once, tmp_path: Path) -> None:
     atomic, said = atomized(once)
     assert "Identity test: pass" in said, said
     assert {f.name for f in (atomic / "nodes").glob("*.tex")} == {
@@ -101,7 +101,7 @@ def test_atomize_identity_and_inline_identity(once: Once, tmp_path: Path) -> Non
         "pp-0005.proof.tex",
     }
     q = copy(atomic, tmp_path / "q")
-    r2 = ok("inline", "drafting/spine.tex", "drafting/flat.tex", "--all", cwd=q)
+    r2 = ok("linearize", "drafting/spine.tex", "--to", "drafting/flat.tex", cwd=q)
     assert "Identity test: pass" in r2.output, r2.output
     flat = (q / "drafting" / "flat.tex").read_text()
     assert "\\input{nodes/" not in flat and flat.count("\\begin{proof}") == 2
@@ -141,16 +141,16 @@ def test_deloom_gives_back_the_paper_as_received(once: Once, tmp_path: Path) -> 
 
 
 @pytest.mark.tex
-def test_inline_nest_shifts(once: Once, tmp_path: Path) -> None:
+def test_linearize_nest_shifts(once: Once, tmp_path: Path) -> None:
     q = copy(imported(once)[0], tmp_path / "q")
     (q / "sections").mkdir(exist_ok=True)
     (q / "sections" / "nested.tex").write_text("\\section{Nested}\\label{pp-0100}\nNested text.\n")
     m = q / "drafting" / "main.tex"
     m.write_text(m.read_text().replace("\\end{document}", "\\nest{sections/nested}\n\\end{document}"))
-    r = ok("inline", "drafting/main.tex", "drafting/flat.tex", "--all", cwd=q)
+    r = ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", cwd=q)
     flat = (q / "drafting" / "flat.tex").read_text()
     assert "\\subsection{Nested}\\label{pp-0100}" in flat and "\\nest{" not in flat
-    assert "Identity test: pass" in r.output  # loom.sty shifted the heading in the original exactly as inline did
+    assert "Identity test: pass" in r.output  # loom.sty shifted the heading in the original exactly as linearize did
 
 
 @pytest.mark.tex

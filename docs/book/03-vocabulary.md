@@ -137,9 +137,8 @@ All entries are **[decided]** unless marked.
 - revert : printing the patch that puts a recorded version's text back in place of the head's.
 - live : making a superseded document define its nodes again.
 - move : recording that a drafting document now has another path, renaming the file when it is still where it was (`loom mv`). Every record naming the document follows it.
-- linearize : flattening a document, every inclusion expanded in place with `\nest`'s level shift applied. The whole-document counterpart of `inline`.
+- linearize : flattening a document, every inclusion expanded in place with `\nest`'s level shift applied, and the reverse of atomize.
 - atomize : moving each node of a file into its own file, writing a spine to a named destination. Never in place; the history records that the spine superseded the source.
-- inline : the reverse of atomize for one inclusion or for a file's own inclusions, to a named destination.
 - step : a numbered, directory-creating event in the history: an import, a stamp, or an agent copy. Numbered once over the whole quilt.
 - identity test : the compiled output (`pdftotext`) of a document must be unchanged by import, atomize, inline, or linearize.
 - unravel : the report of everything downstream of a node: transitive dependents, inclusion sites, ledger rows, annotations. Aliases `downstream`, `reach`, `pop`.
@@ -158,7 +157,8 @@ The following words were used during design and are not terms of the system. Do 
 - tutte : the viewer's earlier name; now arras.
 - `sections/` : no dedicated directory; section node files live in `nodes/`.
 - `drafts/` : the pre-0.9 name of the drafting directory. Still read from an old `config.toml`, with a warning; never written.
-- `assemble` : withdrawn; `linearize` flattens a document, `inline` reverses one atomization.
+- `assemble` : withdrawn; `linearize` flattens a document.
+- `inline` : withdrawn; it flattened a copy without superseding its source, so every id was defined twice (DR-326-ikmartin); `linearize` is the reverse of atomize.
 - expanded format, assembled format : now linear format.
 - work, bench, revise : considered and rejected as verbs; the pair is atomize and linearize, and the passage between a working document and a landmark is stamp and restore.
 - canon directory, canon document, `canonize` : withdrawn; a landmark is kept in its step by `loom stamp DOCUMENT -m NAME`, and `loom history show --plain` prints it without loom. The interface still names a landmark's manifest entry, route and fragment `canon` (specs/manifest.md §2).

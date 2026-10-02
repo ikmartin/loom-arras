@@ -232,6 +232,16 @@ def configure(quilt: Quilt, remote: str, branch: str, published_main: str = "") 
     if top != root.resolve():
         raise SyncError("the quilt must be at the root of its Git repository")
     git(root, "remote", "get-url", remote)
+    # The workspace is published over by a source-only projection, so pairing it with the branch the quilt itself pushes to would replace the quilt's own history for anyone who pulls it.
+    try:
+        tracked = git(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").decode().strip()
+    except SyncError:
+        tracked = ""  # a branch with no upstream pushes nowhere by itself
+    if tracked == f"{remote}/{branch}":
+        raise SyncError(
+            f"{remote}/{branch} is this quilt's own upstream; publishing would replace the quilt's branch with the source-only projection. "
+            "Pair the document workspace's remote instead, e.g. loom sync init --remote overleaf --branch master"
+        )
     upstream = revision(root, f"refs/remotes/{remote}/{branch}")
     if published_main and (Path(published_main).is_absolute() or ".." in Path(published_main).parts):
         raise SyncError("the document workspace main path must stay within the project")
@@ -693,17 +703,6 @@ def _record_moves(quilt: Quilt, state: SyncState, moves: list[dict[str, Any]], i
             state.published_main = move["to"]
         if move["from"] == quilt.config.main:
             set_main_forced(quilt, move["to"])
-
-
-def mark_incorporated(quilt: Quilt, state: SyncState) -> SyncState:
-    if not state.incoming or state.incoming == state.integrated:
-        raise SyncError("there is no incoming revision to mark incorporated")
-    # This is an author assertion about source incorporation, never a mathematical acceptance.
-    git(quilt.root, "diff", "--quiet", "HEAD", "--", *source_paths(quilt, state))
-    state.integrated = state.incoming
-    state.local_commit = revision(quilt.root, "HEAD")
-    state.write(quilt.root)
-    return state
 
 
 def publish(quilt: Quilt, state: SyncState) -> tuple[str, list[str]]:

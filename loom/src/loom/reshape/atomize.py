@@ -1,4 +1,4 @@
-"""`loom atomize` and `loom inline` (book 6.4, 6.5): move each node of a file into nodes/<id>.tex and write a spine, or the reverse; never in place."""
+"""`loom atomize` (book 6.4, 6.5): move each node of a file into nodes/<id>.tex and write a spine; never in place. `loom linearize` is the reverse."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from loom.scan.directives import within
 from loom.scan.model import Env
 from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
-from loom.tex.assemble import shift_sectioning
 
 
 @dataclass
@@ -358,32 +357,6 @@ def plan_payload(result: ScanResult, plan: AtomizePlan) -> dict[str, object]:
         "files": [{"path": m.target, "text": m.text} for m in plan.moves],
         "refusals": list(plan.refusals),
     }
-
-
-def inline(result: ScanResult, src_rel: str, recursive: bool = False) -> str:
-    """The text of `src_rel` with every `\\input{nodes/...}` (and `\\nest`) of a single-node file replaced by that file's contents."""
-    root = result.quilt.root
-    text = result.files[src_rel].text if src_rel in result.files else (root / src_rel).read_text(encoding="utf-8")
-    pattern = re.compile(r"^([ \t]*)\\(input|nest)\{([^}]*)\}[ \t]*$", re.M)
-
-    def repl(m: re.Match[str]) -> str:
-        name = m.group(3).strip()
-        cand = root / name
-        if not cand.is_file():
-            cand = root / (name + ".tex")
-        if (
-            not cand.is_file() or cand.suffix != ".tex"
-        ):  # a non-.tex inclusion (a figure's .pspdftex, say) is opaque, as in the scanner
-            return m.group(0)
-        rel = cand.relative_to(root).as_posix()
-        if not _single_node_file(result, rel) and not recursive:
-            return m.group(0)
-        body = inline(result, rel, recursive) if recursive else cand.read_text(encoding="utf-8")
-        if m.group(2) == "nest":
-            body = shift_sectioning(body, 1)
-        return body.rstrip("\n")
-
-    return pattern.sub(repl, text)
 
 
 def _single_node_file(result: ScanResult, rel: str) -> bool:

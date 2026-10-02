@@ -86,7 +86,7 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
 | `atomize` | `from`, `to`, `keys`, `superseded`, `retired` |
 | `linearize` | `from`, `to`, `superseded`, `forks`, `kept` |
 | `fork` | `new`, `from` (id, step, hash), `in`, `to` |
-| `revert` | `key`, `step`, `hash`, `in` |
+| `revert` | `key`, `step`, `hash`, `in`: written by loom before DR-326-ikmartin, and still read by `history verify`; `loom revert` records nothing now |
 | `live` | `path` |
 | `move` | `from`, `to`, `moved` (whether loom renamed the file), `via` (`"sync"` when an incorporated pull recorded it, else absent) |
 
@@ -147,7 +147,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 **[decided]** `loom revert KEY@N` prints the patch that puts the recorded text back in place of the head's. It materializes the version (17.5) and never points at it: after the patch is applied the file holds that text, and nothing in the quilt refers to a version to find out what a node says.
 
-**[decided]** Applying the patch is the author's act, as it is for `atomize --key` and `loom id`. Loom prints; the editor applies.
+**[decided]** Applying the patch is the author's act, as it is for `atomize --key` and `loom id`. Loom prints; the editor applies; and **nothing is recorded**, applied or not (DR-326-ikmartin): whether the head is again the text of @N is read from its text (17.5), and a ledger line written when a patch was printed claimed a revert that may never have happened.
 
 ## 17.12 Superseded documents and `loom live`
 
@@ -155,7 +155,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 **[decided]** This is the only inertness loom declares by itself. Everything else in the drafting directory is live. `% !LOOM ignore` remains the author's way to say the same thing about a file loom did not produce (4.9).
 
-**[decided]** `loom live FILE` appends a line that makes the file live again. Nothing is moved and nothing is edited; the record simply says the conversion no longer stands.
+**[decided]** `loom live FILE` appends a line that makes the file live again. Nothing is moved and nothing is edited; the record simply says the conversion no longer stands. A file made live defines its nodes again, so an id it shares with another live file is now defined twice and has no text (5.3.5): `live` names each such id with the files that define it and `loom fork ID --in FILE`, and `loom status` shows it as a conflicted row (DR-326-ikmartin).
 
 **[decided]** `atomize --retire` moves the input into `retired/` instead, which is not scanned either. It is opt-in because loom moves an author's file only when asked (4.8), and it exists because an author who has finished with a file would rather it were out of the way than inert in place.
 
@@ -163,7 +163,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 ## 17.13 `loom linearize`
 
-**[decided]** `loom linearize SPINE --to FILE [--fork | --keep-shared] [--no-check]` writes FILE: SPINE with every `\input`, `\include` and `\nest` of a `.tex` file expanded in place, `\nest`'s level shift applied to what it brings in, and every comment and directive kept. It is the whole-document counterpart of `inline`, which reverses one atomization (6.6), and it replaces `loom assemble`, which did the same thing and knew nothing about identity.
+**[decided]** `loom linearize SPINE --to FILE [--fork | --keep-shared] [--no-check]` writes FILE: SPINE with every `\input`, `\include` and `\nest` of a `.tex` file expanded in place, `\nest`'s level shift applied to what it brings in, and every comment and directive kept. It is the reverse of `atomize` (6.6), and it replaces `loom assemble`, which did the same thing and knew nothing about identity.
 
 **[decided]** A node is defined once and included many times (5.3.5). Inlining a node file that another live document also includes would define that node twice, so `linearize` refuses, names the nodes and both documents, and offers two continuations:
 

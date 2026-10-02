@@ -71,7 +71,7 @@ An ordinary LaTeX project loom can read: the documents you are working on in `dr
 - `src/loom/history/` holds the history: the ledger of steps, the versions of every key, and the checks over them.
 - `src/loom/render/` publishes the build directory arras reads (fragments, manifest, threads, serve).
 - `src/loom/tex/` wraps latexmk, reads `.aux` files, builds bundles, and runs the identity test.
-- `src/loom/reshape/` is `id`, `import`, `atomize`, and `inline`; `src/loom/digest/` extracts, imports, and fetches digests; `src/loom/ai/` is the AI layer.
+- `src/loom/reshape/` is `id`, `import`, `atomize`, `linearize` and `deloom`; `src/loom/digest/` extracts, imports, and fetches digests; `src/loom/ai/` is the AI layer.
 - `src/loom/assets/` ships `loom.sty`, the demo quilt, the AI-layer templates, and the built arras viewer.
 
 ## Development

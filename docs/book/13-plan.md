@@ -58,7 +58,7 @@ Demonstrated 2026-09-15; see `docs/work-queue/closed/M3.md`: the timeline of 7.1
 
 ### M4. Bring a paper in
 
-- `loom import`, `loom init --from`, `loom draft`, `loom id`, `loom atomize` (all options), `loom inline`, `loom linearize`, the identity test.
+- `loom import`, `loom init --from`, `loom draft`, `loom id`, `loom atomize` (all options), `loom linearize`, the identity test (`loom inline`, built here, was withdrawn by DR-326-ikmartin).
 - The Manolache fixture through 6.8; the ACGS stress test through 6.9.
 
 Demonstrates: both papers import, atomize, and inline with the identity test passing, after at most a documented set of hand edits; the relative localization paper imports.

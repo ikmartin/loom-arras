@@ -979,6 +979,8 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
             continue  # a section is a row only when it carries a finding; otherwise it is structure, not work
         if n.derived_of:
             continue  # an agent copy's node is the copy's, not the person's work: its counterpart is the row
+        if n.conflict_of:
+            continue  # one definition of a conflicted id: the id's own row below says so, rather than a positional key
         entry: dict[str, Any] = {
             "key": key,
             "node": n.of if n.kind == "proof" and n.of else key,
@@ -1018,6 +1020,25 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         if key in derived:
             entry["derived"] = derived[key]
         keys[key] = entry
+    # An id two live files both define has no text and no state of its own until one definition goes (5.3.5); it is a row, so it cannot vanish from the list.
+    for key, n in result.nodes.items():
+        if n.kind != "conflict":
+            continue
+        keys[key] = {
+            "key": key,
+            "node": key,
+            "kind": "statement",
+            "taxon": n.taxon or "",
+            "title": n.title or "",
+            "state": "conflicted",
+            "conflict": list(n.conflict),
+            "fixes": [f"loom fork {key} --in {path}" for path in n.conflict],
+            "incomplete": [],
+            "reached_by": list(n.reached_by),
+            "reviews": {"latest_current": None, "latest_any": None, "open": {}, "detached": 0, "annotations": []},
+            "previous_key_match": None,
+            "closure": [key],
+        }
     runs = [
         {
             "path": r.rel,
@@ -1058,6 +1079,7 @@ def summarise(result: ScanResult, rows: dict[str, Any]) -> dict[str, int]:
     acc = [e for e in rows.values() if e.get("acceptance")]
     return {
         "keys": len(rows),
+        "conflicted": sum(1 for e in rows.values() if e["state"] == "conflicted"),
         "accepted": sum(1 for e in acc if e["acceptance"]["fresh"]),
         "stale": sum(1 for e in acc if not e["acceptance"]["fresh"]),
         "draft": sum(1 for e in rows.values() if e["state"] == "draft"),
@@ -1318,6 +1340,8 @@ def status(
             ", stale" if e.get("acceptance") and not e["acceptance"]["fresh"] else ""
         )
         cause = ""
+        if e["state"] == "conflicted":
+            cause = f"defined by {' and '.join(e['conflict'])}: {e['fixes'][0]}"
         if e.get("acceptance") and e["acceptance"]["causes"]:
             cause = "; ".join(
                 c["kind"] + (" " + c["id"] if c.get("id") else "") + (f" ({c['when']})" if c.get("when") else "")
@@ -1339,7 +1363,10 @@ def status(
         click.echo(f"{describe(result, key):<40} {e['title'][:38]:<40} {state:<18} {cause:<40} {'; '.join(facts)}{inc}")
     s = payload["summary"]
     d = payload["digests"]
-    line = f"{s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"
+    line = (
+        (f"{s['conflicted']} conflicted, with no text until one definition goes; " if s["conflicted"] else "")
+        + f"{s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"
+    )
     if f_digests and d["shown"]:
         line += f" · {d['shown']} digest keys shown"
     elif d["reached"]:

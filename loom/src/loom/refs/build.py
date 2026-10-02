@@ -34,6 +34,10 @@ class WorkState:
     digest: bool = False
     fetched: Fetched | None = None
     extract_error: str = ""
+    #: Results the author verified that a fresh extraction dropped and this run put back (`--force` rewrites the digest file).
+    restored: list[str] = field(default_factory=list)
+    #: Of those, the ones the fresh extraction now states differently, for the author to look at again.
+    contradicted: list[str] = field(default_factory=list)
     #: The author's standing claim that this work has no document to hold, or '' -- `digests/unreadable.json`.
     unreadable: str = ""
 
@@ -213,6 +217,11 @@ class BuildReport:
         # Three sections, because a count says a build happened and a list says what to do next (plan 0.13 §4). A work
         # the author has declared unreadable is in neither of the first two: it is not waiting for anything.
         if self.entered:
+            restored = [(x.citekey, x.restored, x.contradicted) for x in self.works if x.restored]
+            for ck, ids, contra in restored:
+                out.append(f"{ck}: {len(ids)} verified result(s) kept through the new extraction: {', '.join(ids)}")
+                if contra:
+                    out.append(f"  stated differently by the new extraction, so check again: {', '.join(contra)}")
             out += [
                 "",
                 f"entered the digest ({len(self.entered)})",
@@ -415,9 +424,38 @@ def _extract_step(result: ScanResult, works: list[WorkState], force: bool) -> li
         target = root / "digests" / f"{w.citekey}.tex"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
+        w.restored, w.contradicted = _restore_verified(result, w.citekey, text)
         w.digest = True
         written.append(w.citekey)
     return written
+
+
+def _restore_verified(result: ScanResult, citekey: str, text: str) -> tuple[list[str], list[str]]:
+    """Put back every result the author verified that a fresh extraction of `citekey` left out, and keep the author's edits.
+
+    The digest file is rewritten whole by an extraction, and a node `refs verify` added to it, or an edit the author made to an extracted one, is the author's: losing it while `results.json` still says `verified` was the CLI study's defect 3. A result the new extraction states differently from the author's record is put back as the author left it and listed, so the author can look again.
+    """
+    import re
+
+    from loom.refs.proposals import append_to_digest, load_results, rewrite_in_digest
+
+    restored: list[str] = []
+    contradicted: list[str] = []
+    for r in load_results(result.quilt.root, citekey).values():
+        if r.state != "verified":
+            continue
+        edited = any(act.get("act") == "edited" for act in r.origin)
+        present = re.search(r"\\label\{" + re.escape(r.id) + r"\}", text) is not None
+        if r.cls == "mechanical" and not edited:
+            continue  # the extractor's own reading, which a fresh extraction is entitled to replace
+        if present:
+            if edited and rewrite_in_digest(result.quilt.root, citekey, r):
+                restored.append(r.id)
+                contradicted.append(r.id)
+            continue
+        append_to_digest(result.quilt.root, citekey, result.assembly.prefix_of(citekey), r)
+        restored.append(r.id)
+    return restored, contradicted
 
 
 def _map_step(result: ScanResult, works: list[WorkState], force: bool) -> None:

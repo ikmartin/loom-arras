@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from loom.render.api import ApiError, handle
 from loom.render.build import build
 from loom.review_queue import decide
@@ -26,7 +28,7 @@ from loom.sync import (
     tree_files,
     update_documents,
 )
-from tests.helpers import json_of, ok
+from tests.helpers import json_of, ok, refused
 
 
 def run(root: Path, *args: str) -> str:
@@ -580,3 +582,35 @@ def test_only_an_unambiguous_identical_pair_is_a_rename(tmp_path: Path) -> None:
     run(root, "add", ".")
     run(root, "commit", "-m", "after")
     assert exact_renames(root, before, run(root, "rev-parse", "HEAD")) == [("c.tex", "f.tex")]
+
+
+def test_init_refuses_the_quilts_own_upstream_and_names_no_default(tmp_path: Path) -> None:
+    """The defaults origin/main paired a quilt with its own branch, and publishing then replaced that branch with the source-only projection: both are now required, and the quilt's own upstream is refused."""
+    root = tmp_path / "quilt"
+    root.mkdir()
+    run(root, "init", "-b", "main")
+    run(root, "config", "user.name", "Tester")
+    run(root, "config", "user.email", "tester@example.org")
+    (root / "drafting").mkdir()
+    (root / "config.toml").write_text(
+        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\nprefix = "zk"\n', encoding="utf-8"
+    )
+    (root / "drafting/main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\nA.\n\\end{document}\n", encoding="utf-8"
+    )
+    run(root, "add", ".")
+    run(root, "commit", "-m", "quilt")
+    bare = tmp_path / "quilt.git"
+    subprocess.check_call(["git", "init", "--bare", str(bare)], stdout=subprocess.DEVNULL)
+    run(root, "remote", "add", "origin", str(bare))
+    run(root, "push", "-u", "origin", "main")
+    with pytest.raises(SyncError, match="this quilt's own upstream"):
+        configure(load_quilt(root), "origin", "main")
+    r = refused("sync", "init", cwd=root, code=2, match="--remote")
+    assert "Missing option" in r.output
+
+
+def test_incorporating_a_pull_has_one_checked_path() -> None:
+    """`sync incorporated` recorded a pull as incorporated without checking it was applied, and the next push reverted the coauthor; `sync finish` checks it, and is the only way left."""
+    r = refused("sync", "incorporated", "--yes", code=2, match="No such command")
+    assert "incorporated" in r.output

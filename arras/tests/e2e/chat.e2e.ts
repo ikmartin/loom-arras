@@ -82,6 +82,15 @@ test.describe('the transcript', () => {
 		await expect(message).not.toContainText('???');
 	});
 
+	test('a table in a message is drawn as a ruled table, its cells typeset', async ({ page }) => {
+		await saying(page, '<table><thead><tr><th>result</th><th>bound</th></tr></thead><tbody><tr><td>Lemma 2</td><td><span class="math inline">\\(n \\le 2\\)</span></td></tr></tbody></table>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		const message = pane(page, 1).getByTestId('message-1');
+		await expect(message.locator('table th')).toHaveText(['result', 'bound']);
+		await expect(message.locator('table td mjx-container')).toHaveCount(1);
+		await expect(message.locator('table td').first()).toHaveCSS('border-bottom-style', 'solid');
+	});
+
 	test('with no publisher, the Chat is the transcript alone', async ({ page }) => {
 		await page.goto('/session/' + REFEREE);
 		await expect(page.getByTestId('message-1')).toBeVisible();

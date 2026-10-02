@@ -134,16 +134,19 @@ def test_history_lists_steps_and_a_key_s_versions(tmp_path: Path) -> None:
     assert j["head_is"] == 3 and len(j["versions"]) == 2
 
 
-def test_revert_prints_a_patch_and_records_it(tmp_path: Path) -> None:
+def test_revert_prints_a_patch_and_records_nothing(tmp_path: Path) -> None:
+    """Every printed patch used to append a revert to the history, applied or not, so four runs left four reverts of a file that never changed (CLI study, defect 5)."""
     q = quilt(tmp_path)
     ok("stamp", "-m", "one", cwd=q)
     main = q / "drafting" / "main.tex"
     before = main.read_text()
     main.write_text(before.replace("Alpha.", "Alpha, revised."))
+    lines = len(ledger(q))
     r = ok("revert", "pp-0002@2", cwd=q)
+    ok("revert", "pp-0002@2", "--json", cwd=q)
     assert "-Alpha, revised." in r.output and "+Alpha." in r.output
     assert main.read_text() != before  # loom prints the patch; applying it is the author's act
-    assert ledger(q)[-1]["action"] == "revert" and ledger(q)[-1]["step"] == 2
+    assert len(ledger(q)) == lines
     assert "the text of @2" in r.output
     refused("revert", "pp-0002@9", cwd=q, code=1, match="no step 9")
 

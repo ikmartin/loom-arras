@@ -32,3 +32,26 @@
 </script>
 
 <div class={klass} bind:this={el}>{@html html}</div>
+
+<style>
+	/* A table an author or an agent writes in Markdown (a comparison, a list of citations against the draft) — ruled like the viewer's own tables, and scrolled within itself rather than widening the column when it is wider than the prose. */
+	div :global(table) {
+		display: block;
+		max-width: 100%;
+		overflow-x: auto;
+		border-collapse: collapse;
+		margin: var(--gap-tight) 0;
+		font-size: 0.92em;
+	}
+	div :global(th),
+	div :global(td) {
+		text-align: left;
+		vertical-align: top;
+		padding: var(--gap-hair) var(--gap-tight);
+		border-bottom: 1px solid var(--rule);
+	}
+	div :global(th) {
+		font-weight: 600;
+		border-bottom-color: var(--rule-strong);
+	}
+</style>

@@ -36,7 +36,7 @@ def adopt(
 ) -> None:
     """Inspect an AI draft's changes and incorporate them after confirmation; never accept mathematics."""
     from loom.adopt import incorporate as apply
-    from loom.adopt import prepare
+    from loom.adopt import nothing_to_incorporate, prepare
 
     if agent_marker():
         raise EnvError("Adoption is an author action. An agent proposes changes in its AI draft.")
@@ -62,7 +62,7 @@ def adopt(
         if as_json:
             click.echo(json.dumps(preview, indent=2))
             return
-        click.echo(preview["patch"] or "No changes to incorporate")
+        click.echo(preview["patch"] or nothing_to_incorporate(preview))
         if not preview["patch"] or output:
             return
         click.echo("Unselected proposals remain in the AI draft. Incorporation does not accept mathematics.")

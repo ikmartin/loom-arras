@@ -279,7 +279,7 @@ Reserved colour classes: `neutral`, `positive`, `positive-strong`, `warning`, `n
 }
 ```
 
-`body_html` is the Markdown body rendered by the publisher into the dialect's inline subset.
+`body_html` is the Markdown body rendered by the publisher as CommonMark with tables, raw HTML not passed through and alignment not carried, so a table is the dialect's (§2.12 of specs/dialect.md) and its cells hold inline markup and math.
 
 **[decided]** `author.kind` is `agent` or `person` and `author.id` is the **name the writer declared**; `run` is the **session** the annotation belongs to, which is where it was written rather than who wrote it. The two were one field: an agent's annotation recorded its run directory as its author, so the log could say who only by naming a place (DR-199). The field keeps the name `run` because viewers read it by that name.
 

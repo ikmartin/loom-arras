@@ -1,1 +1,1 @@
-"""Bringing a paper in and reshaping a quilt (book chapter 6): id insertion, import, atomize, inline, anchoring. Every operation writes copies or named destinations; author files are never modified."""
+"""Bringing a paper in and reshaping a quilt (book chapter 6): id insertion, import, atomize, linearize, anchoring. Every operation writes copies or named destinations; author files are never modified."""

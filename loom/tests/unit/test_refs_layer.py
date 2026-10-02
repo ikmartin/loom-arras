@@ -9,7 +9,7 @@ import pytest
 
 from loom.refs.fetch import ARRIVAL, arrival_score, arxiv_id, identifier_for, source_title
 from loom.refs.resolve import Candidate, query_for, save
-from loom.scan.bib import BibEntry
+from loom.scan.bib import BibEntry, parse_bib
 from tests.helpers import edit, exits, json_of, ok, refused, the
 from tests.unit._quilts import SHOWCASE, demo, mapped, new_session, open_session, propose, showcase, work_home
 
@@ -570,8 +570,8 @@ def test_an_agent_cannot_vouch_for_its_own_reading(tmp_path: Path, monkeypatch: 
     refused("accept", "dm-0002", code=2, match="AI_AGENT", cwd=q)
     # a declared agent is refused whatever shell it is in: the guard is on the identity, not the door
     refused("accept", "dm-0002", "--author", "Referee Agent", code=2, match="is an agent", cwd=q)
-    # and an author who says so is the author, even from a shell an agent happens to be running (plan 0.13 §8)
-    ok("accept", "dm-0002", "--author", "A. Author", cwd=q)
+    # and under the marker the author's name is refused too: a name cannot be checked, and an agent typing it is the case to stop (DR-325-ikmartin)
+    refused("accept", "dm-0002", "--author", "A. Author", code=2, match="whatever --author or --as says", cwd=q)
     # proposing is the agent's, and still works
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     # and nothing was recorded as verified by anyone
@@ -1186,7 +1186,7 @@ def test_unreadable_refuses_under_an_agent_and_without_a_reason(
 ) -> None:
     """Whether a work can be obtained at all is a claim about the world, which is the author's to make (DR-185).
 
-    **The guard is on the identity, not the door** (plan 0.13 §8): the author can use their own verb from a terminal their agent happens to be running in. The marker is a safety net for a writer who declared nothing, and an explicit name wins over it -- in both directions, since a name that calls itself an agent is refused whatever shell it came from.
+    Under an agent marker the act refuses whatever name is declared, since a name cannot be checked (DR-325-ikmartin); a name that calls itself an agent is refused whatever shell it came from.
     """
     q = demo(tmp_path)
     refused("refs", "unreadable", "Calloway14", code=2, match="--why is required", cwd=q)
@@ -1202,8 +1202,11 @@ def test_unreadable_refuses_under_an_agent_and_without_a_reason(
         match="agent is running this shell",
         cwd=q,
     )
-    # a person who named themselves is a person, whatever shell they are in
-    ok("refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version", cwd=q)
+    # nor does the author's name pass under the marker
+    refused(
+        "refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version",
+        code=2, match="whatever --author or --as says", cwd=q,
+    )  # fmt: skip
     # and a declared agent is refused whichever surface it came through
     refused(
         "refs",
@@ -1698,10 +1701,20 @@ def test_refs_add_files_a_pdf_or_source_and_replaces_only_with_force(tmp_path: P
     refused("refs", "add", "Man12", notes, cwd=q, code=2, match="notes.txt is neither a PDF nor LaTeX source")
     assert not home.exists()
 
-    one = _fake_pdf(tmp_path / "one.pdf", "first copy")
-    two = _fake_pdf(tmp_path / "two.pdf", "second copy")
-    ok("refs", "add", "Man12", one, cwd=q)
-    refused("refs", "add", "Man12", two, cwd=q, code=2, match="paper.pdf exists; pass --force to replace it")
+    title = parse_bib((q / "digests" / "bibliography.bib").read_text())["Man12"].fields["title"]
+    # a PDF whose first page carries another title is refused: filed under the wrong work, every anchor would read the wrong paper (CLI study, defect 9)
+    wrong = _fake_pdf(tmp_path / "wrong.pdf", "Advanced Topics in the Arithmetic of Elliptic Curves")
+    refused("refs", "add", "Man12", wrong, cwd=q, code=1, match="does not carry Man12's title")
+    assert not (home / "paper.pdf").exists()
+    one = _fake_pdf(tmp_path / "one.pdf", f"{title}\nfirst copy")
+    two = _fake_pdf(tmp_path / "two.pdf", f"{title}\nsecond copy")
+    said = ok("refs", "add", "Man12", one, cwd=q).output
+    assert (
+        "Filed one.pdf as Man12's PDF" in said and (home / "pages").is_dir()
+    )  # mapped at once, so nothing else needs running
+    refused(
+        "refs", "add", "Man12", two, cwd=q, code=2, match="Man12 already has a PDF on file; pass --force to replace it"
+    )
     assert b"first copy" in (home / "paper.pdf").read_bytes()
     ok("refs", "add", "Man12", two, "--force", cwd=q)
     assert b"second copy" in (home / "paper.pdf").read_bytes()
@@ -1807,5 +1820,29 @@ def test_refs_links_walks_depth_hops_and_unlink_removes_one(tmp_path: Path) -> N
     assert walk() == ["link-0001", "link-0002", "link-0003"]
     assert ok("refs", "unlink", "link-0002", cwd=q).output.strip() == f"removed link-0002: {b} depends-on {c}"
     assert walk(a, "--depth", "5") == ["link-0001"]  # the chain is cut
-    refused("refs", "unlink", "link-0002", cwd=q, code=1, match="link-0002")
+    refused("refs", "unlink", "link-0002", cwd=q, code=2, match="link-0002")
     assert ok("refs", "links", "Calloway14-setup", cwd=q).output.strip() == "nothing links Calloway14-setup"
+
+
+def test_a_forced_rebuild_keeps_every_result_the_author_verified(tmp_path: Path) -> None:
+    """`refs build --force` rewrote the digest from the paper's source, deleting a node `refs verify` had put there while `results.json` still said verified (CLI study, defect 3)."""
+    q = demo(tmp_path)
+    ck = "Calloway14"
+    propose(
+        q,
+        ck,
+        "rem-4.1",
+        2,
+        "Let X = {a, b} carry the indiscrete topology",
+        "The indiscrete pair is no counterexample.",
+        level="1",
+    )
+    rid = f"{ck}-rem-4.1"
+    ok("refs", "verify", rid, "--author", "A. Author", "--yes", cwd=q)
+    digest = q / "digests" / f"{ck}.tex"
+    assert f"\\label{{{rid}}}" in digest.read_text()
+    r = ok("refs", "build", "--force", ck, cwd=q)
+    assert (
+        f"\\label{{{rid}}}" in digest.read_text() and "The indiscrete pair is no counterexample." in digest.read_text()
+    )
+    assert f"kept through the new extraction: {rid}" in r.output

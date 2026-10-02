@@ -637,6 +637,9 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
     ok("ai", "discard", "--target", "dm-0002", "--undo", cwd=d)
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
     assert ok("ai", "discard", "--before", "2000-01-01", cwd=d).output.strip() == "no matching records"
+    # a word that is no date is refused, not compared as text: "yesterday" sorted after every date and discarded everything
+    refused("ai", "discard", "--before", "yesterday", cwd=d, code=2, match="yesterday")
+    assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
     st = status_json(d)
     assert len(st["runs"]) == 2 and ok("status", "--runs", cwd=d).output.count("annotation(s)") == 2
 
@@ -1380,3 +1383,15 @@ def test_a_proposed_theorem_and_proof_are_rendered_as_the_document_renders_them(
     html = entry["payload_html"]
     assert 'class="env env-lemma"' in html and "env-proof" in html
     assert "\\begin{" not in html and "\\uses" not in html and 'id="' not in html
+
+
+def test_a_conflicted_id_is_a_row_of_its_own_and_its_definitions_are_not(tmp_path: Path) -> None:
+    """Two live files defining one id left status listing two positional keys and a clean summary, never the word conflicted (CLI study, defect 11)."""
+    q = synthetic(tmp_path)
+    keys = status_json(q)["keys"]
+    assert keys["sy-999B"]["state"] == "conflicted"
+    assert keys["sy-999B"]["conflict"] == ["drafting/talk.tex", "nodes/sy-999B.tex"]
+    assert not [k for k in keys if "#lemma:" in k and k.startswith(("drafting/talk.tex", "nodes/sy-999B.tex"))]
+    said = ok("status", cwd=q).output
+    assert "loom fork sy-999B --in drafting/talk.tex" in said
+    assert said.strip().splitlines()[-1].startswith("1 conflicted")

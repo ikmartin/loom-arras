@@ -126,12 +126,29 @@ def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt
         return
     if file.suffix.lower() != ".pdf":
         raise EnvError(f"{file.name} is neither a PDF nor LaTeX source; loom files those two things")
+    from loom.refs.fetch import carries_title
+    from loom.refs.pages import write_map
+
     dest = home / "paper.pdf"
     if dest.exists() and not force:
-        raise EnvError(f"{dest.relative_to(root)} exists; pass --force to replace it")
+        raise EnvError(f"{citekey} already has a PDF on file; pass --force to replace it")
+    # the same check a fetched PDF passes: a PDF filed under the wrong work is worse than none, since every anchor into it reads the wrong paper
+    entry = result.bib[citekey]
+    carries, best, line = carries_title(file, entry)
+    if not carries and not force:
+        title = str(entry.fields.get("title") or "")
+        raise ContentError(
+            f"{file.name}'s first page does not carry {citekey}'s title, {title!r}; the closest line is {line!r} ({best:.2f}). "
+            f"File it under the work it is, or pass --force if it is this one"
+        )
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(file, dest)
-    click.echo(f"Wrote {dest.relative_to(root)}")
+    try:
+        write_map(home, dest)  # the page text every anchor and search reads, so nothing else needs running
+        mapped = "with its page text"
+    except Exception as exc:  # noqa: BLE001 -- no poppler, or no text layer: the PDF stands either way
+        mapped = f"without page text ({exc})"
+    click.echo(f"Filed {file.name} as {citekey}'s PDF, {mapped}")
     note("the PDF is not in version control: a collaborator cloning the quilt fetches or adds their own copy")
 
 
@@ -262,6 +279,9 @@ def cite_command(
         return
     if bool(accept_id) == bool(reject_id):
         raise EnvError("give --accept ID or --reject ID")
+    from loom.cli._common import refuse_under_agent
+
+    refuse_under_agent("loom refs cite", "Accepting or rejecting a citation suggestion is the author's.", author)
     ann_id = accept_id or reject_id
     assert ann_id is not None
     found = find_annotation(Records(root).records, ann_id)
@@ -307,14 +327,16 @@ def cite_command(
 def scan_command(dry_run: bool, quilt_path: str | None) -> None:
     """Add every bibliography entry the landmarks carry to digests/bibliography.bib.
 
-    Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
+    Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, a stamp given a document, and `refs build` run this themselves.
 
     It also files what the author dropped in `refs/`, and **adopts** any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. Adoption happens once per document; a later scan leaves it alone.
     """
     from loom.refs.scan import scan_bibliography
 
+    if dry_run:
+        click.echo("dry run: nothing below is written, copied or recorded")
     for line in scan_bibliography(open_quilt(quilt_path), write=not dry_run).lines():
-        click.echo(line + (" (dry run)" if dry_run and line.startswith("digests/") else ""))
+        click.echo(line)
 
 
 @refs.command(name="build")
@@ -360,8 +382,22 @@ def build_command(
     """
     from loom.refs.build import build_refs
     from loom.refs.scan import scan_bibliography
+    from loom.scan.bib import BIBLIOGRAPHY, parse_bib
 
-    report = scan_bibliography(open_quilt(quilt_path))
+    # every argument is checked before anything is written: a refused build used to append to the bibliography first
+    steps = tuple(s.strip() for s in only_steps.split(",")) if only_steps else ("resolve", "fetch", "extract", "map")
+    unknown = [s for s in steps if s not in ("resolve", "fetch", "extract", "map")]
+    if unknown:
+        raise EnvError(f"unknown step: {', '.join(unknown)} (resolve, fetch, extract, map)")
+    quilt = open_quilt(quilt_path)
+    if citekeys:
+        bib_path = quilt.root / BIBLIOGRAPHY
+        known = set(parse_bib(bib_path.read_text(encoding="utf-8", errors="replace"))) if bib_path.is_file() else set()
+        known |= {c.key for c in scan_bibliography(quilt, write=False).added}  # what this run's scan would add
+        missing = [ck for ck in citekeys if ck not in known]
+        if missing:
+            raise EnvError(f"not in the bibliography: {', '.join(missing)}")
+    report = scan_bibliography(quilt)
     if not as_json:
         for line in report.lines():
             note(line)
@@ -370,13 +406,6 @@ def build_command(
     # the flags are this run's consent, and are not written anywhere: the config is the standing answer (DR-193)
     result.quilt.config.fetch = result.quilt.config.fetch or allow_fetch
     result.quilt.config.resolve = result.quilt.config.resolve or allow_resolve
-    steps = tuple(s.strip() for s in only_steps.split(",")) if only_steps else ("resolve", "fetch", "extract", "map")
-    unknown = [s for s in steps if s not in ("resolve", "fetch", "extract", "map")]
-    if unknown:
-        raise EnvError(f"unknown step: {', '.join(unknown)} (resolve, fetch, extract, map)")
-    missing = [ck for ck in citekeys if ck not in result.bib]
-    if missing:
-        raise EnvError(f"not in the bibliography: {', '.join(missing)}")
     built = build_refs(result, only=citekeys, refresh=refresh, candidates=not no_candidates, force=force, steps=steps)
     if as_json:
         click.echo(
@@ -584,6 +613,18 @@ def resolve_works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
             raise EnvError(f"{needle!r} is not a citekey, and no entry's author or title contains it")
         out |= hits
     return out
+
+
+def one_work(result: ScanResult, needle: str) -> str:
+    """The one citekey `needle` names, for a command that reads a single work; several matches are refused by name.
+
+    `refs overview romagny` once printed a different paper's overview on each run, picking one of the matches at random and not saying which.
+    """
+    hits = sorted(resolve_works(result, (needle,)))
+    if len(hits) > 1:
+        shown = ", ".join(hits[:6]) + (f" and {len(hits) - 6} more" if len(hits) > 6 else "")
+        raise EnvError(f"{needle!r} names {len(hits)} works: {shown}; give one citekey")
+    return hits[0]
 
 
 @refs.command(name="coverage")
@@ -1266,8 +1307,13 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
 
     A verified node already written into `digests/<citekey>.tex` is the author's file and is never touched here; only the records and the proposals are removed.
     """
+    from loom.cli._common import refuse_under_agent
     from loom.refs.proposals import append_event, load_results, results_path, save_results, write_proposed_tex
 
+    refuse_under_agent(
+        "loom refs drop",
+        "Removing recorded results is the author's; an agent corrects its own proposal with loom refs propose --supersedes.",
+    )
     if sum(map(bool, [work_ck, run_id, unverified])) != 1:
         raise EnvError("give exactly one of --work, --session or --unverified")
     result = open_scan(quilt_path)
@@ -1414,14 +1460,24 @@ def links_command(target: str | None, depth: int, as_json: bool, quilt_path: str
 @click.argument("link_id")
 @quilt_option
 def unlink_command(link_id: str, quilt_path: str | None) -> None:
-    """Remove a link."""
-    from loom.refs.links import remove_link
+    """Remove a link. An agent may remove only a link a session asserted; the author's links are the author's to remove."""
+    from loom.cli._common import agent_marker, is_agent, whoever
+    from loom.refs.links import read_links, record_removal, remove_link
 
     result = open_scan(quilt_path)
-    try:
-        gone = remove_link(result.quilt.root, link_id)
-    except LookupError as exc:
-        raise ContentError(str(exc)) from exc
+    root = result.quilt.root
+    target = next((x for x in read_links(root) if x.id == link_id), None)
+    if target is None:
+        raise NotFoundError("link", f"no link {link_id}; loom refs links lists them")
+    marker = agent_marker()
+    # a session's id is how an agent's link records who asserted it (refs link)
+    by_agent = target.by.startswith("s-") or is_agent(target.by)
+    if marker and not by_agent:
+        raise EnvError(
+            f"{link_id} was asserted by {target.by}, and an agent is running this shell ({marker} is set); removing someone else's link is theirs to do"
+        )
+    gone = remove_link(root, link_id)
+    record_removal(root, gone, whoever(root))
     click.echo(f"removed {gone.id}: {gone.frm} {gone.kind} {gone.to}")
 
 
@@ -1654,7 +1710,7 @@ def overview_command(ctx: click.Context, citekey: str, quilt_path: str | None) -
     from loom.refs.proposals import digest_path
 
     result = open_scan(quilt_path)
-    ck = next(iter(resolve_works(result, (citekey,))), citekey)
+    ck = one_work(result, citekey)
     path = digest_path(result.quilt.root, ck)
     if not path.is_file():
         raise ContentError(f"{ck} has no digest; loom refs coverage says what it has")
