@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -1833,6 +1834,13 @@ def test_a_forced_rebuild_keeps_every_result_the_author_verified(
     extracted = (q / "digests" / f"{ck}.tex").read_text()
     # the paper's source, extracted afresh: what the digest held before the author verified anything, without needing TeX
     monkeypatch.setattr("loom.digest.extract.extract_digest", lambda *_a, **_k: (extracted, None))
+    # a source to extract from, which the store keeps out of git and so a checkout's demo does not carry
+    src = q / "digests" / "storage" / "doi" / "10.4171_demo_14-1" / "src"
+    shutil.rmtree(src, ignore_errors=True)
+    src.mkdir(parents=True)
+    (src / "paper.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\nCalloway.\n\\end{document}\n", encoding="utf-8"
+    )
     propose(
         q,
         ck,
