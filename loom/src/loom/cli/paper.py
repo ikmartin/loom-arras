@@ -5,13 +5,17 @@ from __future__ import annotations
 import shutil
 import sys
 import tempfile
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, EXIT_USAGE, ContentError, EnvError, emit_json, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.cli.build_cmds import engine_for, log_run
+from loom.cli.report import Group, Item, Report, counted
 from loom.history.ledger import actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, text_hash, write_step
 from loom.reshape.anchoring import anchoring_violations
@@ -19,12 +23,48 @@ from loom.reshape.anchoring import fix_anchoring as repair_anchoring
 from loom.reshape.atomize import plan_atomize, plan_payload, verify_plan, write_atomize, write_moves
 from loom.reshape.canon import apply_import, plan_import
 from loom.reshape.ids import apply_insertions, plan_insertions, unified_diff
-from loom.reshape.importer import report_counts, set_main, set_main_forced
+from loom.reshape.importer import set_main, set_main_forced
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import next_local
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult, scan
 from loom.tex.identity import IdentityResult, identity_test
+
+
+def identity_said(ident: IdentityResult | None, after: str, before: str) -> str:
+    """The identity test's outcome in a clause: `X typesets as Y`, or why it was not compared, or that it differs."""
+    if ident is None:
+        return f"{after} was not compared with {before}: no document includes it"
+    if ident.skipped:
+        return f"{after} was not compared with {before}: {ident.skipped}"
+    if ident.passed:
+        return f"{after} typesets to the same text as {before}"
+    return f"{after} does not typeset as {before}"
+
+
+def identity_group(ident: IdentityResult | None) -> list[Group]:
+    """Where a failed identity test found the two typeset texts apart: the first differing line and every label whose number moved."""
+    if ident is None or ident.passed or ident.skipped:
+        return []
+    items = []
+    if ident.first_difference:
+        a, b = ident.first_difference
+        items += [Item(f"before: {a[:80]}"), Item(f"after:  {b[:80]}")]
+    items += [Item(f"{x} -> {y}", key=lab) for lab, (x, y) in sorted(ident.changed_numbers.items())]
+    return [Group("where the typeset text differs", items, problem=True)]
+
+
+def bibliography_groups(quilt: Quilt) -> tuple[list[Group], dict[str, Any]]:
+    """The bibliography scan a landmark triggers, as groups for the report of the command that made the landmark, and its JSON."""
+    from loom.refs.scan import scan_bibliography
+
+    bib = scan_bibliography(quilt).report()
+    head = Group("bibliography", [Item(bib.verdict), *(Item(line) for line in bib.lines)], limit=None, counted=False)
+    rest = [
+        Group(f"bibliography, {g.heading}", g.items, count=g.count, limit=g.limit, next=g.next, problem=g.problem)
+        for g in bib.groups
+    ]
+    return [head, *rest], bib.to_json()
 
 
 @click.command(name="id")
@@ -42,9 +82,7 @@ from loom.tex.identity import IdentityResult, identity_test
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
 @quilt_option
-@click.pass_context
 def id_command(
-    ctx: click.Context,
     file: str | None,
     to: str | None,
     sections: bool,
@@ -65,13 +103,12 @@ def id_command(
         if fix_anchoring:
             raise EnvError("--fix-anchoring requires a FILE; it cannot be used with --next")
         allocated = f"{pre_next}-{next_local(visible_locals(result, pre_next))}"
-        emit_json({"id": allocated, "prefix": pre_next}) if as_json else click.echo(allocated)
+        Report(allocated, data={"id": allocated, "prefix": pre_next}).emit(as_json)
         return
     if as_json:
         raise EnvError("--json applies to --next; a file's labels are printed as a diff")
     if file is None:
-        click.echo("ERROR: name a file to label, or pass --next for the next free id", err=True)
-        ctx.exit(EXIT_USAGE)
+        raise EnvError("name a file to label, or pass --next for the next free id")
     rel = _rel(root, file)
     if rel not in result.files:
         raise EnvError(f"{file} is not a scanned file of this quilt")
@@ -79,10 +116,11 @@ def id_command(
     theorem_names = set(result.taxa)
     v = anchoring_violations(before, theorem_names)
     if v and not fix_anchoring:
-        for x in v:
-            note(f"{rel}:{x.line}  \\{x.kind}{{{x.env}}} is not alone on its line")
-        note("loom:line-anchoring: fix these lines first or pass --fix-anchoring")
-        ctx.exit(EXIT_CONTENT)
+        lines = [f"  {rel}:{x.line}  \\{x.kind}{{{x.env}}} is not alone on its line" for x in v]
+        raise ContentError(
+            f"loom:line-anchoring: {counted(len(v), 'line')} of {rel} must be fixed first, or pass --fix-anchoring:\n"
+            + "\n".join(lines)
+        )
     anchored = repair_anchoring(before, theorem_names) if v else before
     planning = scan(result.quilt, overlay={rel: anchored}) if v else result
     pre = prefix or result.quilt.config.prefix
@@ -94,11 +132,12 @@ def id_command(
             raise EnvError(f"{to} exists; id never overwrites")
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(after, encoding="utf-8")
-        click.echo(f"{out}  ({len(ins)} labels)")
+        Report(f"wrote {to}: {rel} with {counted(len(ins), 'label')} inserted; {rel} is unchanged").emit()
+        return
+    if after == before:
+        Report(f"nothing to label in {rel}: every node and section in it has an id").emit()
         return
     click.echo(unified_diff(before, after, rel), nl=False)
-    if after == before:
-        note("nothing to label")
 
 
 def _rel(root: Path, file: str) -> str:
@@ -110,10 +149,50 @@ def _rel(root: Path, file: str) -> str:
         return file
 
 
-def run_import(
-    quilt: Quilt, paper: Path, yes: bool, check: bool = True, fix_anchors: bool = False
-) -> IdentityResult | None:
-    """The import of 6.1: the assets at the root, the paper as received kept as step 0001's landmark, and the working document drafted from it at once, with the identity test between them. Returns the identity result (None when skipped)."""
+@dataclass
+class Imported:
+    """What an import did, for the report of `import` or `init --from`: a clause for the verdict, the groups and the data."""
+
+    said: str
+    ident: IdentityResult | None
+    groups: list[Group] = field(default_factory=list)
+    data: dict[str, Any] = field(default_factory=dict)
+
+
+def _document_counts(result: ScanResult, doc: str) -> list[Item]:
+    """What the drafted document holds, counted in it alone: its results by kind, its sections, its proofs, its broken references."""
+    mine = [n for n in result.nodes.values() if n.file == doc or doc in n.reached_by]
+    taxa = Counter(n.taxon for n in mine if n.kind == "environment")
+    sections = sum(1 for n in mine if n.kind == "section")
+    proofs = Counter(n.attach_via for n in mine if n.kind == "proof")
+    dangling = sum(1 for d in result.lint if d.code == "dangling-link" and any(loc.file == doc for loc in d.locations))
+    items = [
+        Item(
+            "results: "
+            + (", ".join(f"{n} {t}" for t, n in sorted(taxa.items(), key=lambda x: (-x[1], x[0]))) or "none")
+            + (f"; {counted(sections, 'section')}" if sections else "")
+        ),
+        Item(
+            "proofs: "
+            + (
+                f"{sum(proofs.values())}, {proofs.get('adjacent', 0)} beside their statement, "
+                f"{proofs.get('ref', 0)} by reference, {proofs.get('enclosure', 0)} by enclosure, "
+                f"{proofs.get('none', 0)} unattached"
+                if proofs
+                else "none"
+            )
+        ),
+    ]
+    if dangling:
+        items.append(Item(f"{counted(dangling, 'reference')} to a label the paper never defines", fixes=["loom lint"]))
+    return items
+
+
+def run_import(quilt: Quilt, paper: Path, yes: bool, check: bool = True, fix_anchors: bool = False) -> Imported:
+    """The import of 6.1: the assets at the root, the paper as received kept as step 0001's landmark, and the working document drafted from it at once, with the identity test between them.
+
+    Every refusal raises before anything is written; the plan is shown on stderr only when a terminal is asked to confirm it, and is in the refusal when one is not.
+    """
     from loom.history.steps import slug
     from loom.reshape.canon import plan_draft
     from loom.scan.quilt import load_quilt
@@ -122,18 +201,9 @@ def run_import(
         raise EnvError(f"{paper} is not a file")
     root = quilt.root
     plan = plan_import(quilt, paper)
-    note(f"Resolving closure of {paper.name} ... {len(plan.assets) + len(plan.inlined) + 1} files")
-    # the arrows are what would be written, not what was: everything below is a plan until "Wrote N files" at the end
-    note("Plan, nothing written yet:")
-    note(
-        f"  {plan.master_rel} -> {plan.dest_rel} (linearized, {len(plan.inlined)} files inlined; kept as received in step 0001)"
-    )
-    for dest, src in plan.assets.items():
-        note(f"  {Path(src).relative_to(plan.paper_dir).as_posix()} -> {dest}")
-    for name in plan.outside:
-        note(f"  {name} -> not copied; it lies outside the paper directory (loom:import-outside-tree)")
     if plan.exists:
         raise EnvError(f"{plan.dest_rel} exists; import never overwrites a document")
+    arrows = [(Path(src).relative_to(plan.paper_dir).as_posix(), dest) for dest, src in sorted(plan.assets.items())]
     from loom.tex.runner import compile_tex, stage_sources
 
     ident: IdentityResult | None = None
@@ -146,36 +216,45 @@ def run_import(
             raise ContentError(
                 f"the original does not compile from a clean copy of {plan.paper_dir} ({before.first_error}); fix it before importing"
             )
-        note(f"Compiling original from a clean copy of {plan.paper_dir} ... ok")
         draft = plan_draft(scan(quilt), plan.text, plan.dest_rel, fix_anchors=fix_anchors, assets=plan.assets)
         if draft.violations:
-            note(f"Nothing was written. {plan.master_rel} has {len(draft.violations)} line-anchoring violation(s):")
-            for v in draft.violations[:20]:
-                note(f"  line {v.line}: \\{v.kind}{{{v.env}}} is not alone on its line")
+            lines = [f"  line {v.line}: \\{v.kind}{{{v.env}}} is not alone on its line" for v in draft.violations[:20]]
+            more = len(draft.violations) - len(lines)
             raise ContentError(
-                "loom needs a theorem-like \\begin and \\end alone on their lines to find a node's exact span. "
+                f"nothing was written: {plan.master_rel} has {counted(len(draft.violations), 'line-anchoring violation')}:\n"
+                + "\n".join(lines)
+                + (f"\n  … and {more} more" if more > 0 else "")
+                + "\nloom needs a theorem-like \\begin and \\end alone on their lines to find a result's exact span. "
                 "Pass --fix-anchoring to rewrite the draft; the paper as received is kept as it is."
             )
         if draft.spans:
             raise ContentError("an environment spans files: " + "; ".join(draft.spans))
-        note(f"  {plan.dest_rel}: \\usepackage{{loom}} and {len(draft.insertions)} ids")
+        proposed = [
+            f"  {plan.master_rel} -> {plan.dest_rel} (linearized, {len(plan.inlined)} files inlined; kept as received in step 0001)",
+            f"  {plan.dest_rel}: \\usepackage{{loom}} and {len(draft.insertions)} ids",
+            *(f"  {src} -> {dest}" for src, dest in arrows),
+            *(f"  {name} -> not copied; it lies outside the paper directory" for name in plan.outside),
+        ]
         if not yes:
             if not sys.stdin.isatty():
-                raise EnvError("import needs confirmation; pass --yes")
+                raise EnvError("import needs confirmation; pass --yes. It would write:\n" + "\n".join(proposed))
+            note("Nothing written yet; the import would write:\n" + "\n".join(proposed))
             click.confirm("Apply?", abort=True)
         written = apply_import(quilt, plan)
         drafted = root / plan.dest_rel
         drafted.parent.mkdir(parents=True, exist_ok=True)
         drafted.write_text(draft.text, encoding="utf-8")
         written.append(plan.dest_rel)
-        note(f"Wrote {len(written)} files.")
         if check:
             ident = identity_test(staged, plan.master_rel, root, plan.dest_rel, scratch, quilt.config.engine)
-            note(ident.summary())
             if not ident.passed and not ident.skipped:
                 drafted.unlink(missing_ok=True)
+                diffs = "\n".join(
+                    f"  {i.text}" + (f"  {i.key}" if i.key else "") for i in identity_group(ident)[0].items
+                )
                 raise ContentError(
-                    f"the drafted document does not typeset as the original; {plan.dest_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway."
+                    f"the drafted document does not typeset as the original; {plan.dest_rel} was removed and nothing was recorded. Pass --no-check to keep it anyway.\n"
+                    + diffs
                 )
     history = load_history(quilt.history_dir)
     original = (plan.paper_dir / plan.master_rel).read_text(encoding="utf-8", errors="replace")
@@ -196,15 +275,44 @@ def run_import(
         document_text=plan.text,
         document_name=f"{name}.tex",
     )
-    if set_main(load_quilt(root), plan.dest_rel):
-        note(f"main = {plan.dest_rel}")
-    note(report_counts(scan(load_quilt(root))))
-    note(f"Recorded: import as step {entry.step:04d} ({entry.dir}); the paper as received is landmark {name}")
-    from loom.refs.scan import scan_bibliography
-
-    for line in scan_bibliography(quilt).lines():
-        note(line)
-    return ident
+    main_set = set_main(load_quilt(root), plan.dest_rel)
+    after = scan(load_quilt(root))
+    wrote = [Item(f"{plan.master_rel} -> {plan.dest_rel}, {len(draft.insertions)} ids inserted")]
+    wrote += [Item(f"{src} -> {dest}") for src, dest in arrows if dest in written]
+    if main_set:
+        wrote.append(Item(f"config.toml: main = {plan.dest_rel}"))
+    groups = [Group("written", wrote, limit=None)]
+    if plan.outside:
+        groups.append(
+            Group(
+                "not copied, outside the paper directory (loom:import-outside-tree)",
+                [Item(n) for n in sorted(plan.outside)],
+                limit=None,
+            )
+        )
+    groups += identity_group(ident)
+    groups.append(Group(f"in {plan.dest_rel}", _document_counts(after, plan.dest_rel), limit=None, counted=False))
+    bib_groups, bib = bibliography_groups(quilt)
+    groups += bib_groups
+    checked = identity_said(ident, plan.dest_rel, "the original") if check else "the identity test was skipped"
+    said = (
+        f"imported {plan.master_rel} as {plan.dest_rel} with {len(draft.insertions)} ids; {checked}; "
+        f"the paper as received is landmark {name}, step {entry.step:04d}"
+    )
+    data = {
+        "document": plan.dest_rel,
+        "from": plan.master_rel,
+        "landmark": name,
+        "step": entry.step,
+        "ids": len(draft.insertions),
+        "written": sorted(written),
+        "inlined": list(plan.inlined),
+        "outside": list(plan.outside),
+        "main": plan.dest_rel if main_set else None,
+        "identity": None if ident is None else ("skipped" if ident.skipped else "pass" if ident.passed else "fail"),
+        "bibliography": bib,
+    }
+    return Imported(said, ident, groups, data)
 
 
 @click.command(name="import")
@@ -217,16 +325,15 @@ def run_import(
     is_flag=True,
     help="Rewrite the drafted document so every theorem-like \\begin and \\end is alone on its line.",
 )
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-@click.pass_context
 def import_command(
-    ctx: click.Context, file: str, yes: bool, no_check: bool, fix_anchors: bool, quilt_path: str | None
+    file: str, yes: bool, no_check: bool, fix_anchors: bool, as_json: bool, quilt_path: str | None
 ) -> None:
     """Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark in step 0001, and the working document drafted from it at once in the drafting directory."""
     quilt = open_quilt(quilt_path)
-    ident = run_import(quilt, Path(file).expanduser(), yes, check=not no_check, fix_anchors=fix_anchors)
-    if ident is not None and not ident.passed and not ident.skipped:
-        ctx.exit(EXIT_CONTENT)
+    done = run_import(quilt, Path(file).expanduser(), yes, check=not no_check, fix_anchors=fix_anchors)
+    Report(done.said, groups=done.groups, data=done.data).emit(as_json)
 
 
 @click.command()
@@ -253,9 +360,7 @@ def import_command(
     help="Move SRC into retired/ once DEST is written, instead of leaving it superseded in place.",
 )
 @quilt_option
-@click.pass_context
 def atomize(
-    ctx: click.Context,
     src: str | None,
     dest: str | None,
     to: str | None,
@@ -272,13 +377,12 @@ def atomize(
     result = open_scan(quilt_path)
     root = result.quilt.root
     if keys:
-        _atomize_keys(ctx, result, list(keys), src, as_json, proofs)
+        _atomize_keys(result, list(keys), src, as_json, proofs)
         return
     if as_json:
         raise EnvError("--json needs --key")
     if src is None:
-        click.echo("ERROR: name the file to atomize, or the nodes with --key", err=True)
-        ctx.exit(EXIT_USAGE)
+        raise EnvError("name the file to atomize, or the nodes with --key")
     src_rel = _rel(root, src)
     if src_rel not in result.files:
         raise EnvError(f"{src} is not a scanned file of this quilt")
@@ -293,8 +397,7 @@ def atomize(
     else:
         target = dest or to
         if not target:
-            click.echo("ERROR: specify a destination file after the source, or with --to", err=True)
-            ctx.exit(2)
+            raise EnvError("specify a destination file after the source, or with --to")
         targets = [(src_rel, _rel(root, target))]
     if retire:
         for s_rel, _ in targets:
@@ -306,27 +409,39 @@ def atomize(
             raise EnvError(f"{d_rel} exists; atomize never overwrites")
         plan = plan_atomize(result, s_rel, d_rel, proofs, sections)
         if plan.refusals:
-            for r in plan.refusals:
-                note(f"{s_rel}: {r}")
-            ctx.exit(EXIT_CONTENT)
+            raise ContentError("\n".join(f"{s_rel}: {r}" for r in plan.refusals))
         plans.append(plan)
-    total = 0
+    wrote: list[Item] = []
+    unlabelled: list[Group] = []
     for plan in plans:
         try:
-            written = write_atomize(result, plan)
+            write_atomize(result, plan)
         except FileExistsError as exc:
             raise ContentError(f"loom:atomize-target-exists: {exc} exists") from exc
-        total += len(written) - 1
         deferred = sum(1 for m in plan.moves if ".proof" in m.target)
-        click.echo(f"Moved {len(plan.moves) - deferred} nodes and {deferred} deferred proofs to nodes/")
+        moved_sections = sum(
+            1 for m in plan.moves if result.nodes.get(m.key) is not None and result.nodes[m.key].kind == "section"
+        )
         old_lines = result.files[plan.src].text.count("\n")
-        click.echo(f"Wrote {plan.dest} (spine, {plan.spine.count(chr(10))} lines, was {old_lines})")
+        parts = [counted(len(plan.moves) - deferred - moved_sections, "result"), counted(deferred, "proof")]
+        if moved_sections:
+            parts.append(counted(moved_sections, "section"))
+        wrote.append(
+            Item(
+                f"{plan.dest}: {plan.spine.count(chr(10))} lines, was {old_lines}; {', '.join(parts)} set apart in nodes/"
+            )
+        )
         if plan.unlabelled:
-            note(f"Not moved (no id): {', '.join(plan.unlabelled)}; run loom id first")
+            unlabelled.append(
+                Group(
+                    f"not moved from {plan.src}, for want of an id",
+                    [Item("", key=u) for u in sorted(plan.unlabelled)],
+                    problem=True,
+                    next=f"loom id {plan.src}",
+                )
+            )
     plan = plans[0]
     ident = _identity_for(result, root, plan.src, plan.dest)
-    if ident is not None:
-        note(ident.summary())
     retired: list[str] = []
     superseded: list[str] = []
     for pl in plans:
@@ -335,10 +450,9 @@ def atomize(
             target_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(root / pl.src), str(target_path))
             retired.append(f"retired/{pl.src}")
-            note(f"Moved {pl.src} to retired/{pl.src}")
         else:
             superseded.append(pl.src)
-    entry = append_entry(
+    append_entry(
         result.quilt.history_dir,
         "atomize",
         {
@@ -350,19 +464,34 @@ def atomize(
         },
         actor_for(root),
     )
-    for rel in superseded:
-        note(f"{rel} is now superseded: it defines nothing until `loom live {rel}` says otherwise")
     for pl in plans:
         if result.quilt.config.main in (pl.src, f"retired/{pl.src}") and set_main_forced(result.quilt, pl.dest):
-            note(f"main = {pl.dest}")
-    note(f"Recorded: atomize (ledger line {entry.line})")
-    if ident is not None and not ident.passed and not ident.skipped:
-        ctx.exit(EXIT_CONTENT)
+            wrote.append(Item(f"config.toml: main = {pl.dest}"))
+    groups = [Group("written", wrote, limit=None)]
+    if superseded:
+        groups.append(
+            Group(
+                "superseded: each defines nothing until loom live FILE says otherwise",
+                [Item(s) for s in sorted(superseded)],
+            )
+        )
+    if retired:
+        groups.append(Group("moved to retired/", [Item(r) for r in sorted(retired)]))
+    groups += unlabelled
+    groups += identity_group(ident)
+    failed = ident is not None and not ident.passed and not ident.skipped
+    moved = sum(len(pl.moves) for pl in plans)
+    Report(
+        f"atomized {plan.src} into {plan.dest}"
+        + (f" and {counted(len(plans) - 1, 'other file')}" if len(plans) > 1 else "")
+        + f", {counted(moved, 'file')} in nodes/; {identity_said(ident, plan.dest, plan.src)}",
+        ok=not failed and not unlabelled,
+        exit=EXIT_CONTENT if failed else 0,
+        groups=groups,
+    ).emit()
 
 
-def _atomize_keys(
-    ctx: click.Context, result: ScanResult, keys: list[str], src: str | None, as_json: bool, proofs: str
-) -> None:
+def _atomize_keys(result: ScanResult, keys: list[str], src: str | None, as_json: bool, proofs: str) -> None:
     """`atomize --key`: write the node files and print the patch for the source, or with --json print the plan and write nothing.
 
     The source is never edited: the editor applies the patch (loom-lsp offers it as one workspace edit), which is what keeps undo and an unsaved buffer the author's business.
@@ -372,9 +501,7 @@ def _atomize_keys(
     if src_rel is None:
         unknown = [k for k in keys if k not in result.assembly.nodes]
         if unknown:
-            for k in unknown:
-                note(f"{k} is not a key of this quilt")
-            ctx.exit(EXIT_CONTENT)
+            raise NotFoundError("node", "\n".join(f"{k} is not a key of this quilt" for k in unknown))
         homes = {result.assembly.nodes[k].file for k in keys}
         if len(homes) > 1:
             raise EnvError("those keys live in different files; atomize one file's nodes at a time")
@@ -385,28 +512,38 @@ def _atomize_keys(
     if not plan.refusals and not plan.moves:
         plan.refusals.append(f"nothing to move for {', '.join(keys)}")
     if plan.refusals:
+        refusal = "\n".join(f"{src_rel}: {r}" for r in plan.refusals)
         if as_json:
-            emit_json(plan_payload(result, plan))
-            ctx.exit(EXIT_CONTENT)
-        for r in plan.refusals:
-            note(f"{src_rel}: {r}")
-        ctx.exit(EXIT_CONTENT)
+            Report(
+                f"nothing can move: {refusal}",
+                ok=False,
+                exit=EXIT_CONTENT,
+                dry_run=True,
+                data=plan_payload(result, plan),
+            ).emit(True)
+        raise ContentError(refusal)
     problem = verify_plan(result, plan)
     if problem is not None:
         raise ContentError(f"loom:atomize-plan-unsound: {problem}")
     if as_json:
-        emit_json(plan_payload(result, plan))
+        Report(
+            f"{counted(len(plan.moves), 'result')} of {src_rel} would move to nodes/; nothing written",
+            dry_run=True,
+            data=plan_payload(result, plan),
+        ).emit(True)
         return
     for m in plan.moves:
         if (root / m.target).exists():
             raise ContentError(f"loom:atomize-target-exists: {m.target} exists")
     written = write_moves(result, plan)
-    for path in written:
-        click.echo(f"Wrote {path}")
+    Report(
+        f"wrote {counted(len(written), 'node file')}; apply the patch below to {src_rel}, which loom never edits, "
+        "and until then the moved results are defined twice, with no text",
+        ok=False,
+        groups=[Group("written", [Item(p) for p in sorted(written)], limit=None)],
+    ).emit()
+    click.echo("")
     click.echo(unified_diff(result.files[src_rel].text, plan.spine, src_rel), nl=False)
-    note(
-        f"{src_rel} is yours to change: apply the patch above, or let your editor do it. Until then the moved nodes are conflicted: defined by two files, with no text."
-    )
 
 
 def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -> IdentityResult | None:
@@ -417,7 +554,6 @@ def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -
     node = result.nodes.get(src_rel)
     masters = node.reached_by if node else []
     if not masters:
-        note(f"Identity test: skipped (no master reaches {src_rel})")
         return None
     master = masters[0]
     with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
@@ -501,26 +637,30 @@ def deloom_command(
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(done.text, encoding="utf-8")
     shown = target_rel if not Path(target_rel).is_absolute() else str(target)
-    if as_json:
-        emit_json(
-            {
-                "source": rel,
-                "to": shown,
-                "removed": done.removed,
-                "moved": done.moved,
-                "uses": done.uses,
-                "directives": done.directives,
-                "kept_ids": done.kept_ids,
-                "kept_incomplete": done.kept_incomplete,
-            }
-        )
-        return
-    click.echo(
-        f"Wrote {shown}: {len(done.removed)} id label(s), {done.uses} \\uses and {done.directives} % !LOOM line(s) removed; {done.moved} reference(s) moved to your labels"
-    )
+    groups = []
     if done.kept_ids:
-        click.echo("Kept ids, each the only label of a referenced result; give it a label of your own to replace:")
-        for name, line in sorted(done.kept_ids.items(), key=lambda kv: kv[1]):
-            click.echo(f"  {name}  line {line}")
+        groups.append(
+            Group(
+                "ids kept, each the only label of a referenced result; give it a label of your own to replace it",
+                [Item(f"line {line}", key=name) for name, line in sorted(done.kept_ids.items(), key=lambda kv: kv[1])],
+            )
+        )
     if done.kept_incomplete:
-        click.echo(f"Kept \\incomplete{{…}} at line(s) {', '.join(str(n) for n in done.kept_incomplete)}")
+        groups.append(
+            Group("\\incomplete{…} kept, printing nothing", [Item(f"line {n}") for n in done.kept_incomplete])
+        )
+    Report(
+        f"wrote {shown}: {counted(len(done.removed), 'id label')}, {done.uses} \\uses and "
+        f"{counted(done.directives, '% !LOOM line')} removed; {counted(done.moved, 'reference')} moved to your labels",
+        groups=groups,
+        data={
+            "source": rel,
+            "to": shown,
+            "removed": done.removed,
+            "moved": done.moved,
+            "uses": done.uses,
+            "directives": done.directives,
+            "kept_ids": done.kept_ids,
+            "kept_incomplete": done.kept_incomplete,
+        },
+    ).emit(as_json)

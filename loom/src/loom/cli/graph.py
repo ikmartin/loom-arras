@@ -2,14 +2,48 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Sequence
 from typing import Any
 
 import click
 
-from loom.cli._common import emit_json
-from loom.cli._quilt import describe, open_scan, quilt_option, resolve_key
+from loom.cli._quilt import open_scan, quilt_option, resolve_key
 from loom.cli.build_cmds import log_run
+from loom.cli.report import WIDTH, Group, Item, Report, counted, table
 from loom.scan.scan import ScanResult
+
+
+def natural(text: str) -> tuple[Any, ...]:
+    """A sort key that orders the numbers inside `text` by value, so `rem-2.4` comes before `rem-2.10`."""
+    return tuple((0, int(p), "") if p.isdigit() else (1, 0, p) for p in re.split(r"(\d+)", text) if p)
+
+
+def when(stamp: str) -> str:
+    """An ISO timestamp as a reader takes it in: `2026-09-16 14:03`, the date always."""
+    return stamp[:16].replace("T", " ") if len(stamp) > 10 else stamp
+
+
+def taxon(result: ScanResult, key: str) -> str:
+    """What `key` is (`Lemma`, `Proof`), or '' for a path or a key the assembly does not hold."""
+    n = result.assembly.nodes.get(key)
+    if n is None or n.kind in ("master", "file"):
+        return ""
+    return n.taxon or n.kind
+
+
+def keyed(rows: Sequence[tuple[tuple[str, ...], str]]) -> list[Item]:
+    """Items whose text columns are aligned across `rows` and whose key goes last, each row `(columns, key)`.
+
+    The keys line up in one column as far as the lines that fit within the width reach; a longer line keeps its key at its end and wraps.
+    """
+    lines = [ln.rstrip() for ln in table([(*cols, "") for cols, _ in rows])] if rows else []
+    fits = [len(ln) for ln, (_, key) in zip(lines, rows, strict=True) if 2 + len(ln) + 2 + len(key) <= WIDTH]
+    width = max(fits, default=0)
+    return [
+        Item(ln.ljust(width) if 2 + width + 2 + len(key) <= WIDTH else ln, key=key)
+        for ln, (_, key) in zip(lines, rows, strict=True)
+    ]
 
 
 def _edge_entries(result: ScanResult, key: str, kind: str) -> list[dict[str, str]]:
@@ -82,25 +116,31 @@ def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt
     log_run(run_dir, f"loom deps {key}", result.quilt.root)
     key = resolve_key(result, key)
     payload = deps_payload(result, key)
-    if as_json:
-        emit_json(payload)
-        return
-    click.echo(describe(result, key))
     if show_closure:
-        click.echo("closure (dependencies first):")
-        for entry in payload["closure"]:
-            click.echo(f"  {describe(result, entry['key'])}")
+        rest = [e["key"] for e in payload["closure"] if e["key"] != key]
+        verdict = (
+            f"{key} depends on {counted(len(rest), 'statement')}, transitively" if rest else f"{key} depends on nothing"
+        )
+        groups = [Group("closure, dependencies first", keyed([((taxon(result, k),), k) for k in rest]), limit=None)]
+        Report(verdict, groups=[g for g in groups if g.items], data=payload).emit(as_json)
         return
-    for label, entries in (("statement", payload["statement"]), ("proof", payload["proof"])):
-        click.echo(f"{label}-edges:")
-        for entry in entries:
-            click.echo(f"  {describe(result, entry['key'])}  via {entry['via']}")
-        if not entries:
-            click.echo("  (none)")
+    groups = []
+    for heading, entries in (("through its statement", payload["statement"]), ("through its proof", payload["proof"])):
+        rows = [
+            ((taxon(result, e["key"]), f"via {e['via']}"), e["key"])
+            for e in sorted(entries, key=lambda e: natural(e["key"]))
+        ]
+        groups.append(Group(heading, keyed(rows), limit=None))
     if payload["relations"]:
-        click.echo("see also (not a dependency):")
-        for entry in payload["relations"]:
-            click.echo(f"  {describe(result, entry['key'])}")
+        rows = [((taxon(result, e["key"]), e["kind"]), e["key"]) for e in payload["relations"]]
+        groups.append(Group("see also, not a dependency", keyed(rows), limit=None))
+    s, p = len(payload["statement"]), len(payload["proof"])
+    verdict = (
+        f"{key} depends directly on {counted(s + p, 'result')}: {s} through its statement, {p} through its proof"
+        if s + p
+        else f"{key} depends on nothing"
+    )
+    Report(verdict, groups=[g for g in groups if g.items], data=payload).emit(as_json)
 
 
 def _unravel_records(result: ScanResult, key: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -192,27 +232,35 @@ def unravel(id_: str, as_json: bool, run_dir: str | None, quilt_path: str | None
     log_run(run_dir, f"loom unravel {id_}", result.quilt.root)
     key = resolve_key(result, id_)
     payload = unravel_payload(result, key)
-    if as_json:
-        emit_json(payload)
-        return
-    click.echo(f"{describe(result, key)}: nothing is changed by this report")
-    for section in ("dependents", "references", "inclusions", "ledger", "annotations"):
-        items = payload[section]
-        click.echo(f"{section}:")
-        for item in items:
-            if section == "dependents":
-                click.echo(f"  {describe(result, item['key'])}  via {item['via']}")
-            elif section == "references":
-                click.echo(f"  {item['file']}:{item['line']}  in {item['key']}")
-            elif section == "inclusions":
-                click.echo(f"  {item['file']}:{item['line']}  ({item['master']})")
-            elif section == "ledger":
-                click.echo(f"  {item['date']}  {item['key']} accepted by {item['author']} against {item['master']}")
-            else:
-                sev = f" {item['severity']}" if item["severity"] else ""
-                mark = "" if item["status"] == "open" else f" ({item['status']})"
-                loose = "  [detached]" if item["detached"] else ""
-                click.echo(f"  {item['id']}  {item['target']}  {item['kind']}{sev}{mark}{loose}")
-                click.echo(f"      {item['message']}")
-        if not items:
-            click.echo("  (none)")
+    dependents = sorted(payload["dependents"], key=lambda e: natural(e["key"]))
+    references = sorted(payload["references"], key=lambda e: (natural(e["file"]), e["line"]))
+    inclusions = sorted(payload["inclusions"], key=lambda e: (natural(e["file"]), e["line"]))
+    ledger = sorted(payload["ledger"], key=lambda e: (natural(e["key"]), e["date"]))
+    annotations = sorted(payload["annotations"], key=lambda e: natural(e["id"]))
+    groups = [
+        Group("dependents", keyed([((taxon(result, e["key"]), f"via {e['via']}"), e["key"]) for e in dependents])),
+        Group("references", keyed([((f"{e['file']}:{e['line']}", "in"), e["key"]) for e in references])),
+        Group("inclusions", keyed([((f"{e['file']}:{e['line']}", "in"), e["master"]) for e in inclusions])),
+        Group(
+            "acceptances",
+            keyed([((when(e["date"]), e["author"], f"against {e['master']}"), e["key"]) for e in ledger]),
+        ),
+        Group("annotations", [_annotation_item(e) for e in annotations]),
+    ]
+    parts = [counted(len(g.items), g.heading.rstrip("s"), g.heading) for g in groups if g.items]
+    verdict = f"changing {key} would reach " + (", ".join(parts) if parts else "nothing else") + "; nothing was changed"
+    Report(verdict, groups=[g for g in groups if g.items], data=payload).emit(as_json)
+
+
+def _annotation_item(e: dict[str, Any]) -> Item:
+    """One annotation on the key or its proofs: its kind, grade and state, then the first line of what it says, its id last."""
+    sev = f" {e['severity']}" if e["severity"] else ""
+    mark = "" if e["status"] == "open" else f", {e['status']}"
+    loose = ", detached" if e["detached"] else ""
+    head = f"{e['kind']}{sev}{mark}{loose} on {e['target']}"
+    first = (e["message"] or "").strip().splitlines()
+    room = WIDTH - 6 - len(head) - len(e["id"])
+    said = (
+        f": {first[0] if len(first[0]) <= room else first[0][: max(room - 1, 0)] + '…'}" if first and room > 8 else ""
+    )
+    return Item(head + said, key=e["id"])

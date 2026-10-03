@@ -139,7 +139,7 @@ After any sitting, `loom ai check SESSION` (**[decided]** a command of its own, 
 $ claude
 ```
 
-The agent reads `CLAUDE.md`, whose one line tells it to run `loom ai orient`. That prints the orientation, the quilt's live state and the open sessions. The author asks for a referee pass on `rl-0004`, so the agent runs `loom ai start "Referee of rl-0004"`, which opens a session, makes it active and prints its id; from the live state it sees `rl-0004` is draft and never reviewed. It runs `loom source rl-0004 --closure`, reads it, applies the referee template, and issues:
+The agent reads `CLAUDE.md`, whose one line tells it to run `loom ai orient`. That prints the orientation, the quilt's live state and the open sessions. The author asks for a referee pass on `rl-0004`, so the agent runs `loom ai start "Referee of rl-0004"`, which opens a session, makes it active and prints a line that begins with its id; from the live state it sees `rl-0004` is draft and never reviewed. It runs `loom source rl-0004 --closure`, reads it, applies the referee template, and issues:
 
 ```
 loom annotate rl-0004 "The hypothesis 'quasi-compact' is not stated; rl-0002 assumes it." \

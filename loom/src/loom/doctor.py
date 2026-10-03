@@ -17,9 +17,12 @@ import time
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loom.version import INTERFACE_VERSION, __version__
+
+if TYPE_CHECKING:
+    from loom.cli.report import Report as OutReport
 
 OK, WARN, FAIL = "ok", "warn", "fail"
 #: required: missing fails; optional: missing warns, and present but broken fails, since loom uses it when present; quilt: the quilt section
@@ -143,27 +146,51 @@ class Report:
             return f"warnings: {', '.join(warned)}" if self.strict else f"ok ({count})"
         return "ok"
 
-    def render(self) -> str:
-        """The text report: one line per item in columns as wide as their contents, a remedy under each item that is not ok, and the summary last."""
+    def report(self) -> OutReport:
+        """The report `loom doctor` prints: the summary as its verdict, an item per check, machine first, with a `fix:` line under each item that is not ok, then the directories the tools were found in."""
+        from loom.cli.report import Group, Report
+        from loom.cli.report import Item as Line
+
         width = max(len(i.name) for i in self.items)
-        # a problem's detail runs long, so only the ok lines set where the paths start
-        dwidth = max((len(i.detail) for i in self.items if i.extra.get("path") and i.status == OK), default=0)
-        lines = [f"loom {self.loom}, interface {self.interface_version}, python {self.python}"]
+        groups = []
         for section, items in (
             ("machine", [i for i in self.items if i.severity != QUILT]),
-            (f"quilt {self.quilt}" if self.quilt else "quilt", [i for i in self.items if i.severity == QUILT]),
+            (f"quilt {self.quilt.name}" if self.quilt else "quilt", [i for i in self.items if i.severity == QUILT]),
         ):
             if not items:
                 continue
-            lines += ["", section]
+            lines = []
             for i in items:
-                path = i.extra.get("path")
-                detail = f"{i.detail:<{dwidth}}  {path}" if path else i.detail
-                lines.append(f"  {i.status:<4}  {i.name:<{width}}  {detail}".rstrip())
-                if i.status != OK and i.remedy:
-                    lines.append(f"  {'':<4}  {'':<{width}}  fix: {i.remedy}")
-        lines += ["", self.summary()]
-        return "\n".join(lines)
+                fixes = [_home(i.remedy)] if i.status != OK and i.remedy else []
+                said = f"{i.status:<4}  {i.name:<{width}}  {_home(i.detail)}".rstrip()
+                lines.append(Line(said, fixes=fixes, data=i.to_dict()))
+            groups.append(Group(section, lines, limit=None, problem=True))
+        # a path runs longer than a line, so each directory is said once, with what was found in it, rather than beside every tool
+        found: dict[str, list[str]] = {}
+        for i in self.items:
+            path = i.extra.get("path")
+            if path and i.severity != QUILT:
+                p = Path(str(path))
+                found.setdefault(_home(str(p if p.is_dir() else p.parent) + "/").rstrip("/"), []).append(i.name)
+        groups.append(Group("found in", [Line(", ".join(names), key=d) for d, names in found.items()], limit=None))
+        data = self.to_dict()
+        del data["ok"]
+        return Report(
+            self.summary(),
+            ok=self.exit_code == 0,
+            exit=self.exit_code,
+            lines=[f"loom {self.loom}, interface {self.interface_version}, python {self.python}"],
+            groups=groups,
+            data=data,
+        )
+
+
+def _home(text: str) -> str:
+    """`text` with each path under the home directory written `~/…` and under the temporary directory `$TMPDIR/…`, as a person types them; the JSON keeps them whole."""
+    for base, said in ((Path.home(), "~"), (Path(tempfile.gettempdir()), "$TMPDIR")):
+        for form in dict.fromkeys((str(base), os.path.realpath(base))):
+            text = text.replace(form.rstrip("/") + "/", said + "/")
+    return text
 
 
 @dataclass(frozen=True)
@@ -549,7 +576,7 @@ def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool
     agents : bool, default False
         Also look for `claude` and `codex`, which are otherwise looked for only when the quilt configures an agent.
     strict : bool, default False
-        Warnings count against the exit code (1).
+        Warnings count against the exit code, as failures do (2).
 
     Returns
     -------

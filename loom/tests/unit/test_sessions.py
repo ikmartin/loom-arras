@@ -56,7 +56,7 @@ def test_a_resumed_session_starts_a_new_round(tmp_path: Path) -> None:
 def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
     """The orientation lists both among an agent's commands and says every command that takes --session logs the call (F7)."""
     d = demo(tmp_path)
-    sid = ok("ai", "start", "Drafting", cwd=d).stdout.strip()
+    sid = ok("ai", "start", "Drafting", cwd=d).stdout.split()[0]
     run_dir = d / ".loom" / "sessions" / sid
     ok("id", "--next", "--session", sid, cwd=d)
     ok("new", "lemma", "Rigidity", "--session", sid, cwd=d)
@@ -108,7 +108,7 @@ def test_purge_erases_a_session_what_was_written_in_it_and_what_answers_it_and_n
     before = (q / "annotations" / "log.jsonl").read_text().splitlines(keepends=True)
     said = ok("session", "delete", gone, "--purge", "--yes", cwd=q)
     # the note and the reply to it: the edit and the resolve are events on an annotation, not annotations
-    assert said.stdout.strip() == f"erased {gone} and 2 annotation(s) from annotations/log.jsonl"
+    assert said.stdout.strip() == f"erased {gone} and 2 annotations from annotations/log.jsonl"
     after = (q / "annotations" / "log.jsonl").read_text().splitlines(keepends=True)
     events = [json.loads(x) for x in after if x.startswith("{")]
     assert not [e for e in events if e.get("session") == gone or ann in (e.get("id"), e.get("reply_to"))]
@@ -143,7 +143,7 @@ def test_purge_refuses_without_a_yes_where_nobody_can_answer(tmp_path: Path) -> 
         "--purge",
         cwd=q,
         code=2,
-        match="erases 2 annotation(s) and cannot be undone; pass --yes",
+        match="erases 2 annotations and cannot be undone; pass --yes",
     )
     assert records(q) == was and (q / ".loom" / "sessions" / gone).is_dir()
 
@@ -173,7 +173,7 @@ def test_purge_at_a_terminal_asks_first(tmp_path: Path, answer: str) -> None:
         os.close(main)
         os.close(tty)
     said = out.decode() + err.decode()
-    assert f"--purge erases {gone} and the 2 annotation(s)" in said, said
+    assert f"--purge erases {gone} and the 2 annotations" in said, said
     if answer == "n":
         assert proc.returncode == 1 and "Aborted" in said, said
         assert records(q) == was

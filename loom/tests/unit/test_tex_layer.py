@@ -10,7 +10,7 @@ from loom.scan.scan import scan
 from loom.tex.assemble import assemble, shift_sectioning
 from loom.tex.aux import parse_aux
 from loom.tex.bundle import apply_unified_diff, build_bundle, unified_diff
-from tests.helpers import exits, ok, refused
+from tests.helpers import exits, json_of, ok, refused
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -134,8 +134,9 @@ def test_compile_draft_unpromoted_node(tmp_path: Path) -> None:
 def test_check_lints_and_compiles(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = ok("check", cwd=d)
-    assert "ok      drafting/main.tex" in r.output and r.output.strip().endswith("check: ok")
-    assert "bundle dm-0003" in ok("check", "--bundles", "all", cwd=d).output
+    assert r.output.startswith("check passed:") and "compiles  drafting/main.tex" in r.output
+    bundles = json_of("check", "--bundles", "all", "--json", cwd=d)["bundles"]
+    assert {"key": "dm-0003", "ok": True, "error": None} in bundles
     (d / "nodes" / "dup.tex").write_text("\\begin{lemma}\\label{dm-0001}\n\\end{lemma}\n")
     assert "duplicate-id" in exits(1, "check", "--no-compile", cwd=d).output
 

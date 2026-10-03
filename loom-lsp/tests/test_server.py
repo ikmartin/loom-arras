@@ -37,7 +37,7 @@ def test_the_quilt_is_found_by_walking_up_and_only_inside_one(tmp_path: Path, qu
 def test_diagnostics_match_what_lint_reports(quilt: Path, master: Path, harness) -> None:  # type: ignore[no-untyped-def]
     harness.open(master)
     out = subprocess.run(["loom", "lint", "--json", "--quilt", str(quilt)], capture_output=True, text=True, check=False)
-    expected = json.loads(out.stdout)
+    expected = json.loads(out.stdout)["diagnostics"]
     by_file: dict[str, set[tuple[str, int]]] = {}
     for d in expected:
         for loc in d["locations"]:

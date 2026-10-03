@@ -91,7 +91,7 @@ Recording what you found:
 Your session:
 
 - `loom session list [--all]`: the quilt's open sessions by id and title, the active one marked; `--all` adds the closed ones.
-- `loom ai start "A name"`: open a new session, make it active, and print its id. Name it for what you were asked to do.
+- `loom ai start "A name"`: open a new session, make it active, and print a line that begins with its id (`--json` carries it as `session`). Name it for what you were asked to do.
 - `loom ai orient --session SESSION`: this document, the quilt's live state, and the end of that session's chat and its command log — how you rejoin a session, yours, the author's, or another agent's.
 - `loom ai annotations --session SESSION [--json]`: what that session has annotated, with ids, so a re-check can resolve and edit its own findings — and what the author decided about each proposal it made: verified, edited (with the edit shown) or discarded (with the reason). Run it first when you rejoin a session.
 - `loom ai name "A better title" --session SESSION`: retitle a session once you know what it turned into.

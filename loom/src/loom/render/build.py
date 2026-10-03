@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -352,6 +353,7 @@ def build(
     records: Records | None = None,
     force: bool = False,
     reuse: ScanResult | None = None,
+    progress: Callable[[str, str, int, int | None], None] | None = None,
 ) -> BuildReport:
     """Scan, read the records, render what changed and publish the build directory (book 9.1).
 
@@ -367,6 +369,8 @@ def build(
         Render every fragment again, and retry every figure that failed before.
     reuse : ScanResult, optional
         A scan of this quilt to build from instead of scanning again. Only a caller that knows no scan input changed passes one: `loom serve`, after a change to records alone.
+    progress : callable, optional
+        Told `(stage, item, n, total)` as the build moves: `scanning`, `rendering` once per fragment with its place in the count, `recording`, `publishing`; what a caller shows as progress (T6).
 
     Returns
     -------
@@ -376,6 +380,12 @@ def build(
     root = quilt.root
     build_dir = root / "build"
     cache_dir = build_dir / "cache"
+
+    def told(stage: str, item: str = "", n: int = 0, total: int | None = None) -> None:
+        if progress is not None:
+            progress(stage, item, n, total)
+
+    told("scanning")
     result = reuse if reuse is not None else scan(quilt)
     records = records or Records(root, quilt.history_dir)
     # the one moment loom can still see both the text an annotation was written against and the text that replaced it
@@ -482,8 +492,13 @@ def build(
         with renderer.collecting() as diags:
             return task(), diags
 
+    names = [doc.path for doc, _rel, _digest in canon_jobs] + [key for key, _kind, _rel, _digest in jobs]
+    told("rendering", "", 0, len(tasks))
+    done: list[tuple[str, list[Any]]] = []
     with ThreadPoolExecutor(max_workers=max(1, os.cpu_count() or 1)) as pool:
-        done = list(pool.map(render_job, tasks))
+        for n, out in enumerate(pool.map(render_job, tasks), 1):
+            done.append(out)
+            told("rendering", names[n - 1], n, len(tasks))
     canon_done, node_done = done[: len(canon_jobs)], done[len(canon_jobs) :]
     # every job's diagnostics, nodes then landmarks, each in job order: the order a single thread would have produced, whatever order they finished
     for _, diags in node_done + canon_done:
@@ -500,6 +515,7 @@ def build(
     manifest = build_manifest(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
+    told("recording")
     records.apply(result, manifest, build_dir)
     from loom.render.review_compare import attach_comparisons
 
@@ -531,6 +547,7 @@ def build(
             if rel not in fragments.values():
                 index.pop(rel)
     # a fragment the cache skipped is already on disk as it should be: kept from the prune, not read back and rewritten
+    told("publishing")
     publish(build_dir, files, manifest, prune, keep={rel for rel in fragments.values() if rel not in files})
     cache_dir.mkdir(parents=True, exist_ok=True)
     index_path.write_text(json.dumps(index, indent=0, sort_keys=True), encoding="utf-8")

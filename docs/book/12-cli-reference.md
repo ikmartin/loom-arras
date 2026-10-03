@@ -8,7 +8,10 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
 
 - Quilt discovery: every command except `init` and `doctor` walks up from the current directory to the nearest `config.toml` with a `[quilt]` table and runs against that quilt. `--quilt PATH` overrides. `doctor` needs no quilt, and checks the one it finds the same way.
 - Exit codes: `0` success; `1` a content problem (lint errors, a failed identity test, a failed compile, a refused write that the author can fix in the source); `2` a usage or environment problem (bad arguments, an argument that names no key, annotation, session, work or result, missing tools, no author name, consent `config.toml` does not give, a destination that exists). The rule decides by what the person must change: the quilt's source is `1`, the command or the machine is `2` (DR-290-ikmartin).
-- `--json`: machine output on stdout, one JSON document, nothing else on stdout; diagnostics and progress go to stderr.
+- `--json`: machine output on stdout, one JSON document, nothing else on stdout, on failure as on success; diagnostics and progress go to stderr. Every command that reports takes it, and its JSON is the envelope of 12.9, built from the same report as the text, so the two cannot drift (DR-329-ikmartin).
+- Output: every command that reports prints through one layer (`loom/cli/report.py`): the verdict first, then groups each with a heading and a count, a long list cut with `… and N more` and the command that lists it whole, a `fix:` or `next:` line naming each command that acts, lines within 100 columns, an identifier never cut, and notes on stderr. A dry run's verdict begins `dry run:`. Diagnostics are grouped by code with their locations and `fix:` lines, the author's before the cited works', which are counted under a heading of their own. Commands whose body is the author's own text, a patch, a page or a link (`source`, `id`, `revert`, `sync patch`, `history show`, `refs page`, `refs overview`, `refs path`, `refs locate`, `link`, `ai orient`, `session next`) print that body as it is (DR-329-ikmartin).
+- Errors: a refusal is one line on stderr, `Error: …`, with nothing on stdout, and exits by the rule above.
+- Progress: a command still working after 2 s says so on stderr, with its stage, its item, the item's place in the count and the time elapsed; an item past 15 s adds `still working`; on a terminal it is one line that rewrites itself, elsewhere a plain line at most every 2 s (T6).
 - How what a command prints should read — the verdict first, repeated lines grouped and counted, the next command named, the reader's words, numbers that add up, progress for anything slow, saying only what happened, and `--json` that carries what the text does — is T1–T8, in Chapter 1 (1.10); the shape of the command line itself, its commands, flags, validation and help, is K1–K7 (1.12).
 - `--yes`: skip confirmations that would otherwise be asked on a terminal. Commands that would ask and have no terminal and no `--yes` exit 2.
 - `--session SESSION`: on `source`, `compile`, `annotate`, `status`, `search`, `deps`, `unravel`, `lint`, `id`, `new`, `ai orient` and `ai annotations`: append the invocation to the session's `run.log` (`LOOM_SESSION` is the default). `annotate` writes into the active session when neither is given. **[decided]** `SESSION` is a session's id, its title, or an unambiguous part of either; an ambiguous one names its matches and refuses (DR-199). On `annotate` it names where the annotation belongs, never its author, because a session is a place and an author is a person or a named agent (DR-200).
@@ -16,8 +19,7 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
 - `--quiet` / `-q` and `--verbose` / `-v` were planned and are not implemented; diagnostics go to stderr, summaries to stdout (M7).
 - Keys are written as ids (`rl-0004`), proof keys (`rl-0004/proof`, `rl-0004/proof/2`), qualified keys (`rl-0004#eq:main`, `drafting/main.tex#section:3`), or master paths. Aliases are accepted wherever an id is and resolved. An **address** adds a step: `rl-0004@3`, or `rl-0004@paper-v2` naming the landmark instead of the number (17.4).
 - `-m MESSAGE`: required by `stamp`, as by a commit; given a document, it names the landmark. A landmark nobody named is a landmark nobody can ask for.
-- Ids in output are always shown with their number in the default master when known: `rl-0004 (Lemma 3.4)`.
-- **`loom doctor`** (DR-288-ikmartin) is the one command to run when something is off. Every item it reports is `ok`; `warn`, it works but the person will hit something; or `fail`, a command they need will refuse or misbehave. Each item that is not `ok` carries a one-line remedy, the command where there is one. It exits `0` when nothing fails and `2` when anything fails; `--strict` counts a warning as a failure, so doctor never exits `1`, which means a content problem. The summary line names every failing item, and under `--strict` every warning. Machine items come first: the TeX tools (`latexmk`, `pdflatex` and `dvisvgm` required; `latex`, `xelatex`, `lualatex`, `bibtex`, `biber`, `kpsewhich` optional), poppler (`pdftotext`, `pdfinfo`, `pdftocairo`, optional), `git`, `claude` and `codex` when the quilt configures an agent or `--agents` is given, the author name and the arras bundle. A required tool missing fails and an optional one warns; any tool that is present but hangs, will not start, or lacks what loom uses (a `pdftotext` without `-bbox-layout`) fails, since loom runs it when it is there; a biber and biblatex that do not pair warn. Inside a quilt a second section reuses the checks the owning commands make: the configured engine is installed (fails if not); the agent configuration as `loom agent check` finds it (a fault fails when `launch` is on and warns when off); the permission files, the mode files and `loom.sty` against what `loom upgrade` would write, by its dry run; the `.gitignore` lines `loom upgrade` adds; and `config.toml`'s warnings, pointing to `loom lint`. `--json` prints `{python, loom, interface_version, quilt, ok, failing, warnings, items}`, where `ok` is the exit code being 0, `failing` and `warnings` are item names, and each item has `name`, `status`, `severity` (`required`, `optional` or `quilt`), `detail` and `remedy` (empty when `ok`); a tool adds `path`, the bundle `source`, `path` and `interface`. Every probe has a deadline (10 s), so a hung tool is reported rather than waited on, and doctor writes nothing.
+- **`loom doctor`** (DR-288-ikmartin) is the one command to run when something is off. Every item it reports is `ok`; `warn`, it works but the person will hit something; or `fail`, a command they need will refuse or misbehave. Each item that is not `ok` carries a one-line remedy, the command where there is one. It exits `0` when nothing fails and `2` when anything fails; `--strict` counts a warning as a failure, so doctor never exits `1`, which means a content problem. The summary line names every failing item, and under `--strict` every warning. Machine items come first: the TeX tools (`latexmk`, `pdflatex` and `dvisvgm` required; `latex`, `xelatex`, `lualatex`, `bibtex`, `biber`, `kpsewhich` optional), poppler (`pdftotext`, `pdfinfo`, `pdftocairo`, optional), `git`, `claude` and `codex` when the quilt configures an agent or `--agents` is given, the author name and the arras bundle. A required tool missing fails and an optional one warns; any tool that is present but hangs, will not start, or lacks what loom uses (a `pdftotext` without `-bbox-layout`) fails, since loom runs it when it is there; a biber and biblatex that do not pair warn. Inside a quilt a second section reuses the checks the owning commands make: the configured engine is installed (fails if not); the agent configuration as `loom agent check` finds it (a fault fails when `launch` is on and warns when off); the permission files, the mode files and `loom.sty` against what `loom upgrade` would write, by its dry run; the `.gitignore` lines `loom upgrade` adds; and `config.toml`'s warnings, pointing to `loom lint`. `--json` prints the envelope (12.9) with `python`, `loom`, `interface_version`, `quilt`, `failing`, `warnings` and `items` beside it, where the envelope's `ok` is the exit code being 0, `failing` and `warnings` are item names, and each item has `name`, `status`, `severity` (`required`, `optional` or `quilt`), `detail` and `remedy` (empty when `ok`); a tool adds `path`, the bundle `source`, `path` and `interface`. Every probe has a deadline (10 s), so a hung tool is reported rather than waited on, and doctor writes nothing.
 
 ## 12.2 Commands
 
@@ -52,6 +54,7 @@ Record acceptance rows and snapshots for KEYS; the only writer of the ledger.
 | `--author` |  |
 | `--force` | Accept even when the document the acceptance is recorded against does not compile. |
 | `--yes`, `-y` |  |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom adopt`
@@ -82,10 +85,11 @@ The agent loom serve may start for a turn: ai/ai-config.toml, and whether config
 
 Say whether loom serve will start an agent here, with what command, and what would stop it. Runs nothing.
 
-Exits 1 when the config is incomplete, its command is not on PATH, or git tracks ai/ai-config.toml -- a command a quilt carries came from whoever committed it, and loom refuses to run it.
+Exits 2 when launching is on or an agent is configured, and something would stop it: the config is incomplete, its command is not on PATH, or git tracks ai/ai-config.toml -- a command a quilt carries came from whoever committed it, and loom refuses to run it. With no agent configured and launching off there is nothing to stop, and it exits 0.
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom ai`
@@ -120,6 +124,7 @@ Report files outside SESSION, the annotation log, and build/ modified since it o
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai discard`
@@ -136,6 +141,7 @@ Discarding appends an event like any other change, so a sitting's annotations ca
 | `--author` | Discard every record whose author matches. |
 | `--target` | Discard every record with an annotation on this key. |
 | `--undo` | Reverse: mark matching records not discarded. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai drafts`
@@ -160,6 +166,7 @@ Write ai/ (orientation, rules, modes), the vendor files CLAUDE.md and AGENTS.md,
 | option | description |
 |---|---|
 | `--skills` | Also write skill stubs and slash commands for Claude Code. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai name`
@@ -171,6 +178,7 @@ Retitle a session. The id it was opened under does not change, because that is i
 | option | description |
 |---|---|
 | `--session` `SESSION` | The session to rename. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom ai orient`
@@ -207,6 +215,7 @@ The same session a person opens with `loom session new`, so an agent and the aut
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom annotate`
@@ -235,6 +244,7 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--in` `DOC` | A claim about the node as read in this document: marked there, listed on the node's own page, absent elsewhere. |
 | `--undo` | With --resolve or --discard, put the finding back: an undo is another event, never a removal. |
 | `--batch` | Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom atomize`
@@ -261,12 +271,13 @@ Move each node of SRC into nodes/<id>.tex and write DEST, a copy of SRC with inc
 
 Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
 
-Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before.
+Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
 
 | option | description |
 |---|---|
 | `--keys` | Limit rendering to these keys and their masters; the manifest is always complete. |
 | `--force` | Render every fragment again, ignoring the cache and retrying remembered SVG failures. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom check`
@@ -279,6 +290,7 @@ lint, then compile every master, then bundles. Exit 1 on any failure. The CI com
 |---|---|
 | `--no-compile` | Lint only. |
 | `--bundles` | Which bundles to compile (stale needs the ledger, milestone M3). |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom compile`
@@ -287,7 +299,7 @@ lint, then compile every master, then bundles. Exit 1 on any failure. The CI com
 
 Run latexmk from the root into build/<stem>/ for a master (default: the default master), or for a key.
 
-Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing before it names the error.
+Compiling a key builds the document of its closure and runs latexmk on that, so `--with` previews a proposed diff and `--draft` a node that has no id yet: neither writes into the quilt, and a failure names the digests whose packages are missing.
 
 | option | description |
 |---|---|
@@ -295,6 +307,7 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 | `--with` `FILE` | Substitute a unified diff, a .tex file, or an annotation's proposed text for KEY's text; the quilt is not touched. |
 | `--draft` `FILE` | Compile a node file not yet in the quilt. |
 | `--session` `SESSION` | Log this call to the session. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom delete`
@@ -302,6 +315,10 @@ Compiling a key builds the document of its closure and runs latexmk on that, so 
 `loom delete [OPTIONS] [ARGS]...`
 
 Refuse: loom never deletes your notes.
+
+| option | description |
+|---|---|
+| `--json` | Accepted, so a script gets the same refusal. |
 
 ### `loom deloom`
 
@@ -353,6 +370,7 @@ With no SRC, the source loom holds for CITEKEY: the file in the store declaring 
 | `--to` `PATH` | Write here instead of digests/<citekey>.tex. |
 | `--engine` | Engine for compiling the reference (default: its magic comment or pdflatex). |
 | `--no-compile` | Skip compiling the reference; number results by emulation. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom digest import`
@@ -364,6 +382,7 @@ Copy a digest from another quilt into digests/, rewriting its id prefix when --a
 | option | description |
 |---|---|
 | `--as` `CITEKEY` | Rename the digest's citekey on the way in. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom doctor`
@@ -453,6 +472,7 @@ Bring a paper into the quilt: its styles, bibliography and figures at the root, 
 | `--yes`, `-y` |  |
 | `--no-check` | Skip the identity test. |
 | `--fix-anchoring` | Rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom init`
@@ -472,6 +492,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--launch-agents`, `--no-launch-agents` | Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default. |
 | `--fix-anchoring` | With --from: rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
+| `--json` |  |
 
 ### `loom linearize`
 
@@ -524,6 +545,7 @@ Make a superseded document live again: it defines its nodes once more.
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom mv`
@@ -543,13 +565,14 @@ Both are .tex files directly in the drafting directory. Moving the default docum
 
 `loom new [OPTIONS] TAXON [TITLE]`
 
-Allocate an id and write nodes/<id>.tex with a skeleton for TAXON.
+Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead.
 
 | option | description |
 |---|---|
 | `--prefix` | Allocate under this prefix instead of [quilt] prefix. |
 | `--print` | Print the skeleton without allocating an id or writing a file. |
 | `--session` `SESSION` | Log this call to the session. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom refs`
@@ -569,6 +592,7 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 | option | description |
 |---|---|
 | `--force` | Replace an artifact that is already there. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs build`
@@ -577,7 +601,7 @@ A published PDF usually sits behind a subscription that loom cannot and should n
 
 Make everything about this quilt's cited works that a machine can make: resolve, fetch, extract, report.
 
-The one command that starts a digest. It runs `loom refs scan` first, and each step is a no-op where its work is done, so running it again after a new entry reaches the bibliography resolves, fetches and extracts that entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two lines say what is left for a person and what is left for an agent.
+The one command that starts a digest. It runs `loom refs scan` first, and each step is a no-op where its work is done, so running it again after a new entry reaches the bibliography resolves, fetches and extracts that entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two groups say what is left for a person and what is left for an agent; progress shows on stderr per step and per work.
 
 | option | description |
 |---|---|
@@ -606,6 +630,7 @@ Accepting appends to `reference-notes.jsonl` and resolves the annotation; reject
 | `--reason` | Why, optionally; it rides on the resolve event. |
 | `--author` | Who accepted, when the user config and git do not say. |
 | `--list` | Print what has been accepted. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs coverage`
@@ -634,6 +659,7 @@ The reason is not a courtesy. `loom refs propose` refuses a discarded work-and-l
 |---|---|
 | `--reason` | Why it should not stand; the agent that proposed it is shown this. |
 | `--author` | Who discarded, when the user config and git do not say. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs drop`
@@ -650,6 +676,7 @@ A verified node already written into `digests/<citekey>.tex` is the author's fil
 | `--session` | Everything proposed in this session. |
 | `--unverified` | Every result not yet verified, in every work. |
 | `--yes`, `-y` | Do not ask. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs fetch`
@@ -665,6 +692,7 @@ Fetches on an identifier the entry declares, or on a strong candidate a lookup p
 | `--no-pdf` | Take the source only; the PDF is fetched by default. |
 | `--no-candidates` | Fetch only on identifiers an entry declares itself. |
 | `--fetch` | Allow fetching for this run, without setting [refs] fetch in config.toml. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs find`
@@ -696,6 +724,7 @@ The store is a seed of last resort: a document nobody's entry names is offered o
 | `--why` | Why the store should stop offering it; required unless --undo. |
 | `--undo` | Withdraw the tombstone, so the document is offered again. |
 | `--author` | Who forgot it, when the user config and git do not say. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs grep`
@@ -744,6 +773,7 @@ Assert a typed relation between two results, with a reason.
 | `--why` | One or two sentences. This is what you read six months later. |
 | `--session` | The session asserting it; an agent must say which. |
 | `--author`, `--as` | Who asserted it; an agent names itself, with Agent or AI in the name. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs links`
@@ -787,6 +817,7 @@ Deterministic, eager and cheap: no model, nothing to review, and re-running cost
 | option | description |
 |---|---|
 | `--force` | Re-map even where the recorded map matches the PDF on disk. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs match`
@@ -795,7 +826,7 @@ Deterministic, eager and cheap: no model, nothing to review, and re-running cost
 
 The cited works a person has to look at: no artifact and no identifier, or a source discarded on arrival.
 
-Reads disk only; it never fetches and never asks a service. This is the list `loom refs build` counts on its `needs you` line.
+Reads disk only; it never fetches and never asks a service. `loom refs build` shows the same list under `needs you`.
 
 | option | description |
 |---|---|
@@ -901,11 +932,12 @@ Add every bibliography entry the landmarks carry to digests/bibliography.bib.
 
 Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, a stamp given a document, and `refs build` run this themselves.
 
-It also files what the author dropped in `refs/`, and **adopts** any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. Adoption happens once per document; a later scan leaves it alone.
+It also files what the author dropped in `refs/`, and offers an entry for any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. The offer is made once per document; a later scan leaves it alone.
 
 | option | description |
 |---|---|
 | `--dry-run` | Report what would be added and write nothing. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs unlink`
@@ -916,6 +948,7 @@ Remove a link. An agent may remove only a link a session asserted; the author's 
 
 | option | description |
 |---|---|
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs unreadable`
@@ -931,6 +964,7 @@ Nothing in a bibliography entry says that the Stacks Project is a living work wi
 | `--why` | Why no document can be held for this work; required unless --undo. |
 | `--undo` | Withdraw the declaration; --why then says why it was wrong. |
 | `--author` | Who declared it, when the user config and git do not say. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs verify`
@@ -948,6 +982,7 @@ Two claims must not share a word. `loom accept` says *I have proved this, or I a
 | `--taxon` | The environment, when --local does not imply it. |
 | `--author` | Who verified, when the user config and git do not say. |
 | `--yes`, `-y` | Skip the question; you have read both texts. |
+| `--json` | Print the report as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom refs why`
@@ -983,6 +1018,7 @@ Observe current review causes and publish the review panel without accepting any
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom search`
@@ -1031,6 +1067,7 @@ End a session's current round. With no WHICH, the active one, which then stops b
 | option | description |
 |---|---|
 | `--author` | Who closed it, when the user config and git do not say. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session delete`
@@ -1047,6 +1084,7 @@ A plain delete is a tombstone: the session stops being shown and every annotatio
 | `--why` | Why it was deleted; kept on the tombstone. |
 | `--author` | Who deleted it, when the user config and git do not say. |
 | `--yes`, `-y` | Skip the question --purge asks. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session list`
@@ -1071,6 +1109,7 @@ Open a session and make it the active one. With no TITLE, one named after today.
 |---|---|
 | `--author` | Who opened it, when the user config and git do not say. |
 | `--no-use` | Create it without making it the active session. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session next`
@@ -1101,6 +1140,7 @@ Change a session's title. Nothing moves: the id is the address and does not chan
 | option | description |
 |---|---|
 | `--author` | Who renamed it, when the user config and git do not say. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session say`
@@ -1115,6 +1155,7 @@ The agent's half of the transcript, as `send` is the person's: the message goes 
 |---|---|
 | `--session` | The session to speak in. |
 | `--as` | Who is speaking: your name, including Agent or AI. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session send`
@@ -1129,6 +1170,7 @@ The symmetric verb to the composer in the viewer: both append to the same inbox,
 |---|---|
 | `--session` | The session to post into. |
 | `--as` | Who is speaking. An agent names itself, including Agent or AI. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session use`
@@ -1140,6 +1182,7 @@ Make WHICH the active session, resuming it when it was closed. WHICH is an id, a
 | option | description |
 |---|---|
 | `--author` | Who resumed it, when the user config and git do not say. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom session watch`
@@ -1230,6 +1273,7 @@ Change which documents publish to the workspace, without publishing.
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync fetch`
@@ -1240,6 +1284,7 @@ Fetch document workspace changes for Incoming review without changing author fil
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync incorporate`
@@ -1250,6 +1295,7 @@ Apply the fetched pull to the quilt's files, stamping first each document it rea
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync init`
@@ -1263,6 +1309,7 @@ Loom clones the workspace into .loom/workspace/ and runs Git only there; the qui
 | option | description |
 |---|---|
 | `--publish-main` | The main document's path in the workspace, when it differs from the quilt's. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync patch`
@@ -1285,6 +1332,7 @@ Prepare the selected documents' sources as a workspace revision, check each comp
 | option | description |
 |---|---|
 | `--push` | Push the prepared revision to the document workspace. |
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 #### `loom sync status`
@@ -1295,6 +1343,7 @@ Show document workspace revisions, selection, and the prepared local ref.
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom unravel`
@@ -1317,11 +1366,12 @@ Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedite
 
 | option | description |
 |---|---|
+| `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## 12.9 Machine output
 
-**[decided]** Every `--json` output is a single JSON document. Shapes reuse the manifest's (specs/manifest.md) wherever the same data appears: `status --json` uses the `keys` shape; `deps --json` and `unravel --json` use the `edges` shape; `search --json` uses the `search` shape plus `file` and `url`. New shapes are documented here before they exist.
+**[decided]** Every `--json` output is a single JSON object, the envelope (DR-329-ikmartin): `verdict` (the text's first line), `ok` (nothing is wrong), `exit` (the process's exit code), `groups` (each `{heading, count, items, next?}`, every item `{text, key?, fixes?}` and never cut), `notes` (what went to stderr), `dry_run` when the run was one, and beside them the command's own data under its keys. A list that used to be the whole document is a named key: `lint --json` puts its diagnostics under `diagnostics`. Shapes reuse the manifest's (specs/manifest.md) wherever the same data appears: `status --json` uses the `keys` shape; `deps --json` and `unravel --json` use the `edges` shape; `search --json` puts its matches under `matches`, each in the `search` shape plus `file`, `line` and `url`. New shapes are documented here before they exist.
 
 **[decided]** `deps --json` carries `relations` beside `statement`, `proof` and `closure`: both directions of every `see:` declaration touching the key, as `{"key": ID, "kind": "see"}`, in target order. In the printed form they are a final section headed "see also (not a dependency):", after the edge lists, so that nothing reads them as dependencies. `unravel` does not list relations: it reports consequences, and a relation has none.
 

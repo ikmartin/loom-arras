@@ -16,8 +16,8 @@ def test_deps_prints_see_also(tmp_path: Path) -> None:
     q = tmp_path / "syn"
     shutil.copytree(SYNTHETIC, q)
     r = ok("deps", "sy-0008", cwd=q)
-    assert "see also (not a dependency):" in r.output
-    assert "sy-0009" in r.output.split("see also (not a dependency):")[1]
+    assert "see also, not a dependency (1)" in r.output
+    assert "sy-0009" in r.output.split("see also, not a dependency (1)")[1]
 
     payload = json_of("deps", "sy-0009", "--json", cwd=q)
     assert payload["relations"] == [{"key": "sy-0008", "kind": "see"}]  # both directions are reported
@@ -26,9 +26,10 @@ def test_deps_prints_see_also(tmp_path: Path) -> None:
 
 def test_search_deps_unravel_delete(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    entries = json_of("search", "orbits", "--json", cwd=q)
+    entries = json_of("search", "orbits", "--json", cwd=q)["matches"]
     assert entries[0]["key"] == "dm-0002" and "lem:orbits" in entries[0]["aliases"]
-    assert ok("search", "lem:orbits", cwd=q).output.startswith("dm-0002 ")
+    found = ok("search", "lem:orbits", cwd=q).output.splitlines()
+    assert found[0] == "1 match for 'lem:orbits'" and found[2].split()[-1] == "dm-0002"  # the key last on its row
     payload = json_of("deps", "dm-0003", "--json", cwd=q)
     assert [e["key"] for e in payload["proof"]] == [
         "dm-0002",
@@ -36,18 +37,19 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
     ]  # \cite[Proposition 3.2]{Calloway14} resolves to the digest node
     assert payload["closure"] == [{"key": "dm-0003"}]
     dp = ok("deps", "dm-0003/proof", "--closure", cwd=q)
-    assert set(dp.output.splitlines()[2:]) == {
-        "  dm-0002 (Lemma)",
-        "  dm-0003 (Theorem)",
-        "  Calloway14-def-3.1 (Definition)",
-        "  Calloway14-prop-3.2 (Proposition)",
+    assert dp.output.splitlines()[2] == "closure, dependencies first (4)"
+    assert {tuple(ln.split()) for ln in dp.output.splitlines()[3:]} == {
+        ("Lemma", "dm-0002"),
+        ("Theorem", "dm-0003"),
+        ("Definition", "Calloway14-def-3.1"),
+        ("Proposition", "Calloway14-prop-3.2"),
     }  # the closure includes the digest nodes the proof cites by postnote (book 8.11)
     up = json_of("unravel", "dm-0001", "--json", cwd=q)
     assert {x["key"] for x in up["dependents"]} == {"dm-0002/proof", "dm-0005/proof"}
     assert any(i["file"] == "drafting/main.tex" for i in up["inclusions"])
-    assert "nothing is changed" in ok("pop", "dm-0001", cwd=q).output
-    refused("delete", "dm-0001", cwd=q, code=1, match="loom will not delete your notes")
-    refused("rm", cwd=q, code=1, match="loom will not delete your notes")
+    assert "nothing was changed" in ok("pop", "dm-0001", cwd=q).output.splitlines()[0]
+    refused("delete", "dm-0001", cwd=q, code=2, match="loom will not delete your notes")
+    refused("rm", cwd=q, code=2, match="loom will not delete your notes")
     refused("deps", "dm-9999", cwd=q, code=2, match="no such key: dm-9999")
 
 

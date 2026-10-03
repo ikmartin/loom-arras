@@ -9,6 +9,7 @@ import click
 
 from loom.cli._common import ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.cli.report import Group, Item, Report, counted
 from loom.sessions import (
     active,
     close,
@@ -42,22 +43,27 @@ def _who(quilt_path: str | None, author: str | None) -> tuple[object, str]:
 @click.argument("title", required=False)
 @click.option("--author", default=None, help="Who opened it, when the user config and git do not say.")
 @click.option("--no-use", is_flag=True, help="Create it without making it the active session.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def new_command(title: str | None, author: str | None, no_use: bool, quilt_path: str | None) -> None:
+def new_command(title: str | None, author: str | None, no_use: bool, as_json: bool, quilt_path: str | None) -> None:
     """Open a session and make it the active one. With no TITLE, one named after today."""
     quilt, who = _who(quilt_path, author)
     root = quilt.root  # type: ignore[attr-defined]
     s = create(root, (title or "").strip() or "untitled", who)
     if not no_use:
         set_active(root, s.id)
-    click.echo(f"{s.id}  {s.title}" + ("" if no_use else "  (active)"))
+    Report(
+        f'{s.id}  opened "{s.title}"' + (", not made active" if no_use else ", now the active session"),
+        data={"session": s.id, "title": s.title, "active": not no_use},
+    ).emit(as_json)
 
 
 @session.command(name="use")
 @click.argument("which")
 @click.option("--author", default=None, help="Who resumed it, when the user config and git do not say.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def use_command(which: str, author: str | None, quilt_path: str | None) -> None:
+def use_command(which: str, author: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Make WHICH the active session, resuming it when it was closed. WHICH is an id, a title, or a unique id suffix."""
     quilt, who = _who(quilt_path, author)
     root = quilt.root  # type: ignore[attr-defined]
@@ -66,11 +72,15 @@ def use_command(which: str, author: str | None, quilt_path: str | None) -> None:
         raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     if s.state == "deleted":
         raise ContentError(f"{s.id} was deleted; nothing new can be written to it")
-    if s.state == "closed":
+    resumed = s.state == "closed"
+    if resumed:
         resume(root, s.id, who)
-        note(f"resumed {s.id}; what changes from here is this round")
     set_active(root, s.id)
-    click.echo(f"{s.id}  {s.title}  (active)")
+    Report(
+        f'{s.id}  "{s.title}" is the active session'
+        + ("; resumed, and what changes from here is a new round" if resumed else ""),
+        data={"session": s.id, "title": s.title, "resumed": resumed},
+    ).emit(as_json)
 
 
 @session.command(name="list")
@@ -79,45 +89,50 @@ def use_command(which: str, author: str | None, quilt_path: str | None) -> None:
 @quilt_option
 def list_command(show_all: bool, as_json: bool, quilt_path: str | None) -> None:
     """What sessions this quilt has, newest last, with the active one marked."""
-    import json as _json
-
     quilt = open_quilt(quilt_path)
     root = quilt.root
     here = active(root)
-    standing = [s for s in sessions(root, deleted=show_all).values() if show_all or s.state == "open"]
-    if as_json:
-        click.echo(
-            _json.dumps(
-                [
-                    {
-                        "id": s.id,
-                        "title": s.title,
-                        "state": s.state,
-                        "created": s.created,
-                        "rounds": len(s.rounds),
-                        "active": s.id == here,
-                    }
-                    for s in standing
-                ],
-                indent=2,
-            )
-        )
-        return
+    every = sessions(root, deleted=show_all)
+    standing = sorted((s for s in every.values() if show_all or s.state == "open"), key=lambda s: s.id)
+    rows = [
+        {
+            "id": s.id,
+            "title": s.title,
+            "state": s.state,
+            "created": s.created,
+            "rounds": len(s.rounds),
+            "active": s.id == here,
+        }
+        for s in standing
+    ]
     if not standing:
-        click.echo("no sessions yet; loom session new opens one, and annotating opens one for you")
-        return
-    for s in standing:
-        mark = "*" if s.id == here else " "
-        state = "" if s.state == "open" else f"  [{s.state}]"
-        click.echo(f"{mark} {s.id}  {s.title}{state}")
+        verdict = (
+            "no open sessions; loom session list --all shows the closed ones"
+            if every
+            else "no sessions yet; loom session new opens one, and annotating opens one for you"
+        )
+    else:
+        verdict = counted(len(standing), "session" if show_all else "open session") + (
+            f"; {here} is active (*)" if any(s.id == here for s in standing) else "; none is active"
+        )
+    items = [
+        Item(f"{'*' if s.id == here else ' '} {s.id}  {s.title}" + ("" if s.state == "open" else f"  [{s.state}]"))
+        for s in standing
+    ]
+    Report(
+        verdict,
+        groups=[Group("sessions" if show_all else "open sessions", items, limit=None)] if items else [],
+        data={"sessions": rows},
+    ).emit(as_json)
 
 
 @session.command(name="rename")
 @click.argument("which")
 @click.argument("title")
 @click.option("--author", default=None, help="Who renamed it, when the user config and git do not say.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def rename_command(which: str, title: str, author: str | None, quilt_path: str | None) -> None:
+def rename_command(which: str, title: str, author: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Change a session's title. Nothing moves: the id is the address and does not change."""
     quilt, who = _who(quilt_path, author)
     root = quilt.root  # type: ignore[attr-defined]
@@ -125,14 +140,15 @@ def rename_command(which: str, title: str, author: str | None, quilt_path: str |
     if s is None:
         raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
     rename(root, s.id, title, who)
-    click.echo(f"{s.id}  {title}")
+    Report(f'renamed {s.id} to "{title}"', data={"session": s.id, "title": title}).emit(as_json)
 
 
 @session.command(name="close")
 @click.argument("which", required=False)
 @click.option("--author", default=None, help="Who closed it, when the user config and git do not say.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def close_command(which: str | None, author: str | None, quilt_path: str | None) -> None:
+def close_command(which: str | None, author: str | None, as_json: bool, quilt_path: str | None) -> None:
     """End a session's current round. With no WHICH, the active one, which then stops being active."""
     quilt, who = _who(quilt_path, author)
     root = quilt.root  # type: ignore[attr-defined]
@@ -143,7 +159,10 @@ def close_command(which: str | None, author: str | None, quilt_path: str | None)
     close(root, s.id, who)
     if s.id == here:
         set_active(root, None)
-    click.echo(f"closed {s.id}  {s.title}")
+    Report(
+        f'closed {s.id} "{s.title}"' + ("; no session is active now" if s.id == here else ""),
+        data={"session": s.id, "title": s.title, "was_active": s.id == here},
+    ).emit(as_json)
 
 
 @session.command(name="delete")
@@ -152,9 +171,10 @@ def close_command(which: str | None, author: str | None, quilt_path: str | None)
 @click.option("--why", default=None, help="Why it was deleted; kept on the tombstone.")
 @click.option("--author", default=None, help="Who deleted it, when the user config and git do not say.")
 @click.option("--yes", "-y", is_flag=True, help="Skip the question --purge asks.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
 def delete_command(
-    which: str, purge: bool, why: str | None, author: str | None, yes: bool, quilt_path: str | None
+    which: str, purge: bool, why: str | None, author: str | None, yes: bool, as_json: bool, quilt_path: str | None
 ) -> None:
     """Remove a session from view, or with --purge erase it and everything written in it.
 
@@ -181,12 +201,13 @@ def delete_command(
         if not yes:
             if not sys.stdin.isatty():
                 raise EnvError(
-                    f"--purge erases {dropped} annotation(s) and cannot be undone; pass --yes when you mean it"
+                    f"--purge erases {counted(dropped, 'annotation')} and cannot be undone; pass --yes when you mean it"
                 )
             click.echo(
-                f"--purge erases {s.id} and the {dropped} annotation(s) written in it or answering them. This cannot be undone."
+                f"--purge erases {s.id} and the {counted(dropped, 'annotation')} written in it or answering them. This cannot be undone.",
+                err=True,
             )
-            click.confirm("erase it?", abort=True)
+            click.confirm("erase it?", abort=True, err=True)
         log_path(root).write_text("".join(kept), encoding="utf-8")
         _purge_index(root, s.id)
         if s.directory(root).is_dir():
@@ -195,12 +216,18 @@ def delete_command(
             shutil.rmtree(s.directory(root))
         if active(root) == s.id:
             set_active(root, None)
-        click.echo(f"erased {s.id} and {dropped} annotation(s) from {LOG}")
+        Report(
+            f"erased {s.id} and {counted(dropped, 'annotation')} from {LOG}",
+            data={"session": s.id, "title": s.title, "purged": True, "annotations": dropped},
+        ).emit(as_json)
         return
     delete(root, s.id, who, why or "")
     if active(root) == s.id:
         set_active(root, None)
-    click.echo(f"deleted {s.id}  {s.title}; its annotations stay in the log, and the viewer stops showing them")
+    Report(
+        f'deleted {s.id} "{s.title}"; its annotations stay in the log, and the viewer stops showing them',
+        data={"session": s.id, "title": s.title, "purged": False},
+    ).emit(as_json)
 
 
 def _without(root, sid: str) -> tuple[list[str], int]:  # type: ignore[no-untyped-def]
@@ -269,8 +296,9 @@ def _mail(quilt_path: str | None, which: str | None, declared: str | None):  # t
 @click.argument("text", required=False, default="")
 @click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to post into.")
 @click.option("--as", "declared", default=None, help="Who is speaking. An agent names itself, including Agent or AI.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def send_command(text: str, which: str | None, declared: str | None, quilt_path: str | None) -> None:
+def send_command(text: str, which: str | None, declared: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Post TEXT into a session, from the terminal, with what you marked since the last message; with no TEXT, what you marked alone.
 
     The symmetric verb to the composer in the viewer: both append to the same inbox, and a message lands whether or not anybody is listening. Loom is a mailbox: a parked reader wakes because a file grew, and where the quilt lets it, `loom serve` starts the configured agent for a turn.
@@ -282,21 +310,33 @@ def send_command(text: str, which: str | None, declared: str | None, quilt_path:
     packet = pending(root, found, name)
     if not text.strip() and not packet:
         raise EnvError("nothing to send: no words, and nothing marked since the last message")
-    post(root, found.id, text.strip(), name, kind="message", changed=packet)
-    here = [r for r in attached(root, found.id) if r.get("who") != name]
-    click.echo(f"posted to {found.id}")
-    if here:
-        click.echo("listening: " + ", ".join(f"{r.get('who')} ({r.get('kind')})" for r in here))
-    else:
-        note(waiting_on(root, found.id, name))
+    e = post(root, found.id, text.strip(), name, kind="message", changed=packet)
+    here = sorted((r for r in attached(root, found.id) if r.get("who") != name), key=lambda r: str(r.get("who", "")))
+    waiting = "" if here else waiting_on(root, found.id, name)
+    Report(
+        f"posted to {found.id}"
+        + (f" with {counted(len(packet), 'annotation')} you marked" if packet else "")
+        + ("" if here else "; nobody is listening"),
+        groups=[Group("listening", [Item(f"{r.get('who')} ({r.get('kind')})") for r in here], limit=None)]
+        if here
+        else [],
+        notes=[waiting] if waiting else [],
+        data={
+            "session": found.id,
+            "seq": e.seq,
+            "carried": len(packet),
+            "listening": [{"who": r.get("who"), "kind": r.get("kind")} for r in here],
+        },
+    ).emit(as_json)
 
 
 @session.command(name="say")
 @click.argument("text")
 @click.option("--session", "which", default=None, envvar="LOOM_SESSION", help="The session to speak in.")
 @click.option("--as", "declared", default=None, help="Who is speaking: your name, including Agent or AI.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def say_command(text: str, which: str | None, declared: str | None, quilt_path: str | None) -> None:
+def say_command(text: str, which: str | None, declared: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Say TEXT in a session's chat, as the agent; `-` reads it from stdin.
 
     The agent's half of the transcript, as `send` is the person's: the message goes into the session's inbox as written and carries no annotations. A `quilt:` or `cited:` link that names nothing the viewer shows is refused; `loom link` prints a correct one. Your own cursor moves past it when you had read everything before it, so `next` does not hand you your own words, and never past a message you have not read.
@@ -320,7 +360,7 @@ def say_command(text: str, which: str | None, declared: str | None, quilt_path: 
     e = post(root, found.id, body, name, kind="message")
     if cursor(root, found.id, name) == e.seq - 1:
         set_cursor(root, found.id, name, e.seq)
-    click.echo(f"said in {found.id}")
+    Report(f"said in {found.id}", data={"session": found.id, "seq": e.seq}).emit(as_json)
 
 
 @session.command(name="next")
@@ -339,7 +379,6 @@ def next_command(
 
     The inbox is read and never consumed: your cursor moves, the message stays, and a second reader sees it too. Nothing here assigns you anything -- it is a broadcast, and what to do about a message is your judgement.
     """
-    import json as _json
     import time
 
     from loom.mailbox import attach, cursor, read_events, render, set_cursor
@@ -357,19 +396,17 @@ def next_command(
         set_cursor(root, found.id, name, events[-1].seq)
     text = render(events)
     if as_json:
-        click.echo(
-            _json.dumps(
-                {
-                    "session": found.id,
-                    "title": found.title,
-                    "from": at,
-                    "to": events[-1].seq if events else at,
-                    "events": [e.to_json() for e in events],
-                    "text": text,
-                },
-                indent=2,
-            )
-        )
+        Report(
+            f"{counted(len(events), 'new message')} in {found.id}" if events else "nothing yet",
+            data={
+                "session": found.id,
+                "title": found.title,
+                "from": at,
+                "to": events[-1].seq if events else at,
+                "events": [e.to_json() for e in events],
+                "text": text,
+            },
+        ).emit(True)
         return
     click.echo(text if events else "nothing yet")
 

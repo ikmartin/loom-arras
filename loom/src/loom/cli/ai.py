@@ -8,8 +8,9 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError, find_session
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, find_session
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.cli.report import Group, Item, Report, counted
 
 
 @click.group()
@@ -29,9 +30,16 @@ def ai() -> None:
 @click.option("--author", default=None, help="Discard every record whose author matches.")
 @click.option("--target", default=None, help="Discard every record with an annotation on this key.")
 @click.option("--undo", is_flag=True, help="Reverse: mark matching records not discarded.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
 def discard(
-    run: str | None, before: datetime | None, author: str | None, target: str | None, undo: bool, quilt_path: str | None
+    run: str | None,
+    before: datetime | None,
+    author: str | None,
+    target: str | None,
+    undo: bool,
+    as_json: bool,
+    quilt_path: str | None,
 ) -> None:
     """Flag a session's or an author's annotations ignored (or unflag with --undo). Nothing is deleted.
 
@@ -67,8 +75,9 @@ def discard(
             sources.append(rec.rel)
     else:
         raise EnvError("give SESSION, or --before, --author, or --target")
+    verb = "restored" if undo else "discarded"
     if not sources:
-        click.echo("no matching records")
+        Report(f"no matching records; nothing {verb}", data={"sessions": [], "undo": undo}).emit(as_json)
         return
     from loom.cli._common import whoever
     from loom.sessions import ID, close, resume
@@ -89,13 +98,19 @@ def discard(
         # Discarding a sitting's annotations ends the sitting: that is what discarding a run meant, and a session whose every annotation is dismissed has no business in the list of what is open.
         if ID.match(rel):
             (resume if undo else close)(root, rel, who)
-        click.echo(f"{'restored' if undo else 'discarded'} {rel}")
+    Report(
+        f"{verb} the annotations of {counted(len(sources), 'session')}"
+        + ("; each is open again" if undo else "; each is closed, and nothing is deleted"),
+        groups=[Group(verb, [Item("", key=rel) for rel in sorted(sources)], limit=None)],
+        data={"sessions": sorted(sources), "undo": undo},
+    ).emit(as_json)
 
 
 @ai.command(name="init")
 @click.option("--skills", is_flag=True, help="Also write skill stubs and slash commands for Claude Code.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def ai_init(skills: bool, quilt_path: str | None) -> None:
+def ai_init(skills: bool, as_json: bool, quilt_path: str | None) -> None:
     """Write ai/ (orientation, rules, modes), the vendor files CLAUDE.md and AGENTS.md, and what agents may run for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules); refuses if ai/ exists."""
     from loom.ai.layout import init_layer
 
@@ -104,11 +119,26 @@ def ai_init(skills: bool, quilt_path: str | None) -> None:
         rep = init_layer(quilt.root, skills=skills)
     except FileExistsError:
         raise EnvError("ai/ exists; run loom upgrade to refresh it") from None
-    for rel in rep.written:
-        click.echo(f"wrote {rel}")
-    click.echo(
-        'next: start your agent here; it reads CLAUDE.md and runs loom ai orient. loom ai start "a name" opens a session.'
-    )
+    written = sorted(str(rel) for rel in rep.written)
+    by_dir: dict[str, list[str]] = {}
+    for rel in written:
+        parts = rel.split("/")
+        by_dir.setdefault("/".join(parts[: min(2, len(parts) - 1)]) + "/" if len(parts) > 1 else "./", []).append(rel)
+    Report(
+        f"wrote the AI layer, {counted(len(written), 'file')}; start your agent here: it reads CLAUDE.md and runs loom ai orient",
+        groups=[
+            Group(
+                "written, by directory",
+                [
+                    Item(counted(len(names), "file"), key=d, data={"files": names})
+                    for d, names in sorted(by_dir.items())
+                ],
+                limit=None,
+                next='loom ai start "a name"',
+            )
+        ],
+        data={"written": written},
+    ).emit(as_json)
 
 
 @ai.command(name="orient")
@@ -155,30 +185,40 @@ def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
     from loom.history.ledger import load_history
 
     result = open_scan(quilt_path)
-    states = copy_states(result, load_history(result.quilt.history_dir))
-    if as_json:
-        from loom.cli._common import emit_json
-
-        emit_json([st.to_dict() for st in states])
-        return
+    states = sorted(copy_states(result, load_history(result.quilt.history_dir)), key=lambda st: st.copy)
+    data = {"copies": [st.to_dict() for st in states]}
     if not states:
-        click.echo(f"no agent copies: loom draft DOC --ai NAME writes one into {result.quilt.config.drafting_ai}/")
+        Report(
+            f"no agent copies: loom draft DOC --ai NAME writes one into {result.quilt.config.drafting_ai}/", data=data
+        ).emit(as_json)
         return
+    items = []
     for st in states:
         if not st.stale:
-            click.echo(f"{st.copy}  from {st.source}  fresh")
+            items.append(Item(f"{st.copy}  from {st.source}  fresh"))
             continue
         moved = [f"{', '.join(st.changed)} changed"] if st.changed else []
         moved += [f"{', '.join(st.gone)} gone from {st.source}"] if st.gone else []
         moved += ["the prose between nodes"] if st.prose else []
         moved += ["the preamble"] if st.preamble else []
-        click.echo(f"{st.copy}  from {st.source}  stale: {'; '.join(moved)}")
+        items.append(
+            Item(f"{st.copy}  from {st.source}  stale: {'; '.join(moved)}", fixes=[f"loom ai refresh {st.copy}"])
+        )
+    stale = sum(1 for st in states if st.stale)
+    Report(
+        counted(len(states), "agent copy", "agent copies")
+        + (f", {stale} stale: refresh it before a large instruction" if stale else ", every one fresh"),
+        ok=not stale,
+        groups=[Group("agent copies", items, limit=None)],
+        data=data,
+    ).emit(as_json)
 
 
 @ai.command(name="start")
 @click.argument("name", required=False, default=None)
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def ai_start(name: str | None, quilt_path: str | None) -> None:
+def ai_start(name: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Open a session named NAME and make it active, printing its id.
 
     The same session a person opens with `loom session new`, so an agent and the author working the same job land in one place. Loom does not launch your agent -- `loom ai init` writes the line in CLAUDE.md and AGENTS.md that tells one to run `loom ai orient`.
@@ -191,7 +231,9 @@ def ai_start(name: str | None, quilt_path: str | None) -> None:
         raise EnvError("no ai/ in this quilt; run loom ai init first")
     s = create(quilt.root, (name or "").strip() or "untitled", whoever(quilt.root))
     set_active(quilt.root, s.id)
-    click.echo(s.id)
+    Report(f'{s.id}  opened "{s.title}", now the active session', data={"session": s.id, "title": s.title}).emit(
+        as_json
+    )
 
 
 @ai.command(name="name")
@@ -199,8 +241,9 @@ def ai_start(name: str | None, quilt_path: str | None) -> None:
 @click.option(
     "--session", "session", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session to rename."
 )
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def ai_name(new_name: str, session: str | None, quilt_path: str | None) -> None:
+def ai_name(new_name: str, session: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Retitle a session. The id it was opened under does not change, because that is its address."""
     from loom.cli._common import whoever
     from loom.sessions import rename
@@ -208,7 +251,7 @@ def ai_name(new_name: str, session: str | None, quilt_path: str | None) -> None:
     quilt = open_quilt(quilt_path)
     found = find_session(quilt.root, session)
     rename(quilt.root, found.id, new_name, whoever(quilt.root))
-    click.echo(f"{found.id}: {new_name}")
+    Report(f'renamed {found.id} to "{new_name}"', data={"session": found.id, "title": new_name}).emit(as_json)
 
 
 def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
@@ -261,8 +304,6 @@ def ai_annotations(
 
     An agent re-reading its own annotations is the common case — a re-check resolves what is met and edits what still stands, and needs the ids to do it. The JSON form carries `message`, `payload` and `placement` too, so a re-check can tell what it already said and what it already suggested without reading the log itself.
     """
-    import json
-
     from loom.cli._quilt import open_scan
     from loom.records.store import Records
 
@@ -302,13 +343,10 @@ def ai_annotations(
         and (not f_status or r["status"] == f_status)
     ]
     proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
-    if as_json:
-        click.echo(json.dumps({"session": found.id, "annotations": rows, "proposals": proposals}, indent=2))
-        return
+    # what the author did with this run's proposals: a reattaching agent otherwise ran `refs why` on each id it happened to know from the run's thread, which is how it learned the author's decisions three times over
+    lines: list[str] = []
     if proposals:
-        # what the author did with this run's proposals: a reattaching agent otherwise ran `refs why` on each id it
-        # happened to know from the run's thread, which is how it learned the author's decisions three times over
-        click.echo(f"{rel}: {len(proposals)} proposal(s)")
+        lines += ["", f"proposals ({len(proposals)})"]
         for pr in proposals:
             extra = (
                 f" -- {pr['reason']}"
@@ -317,29 +355,33 @@ def ai_annotations(
             )
             if pr.get("renamed_from"):
                 extra += f" (renamed by the author from {pr['renamed_from']})"
-            click.echo(f"  {pr['id']}  {pr['state']}{extra}")
+            lines.append(f"  {pr['id']}  {pr['state']}{extra}")
             # the edit itself: a reattached agent that could not see it diffed its own scratch script against the digest
-            for line in pr.get("edit") or []:
-                click.echo(f"      {line}")
-        click.echo("")
-    if not rows:
-        click.echo(f"{rel}: no annotations yet")
-        return
+            lines += [f"      {line}" for line in pr.get("edit") or []]
+    items = []
     for r in rows:
         sev = f" {r['severity']}" if r["severity"] else ""
         mark = "" if r["status"] == "open" else f" ({r['status']})"
         quote = f"  \u201c{r['quote']}\u201d" if r["quote"] else ""
         where = f"{r['work']} p.{r['page']}" if r["page"] else r["target"]
-        click.echo(f"{r['id']}  {where}  {r['kind']}{sev}{mark}{quote}")
-        if r["discarded"]:
-            click.echo(f"      withdrawn: {r['discard_reason'] or 'no reason given'}")
+        withdrawn = f"; withdrawn: {r['discard_reason'] or 'no reason given'}" if r["discarded"] else ""
+        items.append(Item(f"{r['id']}  {where}  {r['kind']}{sev}{mark}{quote}{withdrawn}"))
+    verdict = f"{rel}: " + (counted(len(rows), "annotation") if rows else "no annotations yet")
+    if proposals:
+        verdict += f", {counted(len(proposals), 'proposal')}"
+    Report(
+        verdict,
+        groups=[Group("annotations", items, limit=None)] if items else [],
+        lines=lines,
+        data={"session": found.id, "annotations": rows, "proposals": proposals},
+    ).emit(as_json)
 
 
 @ai.command(name="check")
 @click.argument("session", metavar="SESSION")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-@click.pass_context
-def ai_check(ctx: click.Context, session: str, quilt_path: str | None) -> None:
+def ai_check(session: str, as_json: bool, quilt_path: str | None) -> None:
     """Report files outside SESSION, the annotation log, and build/ modified since it opened (loom:agent-wrote-outside-run)."""
     from loom.ai.check import outside_writes
 
@@ -349,11 +391,24 @@ def ai_check(ctx: click.Context, session: str, quilt_path: str | None) -> None:
         hits = outside_writes(quilt.root, found)
     except ValueError as exc:
         raise ContentError(str(exc)) from exc
-    for rel in hits:
-        click.echo(f"error   loom:agent-wrote-outside-run          {rel} changed after the session opened")
-    if hits:
-        ctx.exit(1)
-    click.echo("ok: nothing outside the session changed")
+    data = {"session": found.id, "outside": sorted(hits)}
+    if not hits:
+        Report("ok: nothing outside the session changed", data=data).emit(as_json)
+        return
+    Report(
+        f"{counted(len(hits), 'file')} outside {found.id} changed after it opened",
+        ok=False,
+        exit=EXIT_CONTENT,
+        groups=[
+            Group(
+                "error loom:agent-wrote-outside-run: changed after the session opened",
+                [Item("", key=rel) for rel in sorted(hits)],
+                problem=True,
+                next=f"loom ai check {found.id} --json" if len(hits) > 12 else None,
+            )
+        ],
+        data=data,
+    ).emit(as_json)
 
 
 @ai.command(name="refresh")
@@ -362,8 +417,6 @@ def ai_check(ctx: click.Context, session: str, quilt_path: str | None) -> None:
 @quilt_option
 def refresh_draft(document: str, as_json: bool, quilt_path: str | None) -> None:
     """Update an AI draft from its working document, preserving outstanding proposals."""
-    import json
-
     from loom.adopt import refresh
     from loom.cli._quilt import open_scan
     from loom.sync import SyncError
@@ -372,6 +425,34 @@ def refresh_draft(document: str, as_json: bool, quilt_path: str | None) -> None:
         answer = refresh(open_scan(quilt_path), document)
     except (SyncError, ValueError, OSError) as exc:
         raise EnvError(str(exc)) from exc
-    click.echo(json.dumps(answer, indent=2) if as_json else answer["message"])
-    if answer["conflicts"]:
-        raise SystemExit(1)  # a conflict left waiting is not success, in either form
+    copy, conflicts, updated = answer["copy"], answer["conflicts"], answer["updated"]
+    name = Path(copy).name
+    wrote = str(answer["message"]).startswith(("AI draft updated", "AI draft partly updated"))
+    done = [Group("updated", [Item("", key=k) for k in sorted(updated)])] if updated else []
+    if conflicts:
+        # a conflict left waiting is not success, in either form
+        Report(
+            f"{copy}: {counted(len(conflicts), 'conflict')} left to reconcile in your editor"
+            + (f"; the rest refreshed, {counted(len(updated), 'node')} updated" if wrote else "; nothing written"),
+            ok=False,
+            exit=EXIT_CONTENT,
+            groups=[
+                Group(
+                    "changed on both sides, in the working document and in the copy",
+                    [Item(c) for c in sorted(conflicts)],
+                    problem=True,
+                    limit=None,
+                    next=f"loom ai refresh {name}",
+                ),
+                *done,
+            ],
+            data=answer,
+        ).emit(as_json)
+        return
+    Report(
+        f"refreshed {copy}: {counted(len(updated), 'node')} updated"
+        if wrote
+        else f"{copy} is already up to date; nothing written",
+        groups=done,
+        data=answer,
+    ).emit(as_json)

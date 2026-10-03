@@ -45,7 +45,7 @@ def test_lint_fixture_expected_codes(quilt: Path, tmp_path: Path) -> None:
     expected = (quilt / "EXPECTED-LINT.txt").read_text(encoding="utf-8").split()
     expected_lines = sorted(" ".join(pair) for pair in zip(expected[0::2], expected[1::2], strict=True))
     r = run("lint", "--json", cwd=q)
-    got = sorted(f"{d['severity']} {d['code']}" for d in json.loads(r.stdout))
+    got = sorted(f"{d['severity']} {d['code']}" for d in json.loads(r.stdout)["diagnostics"])
     assert got == expected_lines
     code = 1 if any(line.startswith("error") for line in got) else 0
     assert r.exit_code == code, f"expected exit {code}" + describe(("lint", "--json"), r)

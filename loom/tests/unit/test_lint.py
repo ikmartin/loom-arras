@@ -15,7 +15,7 @@ def test_lint_exit_codes(tmp_path: Path) -> None:
     q = demo(tmp_path)
     (q / "nodes" / "bad.tex").write_text("\\begin{lemma}\\label{dm-0001}\ndup\n\\end{lemma}\n")
     r = exits(1, "lint", cwd=q)
-    assert "duplicate-id" in r.output and r.output.strip().endswith("infos")
+    assert "duplicate-id" in r.output and r.output.splitlines()[0].startswith("1 error")
 
 
 def _stray_documentclass(q: Path) -> None:
@@ -56,8 +56,10 @@ def test_a_warning_is_reported_on_one_line_naming_where(tmp_path: Path, code: st
     q = demo(tmp_path)
     provoke, where = WARNINGS[code]
     provoke(q)
-    lint = ok("lint", cwd=q).output  # warnings and infos only: lint exits 0
-    line = the(lint.splitlines(), lambda ln: code in ln.split(), f"{code} line")
+    lint = ok("lint", cwd=q).output.splitlines()  # warnings and infos only: lint exits 0
+    heading = the(lint, lambda ln: code in ln.split(), f"{code} group")
+    assert heading.endswith("(1)"), heading  # one diagnostic, on the one line under its heading
+    line = lint[lint.index(heading) + 1]
     assert where in line, line
 
 
@@ -65,7 +67,8 @@ def test_check_reports_a_bundle_that_fails(tmp_path: Path, monkeypatch: pytest.M
     q = demo(tmp_path)
     monkeypatch.setenv("FAKE_TEX_FAIL_MATCH", "bundles/")  # the master compiles; every bundle fails
     r = exits(1, "check", "--bundles", "all", cwd=q)
-    assert "loom:bundle-failed" in r.output and "ok      drafting/main.tex" in r.output
+    assert r.output.startswith("check failed:")
+    assert "loom:bundle-failed" in r.output and "compiles  drafting/main.tex" in r.output
 
 
 def test_atomize_refuses_a_target_file_that_exists(tmp_path: Path) -> None:

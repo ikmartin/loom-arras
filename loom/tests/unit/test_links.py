@@ -87,7 +87,7 @@ def test_loom_link_prints_what_the_viewer_follows(q: Path) -> None:
         link("Calloway14", "--page", "2", "--quote", "a phrase")
         == "[](cited:doi:10.4171/demo/14-1?page=2&quote=a%20phrase)"
     )
-    refused("link", "nodes/dm-0001.tex", cwd=q, code=1, match="file the documents include")
+    refused("link", "nodes/dm-0001.tex", cwd=q, code=2, match="file the documents include")
     refused("link", "dm-0003", "--page", "2", cwd=q, code=2, match="for a cited work")  # a page is a work's
 
 

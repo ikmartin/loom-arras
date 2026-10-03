@@ -1,6 +1,6 @@
 """`loom draft`, `loom stamp`, `loom fork`, `loom revert`, `loom live`, `loom mv`, `loom linearize`, `loom history` (book chapter 17).
 
-Usage refusals are EnvError (exit 2), content refusals ContentError (exit 1); every command that writes ends with one `Recorded:` note naming the ledger line or step. Patches are printed for the editor to apply; loom rewrites no author file.
+Usage refusals are EnvError (exit 2), content refusals ContentError (exit 1); every command reports through `loom.cli.report`, a write naming what it wrote and the step it made. Patches are printed for the editor to apply; loom rewrites no author file.
 """
 
 from __future__ import annotations
@@ -13,13 +13,17 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError, emit_json, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for
+from loom.cli.diagnostics import groups as diagnostic_groups
+from loom.cli.diagnostics import has_errors, tally
+from loom.cli.paper import bibliography_groups, identity_group, identity_said
+from loom.cli.report import Group, Item, Report, counted, table
 from loom.history.checks import verify
 from loom.history.ledger import Entry, History, Version, actor_for, append_entry, load_history
 from loom.history.steps import file_hash, plan_freeze, slug, stamp_document, text_hash, write_step
-from loom.history.versions import matching_version, materialize, parse_address, read_version
+from loom.history.versions import matching_version, materialize, parse_address, read_version, version_at
 from loom.reshape.atomize import _single_node_file
 from loom.reshape.canon import plan_draft
 from loom.reshape.fork import _relabel, _rewrite_refs, plan_fork
@@ -126,12 +130,18 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
         document_text=plan.source_text,
         document_name=Path(source_rel).name,
     )
-    if as_json:
-        emit_json({**entry.to_dict(), "line": entry.line})
-        return
-    click.echo(f"Wrote {dest_rel}: {source_rel} flat, {len(plan.labels)} labels derived, {len(plan.bases)} nodes based")
-    click.echo(f"step {entry.step:04d} froze {len(plan.freeze.froze)} keys the copy's bases need")
-    note(f"Recorded: copy as step {entry.step:04d} ({entry.dir})")
+    Report(
+        f"wrote {dest_rel}, a flat copy of {source_rel} for the agent; step {entry.step:04d} records it",
+        lines=[
+            f"{counted(len(plan.labels), 'label')} derived, {counted(len(plan.bases), 'result')} based on {source_rel}"
+            + (
+                f"; step {entry.step:04d} keeps the text of {counted(len(plan.freeze.froze), 'result')} they start from"
+                if plan.freeze.froze
+                else ""
+            )
+        ],
+        data={**entry.to_dict(), "line": entry.line},
+    ).emit(as_json)
 
 
 # ---- stamp --------------------------------------------------------------------
@@ -171,32 +181,48 @@ def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | N
         plan = plan_freeze(result, history)
         if not plan.froze and not plan.removed and not plan.restored:
             last = history.next_step() - 1
-            raise ContentError(
-                f"nothing to stamp: no key has moved since step {last:04d}"
+            Report(
+                f"nothing to stamp: no result has changed since step {last:04d}"
                 if last
-                else "nothing to stamp: no key has an id"
-            )
+                else "nothing to stamp: no result has an id",
+                data={"step": None},
+            ).emit(as_json)
+            return
         entry = write_step(
             history, "stamp", f"stamp-{name}", plan, actor_for(root), extra={"message": message, "in": None}
         )
-    if as_json:
-        emit_json({**entry.to_dict(), "line": entry.line})
-    else:
-        click.echo(
-            f"step {entry.step:04d} froze {len(plan.froze)} keys"
-            + (f", {len(plan.removed)} removed" if plan.removed else "")
-            + (f", {len(plan.restored)} restored" if plan.restored else "")
-            + (f"; landmark {name}, {doc} as it stands" if doc else "")
+    changed = ", ".join(
+        part
+        for part in (
+            f"a new version of {counted(len(plan.froze), 'result')}" if plan.froze else "",
+            f"{counted(len(plan.removed), 'result')} removed" if plan.removed else "",
+            f"{counted(len(plan.restored), 'result')} restored" if plan.restored else "",
         )
-        if plan.skipped:
-            note(f"skipped (conflicted): {', '.join(plan.skipped)}")
-    note(f"Recorded: stamp as step {entry.step:04d} ({entry.dir})")
+        if part
+    )
+    groups = []
+    if plan.skipped:
+        groups.append(
+            Group(
+                "not recorded, each defined by two files and so with no text",
+                [Item("", key=k) for k in sorted(plan.skipped)],
+                problem=True,
+                next="loom lint",
+            )
+        )
+    data = {**entry.to_dict(), "line": entry.line}
     if doc is not None:
         # a landmark is what the quilt's bibliography is gathered from, so a new one may carry entries it lacks (book 8.15)
-        from loom.refs.scan import scan_bibliography
-
-        for line in scan_bibliography(result.quilt).lines():
-            note(line)
+        bib_groups, data["bibliography"] = bibliography_groups(result.quilt)
+        groups += bib_groups
+    Report(
+        f"step {entry.step:04d} records "
+        + (changed or "no changed result")
+        + (f"; landmark {name} keeps {doc} as it stands" if doc else ""),
+        ok=not plan.skipped,
+        groups=groups,
+        data=data,
+    ).emit(as_json)
 
 
 # ---- fork ---------------------------------------------------------------------
@@ -227,36 +253,36 @@ def fork(node_id: str, in_doc: str, at: str | None, as_id: str | None, as_json: 
     plan = plan_fork(result, history, n.id, doc_rel, ref, as_id)
     if plan.refusal:
         raise ContentError(plan.refusal)
+    target = root / plan.node_file if plan.node_file else None
+    if target is not None and target.exists():
+        raise ContentError(f"{plan.node_file} exists")
+    elsewhere = Group(
+        f"still referring to {plan.node_id}, which may be what you want",
+        [Item(counted(count, "reference"), key=f) for f, count in sorted(plan.elsewhere.items())],
+    )
+    data = {
+        "id": plan.node_id,
+        "new": plan.new_id,
+        "in": plan.doc,
+        "mode": plan.mode,
+        "node_file": plan.node_file,
+        "node_text": plan.node_text,
+        "patched": plan.patched,
+        "diff": plan.diff,
+        "elsewhere": plan.elsewhere,
+    }
     if as_json:
-        emit_json(
-            {
-                "id": plan.node_id,
-                "new": plan.new_id,
-                "in": plan.doc,
-                "mode": plan.mode,
-                "node_file": plan.node_file,
-                "node_text": plan.node_text,
-                "patched": plan.patched,
-                "diff": plan.diff,
-                "elsewhere": plan.elsewhere,
-            }
-        )
-    if plan.node_file:
-        target = root / plan.node_file
-        if target.exists():
-            raise ContentError(f"{plan.node_file} exists")
-        if not as_json:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(plan.node_text, encoding="utf-8")
-            click.echo(f"Wrote {plan.node_file}")
-    if not as_json:
-        click.echo(plan.diff, nl=False)
-        note(f"{plan.doc} is yours to change: apply the patch above, or let your editor do it.")
-        for f, count in sorted(plan.elsewhere.items()):
-            note(f"{f} still refers to {plan.node_id} ({count} reference(s)); that may be what you want")
-    if as_json:
+        Report(
+            f"{plan.node_id} would be forked as {plan.new_id} in {plan.doc}; nothing written",
+            dry_run=True,
+            groups=[elsewhere] if plan.elsewhere else [],
+            data=data,
+        ).emit(True)
         return
-    entry = append_entry(
+    if target is not None:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(plan.node_text, encoding="utf-8")
+    append_entry(
         result.quilt.history_dir,
         "fork",
         {
@@ -268,7 +294,15 @@ def fork(node_id: str, in_doc: str, at: str | None, as_id: str | None, as_json: 
         },
         actor_for(root),
     )
-    note(f"Recorded: fork {plan.node_id} -> {plan.new_id} (ledger line {entry.line})")
+    Report(
+        f"forked {plan.node_id} as {plan.new_id} for {plan.doc}"
+        + (f", in {plan.node_file}" if plan.node_file else "")
+        + f"; apply the patch below to {plan.doc}, which loom never edits",
+        ok=False,
+        groups=[elsewhere] if plan.elsewhere else [],
+    ).emit()
+    click.echo("")
+    click.echo(plan.diff, nl=False)
 
 
 # ---- revert -------------------------------------------------------------------
@@ -295,18 +329,23 @@ def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
         v, text = read_version(history, key, ref)
         body = materialize(text, result)
     except LookupError as exc:
+        if version_at(history, key, ref) is None:
+            raise NotFoundError("version", str(exc)) from exc
         raise ContentError(str(exc)) from exc
     src = result.files[n.file].text
     patched = src[: n.start] + body.rstrip("\n") + src[n.end :]
     diff = unified_diff(src, patched, n.file)
     # Nothing is recorded: applying the patch is the author's act (17.11), and whether the head is again @N is read from its text, never from a note that a patch was once printed.
-    if as_json:
-        emit_json({"key": key, "step": v.step, "hash": v.hash, "file": n.file, "diff": diff, "patched": patched})
-    elif not diff:
-        note(f"{key} already has the text of @{v.step}; nothing to apply")
-    else:
-        click.echo(diff, nl=False)
-        note(f"Apply the patch to {n.file} and {key} has the text of @{v.step} ({v.name}) again.")
+    if as_json or not diff:
+        Report(
+            f"the patch gives {key} the text of @{v.step} ({v.name}) again, once applied to {n.file}"
+            if diff
+            else f"{key} already has the text of @{v.step}; nothing to apply",
+            data={"key": key, "step": v.step, "hash": v.hash, "file": n.file, "diff": diff, "patched": patched},
+        ).emit(as_json)
+        return
+    click.echo(diff, nl=False)
+    note(f"Apply the patch to {n.file} and {key} has the text of @{v.step} ({v.name}) again.")
 
 
 # ---- live ---------------------------------------------------------------------
@@ -314,8 +353,9 @@ def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
 
 @click.command()
 @click.argument("file")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def live(file: str, quilt_path: str | None) -> None:
+def live(file: str, as_json: bool, quilt_path: str | None) -> None:
     """Make a superseded document live again: it defines its nodes once more."""
     result = open_scan(quilt_path)
     root = result.quilt.root
@@ -328,16 +368,22 @@ def live(file: str, quilt_path: str | None) -> None:
     # A live document defines its nodes again, so any id another live file also defines has no text from now on: said here, since it is this command that made it so.
     now = scan(load_quilt(root))
     made = sorted(k for k, n in now.nodes.items() if n.kind == "conflict" and k not in before and rel in n.conflict)
-    if made:
-        click.echo(
-            f"{rel} is live, and {len(made)} id(s) it defines are now defined twice, with no text until one definition goes:"
+    items = [
+        Item(
+            "also in " + " and ".join(f for f in now.nodes[key].conflict if f != rel),
+            key=key,
+            fixes=[f"loom fork {key} --in {rel}"],
         )
-        for key in made:
-            others = " and ".join(f for f in now.nodes[key].conflict if f != rel)
-            click.echo(f"  {key}  also in {others}: loom fork {key} --in {rel}")
-    else:
-        click.echo(f"{rel} is live")
-    note(f"Recorded: live (ledger line {entry.line})")
+        for key in made
+    ]
+    Report(
+        f"{rel} is live, and {counted(len(made), 'id')} it defines {'is' if len(made) == 1 else 'are'} now defined twice, with no text until one definition goes"
+        if made
+        else f"{rel} is live",
+        ok=not made,
+        groups=[Group("defined twice", items, problem=True)] if made else [],
+        data={**entry.to_dict(), "line": entry.line, "conflicted": made},
+    ).emit(as_json)
 
 
 # ---- mv -----------------------------------------------------------------------
@@ -448,15 +494,12 @@ def mv(old: str, new: str, as_json: bool, quilt_path: str | None) -> None:
     main_moved = (main == old_rel or result.current_document(main) == old_rel) and set_main_forced(
         result.quilt, new_rel
     )
-    if as_json:
-        emit_json({**entry.to_dict(), "line": entry.line})
-    elif moved:
-        click.echo(f"Moved {old_rel} to {new_rel}")
-    else:
-        click.echo(f"{old_rel} was renamed to {new_rel} outside loom; records naming it follow")
-    if main_moved:
-        note(f"main = {new_rel}")
-    note(f"Recorded: move (ledger line {entry.line})")
+    Report(
+        (f"moved {old_rel} to {new_rel}" if moved else f"{old_rel} was renamed to {new_rel} outside loom")
+        + "; every record naming it follows",
+        lines=[f"config.toml: main = {new_rel}"] if main_moved else [],
+        data={**entry.to_dict(), "line": entry.line},
+    ).emit(as_json)
 
 
 # ---- linearize ----------------------------------------------------------------
@@ -551,15 +594,22 @@ def linearize(
     dest = root / to_rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(text, encoding="utf-8")
+    checked = (
+        "not compared with it, as --no-check asked"
+        if no_check
+        else f"not compared with it: {spine_rel} is not a document"
+    )
     if not no_check and spine_rel in result.masters:
         with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
             ident = identity_test(root, spine_rel, root, to_rel, Path(tmp), engine_for(result, spine_rel))
-        note(ident.summary())
         if not ident.passed and not ident.skipped:
             dest.unlink(missing_ok=True)
+            diffs = "\n".join(f"  {i.text}" + (f"  {i.key}" if i.key else "") for i in identity_group(ident)[0].items)
             raise ContentError(
-                f"the flat copy does not typeset as {spine_rel}; {to_rel} was removed and nothing was recorded. Pass --no-check to write it anyway."
+                f"the flat copy does not typeset as {spine_rel}; {to_rel} was removed and nothing was recorded. Pass --no-check to write it anyway.\n"
+                + diffs
             )
+        checked = identity_said(ident, "it", spine_rel)
     superseded = [spine_rel, *[f for f in flat.inlined if f in result.files]]
     entry = append_entry(
         result.quilt.history_dir,
@@ -567,18 +617,26 @@ def linearize(
         {"from": spine_rel, "to": to_rel, "superseded": superseded, "forks": forks, "kept": list(flat.kept)},
         actor_for(root),
     )
-    if as_json:
-        emit_json({**entry.to_dict(), "line": entry.line})
-    else:
-        click.echo(f"Wrote {to_rel} ({text.count(chr(10))} lines, {len(flat.inlined)} files inlined)")
-        for fk in forks:
-            click.echo(f"  {fk['from']['id']} -> {fk['new']}  ({fk['file']})")
-        for f in flat.kept:
-            click.echo(f"  kept {f} as an inclusion (shared)")
-    note(f"{', '.join(superseded)} are now superseded and inert; loom live FILE reverses that")
-    if result.quilt.config.main in superseded and set_main_forced(result.quilt, to_rel):
-        note(f"main = {to_rel}")
-    note(f"Recorded: linearize (ledger line {entry.line})")
+    groups = []
+    if forks:
+        groups.append(
+            Group(
+                "forked, so this document has its own copy",
+                [Item(f"{fk['from']['id']} -> {fk['new']}", key=fk["file"]) for fk in forks],
+            )
+        )
+    if flat.kept:
+        groups.append(Group("kept as inclusions, shared with another document", [Item(f) for f in sorted(flat.kept)]))
+    groups.append(
+        Group("superseded: each defines nothing until loom live FILE says otherwise", [Item(f) for f in superseded])
+    )
+    main_moved = result.quilt.config.main in superseded and set_main_forced(result.quilt, to_rel)
+    Report(
+        f"wrote {to_rel}, {spine_rel} flat: {text.count(chr(10))} lines, {counted(len(flat.inlined), 'file')} inlined; {checked}",
+        lines=[f"config.toml: main = {to_rel}"] if main_moved else [],
+        groups=groups,
+        data={**entry.to_dict(), "line": entry.line},
+    ).emit(as_json)
 
 
 # ---- history ------------------------------------------------------------------
@@ -631,41 +689,41 @@ def history(words: tuple[str, ...], to: str | None, plain: bool, as_json: bool, 
     if key is not None:
         k = resolve_key(result, key)
         versions, match, head_hash = _version_lines(result, hist, k)
-        if as_json:
-            emit_json(
-                {
-                    "key": k,
-                    "versions": [{"step": v.step, "hash": v.hash, "name": v.name, "of": v.of} for v in versions],
-                    "head": head_hash or None,
-                    "head_is": match.step if match else None,
-                }
-            )
-            return
-        if not versions:
-            click.echo(f"{k} has no recorded version")
-        for v in versions:
-            click.echo(f"{k}@{v.step}  {v.hash[:19]}  {v.name}" + (f"  of {v.of}" if v.of else ""))
+        head = ""
         if head_hash:
-            click.echo(f"head: {'the text of @' + str(match.step) if match else 'differs from every version'}")
+            head = f"; its text now is that of @{match.step}" if match else "; its text now differs from every version"
+        Report(
+            f"{k} has {counted(len(versions), 'recorded version')}{head}"
+            if versions
+            else f"{k} has no recorded version",
+            lines=table((f"{k}@{v.step}", v.name, f"of {v.of}" if v.of else "") for v in versions),
+            data={
+                "key": k,
+                "versions": [{"step": v.step, "hash": v.hash, "name": v.name, "of": v.of} for v in versions],
+                "head": head_hash or None,
+                "head_is": match.step if match else None,
+            },
+        ).emit(as_json)
         return
-    if as_json:
-        emit_json([{**e.to_dict(), "line": e.line} for e in hist.entries])
-        return
-    if not hist.entries:
-        click.echo("no history yet: loom stamp records the first step")
-        return
+    steps = [e for e in hist.entries if e.step is not None]
+    rows = []
     for e in hist.entries:
         when = e.when[:10]
         if e.step is not None:
-            what = f"{e.step:04d}  {e.action:<9} {when}  {e.name}"
-            if e.message:
-                what += f'  "{e.message}"'
-            what += f"  froze {len(e.get('froze') or {})}"
+            what = e.name + (f' "{e.message}"' if e.message else "")
+            what += f"; {counted(len(e.get('froze') or {}), 'version')}"
             if e.get("removed"):
-                what += f", removed {len(e.get('removed'))}"
-            click.echo(what)
+                what += f", {len(e.get('removed'))} removed"
+            rows.append((f"{e.step:04d}", e.action, when, what))
         else:
-            click.echo(f"      {e.action:<9} {when}  {_detail(e)}")
+            rows.append(("", e.action, when, _detail(e)))
+    Report(
+        f"{counted(len(steps), 'step')} and {counted(len(hist.entries) - len(steps), 'other record')} in the history"
+        if hist.entries
+        else "no history yet: loom stamp records the first step",
+        lines=table(rows),
+        data={"entries": [{**e.to_dict(), "line": e.line} for e in hist.entries]},
+    ).emit(as_json)
 
 
 def _landmark(quilt_path: str | None, ref: str) -> tuple[ScanResult, History, Entry, str]:
@@ -689,7 +747,11 @@ def _show(ref: str, to: str | None, plain: bool, as_json: bool, quilt_path: str 
     _, _, e, text = _landmark(quilt_path, ref)
     text = to_canon(text) if plain else text
     if as_json:
-        emit_json({"landmark": Path(str(e.get("landmark"))).stem, "step": e.step, "in": e.get("in"), "text": text})
+        name = Path(str(e.get("landmark"))).stem
+        Report(
+            f"landmark {name}, step {e.step:04d}" + (", without loom" if plain else ""),
+            data={"landmark": name, "step": e.step, "in": e.get("in"), "text": text},
+        ).emit(True)
         return
     click.echo(text, nl=False)
 
@@ -730,15 +792,24 @@ def _restore(ref: str, to: str | None, plain: bool, as_json: bool, quilt_path: s
         },
         actor_for(root),
     )
-    if as_json:
-        emit_json({**entry.to_dict(), "line": entry.line})
-        return
-    click.echo(f"Wrote {dest_rel} from landmark {name} (@{e.step}), {len(plan.insertions)} ids inserted")
-    if any(n.kind == "conflict" and dest_rel in n.conflict for n in scan(load_quilt(root)).nodes.values()):
-        note(
-            f"{dest_rel} defines ids another live document also defines; loom lint lists them, and loom fork or retiring one resolves each"
-        )
-    note(f"Recorded: restore (ledger line {entry.line})")
+    twice = sorted(
+        k for k, n in scan(load_quilt(root)).nodes.items() if n.kind == "conflict" and dest_rel in n.conflict
+    )
+    Report(
+        f"wrote {dest_rel} from landmark {name} (@{e.step}), {counted(len(plan.insertions), 'id')} inserted"
+        + (f"; {counted(len(twice), 'id')} it defines another live document also defines" if twice else ""),
+        ok=not twice,
+        groups=[
+            Group(
+                "defined twice, with no text until loom fork or retiring one document resolves each",
+                [Item("", key=k, fixes=[f"loom fork {k} --in {dest_rel}"]) for k in twice],
+                problem=True,
+            )
+        ]
+        if twice
+        else [],
+        data={**entry.to_dict(), "line": entry.line},
+    ).emit(as_json)
 
 
 def _detail(e: Entry) -> str:
@@ -774,16 +845,15 @@ def _verify(as_json: bool, quilt_path: str | None) -> None:
     result = open_scan(quilt_path)
     hist = _history(result)
     diags = verify(result, hist)
-    if as_json:
-        emit_json([d.to_dict() for d in diags])
-    else:
-        from loom.cli.lint_cmd import format_diagnostic
-
-        for d in diags:
-            click.echo(format_diagnostic(d))
-        steps = hist.steps()
-        files = sum(len(e.get("froze") or {}) for e in steps)
-        if not diags:
-            click.echo(f"history verified: {len(steps)} steps, {files} version files")
-    if any(d.severity == "error" for d in diags):
-        raise SystemExit(1)
+    steps = hist.steps()
+    files = sum(len(e.get("froze") or {}) for e in steps)
+    bad = has_errors(diags, result)
+    Report(
+        f"history: {tally(diags, result)}, in {counted(len(steps), 'step')}"
+        if diags
+        else f"history verified: {counted(len(steps), 'step')}, {counted(files, 'recorded version')}",
+        ok=not bad,
+        exit=EXIT_CONTENT if bad else 0,
+        groups=diagnostic_groups(diags, result, cited_next="loom history verify --json"),
+        data={"diagnostics": [d.to_dict() for d in diags]},
+    ).emit(as_json)

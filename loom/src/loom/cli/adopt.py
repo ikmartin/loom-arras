@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
 from loom.cli._common import EnvError, agent_marker
 from loom.cli._quilt import open_scan, quilt_option
+from loom.cli.report import Report, counted
 from loom.sync import SyncError
 
 
@@ -36,7 +37,7 @@ def adopt(
 ) -> None:
     """Inspect an AI draft's changes and incorporate them after confirmation; never accept mathematics."""
     from loom.adopt import incorporate as apply
-    from loom.adopt import nothing_to_incorporate, prepare
+    from loom.adopt import prepare
 
     if agent_marker():
         raise EnvError("Adoption is an author action. An agent proposes changes in its AI draft.")
@@ -52,26 +53,41 @@ def adopt(
     try:
         if incorporate:
             answer = apply(result, document, incorporate)
-            click.echo(json.dumps(answer, indent=2) if as_json else answer["message"])
+            Report(answer["message"], data=answer).emit(as_json)
             return
         preview = prepare(
             result, document, [] if document_only else list(keys) if keys else None, document_changes or document_only
         )
         if output:
             output.write_text(preview["patch"])
-        if as_json:
-            click.echo(json.dumps(preview, indent=2))
+        if as_json or not preview["patch"] or output:
+            Report(_previewed(preview, output), dry_run=as_json, data=preview).emit(as_json)
             return
-        click.echo(preview["patch"] or nothing_to_incorporate(preview))
-        if not preview["patch"] or output:
-            return
-        click.echo("Unselected proposals remain in the AI draft. Incorporation does not accept mathematics.")
-        if not sys.stdin.isatty():
-            click.echo(
-                f"Preview saved. After inspection: loom adopt {preview['copy']} --incorporate {preview['token']}"
-            )
+        asking = sys.stdin.isatty()
+        Report(
+            _previewed(preview, None),
+            lines=["Unselected proposals remain in the AI draft. Incorporation does not accept mathematics."],
+        ).emit()
+        if not asking:
+            # one line however long: the token is an identifier, and a command broken across lines does not run
+            click.echo(f"next: loom adopt {preview['copy']} --incorporate {preview['token']}")
+        click.echo("")
+        click.echo(preview["patch"], nl=False)
+        if not asking:
             return
         if click.confirm("Incorporate selected changes?"):
             click.echo(apply(open_scan(quilt_path), document, preview["token"])["message"])
     except (SyncError, ValueError, OSError) as exc:
         raise EnvError(str(exc)) from exc
+
+
+def _previewed(preview: dict[str, Any], output: Path | None) -> str:
+    """The verdict on a preview: what it would incorporate, or why nothing, and where the patch went."""
+    from loom.adopt import nothing_to_incorporate
+
+    if not preview["patch"]:
+        return nothing_to_incorporate(preview)
+    what = counted(len(preview["keys"]), "result") + (" and the document's prose" if preview["document"] else "")
+    return f"preview of {what} from {Path(preview['copy']).name} into {preview['source']}; nothing incorporated yet" + (
+        f"; the patch is in {output}" if output else ""
+    )

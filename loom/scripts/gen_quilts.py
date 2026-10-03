@@ -168,7 +168,7 @@ def build_synthetic(dest: Path) -> None:
     # A first pass that was discarded; its one annotation is written with the rest, below.
     g.at("2026-09-15T10:00:00Z")
     (dest / "ai").mkdir(parents=True)
-    quick = g.run("ai", "start", "quick").strip().splitlines()[-1].strip()
+    quick = g.run("ai", "start", "quick").split()[0]
 
     # The author rewrites the definition, so everything that depends on it goes stale.
     g.edit(
@@ -183,7 +183,7 @@ def build_synthetic(dest: Path) -> None:
     g.at("2026-09-15T12:00:00Z")
     out = g.run("fork", "sy-0006", "--in", "drafting/talk.tex")
     g.apply_patch(out[out.index("--- drafting/talk.tex") :])
-    forked = re.search(r"Wrote nodes/(sy-[0-9A-Z]{4})\.tex", out)
+    forked = re.search(r"nodes/(sy-[0-9A-Z]{4})\.tex", out)
     assert forked, out
     fork_id = forked.group(1)
 
@@ -219,7 +219,7 @@ def build_synthetic(dest: Path) -> None:
 
     # The review that stands: a run with two annotations, the author's own comments, one reply, one resolution.
     g.at("2026-09-16T00:00:00Z")
-    referee = g.run("ai", "start", "referee").strip().splitlines()[-1].strip()
+    referee = g.run("ai", "start", "referee").split()[0]
     g.run(
         "annotate",
         "sy-0003",
@@ -518,7 +518,7 @@ def build_demo(dest: Path) -> None:
     g.run("digest", "extract", "Calloway14", "--no-compile")
 
     g.at("2026-09-16T14:02:00Z")
-    run_dir = g.run("ai", "start", "referee-dm-0003").strip().splitlines()[-1].strip()
+    run_dir = g.run("ai", "start", "referee-dm-0003").split()[0]
     g.at("2026-09-16T14:31:00Z")
     g.run(
         "annotate",
@@ -652,7 +652,7 @@ def build_showcase(dest: Path) -> None:
     # Bellamy19 is a PDF and nothing else, so every result is read off a page and anchored to it. The run
     # proposes; only the author may verify, which is the whole of DR-177 in two commands.
     g.at("2026-09-15T10:00:00Z")
-    survey = g.run("ai", "start", "survey-bellamy").strip().splitlines()[-1].strip()
+    survey = g.run("ai", "start", "survey-bellamy").split()[0]
     g.run(
         "refs",
         "propose",
@@ -813,7 +813,7 @@ def build_showcase(dest: Path) -> None:
 
     # ---- A referee run: one annotation of every kind, severity and state the model has. ------------------
     g.at("2026-09-16T11:00:00Z")
-    referee = g.run("ai", "start", "referee-sh-0009").strip().splitlines()[-1].strip()
+    referee = g.run("ai", "start", "referee-sh-0009").split()[0]
     g.run(
         "annotate",
         "sh-0009",
@@ -1170,7 +1170,7 @@ def build_showcase(dest: Path) -> None:
 
     # ---- A run the author threw away. ---------------------------------------------------------------------
     g.at("2026-09-17T09:30:00Z")
-    quick = g.run("ai", "start", "quick-pass").strip().splitlines()[-1].strip()
+    quick = g.run("ai", "start", "quick-pass").split()[0]
     g.run(
         "annotate",
         "sh-0002",
@@ -1357,7 +1357,7 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-17T12:00:00Z")
     out = g.run("fork", "sh-0006", "--in", "drafting/talk.tex")
     g.apply_patch(out[out.index("--- drafting/talk.tex") :])
-    forked = re.search(r"Wrote nodes/(sh-[0-9A-Z]{4})\.tex", out)
+    forked = re.search(r"nodes/(sh-[0-9A-Z]{4})\.tex", out)
     assert forked, out
     # The talk's copy is shortened for the slide, and loses the reference the slide cannot show.
     g.edit(
@@ -1463,7 +1463,7 @@ def _write_expected_lint(g: Gen) -> None:
         res = CliRunner().invoke(main, ["lint", "--json"], env=g.env())
     finally:
         os.chdir(old)
-    diags = json.loads(res.output)
+    diags = json.loads(res.output)["diagnostics"]
     lines = sorted(f"{d['severity']} {d['code']}" for d in diags)
     (g.root / "EXPECTED-LINT.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 

@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from loom.ai.layout import MODES, TARGET_MODES
-from tests.helpers import exits, ok, refused
+from tests.helpers import exits, json_of, ok, refused
 from tests.unit._quilts import demo
 
 FIXED = {"LOOM_FIXED_TIME": "2026-09-16T14:02:00Z"}
@@ -129,12 +129,12 @@ def test_upgrade_preserves_edited_modes(tmp_path: Path, monkeypatch: pytest.Monk
     original_audit = audit.read_text()
     orientation = q / "ai" / "orientation.md"
     orientation.write_text("stale orientation\n")
-    r = ok("upgrade", cwd=q)
-    assert "kept ai/modes/referee.md (edited)" in r.output
+    r = json_of("upgrade", "--json", cwd=q)
+    assert "ai/modes/referee.md" in r["kept"]
     assert "House rule" in referee.read_text()  # untouched
     assert audit.read_text() == original_audit
     # the orientation is the first file an author tailors, so an edited one is kept like a mode file (DR-170)
-    assert "kept ai/orientation.md (edited)" in r.output
+    assert "ai/orientation.md" in r["kept"]
     assert orientation.read_text() == "stale orientation\n"
     assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md.new").read_text()
     versions = (q / "ai" / ".loom-modes-version").read_text()
@@ -146,7 +146,7 @@ def test_upgrade_preserves_edited_modes(tmp_path: Path, monkeypatch: pytest.Monk
     shipped["ai/modes/referee.md"] = shipped["ai/modes/referee.md"] + "\n## New shipped section\n"
     monkeypatch.setattr(layout, "tracked_docs", lambda: shipped)
     r2 = ok("upgrade", cwd=q)
-    assert "referee.md.new" in r2.output
+    assert "referee.md.new" in r2.output and r2.output.startswith("upgraded:")
     assert (
         "House rule" in referee.read_text()
         and "New shipped section" in (q / "ai" / "modes" / "referee.md.new").read_text()
@@ -162,8 +162,8 @@ def test_upgrade_refreshes_an_unedited_mode_the_first_time(tmp_path: Path, monke
     assert layout.read_versions(q) == {Path(rel).name: layout.sha(text) for rel, text in shipped.items()}
     shipped["ai/modes/audit.md"] += "\n## New shipped section\n"
     monkeypatch.setattr(layout, "tracked_docs", lambda: shipped)
-    r = ok("upgrade", cwd=q)
-    assert "wrote ai/modes/audit.md" in r.output and "kept" not in r.output
+    r = json_of("upgrade", "--json", cwd=q)
+    assert "ai/modes/audit.md" in r["written"] and r["kept"] == [] and "kept" not in r["verdict"]
     assert (q / "ai" / "modes" / "audit.md").read_text() == shipped["ai/modes/audit.md"]
     assert not (q / "ai" / "modes" / "audit.md.new").exists()
 
@@ -205,7 +205,7 @@ def test_orient_static_plus_live(tmp_path: Path) -> None:
 def test_ai_start_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> None:
     q = bare(tmp_path)
     r = ok("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED)
-    sid = r.output.strip().splitlines()[0]
+    sid = r.stdout.split()[0]
     assert sid == "s-2026-09-16-0001"  # the id is minted, never slugified from the title
     index = (q / ".loom" / "sessions" / "index.jsonl").read_text()
     assert '"title": "Referee of dm-0003"' in index and '"event": "created"' in index
@@ -231,7 +231,7 @@ def test_ai_start_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> 
     assert "thread.md" not in o.output
     assert "loom source dm-0003" in o.output
     assert "loom ai orient" in (q / rel / "run.log").read_text()
-    second = ok("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED).output.strip()
+    second = ok("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED).stdout.split()[0]
     assert second == "s-2026-09-16-0002"  # two sessions may share a title; the id is what distinguishes them
 
 
@@ -239,8 +239,8 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     """A session is addressed by what the author called it; remembering the minute it opened is not a workflow."""
     q = bare(tmp_path)
     assert ok("session", "list", cwd=q).output.startswith("no sessions yet")
-    ref = ok("ai", "start", "Referee of the parity theorem", cwd=q, env=FIXED).output.strip()
-    other = ok("ai", "start", "Ingest of Hartshorne", cwd=q, env=FIXED).output.strip()
+    ref = ok("ai", "start", "Referee of the parity theorem", cwd=q, env=FIXED).stdout.split()[0]
+    other = ok("ai", "start", "Ingest of Hartshorne", cwd=q, env=FIXED).stdout.split()[0]
     assert ref != other
     listing = ok("session", "list", cwd=q).output
     assert f"{ref}  Referee of the parity theorem" in listing
@@ -281,7 +281,7 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
 
 def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("ai", "start", cwd=q, env=FIXED).output.strip()
+    sid = ok("ai", "start", cwd=q, env=FIXED).stdout.split()[0]
     rel = f".loom/sessions/{sid}"
     for code, args in (
         (0, ("search", "orbit")),
@@ -308,7 +308,7 @@ def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
 def test_ai_check_reports_writes_outside_the_session(tmp_path: Path) -> None:
     """`ai check` names every file changed after the session opened outside its directory and reverts nothing; the annotation log `loom annotate` appends to is the agent's to write, and a digest is not (DR-173)."""
     q = bare(tmp_path)
-    sid = ok("ai", "start", "audit", cwd=q).stdout.strip()  # the real clock: the check compares mtimes with it
+    sid = ok("ai", "start", "audit", cwd=q).stdout.split()[0]  # the real clock: the check compares mtimes with it
     rel = f".loom/sessions/{sid}"
     started = time.time()
     # well past the session's first second, which the check allows, whatever the clock's resolution
@@ -342,7 +342,7 @@ def test_ai_check_reports_writes_outside_the_session(tmp_path: Path) -> None:
 
 def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("ai", "start", "referee dm-0003", cwd=q, env=FIXED).output.strip()
+    sid = ok("ai", "start", "referee dm-0003", cwd=q, env=FIXED).stdout.split()[0]
     rel = f".loom/sessions/{sid}"
     ok("source", "dm-0003", "--closure", "--session", sid, cwd=q)
     ok(
@@ -394,7 +394,7 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
 
 def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("ai", "start", "sub", cwd=q, env=FIXED).output.strip()
+    sid = ok("ai", "start", "sub", cwd=q, env=FIXED).stdout.split()[0]
     rel = f".loom/sessions/{sid}"
     ok("search", "gadget", "--session", sid, cwd=q / "nodes")  # from a subdirectory
     ok("source", "dm-0003", "--session", sid, cwd=q / "nodes")
@@ -521,7 +521,7 @@ def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> N
     from tests.unit._quilts import mapped, propose
 
     q, ck = mapped(tmp_path)
-    runname = ok("ai", "start", "r", cwd=q).stdout.strip()
+    runname = ok("ai", "start", "r", cwd=q).stdout.split()[0]
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=runname)
     ok("refs", "discard", f"{ck}-thm-1.1", "--reason", "wrong theorem", "--author", "i", cwd=q)
     out = ok("ai", "annotations", "--session", runname, cwd=q).output

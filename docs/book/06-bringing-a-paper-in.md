@@ -32,27 +32,36 @@ Given `PAPER`, whose directory is called the paper directory:
 
 **[decided]** `import` never: splits files, moves proofs, renames labels, reorders anything, rewrites `\ref`s, or writes metadata headers; the landmark carries nothing loom added, and the working document only the package line, the ids and, with `--fix-anchoring`, the line breaks of 6.3. It refuses on a paper that does not compile from its own directory — checked first, in a copy of that directory without its build products (DR-186), so that a broken input paper is not mistaken for a loom problem — on a document already at the working document's path, and on a paper whose working document cannot take ids (6.3).
 
-Example session, with the relative localization paper:
+Example session, with a two-section paper (the output is the report every command prints, verdict first; 12.1):
 
 ```
-$ loom init relloc --from ~/papers/relloc/draft3.tex --prefix rl --fix-anchoring
-Resolving closure of draft3.tex ... 5 files
-Plan, nothing written yet:
-  draft3.tex -> drafting/draft3.tex (linearized, 1 files inlined; kept as received in step 0001)
-  refs.bib -> refs.bib
-  math-env.sty -> math-env.sty
-  base-macros.sty -> base-macros.sty
-Compiling original from a clean copy of /home/mh/papers/relloc ... ok
-  drafting/draft3.tex: \usepackage{loom} and 52 ids
-Apply? [y/N]: y
-Wrote 4 files.
-Identity test: pass (pdftotext identical)
-main = drafting/draft3.tex
-Recorded: import as step 0001 (0001-draft3); the paper as received is landmark draft3
-digests/bibliography.bib: 22 added, 0 already there
+$ loom init widgets --from papers/widgets/widgets.tex --prefix wg --yes
+created quilt widgets with prefix wg; imported widgets.tex as drafting/widgets.tex with 4 ids;
+  drafting/widgets.tex typesets to the same text as the original; the paper as received is landmark
+  widgets, step 0001
+
+written (2)
+  widgets.tex -> drafting/widgets.tex, 4 ids inserted
+  config.toml: main = drafting/widgets.tex
+
+in drafting/widgets.tex (2)
+  results: 1 Lemma, 1 Theorem; 2 sections
+  proofs: 2, 2 beside their statement, 0 by reference, 0 by enclosure, 0 unattached
+
+bibliography (1)
+  digests/bibliography.bib holds 0 entries, none new
+...
+next: cd widgets, then loom doctor; loom lint
 ```
 
-Without `--fix-anchoring` the same paper is refused before anything is written: `draft3.tex has 2 line-anchoring violation(s)`, each listed by line.
+A paper with a theorem-like `\begin` or `\end` sharing its line is refused before anything is written, each violation listed by line:
+
+```
+Error: nothing was written: bad.tex has 2 line-anchoring violations:
+  line 7: \begin{lemma} is not alone on its line
+  line 7: \end{lemma} is not alone on its line
+loom needs a theorem-like \begin and \end alone on their lines to find a result's exact span. Pass --fix-anchoring to rewrite the draft; the paper as received is kept as it is.
+```
 
 ## 6.3 The working document
 
@@ -121,19 +130,22 @@ Precisely:
 
 ### 6.5.4 The typical use
 
-The relative localization paper at M7 (step 2 of 13.6):
+On the same paper:
 
 ```
-$ loom atomize drafting/draft3.tex drafting/main.tex --sections
-Moved 52 nodes and 3 deferred proofs to nodes/
-Wrote drafting/main.tex (spine, 104 lines, was 1030)
-Identity test: pass (pdftotext identical)
-drafting/draft3.tex is now superseded: it defines nothing until `loom live drafting/draft3.tex` says otherwise
-main = drafting/main.tex
-Recorded: atomize (ledger line 3)
+$ loom atomize drafting/widgets.tex drafting/main.tex --sections
+atomized drafting/widgets.tex into drafting/main.tex, 4 files in nodes/; drafting/main.tex typesets
+  to the same text as drafting/widgets.tex
+
+written (2)
+  drafting/main.tex: 9 lines, was 22; 2 results, 0 proofs, 2 sections set apart in nodes/
+  config.toml: main = drafting/main.tex
+
+superseded: each defines nothing until loom live FILE says otherwise (1)
+  drafting/widgets.tex
 ```
 
-The author then edits the spine: reordering inclusion lines, deleting some, rewriting prose. Whatever the new master stops reaching becomes loose and stays visible. `draft3.tex` can stay where it is, inert, or be deleted, or be moved out; none of the three changes what the quilt defines.
+The author then edits the spine: reordering inclusion lines, deleting some, rewriting prose. Whatever the new master stops reaching becomes loose and stays visible. The superseded document can stay where it is, inert, or be deleted, or be moved out; none of the three changes what the quilt defines.
 
 ## 6.6 Flattening back
 

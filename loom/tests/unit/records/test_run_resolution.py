@@ -18,7 +18,7 @@ def quilt(tmp_path: Path) -> Path:
 
 def started(d: Path, name: str) -> str:
     r = ok("ai", "start", name, cwd=d)
-    return r.output.strip().splitlines()[-1].strip()
+    return r.stdout.split()[0]
 
 
 def test_a_title_reaches_the_session_it_names(tmp_path: Path) -> None:

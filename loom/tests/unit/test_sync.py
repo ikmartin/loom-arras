@@ -43,6 +43,11 @@ def run(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
 
 
+def flat(text: str) -> str:
+    """Output with its wrapping undone: a workspace at a temporary path is longer than a line."""
+    return " ".join(text.split())
+
+
 def quilt_at(tmp_path: Path, files: dict[str, str]) -> Path:
     """A quilt that is no repository: loom needs none to pair with a workspace."""
     root = tmp_path / "quilt"
@@ -209,9 +214,11 @@ def test_a_quilt_that_is_no_repository_publishes_and_takes_a_pull(tmp_path: Path
 
     edit(other, "revise statement again", {"main.tex": SOURCE.replace("zk-0001}A", "zk-0001}D")})
     state = fetch(quilt, state)
-    said = ok("sync", "incorporate", cwd=root).output
-    assert said.startswith(f"Incorporated {state.incoming[:12]} from ")
-    assert "mathematics remains to be reviewed" in said and "As it was: landmark main-before-pull-" in said
+    said = flat(ok("sync", "incorporate", cwd=root).stdout)
+    assert said.startswith(f"incorporated {state.incoming[:7]} from ")
+    assert "mathematics remains to be reviewed" in said and "as it was, stamped as landmarks (1)" in said
+    names = [Path(str(e.get("landmark"))).stem for e in load_history(quilt.history_dir).landmarks()]
+    assert any(n.startswith("main-before-pull-") for n in names), names
     latest = build(quilt).manifest["unresolved"][0]
     assert latest["pull"] == state.incoming and latest["local_changed"] is False
 
@@ -226,9 +233,9 @@ def test_the_quilt_s_own_repository_is_never_touched(tmp_path: Path, compiled: l
     run(root, "commit", "-q", "-m", "the author's history")
     head, refs = run(root, "rev-parse", "HEAD"), run(root, "for-each-ref")
     bare = overleaf(tmp_path)
-    said = ok("sync", "init", str(bare), "--publish-main", "main.tex", cwd=root).output
-    assert said.startswith("Paired with ") and "(master)" in said
-    assert f"`.gitignore` does not ignore {WORKSPACE}/, loom's clone of the workspace; `loom upgrade` adds it." in said
+    said = flat(ok("sync", "init", str(bare), "--publish-main", "main.tex", cwd=root).stdout)
+    assert said.startswith("paired with ") and "(master)" in said
+    assert f"`.gitignore` does not ignore {WORKSPACE}/, loom's clone of the workspace fix: loom upgrade" in said
     (root / ".gitignore").write_text(".loom/workspace/\nbuild/\n", encoding="utf-8")
     assert ".gitignore" not in ok("sync", "init", str(bare), "--publish-main", "main.tex", cwd=root).output
     ok("sync", "publish", "--push", cwd=root)
@@ -247,11 +254,11 @@ def test_init_takes_the_workspace_url(tmp_path: Path) -> None:
     root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
     refused("sync", "init", cwd=root, code=2, match="Missing argument 'URL'")
     refused("sync", "init", "--remote", "origin", cwd=root, code=2, match="No such option")
-    refused("sync", "init", str(tmp_path / "nowhere.git"), cwd=root, code=1, match="git clone")
+    refused("sync", "init", str(tmp_path / "nowhere.git"), cwd=root, code=2, match="git clone")
     assert not (root / WORKSPACE).exists()
     empty = tmp_path / "empty.git"
     subprocess.check_call(["git", "init", "-q", "--bare", str(empty)])
-    refused("sync", "init", str(empty), cwd=root, code=1, match="has no commits; create the project there first")
+    refused("sync", "init", str(empty), cwd=root, code=2, match="has no commits; create the project there first")
     assert "Overleaf project" in ok("sync", "init", "--help").output
 
 
@@ -262,7 +269,7 @@ def test_a_missing_clone_or_an_old_record_is_refused_with_the_command_that_pairs
 
     root, _ = paired(tmp_path)
     shutil.rmtree(root / WORKSPACE)
-    refused("sync", "fetch", cwd=root, code=1, match="pair again with `loom sync init URL`")
+    refused("sync", "fetch", cwd=root, code=2, match="pair again with `loom sync init URL`")
     (root / ".loom/source-sync.json").write_text(
         '{"remote":"origin","branch":"main","master":"drafting/main.tex","integrated":"abc"}\n', encoding="utf-8"
     )
@@ -327,15 +334,15 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
     with pytest.raises(SyncError, match="two quilt files"):
         publish(quilt, collision)
 
-    said = ok("sync", "publish", cwd=root).output
-    assert said.startswith(f"Prepared {edited.commit[:12]}: 4 files for drafting/main.tex, drafting/toy.tex")
-    assert "`loom sync publish --push` sends it" in said
-    pushed = ok("sync", "publish", "--push", cwd=root).output
-    assert "stamped earlier as landmark" in pushed  # the revision prepared above, not stamped again
-    assert pushed.splitlines()[-1].startswith("Published to ")
+    said = flat(ok("sync", "publish", cwd=root).stdout)
+    assert said.startswith(f"prepared {edited.commit[:7]}: 4 files for drafting/main.tex, drafting/toy.tex")
+    assert "loom sync publish --push sends it" in said
+    pushed = flat(ok("sync", "publish", "--push", cwd=root).stdout)
+    assert "stamped earlier as landmarks" in pushed  # the revision prepared above, not stamped again
+    assert pushed.startswith(f"published {edited.commit[:7]} to ")
     state = SyncState.read(root)
     assert run(bare, "rev-parse", "master") == state.prepared == state.integrated == state.incoming
-    assert ok("sync", "publish", cwd=root).output.startswith("Nothing to publish: ")
+    assert flat(ok("sync", "publish", cwd=root).stdout).startswith("nothing to publish: ")
 
     (root / "shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, again.\\end{lemma}\n")
     publication = publish(quilt, state)
@@ -510,7 +517,7 @@ def test_a_collaborator_s_exact_rename_is_recorded_when_the_pull_is_incorporated
     assert state.published_main == "drafting/paper.tex"  # Overleaf keeps the collaborator's name at the next publish
     assert state.master == "drafting/main.tex"  # the record is followed, never rewritten
     assert json_of("status", "--json", cwd=root)["keys"]["zk-0001"]["acceptance"]["fresh"] is True
-    assert not [x for x in json_of("lint", "--json", cwd=root) if x["code"] == "loom:document-gone"]
+    assert not [x for x in json_of("lint", "--json", cwd=root)["diagnostics"] if x["code"] == "loom:document-gone"]
     assert "drafting/main.tex -> drafting/paper.tex (renamed in a pull)" in ok("history", cwd=root).stdout
 
 
@@ -523,7 +530,7 @@ def test_a_rename_with_an_edit_is_not_recorded_and_the_document_is_gone(tmp_path
     state = fetch(quilt, SyncState.read(root))
     handle(root, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
     assert moves(root) == []
-    gone = [x for x in json_of("lint", "--json", cwd=root) if x["code"] == "loom:document-gone"]
+    gone = [x for x in json_of("lint", "--json", cwd=root)["diagnostics"] if x["code"] == "loom:document-gone"]
     assert [g["fixes"][0]["command"] for g in gone] == ["loom mv drafting/main.tex NEW"]
 
 

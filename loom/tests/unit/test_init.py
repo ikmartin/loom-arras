@@ -247,7 +247,7 @@ def test_demo_has_outline_master(tmp_path: Path) -> None:
     keys = json_of("status", "--master", "drafting/outline.tex", "--json", cwd=q)["keys"]
     reached = {k for k, v in keys.items() if "drafting/outline.tex" in v["reached_by"]}
     assert {"dm-0006", "dm-0007"} <= reached  # the candidates are reached, not loose, while they are being considered
-    taxa = {n["key"]: n.get("taxon") for n in json_of("search", "dm-000", "--json", cwd=q)}
+    taxa = {n["key"]: n.get("taxon") for n in json_of("search", "dm-000", "--json", cwd=q)["matches"]}
     assert taxa.get("dm-0006") == "Conjecture" and taxa.get("dm-0007") == "Question"
     # the conjecture owes a proof and is a gap until it is proved or refuted; the question owes nothing
     assert keys["dm-0006/proof"]["state"] == "incomplete"

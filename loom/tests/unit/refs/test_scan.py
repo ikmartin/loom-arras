@@ -96,7 +96,9 @@ def test_two_landmarks_disagreeing_on_a_key_keep_the_first_and_say_so(tmp_path: 
     report = scan_bibliography(quilt, write=False)
     assert report.conflicts == [("GP99", landmark(1, "a"), landmark(2, "b"))]
     assert not (quilt.root / BIBLIOGRAPHY).exists()
-    assert any("conflict: GP99" in line for line in report.lines())
+    said = "\n".join(report.lines())
+    assert "conflicts: the landmarks disagree, and the first is kept (1)" in said
+    assert f"  {landmark(1, 'a')} (kept) and {landmark(2, 'b')}  GP99" in said, said
 
 
 def _pdf(path: Path, text: str = "A paper about widgets") -> None:
@@ -321,8 +323,8 @@ def test_entries_naming_one_stored_document_are_reported_once_with_the_fix(tmp_p
     )
     (quilt.root / BIBLIOGRAPHY).write_text(twice)
     lines = "\n".join(scan_bibliography(quilt).lines())
-    assert "3 entries name one document (refs/Siebert.pdf): Siebert, SiebertA, SiebertB" in lines
-    assert "delete the others from digests/bibliography.bib" in lines
+    assert "entries naming one document: keep one and delete the others from digests/bibliography.bib (1)" in lines
+    assert "  refs/Siebert.pdf  Siebert, SiebertA, SiebertB" in lines, lines
     assert sorted(k for k in parse_bib((quilt.root / BIBLIOGRAPHY).read_text()) if k.startswith("Siebert")) == [
         "Siebert",
         "SiebertA",

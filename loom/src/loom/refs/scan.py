@@ -11,6 +11,7 @@ import shutil
 import string
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loom.clock import stamp
 from loom.refs.fetch import FetchRefused, work_dir
@@ -23,6 +24,9 @@ from loom.scan.quilt import Quilt
 from loom.scan.scan import landmark_documents
 from loom.scan.source import blank_comments
 from loom.scan.tokenize import match_group, read_args, read_optional, tokenize
+
+if TYPE_CHECKING:
+    from loom.cli.report import Report
 
 HEADER = (
     "% The quilt's bibliography, written by `loom refs scan` from the landmarks (book 8.15).\n"
@@ -71,44 +75,118 @@ class ScanReport:
         default_factory=list
     )  # (where the document came from, the entries naming it)
 
-    def lines(self) -> list[str]:
-        """What a person reads: one line of counts, then each conflict and each missing `.bib`."""
-        # A `\bibitem` and a document dropped in `refs/` both carry `loom-parsed`, and counting them together said
-        # "from \bibitem text" about a PDF that came from no bibliography at all.
+    #: True when the scan wrote nothing: a dry run, or `refs build` asking what a scan would add.
+    dry_run: bool = False
+
+    def problems(self) -> int:
+        """How many findings need the author: conflicts, `.bib` files named and absent, and entries naming one document."""
+        return len(self.conflicts) + len(self.missing_bib) + len(self.duplicates)
+
+    def report(self) -> Report:
+        """The scan as a report: what the bibliography holds and gained, what came in from `refs/`, and each finding that needs the author.
+
+        Store paths stay in the JSON; the text names the citekey and the file the author dropped.
+        """
+        from loom.cli.report import Group, Item, Report, counted
+
+        # A `\bibitem` and a document dropped in `refs/` both carry `loom-parsed`; counting them together said "from \bibitem text" about a PDF that came from no bibliography at all.
         from_seed = {c.key for c in self.added if c.text and "loom-source" in c.text}
-        heuristic = sum(1 for c in self.added if "loom-parsed" in c.text and c.key not in from_seed)
+        heuristic = {c.key for c in self.added if "loom-parsed" in c.text and c.key not in from_seed}
+        total = self.present + len(self.added)
         new = f"{len(self.added)} new" if self.added else "none new"
-        out = [
-            f"{'bibliography':<14}{self.present + len(self.added)} entries in {BIBLIOGRAPHY}, {new}"
-            + (f" ({heuristic} from \\bibitem text, parsed heuristically)" if heuristic else "")
-            + (f" ({len(from_seed)} read from the document itself)" if from_seed else "")
-        ]
-        out += [f"conflict: {key} differs between {kept} (kept) and {other}" for key, kept, other in self.conflicts]
+        verdict = (
+            f"{BIBLIOGRAPHY} {'would hold' if self.dry_run else 'holds'} {counted(total, 'entry', 'entries')}, {new}"
+        )
+        if self.problems():
+            verdict += f"; {counted(self.problems(), 'finding')} for you"
+        lines: list[str] = []
         if self.copied or self.already:
             copied = f"{len(self.copied)} new" if self.copied else "none new"
-            out.append(
-                f"{SEED + '/':<14}{len(self.copied) + self.already} documents copied into {STORAGE}, {copied}"
-                + (
-                    f", {len(self.derived) + len(self.unnamed)} new entries offered"
-                    if self.derived or self.unnamed
-                    else ""
-                )
-            )
-        out += [f"{new} is a second document for {old}, filed beside it" for new, old in self.siblings]
-        out += [f"{key} adopts {where}, which the bibliography no longer named" for key, where in self.adopted]
-        for came, keys in self.duplicates:
-            out.append(
-                f"{len(keys)} entries name one document ({came}): {', '.join(keys)}; keep one and delete the others from {BIBLIOGRAPHY}"
+            offered = len(self.derived) + len(self.unnamed)
+            lines.append(
+                f"{SEED}/: {counted(len(self.copied) + self.already, 'document')} in loom's store, {copied}"
+                + (f", {counted(offered, 'new entry', 'new entries')} offered" if offered else "")
             )
         if self.forgotten:
-            out.append(f"{self.forgotten} stored document(s) not offered: forgotten (loom refs forget --undo restores)")
-        out += [f"{name}: no page text ({why})" for name, why in self.unmapped]
-        out += [f"{doc} names {name}.bib, which does not exist" for doc, name in self.missing_bib]
+            lines.append(
+                f"{counted(self.forgotten, 'stored document')} not offered: forgotten; "
+                "loom refs forget TARGET --undo --why '…' offers one again"
+            )
         if not self.canon:
-            out.append(
+            lines.append(
                 "no landmarks to gather from: the bibliography grows when you `loom stamp DOCUMENT -m NAME` a document"
             )
-        return out
+
+        def origin(c: Candidate) -> str:
+            if c.key in from_seed:
+                return f"read from {_shown(c.source)} itself"
+            return f"from {_shown(c.source)}" + (
+                ", parsed heuristically from \\bibitem text" if c.key in heuristic else ""
+            )
+
+        groups = [
+            Group(
+                "conflicts: the landmarks disagree, and the first is kept",
+                [Item(f"{kept} (kept) and {other}", key=key) for key, kept, other in sorted(self.conflicts)],
+                problem=True,
+            ),
+            Group(
+                "missing .bib files: a landmark names one that does not exist",
+                [Item(f"{doc} names {name}.bib", key=f"{name}.bib") for doc, name in sorted(self.missing_bib)],
+                problem=True,
+            ),
+            Group(
+                f"entries naming one document: keep one and delete the others from {BIBLIOGRAPHY}",
+                [Item(_shown(came), key=", ".join(keys)) for came, keys in self.duplicates],
+                problem=True,
+            ),
+            Group("new entries", [Item(origin(c), key=c.key) for c in sorted(self.added, key=lambda c: c.key.lower())]),
+            Group(
+                "second documents, filed beside the first",
+                [Item(f"a second document for {old}", key=new_key) for new_key, old in sorted(self.siblings)],
+            ),
+            Group(
+                "entries for stored documents",
+                [
+                    Item("a document in loom's store, which the bibliography no longer named", key=key)
+                    for key, _ in sorted(self.adopted)
+                ],
+            ),
+            Group("no page text", [Item(why, key=name) for name, why in sorted(self.unmapped)]),
+        ]
+        return Report(
+            verdict,
+            ok=not self.problems(),
+            groups=[g for g in groups if g.items],
+            lines=lines,
+            dry_run=self.dry_run,
+            data={
+                "landmarks": self.canon,
+                "entries": total,
+                "present": self.present,
+                "added": [{"key": c.key, "source": c.source} for c in self.added],
+                "conflicts": [{"key": k, "kept": a, "other": b} for k, a, b in self.conflicts],
+                "missing_bib": [{"landmark": d, "bib": f"{n}.bib"} for d, n in self.missing_bib],
+                "copied": [{"from": a, "to": b} for a, b in self.copied],
+                "already": self.already,
+                "derived": list(self.derived),
+                "unnamed": list(self.unnamed),
+                "siblings": [{"key": a, "of": b} for a, b in self.siblings],
+                "unmapped": [{"file": a, "why": b} for a, b in self.unmapped],
+                "adopted": [{"key": a, "home": b} for a, b in self.adopted],
+                "forgotten": self.forgotten,
+                "duplicates": [{"from": a, "keys": b} for a, b in self.duplicates],
+            },
+        )
+
+    def lines(self) -> list[str]:
+        """The report's text, line by line, for a command that passes the scan on as notes."""
+        return self.report().render().split("\n")
+
+
+def _shown(path: str) -> str:
+    """A path as the author knows it: one inside loom's store is `a document in loom's store`, since the store is not theirs to navigate."""
+    return "a document in loom's store" if path.startswith(STORAGE + "/") else path
 
 
 def _unbrace(s: str) -> str:
@@ -289,7 +367,7 @@ def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
     ScanReport
         What was added, how many entries were already there, conflicts between landmarks, and named `.bib` files that do not exist.
     """
-    report = ScanReport()
+    report = ScanReport(dry_run=not write)
     path = quilt.root / BIBLIOGRAPHY
     existing = parse_bib(path.read_text(encoding="utf-8", errors="replace")) if path.is_file() else {}
     from_canon = [c for key, c in candidates(quilt, report).items() if key not in existing]

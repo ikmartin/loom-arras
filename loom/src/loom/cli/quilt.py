@@ -10,7 +10,8 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, EnvError, note
+from loom.cli._common import EnvError
+from loom.cli.report import Group, Item, Report
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
@@ -150,11 +151,13 @@ def setup_ai(target: Path, choice: str, launch: bool) -> list[str]:
     return [said, when]
 
 
-GITIGNORE_NOTE = """wrote .gitignore, ignores:
-  build/ (everything loom can rebuild)
-  refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)
-  but not refs/**/pages/ or sections.json: the page text an anchor names is committed
-  all stray LaTeX files (.aux, .log, .bbl and the rest)"""
+#: What the `.gitignore` init writes leaves out, as `init` says it.
+GITIGNORE = (
+    "build/ (everything loom can rebuild)",
+    "refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)",
+    "but not refs/**/pages/ or sections.json: the page text an anchor names is committed",
+    "all stray LaTeX files (.aux, .log, .bbl and the rest)",
+)
 
 
 def _user_dirs() -> tuple[str, str]:
@@ -302,9 +305,8 @@ def write_demo_quilt(target: Path) -> None:
     help="With --from: rewrite the drafted document so every theorem-like \\begin and \\end is alone on its line.",
 )
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
-@click.pass_context
+@click.option("--json", "as_json", is_flag=True)
 def init(
-    ctx: click.Context,
     directory: str | None,
     from_file: str | None,
     demo: bool,
@@ -315,6 +317,7 @@ def init(
     launch_agents: bool,
     fix_anchors: bool,
     yes: bool,
+    as_json: bool,
 ) -> None:
     """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it: the paper as received kept as the first landmark, and the working document drafted from it."""
     here = directory is None  # the message says so: "<path> is not empty" reads oddly when the path was never typed
@@ -354,30 +357,39 @@ def init(
         made = write_minimal_quilt(target, chosen, minimal_master=paper is None, author=named)
     _write_user_config_template()
     choice = ai or ask_ai(yes)
-
-    def announce() -> None:
-        """Set up the AI side and say what was created, once the quilt is certain to outlive the command."""
-        said_ai = setup_ai(target, choice, launch_agents)
-        note(f"wrote the demo quilt to {target}" if demo else f"created quilt {target} with prefix {chosen}")
-        note(GITIGNORE_NOTE)
-        for line in said_ai:
-            note(line)
-        if git_init and _git_init(target):
-            note(f"git init {target} (--git asked; loom itself reads no history)")
-
+    imported = None
     if paper is not None:
         from loom.cli.paper import run_import
         from loom.scan.quilt import load_quilt
 
         try:
-            ident = run_import(load_quilt(target), paper, yes, fix_anchors=fix_anchors)
+            imported = run_import(load_quilt(target), paper, yes, fix_anchors=fix_anchors)
         except BaseException:
-            # the import writes nothing into the quilt until it says "Wrote N files", so a failure before that leaves only the skeleton above; leaving that behind would refuse the obvious retry -- the same command with --fix-anchoring -- as "already inside a quilt"
+            # the import writes nothing into the quilt until its refusals are past, so a failure leaves only the skeleton above; leaving that behind would refuse the obvious retry -- the same command with --fix-anchoring -- as "already inside a quilt"
             undo_minimal_quilt(target, existed, made)
             raise
-        announce()
-        if ident is not None and not ident.passed and not ident.skipped:
-            ctx.exit(EXIT_CONTENT)
-        return
-    announce()
-    note('next: loom doctor; loom lint; loom new lemma "Title"')
+    # said only once the quilt is certain to outlive the command
+    said_ai = setup_ai(target, choice, launch_agents)
+    gitted = git_init and _git_init(target)
+    made_it = f"wrote the demo quilt to {target}" if demo else f"created quilt {target} with prefix {chosen}"
+    groups = list(imported.groups) if imported else []
+    groups.append(Group("wrote .gitignore, which ignores", [Item(line) for line in GITIGNORE], limit=None))
+    setup = [Item(line) for line in said_ai]
+    if gitted:
+        setup.append(Item(f"ran git init in {target}, as --git asked; loom itself reads no history"))
+    here_now = target.resolve() == Path.cwd().resolve()
+    first = "loom doctor; loom lint" + ("" if paper else '; loom new lemma "Title"')
+    groups.append(Group("", setup, limit=None, next=first if here_now else f"cd {target}, then {first}"))
+    Report(
+        f"{made_it}; {imported.said}" if imported else made_it,
+        groups=groups,
+        data={
+            "quilt": str(target),
+            "demo": demo,
+            "prefix": chosen or None,
+            "ai": choice,
+            "launch": launch_agents,
+            "git": gitted,
+            "import": imported.data if imported else None,
+        },
+    ).emit(as_json)

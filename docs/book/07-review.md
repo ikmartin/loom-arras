@@ -74,10 +74,12 @@ Rules:
 Example:
 
 ```
-$ loom accept rl-0004 --proofs
-accepted rl-0004 (Lemma)                         by Markas Hecht  2026-09-16
-accepted rl-0004/proof (Proof)                   by Markas Hecht  2026-09-16
-snapshots: 5 written, 2 already present
+$ loom accept dm-0003 --proofs
+accepted dm-0003 and dm-0003/proof as A. Author
+
+accepted (2)
+  Theorem  against drafting/main.tex  dm-0003
+  Proof    against drafting/main.tex  dm-0003/proof
 ```
 
 ## 7.4 Review records
@@ -237,9 +239,9 @@ Mathematical dependency version 1 uses `equation:<label>` for a full labelled di
 
 ## 7.7 `loom status`
 
-**[decided]** Prints every key as `<key> (<Taxon>)` and its title, with its state, the cause if stale (dated when first observed), review facts, and its `\incomplete` text if any; then a summary line counting stale of accepted, draft, incomplete, loose, proved, and settled keys **of the author's own rows among those it printed**, so a filtered list is summarised by what it holds and a cited paper is never counted as the author's work (DR-172). Filters: `--stale`, `--draft`, `--incomplete`, `--loose`, `--master PATH`, `--tag TAG`, `--severity S`, `--kind K`, `--status S`, `--detached`, `--include-digests`, `--unmatched-cites`, `--undigested`, `--retired`, `--runs`; `--explain KEY`; `--json`, which also carries each key's closure, its title and taxon, the masters reaching it, and the live annotations on it. It never exits nonzero; `loom check` is the command that fails.
+**[decided]** Prints first a verdict counting **the author's own keys among those it shows**, by state (`11 keys of yours: 2 incomplete, 7 draft, 2 accepted`), so a filtered list is summarised by what it holds and a cited paper is never counted as the author's work (DR-172); then one group per state, those needing action first, each row the key's taxon, title, the cause if stale (dated when first observed), review facts and its `\incomplete` text if any, with the key last; conflicted keys carry their `fix:` lines and the stale group names `loom accept --stale` (DR-329-ikmartin). Filters: `--stale`, `--draft`, `--incomplete`, `--loose`, `--master PATH`, `--tag TAG`, `--severity S`, `--kind K`, `--status S`, `--detached`, `--include-digests`, `--unmatched-cites`, `--undigested`, `--retired`, `--runs`; `--explain KEY`; `--json`, which also carries each key's closure, its title and taxon, the masters reaching it, and the live annotations on it. It never exits nonzero; `loom check` is the command that fails.
 
-**[decided]** **A digest's results are the literature, not the to-do list** (DR-172). A digest holds every numbered result of a cited paper, of which the author's own arguments reach two or three; `status` lists the **reached** ones and leaves the rest out, `--include-digests` shows them all, and the counting line names both groups — `· 14 digest keys you depend on · 79 digest keys not counted`. Reachedness, not depth: a cited result you lean on needs checking whoever cited it, and one you never use needs nothing. This is the line arras's review panel has drawn since 0.9, now drawn once and drawn the same way in both.
+**[decided]** **A digest's results are the literature, not the to-do list** (DR-172). A digest holds every numbered result of a cited paper, of which the author's own arguments reach two or three; `status` counts the **reached** ones under a group of their own, `in cited works`, one line per work naming both — `2 results you depend on (2 draft), 3 not counted  Calloway14` — and `--include-digests` lists them all. Reachedness, not depth: a cited result you lean on needs checking whoever cited it, and one you never use needs nothing. This is the line arras's review panel has drawn since 0.9, now drawn once and drawn the same way in both.
 
 **[decided]** **`loom accept` refuses an external node; `loom refs verify` claims its transcription is faithful** (DR-177, narrowing DR-172). Two claims do not share a verb: accepting is the author's claim about their own mathematics, verifying is a claim that loom's copy of someone else's is faithful, and it settles nothing mathematical. What follows describes the ledger row `refs verify` writes. External nodes owe no proof and are proved by that row alone (7.6.3), and verifying one gates nothing downstream — a key that depends on it is settled whether or not anyone verified it. What it buys is a seal: the author checked loom's copy against the paper on a date, and the row goes stale the moment that copy moves. So `loom refs verify` reports `verified KEY as a faithful transcription of CITEKEY`, `status` and the review panel read `transcription verified`, and the stale cause is `transcription-changed` rather than `own-text-changed`. The state in the ledger and the manifest is still `accepted`; only the words differ, and a viewer that shows the manifest's own label for every other key needs no change.
 
@@ -270,7 +272,7 @@ Two further defences against garbage: annotations carry kinds, and the panel fil
 **[decided]** Loom never deletes a node; the author does. What loom does:
 
 - `loom unravel ID` (aliases `downstream`, `reach`, `pop`) prints, before the fact, the transitive dependents, every reference and inclusion site, ledger rows, and annotations attached to the id.
-- `loom delete` (aliases `rm`, `remove`) prints `loom will not delete your notes; do this yourself with rm. Run loom unravel <ID> to see the consequences first.` and exits 1.
+- `loom delete` (aliases `rm`, `remove`) refuses with `loom will not delete your notes; do this yourself with rm. Run loom unravel <ID> to see the consequences first.` and exits 2, since nothing in the quilt's source is wrong (DR-329-ikmartin).
 - After deletion, lint reports dangling references (`dangling-link`), missing inputs (`missing-include`), and `loom:retired-ledger-key` (info) for ledger rows whose key no longer exists (DR-61); `status --retired` lists retired keys with the date of their last acceptance; annotations targeting them are detached at the target level.
 - Dependents whose closure recorded the deleted id become stale with cause `dependency-removed`.
 - The recommended alternative to deletion is to make the node loose: remove its inclusion line. Everything about it survives, marked loose.

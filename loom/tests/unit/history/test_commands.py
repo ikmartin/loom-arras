@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+from click.testing import Result
+
 from loom.history.steps import text_hash
 from tests.helpers import edit, exits, json_of, ok, refused, templated, the
 
@@ -44,6 +46,11 @@ def quilt(tmp_path: Path) -> Path:
     return tmp_path / "q"
 
 
+def said(r: Result) -> str:
+    """Everything a run printed, its lines rejoined: the report wraps a long verdict at 100 columns."""
+    return " ".join(r.output.split())
+
+
 def ledger(q: Path) -> list[dict]:
     return [json.loads(x) for x in (q / ".loom" / "history" / "ledger.jsonl").read_text().splitlines()]
 
@@ -52,7 +59,10 @@ def test_stamp_given_a_document_keeps_its_text_as_a_landmark(tmp_path: Path) -> 
     """Book 17.9: a stamp given a document freezes the keys it reaches and keeps its flat text, in loom's form, in the step as a landmark named by the message."""
     q = quilt(tmp_path)
     r = ok("stamp", "drafting/main.tex", "-m", "First landmark", cwd=q)
-    assert "step 0002 froze 4 keys; landmark first-landmark, drafting/main.tex as it stands" in r.output
+    assert (
+        "step 0002 records a new version of 4 results; landmark first-landmark keeps drafting/main.tex as it stands"
+        in said(r)
+    )
 
     step = ledger(q)[-1]
     assert step["action"] == "stamp" and step["step"] == 2 and step["dir"] == "0002-first-landmark"
@@ -75,7 +85,7 @@ def test_stamp_given_a_document_keeps_its_text_as_a_landmark(tmp_path: Path) -> 
     assert "\\begin{lemma}" in (d / "pp-0002.tex").read_text()
 
     r = ok("stamp", "drafting/main.tex", "-m", "Unchanged", cwd=q)  # a landmark needs no key to have moved
-    assert "step 0003 froze 0 keys; landmark unchanged" in r.output
+    assert "step 0003 records no changed result; landmark unchanged" in said(r)
     assert (q / ".loom" / "history" / "0003-unchanged" / "unchanged.tex").read_text() == text
     refused(
         "stamp",
@@ -107,7 +117,8 @@ def test_stamp_records_only_what_moved(tmp_path: Path) -> None:
     q = quilt(tmp_path)
     ok("stamp", "-m", "one", cwd=q)
     assert "landmark" not in ledger(q)[-1]  # a stamp given no document keeps no text
-    refused("stamp", "-m", "nothing changed", cwd=q, code=1, match="nothing to stamp")
+    nothing = ok("stamp", "-m", "nothing changed", cwd=q)  # nothing to record is no fault: exit 0
+    assert nothing.stdout.startswith("nothing to stamp") and len(ledger(q)) == 2
     main = q / "drafting" / "main.tex"
     main.write_text(main.read_text().replace("Alpha.", "Alpha, revised."))
     ok("stamp", "-m", "Referee points", cwd=q)
@@ -129,7 +140,8 @@ def test_history_lists_steps_and_a_key_s_versions(tmp_path: Path) -> None:
     assert "0001  import" in r.output and "0002  stamp" in r.output and '"one"' in r.output
     assert "0003  stamp" in r.output and '"two"' in r.output
     k = ok("history", "pp-0002", cwd=q)
-    assert "pp-0002@2" in k.output and "pp-0002@3" in k.output and "head: the text of @3" in k.output
+    assert "pp-0002@2" in k.output and "pp-0002@3" in k.output and "its text now is that of @3" in k.output
+    assert "sha256" not in k.output  # a version's hash is in the JSON, not the text
     j = json_of("history", "pp-0002", "--json", cwd=q)
     assert j["head_is"] == 3 and len(j["versions"]) == 2
 
@@ -148,7 +160,7 @@ def test_revert_prints_a_patch_and_records_nothing(tmp_path: Path) -> None:
     assert main.read_text() != before  # loom prints the patch; applying it is the author's act
     assert len(ledger(q)) == lines
     assert "the text of @2" in r.output
-    refused("revert", "pp-0002@9", cwd=q, code=1, match="no step 9")
+    refused("revert", "pp-0002@9", cwd=q, code=2, match="no step 9")  # an address naming nothing
 
 
 def test_fork_gives_a_document_its_own_copy(tmp_path: Path) -> None:
@@ -163,7 +175,7 @@ def test_fork_gives_a_document_its_own_copy(tmp_path: Path) -> None:
     r = ok("fork", "pp-0002", "--in", "drafting/talk.tex", cwd=q)
     stems = [p.stem for p in (q / "nodes").glob("pp-*.tex")]
     new_id = the(stems, lambda s: s not in ("pp-0001", "pp-0002", "pp-0003"), "forked node")
-    assert f"Wrote nodes/{new_id}.tex" in r.output
+    assert f"forked pp-0002 as {new_id} for drafting/talk.tex, in nodes/{new_id}.tex" in said(r)
     assert f"\\label{{{new_id}}}" in (q / "nodes" / f"{new_id}.tex").read_text()
     assert f"+\\input{{nodes/{new_id}}}" in r.output and f"+See Lemma~\\ref{{{new_id}}}." in r.output
     assert "\\input{nodes/pp-0002}" in (q / "drafting" / "talk.tex").read_text()  # the patch is the author's to apply
@@ -234,7 +246,7 @@ def test_a_ledger_that_cannot_be_read_in_full_is_history_corrupt(tmp_path: Path)
         r = exits(1, *cmd, cwd=q, match="loom:history-corrupt")
         assert "the history ledger cannot be read in full: line 3 is not JSON" in r.output, r.output
         assert "line 4: step 1 does not follow step 2" in r.output, r.output
-    js = json_of("history", "verify", "--json", cwd=q, code=1)
+    js = json_of("history", "verify", "--json", cwd=q, code=1)["diagnostics"]
     assert [d["code"] for d in js] == ["loom:history-corrupt", "loom:history-corrupt"]
     assert all(d["severity"] == "error" and d["subject"] == "record" for d in js)
     assert "0002  stamp" in ok("history", cwd=q).output  # what could be read still is
@@ -259,7 +271,7 @@ def test_verify_names_each_part_of_a_step_that_is_missing_or_edited(tmp_path: Pa
     for p in d.iterdir():
         p.unlink()
     d.rmdir()
-    js = json_of("history", "verify", "--json", cwd=q, code=1)
+    js = json_of("history", "verify", "--json", cwd=q, code=1)["diagnostics"]
     missing = the(js, lambda x: x["code"] == "loom:history-missing", "loom:history-missing diagnostic")
     assert missing["message"] == "the directory 0002-v1 of step 0002 is missing from .loom/history"
 
@@ -276,11 +288,11 @@ def test_ancestry_the_history_no_longer_resolves_is_dangling(tmp_path: Path) -> 
         {"action": "revert", "key": "pp-0002", "step": 7, "in": "drafting/main.tex"},
     )
     r = ok("history", "verify", cwd=q)
-    assert r.output.count("loom:dangling-ancestry") == 3, r.output
+    assert "warning loom:dangling-ancestry (3)" in r.output, r.output
     assert "pp-0100 was forked from pp-0002@7, which the history no longer resolves" in r.output
     assert "pp-0101 was forked from pp-0999@2, which the history no longer resolves" in r.output
     assert "pp-0002 was reverted to @7, which the history no longer resolves" in r.output
-    js = json_of("lint", "--json", cwd=q)
+    js = json_of("lint", "--json", cwd=q)["diagnostics"]
     assert sum(d["code"] == "loom:dangling-ancestry" for d in js) == 3
 
 
@@ -298,7 +310,7 @@ def test_stamp_given_a_document_records_only_the_keys_it_reaches(tmp_path: Path)
     edit(q / "nodes" / "pp-0002.tex", "Alpha.", "Alpha, revised.")
     edit(q / "nodes" / "pp-0003.tex", "Beta uses", "Gamma uses")
     r = ok("stamp", "drafting/talk.tex", "-m", "talk", cwd=q)
-    assert "step 0003 froze 1 keys; landmark talk, drafting/talk.tex as it stands" in r.output
+    assert "step 0003 records a new version of 1 result; landmark talk keeps drafting/talk.tex as it stands" in said(r)
     step = ledger(q)[-1]
     assert list(step["froze"]) == ["pp-0002"] and step["in"] == "drafting/talk.tex"
     assert "pp-0003" not in step["reaches"] and "pp-0002" in step["reaches"]
@@ -316,7 +328,8 @@ def test_stamp_with_no_ids_has_nothing_to_stamp(tmp_path: Path) -> None:
     paper.write_text("\\documentclass{article}\n\\begin{document}\nProse only.\n\\end{document}\n")
     q = tmp_path / "q"
     ok("init", str(q), "--from", str(paper), "--prefix", "pp", "--yes", cwd=tmp_path)
-    refused("stamp", "-m", "x", cwd=q, code=1, match="nothing to stamp: no key has moved since step 0001")
+    r = ok("stamp", "-m", "x", cwd=q)
+    assert r.stdout == "nothing to stamp: no result has changed since step 0001\n"
 
 
 def test_revert_expands_child_markers_from_the_head_and_refuses_when_a_child_is_gone(tmp_path: Path) -> None:
@@ -372,7 +385,13 @@ def test_history_show_prints_a_landmark_by_name_step_or_document_and_plain_drops
     assert "\\usepackage{loom}" not in plain and "% !LOOM begin loom-macros" in plain
     assert "\\providecommand{\\uses}" in plain and "\\label{pp-0002}" in plain
     js = json_of("history", "show", "main@2", "--json", cwd=q)
-    assert js == {"landmark": "v1", "step": 2, "in": "drafting/main.tex", "text": drafted}
+    assert {k: js[k] for k in ("landmark", "step", "in", "text")} == {
+        "landmark": "v1",
+        "step": 2,
+        "in": "drafting/main.tex",
+        "text": drafted,
+    }
+    assert js["verdict"] == "landmark v1, step 0002"
     for ref in ("nope", "3", "talk@2", "main@9"):  # step 3 is a stamp given no document: no landmark
         refused(
             "history",
@@ -388,7 +407,7 @@ def test_history_restore_drafts_a_landmark_as_a_new_document_and_records_it(tmp_
     """A restored document is loom's own file: the package line and an id on every node without one, never over an existing path, only directly in the drafting directory, and only by the author."""
     q = quilt(tmp_path)
     r = ok("history", "restore", "main@1", "--to", "drafting/old.tex", cwd=q)
-    assert "Wrote drafting/old.tex from landmark main (@1), 3 ids inserted" in r.output
+    assert r.stdout == "wrote drafting/old.tex from landmark main (@1), 3 ids inserted\n"
     old = (q / "drafting" / "old.tex").read_text()
     assert old.splitlines()[1] == "\\usepackage{loom}"
     assert (
@@ -437,4 +456,4 @@ def test_restoring_a_landmark_whose_ids_are_still_live_adds_no_second_id(tmp_pat
     text = (q / "drafting" / "again.tex").read_text()
     assert re.search(r"\\label\{pp-[0-9A-Z]{4}\}\s*\\label\{pp-", text) is None, text
     assert "0 ids inserted" in r.stdout
-    assert "defines ids another live document also defines" in r.output
+    assert "ids it defines another live document also defines" in said(r)

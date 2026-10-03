@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -53,7 +54,8 @@ def with_copy(tmp_path: Path, name: str = "aidoc.tex", text: str = AIDOC) -> Pat
 
 def codes(q: Path, code: int = 0) -> list[dict]:  # type: ignore[type-arg]
     """`loom lint --json`, which exits 1 when it finds an error."""
-    return json_of("lint", "--json", cwd=q, code=code)
+    diagnostics: list[dict] = json_of("lint", "--json", cwd=q, code=code)["diagnostics"]  # type: ignore[type-arg]
+    return diagnostics
 
 
 def test_a_derived_id_names_its_counterpart_and_never_takes_a_citekey_prefix() -> None:
@@ -243,7 +245,7 @@ def test_the_copy_step_records_a_readable_base_for_every_node(tmp_path: Path) ->
     assert history.copy_of("drafting-ai/aidoc.tex", result.masters) == "drafting/main.tex"
     # the step keeps the source's flat text, which staleness compares the prose and preamble against
     assert (history.dir / (line.dir or "") / "main.tex").read_text().startswith("\\documentclass")
-    assert "0002  copy      " in ok("history", cwd=q).stdout
+    assert re.search(r"^0002  copy  ", ok("history", cwd=q).stdout, re.M)
     ok("history", "verify", cwd=q)
 
 
@@ -266,7 +268,7 @@ def test_one_copy_per_document_never_over_a_file_or_a_taken_name(tmp_path: Path)
 
 def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Path) -> None:
     q = copy_of_main(tmp_path)
-    assert json_of("ai", "drafts", "--json", cwd=q) == [
+    assert json_of("ai", "drafts", "--json", cwd=q)["copies"] == [
         {
             "copy": "drafting-ai/aidoc.tex",
             "source": "drafting/main.tex",
@@ -281,7 +283,7 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
     # a display name is no mathematical change
     node = q / "nodes" / "dm-0001.tex"
     node.write_text("% !LOOM name: The widget\n" + node.read_text())
-    assert json_of("ai", "drafts", "--json", cwd=q)[0]["stale"] is False
+    assert json_of("ai", "drafts", "--json", cwd=q)["copies"][0]["stale"] is False
     (q / "nodes" / "dm-0002.tex").write_text(
         (q / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
     )
@@ -291,9 +293,10 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
         .replace("the simplest object", "the plainest object")
         .replace("\\newcommand{\\Fix}", "\\newcommand{\\Mine}{m}\n\\newcommand{\\Fix}")
     )
-    state = json_of("ai", "drafts", "--json", cwd=q)[0]
+    state = json_of("ai", "drafts", "--json", cwd=q)["copies"][0]
     assert state["stale"] and state["changed"] == ["dm-0002"] and state["prose"] and state["preamble"]
-    assert "stale: dm-0002 changed; the prose between nodes; the preamble" in ok("ai", "drafts", cwd=q).stdout
+    said = " ".join(ok("ai", "drafts", cwd=q).stdout.split())  # the line wraps
+    assert "stale: dm-0002 changed; the prose between nodes; the preamble" in said
 
 
 def test_an_agent_may_make_a_copy_and_never_adopt_one(tmp_path: Path) -> None:
@@ -343,7 +346,7 @@ def test_the_fixtures_agent_copy_carries_every_field_the_interface_names() -> No
 
 def test_the_fixtures_copy_is_stale_where_the_author_changed_a_node_after_it() -> None:
     q = Path(__file__).parents[1] / "quilts" / "synthetic"
-    state = json_of("ai", "drafts", "--json", cwd=q)[0]
+    state = json_of("ai", "drafts", "--json", cwd=q)["copies"][0]
     assert state["copy"] == "drafting-ai/aidoc.tex" and state["changed"] == ["sy-0001"] and not state["gone"]
 
 

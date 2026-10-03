@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -74,6 +75,30 @@ def synthetic(tmp_path: Path) -> Path:
 
 def status_json(q: Path) -> dict:  # type: ignore[type-arg]
     return json_of("status", "--json", cwd=q)
+
+
+#: A status row: indented once under its group's heading, unlike a row's wrapped tail or a group's `fix:` line.
+ROW = re.compile(r"^  (?!fix: |next: )\S")
+
+
+def status_rows(output: str) -> list[tuple[str, str]]:
+    """Each row of `loom status` as (its group's heading, its text), a wrapped row joined back into one line; every row ends with its key."""
+    rows: list[tuple[str, str]] = []
+    heading = ""
+    for ln in output.splitlines():
+        if ln and not ln.startswith(" "):
+            heading = ln
+        elif ROW.match(ln):
+            rows.append((heading, ln.strip()))
+        elif ln.startswith("    ") and not ln.lstrip().startswith(("fix: ", "next: ")) and rows:
+            rows[-1] = (rows[-1][0], rows[-1][1] + " " + ln.strip())
+    return rows
+
+
+def status_row(output: str, key: str) -> str:
+    """The status row of `key`, prefixed by the heading of the group it is in."""
+    heading, text = the(status_rows(output), lambda r: r[1].split()[-1:] == [key], f"status row {key}")
+    return f"{heading}: {text}"
 
 
 def test_reaccepting_unchanged_intermediate_resolves_indirect_staleness(
@@ -161,7 +186,7 @@ def test_ledger_refuses_without_author_exact_message(tmp_path: Path) -> None:
 def test_accept_writes_closure_hashes_and_proofs_flag(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = ok("accept", "dm-0002", "--proofs", *AUTHOR, cwd=d)
-    assert "accepted dm-0002" in r.output and "accepted dm-0002/proof" in r.output
+    assert r.output.splitlines()[0] == "accepted dm-0002 and dm-0002/proof as Markas Hecht"
     ledger = (d / ".loom" / "state.toml").read_text()
     assert ledger.count("[[accept]]") == 2 and 'author = "Markas Hecht"' in ledger
     from loom.records.ledger import read_ledger
@@ -339,10 +364,8 @@ def test_state_draft_accepted_stale_incomplete_and_causes(tmp_path: Path) -> Non
     )
     s = status_json(d)
     assert "dependency-removed" in {c["kind"] for c in s["keys"]["dm-0002/proof"]["acceptance"]["causes"]}
-    row = the(
-        ok("status", cwd=d).output.splitlines(), lambda ln: ln.startswith("dm-0002/proof "), "status row dm-0002/proof"
-    )
-    assert "accepted, stale" in row, row
+    row = status_row(ok("status", cwd=d).output, "dm-0002/proof")
+    assert row.startswith("stale (") and "dependency-removed" in row, row
 
 
 def test_status_stale_lists_the_stale_rows_and_accept_stale_reaccepts_them(tmp_path: Path) -> None:
@@ -351,7 +374,8 @@ def test_status_stale_lists_the_stale_rows_and_accept_stale_reaccepts_them(tmp_p
     ok("accept", "dm-0002", "--proofs", *AUTHOR, cwd=d)
     edit(d / "nodes" / "dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
     listed = ok("status", "--stale", cwd=d).output.splitlines()
-    assert [ln.split()[0] for ln in listed[:-1]] == ["dm-0002/proof"], listed  # the last line is the summary
+    assert listed[0] == "1 key of yours match: 1 stale", listed  # the first line is the summary
+    assert [text.split()[-1] for _, text in status_rows("\n".join(listed))] == ["dm-0002/proof"], listed
     ok("accept", "--stale", "--yes", "--force", *AUTHOR, cwd=d)
     s = status_json(d)
     assert s["summary"]["stale"] == 0 and s["summary"]["accepted"] == 2
@@ -636,12 +660,14 @@ def test_discard_flag_hides_everywhere_and_undo(tmp_path: Path) -> None:
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 1}
     ok("ai", "discard", "--target", "dm-0002", "--undo", cwd=d)
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
-    assert ok("ai", "discard", "--before", "2000-01-01", cwd=d).output.strip() == "no matching records"
+    assert (
+        ok("ai", "discard", "--before", "2000-01-01", cwd=d).stdout.strip() == "no matching records; nothing discarded"
+    )
     # a word that is no date is refused, not compared as text: "yesterday" sorted after every date and discarded everything
     refused("ai", "discard", "--before", "yesterday", cwd=d, code=2, match="yesterday")
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {"objection": 2}
     st = status_json(d)
-    assert len(st["runs"]) == 2 and ok("status", "--runs", cwd=d).output.count("annotation(s)") == 2
+    assert len(st["runs"]) == 2 and ok("status", "--runs", cwd=d).output.splitlines()[0] == "2 sessions on record"
 
 
 def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
@@ -713,12 +739,12 @@ def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
     remark = text[text.index("\\begin{remark}\\label{dm-0004}") : text.index("\\end{remark}") + len("\\end{remark}")]
     m.write_text(text.replace(remark + "\n", ""))
     r = ok("status", "--retired", cwd=d)
-    assert r.output.startswith("dm-0004")
-    lint = json_of("lint", "--json", cwd=d)
+    assert r.output.startswith("1 retired key") and r.output.splitlines()[2].split()[-1] == "dm-0004"
+    lint = json_of("lint", "--json", cwd=d)["diagnostics"]
     assert any(x["code"] == "loom:retired-ledger-key" for x in lint)
     # merge by alias: dm-0004 becomes an alias of dm-0005
     m.write_text(m.read_text().replace("\\label{dm-0005}", "\\label{dm-0005}\\label{dm-0004}"))
-    assert ok("status", "--retired", cwd=d).output.strip() == ""
+    assert ok("status", "--retired", cwd=d).output.strip() == "no retired keys"
     assert ok("deps", "dm-0004", cwd=d).output.startswith("dm-0005")
 
 
@@ -732,9 +758,9 @@ def test_positional_key_recovery_by_hash(tmp_path: Path) -> None:
     s = status_json(q)
     assert "sy-0006/proof/2" not in s["keys"]
     assert s["keys"]["sy-0006/proof"]["previous_key_match"] == "sy-0006/proof/2"
-    r = ok("status", cwd=q)
-    assert "acceptance recorded under sy-0006/proof/2; re-accept to confirm" in r.output
-    lint = json_of("lint", "--json", cwd=q, code=1)
+    r = status_row(ok("status", cwd=q).output, "sy-0006/proof")
+    assert "acceptance recorded under sy-0006/proof/2; re-accept to confirm" in r
+    lint = json_of("lint", "--json", cwd=q, code=1)["diagnostics"]
     assert any(x["code"] == "loom:previous-key-match" for x in lint)
 
 
@@ -755,9 +781,11 @@ def test_status_filters_and_never_fails(tmp_path: Path) -> None:
         ok("status", *flags, cwd=q)
     assert "sy-000C/proof" in ok("status", "--incomplete", cwd=q).output
     assert "sy-0009" in ok("status", "--loose", cwd=q).output
-    assert ok("status", "--undigested", cwd=q).output.strip() == "Har77"
+    undigested = ok("status", "--undigested", cwd=q).output.splitlines()
+    assert undigested[0].startswith("1 work") and undigested[2:] == ["Har77"]
     j = status_json(q)
-    assert set(j) == {"summary", "keys", "runs", "undigested", "retired", "digests", "reading"}
+    envelope = {"verdict", "ok", "exit", "groups", "notes"}
+    assert set(j) - envelope == {"summary", "keys", "runs", "undigested", "retired", "digests", "reading", "unmatched"}
     assert j["summary"]["incomplete"] == 1
 
 
@@ -863,9 +891,10 @@ def test_status_json_answers_the_same_question_as_the_text_form(tmp_path: Path) 
     """Every row filter applies to both forms (F3): `--json` is what a tool reaches for, and it returned the whole quilt."""
     q = synthetic(tmp_path)
     text = ok("status", "--master", "drafting/main.tex", cwd=q)
-    lines = [ln for ln in text.output.splitlines() if ln.strip()][:-1]  # the last line is the count
+    # the author's rows; the cited works' are summarised after them, one line per work
+    lines = [t for heading, t in status_rows(text.output) if not heading.startswith("in cited works")]
     js = json_of("status", "--master", "drafting/main.tex", "--json", cwd=q)
-    assert len(js["keys"]) == len(lines)
+    assert all(ln.split()[-1] in js["keys"] for ln in lines)
     assert all("drafting/main.tex" in e["reached_by"] for e in js["keys"].values())
     assert len(js["keys"]) < len(json_of("status", "--json", cwd=q)["keys"])
     assert js["summary"]["keys"] == len(lines)  # and the count is of what was asked for, not of the quilt
@@ -876,7 +905,7 @@ def test_status_carries_the_title_beside_the_taxon(tmp_path: Path) -> None:
     d = demo(tmp_path)
     js = status_json(d)
     assert js["keys"]["dm-0002"]["title"] == "Orbits" and js["keys"]["dm-0002"]["taxon"] == "Lemma"
-    line = the(ok("status", cwd=d).output.splitlines(), lambda ln: ln.startswith("dm-0002 "), "status row dm-0002")
+    line = status_row(ok("status", cwd=d).output, "dm-0002")
     assert "Orbits" in line
 
 
@@ -896,7 +925,7 @@ def test_status_filters_by_what_the_annotations_say(tmp_path: Path) -> None:
 def test_findings_filter_and_withdrawn_ones_say_why(tmp_path: Path) -> None:
     """A withdrawn finding is not a live one (F20); the reason was typed into the log and shown nowhere."""
     d = demo(tmp_path)
-    rel = ok("ai", "start", "Referee", cwd=d).output.strip()
+    rel = ok("ai", "start", "Referee", cwd=d).stdout.split()[0]
     run_name = rel.rsplit("/", 1)[-1]
     ok(
         "annotate",
@@ -938,9 +967,9 @@ BATCH = [
         id="every-verb-one-to-a-line",
     ),
     # a batch is written by a program that cannot see the result, so a misspelled key must not file an empty annotation
-    pytest.param([{"target": "dm-0002", "messsage": "typo"}], 1, "unknown key(s) messsage", [], id="unknown-key"),
-    pytest.param([{"edit": "{ann}", "discard": "{ann}", "message": "?"}], 1, "one verb per line", [], id="two-verbs"),
-    pytest.param([{"edit": "{ann}"}], 1, "nothing to change", [], id="answers-nothing"),
+    pytest.param([{"target": "dm-0002", "messsage": "typo"}], 2, "unknown key(s) messsage", [], id="unknown-key"),
+    pytest.param([{"edit": "{ann}", "discard": "{ann}", "message": "?"}], 2, "one verb per line", [], id="two-verbs"),
+    pytest.param([{"edit": "{ann}"}], 2, "nothing to change", [], id="answers-nothing"),
     # the failing line stops the rest, and what came before it stands
     pytest.param(
         [{"target": "dm-0002", "message": "one", "quote": "Every orbit", "kind": "suggestion"},
@@ -1082,7 +1111,7 @@ def test_a_finding_on_a_section_is_visible_where_the_author_looks(tmp_path: Path
     assert js["keys"]["sy-0100"]["state"] == ""  # a section is a container, not a claim
     assert js["keys"]["sy-0100"]["reviews"]["open"] == {"objection": 1}
 
-    line = the(ok("status", cwd=q).output.splitlines(), lambda ln: ln.startswith("sy-0100 "), "status row sy-0100")
+    line = status_row(ok("status", cwd=q).output, "sy-0100")
     assert "Introduction" in line and "1 open objection" in line
     assert "1 open objection" in ok("status", "--explain", "sy-0100", cwd=q).output
     assert list(json_of("status", "--severity", "major", "--json", cwd=q)["keys"]) == [
@@ -1092,7 +1121,7 @@ def test_a_finding_on_a_section_is_visible_where_the_author_looks(tmp_path: Path
 
     # it takes no acceptance row, and a section nobody annotated is structure rather than work
     refused("accept", "sy-0100", *AUTHOR, cwd=q, code=2, match="sy-0100 is not a statement or proof key")
-    assert not any(ln.startswith("sy-0200 ") for ln in ok("status", cwd=q).output.splitlines())
+    assert not any(ln.split()[-1:] == ["sy-0200"] for ln in ok("status", cwd=q).output.splitlines())
 
 
 def test_status_is_the_authors_to_do_list_not_the_literatures(tmp_path: Path) -> None:
@@ -1118,9 +1147,9 @@ def test_status_is_the_authors_to_do_list_not_the_literatures(tmp_path: Path) ->
     # the summary counts the author's keys in both forms, so the flag changes the rows and never the arithmetic
     assert shown["summary"] == all_rows["summary"]
     assert all(not k.startswith("Kre99") for k in shown["summary"])  # it is a tally, not a key list
-    line = ok("status", cwd=q).output.splitlines()[-1]
-    assert f"{len(kept)} digest keys you depend on" in line
-    assert f"{len(external - kept)} digest keys not counted" in line
+    line = status_row(ok("status", cwd=q).output, "Kre99")  # the cited work's keys, summarised on one line
+    assert f"{len(kept)} results you depend on" in line
+    assert f"{len(external - kept)} not counted" in line
 
 
 def test_accept_refuses_a_digest_node_and_names_the_command_that_does_it(tmp_path: Path) -> None:
@@ -1143,9 +1172,7 @@ def test_verifying_a_digest_node_says_what_it_claims(tmp_path: Path) -> None:
     assert "--- the source ---" in r.output, "a mechanical result's anchor is its LaTeX, and it says so"
     assert "as a faithful transcription of Kre99" in r.output
 
-    line = the(
-        ok("status", cwd=q).output.splitlines(), lambda ln: ln.startswith("Kre99-thm-2.1 "), "status row Kre99-thm-2.1"
-    )
+    line = status_row(ok("status", cwd=q).output, "Kre99")  # a cited work's keys are summarised by work
     assert "transcription verified" in line and "accepted" not in line
 
     # and what moved is the transcription, not the author's own text
@@ -1310,7 +1337,7 @@ def test_a_document_deleted_by_hand_is_gone_not_changed(tmp_path: Path) -> None:
     causes = status_json(d)["keys"]["dm-0001"]["acceptance"]["causes"]
     assert causes == [{"kind": "document-gone", "id": "drafting/main.tex", "diff": None, "when": causes[0]["when"]}]
     assert "document-gone drafting/main.tex" in ok("status", cwd=d).output
-    gone = [x for x in json_of("lint", "--json", cwd=d) if x["code"] == "loom:document-gone"]
+    gone = [x for x in json_of("lint", "--json", cwd=d)["diagnostics"] if x["code"] == "loom:document-gone"]
     assert gone == [
         {
             "severity": "warning",
@@ -1394,4 +1421,4 @@ def test_a_conflicted_id_is_a_row_of_its_own_and_its_definitions_are_not(tmp_pat
     assert not [k for k in keys if "#lemma:" in k and k.startswith(("drafting/talk.tex", "nodes/sy-999B.tex"))]
     said = ok("status", cwd=q).output
     assert "loom fork sy-999B --in drafting/talk.tex" in said
-    assert said.strip().splitlines()[-1].startswith("1 conflicted")
+    assert ": 1 conflicted," in said.splitlines()[0]  # the verdict counts it, first

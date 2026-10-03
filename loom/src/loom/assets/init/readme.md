@@ -13,8 +13,8 @@ You write in `drafting/`. When a document reaches a state worth being able to re
 
 ```
 $ loom stamp drafting/main.tex -m "referee revisions"
-step 0002 froze 2 keys; landmark referee-revisions, drafting/main.tex as it stands
-Recorded: stamp as step 0002 (0002-referee-revisions)
+step 0002 records a new version of 2 results; landmark referee-revisions keeps drafting/main.tex as
+  it stands
 
 $ loom history show referee-revisions --plain > paper-v2.tex
 ```

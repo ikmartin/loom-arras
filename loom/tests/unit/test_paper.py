@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from click.testing import Result
+
 from loom.history.steps import text_hash
 from loom.reshape.anchoring import anchoring_violations, fix_anchoring
 from loom.scan.quilt import load_quilt
@@ -74,6 +76,11 @@ def imported(tmp_path: Path, results: str = RESULTS) -> Path:
     return tmp_path / "q"
 
 
+def said(r: Result) -> str:
+    """Everything a run printed, its lines rejoined: the report wraps a long verdict at 100 columns."""
+    return " ".join(r.output.split())
+
+
 def ledger(q: Path) -> list[dict]:
     path = q / ".loom" / "history" / "ledger.jsonl"
     return [json.loads(x) for x in path.read_text().splitlines()] if path.exists() else []
@@ -93,7 +100,8 @@ def test_import_keeps_the_paper_as_received_as_the_landmark_of_step_0001(tmp_pat
     assert not (q / "sections").exists() and not (q / "preamble.tex").exists()  # inlined, so not copied
     assert not (q / "canon").exists()
     assert (p / "main.tex").read_text() == PAPER  # the original is untouched
-    assert "Identity test: pass" in r.output
+    assert "drafting/main.tex typesets to the same text as the original" in said(r)
+    assert r.stdout.startswith("created quilt") and r.stderr == ""  # the summary is on stdout, verdict first
 
     (step,) = ledger(q)
     assert step["action"] == "import" and step["step"] == 1 and step["dir"] == "0001-main" and step["froze"] == {}
@@ -163,11 +171,12 @@ def test_import_asks_before_writing(tmp_path: Path) -> None:
     p = paper_dir(tmp_path)
     q = bare_quilt(tmp_path)
     r = refused("import", str(p / "main.tex"), cwd=q, code=2, match="needs confirmation")
+    assert r.stderr.startswith("Error: import needs confirmation")  # and it shows what it would write
     assert "main.tex -> drafting/main.tex (linearized, 2 files inlined; kept as received in step 0001)" in r.output
     assert "drafting/main.tex: \\usepackage{loom} and 5 ids" in r.output
     assert not (q / "drafting" / "main.tex").exists() and not (q / "refs.bib").exists() and ledger(q) == []
     r2 = ok("import", str(p / "main.tex"), "--yes", cwd=q)
-    assert "Recorded: import as step 0001 (0001-main); the paper as received is landmark main" in r2.output
+    assert "the paper as received is landmark main, step 0001" in said(r2)
 
 
 def test_import_refuses_line_anchoring_with_the_paper_s_lines_and_fix_anchoring(tmp_path: Path) -> None:
@@ -308,7 +317,7 @@ def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
     node_files = sorted(f for f in (q / "nodes").glob("pp-*.tex") if ".proof" not in f.name)
     assert len(node_files) == 3  # the definition, the lemma with its adjacent proof, the theorem
     assert any("\\begin{definition}[Widget]" in f.read_text() for f in node_files)
-    assert "Identity test: pass" in r2.output
+    assert "drafting/spine.tex typesets to the same text as drafting/main.tex" in said(r2)
     assert (q / "drafting" / "main.tex").read_text().count("\\begin{definition}") == 1  # SRC untouched on disk
     lemma = next(f for f in node_files if "Alpha" in f.read_text())
     assert "\\begin{proof}\nObvious." in lemma.read_text()  # adjacent proof travels with its statement
@@ -405,7 +414,7 @@ def test_linearize_nest_shifts_and_identity_on_master(tmp_path: Path) -> None:
     r = ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", cwd=q)
     flat = (q / "drafting" / "flat.tex").read_text()
     assert "\\subsection{Nested}" in flat and "\\nest{" not in flat
-    assert "Identity test: pass" in r.output
+    assert "it typesets to the same text as drafting/main.tex" in said(r)
     res = scan(load_quilt(q))
     assert "drafting/flat.tex" in res.masters
 
@@ -473,7 +482,8 @@ def test_id_next_prints_a_free_id_and_inserts_nothing(tmp_path: Path) -> None:
     allocated = r.output.strip()
     assert allocated.startswith("pp-") and allocated not in (q / "drafting" / "main.tex").read_text()
     assert (q / "drafting" / "main.tex").read_text() == before
-    assert json_of("id", "--next", "--json", cwd=q) == {"id": allocated, "prefix": "pp"}
+    js = json_of("id", "--next", "--json", cwd=q)
+    assert (js["id"], js["prefix"], js["verdict"]) == (allocated, "pp", allocated)
     refused("id", cwd=q, code=2, match="name a file to label, or pass --next")  # a file, or --next
 
 
@@ -521,7 +531,7 @@ def test_atomize_key_refuses_what_it_cannot_move(tmp_path: Path) -> None:
     main.write_text(main.read_text().replace(moved, f"\\input{{nodes/{key}}}"))
     refused("atomize", "--key", key, cwd=q, code=1, match="already lives in")
     refused("atomize", "--key", section, cwd=q, code=1, match="is a section")
-    refused("atomize", "--key", "pp-ZZZZ", cwd=q, code=1, match="not a key of this quilt")
+    refused("atomize", "--key", "pp-ZZZZ", cwd=q, code=2, match="not a key of this quilt")  # names nothing
 
     main.write_text(
         main.read_text().replace("\\end{document}", "\\begin{lemma}\nNo id.\n\\end{lemma}\n\\end{document}")

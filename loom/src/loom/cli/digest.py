@@ -8,6 +8,9 @@ import click
 
 from loom.cli._common import ContentError, EnvError, note
 from loom.cli._quilt import open_scan, quilt_option
+from loom.cli.diagnostics import groups as diagnostic_groups
+from loom.cli.diagnostics import has_errors, tally
+from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.digest.extract import extract_digest
 from loom.digest.importer import plan_digest_import, write_digest_import
 from loom.scan.quilt import load_quilt
@@ -64,15 +67,15 @@ def _stored_source(result: ScanResult, citekey: str) -> Path:
 @click.option(
     "--no-compile", "no_compile", is_flag=True, help="Skip compiling the reference; number results by emulation."
 )
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-@click.pass_context
 def extract(
-    ctx: click.Context,
     citekey: str,
     src: Path | None,
     to: str | None,
     engine: str | None,
     no_compile: bool,
+    as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Produce digests/CITEKEY.tex mechanically from the reference paper's source (proofs dropped, ids prefixed).
@@ -87,36 +90,49 @@ def extract(
         raise EnvError(f"{target.relative_to(root)} exists; use --to to write elsewhere")
     if citekey not in result.bib:
         note(f"warning: {citekey} is not in the bibliography (loom:digest-without-bib)")
-    click.echo(f"Reading {src} ...")
-    text, report = extract_digest(result, citekey, src, engine=engine, compile=not no_compile)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
-    click.echo(f"Wrote {target.relative_to(root) if target.is_relative_to(root) else target}")
-    click.echo(report.summary())
-    rescan = scan(load_quilt(root))
-    # mechanical extraction and an agent's reading end in the same place, or half the digest is invisible to
-    # every surface that reads results (contract §1.4)
-    from loom.refs.proposals import record_extracted
+    with Progress(f"extracting {citekey}") as progress:
+        progress.item(src.name)
+        text, report = extract_digest(result, citekey, src, engine=engine, compile=not no_compile)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+        progress.next_stage("recording its results")
+        rescan = scan(load_quilt(root))
+        # mechanical extraction and an agent's reading end in the same place, or half the digest is invisible to every surface that reads results (contract §1.4)
+        from loom.refs.proposals import record_extracted
 
-    recorded = record_extracted(rescan, citekey)
-    if recorded:
-        click.echo(f"recorded {recorded} result(s) in digests/{citekey}.results.json")
+        recorded = record_extracted(rescan, citekey)
     rel = target.relative_to(root).as_posix() if target.is_relative_to(root) else target.as_posix()
     hits = [d for d in rescan.lint if any(loc.file == rel for loc in d.locations) or citekey in d.message]
-    if hits:
-        click.echo("Lint on the digest:")
-        for d in hits:
-            click.echo(f"  {d.severity:<8}{d.code:<34}{d.message}")
-    else:
-        click.echo("Lint on the digest: clean")
+    total = sum(report.by_taxon.values())
+    lines = ["", *report.summary().splitlines()]
+    if recorded:
+        lines.append(f"Recorded {counted(recorded, 'result')} in digests/{citekey}.results.json")
+    # the digest is the subject here, so its diagnostics are listed in full rather than summarised as a cited work's
+    bad = has_errors(hits, None)
+    Report(
+        f"wrote {rel}: {counted(total, 'result')} from {citekey}; its lint: {tally(hits, None).replace(' in your documents', '')}",
+        ok=not bad,
+        lines=lines,
+        groups=diagnostic_groups(hits, None),
+        data={
+            "citekey": citekey,
+            "digest": rel,
+            "results": total,
+            "recorded": recorded,
+            "numbering": report.numbering,
+            "skipped": list(report.skipped),
+            "requires": list(report.requires),
+            "diagnostics": [d.to_dict() for d in hits],
+        },
+    ).emit(as_json)
 
 
 @digest.command(name="import")
 @click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--as", "as_citekey", default=None, metavar="CITEKEY", help="Rename the digest's citekey on the way in.")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-@click.pass_context
-def import_digest(ctx: click.Context, path: Path, as_citekey: str | None, quilt_path: str | None) -> None:
+def import_digest(path: Path, as_citekey: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Copy a digest from another quilt into digests/, rewriting its id prefix when --as renames the citekey."""
     result = open_scan(quilt_path)
     try:
@@ -129,17 +145,35 @@ def import_digest(ctx: click.Context, path: Path, as_citekey: str | None, quilt_
         raise EnvError(
             f"{Path(str(exc)).relative_to(result.quilt.root)} exists; digest import never overwrites"
         ) from exc
-    click.echo(
-        f"Wrote {dest.relative_to(result.quilt.root)}"
-        + (
-            f" (renamed {plan.old_citekey} to {plan.citekey}, {plan.renamed} rewrites)"
-            if plan.citekey != plan.old_citekey
-            else ""
-        )
-    )
+    rel = dest.relative_to(result.quilt.root).as_posix()
+    warnings = []
     if plan.missing_packages:
-        note(f"requires: {', '.join(plan.missing_packages)} not loaded by the preamble (loom:missing-package)")
+        warnings.append(
+            Item(f"requires {', '.join(plan.missing_packages)}, not loaded by the preamble", key="loom:missing-package")
+        )
     if plan.undeclared_envs:
-        note(f"environments not declared in this quilt: {', '.join(plan.undeclared_envs)} (loom:unknown-environment)")
+        warnings.append(
+            Item(
+                f"environments not declared in this quilt: {', '.join(plan.undeclared_envs)}",
+                key="loom:unknown-environment",
+            )
+        )
     if plan.citekey not in result.bib:
-        note(f"{plan.citekey} is not in the bibliography (loom:digest-without-bib)")
+        warnings.append(Item(f"{plan.citekey} is not in the bibliography", key="loom:digest-without-bib"))
+    renamed = plan.citekey != plan.old_citekey
+    Report(
+        f"wrote {rel}"
+        + (f", renamed {plan.old_citekey} to {plan.citekey} in {counted(plan.renamed, 'place')}" if renamed else "")
+        + (f"; {counted(len(warnings), 'warning')}" if warnings else ""),
+        ok=not warnings,
+        groups=[Group("warnings", warnings, limit=None, next="loom lint")] if warnings else [],
+        data={
+            "digest": rel,
+            "citekey": plan.citekey,
+            "renamed_from": plan.old_citekey if renamed else None,
+            "rewrites": plan.renamed,
+            "missing_packages": list(plan.missing_packages),
+            "undeclared_envs": list(plan.undeclared_envs),
+            "in_bibliography": plan.citekey in result.bib,
+        },
+    ).emit(as_json)

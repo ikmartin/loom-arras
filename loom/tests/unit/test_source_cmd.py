@@ -11,7 +11,7 @@ from tests.unit._quilts import demo
 def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
     """`loom source` replaced `loom bundle` as the way to read a result: it prints, so there is no file to go stale."""
     d = demo(tmp_path)
-    sid = ok("ai", "start", "Reading dm-0002", cwd=d).stdout.strip()
+    sid = ok("ai", "start", "Reading dm-0002", cwd=d).stdout.split()[0]
     run_dir = d / ".loom" / "sessions" / sid
     r = ok("source", "dm-0002", "--session", sid, cwd=d)
     assert r.output.startswith("\\begin{lemma}[Orbits]\\label{dm-0002}")
@@ -28,7 +28,7 @@ def test_source_prints_a_key_and_its_closure(tmp_path: Path) -> None:
 def test_source_prints_a_whole_document_flattened(tmp_path: Path) -> None:
     """An agent asked about a paper rather than a result needs the document; `loom linearize` would do it by superseding the master, and is denied to agents, so `loom source` takes a path (DR-155)."""
     d = demo(tmp_path)
-    sid = ok("ai", "start", "Reading the paper", cwd=d).stdout.strip()
+    sid = ok("ai", "start", "Reading the paper", cwd=d).stdout.split()[0]
     run_dir = d / ".loom" / "sessions" / sid
     r = ok("source", "drafting/main.tex", "--session", sid, cwd=d)
     assert "\\documentclass" in r.output  # the document, preamble and all

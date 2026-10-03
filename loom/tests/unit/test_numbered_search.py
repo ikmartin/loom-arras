@@ -25,7 +25,8 @@ def q(tmp_path: Path) -> Path:
 
 
 def found(q: Path, *args: str) -> list[dict[str, object]]:
-    return json_of("search", *args, "--json", cwd=q)
+    matches: list[dict[str, object]] = json_of("search", *args, "--json", cwd=q)["matches"]
+    return matches
 
 
 def test_a_number_names_what_every_document_numbers_so_the_default_first(q: Path) -> None:

@@ -108,7 +108,7 @@ async function showLint(json: string, root: string): Promise<void> {
 		locations: Array<{ file: string; line: number; column?: number }>;
 	}>;
 	try {
-		parsed = JSON.parse(json);
+		parsed = JSON.parse(json).diagnostics ?? [];
 	} catch {
 		await show('loom lint', json);
 		return;

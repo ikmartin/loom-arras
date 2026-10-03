@@ -247,14 +247,14 @@ def test_agent_check_tests_the_command_without_running_it(q: Path) -> None:
     good = ok("agent", "check", cwd=q)
     assert "launching: on" in good.output and "name: Fake Agent" in good.output and "{session}" not in good.output
     configure(q, start=["no-such-agent-xyz"], resume=[])
-    refused("agent", "check", cwd=q, code=1, match="no-such-agent-xyz is not on PATH")
+    refused("agent", "check", cwd=q, code=2, match="no-such-agent-xyz is not on PATH")
     configure(q)
     subprocess.run(["git", "init", "-q"], cwd=q, check=True)
     subprocess.run(["git", "add", "-f", "ai/ai-config.toml"], cwd=q, check=True)
-    refused("agent", "check", cwd=q, code=1, match="git tracks")
+    refused("agent", "check", cwd=q, code=2, match="git tracks")
     (q / "ai" / "ai-config.toml").write_text('name = "Fake Agent"\n')
     subprocess.run(["git", "rm", "-q", "-f", "--cached", "ai/ai-config.toml"], cwd=q, check=True)
-    refused("agent", "check", cwd=q, code=1, match="start must be")
+    refused("agent", "check", cwd=q, code=2, match="start must be")
 
 
 def test_an_older_quilt_is_told_and_upgraded_to_keep_the_command_out_of_git(q: Path) -> None:

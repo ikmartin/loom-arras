@@ -10,9 +10,11 @@ from typing import Any
 
 import click
 
-from loom.cli._common import ContentError, EnvError, NotFoundError, emit_json
+from loom.cli._common import ContentError, EnvError, NotFoundError
 from loom.cli._quilt import describe, open_quilt, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for, log_run
+from loom.cli.graph import keyed, natural, when
+from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.clock import stamp, today
 from loom.records.annotations import (
     GRADED,
@@ -35,14 +37,28 @@ from loom.tex.runner import compile_tex
 
 
 @click.command(name="review")
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def review_command(quilt_path: str | None) -> None:
+def review_command(as_json: bool, quilt_path: str | None) -> None:
     """Observe current review causes and publish the review panel without accepting any key."""
     from loom.render.build import build
 
-    report = build(open_quilt(quilt_path))
-    stale = sum(1 for key in report.manifest["keys"].values() if key.get("acceptance", {}).get("fresh") is False)
-    click.echo(f"review updated: {stale} stale key{'s' if stale != 1 else ''}; build/manifest.json published")
+    with Progress("building"):
+        report = build(open_quilt(quilt_path))
+    stale = sorted(
+        (k for k, key in report.manifest["keys"].items() if key.get("acceptance", {}).get("fresh") is False),
+        key=natural,
+    )
+    Report(
+        f"published the review panel: {counted(len(stale), 'stale key')}",
+        ok=not stale,
+        groups=[
+            Group("stale", [Item("", key=k) for k in stale], next="loom status --stale" if len(stale) > 12 else None)
+        ]
+        if stale
+        else [],
+        data={"stale": stale},
+    ).emit(as_json)
 
 
 def _author(explicit: str | None, root: Path) -> str:
@@ -161,6 +177,7 @@ def write_acceptance(
     "--force", is_flag=True, help="Accept even when the document the acceptance is recorded against does not compile."
 )
 @click.option("--yes", "-y", is_flag=True)
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
 def accept(
     keys: tuple[str, ...],
@@ -171,6 +188,7 @@ def accept(
     author: str | None,
     force: bool,
     yes: bool,
+    as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Record acceptance rows and snapshots for KEYS; the only writer of the ledger."""
@@ -212,7 +230,9 @@ def accept(
             and not n.external
         )
         if not targets:
-            click.echo("no author-owned statements or proofs to accept")
+            Report("nothing to accept: no statement or proof of yours is in scope", data=_accepted([], 0, 0)).emit(
+                as_json
+            )
             return
         incomplete = [k for k in targets if result.nodes[k].incomplete]
         if incomplete:
@@ -229,10 +249,10 @@ def accept(
             raise ContentError(f"open claims cannot be accepted as established: {', '.join(open_claims)}")
         statements = sum(result.nodes[k].kind == "environment" for k in targets)
         label = f"--master {accept_master}" if accept_master else "--all-live"
-        click.echo(f"{label} selects {statements} statements and {len(targets) - statements} proofs")
         if not yes:
             if not sys.stdin.isatty():
                 raise EnvError(f"{label} needs confirmation; pass --yes")
+            click.echo(f"{label} selects {statements} statements and {len(targets) - statements} proofs", err=True)
             click.confirm(
                 f"accept these {len(targets)} keys as mathematically correct in their current dependency contexts?",
                 abort=True,
@@ -242,15 +262,14 @@ def accept(
         states = records.key_states(result)
         stale = sorted(k for k, s in states.items() if s.state == "accepted" and not s.fresh)
         if not stale:
-            click.echo("nothing is stale")
+            Report("nothing is stale; nothing accepted", data=_accepted([], 0, 0)).emit(as_json)
             return
-        for k in stale:
-            click.echo(
-                f"  {describe(result, k)}  {', '.join(c.kind + (' ' + c.id if c.id else '') for c in states[k].causes)}"
-            )
         if not yes:
             if not sys.stdin.isatty():
                 raise EnvError("--stale needs confirmation; pass --yes")
+            for k in stale:
+                causes = ", ".join(c.kind + (" " + c.id if c.id else "") for c in states[k].causes)
+                click.echo(f"  {describe(result, k)}  {causes}", err=True)
             click.confirm(f"accept these {len(stale)} stale keys?", abort=True)
         targets = stale
         # each row's own document, where the history's moves have taken it; a document that is gone is never written against again
@@ -296,14 +315,39 @@ def accept(
         if result.nodes[key].kind == "environment" and result.nodes[key].basis == "open-claim":
             raise ContentError(f"{key} is an open claim and cannot be accepted as established")
     # each document a row is recorded against must compile, unless --force: the rows hash the source either way, so the compile is a check on the claim, not part of what is recorded
-    for master in () if force else dict.fromkeys(contexts[key] for key in targets if contexts.get(key)):
-        ok, err = _master_compiles(result, master)
-        if not ok:
-            raise ContentError(f"{master} does not compile ({err}); fix it or pass --force")
+    documents = [] if force else list(dict.fromkeys(contexts[key] for key in targets if contexts.get(key)))
+    with Progress("compiling", len(documents)) as p:
+        for master in documents:
+            p.item(master)
+            ok, err = _master_compiles(result, master)
+            if not ok:
+                raise ContentError(f"{master} does not compile ({err}); fix it or pass --force")
     rows, written, present = write_acceptance(result, targets, name, contexts)
-    for row in rows:
-        click.echo(f"accepted {describe(result, row.key):<40} by {row.author}  {row.date[:10]}")
-    click.echo(f"snapshots: {written} written, {present} already present")
+    said = [r.key for r in rows]
+    if len(said) <= 3 and not (all_live or accept_master or accept_stale):
+        verdict = "accepted " + (", ".join(said[:-1]) + " and " + said[-1] if len(said) > 1 else said[0])
+    else:
+        statements = sum(result.nodes[r.key].kind == "environment" for r in rows)
+        verdict = f"accepted {counted(statements, 'statement')} and {counted(len(rows) - statements, 'proof')}"
+    items = keyed(
+        [
+            ((result.nodes[r.key].taxon or result.nodes[r.key].kind, f"against {r.master}" if r.master else ""), r.key)
+            for r in sorted(rows, key=lambda r: natural(r.key))
+        ]
+    )
+    Report(
+        f"{verdict} as {name}",
+        groups=[Group("accepted", items, next="loom status" if len(items) > 12 else None)],
+        data=_accepted(rows, written, present),
+    ).emit(as_json)
+
+
+def _accepted(rows: list[AcceptRow], written: int, present: int) -> dict[str, Any]:
+    """`loom accept --json`'s data: each row recorded, and the snapshots it wrote."""
+    return {
+        "accepted": [{"key": r.key, "author": r.author, "date": r.date, "master": r.master} for r in rows],
+        "snapshots": {"written": written, "present": present},
+    }
 
 
 def _target_text(result: ScanResult, target: str) -> tuple[str, str]:
@@ -815,6 +859,7 @@ def _rects(box: str) -> list[list[float]]:
     is_flag=True,
     help="Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
 )
+@click.option("--json", "as_json", is_flag=True)
 @quilt_option
 def annotate(
     target: str | None,
@@ -835,6 +880,7 @@ def annotate(
     in_doc: str | None,
     undo: bool,
     batch: bool,
+    as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Write an annotation on TARGET: a key, an equation's qualified key, a master path -- or, with --page, a cited work.
@@ -844,10 +890,11 @@ def annotate(
     result = open_scan(quilt_path)
     root = result.quilt.root
     writer = _writer(root, session, author)
+    written: list[str] = []
 
     def done(said: str, **verb: Any) -> None:
-        """Print what was done and log it, afterwards and with the annotation it touched, so a session's record says which (plan 0.14)."""
-        click.echo(said)
+        """Log what was done, afterwards and with the annotation it touched, so a session's record says which (plan 0.14); the report says it once the command is through."""
+        written.append(said)
         log_run(writer[0], _logged(said, **verb), root)
 
     if batch:
@@ -858,11 +905,20 @@ def annotate(
             try:
                 item: dict[str, Any] = json.loads(line)
             except json.JSONDecodeError as exc:
-                raise ContentError(f"batch line {lineno}: {exc}") from exc
+                raise EnvError(f"batch line {lineno}: {exc}") from exc
             try:
                 done(_batch_line(result, writer, item), **{k: item.get(k) for k in _VERB_KEYS})
-            except (ContentError, EnvError) as exc:
+            except EnvError as exc:
+                raise EnvError(f"batch line {lineno}: {exc.message}") from exc
+            except ContentError as exc:
                 raise ContentError(f"batch line {lineno}: {exc.message}") from exc
+        Report(
+            f"wrote {counted(len(written), 'change')} from the batch"
+            if written
+            else "the batch was empty; nothing written",
+            groups=[Group("", [Item(w.split(chr(10))[0]) for w in written], limit=None)],
+            data=_annotated(written),
+        ).emit(as_json)
         return
     # Each of these names its annotation by id and takes no TARGET (7.4), so the one positional given is the body.
     # `--edit` and `--discard` did this; `--reply` and `--resolve` read it as a target and filed an empty body.
@@ -872,38 +928,44 @@ def annotate(
         raise EnvError("--undo applies to --resolve or --discard")
     if discard_id:
         done(discard_annotation(root, discard_id, writer, message, undo), discard=discard_id, undo=undo)
-        return
-    if edit:
+    elif edit:
         check_edit(message, severity, payload)
         done(edit_annotation(result, edit, writer, body=message, severity=severity, payload=payload), edit=edit)
-        return
-    done(
-        _one_comment(
-            result,
-            writer,
-            target,
-            message,
-            quote,
-            kind,
-            reply,
-            resolve,
-            severity,
-            payload,
-            placement,
-            undo,
+    else:
+        done(
+            _one_comment(
+                result,
+                writer,
+                target,
+                message,
+                quote,
+                kind,
+                reply,
+                resolve,
+                severity,
+                payload,
+                placement,
+                undo,
+                page=page,
+                rects=_rects(box) if box else None,
+                in_doc=in_doc,
+            ),
+            target=target,
+            quote=quote,
+            kind=kind,
+            reply=reply,
+            resolve=resolve,
+            undo=undo,
             page=page,
-            rects=_rects(box) if box else None,
-            in_doc=in_doc,
-        ),
-        target=target,
-        quote=quote,
-        kind=kind,
-        reply=reply,
-        resolve=resolve,
-        undo=undo,
-        page=page,
-        **{"in": in_doc},
-    )
+            **{"in": in_doc},
+        )
+    first, *rest = written[0].split("\n")
+    Report(first, lines=rest, data=_annotated(written)).emit(as_json)
+
+
+def _annotated(written: list[str]) -> dict[str, Any]:
+    """`loom annotate --json`'s data: each change as it was said, with the annotation it made or touched."""
+    return {"written": [{"id": m.group(0) if (m := _ANN.search(w)) else None, "said": w} for w in written]}
 
 
 _ANN = re.compile(r"a-\d{4}-\d{2}-\d{2}-\d+")
@@ -1267,110 +1329,277 @@ def status(
         detached=f_detached,
     )
     payload["summary"] = summarise(result, payload["keys"])
-    if as_json:
-        emit_json(payload)
-        return
+    payload["unmatched"] = unmatched_cites(result)
+    filtered = any((f_stale, f_draft, f_incomplete, f_loose, f_master, f_tag, f_severity, f_kind, f_status, f_detached))
     if f_reading:
-        if not payload["reading"]:
-            click.echo("no notes on any cited work's pages")
-        for r in payload["reading"]:
+        out = _reading_report(payload)
+    elif explain:
+        out = _explain_report(result, records, payload, explain)
+    elif f_undigested:
+        out = Report(
+            f"{counted(len(payload['undigested']), 'work')} cited with a locator and not digested"
+            if payload["undigested"]
+            else "every work cited with a locator is digested",
+            groups=[Group("", [Item("", key=ck) for ck in payload["undigested"]], limit=None)],
+        )
+    elif f_retired:
+        out = Report(
+            f"{counted(len(payload['retired']), 'retired key')}: accepted once, and defined by no document now"
+            if payload["retired"]
+            else "no retired keys",
+            groups=[
+                Group(
+                    "",
+                    keyed(
+                        [
+                            (("ledger rows remain; last accepted", when(records.latest[k].date)[:10]), k)
+                            for k in sorted(payload["retired"], key=natural)
+                        ]
+                    ),
+                    limit=None,
+                )
+            ],
+        )
+    elif f_runs:
+        rows: list[tuple[tuple[str, ...], str]] = [
+            (
+                (r["kind"], counted(r["annotations"], "annotation"), "discarded" if r["discarded"] else ""),
+                r["path"],
+            )
+            for r in sorted(payload["runs"], key=lambda r: natural(r["path"]))
+        ]
+        out = Report(
+            f"{counted(len(rows), 'session')} on record" if rows else "no sessions on record",
+            groups=[Group("", keyed(rows), limit=None)],
+        )
+    elif f_unmatched:
+        rows = [((u["cite"],), f"{u['file']}:{u['line']}") for u in payload["unmatched"]]
+        out = Report(
+            f"{counted(len(rows), 'citation')} with a locator no digest node matches"
+            if rows
+            else "every located citation of a digested work matches a node",
+            groups=[Group("", keyed(rows), limit=None)],
+        )
+    else:
+        out = _status_report(result, payload, filtered, f_digests, hidden)
+    out.data = payload
+    out.emit(as_json)
+
+
+def unmatched_cites(result: ScanResult) -> list[dict[str, Any]]:
+    """Each `\\cite[locator]{KEY}` of a digested work whose locator matches no node of its digest, for `--unmatched-cites`."""
+    digested = set(result.assembly.digest_files.values())
+    out = []
+    for cite in result.edges.cites:
+        if (
+            cite.postnote
+            and cite.citekey in digested
+            and not any(
+                e.via == "postnote" and e.src == cite.src and e.label == f"{cite.citekey}|{cite.postnote}"
+                for e in result.edges.edges
+            )
+        ):
+            out.append(
+                {
+                    "file": cite.file,
+                    "line": cite.line,
+                    "citekey": cite.citekey,
+                    "postnote": cite.postnote,
+                    "cite": f"\\cite[{cite.postnote}]{{{cite.citekey}}}",
+                }
+            )
+    return out
+
+
+#: The order status groups the author's rows in: what needs action first.
+STATE_GROUPS = (
+    ("conflicted", "conflicted"),
+    ("stale", "stale"),
+    ("incomplete", "incomplete"),
+    ("proposed", "proposed"),
+    ("draft", "draft"),
+    ("accepted", "accepted"),
+    ("", "sections with findings"),
+)
+
+
+def _facts(e: dict[str, Any]) -> list[str]:
+    """What a row says beside its state: its open findings, or who last reviewed it clean, and what has come loose."""
+    facts = []
+    opened = {k: v for k, v in e["reviews"]["open"].items() if v}
+    if opened:
+        facts.append(", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()))
+    elif e["reviews"]["latest_current"]:
+        last = e["reviews"]["latest_current"]
+        facts.append(f"reviewed clean ({last['author']['id']}, {last['date'][:10]})")
+    if e["reviews"]["detached"]:
+        facts.append(f"{e['reviews']['detached']} detached")
+    if e.get("previous_key_match"):
+        facts.append(f"acceptance recorded under {e['previous_key_match']}; re-accept to confirm")
+    return facts
+
+
+def _work_of(result: ScanResult, key: str) -> str:
+    """The citekey of the work an external key was read from, or its file when no digest names one."""
+    n = result.nodes[key]
+    return result.assembly.digest_files.get(n.file) or n.file
+
+
+def _status_report(
+    result: ScanResult, payload: dict[str, Any], filtered: bool, include_digests: bool, hidden: set[str]
+) -> Report:
+    """`loom status`'s rows as a report: the author's keys grouped by state, what needs action first, then the cited works' keys summarised by work."""
+    rows = payload["keys"]
+    own = {k: e for k, e in rows.items() if not result.nodes[k].external}
+    cited = {k: e for k, e in rows.items() if result.nodes[k].external}
+    by_group: dict[str, list[tuple[tuple[str, ...], str]]] = {g: [] for g, _ in STATE_GROUPS}
+    fixes: dict[str, list[str]] = {}
+    for key in sorted(own, key=natural):
+        e = own[key]
+        stale = bool(e.get("acceptance") and not e["acceptance"]["fresh"])
+        group = "stale" if stale else e["state"]
+        title = e["title"] if len(e["title"]) <= 32 else e["title"][:31] + "…"
+        said = _facts(e)
+        if e["state"] == "conflicted":
+            said.insert(0, f"defined by {' and '.join(e['conflict'])}")
+            fixes[key] = list(e["fixes"])
+        if stale:
+            said.insert(
+                0,
+                "; ".join(
+                    c["kind"]
+                    + (" " + c["id"] if c.get("id") else "")
+                    + (f" ({c['when'][:10]})" if c.get("when") else "")
+                    for c in e["acceptance"]["causes"]
+                ),
+            )
+        if e["incomplete"]:
+            said.append(f"incomplete: {'; '.join(e['incomplete'])}")
+        by_group.setdefault(group, []).append(((e["taxon"] or e["kind"], title, "; ".join(said)), key))
+    aligned = dict(
+        zip(
+            [k for g, _ in STATE_GROUPS for _, k in by_group[g]],
+            keyed([r for g, _ in STATE_GROUPS for r in by_group[g]]),
+            strict=True,
+        )
+    )
+    groups = []
+    for g, heading in STATE_GROUPS:
+        if not by_group[g]:
+            continue
+        items = [aligned[k] for _, k in by_group[g]]
+        for item in items:
+            item.fixes = fixes.get(str(item.key), [])
+        groups.append(
+            Group(
+                heading,
+                items,
+                limit=None,
+                problem=g in ("conflicted", "stale"),
+                next="loom accept --stale" if g == "stale" else None,
+            )
+        )
+    s = payload["summary"]
+    d = payload["digests"]
+    if cited or (d["not_counted"] and not filtered):
+        shown: dict[str, list[str]] = {}
+        unshown: dict[str, int] = {}
+        for k in cited:
+            e = cited[k]
+            mark = ", stale" if e.get("acceptance") and not e["acceptance"]["fresh"] else ""
+            shown.setdefault(_work_of(result, k), []).append(state_label(result, k, e["state"]) + mark)
+        for k in () if filtered else hidden:
+            unshown[_work_of(result, k)] = unshown.get(_work_of(result, k), 0) + 1
+        items = []
+        for work in sorted(set(shown) | set(unshown), key=natural):
+            states: dict[str, int] = {}
+            for st in shown.get(work, []):
+                states[st] = states.get(st, 0) + 1
+            what = "shown" if include_digests else "you depend on"
+            said = (
+                [
+                    f"{counted(len(shown[work]), 'result')} {what} ("
+                    + ", ".join(f"{n} {st}" for st, n in sorted(states.items()))
+                    + ")"
+                ]
+                if work in shown
+                else []
+            )
+            if unshown.get(work):
+                said.append(f"{unshown[work]} not counted")
+            items.append(Item(", ".join(said), key=work))
+        groups.append(
+            Group("in cited works", items, limit=None, next="loom status --include-digests" if unshown else None)
+        )
+    parts = []
+    for g, heading in STATE_GROUPS:
+        n = len(by_group[g])
+        if n and g:
+            parts.append(f"{n} {heading}")
+        elif n:
+            parts.append(counted(n, "section") + " with findings")
+    if own:
+        verdict = f"{counted(len(own), 'key')} of yours{' match' if filtered else ''}: " + ", ".join(parts)
+    else:
+        verdict = "no keys of yours match" if filtered else "no keys of yours yet"
+    if s["loose"]:
+        verdict += f"; {s['loose']} loose"
+    return Report(verdict, ok=not (s["stale"] or s["conflicted"]), groups=groups)
+
+
+def _reading_report(payload: dict[str, Any]) -> Report:
+    """`loom status --reading`: the notes on pages of cited works, a group per work."""
+    by_work: dict[str, list[dict[str, Any]]] = {}
+    for r in payload["reading"]:
+        by_work.setdefault(r["work"] or r["target"], []).append(r)
+    groups = []
+    for work in sorted(by_work, key=natural):
+        rows = []
+        for r in by_work[work]:
             where = f"p.{r['page']}" + (" (box)" if r["basis"] == "box" else "")
             state = r["status"] + (", detached" if r["detached"] else "") + ("" if r["recorded"] else ", unrecorded")
             first = r["body"].strip().splitlines()[0] if r["body"].strip() else ""
-            click.echo(
-                f"{r['work'] or r['target']:<16} {where:<10} {r['kind']:<13} {r['id']:<20} {state:<18} {first[:60]}"
-            )
-        return
-    if explain:
-        key = resolve_key(result, explain)
-        states = records.key_states(result)
-        ks = states.get(key)
-        if ks is None:
-            raise EnvError(f"{key} is not a statement, proof or section key")
-        section = result.nodes[key].kind == "section"
-        click.echo(f"{describe(result, key)}  {state_label(result, key, ks.label)}".rstrip())
-        click.echo(f"  in {result.nodes[key].file}")
-        if section:
-            click.echo("  a section: it carries findings and takes no acceptance")
-        elif not ks.causes:
-            click.echo("  no causes: the acceptance is fresh" if ks.row else "  never accepted")
-        e = payload["keys"].get(key) or {"reviews": {"open": dict(ks.open), "detached": ks.detached}}
-        opened = {k: v for k, v in e["reviews"]["open"].items() if v}
-        if opened:
-            click.echo("  " + ", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()))
-        if e["reviews"]["detached"]:
-            click.echo(f"  {e['reviews']['detached']} detached annotation(s): the quoted text is gone")
-        for c in ks.causes:
-            click.echo(f"  {c.kind}{' ' + c.id if c.id else ''}{' (' + c.when + ')' if c.when else ''}")
-            diff = records.diff_for(result, c, key)
-            if diff:
-                click.echo("".join("    " + line for line in diff.splitlines(keepends=True)), nl=False)
-        return
-    if f_undigested:
-        for ck in payload["undigested"]:
-            click.echo(ck)
-        return
-    if f_retired:
-        for k in payload["retired"]:
-            click.echo(f"{k}  (ledger rows remain; last accepted {records.latest[k].date[:10]})")
-        return
-    if f_runs:
-        for r in payload["runs"]:
-            click.echo(
-                f"{r['path']}  {r['kind']}  {r['annotations']} annotation(s){'  discarded' if r['discarded'] else ''}"
-            )
-        return
-    if f_unmatched:
-        digested = set(result.assembly.digest_files.values())
-        for cite in result.edges.cites:
-            if (
-                cite.postnote
-                and cite.citekey in digested
-                and not any(
-                    e.via == "postnote" and e.src == cite.src and e.label == f"{cite.citekey}|{cite.postnote}"
-                    for e in result.edges.edges
-                )
-            ):
-                click.echo(
-                    f"{cite.file}:{cite.line}  \\cite[{cite.postnote}]{{{cite.citekey}}}  no digest node matches"
-                )
-        return
-    for key, e in payload["keys"].items():
-        state = state_label(result, key, e["state"]) + (
-            ", stale" if e.get("acceptance") and not e["acceptance"]["fresh"] else ""
-        )
-        cause = ""
-        if e["state"] == "conflicted":
-            cause = f"defined by {' and '.join(e['conflict'])}: {e['fixes'][0]}"
-        if e.get("acceptance") and e["acceptance"]["causes"]:
-            cause = "; ".join(
-                c["kind"] + (" " + c["id"] if c.get("id") else "") + (f" ({c['when']})" if c.get("when") else "")
-                for c in e["acceptance"]["causes"]
-            )
-        facts = []
-        opened = {k: v for k, v in e["reviews"]["open"].items() if v}
-        if opened:
-            facts.append(", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()))
-        elif e["reviews"]["latest_current"]:
-            facts.append(
-                f"reviewed clean ({e['reviews']['latest_current']['author']['id']}, {e['reviews']['latest_current']['date'][:10]})"
-            )
-        if e["reviews"]["detached"]:
-            facts.append(f"{e['reviews']['detached']} detached")
-        if e.get("previous_key_match"):
-            facts.append(f"acceptance recorded under {e['previous_key_match']}; re-accept to confirm")
-        inc = f"  incomplete: {'; '.join(e['incomplete'])}" if e["incomplete"] else ""
-        click.echo(f"{describe(result, key):<40} {e['title'][:38]:<40} {state:<18} {cause:<40} {'; '.join(facts)}{inc}")
-    s = payload["summary"]
-    d = payload["digests"]
-    line = (
-        (f"{s['conflicted']} conflicted, with no text until one definition goes; " if s["conflicted"] else "")
-        + f"{s['stale']} stale of {s['accepted'] + s['stale']} accepted; {s['draft']} draft; {s['incomplete']} incomplete; {s['loose']} loose; {s['proved']} proved, {s['settled']} settled"
+            rows.append(((where, r["kind"], state, first[:40] + ("…" if len(first) > 40 else "")), r["id"]))
+        groups.append(Group(work, keyed(rows), limit=None))
+    n = len(payload["reading"])
+    return Report(
+        f"{counted(n, 'note')} on the pages of {counted(len(by_work), 'cited work')}"
+        if n
+        else "no notes on any cited work's pages",
+        groups=groups,
     )
-    if f_digests and d["shown"]:
-        line += f" · {d['shown']} digest keys shown"
-    elif d["reached"]:
-        line += f" · {d['reached']} digest keys you depend on"
-    if d["not_counted"]:
-        line += f" · {d['not_counted']} digest keys not counted"
-    click.echo(line)
+
+
+def _explain_report(result: ScanResult, records: Records, payload: dict[str, Any], explain: str) -> Report:
+    """`loom status --explain KEY`: the key's state, where it is, its open findings, and each cause of staleness with its diff."""
+    key = resolve_key(result, explain)
+    states = records.key_states(result)
+    ks = states.get(key)
+    if ks is None:
+        raise EnvError(f"{key} is not a statement, proof or section key")
+    section = result.nodes[key].kind == "section"
+    n = result.nodes[key]
+    lines = [f"in {n.file}"]
+    if section:
+        lines.append("a section: it carries findings and takes no acceptance")
+    elif not ks.causes:
+        lines.append("no causes: the acceptance is fresh" if ks.row else "never accepted")
+    e = payload["keys"].get(key) or {"reviews": {"open": dict(ks.open), "detached": ks.detached}}
+    opened = {k: v for k, v in e["reviews"]["open"].items() if v}
+    if opened:
+        lines.append(", ".join(f"{v} open {k}{'s' if v != 1 else ''}" for k, v in opened.items()))
+    if e["reviews"]["detached"]:
+        lines.append(f"{counted(e['reviews']['detached'], 'detached annotation')}: the quoted text is gone")
+    if ks.causes:
+        lines += ["", f"causes ({len(ks.causes)})"]
+    for c in ks.causes:
+        lines.append(f"  {c.kind}{' ' + c.id if c.id else ''}{' (' + when(c.when) + ')' if c.when else ''}")
+        diff = records.diff_for(result, c, key)
+        if diff:
+            lines += ["    " + line for line in diff.splitlines()]
+    taxon = n.taxon or n.kind
+    return Report(
+        f"{key} ({taxon}): {state_label(result, key, ks.label) or 'a section'}",
+        ok=not ks.causes,
+        lines=lines,
+    )

@@ -32,6 +32,10 @@ class SyncError(Exception):
     """A sync precondition failed without changing the quilt source."""
 
 
+class SourceError(SyncError):
+    """A sync refusal the author resolves in the quilt's own source: a document that does not compile or reaches outside the quilt, a pull that does not apply, a file in the way (book 12.1's exit 1)."""
+
+
 @dataclass
 class SyncState:
     url: str
@@ -223,12 +227,12 @@ def source_projection(quilt: Quilt, state: SyncState) -> tuple[list[str], dict[s
     for document in documents:
         found, outside = closure_of(root, root / document)
         if outside:
-            raise SyncError(f"{document} reaches files outside the quilt: " + ", ".join(outside))
+            raise SourceError(f"{document} reaches files outside the quilt: " + ", ".join(outside))
         for local in found:
             remote = state.published_main if local == main else local
             previous = remote_sources.get(remote)
             if previous is not None and previous != local:
-                raise SyncError(f"two quilt files would publish as {remote}: {previous}, {local}")
+                raise SourceError(f"two quilt files would publish as {remote}: {previous}, {local}")
             remote_sources[remote] = local
             projected[local] = remote
     return documents, projected
@@ -432,11 +436,11 @@ def pull_files(quilt: Quilt, state: SyncState) -> dict[str, bytes | None]:
     for row in changed_files(workspace(root), state.integrated, state.incoming):
         path = main if row["path"] == state.published_main else row["path"]
         if row["status"].startswith("A") and (root / path).exists():
-            raise SyncError(f"{path} already exists locally; rename or remove it, then incorporate again")
+            raise SourceError(f"{path} already exists locally; rename or remove it, then incorporate again")
     for path in paths:
         target = root / path
         if target.is_symlink() or not target.resolve().is_relative_to(root.resolve()):
-            raise SyncError(f"unsafe source path: {path}")
+            raise SourceError(f"unsafe source path: {path}")
     patch = incoming_patch(quilt, state, main)
     with tempfile.TemporaryDirectory(prefix="loom-pull-") as temporary:
         stage = Path(temporary) / "quilt"
@@ -450,7 +454,7 @@ def pull_files(quilt: Quilt, state: SyncState) -> dict[str, bytes | None]:
         try:
             git(stage, "apply", "--whitespace=nowarn", "-", env=env, input=patch)
         except SyncError as exc:
-            raise SyncError(
+            raise SourceError(
                 f"the pull does not apply to your current files: {exc}. "
                 "Read it with `loom sync patch`, bring those files in line in your editor, then incorporate again"
             ) from exc
@@ -511,7 +515,7 @@ def _stamp(
     for document in documents:
         conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and document in n.reached_by)
         if conflicted:
-            raise SyncError(
+            raise SourceError(
                 f"{document} reaches {', '.join(conflicted)}, defined by two files each, so it has no one text to stamp; `loom lint --nodes` shows them"
             )
     landmarks = []
@@ -694,7 +698,7 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None) -> Publica
                 quilt.config.engine,
             )
             if not out.ok:
-                raise SyncError(f"the source-only document {document} does not compile: {out.first_error}")
+                raise SourceError(f"the source-only document {document} does not compile: {out.first_error}")
         env = {**os.environ, "GIT_INDEX_FILE": str(stage / "source.index")}
         git(clone, "read-tree", "--empty", env=env)
         for path, data in files.items():

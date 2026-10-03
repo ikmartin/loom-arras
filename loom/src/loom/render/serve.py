@@ -421,7 +421,12 @@ class ServeSession:
 
         self.launcher = Launcher(quilt.root, interval)
 
-    def rebuild(self, changed: list[Path] | None = None, records: bool = False) -> None:
+    def rebuild(
+        self,
+        changed: list[Path] | None = None,
+        records: bool = False,
+        progress: Callable[[str, str, int, int | None], None] | None = None,
+    ) -> None:
         """Publish the quilt as it is now, building only what changed since the last publication.
 
         The files are read just before the build, and that reading is what the publication answers for: the watcher is set to it, so a write the API has published is not built again when the watcher sees it, and a change made during a build is seen afterwards. A call from the watcher (`changed` given) builds nothing when everything it saw is already published. A change to records alone (`records`, or a watcher's change that `records_only` judges so) builds from the last scan.
@@ -437,7 +442,7 @@ class ServeSession:
                     return
                 records = records_only(root, changed)
             reuse = self.last_report.result if records and self.last_report is not None else None
-            report = build(self.quilt, reuse=reuse)
+            report = build(self.quilt, reuse=reuse, progress=progress)
             self.last_report = report
             self.builds += 1
             self.published = seen
@@ -522,9 +527,11 @@ class ServeSession:
 
     def first_build(self) -> None:
         """The initial publish, reported as it happens: on a cold cache it compiles every block the converter cannot translate."""
+        from loom.cli.report import Progress
+
         started = time.perf_counter()
-        print("loom serve: building the quilt ...", file=sys.stderr, flush=True)
-        self.rebuild()
+        with Progress("scanning") as progress:
+            self.rebuild(progress=progress.told)
         errors = sum(1 for d in self.last_report.diagnostics if d.severity == "error") if self.last_report else 0
         fragments = len(self.last_report.rendered) if self.last_report else 0
         # a quilt with errors renders strangely rather than failing, so say so at startup instead of leaving it to be discovered
