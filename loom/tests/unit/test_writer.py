@@ -64,6 +64,7 @@ def test_every_act_that_is_the_authors_or_destroys_refuses_under_an_agent_marker
         ["ai", "discard", "--before", "2100-01-01"],
         ["session", "delete", "s-2026-09-16-0001", "--purge", "--yes", "--author", "A. Author"],
         ["sync", "publish", "--push"],
+        ["sync", "incorporate"],
     ]
     for act in acts:
         refused(*act, "--quilt", str(q), code=2, match="an agent is running this shell", env=marked)

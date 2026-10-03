@@ -1824,10 +1824,15 @@ def test_refs_links_walks_depth_hops_and_unlink_removes_one(tmp_path: Path) -> N
     assert ok("refs", "links", "Calloway14-setup", cwd=q).output.strip() == "nothing links Calloway14-setup"
 
 
-def test_a_forced_rebuild_keeps_every_result_the_author_verified(tmp_path: Path) -> None:
+def test_a_forced_rebuild_keeps_every_result_the_author_verified(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`refs build --force` rewrote the digest from the paper's source, deleting a node `refs verify` had put there while `results.json` still said verified (CLI study, defect 3)."""
     q = demo(tmp_path)
     ck = "Calloway14"
+    extracted = (q / "digests" / f"{ck}.tex").read_text()
+    # the paper's source, extracted afresh: what the digest held before the author verified anything, without needing TeX
+    monkeypatch.setattr("loom.digest.extract.extract_digest", lambda *_a, **_k: (extracted, None))
     propose(
         q,
         ck,

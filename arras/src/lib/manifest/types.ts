@@ -152,7 +152,7 @@ export interface IncomingChange {
 }
 
 export interface IncomingReview {
-  remote: string;
+  workspace: string;
   branch: string;
   base: string;
   commit: string;

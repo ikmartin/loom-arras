@@ -324,49 +324,6 @@ def test_cli_requires_explicit_incorporation_after_noninteractive_preview(quilt)
     ok("history", "verify", cwd=quilt.root)
 
 
-def test_legacy_pull_provenance_migrates_and_preserves_other_sources(quilt):
-    import json
-
-    from loom.review_origins import read, write
-    from loom.sync import SyncState
-
-    root = quilt.root
-    path = root / ".loom/source-sync.json"
-    path.write_text(
-        json.dumps(
-            {
-                "remote": "origin",
-                "branch": "main",
-                "master": DOC,
-                "integrated": "abc",
-                "review_origins": {"zk-0001": "abc"},
-                "review_changed": {"zk-0001": True},
-                "review_baselines": {"zk-0001": "fingerprint"},
-                "review_local_changed": {"zk-0001": True},
-            }
-        )
-    )
-    legacy = read(root)["zk-0001"]
-    assert legacy["source"] == "pull:abc" and legacy["local_before"]
-    write(
-        root,
-        {
-            "zk-0002": {
-                "source": "adopt:2",
-                "changed": True,
-                "baseline": "other",
-                "local_before": False,
-                "label": "AI draft",
-            }
-        },
-    )
-    state = SyncState.read(root)
-    state.write(root)
-    assert "review_origins" not in json.loads(path.read_text())
-    assert read(root)["zk-0001"] == legacy
-    assert read(root)["zk-0002"]["source"] == "adopt:2"
-
-
 def test_agent_command_surface_cannot_incorporate(quilt):
     from loom.ai.layout import AGENT_COMMANDS
     from tests.helpers import run

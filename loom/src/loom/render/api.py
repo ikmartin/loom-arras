@@ -116,7 +116,8 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             raise ApiError("author-only", "Incorporating a collaborator's changes is the author's", status=403)
         from loom.scan.quilt import load_quilt, reviewer_identity
         from loom.scan.scan import scan
-        from loom.sync import SyncError, SyncState, _expected_blobs, git, incorporate_pull, prepare_incorporation
+        from loom.sync import SyncError, SyncState, pull_files
+        from loom.sync import incorporate as incorporate_pull
 
         try:
             quilt = load_quilt(root)
@@ -134,13 +135,9 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                     raise ApiError("reviewer-changed", "Choose your reviewer name and reload Incoming", status=409)
                 before = scan(quilt)
                 if endpoint == "sync-preview":
-                    prepared = prepare_incorporation(quilt, state)
-                    blobs = _expected_blobs(
-                        root, prepared["head"], Path(prepared["patch"]).read_bytes(), prepared["paths"]
-                    )
                     overlay = {
-                        p: git(root, "cat-file", "blob", b).decode("utf-8") if b else ""
-                        for p, b in blobs.items()
+                        p: data.decode("utf-8") if data is not None else ""
+                        for p, data in pull_files(quilt, state).items()
                         if p.endswith((".tex", ".sty", ".cls", ".bib"))
                     }
                     return {"ok": True, "result": preview(before, overlay, binding, reviewer)}
@@ -148,7 +145,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                 saved = validate(before, _str(body, "review_token", required=True) or "", binding, reviewer, accepted)
             else:
                 saved = None
-            sync_result = incorporate_pull(quilt, state)
+            sync_result = incorporate_pull(quilt, state, reviewer or None)
             if saved is not None:
                 sync_result.update(finish(scan(load_quilt(root)), saved, accepted, reviewer or ""))
         except SyncError as exc:

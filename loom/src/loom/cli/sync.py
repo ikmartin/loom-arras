@@ -1,4 +1,4 @@
-"""Explicit source-only Git sync; local Arras may incorporate a reviewed pull."""
+"""The document workspace: pair, fetch, review, incorporate and publish."""
 
 from __future__ import annotations
 
@@ -12,16 +12,18 @@ import click
 from loom.cli._quilt import open_quilt, quilt_option
 from loom.scan.scan import scan
 from loom.sync import (
+    WORKSPACE,
+    Publication,
     SyncError,
     SyncState,
     configure,
     current_selection,
     fetch,
-    finish_incorporation,
     incoming_patch,
-    prepare_incorporation,
+    incorporate,
     publish,
     push_publication,
+    source_label,
     summary,
     update_documents,
 )
@@ -29,7 +31,7 @@ from loom.sync import (
 
 @click.group()
 def sync() -> None:
-    """Prepare and review a source-only document workspace; the quilt uses ordinary Git."""
+    """Exchange the paper's sources with a document workspace, such as an Overleaf project."""
 
 
 T = TypeVar("T")
@@ -43,24 +45,26 @@ def _run(action: Callable[[], T]) -> T:
 
 
 @sync.command("init")
+@click.argument("url")
 @click.option(
-    "--remote",
-    required=True,
-    help="The git remote of the document workspace, e.g. overleaf; never the quilt's own repository.",
-)
-@click.option("--branch", required=True, help="The workspace's branch on that remote, e.g. master.")
-@click.option(
-    "--publish-main", default="", help="Document workspace main TeX path when it differs from the quilt master."
+    "--publish-main", default="", help="The main document's path in the workspace, when it differs from the quilt's."
 )
 @quilt_option
-def init_sync(remote: str, branch: str, publish_main: str, quilt_path: str | None) -> None:
-    """Configure the document workspace for this quilt's selected documents."""
+def init_sync(url: str, publish_main: str, quilt_path: str | None) -> None:
+    """Pair the quilt with a document workspace, such as an Overleaf project's Git URL.
+
+    Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched.
+    """
     quilt = open_quilt(quilt_path)
-    state = _run(lambda: configure(quilt, remote, branch, publish_main))
+    state = _run(lambda: configure(quilt, url, publish_main))
     assert isinstance(state, SyncState)
     click.echo(
-        f"Document workspace: {remote}/{branch} at {state.integrated[:12]}; {state.master} -> {state.published_main}"
+        f"Paired with {source_label(url)} ({state.branch}) at {state.integrated[:12]}; {state.master} publishes as {state.published_main}"
     )
+    from loom.gitignore import missing
+
+    if (quilt.root / ".git").exists() and f"{WORKSPACE}/" in missing(quilt.root):
+        click.echo(f"`.gitignore` does not ignore {WORKSPACE}/, loom's clone of the workspace; `loom upgrade` adds it.")
 
 
 @sync.command("fetch")
@@ -92,10 +96,9 @@ def status_sync(quilt_path: str | None) -> None:
     quilt = open_quilt(quilt_path)
     report = _run(lambda: summary(quilt, SyncState.read(quilt.root)))
     assert isinstance(report, dict)
-    click.echo(f"Document workspace: {report['remote']}/{report['branch']}")
+    click.echo(f"Document workspace: {report['url']} ({report['branch']})")
     if report["prepared"]:
-        click.echo(f"Prepared {str(report['prepared'])[:12]} at {report['publication_ref']}")
-        click.echo(f"From quilt commit {report['prepared_from']}")
+        click.echo(f"Prepared {str(report['prepared'])[:12]}, stamped as {', '.join(report['prepared_landmarks'])}")
     for document in report["documents"]:
         click.echo(f"  {document}")
     click.echo(f"integrated {str(report['integrated'])[:12]}")
@@ -109,7 +112,7 @@ def status_sync(quilt_path: str | None) -> None:
 @click.argument("document", required=False)
 @quilt_option
 def documents_sync(action: str | None, document: str | None, quilt_path: str | None) -> None:
-    """Change the persistent document workspace selection without staging, committing, or publishing."""
+    """Change which documents publish to the workspace, without publishing."""
     quilt = open_quilt(quilt_path)
     state = _run(lambda: SyncState.read(quilt.root))
     assert isinstance(state, SyncState)
@@ -121,7 +124,7 @@ def documents_sync(action: str | None, document: str | None, quilt_path: str | N
     else:
         state = _run(lambda: update_documents(quilt, state, action, document))
         verb = "added" if action == "add" else "removed"
-        click.echo(f"{verb} {document}; document workspace selection updated (not staged, committed, or published)")
+        click.echo(f"{verb} {document}; document workspace selection updated (not published)")
     # each document where it is now: the record keeps the paths it was written with (book 4.6)
     main, selected_now = current_selection(state, scan(quilt))
     for selected in selected_now:
@@ -134,7 +137,7 @@ def documents_sync(action: str | None, document: str | None, quilt_path: str | N
 @click.option("--to", type=click.Path(path_type=Path), help="Write the incoming Git patch to a new file.")
 @quilt_option
 def patch_sync(to: Path | None, quilt_path: str | None) -> None:
-    """Print a patch for the author to inspect and apply in the editor."""
+    """Print the fetched pull as a patch against the quilt's paths, for reading."""
     quilt = open_quilt(quilt_path)
     patch = _run(lambda: incoming_patch(quilt, SyncState.read(quilt.root)))
     assert isinstance(patch, bytes)
@@ -147,29 +150,36 @@ def patch_sync(to: Path | None, quilt_path: str | None) -> None:
         click.echo(f"wrote {to}")
 
 
-@sync.command("prepare")
+@sync.command("incorporate")
 @quilt_option
-def prepare_sync(quilt_path: str | None) -> None:
-    """Prepare a pinned patch for the author to apply with Git."""
-    quilt = open_quilt(quilt_path)
-    prepared = _run(lambda: prepare_incorporation(quilt, SyncState.read(quilt.root)))
-    click.echo(f"in {prepared['root']}: git apply '{prepared['patch']}'")
+def incorporate_sync(quilt_path: str | None) -> None:
+    """Apply the fetched pull to the quilt's files, stamping first each document it reaches; Incoming does the same."""
+    from loom.cli._common import refuse_under_agent
 
-
-@sync.command("finish")
-@quilt_option
-def finish_sync(quilt_path: str | None) -> None:
-    """Verify the author's Git application and commit the source and sync record."""
+    refuse_under_agent(
+        "loom sync incorporate",
+        "Incorporating a collaborator's changes is the author's; `loom sync patch` prints them for reading.",
+    )
     quilt = open_quilt(quilt_path)
-    result = _run(lambda: finish_incorporation(quilt, SyncState.read(quilt.root)))
-    click.echo(f"incorporated {result['integrated'][:12]} in local source commit {result['source_commit'][:12]}")
+    state = _run(lambda: SyncState.read(quilt.root))
+    assert isinstance(state, SyncState)
+    pulled = state.incoming
+    result = _run(lambda: incorporate(quilt, state))
+    assert isinstance(result, dict)
+    click.echo(
+        f"Incorporated {pulled[:12]} from {source_label(state.url)}: {len(result['paths'])} file(s); mathematics remains to be reviewed"
+    )
+    for path in result["paths"]:
+        click.echo(f"  {path}")
+    for landmark in result["landmarks"]:
+        click.echo(f"As it was: landmark {landmark}")
 
 
 @sync.command("publish")
-@click.option("--push", is_flag=True, help="Push the validated revision to the configured document workspace.")
+@click.option("--push", is_flag=True, help="Push the prepared revision to the document workspace.")
 @quilt_option
 def publish_sync(push: bool, quilt_path: str | None) -> None:
-    """Build and compile the committed document workspace projection locally."""
+    """Prepare the selected documents' sources as a workspace revision, check each compiles, and stamp each as published."""
     if push:
         from loom.cli._common import refuse_under_agent
 
@@ -179,16 +189,19 @@ def publish_sync(push: bool, quilt_path: str | None) -> None:
         )
     quilt = open_quilt(quilt_path)
     state = _run(lambda: SyncState.read(quilt.root))
-    commit, paths = _run(lambda: publish(quilt, state))
-    click.echo(f"Prepared document workspace revision {commit[:12]}")
-    click.echo(f"Local ref: {state.publication_ref}")
-    click.echo(f"From quilt commit: {state.prepared_from}")
-    click.echo("Documents:")
-    for document in state.documents:
-        click.echo(f"  {document}")
-    click.echo(f"Files: {len(paths)}")
+    assert isinstance(state, SyncState)
+    label = source_label(state.url)
+    publication = _run(lambda: publish(quilt, state))
+    assert isinstance(publication, Publication)
+    if publication.unchanged:
+        click.echo(f"Nothing to publish: {label} already holds these {len(publication.paths)} files")
+        return
+    verb = "Publishing" if push else "Prepared"
+    click.echo(f"{verb} {publication.commit[:12]}: {len(publication.paths)} files for {', '.join(state.documents)}")
+    for landmark in publication.landmarks:
+        click.echo(f"  {'stamped earlier' if publication.reused else 'stamped'} as landmark {landmark}")
     if push:
-        _run(lambda: push_publication(quilt, state, commit))
-        click.echo(f"Published to document workspace {state.remote}/{state.branch}")
+        _run(lambda: push_publication(quilt, state, publication.commit))
+        click.echo(f"Published to {label}")
     else:
-        click.echo("Remote unchanged")
+        click.echo(f"{label} unchanged; `loom sync publish --push` sends it")

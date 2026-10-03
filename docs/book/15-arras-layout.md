@@ -13,7 +13,7 @@ The viewer's principles are V1–V6 and those of its annotations A1–A6, in Cha
 1. One persistent left rail, always present, always in the same place. The user never hunts for navigation.
 2. A right rail appears only where there is context to show: the graph's inspector. It is absent elsewhere, and its absence is not a gap. A node's context is an item read beside it (15.2.4), not a rail.
 3. The shell renders no page content; the page renders no navigation. A page that reaches into the shell is a bug.
-4. Arras asks the local Loom publisher to write only through advertised controls. The explicit Incorporate pull control is the sole author-file write.
+4. Arras asks the local Loom publisher to write only through advertised controls. The explicit Incorporate controls, for a collaborator's pull and for an AI draft, are the only author-file writes.
 5. Density is comfortable only. **[decided]** No compact mode in the MVP.
 6. Below 900px the layout is undefined. **[decided]** Mobile is deferred; the rule is that shells collapse to no rail with a disclosure control, and nothing else is specified.
 

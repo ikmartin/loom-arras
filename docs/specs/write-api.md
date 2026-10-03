@@ -1,6 +1,6 @@
 # Write API
 
-The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit Git sync steps. It is served by the publisher (loom's `serve`), never by the viewer. Its author-file writes are explicit local incorporation actions: `sync-incorporate` and `adopt-finish`. Interface version 1; status: extended for source sync and pending review.
+The write API is the HTTP form of the publisher's local commands, so that a browser can request record writes and explicit document-workspace steps. It is served by the publisher (loom's `serve`), never by the viewer. Its author-file writes are explicit local incorporation actions: `sync-incorporate` and `adopt-finish`. Interface version 1; status: extended for source sync and pending review.
 
 **[decided]** The commands it wraps are library functions with the same signatures, and a viewer detects it rather than assuming it.
 
@@ -56,7 +56,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 | method | path | body | effect |
 |---|---|---|---|
-| `POST` | `/_api/sync-incorporate` | `{incoming, base, reviewer?, review_token?, accept?: string[]}` | verifies the displayed revision and base, preflights and applies its exact patch, then commits only its source paths and the private sync record in separate local commits |
+| `POST` | `/_api/sync-incorporate` | `{incoming, base, reviewer?, review_token?, accept?: string[]}` | verifies the displayed revision and base, checks its exact patch applies, stamps each selected document it reaches, then writes its files and the sync record; commits nothing |
 | `POST` | `/_api/adopt-decision` | `{copy, reviewer, fingerprint, keys, document}` | saves the reviewer's selected node keys and document-level group against the exact displayed contribution; changes no author source |
 | `POST` | `/_api/adopt-preview` | `{copy, reviewer, fingerprint}` | validates the saved choices and returns an immutable `{token, patch, paths}` preview; writes build cache only, without rebuilding |
 | `POST` | `/_api/adopt-finish` | `{copy, reviewer, token, review_token?, accept?: string[]}` | revalidates source, proposal, choices and reviewer, stamps the working document as a landmark, applies exactly the preview and records incorporation; answers `{paths, step, landmark, copy, message}`; commits nothing and needs no git repository; optionally records explicit mathematical acceptances bound to review_token |
@@ -64,7 +64,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 | `POST` | `/_api/review-decision` | `{reviewer, key, status: "ok" \| "requires-attention"}` | saves a private, version-bound review decision and atomically publishes queue metadata without accepting mathematics or rebuilding document renderings; Finish review rebuilds after the batch (DR-315-luisa) |
 | `POST` | `/_api/review-finish` | `{reviewer}` | validates pending OK decisions and records eligible acceptances together |
 
-Every successful mutation triggers a republish; `compare` and `adopt-preview` only prepare cached inspection results and do not republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, creates one local source commit and one local sync-record commit, and never pushes to Overleaf. Mathematical acceptance is optional and explicit as described below.
+Every successful mutation triggers a republish; `compare` and `adopt-preview` only prepare cached inspection results and do not republish; the viewer sees the change through the manifest as usual. No endpoint returns rendered content. `sync-incorporate` is a local-only, explicit exception to the rule that Loom does not write author files. It stops before changing them when the reviewed patch conflicts, applies only the files already listed in Incoming, keeps each document it reaches as a landmark first, commits nothing, and never pushes to the workspace. Mathematical acceptance is optional and explicit as described below.
 
 ## 3. Authorship
 

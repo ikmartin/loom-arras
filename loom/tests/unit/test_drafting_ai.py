@@ -193,7 +193,7 @@ def test_the_document_workspace_never_selects_an_agents_document(tmp_path: Path)
     from loom.sync import SyncError, SyncState, update_documents
 
     q = with_copy(tmp_path)
-    state = SyncState(remote="origin", branch="main", master="drafting/main.tex", integrated="")
+    state = SyncState(url="overleaf.git", branch="master", master="drafting/main.tex", integrated="")
     with pytest.raises(SyncError, match="an agent's document, which is never published"):
         update_documents(load_quilt(q), state, "add", "drafting-ai/aidoc.tex")
 

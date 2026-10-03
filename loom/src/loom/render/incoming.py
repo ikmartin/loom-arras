@@ -17,15 +17,15 @@ from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import ScanResult, scan
 from loom.scan.source import blank_comments
-from loom.sync import SyncError, SyncState, changed_files, current_selection, git, source_label, tree_files
+from loom.sync import SyncError, SyncState, changed_files, current_selection, git, source_label, tree_files, workspace
 
 
-def _scan_tree(root: Path, commit: str, config: bytes, home: Path, state: SyncState, main: str) -> ScanResult:
-    """A scan of one remote revision staged under `home`, Overleaf's main written at `main`, the local path it maps to now."""
+def _scan_tree(clone: Path, commit: str, config: bytes, home: Path, state: SyncState, main: str) -> ScanResult:
+    """A scan of one workspace revision from loom's clone, staged under `home`, Overleaf's main written at `main`, the local path it maps to now."""
     stage = home / commit[:12]
     stage.mkdir()
     (stage / "config.toml").write_bytes(config)
-    for rel, data in tree_files(root, commit).items():
+    for rel, data in tree_files(clone, commit).items():
         if rel == state.published_main:
             rel = main
         target = stage / rel
@@ -53,12 +53,12 @@ def _citation(result: ScanResult, dependent: str, target: str) -> str | None:
     return f"cite-{slug(edge.file)}-{edge.offset}-{slug(label_target)}"
 
 
-def _source_files(root: Path, state: SyncState) -> list[dict[str, str]]:
-    out = changed_files(root, state.integrated, state.incoming)
+def _source_files(clone: Path, state: SyncState) -> list[dict[str, str]]:
+    out = changed_files(clone, state.integrated, state.incoming)
     for entry in out:
         if Path(entry["path"]).suffix.lower() not in (".tex", ".bib", ".sty", ".cls", ".bst"):
             continue
-        raw = git(root, "diff", "--no-ext-diff", "--unified=3", state.integrated, state.incoming, "--", entry["path"])
+        raw = git(clone, "diff", "--no-ext-diff", "--unified=3", state.integrated, state.incoming, "--", entry["path"])
         entry["diff"] = raw.decode("utf-8", errors="replace")
     return out
 
@@ -82,17 +82,22 @@ def attach_incoming(
         home = Path(temporary)
         try:
             main = current_selection(state, result)[0]
-            base = _scan_tree(root, state.integrated, config, home, state, main)
-            incoming = _scan_tree(root, state.incoming, config, home, state, main)
+            clone = workspace(root)
+            base = _scan_tree(clone, state.integrated, config, home, state, main)
+            incoming = _scan_tree(clone, state.incoming, config, home, state, main)
         except (OSError, ValueError, SyncError) as exc:
+            try:
+                listed = _source_files(workspace(root), state)
+            except SyncError:
+                listed = []
             manifest["incoming"] = {
-                "remote": state.remote,
+                "workspace": state.url,
                 "branch": state.branch,
                 "base": state.integrated,
                 "commit": state.incoming,
                 "observed": state.observed,
                 "changes": [],
-                "files": _source_files(root, state),
+                "files": listed,
                 "issues": [f"incoming source cannot be scanned: {exc}"],
             }
             return
@@ -180,13 +185,13 @@ def attach_incoming(
         ]
         manifest["incoming"] = {
             "affected": affected_keys,
-            "remote": state.remote,
+            "workspace": state.url,
             "branch": state.branch,
             "base": state.integrated,
             "commit": state.incoming,
             "observed": state.observed,
             "changes": changes,
-            "files": _source_files(root, state),
+            "files": _source_files(clone, state),
             "issues": issues,
         }
 
@@ -318,15 +323,15 @@ def attach_adoptions(
                 }
             )
     # Preserve the existing pull field for clients; contributions adds the common source inventory.
-    workspace = manifest.get("incoming")
+    pulled = manifest.get("incoming")
     manifest["contributions"] = (
         [
             {
                 "kind": "workspace",
-                "label": f"Incoming from {source_label(result.quilt.root, workspace['remote'])}",
-                **workspace,
+                "label": f"Incoming from {source_label(pulled['workspace'])}",
+                **pulled,
             }
         ]
-        if workspace
+        if pulled
         else []
     ) + contributions

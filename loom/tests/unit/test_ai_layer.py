@@ -505,6 +505,7 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
         "session delete",
         "ai discard",
         "sync publish",
+        "sync incorporate",
         "ai init",
         "upgrade",
         "session use",

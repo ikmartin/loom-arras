@@ -1197,13 +1197,13 @@ Notes on pages of cited works are not keys and appear in no row; `--reading` lis
 
 `loom sync [OPTIONS] COMMAND [ARGS]...`
 
-Prepare and review a source-only document workspace; the quilt uses ordinary Git.
+Exchange the paper's sources with a document workspace, such as an Overleaf project.
 
 ### `loom sync documents`
 
 `loom sync documents [OPTIONS] [add|remove] [DOCUMENT]`
 
-Change the persistent document workspace selection without staging, committing, or publishing.
+Change which documents publish to the workspace, without publishing.
 
 | option | description |
 |---|---|
@@ -1219,11 +1219,11 @@ Fetch document workspace changes for Incoming review without changing author fil
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-### `loom sync finish`
+### `loom sync incorporate`
 
-`loom sync finish [OPTIONS]`
+`loom sync incorporate [OPTIONS]`
 
-Verify the author's Git application and commit the source and sync record.
+Apply the fetched pull to the quilt's files, stamping first each document it reaches; Incoming does the same.
 
 | option | description |
 |---|---|
@@ -1231,47 +1231,37 @@ Verify the author's Git application and commit the source and sync record.
 
 ### `loom sync init`
 
-`loom sync init [OPTIONS]`
+`loom sync init [OPTIONS] URL`
 
-Configure the document workspace for this quilt's selected documents.
+Pair the quilt with a document workspace, such as an Overleaf project's Git URL.
+
+Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched.
 
 | option | description |
 |---|---|
-| `--remote` | The git remote of the document workspace, e.g. overleaf; never the quilt's own repository. |
-| `--branch` | The workspace's branch on that remote, e.g. master. |
-| `--publish-main` | Document workspace main TeX path when it differs from the quilt master. |
+| `--publish-main` | The main document's path in the workspace, when it differs from the quilt's. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom sync patch`
 
 `loom sync patch [OPTIONS]`
 
-Print a patch for the author to inspect and apply in the editor.
+Print the fetched pull as a patch against the quilt's paths, for reading.
 
 | option | description |
 |---|---|
 | `--to` | Write the incoming Git patch to a new file. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-### `loom sync prepare`
-
-`loom sync prepare [OPTIONS]`
-
-Prepare a pinned patch for the author to apply with Git.
-
-| option | description |
-|---|---|
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
 ### `loom sync publish`
 
 `loom sync publish [OPTIONS]`
 
-Build and compile the committed document workspace projection locally.
+Prepare the selected documents' sources as a workspace revision, check each compiles, and stamp each as published.
 
 | option | description |
 |---|---|
-| `--push` | Push the validated revision to the configured document workspace. |
+| `--push` | Push the prepared revision to the document workspace. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ### `loom sync status`
