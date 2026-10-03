@@ -82,8 +82,9 @@ jobs:
         run: apt-get update && apt-get install -y git python3 poppler-utils curl
       - name: what the TeX tier loads that the medium scheme lacks
         # found from the .fls files of a TeX-tier run: biblatex and biber (the reshape test's bibliography), tikz-cd and xypic (the quilts' and the fallback test's diagrams), standalone and preview (every fallback SVG), sansmathaccent (the synthetic quilt's beamer talk), logreq (biblatex); a "File `x.sty' not found" here names the package to add
+        # one mirror rather than mirror.ctan.org's redirect, which can pick a mirror that does not serve texlive.tlpdb and fails the job before any test runs
         run: |
-          tlmgr option repository https://mirror.ctan.org/systems/texlive/tlnet
+          tlmgr option repository https://ctan.math.illinois.edu/systems/texlive/tlnet
           tlmgr update --self
           tlmgr install biber biblatex logreq preview sansmathaccent standalone tikz-cd xypic
       - uses: actions/checkout@v4
