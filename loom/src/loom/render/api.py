@@ -7,10 +7,14 @@ Nothing here wakes an agent. An agent pulls: it reads open annotations with `loo
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loom.clock import stamp
+
+if TYPE_CHECKING:
+    from loom.scan.scan import ScanResult
 
 #: What this publisher serves. A viewer reads this rather than assuming the specification's table, so an endpoint that
 #: is not here answers 404 and a viewer that hides the affordance is right to.
@@ -51,6 +55,43 @@ READS = ("compare", "adopt-preview", "sync-preview")
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
 NO_REBUILD = (*READS, "review-decision")
+#: A publisher's own scan, offered to its handlers by `offer_scan`: `loom serve` answers with the scan its last publication made while no scan input has changed since, and None otherwise.
+_SCANS: dict[Path, Callable[[], ScanResult | None]] = {}
+
+
+def offer_scan(root: Path, provider: Callable[[], ScanResult | None]) -> None:
+    """Let the handlers for `root` read `provider`'s scan instead of scanning again; `loom serve` offers its own."""
+    _SCANS[root.resolve()] = provider
+
+
+def _scan(root: Path) -> ScanResult:
+    """The quilt's scan: the publisher's own while it is current, else a fresh one."""
+    from loom.cli._quilt import open_scan
+
+    provider = _SCANS.get(root.resolve())
+    kept = provider() if provider is not None else None
+    return kept if kept is not None else open_scan(str(root))
+
+
+#: Writes that change records alone, which the scan never reads; their publication builds from the last scan (`ServeSession.rebuild`).
+RECORD_WRITES = (
+    "annotate",
+    "reply",
+    "resolve",
+    "edit",
+    "discard",
+    "refs-cite",
+    "session-new",
+    "session-use",
+    "session-rename",
+    "session-delete",
+    "session-close",
+    "session-reopen",
+    "session-purpose",
+    "message",
+    "adopt-decision",
+    "reviewer-settings",
+)
 
 
 class ApiError(Exception):
@@ -225,7 +266,6 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         name, source = reviewer_identity(root)
         return {"ok": True, "result": "reviewer settings", "reviewer": {"name": name, "source": source}}
     if endpoint in ("review-decision", "review-finish"):
-        from loom.cli._quilt import open_scan
         from loom.cli.review import _acceptance_master, _master_compiles, write_acceptance
         from loom.review_queue import clear_accepted, decide, pending, rows_for
         from loom.scan.quilt import reviewer_identity
@@ -235,7 +275,7 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
             raise ApiError("no-reviewer", "Choose your reviewer name in Settings", status=409)
         if _str(body, "reviewer") != reviewer:
             raise ApiError("reviewer-changed", "Reviewer changed; reload Review before continuing", status=409)
-        result = open_scan(str(root))
+        result = _scan(root)
         if endpoint == "review-decision":
             key = _str(body, "key", required=True) or ""
             status = _str(body, "status", required=True) or ""
@@ -307,7 +347,6 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
 
     This endpoint **writes nothing**: it answers, and whether an annotation is made is a separate act.
     """
-    from loom.cli._quilt import open_scan
     from loom.refs.anchoring import anchor_on_page
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map
@@ -323,7 +362,7 @@ def _locate(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     if not text and not rects and not span:
         raise ApiError("missing-field", "one of text, rects or span is required")
 
-    result = open_scan(str(root))
+    result = _scan(root)
     if citekey not in result.bib:
         raise ApiError("no-such-work", f"{citekey} is not in the bibliography", status=404)
     home = work_dir(root, result.bib[citekey])
@@ -345,13 +384,12 @@ def _compare(root: Path, body: dict[str, Any]) -> dict[str, Any]:
 
     Body: `left` and `right`, each a live document's path or a landmark (`DOC@STEP`, a name or a step). Writes nothing a record holds: its renderings go to `build/compare/`, named by their inputs.
     """
-    from loom.cli._quilt import open_scan
     from loom.render.compare import CompareError, compare
 
     left = _str(body, "left", required=True) or ""
     right = _str(body, "right", required=True) or ""
     try:
-        return {"ok": True, **compare(open_scan(str(root)), left, right)}
+        return {"ok": True, **compare(_scan(root), left, right)}
     except CompareError as exc:
         raise ApiError("unknown-item", str(exc), status=404) from exc
 
@@ -461,7 +499,6 @@ def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     **Both are the author's verbs, and the guard is on the declared identity** (plan 0.13 §8). The server's own environment says nothing here -- loom may be serving from the terminal an agent is working in -- so the marker is not consulted; what is refused is a writer who names itself an agent. A post with no author is the author's own click in their own browser, which is what this endpoint is for.
     """
     from loom.cli._common import is_agent
-    from loom.cli._quilt import open_scan
     from loom.refs.proposals import discard_result, verify_result
     from loom.scan.quilt import resolve_author
 
@@ -475,7 +512,7 @@ def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             "reading. To ask for one, write a suggestion on the result.",
             status=403,
         )
-    result = open_scan(str(root))
+    result = _scan(root)
     who = resolve_author(named, root)[0]
     try:
         if endpoint == "digest-discard":
@@ -491,7 +528,6 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     # Imported here rather than at module scope: the CLI package pulls in click and the whole command tree, and a
     # server that is only ever asked for files should not pay for it at startup.
     from loom.cli._common import ContentError, EnvError, NotFoundError
-    from loom.cli._quilt import open_scan
     from loom.cli.review import _one_comment, _writer, discard_annotation, edit_annotation
 
     # Validate the request before touching the quilt: a missing field is the caller's mistake and should be named as
@@ -523,7 +559,7 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
             return discard_annotation(
                 root, _str(body, "annotation", required=True) or "", writer, _str(body, "reason"), undo
             )
-        result = open_scan(str(root))
+        result = _scan(root)
         if endpoint == "edit":
             # the viewer sends the new text as `message`, as every other endpoint names it; the log's field is `body`
             fields = {"body": _str(body, "message"), **{k: _str(body, k) for k in ("severity", "payload", "placement")}}

@@ -1859,3 +1859,15 @@ def test_a_forced_rebuild_keeps_every_result_the_author_verified(
         f"\\label{{{rid}}}" in digest.read_text() and "The indiscrete pair is no counterexample." in digest.read_text()
     )
     assert f"kept through the new extraction: {rid}" in r.output
+
+
+def test_a_works_path_and_its_pages_are_read_without_a_scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`refs path` and `refs page` need a work's bibliography entry and its store, and nothing the documents say; a scan cost a second or more on a large quilt (plan 0.18.2)."""
+    q = demo(tmp_path)
+
+    def no_scan(_quilt: object) -> None:
+        raise AssertionError("scanned")
+
+    monkeypatch.setattr("loom.cli._quilt.scan", no_scan)
+    assert ok("refs", "path", "Calloway14", cwd=q).stdout.strip().endswith("10.4171_demo_14-1")
+    assert ok("refs", "page", "Calloway14", "1", cwd=q).stdout.strip()

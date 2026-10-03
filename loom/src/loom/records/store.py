@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -89,6 +90,15 @@ class ResolvedAnnotation:
 def is_document_path(result: ScanResult, path: str) -> bool:
     """Whether `path` names a drafting document, live or not: a `.tex` file directly in the drafting directory, as masters are."""
     return path.endswith(".tex") and Path(path).parent.as_posix() == result.quilt.config.drafting
+
+
+#: Acceptance states by (reviewer, the ledger as read), each kept for the one scan it was computed against; see `Records.key_states`.
+_ACCEPTANCE: dict[tuple[str | None, str], tuple[ScanResult, dict[str, KeyState], dict[str, str]]] = {}
+
+
+def _fresh(states: dict[str, KeyState]) -> dict[str, KeyState]:
+    """A copy of each state for the review facts to fill in: those write only the fact fields, so the causes and the row are shared."""
+    return {k: replace(ks, open=dict(ks.open)) for k, ks in states.items()}
 
 
 class Records:
@@ -223,6 +233,27 @@ class Records:
     # ---- states -----------------------------------------------------------------
 
     def key_states(self, result: ScanResult, *, observe: bool = True) -> dict[str, KeyState]:
+        """Every key's acceptance state and review facts against `result`.
+
+        The states are read from the ledger and the scan alone, so they are kept for the scan they were computed against (`_ACCEPTANCE`) and reused while the ledger and the reviewer are the same: a served quilt rebuilds after every annotation, session and message, none of which changes one. The review facts read the annotations and are computed every time.
+        """
+        stamp = (self.reviewer, hashlib.sha256(repr(self.rows).encode()).hexdigest())
+        kept = _ACCEPTANCE.get(stamp)
+        if kept is not None and kept[0] is result:
+            states, current_hashes = _fresh(kept[1]), kept[2]
+        else:
+            states, current_hashes = self._acceptance_states(result)
+            for old in [k for k, v in _ACCEPTANCE.items() if v[0] is not result]:
+                del _ACCEPTANCE[old]
+            _ACCEPTANCE[stamp] = (result, _fresh(states), current_hashes)
+        if observe and self.reviewer:
+            self._observe_causes(states)
+        self._review_facts(result, states, current_hashes)
+        self._previous_key_matches(result, states, current_hashes)
+        return states
+
+    def _acceptance_states(self, result: ScanResult) -> tuple[dict[str, KeyState], dict[str, str]]:
+        """The states and their causes, from the ledger and the scan; and the current hash of every key, which the review facts compare against."""
         states: dict[str, KeyState] = {}
         kinds = ("environment", "proof", "section")
         if self._hash_cache is None or self._hash_cache[0] is not result:
@@ -365,11 +396,7 @@ class Records:
 
         for key in states:
             propagate(key, set())
-        if observe and self.reviewer:
-            self._observe_causes(states)
-        self._review_facts(result, states, current_hashes)
-        self._previous_key_matches(result, states, current_hashes)
-        return states
+        return states, current_hashes
 
     def _observe_causes(self, states: dict[str, KeyState]) -> None:
         """Remember the first scan that saw each unresolved cause, once per acceptance epoch."""

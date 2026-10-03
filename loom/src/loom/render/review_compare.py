@@ -5,7 +5,9 @@ from __future__ import annotations
 import dataclasses
 import difflib
 import hashlib
+import json
 import re
+from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 
@@ -13,9 +15,11 @@ from loom.records.snapshots import read_snapshot
 from loom.records.store import Records
 from loom.render.convert import Converter
 from loom.render.fragments import FragmentRenderer
+from loom.render.publish import write_atomic
 from loom.scan.hashing import normalize
 from loom.scan.macros import parse_macros, to_mathjax
 from loom.scan.model import Macro
+from loom.scan.nodes import NodeRec
 from loom.scan.scan import ScanResult
 from loom.scan.source import blank_comments
 
@@ -49,7 +53,38 @@ def _preamble_mathjax(preamble: str) -> list[dict[str, object]]:
     return to_mathjax(_preamble_macros(preamble))
 
 
+def _fallback(
+    renderer: FragmentRenderer, result: ScanResult, node: NodeRec, key: str, preamble: str
+) -> Callable[[str, str, str], str]:
+    """The figure fallback for a preview: the fragments' own where `preamble` is a live document's, so a figure is compiled once and shared from the SVG cache, else one closed over the recorded preamble the preview shows.
+
+    A live document's previews pass its closure's raw text; the fragments compile against the document's own preamble only, which loads its local files itself, so the two must be matched here rather than compared as keys.
+    """
+    for master in result.masters:
+        closure = result.closures.get(master)
+        if closure is not None and closure.raw_text() == preamble:
+            return renderer._fallback(master, node.file, key)
+    return renderer._fallback_for_preamble(preamble, key)
+
+
 def _render(
+    renderer: FragmentRenderer, result: ScanResult, key: str, text: str, preamble: str, spans: list[list[int]]
+) -> str:
+    """One preview's markup, from `build/cache/previews/` when a build has rendered the same thing before.
+
+    Keyed on everything the markup is made from: the text, the preamble, the highlighted spans, the node it is drawn as, and the renderer's `salt`. A served quilt rebuilds on every change and a quilt with thousands of results has a preview for each, so rendering them all again on each rebuild was most of its time.
+    """
+    owner = result.dependencies.owners.get(key, key)
+    h = hashlib.sha256(json.dumps([renderer.salt, key, owner, text, preamble, spans]).encode()).hexdigest()[:32]
+    cached = renderer.plan.svg_cache.parent / "previews" / f"{h}.html"
+    if cached.is_file():
+        return cached.read_text(encoding="utf-8")
+    markup = _render_now(renderer, result, key, text, preamble, spans)
+    write_atomic(cached, markup)
+    return markup
+
+
+def _render_now(
     renderer: FragmentRenderer, result: ScanResult, key: str, text: str, preamble: str, spans: list[list[int]]
 ) -> str:
     node = result.nodes[result.dependencies.owners.get(key, key)]
@@ -61,12 +96,23 @@ def _render(
         macros=dict(_preamble_macros(preamble)),
         child_at={},
         include_html=lambda _arg: "",
-        fallback=renderer._fallback_for_preamble(preamble, key),
+        fallback=_fallback(renderer, result, node, key, preamble),
         highlight_spans=[(a, b) for a, b in spans],
     )
     markup = Converter(context).render_range(0, len(text))
     # This is displayed beside a live document whose anchors use the same labels.
     return "\n".join(line.rstrip() for line in re.sub(r'(?<=\s)id="[^"]*"', "", markup).split("\n"))
+
+
+def _machine_made(result: ScanResult) -> set[str]:
+    """The cited papers' results their extraction recorded (`mechanical`), which no person reviews and so get no review preview."""
+    from loom.refs.proposals import load_results
+
+    root = result.quilt.root
+    out: set[str] = set()
+    for citekey in {n.digest for n in result.nodes.values() if n.external and n.digest}:
+        out |= {rid for rid, r in load_results(root, citekey).items() if r.cls == "mechanical"}
+    return out
 
 
 def attach_comparisons(
@@ -78,6 +124,7 @@ def attach_comparisons(
 ) -> None:
     """Attach lazy fragment paths and source ranges to text-edit causes only."""
     states = records.key_states(result)
+    machine = _machine_made(result)
     master = result.default_master
     closure = result.closures.get(master) if master else None
     current_preamble = closure.raw_text() if closure else ""
@@ -91,6 +138,7 @@ def attach_comparisons(
             key in manifest["keys"]
             and result.nodes[key].kind in ("environment", "proof")
             and (not state.row or not state.fresh)
+            and key not in machine
         ):
             text = result.dependencies.texts.get(key) or ""
             digest = hashlib.sha256((key + text + current_preamble).encode()).hexdigest()[:20]

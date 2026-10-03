@@ -17,22 +17,28 @@ from typing import Any, TypeVar, cast
 import click
 
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
-from loom.cli._quilt import open_quilt, open_scan, quilt_option
+from loom.cli._quilt import open_bib, open_quilt, open_scan, quilt_option
 from loom.clock import stamp
 from loom.refs.identity import declared
 from loom.refs.pages import storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, query_for, save
+from loom.scan.bib import BibEntry
 from loom.scan.scan import ScanResult
 
 
 def _home(result: ScanResult, citekey: str) -> Path:
     """The work's directory in loom's store, where `work_dir` says every other reader looks, or a refusal naming what is missing."""
+    return _home_in(result.quilt.root, result.bib, citekey)
+
+
+def _home_in(root: Path, bib: dict[str, BibEntry], citekey: str) -> Path:
+    """`_home` from a bibliography read without a scan (`open_bib`)."""
     from loom.refs.fetch import work_dir
 
-    entry = result.bib.get(citekey)
+    entry = bib.get(citekey)
     if entry is None:
         raise NotFoundError("work", f"{citekey} is not in the bibliography, so it has no identity to file under")
-    return work_dir(result.quilt.root, entry)
+    return work_dir(root, entry)
 
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -86,8 +92,8 @@ def refs() -> None:
 @logged("path")
 def path_command(ctx: click.Context, citekey: str, want: str | None, quilt_path: str | None) -> None:
     """Print where CITEKEY's artifacts live, under digests/storage. Nothing there is meant to be navigated by hand; the author's own pile goes in refs/ (book 8.16)."""
-    result = open_scan(quilt_path)
-    home = _home(result, citekey)
+    quilt, bib = open_bib(quilt_path)
+    home = _home_in(quilt.root, bib, citekey)
     target = home if want is None else (home / "paper.pdf" if want == "pdf" else home / "src")
     click.echo(target)
     if not target.exists():
@@ -738,10 +744,10 @@ def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, qu
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map, read_page
 
-    result = open_scan(quilt_path)
-    if citekey not in result.bib:
+    quilt, bib = open_bib(quilt_path)
+    if citekey not in bib:
         raise EnvError(f"{citekey} is not in the bibliography; loom refs coverage names the works that are")
-    home = work_dir(result.quilt.root, result.bib[citekey])
+    home = work_dir(quilt.root, bib[citekey])
     m = read_map(home)
     if m is None:
         raise ContentError(f"{citekey} has no page text yet; run loom refs map {citekey}")

@@ -48,6 +48,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-52](WQ-52-simultaneous-agent-copies.md) | several agent copies of one document at once (`-ai-01`) | loom, arras | a person wants two agent versions of one document side by side and `loom draft --ai` refuses the second |
 | [WQ-54](WQ-54-annotations-follow-adopted-text.md) | open annotations follow the text a person adopts | loom, arras | an adoption leaves an open annotation on the copy, and the person files it again on the adopted node |
 | [WQ-55](WQ-55-digest-review-in-review.md) | reviewing proposed digest results in Review, one at a time, after a design study | arras, loom | `loom refs coverage` shows proposals waiting in two or more works, or ten in one, and the author sets out to verify them |
+| [WQ-56](WQ-56-figures-cold-build.md) | a cold build's figures: a preamble format, and the cited papers' blocks that fail | loom | `scripts/bench` shows a cold build over three minutes once cold builds are common, or a cited paper's figure shows as source with an error |
 
 Twenty-eight active, seventeen slots of headroom.
 

@@ -6,17 +6,20 @@ A node fragment renders the node's own text with placeholders for child claimant
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import html
+import json
 import re
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 
 from loom.render.assets import publish_graphic
 from loom.render.convert import Converter, RenderContext, esc, slug
-from loom.render.fallback import compile_svg, fallback_figure
+from loom.render.fallback import compile_svg, defer, fallback_figure
 from loom.scan.hashing import pair_hash
 from loom.scan.labels import plain_key
 from loom.scan.model import Diagnostic, Env, Location, Macro
@@ -47,6 +50,11 @@ class RenderPlan:
 
 
 PREPARED: dict[str, str] = {}
+
+#: xy, for a block that draws with it in a preamble that does not load it.
+XY = "\\usepackage[all]{xy}\n"
+XY_USED = re.compile(r"\\xymatrix|\\xy\b")
+XY_LOADED = re.compile(r"\\usepackage\s*(\[[^\]]*\])?\{[^}]*\bxy\b[^}]*\}|\\input\s*\{?xy\b")
 
 
 def prepare_preamble(text: str) -> str:
@@ -100,6 +108,30 @@ class FragmentRenderer:
         # Per thread: `loom build` renders on a pool, and a stack or a diagnostic list shared between renders made one
         # thread's expansion of sections/results.tex look like a cycle to another thread rendering a different node.
         self._local = threading.local()
+
+    @cached_property
+    def salt(self) -> str:
+        """What a rendering depends on beyond its own text and preamble: loom's version and rendering code, the numbering, and the labels, regions and titles a reference resolves against.
+
+        A cached preview is keyed on it (`review_compare._render`), so a renumbering, a label that moved or a converter change renders it again.
+        """
+        from loom.render.keys import aux_bytes, code_hash
+        from loom.version import __version__
+
+        h = hashlib.sha256()
+        h.update(__version__.encode())
+        h.update(code_hash().encode())
+        h.update(aux_bytes(self.plan.numbers, self.plan.cite_labels))
+        h.update(
+            json.dumps(
+                [
+                    sorted(self.asm.labels.items()),
+                    sorted((k, r.container) for k, r in self.asm.regions.items()),
+                    sorted(self.titles.items()),
+                ]
+            ).encode()
+        )
+        return h.hexdigest()
 
     @property
     def _expanding(self) -> list[str]:
@@ -184,12 +216,19 @@ class FragmentRenderer:
         preamble = prepare_preamble(preamble_text)
 
         def render(latex: str, css: str, data_src: str) -> str:
-            res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=self.result.quilt.root)
-            if res.svg is None:
-                self._sink.append(
-                    Diagnostic("warning", "loom:converter-fallback", f"SVG fallback failed in {key}: {res.error}", [])
-                )
-            return fallback_figure(latex, res, css, data_src)
+            sink = self._sink  # this thread's, read before the compile moves to the figure pool
+
+            def figure() -> str:
+                res = compile_svg(latex, preamble, self.plan.svg_cache, texinputs=self.result.quilt.root)
+                if res.svg is None:
+                    sink.append(
+                        Diagnostic(
+                            "warning", "loom:converter-fallback", f"SVG fallback failed in {key}: {res.error}", []
+                        )
+                    )
+                return fallback_figure(latex, res, css, data_src)
+
+            return defer(figure)
 
         return render
 
@@ -218,28 +257,36 @@ class FragmentRenderer:
         attempts.append("\\usepackage{amsmath,amssymb,amsthm}\n\\usepackage{tikz}\n\\usetikzlibrary{cd}\n" + block)
 
         def render(latex: str, css: str, data_src: str) -> str:
-            root = self.result.quilt.root
-            res = compile_svg(latex, attempts[0], self.plan.svg_cache, texinputs=root)
-            errors = [res.error] if res.svg is None and res.error else []
-            for pre in attempts[1:]:
-                if res.svg is not None:
-                    break
-                res = compile_svg(latex, pre, self.plan.svg_cache, texinputs=root)
-                if res.svg is None and res.error:
-                    errors.append(res.error)
-            if res.svg is None:
-                res.error = " || ".join(f"attempt {i + 1}: {e}" for i, e in enumerate(errors))
-            if res.svg is None:
-                self._sink.append(
-                    Diagnostic(
-                        "warning",
-                        "loom:converter-fallback",
-                        f"SVG fallback failed in {key or file or '?'}: {res.error}",
-                        [],
-                        [key] if key else [],
+            sink = self._sink  # this thread's, read before the compile moves to the figure pool
+
+            def figure() -> str:
+                root = self.result.quilt.root
+                # a cited paper's xy diagram in a quilt whose preamble does not load xy compiles at the first attempt rather than failing at every one
+                tries = [XY + pre if XY_USED.search(latex) and not XY_LOADED.search(pre) else pre for pre in attempts]
+                res = compile_svg(latex, tries[0], self.plan.svg_cache, texinputs=root)
+                errors = [res.error] if res.svg is None and res.error else []
+                for i, pre in enumerate(tries[1:], start=1):
+                    if res.svg is not None:
+                        break
+                    if i < len(tries) - 1 and "already defined" in (res.error or ""):
+                        continue  # dropping the added packages keeps the clash; only the minimal preamble avoids it
+                    res = compile_svg(latex, pre, self.plan.svg_cache, texinputs=root)
+                    if res.svg is None and res.error:
+                        errors.append(res.error)
+                if res.svg is None:
+                    res.error = " || ".join(f"attempt {i + 1}: {e}" for i, e in enumerate(errors))
+                    sink.append(
+                        Diagnostic(
+                            "warning",
+                            "loom:converter-fallback",
+                            f"SVG fallback failed in {key or file or '?'}: {res.error}",
+                            [],
+                            [key] if key else [],
+                        )
                     )
-                )
-            return fallback_figure(latex, res, css, data_src)
+                return fallback_figure(latex, res, css, data_src)
+
+            return defer(figure)
 
         return render
 
