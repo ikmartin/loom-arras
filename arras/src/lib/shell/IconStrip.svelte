@@ -30,7 +30,6 @@
 		? `Review status for ${store.manifest.reviewer.name}`
 		: Object.values(store.manifest?.keys ?? {}).some((key) => key.acceptance) ? 'Review perspective unspecified' : '');
 	let workFilter = $state('');
-	const WORKS_SHOWN = 30;
 	const library = $derived.by(() => {
 		const q = workFilter.trim().toLowerCase();
 		return q ? works.filter((r) => `${r.citekey} ${bibText(r.bib.title)} ${bibText(r.bib.author ?? '')}`.toLowerCase().includes(q)) : works;
@@ -230,7 +229,7 @@
 			{#if libraryOpen}
 				{#if works.length > 6}<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />{/if}
 				<ul class="plain library" data-testid="library-list">
-					{#each library.slice(0, WORKS_SHOWN) as r (r.citekey)}
+					{#each library as r (r.citekey)}
 						<li>
 							<a href={workUrl(r.citekey)}
 								><span class="dot" class:filed={!!r.artifacts?.pdf} role="img" aria-label={r.artifacts?.pdf ? 'filed here' : 'not filed here'}></span>{bibText(r.bib.title) || r.citekey}</a
@@ -240,7 +239,6 @@
 					{:else}
 						<li class="aside">nothing matches</li>
 					{/each}
-					{#if library.length > WORKS_SHOWN}<li class="aside">{library.length - WORKS_SHOWN} more; narrow it</li>{/if}
 					<li><a href={route('/library')} data-testid="ledger-link">ledger</a></li>
 				</ul>
 			{/if}
