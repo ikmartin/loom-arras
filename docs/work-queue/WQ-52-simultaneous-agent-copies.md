@@ -1,4 +1,4 @@
-# WQ-52 · Several agent copies of one document at once
+# WQ-52 · Several agent documents drafted from one document at once
 
 **Repo:** loom, arras
 
