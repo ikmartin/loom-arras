@@ -14,7 +14,7 @@ from loom.scan.postnote import normalize, parts
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from loom.tex.bundle import build_bundle
-from tests.helpers import edit, exits, ok, refused
+from tests.helpers import edit, exits, json_of, ok, refused
 from tests.unit._quilts import work_home
 
 REF = r"""\documentclass{article}
@@ -136,12 +136,14 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
     assert "0805.2065v3" in bib.read_text()
     digest = q / "digests" / "Calloway14.tex"
     digest.write_text(digest.read_text().replace("% !LOOM method:", "% !LOOM requires: tikz-cd\n% !LOOM method:", 1))
-    lint = ok("lint", cwd=q).output
-    assert "loom:version-mismatch" in lint and "v2" in lint and "v3" in lint
-    assert "loom:missing-package" in lint and "tikz-cd" in lint
+    said = ok("lint", cwd=q).output  # a cited work's diagnostics are counted in the text, and listed in the JSON
+    assert "loom:version-mismatch" in said and "loom:missing-package" in said
+    lint = " ".join(d["message"] for d in json_of("lint", "--json", cwd=q)["diagnostics"])
+    assert "v2" in lint and "v3" in lint and "tikz-cd" in lint
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().rstrip("\n") + "\nSee \\cite[Theorem 1]{Ref20}.\n")
-    assert ok("status", "--undigested", cwd=q).output.split() == ["Ref20"]
+    assert json_of("status", "--undigested", "--json", cwd=q)["undigested"] == ["Ref20"]
+    assert ok("status", "--undigested", cwd=q).output.splitlines()[2:] == ["Ref20"]
 
 
 def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_path: Path) -> None:
@@ -174,8 +176,11 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_pa
     assert "Extracted 4 results (2 Theorem, 1 Definition, 1 Lemma); 2 sections" in r.output
     assert "\\uses recorded: 3" in r.output and "Numbering: from the paper's .aux" in r.output
     # the digest requires xy and the demo's master does not load it, which the extraction's own lint says
-    assert "Lint on the digest:\n" in r.output and "loom:missing-package" in r.output
-    assert "digest Ref20 requires xy, which the preamble of drafting/main.tex does not load" in r.output
+    verdict = r.stdout.splitlines()[0]
+    assert verdict.startswith("wrote digests/Ref20.tex: 4 results from Ref20; its lint: ") and "1 warning" in verdict
+    assert "warning loom:missing-package (1)" in r.stdout
+    said = " ".join(r.stdout.split())  # an item's line wraps within 100 columns
+    assert "digest Ref20 requires xy, which the preamble of drafting/main.tex does not load" in said
     refused("digest", "extract", "Ref20", code=2, match="digests/Ref20.tex exists", cwd=q)
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(
@@ -248,12 +253,12 @@ def test_a_digest_is_called_thin_by_the_results_it_has_after_extraction(tmp_path
     sections.write_text(json.dumps({"sha256": "0" * 64, "pages": 12, "chars": 1, "sections": []}))
     fresh = ok("refs", "build", "--only", "extract", cwd=q)
     assert "entered the digest (1)\n  Ref20" in fresh.output and "too thin to trust" not in fresh.output, fresh.output
-    assert "needs an agent 0" in fresh.output, fresh.output
+    assert "needs an agent: works with pages and no digest (0)" in fresh.output, fresh.output
     # the same five results against a paper of forty pages are too few to trust
     sections.write_text(json.dumps({"sha256": "0" * 64, "pages": 40, "chars": 1, "sections": []}))
     thin = ok("refs", "build", "--only", "extract", cwd=q)
-    assert "1 too thin to trust: Ref20 (5 results, 40 pages)" in thin.output, thin.output
-    assert "needs an agent 1" in thin.output, thin.output
+    assert "too thin to trust (1)\n  5 results, 40 pages  Ref20" in thin.output, thin.output
+    assert "needs an agent: works with pages and no digest (1)\n  Ref20" in thin.output, thin.output
 
 
 def test_the_build_report_lists_every_blocked_work_under_what_would_unblock_it() -> None:
@@ -275,15 +280,15 @@ def test_the_build_report_lists_every_blocked_work_under_what_would_unblock_it()
         resolve_off=True,
     )
     text = "\n".join(report.lines())
-    assert text.splitlines()[0].startswith("resolved      19 entries: 3 state an arXiv id")
-    assert (
-        f"  no arXiv id to fetch a source on ({LISTED + 3}): loom refs build --resolve --fetch looks for the preprint"
-        in text
-    )
-    assert "    Doi00" in text and "    and 3 more; loom refs coverage lists every work" in text
-    assert "  no identifier and no document (1): loom refs resolve CITEKEY" in text and "\n    Bare" in text
-    assert "  source not fetched yet (1): loom refs build --fetch gets it from arXiv\n    Arx" in text
-    assert '    Wrong: fetched source is titled "X"' in text
+    assert text.splitlines()[0] == "1 of 19 works digested; 18 blocked; 3 need you, 0 an agent"
+    assert text.splitlines()[1].startswith("resolved   19  entries: 3 state an arXiv id")
+    assert f"blocked: no arXiv id to fetch a source on ({LISTED + 3})\n  Doi00" in text
+    flat = " ".join(text.split())  # the cut line is long, and wraps
+    assert f"Doi{LISTED - 1:02d} … and 3 more; loom refs build --resolve --fetch looks for the preprint" in flat
+    assert "loom refs coverage lists every work" in flat
+    assert "blocked: no identifier and no document (1)\n  Bare\n  fix: loom refs resolve CITEKEY" in text
+    assert "blocked: source not fetched yet (1)\n  Arx\n  fix: loom refs build --fetch gets it from arXiv" in text
+    assert '  fetched source is titled "X"  Wrong' in text
     # a work with a DOI is never told to add one
     assert "add a doi" not in text.split("no identifier and no document")[0]
 
@@ -313,10 +318,10 @@ def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) 
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().replace("\\end{lemma}", "By \\cite[Theorem 3.1]{Ref20}.\n\\end{lemma}", 1))
     r = exits(1, "compile", "dm-0002", cwd=q, env={"FAKE_TEX_FAIL": "1"})
-    lines = [ln for ln in r.output.splitlines() if ln.strip()]
-    assert lines[0].startswith("loom:missing-package: digest Ref20 requires xy") and lines[-1].startswith(
-        "FAILED bundle dm-0002"
-    )
+    verdict, missing = r.stdout.split("\n\n")[:2]  # the verdict, wrapped, then the missing packages
+    verdict = " ".join(verdict.split())
+    assert verdict.startswith("dm-0002's closure did not compile") and "requires a package that is missing" in verdict
+    assert missing.startswith("warning loom:missing-package (1)") and "digest Ref20 requires xy" in missing
 
 
 def test_unverified_locators_when_the_artifact_and_the_cited_work_differ(tmp_path: Path) -> None:
@@ -370,7 +375,9 @@ def test_the_other_version_is_said_where_the_digest_is_read(tmp_path: Path) -> N
     r = ok("refs", "coverage", "Split", cwd=q)
     assert "preprint" in r.output and said in r.output and "loom refs page Split" in r.output
     row = next(
-        w for w in json.loads(ok("refs", "coverage", "Split", "--json", cwd=q).stdout) if w["citekey"] == "Split"
+        w
+        for w in json.loads(ok("refs", "coverage", "Split", "--json", cwd=q).stdout)["works"]
+        if w["citekey"] == "Split"
     )
     assert row["digest_version"] == {"extracted_from": "arXiv:2001.00002v1", "cited_as": "doi:10.1090/S1"}
     r = ok("refs", "overview", "Split", cwd=q)
@@ -378,7 +385,7 @@ def test_the_other_version_is_said_where_the_digest_is_read(tmp_path: Path) -> N
     r = ok("source", "Split-thm-1", cwd=q)
     assert "\\begin{theorem}" in r.stdout and said in r.stderr and said not in r.stdout
     # a digest cited as it was extracted says nothing
-    other = json.loads(ok("refs", "coverage", "--json", cwd=q).stdout)
+    other = json.loads(ok("refs", "coverage", "--json", cwd=q).stdout)["works"]
     assert all(w["digest_version"] is None for w in other if w["citekey"] != "Split")
 
 
@@ -675,3 +682,16 @@ def test_a_result_on_a_sectioning_counter_steps_it_and_an_aux_number_resynchroni
     assert n.theorem(t) == "3.8"
     n.heading("section")
     assert n.theorem(t) == "4.1"
+
+
+def test_an_overview_named_by_a_fragment_matching_two_works_is_refused_by_name(tmp_path: Path) -> None:
+    """`refs overview romagny` printed a different paper's overview on successive runs: a set was asked for its first element (CLI study, defect 12)."""
+    q = demo(tmp_path)
+    bib = q / "digests" / "bibliography.bib"
+    bib.write_text(
+        bib.read_text()
+        + "\n@article{Romagny05, title={Group actions on stacks}, author={Romagny, M.}}\n"
+        + "\n@article{Romagny22, title={Fixed point stacks}, author={Romagny, M.}}\n",
+        encoding="utf-8",
+    )
+    refused("refs", "overview", "romagny", cwd=q, code=2, match="names 2 works: Romagny05, Romagny22")

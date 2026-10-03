@@ -34,7 +34,7 @@
 		<p class="muted"><code>{key}</code> has no page of its own. It is part of <a href={keyUrl(m, key)}>{m.nodes[owner].title ?? owner}</a>.</p>
 	{:else if !node && m.masters.some(d => d.closed_keys?.includes(key))}
 		{@const saved = m.masters.find(d => d.closed_keys?.includes(key))!}
-		<p>This result belongs to a closed AI draft. <a href={masterUrl(saved.path) + '#' + anchorId(key)}>Read its saved text and annotations</a>.</p>
+		<p>This result belongs to a closed agent document. <a href={masterUrl(saved.path) + '#' + anchorId(key)}>Read its saved text and annotations</a>.</p>
 	{:else if !node}
 		<p class="muted">The manifest has no node <code>{key}</code>.</p>
 	{:else if node.conflict?.length}

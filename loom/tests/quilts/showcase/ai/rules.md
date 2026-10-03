@@ -23,15 +23,15 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
 1. Inputs come from loom commands, never from reading directories unless explicitly asked.
    - A key: `loom source KEY --closure --session SESSION` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
-   - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom unravel ID`.
+   - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom downstream ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
    - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
-2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and an annotation is recorded under your tool's name (`claude-code`), never the author's. The author's own verbs refuse you whatever shell you are in: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result.
+2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and an annotation is recorded under your tool's name (`claude-code`), never the author's. The author's own acts refuse you whatever name you give, in any shell loom can tell is yours: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`, `loom refs drop`, `loom refs cite`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`, and `loom refs unlink` on a link you did not make. To ask for one, write a `suggestion` on the result.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --session SESSION`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
 ## Outputs
 
-1. Every output is a file in your session's directory, named by mode and target, except the edits you make to a copy in `drafting-ai/` when the author asks you to work there (orientation §2). Intermediates that are not outputs — scripts, backups, staging files — go under `build/SESSION/`. Never write anywhere else, and never delete a file from your session's directory.
+1. Every output is a file in your session's directory, named by mode and target, except the edits you make to an agent document in `drafting-ai/` when the author asks you to work there (orientation §2). Intermediates that are not outputs — scripts, backups, staging files — go under `build/SESSION/`. Never write anywhere else, and never delete a file from your session's directory.
 2. LaTeX outputs (`draft-ID.tex`, `proposal-KEY.diff`, `ingest-CITEKEY.tex`) must compile with the quilt's preamble: use the environment names and macros as they appear in the source; `\ref{ID}` and `\uses{ID, ...}` for dependencies; `\incomplete{...}` for anything you could not do; `\label{ID}` when an id was given. This is real LaTeX; no chat restrictions apply.
 3. Notes files (`MODE-TARGET.notes.md`) are Markdown with `$...$` and `$$...$$` math; the viewer renders them, so keep math in TeX. Headings name blocks: `## [hypothesis-ledger]`. A notes file begins with `## [summary]` and ends with the mode's checklist, ticked — except quick's, which is `[answer]` alone, a summary of it being longer than the answer.
 4. Verification you can do: to check that a proposal or a draft compiles, compile it with your text in place of the quilt's (`loom compile KEY --with proposal-KEY.diff --session SESSION` or `loom compile --draft draft-ID.tex --session SESSION`). Nothing in the quilt changes. Report the result in the notes.
@@ -81,13 +81,9 @@ The author may be talking to you. A session carries an inbox; `loom session next
 - **Run only these loom commands.** Every other command loom offers is the author's, including ones added after this was written:
 
   - `loom ai annotations`
-  - `loom ai check`
-  - `loom ai discard`
   - `loom ai drafts`
-  - `loom ai name`
   - `loom ai orient`
   - `loom ai refresh`
-  - `loom ai start`
   - `loom annotate`
   - `loom build`
   - `loom check`
@@ -98,12 +94,12 @@ The author may be talking to you. A session carries an inbox; `loom session next
   - `loom downstream`
   - `loom draft`
   - `loom history`
+  - `loom history show`
+  - `loom history verify`
   - `loom id`
   - `loom link`
   - `loom lint`
   - `loom new`
-  - `loom pop`
-  - `loom reach`
   - `loom refs build`
   - `loom refs coverage`
   - `loom refs fetch`
@@ -126,18 +122,18 @@ The author may be talking to you. A session carries an inbox; `loom session next
   - `loom search`
   - `loom serve`
   - `loom session list`
+  - `loom session new`
   - `loom session next`
+  - `loom session rename`
   - `loom session say`
-  - `loom session send`
   - `loom session watch`
   - `loom source`
   - `loom status`
-  - `loom unravel`
 
   `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your session's directory.
 - Never delete anything outside your own session's directory. Inside it, you may remove what you created.
 - **Name yourself with `--as`** on everything you write, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: unnamed, the session commands refuse you and an annotation is recorded under your tool's name, never the author's.
-- **These five are the author's and refuse you whatever shell you are in**, because each makes a claim only a person can make: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
+- **These are the author's and refuse you whatever name you give**, because each makes a claim only a person can make or destroys what cannot be had back: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`, `loom refs drop`, `loom refs cite`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
 

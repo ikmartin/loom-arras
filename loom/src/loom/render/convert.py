@@ -10,6 +10,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+from loom.render.fallback import converting, resolve
 from loom.scan.envtree import norm_label
 from loom.scan.labels import plain_key
 from loom.scan.macros import expand
@@ -522,20 +523,25 @@ class Converter:
     # ---- ranges and blocks -------------------------------------------------
 
     def render_range(self, a: int, b: int) -> str:
-        """Render file text [a, b) as blocks, substituting child claimants and inclusion lines."""
-        out: list[str] = []
-        pos = a
-        while pos < b:
-            child = self.ctx.child_at.get(pos)
-            if child is not None:
-                end, key = child
-                out.append(self.ctx.child_html(key))
-                pos = end
-                continue
-            nxt = min([s for s in self.ctx.child_at if pos < s < b] + [b])
-            out.append(self._blocks(pos, nxt))
-            pos = nxt
-        return "".join(out)
+        """Render file text [a, b) as blocks, substituting child claimants and inclusion lines.
+
+        The outermost call on a thread waits for every figure the conversion deferred (`fallback.resolve`), so its markup is whole; a nested call's figures are left for it.
+        """
+        with converting() as outermost:
+            out: list[str] = []
+            pos = a
+            while pos < b:
+                child = self.ctx.child_at.get(pos)
+                if child is not None:
+                    end, key = child
+                    out.append(self.ctx.child_html(key))
+                    pos = end
+                    continue
+                nxt = min([s for s in self.ctx.child_at if pos < s < b] + [b])
+                out.append(self._blocks(pos, nxt))
+                pos = nxt
+            markup = "".join(out)
+            return resolve(markup) if outermost else markup
 
     def _blocks(self, a: int, b: int) -> str:
         toks = [t for t in tokenize(self.ctx.clean[a:b])]

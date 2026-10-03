@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A node's context (plan 0.13.3 C1–C2, phase 4): what it is in, where its text came from, what it depends on and rests on, what uses it, which discussions touched it, the citations suggested for it, what was discarded on it, and the local graph, in one column opened beside the node by its `context` control. Everything about the node that is not the node: the node's own pane draws its statement and proofs alone.
+	// A node's context (plan 0.13.3 C1–C2, phase 4): what it is in, where its text came from, what it depends on and rests on, what uses it, which discussions touched it, the citations suggested for it, what was withdrawn on it, and the local graph, in one column opened beside the node by its `context` control. Everything about the node that is not the node: the node's own pane draws its statement and proofs alone.
 	//
 	// **Laid out as its design is** (phase 5): the lists first — where the node is, where it came from, what it depends on and what uses it — each result named as a reader names it (`Theorem 3.1`, a proof as the proof of its result), the key kept as each link's title; the local graph last and small, one expand away.
 	//
@@ -62,10 +62,10 @@
 	const versions = $derived(
 		[key, ...(node?.proofs ?? [])].map((k) => ({ key: k, label: versionLabel(m.keys[k]) })).filter((v) => v.label)
 	);
-	// Discarded annotations are drawn only under the settled control; they are listed here, folded, only when there are any, so a reader finds them without turning it on.
+	// Withdrawn annotations are drawn only under the settled control; they are listed here, folded, only when there are any, so a reader finds them without turning it on.
 	const discarded = $derived(onAny(m, [key, ...(node?.proofs ?? [])]).filter((a) => a.discarded && a.in_reply_to === null));
 	let showDiscarded = $state(false);
-	/** A row's link text: a short preview of what the annotation says, the words it quoted when it says nothing, its id when it has neither. The row links rather than restates (annotation study A2); the box holds the rest. */
+	/** A row's link text: a short preview of what the annotation says, the words it quoted when it says nothing, its id when it has neither. The row links rather than restates (A2); the box holds the rest. */
 	function preview(a: Annotation): string {
 		const text = a.body_html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || (a.quote ? `“${a.quote.trim()}”` : a.id);
 		return text.length > 90 ? text.slice(0, 89).trimEnd() + '…' : text;
@@ -191,7 +191,7 @@
 		{#if discarded.length}
 			<p class="discarded">
 				<button type="button" class="as-link" aria-pressed={showDiscarded} data-testid="show-discarded" onclick={() => (showDiscarded = !showDiscarded)}
-					>{discarded.length} discarded — {showDiscarded ? 'hide' : 'show'}</button
+					>{discarded.length} withdrawn — {showDiscarded ? 'hide' : 'show'}</button
 				>
 			</p>
 			{#if showDiscarded}

@@ -16,6 +16,7 @@ All entries are **[decided]** unless marked.
 - master : a `.tex` file containing `\documentclass`, located in the drafting directory or the agent's drafting directory. Compiled as a document. Addressed by path. The root of an inclusion tree. Also called a live document.
 - drafting directory : the directory named by `config.toml [quilt] drafting`, by default `drafting/`. Every file in it with `\documentclass` is a master, and every one is live. Read as `drafts` in a quilt written before 0.9.
 - agent's drafting directory : the directory named by `config.toml [quilt] drafting_ai`, by default `drafting-ai/`. Holds the documents the person and an agent both edit: live, and never reviewed, accepted or published (4.4). The one place outside its session an agent may write a document.
+- agent document : a document in the agent's drafting directory, whether drafted from a working document by `loom draft` or written there by the agent from scratch (DR-330-ikmartin). One drafted from a working document says so where it matters: "drafted from drafting/main.tex".
 - landmark : a document's flat text as it stood at a step, kept in that step's directory under `.loom/history/`: the paper as received, kept by `loom import`, or a drafting document with its ids and `\usepackage{loom}`, kept by `loom stamp DOCUMENT -m NAME` (17.9). Named by the slug of its message (`widgets-v3`), its step, or `DOC@STEP`. Never scanned, so nothing in it defines a node; shown in arras as a document; `loom history show` prints it and `loom history restore` starts a working document from it.
 - live : a property of a document, not of a file: a document is live when it sits in the drafting directory and no conversion has recorded that its output superseded it. Only live documents define the nodes they hold inline.
 - superseded : a document a conversion (`atomize`, `linearize`) replaced, recorded in the history. It defines nothing until `loom live` says otherwise.
@@ -35,7 +36,7 @@ All entries are **[decided]** unless marked.
 - node : a sectioning unit or a theorem-like environment. Has an id if its first label is id-shaped, otherwise a qualified key. May include other nodes.
 - id : the permanent identifier of a node, of the form `<prefix>-<local>`. For nodes made by `loom new`: prefix chosen by the author, local four uppercase base-36 characters (`rl-0004`). For digest nodes: the citekey as prefix and the paper's own label as local (`Man12-thm-4.1`).
 - id-shaped : a label matching the id grammar (Chapter 5).
-- derived id : the id of a node an agent's copy defines, `zk-0001-ai` for the person's `zk-0001`: the counterpart is read from the id by dropping the suffix (5.3.1). An id to the scan, never versioned or accepted.
+- derived id : the id of a node an agent document defines, `zk-0001-ai` for the person's `zk-0001`: the counterpart is read from the id by dropping the suffix (5.3.1). An id to the scan, never versioned or accepted.
 - prefix : the part of an id before the first hyphen. Chosen by the author per quilt (default in config) or per command (`--prefix`). Alphanumeric, no hyphens.
 - alias : any label on a node other than its id. Multiple `\label`s in one environment are legal LaTeX; loom resolves all of them to the node.
 - tag : a thematic label attached to a node by a `% !LOOM tags:` directive (`algebraic-geometry`). Any number per node. Never an identifier.
@@ -61,7 +62,7 @@ All entries are **[decided]** unless marked.
 - level shift : the number of `\nest` wrappers between a master and a file; added to the levels of the file's sectioning commands.
 - edge : a dependency: from a region (statement or proof) to a node, arising from `\ref`, `\eqref`, `\cref`, `\autoref`, `\uses`, or a matched `\cite[postnote]`. Classified as statement-edge or proof-edge by the region it occurs in.
 - closure : the transitive statement-dependencies of a key.
-- bundle : a standalone document for a key: the master's preamble, `\usepackage{loom}`, the statements of the closure in dependency order, then the key's own text with inclusions expanded.
+- closure document : a standalone document for a key: the master's preamble, `\usepackage{loom}`, the statements of the closure in dependency order, then the key's own text with inclusions expanded.
 
 ## 3.5 Review
 
@@ -77,8 +78,9 @@ All entries are **[decided]** unless marked.
 - fresh : not stale.
 - proved : a computed display state for a node: statement accepted and at least one proof accepted, none stale, no `\incomplete`.
 - settled : proved, and every node in the closure settled.
-- settled (of an annotation) : resolved or discarded, marked by hand and never by being read; not drawn at rest, and shown faint by the settled control (15.3.1).
-- discard : marking a session ignored so that its annotations vanish from every view, and closing it. Reversible. Never deletes.
+- settled (of an annotation) : resolved or withdrawn, marked by hand and never by being read; not drawn at rest, and shown faint by the settled control (15.3.1).
+- discard : marking a session ignored so that its annotations vanish from every view, and closing it (`loom ai discard`). Reversible. Never deletes.
+- withdrawn : of an annotation, discarded on its own (`loom annotate --discard ID`) or with its session. The word a person reads, in the CLI, the viewer and this book; the log and the manifest say `discarded` (DR-330-ikmartin).
 
 ## 3.6 Digests
 
@@ -130,19 +132,18 @@ All entries are **[decided]** unless marked.
 - atomic format : a file written around inclusion lines, with each node in a file of its own.
 - linear format : a file written as one document, with its environments in place. Neither is rigorous; they name the two shapes loom's conversions move between.
 - import : bringing a paper into a quilt, with its styles, bibliography and figures at the root: the paper as received, flattened, is kept as a landmark in the history, and the working document is drafted from it at once, with `\usepackage{loom}` and an id on every node.
-- draft : copying a live drafting document into the agent's drafting directory as a flat copy with derived ids, recorded as a `copy` step (17.7).
+- draft : making an agent document from a live drafting document: a flat copy with derived ids in the agent's drafting directory, recorded as a `copy` step (17.7).
 - stamp : recording a step: every key whose text has moved since the last one, quilt-wide; given a document, only the keys it reaches, and the document's flat text kept as a landmark.
 - restore : writing a new working document in the drafting directory from a landmark, with `\usepackage{loom}` and an id on every node that has none (17.9).
 - fork : giving a document its own copy of a node under a new id, as a patch the author applies.
 - revert : printing the patch that puts a recorded version's text back in place of the head's.
 - live : making a superseded document define its nodes again.
 - move : recording that a drafting document now has another path, renaming the file when it is still where it was (`loom mv`). Every record naming the document follows it.
-- linearize : flattening a document, every inclusion expanded in place with `\nest`'s level shift applied. The whole-document counterpart of `inline`.
+- linearize : flattening a document, every inclusion expanded in place with `\nest`'s level shift applied, and the reverse of atomize.
 - atomize : moving each node of a file into its own file, writing a spine to a named destination. Never in place; the history records that the spine superseded the source.
-- inline : the reverse of atomize for one inclusion or for a file's own inclusions, to a named destination.
-- step : a numbered, directory-creating event in the history: an import, a stamp, or an agent copy. Numbered once over the whole quilt.
+- step : a numbered, directory-creating event in the history: an import, a stamp, or a draft. Numbered once over the whole quilt.
 - identity test : the compiled output (`pdftotext`) of a document must be unchanged by import, atomize, inline, or linearize.
-- unravel : the report of everything downstream of a node: transitive dependents, inclusion sites, ledger rows, annotations. Aliases `downstream`, `reach`, `pop`.
+- downstream : the report of everything downstream of a node: transitive dependents, inclusion sites, ledger rows, annotations (`loom downstream ID`).
 - publish (verb) : writing the build directory. The command is `loom build`.
 
 ## 3.10 Withdrawn terms
@@ -158,7 +159,8 @@ The following words were used during design and are not terms of the system. Do 
 - tutte : the viewer's earlier name; now arras.
 - `sections/` : no dedicated directory; section node files live in `nodes/`.
 - `drafts/` : the pre-0.9 name of the drafting directory. Still read from an old `config.toml`, with a warning; never written.
-- `assemble` : withdrawn; `linearize` flattens a document, `inline` reverses one atomization.
+- `assemble` : withdrawn; `linearize` flattens a document.
+- `inline` : withdrawn; it flattened a copy without superseding its source, so every id was defined twice (DR-326-ikmartin); `linearize` is the reverse of atomize.
 - expanded format, assembled format : now linear format.
 - work, bench, revise : considered and rejected as verbs; the pair is atomize and linearize, and the passage between a working document and a landmark is stamp and restore.
 - canon directory, canon document, `canonize` : withdrawn; a landmark is kept in its step by `loom stamp DOCUMENT -m NAME`, and `loom history show --plain` prints it without loom. The interface still names a landmark's manifest entry, route and fragment `canon` (specs/manifest.md §2).
@@ -168,5 +170,8 @@ The following words were used during design and are not terms of the system. Do 
 - `reviewed` (as a state) : not a state; reviews are facts and counts.
 - `impact`, `deps --closure` vs `closure`, `dependents`, `resolve`, `ai finish`, `ai resume`, `ai list`, `ai restore`, `digest export`, `state set`, `state refresh`, `ref use`, `bundle --for-review`, `\blocker`, `\block`, `% !LOOM begin preamble` : withdrawn commands and syntax; see the CLI reference for what replaced each.
 - `map.toml`, `map.md` : withdrawn digest form.
+- `unravel`, `reach`, `pop` : withdrawn names for `loom downstream` (DR-330-ikmartin).
+- AI draft, AI copy, agent copy : withdrawn names for an agent document (DR-330-ikmartin).
+- bundle (of a key) : now closure document (DR-330-ikmartin); "bundle" still names the viewer's built files.
 - comment, finding : withdrawn as names for the record (DR-292-ikmartin); it is an annotation, whatever its kind. `loom comment` is `loom annotate`, `loom ai findings` is `loom ai annotations`, `loom refs note` is `loom refs cite`, and the write API's `comment` and `refs-note` are `annotate` and `refs-cite`.
 - `--proofs` on `\nest`, `section-nesting` directive : withdrawn; `\nest` is per-site.

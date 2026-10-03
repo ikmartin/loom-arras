@@ -6,6 +6,7 @@ Every .tex under the root except build/ is a source file. Decoding tries UTF-8, 
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 
 from loom.scan.model import SourceFile
@@ -53,7 +54,19 @@ def _protected_ranges(text: str) -> list[tuple[int, int]]:
 
 
 def blank_comments(text: str) -> str:
-    """Replace every comment (from an unescaped % to end of line) with spaces, leaving verbatim regions untouched."""
+    """Replace every comment (from an unescaped % to end of line) with spaces, leaving verbatim regions untouched.
+
+    A long text's result is remembered, as `tokenize`'s is: a served quilt reads every file again on every change.
+    """
+    return _blank_cached(text) if len(text) >= 4096 else _blank_comments(text)
+
+
+@lru_cache(maxsize=256)
+def _blank_cached(text: str) -> str:
+    return _blank_comments(text)
+
+
+def _blank_comments(text: str) -> str:
     protected = _protected_ranges(text)
     out = list(text)
     i, n = 0, len(text)

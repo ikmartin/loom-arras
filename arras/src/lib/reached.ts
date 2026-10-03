@@ -20,7 +20,7 @@ export function reachedExternal(m: Manifest): Set<string> {
   const out = new Set<string>();
   for (const key of Object.values(m.keys)) {
     const node = m.nodes[key.node];
-    if (!node || node.external || node.derived_of) continue; // only what the corpus itself wrote reaches; an agent copy is not the corpus
+    if (!node || node.external || node.derived_of) continue; // only what the corpus itself wrote reaches; an agent document is not the corpus
     for (const dep of key.closure) {
       if (!external.has(dep)) continue;
       out.add(dep);

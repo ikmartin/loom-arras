@@ -7,7 +7,7 @@
 	import { toneClass } from '$lib/state';
 
 	const m = $derived(store.manifest!);
-	// the person's own work: an agent copy's derived keys are the copy's, and are counted nowhere here
+	// the person's own work: an agent document's derived keys are the copy's, and are counted nowhere here
 	const keys = $derived(Object.values(m.keys).filter((k) => !m.nodes[k.node]?.derived_of));
 	const count = (state: string) => keys.filter((k) => k.state === state).length;
 	const stale = $derived(keys.filter((k) => k.acceptance && k.acceptance.fresh === false));

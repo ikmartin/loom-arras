@@ -32,7 +32,7 @@ They are directories of this repository, each with its own release cycle, ecosys
 
 **[decided]** It registers the server through Neovim 0.12's `vim.lsp.config` and `vim.lsp.enable`, falling back to `nvim-lspconfig`, and attaches only inside a quilt. It complements a general LaTeX plugin rather than replacing one: vimtex keeps the `tex` filetype and this client attaches beside it.
 
-**[decided]** Eight commands put loom on the command line — status, lint into the quickfix list, new, accept, serve, open in arras, bundle, deps — each building an argument vector rather than a shell string, and the ones that write confirming first. A statusline function names the node under the cursor.
+**[decided]** Eight commands put loom on the command line — status, lint into the quickfix list, new, accept, serve, open in arras, closure (`loom source KEY --closure`), deps — each building an argument vector rather than a shell string, and the ones that write confirming first. A statusline function names the node under the cursor.
 
 **[decided]** A session owns its servers: one `loom serve` per quilt, on a port the plugin finds free and passes as `--port`, in a tmux pane below Neovim's own when Neovim runs inside tmux and in an unentered terminal split otherwise. Open in arras starts it when it is not running, waits until the manifest answers, says where it started, and leaves the cursor in the file; quitting Neovim stops every server the session started. Two sessions on one quilt run two servers over the same files, which show the same thing, and never compete for a port. Code actions' `loom.run` and `loom.open` are carried out by the plugin.
 

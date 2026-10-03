@@ -215,3 +215,52 @@ def test_edit_between_initial_publish_and_watcher_start_is_not_lost(tmp_path, se
     else:
         pytest.fail("The edit after initial publication was absorbed into the watcher's baseline")
     assert session.builds >= 2
+
+
+def test_a_write_of_records_publishes_from_the_last_scan_and_once(session, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
+    """A session, an annotation and a message change nothing the scan reads: each is published before it answers, from the last scan, and the watcher, which sees the same files a moment later, builds nothing more (plan 0.18.2)."""
+    from loom.render import build as build_mod
+    from tests.unit.render._serve import post
+
+    s, d = session
+    scans = [0]
+    real = build_mod.scan
+
+    def counted(quilt):  # type: ignore[no-untyped-def]
+        scans[0] += 1
+        return real(quilt)
+
+    monkeypatch.setattr(build_mod, "scan", counted)
+    monkeypatch.setattr("loom.cli._quilt.scan", counted)  # the write API's own reads: the publisher's scan serves them
+    before = s.builds
+    status, made = post(s.url + "_api/session-new", {"title": "a sitting", "author": "A. Author"})
+    assert status == 200
+    sid = str(made["result"]).split()[0]
+    assert (
+        post(
+            s.url + "_api/annotate", {"target": "dm-0003", "message": "A note.", "session": sid, "author": "A. Author"}
+        )[0]
+        == 200
+    )
+    assert post(s.url + "_api/message", {"text": "Hello.", "session": sid, "author": "A. Author"})[0] == 200
+    assert s.builds == before + 3 and scans[0] == 0
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert any(
+        a["target"].get("key") == "dm-0003" and "A note." in json.dumps(a) for a in manifest["annotations"].values()
+    )
+    time.sleep(1.0)  # five polls
+    assert s.builds == before + 3, "the watcher built again what the API had published"
+
+
+def test_a_burst_of_edits_publishes_once(session) -> None:  # type: ignore[no-untyped-def]
+    s, d = session
+    time.sleep(0.3)
+    before = s.builds
+    for name in ("dm-0001.tex", "dm-0002.tex", "dm-0003.tex"):
+        node = d / "nodes" / name
+        node.write_text(node.read_text() + "\n% edited\n")
+    deadline = time.time() + 6
+    while s.builds == before and time.time() < deadline:
+        time.sleep(0.05)
+    time.sleep(1.0)
+    assert s.builds == before + 1

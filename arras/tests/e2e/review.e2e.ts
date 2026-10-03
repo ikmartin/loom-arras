@@ -54,7 +54,7 @@ test('narrow layouts collapse the queue before stacking the comparison', async (
 });
 
 test('prose is inspected in Incoming without mathematical acceptance controls', async ({page}) => {
- await serve(page,m=>{m.contributions=[];m.incoming={remote:'origin',branch:'main',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[{status:'M',path:'drafting/main.tex',diff:'-Old prose\n+New prose'}],changes:[{key:'prose:setup',name:'Introduction',category:'prose',kind:'edited',local_changed:false,conflict:false,already_local:false,current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',kind:'edited',current:'Old definition',proposed:'New definition',local_changed:false,conflict:false,already_local:false,affected:[]}]};});
+ await serve(page,m=>{m.contributions=[];m.incoming={workspace:'https://git.overleaf.com/0123',branch:'master',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[{status:'M',path:'drafting/main.tex',diff:'-Old prose\n+New prose'}],changes:[{key:'prose:setup',name:'Introduction',category:'prose',kind:'edited',local_changed:false,conflict:false,already_local:false,current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',kind:'edited',current:'Old definition',proposed:'New definition',local_changed:false,conflict:false,already_local:false,affected:[]}]};});
  await page.goto('/review?show=incoming');
  await expect(page.getByText('Old prose',{exact:true})).toBeVisible();
  await expect(page.getByText('New prose',{exact:true})).toBeVisible();
@@ -101,7 +101,7 @@ test('attention-only review remains accessible without implying completion', asy
 
 test('Incoming accepts only explicitly chosen mathematics while incorporating the whole pull', async ({page}) => {
  let submitted: any = null;
- await serve(page,m=>{m.reviewer={name:'Luisa',source:'local'};m.contributions=[];m.incoming={remote:'origin',branch:'main',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[],changes:[{key:'prose:intro',name:'Introduction',category:'prose',kind:'edited',current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',name:'Lemma',kind:'edited',current:'Old lemma',proposed:'New lemma',affected:[]}]};});
+ await serve(page,m=>{m.reviewer={name:'Luisa',source:'local'};m.contributions=[];m.incoming={workspace:'https://git.overleaf.com/0123',branch:'master',base:'a'.repeat(40),commit:'b'.repeat(40),observed:'2026-09-28',files:[],changes:[{key:'prose:intro',name:'Introduction',category:'prose',kind:'edited',current:'Old prose',proposed:'New prose',affected:[]},{key:'sy-0001',name:'Lemma',kind:'edited',current:'Old lemma',proposed:'New lemma',affected:[]}]};});
  await page.route('**/_api',route=>route.fulfill({json:{write_api:1,capabilities:['sync-incorporate','sync-preview'],token:'test'}}));
  const fragment={path:'incorporation-review/example.html',macros:[]};
  await page.route('**/build/incorporation-review/example.html',route=>route.fulfill({contentType:'text/html',body:'<div class="env"><p>Inspected mathematics.</p></div>'}));

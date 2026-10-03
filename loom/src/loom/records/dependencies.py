@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from loom.scan.edges import _CMD, LIST_CMDS, REF_CMDS
@@ -17,9 +18,16 @@ if TYPE_CHECKING:
 DISPLAYS = {"equation", "align", "alignat", "flalign", "gather", "multline", "eqnarray", "displaymath"}
 
 
+@lru_cache(maxsize=256)
+def _environments(text: str) -> list[EnvNode]:
+    """A file's environment tree, built once per text: `display_span` asks once per labelled display, and a file holds hundreds."""
+    roots, _ = env_tree(blank_comments(text))
+    return roots
+
+
 def display_span(text: str, offset: int) -> tuple[int, int] | None:
     """The complete display enclosing a label, including nested split/aligned environments."""
-    roots, _ = env_tree(blank_comments(text))
+    roots = _environments(text)
 
     def walk(nodes: list[EnvNode]) -> tuple[int, int] | None:
         for node in nodes:

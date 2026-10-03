@@ -17,6 +17,7 @@ MANAGED = (
     "digests/storage/cache/",
     CACHE,
     ".loom/serve.json",
+    ".loom/workspace/",
     ".loom/sessions/*/attached.json",
     ".loom/sessions/*/cursors/",
     ".loom/sessions/*/agent.*",

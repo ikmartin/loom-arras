@@ -18,11 +18,20 @@ def write_atomic(path: Path, data: str | bytes) -> None:
     os.replace(tmp, path)
 
 
-def _unchanged(path: Path, data: str | bytes) -> bool:
+#: The paths each build directory's last publication in this process kept, and the prefixes it pruned.
+_PATHS: dict[Path, tuple[frozenset[str], tuple[str, ...]]] = {}
+
+#: What each build directory was last given, by relative path, in this process: a served quilt republishes every few seconds, and comparing with what is in memory spares reading back thousands of files that have not changed.
+_WRITTEN: dict[Path, dict[str, str | bytes]] = {}
+
+
+def _unchanged(path: Path, data: str | bytes, before: str | bytes | None = None) -> bool:
     """True when `path` already holds exactly `data`, so publishing it again would rewrite identical bytes.
 
-    Most of a warm build's files are the same as last time (every source/ file, every re-rendered fragment whose text came out the same); comparing costs a read, rewriting costs a write and a rename.
+    Most of a warm build's files are the same as last time (every source/ file, every re-rendered fragment whose text came out the same); comparing costs a read, rewriting costs a write and a rename. `before` is what this process last wrote there; when it matches, a file still present is taken as unchanged without reading it.
     """
+    if before is not None and before == data and path.exists():
+        return True
     try:
         return path.read_bytes() == (data.encode("utf-8") if isinstance(data, str) else data)
     except OSError:
@@ -51,10 +60,18 @@ def publish(
     keep : set[str], default empty
         Relative paths already on disk as they should be: neither written nor pruned.
     """
+    written = _WRITTEN.setdefault(build_dir.resolve(), {})
     for rel, data in files.items():
         path = build_dir / rel
-        if not _unchanged(path, data):
+        if not _unchanged(path, data, written.get(rel)):
             write_atomic(path, data)
+        written[rel] = data
+    # the same paths as this process's last publication here: nothing it did not write can be under the prefixes, so there is nothing to walk for
+    published = (frozenset((*files, *keep)), prune_prefixes)
+    last = _PATHS.get(build_dir.resolve())
+    _PATHS[build_dir.resolve()] = published
+    if last == published:
+        prune_prefixes = ()
     for prefix in prune_prefixes:
         base = build_dir / prefix
         if base.is_dir():

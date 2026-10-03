@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -19,13 +20,14 @@ from loom.records.lastseen import freeze_moved
 from loom.records.store import Records
 from loom.render.canon import CanonRenderer, canon_fragment_path, load_canon
 from loom.render.fragments import FragmentRenderer, RenderPlan
+from loom.render.keys import aux_bytes, code_hash
 from loom.render.manifest import build_manifest
 from loom.render.marks import MarkEntry, place_marks
-from loom.render.publish import publish
+from loom.render.publish import publish, write_atomic
 from loom.scan.model import Diagnostic
 from loom.scan.quilt import Quilt
 from loom.scan.scan import ScanResult, scan
-from loom.tex.aux import AuxNumber, read_cite_labels, read_numbers
+from loom.tex.aux import read_cite_labels, read_numbers
 from loom.version import __version__
 
 
@@ -129,6 +131,32 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
         results = {rid: r for rid, r in load_results(root, citekey).items() if r.anchor.kind == "pdf" and r.anchor.page}
         if not results and not notes:
             continue
+        m = read_map(home)
+        rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
+        # what the geometry is made from: the results' anchors and words, the notes on the pages and their drawn boxes, the copy filed, and the matching code
+        key = hashlib.sha256(
+            json.dumps(
+                [
+                    _spans_code(),
+                    m.sha256 if m else "",
+                    sorted(
+                        [rid, r.anchor.page, r.anchor.basis, r.anchor.start, r.anchor.end, r.source_text]
+                        for rid, r in results.items()
+                    ),
+                    sorted(
+                        [a["id"], a["target"].get("page"), a.get("basis"), a.get("quote"), drawn.get(a["id"])]
+                        for a in notes
+                    ),
+                ]
+            ).encode()
+        ).hexdigest()[:32]
+        kept = root / "build" / "cache" / "spans" / f"{key}.json"
+        if kept.is_file():
+            body = kept.read_text(encoding="utf-8")
+            if body:
+                files[rel] = body
+                ref["spans"] = {"path": rel, "sha256": hashlib.sha256(body.encode()).hexdigest()}
+            continue
         table = _PageTable(home)
         quads: dict[str, list[list[float]]] = {}
         marks: dict[str, list[list[float]]] = {}
@@ -157,16 +185,24 @@ def _attach_spans(root: Path, manifest: dict[str, Any], files: dict[str, Any]) -
                 marks[a["id"]] = [list(q) for q in span.lines]
         pages = table.pages
         if not quads and not marks:
+            write_atomic(kept, "")  # nothing found is remembered too, so the pages are not searched again
             continue
-        m = read_map(home)
         body = json.dumps(
             {"artifact": m.sha256 if m else "", "pages": pages, "quads": quads, "marks": marks},
             indent=1,
             sort_keys=True,
         )
-        rel = f"spans/{artifacts['dir'].removeprefix('digests/storage/')}.json"
+        write_atomic(kept, body)
         files[rel] = body
         ref["spans"] = {"path": rel, "sha256": hashlib.sha256(body.encode()).hexdigest()}
+
+
+@cache
+def _spans_code() -> str:
+    """The word matching and page reading `_attach_spans` uses, fingerprinted so a cached sidecar is made again when either changes."""
+    from loom.refs import pages, search
+
+    return hashlib.sha256(Path(search.__file__).read_bytes() + Path(pages.__file__).read_bytes()).hexdigest()[:16]
 
 
 def _write_source(result: ScanResult, fragments: dict[str, str], files: dict[str, Any]) -> None:
@@ -201,41 +237,16 @@ def fragment_path(result: ScanResult, key: str) -> str:
     return f"fragments/keys/{quote(key, safe='')}.html"
 
 
-@cache
-def _code_hash() -> str:
-    """A fingerprint of loom's own rendering code, or '' for a released version, which its version string already identifies.
+def _input_hash(result: ScanResult, key: str, aux: bytes, texts: dict[str, str] | None = None) -> str:
+    """The cache key of a node, master or digest fragment: loom's version and code, the text of every file it draws on, and `aux` from `keys.aux_bytes`.
 
-    In a checkout the version stays `0.1.0.dev0` across every edit, so a changed converter would otherwise hit the cache and republish the HTML it was meant to replace. Read once per process, since a served quilt rebuilds on every keystroke.
+    `texts` holds each file's text hash, filled as files are met, so a file every digest node draws on is hashed once per scan rather than once per node.
     """
-    if "dev" not in __version__:
-        return ""
-    h = hashlib.sha256()
-    for path in sorted((Path(__file__).resolve().parent.parent).rglob("*.py")):
-        h.update(path.read_bytes())
-    return h.hexdigest()[:16]
-
-
-def _aux_bytes(numbers: dict[str, dict[str, AuxNumber]], cite_labels: dict[str, dict[str, str]]) -> bytes:
-    """Every master's number table and citation labels as the byte stream `_input_hash` feeds its digest.
-
-    Quilt-wide and the same for every fragment, so `build` serialises it once rather than once per node.
-    """
-    parts: list[str] = []
-    for m in sorted(numbers):
-        for lab, num in sorted(numbers[m].items()):
-            parts.append(f"{m}|{lab}|{num.number}|{num.page}")
-    for m in sorted(cite_labels):
-        for ck, lab in sorted(cite_labels[m].items()):
-            parts.append(f"{m}|cite|{ck}|{lab}")
-    return "".join(parts).encode()
-
-
-def _input_hash(result: ScanResult, key: str, aux: bytes) -> str:
-    """The cache key of a node, master or digest fragment: loom's version and code, the text of every file it draws on, and `aux` from `_aux_bytes`."""
+    texts = {} if texts is None else texts
     n = result.nodes[key]
     h = hashlib.sha256()
     h.update(__version__.encode())
-    h.update(_code_hash().encode())
+    h.update(code_hash().encode())
     files = {n.file}
     if n.kind in ("master", "file"):
         for exp in result.expansions.values():
@@ -244,8 +255,10 @@ def _input_hash(result: ScanResult, key: str, aux: bytes) -> str:
     for ck in n.claimants:
         files.add(result.nodes[ck].file)
     for f in sorted(files):
+        if f not in texts:
+            texts[f] = hashlib.sha256(result.files[f].text.encode("utf-8", errors="replace")).hexdigest()
         h.update(f.encode())
-        h.update(result.files[f].text.encode("utf-8", errors="replace"))
+        h.update(texts[f].encode())
     h.update(aux)
     return h.hexdigest()
 
@@ -254,7 +267,7 @@ def _canon_hash(doc, root: Path) -> str:  # type: ignore[no-untyped-def]
     """The cache key of a landmark's fragment: loom's version and code, the landmark's text, and its closure's."""
     h = hashlib.sha256()
     h.update(__version__.encode())
-    h.update(_code_hash().encode())
+    h.update(code_hash().encode())
     h.update(doc.path.encode())
     h.update(doc.src.text.encode("utf-8", errors="replace"))
     h.update(doc.closure.raw_text().encode("utf-8", errors="replace"))
@@ -330,13 +343,50 @@ def _write_transcripts(root: Path, files: dict[str, str | bytes]) -> None:
             files[f"transcripts/{sid}/{n}.json"] = json.dumps(page, ensure_ascii=False, indent=1, sort_keys=True)
 
 
+#: The fragments' input hashes for the last scan built from, the numbering they were hashed with, and each file's text hash; a build from the same scan (`reuse`) reads them rather than hashing every file again.
+_INPUT_HASHES: tuple[ScanResult | None, bytes, dict[str, str], dict[str, str]] = (None, b"", {}, {})
+
+
 def build(
-    quilt: Quilt, keys: list[str] | None = None, records: Records | None = None, force: bool = False
+    quilt: Quilt,
+    keys: list[str] | None = None,
+    records: Records | None = None,
+    force: bool = False,
+    reuse: ScanResult | None = None,
+    progress: Callable[[str, str, int, int | None], None] | None = None,
 ) -> BuildReport:
+    """Scan, read the records, render what changed and publish the build directory (book 9.1).
+
+    Parameters
+    ----------
+    quilt : Quilt
+        The quilt to build.
+    keys : list of str, optional
+        Render only these keys, their proofs and the documents reaching them; default every fragment.
+    records : Records, optional
+        Records already read; default read here.
+    force : bool, default False
+        Render every fragment again, and retry every figure that failed before.
+    reuse : ScanResult, optional
+        A scan of this quilt to build from instead of scanning again. Only a caller that knows no scan input changed passes one: `loom serve`, after a change to records alone.
+    progress : callable, optional
+        Told `(stage, item, n, total)` as the build moves: `scanning`, `rendering` once per fragment with its place in the count, `recording`, `publishing`; what a caller shows as progress (T6).
+
+    Returns
+    -------
+    BuildReport
+        The scan, the manifest, and what was rendered and skipped.
+    """
     root = quilt.root
     build_dir = root / "build"
     cache_dir = build_dir / "cache"
-    result = scan(quilt)
+
+    def told(stage: str, item: str = "", n: int = 0, total: int | None = None) -> None:
+        if progress is not None:
+            progress(stage, item, n, total)
+
+    told("scanning")
+    result = reuse if reuse is not None else scan(quilt)
     records = records or Records(root, quilt.history_dir)
     # the one moment loom can still see both the text an annotation was written against and the text that replaced it
     freeze_moved(result, records.records, quilt.history_dir)
@@ -397,12 +447,18 @@ def build(
         return renderer.digest_fragment(key)
 
     jobs: list[tuple[str, str, str, str]] = []
-    aux = _aux_bytes(numbers, cite_labels)
+    aux = aux_bytes(numbers, cite_labels)
+    global _INPUT_HASHES
+    if _INPUT_HASHES[0] is not result or _INPUT_HASHES[1] != aux:
+        _INPUT_HASHES = (result, aux, {}, {})
+    hashes, texts = _INPUT_HASHES[2], _INPUT_HASHES[3]
     for key, kind in targets:
         rel = fragment_path(result, key)
         label = key if kind == "node" else f"{kind}:{key}"
         fragments[label] = rel
-        digest = _input_hash(result, key, aux) + _marks_hash(marks, key, result)
+        if key not in hashes:
+            hashes[key] = _input_hash(result, key, aux, texts)
+        digest = hashes[key] + _marks_hash(marks, key, result)
         existing = build_dir / rel
         if (wanted is not None and key not in wanted) or (index.get(rel) == digest and existing.exists()):
             report.skipped.append(key)
@@ -436,8 +492,13 @@ def build(
         with renderer.collecting() as diags:
             return task(), diags
 
+    names = [doc.path for doc, _rel, _digest in canon_jobs] + [key for key, _kind, _rel, _digest in jobs]
+    told("rendering", "", 0, len(tasks))
+    done: list[tuple[str, list[Any]]] = []
     with ThreadPoolExecutor(max_workers=max(1, os.cpu_count() or 1)) as pool:
-        done = list(pool.map(render_job, tasks))
+        for n, out in enumerate(pool.map(render_job, tasks), 1):
+            done.append(out)
+            told("rendering", names[n - 1], n, len(tasks))
     canon_done, node_done = done[: len(canon_jobs)], done[len(canon_jobs) :]
     # every job's diagnostics, nodes then landmarks, each in job order: the order a single thread would have produced, whatever order they finished
     for _, diags in node_done + canon_done:
@@ -454,6 +515,7 @@ def build(
     manifest = build_manifest(
         result, numbers, fragments, report.diagnostics, canon=canon_docs, canon_entries=canon_entries, history=history
     )
+    told("recording")
     records.apply(result, manifest, build_dir)
     from loom.draft_lifecycle import attach_closed
 
@@ -491,6 +553,7 @@ def build(
             if rel not in fragments.values():
                 index.pop(rel)
     # a fragment the cache skipped is already on disk as it should be: kept from the prune, not read back and rewritten
+    told("publishing")
     publish(build_dir, files, manifest, prune, keep={rel for rel in fragments.values() if rel not in files})
     cache_dir.mkdir(parents=True, exist_ok=True)
     index_path.write_text(json.dumps(index, indent=0, sort_keys=True), encoding="utf-8")

@@ -2,13 +2,15 @@
 
 Everything §3 calls *derived* is what this makes, and it makes all of it. The steps exist as their own verbs too -- for forcing work after a rule changes, and for running one step over what is already on disk -- but an author never runs them in order, because a four-command ritual is what §3's own rule forbids: anything a machine can derive, a machine derives eagerly, in full, and again whenever its inputs change.
 
-Each step is a no-op where its work is done, so re-running after `refs.bib` changes resolves, fetches and extracts the new entry alone. The report's last two lines are the handoff: what needs a person, and what needs an agent.
+Each step is a no-op where its work is done, so re-running after `refs.bib` changes resolves, fetches and extracts the new entry alone. The report's last two groups are the handoff: what needs a person, and what needs an agent.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loom.refs.fetch import Fetched, fetch_work, identifier_for, work_dir
 from loom.refs.identity import declared
@@ -16,6 +18,12 @@ from loom.refs.pages import read_map, storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, load, query_for, save
 from loom.scan.bib import BibEntry
 from loom.scan.scan import ScanResult
+
+if TYPE_CHECKING:
+    from loom.cli.report import Report
+
+#: Called as each step reaches a work: (stage, citekey, n, total), n counting from 1.
+OnProgress = Callable[[str, str, int, int], None]
 
 
 @dataclass
@@ -34,6 +42,10 @@ class WorkState:
     digest: bool = False
     fetched: Fetched | None = None
     extract_error: str = ""
+    #: Results the author verified that a fresh extraction dropped and this run put back (`--force` rewrites the digest file).
+    restored: list[str] = field(default_factory=list)
+    #: Of those, the ones the fresh extraction now states differently, for the author to look at again.
+    contradicted: list[str] = field(default_factory=list)
     #: The author's standing claim that this work has no document to hold, or '' -- `digests/unreadable.json`.
     unreadable: str = ""
 
@@ -161,94 +173,168 @@ class BuildReport:
     def for_an_agent(self) -> list[WorkState]:
         return [w for w in self.works if w.needs_an_agent]
 
-    def lines(self) -> list[str]:
-        """The report as printed: four counts, what to turn on, what entered the digest, what is blocked and why, then the two handoff lines (§4.4).
+    def report(self) -> Report:
+        """The build as a report (§4.4): a verdict, the four step counts, what to turn on, what entered the digest, what is blocked under the command that clears it, and the two handoffs.
 
-        One column of labels, numbers right-aligned in it. A blocked work is listed under its reason, the command that clears it given once for the group with `CITEKEY` in it, since the same command repeated per work, the citekey spelled twice, was most of the old report; every work is listed, a long group ending in a count of the rest.
+        A blocked work is listed under its reason, the command that clears it given once for the group with `CITEKEY` standing for the work; a reason that is the work's own (an extraction error) stays beside its citekey.
         """
+        from loom.cli.report import Group, Item, Report, counted, table
+
         n = len(self.works)
-        w = len(str(max(n, self.sources, self.digests, self.mapped, 1)))
         sections = sum(1 for x in self.works if x.sections)
-
-        def row(label: str, count: int, text: str) -> str:
-            return f"{label:<{LABEL}}{count:>{w}} {text}"
-
-        out = [
-            row(
+        rows = [
+            (
                 "resolved",
-                n,
-                f"entries: {self.declared} state an arXiv id, {self.with_candidate} have a strong candidate, {self.unresolved} have neither",
-            )
-            + (" (lookup off)" if self.resolve_off else ""),
-            row(
-                "fetched",
-                self.sources,
-                f"sources and {self.pdfs} PDFs; {len(self.discarded)} rejected on the title check",
-            )
-            + (" (fetching off)" if self.fetch_off else ""),
-            row(
-                "extracted", self.digests, "digests" + (f", {self.recorded} results recorded" if self.recorded else "")
+                str(n),
+                f"entries: {self.declared} state an arXiv id, {self.with_candidate} have a strong candidate, "
+                f"{self.unresolved} have neither" + (" (lookup off)" if self.resolve_off else ""),
             ),
-            row("mapped", self.mapped, f"works from PDF text, {self.pages} pages, sections found for {sections}"),
+            (
+                "fetched",
+                str(self.sources),
+                f"sources and {self.pdfs} PDFs; {len(self.discarded)} rejected on the title check"
+                + (" (fetching off)" if self.fetch_off else ""),
+            ),
+            (
+                "extracted",
+                str(self.digests),
+                "digests" + (f", {self.recorded} results recorded" if self.recorded else ""),
+            ),
+            ("mapped", str(self.mapped), f"works from PDF text, {self.pages} pages, sections found for {sections}"),
         ]
+        width = max(len(r[1]) for r in rows)
+        lines = table((label, count.rjust(width), text) for label, count, text in rows)
         # a step that was off and had nothing to do says nothing; one that was off with work waiting says how to turn it on
-        hints: list[str] = []
+        off: list[Item] = []
         if self.resolve_off and self.unresolved:
-            hints.append(
-                f"{self.unresolved} entries could be looked up: pass --resolve, or set resolve = true under [refs] in config.toml"
+            off.append(
+                Item(
+                    f"{counted(self.unresolved, 'entry', 'entries')} could be looked up: pass --resolve, "
+                    "or set resolve = true under [refs] in config.toml"
+                )
             )
         if self.fetch_off and self.fetchable:
-            hints.append(
-                f"{self.fetchable} works could be fetched: pass --fetch, or set fetch = true under [refs] in config.toml"
+            off.append(
+                Item(
+                    f"{counted(self.fetchable, 'work')} could be fetched: pass --fetch, "
+                    "or set fetch = true under [refs] in config.toml"
+                )
             )
-        thin = [x for x in self.works if x.thin]
-        if thin:
-            hints.append(
-                f"{len(thin)} too thin to trust: "
-                + ", ".join(f"{x.citekey} ({x.results} results, {x.pages} pages)" for x in thin[:3])
+        groups = [Group("switched off", off, limit=None)]
+        thin = sorted((x for x in self.works if x.thin), key=lambda x: x.citekey.lower())
+        groups.append(
+            Group("too thin to trust", [Item(f"{x.results} results, {x.pages} pages", key=x.citekey) for x in thin])
+        )
+        restored = sorted((x for x in self.works if x.restored), key=lambda x: x.citekey.lower())
+        groups.append(
+            Group(
+                "verified results kept through the new extraction",
+                [Item(", ".join(x.restored), key=x.citekey) for x in restored],
             )
-        if hints:
-            out.append("")
-            out += [f"  {h}" for h in hints]
-        # Three sections, because a count says a build happened and a list says what to do next (plan 0.13 §4). A work
-        # the author has declared unreadable is in neither of the first two: it is not waiting for anything.
-        if self.entered:
-            out += [
-                "",
-                f"entered the digest ({len(self.entered)})",
-                *_listed(sorted(self.entered, key=str.lower), "  "),
-            ]
-        blocked = self.blocked
-        if blocked:
-            out += ["", f"blocked ({len(blocked)})"]
-            groups: dict[tuple[str, str], list[str]] = {}
-            for x in blocked:
-                missing, how = x.blocked
-                own = next((p for p in OWN_REASON if missing.startswith(p + ": ")), None)
-                if own is not None:
-                    # the reason is the work's own, so it stays beside its citekey
-                    groups.setdefault(OWN_REASON[own], []).append(f"{x.citekey}: {missing.removeprefix(own + ': ')}")
-                else:
-                    groups.setdefault((missing, how), []).append(x.citekey)
-            for (missing, how), keys in sorted(groups.items(), key=lambda g: (-len(g[1]), g[0][0])):
-                out.append(f"  {missing} ({len(keys)})" + (f": {how}" if how else ""))
-                out += _listed(sorted(keys, key=str.lower), "    ")
-        unreadable = self.unreadable
-        if unreadable:
-            out += ["", f"declared unreadable ({len(unreadable)}), not retried"]
-            out += [f"  {x.citekey}: {x.unreadable}" for x in unreadable]
+        )
+        contradicted = sorted(rid for x in restored for rid in x.contradicted)
+        groups.append(
+            Group(
+                "stated differently by the new extraction, so check again",
+                [Item("", key=rid, fixes=[f"loom refs why {rid}"]) for rid in contradicted],
+                problem=True,
+            )
+        )
+        entered = sorted(self.entered, key=str.lower)
+        groups.append(
+            Group(
+                "entered the digest",
+                [Item("", key=ck) for ck in entered],
+                limit=LISTED,
+                next=EVERY if len(entered) > LISTED else None,
+            )
+        )
+        by_reason: dict[tuple[str, str], list[Item]] = {}
+        for x in self.blocked:
+            missing, how = x.blocked
+            own = next((p for p in OWN_REASON if missing.startswith(p + ": ")), None)
+            if own is not None:
+                # the reason is the work's own, so it stays beside its citekey
+                by_reason.setdefault(OWN_REASON[own], []).append(Item(missing.removeprefix(own + ": "), key=x.citekey))
+            else:
+                by_reason.setdefault((missing, how), []).append(Item("", key=x.citekey))
+        for (missing, how), items in sorted(by_reason.items(), key=lambda g: (-len(g[1]), g[0][0])):
+            items.sort(key=lambda i: (i.key or "").lower())
+            cut = len(items) > LISTED
+            groups.append(
+                Group(
+                    f"blocked: {missing}",
+                    items,
+                    limit=LISTED,
+                    problem=True,
+                    next=(f"{how}; {EVERY}" if how else EVERY) if cut else (how or None),
+                )
+            )
+        groups.append(
+            Group(
+                "declared unreadable, not retried",
+                [Item(x.unreadable, key=x.citekey) for x in sorted(self.unreadable, key=lambda x: x.citekey.lower())],
+            )
+        )
         person, agent = self.for_a_person, self.for_an_agent
-        width = len(str(max(len(person), len(agent))))
-        out += [
-            "",
-            f"{'needs you':<15}{len(person):>{width}}  loom refs match lists them",
-            f"{'needs an agent':<15}{len(agent):>{width}}  works with pages and no digest",
+        handoff = [
+            Group(
+                "needs you",
+                [Item(x.needs_a_person, key=x.citekey) for x in sorted(person, key=lambda x: x.citekey.lower())],
+                limit=LISTED,
+                next="loom refs match lists them" if person else None,
+            ),
+            Group(
+                "needs an agent: works with pages and no digest",
+                [Item("", key=x.citekey) for x in sorted(agent, key=lambda x: x.citekey.lower())],
+                limit=LISTED,
+            ),
         ]
-        return out
+        blocked = len(self.blocked)
+        verdict = (
+            f"{self.digests} of {counted(n, 'work')} digested"
+            + (f", {len(self.entered)} this run" if self.entered else "")
+            + (f"; {blocked} blocked" if blocked else "")
+            + f"; {len(person)} need{'s' if len(person) == 1 else ''} you, {len(agent)} an agent"
+        )
+        return Report(
+            verdict,
+            ok=not (blocked or person or agent or thin or contradicted),
+            lines=lines,
+            groups=[g for g in groups if g.items] + handoff,
+            notes=self.lookup_errors[:5],
+            data={
+                "looked_up": self.looked_up,
+                "recorded": self.recorded,
+                "entered": list(self.entered),
+                "lookup_errors": list(self.lookup_errors),
+                "works": [
+                    {
+                        "citekey": w.citekey,
+                        "cited_by": w.cited_by,
+                        "declared": w.declared,
+                        "candidate": w.candidate,
+                        "source": w.source,
+                        "pdf": w.pdf,
+                        "digest": w.digest,
+                        "pages": w.pages,
+                        "sections": w.sections,
+                        "discarded": w.fetched.discarded if w.fetched else "",
+                        "refused": w.fetched.refused if w.fetched else "",
+                        "extract_error": w.extract_error,
+                        "blocked": w.blocked[0],
+                        "unreadable": w.unreadable,
+                    }
+                    for w in self.works
+                ],
+            },
+        )
+
+    def lines(self) -> list[str]:
+        """The report's text, line by line."""
+        return self.report().render().split("\n")
 
 
-#: The width of the report's label column: `extracted`, `bibliography` and `refs/` all fit, and every number starts in one place.
-LABEL = 14
 #: Blocked reasons that differ per work, printed beside each citekey under one heading and fix.
 OWN_REASON = {
     "extraction failed": ("extraction failed", ""),
@@ -257,16 +343,10 @@ OWN_REASON = {
         "look at it; loom refs add CITEKEY FILE files the right document",
     ),
 }
-#: How many works a section of the report lists before it counts the rest.
+#: How many works a group of the report lists before it counts the rest.
 LISTED = 12
-
-
-def _listed(keys: list[str], indent: str) -> list[str]:
-    """One work per line, a long list cut at LISTED with a count of the rest and where to see them all."""
-    out = [f"{indent}{k}" for k in keys[:LISTED]]
-    if len(keys) > LISTED:
-        out.append(f"{indent}and {len(keys) - LISTED} more; loom refs coverage lists every work")
-    return out
+#: The command that lists every work, named where a group is cut.
+EVERY = "loom refs coverage lists every work"
 
 
 def cited_counts(result: ScanResult) -> dict[str, int]:
@@ -344,7 +424,17 @@ def survey(result: ScanResult) -> list[WorkState]:
     return out
 
 
-def _resolve_step(result: ScanResult, works: list[WorkState], report: BuildReport, refresh: bool) -> None:
+def _each(progress: OnProgress | None, stage: str, works: list[WorkState]) -> Iterator[WorkState]:
+    """Each of `works`, telling `progress` before it is worked on."""
+    for i, w in enumerate(works, 1):
+        if progress is not None:
+            progress(stage, w.citekey, i, len(works))
+        yield w
+
+
+def _resolve_step(
+    result: ScanResult, works: list[WorkState], report: BuildReport, refresh: bool, progress: OnProgress | None = None
+) -> None:
     """Ask the two services for identifiers, for cited entries that declare none and have no answer on disk."""
     cfg = result.quilt.config
     if not cfg.resolve:
@@ -352,7 +442,7 @@ def _resolve_step(result: ScanResult, works: list[WorkState], report: BuildRepor
         return
     root = result.quilt.root
     resolver = Resolver(cache=storage_root(root) / "cache" / "resolve", contact=cfg.contact, refresh=refresh)
-    for w in works:
+    for w in _each(progress, "resolve", works):
         entry = result.bib[w.citekey]
         # A PDF on disk is not a reason to stop looking. A source is strictly better -- verbatim statements, real
         # numbers, internal edges -- and skipping here made the order of two commands decide which artifact a work
@@ -373,12 +463,18 @@ def _resolve_step(result: ScanResult, works: list[WorkState], report: BuildRepor
     report.looked_up = resolver.requests
 
 
-def _fetch_step(result: ScanResult, works: list[WorkState], report: BuildReport, candidates: bool) -> None:
+def _fetch_step(
+    result: ScanResult,
+    works: list[WorkState],
+    report: BuildReport,
+    candidates: bool,
+    progress: OnProgress | None = None,
+) -> None:
     """Fetch source and PDF for every work that has an identifier and no artifact; checks titles on arrival."""
     if not result.quilt.config.fetch:
         report.fetch_off = True
         return
-    for w in works:
+    for w in _each(progress, "fetch", works):
         if w.source:
             continue  # a PDF alone is not enough: see `_resolve_step`
         from loom.refs.fetch import pdf_url
@@ -392,13 +488,15 @@ def _fetch_step(result: ScanResult, works: list[WorkState], report: BuildReport,
         w.source, w.pdf = w.source or got.source, w.pdf or got.pdf
 
 
-def _extract_step(result: ScanResult, works: list[WorkState], force: bool) -> list[str]:
+def _extract_step(
+    result: ScanResult, works: list[WorkState], force: bool, progress: OnProgress | None = None
+) -> list[str]:
     """Run `loom digest extract` on every work whose source landed and whose digest is absent."""
     from loom.digest.extract import extract_digest
 
     root = result.quilt.root
     written: list[str] = []
-    for w in works:
+    for w in _each(progress, "extract", works):
         if w.digest and not force:
             continue
         if not w.source:
@@ -415,17 +513,46 @@ def _extract_step(result: ScanResult, works: list[WorkState], force: bool) -> li
         target = root / "digests" / f"{w.citekey}.tex"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
+        w.restored, w.contradicted = _restore_verified(result, w.citekey, text)
         w.digest = True
         written.append(w.citekey)
     return written
 
 
-def _map_step(result: ScanResult, works: list[WorkState], force: bool) -> None:
+def _restore_verified(result: ScanResult, citekey: str, text: str) -> tuple[list[str], list[str]]:
+    """Put back every result the author verified that a fresh extraction of `citekey` left out, and keep the author's edits.
+
+    The digest file is rewritten whole by an extraction, and a node `refs verify` added to it, or an edit the author made to an extracted one, is the author's: losing it while `results.json` still says `verified` was the CLI study's defect 3. A result the new extraction states differently from the author's record is put back as the author left it and listed, so the author can look again.
+    """
+    import re
+
+    from loom.refs.proposals import append_to_digest, load_results, rewrite_in_digest
+
+    restored: list[str] = []
+    contradicted: list[str] = []
+    for r in load_results(result.quilt.root, citekey).values():
+        if r.state != "verified":
+            continue
+        edited = any(act.get("act") == "edited" for act in r.origin)
+        present = re.search(r"\\label\{" + re.escape(r.id) + r"\}", text) is not None
+        if r.cls == "mechanical" and not edited:
+            continue  # the extractor's own reading, which a fresh extraction is entitled to replace
+        if present:
+            if edited and rewrite_in_digest(result.quilt.root, citekey, r):
+                restored.append(r.id)
+                contradicted.append(r.id)
+            continue
+        append_to_digest(result.quilt.root, citekey, result.assembly.prefix_of(citekey), r)
+        restored.append(r.id)
+    return restored, contradicted
+
+
+def _map_step(result: ScanResult, works: list[WorkState], force: bool, progress: OnProgress | None = None) -> None:
     """Write page text and the section map for every work with a PDF whose recorded map is not current."""
     from loom.refs.pages import MapRefused, is_current, write_map
 
     root = result.quilt.root
-    for w in works:
+    for w in _each(progress, "map", works):
         home = work_dir(root, result.bib[w.citekey])
         pdf = home / "paper.pdf"
         if not pdf.is_file() or (is_current(home, pdf) and not force):
@@ -463,6 +590,7 @@ def build_refs(
     candidates: bool = True,
     force: bool = False,
     steps: tuple[str, ...] = ("resolve", "fetch", "extract", "map"),
+    progress: OnProgress | None = None,
 ) -> BuildReport:
     """Make everything about this quilt's cited works that a machine can make.
 
@@ -480,6 +608,8 @@ def build_refs(
         Re-extract a digest that is already present.
     steps : tuple of str, default ('resolve', 'fetch', 'extract', 'map')
         Which steps to run; the CLI's `--only` narrows this.
+    progress : callable, optional
+        Called as (stage, citekey, n, total) when each step reaches a work, n counting from 1.
 
     Returns
     -------
@@ -495,11 +625,11 @@ def build_refs(
         works = [w for w in works if w.citekey in set(only)]
     report = BuildReport(works=works)
     if "resolve" in steps:
-        _resolve_step(result, works, report, refresh)
+        _resolve_step(result, works, report, refresh, progress)
     if "fetch" in steps:
-        _fetch_step(result, works, report, candidates)
+        _fetch_step(result, works, report, candidates, progress)
     if "extract" in steps:
-        report.entered = _extract_step(result, works, force)
+        report.entered = _extract_step(result, works, force, progress)
         report.recorded = _record_step(result, works, report.entered)
     # Counted after extraction, not by the survey that opened the run: `survey` reads results.json before this run has
     # written it, and a count taken then called every one of sixteen fresh digests "too thin to trust".
@@ -508,5 +638,5 @@ def build_refs(
     for w in works:
         w.results = sum(1 for r in load_results(result.quilt.root, w.citekey).values() if r.cls == "mechanical")
     if "map" in steps:
-        _map_step(result, works, force)
+        _map_step(result, works, force, progress)
     return report

@@ -13,6 +13,8 @@ digests/storage/cache/
 # loom's cache of the last text it saw for every key: one copy of the quilt, rebuilt on demand
 last-seen.json
 .loom/serve.json
+# loom's clone of the document workspace (an Overleaf project), made by `loom sync init`: a repository of its own, never part of this one
+.loom/workspace/
 # Who is listening to a session and how far each reader has read: runtime state, rewritten as it happens. The
 # session's inbox.jsonl beside them is the conversation itself, and is committed.
 .loom/sessions/*/attached.json

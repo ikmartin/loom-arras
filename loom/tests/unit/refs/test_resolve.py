@@ -234,7 +234,8 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
 
     monkeypatch.setattr(R, "http_get", Recorded("zbmath_edidin_graham"))
     r = ok("refs", "resolve", cwd=q)
-    assert "Edi98: doi:10.1353/ajm.1998.0020" in r.output and "strong" in r.output
+    said = r.stdout.split("candidates for Edi98 (")[1]
+    assert said.split("\n")[1].startswith("  strong") and "doi:10.1353/ajm.1998.0020" in said, r.stdout
     assert (
         q / "digests" / "bibliography.bib"
     ).read_text() == before  # resolve records candidates elsewhere and never writes the bibliography
@@ -243,9 +244,9 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
     assert data["lookups"] == 0  # answered from the cache
     assert data["works"]["Edi98"]["candidates"][0]["strength"] == "strong"
 
-    lint = ok("lint", cwd=q)
-    assert "a lookup found doi:10.1353/ajm.1998.0020 (strong match, zbMATH Open)" in lint.output
-    assert "add doi = {10.1353/ajm.1998.0020}" in lint.output
+    lint = " ".join(ok("lint", cwd=q).stdout.split())  # the report wraps a long message; the words are what is checked
+    assert "a lookup found doi:10.1353/ajm.1998.0020 (strong match, zbMATH Open)" in lint
+    assert "add doi = {10.1353/ajm.1998.0020}" in lint
 
     ok("build", cwd=q)
     ref = json.loads((q / "build" / "manifest.json").read_text())["references"]["Edi98"]
@@ -271,5 +272,5 @@ def test_the_resolve_flag_is_one_runs_consent_and_writes_no_config(
 
     monkeypatch.setattr(R, "http_get", Recorded("zbmath_edidin_graham"))
     r = ok("refs", "resolve", "--resolve", cwd=q)
-    assert "Edi98: doi:10.1353/ajm.1998.0020" in r.output
+    assert "candidates for Edi98" in r.stdout and "doi:10.1353/ajm.1998.0020" in r.stdout
     assert (q / "config.toml").read_text() == before

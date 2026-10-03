@@ -22,8 +22,9 @@ from urllib.parse import unquote
 from loom.arras_bundle import find_bundle
 from loom.refs.pages import STORAGE, storage_root
 from loom.render.build import BuildReport, build
-from loom.render.watch import Watcher
+from loom.render.watch import Watcher, records_only, snapshot
 from loom.scan.quilt import Quilt
+from loom.scan.scan import ScanResult
 from loom.tex.runner import compile_tex, normalise_engine
 
 DEFAULT_PORT = 8791
@@ -125,7 +126,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
     #: decisions publish queue metadata only (DR-315-luisa). The original immediate-publish rule (plan 0.13.1): the
     #: watcher's filesystem scan and the viewer's manifest poll are a second each, so a change that costs 40ms to
     #: build took ~1.3s to appear, and the `refresh()` a viewer runs on the answer raced the rebuild and lost.
-    rebuild: Callable[[], None] | None = None
+    rebuild: Callable[..., None] | None = None
     #: What starts and stops an agent's turn, set when the server owns one (plan 0.14): `agent-stop` is answered by it.
     launcher: Any = None
     publication_lock: Any = None
@@ -192,7 +193,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         """The write API (specs/write-api.md). Localhost only, like everything else this server does."""
-        from loom.render.api import NO_REBUILD, ApiError, handle
+        from loom.render.api import NO_REBUILD, RECORD_WRITES, ApiError, handle
 
         path = self.path.split("?", 1)[0]
         if not path.startswith("/_api/") or self.quilt_root is None:
@@ -226,7 +227,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
                 answer = handle(self.quilt_root, endpoint, body)
             # The viewer's refresh finds the write immediately. Reads need no rebuild; review decisions already published queue metadata without touching document renderings.
             if self.rebuild is not None and endpoint not in NO_REBUILD:
-                self.rebuild()
+                self.rebuild(records=endpoint in RECORD_WRITES)
             self._json(HTTPStatus.OK, answer)
         except ApiError as exc:
             self._json(exc.status, {"error": {"code": exc.code, "message": exc.message}})
@@ -415,15 +416,38 @@ class ServeSession:
         self.httpd: ThreadingHTTPServer | None = None
         self.watcher: Watcher | None = None
         self.last_report: BuildReport | None = None
+        self.published: dict[Path, float] = {}  # the watched files as the last publication read them
         from loom.agent import Launcher
 
         self.launcher = Launcher(quilt.root, interval)
 
-    def rebuild(self, changed: list[Path] | None = None) -> None:
+    def rebuild(
+        self,
+        changed: list[Path] | None = None,
+        records: bool = False,
+        progress: Callable[[str, str, int, int | None], None] | None = None,
+    ) -> None:
+        """Publish the quilt as it is now, building only what changed since the last publication.
+
+        The files are read just before the build, and that reading is what the publication answers for: the watcher is set to it, so a write the API has published is not built again when the watcher sees it, and a change made during a build is seen afterwards. A call from the watcher (`changed` given) builds nothing when everything it saw is already published. A change to records alone (`records`, or a watcher's change that `records_only` judges so) builds from the last scan.
+        """
+        root = self.quilt.root
         with self.lock:
-            report = build(self.quilt)
+            seen = snapshot(root)
+            if changed is not None:
+                changed = [p for p, m in seen.items() if self.published.get(p) != m] + [
+                    p for p in self.published if p not in seen
+                ]
+                if not changed:
+                    return
+                records = records_only(root, changed)
+            reuse = self.last_report.result if records and self.last_report is not None else None
+            report = build(self.quilt, reuse=reuse, progress=progress)
             self.last_report = report
             self.builds += 1
+            self.published = seen
+            if self.watcher is not None:
+                self.watcher.rebaseline(seen)
         if changed is not None:
             names = ", ".join(p.relative_to(self.quilt.root).as_posix() for p in changed[:3])
             print(
@@ -437,10 +461,21 @@ class ServeSession:
         ):
             threading.Thread(target=self._compile_default, name="loom-compile", daemon=True).start()
 
+    def _current_scan(self) -> ScanResult | None:
+        """The last publication's scan while nothing the scan reads has changed since, for the write API to annotate against rather than scanning again; None otherwise."""
+        if self.last_report is None:
+            return None
+        now = snapshot(self.quilt.root)
+        changed = [p for p, m in now.items() if self.published.get(p) != m] + [
+            p for p in self.published if p not in now
+        ]
+        return self.last_report.result if records_only(self.quilt.root, changed) else None
+
     def _compile_default(self) -> None:
         from loom.scan.scan import scan
 
-        result = scan(self.quilt)
+        # the scan the rebuild that started this compile has just made
+        result = self.last_report.result if self.last_report is not None else scan(self.quilt)
         master = result.default_master
         if master is None:
             return
@@ -471,6 +506,9 @@ class ServeSession:
                 "publication_lock": self.lock,
             },
         )
+        from loom.render.api import offer_scan
+
+        offer_scan(self.quilt.root, self._current_scan)
         self.httpd = ThreadingHTTPServer(("127.0.0.1", self.port), handler)
         self.port = self.httpd.server_address[1]
         handler.token = write_serve_json(self.quilt.root, self.port)  # type: ignore[attr-defined]
@@ -489,9 +527,11 @@ class ServeSession:
 
     def first_build(self) -> None:
         """The initial publish, reported as it happens: on a cold cache it compiles every block the converter cannot translate."""
+        from loom.cli.report import Progress
+
         started = time.perf_counter()
-        print("loom serve: building the quilt ...", file=sys.stderr, flush=True)
-        self.rebuild()
+        with Progress("scanning") as progress:
+            self.rebuild(progress=progress.told)
         errors = sum(1 for d in self.last_report.diagnostics if d.severity == "error") if self.last_report else 0
         fragments = len(self.last_report.rendered) if self.last_report else 0
         # a quilt with errors renders strangely rather than failing, so say so at startup instead of leaving it to be discovered

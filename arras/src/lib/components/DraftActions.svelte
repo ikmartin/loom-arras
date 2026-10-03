@@ -26,7 +26,7 @@
 </script>
 <div class="draft-actions">
  {#if master.scope?.kind === 'section'}
-  <p>AI draft of <strong>{master.scope.title}</strong> in <a href={masterUrl(master.copy_of!)}>{master.copy_of}</a>. References outside this section use context saved {master.context_when?.slice(0,10)}.{#if master.context_document} <a href={masterUrl(master.context_document)}>Read saved paper context</a>.{/if}</p>
+  <p>agent document of <strong>{master.scope.title}</strong> in <a href={masterUrl(master.copy_of!)}>{master.copy_of}</a>. References outside this section use context saved {master.context_when?.slice(0,10)}.{#if master.context_document} <a href={masterUrl(master.context_document)}>Read saved paper context</a>.{/if}</p>
   {#if master.context_changed && !master.closed}<p role="status">The paper context has changed. Refresh to bring in current context while keeping the draft’s edits.</p>{/if}
  {/if}
  {#if writable && store.manifest?.reviewer?.name}

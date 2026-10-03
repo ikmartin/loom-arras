@@ -426,7 +426,7 @@ def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
 
     A post says *what changed*, not only *what was typed*, so a parked agent needs no second call to find out what it is being asked about -- and gets it in the same words `loom session next` prints. Only the sender's own annotations and replies go: another person's wait for that person's next message, and an agent's are its own -- sending them back would be telling it what it said. Each is carried whole -- its body, the words it is on, what it proposes -- because the inbox is the record of what was sent.
 
-    Both surfaces post -- `loom session send` and the viewer's input -- so both take the packet from here, and the viewer's tray previews it from here too.
+    Both surfaces post -- `loom session say` and the viewer's input -- so both take the packet from here, and the viewer's tray previews it from here too.
     """
     from loom.records.annotations import load_records
 

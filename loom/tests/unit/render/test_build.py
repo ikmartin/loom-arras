@@ -165,9 +165,28 @@ def test_a_change_in_looms_own_code_re_renders_everything(tmp_path: Path, monkey
     d = demo(tmp_path)
     first = build(load_quilt(d))
     assert build(load_quilt(d)).rendered == []
-    monkeypatch.setattr(build_mod, "_code_hash", lambda: "another converter")
+    monkeypatch.setattr(build_mod, "code_hash", lambda: "another converter")
     after = build(load_quilt(d))
     assert set(after.rendered) == set(first.rendered) and after.skipped == []
+
+
+def test_only_the_rendering_code_is_in_the_cache_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Editing the command line or the reference layer in a checkout re-renders nothing; the converter, the scanner and the TeX layer are what a fragment is made by."""
+    from loom.render import keys
+
+    read: list[Path] = []
+    real = Path.read_bytes
+
+    def recording(self: Path) -> bytes:
+        read.append(self)
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", recording)
+    monkeypatch.setattr(keys, "__version__", "0.1.0.dev0")
+    keys.code_hash.__wrapped__()
+    package = Path(keys.__file__).resolve().parent.parent
+    under = {p.relative_to(package).parts[0] for p in read}
+    assert under == set(keys.RENDERING), under
 
 
 def test_force_renders_every_fragment_again(tmp_path: Path) -> None:
@@ -416,7 +435,7 @@ QUOTE = "one or two points"  # once, in dm-0002's statement
 def test_a_mark_that_names_a_document_is_baked_into_that_document_alone(tmp_path: Path) -> None:
     """An annotation read in one document (plan 0.15, decision 9) marks that document's fragment; the other document and the node's own page carry no mark for it, while a mark naming no document is in all three."""
     d = demo(tmp_path)
-    who = ("--author", "Markas Hecht")
+    who = ("--as", "Markas Hecht")
     both = ok("annotate", "dm-0002", "Everywhere.", "--quote", QUOTE, *who, cwd=d).output.split()[0]
     only = ok(
         "annotate", "dm-0002", "Redundant here.", "--quote", QUOTE, "--in", "drafting/outline.tex", *who, cwd=d
@@ -429,3 +448,78 @@ def test_a_mark_that_names_a_document_is_baked_into_that_document_alone(tmp_path
     assert only in outline and both in outline
     assert only not in main and both in main
     assert only not in node and both in node
+
+
+def test_a_build_from_a_kept_scan_publishes_what_a_fresh_one_does(tmp_path: Path) -> None:
+    """`loom serve` builds from its last scan after a change to records alone; the files it publishes must be the ones a scan would have given."""
+    d = demo(tmp_path)
+    first = build(load_quilt(d))
+
+    def published() -> dict[str, bytes]:
+        out = {}
+        for p in sorted((d / "build").rglob("*")):
+            rel = p.relative_to(d / "build").as_posix()
+            if p.is_file() and not rel.startswith("cache/"):
+                out[rel] = p.read_bytes()
+        return out
+
+    fresh = published()
+    build(load_quilt(d), reuse=first.result)
+    kept = published()
+    assert kept.keys() == fresh.keys()
+    changed = [rel for rel in fresh if kept[rel] != fresh[rel] and rel != "manifest.json"]
+    assert changed == []
+    strip = lambda b: re.sub(rb'"generated": "[^"]*"', b"", b)  # noqa: E731
+    assert strip(kept["manifest.json"]) == strip(fresh["manifest.json"])
+
+
+def test_a_preview_and_a_state_are_made_once_while_their_inputs_hold(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A rebuild renders no review preview a build before it rendered from the same inputs, and computes each reviewer's acceptance states once (plan 0.18.2)."""
+    from loom.records.store import Records
+    from loom.render import review_compare
+
+    d = demo(tmp_path)
+    renders = [0]
+    real_render = review_compare._render_now
+
+    def counted_render(*args, **kwargs):  # type: ignore[no-untyped-def]
+        renders[0] += 1
+        return real_render(*args, **kwargs)
+
+    states = [0]
+    real_states = Records._acceptance_states
+
+    def counted_states(self, result):  # type: ignore[no-untyped-def]
+        states[0] += 1
+        return real_states(self, result)
+
+    monkeypatch.setattr(review_compare, "_render_now", counted_render)
+    monkeypatch.setattr(Records, "_acceptance_states", counted_states)
+    report = build(load_quilt(d))
+    assert renders[0] > 0, "the demo has something to review"
+    authors = {row.author for row in Records(d, load_quilt(d).history_dir).rows if row.author}
+    assert states[0] <= 1 + len(authors), states[0]  # one per perspective, not again for the previews
+    renders[0] = 0
+    build(load_quilt(d), reuse=report.result)
+    assert renders[0] == 0
+    node = d / "nodes" / "dm-0003.tex"
+    node.write_text(node.read_text().replace("\\end{", "Changed. \\end{", 1))
+    build(load_quilt(d))
+    assert renders[0] > 0, "a changed text is rendered again"
+
+
+def test_a_published_file_removed_from_disk_is_written_again(tmp_path: Path) -> None:
+    """Publishing compares with what this process last wrote rather than reading every file back, and a file gone from disk is still put back."""
+    from loom.render.publish import publish
+
+    out = tmp_path / "build"
+    publish(out, {"source/a.tex": "A."}, {"v": 1}, ("source/",))
+    (out / "source" / "a.tex").unlink()
+    publish(out, {"source/a.tex": "A."}, {"v": 1}, ("source/",))
+    assert (out / "source" / "a.tex").read_text() == "A."
+    (out / "source" / "stray.tex").write_text("left behind")
+    publish(out, {"source/a.tex": "A."}, {"v": 1}, ("source/",))
+    publish(out, {"source/b.tex": "B."}, {"v": 1}, ("source/",))
+    assert sorted(p.name for p in (out / "source").iterdir()) == ["b.tex"]

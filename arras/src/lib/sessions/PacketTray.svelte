@@ -1,5 +1,5 @@
 <script lang="ts">
-	// What the next message will carry (plan 0.14): the annotations the person wrote in this session since a message last carried any. Drawn only while it holds something; each row is a dot in the kind's hue (15.3.9; annotation study A2) and a link to the annotation, followed by the one rule so the Chat stays; the preview is the text the agent will read, verbatim, since it is the publisher's own rendering of what it will send.
+	// What the next message will carry (plan 0.14): the annotations the person wrote in this session since a message last carried any. Drawn only while it holds something; each row is a dot in the kind's hue (15.3.9; A2) and a link to the annotation, followed by the one rule so the Chat stays; the preview is the text the agent will read, verbatim, since it is the publisher's own rendering of what it will send.
 	import { base } from '$app/paths';
 	import { store } from '$lib/manifest/client.svelte';
 	import { keyName } from '$lib/workspace/names';

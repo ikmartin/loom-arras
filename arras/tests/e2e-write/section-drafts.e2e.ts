@@ -56,7 +56,7 @@ Second prose.
   await page.getByRole('button',{name:'Close draft',exact:true}).click();
   await expect(page.getByRole('button',{name:'Close and keep saved copy'})).toBeVisible();
   await page.getByRole('button',{name:'Close and keep saved copy'}).click();
-  await expect(page.locator('main')).toContainText('Closed AI draft');
+  await expect(page.locator('main')).toContainText('Closed agent document');
   await page.getByRole('button',{name:'Reopen draft'}).click();
   await expect(page.getByRole('button',{name:'Close draft',exact:true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

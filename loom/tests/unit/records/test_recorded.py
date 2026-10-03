@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from tests.helpers import ok, the
+from tests.helpers import json_of, ok, the
 
-WHO = ("--author", "A. Author")
+WHO = ("--as", "A. Author")
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_an_edit_from_the_viewer_changes_the_body(q: Path) -> None:
     from loom.render.api import handle
 
     ann = comment(q, "dm-0002", "Say which orbits.")
-    sid = ok("session", "list", cwd=q).output.split()[0]
+    sid = json_of("session", "list", "--json", cwd=q)["sessions"][0]["id"]
     handle(
         q, "edit", {"annotation": ann, "message": "Say which orbits, please.", "session": sid, "author": "A. Author"}
     )

@@ -14,7 +14,7 @@ def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_pat
 
     save_author("A. Author")
     q = demo(tmp_path)
-    ok("accept", "dm-0001", "dm-0002", "--proofs", "--author", "A. Author", cwd=q)
+    ok("accept", "dm-0001", "dm-0002", "--proofs", "--as", "A. Author", cwd=q)
     before = open_scan(str(q))
     original = key_hash(before, "dm-0001")
     decide(before, "dm-0002/proof", "ok")
@@ -28,7 +28,7 @@ def test_renaming_preserves_own_and_downstream_acceptance_and_pending_ok(tmp_pat
     states = Records(q).key_states(after)
     assert all(states[k].fresh for k in ("dm-0001", "dm-0002", "dm-0002/proof"))
     assert pending(after) == ["dm-0002/proof"]
-    ok("accept", "dm-0001", "--author", "A. Author", cwd=q)
+    ok("accept", "dm-0001", "--as", "A. Author", cwd=q)
     saved = Records(q).latest["dm-0001"].text
     assert "Fixed points" in read_snapshot(q, saved)
     source.write_text(source.read_text().replace("Fixed points", "Fixed-point definition"))
@@ -90,7 +90,7 @@ def test_display_name_hash_does_not_hide_math_or_other_directives() -> None:
     )
 
 
-def test_names_survive_inline_and_atomize_without_rendering(tmp_path: Path) -> None:
+def test_names_survive_linearize_and_atomize_without_rendering(tmp_path: Path) -> None:
     from tests.unit.render.test_inline_env import quilt
 
     q = quilt(tmp_path)
@@ -101,9 +101,9 @@ def test_names_survive_inline_and_atomize_without_rendering(tmp_path: Path) -> N
     ok("build", cwd=q)
     fragments = list((q / "build/fragments").rglob("*.html"))
     assert fragments and not any("Invisible display name" in p.read_text() for p in fragments)
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     assert any("% !LOOM name: Invisible display name" in p.read_text() for p in (q / "nodes").glob("*.tex"))
-    ok("inline", "drafting/spine.tex", "drafting/back.tex", "--all", cwd=q)
+    ok("linearize", "drafting/spine.tex", "--to", "drafting/back.tex", "--no-check", cwd=q)
     assert "% !LOOM name: Invisible display name" in (q / "drafting/back.tex").read_text()
 
 
@@ -113,7 +113,7 @@ def test_missing_old_snapshot_never_establishes_name_equivalence(tmp_path: Path)
 
     save_author("A. Author")
     q = demo(tmp_path)
-    ok("accept", "dm-0001", "--author", "A. Author", cwd=q)
+    ok("accept", "dm-0001", "--as", "A. Author", cwd=q)
     original = Records(q).latest["dm-0001"].text
     (snapshots_dir(q) / f"{original.split(':')[1]}.tex").unlink()
     source = q / "nodes/dm-0001.tex"

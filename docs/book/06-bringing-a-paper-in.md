@@ -1,6 +1,6 @@
 # 6. Bringing a paper in
 
-This chapter specifies how an existing paper becomes a quilt and how a quilt is reshaped afterwards: `init --from`, `import`, `id`, `atomize`, `inline`, and the identity test that governs all of them. It ends with the two conversion fixtures: Manolache's virtual pullbacks paper as the first walk-through and ACGS's decomposition paper as the stress test.
+This chapter specifies how an existing paper becomes a quilt and how a quilt is reshaped afterwards: `init --from`, `import`, `id`, `atomize`, the flattening back that `linearize` does, and the identity test that governs all of them. It ends with the two conversion fixtures: Manolache's virtual pullbacks paper as the first walk-through and ACGS's decomposition paper as the stress test.
 
 The governing rule is P7: loom never modifies an author file. Every operation here either writes copies, writes to a named destination, or prints a patch.
 
@@ -32,27 +32,36 @@ Given `PAPER`, whose directory is called the paper directory:
 
 **[decided]** `import` never: splits files, moves proofs, renames labels, reorders anything, rewrites `\ref`s, or writes metadata headers; the landmark carries nothing loom added, and the working document only the package line, the ids and, with `--fix-anchoring`, the line breaks of 6.3. It refuses on a paper that does not compile from its own directory — checked first, in a copy of that directory without its build products (DR-186), so that a broken input paper is not mistaken for a loom problem — on a document already at the working document's path, and on a paper whose working document cannot take ids (6.3).
 
-Example session, with the relative localization paper:
+Example session, with a two-section paper (the output is the report every command prints, verdict first; 12.1):
 
 ```
-$ loom init relloc --from ~/papers/relloc/draft3.tex --prefix rl --fix-anchoring
-Resolving closure of draft3.tex ... 5 files
-Plan, nothing written yet:
-  draft3.tex -> drafting/draft3.tex (linearized, 1 files inlined; kept as received in step 0001)
-  refs.bib -> refs.bib
-  math-env.sty -> math-env.sty
-  base-macros.sty -> base-macros.sty
-Compiling original from a clean copy of /home/mh/papers/relloc ... ok
-  drafting/draft3.tex: \usepackage{loom} and 52 ids
-Apply? [y/N]: y
-Wrote 4 files.
-Identity test: pass (pdftotext identical)
-main = drafting/draft3.tex
-Recorded: import as step 0001 (0001-draft3); the paper as received is landmark draft3
-digests/bibliography.bib: 22 added, 0 already there
+$ loom init widgets --from papers/widgets/widgets.tex --prefix wg --yes
+created quilt widgets with prefix wg; imported widgets.tex as drafting/widgets.tex with 4 ids;
+  drafting/widgets.tex typesets to the same text as the original; the paper as received is landmark
+  widgets, step 0001
+
+written (2)
+  widgets.tex -> drafting/widgets.tex, 4 ids inserted
+  config.toml: main = drafting/widgets.tex
+
+in drafting/widgets.tex (2)
+  results: 1 Lemma, 1 Theorem; 2 sections
+  proofs: 2, 2 beside their statement, 0 by reference, 0 by enclosure, 0 unattached
+
+bibliography (1)
+  digests/bibliography.bib holds 0 entries, none new
+...
+next: cd widgets, then loom doctor; loom lint
 ```
 
-Without `--fix-anchoring` the same paper is refused before anything is written: `draft3.tex has 2 line-anchoring violation(s)`, each listed by line.
+A paper with a theorem-like `\begin` or `\end` sharing its line is refused before anything is written, each violation listed by line:
+
+```
+Error: nothing was written: bad.tex has 2 line-anchoring violations:
+  line 7: \begin{lemma} is not alone on its line
+  line 7: \end{lemma} is not alone on its line
+loom needs a theorem-like \begin and \end alone on their lines to find a result's exact span. Pass --fix-anchoring to rewrite the draft; the paper as received is kept as it is.
+```
 
 ## 6.3 The working document
 
@@ -87,11 +96,11 @@ $ loom id drafting/main.tex
  \end{definition}
 ```
 
-## 6.5 `loom atomize SRC DEST`
+## 6.5 `loom atomize SRC --to DEST`
 
 ### 6.5.1 What it does
 
-**[decided]** Moves each node of `SRC` into its own file under `nodes/` and writes `DEST`, a copy of `SRC` in which each moved region is replaced by an inclusion line. `SRC` is not modified. `DEST` may not exist (`atomize never overwrites`, exit 2). Both positional `loom atomize SRC DEST` and `loom atomize SRC --to DEST` are accepted; `loom atomize SRC` alone exits with code 2 and `ERROR: specify a destination file after the source, or with --to`.
+**[decided]** Moves each node of `SRC` into its own file under `nodes/` and writes `DEST`, a copy of `SRC` in which each moved region is replaced by an inclusion line. `SRC` is not modified. `DEST` is named by `--to` and may not exist (exit 2); since it takes `SRC`'s place it may go wherever a source may, the one exception to 12.1's destination rule (DR-330-ikmartin).
 
 Precisely:
 
@@ -121,36 +130,37 @@ Precisely:
 
 ### 6.5.4 The typical use
 
-The relative localization paper at M7 (step 2 of 13.6):
+On the same paper:
 
 ```
-$ loom atomize drafting/draft3.tex drafting/main.tex --sections
-Moved 52 nodes and 3 deferred proofs to nodes/
-Wrote drafting/main.tex (spine, 104 lines, was 1030)
-Identity test: pass (pdftotext identical)
-drafting/draft3.tex is now superseded: it defines nothing until `loom live drafting/draft3.tex` says otherwise
-main = drafting/main.tex
-Recorded: atomize (ledger line 3)
+$ loom atomize drafting/widgets.tex drafting/main.tex --sections
+atomized drafting/widgets.tex into drafting/main.tex, 4 files in nodes/; drafting/main.tex typesets
+  to the same text as drafting/widgets.tex
+
+written (2)
+  drafting/main.tex: 9 lines, was 22; 2 results, 0 proofs, 2 sections set apart in nodes/
+  config.toml: main = drafting/main.tex
+
+superseded: each defines nothing until loom live FILE says otherwise (1)
+  drafting/widgets.tex
 ```
 
-The author then edits the spine: reordering inclusion lines, deleting some, rewriting prose. Whatever the new master stops reaching becomes loose and stays visible. `draft3.tex` can stay where it is, inert, or be deleted, or be moved out; none of the three changes what the quilt defines.
+The author then edits the spine: reordering inclusion lines, deleting some, rewriting prose. Whatever the new master stops reaching becomes loose and stays visible. The superseded document can stay where it is, inert, or be deleted, or be moved out; none of the three changes what the quilt defines.
 
-## 6.6 `loom inline SRC DEST [--all]`
+## 6.6 Flattening back
 
-**[decided]** The reverse of `atomize`, for one file's own inclusions: writes `DEST`, a copy of `SRC` in which every `\input{...}` or `\nest{...}` line standing alone on its line, whose target is a `.tex` file containing exactly one node and its attached proofs (a node file written by `atomize`, or any file so shaped), is replaced by the file's contents. For a whole document, including the files a second document also includes, the command is `loom linearize` (17.13), which knows the identity rule and says what it cannot flatten. With `--all`, every `.tex` inclusion is inlined, recursively; a non-`.tex` inclusion is opaque and stays (DR-44). `DEST` may not exist. `SRC` and the node files are not modified; the author deletes the node files afterwards if they want. The identity test applies, through the reaching master when `SRC` is not one (DR-65).
+**[decided]** The reverse of `atomize` is `loom linearize SPINE --to FILE` (17.13): every `\input`, `\include` and `\nest` of a `.tex` file expanded in place, `\nest`'s sectioning shift applied (`\section` becomes `\subsection`, composing across nested files), and the spine and every file it inlined superseded, so that each node is defined once, by the flat copy. It refuses a node file another live document also includes, offering `--fork` or `--keep-shared`, and the identity test applies. `loom source DOC` prints the same flat text without writing anything.
 
-`\nest` lines are inlined with sectioning shifted (`\section` becomes `\subsection`, and so on, composing across nested files), so that the result compiles identically, as the identity test checks; there is no separate diagnostic for it (M4).
-
-**[decided]** The round trip `inline --all` of an atomized spine reproduces the original up to blank lines between the moved regions, since moved text is trimmed to whole lines and written with one trailing newline (settled at M4).
+**[decided]** There was a second command, `loom inline`, which wrote the flat copy without superseding its source, so every id the two shared was then defined twice while it reported success; it was removed (DR-326-ikmartin). The round trip `linearize` of an atomized spine reproduces the original up to blank lines between the moved regions, since moved text is trimmed to whole lines and written with one trailing newline (settled at M4).
 
 ## 6.7 The identity test
 
-**[decided]** For `import`, `atomize`, `inline`, and `linearize`: the compiled text of the document before and after must be identical modulo whitespace, and no label's number may change. It is what makes every one of these operations safe to run on a paper that is about to be submitted. Which documents are compared:
+**[decided]** For `import`, `atomize` and `linearize`: the compiled text of the document before and after must be identical modulo whitespace, and no label's number may change. It is what makes every one of these operations safe to run on a paper that is about to be submitted. Which documents are compared:
 
 | command | before | after |
 |---|---|---|
 | `import` | the paper, from a clean copy of its directory | the working document, from the quilt root |
-| `atomize`, `inline` | `SRC`, or the first master reaching it | `DEST` in its place |
+| `atomize` | `SRC`, or the first master reaching it | `DEST` in its place |
 | `linearize` | the spine | the flat document |
 
 Procedure:
@@ -160,7 +170,7 @@ Procedure:
 3. Compare `pdftotext -layout` outputs after collapsing runs of whitespace within each line and dropping empty lines. Equal: pass. Unequal: report the first differing line pair.
 4. Additionally compare the `.aux` label tables for the labels present in both; any label whose number changed is reported, and the test fails.
 
-**[decided]** For `atomize` and `inline`, failure never reverts: the author sees what differs, the files stay, and the command exits 1. For `import` and `linearize`, which write one new document, failure removes that document and refuses, because the file is loom's own and a copy that does not typeset as its source is not worth keeping; `--no-check` skips the test and keeps whatever was written.
+**[decided]** For `atomize`, failure never reverts: the author sees what differs, the files stay, and the command exits 1. For `import` and `linearize`, which write one new document, failure removes that document and refuses, because the file is loom's own and a copy that does not typeset as its source is not worth keeping; `--no-check` skips the test and keeps whatever was written.
 
 **[decided]** `pdftotext` is from poppler; `loom doctor` lists it as an optional tool, warns when it is missing, and fails one that cannot write `-bbox-layout` word boxes, as xpdf's cannot (DR-288-ikmartin). Without it the identity test is reported skipped (`Identity test: skipped (pdftotext is not installed)`), as it is when either document fails to compile; a skipped test does not fail the command. Every tool's output is decoded with replacement, since TeX writes non-UTF-8 bytes to its terminal (settled at M4).
 
@@ -181,7 +191,7 @@ This is the first conversion fixture (Chapter 14). Source: the arXiv e-print of 
 3. `loom stamp drafting/main-atomic.tex -m "Atomized"`: a step holding a version of each of the 96 statements and their proofs, and the landmark `atomized`, the atomized document flattened back into one file. `loom history show atomized --plain` prints it with loom's macros inline, and that text compiles in a directory holding nothing but itself and the paper's styles, with `loom.sty` and `nodes/` absent.
 4. `loom digest extract manolache_VirtualPullbacks2012 tests/fixtures/0805.2065/virtual6.tex` in the relloc quilt: `refs/manolache_VirtualPullbacks2012.tex` with 96 results; every Manolache postnote in the paper resolves to a digest node, `\cite[Theorem 4.3]{manolache_VirtualPullbacks2012}` among them, and a bundle of a relloc proof compiles with the theorem stated inside it (M5).
 
-What the fixture tests: import on a real paper, line-anchoring in the wild and its repair, proofs by enclosure, `\newtheorem` discovery, atomize with sections, the inline round trip, identity at every step, supersession on a real paper, a self-contained landmark, and mechanical digest extraction of the same source. The paper-tier tests (`tests/papers`, run with `LOOM_PAPER_FIXTURES` pointing at the fixtures) pin the verbatim landmark and its step, the 51 violations, the 96 environment and 16 heading ids, the 5 proofs by enclosure, the one superseded file with no duplicate id, identity on import and atomize, and a landmark's plain text compiling alone.
+What the fixture tests: import on a real paper, line-anchoring in the wild and its repair, proofs by enclosure, `\newtheorem` discovery, atomize with sections, the round trip back through `linearize`, identity at every step, supersession on a real paper, a self-contained landmark, and mechanical digest extraction of the same source. The paper-tier tests (`tests/papers`, run with `LOOM_PAPER_FIXTURES` pointing at the fixtures) pin the verbatim landmark and its step, the 51 violations, the 96 environment and 16 heading ids, the 5 proofs by enclosure, the one superseded file with no duplicate id, identity on import and atomize, and a landmark's plain text compiling alone.
 
 ## 6.10 Stress test: ACGS, decomposition of degenerate Gromov–Witten invariants
 
@@ -189,7 +199,7 @@ Source: arXiv `1709.09864`, version 4, local only under `tests/fixtures/1709.098
 
 **[decided]** What was found (settled at M4, re-run on the new path): no hand edits were needed. `import` keeps the landmark `decomposition-formula`, flattening nothing (the paper is one file), and copies the 11 `.pspdftex` figures and their PDFs at their own paths, since a non-`.tex` inclusion is opaque and stays as written (DR-44); identity test: pass. The source has 5 line-anchoring violations, all repaired by `--fix-anchoring`. The drafted working document: 71 environments (18 Definition, 16 Proposition, 10 Lemma, 9 Theorem, 9 Remark, 3 Example, 3 Corollary, 1 Examples, 1 Construction, 1 Notation) and 74 sectioning units (5 sections, 19 subsections, 42 subsubsections, 8 paragraphs); 31 proofs adjacent, 1 unattached; 0 dangling references; 27 citations with locators but no digest; identity test: pass. The one unattached proof (line 3596) follows its proposition after a prose paragraph, which the adjacency rule does not bridge; it is the author's to attach with `\begin{proof}[Proof of Proposition~\ref{...}]`. `atomize` moves 67 node files (four environments nested inside others travel with their parents), writes a 2838-line spine, identity pass; `inline --all` rebuilds a 4567-line master with zero non-blank line differences from the imported file, identity pass. A full scan of the imported quilt takes about one second and well under 100 MB. Of the failures the fixture was written to find (environments not alone on their lines in dense passages; `\begin{proof}` with optional arguments the reference rule does not match ("Proof of the theorem" without a `\ref`); `\label`s inside titles; equation labels reused across sections), the anchoring violations occurred and one proof was separated from its statement by prose; neither needed a hand edit.
 
-Pass criterion, met at M4: import completes with an empty hand-edit list; identity test passes; `atomize` and `inline` pass; the scanner handles the file in about a second (the paper-tier test allows ten seconds and 300 MB for the source map, 5.9.2).
+Pass criterion, met at M4: import completes with an empty hand-edit list; identity test passes; `atomize` and the flattening back pass; the scanner handles the file in about a second (the paper-tier test allows ten seconds and 300 MB for the source map, 5.9.2).
 
 ## 6.11 Two more arXiv papers: Manolescu–Marengon–Piccirillo and Kenig–Pavlović–Staffilani–Velasco
 

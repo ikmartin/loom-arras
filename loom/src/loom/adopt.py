@@ -1,4 +1,4 @@
-"""Prepare, inspect and incorporate an AI contribution without accepting mathematics."""
+"""Prepare, inspect and incorporate an agent document's changes without accepting mathematics."""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def _baseline(result: ScanResult, copy: str) -> dict[str, Any]:
 
             bodies, skeleton = _flat_shape(pinned_inputs(result, copy), recorded.read_text())
             return {"nodes": bodies, "document": skeleton, "mapping": {}}
-    raise SyncError("This AI draft has no recorded baseline; create it with loom draft DOC --ai NAME")
+    raise SyncError(f"{copy} has no recorded baseline; an agent document starts as `loom draft DOC --ai NAME`")
 
 
 def _merge(base: str, ours: str, theirs: str) -> tuple[str, bool]:
@@ -149,12 +149,12 @@ def _resolve(result: ScanResult, copy: str) -> tuple[str, str]:
         if len(matches) == 1:
             copy = matches[0]
     if result.document_role(copy) != "drafting-ai":
-        raise SyncError("Adoption requires a live AI draft")
+        raise SyncError(f"{copy} is not a live agent document in {result.quilt.config.drafting_ai}/")
     source = _history(result).copy_of(copy, result.masters)
     if not source:
         # a document written straight into the directory has no copy step, so no source and no bases (loom:agent-document-not-a-copy)
         raise SyncError(
-            f"{copy} is not a copy: no copy step made it, so it has no working document to be incorporated into or updated from; an AI draft starts as `loom draft DOC --ai NAME`"
+            f"{copy} is not a copy: no copy step made it, so it has no working document to be incorporated into or updated from; an agent document drafted from one starts as `loom draft DOC --ai NAME`"
         )
     if result.document_role(source) != "drafting":
         raise SyncError("The original working document is unavailable; restore it before incorporating")
@@ -169,7 +169,7 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
     result : ScanResult
         Current quilt scan.
     copy : str
-        AI document path, filename or unique stem.
+        Agent document path, filename or unique stem.
 
     Returns
     -------
@@ -409,7 +409,7 @@ def prepare(
     result : ScanResult
         Current quilt scan.
     copy : str
-        AI document path or unique name.
+        Agent document path or unique name.
     keys : list of str, optional
         Canonical node keys to use; None selects all offered nodes.
     document : bool, default False
@@ -536,7 +536,7 @@ def prepare(
         for d in after.diagnostics + after.lint
         if d.severity == "error" and (d.code, d.message) not in before_errors
     ]
-    # References to an unselected new proposal are never satisfied by the AI workspace.
+    # References to an unselected new proposal are never satisfied by the agent document.
     for edge in after.edges.edges:
         if edge.file in overlay and edge.to not in after.nodes and edge.to not in after.assembly.regions:
             errors.append(f"Unresolved dependency {edge.label}; include its proposal or revise the selection")
@@ -576,6 +576,8 @@ def prepare(
         "keys": selected,
         "document": document,
         "preamble": preamble,
+        "document_waiting": bool(data["document_changed"]) and not document,
+        "preamble_waiting": bool(data["preamble_changed"]) and not preamble,
         "patch": patch,
         "paths": paths,
         "overlay": overlay,
@@ -589,6 +591,21 @@ def prepare(
     return prepared
 
 
+def nothing_to_incorporate(prepared: dict[str, Any]) -> str:
+    """What an empty preview says: "nothing" only when nothing waits, and otherwise the flag that shows what does."""
+    waiting = []
+    flags = []
+    if prepared.get("document_waiting"):
+        waiting.append("prose or ordering")
+        flags.append("--document-changes")
+    if prepared.get("preamble_waiting"):
+        waiting.append("preamble")
+        flags.append("--preamble-changes")
+    if waiting:
+        return f"No result changes to incorporate; {' and '.join(waiting)} changes wait: run loom adopt {Path(prepared['copy']).name} {' '.join(flags)} to see them"
+    return "No changes to incorporate"
+
+
 def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None = None) -> dict[str, Any]:
     """Apply a saved, current preview and record its source and provenance together.
 
@@ -597,7 +614,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     result : ScanResult
         Current quilt scan.
     copy : str
-        AI document path or unique name.
+        Agent document path or unique name.
     token : str
         Immutable token from an inspected preview.
     reviewer : str, optional
@@ -632,7 +649,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     if checked["overlay"] != saved["overlay"] or checked["adoption_base"] != saved["adoption_base"]:
         raise SyncError("Result identities or dependencies changed; inspect a fresh preview")
     if not saved["patch"]:
-        return {"paths": [], "message": "No changes to incorporate"}
+        return {"paths": [], "message": nothing_to_incorporate(saved)}
     from loom.records.store import Records
     from loom.review_origins import read, write
     from loom.review_queue import fingerprint
@@ -764,7 +781,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
                 origins[key] = {
                     "source": f"adopt:{entry.step}",
                     "copy": data["copy"],
-                    "label": f"Incoming from AI draft “{Path(data['copy']).stem}”",
+                    "label": f"Incoming from agent document “{Path(data['copy']).stem}”",
                     "changed": key in changed,
                     "baseline": fingerprint(after, key),
                     "local_before": previous.get("local_before", False)
@@ -807,20 +824,22 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
         raise
 
 
-def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
-    """Update only an AI copy from its working source, retaining unresolved proposals.
+def refresh(result: ScanResult, copy: str, *, write: bool = True) -> dict[str, Any]:
+    """Update an agent document from the working document it was drafted from, retaining unresolved proposals.
 
     Parameters
     ----------
     result : ScanResult
         Current quilt scan.
     copy : str
-        AI document path or unique name.
+        Agent document path or unique name.
+    write : bool, default True
+        False computes the same answer and writes nothing.
 
     Returns
     -------
     dict
-        Updated keys, unresolved conflicts and a readable result.
+        `copy`, `updated` keys, unresolved `conflicts`, `written` (whether the document changes) and a readable `message`.
     """
     from loom.reshape.copy import derive_labels
 
@@ -866,7 +885,7 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
     text, _ = derive_labels(text, data["suffix"])
     path = result.quilt.root / data["copy"]
     if path.is_symlink() or not path.resolve().is_relative_to(result.quilt.drafting_ai_dir.resolve()):
-        raise SyncError("AI copy is outside its writable directory")
+        raise SyncError("the agent document is outside its writable directory")
     original = path.read_text()
     history = _history(result)
     ledger = history.dir / "ledger.jsonl"
@@ -881,19 +900,34 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
                 "step": history.latest_versions()[base["key"]][0],
                 "hash": freeze.current[base["key"]],
             }
+    reconcile = (
+        f"{len(conflicts)} changed on both sides, in the working document and in the agent document: {', '.join(conflicts)}; reconcile them in your editor, then run loom ai refresh {Path(data['copy']).name} again"
+        if conflicts
+        else ""
+    )
     context = data.get("context")
     if data["scope"].get("kind") == "section":
         from loom.section_drafts import capture_context, context_changed
 
         if not conflicts and (not context or context_changed(result, context)):
-            context = capture_context(result, data["source"])
+            context = capture_context(result, data["source"], write=write)
     if text == original and baseline == data["baseline"] and context == data.get("context"):
         return {
             "copy": data["copy"],
             "updated": [],
             "conflicts": conflicts,
-            "message": "AI draft is already up to date",
+            "written": False,
+            "message": reconcile or "the agent document is already up to date",
         }
+    answer = {
+        "copy": data["copy"],
+        "updated": updated,
+        "conflicts": conflicts,
+        "written": True,
+        "message": "agent document updated" if not conflicts else f"agent document partly updated; {reconcile}",
+    }
+    if not write:
+        return answer
     try:
         temporary = path.with_suffix(".refresh.tmp")
         temporary.write_text(text)
@@ -908,12 +942,7 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
         path.write_text(original)
         ledger.write_bytes(ledger_before)
         raise
-    return {
-        "copy": data["copy"],
-        "updated": updated,
-        "conflicts": conflicts,
-        "message": "AI draft updated" if not conflicts else "AI draft partly updated; reconcile the listed conflicts",
-    }
+    return answer
 
 
 def decisions(
@@ -926,7 +955,7 @@ def decisions(
     result : ScanResult
         Current quilt scan.
     copy : str
-        AI document path or unique name.
+        Agent document path or unique name.
     reviewer : str or None
         Identity whose pending selection is requested.
 
@@ -995,7 +1024,7 @@ def decide(
     result : ScanResult
         Current quilt scan.
     copy : str
-        AI document path or unique name.
+        Agent document path or unique name.
     keys : list of str
         Selected canonical node keys.
     document : bool

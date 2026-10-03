@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 NO_AUTHOR_MESSAGE = (
-    'no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --author'
+    'no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --as NAME'
 )
 
 
@@ -221,7 +221,7 @@ def git_user_name(cwd: Path | None = None) -> str | None:
 def resolve_author(explicit: str | None, cwd: Path | None = None) -> tuple[str, str]:
     """Resolve a human identity locally; tracked quilt authors never identify its reader."""
     if explicit and explicit.strip():
-        return explicit.strip(), "--author"
+        return explicit.strip(), "--as"
     author = load_user_config().get("author", {})
     name = author.get("name") if isinstance(author, dict) else None
     if isinstance(name, str) and name.strip():

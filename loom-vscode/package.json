@@ -53,8 +53,8 @@
         "category": "Loom"
       },
       {
-        "command": "loom.bundle",
-        "title": "Bundle the key under the cursor",
+        "command": "loom.closure",
+        "title": "Show the key under the cursor with its closure",
         "category": "Loom"
       },
       {

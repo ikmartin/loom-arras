@@ -42,7 +42,7 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:see-redundant": ("info", False),
     "loom:dependency-cycle": ("warning", False),
     "loom:converter-fallback": ("info", False),
-    "loom:bundle-failed": ("error", False),
+    "loom:closure-failed": ("error", False),
     "loom:atomize-target-exists": ("error", True),
     "loom:import-outside-tree": ("warning", False),
     "loom:retired-ledger-key": ("info", False),
@@ -64,7 +64,6 @@ LOOM: dict[str, tuple[str, bool]] = {  # code -> (severity, fixed)
     "loom:citekey-slug-collision": ("error", False),
     "loom:main-not-found": ("warning", False),
     "loom:foreign-annotations": ("warning", False),
-    "loom:agent-wrote-outside-run": ("error", False),
     # the workbench and the record (book chapter 17; docs/specs/diagnostics.md §3)
     "loom:superseded-file": ("info", False),
     "loom:history-missing": ("error", False),

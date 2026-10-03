@@ -57,7 +57,7 @@
 <section aria-label={contribution.label}>
 	<h2>{contribution.label}</h2>
 	<p>Changes will go into <code>{contribution.source}</code> and the node files it uses. You can explicitly accept inspected mathematics when incorporating.</p>
-	<p><a href={masterUrl(contribution.copy)}>Open AI draft and its annotations</a></p>
+	<p><a href={masterUrl(contribution.copy)}>Open agent document and its annotations</a></p>
 	{#if contribution.choices?.invalidated?.length}<p role="status">Some choices changed because their source changed. Review those changes again.</p>{/if}
 	<p>Outstanding changes in this draft, including earlier edits. Changes left out remain available for a later incorporation.</p>
 	{#each contribution.issues as issue}<p role="alert">{issue}</p>{/each}

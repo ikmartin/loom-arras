@@ -73,14 +73,14 @@ def test_the_author_is_the_flag_then_local_config_then_git(home: Path, tmp_path:
     user.parent.mkdir(parents=True)
     user.write_text('[author]\nname = "Config Person"\n', encoding="utf-8")
     assert resolve_author(None, cwd=repo) == ("Config Person", str(user))
-    assert resolve_author("Flag Person", cwd=repo) == ("Flag Person", "--author")
+    assert resolve_author("Flag Person", cwd=repo) == ("Flag Person", "--as")
 
     cfg = repo / "config.toml"
     cfg.write_text('[quilt]\nprefix = "ab"\n', encoding="utf-8")
     assert resolve_author(None, repo) == ("Config Person", str(user))  # no [author] table: the user config answers
     cfg.write_text('[quilt]\nprefix = "ab"\n\n[author]\nname = "Markas Hecht"\n', encoding="utf-8")
     assert resolve_author(None, repo) == ("Config Person", str(user))
-    assert resolve_author("Someone Else", repo) == ("Someone Else", "--author")  # the flag still wins
+    assert resolve_author("Someone Else", repo) == ("Someone Else", "--as")  # the flag still wins
 
     cfg.write_text('[quilt]\nprefix = "ab"\n\n[author]\nname = ""\n', encoding="utf-8")
     assert resolve_author(None, repo) == ("Config Person", str(user))

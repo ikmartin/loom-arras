@@ -71,7 +71,7 @@ def extract(text: str, scope: dict[str, Any], *, proposal: bool = False) -> str:
     if unit.level != scope["level"]:
         raise SyncError("The draft's root section level changed; restore its level before incorporating")
     if proposal and (text[start : unit.exp_start].strip() or text[unit.exp_end : end].strip()):
-        raise SyncError("The AI draft contains material outside its section; keep edits inside the root section")
+        raise SyncError("The agent document contains material outside its section; keep edits inside the root section")
     return text[:start] + "\n" + text[unit.exp_start : unit.exp_end] + "\\end{document}\n"
 
 
@@ -135,7 +135,7 @@ def next_suffix(history: History) -> str:
     return "-ai-" + base36_encode(max(indexes, default=0) + 1, 2)
 
 
-def capture_context(result: ScanResult, source: str) -> dict[str, Any]:
+def capture_context(result: ScanResult, source: str, *, write: bool = True) -> dict[str, Any]:
     """Freeze local context bytes in a content-addressed history directory."""
     from loom.clock import stamp
     from loom.reshape.linearize import flatten
@@ -180,7 +180,7 @@ def capture_context(result: ScanResult, source: str) -> dict[str, Any]:
     home = result.quilt.history_dir / "draft-context" / digest
     for name, content in files.items():
         dest = home / name
-        if not dest.exists():
+        if write and not dest.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(content)
     return {

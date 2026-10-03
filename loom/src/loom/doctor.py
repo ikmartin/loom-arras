@@ -1,6 +1,6 @@
 """The checks behind `loom doctor`: the machine's tools and what they can do, the author name, the arras bundle, and, inside a quilt, the quilt's own setup.
 
-Every item is `ok`, `warn` (it works, but the person will hit something) or `fail` (a command they need will refuse or misbehave), and every item that is not ok carries a one-line remedy. The quilt's items call the functions the owning commands use -- `loom agent check`, `loom upgrade`, `loom lint` -- rather than restating them. Tools are found through shutil.which, so tests point PATH at the fake TeX shim; the probes run at once and share one deadline, PROBE_TIMEOUT, so a hung tool is reported rather than waited on.
+Every item is `ok`, `warn` (it works, but the person will hit something) or `fail` (a command they need will refuse or misbehave), and every item that is not ok carries a one-line remedy. The quilt's items call the functions the owning commands use -- `loom upgrade`, `loom lint`, and `loom.agent.diagnose` for the agent -- rather than restating them. Tools are found through shutil.which, so tests point PATH at the fake TeX shim; the probes run at once and share one deadline, PROBE_TIMEOUT, so a hung tool is reported rather than waited on.
 """
 
 from __future__ import annotations
@@ -17,9 +17,12 @@ import time
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loom.version import INTERFACE_VERSION, __version__
+
+if TYPE_CHECKING:
+    from loom.cli.report import Report as OutReport
 
 OK, WARN, FAIL = "ok", "warn", "fail"
 #: required: missing fails; optional: missing warns, and present but broken fails, since loom uses it when present; quilt: the quilt section
@@ -107,6 +110,8 @@ class Report:
     quilt: Path | None = None
     items: list[Item] = field(default_factory=list)
     strict: bool = False
+    #: with `--agents` inside a quilt, the agent loom serve would start: the `agent_report` fields
+    agent: dict[str, Any] | None = None
 
     @property
     def failing(self) -> list[str]:
@@ -131,6 +136,7 @@ class Report:
             "failing": self.failing,
             "warnings": self.warnings,
             "items": [i.to_dict() for i in self.items],
+            **({"agent": self.agent} if self.agent is not None else {}),
         }
 
     def summary(self) -> str:
@@ -143,27 +149,53 @@ class Report:
             return f"warnings: {', '.join(warned)}" if self.strict else f"ok ({count})"
         return "ok"
 
-    def render(self) -> str:
-        """The text report: one line per item in columns as wide as their contents, a remedy under each item that is not ok, and the summary last."""
+    def report(self) -> OutReport:
+        """The report `loom doctor` prints: the summary as its verdict, an item per check, machine first, with a `fix:` line under each item that is not ok, then the directories the tools were found in."""
+        from loom.cli.report import Group, Report
+        from loom.cli.report import Item as Line
+
         width = max(len(i.name) for i in self.items)
-        # a problem's detail runs long, so only the ok lines set where the paths start
-        dwidth = max((len(i.detail) for i in self.items if i.extra.get("path") and i.status == OK), default=0)
-        lines = [f"loom {self.loom}, interface {self.interface_version}, python {self.python}"]
+        groups = []
         for section, items in (
             ("machine", [i for i in self.items if i.severity != QUILT]),
-            (f"quilt {self.quilt}" if self.quilt else "quilt", [i for i in self.items if i.severity == QUILT]),
+            (f"quilt {self.quilt.name}" if self.quilt else "quilt", [i for i in self.items if i.severity == QUILT]),
         ):
             if not items:
                 continue
-            lines += ["", section]
+            lines = []
             for i in items:
-                path = i.extra.get("path")
-                detail = f"{i.detail:<{dwidth}}  {path}" if path else i.detail
-                lines.append(f"  {i.status:<4}  {i.name:<{width}}  {detail}".rstrip())
-                if i.status != OK and i.remedy:
-                    lines.append(f"  {'':<4}  {'':<{width}}  fix: {i.remedy}")
-        lines += ["", self.summary()]
-        return "\n".join(lines)
+                fixes = [_home(i.remedy)] if i.status != OK and i.remedy else []
+                said = f"{i.status:<4}  {i.name:<{width}}  {_home(i.detail)}".rstrip()
+                lines.append(Line(said, fixes=fixes, data=i.to_dict()))
+            groups.append(Group(section, lines, limit=None, problem=True))
+        if self.agent is not None:
+            groups.append(_agent_group(self.agent))
+        # a path runs longer than a line, so each directory is said once, with what was found in it, rather than beside every tool
+        found: dict[str, list[str]] = {}
+        for i in self.items:
+            path = i.extra.get("path")
+            if path and i.severity != QUILT:
+                p = Path(str(path))
+                found.setdefault(_home(str(p if p.is_dir() else p.parent) + "/").rstrip("/"), []).append(i.name)
+        groups.append(Group("found in", [Line(", ".join(names), key=d) for d, names in found.items()], limit=None))
+        data = self.to_dict()
+        del data["ok"]
+        return Report(
+            self.summary(),
+            ok=self.exit_code == 0,
+            exit=self.exit_code,
+            lines=[f"loom {self.loom}, interface {self.interface_version}, python {self.python}"],
+            groups=groups,
+            data=data,
+        )
+
+
+def _home(text: str) -> str:
+    """`text` with each path under the home directory written `~/…` and under the temporary directory `$TMPDIR/…`, as a person types them; the JSON keeps them whole."""
+    for base, said in ((Path.home(), "~"), (Path(tempfile.gettempdir()), "$TMPDIR")):
+        for form in dict.fromkeys((str(base), os.path.realpath(base))):
+            text = text.replace(form.rstrip("/") + "/", said + "/")
+    return text
 
 
 @dataclass(frozen=True)
@@ -344,7 +376,7 @@ def check_agent_command(name: str, configured: bool) -> Item:
     if path is not None:
         return Item(name, OK, OPTIONAL, "found", "", {"path": path})
     remedy = (
-        "install it, or name another command in ai/ai-config.toml; loom agent check tests it"
+        "install it, or name another command in ai/ai-config.toml; loom doctor --agents tests it"
         if configured
         else f"install it if you use it: loom serve starts agents with {name}"
     )
@@ -439,7 +471,7 @@ def check_engine(quilt: Any) -> Item:
 
 
 def check_agent(d: Any) -> Item:
-    """What `loom agent check` finds: a fault fails when launching is on, since loom serve will not start the agent, and warns when off."""
+    """The agent loom serve would start, in one line: a fault fails when launching is on, since loom serve will not start the agent, and warns when off."""
     from loom.agent import CONFIG
 
     launch = f"launch {'on' if d.launch else 'off'}"
@@ -450,12 +482,64 @@ def check_agent(d: Any) -> Item:
                 FAIL,
                 QUILT,
                 "launch is on and no agent is configured",
-                f"fill in {CONFIG}, or set launch = false under [ai] in config.toml; loom agent check tests it",
+                f"fill in {CONFIG}, or set launch = false under [ai] in config.toml; loom doctor --agents tests it",
             )
         return Item("agent", OK, QUILT, f"none configured, {launch}")
     if d.faults:
-        return Item("agent", FAIL if d.launch else WARN, QUILT, f"{'; '.join(d.faults)}; {launch}", "loom agent check")
+        return Item(
+            "agent", FAIL if d.launch else WARN, QUILT, f"{'; '.join(d.faults)}; {launch}", "loom doctor --agents"
+        )
     return Item("agent", OK, QUILT, f"{d.config.name}, {launch}")
+
+
+def agent_report(root: Path, d: Any) -> dict[str, Any]:
+    """The agent `loom serve` would start, in full: launching, the config, the start, resume and prompt lines, and each fault with its fix.
+
+    Runs nothing; the commands are filled with `loom.agent.SAMPLE`. `doctor --agents` prints it as its own group.
+    """
+    from loom.agent import PROMPT, SAMPLE, argv, remedy
+
+    out: dict[str, Any] = {
+        "launch": d.launch,
+        "configured": d.configured,
+        "config": None,
+        "name": None,
+        "commands": {label: cmd for label, cmd in d.commands},
+        "prompt": None,
+        "faults": [{"fault": f, "fix": remedy(f)} for f in d.faults],
+        "unignored": d.unignored,
+    }
+    if d.config is not None:
+        prompt = argv([PROMPT], **SAMPLE, quilt=str(root), name=d.config.name)[0]
+        out.update(config=d.config.source, name=d.config.name, prompt=prompt)
+    return out
+
+
+def _agent_group(agent: dict[str, Any]) -> Any:
+    """`agent_report` as the report's `agent` group: its lines, then each fault and warning with its fix."""
+    from loom.agent import CONFIG
+    from loom.cli.report import Group
+    from loom.cli.report import Item as Line
+
+    lines = [Line(f"launching: {'on' if agent['launch'] else 'off'} (launch under [ai] in config.toml)")]
+    if agent["config"] is None:
+        lines.append(Line(f"config: none that loads; {CONFIG} configures one"))
+    else:
+        lines += [Line(f"config: {agent['config']}"), Line(f"name: {agent['name']}")]
+        for label in ("start", "resume"):
+            cmd = agent["commands"].get(label)
+            said = " ".join(cmd) if cmd else "(none: start runs every turn)" if label == "resume" else "(none)"
+            lines.append(Line(f"{label}: {_home(said)}"))
+        lines.append(Line(f"prompt: {_home(agent['prompt'])}"))
+    lines += [Line(f"fault: {f['fault']}", fixes=[f["fix"]]) for f in agent["faults"]]
+    if agent["unignored"]:
+        lines.append(
+            Line(
+                f"warn: .gitignore does not ignore {CONFIG}, so it could be committed by accident",
+                fixes=["loom upgrade"],
+            )
+        )
+    return Group("agent", lines, limit=None, problem=True, counted=False)
 
 
 def check_permissions(root: Path) -> Item:
@@ -547,9 +631,9 @@ def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool
     quilt_path : str, optional
         The quilt to check; default the one found from the current directory, and no quilt section when there is none.
     agents : bool, default False
-        Also look for `claude` and `codex`, which are otherwise looked for only when the quilt configures an agent.
+        Also look for `claude` and `codex`, which are otherwise looked for only when the quilt configures an agent, and inside a quilt report the agent in full (`agent_report`).
     strict : bool, default False
-        Warnings count against the exit code (1).
+        Warnings count against the exit code, as failures do (2).
 
     Returns
     -------
@@ -595,4 +679,6 @@ def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool
             check_gitignore(root),
             check_config(quilt),
         ]
+        if agents and diagnosis is not None:
+            report.agent = agent_report(root, diagnosis)
     return report

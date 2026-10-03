@@ -242,8 +242,24 @@ def test_refresh_reports_both_changed_and_does_not_call_copy_fresh(quilt):
     edit(quilt, "First statement.", "Author revision.", DOC)
     answer = refresh(scan(quilt), COPY)
     assert "zk-0001" in answer["conflicts"]
+    # a conflict left unwritten is not "already up to date": it says what changed on both sides and what to do, and exits 1
+    assert "changed on both sides" in answer["message"] and "zk-0001" in answer["message"]
+    assert "already up to date" not in answer["message"]
+    from tests.helpers import run
+
+    assert run("ai", "refresh", COPY, cwd=quilt.root).exit_code == 1
     assert "AI revision." in (quilt.root / COPY).read_text()
     assert copy_states(scan(quilt), load_history(quilt.history_dir))[0].stale
+
+
+def test_an_empty_selection_says_when_document_changes_wait(quilt):
+    """Adopt said "No changes to incorporate" while a prose change waited behind --document-changes (CLI study, defect 10)."""
+    edit(quilt, "Original introduction.", "Proposed introduction.")
+    preview = prepare(scan(quilt), COPY, [])
+    assert not preview["patch"] and preview["document_waiting"]
+    from loom.adopt import nothing_to_incorporate
+
+    assert "--document-changes" in nothing_to_incorporate(preview)
 
 
 def test_identical_changes_are_not_conflicts(quilt):
@@ -308,49 +324,6 @@ def test_cli_requires_explicit_incorporation_after_noninteractive_preview(quilt)
     ok("adopt", COPY, "--incorporate", preview["token"], cwd=quilt.root)
     assert "CLI proposal." in (quilt.root / DOC).read_text()
     ok("history", "verify", cwd=quilt.root)
-
-
-def test_legacy_pull_provenance_migrates_and_preserves_other_sources(quilt):
-    import json
-
-    from loom.review_origins import read, write
-    from loom.sync import SyncState
-
-    root = quilt.root
-    path = root / ".loom/source-sync.json"
-    path.write_text(
-        json.dumps(
-            {
-                "remote": "origin",
-                "branch": "main",
-                "master": DOC,
-                "integrated": "abc",
-                "review_origins": {"zk-0001": "abc"},
-                "review_changed": {"zk-0001": True},
-                "review_baselines": {"zk-0001": "fingerprint"},
-                "review_local_changed": {"zk-0001": True},
-            }
-        )
-    )
-    legacy = read(root)["zk-0001"]
-    assert legacy["source"] == "pull:abc" and legacy["local_before"]
-    write(
-        root,
-        {
-            "zk-0002": {
-                "source": "adopt:2",
-                "changed": True,
-                "baseline": "other",
-                "local_before": False,
-                "label": "AI draft",
-            }
-        },
-    )
-    state = SyncState.read(root)
-    state.write(root)
-    assert "review_origins" not in json.loads(path.read_text())
-    assert read(root)["zk-0001"] == legacy
-    assert read(root)["zk-0002"]["source"] == "adopt:2"
 
 
 def test_agent_command_surface_cannot_incorporate(quilt):

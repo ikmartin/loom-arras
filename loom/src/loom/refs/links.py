@@ -140,6 +140,16 @@ def remove_link(root: Path, link_id: str) -> Link:
     return gone
 
 
+def record_removal(root: Path, gone: Link, by: str) -> None:
+    """Append what was removed and who removed it to `digests/links-removed.jsonl`, since the live file keeps no tombstones."""
+    import json
+
+    path = root / "digests" / "links-removed.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"link": gone.to_json(), "removed_by": by, "when": stamp()}, sort_keys=True) + "\n")
+
+
 def touching(root: Path, key: str) -> list[Link]:
     """Every link with `key` at either end, which is what a result's page shows."""
     return [x for x in read_links(root) if key in (x.frm, x.to)]

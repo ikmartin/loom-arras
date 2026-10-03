@@ -29,7 +29,7 @@ There was formerly a marker for a drafter's default and another for a question i
 
 Chapters (`book/`):
 
-1. Design philosophy
+1. Design principles
 2. Objectives
 3. Vocabulary
 4. The quilt

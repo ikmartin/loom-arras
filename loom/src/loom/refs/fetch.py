@@ -207,6 +207,26 @@ def source_title(src: Path) -> str:
     return ""
 
 
+def carries_title(pdf: Path, entry: BibEntry) -> tuple[bool, float, str]:
+    """Whether a PDF's first page carries its entry's title: (yes, the best score, the line that scored it).
+
+    The check that guards a fetched PDF and a PDF the author files by hand alike. An entry with no title, or a PDF whose text cannot be read, is not refused here -- there is nothing to compare -- and says so with a score of 0.
+    """
+    from loom.refs.ingest import TITLE_MATCH, title_lines
+    from loom.refs.pages import page_texts
+
+    want = str(entry.fields.get("title") or "")
+    try:
+        first = page_texts(pdf)[0] if want else ""
+    except Exception:  # noqa: BLE001 -- an unreadable PDF is unchecked, not a crash
+        first = ""
+    if not (want and first):
+        return True, 0.0, ""
+    scored = [(title_ratio(want, line), line) for line in title_lines(first)]
+    best, line = max(scored, default=(0.0, ""))
+    return best >= TITLE_MATCH, best, line
+
+
 def title_ratio(a: str, b: str) -> float:
     """How similar two titles are, 0 to 1, folded to ASCII words.
 
@@ -360,8 +380,7 @@ def _fetch_url(quilt: Quilt, citekey: str, entry: BibEntry, url: str, out: Fetch
     import json as _json
     from datetime import datetime
 
-    from loom.refs.ingest import TITLE_MATCH, title_lines
-    from loom.refs.pages import page_texts, sha256_of
+    from loom.refs.pages import sha256_of
 
     home = work_dir(quilt.root, entry)
     home.mkdir(parents=True, exist_ok=True)
@@ -378,14 +397,9 @@ def _fetch_url(quilt: Quilt, citekey: str, entry: BibEntry, url: str, out: Fetch
         out.refused = f"{url} did not return a PDF"
         return out
     dest.write_bytes(data)
-    want = str(entry.fields.get("title") or "")
-    try:
-        first = page_texts(dest)[0] if want else ""
-    except Exception:  # noqa: BLE001 -- an unreadable PDF is reported below as unchecked, not as a crash
-        first = ""
-    best = max((title_ratio(want, line) for line in title_lines(first)), default=0.0) if first else 0.0
+    carries, best, _line = carries_title(dest, entry)
     out.title_score = best
-    if want and first and best < TITLE_MATCH:
+    if not carries:
         dest.unlink(missing_ok=True)
         out.discarded = f"the PDF at {url} does not carry this entry's title on its first page ({best:.2f})"
         return out

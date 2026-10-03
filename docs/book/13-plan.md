@@ -4,13 +4,7 @@ This chapter turns the specification into an order of work. It names the milesto
 
 ## 13.1 Principles of construction
 
-**[decided]**
-
-1. The scanner before everything. Nothing else can be tested without it, and the source contract is the part most likely to be wrong on real papers. Build it against the demo quilt first, then the synthetic quilt, then Manolache, then ACGS.
-2. Vertical slices. Each milestone runs end to end (source to arras page) for a growing subset of the contract, rather than completing one layer at a time.
-3. The fixture is the contract's executable form. From milestone 2 onward, every change to loom's output regenerates the fixture and every change to the interface is a change to the fixture first.
-4. Author files are sacred from the first commit. The tests that enforce P7 (4.8) are written before any command that touches a file.
-5. Two repositories from the first commit, in two languages, sharing nothing but `specs/`.
+The principles the plan was built by are C1–C5, in Chapter 1 (1.11): the scanner before everything, vertical slices, the fixture as the contract's executable form, author files sacred from the first commit, and two tools sharing nothing but `specs/`.
 
 ## 13.2 Milestones
 
@@ -64,7 +58,7 @@ Demonstrated 2026-09-15; see `docs/work-queue/closed/M3.md`: the timeline of 7.1
 
 ### M4. Bring a paper in
 
-- `loom import`, `loom init --from`, `loom draft`, `loom id`, `loom atomize` (all options), `loom inline`, `loom linearize`, the identity test.
+- `loom import`, `loom init --from`, `loom draft`, `loom id`, `loom atomize` (all options), `loom linearize`, the identity test (`loom inline`, built here, was withdrawn by DR-326-ikmartin).
 - The Manolache fixture through 6.8; the ACGS stress test through 6.9.
 
 Demonstrates: both papers import, atomize, and inline with the identity test passing, after at most a documented set of hand edits; the relative localization paper imports.

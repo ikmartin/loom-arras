@@ -1,7 +1,7 @@
 # Mode: draft
 
 ## Before you begin
-- Write only under your session's directory, unless the author asks you to draft into a copy in `drafting-ai/`: then run `loom ai drafts` first, make the copy with `loom draft DOC --ai NAME` if there is none, and write the node there, its id with the `-ai` suffix. Never edit the author's source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
+- Write only under your session's directory, unless the author asks you to draft into an agent document in `drafting-ai/`: then run `loom ai drafts` first, make one with `loom draft DOC --ai NAME` if there is none, and write the node there, its id with the `-ai` suffix. Never edit the author's source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose
@@ -25,4 +25,4 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 - [ ] Every fact used is a `\ref` or `\uses` to an existing id or a digest node.
 - [ ] Every incomplete step is marked `\incomplete`.
 - [ ] The draft compiles.
-- [ ] Nothing was written outside your session's directory. The one exception is a node drafted into the copy in `drafting-ai/` the author named.
+- [ ] Nothing was written outside your session's directory. The one exception is a node drafted into the agent document in `drafting-ai/` the author named.

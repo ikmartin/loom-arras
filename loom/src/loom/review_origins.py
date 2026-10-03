@@ -1,4 +1,4 @@
-"""Shared provenance for incorporated contributions, with legacy pull compatibility."""
+"""Shared provenance for incorporated contributions: a pull from the document workspace or an adopted agent document."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 
 def read(root: Path) -> dict[str, dict[str, Any]]:
-    """Read shared origins, falling back to older document-workspace records.
+    """Read the shared provenance store, empty when nothing has been incorporated.
 
     Parameters
     ----------
@@ -18,27 +18,10 @@ def read(root: Path) -> dict[str, dict[str, Any]]:
     Returns
     -------
     dict
-        Per-node provenance; shared entries take precedence over legacy pulls.
+        Per-node provenance: where each key's incorporated text came from.
     """
-    legacy = root / ".loom/source-sync.json"
-    data = json.loads(legacy.read_text()) if legacy.is_file() else {}
-    origins = data.get("review_origins") or {
-        key: data.get("last_pull", {}).get("commit", "") for key in data.get("last_pull", {}).get("keys", [])
-    }
-    out = {
-        key: {
-            "source": "pull:" + commit,
-            "changed": data.get("review_changed", {}).get(key, key in data.get("last_pull", {}).get("changed", [])),
-            "baseline": data.get("review_baselines", {}).get(key),
-            "local_before": data.get("review_local_changed", {}).get(key, False),
-            "label": f"Incoming from {data.get('remote', 'document workspace')}",
-        }
-        for key, commit in origins.items()
-    }
     path = root / ".loom/review-origins.json"
-    if path.is_file():
-        out.update(json.loads(path.read_text()))
-    return out
+    return json.loads(path.read_text()) if path.is_file() else {}
 
 
 def write(root: Path, origins: dict[str, dict[str, Any]]) -> None:

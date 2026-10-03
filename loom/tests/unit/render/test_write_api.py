@@ -349,7 +349,7 @@ def _discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     ann = noted(s, q, sid)
     assert (
         succeeds(s, "discard", {"session": sid, "annotation": ann, "reason": "mine", "author": WHO})["result"]
-        == f"discarded {ann}"
+        == f"withdrew {ann}"
     )
     assert (
         succeeds(s, "discard", {"session": sid, "annotation": ann, "undo": True, "author": WHO})["result"]
@@ -573,48 +573,41 @@ def git(root: Path, *args: str) -> str:
 
 
 def pulled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A quilt synced with a local bare remote, a collaborator's edit to `main.tex` fetched and awaiting incorporation."""
+    """A quilt with no repository paired with a local Overleaf stand-in, a collaborator's edit to `main.tex` fetched and awaiting incorporation."""
     import loom.sync as sync
     from loom.scan.quilt import load_quilt
 
     root = tmp_path / "quilt"
     (root / "drafting").mkdir(parents=True)
-    git(root, "init", "-q", "-b", "quilt")
-    for r in (root,):
-        git(r, "config", "user.name", "Tester")
-        git(r, "config", "user.email", "tester@example.org")
     (root / "config.toml").write_text(
-        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\ndrafting = "drafting"\ncanon = "canon"\nprefix = "zk"\nengine = "pdflatex"\n',
+        '[quilt]\nname = "test"\nmain = "drafting/main.tex"\ndrafting = "drafting"\nprefix = "zk"\nengine = "pdflatex"\n',
         encoding="utf-8",
     )
-    (root / ".gitignore").write_text("build/\n.loom/serve.json\n", encoding="utf-8")
     source = (
         "\\documentclass{article}\n\\usepackage{loom}\n\\newtheorem{lemma}{Lemma}\n"
         "\\begin{document}\n\\begin{lemma}\\label{zk-0001}A\\end{lemma}\n\\end{document}\n"
     )
     (root / "drafting" / "main.tex").write_text(source, encoding="utf-8")
     (root / "loom.sty").write_text("% local support\n", encoding="utf-8")
-    git(root, "add", ".")
-    git(root, "commit", "-q", "-m", "private quilt")
     bare = tmp_path / "overleaf.git"
-    subprocess.check_call(["git", "init", "-q", "--bare", str(bare)])
-    git(root, "remote", "add", "origin", str(bare))
-    git(root, "push", "-q", "origin", "HEAD:main")
-    git(root, "fetch", "-q", "origin", "main")
-    quilt = load_quilt(root)
-    state = sync.configure(quilt, "origin", "main", "main.tex")
-    monkeypatch.setattr(sync, "compile_tex", lambda *_a, **_k: SimpleNamespace(ok=True))
-    sync.publish(quilt, state)
-    git(root, "push", "origin", f"{state.publication_ref}:main")
-    sync.fetch(quilt, state)
+    subprocess.check_call(["git", "init", "-q", "--bare", "-b", "master", str(bare)])
     other = tmp_path / "collaborator"
-    subprocess.check_call(["git", "clone", "-q", "-b", "main", str(bare), str(other)])
+    subprocess.check_call(["git", "clone", "-q", str(bare), str(other)], stderr=subprocess.DEVNULL)
     git(other, "config", "user.name", "Colleague")
     git(other, "config", "user.email", "colleague@example.org")
+    (other / "main.tex").write_text("\\documentclass{article}\n", encoding="utf-8")
+    git(other, "add", ".")
+    git(other, "commit", "-q", "-m", "new project")
+    git(other, "push", "-q", "origin", "HEAD:master")
+    quilt = load_quilt(root)
+    state = sync.configure(quilt, str(bare), "main.tex")
+    monkeypatch.setattr(sync, "compile_tex", lambda *_a, **_k: SimpleNamespace(ok=True))
+    sync.push_publication(quilt, state, sync.publish(quilt, state).commit)
+    git(other, "pull", "-q", "--ff-only")
     (other / "main.tex").write_text(source.replace("zk-0001}A", "zk-0001}B"), encoding="utf-8")
     git(other, "commit", "-q", "-am", "edit statement")
-    git(other, "push", "-q", "origin", "main")
-    sync.fetch(quilt, state)
+    git(other, "push", "-q", "origin", "HEAD:master")
+    sync.fetch(quilt, sync.SyncState.read(root))
     return root
 
 
@@ -642,11 +635,9 @@ def _sync_incorporate(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPa
     said = succeeds(s, "sync-incorporate", {"incoming": state.incoming, "base": state.integrated})
     assert said["result"]["integrated"] == state.incoming
     assert b"zk-0001}B" in (root / "drafting" / "main.tex").read_bytes()
-    assert git(root, "show", "--format=", "--name-only", "HEAD").splitlines() == [
-        ".loom/review-origins.json",
-        ".loom/source-sync.json",
-    ]
-    assert git(root, "show", "--format=", "--name-only", "HEAD^").splitlines() == ["drafting/main.tex"]
+    assert said["result"]["paths"] == ["drafting/main.tex"]
+    assert said["result"]["landmarks"] == [f"main-before-pull-{state.incoming[:12]}"]
+    assert not (root / ".git").exists()  # nothing is committed: the quilt need not be a repository
 
 
 @case("sync-preview")

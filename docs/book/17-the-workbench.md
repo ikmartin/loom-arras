@@ -81,12 +81,12 @@ Chapter 6 brings a paper in; Chapter 7 records what has been reviewed. This chap
 | `stamp` | `message`, `in` (the document given, or null), `froze` (key to hash), `of`, `removed`, `restored`, `preamble`; given a document, also `landmark`, `to`, `reaches` (17.9) |
 | `adopt` | `copy`, `taken`, `kept`, `bases`, `adoption_base`, `preview`, `proposal_fingerprint`, `proposal`, `forks`, and frozen canonical versions; no acceptances. Always directly after the `stamp` whose landmark keeps the working document as it was |
 | `refresh` | `copy`, updated `bases` and `adoption_base`; no source-history step number |
-| `copy` | `from` (the source document), `to` (the agent's copy), `bases` (each derived key to `{key, step, hash}`: its plain key, the step whose version is its base, that version's hash), `froze`, `of`, `restored`, `preamble` |
+| `copy` | `from` (the source document), `to` (the agent document), `bases` (each derived key to `{key, step, hash}`: its plain key, the step whose version is its base, that version's hash), `froze`, `of`, `restored`, `preamble` |
 | `restore` | `from` (`{landmark, step}`), `to` (the new document's path and hash), `ids` (how many were inserted) |
 | `atomize` | `from`, `to`, `keys`, `superseded`, `retired` |
 | `linearize` | `from`, `to`, `superseded`, `forks`, `kept` |
 | `fork` | `new`, `from` (id, step, hash), `in`, `to` |
-| `revert` | `key`, `step`, `hash`, `in` |
+| `revert` | `key`, `step`, `hash`, `in`: written by loom before DR-326-ikmartin, and still read by `history verify`; `loom revert` records nothing now |
 | `live` | `path` |
 | `move` | `from`, `to`, `moved` (whether loom renamed the file), `via` (`"sync"` when an incorporated pull recorded it, else absent) |
 
@@ -121,7 +121,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 ## 17.9 Landmarks
 
-**[decided]** A landmark is how a document stood at a moment worth returning to. Two steps keep one: `loom import`, whose landmark is the paper as received (6.2), and a stamp given a document (17.8), which is also what adoption writes before it changes a working document (17.17). No other step does: a stamp without a document records keys only, and the copy step of `loom draft --ai` keeps its source's text to compare against later (17.7.1), not as a landmark.
+**[decided]** A landmark is how a document stood at a moment worth returning to. Two steps keep one: `loom import`, whose landmark is the paper as received (6.2), and a stamp given a document (17.8), which is also what adoption writes before it changes a working document (17.17), and what the document workspace writes for each document it publishes and before a pull changes one (4.6). No other step does: a stamp without a document records keys only, and the copy step of `loom draft --ai` keeps its source's text to compare against later (17.7.1), not as a landmark.
 
 **[decided]** A stamp's landmark is the document's **loom form**: flattened as `loom linearize` flattens (17.13), with `\usepackage{loom}` and its ids, so that a working document can be drafted from it again. It is kept as `<name>.tex` in the step's directory `NNNN-<name>/`, where `<name>` is the slug of the message (`-m "Widgets v3"` gives `widgets-v3`), and the line carries `landmark` (that file), `to` (that file and its hash), `in` (the document) and `reaches` (the keys the document reaches). An import's landmark is the paper as received, with neither the package line nor ids, named by the slug of the paper's file name (`draft3`).
 
@@ -147,7 +147,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 **[decided]** `loom revert KEY@N` prints the patch that puts the recorded text back in place of the head's. It materializes the version (17.5) and never points at it: after the patch is applied the file holds that text, and nothing in the quilt refers to a version to find out what a node says.
 
-**[decided]** Applying the patch is the author's act, as it is for `atomize --key` and `loom id`. Loom prints; the editor applies.
+**[decided]** Applying the patch is the author's act, as it is for `atomize --key` and `loom id`. Loom prints; the editor applies; and **nothing is recorded**, applied or not (DR-326-ikmartin): whether the head is again the text of @N is read from its text (17.5), and a ledger line written when a patch was printed claimed a revert that may never have happened.
 
 ## 17.12 Superseded documents and `loom live`
 
@@ -155,7 +155,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 **[decided]** This is the only inertness loom declares by itself. Everything else in the drafting directory is live. `% !LOOM ignore` remains the author's way to say the same thing about a file loom did not produce (4.9).
 
-**[decided]** `loom live FILE` appends a line that makes the file live again. Nothing is moved and nothing is edited; the record simply says the conversion no longer stands.
+**[decided]** `loom live FILE` appends a line that makes the file live again. Nothing is moved and nothing is edited; the record simply says the conversion no longer stands. A file made live defines its nodes again, so an id it shares with another live file is now defined twice and has no text (5.3.5): `live` names each such id with the files that define it and `loom fork ID --in FILE`, and `loom status` shows it as a conflicted row (DR-326-ikmartin).
 
 **[decided]** `atomize --retire` moves the input into `retired/` instead, which is not scanned either. It is opt-in because loom moves an author's file only when asked (4.8), and it exists because an author who has finished with a file would rather it were out of the way than inert in place.
 
@@ -163,7 +163,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 ## 17.13 `loom linearize`
 
-**[decided]** `loom linearize SPINE --to FILE [--fork | --keep-shared] [--no-check]` writes FILE: SPINE with every `\input`, `\include` and `\nest` of a `.tex` file expanded in place, `\nest`'s level shift applied to what it brings in, and every comment and directive kept. It is the whole-document counterpart of `inline`, which reverses one atomization (6.6), and it replaces `loom assemble`, which did the same thing and knew nothing about identity.
+**[decided]** `loom linearize SPINE --to FILE [--fork | --keep-shared] [--no-check]` writes FILE: SPINE with every `\input`, `\include` and `\nest` of a `.tex` file expanded in place, `\nest`'s level shift applied to what it brings in, and every comment and directive kept. It is the reverse of `atomize` (6.6), and it replaces `loom assemble`, which did the same thing and knew nothing about identity.
 
 **[decided]** A node is defined once and included many times (5.3.5). Inlining a node file that another live document also includes would define that node twice, so `linearize` refuses, names the nodes and both documents, and offers two continuations:
 
@@ -200,7 +200,7 @@ Example: an author with a paper and a talk runs `loom stamp drafting/talk.tex -m
 
 ## 17.16 Reading the record
 
-**[decided]** `loom history` prints the steps and the events between them, one per line: the number, the action, the date, the name and message of a step, and how many keys it recorded. `loom history KEY` prints that key's versions, each with its hash and the step that recorded it, and says whether the head is one of them. `loom history show` and `loom history restore` read a landmark (17.9).
+**[decided]** `loom history` prints the steps and the events between them, one per line: the number, the action, the date, the name and message of a step, and how many keys it recorded. `loom history KEY` prints that key's versions, each with its hash and the step that recorded it, and says whether the head is one of them. `loom history show` and `loom history restore` read a landmark (17.9), and `loom history verify` checks the record (17.15). **[decided]** These are subcommands, each with only its own flags, and any other word after `history` is read as a key, so a mistyped key is reported as one (DR-330-ikmartin).
 
 **[decided]** `loom history verify` walks every step directory against the ledger and reports the divergences of 17.15; it exits 1 on any error. `loom lint --nodes` is the other reading: one block per node id, carrying what is wrong with that node's identity — conflicted, unreachable, referenced but absent, reused, recovered — and then the superseded files. It is the hygiene report for the rule of 5.3.5.
 
@@ -224,13 +224,13 @@ The synthetic quilt (14.3) carries one, produced by the commands themselves:
 
 ### Incorporating and refreshing copies
 
-`loom adopt DOC [KEY…]` previews selected changes from an AI copy into its original working document (DR-313-luisa). With no keys, it selects offered node changes; `--document-changes` explicitly includes prose, preamble and ordering. An interactive confirmation applies and records the result, and names the landmark that keeps the document as it was. `--json` saves and prints a preview without changing author files; `--incorporate TOKEN` applies exactly a previously inspected preview. `--to FILE` exports the patch without incorporating. A noninteractive invocation without a token does not apply changes. Creating a separate document with `--as` is refused explicitly: adoption revises the document the copy came from, and the copy itself is the other version to compare it with.
+`loom adopt DOC [KEY…]` previews selected changes from an agent document into the working document it was drafted from (DR-313-luisa). With no keys, it selects offered node changes; `--document-changes` explicitly includes prose, preamble and ordering. An interactive confirmation applies and records the result, and names the landmark that keeps the document as it was. `--json` saves and prints a preview without changing author files; `--incorporate TOKEN` applies exactly a previously inspected preview. `--to FILE` exports the patch without incorporating. A noninteractive invocation without a token does not apply changes. Creating a separate document with `--as` is refused explicitly: adoption revises the document the copy came from, and the copy itself is the other version to compare it with.
 
 **[decided]** Incorporation first stamps the working document it is about to write, as `loom stamp DOC -m …` would: the keys it reaches that moved since the last step, and its flat text as a landmark named `<doc>-before-adopt-<copy>` (`main-before-adopt-proposal`), `-2`, `-3` for a later adoption from the same copy (DR-320-ikmartin). So every version adoption replaces is stamped, including the author's prose, preamble and ordering since the copy, which `--document-changes` merges with the agent's; `loom history restore` starts a document from it and compare sets it beside the adopted one. Adoption commits nothing and needs no git repository (4.7): the preview is pinned by the fingerprint of every scanned file, the config and the history, and a failure restores what it wrote from the bytes it read first. Merging document prose runs the `git merge-file` program on three temporary files, which needs git installed but no repository.
 
 An `adopt` step freezes incorporated canonical changes, stores the inspected `proposal.tex` with its hash, and records `copy`, `taken`, `kept`, `bases`, `adoption_base`, `preview`, `proposal_fingerprint` and any new identity mappings. `adoption_base` contains normalized per-node source text, the last reconciled document skeleton and persistent identity mappings; it preserves cosmetic changes and versions the author has not separately stamped. A plain `refresh` line updates those bases after copy maintenance. Baselines for unselected proposals stay outstanding. The inspected proposal and frozen versions are checked by `loom history verify`. Repeated incorporation offers only remaining or newly changed proposals, and a no-op records nothing.
 
-A working example: copy a paper, revise a shared lemma in the AI draft, and edit the introduction in the working paper. Inspect the AI contribution, choose the lemma, and leave document-level changes unselected. Incorporation replaces the lemma in its current node file while preserving the author's introduction and inclusion structure. The changed lemma and affected dependents enter Needs review; a display-name-only change leaves mathematical acceptance fresh. Refreshing the AI copy brings in the author's introduction while retaining any proposals that were not incorporated.
+A working example: copy a paper, revise a shared lemma in the agent document, and edit the introduction in the working paper. Inspect its contribution, choose the lemma, and leave document-level changes unselected. Incorporation replaces the lemma in its current node file while preserving the author's introduction and inclusion structure. The changed lemma and affected dependents enter Needs review; a display-name-only change leaves mathematical acceptance fresh. Refreshing the agent document brings in the author's introduction while retaining any proposals that were not incorporated.
 
 **Where adopted text goes: the four cases** (ai-drafting-study §8.1). A node's text lives in exactly one file, inline in a document or in a node file that documents `\input`, and adoption writes a taken node where it lives; it never supersedes the source document, which keeps its name and acceptances.
 

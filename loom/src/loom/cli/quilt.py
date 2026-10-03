@@ -5,12 +5,15 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tempfile
 from importlib import resources
 from pathlib import Path
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, EnvError, note
+from loom.cli._common import EnvError, NotFoundError
+from loom.cli.paper import check_prefix
+from loom.cli.report import Group, Item, Report
 from loom.scan.labels import PREFIX
 from loom.scan.quilt import is_quilt_root, load_user_config, user_config_path
 
@@ -30,9 +33,6 @@ resolve = false             # may loom look identifiers up at zbMATH Open and Cr
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
-
-[author]
-name = "{author}"{author_pad}# legacy attribution; reviewer comes from local Settings or Git
 
 [ai]
 launch = {launch}              # may loom serve run the command in ai/ai-config.toml for a turn when a message waits
@@ -122,24 +122,28 @@ def _set_launch(target: Path, launch: bool) -> None:
     p.write_text(text, encoding="utf-8")
 
 
-def setup_ai(target: Path, choice: str, launch: bool) -> list[str]:
-    """Write `ai/ai-config.toml` for the answer, install the AI layer for Claude or Codex, and say what will happen.
+def setup_ai(target: Path, choice: str, launch: bool, *, write: bool = True) -> tuple[list[str], list[str]]:
+    """Install the agent layer for Claude or Codex as `loom ai init` does, or for any other answer only `ai/ai-config.toml` with every key commented out; and say what will happen.
 
-    Returns the lines `loom init` prints: which AI, where its command lives, and whether `loom serve` will start it.
+    Returns the paths written (or, with `write` False, that would be) and the lines `loom init` prints: which AI, where its command lives, and whether `loom serve` will start it.
     """
     from loom.agent import CONFIG, config_text
 
-    if choice in ("claude", "codex") and not (target / "ai").exists():
-        from loom.ai.layout import init_layer
+    if choice in ("claude", "codex"):
+        from loom.cli.ai import install_layer
 
-        init_layer(target)
-    (target / CONFIG).parent.mkdir(parents=True, exist_ok=True)
-    (target / CONFIG).write_text(config_text(choice), encoding="utf-8")
-    _set_launch(target, launch)
+        written = list(install_layer(target, agent=choice, write=write).written)
+    else:
+        written = [CONFIG]
+        if write:
+            (target / CONFIG).parent.mkdir(parents=True, exist_ok=True)
+            (target / CONFIG).write_text(config_text(None), encoding="utf-8")
+    if write:
+        _set_launch(target, launch)
     said = {
-        "claude": f"AI: {AI_LABELS['claude']}. The command loom would run is in {CONFIG}; loom agent check tests it.",
-        "codex": f"AI: {AI_LABELS['codex']} configured. Run codex login if needed, then loom agent check. Start and resume commands are in {CONFIG}.",
-        "other": f"AI: another agent. Fill in {CONFIG} with the command that starts it for one turn -- its header says how -- and loom agent check tests it.",
+        "claude": f"AI: {AI_LABELS['claude']}. The command loom would run is in {CONFIG}; loom doctor --agents tests it.",
+        "codex": f"AI: {AI_LABELS['codex']} configured. Run codex login if needed, then loom doctor --agents. Start and resume commands are in {CONFIG}.",
+        "other": f"AI: another agent. Fill in {CONFIG} with the command that starts it for one turn -- its header says how -- and loom doctor --agents tests it.",
         "none": f"AI: none. {CONFIG} is there, commented out, should that change.",
     }[choice]
     when = (
@@ -147,14 +151,16 @@ def setup_ai(target: Path, choice: str, launch: bool) -> list[str]:
         if launch
         else "Agents will not be launched by loom serve: set launch = true under [ai] in config.toml to change that."
     )
-    return [said, when]
+    return written, [said, when]
 
 
-GITIGNORE_NOTE = """wrote .gitignore, ignores:
-  build/ (everything loom can rebuild)
-  refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)
-  but not refs/**/pages/ or sections.json: the page text an anchor names is committed
-  all stray LaTeX files (.aux, .log, .bbl and the rest)"""
+#: What the `.gitignore` init writes leaves out, as `init` says it.
+GITIGNORE = (
+    "build/ (everything loom can rebuild)",
+    "refs/**/paper.pdf and refs/**/src/ (outside papers, fetched not written)",
+    "but not refs/**/pages/ or sections.json: the page text an anchor names is committed",
+    "all stray LaTeX files (.aux, .log, .bbl and the rest)",
+)
 
 
 def _user_dirs() -> tuple[str, str]:
@@ -166,7 +172,7 @@ def _user_dirs() -> tuple[str, str]:
     return drafting, drafting_ai
 
 
-def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, author: str = "") -> list[Path]:
+def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) -> list[Path]:
     """Write the skeleton of a quilt into `target`.
 
     Returns the paths it created, deepest first, so `init --from` can undo them when the import that follows fails; paths that were already there are not listed and so are never removed.
@@ -202,8 +208,6 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True, 
             prefix=prefix,
             drafting=drafting,
             drafting_ai=drafting_ai,
-            author=author,
-            author_pad=" " * max(1, 22 - len(author)),
             launch="false",
         ),
     )
@@ -275,20 +279,14 @@ def write_demo_quilt(target: Path) -> None:
     help="Import an existing paper: FILE is its main .tex file, anywhere on disk.",
 )
 @click.option("--demo", is_flag=True, help="Write the demo quilt instead of a minimal master.")
-@click.option("--prefix", default=None, help="Id prefix for new nodes.")
-@click.option(
-    "--author",
-    default=None,
-    metavar="NAME",
-    help="Legacy quilt attribution in config.toml; reviewer identity comes from local Settings or Git.",
-)
+@click.option("--prefix", default=None, callback=check_prefix, help="Id prefix for new nodes.")
 @click.option("--git", "git_init", is_flag=True, help="Also run git init. A quilt is files; loom reads no history.")
 @click.option(
     "--ai",
     "ai",
     type=click.Choice(AI_CHOICES),
     default=None,
-    help="Which AI you use, instead of being asked: its command goes in ai/ai-config.toml.",
+    help="Which AI you use, instead of being asked: Claude or Codex get the agent layer, as loom ai init writes it.",
 )
 @click.option(
     "--launch-agents/--no-launch-agents",
@@ -302,19 +300,20 @@ def write_demo_quilt(target: Path) -> None:
     help="With --from: rewrite the drafted document so every theorem-like \\begin and \\end is alone on its line.",
 )
 @click.option("--yes", "-y", is_flag=True, help="Skip questions; take defaults and confirm the import.")
-@click.pass_context
+@click.option("--dry-run", is_flag=True, help="Say what would be created, and write nothing; no identity test.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 def init(
-    ctx: click.Context,
     directory: str | None,
     from_file: str | None,
     demo: bool,
     prefix: str | None,
-    author: str | None,
     git_init: bool,
     ai: str | None,
     launch_agents: bool,
     fix_anchors: bool,
     yes: bool,
+    dry_run: bool,
+    as_json: bool,
 ) -> None:
     """Create a quilt in DIRECTORY (default: the current directory); with --from FILE, import a paper into it: the paper as received kept as the first landmark, and the working document drafted from it."""
     here = directory is None  # the message says so: "<path> is not empty" reads oddly when the path was never typed
@@ -323,7 +322,7 @@ def init(
         raise EnvError(f"{target} is already inside a quilt")
     paper = Path(from_file).expanduser().resolve() if from_file else None
     if paper is not None and not paper.is_file():
-        raise EnvError(f"{from_file} is not a file")
+        raise NotFoundError("file", f"{from_file} is not a file")
     if target.exists() and any(target.iterdir()):
         where = f"the current directory, {target}," if here else f"{target}"
         if paper is None:
@@ -338,46 +337,100 @@ def init(
                 f"to create the quilt in (the paper may live anywhere), or pass a --from FILE inside the directory "
                 f"to turn an existing paper directory into a quilt."
             )
-    if prefix is not None and not PREFIX.match(prefix):
-        raise EnvError(f"prefix {prefix!r} must be letters and digits without hyphens")
     existed = target.exists()
     made: list[Path] = []
     chosen = ""
-    if demo:
-        write_demo_quilt(target)
-    else:
+    if not demo:
         chosen = prefix or ask_prefix("q", yes)
         if not PREFIX.match(chosen):
             raise EnvError(f"prefix {chosen!r} must be letters and digits without hyphens")
-        # Retain explicit legacy attribution without configuring the local reviewer.
-        named = author.strip() if author is not None else ""
-        made = write_minimal_quilt(target, chosen, minimal_master=paper is None, author=named)
-    _write_user_config_template()
     choice = ai or ask_ai(yes)
-
-    def announce() -> None:
-        """Set up the AI side and say what was created, once the quilt is certain to outlive the command."""
-        said_ai = setup_ai(target, choice, launch_agents)
-        note(f"wrote the demo quilt to {target}" if demo else f"created quilt {target} with prefix {chosen}")
-        note(GITIGNORE_NOTE)
-        for line in said_ai:
-            note(line)
-        if git_init and _git_init(target):
-            note(f"git init {target} (--git asked; loom itself reads no history)")
-
+    made_it = f"wrote the demo quilt to {target}" if demo else f"created quilt {target} with prefix {chosen}"
+    if dry_run:
+        _init_dry_run(target, demo, chosen, choice, launch_agents, paper, fix_anchors, made_it, as_json)
+        return
+    if demo:
+        write_demo_quilt(target)
+    else:
+        made = write_minimal_quilt(target, chosen, minimal_master=paper is None)
+    _write_user_config_template()
+    imported = None
     if paper is not None:
         from loom.cli.paper import run_import
         from loom.scan.quilt import load_quilt
 
         try:
-            ident = run_import(load_quilt(target), paper, yes, fix_anchors=fix_anchors)
+            imported = run_import(load_quilt(target), paper, yes, fix_anchors=fix_anchors)
         except BaseException:
-            # the import writes nothing into the quilt until it says "Wrote N files", so a failure before that leaves only the skeleton above; leaving that behind would refuse the obvious retry -- the same command with --fix-anchoring -- as "already inside a quilt"
+            # the import writes nothing into the quilt until its refusals are past, so a failure leaves only the skeleton above; leaving that behind would refuse the obvious retry -- the same command with --fix-anchoring -- as "already inside a quilt"
             undo_minimal_quilt(target, existed, made)
             raise
-        announce()
-        if ident is not None and not ident.passed and not ident.skipped:
-            ctx.exit(EXIT_CONTENT)
-        return
-    announce()
-    note('next: loom doctor; loom lint; loom new lemma "Title"')
+    # said only once the quilt is certain to outlive the command
+    _, said_ai = setup_ai(target, choice, launch_agents)
+    gitted = git_init and _git_init(target)
+    groups = list(imported.groups) if imported else []
+    groups.append(Group("wrote .gitignore, which ignores", [Item(line) for line in GITIGNORE], limit=None))
+    setup = [Item(line) for line in said_ai]
+    if gitted:
+        setup.append(Item(f"ran git init in {target}, as --git asked; loom itself reads no history"))
+    here_now = target.resolve() == Path.cwd().resolve()
+    first = "loom doctor; loom lint" + ("" if paper else '; loom new lemma "Title"')
+    groups.append(Group("", setup, limit=None, next=first if here_now else f"cd {target}, then {first}"))
+    Report(
+        f"{made_it}; {imported.said}" if imported else made_it,
+        groups=groups,
+        data={
+            "quilt": str(target),
+            "demo": demo,
+            "prefix": chosen or None,
+            "ai": choice,
+            "launch": launch_agents,
+            "git": gitted,
+            "import": imported.data if imported else None,
+        },
+    ).emit(as_json)
+
+
+def _init_dry_run(
+    target: Path,
+    demo: bool,
+    prefix: str,
+    choice: str,
+    launch: bool,
+    paper: Path | None,
+    fix_anchors: bool,
+    made_it: str,
+    as_json: bool,
+) -> None:
+    """`loom init --dry-run`: the skeleton listed, and the import planned against a skeleton in a scratch directory; nothing written at `target` or in the user config."""
+    from loom.scan.quilt import load_quilt
+
+    imported = None
+    with tempfile.TemporaryDirectory(prefix="loom-init-dry-run-") as tmp:
+        skeleton = Path(tmp) / (target.resolve().name or "quilt")
+        made = write_minimal_quilt(skeleton, prefix or "q", minimal_master=paper is None)
+        files = sorted(p.relative_to(skeleton).as_posix() for p in made if p.is_file())
+        if demo:
+            files = ["the demo quilt's files", ".gitignore"]
+        if paper is not None:
+            from loom.cli.paper import run_import
+
+            imported = run_import(load_quilt(skeleton), paper, True, fix_anchors=fix_anchors, dry_run=True)
+        layer, said_ai = setup_ai(skeleton, choice, launch, write=False)
+    groups = [Group("would write", [Item(f) for f in [*files, *layer]], limit=None)]
+    groups += list(imported.groups) if imported else []
+    groups.append(Group("", [Item(line) for line in said_ai], limit=None))
+    Report(
+        made_it.replace("wrote", "would write", 1).replace("created", "would create", 1)
+        + (f"; {imported.said}" if imported else ""),
+        dry_run=True,
+        groups=groups,
+        data={
+            "quilt": str(target),
+            "demo": demo,
+            "prefix": prefix or None,
+            "ai": choice,
+            "launch": launch,
+            "import": imported.data if imported else None,
+        },
+    ).emit(as_json)

@@ -5,13 +5,13 @@ from __future__ import annotations
 import click
 
 from loom.cli.adopt import adopt
-from loom.cli.agent_cmd import agent
 from loom.cli.ai import ai
 from loom.cli.build_cmd import build_command
 from loom.cli.build_cmds import check, compile, source
 from loom.cli.digest import digest
 from loom.cli.doctor import doctor
-from loom.cli.graph import deps, unravel
+from loom.cli.graph import deps, downstream
+from loom.cli.help import LoomGroup
 from loom.cli.history_cmds import (
     draft,
     fork,
@@ -24,11 +24,11 @@ from loom.cli.history_cmds import (
 )
 from loom.cli.link_cmd import link_command
 from loom.cli.lint_cmd import lint_command
-from loom.cli.nodes import delete, new, search
-from loom.cli.paper import atomize, deloom_command, id_command, import_command, inline_command
+from loom.cli.nodes import new, search
+from loom.cli.paper import atomize, deloom_command, id_command, import_command
 from loom.cli.quilt import init
 from loom.cli.refs import refs
-from loom.cli.review import accept, annotate, review_command, status
+from loom.cli.review import accept, annotate, status
 from loom.cli.serve_cmd import serve
 from loom.cli.session import session
 from loom.cli.sync import sync
@@ -38,7 +38,7 @@ from loom.version import __version__
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
-@click.group(context_settings=CONTEXT_SETTINGS)
+@click.group(cls=LoomGroup, context_settings=CONTEXT_SETTINGS)
 @click.version_option(__version__, "--version", "-V", prog_name="loom", message="%(prog)s %(version)s")
 def main() -> None:
     """loom: a tool for atomized mathematical development.
@@ -49,23 +49,15 @@ def main() -> None:
 
 main.add_command(doctor)
 main.add_command(session)
-main.add_command(agent)
 main.add_command(init)
 main.add_command(new)
 main.add_command(id_command)
 main.add_command(import_command)
 main.add_command(atomize)
-main.add_command(inline_command)
 main.add_command(deloom_command)
 main.add_command(search)
-main.add_command(delete)
-main.add_command(delete, name="rm")
-main.add_command(delete, name="remove")
 main.add_command(deps)
-main.add_command(unravel)
-main.add_command(unravel, name="downstream")
-main.add_command(unravel, name="reach")
-main.add_command(unravel, name="pop")
+main.add_command(downstream)
 main.add_command(lint_command)
 main.add_command(link_command)
 main.add_command(refs)
@@ -77,7 +69,6 @@ main.add_command(serve)
 main.add_command(accept)
 main.add_command(annotate)
 main.add_command(status)
-main.add_command(review_command)
 main.add_command(ai)
 main.add_command(digest)
 main.add_command(upgrade)

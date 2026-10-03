@@ -20,6 +20,9 @@
 
 	let naming = $state(false);
 	let newName = $state('');
+	/** The title being opened while the publisher answers, which on a large quilt waits for its rebuild; empty when nothing is. */
+	let opening = $state('');
+	let refusal = $state('');
 	let busy = $state('');
 	let renaming = $state('');
 	let title = $state('');
@@ -27,15 +30,26 @@
 
 	async function start(): Promise<void> {
 		const want = newName.trim();
+		// a second Enter while the first is answered would open a second session of the same name
+		if (opening) return;
+		refusal = '';
+		if (!want) {
+			naming = false;
+			return;
+		}
+		opening = want;
+		const { id, error } = await openSession(want);
+		opening = '';
+		if (!id) {
+			// the field stays open with what was typed, and says why, so the reader can try again or change it
+			refusal = error;
+			return;
+		}
 		naming = false;
 		newName = '';
-		if (!want) return;
-		const id = await openSession(want);
-		if (id) {
-			// `openSession` has selected it; selecting again before the manifest lists it would read it as closed
-			openChat(id, m, false);
-			onpicked();
-		}
+		// `openSession` has selected it; selecting again before the manifest lists it would read it as closed
+		openChat(id, m, false);
+		onpicked();
 	}
 
 	async function act(id: string, endpoint: string, body: Record<string, unknown> = {}): Promise<boolean> {
@@ -99,13 +113,20 @@
 				aria-label="The new session's title"
 				data-testid="session-new-title"
 				autofocus
-				onkeydown={(e) => (e.key === 'Enter' ? start() : e.key === 'Escape' ? ((naming = false), e.stopPropagation()) : undefined)}
+				disabled={!!opening}
+				onkeydown={(e) => (e.key === 'Enter' ? start() : e.key === 'Escape' ? ((naming = false), (refusal = ''), e.stopPropagation()) : undefined)}
 			/>
 		{:else}
 			<input class="field" type="search" bind:value={find} placeholder="find a session" aria-label="Find a session" data-testid="session-find" />
 			<button type="button" class="new" title="Start a new session" data-testid="session-new" onclick={() => (naming = true)}>+ new</button>
 		{/if}
 	</div>
+	{#if opening || refusal}
+		<!-- the publisher answers once it has rebuilt the quilt, which on a large one takes a while; until then the field says it is working -->
+		<p class="opening" class:refused={!!refusal} role="status" aria-live="polite" data-testid="session-new-status">
+			{opening ? `opening “${opening}”…` : refusal}
+		</p>
+	{/if}
 
 	{#snippet row(s: SessionRow)}
 		{@const it = summary(m, s.id)}
@@ -198,6 +219,14 @@
 </div>
 
 <style>
+	.opening {
+		margin: var(--gap-hair) 0 0;
+		font-size: 12px;
+		color: var(--ink-faint);
+	}
+	.opening.refused {
+		color: var(--ink);
+	}
 	.picker {
 		font-family: var(--sans);
 		font-size: 12px;

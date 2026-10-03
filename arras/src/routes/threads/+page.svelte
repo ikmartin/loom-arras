@@ -13,7 +13,7 @@
 	{#if !threads.length}<p class="muted">No threads yet.</p>{/if}
 	<ul>
 		{#each threads as t (t.id)}
-			<li><a href={threadUrl(t.id)}>{t.title}</a> <span class="muted">{t.kind} · {shortDate(t.created)} · {said(t.id)} messages{t.discarded ? ' · discarded' : ''}</span></li>
+			<li><a href={threadUrl(t.id)}>{t.title}</a> <span class="muted">{t.kind} · {shortDate(t.created)} · {said(t.id)} messages{t.discarded ? ' · withdrawn' : ''}</span></li>
 		{/each}
 	</ul>
 </main>

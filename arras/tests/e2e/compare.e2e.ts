@@ -43,7 +43,7 @@ test('pressing compare turns annotations off, and releasing it puts back what wa
 	await expect(page).not.toHaveURL(/compare=/);
 });
 
-test('an agent copy against its source: − on the source, + on the copy, amber where both changed, a wedge for what one lacks', async ({ page }) => {
+test('an agent document against its source: − on the source, + on the copy, amber where both changed, a wedge for what one lacks', async ({ page }) => {
 	await open(page, '/master/main', '/master/aidoc');
 	await expect(page.getByTestId('compare-count')).toHaveText('6 differences');
 	const left = pane(page, 0);

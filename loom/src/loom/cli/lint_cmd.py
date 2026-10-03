@@ -1,12 +1,16 @@
-"""`loom lint` (book 12.5): every diagnostic, grouped by severity; exit 1 if any error. `--nodes` groups by node id (book 17.16)."""
+"""`loom lint` (book 12.5): every diagnostic, one group per code with the author's before the cited works'; exit 1 if any error. `--nodes` groups by node id (book 17.16)."""
 
 from __future__ import annotations
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, emit_json
+from loom.cli._common import EXIT_CONTENT
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.build_cmds import log_run
+from loom.cli.diagnostics import groups as diagnostic_groups
+from loom.cli.diagnostics import has_errors, tally
+from loom.cli.diagnostics import item as diag_item
+from loom.cli.report import Group, Report, counted
 from loom.history.checks import verify
 from loom.history.ledger import load_history
 from loom.records.store import Records
@@ -79,7 +83,7 @@ def by_node(result: ScanResult, diags: list[Diagnostic]) -> tuple[dict[str, list
 
 
 @click.command(name="lint")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @click.option(
     "--nodes",
     "nodes",
@@ -90,42 +94,39 @@ def by_node(result: ScanResult, diags: list[Diagnostic]) -> tuple[dict[str, list
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
 @quilt_option
-@click.pass_context
-def lint_command(ctx: click.Context, as_json: bool, nodes: bool, run_dir: str | None, quilt_path: str | None) -> None:
+def lint_command(as_json: bool, nodes: bool, run_dir: str | None, quilt_path: str | None) -> None:
     """Scan and print every diagnostic. Fast; no LaTeX runs."""
     result = open_scan(quilt_path)
     log_run(run_dir, "loom lint", result.quilt.root)
     diags = all_diagnostics(result)
     if nodes:
         per, superseded = by_node(result, diags)
-        if as_json:
-            emit_json(
-                {
-                    "nodes": {k: [d.to_dict() for d in ds] for k, ds in per.items()},
-                    "superseded": [d.to_dict() for d in superseded],
-                }
-            )
-        else:
-            for k, ds in per.items():
-                click.echo(k)
-                for d in ds:
-                    click.echo("  " + format_diagnostic(d))
-                    for f in d.fixes:
-                        click.echo(f"    fix: {f.command}  ({f.label})")
-            if superseded:
-                click.echo("superseded files")
-                for d in superseded:
-                    click.echo("  " + format_diagnostic(d))
-            if not per and not superseded:
-                click.echo("every node is defined once; no file is superseded")
-        if any(d.severity == "error" for ds in per.values() for d in ds):
-            ctx.exit(EXIT_CONTENT)
+        bad = any(d.severity == "error" for ds in per.values() for d in ds)
+        groups = [Group(k, [diag_item(d) for d in ds], problem=True, limit=None) for k, ds in per.items()]
+        if superseded:
+            groups.append(Group("superseded files", [diag_item(d) for d in superseded], limit=None))
+        verdict = (
+            f"{counted(len(per), 'node')} with a fault in its identity"
+            + (f"; {counted(len(superseded), 'superseded file')}" if superseded else "")
+            if per or superseded
+            else "every node is defined once; no file is superseded"
+        )
+        Report(
+            verdict,
+            ok=not bad,
+            exit=EXIT_CONTENT if bad else 0,
+            groups=groups,
+            data={
+                "nodes": {k: [d.to_dict() for d in ds] for k, ds in per.items()},
+                "superseded": [d.to_dict() for d in superseded],
+            },
+        ).emit(as_json)
         return
-    if as_json:
-        emit_json([d.to_dict() for d in diags])
-    else:
-        for d in diags:
-            click.echo(format_diagnostic(d))
-        click.echo(summary_line(diags))
-    if any(d.severity == "error" for d in diags):
-        ctx.exit(EXIT_CONTENT)
+    bad = has_errors(diags, result)
+    Report(
+        tally(diags, result),
+        ok=not bad,
+        exit=EXIT_CONTENT if bad else 0,
+        groups=diagnostic_groups(diags, result),
+        data={"diagnostics": [d.to_dict() for d in diags]},
+    ).emit(as_json)

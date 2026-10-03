@@ -59,6 +59,18 @@ test.describe('the ledger', () => {
 		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(1);
 	});
 
+	test('the panel lists every work, however many', async ({ page }) => {
+		// a cap left "46 more; narrow it" at the foot of a real library, which said neither what was hidden nor how to reach it
+		await serve(page, (m) => {
+			const one = m.references.Kre99;
+			for (let i = 0; i < 40; i++) m.references[`Extra${i}`] = { ...structuredClone(one), citekey: `Extra${i}` };
+		});
+		await page.goto('/library');
+		const list = page.getByTestId('library-list');
+		await expect(list.locator('a[href^="/library/"]')).toHaveCount(Object.keys(manifest.references).length + 40);
+		await expect(list).not.toContainText('more');
+	});
+
 	test("a work's counts are stated once", async ({ page }) => {
 		// the panel says whether a copy is filed, the one thing a click cannot be guessed to give; every count is the ledger's
 		await page.goto('/master/main');

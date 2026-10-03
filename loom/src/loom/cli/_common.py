@@ -52,12 +52,12 @@ def note(message: str) -> None:
     click.echo(message, err=True)
 
 
-def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
-    """Locate a session by id, by title, or by a unique id suffix; with nothing, the active one (plan 0.13 §5).
+def find_session(root: Path, which: str | None, *, deleted: bool = False):  # type: ignore[no-untyped-def]
+    """The session `which` names (`sessions.resolve`), or with nothing the active one; refused by name rather than guessed.
 
-    Refuses rather than guessing, and refuses rather than creating: a value that matched nothing used to be made as a directory at the quilt root, and that directory then satisfied every later lookup, so a whole sitting's annotations were filed under a run that did not exist.
+    A name that matches nothing is `NotFoundError`, one that matches several an `EnvError` naming them. Refusing rather than creating matters: a value that matched nothing used to be made as a directory at the quilt root, and that directory then satisfied every later lookup. Deleted sessions are found only with `deleted`, so nothing is written into a tombstone by accident.
     """
-    from loom.sessions import active, sessions
+    from loom.sessions import SessionNotFound, active, resolve, sessions
 
     if not which:
         here = active(root)
@@ -65,25 +65,76 @@ def find_session(root: Path, which: str | None):  # type: ignore[no-untyped-def]
         if here and here in standing:
             return standing[here]
         raise EnvError('no session is active; loom session new "a name" opens one')
-    standing = sessions(root, deleted=True)
-    if which in standing:
-        return standing[which]
-    want = which.strip().lower()
-    # The title is what a person remembers, so it is what this accepts -- exactly, then as part of one. An id suffix
-    # is here for the same reason: nobody types a date they can see in a listing.
-    for pick in (
-        lambda x: x.title.lower() == want,
-        lambda x: x.id.endswith(want),
-        lambda x: want in x.title.lower(),
+    try:
+        return resolve(root, which, deleted=deleted)
+    except SessionNotFound as exc:
+        if exc.matches:
+            raise EnvError(str(exc)) from None
+        if not deleted:
+            try:
+                gone = resolve(root, which, deleted=True)
+            except SessionNotFound:
+                gone = None
+            if gone is not None:
+                raise ContentError(f"{gone.id} was deleted; nothing new can be written to it") from None
+        raise NotFoundError("session", str(exc)) from None
+
+
+#: What a file the scan reads ends in: a path loom writes with one of these, inside the quilt, would become source.
+SOURCE_SUFFIXES = (".tex", ".sty", ".cls", ".bib")
+
+
+def destination(
+    quilt: Any, path: str | Path, *, drafting: bool = False, source: bool = False, overwrite: bool = False
+) -> Path:
+    """Where a command's `--to` writes, by the one rule every `--to` follows (book 12.1, K2).
+
+    Parameters
+    ----------
+    quilt : Quilt
+        The quilt the command runs against.
+    path : str or Path
+        What `--to` said; a relative path is the quilt root's, as every path loom takes is.
+    drafting : bool, default False
+        The command writes a working document, which belongs directly in the drafting directory (or, for an agent document, in `drafting-ai/`).
+    source : bool, default False
+        The command writes a source file that takes another's place (`atomize`), so it may go wherever a source may.
+    overwrite : bool, default False
+        The command replaces what is there by design; otherwise an existing file is refused.
+
+    Returns
+    -------
+    Path
+        The absolute path to write.
+
+    Raises
+    ------
+    EnvError
+        A working document outside the drafting directories; anything else among the quilt's sources or in a drafting directory, which loom never writes; or a file that exists.
+    """
+    root = Path(quilt.root).resolve()
+    given = Path(path).expanduser()
+    target = (given if given.is_absolute() else root / given).resolve()
+    rel = target.relative_to(root).as_posix() if target.is_relative_to(root) else None
+    homes = {quilt.config.drafting, getattr(quilt.config, "drafting_ai", "drafting-ai")}
+    in_drafting = rel is not None and Path(rel).parent.as_posix() in homes
+    if drafting and not in_drafting:
+        raise EnvError(
+            f"{path}: a working document goes directly in {quilt.config.drafting}/, e.g. --to {quilt.config.drafting}/{target.name}"
+        )
+    if (
+        not drafting
+        and not source
+        and rel is not None
+        and not rel.startswith("build/")
+        and (in_drafting or target.suffix in SOURCE_SUFFIXES)
     ):
-        hits = [x for x in standing.values() if pick(x)]
-        if len(hits) == 1:
-            return hits[0]
-        if hits:
-            # naming the matches rather than guessing, as `refs resolve` does with candidates
-            named = ", ".join(f"{x.id} ({x.title})" for x in hits[:4])
-            raise EnvError(f"{which!r} matches {len(hits)} sessions: {named}")
-    raise NotFoundError("session", f"no session matches {which!r}; loom session list shows them")
+        raise EnvError(
+            f"{path} would be among the quilt's sources, which loom never writes; write it under build/ or outside the quilt"
+        )
+    if target.exists() and not overwrite:
+        raise EnvError(f"{path} exists; loom does not overwrite it")
+    return target
 
 
 #: Environment variables an agent's shell carries. `AI_AGENT` is the generic one; the rest name a particular tool.
@@ -180,16 +231,15 @@ def whoever(root: Path, author: str | None = None, *, sniff: bool = True) -> str
 
 
 def refuse_under_agent(verb: str, how: str, declared: str | None = None) -> None:
-    """Refuse one of the author's verbs when an agent is the writer.
+    """Refuse one of the author's acts when an agent could be the one performing it.
 
-    The claim these verbs make -- *I checked this*, *I accept this mathematics* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. An agent verified its own proposal in the first study run and loom recorded the author as the verifier, because the author's name comes from git, which an agent's shell shares.
-
-    **The guard is on the identity, not the door** (plan 0.13 §8). A session is now shared by a person and an agent, and the write API is no longer only the author's own click, so neither the session nor the environment says who is writing. A declared name that calls itself an agent is refused whichever surface it came through; a marker with no declared identity is refused too, because it will not guess.
+    The claim these acts make -- *I checked this*, *I accept this mathematics*, *erase this* -- is the author's, and a record that credits the author with a check nobody made is worse than no record. A declared name that calls itself an agent is refused wherever it came from; and under an agent marker the act is refused **whatever name is declared**, because a name cannot be checked and an agent that types the author's name is exactly the case to stop (DR-325-ikmartin). The author runs these in a shell of their own.
     """
     if declared and is_agent(declared):
         raise EnvError(f"{verb} is the author's, and {declared} is an agent.\n{how}")
-    if declared:
-        return  # an explicit identity wins: a person who named themselves is a person, whatever shell they are in
     marker = agent_marker()
     if marker:
-        raise EnvError(f"{verb} is the author's, and an agent is running this shell ({marker} is set).\n{how}")
+        named = f", whatever --author or --as says ({declared})" if declared else ""
+        raise EnvError(
+            f"{verb} is the author's, and an agent is running this shell ({marker} is set){named}; run it in a terminal of your own.\n{how}"
+        )

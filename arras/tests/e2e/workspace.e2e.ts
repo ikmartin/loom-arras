@@ -20,7 +20,7 @@ async function withPapers(page: Page) {
 const tabs = (page: Page, index: number) => pane(page, index).getByTestId('item-tab');
 const controls = (page: Page, index: number) => pane(page, index).getByTestId('item-controls');
 
-test.describe('P1 · open on the thing itself', () => {
+test.describe('V1 · open on the thing itself', () => {
 	test('a document opens on the paper', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 900 });
 		await page.goto('/master/main');
@@ -82,7 +82,7 @@ test.describe('P1 · open on the thing itself', () => {
 	});
 });
 
-test.describe('P2 · say it once, in the place that governs it', () => {
+test.describe('V2 · say it once, in the place that governs it', () => {
 	test('a document is opened once', async ({ page }) => {
 		await page.goto('/master/main' + beside('/context/sy-0003'));
 		await expect(pane(page, 1).getByTestId('context')).toBeVisible();
@@ -105,7 +105,7 @@ test.describe('P2 · say it once, in the place that governs it', () => {
 	});
 });
 
-test.describe('P3 · claim only what is known', () => {
+test.describe('V3 · claim only what is known', () => {
 	test('a lone tab offers no controls', async ({ page }) => {
 		await page.goto('/master/main');
 		await expect(tabs(page, 0)).toHaveCount(1);
@@ -115,7 +115,7 @@ test.describe('P3 · claim only what is known', () => {
 
 });
 
-test.describe('P4 · name the question', () => {
+test.describe('V4 · name the question', () => {
 	test('the global rail holds the filter and compare', async ({ page }) => {
 		await withPapers(page);
 		await page.goto('/library/Kre99');
@@ -162,7 +162,7 @@ test.describe('P4 · name the question', () => {
 	});
 });
 
-test.describe('P5 · following a connection must not cost the thing you followed it from', () => {
+test.describe('V5 · following a connection must not cost the thing you followed it from', () => {
 	test('a link opens beside and leaves its source rendered', async ({ page }) => {
 		await page.goto('/master/main');
 		await page.waitForSelector('[data-pane="0"] .fragment mjx-container');

@@ -10,8 +10,7 @@ from typing import Any
 from loom.records.store import Records
 from loom.render.manifest import own_text
 from loom.scan.hashing import mathematical_hash
-from loom.scan.scan import ScanResult, scan
-from loom.sync import SyncError, SyncState, git
+from loom.scan.scan import ScanResult
 
 
 def _path(root: Path) -> Path:
@@ -68,30 +67,6 @@ def fingerprint(result: ScanResult, key: str) -> str:
     return hashlib.sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()
 
 
-def _latest_pull_baselines(result: ScanResult, sync: SyncState) -> dict[str, str]:
-    """Recover a baseline for pre-upgrade records from the last local source commit."""
-    if not sync.local_commit or not sync.last_pull or sync.last_pull.get("commit") != sync.integrated:
-        return {}
-    root = result.quilt.root
-    try:
-        names = set(git(root, "ls-tree", "-r", "--name-only", "-z", sync.local_commit).decode().split("\0"))
-        sources = {name for name in names | set(result.files) if name.endswith((".tex", ".sty", ".cls"))}
-        overlay = {
-            name: git(root, "show", f"{sync.local_commit}:{name}").decode("utf-8", errors="replace")
-            if name in names
-            else ""
-            for name in sources
-        }
-        previous = scan(result.quilt, overlay=overlay)
-    except SyncError:
-        return {}
-    return {
-        key: fingerprint(previous, key)
-        for key, origin in sync.review_origins.items()
-        if origin == sync.integrated and key in previous.nodes
-    }
-
-
 def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     root = result.quilt.root
     manifest["review_covered"] = []
@@ -103,7 +78,6 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
     changed_by_pull = {key: row["changed"] for key, row in shared.items()}
     baselines = {key: row["baseline"] for key, row in shared.items()}
     local_before = {key: row["local_before"] for key, row in shared.items()}
-    legacy_baselines: dict[str, str] | None = None
     pull_keys = set(origins)
     candidates = (
         pull_keys
@@ -170,13 +144,6 @@ def rows_for(result: ScanResult, manifest: dict[str, Any]) -> list[dict[str, Any
             else "earlier-change"
         )
         baseline = baselines.get(key)
-        if baseline is None and key in pull_keys:
-            if legacy_baselines is None:
-                try:
-                    legacy_baselines = _latest_pull_baselines(result, SyncState.read(root))
-                except SyncError:
-                    legacy_baselines = {}
-            baseline = legacy_baselines.get(key)
         local_changed = (local_before.get(key, False) or current != baseline) if baseline else None
         if key not in pull_keys:
             local_changed = True

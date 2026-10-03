@@ -287,3 +287,30 @@ def test_local_style_edit_invalidates_exact_preview(quilt):
     (quilt.root / "local.sty").write_text("\\newcommand{\\localterm}{y}\n")
     with pytest.raises(SyncError, match="context changed"):
         incorporate(scan(quilt), a, p["token"])
+
+
+def test_scoped_cli_dry_runs_write_no_source_or_context(quilt):
+    from tests.helpers import json_of
+
+    def contents():
+        return {str(p.relative_to(quilt.root)): p.read_bytes() for p in quilt.root.rglob("*") if p.is_file()}
+
+    before = contents()
+    proposed = json_of("draft", DOC, "--ai", "first", "--section", "zk-0100", "--dry-run", "--json", cwd=quilt.root)
+    assert proposed["dry_run"] and contents() == before
+    a = copy(quilt)
+    edit(quilt, DOC, "Second prose.", "Updated outside context.")
+    before = contents()
+    proposed = json_of("ai", "refresh", a, "--dry-run", "--json", cwd=quilt.root)
+    assert proposed["dry_run"] and proposed["written"]
+    assert contents() == before
+
+
+def test_unselected_preamble_names_its_own_flag(quilt):
+    from loom.adopt import nothing_to_incorporate
+
+    a = copy(quilt)
+    edit(quilt, a, "\\begin{document}", "\\newcommand{\\newword}{word}\n\\begin{document}")
+    preview = prepare(scan(quilt), a, [], False, preamble=False)
+    assert not preview["patch"]
+    assert "--preamble-changes" in nothing_to_incorporate(preview)

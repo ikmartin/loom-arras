@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -14,9 +15,9 @@ from loom.scan.scan import scan
 from tests.helpers import json_of, ok, refused, run
 from tests.unit._quilts import demo
 
-AUTHOR = ["--author", "Markas Hecht"]
+AS = ["--as", "Markas Hecht"]
 
-# A hand-made agent copy of two of the demo's inline nodes, each defined id derived and the reference between them rewritten, as `loom draft --ai` writes one.
+# A hand-made agent document drafted from two of the demo's inline nodes, each defined id derived and the reference between them rewritten, as `loom draft --ai` writes one.
 AIDOC = r"""\documentclass{amsart}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{loom}
@@ -53,7 +54,8 @@ def with_copy(tmp_path: Path, name: str = "aidoc.tex", text: str = AIDOC) -> Pat
 
 def codes(q: Path, code: int = 0) -> list[dict]:  # type: ignore[type-arg]
     """`loom lint --json`, which exits 1 when it finds an error."""
-    return json_of("lint", "--json", cwd=q, code=code)
+    diagnostics: list[dict] = json_of("lint", "--json", cwd=q, code=code)["diagnostics"]  # type: ignore[type-arg]
+    return diagnostics
 
 
 def test_a_derived_id_names_its_counterpart_and_never_takes_a_citekey_prefix() -> None:
@@ -115,7 +117,7 @@ def test_a_persons_document_neither_defines_nor_cites_a_derived_id(tmp_path: Pat
     )
     found = [d["message"] for d in codes(q, 1) if d["code"] == "loom:derived-id-in-drafting"]
     assert any("cites dm-0004-ai" in x for x in found), found
-    assert any(x.startswith("dm-0099-ai is an agent copy's id") for x in found), found
+    assert any(x.startswith("dm-0099-ai is an agent document's id") for x in found), found
 
 
 def test_two_live_documents_may_not_share_a_name(tmp_path: Path) -> None:
@@ -136,7 +138,7 @@ def test_nothing_in_an_agents_document_is_accepted(tmp_path: Path) -> None:
         "accept",
         "dm-0004-ai",
         "--force",
-        *AUTHOR,
+        *AS,
         cwd=q,
         code=2,
         match="never accepted; acceptance belongs to the node it becomes, dm-0004",
@@ -147,12 +149,12 @@ def test_nothing_in_an_agents_document_is_accepted(tmp_path: Path) -> None:
         "drafting-ai/aidoc.tex",
         "--yes",
         "--force",
-        *AUTHOR,
+        *AS,
         cwd=q,
         code=2,
         match="nothing in an agent's document is accepted",
     )
-    ok("accept", "dm-0001", "dm-0002", "--force", *AUTHOR, cwd=q)
+    ok("accept", "dm-0001", "dm-0002", "--force", *AS, cwd=q)
     from loom.records.ledger import read_ledger
 
     assert not [row for row in read_ledger(q) if row.key.endswith("-ai") or row.master.startswith("drafting-ai/")]
@@ -193,7 +195,7 @@ def test_the_document_workspace_never_selects_an_agents_document(tmp_path: Path)
     from loom.sync import SyncError, SyncState, update_documents
 
     q = with_copy(tmp_path)
-    state = SyncState(remote="origin", branch="main", master="drafting/main.tex", integrated="")
+    state = SyncState(url="overleaf.git", branch="master", master="drafting/main.tex", integrated="")
     with pytest.raises(SyncError, match="an agent's document, which is never published"):
         update_documents(load_quilt(q), state, "add", "drafting-ai/aidoc.tex")
 
@@ -243,7 +245,7 @@ def test_the_copy_step_records_a_readable_base_for_every_node(tmp_path: Path) ->
     assert history.copy_of("drafting-ai/aidoc.tex", result.masters) == "drafting/main.tex"
     # the step keeps the source's flat text, which staleness compares the prose and preamble against
     assert (history.dir / (line.dir or "") / "main.tex").read_text().startswith("\\documentclass")
-    assert "0002  copy      " in ok("history", cwd=q).stdout
+    assert re.search(r"^0002  copy  ", ok("history", cwd=q).stdout, re.M)
     ok("history", "verify", cwd=q)
 
 
@@ -260,13 +262,13 @@ def test_one_copy_per_document_never_over_a_file_or_a_taken_name(tmp_path: Path)
     )
     refused("draft", "drafting/outline.tex", "--ai", "aidoc.tex", cwd=q, code=2, match="exists; draft never overwrites")
     refused("draft", "drafting/outline.tex", "--ai", "main.tex", cwd=q, code=2, match="already named main")
-    refused("draft", "drafting-ai/aidoc.tex", "--ai", "copy2.tex", cwd=q, code=2, match="is an agent's document")
+    refused("draft", "drafting-ai/aidoc.tex", "--ai", "copy2.tex", cwd=q, code=2, match="is an agent document")
     refused("draft", "drafting/missing.tex", "--ai", "x.tex", cwd=q, code=2, match="is not a live document")
 
 
 def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Path) -> None:
     q = copy_of_main(tmp_path)
-    assert json_of("ai", "drafts", "--json", cwd=q) == [
+    assert json_of("ai", "drafts", "--json", cwd=q)["copies"] == [
         {
             "copy": "drafting-ai/aidoc.tex",
             "source": "drafting/main.tex",
@@ -281,11 +283,11 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
             "preamble": False,
         }
     ]
-    assert "aidoc.tex  from drafting/main.tex  fresh" in ok("ai", "drafts", cwd=q).stdout
+    assert "aidoc.tex  drafted from drafting/main.tex  fresh" in ok("ai", "drafts", cwd=q).stdout
     # a display name is no mathematical change
     node = q / "nodes" / "dm-0001.tex"
     node.write_text("% !LOOM name: The widget\n" + node.read_text())
-    assert json_of("ai", "drafts", "--json", cwd=q)[0]["stale"] is False
+    assert json_of("ai", "drafts", "--json", cwd=q)["copies"][0]["stale"] is False
     (q / "nodes" / "dm-0002.tex").write_text(
         (q / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
     )
@@ -295,9 +297,10 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
         .replace("the simplest object", "the plainest object")
         .replace("\\newcommand{\\Fix}", "\\newcommand{\\Mine}{m}\n\\newcommand{\\Fix}")
     )
-    state = json_of("ai", "drafts", "--json", cwd=q)[0]
+    state = json_of("ai", "drafts", "--json", cwd=q)["copies"][0]
     assert state["stale"] and state["changed"] == ["dm-0002"] and state["prose"] and state["preamble"]
-    assert "stale: dm-0002 changed; the prose between nodes; the preamble" in ok("ai", "drafts", cwd=q).stdout
+    said = " ".join(ok("ai", "drafts", cwd=q).stdout.split())  # the line wraps
+    assert "stale: dm-0002 changed; the prose between nodes; the preamble" in said
 
 
 def test_an_agent_may_make_a_copy_and_never_adopt_one(tmp_path: Path) -> None:
@@ -347,7 +350,7 @@ def test_the_fixtures_agent_copy_carries_every_field_the_interface_names() -> No
 
 def test_the_fixtures_copy_is_stale_where_the_author_changed_a_node_after_it() -> None:
     q = Path(__file__).parents[1] / "quilts" / "synthetic"
-    state = json_of("ai", "drafts", "--json", cwd=q)[0]
+    state = json_of("ai", "drafts", "--json", cwd=q)["copies"][0]
     assert state["copy"] == "drafting-ai/aidoc.tex" and state["changed"] == ["sy-0001"] and not state["gone"]
 
 

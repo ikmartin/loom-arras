@@ -1,4 +1,4 @@
-"""Close and reopen AI drafts without deleting text, provenance or annotations."""
+"""Close and reopen agent documents without deleting text, provenance or annotations."""
 
 from __future__ import annotations
 
@@ -33,11 +33,13 @@ def resolve_copy(result: ScanResult, given: str, *, closed: bool = False) -> str
         return given
     found = [p for p in pool if given in (Path(p).name, Path(p).stem)]
     if len(found) != 1:
-        raise SyncError(f"{given} does not name one {'closed' if closed else 'active'} AI draft")
+        raise SyncError(f"{given} does not name one {'closed' if closed else 'active'} agent document")
     return found[0]
 
 
-def close_draft(result: ScanResult, copy: str, reviewer: str, *, confirmed: bool = False) -> dict[str, Any]:
+def close_draft(
+    result: ScanResult, copy: str, reviewer: str, *, confirmed: bool = False, write: bool = True
+) -> dict[str, Any]:
     """Freeze a readable draft and its annotations, then release its active scope."""
     from loom.adopt import comparison
     from loom.render.build import build
@@ -66,12 +68,19 @@ def close_draft(result: ScanResult, copy: str, reviewer: str, *, confirmed: bool
             )
             + " Its text and annotations will be kept.",
         }
+    if not write:
+        return {
+            "copy": copy,
+            "closed": True,
+            "unapplied": count,
+            "message": "Would close the agent document, retaining its text and annotations.",
+        }
     root = result.quilt.root
     before = (root / copy).read_bytes()
     build(result.quilt)
     manifest = json.loads((root / "build/manifest.json").read_text())
     if (root / copy).read_bytes() != before:
-        raise SyncError("The AI draft changed while closing; inspect it and close again")
+        raise SyncError("The agent document changed while closing; inspect it and close again")
     master = next(m for m in manifest["masters"] if m["path"] == copy)
     keys = {k for k, n in result.nodes.items() if copy in n.reached_by} | {copy}
     annotations = {
@@ -128,7 +137,7 @@ def close_draft(result: ScanResult, copy: str, reviewer: str, *, confirmed: bool
     }
 
 
-def reopen_draft(result: ScanResult, copy: str, reviewer: str) -> dict[str, Any]:
+def reopen_draft(result: ScanResult, copy: str, reviewer: str, *, write: bool = True) -> dict[str, Any]:
     """Reactivate retained source only when no active scope or identity conflicts."""
     copy = resolve_copy(result, copy, closed=True)
     history = load_history(result.quilt.history_dir)
@@ -152,6 +161,8 @@ def reopen_draft(result: ScanResult, copy: str, reviewer: str) -> dict[str, Any]
         raise SyncError(
             f"Draft identities are already active: {', '.join(sorted(taken))}; close the conflicting draft first"
         )
+    if not write:
+        return {"copy": copy, "closed": False, "message": "Would reopen the retained agent document."}
     append_entry(history.dir, "draft-reopen", {"copy": copy}, reviewer)
     return {"copy": copy, "closed": False, "message": "Draft reopened. Compare its proposals with the current paper."}
 

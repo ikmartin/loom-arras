@@ -14,11 +14,11 @@ Not for lack of value — this is the highest-value item in the queue that nothi
 
 Two passes, and the second is the point.
 
-**The forward pass: rewrite each mode to use the CLI deliberately.** Today's modes name a handful of commands — `referee.md` names `loom annotate`, `loom bundle --with`, `loom compile`; `audit.md` names the digests and `refs/`. What none of them do is treat the quilt as a thing that can be *interrogated*. `loom deps KEY` and `loom unravel KEY` give an audit its hypothesis ledger's skeleton for free. `loom search --json` finds every statement of a shape. `loom status --json` says what is stale and what is unreached. `loom graph` gives a mode the dependency structure it currently reconstructs by reading. A mode that opens with the right three queries starts where a chat session ends.
+**The forward pass: rewrite each mode to use the CLI deliberately.** Today's modes name a handful of commands — `referee.md` names `loom annotate`, `loom bundle --with`, `loom compile`; `audit.md` names the digests and `refs/`. What none of them do is treat the quilt as a thing that can be *interrogated*. `loom deps KEY` and `loom downstream KEY` give an audit its hypothesis ledger's skeleton for free. `loom search --json` finds every statement of a shape. `loom status --json` says what is stale and what is unreached. `loom graph` gives a mode the dependency structure it currently reconstructs by reading. A mode that opens with the right three queries starts where a chat session ends.
 
 **The reverse pass: let the friction name the missing commands.** This is the deliverable that outlasts the rewrite. Each time a mode wants something the CLI cannot answer, write it down rather than working around it. The candidates already visible from the modes as they stand:
 
-- an audit wants "every key whose proof cites this hypothesis" — `unravel` is the closest and is not it;
+- an audit wants "every key whose proof cites this hypothesis" — `downstream` is the closest and is not it;
 - a referee re-check wants "what changed in this key since the annotation was written", which the workbench's versions can now answer and no command exposes;
 - review mode wants a document's results in order with their states, which is `status --json` plus `linearize` plus assembly by hand;
 - every mode wants "the text I am reviewing, at the version I am reviewing it at", and `bundle` gives the current one.

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import difflib
+import hashlib
 import json
 import os
 import re
@@ -91,6 +92,15 @@ def is_document_path(result: ScanResult, path: str) -> bool:
     return path.endswith(".tex") and Path(path).parent.as_posix() == result.quilt.config.drafting
 
 
+#: Acceptance states by (reviewer, the ledger as read), each kept for the one scan it was computed against; see `Records.key_states`.
+_ACCEPTANCE: dict[tuple[str | None, str], tuple[ScanResult, dict[str, KeyState], dict[str, str]]] = {}
+
+
+def _fresh(states: dict[str, KeyState]) -> dict[str, KeyState]:
+    """A copy of each state for the review facts to fill in: those write only the fact fields, so the causes and the row are shared."""
+    return {k: replace(ks, open=dict(ks.open)) for k, ks in states.items()}
+
+
 class Records:
     def __init__(self, root: Path, history_dir: Path | None = None, *, reviewer: str | None = None) -> None:
         self.root = root
@@ -103,7 +113,7 @@ class Records:
         self.reviewer_source = (
             (source if source in ("", "git config user.name") else "local user configuration")
             if reviewer is None
-            else "--author"
+            else "--as"
         )
         self.latest = latest_rows(self.rows, self.reviewer)
         self.shared_latest = latest_rows(self.rows)
@@ -223,6 +233,27 @@ class Records:
     # ---- states -----------------------------------------------------------------
 
     def key_states(self, result: ScanResult, *, observe: bool = True) -> dict[str, KeyState]:
+        """Every key's acceptance state and review facts against `result`.
+
+        The states are read from the ledger and the scan alone, so they are kept for the scan they were computed against (`_ACCEPTANCE`) and reused while the ledger and the reviewer are the same: a served quilt rebuilds after every annotation, session and message, none of which changes one. The review facts read the annotations and are computed every time.
+        """
+        stamp = (self.reviewer, hashlib.sha256(repr(self.rows).encode()).hexdigest())
+        kept = _ACCEPTANCE.get(stamp)
+        if kept is not None and kept[0] is result:
+            states, current_hashes = _fresh(kept[1]), kept[2]
+        else:
+            states, current_hashes = self._acceptance_states(result)
+            for old in [k for k, v in _ACCEPTANCE.items() if v[0] is not result]:
+                del _ACCEPTANCE[old]
+            _ACCEPTANCE[stamp] = (result, _fresh(states), current_hashes)
+        if observe and self.reviewer:
+            self._observe_causes(states)
+        self._review_facts(result, states, current_hashes)
+        self._previous_key_matches(result, states, current_hashes)
+        return states
+
+    def _acceptance_states(self, result: ScanResult) -> tuple[dict[str, KeyState], dict[str, str]]:
+        """The states and their causes, from the ledger and the scan; and the current hash of every key, which the review facts compare against."""
         states: dict[str, KeyState] = {}
         kinds = ("environment", "proof", "section")
         if self._hash_cache is None or self._hash_cache[0] is not result:
@@ -365,11 +396,7 @@ class Records:
 
         for key in states:
             propagate(key, set())
-        if observe and self.reviewer:
-            self._observe_causes(states)
-        self._review_facts(result, states, current_hashes)
-        self._previous_key_matches(result, states, current_hashes)
-        return states
+        return states, current_hashes
 
     def _observe_causes(self, states: dict[str, KeyState]) -> None:
         """Remember the first scan that saw each unresolved cause, once per acceptance epoch."""
@@ -582,7 +609,7 @@ class Records:
     def _recorded(self, a: Annotation, current: str | None) -> bool:
         """Whether loom can still produce the text `a` was written against: its `against` hash is the current text's, or a frozen snapshot's.
 
-        Snapshots come from `loom accept`, from `loom annotate`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (P3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai annotations --json` reports `recorded`, and `loom status --reading` prints it for page notes; nothing yet shows the old text. A note with no `against` claimed no version and counts as recorded.
+        Snapshots come from `loom accept`, from `loom annotate`, which freezes every version it writes against, and from `freeze_moved`, which keeps a key's old text when it moves under a note. A note on a work's page asks instead whether the PDF on file is the artifact it was written on (`_on_page`). The flag keeps loom from presenting the current text as what an old note was about (V3); the quote may still match new text, so `detached` cannot answer it. `anchored` is quoted, not detached and recorded. An unrecorded note is not marked in the text (`_marks_by_node`) and is counted beside its key instead, since `anchored` is false; `loom ai annotations --json` reports `recorded`, and `loom status --reading` prints it for page notes; nothing yet shows the old text. A note with no `against` claimed no version and counts as recorded.
         """
         want = a.target_hash
         if not want:
@@ -956,7 +983,8 @@ def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
     try:
         from markdown_it import MarkdownIt
 
-        md = MarkdownIt("commonmark", {"html": False})
+        # CommonMark has no tables, so an agent's `| a | b |` comparison arrived as one run-on paragraph; the dialect has them (specs/dialect.md §2.12), so the GFM table rule is enabled
+        md = MarkdownIt("commonmark", {"html": False}).enable("table")
         if src is None:
             out = str(md.render(protected)).strip()
         else:
@@ -965,6 +993,8 @@ def render_markdown(text: str, src: str | None = None, offset: int = 0) -> str:
         import html
 
         out = "<p>" + html.escape(protected) + "</p>"
+    # a column's alignment arrives as an inline style, which the dialect does not carry: the viewer sets a table's look
+    out = re.sub(r' style="text-align:(?:left|right|center)"', "", out)
     return _restore_math(out, spans)
 
 

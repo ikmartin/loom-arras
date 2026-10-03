@@ -88,7 +88,7 @@ def test_an_item_that_is_neither_is_refused(quilt: Path) -> None:
 
 
 def test_a_landmark_by_its_path_and_a_node_by_its_key(quilt: Path) -> None:
-    """What a viewer holds for an item: a landmark's path, and a node's key, which compares with its agent copy."""
+    """What a viewer holds for an item: a landmark's path, and a node's key, which compares with its agent document's."""
     assert (
         pairs(quilt, ".loom/history/0001-widgets-v1/widgets-v1.tex", "drafting/main.tex").keys()
         == pairs(quilt, "widgets-v1", "drafting/main.tex").keys()

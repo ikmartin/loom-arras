@@ -1,4 +1,4 @@
-"""The identity test (book 6.6): compiled text before and after import, atomize, or inline must agree modulo whitespace, and label numbers must not move."""
+"""The identity test (book 6.6): compiled text before and after import, atomize, or linearize must agree modulo whitespace, and label numbers must not move."""
 
 from __future__ import annotations
 

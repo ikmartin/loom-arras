@@ -129,7 +129,7 @@ def test_cli_override_selects_its_own_stale_rows_without_changing_settings(quilt
     write_acceptance(scan(quilt), ["sy-0001"], "Alice")
     edit(quilt)
     monkeypatch.setattr("loom.cli.review._master_compiles", lambda *_: (True, ""))
-    ok("accept", "--stale", "--yes", "--author", "Alice", cwd=quilt.root)
+    ok("accept", "--stale", "--yes", "--as", "Alice", cwd=quilt.root)
     assert Records(quilt.root, reviewer="Alice").key_states(scan(quilt))["sy-0001"].fresh
     assert "sy-0001" not in Records(quilt.root).latest
     assert resolve_author(None, quilt.root)[0] == "Bob"

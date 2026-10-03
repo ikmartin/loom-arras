@@ -136,7 +136,7 @@
 		</div>
 	{:else if master?.closed || master?.context_only}
 		<div class="gutters-host"><div class="gutters"><div class="column">
-		{#if master.closed}<p>Closed AI draft · saved {master.closed_at?.slice(0, 10)}. Its text and annotations are preserved.</p><DraftActions {master}/>{:else}<p>Paper context saved when this section draft was created or refreshed.</p>{/if}
+		{#if master.closed}<p>Closed agent document · saved {master.closed_at?.slice(0, 10)}. Its text and annotations are preserved.</p><DraftActions {master}/>{:else}<p>Paper context saved when this section draft was created or refreshed.</p>{/if}
 		<Fragment path={master.fragment} macroSet={master.macros ?? ''} standalone anchor={item.anchor ?? ''} jump={item.seq}/>
 		{#each master.closed_annotations ?? [] as a}<section id={a.id}><h3>{a.author.id} · {a.created}</h3><p>{a.kind} · {a.status}</p>{#if a.quote}<blockquote>{a.quote}</blockquote>{/if}<Prose html={a.body_html} macroSet={master.macros}/>{#if a.payload_html}<Prose html={a.payload_html} macroSet={master.macros}/>{/if}{#if a.discard_reason}<p>{a.discard_reason}</p>{/if}</section>{/each}
 		</div></div></div>

@@ -36,13 +36,13 @@ test('a display block never scrolls vertically', async ({ page }) => {
 	expect(r.bars).toBe(0);
 });
 
-test('the drawing of a formula may be skipped off screen, and its MathML never is', async ({ page }) => {
+test('a formula is never skipped off screen, so typesetting a document again never moves the reader', async ({ page }) => {
 	await page.goto('/master/main');
 	await page.waitForSelector('.fragment mjx-container mjx-assistive-mml');
 	const cv = await page.evaluate(() => {
 		const c = document.querySelector('.fragment mjx-container')!;
-		return [getComputedStyle(c.querySelector(':scope > svg')!).contentVisibility, getComputedStyle(c.querySelector('mjx-assistive-mml')!).contentVisibility];
+		return [c, c.querySelector(':scope > svg')!, c.querySelector('mjx-assistive-mml')!].map((e) => getComputedStyle(e).contentVisibility);
 	});
-	// a skipped MathML is dropped from the accessibility tree, and clipped to a pixel it is never on screen to be un-skipped
-	expect(cv).toEqual(['auto', 'visible']);
+	// a skipped formula is laid out at a placeholder size, and growing to its real one above the browser's scroll anchor carried a reader to the end of the page
+	expect(cv).toEqual(['visible', 'visible', 'visible']);
 });

@@ -16,12 +16,16 @@ const settings: Settings = { loomPath: '/opt/loom', serverPath: 'loom-lsp' };
 
 suite('the command builders', () => {
 	test('put the quilt root on every call', () => {
-		for (const name of ['status', 'lint', 'accept', 'serve', 'bundle', 'deps']) {
+		for (const name of ['status', 'lint', 'accept', 'serve', 'closure', 'deps']) {
 			const argv = argvFor(name, '/tmp/q', settings, 'rl-0004')!;
 			assert.strictEqual(argv[0], '/opt/loom');
 			assert.strictEqual(argv[argv.length - 2], '--quilt');
 			assert.strictEqual(argv[argv.length - 1], '/tmp/q');
 		}
+	});
+
+	test('read a closure as the source command prints it', () => {
+		assert.deepStrictEqual(argvFor('closure', '/tmp/q', settings, 'rl-0004'), ['/opt/loom', 'source', 'rl-0004', '--closure', '--quilt', '/tmp/q']);
 	});
 
 	test('ask lint for json and serve for the port given', () => {

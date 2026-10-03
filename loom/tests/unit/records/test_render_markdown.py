@@ -35,3 +35,12 @@ def test_code_is_quoted_as_written() -> None:
     """F11 of the 0.14 study: a quote of source in backticks had its `$…$` turned into `\\(…\\)`."""
     got = render_markdown("Quote: `Let $\\quiv$ be` and $x$.")
     assert "<code>Let $\\quiv$ be</code>" in got and '<span class="math inline">\\(x\\)</span>' in got
+
+
+def test_a_table_renders_as_a_table_with_its_math_typeset() -> None:
+    """An agent's comparison table arrived in the chat as one run-on paragraph of pipes: CommonMark has no tables, and the renderer was CommonMark alone."""
+    text = "| They cite | Current draft |\n|:---|---:|\n| [GM, Lem. 2.16] | replace $T$ by a cover |\n| [GM, Lem. 3.11] | matches |\n"
+    out = render_markdown(text)
+    assert "<table>" in out and out.count("<tr>") == 3 and "<th>They cite</th>" in out
+    assert '<span class="math inline">\\(T\\)</span>' in out
+    assert "style=" not in out and "|" not in out

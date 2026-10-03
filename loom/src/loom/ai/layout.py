@@ -27,18 +27,14 @@ TRIGGERS = {
     "ingest": "when the user asks to digest a cited paper into digests/",
     "brainstorm": "when the user wants to explore, brainstorm, or plan a topic before proving anything",
 }
-# The one list: every loom command an agent may run, by its full path in the command tree. Everything else loom
-# offers is the author's, so a command added later is denied until it is named here -- which an enumeration of
-# forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
+# The one list: every loom command an agent may run, by its full path in the command tree. Everything else loom offers is the author's, so a command added later is denied until it is named here -- which an enumeration of forbidden commands could never promise, and did not: twelve mutating commands were missing from it (DR-173).
 AGENT_COMMANDS = frozenset(
     {
         "annotate", "build", "check", "compile", "deps", "doctor", "draft", "history", "id", "link", "lint",
-        "new", "search", "serve", "source", "status", "unravel", "downstream", "pop", "reach",
-        "ai annotations", "ai check", "ai discard", "ai drafts",
-    "ai refresh", "ai name", "ai orient", "ai start",
-        # dispatch is the agent's half of the mailbox: park, read, answer. Opening, closing, retitling and deleting a
-        # session stay the author's, because they are decisions about the work rather than participation in it.
-        "session list", "session next", "session say", "session send", "session watch",
+        "new", "search", "serve", "source", "status", "downstream", "history show", "history verify",
+        "ai annotations", "ai drafts", "ai refresh", "ai orient",
+        # the agent opens and names the session it works in, and parks, reads and answers in it; closing, resuming and deleting a session stay the author's, because they are decisions about the work rather than part of it
+        "session new", "session rename", "session list", "session next", "session say", "session watch",
         "digest extract",
         "refs build", "refs coverage", "refs fetch", "refs grep", "refs link", "refs links", "refs locate",
         "refs find", "refs ingest", "refs map", "refs match", "refs overview", "refs page", "refs path", "refs propose",
@@ -83,7 +79,13 @@ def command_tree() -> list[str]:
     def walk(cmd: object, prefix: str = "") -> None:
         for name, sub in sorted(getattr(cmd, "commands", {}).items()):
             path = f"{prefix} {name}".strip()
-            walk(sub, path) if isinstance(sub, click.Group) else out.append(path)
+            if isinstance(sub, click.Group):
+                # a group that runs on its own (`history`, `history KEY`) is a command as well as a group
+                if sub.invoke_without_command:
+                    out.append(path)
+                walk(sub, path)
+            else:
+                out.append(path)
 
     walk(main)
     return out

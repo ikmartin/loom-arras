@@ -475,7 +475,7 @@ readOnly('a mark round a formula leaves the formula typeset', async ({ page }) =
 });
 
 readOnly('a document never compiled shows none of another document’s numbers', async ({ page }) => {
-	// the talk has no compile of its own: the default document's `Theorem 3.1` would be plausible and wrong there (P3)
+	// the talk has no compile of its own: the default document's `Theorem 3.1` would be plausible and wrong there (V3)
 	await page.goto('/master/talk');
 	await page.locator('[data-pane="0"] .fragment mjx-container').first().waitFor();
 	await expect(page.locator('[data-pane="0"] .fragment .env-label .number')).toHaveCount(0);

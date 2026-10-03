@@ -70,7 +70,7 @@ Arras displays this diagnostic on the block with a link to its row in a working-
 - `loom:see-redundant` (info): a `% !LOOM see:` item that names the node it is written in, or that repeats a relation already declared on that node.
 - `loom:dependency-cycle` (warning): statement dependencies form a cycle; breaks settledness.
 - `loom:converter-fallback` (info): a block rendered by SVG fallback, naming the construct; warning when the fallback itself failed, naming the node and each attempt's first error (DR-79).
-- `loom:bundle-failed` (error): a bundle did not compile; first LaTeX error attached; `loom check` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks (8.11).
+- `loom:closure-failed` (error): a key's closure document did not compile; first LaTeX error attached; `loom check --closures` prints it under this code and `loom compile` names `loom:missing-package` first when a digest in the closure requires a package the preamble lacks (8.11).
 - `loom:atomize-target-exists` (error, fixed): atomize would overwrite a file.
 - `loom:import-outside-tree` (warning): import found a file outside the paper directory and did not copy it.
 - `loom:non-utf8-source` (warning): a scanned file was not UTF-8 and was decoded as Mac Roman or Latin-1 (DR-47).
@@ -86,7 +86,6 @@ Review:
 - `loom:detached-annotation` (info): annotations whose selectors no longer match, with a count per key.
 - `loom:previous-key-match` (info): an acceptance row matches the text of a differently keyed proof.
 - `loom:foreign-annotations` (warning): a line of `annotations/log.jsonl` that is not a review event; it is skipped and the rest of the log still loads (book 7.4.1).
-- `loom:agent-wrote-outside-run` (error): reported by `loom ai check SESSION`: a file outside the session's directory, `annotations/`, `build/` and `.loom/` changed after the session's current round opened (book 11.8).
 
 References and digests:
 
@@ -118,7 +117,7 @@ Both are listed here so the codes are reserved, and both are in the **viewer's**
 - `loom:id-reused` (error, subject `source`): an id the history retired is defined again with a text the history never recorded.
 - `loom:node-recovered` (info, subject `source`): an id the history retired is defined again with a text it did record.
 - `loom:no-live-document` (info, subject `source`): the drafting directory holds no document, so the quilt defines no nodes; carries the fix that starts one from the newest landmark, `loom history restore NAME --to <drafting>/main.tex`.
-- `loom:derived-id-in-drafting` (error, subject `source`): a document the drafting directory holds defines or cites an agent copy's derived id (book 5.3.1); the message names the plain id to use.
+- `loom:derived-id-in-drafting` (error, subject `source`): a document the drafting directory holds defines or cites an agent document's derived id (book 5.3.1); the message names the plain id to use.
 - `loom:document-stem-taken` (error, subject `source`): two live documents, in the drafting directory and the agent's, share a stem (book 4.4).
 - `loom:agent-document-not-a-copy` (error, subject `source`): a document in the agent's drafting directory that no `copy` step made, so it has no source to be adopted into and no bases to refresh from (book 4.4); carries the fix `loom draft DOC --ai NAME.tex`, DOC the default document.
 - `loom:plain-id-in-drafting-ai` (error, subject `source`): a plain id defined in a file of the agent's drafting directory, where every id is derived (book 4.4, 5.3.1); carries the fix `loom id --next`, whose id takes `-ai`.

@@ -13,15 +13,15 @@ You write in `drafting/`. When a document reaches a state worth being able to re
 
 ```
 $ loom stamp drafting/main.tex -m "referee revisions"
-step 0002 froze 2 keys; landmark referee-revisions, drafting/main.tex as it stands
-Recorded: stamp as step 0002 (0002-referee-revisions)
+step 0002 records a new version of 2 results; landmark referee-revisions keeps drafting/main.tex as
+  it stands
 
 $ loom history show referee-revisions --plain > paper-v2.tex
 ```
 
 `-m` is required, and given a document it names the landmark: a landmark nobody named is a landmark nobody can ask for. `loom history` then lists the steps, `loom history q-0001` the versions that key has had, and `loom revert q-0001@2` prints the patch that puts a recorded text back.
 
-The complete quilt uses ordinary Git. Loom manages a separate source-only **document workspace**, such as an Overleaf Git project. Configure it with `loom sync init --remote overleaf --branch master` after fetching that remote. The main document is selected automatically; `loom sync documents add drafting/toy.tex` persistently adds another live document without staging, committing or publishing. Commit source edits normally, then use `loom sync publish` to compile every selected document and prepare their committed inputs at `refs/loom/publication`. The output names the local ref and producing quilt commit; the remote remains unchanged. Use `loom sync publish --push` to perform the same checks and push the prepared revision to the configured document workspace. Neither mode stages or commits quilt bookkeeping. `loom sync fetch` recognizes the exact prepared revision without Incoming review; collaborator changes appear in Incoming for an explicit local Incorporate pull. Acceptance remains a separate mathematical act.
+Coauthors who work in Overleaf edit a **document workspace**: the paper's sources alone, in a Git repository of its own. Pair it with `loom sync init URL`, the project's Git URL; loom clones it into `.loom/workspace/` and runs Git only there, so this quilt need not be a repository and its own is never touched. The main document is selected automatically; `loom sync documents add drafting/toy.tex` adds another live document. `loom sync publish` compiles every selected document from the files as they are, prepares their sources as one workspace revision, and stamps each document so what was published is a landmark; `--push` sends it. `loom sync fetch` brings coauthors' changes into Incoming, where you review them and incorporate them, or run `loom sync incorporate`; each document they reach is stamped first. Acceptance remains a separate mathematical act.
 
 ## The contract
 
@@ -32,7 +32,7 @@ Everything loom reads is a label, an environment, a citation, a comment, or one 
 - **Dependencies** are read from `\ref`, `\eqref`, `\cref`, `\autoref`, from `\cite[Theorem 4.1]{Key}` when `digests/Key.tex` holds a digest of that paper, and from `\uses{q-0001, q-0002}` for anything the text does not name.
 - **Three macros** come from `loom.sty` at the root, loaded by `\usepackage{loom}`: `\uses{...}` and `\incomplete{...}` print nothing; `\nest{file}` inputs a file with its sections shifted one level down.
 - **Directives** are comments loom reads and LaTeX ignores: `% !LOOM tags: a, b`, `% !LOOM author: Name`, and `% !LOOM ignore` at the top of a file that must not be scanned.
-- **Loom edits a file you wrote only when you explicitly click Incorporate pull in a locally served Incoming review.** That action applies the exact displayed collaborator patch and creates local commits; it neither pushes nor accepts mathematics. Its own data lives in `.loom/` (the acceptance ledger and the history of every key), `annotations/log.jsonl` (every comment, reply and finding, appended and never rewritten), `.loom/sessions/` (one directory per session: its notes, command log and inbox), and `build/` (everything derived; delete it whenever you like).
+- **Loom edits a file you wrote only when you incorporate a contribution**, a collaborator's pull or an agent document, from a locally served Incoming review or the command line. It stamps each document the contribution reaches first, so what it replaced is kept as a landmark, and it neither commits, pushes nor accepts mathematics. Its own data lives in `.loom/` (the acceptance ledger and the history of every key), `annotations/log.jsonl` (every comment, reply and finding, appended and never rewritten), `.loom/sessions/` (one directory per session: its notes, command log and inbox), and `build/` (everything derived; delete it whenever you like).
 
 
 ## Reviewer identity

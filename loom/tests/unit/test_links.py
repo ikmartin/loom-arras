@@ -61,7 +61,7 @@ def test_what_the_viewer_does_not_show_is_refused(q: Path) -> None:
 def test_a_deleted_session_is_not_linkable(q: Path) -> None:
     from loom.links import LinkError, resolve
 
-    ok("session", "delete", "s-2026-09-16-0001", "--author", "A. Author", cwd=q)
+    ok("session", "delete", "s-2026-09-16-0001", "--as", "A. Author", cwd=q)
     with pytest.raises(LinkError, match="no session"):
         resolve(scanned(q), q, "quilt:s-2026-09-16-0001")
 
@@ -87,7 +87,7 @@ def test_loom_link_prints_what_the_viewer_follows(q: Path) -> None:
         link("Calloway14", "--page", "2", "--quote", "a phrase")
         == "[](cited:doi:10.4171/demo/14-1?page=2&quote=a%20phrase)"
     )
-    refused("link", "nodes/dm-0001.tex", cwd=q, code=1, match="file the documents include")
+    refused("link", "nodes/dm-0001.tex", cwd=q, code=2, match="file the documents include")
     refused("link", "dm-0003", "--page", "2", cwd=q, code=2, match="for a cited work")  # a page is a work's
 
 
@@ -121,7 +121,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "note",
         "--session",
         sid,
-        "--author",
+        "--as",
         "Referee Agent",
         cwd=q,
         env=agent,
@@ -137,7 +137,7 @@ def test_an_agent_posting_a_bad_link_is_refused_and_a_good_one_lands(q: Path) ->
         "note",
         "--session",
         sid,
-        "--author",
+        "--as",
         "A. Author",
         cwd=q,
     )

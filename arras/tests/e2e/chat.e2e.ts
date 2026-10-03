@@ -1,4 +1,4 @@
-// The Chat: a session's conversation and its input in one pane. The transcript comes from the build's pages, and, where a publisher serves, from a poll of `/_api/events`; the status line and the input exist only where a publisher answers (P3). Each test is named for the rule it holds.
+// The Chat: a session's conversation and its input in one pane. The transcript comes from the build's pages, and, where a publisher serves, from a poll of `/_api/events`; the status line and the input exist only where a publisher answers (V3). Each test is named for the rule it holds.
 import { expect, test, type Page } from '@playwright/test';
 import { beside, pane } from '../workspace';
 import { openPicker, pickSession } from '../picker';
@@ -80,6 +80,15 @@ test.describe('the transcript', () => {
 		await expect(message.locator('mjx-container')).toHaveCount(1); // the mathematics is still typeset
 		await expect(message).toContainText('\\ref{sh-0007}');
 		await expect(message).not.toContainText('???');
+	});
+
+	test('a table in a message is drawn as a ruled table, its cells typeset', async ({ page }) => {
+		await saying(page, '<table><thead><tr><th>result</th><th>bound</th></tr></thead><tbody><tr><td>Lemma 2</td><td><span class="math inline">\\(n \\le 2\\)</span></td></tr></tbody></table>');
+		await page.goto('/master/main' + beside('/session/' + REFEREE));
+		const message = pane(page, 1).getByTestId('message-1');
+		await expect(message.locator('table th')).toHaveText(['result', 'bound']);
+		await expect(message.locator('table td mjx-container')).toHaveCount(1);
+		await expect(message.locator('table td').first()).toHaveCSS('border-bottom-style', 'solid');
 	});
 
 	test('with no publisher, the Chat is the transcript alone', async ({ page }) => {

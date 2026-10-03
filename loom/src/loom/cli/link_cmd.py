@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import click
 
-from loom.cli._common import ContentError, EnvError
+from loom.cli._common import EnvError
 from loom.cli._quilt import open_scan, quilt_option
 
 
@@ -38,7 +38,8 @@ def link_command(thing: str, at: str | None, page: int | None, quote: str | None
     try:
         target = resolve(result, root, href)
     except LinkError as exc:
-        raise ContentError(str(exc)) from None
+        # a link to nothing the viewer shows: the argument names nothing linkable, which is usage (12.1)
+        raise EnvError(str(exc)) from None
     if target.kind in ("node", "document") and target.key != thing:
         link = quilt_link(target.key, at or "")
     click.echo(link)

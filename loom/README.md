@@ -50,7 +50,7 @@ loom init mypaper --from ~/papers/draft.tex     # the paper arrives as one flat 
 cd mypaper
 loom draft canon/draft.tex --to drafting/main.tex   # a working copy, with an id on every node
 loom status                                     # every key, its state, and its open comments
-loom atomize drafting/main.tex drafting/spine.tex --sections   # one file per node, a spine of \input lines
+loom atomize drafting/main.tex --to drafting/spine.tex --sections  # one file per node, a spine of \input lines
 loom canonize drafting/spine.tex -m "Submitted"  # a landmark, and a record of what every key was
 loom accept rl-0004 --proofs                    # record what you have checked; later edits show up as stale
 loom annotate rl-0004/proof "Why closed?" --quote "the diagonal is closed" --kind question
@@ -71,7 +71,7 @@ An ordinary LaTeX project loom can read: the documents you are working on in `dr
 - `src/loom/history/` holds the history: the ledger of steps, the versions of every key, and the checks over them.
 - `src/loom/render/` publishes the build directory arras reads (fragments, manifest, threads, serve).
 - `src/loom/tex/` wraps latexmk, reads `.aux` files, builds bundles, and runs the identity test.
-- `src/loom/reshape/` is `id`, `import`, `atomize`, and `inline`; `src/loom/digest/` extracts, imports, and fetches digests; `src/loom/ai/` is the AI layer.
+- `src/loom/reshape/` is `id`, `import`, `atomize`, `linearize` and `deloom`; `src/loom/digest/` extracts, imports, and fetches digests; `src/loom/ai/` is the AI layer.
 - `src/loom/assets/` ships `loom.sty`, the demo quilt, the AI-layer templates, and the built arras viewer.
 
 ## Development

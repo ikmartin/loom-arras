@@ -92,7 +92,7 @@ class NodeRec:
 
     @property
     def derived_of(self) -> str | None:
-        """The plain key an agent's copy's node corresponds to, `zk-0001/proof` for `zk-0001-ai/proof`; None for any other node (book 5.3)."""
+        """The plain key an agent document's node corresponds to, `zk-0001/proof` for `zk-0001-ai/proof`; None for any other node (book 5.3)."""
         if self.external:
             return None
         plain = plain_key(self.key)

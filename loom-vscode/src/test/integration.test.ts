@@ -61,7 +61,7 @@ suite('the extension in a quilt', () => {
 			'loom.accept',
 			'loom.serve',
 			'loom.open',
-			'loom.bundle',
+			'loom.closure',
 			'loom.atomize',
 			'loom.nodeId',
 			'loom.restart',

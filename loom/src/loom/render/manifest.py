@@ -282,7 +282,7 @@ def build_manifest(
         "macros": {"default": [], "sets": {}},
         "search": [],
     }
-    # an agent copy's source and each derived node's base (book 17.7), read from the history the scan loaded
+    # an agent document's source and each derived node's base (book 17.7), read from the history the scan loaded
     record = result.history
     copies = record.copies(result.masters) if record is not None else {}
     bases = {c: record.bases(c, result.masters) for c in copies} if record is not None else {}
@@ -379,7 +379,7 @@ def build_manifest(
         manifest["nodes"][key] = entry
         for tag in (
             tags if not n.derived_of else ()
-        ):  # an agent copy's node is found through its own document, not the quilt's indexes
+        ):  # an agent document's node is found through its own document, not the quilt's indexes
             manifest["tags"].setdefault(tag, []).append(key)
         if n.kind == "environment" or n.kind == "proof":
             manifest["keys"][key] = _key_entry(result, n)

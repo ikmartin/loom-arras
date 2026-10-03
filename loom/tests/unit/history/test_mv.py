@@ -13,7 +13,7 @@ from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from tests.helpers import json_of, ok, refused
 
-AUTHOR = ["--author", "Markas Hecht"]
+AUTHOR = ["--as", "Markas Hecht"]
 
 
 @pytest.fixture(autouse=True)
@@ -47,14 +47,14 @@ def fresh(d: Path, key: str = "dm-0001") -> bool:
 
 
 def gone(d: Path) -> list[dict]:
-    return [x for x in json_of("lint", "--json", cwd=d) if x["code"] == "loom:document-gone"]
+    return [x for x in json_of("lint", "--json", cwd=d)["diagnostics"] if x["code"] == "loom:document-gone"]
 
 
 def test_mv_moves_a_document_and_records_the_move(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = ok("mv", "drafting/outline.tex", "drafting/plan.tex", cwd=d)
-    assert r.stdout == "Moved drafting/outline.tex to drafting/plan.tex\n"
-    assert "Recorded: move (ledger line 1)" in r.stderr and "main =" not in r.stderr
+    assert r.stdout == "moved drafting/outline.tex to drafting/plan.tex; every record naming it follows\n"
+    assert r.stderr == ""
     assert not (d / "drafting" / "outline.tex").exists() and (d / "drafting" / "plan.tex").is_file()
     line = ledger(d)[-1]
     assert {k: line[k] for k in ("action", "from", "to", "moved")} == {
@@ -72,10 +72,10 @@ def test_moving_the_default_document_moves_main_and_its_acceptances_stay_fresh(t
     d = demo(tmp_path)
     ok("accept", "dm-0001", "--force", *AUTHOR, cwd=d)
     r = ok("mv", "drafting/main.tex", "drafting/paper.tex", cwd=d)
-    assert "main = drafting/paper.tex" in r.stderr
+    assert "config.toml: main = drafting/paper.tex" in r.stdout
     assert main_of(d) == "drafting/paper.tex"
     assert fresh(d)
-    lint = json_of("lint", "--json", cwd=d)
+    lint = json_of("lint", "--json", cwd=d)["diagnostics"]
     assert not [x for x in lint if x["code"] in ("loom:document-gone", "loom:main-not-found")], lint
 
 
@@ -88,8 +88,10 @@ def test_mv_records_a_rename_made_by_hand_and_the_document_is_no_longer_gone(tmp
     assert [g["fixes"][0]["command"] for g in gone(d)] == ["loom mv drafting/main.tex NEW"]
     assert not fresh(d)
     r = ok("mv", "drafting/main.tex", "drafting/paper.tex", cwd=d)
-    assert r.stdout == "drafting/main.tex was renamed to drafting/paper.tex outside loom; records naming it follow\n"
-    assert "main = drafting/paper.tex" in r.stderr and "Recorded: move (ledger line 1)" in r.stderr
+    assert r.stdout == (
+        "drafting/main.tex was renamed to drafting/paper.tex outside loom; every record naming it follows\n"
+        "config.toml: main = drafting/paper.tex\n"
+    )
     assert ledger(d)[-1]["moved"] is False
     assert gone(d) == []
     assert fresh(d)
@@ -116,7 +118,8 @@ def test_a_move_into_a_superseded_path_makes_it_live(tmp_path: Path) -> None:
 def test_mv_json_is_the_ledger_line(tmp_path: Path) -> None:
     d = demo(tmp_path)
     got = json_of("mv", "drafting/outline.tex", "drafting/plan.tex", "--json", cwd=d)
-    assert got == {**ledger(d)[-1], "line": 1}
+    assert {k: got[k] for k in [*ledger(d)[-1], "line"]} == {**ledger(d)[-1], "line": 1}
+    assert got["verdict"].startswith("moved drafting/outline.tex to drafting/plan.tex")
     assert got["action"] == "move" and got["moved"] is True
 
 

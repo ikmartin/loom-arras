@@ -43,7 +43,7 @@ class Side:
     preamble: str = ""
     macros: str | None = None  # the manifest's macro set, None for the default
     step: int | None = None  # a landmark's step
-    copy_of: str | None = None  # an agent copy's source
+    copy_of: str | None = None  # an agent document's source
 
 
 def _side(result: ScanResult, history: History, canon: dict[str, CanonDoc], item: str) -> Side:
@@ -145,11 +145,11 @@ def _cached(
     spans: list[list[int]],
 ) -> str:
     """The published path of one side's highlighted rendering, rendered only when no earlier request left it."""
-    from loom.render.build import _code_hash
+    from loom.render.keys import code_hash
     from loom.version import __version__
 
     h = hashlib.sha256()
-    for part in (__version__, _code_hash(), context, text, preamble, repr(spans)):
+    for part in (__version__, code_hash(), context, text, preamble, repr(spans)):
         h.update(part.encode("utf-8", errors="replace"))
         h.update(b"\0")
     rel = f"{CACHE}/{h.hexdigest()[:32]}.html"

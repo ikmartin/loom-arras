@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 VERBATIM_ENVS = {"verbatim", "verbatim*", "lstlisting", "comment", "filecontents", "filecontents*"}
 MATH_SINGLE = {"(": "\\(", ")": "\\)", "[": "\\[", "]": "\\]"}
@@ -32,7 +33,23 @@ class Tok:
     value: str
 
 
+#: Below this length a text is tokenized again rather than looked up: the converter tokenizes every paragraph, and a cache of those would churn.
+CACHED_FROM = 4096
+
+
 def tokenize(text: str) -> list[Tok]:
+    """The text's tokens, in order. A long text's are remembered (`_cached`), since a served quilt scans every file again on every change and most files have not changed."""
+    if len(text) < CACHED_FROM:
+        return _tokenize(text)
+    return list(_cached(text))
+
+
+@lru_cache(maxsize=256)
+def _cached(text: str) -> tuple[Tok, ...]:
+    return tuple(_tokenize(text))
+
+
+def _tokenize(text: str) -> list[Tok]:
     toks: list[Tok] = []
     pos = 0
     n = len(text)

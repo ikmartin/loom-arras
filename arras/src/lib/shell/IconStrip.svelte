@@ -20,7 +20,7 @@
 	// The problems view stands at the strip's foot as a warning glyph (plan 0.13.3 S9): it answers whether anything is wrong, so it carries the counts and takes their colour.
 	const problems = $derived(views.find((v) => v.id === 'problems'));
 	const tally = $derived([counts.errors ? `${counts.errors} error${counts.errors === 1 ? '' : 's'}` : '', counts.warnings ? `${counts.warnings} warning${counts.warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ') || 'no problems');
-	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes. This is the list's one home (plan 0.13.3 P2): the `/library` route is a ledger of what each work needs, not a second list. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs.
+	// The Library in the panel: a work is one thing a reader opens, so the panel lists them rather than their nodes. This is the list's one home (V2): the `/library` route is a ledger of what each work needs, not a second list. A row carries the work's title and a dot for whether a copy is filed — the one thing a click cannot be guessed to give — and no counts, which the ledger governs.
 	const works = $derived(
 		Object.values(store.manifest?.references ?? {}).sort((a, b) => (bibText(a.bib.title) || a.citekey).localeCompare(bibText(b.bib.title) || b.citekey))
 	);
@@ -30,7 +30,6 @@
 		? `Review status for ${store.manifest.reviewer.name}`
 		: Object.values(store.manifest?.keys ?? {}).some((key) => key.acceptance) ? 'Review perspective unspecified' : '');
 	let workFilter = $state('');
-	const WORKS_SHOWN = 30;
 	const library = $derived.by(() => {
 		const q = workFilter.trim().toLowerCase();
 		return q ? works.filter((r) => `${r.citekey} ${bibText(r.bib.title)} ${bibText(r.bib.author ?? '')}`.toLowerCase().includes(q)) : works;
@@ -195,7 +194,7 @@
 							{#each withAgent as m (m.path)}{@render doc(m.path, masterUrl(m.path))}{/each}
 						</ul>
 					{/if}
-					{#if closed.length}<details><summary>Closed AI drafts</summary><ul class="plain">{#each closed as doc}<li><a href={masterUrl(doc.path)}>{filename(doc.path)}</a></li>{/each}</ul></details>{/if}
+					{#if closed.length}<details><summary>Closed agent documents</summary><ul class="plain">{#each closed as doc}<li><a href={masterUrl(doc.path)}>{filename(doc.path)}</a></li>{/each}</ul></details>{/if}
 				{#if landmarks.length}
 						<p class="group">Landmarks</p>
 						<ul class="plain docs" data-testid="docs-canon">
@@ -232,7 +231,7 @@
 			{#if libraryOpen}
 				{#if works.length > 6}<input class="filter" type="search" placeholder="narrow by title, author or key" aria-label="Narrow the works" bind:value={workFilter} data-testid="library-filter" />{/if}
 				<ul class="plain library" data-testid="library-list">
-					{#each library.slice(0, WORKS_SHOWN) as r (r.citekey)}
+					{#each library as r (r.citekey)}
 						<li>
 							<a href={workUrl(r.citekey)}
 								><span class="dot" class:filed={!!r.artifacts?.pdf} role="img" aria-label={r.artifacts?.pdf ? 'filed here' : 'not filed here'}></span>{bibText(r.bib.title) || r.citekey}</a
@@ -242,7 +241,6 @@
 					{:else}
 						<li class="aside">nothing matches</li>
 					{/each}
-					{#if library.length > WORKS_SHOWN}<li class="aside">{library.length - WORKS_SHOWN} more; narrow it</li>{/if}
 					<li><a href={route('/library')} data-testid="ledger-link">ledger</a></li>
 				</ul>
 			{/if}

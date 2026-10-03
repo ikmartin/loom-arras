@@ -24,7 +24,7 @@ def lines(q: Path, sid: str) -> list[str]:
 
 def test_each_comment_logs_the_annotation_it_touched(q: Path) -> None:
     sid = new_session(q)
-    who = ("--session", sid, "--author", "A. Author")
+    who = ("--session", sid, "--as", "A. Author")
     made = ok("annotate", "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question", *who, cwd=q)
     first = made.output.split()[0]
     reply = ok("annotate", "--reply", first, "The fixed ones.", *who, cwd=q).output.split()[0]
@@ -60,7 +60,7 @@ def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> 
 
     sid = new_session(q)
     ann = ok(
-        "annotate", "dm-0003", "Which orbit?", "--kind", "question", "--session", sid, "--author", "A. Author", cwd=q
+        "annotate", "dm-0003", "Which orbit?", "--kind", "question", "--session", sid, "--as", "A. Author", cwd=q
     ).output.split()[0]
     with (files_dir(q, sessions(q)[sid]) / "run.log").open("a") as fh:
         fh.write("2026-09-01T00:00:00Z  loom source dm-0003\n")  # a line from before, or from any other command

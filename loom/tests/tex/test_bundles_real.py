@@ -33,4 +33,4 @@ def test_bundle_failed_diagnostic(tmp_path: Path) -> None:
     (d / "nodes" / "dm-0003.tex").write_text(
         (d / "nodes" / "dm-0003.tex").read_text().replace("\\end{theorem}", "$unbalanced\n\\end{theorem}")
     )
-    refused("compile", "dm-0003", cwd=d, code=1, match="FAILED bundle dm-0003")
+    refused("compile", "dm-0003", cwd=d, code=1, match="dm-0003's closure did not compile")

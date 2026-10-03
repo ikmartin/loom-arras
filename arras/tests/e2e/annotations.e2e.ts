@@ -294,7 +294,7 @@ test.describe('marks and boxes', () => {
 		await page.getByTestId('closed-yes').click();
 		await page.keyboard.press('Escape');
 		// a quiet line in the context says how many were discarded, and lists them there as rows: a dot in the kind's hue and a link to the annotation, not its box (annotation study A2)
-		await expect(context.getByTestId('show-discarded')).toHaveText('1 discarded — show');
+		await expect(context.getByTestId('show-discarded')).toHaveText('1 withdrawn — show');
 		await context.getByTestId('show-discarded').click();
 		const rows = context.getByTestId('discarded-list').locator('li');
 		await expect(rows).toHaveCount(1);
@@ -671,10 +671,10 @@ test.describe('the box', () => {
 		await row.getByTestId('verb-edit').click();
 		await expect(panel.getByTestId('verb-text')).toHaveValue(/parity count/);
 		await expect(panel.getByTestId('verb-severity')).toHaveValue('major');
-		// a discard takes its reason in the same place
+		// a withdrawal takes its reason in the same place
 		await row.getByTestId('verb-discard').click();
 		await expect(panel.getByTestId('verb-text')).toHaveAttribute('placeholder', /why/);
-		await expect(panel.getByTestId('verb-send')).toHaveText('discard');
+		await expect(panel.getByTestId('verb-send')).toHaveText('withdraw');
 		await expect(page.getByTestId('verb-more')).toHaveCount(0);
 	});
 
@@ -1064,6 +1064,6 @@ test.describe('the settled control', () => {
 		await label.click();
 		const box = page.locator('article.box[data-annotation-id="a-2026-09-16-0011"]');
 		await expect(box).toBeVisible();
-		await expect(box.getByTestId('outcome')).toHaveText('· discarded');
+		await expect(box.getByTestId('outcome')).toHaveText('· withdrawn');
 	});
 });

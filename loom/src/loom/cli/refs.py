@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import sys
@@ -17,22 +16,34 @@ from typing import Any, TypeVar, cast
 import click
 
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
-from loom.cli._quilt import open_quilt, open_scan, quilt_option
+from loom.cli._quilt import open_bib, open_quilt, open_scan, quilt_option
+from loom.cli.report import Group, Item, Progress, Report, counted, table
 from loom.clock import stamp
 from loom.refs.identity import declared
 from loom.refs.pages import storage_root
 from loom.refs.resolve import Resolver, ResolveRefused, query_for, save
+from loom.scan.bib import BibEntry
 from loom.scan.scan import ScanResult
 
 
 def _home(result: ScanResult, citekey: str) -> Path:
     """The work's directory in loom's store, where `work_dir` says every other reader looks, or a refusal naming what is missing."""
+    return _home_in(result.quilt.root, result.bib, citekey)
+
+
+def _home_in(root: Path, bib: dict[str, BibEntry], citekey: str) -> Path:
+    """`_home` from a bibliography read without a scan (`open_bib`)."""
     from loom.refs.fetch import work_dir
 
-    entry = result.bib.get(citekey)
+    entry = bib.get(citekey)
     if entry is None:
         raise NotFoundError("work", f"{citekey} is not in the bibliography, so it has no identity to file under")
-    return work_dir(result.quilt.root, entry)
+    return work_dir(root, entry)
+
+
+def _present(*groups: Group) -> list[Group]:
+    """The groups that hold something; an empty one would print a heading over nothing."""
+    return [g for g in groups if g.items]
 
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -74,7 +85,7 @@ def logged(name: str) -> Callable[[F], F]:
 
 @click.group(name="refs")
 def refs() -> None:
-    """Fetched works: where their artifacts are, how to add one by hand, and identifiers for works that state none."""
+    """Manage cited works: where their artifacts are, how to add one by hand, and identifiers for works that state none."""
 
 
 @refs.command(name="path")
@@ -86,8 +97,8 @@ def refs() -> None:
 @logged("path")
 def path_command(ctx: click.Context, citekey: str, want: str | None, quilt_path: str | None) -> None:
     """Print where CITEKEY's artifacts live, under digests/storage. Nothing there is meant to be navigated by hand; the author's own pile goes in refs/ (book 8.16)."""
-    result = open_scan(quilt_path)
-    home = _home(result, citekey)
+    quilt, bib = open_bib(quilt_path)
+    home = _home_in(quilt.root, bib, citekey)
     target = home if want is None else (home / "paper.pdf" if want == "pdf" else home / "src")
     click.echo(target)
     if not target.exists():
@@ -100,9 +111,9 @@ def path_command(ctx: click.Context, citekey: str, want: str | None, quilt_path:
 @click.argument("citekey")
 @click.argument("file", type=click.Path(exists=True, path_type=Path))
 @click.option("--force", is_flag=True, help="Replace an artifact that is already there.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-@click.pass_context
-def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt_path: str | None) -> None:
+def add_command(citekey: str, file: Path, force: bool, as_json: bool, quilt_path: str | None) -> None:
     """File FILE as CITEKEY's PDF, or its LaTeX source, in loom's store.
 
     A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing. A `.tex` file, or a directory of them, is filed as the work's source, which is what `loom digest extract` reads: fetching is the usual way source arrives, and this is the way for a paper that is not on a preprint server.
@@ -121,18 +132,51 @@ def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt
             shutil.copytree(file, dest, dirs_exist_ok=True)
         else:
             shutil.copy(file, dest / file.name)
-        click.echo(f"Wrote {dest.relative_to(root)}/")
-        note(f"loom digest extract {citekey} now reads it; the store is not in version control")
+        Report(
+            f"filed {file.name} as {citekey}'s LaTeX source",
+            lines=[f"next: loom digest extract {citekey} reads it"],
+            notes=["the store is not in version control"],
+            data={"citekey": citekey, "file": file.name, "kind": "source", "path": f"{dest.relative_to(root)}/"},
+        ).emit(as_json)
         return
     if file.suffix.lower() != ".pdf":
         raise EnvError(f"{file.name} is neither a PDF nor LaTeX source; loom files those two things")
+    from loom.refs.fetch import carries_title
+    from loom.refs.pages import write_map
+
     dest = home / "paper.pdf"
     if dest.exists() and not force:
-        raise EnvError(f"{dest.relative_to(root)} exists; pass --force to replace it")
+        raise EnvError(f"{citekey} already has a PDF on file; pass --force to replace it")
+    # the same check a fetched PDF passes: a PDF filed under the wrong work is worse than none, since every anchor into it reads the wrong paper
+    entry = result.bib[citekey]
+    carries, best, line = carries_title(file, entry)
+    if not carries and not force:
+        title = str(entry.fields.get("title") or "")
+        raise ContentError(
+            f"{file.name}'s first page does not carry {citekey}'s title, {title!r}; the closest line is {line!r} ({best:.2f}). "
+            f"File it under the work it is, or pass --force if it is this one"
+        )
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(file, dest)
-    click.echo(f"Wrote {dest.relative_to(root)}")
-    note("the PDF is not in version control: a collaborator cloning the quilt fetches or adds their own copy")
+    unmapped = ""
+    try:
+        write_map(home, dest)  # the page text every anchor and search reads, so nothing else needs running
+    except Exception as exc:  # noqa: BLE001 -- no poppler, or no text layer: the PDF stands either way
+        unmapped = str(exc)
+    Report(
+        f"filed {file.name} as {citekey}'s PDF, "
+        + (f"without page text ({unmapped})" if unmapped else "with its page text"),
+        ok=not unmapped,
+        notes=["the PDF is not in version control: a collaborator cloning the quilt fetches or adds their own copy"],
+        data={
+            "citekey": citekey,
+            "file": file.name,
+            "kind": "pdf",
+            "path": str(dest.relative_to(root)),
+            "page_text": not unmapped,
+            "error": unmapped,
+        },
+    ).emit(as_json)
 
 
 @refs.command(name="resolve")
@@ -146,9 +190,7 @@ def add_command(ctx: click.Context, citekey: str, file: Path, force: bool, quilt
     help="Allow looking up for this run, without setting [refs] resolve in config.toml.",
 )
 @quilt_option
-@click.pass_context
 def resolve_command(
-    ctx: click.Context,
     citekeys: tuple[str, ...],
     refresh: bool,
     as_json: bool,
@@ -176,47 +218,59 @@ def resolve_command(
         cited = {c.citekey for c in result.edges.cites}
         wanted = sorted(ck for ck in cited if ck in result.bib and not declared(result.bib[ck]))
     resolver = Resolver(cache=storage_root(root) / "cache" / "resolve", contact=cfg.contact, refresh=refresh)
-    report: dict[str, object] = {}
-    failures = 0
-    for ck in wanted:
-        entry = result.bib[ck]
-        if declared(entry) and not citekeys:
-            continue
-        try:
-            found = resolver.candidates(query_for(entry))
-        except ResolveRefused as exc:
-            failures += 1
-            report[ck] = {"error": str(exc)}
-            if not as_json:
-                click.echo(f"{ck}: {exc}")
-            continue
-        path = save(root, entry, found)
-        report[ck] = {
-            "candidates": [asdict(c) | {"strength": c.strength} for c in found],
-            "record": str(path.relative_to(root)),
-        }
-        if as_json:
-            continue
-        if not found:
-            click.echo(f"{ck}: no match")
-            continue
-        for i, c in enumerate(found[:3]):
-            lead = f"{ck}:" if i == 0 else " " * (len(ck) + 1)
-            names = ", ".join(a.split(",")[0] for a in c.authors[:3]) + (" et al." if len(c.authors) > 3 else "")
-            also = f" (also {', '.join(c.also)})" if c.also else ""
-            click.echo(
-                f"{lead} {c.id}{also}  {c.strength} {c.confidence:.2f}  {c.source}  {c.title} — {names} {c.year}".rstrip()
-            )
-    if as_json:
-        click.echo(json.dumps({"lookups": resolver.requests, "works": report}, indent=2))
-    else:
-        if not wanted:
-            click.echo("every cited work states an identifier")
-        note(
-            "nothing was changed: add the field to your own bibliography entry to make a candidate the work's identity"
-        )
-    if failures:
-        ctx.exit(EXIT_CONTENT)
+    works: dict[str, object] = {}
+    failed: list[Item] = []
+    unmatched: list[Item] = []
+    groups: list[Group] = []
+    with Progress("looking up", total=len(wanted)) as progress:
+        for ck in wanted:
+            progress.item(ck)
+            entry = result.bib[ck]
+            try:
+                found = resolver.candidates(query_for(entry))
+            except ResolveRefused as exc:
+                failed.append(Item(str(exc), key=ck))
+                works[ck] = {"error": str(exc)}
+                continue
+            path = save(root, entry, found)
+            works[ck] = {
+                "candidates": [asdict(c) | {"strength": c.strength} for c in found],
+                "record": str(path.relative_to(root)),
+            }
+            if not found:
+                unmatched.append(Item("", key=ck))
+                continue
+            items = []
+            for c in found[:3]:
+                names = ", ".join(a.split(",")[0] for a in c.authors[:3]) + (" et al." if len(c.authors) > 3 else "")
+                also = f" (also {', '.join(c.also)})" if c.also else ""
+                items.append(
+                    Item(
+                        f"{c.strength} {c.confidence:.2f}  {c.source}  {c.title} — {names} {c.year}".rstrip(),
+                        key=f"{c.id}{also}",
+                    )
+                )
+            groups.append(Group(f"candidates for {ck}", items, count=len(found), limit=None))
+    matched = len(groups)
+    verdict = (
+        f"looked up {counted(len(wanted), 'work')}: {matched} with candidates, {len(unmatched)} with no match"
+        + (f", {len(failed)} failed" if failed else "")
+        + "; nothing was changed"
+        if wanted
+        else "every cited work states an identifier; nothing to look up"
+    )
+    Report(
+        verdict,
+        ok=not failed,
+        exit=EXIT_CONTENT if failed else 0,
+        groups=_present(Group("lookups that failed", failed, problem=True), *groups, Group("no match", unmatched)),
+        notes=(
+            ["a candidate becomes the work's identity when you add its field to your own bibliography entry"]
+            if matched
+            else []
+        ),
+        data={"lookups": resolver.requests, "works": works},
+    ).emit(as_json)
 
 
 @refs.command(name="cite")
@@ -228,6 +282,7 @@ def resolve_command(
 @click.option("--reason", default=None, help="Why, optionally; it rides on the resolve event.")
 @click.option("--author", default=None, help="Who accepted, when the user config and git do not say.")
 @click.option("--list", "as_list", is_flag=True, help="Print what has been accepted.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
 def cite_command(
     run_dir: str | None,
@@ -236,6 +291,7 @@ def cite_command(
     reason: str | None,
     author: str | None,
     as_list: bool,
+    as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Accept or reject an agent's citation suggestion.
@@ -253,15 +309,24 @@ def cite_command(
     root = result.quilt.root
     if as_list:
         notes = read_notes(root)
-        if not notes:
-            click.echo("no reference notes yet")
-            return
-        for n in notes:
-            keys = ", ".join(n.get("for", [])) or "-"
-            click.echo(f"{n.get('accepted', {}).get('when', '')[:10]}  {n.get('work', '')}  ({keys})")
+        items = [
+            Item(
+                f"{n.get('accepted', {}).get('when', '')[:10]}  {n.get('work', '')}",
+                key=", ".join(n.get("for", [])) or None,
+            )
+            for n in notes
+        ]
+        Report(
+            f"{counted(len(notes), 'accepted citation')}" if notes else "no reference notes yet",
+            groups=_present(Group("reference notes", sorted(items, key=lambda i: i.text), limit=None)),
+            data={"reference_notes": notes},
+        ).emit(as_json)
         return
     if bool(accept_id) == bool(reject_id):
         raise EnvError("give --accept ID or --reject ID")
+    from loom.cli._common import refuse_under_agent
+
+    refuse_under_agent("loom refs cite", "Accepting or rejecting a citation suggestion is the author's.", author)
     ann_id = accept_id or reject_id
     assert ann_id is not None
     found = find_annotation(Records(root).records, ann_id)
@@ -298,23 +363,27 @@ def cite_command(
             "body": reason or ("accepted" if accept_id else "rejected"),
         },
     )
-    click.echo(f"{'accepted' if accept_id else 'rejected'} {ann_id}" + (f": {reason}" if reason else ""))
+    Report(
+        f"{'accepted' if accept_id else 'rejected'} {ann_id}" + (f": {reason}" if reason else ""),
+        lines=["recorded in reference-notes.jsonl; your bibliography is unchanged"] if accept_id else [],
+        data={"annotation": ann_id, "accepted": bool(accept_id), "reason": reason or ""},
+    ).emit(as_json)
 
 
 @refs.command(name="scan")
 @click.option("--dry-run", is_flag=True, help="Report what would be added and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-def scan_command(dry_run: bool, quilt_path: str | None) -> None:
+def scan_command(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Add every bibliography entry the landmarks carry to digests/bibliography.bib.
 
-    Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, `canonize` and `refs build` run this themselves.
+    Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, a stamp given a document, and `refs build` run this themselves.
 
-    It also files what the author dropped in `refs/`, and **adopts** any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. Adoption happens once per document; a later scan leaves it alone.
+    It also files what the author dropped in `refs/`, and offers an entry for any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. The offer is made once per document; a later scan leaves it alone.
     """
     from loom.refs.scan import scan_bibliography
 
-    for line in scan_bibliography(open_quilt(quilt_path), write=not dry_run).lines():
-        click.echo(line + (" (dry run)" if dry_run and line.startswith("digests/") else ""))
+    scan_bibliography(open_quilt(quilt_path), write=not dry_run).report().emit(as_json)
 
 
 @refs.command(name="build")
@@ -356,59 +425,51 @@ def build_command(
 ) -> None:
     """Make everything about this quilt's cited works that a machine can make: resolve, fetch, extract, report.
 
-    The one command that starts a digest. It runs `loom refs scan` first, and each step is a no-op where its work is done, so running it again after a new entry reaches the bibliography resolves, fetches and extracts that entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two lines say what is left for a person and what is left for an agent.
+    The one command that starts a digest. It runs `loom refs scan` first, and each step is a no-op where its work is done, so running it again after a new entry reaches the bibliography resolves, fetches and extracts that entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two groups say what is left for a person and what is left for an agent; progress shows on stderr per step and per work.
     """
     from loom.refs.build import build_refs
     from loom.refs.scan import scan_bibliography
+    from loom.scan.bib import BIBLIOGRAPHY, parse_bib
 
-    report = scan_bibliography(open_quilt(quilt_path))
-    if not as_json:
-        for line in report.lines():
-            note(line)
-        note("")
-    result = open_scan(quilt_path)
-    # the flags are this run's consent, and are not written anywhere: the config is the standing answer (DR-193)
-    result.quilt.config.fetch = result.quilt.config.fetch or allow_fetch
-    result.quilt.config.resolve = result.quilt.config.resolve or allow_resolve
+    # every argument is checked before anything is written: a refused build used to append to the bibliography first
     steps = tuple(s.strip() for s in only_steps.split(",")) if only_steps else ("resolve", "fetch", "extract", "map")
     unknown = [s for s in steps if s not in ("resolve", "fetch", "extract", "map")]
     if unknown:
         raise EnvError(f"unknown step: {', '.join(unknown)} (resolve, fetch, extract, map)")
-    missing = [ck for ck in citekeys if ck not in result.bib]
-    if missing:
-        raise EnvError(f"not in the bibliography: {', '.join(missing)}")
-    built = build_refs(result, only=citekeys, refresh=refresh, candidates=not no_candidates, force=force, steps=steps)
-    if as_json:
-        click.echo(
-            json.dumps(
-                {
-                    "looked_up": built.looked_up,
-                    "works": [
-                        {
-                            "citekey": w.citekey,
-                            "cited_by": w.cited_by,
-                            "declared": w.declared,
-                            "candidate": w.candidate,
-                            "source": w.source,
-                            "pdf": w.pdf,
-                            "digest": w.digest,
-                            "pages": w.pages,
-                            "sections": w.sections,
-                            "discarded": w.fetched.discarded if w.fetched else "",
-                            "refused": w.fetched.refused if w.fetched else "",
-                            "extract_error": w.extract_error,
-                        }
-                        for w in built.works
-                    ],
-                },
-                indent=2,
-            )
+    quilt = open_quilt(quilt_path)
+    if citekeys:
+        bib_path = quilt.root / BIBLIOGRAPHY
+        known = set(parse_bib(bib_path.read_text(encoding="utf-8", errors="replace"))) if bib_path.is_file() else set()
+        known |= {c.key for c in scan_bibliography(quilt, write=False).added}  # what this run's scan would add
+        missing = [ck for ck in citekeys if ck not in known]
+        if missing:
+            raise EnvError(f"not in the bibliography: {', '.join(missing)}")
+    scanned = scan_bibliography(quilt).report()
+    result = open_scan(quilt_path)
+    # the flags are this run's consent, and are not written anywhere: the config is the standing answer (DR-193)
+    result.quilt.config.fetch = result.quilt.config.fetch or allow_fetch
+    result.quilt.config.resolve = result.quilt.config.resolve or allow_resolve
+    with Progress(steps[0]) as progress:
+
+        def tell(stage: str, item: str, n: int, total: int) -> None:
+            if n == 1:
+                progress.next_stage(stage, total)
+            progress.item(item)
+
+        built = build_refs(
+            result,
+            only=citekeys,
+            refresh=refresh,
+            candidates=not no_candidates,
+            force=force,
+            steps=steps,
+            progress=tell,
         )
-        return
-    for line in built.lines():
-        click.echo(line)
-    for err in built.lookup_errors[:5]:
-        note(err)
+    report = built.report()
+    # the scan that opened the run, said first on stderr, as its own report says it
+    report.notes = [*scanned.render().split("\n"), "", *report.notes]
+    report.data["scan"] = scanned.to_json()
+    report.emit(as_json)
 
 
 @refs.command(name="fetch")
@@ -421,14 +482,14 @@ def build_command(
     is_flag=True,
     help="Allow fetching for this run, without setting [refs] fetch in config.toml.",
 )
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-@click.pass_context
 def fetch_command(
-    ctx: click.Context,
     citekeys: tuple[str, ...],
     no_pdf: bool,
     no_candidates: bool,
     allow_fetch: bool,
+    as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Fetch sources and PDFs for cited works into loom's store, checking on arrival that each is the work its entry names.
@@ -454,65 +515,100 @@ def fetch_command(
         else [w for w in survey(result) if not (w.source or w.pdf) and (w.declared or w.candidate)]
     )
     if not wanted:
-        click.echo("nothing to fetch: every cited work has an artifact, or names no identifier anyone will serve")
+        Report(
+            "nothing to fetch: every cited work has an artifact, or names no identifier anyone will serve",
+            data={"works": []},
+        ).emit(as_json)
         return
+    notes = []
     if no_pdf:
         # the source alone extracts, and its digest is checkable against LaTeX; what it lacks is a page (plan 0.13 §4)
-        note("warning: --no-pdf leaves these works with no page to read, and their page locators unverified")
-    bad = 0
-    for w in wanted:
-        got = fetch_work(
-            result.quilt, w.citekey, result.bib[w.citekey], pdf=not no_pdf, allow_candidate=not no_candidates
-        )
-        if got.discarded:
-            bad += 1
-            click.echo(f"{w.citekey}: discarded — {got.discarded}")
-        elif got.refused:
-            bad += 1
-            click.echo(f"{w.citekey}: {got.refused}")
-        else:
-            what = ", ".join(x for x in ["source" if got.source else "", "pdf" if got.pdf else ""] if x)
-            click.echo(f"{w.citekey}: {what} ({got.via} {got.ident})")
-    if bad:
-        ctx.exit(EXIT_CONTENT)
+        notes.append("warning: --no-pdf leaves these works with no page to read, and their page locators unverified")
+    got_items: list[Item] = []
+    discarded: list[Item] = []
+    refused: list[Item] = []
+    rows: list[dict[str, Any]] = []
+    with Progress("fetching", total=len(wanted)) as progress:
+        for w in wanted:
+            progress.item(w.citekey)
+            got = fetch_work(
+                result.quilt, w.citekey, result.bib[w.citekey], pdf=not no_pdf, allow_candidate=not no_candidates
+            )
+            rows.append(
+                {
+                    "citekey": w.citekey,
+                    "source": got.source,
+                    "pdf": got.pdf,
+                    "via": got.via,
+                    "identifier": got.ident,
+                    "discarded": got.discarded,
+                    "refused": got.refused,
+                }
+            )
+            if got.discarded:
+                discarded.append(Item(got.discarded, key=w.citekey))
+            elif got.refused:
+                refused.append(Item(got.refused, key=w.citekey))
+            else:
+                what = " and ".join(x for x in ["source" if got.source else "", "PDF" if got.pdf else ""] if x)
+                got_items.append(Item(f"{what or 'nothing new'}, on {got.via} {got.ident}", key=w.citekey))
+    bad = len(discarded) + len(refused)
+    Report(
+        f"fetched {len(got_items)} of {counted(len(wanted), 'work')}"
+        + (f"; {len(discarded)} discarded on the title check" if discarded else "")
+        + (f"; {len(refused)} refused" if refused else ""),
+        ok=not bad,
+        exit=EXIT_CONTENT if bad else 0,
+        groups=_present(
+            Group(
+                "discarded: the title did not match the entry",
+                discarded,
+                problem=True,
+                next="loom refs add CITEKEY FILE files the right document",
+            ),
+            Group("refused", refused, problem=True),
+            Group("fetched", got_items),
+        ),
+        notes=notes,
+        data={"works": rows},
+    ).emit(as_json)
 
 
 @refs.command(name="match")
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
 def match_command(as_json: bool, quilt_path: str | None) -> None:
-    """The cited works a person has to look at: no artifact and no identifier, or a source discarded on arrival.
+    """List the cited works a person has to look at: no artifact and no identifier, or a source discarded on arrival.
 
-    Reads disk only; it never fetches and never asks a service. This is the list `loom refs build` counts on its `needs you` line.
+    Reads disk only; it never fetches and never asks a service. `loom refs build` shows the same list under `needs you`.
     """
     from loom.refs.build import survey
 
     works = survey(result := open_scan(quilt_path))
     rows = [w for w in works if w.needs_a_person]
-    if as_json:
-        click.echo(
-            json.dumps(
-                [{"citekey": w.citekey, "cited_by": w.cited_by, "why": w.needs_a_person} for w in rows], indent=2
-            )
-        )
-        return
-    if not rows:
-        click.echo("nothing needs you: every cited work has an artifact or an identifier")
-        return
-    for w in rows:
-        title = (result.bib[w.citekey].fields.get("title") or "")[:48]
-        click.echo(f"{w.citekey:<44}{w.cited_by:>3} cited  {w.needs_a_person}")
-        if title:
-            click.echo(f"{'':<44}    {title}")
-    note("add a PDF by hand: loom refs add CITEKEY FILE")
+    by_why: dict[str, list[Item]] = {}
+    for w in sorted(rows, key=lambda w: w.citekey.lower()):
+        title = str(result.bib[w.citekey].fields.get("title") or "")
+        by_why.setdefault(w.needs_a_person, []).append(Item(f"cited {w.cited_by}  {title}".rstrip(), key=w.citekey))
+    Report(
+        f"{counted(len(rows), 'work')} need{'s' if len(rows) == 1 else ''} you"
+        if rows
+        else "nothing needs you: every cited work has an artifact or an identifier",
+        ok=not rows,
+        groups=[
+            Group(why, items, problem=True, limit=None, next="loom refs add CITEKEY FILE adds a PDF by hand")
+            for why, items in sorted(by_why.items())
+        ],
+        data={"works": [{"citekey": w.citekey, "cited_by": w.cited_by, "why": w.needs_a_person} for w in rows]},
+    ).emit(as_json)
 
 
 @refs.command(name="map")
 @click.argument("citekeys", nargs=-1)
 @click.option("--force", is_flag=True, help="Re-map even where the recorded map matches the PDF on disk.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-@click.pass_context
-def map_command(ctx: click.Context, citekeys: tuple[str, ...], force: bool, quilt_path: str | None) -> None:
+def map_command(citekeys: tuple[str, ...], force: bool, as_json: bool, quilt_path: str | None) -> None:
     """Write page text and the section map for cited works that have a PDF.
 
     Deterministic, eager and cheap: no model, nothing to review, and re-running costs nothing where the artifact has not changed. The page text is committed, which is what lets a coauthor who holds no PDF re-check an anchor; the token geometry an anchor's quad needs is written per page by `loom refs locate`, on demand, because it is thirty times the size.
@@ -527,34 +623,52 @@ def map_command(ctx: click.Context, citekeys: tuple[str, ...], force: bool, quil
     if missing:
         raise EnvError(f"not in the bibliography: {', '.join(missing)}")
     works = [w for w in survey(result) if not citekeys or w.citekey in set(citekeys)]
-    done = skipped = failed = 0
+    skipped = 0
     pages = sections = 0
-    for w in works:
-        home = work_dir(root, result.bib[w.citekey])
-        pdf = home / "paper.pdf"
-        if not pdf.is_file():
-            continue
-        if is_current(home, pdf) and not force:
-            skipped += 1
-            continue
-        try:
-            m = write_map(home, pdf)
-        except MapRefused as exc:
-            failed += 1
-            click.echo(f"{w.citekey}: {exc}")
-            continue
-        done += 1
-        pages += m.pages
-        sections += len(m.sections)
-        thin = m.pages and m.chars / m.pages < 200
-        click.echo(
-            f"{w.citekey}: {m.pages} pages, {len(m.sections)} sections"
-            + ("  — almost no text: this PDF is probably a scan and cannot be searched or quoted" if thin else "")
-            + ("  — too few sections for its length; the section map is a guess (a book?)" if m.suspect else "")
-        )
-    click.echo(f"{done} mapped ({pages} pages, {sections} sections), {skipped} already current, {failed} failed")
-    if failed:
-        ctx.exit(EXIT_CONTENT)
+    mapped: list[Item] = []
+    failed: list[Item] = []
+    warned: list[Item] = []
+    rows: list[dict[str, Any]] = []
+    with Progress("mapping", total=len(works)) as progress:
+        for w in works:
+            progress.item(w.citekey)
+            home = work_dir(root, result.bib[w.citekey])
+            pdf = home / "paper.pdf"
+            if not pdf.is_file():
+                continue
+            if is_current(home, pdf) and not force:
+                skipped += 1
+                continue
+            try:
+                m = write_map(home, pdf)
+            except MapRefused as exc:
+                failed.append(Item(str(exc), key=w.citekey))
+                rows.append({"citekey": w.citekey, "error": str(exc)})
+                continue
+            pages += m.pages
+            sections += len(m.sections)
+            mapped.append(Item(f"{counted(m.pages, 'page')}, {counted(len(m.sections), 'section')}", key=w.citekey))
+            rows.append({"citekey": w.citekey, "pages": m.pages, "sections": len(m.sections), "suspect": m.suspect})
+            if m.pages and m.chars / m.pages < 200:
+                warned.append(
+                    Item("almost no text: probably a scan, which cannot be searched or quoted", key=w.citekey)
+                )
+            if m.suspect:
+                warned.append(
+                    Item("too few sections for its length; the section map is a guess (a book?)", key=w.citekey)
+                )
+    Report(
+        f"mapped {counted(len(mapped), 'work')} ({counted(pages, 'page')}, {counted(sections, 'section')}); "
+        f"{skipped} already current; {len(failed)} failed",
+        ok=not (failed or warned),
+        exit=EXIT_CONTENT if failed else 0,
+        groups=_present(
+            Group("failed", failed, problem=True, limit=None),
+            Group("to look at", sorted(warned, key=lambda i: (i.key or "").lower()), limit=None),
+            Group("mapped", sorted(mapped, key=lambda i: (i.key or "").lower())),
+        ),
+        data={"mapped": len(mapped), "current": skipped, "failed": len(failed), "works": rows},
+    ).emit(as_json)
 
 
 def resolve_works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
@@ -586,13 +700,25 @@ def resolve_works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
     return out
 
 
+def one_work(result: ScanResult, needle: str) -> str:
+    """The one citekey `needle` names, for a command that reads a single work; several matches are refused by name.
+
+    `refs overview romagny` once printed a different paper's overview on each run, picking one of the matches at random and not saying which.
+    """
+    hits = sorted(resolve_works(result, (needle,)))
+    if len(hits) > 1:
+        shown = ", ".join(hits[:6]) + (f" and {len(hits) - 6} more" if len(hits) > 6 else "")
+        raise EnvError(f"{needle!r} names {len(hits)} works: {shown}; give one citekey")
+    return hits[0]
+
+
 @refs.command(name="coverage")
 @click.argument("citekeys", nargs=-1)
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
 @logged("coverage")
 def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None:
-    """What the quilt knows about each cited work: source, PDF, page text, digest, and proposals waiting on the author.
+    """Report what the quilt knows about each cited work: source, PDF, page text, digest, and proposals waiting on the author.
 
     A search over a partly digested corpus is a search over silence, so this is the line every other answer should be read against. Each argument is a citekey or a fragment of an author's name or a title -- `romagny`, `intrinsic normal cone` -- and a fragment that matches several works lists them all, because two papers by the same authors in the same year is exactly when guessing goes wrong.
     """
@@ -610,49 +736,48 @@ def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str |
         w.pages, w.sections = (m.pages, len(m.sections)) if m else (0, 0)
     # a digest read off another version than the one cited: its numbers are that version's, which is what the agent reading this needs before it trusts one
     other = {w.citekey: other_version_of(result.assembly, w.citekey) for w in works if w.digest}
-    if as_json:
-        click.echo(
-            json.dumps(
-                [
-                    {
-                        "citekey": w.citekey,
-                        "cited_by": w.cited_by,
-                        "source": w.source,
-                        "pdf": w.pdf,
-                        "pages": w.pages,
-                        "sections": w.sections,
-                        "digest": w.digest,
-                        "digest_version": (
-                            {"extracted_from": v.extracted_from, "cited_as": v.cited_as}
-                            if (v := other.get(w.citekey)) is not None
-                            else None
-                        ),
-                    }
-                    for w in works
-                ],
-                indent=2,
-            )
-        )
-        return
     from loom.refs.proposals import load_results
 
     pending = {
         w.citekey: sum(1 for r in load_results(root, w.citekey).values() if r.state == "proposed") for w in works
     }
-    click.echo(f"{'work':<44}{'cited':>6}{'src':>5}{'pdf':>5}{'pages':>7}{'secs':>6}{'digest':>8}{'waiting':>9}")
+    rows = [("cited", "src", "pdf", "pages", "secs", "digest", "waiting", "work")]
     for w in works:
-        click.echo(
-            f"{w.citekey[:43]:<44}{w.cited_by:>6}{'yes' if w.source else '-':>5}"
-            f"{'yes' if w.pdf else '-':>5}{w.pages or '-':>7}{w.sections or '-':>6}{('preprint' if other.get(w.citekey) else 'yes') if w.digest else '-':>8}"
-            f"{pending[w.citekey] or '-':>9}"
+        digest = ("preprint" if other.get(w.citekey) else "yes") if w.digest else "-"
+        rows.append(
+            (
+                str(w.cited_by),
+                "yes" if w.source else "-",
+                "yes" if w.pdf else "-",
+                str(w.pages or "-"),
+                str(w.sections or "-"),
+                digest,
+                str(pending[w.citekey] or "-"),
+                w.citekey,
+            )
         )
+    lines = table(rows)
     digested = sum(1 for w in works if w.digest)
     mapped = sum(1 for w in works if w.pages)
-    click.echo(f"\n{digested} of {len(works)} works digested; {mapped} have page text")
-    for ck, v in sorted((ck, v) for ck, v in other.items() if v is not None):
-        click.echo(
-            f"{ck}: the digest {v.why}; its numbers and pages are unverified, so check one with loom refs page {ck}"
-        )
+    waiting = sum(pending.values())
+    groups = [
+        Group(
+            "digests read off another version than the one cited: their numbers and pages are unverified",
+            [
+                Item(v.why, key=ck, fixes=[f"loom refs page {ck} PAGE"])
+                for ck, v in sorted((ck, v) for ck, v in other.items() if v is not None)
+            ],
+            problem=True,
+            limit=None,
+        ),
+        Group(
+            "proposals waiting on the author",
+            [Item(counted(pending[ck], "proposal"), key=ck) for ck in sorted(pending) if pending[ck]],
+            count=waiting,
+            limit=None,
+            next="loom refs verify ID, or the digest view",
+        ),
+    ]
     if len(works) == 1 and works[0].cited_by:
         # where, not only how often: agents dumped the whole draft to a file and grepped it to find this
         ck = works[0].citekey
@@ -663,11 +788,33 @@ def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str |
                 if c.citekey == ck and c.file not in result.assembly.digest_files
             }
         )
-        click.echo("cited by: " + "; ".join(f"{src}" + (f" [{pn}]" if pn else "") for src, pn in sites))
-    if sum(pending.values()):
-        click.echo(
-            f"{sum(pending.values())} proposal(s) waiting on the author: loom refs verify ID, or the digest view"
-        )
+        groups.append(Group("cited by", [Item(f"[{pn}]" if pn else "", key=src) for src, pn in sites], limit=None))
+    Report(
+        f"{digested} of {counted(len(works), 'work')} digested; {mapped} {'has' if mapped == 1 else 'have'} page text"
+        + (f"; {counted(waiting, 'proposal')} waiting on the author" if waiting else ""),
+        lines=["", *lines],
+        groups=_present(*groups),
+        data={
+            "works": [
+                {
+                    "citekey": w.citekey,
+                    "cited_by": w.cited_by,
+                    "source": w.source,
+                    "pdf": w.pdf,
+                    "pages": w.pages,
+                    "sections": w.sections,
+                    "digest": w.digest,
+                    "digest_version": (
+                        {"extracted_from": v.extracted_from, "cited_as": v.cited_as}
+                        if (v := other.get(w.citekey)) is not None
+                        else None
+                    ),
+                    "waiting": pending[w.citekey],
+                }
+                for w in works
+            ]
+        },
+    ).emit(as_json)
 
 
 def _page_range(spec: str) -> tuple[int, int]:
@@ -687,9 +834,8 @@ def _page_range(spec: str) -> tuple[int, int]:
 @click.argument("pages")
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
-@click.pass_context
 @logged("page")
-def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, quilt_path: str | None) -> None:
+def page_command(citekey: str, pages: str, as_json: bool, quilt_path: str | None) -> None:
     """Print CITEKEY's page text for PAGES (`12` or `10-14`), with the section each page falls in.
 
     The sanctioned read. A quotation an agent proposes must come from here, because this is the text the anchor is checked against; anything quoted from elsewhere may be right and cannot be verified.
@@ -697,10 +843,10 @@ def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, qu
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map, read_page
 
-    result = open_scan(quilt_path)
-    if citekey not in result.bib:
+    quilt, bib = open_bib(quilt_path)
+    if citekey not in bib:
         raise EnvError(f"{citekey} is not in the bibliography; loom refs coverage names the works that are")
-    home = work_dir(result.quilt.root, result.bib[citekey])
+    home = work_dir(quilt.root, bib[citekey])
     m = read_map(home)
     if m is None:
         raise ContentError(f"{citekey} has no page text yet; run loom refs map {citekey}")
@@ -714,8 +860,14 @@ def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, qu
             continue
         sec = m.section_of(n)
         out.append({"page": n, "section": f"{sec.n} {sec.title}".strip() if sec else "", "text": text.rstrip("\n")})
+    if not out:
+        raise ContentError(f"{citekey} has no page text for {pages}; loom refs map {citekey} writes it")
     if as_json:
-        click.echo(json.dumps({"citekey": citekey, "sha256": m.sha256, "pages": out}, indent=2))
+        first, last = out[0]["page"], out[-1]["page"]
+        Report(
+            f"{citekey} p.{first}" + (f"-{last}" if last != first else ""),
+            data={"citekey": citekey, "sha256": m.sha256, "pages": out},
+        ).emit(True)
         return
     for entry_ in out:
         head = f"--- {citekey} p.{entry_['page']}"
@@ -723,8 +875,6 @@ def page_command(ctx: click.Context, citekey: str, pages: str, as_json: bool, qu
             head += f"  [{entry_['section']}]"
         click.echo(head + " " + "-" * max(0, 60 - len(head)))
         click.echo(entry_["text"])
-    if not out:
-        ctx.exit(EXIT_CONTENT)
 
 
 @refs.command(name="grep")
@@ -774,34 +924,41 @@ def grep_command(text: str, works_only: tuple[str, ...], limit: int, as_json: bo
         if seen.get(h.citekey, 0) < each and len(shown) < limit:
             shown.append(h)
             seen[h.citekey] = seen.get(h.citekey, 0) + 1
-    if as_json:
-        click.echo(
-            json.dumps(
-                {
-                    "searched": searched,
-                    "of": len(works),
-                    "truncated": len(hits) > limit,
-                    "hits": [
-                        {"work": h.citekey, "page": h.page, "section": h.section, "context": h.context} for h in shown
-                    ],
-                },
-                indent=2,
+    groups = []
+    for ck in sorted(per_work, key=str.lower):
+        items = [
+            Item(f"p.{h.page}" + (f" [{h.section}]" if h.section else "") + f"  {h.context}")
+            for h in shown
+            if h.citekey == ck
+        ]
+        cut = per_work[ck] > len(items)
+        groups.append(
+            Group(
+                ck,
+                items,
+                count=per_work[ck],
+                limit=None,
+                next=f"loom refs grep {text!r} --work {ck} --limit {per_work[ck]}" if cut else None,
             )
         )
-        return
-    for h in shown:
-        where = f"{h.citekey} p.{h.page}" + (f" [{h.section}]" if h.section else "")
-        click.echo(f"{where:<52} {h.context}")
-    click.echo(
-        f"\n{len(hits)} hit(s) in {len({h.citekey for h in hits})} of {searched} works with page text"
-        + (f" — showing {len(shown)}" if len(hits) > limit else "")
+    verdict = f"{counted(len(hits), 'hit')} in {len(per_work)} of {counted(searched, 'work')} with page text" + (
+        f", showing {len(shown)}" if len(hits) > len(shown) else ""
     )
-    if len(hits) > len(shown):
-        click.echo("per work: " + ", ".join(f"{ck} {n}" for ck, n in sorted(per_work.items(), key=lambda x: -x[1])))
-    if not hits and searched < len(works):
-        click.echo(f"{len(works) - searched} of {len(works)} works have no page text yet (loom refs map)")
-    if shown:
-        note("page text is mathematics after a text layer: read the page before quoting anything from it")
+    if searched < len(works):
+        verdict += f"; {len(works) - searched} of {len(works)} have none to search (loom refs coverage)"
+    Report(
+        verdict,
+        groups=groups,
+        notes=["page text is mathematics after a text layer: read the page before quoting anything from it"]
+        if shown
+        else [],
+        data={
+            "searched": searched,
+            "of": len(works),
+            "truncated": len(hits) > limit,
+            "hits": [{"work": h.citekey, "page": h.page, "section": h.section, "context": h.context} for h in shown],
+        },
+    ).emit(as_json)
 
 
 @refs.command(name="locate")
@@ -810,11 +967,8 @@ def grep_command(text: str, works_only: tuple[str, ...], limit: int, as_json: bo
 @click.option("--page", "page_no", type=int, required=True, help="The page the text is on.")
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
-@click.pass_context
 @logged("locate")
-def locate_command(
-    ctx: click.Context, citekey: str, text: str, page_no: int, as_json: bool, quilt_path: str | None
-) -> None:
+def locate_command(citekey: str, text: str, page_no: int, as_json: bool, quilt_path: str | None) -> None:
     """Print the region of CITEKEY's page PAGE that TEXT occupies, so an anchor need not compute geometry.
 
     Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer **at the place** -- `?page=4&span=812-871` -- so that following it lights the quotation rather than leaving it to be found by eye.
@@ -832,16 +986,17 @@ def locate_command(
     # The mapping the viewer previews with and `loom annotate` records, so the three cannot spell one place differently -- and so this can print the basis and the offsets, which its own `locate_span` could not.
     placed = anchor_on_page(home, page_no, text)
     if not placed.found:
-        if as_json:
-            click.echo(json.dumps({"found": False, "citekey": citekey, "page": page_no}))
-        else:
-            click.echo(f"not found on {citekey} p.{page_no}")
-        ctx.exit(EXIT_CONTENT)
+        Report(
+            f"not found on {citekey} p.{page_no}",
+            ok=False,
+            exit=EXIT_CONTENT,
+            data={"found": False, "citekey": citekey, "page": page_no},
+        ).emit(as_json)
         return
     anchor = placed.anchor
     quads = anchor.quads or []
     if as_json:
-        click.echo(json.dumps(anchor.to_dict(), indent=2))
+        Report(f"found on {citekey} p.{page_no}", data=anchor.to_dict()).emit(True)
     else:
         xs = [q[0] for q in quads] or [0.0]
         ys = [q[1] for q in quads] or [0.0]
@@ -877,13 +1032,13 @@ def _work_home(result: ScanResult, citekey: str) -> Path:
 
 
 def _find_result(result: ScanResult, target: str) -> tuple[str, str, dict[str, Any]]:
-    """(citekey, id, that work's results), raising loom's own refusal rather than a LookupError."""
+    """(citekey, id, that work's results); an id recorded nowhere is an argument naming nothing, exit 2."""
     from loom.refs.proposals import find_result
 
     try:
         return find_result(result, target)
     except LookupError as exc:
-        raise ContentError(str(exc)) from exc
+        raise NotFoundError("result", str(exc)) from exc
 
 
 @refs.command(name="propose")
@@ -909,9 +1064,7 @@ def _find_result(result: ScanResult, target: str) -> tuple[str, str, dict[str, A
 @click.option("--session", "run_dir", default=None, envvar="LOOM_SESSION", help="The session proposing this.")
 @click.option("--json", "as_json", is_flag=True, help="Print the stored record as JSON.")
 @quilt_option
-@click.pass_context
 def propose_command(
-    ctx: click.Context,
     citekey: str,
     local: str,
     page_spec: str | None,
@@ -965,7 +1118,11 @@ def propose_command(
         )
 
     if source_file is not None:
-        anchor, where = _source_anchor(ctx, root, home, citekey, source_file, source_text)
+        placed = _source_anchor(root, home, citekey, source_file, source_text)
+        if isinstance(placed, Report):
+            placed.emit(as_json)
+            return
+        anchor, where = placed
         page_no = 0
     else:
         assert page_spec is not None
@@ -980,10 +1137,15 @@ def propose_command(
             raise ContentError(f"{citekey} has {m.pages} pages; {page_spec} runs past the end")
         where = f"p.{page_no}" if last == page_no else f"pp.{page_no}-{last}"
         if not find_in_page(page_text, source_text):
-            click.echo(f"refused: that text is not on {citekey} {where}. The page reads:\n", err=True)
-            click.echo(page_text.rstrip("\n"))
-            click.echo("\nNothing was stored. Quote from this text and propose again.", err=True)
-            ctx.exit(EXIT_CONTENT)
+            # the page itself, so the quotation can be corrected in the same turn
+            Report(
+                f"that text is not on {citekey} {where}, so nothing was stored; quote from the page below and propose again",
+                ok=False,
+                exit=EXIT_CONTENT,
+                lines=["", *page_text.rstrip("\n").split("\n")],
+                data={"stored": False, "citekey": citekey, "where": where, "page_text": page_text},
+            ).emit(as_json)
+            return
         anchor = Anchor(kind="pdf", sha256=m.sha256, page=page_no, last=last if last > page_no else 0)
 
     wrapper = re.search(
@@ -1075,31 +1237,40 @@ def propose_command(
             "supersedes": supersedes or "",
         },
     )
-    if as_json:
-        click.echo(json.dumps(r.to_json(), indent=2))
-        return
-    click.echo(f"proposed {rid} (source text checked against {where})")
+    notes = []
     added = words_not_on_page(statement, source_text)
     if added:
         # a gloss is the commonest correction an author makes, and a line in the orientation did not stop it
-        click.echo(
+        notes.append(
             f"not in the quoted {'page' if page_no else 'source'} text: {', '.join(added)}. A statement is the "
             f"paper's words only; if these are yours, correct it now with --supersedes {rid}, and put the gloss in "
-            "your notes file.",
-            err=True,
+            "your notes file."
         )
     if agent_marker():
         # the author's verb is not the agent's next step, and "verified" is the author's word (plan 0.12 §5.6)
-        click.echo(f"in digests/{citekey}.proposed.tex, waiting for the author, who verifies or discards it")
+        lines = [f"in digests/{citekey}.proposed.tex, waiting for the author, who verifies or discards it"]
     else:
-        click.echo(f"in digests/{citekey}.proposed.tex — nothing inputs that file until you verify it")
-        note(f"loom refs verify {rid}   |   loom refs discard {rid} --reason '…'")
+        lines = [
+            f"in digests/{citekey}.proposed.tex, which nothing inputs until you verify it",
+            f"next: loom refs verify {rid}, or loom refs discard {rid} --reason '…'",
+        ]
+    Report(
+        f"proposed {rid}, its source text checked against {where}"
+        + ("; its statement has words the quotation lacks" if added else ""),
+        ok=not added,
+        lines=lines,
+        notes=notes,
+        data={"stored": True, "work": citekey, **r.to_json()},
+    ).emit(as_json)
 
 
 def _source_anchor(
-    ctx: click.Context, root: Path, home: Path, citekey: str, source_file: str, source_text: str
-) -> tuple[Any, str]:
-    """A LaTeX anchor for a quotation of the work's source (contract §9.3), or the refusal that says what is there."""
+    root: Path, home: Path, citekey: str, source_file: str, source_text: str
+) -> tuple[Any, str] | Report:
+    """A LaTeX anchor for a quotation of the work's source (contract §9.3) and its path, or the refusal that shows what is there.
+
+    The refusal is a report rather than an error because it carries the file's nearby lines, so the quotation can be corrected in the same turn.
+    """
     import hashlib
 
     from loom.anchors import Anchor
@@ -1122,12 +1293,13 @@ def _source_anchor(
     if span is None:
         head = " ".join(source_text.split()[:3])
         near = [row for row in text.splitlines() if head and head in " ".join(row.split())][:5]
-        click.echo(f"refused: that text is not in {rel}. Quote the file exactly; only whitespace may differ.", err=True)
-        if near:
-            click.echo("Lines that begin the same way:\n" + "\n".join(near))
-        click.echo("Nothing was stored.", err=True)
-        ctx.exit(EXIT_CONTENT)
-        raise AssertionError  # ctx.exit raises; this keeps the type checker's flow honest
+        return Report(
+            f"that text is not in {rel}, so nothing was stored; quote the file exactly, only whitespace may differ",
+            ok=False,
+            exit=EXIT_CONTENT,
+            groups=_present(Group("lines that begin the same way", [Item(row) for row in near], limit=None)),
+            data={"stored": False, "citekey": citekey, "where": rel, "near": near},
+        )
     a, b = (len(text[:i].encode("utf-8", "surrogateescape")) for i in span)
     anchor = Anchor(kind="tex", sha256=hashlib.sha256(data).hexdigest(), path=rel, bytes=[a, b])
     return anchor, rel
@@ -1140,6 +1312,7 @@ def _source_anchor(
 @click.option("--taxon", default=None, help="The environment, when --local does not imply it.")
 @click.option("--author", default=None, help="Who verified, when the user config and git do not say.")
 @click.option("--yes", "-y", is_flag=True, help="Skip the question; you have read both texts.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
 def verify_command(
     target: str,
@@ -1148,6 +1321,7 @@ def verify_command(
     taxon: str | None,
     author: str | None,
     yes: bool,
+    as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Record that a transcription is faithful: promote a proposal into the digest, or re-verify one already there.
@@ -1167,37 +1341,37 @@ def verify_command(
     result = open_scan(quilt_path)
     who = resolve_author(author, result.quilt.root)[0]
     citekey, rid, results = _find_result(result, target)
+    if not yes and not sys.stdin.isatty():
+        raise EnvError("verifying needs you to have read both texts; pass --yes once you have")
     r = results[rid]
-    # §5.3: nothing may offer verify without showing both texts, and a terminal is a surface like any other
+    # §5.3: nothing may offer verify without showing both texts, and a terminal is a surface like any other. They are the question's, so they go where the question goes: stderr, leaving stdout to the report.
     context, found = page_context(result.quilt.root, r)
     if r.anchor.kind == "pdf":
-        click.echo(f"{rid}   p.{r.anchor.page} of {citekey}")
-        where = "(around the quoted span)" if found else "(quoted span not located; whole page)"
-        click.echo(f"\n--- the page {where} ---")
+        shown = [f"{rid}   p.{r.anchor.page} of {citekey}"]
+        shown.append(
+            f"\n--- the page {'(around the quoted span)' if found else '(quoted span not located; whole page)'} ---"
+        )
     else:
         # a result quoted from, or extracted out of, the paper's own LaTeX has no page
-        click.echo(f"{rid}   from {r.anchor.path or citekey + ' (its source)'}")
-        click.echo("\n--- the source ---")
-    click.echo(context)
-    click.echo("\n--- rendered as ---")
-    click.echo((statement or r.statement).strip())
+        shown = [f"{rid}   from {r.anchor.path or citekey + ' (its source)'}", "\n--- the source ---"]
+    shown += [context, "\n--- rendered as ---", (statement or r.statement).strip()]
+    click.echo("\n".join(shown), err=True)
     if not yes:
-        if not sys.stdin.isatty():
-            raise EnvError("verifying needs you to have read both texts; pass --yes once you have")
-        click.confirm("\nis the rendering faithful to the page?", abort=True)
+        click.confirm("\nis the rendering faithful to the page?", abort=True, err=True)
     try:
-        for line in verify_result(result, target, statement, who, local=local, taxon=taxon):
-            click.echo(line)
+        said = verify_result(result, target, statement, who, local=local, taxon=taxon)
     except LookupError as exc:
         raise ContentError(str(exc)) from exc
+    Report(said[0], lines=said[1:], data={"work": citekey, "target": target, "author": who}).emit(as_json)
 
 
 @refs.command(name="discard")
 @click.argument("target")
 @click.option("--reason", required=True, help="Why it should not stand; the agent that proposed it is shown this.")
 @click.option("--author", default=None, help="Who discarded, when the user config and git do not say.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-def discard_command(target: str, reason: str, author: str | None, quilt_path: str | None) -> None:
+def discard_command(target: str, reason: str, author: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Discard a proposed result, with a reason.
 
     The reason is not a courtesy. `loom refs propose` refuses a discarded work-and-local-id and returns it, so the agent that proposed the thing learns why in the turn it fails rather than proposing it again next session. Nothing is deleted: the log keeps it and `loom refs why` reports it.
@@ -1209,10 +1383,16 @@ def discard_command(target: str, reason: str, author: str | None, quilt_path: st
     refuse_under_agent("loom refs discard", "Discard in the digest view or in your own terminal.", author)
     result = open_scan(quilt_path)
     who = resolve_author(author, result.quilt.root)[0]
+    citekey, _rid, _results = _find_result(result, target)
     try:
-        click.echo(discard_result(result, target, reason, who))
+        said = discard_result(result, target, reason, who)
     except LookupError as exc:
         raise ContentError(str(exc)) from exc
+    Report(
+        said,
+        lines=["the reason is returned to whatever proposes it again"],
+        data={"work": citekey, "id": target, "reason": reason, "author": who},
+    ).emit(as_json)
 
 
 @refs.command(name="why")
@@ -1221,7 +1401,7 @@ def discard_command(target: str, reason: str, author: str | None, quilt_path: st
 @quilt_option
 @logged("why")
 def why_command(target: str, as_json: bool, quilt_path: str | None) -> None:
-    """Where a result came from, what state it is in, and who changed it.
+    """Show where a result came from, what state it is in, and who changed it.
 
     Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited.
     """
@@ -1231,28 +1411,28 @@ def why_command(target: str, as_json: bool, quilt_path: str | None) -> None:
     citekey, rid, results = _find_result(result, target)
     r = results[rid]
     chain = [e for e in read_events(result.quilt.root, citekey) if e.get("id") == rid or e.get("supersedes") == rid]
-    if as_json:
-        click.echo(json.dumps({"work": citekey, **r.to_json(), "events": chain}, indent=2))
-        return
-    click.echo(f"{rid}")
-    click.echo(f"  state      {'transcription verified' if r.state == 'verified' else r.state}")
-    click.echo(f"  work       {citekey}")
-    click.echo(
-        f"  anchor     p.{r.anchor.page} of sha256:{r.anchor.sha256[:12]}  ({r.anchor.kind}, level {r.level}, {r.cls})"
-    )
-    for o in r.origin:
-        click.echo(f"  {o.get('act', ''):<10} {o.get('by') or '—'}  {str(o.get('when', ''))[:19]}")
-    diff = edit_diff(r)
-    if diff:
-        # what the author changed, which is what a later proposer should learn from
-        click.echo("\n  the author's edit (- proposed, + verified):")
-        for line in diff:
-            click.echo(f"    {line}")
+    state = "transcription verified" if r.state == "verified" else r.state
+    if r.anchor.kind == "pdf":
+        last = f"-{r.anchor.last}" if r.anchor.last > r.anchor.page else ""
+        anchor = f"p.{r.anchor.page}{last} of {citekey}'s PDF"
+    else:
+        anchor = f"{r.anchor.path or citekey + ' (its source)'}"
+    rows = [
+        ("state", state),
+        ("anchor", f"{anchor} ({r.anchor.kind}, level {r.level}, {r.cls})"),
+        *((str(o.get("act", "")), f"{o.get('by') or '—'}  {str(o.get('when', ''))[:19]}") for o in r.origin),
+    ]
     if r.supersedes:
-        click.echo(f"  supersedes {r.supersedes}")
-    for e in chain:
-        if e.get("event") == "discarded":
-            click.echo(f"  discarded  {e.get('reason', '')}")
+        rows.append(("supersedes", r.supersedes))
+    rows += [("discarded", str(e.get("reason", ""))) for e in chain if e.get("event") == "discarded"]
+    diff = edit_diff(r)
+    Report(
+        f"{rid}, {state}, from {citekey}",
+        lines=["", *(f"  {line}" for line in table(rows))],
+        # what the author changed, which is what a later proposer should learn from
+        groups=_present(Group("the author's edit (- proposed, + verified)", [Item(line) for line in diff], limit=None)),
+        data={"work": citekey, **r.to_json(), "events": chain},
+    ).emit(as_json)
 
 
 @refs.command(name="drop")
@@ -1260,18 +1440,28 @@ def why_command(target: str, as_json: bool, quilt_path: str | None) -> None:
 @click.option("--session", "run_id", default=None, envvar="LOOM_SESSION", help="Everything proposed in this session.")
 @click.option("--unverified", is_flag=True, help="Every result not yet verified, in every work.")
 @click.option("--yes", "-y", is_flag=True, help="Do not ask.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes: bool, quilt_path: str | None) -> None:
+def drop_command(
+    work_ck: str | None, run_id: str | None, unverified: bool, yes: bool, as_json: bool, quilt_path: str | None
+) -> None:
     """Remove recorded results. The store is safe to delete: dropping it costs re-reading, never correctness.
 
     A verified node already written into `digests/<citekey>.tex` is the author's file and is never touched here; only the records and the proposals are removed.
     """
+    from loom.cli._common import refuse_under_agent
     from loom.refs.proposals import append_event, load_results, results_path, save_results, write_proposed_tex
 
+    refuse_under_agent(
+        "loom refs drop",
+        "Removing recorded results is the author's; an agent corrects its own proposal with loom refs propose --supersedes.",
+    )
     if sum(map(bool, [work_ck, run_id, unverified])) != 1:
         raise EnvError("give exactly one of --work, --session or --unverified")
     result = open_scan(quilt_path)
     root = result.quilt.root
+    if work_ck and work_ck not in result.bib and not results_path(root, work_ck).is_file():
+        raise NotFoundError("work", f"{work_ck} is not in the bibliography and has nothing recorded")
     works = (
         [work_ck]
         if work_ck
@@ -1287,16 +1477,16 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
             ):
                 doomed.append((ck, rid))
     if not doomed:
-        click.echo("nothing to drop")
+        Report("nothing to drop", data={"dropped": []}).emit(as_json)
         return
-    for ck, rid in doomed[:10]:
-        click.echo(f"  {ck}  {rid}")
-    if len(doomed) > 10:
-        click.echo(f"  … and {len(doomed) - 10} more")
     if not yes:
         if not sys.stdin.isatty():
             raise EnvError("dropping needs confirmation; pass --yes")
-        click.confirm(f"drop {len(doomed)} record(s)?", abort=True)
+        for ck, rid in doomed[:10]:
+            click.echo(f"  {ck}  {rid}", err=True)
+        if len(doomed) > 10:
+            click.echo(f"  … and {len(doomed) - 10} more", err=True)
+        click.confirm(f"drop {len(doomed)} record(s)?", abort=True, err=True)
     for ck in {c for c, _ in doomed}:
         results = load_results(root, ck)
         for _, rid in [d for d in doomed if d[0] == ck]:
@@ -1307,7 +1497,14 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
         else:
             results_path(root, ck).unlink(missing_ok=True)
         write_proposed_tex(root, ck, result.assembly.prefix_of(ck), results)
-    click.echo(f"dropped {len(doomed)} record(s); verified nodes already in digests/ were not touched")
+    per: dict[str, list[str]] = {}
+    for ck, rid in doomed:
+        per.setdefault(ck, []).append(rid)
+    Report(
+        f"dropped {counted(len(doomed), 'record')}; verified nodes already in digests/ were not touched",
+        groups=[Group(ck, [Item("", key=rid) for rid in sorted(rids)]) for ck, rids in sorted(per.items())],
+        data={"dropped": [{"work": ck, "id": rid} for ck, rid in doomed]},
+    ).emit(as_json)
 
 
 @refs.command(name="link")
@@ -1329,9 +1526,17 @@ def drop_command(work_ck: str | None, run_id: str | None, unverified: bool, yes:
     default=None,
     help="Who asserted it; an agent names itself, with Agent or AI in the name.",
 )
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
 def link_command(
-    frm: str, to: str, kind: str, why: str, run_dir: str | None, author: str | None, quilt_path: str | None
+    frm: str,
+    to: str,
+    kind: str,
+    why: str,
+    run_dir: str | None,
+    author: str | None,
+    as_json: bool,
+    quilt_path: str | None,
 ) -> None:
     """Assert a typed relation between two results, with a reason.
 
@@ -1366,8 +1571,11 @@ def link_command(
         made = add_link(root, frm, to, kind, why, who)
     except ValueError as exc:
         raise EnvError(str(exc)) from exc
-    click.echo(f"{made.id}: {frm} {kind} {to}")
-    note("asserted, not checked: a link is somebody's reading, and every surface that shows it says so")
+    Report(
+        f"linked {made.id}: {frm} {kind} {to}",
+        notes=["asserted, not checked: a link is somebody's reading, and every surface that shows it says so"],
+        data={"link": made.to_json()},
+    ).emit(as_json)
 
 
 @refs.command(name="links")
@@ -1377,7 +1585,7 @@ def link_command(
 @quilt_option
 @logged("links")
 def links_command(target: str | None, depth: int, as_json: bool, quilt_path: str | None) -> None:
-    """Links touching TARGET, out to --depth hops, or every link when TARGET is omitted.
+    """List the links touching TARGET, out to --depth hops, or every link when TARGET is omitted.
 
     An agent walking a chain of results called this once per node; --depth walks it in one.
     """
@@ -1398,39 +1606,54 @@ def links_command(target: str | None, depth: int, as_json: bool, quilt_path: str
             frontier = nxt - frontier
     else:
         found = read_links(root)
-    if as_json:
-        click.echo(json.dumps([x.to_json() for x in found], indent=2))
-        return
-    if not found:
-        click.echo("no links yet" if not target else f"nothing links {target}")
-        return
-    for x in found:
-        click.echo(f"{x.id}  {x.frm}")
-        click.echo(f"{'':<10}{KINDS.get(x.kind, x.kind)} {x.to}")
-        click.echo(f"{'':<10}{x.why}  — {x.by or 'unattributed'}")
+    items = [
+        Item(f"{x.frm} {KINDS.get(x.kind, x.kind)} {x.to}: {x.why} — {x.by or 'unattributed'}", key=x.id)
+        for x in sorted(found, key=lambda x: x.id)
+    ]
+    if found:
+        verdict = counted(len(found), "link") + (
+            f" within {depth} hop{'s' if depth != 1 else ''} of {target}" if target else ""
+        )
+    else:
+        verdict = "no links yet" if not target else f"nothing links {target}"
+    Report(
+        verdict,
+        groups=_present(Group("asserted, not checked", items, limit=None)),
+        data={"links": [x.to_json() for x in found]},
+    ).emit(as_json)
 
 
 @refs.command(name="unlink")
 @click.argument("link_id")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-def unlink_command(link_id: str, quilt_path: str | None) -> None:
-    """Remove a link."""
-    from loom.refs.links import remove_link
+def unlink_command(link_id: str, as_json: bool, quilt_path: str | None) -> None:
+    """Remove a link. An agent may remove only a link a session asserted; the author's links are the author's to remove."""
+    from loom.cli._common import agent_marker, is_agent, whoever
+    from loom.refs.links import read_links, record_removal, remove_link
 
     result = open_scan(quilt_path)
-    try:
-        gone = remove_link(result.quilt.root, link_id)
-    except LookupError as exc:
-        raise ContentError(str(exc)) from exc
-    click.echo(f"removed {gone.id}: {gone.frm} {gone.kind} {gone.to}")
+    root = result.quilt.root
+    target = next((x for x in read_links(root) if x.id == link_id), None)
+    if target is None:
+        raise NotFoundError("link", f"no link {link_id}; loom refs links lists them")
+    marker = agent_marker()
+    # a session's id is how an agent's link records who asserted it (refs link)
+    by_agent = target.by.startswith("s-") or is_agent(target.by)
+    if marker and not by_agent:
+        raise EnvError(
+            f"{link_id} was asserted by {target.by}, and an agent is running this shell ({marker} is set); removing someone else's link is theirs to do"
+        )
+    gone = remove_link(root, link_id)
+    record_removal(root, gone, whoever(root))
+    Report(f"removed {gone.id}: {gone.frm} {gone.kind} {gone.to}", data={"link": gone.to_json()}).emit(as_json)
 
 
 @refs.command(name="recheck")
 @click.argument("citekeys", nargs=-1)
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
-@click.pass_context
-def recheck_command(ctx: click.Context, citekeys: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None:
+def recheck_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None:
     """Re-read every verified result's anchor and report what moved. It does not re-check extraction: a mis-numbered or missing result in a mechanical digest is invisible to it.
 
     This is what makes `transcription verified` a claim a command can falsify. It re-reads the page the anchor names and compares it to the stored `source_text`; it never re-verifies anything by itself, because re-verifying is a person saying the copy is still faithful, which is `loom refs verify`. **A verified node's LaTeX is never re-checked** — that rendering was judged by a person once, and re-judging it mechanically would claim a check that does not exist.
@@ -1504,15 +1727,35 @@ def recheck_command(ctx: click.Context, citekeys: tuple[str, ...], as_json: bool
                         "why": f"p.{r.anchor.page} no longer reads that way",
                     }
                 )
-    if as_json:
-        click.echo(json.dumps({"checked": checked, "moved": rows}, indent=2))
-        return
+    by_move: dict[str, list[Item]] = {}
     for row in rows:
-        click.echo(f"{row['id'][:58]:<60}{row['moved']:<24}{row['why']}")
-    click.echo(f"{checked} verified anchor(s) re-read; {len(rows)} moved")
-    if rows:
-        note("read the page again and loom refs verify what still holds")
-        ctx.exit(EXIT_CONTENT)
+        by_move.setdefault(row["moved"], []).append(Item(row["why"], key=row["id"]))
+    Report(
+        f"{counted(checked, 'verified anchor')} re-read; {len(rows)} moved",
+        ok=not rows,
+        exit=EXIT_CONTENT if rows else 0,
+        groups=[
+            Group(
+                MOVED.get(moved, moved),
+                sorted(items, key=lambda i: i.key or ""),
+                problem=True,
+                limit=None,
+                next="read the page again, then loom refs verify ID for what still holds",
+            )
+            for moved, items in sorted(by_move.items())
+        ],
+        data={"checked": checked, "moved": rows},
+    ).emit(as_json)
+
+
+#: What each way an anchor can move is called in `refs recheck`'s text.
+MOVED = {
+    "file-gone": "source file gone",
+    "transcription-changed": "transcription changed",
+    "no-page-text": "no page text",
+    "version_mismatch": "a different artifact from the one read",
+    "page-gone": "page gone",
+}
 
 
 @refs.command(name="find")
@@ -1552,11 +1795,6 @@ def find_command(text: str, works_only: tuple[str, ...], limit: int, as_json: bo
                 )
     total = len({p.name for p in (root / "digests").glob("*.results.json")})
     every = len(result.bib)
-    if as_json:
-        click.echo(
-            json.dumps({"results": len(hits), "searched": searched, "of": every, "hits": hits[:limit]}, indent=2)
-        )
-        return
     # grouped by work, a few from each, as grep is: 149 unranked hits for "localization" in the second study run
     by_work: dict[str, int] = {}
     for h in hits:
@@ -1568,19 +1806,35 @@ def find_command(text: str, works_only: tuple[str, ...], limit: int, as_json: bo
         if taken.get(h["work"], 0) < each and len(shown_hits) < limit:
             shown_hits.append(h)
             taken[h["work"]] = taken.get(h["work"], 0) + 1
-    for h in shown_hits:
-        flag = " (proposed)" if h["state"] == "proposed" else ""
-        where = f"p.{h['page']}" if h["page"] else h["class"]
-        click.echo(f"{h['id'][:58]:<60}{where:<10}level {h['level']}{flag}")
-    click.echo(
-        f"\nresults: {len(hits)} in {len(by_work)} works"
-        + (f" — showing {len(shown_hits)}" if len(hits) > len(shown_hits) else "")
-    )
-    if len(hits) > len(shown_hits):
-        click.echo("per work: " + ", ".join(f"{w} {n}" for w, n in sorted(by_work.items(), key=lambda x: -x[1])))
-    click.echo(f"coverage: {total} of {every} works digested")
-    if not hits:
-        click.echo(f"try: loom refs grep {text!r}")
+    groups = []
+    for ck in sorted(by_work, key=str.lower):
+        items = [
+            Item(
+                f"{'p.' + str(h['page']) if h['page'] else h['class']}, level {h['level']}"
+                + (" (proposed)" if h["state"] == "proposed" else ""),
+                key=h["id"],
+            )
+            for h in shown_hits
+            if h["work"] == ck
+        ]
+        cut = by_work[ck] > len(items)
+        groups.append(
+            Group(
+                ck,
+                items,
+                count=by_work[ck],
+                limit=None,
+                next=f"loom refs find {text!r} --work {ck} --limit {by_work[ck]}" if cut else None,
+            )
+        )
+    Report(
+        f"{counted(len(hits), 'result')} in {counted(len(by_work), 'work')}"
+        + (f", showing {len(shown_hits)}" if len(hits) > len(shown_hits) else "")
+        + f"; {total} of {every} works digested",
+        lines=[] if hits else [f"next: loom refs grep {text!r} searches the page text"],
+        groups=groups,
+        data={"results": len(hits), "searched": searched, "of": every, "hits": hits[:limit]},
+    ).emit(as_json)
 
 
 @refs.command(name="ingest")
@@ -1628,25 +1882,37 @@ def ingest_command(directory: Path, dry_run: bool, as_json: bool, quilt_path: st
             else:
                 row["filed"] = True
         rows.append(row)
-    if as_json:
-        click.echo(json.dumps({"pdfs": len(pdfs), "filed": filed, "works": rows}, indent=2))
-        return
-    for row in rows:
-        mark = "+" if row["filed"] else ("·" if row.get("skipped") else "?")
-        kinds = ",".join(s["kind"] for s in row["signals"]) or "nothing"
-        click.echo(f"{mark} {row['file'][:46]:<48}{(row['citekey'] or '—')[:34]:<36}{kinds}")
+
+    def signals(row: dict[str, Any]) -> str:
+        return "on " + (", ".join(s["kind"] for s in row["signals"]) or "nothing")
+
+    placed = [r for r in rows if r["filed"]]
+    skipped = [r for r in rows if r.get("skipped")]
     unmatched = [r for r in rows if not r["filed"] and not r.get("skipped")]
-    click.echo(f"\n{len(pdfs)} PDFs; {filed} filed{' (dry run)' if dry_run else ''}; {len(unmatched)} for you")
-    if unmatched:
-        note("a wrong PDF against the right entry is worse than an unfiled one: loom refs add CITEKEY FILE")
+    Report(
+        f"{counted(len(pdfs), 'PDF')}: {len(placed)} filed, {len(skipped)} for works that already have one, "
+        f"{len(unmatched)} for you",
+        ok=not unmatched,
+        dry_run=dry_run,
+        groups=_present(
+            Group(
+                "not filed: no entry is unambiguous",
+                [Item(f"{r['file']}, best guess {r['citekey'] or 'none'} {signals(r)}") for r in unmatched],
+                problem=True,
+                next="loom refs add CITEKEY FILE; a wrong PDF against the right entry is worse than an unfiled one",
+            ),
+            Group("filed", [Item(f"{r['file']} {signals(r)}", key=r["citekey"]) for r in placed]),
+            Group("already had a PDF", [Item(r["file"], key=r["citekey"]) for r in skipped]),
+        ),
+        data={"pdfs": len(pdfs), "filed": filed, "works": rows},
+    ).emit(as_json)
 
 
 @refs.command(name="overview")
 @click.argument("citekey")
 @quilt_option
-@click.pass_context
 @logged("overview")
-def overview_command(ctx: click.Context, citekey: str, quilt_path: str | None) -> None:
+def overview_command(citekey: str, quilt_path: str | None) -> None:
     """Print a digest's Overview: the paper's own framing, which is prose and so is no result.
 
     Agents read it from the digest's `.tex` by hand in every study iteration -- it is where a paper says which results it considers main and what it assumes throughout, and no other command reaches it.
@@ -1654,7 +1920,7 @@ def overview_command(ctx: click.Context, citekey: str, quilt_path: str | None) -
     from loom.refs.proposals import digest_path
 
     result = open_scan(quilt_path)
-    ck = next(iter(resolve_works(result, (citekey,))), citekey)
+    ck = one_work(result, citekey)
     path = digest_path(result.quilt.root, ck)
     if not path.is_file():
         raise ContentError(f"{ck} has no digest; loom refs coverage says what it has")
@@ -1670,9 +1936,7 @@ def overview_command(ctx: click.Context, citekey: str, quilt_path: str | None) -
     if v is not None:
         note(f"{ck}: the digest {v.why}; its numbers and pages are unverified, so check one with loom refs page {ck}")
     if not m or not m.group(1).strip():
-        click.echo(f"{ck}'s digest has no Overview")
-        ctx.exit(EXIT_CONTENT)
-        return
+        raise ContentError(f"{ck}'s digest has no Overview")
     click.echo(m.group(1).strip())
 
 
@@ -1681,8 +1945,11 @@ def overview_command(ctx: click.Context, citekey: str, quilt_path: str | None) -
 @click.option("--why", default=None, help="Why no document can be held for this work; required unless --undo.")
 @click.option("--undo", is_flag=True, help="Withdraw the declaration; --why then says why it was wrong.")
 @click.option("--author", default=None, help="Who declared it, when the user config and git do not say.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-def unreadable_command(citekey: str, why: str | None, undo: bool, author: str | None, quilt_path: str | None) -> None:
+def unreadable_command(
+    citekey: str, why: str | None, undo: bool, author: str | None, as_json: bool, quilt_path: str | None
+) -> None:
     """Declare that CITEKEY has no document loom can hold, and stop it being asked for.
 
     Nothing in a bibliography entry says that the Stacks Project is a living work with no fixed version, so loom would chase a PDF that does not exist on every build. This records the claim -- in loom's own file, never in your `.bib` -- and the invariant's lint goes quiet for the work while `loom refs build` lists it in a section of its own. It is a claim about the world, so it is yours to make and an agent is refused.
@@ -1710,7 +1977,10 @@ def unreadable_command(citekey: str, why: str | None, undo: bool, author: str | 
         raise ContentError(f"{citekey} is already declared unreadable ({standing.why}); --undo withdraws it")
     who = resolve_author(author, root)[0]
     declare(root, "unreadable", citekey, why, who, undo=undo)
-    click.echo(f"{citekey} is no longer declared unreadable" if undo else f"{citekey} declared unreadable: {why}")
+    Report(
+        f"{citekey} is no longer declared unreadable" if undo else f"{citekey} declared unreadable: {why}",
+        data={"citekey": citekey, "why": why, "undo": undo, "author": who},
+    ).emit(as_json)
 
 
 @refs.command(name="forget")
@@ -1718,8 +1988,11 @@ def unreadable_command(citekey: str, why: str | None, undo: bool, author: str | 
 @click.option("--why", default=None, help="Why the store should stop offering it; required unless --undo.")
 @click.option("--undo", is_flag=True, help="Withdraw the tombstone, so the document is offered again.")
 @click.option("--author", default=None, help="Who forgot it, when the user config and git do not say.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as JSON.")
 @quilt_option
-def forget_command(target: str, why: str | None, undo: bool, author: str | None, quilt_path: str | None) -> None:
+def forget_command(
+    target: str, why: str | None, undo: bool, author: str | None, as_json: bool, quilt_path: str | None
+) -> None:
     """Stop the store offering a bibliography entry for TARGET, a citekey or a content hash.
 
     The store is a seed of last resort: a document nobody's entry names is offered one on the next scan, from the copy ledger's record of how it arrived. That is right until you have deliberately deleted the entry, at which point the offer is loom undoing your decision every time. This is the tombstone that stops it, and like every deletion in loom it removes nothing -- the document stays in the store and the ledger keeps its arrival.
@@ -1746,9 +2019,16 @@ def forget_command(target: str, why: str | None, undo: bool, author: str | None,
         raise ContentError(f"{key} is already forgotten ({standing.why}); --undo withdraws it")
     who = resolve_author(author, root)[0]
     declare(root, "forget", key, why, who, undo=undo)
+    notes = []
     if not undo and key.startswith("sha256:") and key.removeprefix("sha256:") not in load_ledger(root):
-        note("warning: no document with that hash is in the copy ledger, so nothing offers it today")
-    click.echo(f"{key} is remembered again" if undo else f"{key} forgotten: {why}")
+        notes.append("warning: no document with that hash is in the copy ledger, so nothing offers it today")
+    # a hash is the store's name for a document, not the author's: the text shows enough of it to recognise
+    shown = f"the document {key[:15]}…" if key.startswith("sha256:") else key
+    Report(
+        f"{shown} is offered again" if undo else f"{shown} forgotten: {why}",
+        notes=notes,
+        data={"key": key, "why": why, "undo": undo, "author": who},
+    ).emit(as_json)
 
 
 def _forget_key(root: Path, target: str, bib: dict[str, Any]) -> str:

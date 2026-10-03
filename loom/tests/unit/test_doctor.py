@@ -6,6 +6,7 @@ Each case runs on a clean PATH holding only the fake toolchain, a fake git and w
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -488,7 +489,7 @@ def test_the_agent(box: Box, config: str | None, on: bool, claude: bool, status:
     got = item(doctor(box, cwd=q), "agent")
     assert got["status"] == status and got["detail"].startswith(detail), got
     if status != "ok":
-        assert "loom agent check" in got["remedy"]
+        assert "loom doctor --agents" in got["remedy"]
 
 
 def test_a_tracked_agent_config_is_a_fault(box: Box) -> None:
@@ -610,7 +611,23 @@ def everything_wrong(box: Box) -> None:
 def test_the_json_schema(box: Box, setup: Case, inside: bool) -> None:
     setup(box)
     data = doctor(box, "--agents", cwd=quilt(box) if inside else None)
-    assert set(data) == {"python", "loom", "interface_version", "quilt", "ok", "failing", "warnings", "items"}
+    envelope = {"verdict", "exit", "groups", "notes"}  # beside `ok`, which the envelope carries
+    # `--agents` inside a quilt adds the agent loom serve would start, in full
+    assert set(data) - envelope == {
+        "python",
+        "loom",
+        "interface_version",
+        "quilt",
+        "ok",
+        "failing",
+        "warnings",
+        "items",
+    } | ({"agent"} if inside else set())
+    if inside:
+        assert {"launch", "configured", "config", "name", "commands", "prompt", "faults", "unignored"} == set(
+            data["agent"]
+        )
+        assert all(set(f) == {"fault", "fix"} and f["fix"] for f in data["agent"]["faults"]), data["agent"]
     names = [i["name"] for i in data["items"]]
     assert len(names) == len(set(names)), names
     for i in data["items"]:
@@ -626,28 +643,31 @@ def test_the_json_schema(box: Box, setup: Case, inside: bool) -> None:
 
 
 def test_exit_codes_and_the_summary(box: Box) -> None:
-    assert ok("doctor", cwd=box.tmp / "away").stdout.splitlines()[-1] == "ok"
-    assert ok("doctor", "--strict", cwd=box.tmp / "away").stdout.splitlines()[-1] == "ok"
+    """The summary is the verdict, so it is the first line."""
+    assert ok("doctor", cwd=box.tmp / "away").stdout.splitlines()[0] == "ok"
+    assert ok("doctor", "--strict", cwd=box.tmp / "away").stdout.splitlines()[0] == "ok"
     box.author(None)
     box.drop("pdfinfo")
-    assert ok("doctor", cwd=box.tmp / "away").stdout.splitlines()[-1] == "ok (2 warnings)"
+    assert ok("doctor", cwd=box.tmp / "away").stdout.splitlines()[0] == "ok (2 warnings)"
     r = exits(2, "doctor", "--strict", cwd=box.tmp / "away")
-    assert r.stdout.splitlines()[-1] == "warnings: pdfinfo, author"
+    assert r.stdout.splitlines()[0] == "warnings: pdfinfo, author"
     assert json_of("doctor", "--json", "--strict", cwd=box.tmp / "away", code=2)["ok"] is False
     box.drop("latexmk", "dvisvgm")
     r = exits(2, "doctor", cwd=box.tmp / "away")
-    assert r.stdout.splitlines()[-1] == "failing: latexmk, dvisvgm (2 warnings)"
+    assert r.stdout.splitlines()[0] == "failing: latexmk, dvisvgm (2 warnings)"
     r = exits(2, "doctor", "--strict", cwd=box.tmp / "away")
-    assert r.stdout.splitlines()[-1] == "failing: latexmk, dvisvgm; warnings: pdfinfo, author"
+    assert r.stdout.splitlines()[0] == "failing: latexmk, dvisvgm; warnings: pdfinfo, author"
 
 
 def test_the_text_report_lines_up(box: Box) -> None:
     box.drop("pdfinfo")
     lines = ok("doctor", cwd=quilt(box)).stdout.splitlines()
-    tools = [ln for ln in lines if ln.startswith("  ok    ") and str(box.bin) in ln]
-    assert len(tools) == 13  # twelve tools and the engine
-    assert len({ln.index(str(box.bin)) for ln in tools}) == 1, "the paths do not start in one column"
+    checks = [m for ln in lines if (m := re.match(r"^  (?:ok|warn|fail)\s+\S+(?: \S+)?\s{2,}", ln))]
+    assert len(checks) == 15 + 7  # the machine's items and the quilt's
+    assert len({m.end() for m in checks}) == 1, "the details do not start in one column"
     at = lines.index(next(ln for ln in lines if ln.startswith("  warn  pdfinfo")))
-    assert lines[at + 1].strip() == f"fix: {item(doctor(box), 'pdfinfo')['remedy']}"
-    assert lines[at + 1].index("fix:") == lines[at].index("not found")
-    assert "machine" in lines and any(ln.startswith("quilt ") for ln in lines)
+    assert lines[at + 1] == f"    fix: {item(doctor(box), 'pdfinfo')['remedy']}"  # beneath the item it fixes
+    assert any(ln.startswith("machine (") for ln in lines) and any(ln.startswith("quilt ") for ln in lines)
+    # each directory a tool was found in is said once, with the tools found there
+    found = lines[lines.index(next(ln for ln in lines if ln.startswith("found in ("))) + 1 :]
+    assert "latexmk" in found[0] and str(box.bin.name) in " ".join(found)

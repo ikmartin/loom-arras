@@ -242,14 +242,41 @@ def ensure_active(root: Path, who: str, title: str = "") -> Session:
     return s
 
 
-def resolve(root: Path, needle: str) -> Session | None:
-    """A session by id, by title, or by a unique id suffix; None when nothing or more than one matches.
+class SessionNotFound(LookupError):
+    """No session answers to `needle`, or more than one does (`matches`, the ambiguous ones, empty when none)."""
 
-    See Also
-    --------
-    loom.cli._common.find_session : the same, refusing with the matches named rather than returning None.
+    def __init__(self, needle: str, matches: list[Session]) -> None:
+        self.needle, self.matches = needle, matches
+        if matches:
+            named = ", ".join(f"{x.id} ({x.title})" for x in matches[:4])
+            super().__init__(f"{needle!r} matches {len(matches)} sessions: {named}")
+        else:
+            super().__init__(f"no session matches {needle!r}; loom session list shows them")
+
+
+def resolve(root: Path, needle: str, *, deleted: bool = False) -> Session:
+    """A session by id, by title, by a unique id suffix, or by part of its title, tried in that order.
+
+    Parameters
+    ----------
+    root : Path
+        The quilt root.
+    needle : str
+        What the person typed.
+    deleted : bool, default False
+        Search tombstoned sessions too, for the acts that apply to one (`session delete --purge`, `session use` naming why it refuses).
+
+    Returns
+    -------
+    Session
+        The one session that answers.
+
+    Raises
+    ------
+    SessionNotFound
+        Nothing answers, or more than one does at the first tier that answers at all; the error names them.
     """
-    standing = sessions(root, deleted=True)
+    standing = sessions(root, deleted=deleted)
     if needle in standing:
         return standing[needle]
     want = needle.strip().lower()
@@ -259,9 +286,11 @@ def resolve(root: Path, needle: str) -> Session | None:
         lambda s: want in s.title.lower(),
     ):
         hits = [s for s in standing.values() if pick(s)]
+        if len(hits) == 1:
+            return hits[0]
         if hits:
-            return hits[0] if len(hits) == 1 else None
-    return None
+            raise SessionNotFound(needle, hits)
+    raise SessionNotFound(needle, [])
 
 
 def files_dir(root: Path, s: Session) -> Path:

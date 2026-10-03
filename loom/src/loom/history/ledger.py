@@ -246,7 +246,7 @@ class History:
         return end if end in live else None
 
     def copies(self, live: Collection[str]) -> dict[str, str]:
-        """Every agent copy still live -> the document it copies, each where the history's moves have taken it (book 4.4)."""
+        """Every agent document still live -> the document it copies, each where the history's moves have taken it (book 4.4)."""
         out: dict[str, str] = {}
         for e in self.entries:
             if e.action != "copy":
@@ -258,7 +258,7 @@ class History:
         return out
 
     def copy_of(self, copy: str, live: Collection[str]) -> str | None:
-        """The document an agent copy was made from, where it is now, or as recorded when it is gone; None for a document that is no copy.
+        """The document an agent document was made from, where it is now, or as recorded when it is gone; None for a document that is no copy.
 
         Parameters
         ----------
@@ -279,7 +279,7 @@ class History:
         return self.copies(live).get(self.current_document(copy, live) or copy)
 
     def bases(self, copy: str, live: Collection[str]) -> dict[str, dict[str, Any]]:
-        """What each of an agent copy's nodes began from, as its latest `copy`, `adopt` or `refresh` line records it (book 17.7).
+        """What each of an agent document's nodes began from, as its latest `copy`, `adopt` or `refresh` line records it (book 17.7).
 
         Parameters
         ----------

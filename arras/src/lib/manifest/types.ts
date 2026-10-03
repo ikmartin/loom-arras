@@ -65,7 +65,7 @@ export interface Master {
   numbering_known?: boolean;
   /** Which drafting directory it is in: the person's own, or the one the person and an agent both edit (book 4.1). */
   directory?: "drafting" | "drafting-ai" | null;
-  /** An agent copy's source document, where the history's moves have taken it (book 17.7.1). */
+  /** An agent document's source document, where the history's moves have taken it (book 17.7.1). */
   copy_of?: string;
   scope?: {kind: string; key?: string; title?: string; keys?: string[]};
   scope_keys?: string[];
@@ -87,7 +87,7 @@ export interface NumberEntry {
 
 export interface Node {
   name?: string;
-  /** An agent copy's node: the plain key it corresponds to, `zk-0001` for `zk-0001-ai` (book 5.3). Whole-quilt views leave such nodes out. */
+  /** An agent document's node: the plain key it corresponds to, `zk-0001` for `zk-0001-ai` (book 5.3). Whole-quilt views leave such nodes out. */
   derived_of?: string;
   draft_macros?: string;
   /** A derived node's base: the version of its plain key it began from, and that version's hash as `data-hash` takes it (`math`), so compare can tell a node changed on both sides. */
@@ -164,7 +164,7 @@ export interface IncomingChange {
 }
 
 export interface IncomingReview {
-  remote: string;
+  workspace: string;
   branch: string;
   base: string;
   commit: string;

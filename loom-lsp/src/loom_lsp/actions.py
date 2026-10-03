@@ -69,15 +69,6 @@ def actions_at(
         )
         out.append(
             Action(
-                title=f"Atomize {rel} into nodes/",
-                command="atomize",
-                argv=_loom(loom_bin, root, "atomize", rel, "--ignore-src"),
-                confirm=f"Atomize {rel}? This writes new files and marks the source ignored.",
-                kind="refactor",
-            )
-        )
-        out.append(
-            Action(
                 title=f"Open {statement} in arras",
                 command="open",
                 argv=[],  # the editor opens it on the server it owns, so no url is known here

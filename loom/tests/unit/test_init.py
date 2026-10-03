@@ -116,44 +116,36 @@ def test_init_readme_orients_the_author_in_this_quilts_own_names(tmp_path: Path,
     assert "drafting/" not in text and "drafting-ai/" not in text and "canon" not in text and "q-0" not in text
 
 
-def test_init_preserves_explicit_legacy_attribution_without_prompting(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """`[author] name` comes from `--author`, or is asked for once when a terminal is attached and `--yes` is absent, or is written empty for the author to fill in (book 4.2, 4.3, 4.7). An agent or a script sees no question."""
+def test_init_asks_only_which_ai_and_writes_no_author(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The reviewer comes from local Settings or git, never from the quilt (book 4.3): init writes no `[author]` table and has no `--author`, and with a terminal attached the one question is which AI. An agent or a script sees no question."""
     from loom.cli import quilt as quilt_cli
 
-    ok("init", str(tmp_path / "given"), "--prefix", "ab", "--author", "Markas Hecht", "--yes")
-    assert 'name = "Markas Hecht"' in (tmp_path / "given" / "config.toml").read_text()
+    refused(
+        "init", str(tmp_path / "given"), "--prefix", "ab", "--author", "Markas Hecht", "--yes", code=2, match="--author"
+    )
+    assert not (tmp_path / "given").exists()
 
-    # no terminal under the runner: nothing is asked and the key waits, rather than naming the machine
+    # no terminal under the runner: nothing is asked
     ok("init", str(tmp_path / "quiet"), "--prefix", "ab")
-    assert 'name = ""' in (tmp_path / "quiet" / "config.toml").read_text()
+    assert "[author]" not in (tmp_path / "quiet" / "config.toml").read_text()
 
     asked: list[str] = []
 
     def prompt(text: str, **kwargs: object) -> str:
         asked.append(text)
-        return "  Markas Hecht  "
+        return "4"
 
     monkeypatch.setattr(quilt_cli, "sys", SimpleNamespace(stdin=SimpleNamespace(isatty=lambda: True)))
     monkeypatch.setattr(quilt_cli.click, "prompt", prompt)
     ok("init", str(tmp_path / "asked"), "--prefix", "ab")
-    # the author's name, then which AI they use, which is what decides what ai/ai-config.toml holds
     assert asked == ["Enter 1, 2, 3 or 4"]
-    assert 'name = ""' in (tmp_path / "asked" / "config.toml").read_text()
-
-    # the flag is an answer, an empty one included: a quilt told to have no name is not asked for one
-    asked.clear()
-    ok("init", str(tmp_path / "flagged"), "--prefix", "ab", "--author", "")
-    assert (
-        not any("Author name" in q for q in asked) and 'name = ""' in (tmp_path / "flagged" / "config.toml").read_text()
-    )
+    assert "[author]" not in (tmp_path / "asked" / "config.toml").read_text()
 
 
 def test_init_asks_which_ai_and_says_whether_it_will_be_started(tmp_path: Path) -> None:
     import tomllib
 
-    r = ok("init", str(tmp_path / "c"), "--ai", "claude", "--launch-agents", "--author", "A. Author", cwd=tmp_path)
+    r = ok("init", str(tmp_path / "c"), "--ai", "claude", "--launch-agents", cwd=tmp_path)
     c = tmp_path / "c"
     cfg = tomllib.loads((c / "ai" / "ai-config.toml").read_text())
     assert cfg["name"] == "Claude Agent" and cfg["start"][0] == "claude" and "{agent_session}" in cfg["resume"]
@@ -163,7 +155,7 @@ def test_init_asks_which_ai_and_says_whether_it_will_be_started(tmp_path: Path) 
     assert "ai/ai-config.toml" in (c / ".gitignore").read_text()
     assert "Agents will be launched by loom serve" in r.output
     # no terminal, no flag: no AI, and nothing will be started
-    n = ok("init", str(tmp_path / "n"), "--author", "A. Author", cwd=tmp_path)
+    n = ok("init", str(tmp_path / "n"), cwd=tmp_path)
     assert "AI: none" in n.output and "Agents will not be launched" in n.output
     assert not (tmp_path / "n" / ".claude").exists()
     assert tomllib.loads((tmp_path / "n" / "ai" / "ai-config.toml").read_text()) == {}
@@ -247,7 +239,7 @@ def test_demo_has_outline_master(tmp_path: Path) -> None:
     keys = json_of("status", "--master", "drafting/outline.tex", "--json", cwd=q)["keys"]
     reached = {k for k, v in keys.items() if "drafting/outline.tex" in v["reached_by"]}
     assert {"dm-0006", "dm-0007"} <= reached  # the candidates are reached, not loose, while they are being considered
-    taxa = {n["key"]: n.get("taxon") for n in json_of("search", "dm-000", "--json", cwd=q)}
+    taxa = {n["key"]: n.get("taxon") for n in json_of("search", "dm-000", "--json", cwd=q)["matches"]}
     assert taxa.get("dm-0006") == "Conjecture" and taxa.get("dm-0007") == "Question"
     # the conjecture owes a proof and is a gap until it is proved or refuted; the question owes nothing
     assert keys["dm-0006/proof"]["state"] == "incomplete"

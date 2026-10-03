@@ -62,7 +62,7 @@ HEADER = """\
 #   {quilt}          the quilt's root
 # `name` is who the agent says it is in the chat, and must include Agent or AI. `resume`, when given, is used from the
 # second turn on. This file is yours: it is not committed, and loom refuses to run it if git tracks it.
-# `loom agent check` tests configuration and executable availability without checking authentication.
+# `loom doctor --agents` tests configuration and executable availability without checking authentication.
 # For Codex, install the CLI, run `codex login`, and trust this quilt in an interactive `codex` session first.
 # Automatic launching is a separate opt-in: [ai] launch = true in config.toml.
 """
@@ -155,7 +155,7 @@ def tracked(root: Path) -> bool:
 
 @dataclass
 class Diagnosis:
-    """What `loom agent check` finds, which `loom doctor` reports too: whether launching is on, the config, the commands it would run, and every fault that would stop it."""
+    """What `loom doctor --agents` reports of the agent: whether launching is on, the config, the commands it would run, and every fault that would stop it."""
 
     launch: bool
     config: AgentConfig | None
@@ -183,7 +183,7 @@ def diagnose(root: Path) -> Diagnosis:
     cfg, problems = load(root)
     d = Diagnosis(launching(root), cfg, list(problems))
     if tracked(root):
-        d.faults.append(f"git tracks {CONFIG}: loom will not run a command the quilt carries; git rm --cached it")
+        d.faults.append(f"git tracks {CONFIG}: loom will not run a command the quilt carries")
     if cfg is not None:
         fill = {**SAMPLE, "quilt": str(root)}
         for label, template in (("start", cfg.start), ("resume", cfg.resume)):
@@ -196,6 +196,17 @@ def diagnose(root: Path) -> Diagnosis:
 
     d.unignored = CONFIG in missing(root)
     return d
+
+
+def remedy(fault: str) -> str:
+    """What clears one of `diagnose`'s faults: the command to run or the file to edit."""
+    if fault.startswith("git tracks "):
+        return f"git rm --cached {CONFIG}"
+    if fault.endswith(" is not on PATH"):
+        return f"install {fault.removesuffix(' is not on PATH')}, or name another command in {CONFIG}"
+    if fault == UNCONFIGURED:
+        return f"fill in {CONFIG} (loom ai init writes it), or set launch = false under [ai] in config.toml"
+    return f"edit {CONFIG}"
 
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")

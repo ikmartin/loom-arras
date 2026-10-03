@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 CONTEXT = 32
 
@@ -44,7 +45,13 @@ def find_quote(own_text: str, quote: str) -> list[tuple[int, int]]:
 
     A quote a reader selected on the page is not the source: math comes as `$tex$` whatever the source's delimiters, and `\\emph{x}` comes as `x`. When the plain comparison finds nothing, both sides are compared as that projection, and the spans are still offsets into the source.
     """
-    return _find_normalised(own_text, quote) or _find_projected(own_text, quote)
+    return list(_find(own_text, quote))
+
+
+@lru_cache(maxsize=4096)
+def _find(own_text: str, quote: str) -> tuple[tuple[int, int], ...]:
+    """`find_quote`, remembered: every build places every annotation again, and a served quilt builds after each write."""
+    return tuple(_find_normalised(own_text, quote) or _find_projected(own_text, quote))
 
 
 _SIMPLE = ("emph", "textit", "textbf", "texttt", "textrm", "textsf", "textsc", "textup")
