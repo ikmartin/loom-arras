@@ -435,7 +435,7 @@ QUOTE = "one or two points"  # once, in dm-0002's statement
 def test_a_mark_that_names_a_document_is_baked_into_that_document_alone(tmp_path: Path) -> None:
     """An annotation read in one document (plan 0.15, decision 9) marks that document's fragment; the other document and the node's own page carry no mark for it, while a mark naming no document is in all three."""
     d = demo(tmp_path)
-    who = ("--author", "Markas Hecht")
+    who = ("--as", "Markas Hecht")
     both = ok("annotate", "dm-0002", "Everywhere.", "--quote", QUOTE, *who, cwd=d).output.split()[0]
     only = ok(
         "annotate", "dm-0002", "Redundant here.", "--quote", QUOTE, "--in", "drafting/outline.tex", *who, cwd=d

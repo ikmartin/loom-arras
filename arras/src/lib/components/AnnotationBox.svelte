@@ -1,5 +1,5 @@
 <script lang="ts">
-	// An annotation's box (book 15.3.1): a title line of the kind in its hue, and the severity after an objection's or a suggestion's, with the × when the box can be closed; the body; then what its kind adds -- a suggestion's proposed text at a rule in the suggestion's hue, a citation's work at one in the citation's -- then one meta line of author, date and the verbs. The kind is both the title and the stripe's hue; an open box is open, severity is the mark's weight, and an anchored annotation's quote is its mark. A settled box (resolved or discarded) has its stripe at half strength, its body softened, and the outcome once on the meta line.
+	// An annotation's box (book 15.3.1): a title line of the kind in its hue, and the severity after an objection's or a suggestion's, with the × when the box can be closed; the body; then what its kind adds -- a suggestion's proposed text at a rule in the suggestion's hue, a citation's work at one in the citation's -- then one meta line of author, date and the verbs. The kind is both the title and the stripe's hue; an open box is open, severity is the mark's weight, and an anchored annotation's quote is its mark. A settled box (resolved or withdrawn) has its stripe at half strength, its body softened, and the outcome once on the meta line.
 	import TexProse from '$lib/math/TexProse.svelte';
 	import TexHtml from '$lib/math/TexHtml.svelte';
 	import VerbRow from '$lib/review/VerbRow.svelte';
@@ -19,9 +19,9 @@
 	/** One word for where the proposed text would go; `proposed` when the suggestion carries no placement. */
 	const word = $derived(annotation.placement === 'replace' || annotation.placement === 'after' || annotation.placement === 'before' ? annotation.placement : 'proposed');
 
-	/** What settled it, said once on the meta line: a citation's `accepted` (a reference note names it) or `rejected` (decided from this box), else `resolved` or `discarded`; '' while open. */
+	/** What settled it, said once on the meta line: a citation's `accepted` (a reference note names it) or `rejected` (decided from this box), else `resolved` or `withdrawn`; '' while open. */
 	function outcomeOf(a: Annotation): string {
-		if (a.discarded || a.status === 'discarded') return 'discarded';
+		if (a.discarded || a.status === 'discarded') return 'withdrawn';
 		if (a.kind === 'citation') {
 			if (store.manifest?.reference_notes?.some((n) => n.from?.annotation === a.id)) return 'accepted';
 			if (decided[a.id]) return decided[a.id];

@@ -165,7 +165,7 @@ def test_revert_prints_a_patch_and_records_nothing(tmp_path: Path) -> None:
 
 def test_fork_gives_a_document_its_own_copy(tmp_path: Path) -> None:
     q = quilt(tmp_path)
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     (q / "drafting" / "talk.tex").write_text(
         "\\documentclass{article}\n\\usepackage{amsthm}\n\\usepackage{loom}\n"
         "\\newtheorem{theorem}{Theorem}\n\\newtheorem{lemma}[theorem]{Lemma}\n"
@@ -189,10 +189,10 @@ def test_fork_from_a_recorded_version(tmp_path: Path) -> None:
     ok("stamp", "-m", "one", cwd=q)
     main = q / "drafting" / "main.tex"
     main.write_text(main.read_text().replace("Alpha.", "Alpha, revised."))
-    r = ok("fork", "pp-0002", "--in", "drafting/main.tex", "--from", "@2", "--as", "pp-0100", cwd=q)
+    r = ok("fork", "pp-0002", "--in", "drafting/main.tex", "--from", "@2", "--name", "pp-0100", cwd=q)
     assert "+Alpha." in r.output and "pp-0100" in r.output  # the older text, under the new id
     assert ledger(q)[-1]["from"]["step"] == 2
-    refused("fork", "pp-0002", "--in", "drafting/main.tex", "--as", "pp-0001", cwd=q, code=1, match="taken")
+    refused("fork", "pp-0002", "--in", "drafting/main.tex", "--name", "pp-0001", cwd=q, code=1, match="taken")
 
 
 def test_a_retired_id_is_never_allocated_again_and_written_again_is_reuse_or_recovery(tmp_path: Path) -> None:
@@ -300,7 +300,7 @@ def test_stamp_given_a_document_records_only_the_keys_it_reaches(tmp_path: Path)
     """Book 17.9: a document narrows a stamp to what it reaches, and its landmark is its flat text; a document that is not live in the drafting directory is refused."""
     q = quilt(tmp_path)
     ok("stamp", "-m", "one", cwd=q)
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     (q / "drafting" / "talk.tex").write_text(
         "\\documentclass{article}\n\\usepackage{amsthm}\n\\usepackage{loom}\n"
         "\\newtheorem{theorem}{Theorem}\n\\newtheorem{lemma}[theorem]{Lemma}\n"
@@ -429,9 +429,16 @@ def test_history_restore_drafts_a_landmark_as_a_new_document_and_records_it(tmp_
 
     n = len(ledger(q))
     refused(
-        "history", "restore", "v1", "--to", "drafting/main.tex", cwd=q, code=2, match="exists; restore never overwrites"
+        "history",
+        "restore",
+        "v1",
+        "--to",
+        "drafting/main.tex",
+        cwd=q,
+        code=2,
+        match="exists; loom does not overwrite it",
     )
-    refused("history", "restore", "v1", "--to", "nodes/v1.tex", cwd=q, code=2, match="goes directly under drafting/")
+    refused("history", "restore", "v1", "--to", "nodes/v1.tex", cwd=q, code=2, match="goes directly in drafting/")
     refused("history", "restore", "v1", cwd=q, code=2, match="needs --to FILE")
     refused("history", "restore", "nope", "--to", "drafting/x.tex", cwd=q, code=2, match="no landmark answers to nope")
     refused(

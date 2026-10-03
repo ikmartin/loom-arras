@@ -41,9 +41,7 @@ class FreezePlan:
 def versionable(n: NodeRec) -> bool:
     """A statement or proof key with an identity: `rl-0001`, `rl-0001/proof`, `rl-0001/proof/2`, a labelled proof's own id; never a qualified key, a section, or a conflicted placeholder."""
     if n.kind not in ("environment", "proof") or "#" in n.key or n.derived_of:
-        return (
-            False  # an agent copy's node has no history of its own: its base is its counterpart's version (book 17.7)
-        )
+        return False  # an agent document's node has no history of its own: its base is its counterpart's version (book 17.7)
     if n.kind == "environment":
         return bool(n.id)
     return bool(n.id) or bool(n.of and "#" not in n.of)
@@ -144,12 +142,10 @@ def write_step(
     return append_entry(history.dir, action, data, actor)
 
 
-def stamp_document(
-    result: ScanResult, history: History, doc: str, name: str, message: str, actor: str | None
-) -> tuple[Entry, FreezePlan]:
-    """Stamp a live drafting document: the keys it reaches that moved, and its flat text kept as the landmark `name`.
+def plan_document_stamp(result: ScanResult, history: History, doc: str) -> tuple[FreezePlan, str]:
+    """What stamping the live drafting document `doc` would record: the freeze of the keys it reaches, and its flat text.
 
-    Shared by `loom stamp DOCUMENT` and adoption, which stamps the document it is about to write. Raises ValueError when the document reaches a conflicted key, which has no one text to keep; the caller checks the name is free.
+    Shared by `stamp_document` and `loom stamp DOCUMENT --dry-run`. Raises ValueError when the document reaches a conflicted key, which has no one text to keep.
     """
     from loom.reshape.linearize import flatten
 
@@ -158,8 +154,17 @@ def stamp_document(
         raise ValueError(
             f"{doc} reaches {', '.join(conflicted)}, defined by two files each; a landmark needs one text per key. loom lint --nodes shows them."
         )
-    plan = plan_freeze(result, history, document=doc, narrow_to=doc)
-    text = flatten(result.quilt.root, doc).text
+    return plan_freeze(result, history, document=doc, narrow_to=doc), flatten(result.quilt.root, doc).text
+
+
+def stamp_document(
+    result: ScanResult, history: History, doc: str, name: str, message: str, actor: str | None
+) -> tuple[Entry, FreezePlan]:
+    """Stamp a live drafting document: the keys it reaches that moved, and its flat text kept as the landmark `name`.
+
+    Shared by `loom stamp DOCUMENT` and adoption, which stamps the document it is about to write. Raises ValueError when the document reaches a conflicted key, which has no one text to keep; the caller checks the name is free.
+    """
+    plan, text = plan_document_stamp(result, history, doc)
     extra: dict[str, Any] = {
         "message": message,
         "in": doc,

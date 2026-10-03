@@ -56,8 +56,8 @@
 <section aria-label={contribution.label}>
 	<h2>{contribution.label}</h2>
 	<p>Changes will go into <code>{contribution.source}</code> and the node files it uses. You can explicitly accept inspected mathematics when incorporating.</p>
-	<p><a href={masterUrl(contribution.copy)}>Open AI draft and its annotations</a></p>
-	<p>Choose changes to incorporate now. Unselected proposals remain in the AI draft and will appear again while they differ.</p>
+	<p><a href={masterUrl(contribution.copy)}>Open the agent document and its annotations</a></p>
+	<p>Choose changes to incorporate now. Unselected proposals remain in the agent document and will appear again while they differ.</p>
 	{#each contribution.issues as issue}<p role="alert">{issue}</p>{/each}
 	{#if error}<p role="alert">{error}</p>{/if}
 	{#if message}<p role="status">{message} <a href="?show=needs-review">Needs review</a></p>{/if}

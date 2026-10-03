@@ -199,7 +199,7 @@ def attach_incoming(
 def attach_adoptions(
     result: ScanResult, renderer: Any, manifest: dict[str, Any], files: dict[str, str | bytes]
 ) -> None:
-    """Publish AI contributions beside the optional workspace pull in Incoming."""
+    """Publish agent documents' changes beside the optional workspace pull in Incoming."""
     from loom.adopt import comparison, decisions
     from loom.history.ledger import load_history
     from loom.reshape.copy import derived_key
@@ -294,7 +294,7 @@ def attach_adoptions(
                         "kind": "adopt",
                         "copy": copy,
                         "source": data["source"],
-                        "label": f"Incoming from AI draft “{Path(copy).stem}”",
+                        "label": f"Incoming from agent document “{Path(copy).stem}”",
                         "fingerprint": data["fingerprint"],
                         "changes": rows,
                         "document_changed": data["document_changed"],
@@ -317,7 +317,7 @@ def attach_adoptions(
                 {
                     "kind": "adopt",
                     "copy": copy,
-                    "label": f"Incoming from AI draft “{Path(copy).stem}”",
+                    "label": f"Incoming from agent document “{Path(copy).stem}”",
                     "changes": [],
                     "issues": [str(exc)],
                 }

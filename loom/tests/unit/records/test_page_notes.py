@@ -41,14 +41,14 @@ def _note_on_page(q: Path, session: str, **fields: Any) -> None:
 def test_a_note_on_a_page_round_trips_through_the_log(tmp_path: Path) -> None:
     """The log's `anchor` is two shapes under one name: the text triple every annotation carries, and, on a note against a page, the page anchor beside it, told apart by `kind`. Reading one must keep the page fields, not drop them into the selector."""
     q = demo(tmp_path)
-    sid = ok("session", "new", "reading", cwd=q).stdout.split()[0]
+    sid = ok("session", "new", "--name", "reading", cwd=q).stdout.split()[0]
     text_anchor = {
         "basis": "text", "start": 12, "end": 36, "exact": "balanced at every vertex", "prefix": "locus is ", "suffix": " of the",
     }  # fmt: skip
     _note_on_page(q, sid, id="a-2026-09-21-0001", sha256="feed" * 16, anchor=text_anchor)
     box_anchor = {"basis": "box", "quads": [[82.8, 278.1, 529.2, 315.7]], "exact": "", "prefix": "", "suffix": ""}
     _note_on_page(q, sid, id="a-2026-09-21-0002", sha256="feed" * 16, kind="note", anchor=box_anchor)
-    ok("annotate", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--author", "A. Author", cwd=q)
+    ok("annotate", "dm-0003", "on a key, as ever", "--kind", "note", "--session", sid, "--as", "A. Author", cwd=q)
 
     records, problems = load_records(q)
     assert problems == []
@@ -78,7 +78,7 @@ def test_a_note_on_a_page_resolves_against_the_store_and_not_against_a_key(tmp_p
     (home / "sections.json").write_text(json.dumps({"sha256": sha, "pages": 2, "chars": 60, "sections": []}))
     (home / "pages").mkdir(exist_ok=True)
     (home / "pages" / "0002.txt").write_text("the fixed locus is balanced at every vertex of the widget\n")
-    sid = ok("session", "new", "reading", cwd=q).stdout.split()[0]
+    sid = ok("session", "new", "--name", "reading", cwd=q).stdout.split()[0]
     found_anchor = {
         "basis": "text",
         "start": 19,

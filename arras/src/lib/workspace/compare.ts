@@ -1,6 +1,6 @@
 // What compare draws (book 15.2.6), computed from the two panes' nodes and nothing else: the pairs, which side holds the base, the marks, the wedges, and the differences stepped through. Pure, so its rules are tested without a browser; the drawing is CompareLayer's.
 //
-// **Two comparisons.** With a base — an agent copy against its source, a landmark against today or another landmark — a pair that differs is drawn as git draws a diff: `−` on the side holding the base, `+` on the other, `~` in the stale amber when both changed since the base; a node only one side has is marked on every line with a wedge where the base places it in the other pane; a node moved unchanged between a copy and its source is `↕`. Without a base — two of the author's documents — a shared node is one node file and so the same text, and only presence (a dashed rule) and order (a dotted one) can differ.
+// **Two comparisons.** With a base — an agent document against its source, a landmark against today or another landmark — a pair that differs is drawn as git draws a diff: `−` on the side holding the base, `+` on the other, `~` in the stale amber when both changed since the base; a node only one side has is marked on every line with a wedge where the base places it in the other pane; a node moved unchanged between a copy and its source is `↕`. Without a base — two of the author's documents — a shared node is one node file and so the same text, and only presence (a dashed rule) and order (a dotted one) can differ.
 
 /** One node a pane shows, in document order. */
 export interface Found {
@@ -22,7 +22,7 @@ export interface Side {
 	name: string;
 	/** A landmark's step. */
 	step: number | null;
-	/** An agent copy's source document. */
+	/** An agent document's source document. */
 	copyOf: string | null;
 	/** Whether it is in the agent's drafting directory. */
 	copy: boolean;
@@ -103,7 +103,7 @@ export function lcs(a: string[], b: string[]): Set<string> {
 	return keep;
 }
 
-/** Whether a key is an agent copy's: its id carries the derived suffix. */
+/** Whether a key is an agent document's: its id carries the derived suffix. */
 export function derived(key: string | null): boolean {
 	return !!key && /-ai$/.test(key.split('/')[0]);
 }

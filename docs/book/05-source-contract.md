@@ -47,10 +47,10 @@ prefix  := [A-Za-z0-9]+                 (no hyphen)
 local   := loomlocal | paperlocal
 loomlocal  := [0-9A-Z]{4}               (uppercase base-36, zero-padded, 0001..ZZZZ)
 paperlocal := [A-Za-z0-9.]+ ("-" [A-Za-z0-9.]+)*   (a cited paper's own label, e.g. thm-4.1, setup)
-derived := prefix "-" loomlocal "-ai"   (an agent copy's node, e.g. zk-0001-ai)
+derived := prefix "-" loomlocal "-ai"   (an agent document's node, e.g. zk-0001-ai)
 ```
 
-**[decided]** **A derived id** is the id of a node an agent's copy defines (4.4): `zk-0001-ai` is the copy's node whose counterpart is `zk-0001`, the pair read from the id itself by dropping the suffix, whatever either document is called. It takes only a prefix of the loom-local form: under a citekey slug the local part is paper-local, so `arden24-0001-ai` is an ordinary paper id. A derived id is an id to the scan — two definitions are `duplicate-id`, references resolve, `loom id` gives it no second label, and its number is the allocator's, reserved as the plain id's is — and never to the history: it is not versioned and is never accepted (7.3). A person's own documents, those the drafting directory's masters reach, neither define nor cite one: `loom:derived-id-in-drafting` (error).
+**[decided]** **A derived id** is the id of a node an agent document defines (4.4): `zk-0001-ai` is the copy's node whose counterpart is `zk-0001`, the pair read from the id itself by dropping the suffix, whatever either document is called. It takes only a prefix of the loom-local form: under a citekey slug the local part is paper-local, so `arden24-0001-ai` is an ordinary paper id. A derived id is an id to the scan — two definitions are `duplicate-id`, references resolve, `loom id` gives it no second label, and its number is the allocator's, reserved as the plain id's is — and never to the history: it is not versioned and is never accepted (7.3). A person's own documents, those the drafting directory's masters reach, neither define nor cite one: `loom:derived-id-in-drafting` (error).
 
 A label is id-shaped if it matches `id`. Since `paperlocal` is broad, the scanner decides which form applies by prefix: a prefix that is the slug of a citekey (the citekey with everything but letters and digits removed) in the quilt's bibliography or in a digest header takes `paperlocal`; any other prefix takes `loomlocal`. Digest ids use the slug rather than the citekey because real citekeys contain hyphens, colons, and spaces, which the grammar forbids; two citekeys with one slug are `loom:citekey-slug-collision` (error), and the `% !LOOM digest:` directive keeps the verbatim citekey (DR-45). A label like `lem:res-indep` is not id-shaped (it contains a colon). A label like `sec-intro` is id-shaped by grammar (`sec` prefix, `intro` local) only if `sec` is a citekey slug; otherwise `intro` fails `loomlocal` and the label is an alias. **[decided]** This rule; it keeps human labels with hyphens from being mistaken for ids.
 
@@ -87,12 +87,12 @@ Qualified keys are stable only while the structure they name is stable; ids are 
 
 **[decided]** Liveness is a property of *documents*, not of every file. A document is a file containing `\documentclass`. A document is **live** when it sits in the drafting directory and no conversion has recorded that its output superseded it (17.12). Only a live document defines the nodes it holds inline. Every other scanned file — a node file, a section file, a digest — defines its nodes exactly as it always has, whether a master reaches it or not; being loose is still a computed property and still not a fault.
 
-**[decided]** When two files both define one id, loom publishes the id as **conflicted**: it has no text, no winner is chosen, and `duplicate-id` (error) names every file that defines it, with one fix per file (`loom fork ID --in FILE`) and the option of giving one copy a fresh id by hand. The conflicted id still exists as a target — references to it resolve and the graph shows it — and everything that needs its *text* refuses: it renders no fragment, it is not a bundle, it cannot be accepted, commented on, atomized, forked, or reverted, and a document that reaches it cannot be stamped as a landmark or copied for an agent.
+**[decided]** When two files both define one id, loom publishes the id as **conflicted**: it has no text, no winner is chosen, and `duplicate-id` (error) names every file that defines it, with one fix per file (`loom fork ID --in FILE`) and the option of giving one copy a fresh id by hand. The conflicted id still exists as a target — references to it resolve and the graph shows it — and everything that needs its *text* refuses: it renders no fragment, it has no closure document, it cannot be accepted, commented on, atomized, forked, or reverted, and a document that reaches it cannot be stamped as a landmark or copied for an agent.
 
 **[decided]** Resolution by walk order was rejected. Four things go wrong when two files define one id and the tool picks one:
 
 1. the manifest publishes one of the two, chosen by filename, and a reader has no way to know a second exists;
-2. a bundle inlines the other file's closure, and the paper it compiles matches nothing in the quilt;
+2. a closure document inlines the other file's closure, and the paper it compiles matches nothing in the quilt;
 3. every hash, staleness computation and acceptance asks for "the text of `rl-0001`" and there are two, so a state is recorded against a text nobody chose;
 4. an agent edits one copy while the other silently disagrees, which is the failure that cannot be debugged from the output.
 
@@ -195,7 +195,7 @@ A node never has an edge to itself, and a proof has none to its own statement (D
 ### 5.7.2 Classification
 
 1. **[decided]** An edge is a statement-edge if it occurs in a statement's own text, a proof-edge if in a proof's own text, and a prose-edge if in a section's own text or in master prose outside every section.
-2. **[decided]** The closure of a key is the transitive closure over statement-edges from the key's statement (for a proof key, from its statement) together with the direct proof-edges of the proof. Definitions and setup nodes reach a bundle through statement-edges; lemmas a proof cites reach it through proof-edges. Relations declared with `see:` are not edges and enter no closure.
+2. **[decided]** The closure of a key is the transitive closure over statement-edges from the key's statement (for a proof key, from its statement) together with the direct proof-edges of the proof. Definitions and setup nodes reach a closure document through statement-edges; lemmas a proof cites reach it through proof-edges. Relations declared with `see:` are not edges and enter no closure.
 3. **[decided]** An `\eqref` to an equation inside another node's proof is a proof-dependency on that node's proof; lint reports `loom:equation-in-proof-referenced` (warning) because a proof may be rewritten and take the equation with it. It is never an error.
 
 ### 5.7.3 Resolution
@@ -220,9 +220,9 @@ Mathematical acceptance uses a separate dependency context (DR-314-luisa). Struc
 ## 5.8 Equations and other labelled regions
 
 1. **[decided]** A labelled display equation (`equation`, `align`, `gather`, `multline`, and their starred forms with `\tag`, or any environment containing `\label` that is not theorem-like or sectioning) is a region belonging to the node whose own text contains it, addressed by the qualified key `<container>#<label>`.
-2. **[decided]** Labels are free-form. `\label{eq:main}` is fine. Lint enforces uniqueness of all labels across the whole quilt (`duplicate-id` for ids, `loom:duplicate-label` for others), which is stricter than LaTeX, because bundles and pages combine regions the master never compiles together.
-3. **[decided]** Referencing an equation from another node creates an edge to the containing node (5.7.2). The bundle for the referencing key includes the equation's containing statement; if the equation is in a proof, the bundle includes the equation region itself.
-4. **[decided]** Equations in master prose are regions of the master. A node referencing one creates a prose-dependency; the bundle includes the equation region.
+2. **[decided]** Labels are free-form. `\label{eq:main}` is fine. Lint enforces uniqueness of all labels across the whole quilt (`duplicate-id` for ids, `loom:duplicate-label` for others), which is stricter than LaTeX, because closure documents and pages combine regions the master never compiles together.
+3. **[decided]** Referencing an equation from another node creates an edge to the containing node (5.7.2). The closure document for the referencing key includes the equation's containing statement; if the equation is in a proof, the closure document includes the equation region itself.
+4. **[decided]** Equations in master prose are regions of the master. A node referencing one creates a prose-dependency; the closure document includes the equation region.
 5. **[decided]** Figures, tables, and `\item` labels are treated identically: free-form labels, container-qualified, referenceable.
 6. **[decided]** Equations are annotation targets (Chapter 7) but never ledger keys.
 
@@ -266,7 +266,7 @@ Mathematical acceptance uses a separate dependency context (DR-314-luisa). Struc
 
 ## 5.10 Digest nodes
 
-Digests are specified in Chapter 8. For the source contract, a digest node is an external node: every theorem-like environment in a file with a `% !LOOM digest:` header is external, with no proof, a title carrying `\cite[LOCATOR]{citekey}`, and an id of the form `<slug>-<paperlocal>`, where the slug is the citekey stripped to letters and digits (5.3.1, DR-45). Its labels and `\eqref`s are prefixed with the slug at extraction time so that digests from different papers coexist in one bundle. Digest files are loose by construction: they are not reported `unreachable` (DR-51), and a reference to one of their nodes is never `loom:reference-to-loose` (DR-76).
+Digests are specified in Chapter 8. For the source contract, a digest node is an external node: every theorem-like environment in a file with a `% !LOOM digest:` header is external, with no proof, a title carrying `\cite[LOCATOR]{citekey}`, and an id of the form `<slug>-<paperlocal>`, where the slug is the citekey stripped to letters and digits (5.3.1, DR-45). Its labels and `\eqref`s are prefixed with the slug at extraction time so that digests from different papers coexist in one closure document. Digest files are loose by construction: they are not reported `unreachable` (DR-51), and a reference to one of their nodes is never `loom:reference-to-loose` (DR-76).
 
 ## 5.11 Directives
 
@@ -319,7 +319,7 @@ A name belongs inside the node it names and never inherits from a file header or
 
 Any other key is unknown.
 
-**[decided]** `see:` declares a relation, not a dependency. Each item resolves like a reference: an id, an alias, or a digest node id; an item that names nothing is `dangling-link`, and one that names the node it is written in, or repeats a relation already declared there, is `loom:see-redundant` (info). A relation enters no closure, no bundle, no acceptance row and no staleness computation, so a detailed version of a result may change freely without making the compact version stale. It is stored once, on the declaring node, and a viewer shows it on both. `\uses` remains the only way to declare a dependency the text does not name.
+**[decided]** `see:` declares a relation, not a dependency. Each item resolves like a reference: an id, an alias, or a digest node id; an item that names nothing is `dangling-link`, and one that names the node it is written in, or repeats a relation already declared there, is `loom:see-redundant` (info). A relation enters no closure, no closure document, no acceptance row and no staleness computation, so a detailed version of a result may change freely without making the compact version stale. It is stored once, on the declaring node, and a viewer shows it on both. `\uses` remains the only way to declare a dependency the text does not name.
 
 ## 5.12 Macros
 
@@ -343,7 +343,7 @@ No other macro has meaning to the scanner. `\todo` from `todonotes` is ignored.
 
 The preamble closure's hash is the hash of the concatenation of the normalized preamble text of the master followed by the included fragments in inclusion order, including `loom.sty`.
 
-**[decided]** Snapshots and versions are stored together under `.loom/history/texts/`, named by the hash of their normalized text (17.2). A document a step keeps — a landmark, or the source of an agent copy — is hashed differently, over its exact text rather than its normalized text, because it is a file rather than a key and a comment changed in one is a change to it (17.15).
+**[decided]** Snapshots and versions are stored together under `.loom/history/texts/`, named by the hash of their normalized text (17.2). A document a step keeps — a landmark, or the source of an agent document — is hashed differently, over its exact text rather than its normalized text, because it is a file rather than a key and a comment changed in one is a change to it (17.15).
 
 **[decided]** Whitespace inside a line is not normalized, so a reflowed paragraph changes the hash. Reflow is an edit; the author re-accepts.
 
@@ -468,4 +468,4 @@ We construct the residue as a specialization followed by a Segre class.
 \end{proof}
 ```
 
-Keys: `rl-0040`, `rl-0041`, `rl-0042`. The second proof follows a proof that attached by adjacency, so it attaches to the same theorem (5.6.1). The graph shows that `rl-0004` is used only by the first proof; if the author adopts the second, `rl-0004` may become unnecessary, which `loom unravel rl-0004` reports.
+Keys: `rl-0040`, `rl-0041`, `rl-0042`. The second proof follows a proof that attached by adjacency, so it attaches to the same theorem (5.6.1). The graph shows that `rl-0004` is used only by the first proof; if the author adopts the second, `rl-0004` may become unnecessary, which `loom downstream rl-0004` reports.

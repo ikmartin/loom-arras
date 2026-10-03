@@ -1,4 +1,4 @@
-"""The dependency graph from the command line (book 12): `search`, `deps`, `unravel`, and the refusals of `pop` and `delete`."""
+"""The dependency graph from the command line (book 12): `search`, `deps`, `downstream`, and the refusal of `delete`."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def test_deps_prints_see_also(tmp_path: Path) -> None:
     assert all(e["key"] != "sy-0008" for e in payload["closure"])  # and a relation is not in the closure
 
 
-def test_search_deps_unravel_delete(tmp_path: Path) -> None:
+def test_search_deps_downstream_delete(tmp_path: Path) -> None:
     q = demo(tmp_path)
     entries = json_of("search", "orbits", "--json", cwd=q)["matches"]
     assert entries[0]["key"] == "dm-0002" and "lem:orbits" in entries[0]["aliases"]
@@ -44,25 +44,28 @@ def test_search_deps_unravel_delete(tmp_path: Path) -> None:
         ("Definition", "Calloway14-def-3.1"),
         ("Proposition", "Calloway14-prop-3.2"),
     }  # the closure includes the digest nodes the proof cites by postnote (book 8.11)
-    up = json_of("unravel", "dm-0001", "--json", cwd=q)
+    up = json_of("downstream", "dm-0001", "--json", cwd=q)
     assert {x["key"] for x in up["dependents"]} == {"dm-0002/proof", "dm-0005/proof"}
     assert any(i["file"] == "drafting/main.tex" for i in up["inclusions"])
-    assert "nothing was changed" in ok("pop", "dm-0001", cwd=q).output.splitlines()[0]
-    refused("delete", "dm-0001", cwd=q, code=2, match="loom will not delete your notes")
-    refused("rm", cwd=q, code=2, match="loom will not delete your notes")
+    assert "nothing was changed" in ok("downstream", "dm-0001", cwd=q).output.splitlines()[0]
+    before = sorted(p.relative_to(q).as_posix() for p in q.rglob("*"))
+    for name in ("delete", "rm", "remove"):
+        r = refused(name, "dm-0001", cwd=q, code=2, match="loom will not delete your notes")
+        assert "loom downstream ID" in r.output
+    assert sorted(p.relative_to(q).as_posix() for p in q.rglob("*")) == before
     refused("deps", "dm-9999", cwd=q, code=2, match="no such key: dm-9999")
 
 
-def test_unravel_reports_the_ledger_and_the_annotations_it_heads(tmp_path: Path) -> None:
-    """`unravel` lists a node's ledger rows and the annotations on it; `annotations: (none)` on a reviewed node would say it was never reviewed (F13)."""
+def test_downstream_reports_the_ledger_and_the_annotations_it_heads(tmp_path: Path) -> None:
+    """`downstream` lists a node's ledger rows and the annotations on it; `annotations: (none)` on a reviewed node would say it was never reviewed (F13)."""
     q = demo(tmp_path)
-    ok("annotate", "dm-0002", "Which orbits?", "--author", "Tom", cwd=q)
+    ok("annotate", "dm-0002", "Which orbits?", "--as", "Tom", cwd=q)
 
-    payload = json_of("unravel", "dm-0002", "--json", cwd=q)
+    payload = json_of("downstream", "dm-0002", "--json", cwd=q)
     assert [r["key"] for r in payload["ledger"]] == ["dm-0002", "dm-0002/proof"]  # the statement and its proof
     (a,) = payload["annotations"]
     assert a["message"] == "Which orbits?" and a["target"] == "dm-0002" and a["status"] == "open"
 
-    text = ok("unravel", "dm-0002", cwd=q).output
+    text = ok("downstream", "dm-0002", cwd=q).output
     assert "Which orbits?" in text
     assert "annotations:\n  (none)" not in text

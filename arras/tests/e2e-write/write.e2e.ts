@@ -421,7 +421,7 @@ test('an annotation is edited, discarded with a reason and put back, each an eve
 	expect(discarded.session).toBe(sid);
 	expect(discarded.undo).toBeUndefined();
 	// settled, the box says so once and offers reopen alone
-	await expect(head.getByTestId('outcome')).toHaveText('· discarded');
+	await expect(head.getByTestId('outcome')).toHaveText('· withdrawn');
 	const undo = head.getByTestId('verb-reopen');
 	await expect(undo).toBeVisible();
 	await expect(head.getByTestId('verb-discard')).toHaveCount(0);

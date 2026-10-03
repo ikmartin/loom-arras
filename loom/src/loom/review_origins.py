@@ -1,4 +1,4 @@
-"""Shared provenance for incorporated contributions: a pull from the document workspace or an adopted AI draft."""
+"""Shared provenance for incorporated contributions: a pull from the document workspace or an adopted agent document."""
 
 from __future__ import annotations
 

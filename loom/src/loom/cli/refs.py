@@ -85,7 +85,7 @@ def logged(name: str) -> Callable[[F], F]:
 
 @click.group(name="refs")
 def refs() -> None:
-    """Fetched works: where their artifacts are, how to add one by hand, and identifiers for works that state none."""
+    """Manage cited works: where their artifacts are, how to add one by hand, and identifiers for works that state none."""
 
 
 @refs.command(name="path")
@@ -578,7 +578,7 @@ def fetch_command(
 @click.option("--json", "as_json", is_flag=True, help="Print as JSON.")
 @quilt_option
 def match_command(as_json: bool, quilt_path: str | None) -> None:
-    """The cited works a person has to look at: no artifact and no identifier, or a source discarded on arrival.
+    """List the cited works a person has to look at: no artifact and no identifier, or a source discarded on arrival.
 
     Reads disk only; it never fetches and never asks a service. `loom refs build` shows the same list under `needs you`.
     """
@@ -718,7 +718,7 @@ def one_work(result: ScanResult, needle: str) -> str:
 @quilt_option
 @logged("coverage")
 def coverage_command(citekeys: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None:
-    """What the quilt knows about each cited work: source, PDF, page text, digest, and proposals waiting on the author.
+    """Report what the quilt knows about each cited work: source, PDF, page text, digest, and proposals waiting on the author.
 
     A search over a partly digested corpus is a search over silence, so this is the line every other answer should be read against. Each argument is a citekey or a fragment of an author's name or a title -- `romagny`, `intrinsic normal cone` -- and a fragment that matches several works lists them all, because two papers by the same authors in the same year is exactly when guessing goes wrong.
     """
@@ -1401,7 +1401,7 @@ def discard_command(target: str, reason: str, author: str | None, as_json: bool,
 @quilt_option
 @logged("why")
 def why_command(target: str, as_json: bool, quilt_path: str | None) -> None:
-    """Where a result came from, what state it is in, and who changed it.
+    """Show where a result came from, what state it is in, and who changed it.
 
     Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited.
     """
@@ -1585,7 +1585,7 @@ def link_command(
 @quilt_option
 @logged("links")
 def links_command(target: str | None, depth: int, as_json: bool, quilt_path: str | None) -> None:
-    """Links touching TARGET, out to --depth hops, or every link when TARGET is omitted.
+    """List the links touching TARGET, out to --depth hops, or every link when TARGET is omitted.
 
     An agent walking a chain of results called this once per node; --depth walks it in one.
     """

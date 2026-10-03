@@ -63,15 +63,17 @@ def test_a_warning_is_reported_on_one_line_naming_where(tmp_path: Path, code: st
     assert where in line, line
 
 
-def test_check_reports_a_bundle_that_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_reports_a_closure_that_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     q = demo(tmp_path)
-    monkeypatch.setenv("FAKE_TEX_FAIL_MATCH", "bundles/")  # the master compiles; every bundle fails
-    r = exits(1, "check", "--bundles", "all", cwd=q)
+    monkeypatch.setenv("FAKE_TEX_FAIL_MATCH", "closures/")  # the master compiles; every closure fails
+    r = exits(1, "check", "--closures", "all", cwd=q)
     assert r.output.startswith("check failed:")
-    assert "loom:bundle-failed" in r.output and "compiles  drafting/main.tex" in r.output
+    assert "loom:closure-failed" in r.output and "compiles  drafting/main.tex" in r.output
 
 
 def test_atomize_refuses_a_target_file_that_exists(tmp_path: Path) -> None:
     q = demo(tmp_path)
     (q / "nodes" / "dm-0004.tex").write_text("% a file already sits where the inline node dm-0004 would move\n")
-    refused("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q, code=1, match="loom:atomize-target-exists")
+    refused(
+        "atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q, code=1, match="loom:atomize-target-exists"
+    )

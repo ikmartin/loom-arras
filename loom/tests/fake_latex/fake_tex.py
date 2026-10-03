@@ -178,7 +178,7 @@ def run_engine(tool: str, args: list[str]) -> int:
     outdir = out_dir(args)
     outdir.mkdir(parents=True, exist_ok=True)
     stem = src.stem
-    match = os.environ.get("FAKE_TEX_FAIL_MATCH")  # fail only when the input path contains this (e.g. "bundles/")
+    match = os.environ.get("FAKE_TEX_FAIL_MATCH")  # fail only when the input path contains this (e.g. "closures/")
     if os.environ.get("FAKE_TEX_FAIL") or (match and match in str(src)):
         (outdir / f"{stem}.log").write_text(
             "! LaTeX Error: fake failure requested by FAKE_TEX_FAIL.\n", encoding="utf-8"

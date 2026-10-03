@@ -66,7 +66,7 @@ def test_linearize_flattens_with_nest_shift(tmp_path: Path) -> None:
         "--no-check",
         cwd=root,
         code=2,
-        match="exists; linearize never overwrites",
+        match="exists; loom does not overwrite it",
     )
     # the spine and everything it inlined are now superseded: they define nothing until loom live
     assert "superseded" in r.output
@@ -87,7 +87,7 @@ def test_bundle_contents_and_order(tmp_path: Path) -> None:
     assert "\\begin{lemma}[Orbits]\\label{dm-0002}" in text and "\\begin{theorem}[Main]\\label{dm-0003}" in text
     assert "Take" not in text  # dm-0002's proof is not part of the closure
     ok("compile", "dm-0003", cwd=d)
-    assert (d / "build" / "bundles" / "dm-0003" / "dm-0003.pdf").exists()
+    assert (d / "build" / "closures" / "dm-0003" / "dm-0003.pdf").exists()
 
 
 def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
@@ -99,14 +99,14 @@ def test_compile_with_diff_does_not_touch_quilt(tmp_path: Path) -> None:
     (tmp_path / "proposal.diff").write_text(diff)
     assert apply_unified_diff(original, diff) == proposed
     ok("compile", "dm-0002", "--with", str(tmp_path / "proposal.diff"), cwd=d)
-    text = (d / "build" / "bundles" / "dm-0002.tex").read_text()
+    text = (d / "build" / "closures" / "dm-0002.tex").read_text()
     assert "Orbits have at most two points" in text and "Every orbit of a widget" not in text
     assert node.read_text() == original
     (tmp_path / "replacement.tex").write_text(
         "\\begin{lemma}[Orbits]\\label{dm-0002}\nReplaced statement.\n\\end{lemma}\n"
     )
     ok("compile", "dm-0002", "--with", str(tmp_path / "replacement.tex"), cwd=d)
-    assert "Replaced statement." in (d / "build" / "bundles" / "dm-0002.tex").read_text()
+    assert "Replaced statement." in (d / "build" / "closures" / "dm-0002.tex").read_text()
 
 
 def test_compile_with_bad_diff_exit_1(tmp_path: Path) -> None:
@@ -124,7 +124,7 @@ def test_compile_draft_unpromoted_node(tmp_path: Path) -> None:
         "\\begin{lemma}[Drafted]\\label{dm-0019}\nUses Lemma~\\ref{lem:orbits}.\n\\end{lemma}\n\\begin{proof}\n\\uses{dm-0001}\nP\n\\end{proof}\n"
     )
     ok("compile", "--draft", str(draft), cwd=d)
-    out = d / "build" / "bundles" / "draft-draft-dm-0019.tex"
+    out = d / "build" / "closures" / "draft-draft-dm-0019.tex"
     text = out.read_text()
     assert "% id: dm-0002" in text and "% id: dm-0001" in text and "Drafted" in text
     draft.write_text("\\begin{lemma}\\label{dm-0019}\nSee \\ref{nope}.\n\\end{lemma}\n")
@@ -135,10 +135,17 @@ def test_check_lints_and_compiles(tmp_path: Path) -> None:
     d = demo(tmp_path)
     r = ok("check", cwd=d)
     assert r.output.startswith("check passed:") and "compiles  drafting/main.tex" in r.output
-    bundles = json_of("check", "--bundles", "all", "--json", cwd=d)["bundles"]
-    assert {"key": "dm-0003", "ok": True, "error": None} in bundles
+    closures = json_of("check", "--closures", "all", "--json", cwd=d)["closures"]
+    assert {"key": "dm-0003", "ok": True, "error": None} in closures
     (d / "nodes" / "dup.tex").write_text("\\begin{lemma}\\label{dm-0001}\n\\end{lemma}\n")
-    assert "duplicate-id" in exits(1, "check", "--no-compile", cwd=d).output
+    assert "duplicate-id" in exits(1, "check", cwd=d).output
+
+
+def test_compile_refuses_an_engine_it_does_not_know(tmp_path: Path) -> None:
+    """`--engine` is a choice of the engines loom runs, refused by name rather than silently replaced by pdflatex (K3)."""
+    d = demo(tmp_path)
+    r = refused("compile", "--engine", "troff", cwd=d, code=2, match="'troff' is not one of")
+    assert "pdflatex" in r.output and not (d / "build").exists()
 
 
 def test_compile_failure_reports_first_error(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -156,10 +163,10 @@ def test_with_names_a_file_first_and_then_an_annotation(tmp_path: Path) -> None:
     assert "Traceback" not in missing.output
 
     text = (d / "nodes" / "dm-0002.tex").read_text().replace("one or two points", "at most two points")
-    c = ok("annotate", "dm-0002", "Tighten it", "--payload", text, "--author", "Tom", cwd=d)
+    c = ok("annotate", "dm-0002", "Tighten it", "--payload", text, "--as", "Tom", cwd=d)
     ann = c.stdout.split()[0]
     ok("compile", "dm-0002", "--with", ann, cwd=d)
-    assert "at most two points" in (d / "build" / "bundles" / "dm-0002.tex").read_text()
+    assert "at most two points" in (d / "build" / "closures" / "dm-0002.tex").read_text()
 
     refused("compile", "dm-0003", "--with", ann, cwd=d, code=1, match="is on dm-0002, not dm-0003")
 

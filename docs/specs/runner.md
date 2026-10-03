@@ -8,7 +8,7 @@
 
 **[decided]** Loom executes the runner command as a subprocess with:
 
-- stdin: the prompt, UTF-8. The prompt is the mode template followed by the input bundle the mode's input contract specifies (a `loom bundle` output, context JSON, digest entries), separated by a line `----- INPUT -----`.
+- stdin: the prompt, UTF-8. The prompt is the mode template followed by the input bundle the mode's input contract specifies (a closure document, context JSON, digest entries), separated by a line `----- INPUT -----`.
 - environment: `LOOM_RUN` set to the run directory's absolute path; `LOOM_QUILT` to the quilt root; `LOOM_MODE` to the mode name; `LOOM_TARGET` to the target key if any. Nothing else is added; nothing is removed.
 - working directory: the quilt root.
 - arguments: none beyond those in the configured command string, which may include fixed flags.

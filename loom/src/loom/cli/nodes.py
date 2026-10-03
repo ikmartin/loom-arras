@@ -1,4 +1,4 @@
-"""`loom new`, `loom search`, `loom delete` (book 12.3)."""
+"""`loom new`, `loom search` (book 12.3)."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EnvError
+from loom.cli._common import EnvError, NotFoundError, find_session
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.build_cmds import log_run
 from loom.cli.graph import keyed, natural
 from loom.cli.report import Group, Report, counted
 from loom.clock import today
 from loom.scan.alloc import visible_locals
-from loom.scan.labels import next_local
+from loom.scan.labels import PREFIX, next_local
 from loom.scan.quilt import NoAuthorError, resolve_author
 from loom.scan.scan import ScanResult
 
@@ -47,7 +47,9 @@ def resolve_taxon(result: ScanResult, name: str) -> str:
     for env, t in result.taxa.items():
         if t.name.lower() == name.lower():
             return env
-    raise EnvError(f"unknown taxon {name!r}; the default master declares: {', '.join(sorted(result.taxa))}")
+    raise NotFoundError(
+        "taxon", f"unknown taxon {name!r}; the default master declares: {', '.join(sorted(result.taxa))}"
+    )
 
 
 @click.command()
@@ -57,24 +59,33 @@ def resolve_taxon(result: ScanResult, name: str) -> str:
 @click.option(
     "--print", "print_only", is_flag=True, help="Print the skeleton without allocating an id or writing a file."
 )
+@click.option("--dry-run", is_flag=True, help="Say which id and file would be written, and write nothing.")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def new(
     taxon: str,
     title: str | None,
     prefix: str | None,
     print_only: bool,
+    dry_run: bool,
     run_dir: str | None,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead."""
     result = open_scan(quilt_path)
-    log_run(run_dir, f"loom new {taxon}" + (f" {title!r}" if title else ""), result.quilt.root)
     env = resolve_taxon(result, taxon)
+    if prefix is not None and not PREFIX.match(prefix):
+        raise EnvError(f"--prefix {prefix}: a prefix is letters and digits, without a hyphen")
+    if prefix is not None and prefix in result.assembly.citeslugs:
+        raise EnvError(f"--prefix {prefix} is a cited work's slug, whose ids are that paper's own")
+    if dry_run and run_dir:
+        find_session(result.quilt.root, run_dir)
+    elif not dry_run:
+        log_run(run_dir, f"loom new {taxon}" + (f" {title!r}" if title else ""), result.quilt.root)
     try:
         author, _ = resolve_author(None, result.quilt.root)
     except NoAuthorError:
@@ -87,13 +98,16 @@ def new(
     path = result.quilt.root / "nodes" / f"{node_id}.tex"
     if path.exists():
         raise EnvError(f"{path} already exists")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(skeleton(result, node_id, env, title, author), encoding="utf-8")
     rel = path.relative_to(result.quilt.root).as_posix()
     name = result.taxa[env].name if env in result.taxa else env
-    Report(f"{node_id}  wrote {rel}, a new {name.lower()}", data={"id": node_id, "file": rel, "taxon": env}).emit(
-        as_json
-    )
+    if not dry_run:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(skeleton(result, node_id, env, title, author), encoding="utf-8")
+    Report(
+        f"{node_id}  {'would write' if dry_run else 'wrote'} {rel}, a new {name.lower()}",
+        dry_run=dry_run,
+        data={"id": node_id, "file": rel, "taxon": env},
+    ).emit(as_json)
 
 
 def search_entries(result: ScanResult, query: str, kind: str | None) -> list[dict[str, object]]:
@@ -161,7 +175,7 @@ def document_named(result: ScanResult, name: str) -> str:
     stem = [m for m in result.masters if Path(m).stem == Path(name).stem]
     if len(stem) == 1:
         return stem[0]
-    raise EnvError(f"{name} names no drafting document; they are: {', '.join(result.masters) or 'none'}")
+    raise NotFoundError("document", f"{name} names no document; they are: {', '.join(result.masters) or 'none'}")
 
 
 def numbered_entries(result: ScanResult, query: str, only: str | None = None) -> list[dict[str, object]] | None:
@@ -206,11 +220,13 @@ def numbered_entries(result: ScanResult, query: str, only: str | None = None) ->
 
 @click.command()
 @click.argument("query")
-@click.option("--kind", type=click.Choice(["node", "digest", "master", "thread"]), default=None)
+@click.option(
+    "--kind", type=click.Choice(["node", "digest", "master", "thread"]), default=None, help="Only matches of this kind."
+)
 @click.option(
     "--in", "within", default=None, metavar="DOC", help="Resolve a number like `Theorem 3.4` in this document only."
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
@@ -223,8 +239,8 @@ def search(
     A number as a reader sees it -- `Theorem 3.4`, `3.4`, `(3)` -- finds what each drafting document numbers so, the default document's first and marked; `--in DOC` asks one document only.
     """
     result = open_scan(quilt_path)
-    log_run(run_dir, f"loom search {query}" + (f" --in {within}" if within else ""), result.quilt.root)
     only = document_named(result, within) if within else None
+    log_run(run_dir, f"loom search {query}" + (f" --in {within}" if within else ""), result.quilt.root)
     found = numbered_entries(result, query, only)
     asked = query.strip()
     # a bare number that numbers nothing may still be words to look for, as `2026` in a title is
@@ -274,13 +290,3 @@ def search(
         ],
         data={"matches": entries},
     ).emit(as_json)
-
-
-@click.command(name="delete")
-@click.argument("args", nargs=-1)
-@click.option("--json", "as_json", is_flag=True, help="Accepted, so a script gets the same refusal.")
-def delete(args: tuple[str, ...], as_json: bool) -> None:
-    """Refuse: loom never deletes your notes."""
-    raise EnvError(
-        "loom will not delete your notes; do this yourself with rm. Run loom unravel <ID> to see the consequences first."
-    )

@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterator
+from pathlib import Path
 
 import click
 import pytest
@@ -26,6 +27,9 @@ def leaves() -> Iterator[tuple[str, click.Command]]:
 
     def walk(cmd: click.Command, path: list[str]) -> Iterator[tuple[str, click.Command]]:
         if isinstance(cmd, click.Group):
+            # a group that runs on its own (`history`) is a command as well as a group
+            if cmd.invoke_without_command and path:
+                yield " ".join(path), cmd
             for name, sub in cmd.commands.items():
                 yield from walk(sub, [*path, name])
         else:
@@ -64,13 +68,31 @@ def _env(case: Case) -> dict[str, str | None]:
     return dict(case.env)
 
 
+#: What a run may write without changing the quilt: what it builds, and the caches and logs loom keeps for itself.
+SCRATCH = ("build/", ".loom/serve.json", ".loom/review-observations.json", "last-seen.json", ".loom/sessions/")
+
+
+def files_of(q: Path) -> dict[str, bytes]:
+    """Every file of the quilt a person or a record owns, by path."""
+    return {
+        p.relative_to(q).as_posix(): p.read_bytes()
+        for p in sorted(q.rglob("*"))
+        if p.is_file() and not any(p.relative_to(q).as_posix().startswith(s) or p.name == s for s in SCRATCH)
+    }
+
+
 @pytest.mark.parametrize(("path", "i", "case"), RUNS)
 def test_the_text_leads_with_its_verdict_and_fits(path: str, i: int, case: Case, tmp_path) -> None:  # type: ignore[no-untyped-def]
     q = demo(tmp_path)
     case.setup(q)
+    before = files_of(q) if case.unchanged else None
     argv = [*path.split(), *case.args]
     r = run(*argv, cwd=q, env=_env(case))
     assert r.exit_code == case.exit, f"expected exit {case.exit}" + describe(argv, r)
+    if before is not None:
+        after = files_of(q)
+        changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+        assert changed == [], f"wrote {changed}" + describe(argv, r)
     if not r.stdout.strip():
         # nothing on stdout: a refusal, said once on stderr in the one error style
         assert r.exit_code != 0, "succeeded and said nothing" + describe(argv, r)

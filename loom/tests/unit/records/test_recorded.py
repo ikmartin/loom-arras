@@ -8,7 +8,7 @@ import pytest
 
 from tests.helpers import json_of, ok, the
 
-WHO = ("--author", "A. Author")
+WHO = ("--as", "A. Author")
 
 
 @pytest.fixture

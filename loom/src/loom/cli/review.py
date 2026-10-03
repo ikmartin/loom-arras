@@ -11,7 +11,7 @@ from typing import Any
 import click
 
 from loom.cli._common import ContentError, EnvError, NotFoundError
-from loom.cli._quilt import describe, open_quilt, open_scan, quilt_option, require_text, resolve_key
+from loom.cli._quilt import describe, open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for, log_run
 from loom.cli.graph import keyed, natural, when
 from loom.cli.report import Group, Item, Progress, Report, counted
@@ -28,37 +28,13 @@ from loom.records.annotations import (
 from loom.records.ledger import AcceptRow, append_rows
 from loom.records.log import append
 from loom.records.selectors import find_quote, make_selector
-from loom.records.snapshots import write_snapshot
+from loom.records.snapshots import snapshots_dir, write_snapshot
 from loom.records.store import Records
 from loom.render.manifest import key_hash, own_text
+from loom.scan.hashing import normalize, sha256
 from loom.scan.quilt import NoAuthorError, resolve_author
 from loom.scan.scan import ScanResult
 from loom.tex.runner import compile_tex
-
-
-@click.command(name="review")
-@click.option("--json", "as_json", is_flag=True)
-@quilt_option
-def review_command(as_json: bool, quilt_path: str | None) -> None:
-    """Observe current review causes and publish the review panel without accepting any key."""
-    from loom.render.build import build
-
-    with Progress("building"):
-        report = build(open_quilt(quilt_path))
-    stale = sorted(
-        (k for k, key in report.manifest["keys"].items() if key.get("acceptance", {}).get("fresh") is False),
-        key=natural,
-    )
-    Report(
-        f"published the review panel: {counted(len(stale), 'stale key')}",
-        ok=not stale,
-        groups=[
-            Group("stale", [Item("", key=k) for k in stale], next="loom status --stale" if len(stale) > 12 else None)
-        ]
-        if stale
-        else [],
-        data={"stale": stale},
-    ).emit(as_json)
 
 
 def _author(explicit: str | None, root: Path) -> str:
@@ -93,9 +69,17 @@ def _acceptance_master(result: ScanResult, key: str) -> str:
 
 
 def _owned(result: ScanResult, key: str) -> bool:
-    """A key the person's own documents reach, and not an agent copy's derived key: what `--all-live` and `--master` may accept."""
+    """A key the person's own documents reach, and not an agent document's derived key: what `--all-live` and `--master` may accept."""
     n = result.nodes[key]
     return not n.derived_of and any(result.document_role(m) == "drafting" for m in n.reached_by)
+
+
+def _snapshot(root: Path, text: str, hist: Path, dry_run: bool) -> tuple[str, bool]:
+    """`write_snapshot`, or with `dry_run` only its hash and whether it would be written."""
+    if not dry_run:
+        return write_snapshot(root, text, hist)
+    digest = sha256(normalize(text))
+    return digest, not (snapshots_dir(root, hist) / f"{digest.split(':', 1)[1]}.tex").exists()
 
 
 def write_acceptance(
@@ -103,10 +87,12 @@ def write_acceptance(
     keys: list[str],
     author: str,
     masters: dict[str, str] | None = None,
+    *,
+    dry_run: bool = False,
 ) -> tuple[list[AcceptRow], int, int]:
     """Record acceptance rows and the snapshots they name; returns (rows, snapshots written, snapshots already present).
 
-    The one writer of the ledger, shared by `loom accept` and `loom refs verify`. They make different claims -- the author's own mathematics against a faithful copy of someone else's -- but the record is the same shape, and a second implementation would drift in exactly the way that makes `stale` stop meaning anything.
+    The one writer of the ledger, shared by `loom accept` and `loom refs verify`. They make different claims -- the author's own mathematics against a faithful copy of someone else's -- but the record is the same shape, and a second implementation would drift in exactly the way that makes `stale` stop meaning anything. With `dry_run` the rows are computed and nothing is written.
     """
     root = result.quilt.root
     rows: list[AcceptRow] = []
@@ -128,16 +114,16 @@ def write_acceptance(
         if master not in preambles:
             closure_obj = result.closures.get(master)
             pre_text = closure_obj.raw_text() if closure_obj else ""
-            preambles[master], w = write_snapshot(root, pre_text, hist)
+            preambles[master], w = _snapshot(root, pre_text, hist, dry_run)
             written += w
             present += not w
-        text_hash, w = write_snapshot(root, own_text(result, result.nodes[key]), hist)
+        text_hash, w = _snapshot(root, own_text(result, result.nodes[key]), hist, dry_run)
         written += w
         present += not w
         closure: dict[str, str] = {}
         for dep, h in Records.closure_hashes(result, key).items():
             closure[dep] = h
-            _, w2 = write_snapshot(root, result.dependencies.texts[dep], hist)
+            _, w2 = _snapshot(root, result.dependencies.texts[dep], hist, dry_run)
             written += w2
             present += not w2
         assert text_hash == key_hash(result, key)
@@ -155,7 +141,8 @@ def write_acceptance(
                 direct={dep: closure[dep] for dep in Records.direct_keys(result, key) if dep in closure},
             )
         )
-    append_rows(root, rows)
+    if not dry_run:
+        append_rows(root, rows)
     return rows, written, present
 
 
@@ -172,12 +159,13 @@ def write_acceptance(
     "--all-live", is_flag=True, help="Accept every live author-owned statement and proof, after confirmation."
 )
 @click.option("--master", "accept_master", default=None, help="Accept every statement and proof reached by MASTER.")
-@click.option("--author", default=None)
+@click.option("--as", "author", default=None, metavar="NAME", help="Who accepts; default your configured name.")
 @click.option(
     "--force", is_flag=True, help="Accept even when the document the acceptance is recorded against does not compile."
 )
-@click.option("--yes", "-y", is_flag=True)
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--yes", "-y", is_flag=True, help="Accept --stale, --all-live or --master without asking.")
+@click.option("--dry-run", is_flag=True, help="Say what would be accepted, and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def accept(
     keys: tuple[str, ...],
@@ -188,6 +176,7 @@ def accept(
     author: str | None,
     force: bool,
     yes: bool,
+    dry_run: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
@@ -230,9 +219,11 @@ def accept(
             and not n.external
         )
         if not targets:
-            Report("nothing to accept: no statement or proof of yours is in scope", data=_accepted([], 0, 0)).emit(
-                as_json
-            )
+            Report(
+                "nothing to accept: no statement or proof of yours is in scope",
+                dry_run=dry_run,
+                data=_accepted([], 0, 0),
+            ).emit(as_json)
             return
         incomplete = [k for k in targets if result.nodes[k].incomplete]
         if incomplete:
@@ -249,7 +240,7 @@ def accept(
             raise ContentError(f"open claims cannot be accepted as established: {', '.join(open_claims)}")
         statements = sum(result.nodes[k].kind == "environment" for k in targets)
         label = f"--master {accept_master}" if accept_master else "--all-live"
-        if not yes:
+        if not yes and not dry_run:
             if not sys.stdin.isatty():
                 raise EnvError(f"{label} needs confirmation; pass --yes")
             click.echo(f"{label} selects {statements} statements and {len(targets) - statements} proofs", err=True)
@@ -262,9 +253,9 @@ def accept(
         states = records.key_states(result)
         stale = sorted(k for k, s in states.items() if s.state == "accepted" and not s.fresh)
         if not stale:
-            Report("nothing is stale; nothing accepted", data=_accepted([], 0, 0)).emit(as_json)
+            Report("nothing is stale; nothing accepted", dry_run=dry_run, data=_accepted([], 0, 0)).emit(as_json)
             return
-        if not yes:
+        if not yes and not dry_run:
             if not sys.stdin.isatty():
                 raise EnvError("--stale needs confirmation; pass --yes")
             for k in stale:
@@ -286,7 +277,7 @@ def accept(
             raise EnvError(f"{key} is not a statement or proof key")
         if n.derived_of:
             raise EnvError(
-                f"{key} is an agent copy's node, which is never accepted; acceptance belongs to the node it becomes, {n.derived_of}"
+                f"{key} is an agent document's node, which is never accepted; acceptance belongs to the node it becomes, {n.derived_of}"
             )
         # Two claims, two commands. `loom accept` says "I have proved this, or I am satisfied it holds" and is about
         # the author's own mathematics; a digest node's is "this copy is faithful to the paper it came from", which
@@ -322,13 +313,14 @@ def accept(
             ok, err = _master_compiles(result, master)
             if not ok:
                 raise ContentError(f"{master} does not compile ({err}); fix it or pass --force")
-    rows, written, present = write_acceptance(result, targets, name, contexts)
+    rows, written, present = write_acceptance(result, targets, name, contexts, dry_run=dry_run)
     said = [r.key for r in rows]
+    verb = "would accept" if dry_run else "accepted"
     if len(said) <= 3 and not (all_live or accept_master or accept_stale):
-        verdict = "accepted " + (", ".join(said[:-1]) + " and " + said[-1] if len(said) > 1 else said[0])
+        verdict = f"{verb} " + (", ".join(said[:-1]) + " and " + said[-1] if len(said) > 1 else said[0])
     else:
         statements = sum(result.nodes[r.key].kind == "environment" for r in rows)
-        verdict = f"accepted {counted(statements, 'statement')} and {counted(len(rows) - statements, 'proof')}"
+        verdict = f"{verb} {counted(statements, 'statement')} and {counted(len(rows) - statements, 'proof')}"
     items = keyed(
         [
             ((result.nodes[r.key].taxon or result.nodes[r.key].kind, f"against {r.master}" if r.master else ""), r.key)
@@ -336,8 +328,9 @@ def accept(
         ]
     )
     Report(
-        f"{verdict} as {name}",
-        groups=[Group("accepted", items, next="loom status" if len(items) > 12 else None)],
+        f"{verdict} as {name}" + ("; nothing written" if dry_run else ""),
+        dry_run=dry_run,
+        groups=[Group(verb, items, next="loom status" if len(items) > 12 else None)],
         data=_accepted(rows, written, present),
     ).emit(as_json)
 
@@ -361,7 +354,9 @@ def _target_text(result: ScanResult, target: str) -> tuple[str, str]:
     return key, text
 
 
-def _writer(root: Path, session: str | None, author: str | None, *, sniff: bool = True) -> tuple[str, str, str]:
+def _writer(
+    root: Path, session: str | None, author: str | None, *, sniff: bool = True, dry_run: bool = False
+) -> tuple[str, str, str]:
     """(session id, author kind, author name) for whoever is writing (plan 0.13 §5).
 
     The two were one field: an agent's annotation recorded its run directory as its author, so the log could say *who* only by naming a place. Now the session says where the work belongs and the author says who did it -- a person by their name, an agent by what it is called, never by the author's git identity that its shell happens to share (DR-185).
@@ -370,9 +365,8 @@ def _writer(root: Path, session: str | None, author: str | None, *, sniff: bool 
 
     The caller says who is writing; the shell is asked only when nobody does, and only where asking it makes sense. `sniff=False` is the API's: a write arriving over HTTP is somebody at a browser, and the shell `loom serve` happens to have been started in says nothing about them. With `loom serve` running in an agent's terminal every note the author wrote in their own browser was recorded `author: "agent"`. Without a name to use it refuses, as a comment from an unnamed author always has, rather than guessing from the environment (plan 0.13 §8).
     """
-    from loom.cli._common import agent_name, is_agent
+    from loom.cli._common import agent_name, find_session, is_agent
     from loom.sessions import ensure_active
-    from loom.sessions import resolve as resolve_session
 
     # **An explicit identity wins, in both directions** (plan 0.13 §8). A declared name decides the kind by what it
     # calls itself, so an agent naming itself is an agent in a person's shell and a person naming themselves is a
@@ -382,17 +376,18 @@ def _writer(root: Path, session: str | None, author: str | None, *, sniff: bool 
     name = declared or robot or _author(author, root)
     kind = is_agent(declared) if declared else bool(robot)
     if session:
-        s = resolve_session(root, session)
-        if s is None:
-            raise NotFoundError("session", f"no session matches {session!r}; loom session list shows them")
-        if s.state == "deleted":
-            raise ContentError(f"{s.id} was deleted; nothing new can be written to it")
+        s = find_session(root, session)
+    elif dry_run:
+        from loom.sessions import active, sessions
+
+        here = sessions(root).get(active(root) or "")
+        return (here.id if here else "a new session"), "agent" if kind else "human", name
     else:
         s = ensure_active(root, name)
     return s.id, "agent" if kind else "human", name
 
 
-def _version(result: ScanResult, key: str) -> str | None:
+def _version(result: ScanResult, key: str, *, dry_run: bool = False) -> str | None:
     """The hash of `key`'s current text, frozen so a note written against it can always be shown; None for what is not a key (a work's page).
 
     Freezing at write time closes the gap the build's own freezing leaves: a version written against and changed again before the next build was lost. Snapshots are stored by hash, so a version many notes share is kept once.
@@ -401,8 +396,14 @@ def _version(result: ScanResult, key: str) -> str | None:
     node = result.nodes.get(node_key)
     if node is None:
         return None
-    digest, _ = write_snapshot(result.quilt.root, own_text(result, node), result.quilt.history_dir)
+    digest, _ = _snapshot(result.quilt.root, own_text(result, node), result.quilt.history_dir, dry_run)
     return digest
+
+
+def _append(root: Path, event: dict[str, Any], dry_run: bool) -> None:
+    """`records.log.append`, unless this is a dry run."""
+    if not dry_run:
+        append(root, event)
 
 
 def _one_comment(
@@ -421,6 +422,8 @@ def _one_comment(
     page: int | None = None,
     rects: list[list[float]] | None = None,
     in_doc: str | None = None,
+    *,
+    dry_run: bool = False,
 ) -> str:
     """Append one review event to the log and describe it; the only writer of review records.
 
@@ -458,7 +461,7 @@ def _one_comment(
         event: dict[str, Any] = {**base, "event": "resolved", "id": resolve, "body": message or ""}
         if undo:
             event["undo"] = True
-        append(root, event)
+        _append(root, event, dry_run)
         return f"{'reopened' if undo else 'resolved'} {resolve}"
 
     if reply:
@@ -469,7 +472,7 @@ def _one_comment(
             raise NotFoundError("annotation", f"no annotation {reply}")
         _, parent = found
         ann_id = next_id(records, date)
-        append(
+        _append(
             root,
             {
                 **base,
@@ -477,13 +480,14 @@ def _one_comment(
                 "id": ann_id,
                 "target": parent.target_key,
                 # the text the reply was written against, which may have moved on since the note it answers
-                "against": _version(result, parent.target_key) or parent.target_hash,
+                "against": _version(result, parent.target_key, dry_run=dry_run) or parent.target_hash,
                 "anchor": parent.selector.to_dict() if parent.selector else None,
                 "in": parent.in_doc,
                 "annotation_kind": kind or "question",
                 "body": message or "",
                 "reply_to": reply,
             },
+            dry_run,
         )
         return f"{ann_id}  {parent.target_key}  reply to {reply}  ({aid})"
 
@@ -491,7 +495,9 @@ def _one_comment(
         raise EnvError("TARGET is required")
     work = _work_target(result, target)
     if work is not None or page is not None or rects:
-        return _note_on_page(result, base, records, date, target, work, message, quote, kind, severity, page, rects)
+        return _note_on_page(
+            result, base, records, date, target, work, message, quote, kind, severity, page, rects, dry_run=dry_run
+        )
     key, text = _target_text(result, target)
     node_key = result.assembly.regions[key].container if key in result.assembly.regions else key
     if in_doc is not None:
@@ -524,14 +530,14 @@ def _one_comment(
     if placement and not payload:
         raise EnvError("--placement says where a payload goes; give --payload too")
     ann_id = next_id(records, date)
-    append(
+    _append(
         root,
         {
             **base,
             "event": "created",
             "id": ann_id,
             "target": key,
-            "against": _version(result, key) or key_hash(result, node_key),
+            "against": _version(result, key, dry_run=dry_run) or key_hash(result, node_key),
             "anchor": selector.to_dict() if selector else None,
             "in": in_doc,
             "annotation_kind": kind,
@@ -540,6 +546,7 @@ def _one_comment(
             "payload": payload,
             "placement": placement,
         },
+        dry_run,
     )
     sev = f" {severity}" if severity else ""
     return f"{ann_id}  {key}  {kind}{sev}  ({aid}{' run' if akind == 'run' else ''})"
@@ -569,6 +576,18 @@ def _work_target(result: ScanResult, target: str) -> tuple[str, Any] | None:
     return None
 
 
+def _not_a_work(result: ScanResult, target: str) -> EnvError:
+    """The refusal of `--page` on a target that is not a cited work: a key, or nothing at all."""
+    try:
+        resolve_key(result, target)
+    except EnvError:
+        return EnvError(
+            f"--page is for a page of a cited work, and {target} names none: give a citekey from the bibliography "
+            "or an identifier one of its entries states (doi:…, arXiv:…)"
+        )
+    return EnvError(f"--page is for a page of a cited work, and {target} is a key in this quilt")
+
+
 def _note_on_page(
     result: ScanResult,
     base: dict[str, Any],
@@ -582,6 +601,8 @@ def _note_on_page(
     severity: str | None,
     page: int | None,
     rects: list[list[float]] | None,
+    *,
+    dry_run: bool = False,
 ) -> str:
     """A note on a page of a cited work: the same event as any annotation, with the work as its target and a page anchor."""
     from loom.refs.anchoring import anchor_on_page
@@ -590,14 +611,7 @@ def _note_on_page(
     from loom.render.serve import open_url
 
     if work is None:
-        try:
-            resolve_key(result, target)
-        except EnvError:
-            raise EnvError(
-                f"--page is for a page of a cited work, and {target} names none: give a citekey from the bibliography "
-                "or an identifier one of its entries states (doi:…, arXiv:…)"
-            ) from None
-        raise EnvError(f"--page is for a page of a cited work, and {target} is a key in this quilt")
+        raise _not_a_work(result, target)
     citekey, wid = work
     if page is None:
         raise EnvError(f"{citekey} is a cited work: say which page with --page N, and what on it with --quote or --box")
@@ -629,7 +643,7 @@ def _note_on_page(
     recorded = placed.anchor.to_dict()
     if placed.anchor.basis == "text":
         recorded.pop("quads", None)
-    append(
+    _append(
         result.quilt.root,
         {
             **base,
@@ -642,6 +656,7 @@ def _note_on_page(
             "body": message or "",
             "severity": severity,
         },
+        dry_run,
     )
     sev = f" {severity}" if severity else ""
     said = f"{ann_id}  {citekey} p.{page} ({placed.said})  {kind}{sev}  ({base['author']})"
@@ -650,7 +665,13 @@ def _note_on_page(
 
 
 def discard_annotation(
-    root: Path, ann_id: str, writer: tuple[str, str, str], reason: str | None, undo: bool = False
+    root: Path,
+    ann_id: str,
+    writer: tuple[str, str, str],
+    reason: str | None,
+    undo: bool = False,
+    *,
+    dry_run: bool = False,
 ) -> str:
     """Withdraw one finding: it was raised in error and should not stand; with `undo`, put it back.
 
@@ -671,8 +692,8 @@ def discard_annotation(
     }
     if undo:
         event["undo"] = True
-    append(root, event)
-    return f"{'reopened' if undo else 'discarded'} {ann_id}"
+    _append(root, event, dry_run)
+    return f"{'reopened' if undo else 'withdrew'} {ann_id}"
 
 
 def check_edit(body: str | None, severity: str | None, payload: str | None) -> None:
@@ -683,7 +704,9 @@ def check_edit(body: str | None, severity: str | None, payload: str | None) -> N
         raise EnvError("--edit with nothing to change; give a new body, --severity or --payload")
 
 
-def edit_annotation(result: ScanResult, ann_id: str, writer: tuple[str, str, str], **fields: str | None) -> str:
+def edit_annotation(
+    result: ScanResult, ann_id: str, writer: tuple[str, str, str], dry_run: bool = False, /, **fields: str | None
+) -> str:
     """Supersede an annotation's body or payload; the history stays in the log and one current body is shown.
 
     This is what a re-check does to a finding that still stands, so the finding is restated against the text as it is now: the edit records that version, and replay adopts it. A reply is dialogue; an edit is restatement.
@@ -701,10 +724,10 @@ def edit_annotation(result: ScanResult, ann_id: str, writer: tuple[str, str, str
         "session": session,
         "kind": akind,
     }
-    version = _version(result, found[1].target_key)
+    version = _version(result, found[1].target_key, dry_run=dry_run)
     if version:
         event["against"] = version
-    append(root, {**event, **{k: v for k, v in fields.items() if v is not None}})
+    _append(root, {**event, **{k: v for k, v in fields.items() if v is not None}}, dry_run)
     return f"edited {ann_id}"
 
 
@@ -727,7 +750,7 @@ BATCH_KEYS = (
 BATCH_VERBS = ("reply", "resolve", "edit", "discard")
 
 
-def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str, Any]) -> str:
+def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str, Any], dry_run: bool = False) -> str:
     """One line of `--batch`: a new annotation, or one change to an existing one, named by exactly one verb.
 
     An unknown key is refused rather than ignored. A batch is written by a program that cannot see the result, so a misspelled `messsage` that silently files an empty annotation is a fault the writer never learns about — and every verb `loom annotate` has on the command line is available here, so there is no reason to fall back to one call per change.
@@ -740,13 +763,14 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
         raise EnvError(f"one verb per line; this one gives {' and '.join(verbs)}")
     root = result.quilt.root
     if item.get("discard"):
-        return discard_annotation(root, str(item["discard"]), writer, item.get("message"))
+        return discard_annotation(root, str(item["discard"]), writer, item.get("message"), dry_run=dry_run)
     if item.get("edit"):
         check_edit(item.get("message"), item.get("severity"), item.get("payload"))
         return edit_annotation(
             result,
             str(item["edit"]),
             writer,
+            dry_run,
             body=item.get("message"),
             severity=item.get("severity"),
             payload=item.get("payload"),
@@ -766,6 +790,7 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
         page=int(item["page"]) if item.get("page") is not None else None,
         rects=_rects(str(item["box"])) if item.get("box") else None,
         in_doc=str(item["in"]) if item.get("in") else None,
+        dry_run=dry_run,
     )
 
 
@@ -808,7 +833,12 @@ def _rects(box: str) -> list[list[float]]:
 )
 # Not a `click.Choice`: the choice would reject a prefix before `full_kind` could resolve one, which is the whole
 # point of accepting them — `confirmation` is long, and `--kind conf` should cost nothing (DR-204).
-@click.option("--kind", default=None, metavar="|".join(KINDS))
+@click.option(
+    "--kind",
+    default=None,
+    metavar="|".join(KINDS),
+    help="What the annotation is; any unambiguous prefix. Default note.",
+)
 @click.option(
     "--session",
     "session",
@@ -817,14 +847,14 @@ def _rects(box: str) -> list[list[float]]:
     help="Write into this session: an id, a title, or a unique id suffix. Default the active one.",
 )
 @click.option(
-    "--author",
     "--as",
     "author",
     default=None,
+    metavar="NAME",
     help="Who is writing; an agent names itself, with Agent or AI in the name.",
 )
-@click.option("--reply", default=None, metavar="ID")
-@click.option("--resolve", default=None, metavar="ID")
+@click.option("--reply", default=None, metavar="ID", help="Answer annotation ID; the message is the reply.")
+@click.option("--resolve", default=None, metavar="ID", help="Mark annotation ID resolved, with the message as why.")
 @click.option(
     "--edit", default=None, metavar="ID", help="Supersede an annotation's body; the history stays in the log."
 )
@@ -859,7 +889,8 @@ def _rects(box: str) -> list[list[float]]:
     is_flag=True,
     help="Read JSON lines from stdin, one annotation or one change per line; an unknown key is an error.",
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--dry-run", is_flag=True, help="Say what would be written, and write nothing, not even a session.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def annotate(
     target: str | None,
@@ -880,6 +911,7 @@ def annotate(
     in_doc: str | None,
     undo: bool,
     batch: bool,
+    dry_run: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
@@ -889,13 +921,21 @@ def annotate(
     """
     result = open_scan(quilt_path)
     root = result.quilt.root
-    writer = _writer(root, session, author)
+    # Each of these names its annotation by id and takes no TARGET (7.4), so the one positional given is the body.
+    if (reply or resolve or edit or discard_id) and message is None:
+        message, target = target, None
+    if undo and not (discard_id or resolve):
+        raise EnvError("--undo applies to --resolve or --discard")
+    if not batch:
+        _check_named(result, target, reply or resolve or edit or discard_id, in_doc, page is not None or bool(box))
+    writer = _writer(root, session, author, dry_run=dry_run)
     written: list[str] = []
 
     def done(said: str, **verb: Any) -> None:
         """Log what was done, afterwards and with the annotation it touched, so a session's record says which (plan 0.14); the report says it once the command is through."""
         written.append(said)
-        log_run(writer[0], _logged(said, **verb), root)
+        if not dry_run:
+            log_run(writer[0], _logged(said, **verb), root)
 
     if batch:
         for lineno, line in enumerate(sys.stdin, 1):
@@ -907,30 +947,30 @@ def annotate(
             except json.JSONDecodeError as exc:
                 raise EnvError(f"batch line {lineno}: {exc}") from exc
             try:
-                done(_batch_line(result, writer, item), **{k: item.get(k) for k in _VERB_KEYS})
+                done(_batch_line(result, writer, item, dry_run), **{k: item.get(k) for k in _VERB_KEYS})
             except EnvError as exc:
                 raise EnvError(f"batch line {lineno}: {exc.message}") from exc
             except ContentError as exc:
                 raise ContentError(f"batch line {lineno}: {exc.message}") from exc
         Report(
-            f"wrote {counted(len(written), 'change')} from the batch"
+            f"{'would write' if dry_run else 'wrote'} {counted(len(written), 'change')} from the batch"
             if written
             else "the batch was empty; nothing written",
+            dry_run=dry_run,
             groups=[Group("", [Item(w.split(chr(10))[0]) for w in written], limit=None)],
             data=_annotated(written),
         ).emit(as_json)
         return
-    # Each of these names its annotation by id and takes no TARGET (7.4), so the one positional given is the body.
-    # `--edit` and `--discard` did this; `--reply` and `--resolve` read it as a target and filed an empty body.
-    if (reply or resolve or edit or discard_id) and message is None:
-        message, target = target, None
-    if undo and not (discard_id or resolve):
-        raise EnvError("--undo applies to --resolve or --discard")
     if discard_id:
-        done(discard_annotation(root, discard_id, writer, message, undo), discard=discard_id, undo=undo)
+        done(
+            discard_annotation(root, discard_id, writer, message, undo, dry_run=dry_run), discard=discard_id, undo=undo
+        )
     elif edit:
         check_edit(message, severity, payload)
-        done(edit_annotation(result, edit, writer, body=message, severity=severity, payload=payload), edit=edit)
+        done(
+            edit_annotation(result, edit, writer, dry_run, body=message, severity=severity, payload=payload),
+            edit=edit,
+        )
     else:
         done(
             _one_comment(
@@ -949,6 +989,7 @@ def annotate(
                 page=page,
                 rects=_rects(box) if box else None,
                 in_doc=in_doc,
+                dry_run=dry_run,
             ),
             target=target,
             quote=quote,
@@ -960,7 +1001,33 @@ def annotate(
             **{"in": in_doc},
         )
     first, *rest = written[0].split("\n")
-    Report(first, lines=rest, data=_annotated(written)).emit(as_json)
+    Report(_would(first) if dry_run else first, lines=rest, dry_run=dry_run, data=_annotated(written)).emit(as_json)
+
+
+def _check_named(result: ScanResult, target: str | None, ann_id: str | None, in_doc: str | None, on_page: bool) -> None:
+    """Refuse an annotation, a target or a document that names nothing, before any session is opened or logged to (K3)."""
+    if ann_id:
+        if find_annotation(Records(result.quilt.root).records, ann_id) is None:
+            raise NotFoundError("annotation", f"no annotation {ann_id}")
+        return
+    if not target:
+        raise EnvError("TARGET is required")
+    if _work_target(result, target) is None:
+        if on_page:
+            raise _not_a_work(result, target)
+        resolve_key(result, target)
+    if in_doc is not None and in_doc.strip("/") not in result.masters:
+        raise NotFoundError("document", f"{in_doc} is not a document of this quilt; loom status names them")
+
+
+#: How a dry run says each change it did not make.
+_WOULD = {"withdrew": "would withdraw", "resolved": "would resolve", "reopened": "would reopen", "edited": "would edit"}
+
+
+def _would(said: str) -> str:
+    """What `annotate --dry-run` says: the change it would have made, in the conditional."""
+    verb, _, rest = said.partition(" ")
+    return f"{_WOULD[verb]} {rest}" if verb in _WOULD else f"would write {said}"
 
 
 def _annotated(written: list[str]) -> dict[str, Any]:
@@ -1040,7 +1107,7 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         if n.kind == "section" and not live.get(key):
             continue  # a section is a row only when it carries a finding; otherwise it is structure, not work
         if n.derived_of:
-            continue  # an agent copy's node is the copy's, not the person's work: its counterpart is the row
+            continue  # an agent document's node is that document's, not the person's work: its counterpart is the row
         if n.conflict_of:
             continue  # one definition of a conflicted id: the id's own row below says so, rather than a positional key
         entry: dict[str, Any] = {
@@ -1231,16 +1298,21 @@ def filter_keys(
 
 
 @click.command()
-@click.option("--stale", "f_stale", is_flag=True)
-@click.option("--draft", "f_draft", is_flag=True)
-@click.option("--incomplete", "f_incomplete", is_flag=True)
-@click.option("--loose", "f_loose", is_flag=True)
-@click.option("--unmatched-cites", "f_unmatched", is_flag=True)
-@click.option("--undigested", "f_undigested", is_flag=True)
-@click.option("--retired", "f_retired", is_flag=True)
-@click.option("--runs", "f_runs", is_flag=True)
-@click.option("--master", "f_master", default=None)
-@click.option("--tag", "f_tag", default=None)
+@click.option("--stale", "f_stale", is_flag=True, help="Accepted keys whose text, closure or preamble moved since.")
+@click.option("--draft", "f_draft", is_flag=True, help="Keys never accepted.")
+@click.option("--incomplete", "f_incomplete", is_flag=True, help="Keys marked \\incomplete.")
+@click.option("--loose", "f_loose", is_flag=True, help="Keys no live document reaches.")
+@click.option(
+    "--unmatched-cites",
+    "f_unmatched",
+    is_flag=True,
+    help="Located citations of a digested work that match no digest node.",
+)
+@click.option("--undigested", "f_undigested", is_flag=True, help="Works cited with a locator and not digested.")
+@click.option("--retired", "f_retired", is_flag=True, help="Keys accepted once and defined by no document now.")
+@click.option("--runs", "f_runs", is_flag=True, help="Every session on record, with its annotations.")
+@click.option("--master", "f_master", default=None, metavar="DOC", help="Keys this document reaches.")
+@click.option("--tag", "f_tag", default=None, help="Keys carrying this tag.")
 @click.option(
     "--severity",
     "f_severity",
@@ -1248,7 +1320,9 @@ def filter_keys(
     default=None,
     help="Keys carrying an annotation of this severity.",
 )
-@click.option("--kind", "f_kind", default=None, help="Keys carrying an annotation of this kind.")
+@click.option(
+    "--kind", "f_kind", default=None, metavar="|".join(KINDS), help="Keys carrying an annotation of this kind."
+)
 @click.option(
     "--status",
     "f_status",
@@ -1269,9 +1343,9 @@ def filter_keys(
     is_flag=True,
     help="List the notes on pages of cited works, by work; they are in no row and count toward nothing otherwise.",
 )
-@click.option("--explain", default=None, metavar="KEY")
-@click.option("--json", "as_json", is_flag=True)
-@click.option("--session", "run_dir", default=None, envvar="LOOM_SESSION")
+@click.option("--explain", default=None, metavar="KEY", help="Why KEY is in its state, with the diff of what moved.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@click.option("--session", "run_dir", default=None, envvar="LOOM_SESSION", help="Log this call to the session.")
 @quilt_option
 def status(
     f_stale: bool,
@@ -1295,11 +1369,14 @@ def status(
     run_dir: str | None,
     quilt_path: str | None,
 ) -> None:
-    """Every key with its computed state, cause if stale, and review facts. Never exits nonzero.
+    """List every key with its computed state, cause if stale, and review facts. Never exits nonzero.
 
     Notes on pages of cited works are not keys and appear in no row; `--reading` lists them by work, and `--json` always carries them under `reading`.
     """
     result = open_scan(quilt_path)
+    f_kind, f_master, f_tag = _check_filters(result, f_kind, f_master, f_tag)
+    if explain:
+        explain = resolve_key(result, explain)
     records = Records(result.quilt.root)
     log_run(run_dir, "loom status", result.quilt.root)
     payload = status_payload(result, records)
@@ -1384,6 +1461,29 @@ def status(
         out = _status_report(result, payload, filtered, f_digests, hidden)
     out.data = payload
     out.emit(as_json)
+
+
+def _check_filters(
+    result: ScanResult, kind: str | None, master: str | None, tag: str | None
+) -> tuple[str | None, str | None, str | None]:
+    """`status`'s --kind, --master and --tag as the quilt names them, each refused by name when it names nothing (K3)."""
+    from loom.cli.nodes import document_named
+
+    if kind is not None:
+        full = full_kind(kind)
+        if full is None:
+            raise EnvError(f"--kind {kind}: an annotation's kind is one of {', '.join(KINDS)}")
+        kind = full
+    if master is not None:
+        master = document_named(result, master.strip("/"))
+    if tag is not None:
+        tags = {t for n in result.nodes.values() for t in n.directives.get("tags", "").replace(" ", "").split(",") if t}
+        if tag not in tags:
+            listed = ", ".join(sorted(tags)[:12]) + (", …" if len(tags) > 12 else "")
+            raise NotFoundError(
+                "tag", f"--tag {tag}: no node carries it" + (f"; tags in use: {listed}" if tags else "")
+            )
+    return kind, master, tag
 
 
 def unmatched_cites(result: ScanResult) -> list[dict[str, Any]]:

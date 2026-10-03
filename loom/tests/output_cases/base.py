@@ -49,7 +49,7 @@ def author(_: Path) -> None:
 class Case:
     """One run of a command on a fresh demo quilt.
 
-    `args` follow the command path; `setup` prepares the quilt first; `exit` is the code book 12.1 gives the outcome; `json` runs it again with `--json` when the command takes it; `poppler` needs the real pdftotext; `env` sets variables for the run (None unsets); `why` says what the case is for when it is a refusal or an edge.
+    `args` follow the command path; `setup` prepares the quilt first; `exit` is the code book 12.1 gives the outcome; `json` runs it again with `--json` when the command takes it; `poppler` needs the real pdftotext; `env` sets variables for the run (None unsets); `why` says what the case is for when it is a refusal or an edge; `unchanged` asserts the quilt's files are byte-identical afterwards, as a dry run's and a refusal's must be (K3, K4).
     """
 
     args: tuple[str, ...] = ()
@@ -59,3 +59,4 @@ class Case:
     poppler: bool = False
     env: tuple[tuple[str, str | None], ...] = ()
     why: str = ""
+    unchanged: bool = False

@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
-import time
 from pathlib import Path
 
 import pytest
@@ -43,7 +41,34 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md").read_text()
     # what agents may run is written for every tool, whichever the person uses (DR-283)
     assert (q / ".claude" / "settings.json").is_file() and (q / ".codex" / "rules" / "loom.rules").is_file()
-    refused("ai", "init", cwd=q, code=2, match="loom upgrade")
+    assert (q / "ai" / "ai-config.toml").read_text().startswith("# How loom starts an agent")
+
+
+def test_ai_init_refreshes_an_existing_layer_as_upgrade_would(tmp_path: Path) -> None:
+    """`ai init` where `ai/` exists writes what is missing or stale, keeps an edited mode file with the new one beside it, and never touches the person's ai-config.toml."""
+    q = bare(tmp_path)
+    (q / "ai" / "orientation.md").unlink()
+    mode = q / "ai" / "modes" / "audit.md"
+    mode.write_text(mode.read_text() + "\nMy own rule.\n")
+    (q / "ai" / "ai-config.toml").write_text('name = "My Agent"\n')
+    before = {p: p.read_bytes() for p in q.rglob("*") if p.is_file()}
+    dry = ok("ai", "init", "--dry-run", cwd=q)
+    assert (
+        dry.stdout.startswith("dry run: would write")
+        and {p: p.read_bytes() for p in q.rglob("*") if p.is_file()} == before
+    )
+    r = ok("ai", "init", cwd=q)
+    assert r.stdout.startswith("refreshed the agent layer") and (q / "ai" / "orientation.md").is_file()
+    assert mode.read_text().endswith("My own rule.\n") and (q / "ai" / "modes" / "audit.md.new").is_file()
+    assert (q / "ai" / "ai-config.toml").read_text() == 'name = "My Agent"\n'
+    assert ok("ai", "init", cwd=q).stdout.startswith("refreshed the agent layer: 0 files written, 1 edited file kept")
+
+
+def test_ai_annotations_refuses_a_filter_value_it_does_not_know(tmp_path: Path) -> None:
+    q = bare(tmp_path)
+    sid = ok("session", "new", "--name", "x", cwd=q).stdout.split()[0]
+    for flag, value in (("--kind", "objecton"), ("--severity", "huge"), ("--status", "discarded")):
+        refused("ai", "annotations", "--session", sid, flag, value, cwd=q, code=2, match=f"Invalid value for '{flag}'")
 
 
 def test_root_files_carry_one_line_and_keep_the_authors(tmp_path: Path) -> None:
@@ -202,9 +227,9 @@ def test_orient_static_plus_live(tmp_path: Path) -> None:
     assert "- undigested citekeys: " in r.output and "- open sessions: none" in r.output
 
 
-def test_ai_start_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> None:
+def test_session_new_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    r = ok("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED)
+    r = ok("session", "new", "--name", "Referee of dm-0003", cwd=q, env=FIXED)
     sid = r.stdout.split()[0]
     assert sid == "s-2026-09-16-0001"  # the id is minted, never slugified from the title
     index = (q / ".loom" / "sessions" / "index.jsonl").read_text()
@@ -231,7 +256,7 @@ def test_ai_start_opens_a_session_and_orient_prints_its_chat(tmp_path: Path) -> 
     assert "thread.md" not in o.output
     assert "loom source dm-0003" in o.output
     assert "loom ai orient" in (q / rel / "run.log").read_text()
-    second = ok("ai", "start", "Referee of dm-0003", cwd=q, env=FIXED).stdout.split()[0]
+    second = ok("session", "new", "--name", "Referee of dm-0003", cwd=q, env=FIXED).stdout.split()[0]
     assert second == "s-2026-09-16-0002"  # two sessions may share a title; the id is what distinguishes them
 
 
@@ -239,8 +264,8 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     """A session is addressed by what the author called it; remembering the minute it opened is not a workflow."""
     q = bare(tmp_path)
     assert ok("session", "list", cwd=q).output.startswith("no sessions yet")
-    ref = ok("ai", "start", "Referee of the parity theorem", cwd=q, env=FIXED).stdout.split()[0]
-    other = ok("ai", "start", "Ingest of Hartshorne", cwd=q, env=FIXED).stdout.split()[0]
+    ref = ok("session", "new", "--name", "Referee of the parity theorem", cwd=q, env=FIXED).stdout.split()[0]
+    other = ok("session", "new", "--name", "Ingest of Hartshorne", cwd=q, env=FIXED).stdout.split()[0]
     assert ref != other
     listing = ok("session", "list", cwd=q).output
     assert f"{ref}  Referee of the parity theorem" in listing
@@ -249,7 +274,7 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
     # "Referee **of**…" and "Ingest **of**…": named, not guessed
     refused("ai", "annotations", "--session", "of", cwd=q, code=2, match="matches 2 sessions")
 
-    ok("ai", "name", "Parity, revisited", "--session", "parity", cwd=q)
+    ok("session", "rename", "parity", "--name", "Parity, revisited", cwd=q)
     assert "Parity, revisited" in ok("session", "list", cwd=q).output
 
     ok(
@@ -262,7 +287,7 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
         "suggestion",
         "--session",
         ref,
-        "--author",
+        "--as",
         "An Agent",
         cwd=q,
         env=FIXED,
@@ -281,12 +306,12 @@ def test_sessions_listed_by_title_and_addressed_by_part_of_one(tmp_path: Path) -
 
 def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("ai", "start", cwd=q, env=FIXED).stdout.split()[0]
+    sid = ok("session", "new", cwd=q, env=FIXED).stdout.split()[0]
     rel = f".loom/sessions/{sid}"
     for code, args in (
         (0, ("search", "orbit")),
         (0, ("deps", "dm-0003")),
-        (0, ("unravel", "dm-0001")),
+        (0, ("downstream", "dm-0001")),
         (0, ("lint",)),
         (0, ("status",)),
     ):
@@ -298,51 +323,16 @@ def test_run_log_appended_by_run_flag(tmp_path: Path) -> None:
     assert commands[:5] == [
         "loom search orbit",
         "loom deps dm-0003",
-        "loom unravel dm-0001",
+        "loom downstream dm-0001",
         "loom lint",
         "loom status",
     ]
     assert commands[-1] == "loom search gadget"
 
 
-def test_ai_check_reports_writes_outside_the_session(tmp_path: Path) -> None:
-    """`ai check` names every file changed after the session opened outside its directory and reverts nothing; the annotation log `loom annotate` appends to is the agent's to write, and a digest is not (DR-173)."""
-    q = bare(tmp_path)
-    sid = ok("ai", "start", "audit", cwd=q).stdout.split()[0]  # the real clock: the check compares mtimes with it
-    rel = f".loom/sessions/{sid}"
-    started = time.time()
-    # well past the session's first second, which the check allows, whatever the clock's resolution
-    later = started + 60
-    (q / rel).mkdir(parents=True, exist_ok=True)
-    (q / rel / "audit-dm-0003.notes.md").write_text("## [summary]\nfine\n")
-    assert ok("ai", "check", sid, cwd=q).stdout.strip() == "ok: nothing outside the session changed"
-
-    # the annotations the agent was told to write; addressed by title, like every other session (DR-167)
-    ok("annotate", "dm-0002", "A finding", "--session", sid, "--author", "A. Author", cwd=q)
-    os.utime(q / "annotations" / "log.jsonl", (later, later))
-    assert ok("ai", "check", "audit", cwd=q).stdout.strip() == "ok: nothing outside the session changed"
-
-    node = q / "nodes" / "dm-0002.tex"
-    node.write_text(node.read_text() + "% touched by an agent\n")
-    os.utime(node, (later, later))
-    bad = exits(1, "ai", "check", "audit", cwd=q)
-    assert "loom:agent-wrote-outside-run" in bad.output and "nodes/dm-0002.tex" in bad.output, bad.output
-    assert node.read_text().endswith("% touched by an agent\n")  # reported, never reverted
-    node.write_text(node.read_text().replace("% touched by an agent\n", ""))
-    os.utime(node, (started - 100, started - 100))
-    ok("ai", "check", sid, cwd=q)
-
-    # `loom digest extract` makes digests and `ingest` mode checks them, so a digest the agent wrote itself is a write outside the session like any other, and there is no command to copy one in
-    refused("ai", "promote", "anything", cwd=q, code=2, match="No such command 'promote'")
-    (q / "digests" / "Har77.tex").write_text("% !LOOM digest: Har77\n\\section*{Overview}\nHartshorne.\n")
-    os.utime(q / "digests" / "Har77.tex", (later, later))
-    caught = exits(1, "ai", "check", sid, cwd=q)
-    assert "digests/Har77.tex" in caught.output
-
-
 def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("ai", "start", "referee dm-0003", cwd=q, env=FIXED).stdout.split()[0]
+    sid = ok("session", "new", "--name", "referee dm-0003", cwd=q, env=FIXED).stdout.split()[0]
     rel = f".loom/sessions/{sid}"
     ok("source", "dm-0003", "--closure", "--session", sid, cwd=q)
     ok(
@@ -355,7 +345,7 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
         "objection",
         "--session",
         sid,
-        "--author",
+        "--as",
         "An Agent",
         cwd=q,
         env=dict(FIXED, AI_AGENT="1"),
@@ -381,7 +371,7 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
     ]
     assert any(s["kind"] == "thread" and s["key"] == t["id"] for s in m["search"])
     # a person writing in the same session is a participant in the same thread, which is the point of the split
-    ok("annotate", "dm-0002", "Mine.", "--author", "Tom", "--session", sid, cwd=q, env=FIXED)
+    ok("annotate", "dm-0002", "Mine.", "--as", "Tom", "--session", sid, cwd=q, env=FIXED)
     ok("build", cwd=q)
     m2 = json.loads((q / "build" / "manifest.json").read_text())
     again = m2["threads"][sid]
@@ -394,7 +384,7 @@ def test_threads_from_sessions_in_manifest_and_sessions_not_scanned(tmp_path: Pa
 
 def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
     q = bare(tmp_path)
-    sid = ok("ai", "start", "sub", cwd=q, env=FIXED).stdout.split()[0]
+    sid = ok("session", "new", "--name", "sub", cwd=q, env=FIXED).stdout.split()[0]
     rel = f".loom/sessions/{sid}"
     ok("search", "gadget", "--session", sid, cwd=q / "nodes")  # from a subdirectory
     ok("source", "dm-0003", "--session", sid, cwd=q / "nodes")
@@ -406,7 +396,7 @@ def test_the_session_flag_works_from_a_subdirectory(tmp_path: Path) -> None:
         "note",
         "--session",
         sid,
-        "--author",
+        "--as",
         "A. Author",
         cwd=q / "nodes",
         env=FIXED,
@@ -521,7 +511,7 @@ def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> N
     from tests.unit._quilts import mapped, propose
 
     q, ck = mapped(tmp_path)
-    runname = ok("ai", "start", "r", cwd=q).stdout.split()[0]
+    runname = ok("session", "new", "--name", "r", cwd=q).stdout.split()[0]
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=runname)
     ok("refs", "discard", f"{ck}-thm-1.1", "--reason", "wrong theorem", "--author", "i", cwd=q)
     out = ok("ai", "annotations", "--session", runname, cwd=q).output

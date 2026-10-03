@@ -349,7 +349,7 @@ def _discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     ann = noted(s, q, sid)
     assert (
         succeeds(s, "discard", {"session": sid, "annotation": ann, "reason": "mine", "author": WHO})["result"]
-        == f"discarded {ann}"
+        == f"withdrew {ann}"
     )
     assert (
         succeeds(s, "discard", {"session": sid, "annotation": ann, "undo": True, "author": WHO})["result"]

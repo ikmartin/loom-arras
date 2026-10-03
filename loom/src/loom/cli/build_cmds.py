@@ -1,4 +1,4 @@
-"""`loom compile`, `loom source`, `loom check` (book 12.5). `loom build` and `loom serve` live in render/; `loom linearize` (17.13) replaced `loom assemble`."""
+"""`loom compile`, `loom source`, `loom check` (book 12.5)."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from loom.tex.bundle import (
     substituted_region,
     substituted_region_text,
 )
-from loom.tex.runner import CompileResult, compile_tex, normalise_engine
+from loom.tex.runner import ENGINE_FLAGS, CompileResult, compile_tex, normalise_engine
 
 
 def engine_for(result: ScanResult, master: str, override: str | None = None) -> str:
@@ -48,14 +48,17 @@ def log_run(session: str | None, command: str, root: Path | None = None) -> None
         fh.write(f"{stamp()}  {command}\n")
 
 
-def write_bundle(result: ScanResult, b: Bundle) -> Path:
-    """Write a key's closure document under build/bundles/, for `loom compile KEY` and `loom check` to run latexmk on.
+#: Where a key's closure document is written and compiled, under the quilt root.
+CLOSURES = Path("build") / "closures"
 
-    A bundle is an internal artifact now: `loom source KEY --closure` is how a reader or an agent gets the text, so
-    nothing copies one into a run directory and nothing gitignores it.
+
+def write_bundle(result: ScanResult, b: Bundle) -> Path:
+    """Write a key's closure document under build/closures/, for `loom compile KEY` and `loom check` to run latexmk on.
+
+    Internal: `loom source KEY --closure` is how a reader or an agent gets the text, so nothing copies one elsewhere and nothing gitignores it.
     """
     root = result.quilt.root
-    out = root / "build" / "bundles" / bundle_filename(b.key)
+    out = root / CLOSURES / bundle_filename(b.key)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(b.text, encoding="utf-8")
     return out
@@ -63,7 +66,7 @@ def write_bundle(result: ScanResult, b: Bundle) -> Path:
 
 @click.command()
 @click.argument("target", required=False, default=None)
-@click.option("--engine", default=None, help="Override the engine (pdflatex, lualatex, xelatex).")
+@click.option("--engine", type=click.Choice(sorted(ENGINE_FLAGS)), default=None, help="Override the document's engine.")
 @click.option(
     "--with",
     "with_file",
@@ -75,7 +78,7 @@ def write_bundle(result: ScanResult, b: Bundle) -> Path:
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def compile(  # noqa: A001
     target: str | None,
@@ -97,7 +100,6 @@ def compile(  # noqa: A001
         parts += ["--with", with_file]
     if draft_file:
         parts += ["--draft", draft_file]
-    log_run(run_dir, " ".join(parts), root)
     missing: list[Diagnostic] = []
     if draft_file:
         if not result.masters:
@@ -105,6 +107,7 @@ def compile(  # noqa: A001
         b = draft_bundle(result, Path(draft_file).expanduser())
         if b.missing:
             raise ContentError(f"the draft references unknown labels: {', '.join(b.missing)}")
+        log_run(run_dir, " ".join(parts), root)
         out = write_bundle(result, b)
         label = f"the draft {Path(draft_file).name}"
         with Progress("compiling", 1) as p:
@@ -112,7 +115,7 @@ def compile(  # noqa: A001
             res = compile_tex(
                 root,
                 str(out.relative_to(root)),
-                root / "build" / "bundles" / out.stem,
+                root / CLOSURES / out.stem,
                 engine_for(result, result.default_master or result.masters[0], engine),
             )
     elif target is None or target in result.masters or (root / target).is_file() and target.endswith(".tex"):
@@ -122,6 +125,7 @@ def compile(  # noqa: A001
         if master is None:
             raise EnvError("the quilt has no master")
         label = master
+        log_run(run_dir, " ".join(parts), root)
         with Progress("compiling", 1) as p:
             p.item(master)
             res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master, engine))
@@ -134,6 +138,7 @@ def compile(  # noqa: A001
         if with_file:
             override = substitution_for(result, key, with_file)
         b = build_bundle(result, key, override_text=override)
+        log_run(run_dir, " ".join(parts), root)
         out = write_bundle(result, b)
         label = f"{key}'s closure" + (f" with {Path(with_file).name}" if with_file else "")
         with Progress("compiling", 1) as p:
@@ -141,7 +146,7 @@ def compile(  # noqa: A001
             res = compile_tex(
                 root,
                 str(out.relative_to(root)),
-                root / "build" / "bundles" / out.stem,
+                root / CLOSURES / out.stem,
                 engine_for(result, result.default_master or result.masters[0], engine),
             )
         if res.usable == "failed":
@@ -214,7 +219,7 @@ def compile_report(res: CompileResult, label: str, root: Path, missing: list[Dia
 
 
 def missing_packages(result: ScanResult, keys: list[str]) -> list[Diagnostic]:
-    """The `loom:missing-package` diagnostics of the digests among `keys`, named before a failed bundle compile (book 8.11)."""
+    """The `loom:missing-package` diagnostics of the digests among `keys`, named before a failed closure compile (book 8.11)."""
     files = {result.nodes[k].file for k in keys if k in result.nodes and result.nodes[k].digest}
     return [
         d for d in result.lint if d.code == "loom:missing-package" and any(loc.file in files for loc in d.locations)
@@ -222,50 +227,51 @@ def missing_packages(result: ScanResult, keys: list[str]) -> list[Diagnostic]:
 
 
 @click.command()
-@click.option("--no-compile", is_flag=True, help="Lint only.")
 @click.option(
-    "--bundles",
+    "--closures",
     type=click.Choice(["all", "stale", "none"]),
     default="stale",
-    help="Which bundles to compile (stale needs the ledger, milestone M3).",
+    help="Which statements' closures to compile after the documents: all of them, or none; stale compiles none yet.",
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def check(no_compile: bool, bundles: str, as_json: bool, quilt_path: str | None) -> None:
-    """lint, then compile every master, then bundles. Exit 1 on any failure. The CI command."""
+def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
+    """Lint, then compile every document, then the closures asked for. Exit 1 on any failure; the CI command.
+
+    `loom lint` is the same check without LaTeX.
+    """
     from loom.cli.lint_cmd import all_diagnostics
 
     result = open_scan(quilt_path)
     root = result.quilt.root
     diags = all_diagnostics(result)
     documents: list[dict[str, object]] = []
-    closures: list[dict[str, object]] = []
-    if not no_compile:
-        keys: list[str] = []
-        if bundles == "all":
-            keys = [k for k, n in result.nodes.items() if n.kind == "environment" and n.digest is None]
-        elif bundles == "stale":
-            keys = []  # the ledger arrives at M3; until then nothing is stale
-        with Progress("compiling", len(result.masters) + len(keys)) as p:
-            for master in result.masters:
-                p.item(master)
-                res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master))
-                bad = res.usable == "failed"
-                documents.append({"document": master, "ok": not bad, "error": res.first_error if bad else None})
-            for key in keys:
-                p.item(key)
-                b = build_bundle(result, key)
-                out = write_bundle(result, b)
-                res = compile_tex(
-                    root,
-                    str(out.relative_to(root)),
-                    root / "build" / "bundles" / out.stem,
-                    engine_for(result, result.default_master or result.masters[0]),
-                )
-                bad = res.usable == "failed"
-                closures.append({"key": key, "ok": not bad, "error": res.first_error if bad else None})
+    compiled: list[dict[str, object]] = []
+    keys = (
+        [k for k, n in result.nodes.items() if n.kind == "environment" and n.digest is None]
+        if closures == "all"
+        else []
+    )
+    with Progress("compiling", len(result.masters) + len(keys)) as p:
+        for master in result.masters:
+            p.item(master)
+            res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master))
+            bad = res.usable == "failed"
+            documents.append({"document": master, "ok": not bad, "error": res.first_error if bad else None})
+        for key in keys:
+            p.item(key)
+            b = build_bundle(result, key)
+            out = write_bundle(result, b)
+            res = compile_tex(
+                root,
+                str(out.relative_to(root)),
+                root / CLOSURES / out.stem,
+                engine_for(result, result.default_master or result.masters[0]),
+            )
+            bad = res.usable == "failed"
+            compiled.append({"key": key, "ok": not bad, "error": res.first_error if bad else None})
     failed_docs = [d for d in documents if not d["ok"]]
-    failed_closures = [c for c in closures if not c["ok"]]
+    failed_closures = [c for c in compiled if not c["ok"]]
     failed = has_errors(diags, result) or bool(failed_docs) or bool(failed_closures)
     said = [tally(diags, result)]
     if documents:
@@ -280,15 +286,15 @@ def check(no_compile: bool, bundles: str, as_json: bool, quilt_path: str | None)
                 "the document compiles" if len(documents) == 1 else f"all {counted(len(documents), 'document')} compile"
             )
         )
-    if closures:
+    if compiled:
         said.append(
             (
-                f"{len(failed_closures)} of {counted(len(closures), 'closure')} do not compile"
-                if len(closures) > 1
+                f"{len(failed_closures)} of {counted(len(compiled), 'closure')} do not compile"
+                if len(compiled) > 1
                 else "the closure does not compile"
             )
             if failed_closures
-            else ("the closure compiles" if len(closures) == 1 else f"all {counted(len(closures), 'closure')} compile")
+            else ("the closure compiles" if len(compiled) == 1 else f"all {counted(len(compiled), 'closure')} compile")
         )
     groups = diagnostic_groups(diags, result)
     if documents:
@@ -306,10 +312,10 @@ def check(no_compile: bool, bundles: str, as_json: bool, quilt_path: str | None)
     if failed_closures:
         groups.append(
             Group(
-                "error loom:bundle-failed",
+                "error loom:closure-failed",
                 [Item(f"does not compile: {c['error']}", key=str(c["key"])) for c in failed_closures],
                 problem=True,
-                next="loom check --bundles all --json" if len(failed_closures) > 12 else None,
+                next="loom check --closures all --json" if len(failed_closures) > 12 else None,
             )
         )
     Report(
@@ -320,7 +326,7 @@ def check(no_compile: bool, bundles: str, as_json: bool, quilt_path: str | None)
         data={
             "diagnostics": [d.to_dict() for d in diags],
             "documents": documents,
-            "bundles": closures,
+            "closures": compiled,
         },
     ).emit(as_json)
 

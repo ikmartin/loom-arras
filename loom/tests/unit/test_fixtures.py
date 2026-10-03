@@ -58,6 +58,55 @@ def test_all_emitted_codes_are_known() -> None:
             assert line.split()[1] in known, line
 
 
+#: The reserved cross-publisher codes of `specs/diagnostics.md` §2, the only codes without `loom:`.
+RESERVED_CODES = {
+    "duplicate-id",
+    "dangling-link",
+    "missing-include",
+    "inclusion-cycle",
+    "double-inclusion",
+    "unreachable",
+}
+
+
+def _literals(expr: object) -> list[str]:
+    """The string codes an expression can evaluate to: a literal, or either arm of a conditional; a computed code is read where it was made."""
+    import ast
+
+    if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+        return [expr.value]
+    if isinstance(expr, ast.IfExp):
+        return _literals(expr.body) + _literals(expr.orelse)
+    return []
+
+
+def test_every_code_loom_can_emit_is_reserved_or_namespaced() -> None:
+    """Every code in the table, and every one a `Diagnostic(...)` in loom's source names, is a reserved code or starts with `loom:`; and each one named is in the table."""
+    import ast
+
+    from loom.scan.diagnostics import RESERVED
+
+    assert set(RESERVED) == RESERVED_CODES
+    known = set(all_codes())
+    named: dict[str, str] = {}
+    src = Path(__file__).resolve().parents[2] / "src" / "loom"
+    for path in sorted(src.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            func = node.func if isinstance(node, ast.Call) else None
+            if getattr(func, "id", getattr(func, "attr", None)) != "Diagnostic":
+                continue
+            assert isinstance(node, ast.Call)
+            code = (
+                node.args[1] if len(node.args) > 1 else next((k.value for k in node.keywords if k.arg == "code"), None)
+            )
+            for c in _literals(code):
+                named[c] = f"{path.relative_to(src)}:{node.lineno}"
+    assert len(named) > 40, "the walk found too few codes to be reading the source"
+    assert sorted(f"{c} ({w})" for c, w in named.items() if c not in known) == [], "codes missing from the table"
+    stray = sorted(c for c in known | set(named) if c not in RESERVED_CODES and not c.startswith("loom:"))
+    assert stray == [], "codes that are neither reserved nor loom:"
+
+
 def test_init_demo_matches_fixture(tmp_path: Path) -> None:
     ok("init", str(tmp_path / "demo"), "--demo", cwd=tmp_path)
     fixture = QUILTS_DIR / "demo"
@@ -143,8 +192,8 @@ def test_never_modifies_author_files(quilt: Path, tmp_path: Path) -> None:
         commands += [
             ["deps", key],
             ["deps", key, "--closure", "--json"],
-            ["unravel", key],
-            ["unravel", key, "--json"],
+            ["downstream", key],
+            ["downstream", key, "--json"],
             ["history", key],
             ["revert", f"{key}@1"],
             ["fork", key, "--in", master or "nothing.tex"],

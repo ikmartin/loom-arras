@@ -243,7 +243,7 @@ def source_paths(quilt: Quilt, state: SyncState) -> list[str]:
     return sorted(source_projection(quilt, state)[1])
 
 
-def configure(quilt: Quilt, url: str, published_main: str = "") -> SyncState:
+def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool = True) -> SyncState:
     """Clone the document workspace into `.loom/workspace/` and pair it with the quilt's main document.
 
     A clone already there is replaced, since it holds nothing that a fetch and a publish do not make again. The branch is the workspace's default branch.
@@ -256,15 +256,31 @@ def configure(quilt: Quilt, url: str, published_main: str = "") -> SyncState:
         The workspace's Git URL or path, e.g. Overleaf's `https://git.overleaf.com/<project>`.
     published_main : str, default ''
         The main document's path in the workspace; '' keeps the quilt's path.
+    write : bool, default True
+        False asks the workspace for its branch and tip (`git ls-remote`) and clones and writes nothing.
 
     Returns
     -------
     SyncState
-        The written sync record, its `integrated` revision the workspace's tip.
+        The sync record, written unless `write` is false, its `integrated` revision the workspace's tip.
     """
     root = quilt.root
     if published_main and (Path(published_main).is_absolute() or ".." in Path(published_main).parts):
         raise SyncError("the document workspace main path must stay within the project")
+    if not write:
+        said = git(root, "ls-remote", "--symref", url, "HEAD").decode().splitlines()
+        heads = [line.split("\t")[0] for line in said if line.startswith("ref: ")]
+        tips = [line.split("\t")[0] for line in said if not line.startswith("ref: ") and line.strip()]
+        if not tips:
+            raise SyncError(f"{url} has no commits; create the project there first")
+        return SyncState(
+            url=url,
+            branch=heads[0].removeprefix("ref: refs/heads/") if heads else "HEAD",
+            master=quilt.config.main,
+            integrated=tips[0],
+            published_main=published_main or quilt.config.main,
+            documents=[quilt.config.main],
+        )
     target = root / WORKSPACE
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="workspace-", dir=target.parent) as temporary:
@@ -456,7 +472,7 @@ def pull_files(quilt: Quilt, state: SyncState) -> dict[str, bytes | None]:
         except SyncError as exc:
             raise SourceError(
                 f"the pull does not apply to your current files: {exc}. "
-                "Read it with `loom sync patch`, bring those files in line in your editor, then incorporate again"
+                "Read it with `loom sync status --patch`, bring those files in line in your editor, then incorporate again"
             ) from exc
         return {path: (stage / path).read_bytes() if (stage / path).is_file() else None for path in paths}
 
@@ -648,7 +664,7 @@ def _identity(clone: Path, env: dict[str, str], actor: str | None) -> dict[str, 
         }
 
 
-def publish(quilt: Quilt, state: SyncState, actor: str | None = None) -> Publication:
+def publish(quilt: Quilt, state: SyncState, actor: str | None = None, *, write: bool = True) -> Publication:
     """Prepare the selected documents' sources as one revision in loom's clone, and stamp each document as published.
 
     The files are the quilt's as they are on disk; every selected document must compile from them alone. The revision sits on the workspace's tip at `PUBLICATION_REF` until `push_publication` sends it. Preparing the same files again returns the revision already prepared and stamps nothing.
@@ -661,6 +677,8 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None) -> Publica
         The sync record; updated and written.
     actor : str, optional
         Who the stamps are recorded as; default the quilt's author.
+    write : bool, default True
+        False makes every check, the compiles included, and writes nothing, in the clone or the quilt: a new revision is returned with `commit` '' and the documents it would stamp as `landmarks`.
 
     Returns
     -------
@@ -699,6 +717,18 @@ def publish(quilt: Quilt, state: SyncState, actor: str | None = None) -> Publica
             )
             if not out.ok:
                 raise SourceError(f"the source-only document {document} does not compile: {out.first_error}")
+        if not write:
+            # compared file by file, since a tree object would be written into the clone to compare it as Git does
+            if files == tree_files(clone, remote_tip):
+                return Publication(remote_tip, sorted(files), [], unchanged=True)
+            if state.prepared:
+                try:
+                    parent = revision(clone, f"{state.prepared}^")
+                except SyncError:
+                    parent = ""
+                if parent == remote_tip and files == tree_files(clone, state.prepared):
+                    return Publication(state.prepared, sorted(files), state.prepared_landmarks, reused=True)
+            return Publication("", sorted(files), list(documents))
         env = {**os.environ, "GIT_INDEX_FILE": str(stage / "source.index")}
         git(clone, "read-tree", "--empty", env=env)
         for path, data in files.items():
@@ -767,8 +797,11 @@ def _record_moves(quilt: Quilt, state: SyncState, moves: list[dict[str, Any]], i
             set_main_forced(quilt, move["to"])
 
 
-def update_documents(quilt: Quilt, state: SyncState, action: str, document: str) -> SyncState:
-    """Persist one additional live master in the source projection; never publish it."""
+def update_documents(quilt: Quilt, state: SyncState, action: str, document: str, *, write: bool = True) -> SyncState:
+    """Add a live drafting document to the source projection, or remove one, and save the selection; never publish it.
+
+    With `write` false the returned state carries the new selection and nothing is saved.
+    """
     from loom.scan.scan import scan
 
     path = Path(document)
@@ -794,7 +827,8 @@ def update_documents(quilt: Quilt, state: SyncState, action: str, document: str)
     else:
         raise SyncError(f"unknown document action: {action}")
     state.documents = current
-    state.write(quilt.root)
+    if write:
+        state.write(quilt.root)
     return state
 
 

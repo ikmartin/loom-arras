@@ -199,7 +199,7 @@ def main() -> None:
             rows["lint"] = loom(q, "lint")
             rows["deps KEY"] = loom(q, "deps", key)
             rows["ai orient"] = loom(q, "ai", "orient")
-            rows["accept KEY"] = loom(q, "accept", key, "--author", "Bench", "--force", "--yes")
+            rows["accept KEY"] = loom(q, "accept", key, "--as", "Bench", "--force", "--yes")
         if "serve" not in args.skip or "edit" not in args.skip:
             s = Serve(q)
             try:

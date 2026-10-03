@@ -1,4 +1,4 @@
-"""Inspect and incorporate an AI contribution through the shared review workflow."""
+"""`loom adopt`: inspect an agent document's changes and incorporate them into the working document it was drafted from."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import click
 from loom.cli._common import EnvError, agent_marker
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.report import Report, counted
+from loom.scan.quilt import NoAuthorError
 from loom.sync import SyncError
 
 
@@ -20,9 +21,14 @@ from loom.sync import SyncError
 @click.option("--document-changes", is_flag=True, help="Include proposed prose, preamble and ordering changes.")
 @click.option("--document-only", is_flag=True, help="Include document-level changes while keeping every node version.")
 @click.option("--incorporate", metavar="TOKEN", help="Incorporate exactly the previously inspected preview.")
-@click.option("--to", "output", type=click.Path(path_type=Path), help="Export the preview patch without incorporating.")
-@click.option("--json", "as_json", is_flag=True, help="Inspect and save a preview without modifying author files.")
-@click.option("--as", "separate", hidden=True)
+@click.option(
+    "--to",
+    "output",
+    default=None,
+    metavar="FILE",
+    help="Write the preview's patch to FILE without incorporating; never among the quilt's sources.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def adopt(
     document: str,
@@ -30,26 +36,26 @@ def adopt(
     document_changes: bool,
     document_only: bool,
     incorporate: str | None,
-    output: Path | None,
+    output: str | None,
     as_json: bool,
-    separate: str | None,
     quilt_path: str | None,
 ) -> None:
-    """Inspect an AI draft's changes and incorporate them after confirmation; never accept mathematics."""
+    """Preview an agent document's changes to the working document it was drafted from, and incorporate them once confirmed; mathematics is never accepted.
+
+    The preview is the dry run: without a terminal to confirm on, or with --json or --to, adopt stops there and names the `--incorporate TOKEN` that applies exactly it.
+    """
     from loom.adopt import incorporate as apply
     from loom.adopt import prepare
+    from loom.cli._common import destination
 
     if agent_marker():
-        raise EnvError("Adoption is an author action. An agent proposes changes in its AI draft.")
-    if separate:
-        raise EnvError(
-            "Creating a separate document is not supported by adoption; this command revises the original document"
-        )
+        raise EnvError("Adoption is an author action. An agent proposes changes in its agent document.")
     if document_only and keys:
         raise EnvError("--document-only cannot be combined with node keys")
     if incorporate and (keys or document_changes or document_only or output):
         raise EnvError("--incorporate applies the saved preview; change selections by preparing a new preview")
     result = open_scan(quilt_path)
+    target = destination(result.quilt, output) if output else None
     try:
         if incorporate:
             answer = apply(result, document, incorporate)
@@ -58,15 +64,16 @@ def adopt(
         preview = prepare(
             result, document, [] if document_only else list(keys) if keys else None, document_changes or document_only
         )
-        if output:
-            output.write_text(preview["patch"])
-        if as_json or not preview["patch"] or output:
-            Report(_previewed(preview, output), dry_run=as_json, data=preview).emit(as_json)
+        if target is not None:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(preview["patch"], encoding="utf-8")
+        if as_json or not preview["patch"] or target is not None:
+            Report(_previewed(preview, output), data=preview).emit(as_json)
             return
         asking = sys.stdin.isatty()
         Report(
             _previewed(preview, None),
-            lines=["Unselected proposals remain in the AI draft. Incorporation does not accept mathematics."],
+            lines=["Unselected proposals remain in the agent document. Incorporation does not accept mathematics."],
         ).emit()
         if not asking:
             # one line however long: the token is an identifier, and a command broken across lines does not run
@@ -77,11 +84,11 @@ def adopt(
             return
         if click.confirm("Incorporate selected changes?"):
             click.echo(apply(open_scan(quilt_path), document, preview["token"])["message"])
-    except (SyncError, ValueError, OSError) as exc:
+    except (SyncError, NoAuthorError, ValueError, OSError) as exc:
         raise EnvError(str(exc)) from exc
 
 
-def _previewed(preview: dict[str, Any], output: Path | None) -> str:
+def _previewed(preview: dict[str, Any], output: str | None) -> str:
     """The verdict on a preview: what it would incorporate, or why nothing, and where the patch went."""
     from loom.adopt import nothing_to_incorporate
 

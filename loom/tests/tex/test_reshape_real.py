@@ -79,7 +79,7 @@ def atomized(once: Once) -> tuple[Path, str]:
 
     def make(base: Path) -> tuple[Path, str]:
         q = copy(imported(once)[0], base / "q")
-        r = ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+        r = ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
         return q, r.output
 
     return once.get("atomized", make)

@@ -83,7 +83,7 @@ def by_node(result: ScanResult, diags: list[Diagnostic]) -> tuple[dict[str, list
 
 
 @click.command(name="lint")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @click.option(
     "--nodes",
     "nodes",

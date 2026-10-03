@@ -17,7 +17,7 @@ def quilt(tmp_path: Path) -> Path:
 
 
 def started(d: Path, name: str) -> str:
-    r = ok("ai", "start", name, cwd=d)
+    r = ok("session", "new", "--name", name, cwd=d)
     return r.stdout.split()[0]
 
 
@@ -32,7 +32,7 @@ def test_a_title_reaches_the_session_it_names(tmp_path: Path) -> None:
     assert (d / ".loom" / "sessions" / sid / "run.log").is_file(), "the title must reach the real session's log"
 
     # and a write command files against the same session
-    ok("annotate", "dm-0003", "a finding", "--kind", "question", "--author", "A. Author", cwd=d)
+    ok("annotate", "dm-0003", "a finding", "--kind", "question", "--as", "A. Author", cwd=d)
     events = [json.loads(x) for x in (d / "annotations" / "log.jsonl").read_text().splitlines() if x.strip()]
     created = [e for e in events if e["event"] == "created"]
     assert created[-1]["session"] == sid, f"filed under {created[-1]['session']!r}, not the session that made it"

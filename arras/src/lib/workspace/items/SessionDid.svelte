@@ -32,7 +32,7 @@
 	}
 
 	function standing(a: Annotation): string {
-		return a.discarded ? 'discarded' : a.status;
+		return a.discarded ? 'withdrawn' : a.status;
 	}
 
 	/** What the dot says for a screen reader: the kind, and that a reply is one. */

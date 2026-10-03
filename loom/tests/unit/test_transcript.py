@@ -112,16 +112,15 @@ def test_a_heartbeat_is_not_rewritten_every_wake(tmp_path: Path) -> None:
     assert beat != "2020-01-01T00:00:00Z"
 
 
-def test_say_is_the_agents_half_of_the_transcript(tmp_path: Path) -> None:
+def test_say_is_one_post_for_an_agent_and_a_person(tmp_path: Path) -> None:
     from loom.mailbox import cursor, post, read_events
 
     q, sid = quilt(tmp_path)
     agent = {"AI_AGENT": "1"}
     # an agent that has not said who it is
     refused("session", "say", "hello", "--session", sid, cwd=q, env=agent, code=2, match="Name yourself with --as")
-    refused("session", "say", "hello", "--session", sid, "--as", "A. Author", cwd=q, code=2, match="loom session send")
     said = ok("session", "say", "Read it; one objection.", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent)
-    assert said.output.strip() == f"said in {sid}"
+    assert said.stdout.strip() == f"said in {sid}; nobody is listening"
     [e] = read_events(q, sid)
     assert (e.who, e.body, e.changed) == ("Referee Agent", "Read it; one objection.", [])
     assert cursor(q, sid, "Referee Agent") == 1  # it had read everything before, so its own words are not news
@@ -131,8 +130,21 @@ def test_say_is_the_agents_half_of_the_transcript(tmp_path: Path) -> None:
     assert read_events(q, sid)[-1].body == "Long answer."
     assert cursor(q, sid, "Referee Agent") == 1
     refused(
-        "session", "say", "  ", "--session", sid, "--as", "Referee Agent", cwd=q, env=agent, code=2, match="no text"
+        "session",
+        "say",
+        "  ",
+        "--session",
+        sid,
+        "--as",
+        "Referee Agent",
+        cwd=q,
+        env=agent,
+        code=2,
+        match="nothing to say",
     )
+    # a person says things the same way, into the same inbox
+    ok("session", "say", "Good; carry on.", "--session", sid, "--as", "A. Author", cwd=q)
+    assert (read_events(q, sid)[-1].who, read_events(q, sid)[-1].body) == ("A. Author", "Good; carry on.")
 
 
 def test_the_build_pages_the_transcript_beside_the_manifest(tmp_path: Path) -> None:
@@ -152,7 +164,7 @@ def test_the_build_pages_the_transcript_beside_the_manifest(tmp_path: Path) -> N
     assert "messages" not in manifest["threads"][sid]
     assert the(manifest["sessions"], lambda s: s["id"] == sid, f"session {sid} in the manifest")["seq"] == PAGE + 50
     # a deleted session's pages go with it
-    ok("session", "delete", sid, "--author", "A. Author", "--yes", cwd=q)
+    ok("session", "delete", sid, "--as", "A. Author", "--yes", cwd=q)
     ok("build", cwd=q)
     assert not list((q / "build" / "transcripts").glob(f"{sid}/*.json"))
 

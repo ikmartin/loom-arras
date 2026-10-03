@@ -17,7 +17,7 @@ WHO = "A. Author"
 def test_the_viewer_names_switches_retitles_closes_and_tombstones_a_session(tmp_path: Path) -> None:
     """The panel writes through the same functions `loom session` calls, so the two surfaces cannot spell an event differently. Closing or tombstoning the active session empties the active slot; a closed one refuses to close again; purging is not reachable from the viewer."""
     q = demo(tmp_path)
-    first = ok("session", "new", "morning", "--author", WHO, cwd=q).stdout.split()[0]
+    first = ok("session", "new", "--name", "morning", "--as", WHO, cwd=q).stdout.split()[0]
     assert active(q) == first
 
     made = handle(q, "session-new", {"title": "afternoon", "author": WHO})
@@ -56,7 +56,7 @@ def test_a_resumed_session_starts_a_new_round(tmp_path: Path) -> None:
 def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
     """The orientation lists both among an agent's commands and says every command that takes --session logs the call (F7)."""
     d = demo(tmp_path)
-    sid = ok("ai", "start", "Drafting", cwd=d).stdout.split()[0]
+    sid = ok("session", "new", "--name", "Drafting", cwd=d).stdout.split()[0]
     run_dir = d / ".loom" / "sessions" / sid
     ok("id", "--next", "--session", sid, cwd=d)
     ok("new", "lemma", "Rigidity", "--session", sid, cwd=d)
@@ -69,7 +69,7 @@ def test_id_and_new_log_themselves_to_the_session(tmp_path: Path) -> None:
 
 def written(q: Path, sid: str, target: str, body: str) -> str:
     """One note written into `sid` by `loom annotate`; its id."""
-    return ok("annotate", target, body, "--session", sid, "--author", WHO, cwd=q).stdout.split()[0]
+    return ok("annotate", target, body, "--session", sid, "--as", WHO, cwd=q).stdout.split()[0]
 
 
 def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:
@@ -78,10 +78,10 @@ def purgeable(tmp_path: Path) -> tuple[Path, str, str, str]:
     gone = new_session(q, "false start", WHO)
     stays = new_session(q, "keeper", WHO)
     ann = written(q, gone, "dm-0003", "Wrong from the start.")
-    ok("annotate", "--edit", ann, "Still wrong.", "--session", gone, "--author", WHO, cwd=q)
+    ok("annotate", "--edit", ann, "Still wrong.", "--session", gone, "--as", WHO, cwd=q)
     written(q, stays, "dm-0001", "A note worth keeping.")
-    ok("annotate", "--reply", ann, "An answer to it.", "--session", stays, "--author", WHO, cwd=q)
-    ok("annotate", "--resolve", ann, "Done.", "--session", stays, "--author", WHO, cwd=q)
+    ok("annotate", "--reply", ann, "An answer to it.", "--session", stays, "--as", WHO, cwd=q)
+    ok("annotate", "--resolve", ann, "Done.", "--session", stays, "--as", WHO, cwd=q)
     with (q / "annotations" / "log.jsonl").open("a", encoding="utf-8") as fh:
         fh.write("not json, kept as it stands\n")
     (q / ".loom" / "sessions" / gone).mkdir(parents=True, exist_ok=True)
@@ -161,7 +161,7 @@ def test_purge_at_a_terminal_asks_first(tmp_path: Path, answer: str) -> None:
     main, tty = pty.openpty()
     try:
         proc = subprocess.Popen(
-            [sys.executable, "-m", "loom", "session", "delete", gone, "--purge", "--author", WHO],
+            [sys.executable, "-m", "loom", "session", "delete", gone, "--purge", "--as", WHO],
             cwd=q,
             stdin=tty,
             stdout=subprocess.PIPE,
@@ -180,3 +180,49 @@ def test_purge_at_a_terminal_asks_first(tmp_path: Path, answer: str) -> None:
     else:
         assert proc.returncode == 0 and f"erased {gone}" in said, said
         assert gone not in sessions(q, deleted=True)
+
+
+def test_one_resolver_names_an_ambiguous_session_and_writes_into_no_tombstone(tmp_path: Path) -> None:
+    """An ambiguous name was reported as matching nothing, and a write could land in a deleted session (plan 0.18.4)."""
+    from loom.cli._common import ContentError, EnvError, NotFoundError, find_session
+    from loom.sessions import create, delete
+
+    root = tmp_path
+    (root / ".loom").mkdir()
+    a = create(root, "referee pass", "A. Author")
+    create(root, "referee notes", "A. Author")
+    with pytest.raises(EnvError, match="matches 2 sessions"):
+        find_session(root, "referee")
+    with pytest.raises(NotFoundError, match="no session matches"):
+        find_session(root, "nothing like it")
+    delete(root, a.id, "A. Author")
+    with pytest.raises(ContentError, match="was deleted"):
+        find_session(root, a.id)
+    assert find_session(root, a.id, deleted=True).id == a.id
+    assert find_session(root, "referee").title == "referee notes"  # the tombstone no longer makes the title ambiguous
+
+
+def test_a_session_dry_run_writes_nothing_and_an_unnamed_agent_is_refused(tmp_path: Path) -> None:
+    """The output check skips `.loom/sessions/`, so the session writers' dry runs are held to it here (K4); who acts is `--as`, and an agent must say who it is (K2)."""
+    q = demo(tmp_path)
+    sid = new_session(q, "morning")
+    ok("session", "close", sid, "--as", WHO, cwd=q)
+
+    def state() -> dict[str, bytes]:
+        return {p.relative_to(q).as_posix(): p.read_bytes() for p in (q / ".loom").rglob("*") if p.is_file()}
+
+    was = state()
+    for argv in (
+        ("new", "--name", "afternoon"),
+        ("use", sid),
+        ("rename", sid, "--name", "late pass"),
+        ("close", "s-2026-09-16-0001"),
+        ("delete", sid),
+        ("delete", sid, "--purge"),
+        ("say", "hello", "--session", "s-2026-09-16-0001"),
+    ):
+        said = ok("session", *argv, "--as", WHO, "--dry-run", cwd=q)
+        assert said.stdout.startswith("dry run: "), said.stdout
+        assert state() == was, argv
+    refused("session", "new", "--name", "x", cwd=q, env={"AI_AGENT": "1"}, code=2, match="Name yourself with --as")
+    assert state() == was

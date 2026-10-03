@@ -13,7 +13,7 @@ from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
 from tests.helpers import json_of, ok, refused
 
-AUTHOR = ["--author", "Markas Hecht"]
+AUTHOR = ["--as", "Markas Hecht"]
 
 
 @pytest.fixture(autouse=True)

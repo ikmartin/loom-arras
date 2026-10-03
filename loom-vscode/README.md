@@ -12,7 +12,7 @@ It activates only inside a quilt: a folder with a `config.toml` holding a `[quil
 - **Show Call Hierarchy** on a node shows what it uses (outgoing) and what uses it (incoming).
 - **Inlay hints** show what each `\ref`, `\uses` and `\input` points to.
 - **Code actions**: add a `\uses` entry the proof references but does not list; accept the key under the cursor, atomize the file, or insert a node skeleton, each confirming first when it writes; open the node in arras.
-- **Commands** under `Loom:` in the palette: status, lint, new node, accept, serve, open in arras, bundle, atomize the node under the cursor, give the node under the cursor an id, restart the server, compile this quilt from its root (LaTeX Workshop).
+- **Commands** under `Loom:` in the palette: status, lint, new node, accept, serve, open in arras, the closure of the key under the cursor, atomize the node under the cursor, give the node under the cursor an id, restart the server, compile this quilt from its root (LaTeX Workshop).
 - A **status bar item** naming the node under the cursor, which opens it in arras.
 
 **Atomize moves the node under the cursor into `nodes/<id>.tex`** and leaves an `\input{nodes/<id>}` behind, as one edit your editor applies: loom itself never writes your files, and undo puts the draft back (the new node file stays on disk; delete it if you change your mind). A node with no id refuses, so give it one first with **Loom: Give the node under the cursor an id**, which inserts the next free `\label`. Both are offered as code actions at the node as well, and both say so when there is nothing to do where the cursor is.

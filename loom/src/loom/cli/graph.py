@@ -1,4 +1,4 @@
-"""`loom deps` and `loom unravel` (book 12.4)."""
+"""`loom deps` and `loom downstream` (book 12.4)."""
 
 from __future__ import annotations
 
@@ -105,16 +105,17 @@ def _relation_entries(result: ScanResult, key: str) -> list[dict[str, str]]:
 @click.command()
 @click.argument("key")
 @click.option("--closure", "show_closure", is_flag=True, help="The transitive statement closure in dependency order.")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
 @quilt_option
 def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
-    """What KEY depends on: direct statement-edges and proof-edges, grouped."""
+    """Show what KEY depends on: direct statement-edges and proof-edges, grouped."""
     result = open_scan(quilt_path)
-    log_run(run_dir, f"loom deps {key}", result.quilt.root)
+    asked = key
     key = resolve_key(result, key)
+    log_run(run_dir, f"loom deps {asked}", result.quilt.root)
     payload = deps_payload(result, key)
     if show_closure:
         rest = [e["key"] for e in payload["closure"] if e["key"] != key]
@@ -143,10 +144,10 @@ def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt
     Report(verdict, groups=[g for g in groups if g.items], data=payload).emit(as_json)
 
 
-def _unravel_records(result: ScanResult, key: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """The acceptance rows and the live annotations on `key` and its proofs, for `unravel`'s last two blocks.
+def _downstream_records(result: ScanResult, key: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The acceptance rows and the live annotations on `key` and its proofs, for `downstream`'s last two blocks.
 
-    Discarded annotations are left out: `unravel` reports what a change to this key would disturb, and a withdrawn finding disturbs nothing.
+    Withdrawn annotations are left out: `downstream` reports what a change to this key would disturb, and a withdrawn finding disturbs nothing.
     """
     from loom.records.store import Records
 
@@ -176,7 +177,7 @@ def _unravel_records(result: ScanResult, key: str) -> tuple[list[dict[str, Any]]
     return ledger, annotations
 
 
-def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:
+def downstream_payload(result: ScanResult, key: str) -> dict[str, Any]:
     assert result.graph is not None
     n = result.assembly.nodes[key]
     dependents = []
@@ -208,7 +209,7 @@ def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:
         for inc in exp.inclusions
         if inc.child == n.file
     ]
-    ledger, annotations = _unravel_records(result, key)
+    ledger, annotations = _downstream_records(result, key)
     return {
         "id": key,
         "dependents": dependents,
@@ -219,19 +220,19 @@ def unravel_payload(result: ScanResult, key: str) -> dict[str, Any]:
     }
 
 
-@click.command()
+@click.command(name="downstream")
 @click.argument("id_", metavar="ID")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
 @quilt_option
-def unravel(id_: str, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
-    """Everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing."""
+def downstream(id_: str, as_json: bool, run_dir: str | None, quilt_path: str | None) -> None:
+    """Show everything downstream of ID: dependents, reference and inclusion sites, ledger rows, annotations. Reports; changes nothing."""
     result = open_scan(quilt_path)
-    log_run(run_dir, f"loom unravel {id_}", result.quilt.root)
     key = resolve_key(result, id_)
-    payload = unravel_payload(result, key)
+    log_run(run_dir, f"loom downstream {id_}", result.quilt.root)
+    payload = downstream_payload(result, key)
     dependents = sorted(payload["dependents"], key=lambda e: natural(e["key"]))
     references = sorted(payload["references"], key=lambda e: (natural(e["file"]), e["line"]))
     inclusions = sorted(payload["inclusions"], key=lambda e: (natural(e["file"]), e["line"]))

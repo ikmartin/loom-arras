@@ -13,7 +13,7 @@ from typing import Any
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, destination, note
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for
 from loom.cli.diagnostics import groups as diagnostic_groups
@@ -22,7 +22,15 @@ from loom.cli.paper import bibliography_groups, identity_group, identity_said
 from loom.cli.report import Group, Item, Report, counted, table
 from loom.history.checks import verify
 from loom.history.ledger import Entry, History, Version, actor_for, append_entry, load_history
-from loom.history.steps import file_hash, plan_freeze, slug, stamp_document, text_hash, write_step
+from loom.history.steps import (
+    file_hash,
+    plan_document_stamp,
+    plan_freeze,
+    slug,
+    stamp_document,
+    text_hash,
+    write_step,
+)
 from loom.history.versions import matching_version, materialize, parse_address, read_version, version_at
 from loom.reshape.atomize import _single_node_file
 from loom.reshape.canon import plan_draft
@@ -69,20 +77,21 @@ def _confirm(yes: bool, what: str) -> None:
     "ai_name",
     required=True,
     metavar="NAME",
-    help="The copy to write in the agent's drafting directory.",
+    help="The agent document to write, directly in the agent's drafting directory.",
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--dry-run", is_flag=True, help="Say what would be written, and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def draft(document: str, ai_name: str, as_json: bool, quilt_path: str | None) -> None:
-    """Copy a live drafting document into the agent's drafting directory as NAME, flat, with every label it defines derived; a copy step records what each of its nodes began from (book 17.7).
+def draft(document: str, ai_name: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Draft an agent document NAME from a live working document: flat, in the agent's drafting directory, with every label it defines derived.
 
-    Starting a document from an old version of one is `loom history restore`.
+    A copy step records what each of its nodes began from (book 17.7). Starting a document from an old version of one is `loom history restore`.
     """
-    _draft_ai(open_scan(quilt_path), document, ai_name, as_json)
+    _draft_ai(open_scan(quilt_path), document, ai_name, dry_run, as_json)
 
 
-def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None:
-    """`loom draft SOURCE --ai NAME`: one agent copy per document, never over an existing file or a taken name."""
+def _draft_ai(result: ScanResult, source: str, name: str, dry_run: bool, as_json: bool) -> None:
+    """`loom draft SOURCE --ai NAME`: one agent document per working document, never over an existing file or a taken name."""
     from loom.reshape.copy import plan_copy
 
     quilt = result.quilt
@@ -90,16 +99,16 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
     source_rel = _rel(root, source)
     role = result.document_role(source_rel)
     if role != "drafting":
-        raise EnvError(
-            f"{source_rel} is an agent's document; only a document in {quilt.config.drafting}/ is copied"
-            if role
-            else f"{source_rel} is not a live document in {quilt.config.drafting}/"
-        )
+        if role:
+            raise EnvError(
+                f"{source_rel} is an agent document; an agent document is drafted from one in {quilt.config.drafting}/"
+            )
+        raise NotFoundError("document", f"{source_rel} is not a live document in {quilt.config.drafting}/")
     dest_rel = name if "/" in name else f"{quilt.config.drafting_ai}/{name}"
     if not dest_rel.endswith(".tex"):
         dest_rel += ".tex"
     if Path(dest_rel).parent.as_posix() != quilt.config.drafting_ai:
-        raise EnvError(f"an agent's document goes directly under {quilt.config.drafting_ai}/, not at {dest_rel}")
+        raise EnvError(f"an agent document goes directly under {quilt.config.drafting_ai}/, not at {dest_rel}")
     if (root / dest_rel).exists():
         raise EnvError(f"{dest_rel} exists; draft never overwrites")
     taken = [m for m in result.masters if Path(m).stem == Path(dest_rel).stem]
@@ -110,13 +119,30 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
     history = _history(result)
     existing = [c for c, s in history.copies(result.masters).items() if s == source_rel]
     if existing:
-        raise EnvError(f"{source_rel} already has an agent copy, {existing[0]}; an agent works in that one")
+        raise EnvError(f"{source_rel} already has an agent document, {existing[0]}; an agent works in that one")
     conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and source_rel in n.reached_by)
     if conflicted:
         raise ContentError(
-            f"{source_rel} reaches {', '.join(conflicted)}, defined by two files each; a copy needs one text per key"
+            f"{source_rel} reaches {', '.join(conflicted)}, defined by two files each; an agent document needs one text per key"
         )
     plan = plan_copy(result, history, source_rel, dest_rel)
+
+    def detail(step: int) -> list[str]:
+        kept = counted(len(plan.freeze.froze), "result")
+        return [
+            f"{counted(len(plan.labels), 'label')} derived, {counted(len(plan.bases), 'result')} based on {source_rel}"
+            + (f"; step {step:04d} keeps the text of {kept} they start from" if plan.freeze.froze else "")
+        ]
+
+    if dry_run:
+        step = history.next_step()
+        Report(
+            f"would write {dest_rel}, an agent document drafted from {source_rel}, and record it as step {step:04d}",
+            dry_run=True,
+            lines=detail(step),
+            data={"action": "copy", "step": step, "from": source_rel, "to": dest_rel, "bases": plan.bases},
+        ).emit(as_json)
+        return
     dest = root / dest_rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(plan.text, encoding="utf-8")
@@ -131,15 +157,8 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
         document_name=Path(source_rel).name,
     )
     Report(
-        f"wrote {dest_rel}, a flat copy of {source_rel} for the agent; step {entry.step:04d} records it",
-        lines=[
-            f"{counted(len(plan.labels), 'label')} derived, {counted(len(plan.bases), 'result')} based on {source_rel}"
-            + (
-                f"; step {entry.step:04d} keeps the text of {counted(len(plan.freeze.froze), 'result')} they start from"
-                if plan.freeze.froze
-                else ""
-            )
-        ],
+        f"wrote {dest_rel}, an agent document drafted from {source_rel}; step {entry.step:04d} records it",
+        lines=detail(entry.step or 0),
         data={**entry.to_dict(), "line": entry.line},
     ).emit(as_json)
 
@@ -156,9 +175,10 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
     required=True,
     help="What this stamp marks; given a DOCUMENT, it names the landmark (`widgets-v3`).",
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--dry-run", is_flag=True, help="Say what the step would record, and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | None) -> None:
+def stamp(document: str | None, message: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Record every key whose text moved since the last step, quilt-wide; given DOCUMENT, only the keys it reaches, and its flat text kept as a landmark.
 
     A landmark is how a document stood at a moment worth returning to: `loom history show NAME` prints it and `loom history restore NAME --to FILE` starts a document from it (book 17.9).
@@ -168,13 +188,16 @@ def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | N
     history = _history(result)
     doc = _rel(root, document) if document else None
     if doc is not None and result.document_role(doc) != "drafting":
-        raise EnvError(f"{document} is not a live document in {result.quilt.config.drafting}/")
+        raise NotFoundError("document", f"{document} is not a live document in {result.quilt.config.drafting}/")
     name = slug(message)
     if doc is not None:
         if history.landmark(name) is not None:
             raise EnvError(f"a landmark is already named {name}; name this one differently")
         try:
-            entry, plan = stamp_document(result, history, doc, name, message, actor_for(root))
+            if dry_run:
+                plan, _ = plan_document_stamp(result, history, doc)
+            else:
+                entry, plan = stamp_document(result, history, doc, name, message, actor_for(root))
         except ValueError as exc:
             raise ContentError(str(exc)) from exc
     else:
@@ -185,12 +208,27 @@ def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | N
                 f"nothing to stamp: no result has changed since step {last:04d}"
                 if last
                 else "nothing to stamp: no result has an id",
+                dry_run=dry_run,
                 data={"step": None},
             ).emit(as_json)
             return
-        entry = write_step(
-            history, "stamp", f"stamp-{name}", plan, actor_for(root), extra={"message": message, "in": None}
-        )
+    if dry_run:
+        step = history.next_step()
+        data: dict[str, Any] = {
+            "action": "stamp",
+            "step": step,
+            "message": message,
+            "in": doc,
+            "froze": sorted(plan.froze),
+            "removed": list(plan.removed),
+            "restored": list(plan.restored),
+        }
+    else:
+        if doc is None:
+            entry = write_step(
+                history, "stamp", f"stamp-{name}", plan, actor_for(root), extra={"message": message, "in": None}
+            )
+        step, data = entry.step or 0, {**entry.to_dict(), "line": entry.line}
     changed = ", ".join(
         part
         for part in (
@@ -210,16 +248,16 @@ def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | N
                 next="loom lint",
             )
         )
-    data = {**entry.to_dict(), "line": entry.line}
-    if doc is not None:
+    if doc is not None and not dry_run:
         # a landmark is what the quilt's bibliography is gathered from, so a new one may carry entries it lacks (book 8.15)
         bib_groups, data["bibliography"] = bibliography_groups(result.quilt)
         groups += bib_groups
     Report(
-        f"step {entry.step:04d} records "
+        f"step {step:04d} {'would record' if dry_run else 'records'} "
         + (changed or "no changed result")
-        + (f"; landmark {name} keeps {doc} as it stands" if doc else ""),
+        + (f"; landmark {name} {'would keep' if dry_run else 'keeps'} {doc} as it stands" if doc else ""),
         ok=not plan.skipped,
+        dry_run=dry_run,
         groups=groups,
         data=data,
     ).emit(as_json)
@@ -228,17 +266,49 @@ def stamp(document: str | None, message: str, as_json: bool, quilt_path: str | N
 # ---- fork ---------------------------------------------------------------------
 
 
+class StepType(click.ParamType[int]):
+    """A step of the history, `@N` or `N`, as its number; anything else is refused by name before the command runs."""
+
+    name = "@N"
+
+    def convert(self, value: Any, param: click.Parameter | None, ctx: click.Context | None) -> int:
+        if isinstance(value, int):
+            return value
+        digits = str(value).strip().removeprefix("@")
+        if digits.isdigit() and int(digits) > 0:
+            return int(digits)
+        # an EnvError, not click's usage error, so the refusal reads as every other one does
+        raise EnvError(f"--from {value} is not a step; write @N, the step's number, e.g. @3")
+
+
 @click.command()
 @click.argument("node_id")
 @click.option("--in", "in_doc", required=True, metavar="FILE", help="The document that gets its own copy.")
 @click.option(
-    "--from", "at", default=None, metavar="@N", help="Copy the text the key had at step N instead of the head."
+    "--from",
+    "at",
+    type=StepType(),
+    default=None,
+    metavar="@N",
+    help="Copy the text the key had at step N instead of the head.",
 )
-@click.option("--as", "as_id", default=None, metavar="ID", help="The new id (default: the next free one).")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--name", "new_id", default=None, metavar="ID", help="The new id (default: the next free one).")
+@click.option("--dry-run", is_flag=True, help="Print the plan and the patch, and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def fork(node_id: str, in_doc: str, at: str | None, as_id: str | None, as_json: bool, quilt_path: str | None) -> None:
-    """Give FILE its own copy of a node under a new id: a node file when FILE includes the node, else the copy inline; printed as a patch for FILE, with its references rewritten. Nothing outside FILE changes."""
+def fork(
+    node_id: str,
+    in_doc: str,
+    at: int | None,
+    new_id: str | None,
+    dry_run: bool,
+    as_json: bool,
+    quilt_path: str | None,
+) -> None:
+    """Give FILE its own copy of a node under a new id: a node file when FILE includes the node, else the copy inline.
+
+    The copy is printed as a patch for FILE, with its references rewritten; nothing outside FILE changes.
+    """
     result = open_scan(quilt_path)
     root = result.quilt.root
     doc_rel = _rel(root, in_doc)
@@ -248,9 +318,14 @@ def fork(node_id: str, in_doc: str, at: str | None, as_id: str | None, as_json: 
     n = result.nodes[key]
     if n.kind not in ("environment", "conflict") or not n.id:
         raise EnvError(f"{node_id} is not a statement with an id")
-    ref = at.lstrip("@") if at else None
+    if doc_rel not in result.files:
+        raise NotFoundError("document", f"{in_doc} is not a scanned file of this quilt")
+    if new_id is not None and split_id(new_id) is None:
+        raise EnvError(f"{new_id} is not an id; an id is PREFIX-XXXX, e.g. {result.quilt.config.prefix}-0100")
     history = _history(result)
-    plan = plan_fork(result, history, n.id, doc_rel, ref, as_id)
+    if at is not None and history.resolve_step(str(at)) is None:
+        raise NotFoundError("step", f"no step {at} in the history; loom history lists them")
+    plan = plan_fork(result, history, n.id, doc_rel, str(at) if at is not None else None, new_id)
     if plan.refusal:
         raise ContentError(plan.refusal)
     target = root / plan.node_file if plan.node_file else None
@@ -271,36 +346,31 @@ def fork(node_id: str, in_doc: str, at: str | None, as_id: str | None, as_json: 
         "diff": plan.diff,
         "elsewhere": plan.elsewhere,
     }
+    where = f", in {plan.node_file}" if plan.node_file else ""
+    if dry_run:
+        verdict = f"would fork {plan.node_id} as {plan.new_id} for {plan.doc}{where}, with this patch for {plan.doc}"
+    else:
+        if target is not None:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(plan.node_text, encoding="utf-8")
+        append_entry(
+            result.quilt.history_dir,
+            "fork",
+            {
+                "new": plan.new_id,
+                "from": {"id": plan.node_id, "step": plan.step, "hash": plan.hash},
+                "in": plan.doc,
+                "to": plan.node_file or plan.doc,
+                "patched": plan.doc,
+            },
+            actor_for(root),
+        )
+        verdict = f"forked {plan.node_id} as {plan.new_id} for {plan.doc}{where}; apply this patch to {plan.doc}, which loom never edits"
+    report = Report(verdict, ok=dry_run, dry_run=dry_run, groups=[elsewhere] if plan.elsewhere else [], data=data)
     if as_json:
-        Report(
-            f"{plan.node_id} would be forked as {plan.new_id} in {plan.doc}; nothing written",
-            dry_run=True,
-            groups=[elsewhere] if plan.elsewhere else [],
-            data=data,
-        ).emit(True)
+        report.emit(True)
         return
-    if target is not None:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(plan.node_text, encoding="utf-8")
-    append_entry(
-        result.quilt.history_dir,
-        "fork",
-        {
-            "new": plan.new_id,
-            "from": {"id": plan.node_id, "step": plan.step, "hash": plan.hash},
-            "in": plan.doc,
-            "to": plan.node_file or plan.doc,
-            "patched": plan.doc,
-        },
-        actor_for(root),
-    )
-    Report(
-        f"forked {plan.node_id} as {plan.new_id} for {plan.doc}"
-        + (f", in {plan.node_file}" if plan.node_file else "")
-        + f"; apply the patch below to {plan.doc}, which loom never edits",
-        ok=False,
-        groups=[elsewhere] if plan.elsewhere else [],
-    ).emit()
+    report.emit()
     click.echo("")
     click.echo(plan.diff, nl=False)
 
@@ -310,7 +380,7 @@ def fork(node_id: str, in_doc: str, at: str | None, as_id: str | None, as_json: 
 
 @click.command()
 @click.argument("address")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
     """Print the patch that puts KEY@N's recorded text back in place of the head's; the file is the author's to change. Reverting materializes a version, it never points at one."""
@@ -351,22 +421,44 @@ def revert(address: str, as_json: bool, quilt_path: str | None) -> None:
 # ---- live ---------------------------------------------------------------------
 
 
+def _scan_after(result: ScanResult, action: str, data: dict[str, Any]) -> ScanResult:
+    """The scan the quilt would give with one more ledger line, read from a copy of the quilt; how a dry run tells what a record would change.
+
+    Paths and keys in the result are quilt-relative, so they read as the quilt's own; the copy is gone once this returns, so nothing may be read from disk through it.
+    """
+    root = result.quilt.root
+    with tempfile.TemporaryDirectory(prefix="loom-dry-run-") as tmp:
+        copy = Path(tmp) / "quilt"
+        shutil.copytree(root, copy, ignore=shutil.ignore_patterns("build", ".git"), symlinks=True)
+        quilt = load_quilt(copy)
+        append_entry(quilt.history_dir, action, data, None)
+        return scan(quilt)
+
+
 @click.command()
 @click.argument("file")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--dry-run", is_flag=True, help="Say what making it live would define twice, and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def live(file: str, as_json: bool, quilt_path: str | None) -> None:
-    """Make a superseded document live again: it defines its nodes once more."""
+def live(file: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Make a superseded document live again, so that it defines its nodes once more."""
     result = open_scan(quilt_path)
     root = result.quilt.root
     rel = _rel(root, file)
     history = _history(result)
     if rel not in history.superseded_paths():
+        if rel not in result.files:
+            raise NotFoundError("document", f"{file} is not a file of this quilt")
         raise EnvError(f"{rel} is not superseded")
     before = {k for k, n in result.nodes.items() if n.kind == "conflict"}
-    entry = append_entry(result.quilt.history_dir, "live", {"path": rel}, actor_for(root))
+    if dry_run:
+        now = _scan_after(result, "live", {"path": rel})
+        data: dict[str, Any] = {"action": "live", "path": rel}
+    else:
+        entry = append_entry(result.quilt.history_dir, "live", {"path": rel}, actor_for(root))
+        now = scan(load_quilt(root))
+        data = {**entry.to_dict(), "line": entry.line}
     # A live document defines its nodes again, so any id another live file also defines has no text from now on: said here, since it is this command that made it so.
-    now = scan(load_quilt(root))
     made = sorted(k for k, n in now.nodes.items() if n.kind == "conflict" and k not in before and rel in n.conflict)
     items = [
         Item(
@@ -376,13 +468,15 @@ def live(file: str, as_json: bool, quilt_path: str | None) -> None:
         )
         for key in made
     ]
+    became = "would be" if dry_run else "is"
     Report(
-        f"{rel} is live, and {counted(len(made), 'id')} it defines {'is' if len(made) == 1 else 'are'} now defined twice, with no text until one definition goes"
+        f"{rel} {became} live, and {counted(len(made), 'id')} it defines {'would be' if dry_run else 'is now' if len(made) == 1 else 'are now'} defined twice, with no text until one definition goes"
         if made
-        else f"{rel} is live",
+        else f"{rel} {became} live",
         ok=not made,
+        dry_run=dry_run,
         groups=[Group("defined twice", items, problem=True)] if made else [],
-        data={**entry.to_dict(), "line": entry.line, "conflicted": made},
+        data={**data, "conflicted": made},
     ).emit(as_json)
 
 
@@ -442,9 +536,10 @@ def _named_documents(result: ScanResult) -> set[str]:
 @click.command("mv")
 @click.argument("old")
 @click.argument("new")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--dry-run", is_flag=True, help="Say what would be moved and recorded, and write nothing.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def mv(old: str, new: str, as_json: bool, quilt_path: str | None) -> None:
+def mv(old: str, new: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Move the drafting document OLD to NEW and record the move, so every record naming OLD follows it. When OLD is already gone and NEW is a live document, record a rename made elsewhere; nothing is moved.
 
     Both are .tex files directly in the drafting directory. Moving the default document moves [quilt] main with it.
@@ -462,7 +557,10 @@ def mv(old: str, new: str, as_json: bool, quilt_path: str | None) -> None:
             f"{old_rel} and {new_rel} both exist; loom mv never overwrites, and records a rename only once {old_rel} is gone"
         )
     if not old_here and not new_here:
-        raise EnvError(f"neither {old_rel} nor {new_rel} exists: there is nothing to move and no rename to record")
+        raise NotFoundError(
+            "document",
+            f"neither {old_rel} nor {new_rel} exists: there is nothing to move and no rename to record",
+        )
     if old_here:
         if old_rel not in result.masters:
             src = result.files.get(old_rel)
@@ -473,7 +571,6 @@ def mv(old: str, new: str, as_json: bool, quilt_path: str | None) -> None:
             raise EnvError(
                 f"{old_rel} is not a live drafting document (it has no \\documentclass, or is ignored); loom mv moves only documents"
             )
-        shutil.move(str(root / old_rel), str(root / new_rel))
         moved = True
     else:
         if new_rel not in result.masters:
@@ -487,18 +584,31 @@ def mv(old: str, new: str, as_json: bool, quilt_path: str | None) -> None:
         if result.current_document(old_rel) == new_rel:
             raise EnvError(f"the history already takes {old_rel} to {new_rel}; nothing to record")
         moved = False
-    entry = append_entry(
-        result.quilt.history_dir, "move", {"from": old_rel, "to": new_rel, "moved": moved}, actor_for(root)
-    )
     main = result.quilt.config.main
-    main_moved = (main == old_rel or result.current_document(main) == old_rel) and set_main_forced(
-        result.quilt, new_rel
-    )
+    follows = main == old_rel or result.current_document(main) == old_rel
+    record = {"from": old_rel, "to": new_rel, "moved": moved}
+    if dry_run:
+        main_moved = follows and main != new_rel
+        data: dict[str, Any] = {"action": "move", **record}
+    else:
+        if moved:
+            shutil.move(str(root / old_rel), str(root / new_rel))
+        entry = append_entry(result.quilt.history_dir, "move", record, actor_for(root))
+        main_moved = follows and set_main_forced(result.quilt, new_rel)
+        data = {**entry.to_dict(), "line": entry.line}
+    if dry_run:
+        said = (
+            f"would move {old_rel} to {new_rel}"
+            if moved
+            else f"would record that {old_rel} was renamed to {new_rel} outside loom"
+        )
+    else:
+        said = f"moved {old_rel} to {new_rel}" if moved else f"{old_rel} was renamed to {new_rel} outside loom"
     Report(
-        (f"moved {old_rel} to {new_rel}" if moved else f"{old_rel} was renamed to {new_rel} outside loom")
-        + "; every record naming it follows",
+        said + ("; every record naming it would follow" if dry_run else "; every record naming it follows"),
+        dry_run=dry_run,
         lines=[f"config.toml: main = {new_rel}"] if main_moved else [],
-        data={**entry.to_dict(), "line": entry.line},
+        data=data,
     ).emit(as_json)
 
 
@@ -513,20 +623,28 @@ def mv(old: str, new: str, as_json: bool, quilt_path: str | None) -> None:
 )
 @click.option("--keep-shared", "keep_shared", is_flag=True, help="Leave shared node files as inclusions, marked.")
 @click.option("--no-check", "no_check", is_flag=True, help="Skip the identity test.")
-@click.option("--json", "as_json", is_flag=True)
+@click.option(
+    "--dry-run", is_flag=True, help="Say what would be written and superseded, and write nothing; no identity test."
+)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def linearize(
-    spine: str, to: str, do_fork: bool, keep_shared: bool, no_check: bool, as_json: bool, quilt_path: str | None
+    spine: str,
+    to: str,
+    do_fork: bool,
+    keep_shared: bool,
+    no_check: bool,
+    dry_run: bool,
+    as_json: bool,
+    quilt_path: str | None,
 ) -> None:
-    """Write FILE: SPINE with every \\input, \\include and \\nest (levels shifted) expanded in place. The spine and every file it inlined are then superseded."""
+    """Write FILE, SPINE with every \\input, \\include and \\nest (levels shifted) expanded in place; the spine and every file it inlined are then superseded."""
     result = open_scan(quilt_path)
     root = result.quilt.root
     spine_rel = _rel(root, spine)
     if spine_rel not in result.files:
-        raise EnvError(f"{spine} is not a scanned file of this quilt")
-    to_rel = _rel(root, to)
-    if (root / to_rel).exists():
-        raise EnvError(f"{to_rel} exists; linearize never overwrites")
+        raise NotFoundError("file", f"{spine} is not a scanned file of this quilt")
+    to_rel = destination(result.quilt, to, drafting=True).relative_to(root.resolve()).as_posix()
     if do_fork and keep_shared:
         raise EnvError("--fork and --keep-shared exclude each other")
     exp = result.expansions.get(spine_rel)
@@ -591,6 +709,35 @@ def linearize(
             text = pat.sub(repl, text)
             text = _rewrite_refs(text, names, new_id)
             forks.append({"new": new_id, "from": {"id": node.id, "hash": file_hash(root / f)}, "file": f})
+    superseded = [spine_rel, *[f for f in flat.inlined if f in result.files]]
+    record = {"from": spine_rel, "to": to_rel, "superseded": superseded, "forks": forks, "kept": list(flat.kept)}
+    groups = []
+    if forks:
+        groups.append(
+            Group(
+                "forked, so this document has its own copy",
+                [Item(f"{fk['from']['id']} -> {fk['new']}", key=fk["file"]) for fk in forks],
+            )
+        )
+    if flat.kept:
+        groups.append(Group("kept as inclusions, shared with another document", [Item(f) for f in sorted(flat.kept)]))
+    groups.append(
+        Group(
+            ("would be " if dry_run else "") + "superseded: each defines nothing until loom live FILE says otherwise",
+            [Item(f) for f in superseded],
+        )
+    )
+    shape = f"{spine_rel} flat: {text.count(chr(10))} lines, {counted(len(flat.inlined), 'file')} inlined"
+    main = result.quilt.config.main
+    if dry_run:
+        Report(
+            f"would write {to_rel}, {shape}; the identity test runs when it is written",
+            dry_run=True,
+            lines=[f"config.toml: main = {to_rel}"] if main in superseded and main != to_rel else [],
+            groups=groups,
+            data={"action": "linearize", **record},
+        ).emit(as_json)
+        return
     dest = root / to_rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(text, encoding="utf-8")
@@ -610,29 +757,10 @@ def linearize(
                 + diffs
             )
         checked = identity_said(ident, "it", spine_rel)
-    superseded = [spine_rel, *[f for f in flat.inlined if f in result.files]]
-    entry = append_entry(
-        result.quilt.history_dir,
-        "linearize",
-        {"from": spine_rel, "to": to_rel, "superseded": superseded, "forks": forks, "kept": list(flat.kept)},
-        actor_for(root),
-    )
-    groups = []
-    if forks:
-        groups.append(
-            Group(
-                "forked, so this document has its own copy",
-                [Item(f"{fk['from']['id']} -> {fk['new']}", key=fk["file"]) for fk in forks],
-            )
-        )
-    if flat.kept:
-        groups.append(Group("kept as inclusions, shared with another document", [Item(f) for f in sorted(flat.kept)]))
-    groups.append(
-        Group("superseded: each defines nothing until loom live FILE says otherwise", [Item(f) for f in superseded])
-    )
-    main_moved = result.quilt.config.main in superseded and set_main_forced(result.quilt, to_rel)
+    entry = append_entry(result.quilt.history_dir, "linearize", record, actor_for(root))
+    main_moved = main in superseded and set_main_forced(result.quilt, to_rel)
     Report(
-        f"wrote {to_rel}, {spine_rel} flat: {text.count(chr(10))} lines, {counted(len(flat.inlined), 'file')} inlined; {checked}",
+        f"wrote {to_rel}, {shape}; {checked}",
         lines=[f"config.toml: main = {to_rel}"] if main_moved else [],
         groups=groups,
         data={**entry.to_dict(), "line": entry.line},
@@ -653,58 +781,37 @@ def _version_lines(result: ScanResult, history: History, key: str) -> tuple[list
     return versions, matching_version(history, key, head_hash) if head_hash else None, head_hash
 
 
-@click.command()
-@click.argument("words", nargs=-1)
-@click.option(
-    "--to",
-    "to",
-    default=None,
-    metavar="FILE",
-    help="With restore: the new document, directly in the drafting directory.",
-)
-@click.option(
-    "--plain", is_flag=True, help="With show: the paper without loom, its package line swapped for the macro block."
-)
-@click.option("--json", "as_json", is_flag=True)
-@quilt_option
-def history(words: tuple[str, ...], to: str | None, plain: bool, as_json: bool, quilt_path: str | None) -> None:
-    """The steps and stamps of this quilt, one per line; with KEY, that key's versions and whether the head equals one.
+class _HistoryGroup(click.Group):
+    """`loom history`: a word that names no subcommand is a KEY, whose versions the hidden `_versions` command lists."""
 
-    `loom history show LANDMARK [--plain]` prints a landmark's text; `loom history restore LANDMARK --to FILE` starts a document from it; `loom history verify` walks every step directory against the ledger. A landmark is named by its name, its step, or `DOC@STEP` (book 17.9).
+    def resolve_command(
+        self, ctx: click.Context, args: list[str]
+    ) -> tuple[str | None, click.Command | None, list[str]]:
+        if args and args[0] not in self.commands and not args[0].startswith("-"):
+            return args[0], _versions, args[1:]
+        return super().resolve_command(ctx, args)
+
+
+def _inherited(quilt_path: str | None, as_json: bool) -> tuple[str | None, bool]:
+    """`--quilt` and `--json` given before the subcommand (`loom history --json show v1`) count as given after it."""
+    parent = click.get_current_context().parent
+    given = parent.params if parent is not None else {}
+    return quilt_path or given.get("quilt_path"), as_json or bool(given.get("as_json"))
+
+
+@click.group(cls=_HistoryGroup, invoke_without_command=True, subcommand_metavar="[KEY | COMMAND [ARGS]...]")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@quilt_option
+@click.pass_context
+def history(ctx: click.Context, as_json: bool, quilt_path: str | None) -> None:
+    """List the steps and stamps of this quilt, one per line; `loom history KEY` lists that key's versions and whether the head equals one.
+
+    A landmark, which `show` prints and `restore` starts a document from, is named by its name, its step, or `DOC@STEP` (book 17.9).
     """
-    verb = words[0] if words else None
-    if verb == "verify":
-        _verify(as_json, quilt_path)
+    if ctx.invoked_subcommand is not None:
         return
-    if verb in ("show", "restore"):
-        if len(words) != 2:
-            raise EnvError(f"loom history {verb} needs one LANDMARK: its name, its step, or DOC@STEP")
-        (_show if verb == "show" else _restore)(words[1], to, plain, as_json, quilt_path)
-        return
-    if len(words) > 1:
-        raise EnvError("loom history takes one KEY, or show, restore or verify")
-    key = verb
     result = open_scan(quilt_path)
     hist = _history(result)
-    if key is not None:
-        k = resolve_key(result, key)
-        versions, match, head_hash = _version_lines(result, hist, k)
-        head = ""
-        if head_hash:
-            head = f"; its text now is that of @{match.step}" if match else "; its text now differs from every version"
-        Report(
-            f"{k} has {counted(len(versions), 'recorded version')}{head}"
-            if versions
-            else f"{k} has no recorded version",
-            lines=table((f"{k}@{v.step}", v.name, f"of {v.of}" if v.of else "") for v in versions),
-            data={
-                "key": k,
-                "versions": [{"step": v.step, "hash": v.hash, "name": v.name, "of": v.of} for v in versions],
-                "head": head_hash or None,
-                "head_is": match.step if match else None,
-            },
-        ).emit(as_json)
-        return
     steps = [e for e in hist.entries if e.step is not None]
     rows = []
     for e in hist.entries:
@@ -726,67 +833,105 @@ def history(words: tuple[str, ...], to: str | None, plain: bool, as_json: bool, 
     ).emit(as_json)
 
 
+@click.command(name="KEY", hidden=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@quilt_option
+def _versions(as_json: bool, quilt_path: str | None) -> None:
+    """List the versions recorded for KEY, and whether its text now is one of them."""
+    quilt_path, as_json = _inherited(quilt_path, as_json)
+    key = click.get_current_context().info_name or ""
+    result = open_scan(quilt_path)
+    hist = _history(result)
+    k = resolve_key(result, key)
+    versions, match, head_hash = _version_lines(result, hist, k)
+    head = ""
+    if head_hash:
+        head = f"; its text now is that of @{match.step}" if match else "; its text now differs from every version"
+    Report(
+        f"{k} has {counted(len(versions), 'recorded version')}{head}" if versions else f"{k} has no recorded version",
+        lines=table((f"{k}@{v.step}", v.name, f"of {v.of}" if v.of else "") for v in versions),
+        data={
+            "key": k,
+            "versions": [{"step": v.step, "hash": v.hash, "name": v.name, "of": v.of} for v in versions],
+            "head": head_hash or None,
+            "head_is": match.step if match else None,
+        },
+    ).emit(as_json)
+
+
 def _landmark(quilt_path: str | None, ref: str) -> tuple[ScanResult, History, Entry, str]:
-    """The scan, the history, the landmark `ref` names and its text; EnvError naming the landmarks there are."""
+    """The scan, the history, the landmark `ref` names and its text; NotFoundError naming the landmarks there are."""
     result = open_scan(quilt_path)
     hist = _history(result)
     e = hist.landmark(ref)
     if e is None:
         names = ", ".join(f"{Path(str(x.get('landmark'))).stem} (@{x.step})" for x in hist.landmarks()) or "none yet"
-        raise EnvError(f"no landmark answers to {ref}; the landmarks are {names}")
+        raise NotFoundError("landmark", f"no landmark answers to {ref}; the landmarks are {names}")
     path = hist.landmark_path(e)
     if not path.is_file():
         raise ContentError(f"the text of landmark {ref} is missing: {path.relative_to(result.quilt.root)}")
     return result, hist, e, path.read_text(encoding="utf-8")
 
 
-def _show(ref: str, to: str | None, plain: bool, as_json: bool, quilt_path: str | None) -> None:
-    """`loom history show LANDMARK [--plain]`: the text as the step kept it, or without loom."""
-    if to is not None:
-        raise EnvError("--to belongs to loom history restore")
-    _, _, e, text = _landmark(quilt_path, ref)
+@history.command(name="show")
+@click.argument("name")
+@click.option("--plain", is_flag=True, help="The paper without loom, its package line swapped for the macro block.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@quilt_option
+def history_show(name: str, plain: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Print a landmark's text.
+
+    The text of the landmark NAME as its step kept it, raw; with --plain, the paper without loom.
+    """
+    quilt_path, as_json = _inherited(quilt_path, as_json)
+    _, _, e, text = _landmark(quilt_path, name)
     text = to_canon(text) if plain else text
     if as_json:
-        name = Path(str(e.get("landmark"))).stem
+        stem = Path(str(e.get("landmark"))).stem
         Report(
-            f"landmark {name}, step {e.step:04d}" + (", without loom" if plain else ""),
-            data={"landmark": name, "step": e.step, "in": e.get("in"), "text": text},
+            f"landmark {stem}, step {e.step:04d}" + (", without loom" if plain else ""),
+            data={"landmark": stem, "step": e.step, "in": e.get("in"), "text": text},
         ).emit(True)
         return
     click.echo(text, nl=False)
 
 
-def _restore(ref: str, to: str | None, plain: bool, as_json: bool, quilt_path: str | None) -> None:
-    """`loom history restore LANDMARK --to FILE`: a new drafting document from a landmark, with the package line and an id on every node that has none; the author's alone."""
+@history.command(name="restore")
+@click.argument("name")
+@click.option("--to", "to", default=None, metavar="FILE", help="The new document, directly in the drafting directory.")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@quilt_option
+def history_restore(name: str, to: str | None, as_json: bool, quilt_path: str | None) -> None:
+    """Start a document from a landmark.
+
+    A new drafting document from the landmark NAME, with the package line and an id on every node that has none; the author's alone.
+    """
     from loom.cli._common import refuse_under_agent
 
+    quilt_path, as_json = _inherited(quilt_path, as_json)
     refuse_under_agent("loom history restore", "Ask the author to start the document.")
-    if plain:
-        raise EnvError("--plain belongs to loom history show")
     if to is None:
         raise EnvError("loom history restore needs --to FILE, the new document")
-    result, hist, e, text = _landmark(quilt_path, ref)
+    result, hist, e, text = _landmark(quilt_path, name)
     quilt = result.quilt
     root = quilt.root
-    dest_rel = _rel(root, to)
+    dest = destination(quilt, to, drafting=True)
+    dest_rel = dest.relative_to(Path(root).resolve()).as_posix()
     if Path(dest_rel).parent.as_posix() != quilt.config.drafting:
         raise EnvError(f"a restored document goes directly under {quilt.config.drafting}/, not at {dest_rel}")
-    if (root / dest_rel).exists():
-        raise EnvError(f"{dest_rel} exists; restore never overwrites")
     plan = plan_draft(result, text, dest_rel)
     if plan.violations or plan.spans:
         raise ContentError(
-            f"landmark {ref} cannot be drafted as it is: "
+            f"landmark {name} cannot be drafted as it is: "
             + "; ".join(plan.spans or [f"line {v.line}" for v in plan.violations])
         )
-    dest = root / dest_rel
     dest.write_text(plan.text, encoding="utf-8")
-    name = Path(str(e.get("landmark"))).stem
+    stem = Path(str(e.get("landmark"))).stem
     entry = append_entry(
         quilt.history_dir,
         "restore",
         {
-            "from": {"landmark": name, "step": e.step},
+            "from": {"landmark": stem, "step": e.step},
             "to": {"path": dest_rel, "hash": text_hash(plan.text)},
             "ids": len(plan.insertions),
         },
@@ -796,7 +941,7 @@ def _restore(ref: str, to: str | None, plain: bool, as_json: bool, quilt_path: s
         k for k, n in scan(load_quilt(root)).nodes.items() if n.kind == "conflict" and dest_rel in n.conflict
     )
     Report(
-        f"wrote {dest_rel} from landmark {name} (@{e.step}), {counted(len(plan.insertions), 'id')} inserted"
+        f"wrote {dest_rel} from landmark {stem} (@{e.step}), {counted(len(plan.insertions), 'id')} inserted"
         + (f"; {counted(len(twice), 'id')} it defines another live document also defines" if twice else ""),
         ok=not twice,
         groups=[
@@ -840,8 +985,15 @@ def _detail(e: Entry) -> str:
     return ""
 
 
-def _verify(as_json: bool, quilt_path: str | None) -> None:
-    """`loom history verify`: walk every step directory against the ledger -- missing or edited version files, preambles, copies, and ancestry that no longer resolves."""
+@history.command(name="verify")
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
+@quilt_option
+def history_verify(as_json: bool, quilt_path: str | None) -> None:
+    """Check the history against its ledger.
+
+    Every step directory is walked against the ledger: missing or edited version files, preambles, copies, and ancestry that no longer resolves.
+    """
+    quilt_path, as_json = _inherited(quilt_path, as_json)
     result = open_scan(quilt_path)
     hist = _history(result)
     diags = verify(result, hist)

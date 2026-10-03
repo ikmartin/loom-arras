@@ -59,7 +59,7 @@ LOOM_MACROS = ("uses", "incomplete", "nest")
 
 
 def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnostic]:
-    """`loom:derived-id-in-drafting`: a person's document defines or cites an agent copy's derived id (book 5.3).
+    """`loom:derived-id-in-drafting`: a person's document defines or cites an agent document's derived id (book 5.3).
 
     A document in `[quilt] drafting` reaching a derived node defines it; a node that document reaches referring to one cites it. The derived node itself is reported once, not again for each reference it makes.
     """
@@ -76,7 +76,7 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
                 Diagnostic(
                     "error",
                     "loom:derived-id-in-drafting",
-                    f"{key} is an agent copy's id, and {', '.join(m for m in n.reached_by if result.document_role(m) == 'drafting')} defines it; a person's document names the plain id, {n.derived_of}",
+                    f"{key} is an agent document's id, and {', '.join(m for m in n.reached_by if result.document_role(m) == 'drafting')} defines it; a person's document names the plain id, {n.derived_of}",
                     [_loc(result, n)],
                     [key],
                 )
@@ -89,7 +89,7 @@ def _derived_in_drafting(result: ScanResult, edges: EdgeResult) -> list[Diagnost
                 Diagnostic(
                     "error",
                     "loom:derived-id-in-drafting",
-                    f"{e.src} cites {e.to}, an agent copy's id; a person's document cites the plain id, {target.derived_of}",
+                    f"{e.src} cites {e.to}, an agent document's id; a person's document cites the plain id, {target.derived_of}",
                     [Location(e.file, e.line)],
                     [e.src],
                 )

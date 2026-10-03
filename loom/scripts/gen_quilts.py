@@ -160,15 +160,15 @@ def build_synthetic(dest: Path) -> None:
 
     # Acceptance, on that same text. --force skips the compile: the rows it writes do not depend on it, and the generator must produce the same bytes with or without a TeX distribution.
     g.at("2026-09-14T09:00:00Z")
-    g.run("accept", "sy-0001", "--author", AUTHOR, "--force")
-    g.run("accept", "sy-0002", "--proofs", "--author", AUTHOR, "--force")
-    g.run("accept", "sy-0003", "--proofs", "--author", AUTHOR, "--force")
-    g.run("accept", "sy-000F", "--proofs", "--author", AUTHOR, "--force")
+    g.run("accept", "sy-0001", "--as", AUTHOR, "--force")
+    g.run("accept", "sy-0002", "--proofs", "--as", AUTHOR, "--force")
+    g.run("accept", "sy-0003", "--proofs", "--as", AUTHOR, "--force")
+    g.run("accept", "sy-000F", "--proofs", "--as", AUTHOR, "--force")
 
     # A first pass that was discarded; its one annotation is written with the rest, below.
     g.at("2026-09-15T10:00:00Z")
     (dest / "ai").mkdir(parents=True)
-    quick = g.run("ai", "start", "quick").split()[0]
+    quick = g.run("session", "new", "--name", "quick").split()[0]
 
     # The author rewrites the definition, so everything that depends on it goes stale.
     g.edit(
@@ -219,7 +219,7 @@ def build_synthetic(dest: Path) -> None:
 
     # The review that stands: a run with two annotations, the author's own comments, one reply, one resolution.
     g.at("2026-09-16T00:00:00Z")
-    referee = g.run("ai", "start", "referee").split()[0]
+    referee = g.run("session", "new", "--name", "referee").split()[0]
     g.run(
         "annotate",
         "sy-0003",
@@ -311,7 +311,7 @@ def build_synthetic(dest: Path) -> None:
         "question",
         "--quote",
         "one or two points",
-        "--author",
+        "--as",
         AUTHOR,
     )
     # A claim that holds in one document only (plan 0.15, decision 9): read in the talk, not on the node's own page.
@@ -325,7 +325,7 @@ def build_synthetic(dest: Path) -> None:
         "Every orbit of a widget",
         "--in",
         "drafting/talk.tex",
-        "--author",
+        "--as",
         AUTHOR,
     )
     objection, suggestion, document, cited, _open = _annotation_ids(dest, referee)[:5]
@@ -333,9 +333,9 @@ def build_synthetic(dest: Path) -> None:
     g.run("refs", "cite", "--from", referee, "--accept", cited, "--reason", "worth citing", "--author", AUTHOR)
     g.at("2026-09-16T00:00:00Z")
     g.write(f".loom/sessions/{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
-    g.run("annotate", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--author", AUTHOR)
-    g.run("annotate", "--reply", suggestion, "Done in the next revision.", "--author", AUTHOR)
-    g.run("annotate", "--resolve", suggestion, "--author", AUTHOR)
+    g.run("annotate", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--as", AUTHOR)
+    g.run("annotate", "--reply", suggestion, "Done in the next revision.", "--as", AUTHOR)
+    g.run("annotate", "--resolve", suggestion, "--as", AUTHOR)
     g.run(
         "annotate",
         "sy-0001",
@@ -344,7 +344,7 @@ def build_synthetic(dest: Path) -> None:
         "question",
         "--quote",
         "an involution $\\sigma$ of $X$",
-        "--author",
+        "--as",
         AUTHOR,
     )
     g.run(
@@ -491,6 +491,9 @@ def build_demo(dest: Path) -> None:
     g = Gen(dest, "The loom demo")
     g.at("2026-09-16T00:00:00Z")
     g.run("ai", "init", "--skills")
+    (
+        g.root / "ai" / "ai-config.toml"
+    ).unlink()  # the person's own file, never committed: loom refuses to run a tracked one
     g.run(
         "annotate",
         "dm-0003/proof",
@@ -499,11 +502,11 @@ def build_demo(dest: Path) -> None:
         "suggestion",
         "--quote",
         "diagonal is closed",
-        "--author",
+        "--as",
         "The loom demo",
     )
     g.edit("nodes/dm-0001.tex", r"\sigma x = x", r"\sigma(x) = x")
-    g.run("accept", "dm-0002", "--proofs", "--author", "The loom demo", "--force")
+    g.run("accept", "dm-0002", "--proofs", "--as", "The loom demo", "--force")
     g.run("stamp", "drafting/main.tex", "-m", "widgets-v1")
 
     # The cited work, the showcase's way: an invented paper this repository compiles, so the demo has a real document
@@ -518,7 +521,7 @@ def build_demo(dest: Path) -> None:
     g.run("digest", "extract", "Calloway14", "--no-compile")
 
     g.at("2026-09-16T14:02:00Z")
-    run_dir = g.run("ai", "start", "referee-dm-0003").split()[0]
+    run_dir = g.run("session", "new", "--name", "referee-dm-0003").split()[0]
     g.at("2026-09-16T14:31:00Z")
     g.run(
         "annotate",
@@ -629,7 +632,7 @@ def build_showcase(dest: Path) -> None:
 
     # ---- The paper arrives, is atomized, and becomes the first landmark. --------------------------------
     g.at("2026-09-14T09:00:00Z")
-    g.run("atomize", "drafting/main.tex", "drafting/main-atomic.tex", "--sections")
+    g.run("atomize", "drafting/main.tex", "--to", "drafting/main-atomic.tex", "--sections")
     g.at("2026-09-14T09:05:00Z")
     g.run("stamp", "drafting/main-atomic.tex", "-m", "flows-v1")
 
@@ -647,12 +650,15 @@ def build_showcase(dest: Path) -> None:
     g.run("digest", "extract", "Arden24", "--no-compile")
     g.at("2026-09-14T09:20:00Z")
     g.run("ai", "init", "--skills")
+    (
+        g.root / "ai" / "ai-config.toml"
+    ).unlink()  # the person's own file, never committed: loom refuses to run a tracked one
 
     # ---- A run reads the work loom could not extract, and proposes its results. -------------------------
     # Bellamy19 is a PDF and nothing else, so every result is read off a page and anchored to it. The run
     # proposes; only the author may verify, which is the whole of DR-177 in two commands.
     g.at("2026-09-15T10:00:00Z")
-    survey = g.run("ai", "start", "survey-bellamy").split()[0]
+    survey = g.run("session", "new", "--name", "survey-bellamy").split()[0]
     g.run(
         "refs",
         "propose",
@@ -813,7 +819,7 @@ def build_showcase(dest: Path) -> None:
 
     # ---- A referee run: one annotation of every kind, severity and state the model has. ------------------
     g.at("2026-09-16T11:00:00Z")
-    referee = g.run("ai", "start", "referee-sh-0009").split()[0]
+    referee = g.run("session", "new", "--name", "referee-sh-0009").split()[0]
     g.run(
         "annotate",
         "sh-0009",
@@ -828,7 +834,7 @@ def build_showcase(dest: Path) -> None:
         "underlying graph has $c$ connected components",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -850,7 +856,7 @@ def build_showcase(dest: Path) -> None:
         "replace",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -869,7 +875,7 @@ def build_showcase(dest: Path) -> None:
         "since $\\Pi$ has integral vertices by the saturation of Proposition~\\ref{sh-0007}",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -884,7 +890,7 @@ def build_showcase(dest: Path) -> None:
         "we obtain an infinite walk inside $\\supp(w)$",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -902,7 +908,7 @@ def build_showcase(dest: Path) -> None:
         "after",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -917,7 +923,7 @@ def build_showcase(dest: Path) -> None:
         "moderate",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -932,7 +938,7 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -947,7 +953,7 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -965,7 +971,7 @@ def build_showcase(dest: Path) -> None:
         "whose underlying graph has $c$ connected components",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -977,7 +983,7 @@ def build_showcase(dest: Path) -> None:
         "note",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -991,7 +997,7 @@ def build_showcase(dest: Path) -> None:
         "Cortez, Flows on infinite quivers: a survey, Bull. Imag. Soc. 2007, Section 5",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1005,7 +1011,7 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1019,7 +1025,7 @@ def build_showcase(dest: Path) -> None:
         "minor",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1036,7 +1042,7 @@ def build_showcase(dest: Path) -> None:
         "a homomorphism into a torsion-free group",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1084,7 +1090,7 @@ def build_showcase(dest: Path) -> None:
         "Proposition sh-0007 is a proposition and the remark is a remark; they are allowed to say the same thing.",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1096,7 +1102,7 @@ def build_showcase(dest: Path) -> None:
         "restricts to them. Say so in the definition rather than in the theorem that uses it.",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1117,7 +1123,7 @@ def build_showcase(dest: Path) -> None:
         "Then the convention is the right place, and this finding can stand until it is there.",
         "--session",
         referee,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1156,7 +1162,7 @@ def build_showcase(dest: Path) -> None:
         "suggestion",
         "--severity",
         "moderate",
-        "--author",
+        "--as",
         "Wren Halloway",
     )
     g.run(
@@ -1164,13 +1170,13 @@ def build_showcase(dest: Path) -> None:
         "--reply",
         integrality,
         "Agreed that this is the gap. I will not accept sh-000C until sh-000E is proved.",
-        "--author",
+        "--as",
         "Wren Halloway",
     )
 
     # ---- A run the author threw away. ---------------------------------------------------------------------
     g.at("2026-09-17T09:30:00Z")
-    quick = g.run("ai", "start", "quick-pass").split()[0]
+    quick = g.run("session", "new", "--name", "quick-pass").split()[0]
     g.run(
         "annotate",
         "sh-0002",
@@ -1201,7 +1207,7 @@ def build_showcase(dest: Path) -> None:
     # Plan 0.13's reading layer, shown rather than described: an anchor into a filed PDF, a session shared with
     # an agent, and a message that waited in the inbox because nobody was attached.
     g.at("2026-09-17T11:00:00Z")
-    reading = g.run("session", "new", "reading Bellamy 19").strip().splitlines()[0].split()[0]
+    reading = g.run("session", "new", "--name", "reading Bellamy 19").strip().splitlines()[0].split()[0]
     g.run(
         "annotate",
         "Bellamy19-prop-3.1",
@@ -1252,7 +1258,7 @@ def build_showcase(dest: Path) -> None:
     # prints, so a parked agent needs no second call to learn what it is being asked about.
     g.run(
         "session",
-        "send",
+        "say",
         "Have a look at Bellamy's Theorem 3.2 and tell me whether integrality is used.",
         "--session",
         reading,
@@ -1262,7 +1268,7 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-17T11:10:00Z")
     g.run(
         "session",
-        "send",
+        "say",
         "Integrality is used once, in the proof of Theorem 2.3: the vertex is integral because the matrix is totally unimodular. Theorem 3.2 only needs bounded weights.",
         "--session",
         reading,
@@ -1282,7 +1288,7 @@ def build_showcase(dest: Path) -> None:
         "note",
         "--session",
         reading,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1296,7 +1302,7 @@ def build_showcase(dest: Path) -> None:
         "moderate",
         "--session",
         reading,
-        "--author",
+        "--as",
         "Referee (Agent)",
         agent=True,
     )
@@ -1394,7 +1400,7 @@ def build_showcase(dest: Path) -> None:
     # node file the conversion wrote. Both files now define sh-0020, so it is conflicted: no text, no winner.
     _later("showcase", "drafting/sketch.tex", dest)
     g.at("2026-09-18T10:00:00Z")
-    g.run("atomize", "drafting/sketch.tex", "drafting/sketch-atomic.tex")
+    g.run("atomize", "drafting/sketch.tex", "--to", "drafting/sketch-atomic.tex")
     g.at("2026-09-18T10:05:00Z")
     g.run("live", "drafting/sketch.tex")
 

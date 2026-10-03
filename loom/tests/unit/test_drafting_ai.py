@@ -15,9 +15,9 @@ from loom.scan.scan import scan
 from tests.helpers import json_of, ok, refused, run
 from tests.unit._quilts import demo
 
-AUTHOR = ["--author", "Markas Hecht"]
+AS = ["--as", "Markas Hecht"]
 
-# A hand-made agent copy of two of the demo's inline nodes, each defined id derived and the reference between them rewritten, as `loom draft --ai` writes one.
+# A hand-made agent document drafted from two of the demo's inline nodes, each defined id derived and the reference between them rewritten, as `loom draft --ai` writes one.
 AIDOC = r"""\documentclass{amsart}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{loom}
@@ -117,7 +117,7 @@ def test_a_persons_document_neither_defines_nor_cites_a_derived_id(tmp_path: Pat
     )
     found = [d["message"] for d in codes(q, 1) if d["code"] == "loom:derived-id-in-drafting"]
     assert any("cites dm-0004-ai" in x for x in found), found
-    assert any(x.startswith("dm-0099-ai is an agent copy's id") for x in found), found
+    assert any(x.startswith("dm-0099-ai is an agent document's id") for x in found), found
 
 
 def test_two_live_documents_may_not_share_a_name(tmp_path: Path) -> None:
@@ -138,7 +138,7 @@ def test_nothing_in_an_agents_document_is_accepted(tmp_path: Path) -> None:
         "accept",
         "dm-0004-ai",
         "--force",
-        *AUTHOR,
+        *AS,
         cwd=q,
         code=2,
         match="never accepted; acceptance belongs to the node it becomes, dm-0004",
@@ -149,12 +149,12 @@ def test_nothing_in_an_agents_document_is_accepted(tmp_path: Path) -> None:
         "drafting-ai/aidoc.tex",
         "--yes",
         "--force",
-        *AUTHOR,
+        *AS,
         cwd=q,
         code=2,
         match="nothing in an agent's document is accepted",
     )
-    ok("accept", "dm-0001", "dm-0002", "--force", *AUTHOR, cwd=q)
+    ok("accept", "dm-0001", "dm-0002", "--force", *AS, cwd=q)
     from loom.records.ledger import read_ledger
 
     assert not [row for row in read_ledger(q) if row.key.endswith("-ai") or row.master.startswith("drafting-ai/")]
@@ -258,11 +258,11 @@ def test_one_copy_per_document_never_over_a_file_or_a_taken_name(tmp_path: Path)
         "again.tex",
         cwd=q,
         code=2,
-        match="already has an agent copy, drafting-ai/aidoc.tex",
+        match="already has an agent document, drafting-ai/aidoc.tex",
     )
     refused("draft", "drafting/outline.tex", "--ai", "aidoc.tex", cwd=q, code=2, match="exists; draft never overwrites")
     refused("draft", "drafting/outline.tex", "--ai", "main.tex", cwd=q, code=2, match="already named main")
-    refused("draft", "drafting-ai/aidoc.tex", "--ai", "copy2.tex", cwd=q, code=2, match="is an agent's document")
+    refused("draft", "drafting-ai/aidoc.tex", "--ai", "copy2.tex", cwd=q, code=2, match="is an agent document")
     refused("draft", "drafting/missing.tex", "--ai", "x.tex", cwd=q, code=2, match="is not a live document")
 
 
@@ -279,7 +279,7 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
             "preamble": False,
         }
     ]
-    assert "aidoc.tex  from drafting/main.tex  fresh" in ok("ai", "drafts", cwd=q).stdout
+    assert "aidoc.tex  drafted from drafting/main.tex  fresh" in ok("ai", "drafts", cwd=q).stdout
     # a display name is no mathematical change
     node = q / "nodes" / "dm-0001.tex"
     node.write_text("% !LOOM name: The widget\n" + node.read_text())

@@ -1,4 +1,4 @@
-"""Output cases for the agents commands -- `session`, `ai`, `agent check`, `digest` and `sync`; see `tests/output_cases/__init__.py`."""
+"""Output cases for the agents commands -- `session`, `ai`, `doctor --agents`, `digest` and `sync`; see `tests/output_cases/__init__.py`."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from tests.output_cases import core
 from tests.output_cases.base import Case, ai_copy, author
 
 S1, S2 = "s-2026-09-16-0001", "s-2026-09-16-0002"
@@ -20,19 +21,14 @@ KIND: dict[str, str] = {
     "session rename": "report",
     "session close": "report",
     "session delete": "report",
-    "session send": "report",
     "session say": "report",
     "session next": "raw",
     "session watch": "running",
-    "agent check": "report",
     "ai discard": "report",
     "ai init": "report",
     "ai orient": "raw",
     "ai drafts": "report",
-    "ai start": "report",
-    "ai name": "report",
     "ai annotations": "report",
-    "ai check": "report",
     "ai refresh": "report",
     "digest extract": "report",
     "digest import": "report",
@@ -40,7 +36,6 @@ KIND: dict[str, str] = {
     "sync fetch": "report",
     "sync status": "report",
     "sync documents": "report",
-    "sync patch": "raw",
     "sync incorporate": "report",
     "sync publish": "report",
 }
@@ -65,21 +60,30 @@ def filed_source(q: Path) -> None:
 
 
 def no_ai(q: Path) -> None:
-    """A quilt without the AI layer, which `ai init` writes and `ai start` needs."""
+    """A quilt without the agent layer, which `ai init` writes."""
     shutil.rmtree(q / "ai")
 
 
-def fresh_session(q: Path) -> None:
-    """A session opened after every file in the quilt was written, so nothing has changed outside it."""
-    from loom.sessions import create
+def marked(q: Path) -> None:
+    """A person's annotation in the session, not yet carried by a message: what `session say` with no words carries."""
+    from tests.helpers import ok
 
-    create(q, "probe sitting", "tester")
+    author(q)
+    ok("annotate", "dm-0003", "Is this right?", "--kind", "question", "--session", S1, cwd=q)
 
 
 def launching(q: Path) -> None:
     """Launching on, with no agent configured: what `loom serve` cannot honour."""
     with (q / "config.toml").open("a", encoding="utf-8") as fh:
         fh.write("\n[ai]\nlaunch = true\n")
+
+
+def configured(q: Path) -> None:
+    """Claude configured as the agent, with the author named, so `doctor --agents` prints its commands and prompt."""
+    from loom.agent import CONFIG, config_text
+
+    author(q)
+    (q / CONFIG).write_text(config_text("claude"), encoding="utf-8")
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -141,62 +145,87 @@ def patch_file(q: Path) -> None:
 NOWHERE = ("--session", "no-such-session")
 
 CASES: dict[str, list[Case]] = {
-    "session new": [Case(("probe sitting",)), Case(("probe sitting", "--no-use"))],
-    "session use": [Case((S1,)), Case(("no-such-session",), exit=2, why="names no session")],
+    "session new": [
+        Case(("--name", "probe sitting")),
+        Case(("--name", "probe sitting", "--no-use")),
+        Case(("--name", "probe sitting", "--dry-run"), unchanged=True),
+    ],
+    "session use": [
+        Case((S1,)),
+        Case((S1, "--dry-run"), unchanged=True),
+        Case(("no-such-session",), exit=2, why="names no session", unchanged=True),
+    ],
     "session list": [Case(()), Case(("--all",))],
-    "session rename": [Case((S1, "A new title")), Case(("no-such-session", "x"), exit=2, why="names no session")],
-    "session close": [Case(()), Case((S1,)), Case(("no-such-session",), exit=2, why="names no session")],
+    "session rename": [
+        Case((S1, "--name", "A new title")),
+        Case((S1, "--name", "A new title", "--dry-run"), unchanged=True),
+        Case(("no-such-session", "--name", "x"), exit=2, why="names no session", unchanged=True),
+    ],
+    "session close": [
+        Case(()),
+        Case((S1,)),
+        Case((S1, "--dry-run"), unchanged=True),
+        Case(("no-such-session",), exit=2, why="names no session", unchanged=True),
+    ],
     "session delete": [
         Case((S1,)),
-        Case((S1, "--purge", "--yes", "--author", "A. Author")),
-        Case((S1, "--purge", "--author", "A. Author"), exit=2, why="--purge with nobody to ask and no --yes"),
-        Case(("no-such-session",), exit=2, why="names no session"),
-    ],
-    "session send": [
-        Case(("Have a look.", "--as", "A. Author")),
-        Case(("--as", "Somebody Else"), exit=2, why="no words and nothing marked"),
-        Case(("hello", *NOWHERE, "--as", "A. Author"), exit=2, why="names no session"),
+        Case((S1, "--dry-run"), unchanged=True),
+        Case((S1, "--purge", "--yes", "--as", "A. Author")),
+        Case((S1, "--purge", "--dry-run", "--as", "A. Author"), unchanged=True),
+        Case(
+            (S1, "--purge", "--as", "A. Author"),
+            exit=2,
+            why="--purge with nobody to ask and no --yes",
+            unchanged=True,
+        ),
+        Case(("no-such-session",), exit=2, why="names no session", unchanged=True),
     ],
     "session say": [
         Case(("Read it; one objection.", *AGENT)),
-        Case(("hello", "--as", "A. Author"), exit=2, why="say is the agent's"),
+        Case(("Have a look.", "--as", "A. Author")),
+        Case(("--session", S1, "--as", "Tester"), setup=marked),
+        Case(("Have a look.", "--as", "A. Author", "--dry-run"), unchanged=True),
+        Case(("--as", "Somebody Else"), exit=2, why="no words and nothing marked", unchanged=True),
+        Case(("hello", *NOWHERE, "--as", "A. Author"), exit=2, why="names no session", unchanged=True),
     ],
     "session next": [
         Case(("--wait", "0", *AGENT)),
-        Case(("--wait", "0", *NOWHERE, *AGENT), exit=2, why="names no session"),
-    ],
-    "agent check": [
-        Case(()),
-        Case((), setup=launching, exit=2, why="launching on with no agent configured"),
+        Case(("--wait", "0", *NOWHERE, *AGENT), exit=2, why="names no session", unchanged=True),
     ],
     "ai discard": [
         Case((S1,)),
-        Case(
-            (
-                "--before",
-                "2000-01-01",
-            )
-        ),
-        Case((), exit=2, why="names nothing to discard"),
+        Case(("--before", "2000-01-01")),
+        Case((S1, "--dry-run"), unchanged=True),
+        Case(("--by", "Tester", "--dry-run"), unchanged=True),
+        Case((), exit=2, why="names nothing to withdraw", unchanged=True),
+        Case(("no-such-session",), exit=2, why="names no session", unchanged=True),
+        Case(("--target", "dm-9999"), exit=2, why="names no key", unchanged=True),
     ],
     "ai init": [
         Case((), setup=no_ai),
-        Case(("--skills",), setup=no_ai),
-        Case((), exit=2, why="ai/ exists"),
+        Case(("--skills", "--agent", "claude"), setup=no_ai),
+        Case((), why="ai/ exists: refreshes it"),
+        Case(("--dry-run",), setup=no_ai, unchanged=True),
+        Case(("--dry-run", "--skills"), unchanged=True),
     ],
     "ai orient": [Case(()), Case(NOWHERE, exit=2, why="names no session")],
     "ai drafts": [Case(()), Case((), setup=ai_copy)],
-    "ai start": [Case(("Probe sitting",)), Case(("Probe sitting",), setup=no_ai, exit=2, why="no ai/")],
-    "ai name": [Case(("A new title", "--session", S1)), Case(("x", *NOWHERE), exit=2, why="names no session")],
-    "ai annotations": [Case(("--session", S2)), Case(NOWHERE, exit=2, why="names no session")],
-    "ai check": [
-        Case(("probe sitting",), setup=fresh_session),
-        Case((S1,), exit=1, why="files changed after the session opened"),
-        Case(("no-such-session",), exit=2, why="names no session"),
+    "ai annotations": [
+        Case(("--session", S2)),
+        Case(("--session", S2, "--kind", "objection", "--severity", "major", "--status", "open")),
+        Case(NOWHERE, exit=2, why="names no session"),
     ],
     "ai refresh": [
         Case(("contribution.tex",), setup=ai_copy),
-        Case(("no-such-copy.tex",), exit=2, why="names no agent copy"),
+        Case(("contribution.tex", "--dry-run"), setup=ai_copy, unchanged=True),
+        Case(("no-such-copy.tex",), exit=2, why="names no agent document", unchanged=True),
+    ],
+    # core.py holds doctor's own cases; these add the agent report `doctor --agents` prints, merged after them
+    "doctor": [
+        *core.CASES["doctor"],
+        Case(("--agents",), setup=author),
+        Case(("--agents",), setup=configured, why="an agent configured: its start, resume and prompt lines"),
+        Case(("--agents",), setup=launching, exit=2, why="launching on with no agent configured: a fault and its fix"),
     ],
     "digest extract": [
         Case(("Ref20",), setup=filed_source),
@@ -209,23 +238,36 @@ CASES: dict[str, list[Case]] = {
     ],
     "sync init": [
         Case(("../overleaf.git", "--publish-main", "main.tex"), setup=workspace),
-        Case(("../nowhere.git",), exit=2, why="no workspace there to clone"),
+        Case(("../overleaf.git", "--dry-run"), setup=workspace, unchanged=True),
+        Case(("../nowhere.git",), exit=2, why="no workspace there to clone", unchanged=True),
+        Case(("../nowhere.git", "--dry-run"), exit=2, why="no workspace there to ask", unchanged=True),
     ],
     "sync fetch": [Case((), setup=paired), Case((), exit=2, why="not paired")],
-    "sync status": [Case((), setup=paired), Case((), setup=incoming), Case((), exit=2, why="not paired")],
-    "sync documents": [
+    "sync status": [
         Case((), setup=paired),
-        Case(("add",), setup=paired, exit=2, why="add names no document"),
+        Case((), setup=incoming),
+        Case(("--patch",), setup=incoming),
+        Case(("--patch",), setup=paired, why="nothing incoming"),
+        Case(("--patch", "--to", "build/pull.patch"), setup=incoming),
+        Case(("--patch", "--to", "pull.patch"), setup=patch_file, exit=2, why="the file exists", unchanged=True),
+        Case(("--to", "pull.patch"), setup=incoming, exit=2, why="--to without --patch", unchanged=True),
         Case((), exit=2, why="not paired"),
     ],
-    "sync patch": [
-        Case((), setup=incoming),
-        Case(("--to", "pull.patch"), setup=patch_file, exit=2, why="the file exists"),
+    "sync documents": [
+        Case((), setup=paired),
+        Case(("add", "drafting/outline.tex", "--dry-run"), setup=paired, unchanged=True),
+        Case(("add",), setup=paired, exit=2, why="add names no document", unchanged=True),
+        Case(("add", "drafting/nowhere.tex"), setup=paired, exit=2, why="names no document", unchanged=True),
         Case((), exit=2, why="not paired"),
     ],
     "sync incorporate": [
         Case((), setup=incoming),
-        Case((), setup=paired, exit=2, why="nothing incoming to incorporate"),
+        Case(("--dry-run",), setup=incoming, unchanged=True),
+        Case((), setup=paired, exit=2, why="nothing incoming to incorporate", unchanged=True),
     ],
-    "sync publish": [Case((), setup=paired), Case((), exit=2, why="not paired")],
+    "sync publish": [
+        Case((), setup=paired),
+        Case(("--dry-run",), setup=paired, unchanged=True),
+        Case((), exit=2, why="not paired", unchanged=True),
+    ],
 }

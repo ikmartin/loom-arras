@@ -45,7 +45,7 @@ def test_a_number_names_what_every_document_numbers_so_the_default_first(q: Path
 def test_in_asks_one_document(q: Path) -> None:
     assert [e["key"] for e in found(q, "1.3", "--in", "outline")] == ["dm-0002"]
     assert [e["key"] for e in found(q, "1.3", "--in", "drafting/main.tex")] == ["dm-0003"]
-    refused("search", "1.3", "--in", "nowhere", code=2, match="names no drafting document", cwd=q)
+    refused("search", "1.3", "--in", "nowhere", code=2, match="names no document", cwd=q)
     refused("search", "widget", "--in", "main", code=2, match="resolve a number", cwd=q)
 
 

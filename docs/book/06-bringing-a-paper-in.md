@@ -96,11 +96,11 @@ $ loom id drafting/main.tex
  \end{definition}
 ```
 
-## 6.5 `loom atomize SRC DEST`
+## 6.5 `loom atomize SRC --to DEST`
 
 ### 6.5.1 What it does
 
-**[decided]** Moves each node of `SRC` into its own file under `nodes/` and writes `DEST`, a copy of `SRC` in which each moved region is replaced by an inclusion line. `SRC` is not modified. `DEST` may not exist (`atomize never overwrites`, exit 2). Both positional `loom atomize SRC DEST` and `loom atomize SRC --to DEST` are accepted; `loom atomize SRC` alone exits with code 2 and `ERROR: specify a destination file after the source, or with --to`.
+**[decided]** Moves each node of `SRC` into its own file under `nodes/` and writes `DEST`, a copy of `SRC` in which each moved region is replaced by an inclusion line. `SRC` is not modified. `DEST` is named by `--to` and may not exist (exit 2); since it takes `SRC`'s place it may go wherever a source may, the one exception to 12.1's destination rule (DR-330-ikmartin).
 
 Precisely:
 

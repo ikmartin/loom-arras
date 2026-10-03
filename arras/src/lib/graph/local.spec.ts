@@ -75,7 +75,7 @@ it("whole quilt retains all the person's nodes; document scope uses reachability
 	changed.masters.push({ ...changed.masters[0], path: secondary });
 	node.reached_by = [primary, secondary];
 	const options = { allNodes: true, external: 'all' as const };
-	// every node but an agent copy's derived ones, which only their own document's scope draws
+	// every node but an agent document's derived ones, which only their own document's scope draws
 	expect(graphInput(changed, options).nodes).toHaveLength(Object.values(changed.nodes).filter((n) => !n.derived_of).length);
 	const before = graphInput(changed, { ...options, master: secondary });
 	expect(before.nodes.map((n) => n.id)).toContain(node.id);

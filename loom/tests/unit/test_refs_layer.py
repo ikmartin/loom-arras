@@ -572,9 +572,9 @@ def test_an_agent_cannot_vouch_for_its_own_reading(tmp_path: Path, monkeypatch: 
     # with nothing declared, the marker refuses rather than guessing
     refused("accept", "dm-0002", code=2, match="AI_AGENT", cwd=q)
     # a declared agent is refused whatever shell it is in: the guard is on the identity, not the door
-    refused("accept", "dm-0002", "--author", "Referee Agent", code=2, match="is an agent", cwd=q)
+    refused("accept", "dm-0002", "--as", "Referee Agent", code=2, match="is an agent", cwd=q)
     # and under the marker the author's name is refused too: a name cannot be checked, and an agent typing it is the case to stop (DR-325-ikmartin)
-    refused("accept", "dm-0002", "--author", "A. Author", code=2, match="whatever --author or --as says", cwd=q)
+    refused("accept", "dm-0002", "--as", "A. Author", code=2, match="whatever --author or --as says", cwd=q)
     # proposing is the agent's, and still works
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     # and nothing was recorded as verified by anyone
@@ -642,7 +642,7 @@ def test_a_pdf_link_in_the_bibliography_is_fetchable() -> None:
 def test_the_session_is_named_the_same_way_in_every_record(tmp_path: Path) -> None:
     """Provenance showed one run under two spellings, `ai/runs/X` and `X`; the id is one string and has no other form."""
     q, ck = mapped(tmp_path)
-    sid = ok("ai", "start", "fixed stacks", cwd=q).stdout.split()[0]
+    sid = ok("session", "new", "--name", "fixed stacks", cwd=q).stdout.split()[0]
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=sid)
     origin = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]["origin"]
     assert origin[0]["by"] == sid
@@ -962,7 +962,7 @@ def test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest(tmp_path: Path)
 def test_a_read_command_logs_to_the_session_it_is_given(tmp_path: Path) -> None:
     """`loom refs page ... --run` was refused twice in one study run; the orientation says to pass --session wherever it is accepted, and the log is the record of what an agent read."""
     q, ck = mapped(tmp_path)
-    runname = ok("ai", "start", "r", cwd=q).stdout.split()[0]
+    runname = ok("session", "new", "--name", "r", cwd=q).stdout.split()[0]
     for args in (["refs", "page", ck, "12"], ["refs", "coverage"], ["refs", "grep", "widget"]):
         ok(*args, "--session", runname, cwd=q)
     log = (q / ".loom" / "sessions" / runname / "run.log").read_text()
@@ -1376,7 +1376,7 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
     """`loom annotate` on a cited work (plan 0.13 item 2): the target may be the citekey the agent knows or the identifier a `cited:` link carries, and the record stores the identifier and the artifact's hash. Text is mapped with `refs locate`'s tolerance and recorded with offsets; a box is recorded as drawn. Each way of getting it wrong says what to do instead."""
 
     q = showcase(tmp_path)
-    who = ("--author", "A. Author")
+    who = ("--as", "A. Author")
     said = ok(
         "annotate",
         "Bellamy19",
@@ -1392,7 +1392,17 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
     )
     assert "Bellamy19 p.2 (text)  question" in said.output, said.output
     drawn = ok(
-        "annotate", "Bellamy19", "the polytope", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
+        "annotate",
+        "Bellamy19",
+        "the polytope",
+        "--page",
+        "2",
+        "--box",
+        "82,278,529,316",
+        "--kind",
+        "note",
+        *who,
+        cwd=q,
     )
     assert "p.2 (box)  note" in drawn.output, drawn.output
     ok(
@@ -1477,7 +1487,7 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
     batched = ok(
         "annotate",
         "--batch",
-        "--author",
+        "--as",
         "A. Author",
         "--quilt",
         str(q),
@@ -1535,7 +1545,7 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
     """Geometry beside the manifest, bodies in it (plan 0.13 item 2, the author's decision of 2026-09-21): a text note's rectangles are derived from the word boxes at build time, a box note's are the record read back, both under `marks` beside the results' `quads`; the page table carries a real rotation; and the reference says how many notes its pages carry, since they are in no key's row."""
 
     q = showcase(tmp_path)
-    who = ("--author", "A. Author")
+    who = ("--as", "A. Author")
     # the showcase carries reading notes of its own; what is asserted is what these two add
     before = sum(1 for line in (q / "annotations" / "log.jsonl").read_text().splitlines() if '"basis"' in line)
     a = ok(
@@ -1552,7 +1562,17 @@ def test_the_sidecar_carries_the_notes_on_a_page_and_the_reference_counts_them(t
         cwd=q,
     ).stdout.split()[0]
     b = ok(
-        "annotate", "Bellamy19", "this display", "--page", "2", "--box", "82,278,529,316", "--kind", "note", *who, cwd=q
+        "annotate",
+        "Bellamy19",
+        "this display",
+        "--page",
+        "2",
+        "--box",
+        "82,278,529,316",
+        "--kind",
+        "note",
+        *who,
+        cwd=q,
     ).stdout.split()[0]
     # exit 1 is a content problem, which the showcase carries on purpose (a duplicate id); the build still writes
     exits(1, "build", cwd=q)
@@ -1641,7 +1661,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         "question",
         "--session",
         sid,
-        "--author",
+        "--as",
         "A. Author",
         cwd=q,
     )
@@ -1653,7 +1673,7 @@ def test_a_change_carries_an_address_its_reader_can_use(tmp_path: Path) -> None:
         "note",
         "--session",
         sid,
-        "--author",
+        "--as",
         "A. Author",
         cwd=q,
     )

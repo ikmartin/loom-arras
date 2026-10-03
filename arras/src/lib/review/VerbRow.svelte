@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The verbs an annotation offers (book 15.3.4a), as one quiet row at the right of its box's meta line, and the place a reply, a restatement or a reason is written: a block that opens inside the box beneath the meta line, so nothing an annotation can do happens outside its box. Each verb is shown only when `GET /_api` says the publisher serves its endpoint.
 	//
-	// An open annotation offers reply, resolve, edit and discard; a citation offers accept and reject in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or discard settled it. A reply's own row (`compact`) is edit and withdraw.
+	// An open annotation offers reply, resolve, edit and withdraw (the `discard` endpoint); a citation offers accept and reject in place of resolve and edit, since a citation is answered by deciding it. A settled one offers `reopen` alone, the undo of whichever of resolve or withdraw settled it. A reply's own row (`compact`) is edit and withdraw.
 	import { untrack } from 'svelte';
 	import { can, known, write } from '$lib/write';
 	import { store } from '$lib/manifest/client.svelte';
@@ -152,7 +152,7 @@
 				<button type="button" class="verb" onclick={() => show('edit')} aria-expanded={open === 'edit'} data-testid="verb-edit">edit</button>
 			{/if}
 			{#if allowed.discard}
-				<button type="button" class="verb" onclick={() => show('discard')} aria-expanded={open === 'discard'} data-testid="verb-discard">discard</button>
+				<button type="button" class="verb" onclick={() => show('discard')} aria-expanded={open === 'discard'} data-testid="verb-discard">withdraw</button>
 			{/if}
 		{/if}
 	</span>
@@ -190,7 +190,7 @@
 				{:else if open === 'edit'}
 					<button type="button" class="verb do" disabled={busy || !text.trim()} onclick={edit} data-testid="verb-send">save</button>
 				{:else}
-					<button type="button" class="verb do" disabled={busy} onclick={discard} data-testid="verb-send">{compact ? 'withdraw' : 'discard'}</button>
+					<button type="button" class="verb do" disabled={busy} onclick={discard} data-testid="verb-send">withdraw</button>
 				{/if}
 			</div>
 			{#if said}<p class="said" role="status" data-testid="verb-said">{said}</p>{/if}

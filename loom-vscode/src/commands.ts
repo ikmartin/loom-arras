@@ -21,8 +21,8 @@ export function argvFor(name: string, root: string, settings: Settings, arg?: st
 			return arg ? call('accept', arg) : undefined;
 		case 'serve':
 			return arg ? call('serve', '--port', arg) : undefined;
-		case 'bundle':
-			return arg ? call('bundle', arg) : undefined;
+		case 'closure':
+			return arg ? call('source', arg, '--closure') : undefined;
 		case 'deps':
 			return arg ? call('deps', arg) : undefined;
 		default:

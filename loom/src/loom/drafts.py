@@ -1,4 +1,4 @@
-"""Whether an agent's copy is stale (book 17.7): what has moved on the person's side since each of its nodes' bases."""
+"""Whether an agent document is stale (book 17.7): what has moved on the person's side since each of its nodes' bases."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def _between_nodes(body: str, envs: set[str]) -> str:
 
 
 def copy_states(result: ScanResult, history: History) -> list[CopyState]:
-    """Every live agent copy and what has moved on the person's side since it was based.
+    """Every live agent document and what has moved on the person's side since it was based.
 
     Parameters
     ----------

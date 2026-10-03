@@ -22,7 +22,7 @@ def demo(tmp_path: Path) -> Path:
 
 def new_session(q: Path, title: str = "a sitting", author: str = "A. Author") -> str:
     """A fresh session made by `loom session new`, returning its id; the demo's own sessions are left as they are."""
-    return ok("session", "new", title, "--author", author, cwd=q).stdout.split()[0]
+    return ok("session", "new", "--name", title, "--as", author, cwd=q).stdout.split()[0]
 
 
 def open_session(root: Path) -> str:

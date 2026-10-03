@@ -105,7 +105,7 @@ def build_papers(only: list[str] | None = None) -> None:
         stem = Path(master).stem
         run(loom, "init", rel, "--from", str(FIXTURES / fixture / master), "--prefix", prefix, "--fix-anchoring",
             "--yes", env=env)
-        atomize = [loom, "atomize", f"drafting/{master}", "drafting/main-atomic.tex"]
+        atomize = [loom, "atomize", f"drafting/{master}", "--to", "drafting/main-atomic.tex"]
         if sections:
             atomize.append("--sections")
         run(*atomize, "--quilt", rel, env=env)

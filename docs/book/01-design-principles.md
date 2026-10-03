@@ -159,7 +159,7 @@ The preamble is the author's declaration of their conventions; the tool reads it
 
 ### P7. Loom never modifies an author file.
 
-An author's file is theirs; a tool that edits it in place is a tool that destroys work. Consequence: every operation that would change a file either writes to a destination the user names (`atomize SRC DEST`), writes a new file (`new`, `import` into copies), or prints a patch (`id`). `loom delete` exists only to say that loom will not delete. The in-place writers are the ledger and loom's own record files.
+An author's file is theirs; a tool that edits it in place is a tool that destroys work. Consequence: every operation that would change a file either writes to a destination the user names (`atomize SRC --to DEST`), writes a new file (`new`, `import` into copies), or prints a patch (`id`). `loom delete` exists only to say that loom will not delete. The in-place writers are the ledger and loom's own record files.
 
 ### P8. No editor, server, model, or credential is required by any command.
 
@@ -249,7 +249,7 @@ A box never covers the words it is about. Travel between a mark and its record i
 This is the principle against visual noise.
 
 - At rest only open, top-level annotations are drawn.
-- Settled annotations (resolved or discarded, marked by hand) are not drawn until the reader turns them on, and then at 3% wash with the underline at half weight and 50% opacity, the words untouched.
+- Settled annotations (resolved or withdrawn, marked by hand) are not drawn until the reader turns them on, and then at 3% wash with the underline at half weight and 50% opacity, the words untouched.
 - The system uses four hues, one neutral and three weights, and nothing else.
 - An annotation looks the same on every surface: text, PDF and hover card.
 

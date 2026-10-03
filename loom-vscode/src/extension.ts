@@ -94,7 +94,7 @@ async function runNamed(name: string, arg?: string): Promise<void> {
 		await showLint(result.stdout, root);
 		return;
 	}
-	await show(`loom ${name}`, result.stdout, name === 'bundle' ? 'latex' : 'plaintext');
+	await show(`loom ${name}`, result.stdout, name === 'closure' ? 'latex' : 'plaintext');
 }
 
 const diagnostics = vscode.languages.createDiagnosticCollection('loom-cli');
@@ -423,7 +423,7 @@ export function activate(context: vscode.ExtensionContext): { client?: LanguageC
 		}
 	});
 	register('loom.accept', () => runNamed('accept', keyUnderCursor()));
-	register('loom.bundle', () => runNamed('bundle', keyUnderCursor()));
+	register('loom.closure', () => runNamed('closure', keyUnderCursor()));
 	register('loom.serve', async () => {
 		const root = currentQuilt();
 		if (!root) {

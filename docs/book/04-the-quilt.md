@@ -19,7 +19,7 @@ relloc/
     main.tex               default master
     talk.tex               another master
   drafting-ai/             the agent's drafting directory (configurable name): documents the person and an agent both edit (4.4)
-    aidoc.tex              an agent's copy of main.tex
+    aidoc.tex              an agent document, drafted from main.tex
   nodes/                   node files written by new and atomize
     rl-0001.tex
     rl-0004.tex
@@ -100,9 +100,6 @@ contact = ""                # optional address sent to Crossref, which routes lo
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
 
-[author]
-name = "Markas Hecht"       # who this quilt's records name; init asks for it, and writes it empty when nobody answers
-
 [ai]
 launch = false              # may loom serve run the command in ai/ai-config.toml for a turn when a message waits
 
@@ -112,7 +109,7 @@ launch = false              # may loom serve run the command in ai/ai-config.tom
 
 Rules:
 
-1. **[decided]** Tracked `[author] name` is legacy attribution, readable for compatibility but never the active reviewer (DR-304-luisa). Personal identity belongs in local user configuration. `history` and `[basis]` are omitted by initialization unless needed.
+1. **[decided]** `init` writes no `[author]` table (DR-330-ikmartin); a tracked `[author] name` is legacy attribution, readable but never the active reviewer (DR-304-luisa). Personal identity belongs in local user configuration. `history` and `[basis]` are omitted by initialization unless needed.
 2. **[decided]** `main` must name a file inside `drafting`. `prefix` must match the prefix grammar (Chapter 5). `engine` is one of the engines `latexmk` knows; it applies to a master only when the master has no `% !TEX program` line.
 3. **[decided]** `[lint] disable` accepts diagnostic codes from `specs/diagnostics.md`. Reserved codes cannot be disabled; publisher codes can.
 4. **[decided]** Unknown keys produce a warning, not an error, so that a newer quilt opens in an older loom.
@@ -130,8 +127,8 @@ name = "Markas Hecht"
 
 Rules:
 
-1. **[decided]** Human author resolution is explicit `--author`, local user `[author] name`, then `git config user.name`; otherwise author-dependent writes refuse with `no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --author` (DR-304-luisa). Tracked quilt attribution is ignored. Explicit agent/session identities retain their existing guards. A CLI override selects and writes that author's acceptance history without changing local Settings.
-2. **[decided]** Author-dependent commands resolve or refuse without prompting. Initialization retains explicit `--author` as legacy attribution but does not ask for it or configure a personal identity. Arras Settings edits local `[author] name`, preserving other keys and saving atomically; the scope is this computer across local quilts. A different name selects another history without renaming existing rows.
+1. **[decided]** Human author resolution is explicit `--as NAME`, local user `[author] name`, then `git config user.name`; otherwise author-dependent writes refuse with `no author name: add name = "Your Name" under [author] in ~/.config/loom/config.toml, or pass --as NAME` (DR-304-luisa, DR-330-ikmartin). The `refs` commands still spell the option `--author`. Tracked quilt attribution is ignored. Explicit agent/session identities retain their existing guards. A CLI override selects and writes that author's acceptance history without changing local Settings.
+2. **[decided]** Author-dependent commands resolve or refuse without prompting. Initialization neither asks for a name nor configures a personal identity (DR-330-ikmartin). Arras Settings edits local `[author] name`, preserving other keys and saving atomically; the scope is this computer across local quilts. A different name selects another history without renaming existing rows.
 3. **[decided]** `loom doctor` prints the resolved author name and its source, and warns when there is none, naming the line that sets one (DR-288-ikmartin). `loom init` creates the user config with a commented template if it does not exist and does not fail if it cannot.
 4. **[decided]** The user config may also set `[quilt] name`, `drafting`, `drafting_ai`, and `history`, which are a person's convention for their own directories rather than a quilt's contract; the quilt's own value wins wherever both say something. It has no other keys.
 
@@ -229,7 +226,7 @@ The sync record's main and selected documents are read where the history's moves
 **[decided]** These promises hold for every command and are enforced by tests:
 
 1. Loom never modifies a file the author wrote. It writes new files at destinations the user names — including the drafting directory on `import` and `history restore` and the agent's drafting directory on `draft --ai` — writes new files in `nodes/` and `digests/` on `new` and `promote`, writes into `.loom/` (the sessions and their mailboxes included), `annotations/`, and `build/`, writes `ai/`, `CLAUDE.md`, `AGENTS.md`, and `.claude/` on `ai init` and `upgrade` (DR-71), moves a converted file into `retired/` when `atomize --retire` asks for it, renames a drafting document when `loom mv` names it (4.4), and prints patches. `import`, `restore` and `draft` edit only the documents they write. `[quilt] main` is loom's own line: `init`, `import`, a conversion that supersedes the default master, `loom mv` of the default master, and an incorporated pull that renames it may move it, and nothing else in `config.toml` is ever rewritten.
-2. Loom never deletes anything outside `build/`. `loom delete` prints a refusal.
+2. Loom never deletes anything outside `build/`. `loom delete`, `rm` and `remove` are answered with a refusal (7.9).
 3. Loom never edits either ledger except by appending: acceptance rows to `.loom/state.toml`, and one line per event to the history's `ledger.jsonl`.
 4. Loom never writes a state word anywhere.
 5. Loom never touches the network unless the author has allowed it, in the config or on the command line: `[refs] fetch = true` or `--fetch` for `loom refs fetch` and the fetching step of `loom refs build`, `[refs] resolve = true` or `--resolve` for `loom refs resolve` and its step (DR-122, DR-176, DR-193). Both keys are written `false` by `loom init`, and a flag is one run's consent that changes no file. `loom sync fetch` explicitly reads the configured document workspace remote. `loom sync publish` is local-only unless `--push` explicitly requests document-workspace transport (DR-305-luisa). No other command does, `loom lint` included.

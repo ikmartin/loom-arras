@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from tests.helpers import ok, refused
+from tests.helpers import ok, run
 from tests.unit._fakes import FakeHandler, configure, sleeper
 from tests.unit._quilts import demo, new_session
 
@@ -242,19 +242,39 @@ def test_stop_is_refused_where_nothing_is_launched(q: Path) -> None:
     assert stop.answer is not None and stop.answer[0] == 409
 
 
-def test_agent_check_tests_the_command_without_running_it(q: Path) -> None:
+def _agent(q: Path) -> tuple[dict[str, Any], str]:
+    """`doctor --agents` on `q`: its agent report from the JSON, and the text."""
+    import json
+
+    doc = json.loads(run("doctor", "--agents", "--json", cwd=q).stdout)
+    # launching is on in every quilt here, so a fault fails doctor's agent item, as `loom serve` will not start it
+    (line,) = [i for i in doc["items"] if i["name"] == "agent"]
+    assert (line["status"] == "fail") == bool(doc["agent"]["faults"]), line
+    return doc["agent"], run("doctor", "--agents", cwd=q).stdout
+
+
+def _faults(agent: dict[str, Any]) -> str:
+    return "; ".join(f["fault"] for f in agent["faults"])
+
+
+def test_doctor_agents_tests_the_command_without_running_it(q: Path) -> None:
     configure(q)
-    good = ok("agent", "check", cwd=q)
-    assert "launching: on" in good.output and "name: Fake Agent" in good.output and "{session}" not in good.output
+    agent, text = _agent(q)
+    assert "launching: on" in text and "name: Fake Agent" in text and "{session}" not in text
+    assert "start: " in text and "resume: " in text and "prompt: " in text and agent["faults"] == []
     configure(q, start=["no-such-agent-xyz"], resume=[])
-    refused("agent", "check", cwd=q, code=2, match="no-such-agent-xyz is not on PATH")
+    agent, text = _agent(q)
+    assert "no-such-agent-xyz is not on PATH" in _faults(agent)
+    assert "fix: install no-such-agent-xyz, or name another command in ai/ai-config.toml" in text
     configure(q)
     subprocess.run(["git", "init", "-q"], cwd=q, check=True)
     subprocess.run(["git", "add", "-f", "ai/ai-config.toml"], cwd=q, check=True)
-    refused("agent", "check", cwd=q, code=2, match="git tracks")
+    agent, text = _agent(q)
+    assert "git tracks" in _faults(agent) and "fix: git rm --cached ai/ai-config.toml" in text
     (q / "ai" / "ai-config.toml").write_text('name = "Fake Agent"\n')
     subprocess.run(["git", "rm", "-q", "-f", "--cached", "ai/ai-config.toml"], cwd=q, check=True)
-    refused("agent", "check", cwd=q, code=2, match="start must be")
+    agent, _ = _agent(q)
+    assert "start must be" in _faults(agent)
 
 
 def test_an_older_quilt_is_told_and_upgraded_to_keep_the_command_out_of_git(q: Path) -> None:
@@ -263,11 +283,11 @@ def test_an_older_quilt_is_told_and_upgraded_to_keep_the_command_out_of_git(q: P
     gi = q / ".gitignore"
     gi.write_text("build/\n")
     configure(q)
-    checked = ok("agent", "check", cwd=q)
-    assert "does not ignore ai/ai-config.toml" in checked.output
+    agent, text = _agent(q)
+    assert agent["unignored"] and "does not ignore ai/ai-config.toml" in text
     ok("upgrade", cwd=q)
     assert missing(q) == [] and all(line in gi.read_text().splitlines() for line in MANAGED)
-    assert "does not ignore" not in ok("agent", "check", cwd=q).output
+    assert "does not ignore" not in _agent(q)[1]
 
 
 def test_serving_starts_no_turn_for_what_was_already_said_nor_for_an_agent(q: Path) -> None:

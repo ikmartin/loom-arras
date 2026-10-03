@@ -56,7 +56,7 @@ export const PAPER = "paper:";
 
 export function graphInput(m: Manifest, f: Filters): { nodes: Node[]; edges: { from: string; to: string; kind: string; count?: number }[] } {
   const passes = (n: Node) => {
-    // an agent copy's nodes are drawn only when its own document is the scope: the whole quilt shows each of the person's nodes once
+    // an agent document's nodes are drawn only when its own document is the scope: the whole quilt shows each of the person's nodes once
     if (!f.master && n.derived_of) return false;
     if (f.master && !n.reached_by.includes(f.master) && (!n.external || f.allNodes))
       return false;

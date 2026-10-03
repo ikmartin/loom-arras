@@ -113,7 +113,7 @@ class Records:
         self.reviewer_source = (
             (source if source in ("", "git config user.name") else "local user configuration")
             if reviewer is None
-            else "--author"
+            else "--as"
         )
         self.latest = latest_rows(self.rows, self.reviewer)
         self.shared_latest = latest_rows(self.rows)

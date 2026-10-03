@@ -403,7 +403,7 @@ def test_a_pull_that_does_not_apply_or_would_overwrite_a_file_writes_nothing(
     edit(other, "edit", {"main.tex": SOURCE.replace("zk-0001}A", "zk-0001}B")})
     state = fetch(quilt, SyncState.read(root))
     (root / "drafting/main.tex").write_text(SOURCE.replace("zk-0001}A", "zk-0001}Z"), encoding="utf-8")
-    refused("sync", "incorporate", cwd=root, code=1, match="Read it with `loom sync patch`")
+    refused("sync", "incorporate", cwd=root, code=1, match="Read it with `loom sync status --patch`")
     assert "zk-0001}Z" in (root / "drafting/main.tex").read_text()
     assert not [e for e in load_history(quilt.history_dir).landmarks() if "before-pull" in str(e.get("landmark"))]
     (root / "drafting/main.tex").write_text(SOURCE, encoding="utf-8")
@@ -482,7 +482,7 @@ def renamed_pair(tmp_path: Path) -> tuple[Path, Path]:
     """A quilt paired with an Overleaf project whose main is `drafting/main.tex`, `zk-0001` accepted in it, and a collaborator's clone."""
     save_author("Tester")  # status shows the local reviewer's acceptance, and this quilt has no git user to name one
     root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
-    ok("accept", "zk-0001", "--force", "--author", "Tester", cwd=root)
+    ok("accept", "zk-0001", "--force", "--as", "Tester", cwd=root)
     bare = overleaf(tmp_path)
     quilt = load_quilt(root)
     state = configure(quilt, str(bare))

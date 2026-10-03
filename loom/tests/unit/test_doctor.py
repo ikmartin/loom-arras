@@ -489,7 +489,7 @@ def test_the_agent(box: Box, config: str | None, on: bool, claude: bool, status:
     got = item(doctor(box, cwd=q), "agent")
     assert got["status"] == status and got["detail"].startswith(detail), got
     if status != "ok":
-        assert "loom agent check" in got["remedy"]
+        assert "loom doctor --agents" in got["remedy"]
 
 
 def test_a_tracked_agent_config_is_a_fault(box: Box) -> None:
@@ -612,6 +612,7 @@ def test_the_json_schema(box: Box, setup: Case, inside: bool) -> None:
     setup(box)
     data = doctor(box, "--agents", cwd=quilt(box) if inside else None)
     envelope = {"verdict", "exit", "groups", "notes"}  # beside `ok`, which the envelope carries
+    # `--agents` inside a quilt adds the agent loom serve would start, in full
     assert set(data) - envelope == {
         "python",
         "loom",
@@ -621,7 +622,12 @@ def test_the_json_schema(box: Box, setup: Case, inside: bool) -> None:
         "failing",
         "warnings",
         "items",
-    }
+    } | ({"agent"} if inside else set())
+    if inside:
+        assert {"launch", "configured", "config", "name", "commands", "prompt", "faults", "unignored"} == set(
+            data["agent"]
+        )
+        assert all(set(f) == {"fault", "fix"} and f["fix"] for f in data["agent"]["faults"]), data["agent"]
     names = [i["name"] for i in data["items"]]
     assert len(names) == len(set(names)), names
     for i in data["items"]:

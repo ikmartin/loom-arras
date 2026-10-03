@@ -403,7 +403,6 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     """
     from loom.cli._common import whoever, writer
     from loom.mailbox import attached, pending, post, waiting_on
-    from loom.sessions import resolve
 
     # the words may be left out: a message may be what the person marked, and nothing else (plan 0.14)
     text = (_str(body, "text") or "").strip()
@@ -414,9 +413,7 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     # A message names its session like every other write (plan 0.13.1): it is addressed to whoever is attached there,
     # and a message posted to "whatever was last active" would reach the wrong reader.
     which = _str(body, "session", required=True) or ""
-    found = resolve(root, which)
-    if found is None:
-        raise ApiError("no-such-session", f"no session matches {which}", status=404)
+    found = _resolve_session(root, which)
     packet = pending(root, found, name)
     if not text and not packet:
         raise ApiError("nothing-to-send", "nothing to send: no words, and nothing marked since the last message")
@@ -432,13 +429,25 @@ def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _resolve_session(root: Path, which: str, *, deleted: bool = False) -> Any:
+    """The session `which` names, live unless `deleted`: 404 when none does, 409 naming them when several do."""
+    from loom.sessions import SessionNotFound, resolve
+
+    try:
+        return resolve(root, which, deleted=deleted)
+    except SessionNotFound as exc:
+        if exc.matches:
+            raise ApiError("ambiguous-session", str(exc), status=409) from None
+        raise ApiError("no-such-session", str(exc), status=404) from None
+
+
 def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     """Change which session is active, retitle one, or tombstone one (plan 0.13 §5).
 
     Through the same functions `loom session` calls, so the two surfaces cannot spell a session event differently. **Purging is not here and never will be**: it rewrites the annotation log, and the one place that should be reachable from is a terminal where the author typed the word.
     """
     from loom.cli._common import whoever
-    from loom.sessions import active, close, create, delete, purpose, rename, resolve, resume, sessions, set_active
+    from loom.sessions import active, close, create, delete, purpose, rename, resume, sessions, set_active
 
     who = _str(body, "author") or whoever(root, sniff=False)
     if endpoint == "session-new":
@@ -448,9 +457,8 @@ def _session(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         set_active(root, made.id)
         return f"{made.id}  {title}  (active)"
     which = _str(body, "session", required=True) or ""
-    found = resolve(root, which)
-    if found is None:
-        raise ApiError("no-such-session", f"no session matches {which}", status=404)
+    # resuming and deleting name a tombstone to refuse it with its reason, and deleting one again is harmless
+    found = _resolve_session(root, which, deleted=endpoint in ("session-use", "session-delete"))
     if endpoint == "session-close":
         if found.state != "open":
             raise ApiError("refused", f"{found.id} is {found.state}")

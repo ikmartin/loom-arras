@@ -56,13 +56,13 @@ def test_every_act_that_is_the_authors_or_destroys_refuses_under_an_agent_marker
     q = showcase(tmp_path)
     marked = {"AI_AGENT": "1"}
     acts = [
-        ["accept", "sh-0001", "--author", "A. Author"],
+        ["accept", "sh-0001", "--as", "A. Author"],
         ["refs", "verify", "Bellamy19-prop-3.1", "--author", "A. Author"],
         ["refs", "discard", "Bellamy19-prop-3.1", "--reason", "no", "--author", "A. Author"],
         ["refs", "drop", "--work", "Bellamy19", "--yes"],
         ["refs", "cite", "--accept", "a-0000-00-00-0000", "--author", "A. Author"],
         ["ai", "discard", "--before", "2100-01-01"],
-        ["session", "delete", "s-2026-09-16-0001", "--purge", "--yes", "--author", "A. Author"],
+        ["session", "delete", "s-2026-09-16-0001", "--purge", "--yes", "--as", "A. Author"],
         ["sync", "publish", "--push"],
         ["sync", "incorporate"],
     ]

@@ -54,7 +54,7 @@ def mathematical_hash(text: str) -> str:
 
 
 def pair_hash(text: str) -> str:
-    """The hash compare pairs by: `mathematical_hash` with every derived label made plain, so an agent's copy of a node it has not changed hashes as its counterpart does (book 15.2.6)."""
+    """The hash compare pairs by: `mathematical_hash` with every derived label made plain, so an agent document's copy of a node it has not changed hashes as its counterpart does (book 15.2.6)."""
     from loom.scan.labels import rename_labels
 
     return mathematical_hash(rename_labels(text, plain=True))

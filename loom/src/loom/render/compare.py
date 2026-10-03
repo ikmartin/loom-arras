@@ -43,7 +43,7 @@ class Side:
     preamble: str = ""
     macros: str | None = None  # the manifest's macro set, None for the default
     step: int | None = None  # a landmark's step
-    copy_of: str | None = None  # an agent copy's source
+    copy_of: str | None = None  # an agent document's source
 
 
 def _side(result: ScanResult, history: History, canon: dict[str, CanonDoc], item: str) -> Side:

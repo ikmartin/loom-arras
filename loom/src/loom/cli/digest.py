@@ -19,7 +19,7 @@ from loom.scan.scan import ScanResult, scan
 
 @click.group(name="digest")
 def digest() -> None:
-    """Digests of cited papers: extract one from a paper's source, or port one in.
+    """Make digests of cited papers: extract one from a paper's source, or port one in.
 
     To search what the digests hold, see `loom refs find` (statements) and `loom refs grep` (page text); to read a page, `loom refs page`; for the whole mechanical pass over every cited work, `loom refs build`.
     """
@@ -67,7 +67,7 @@ def _stored_source(result: ScanResult, citekey: str) -> Path:
 @click.option(
     "--no-compile", "no_compile", is_flag=True, help="Skip compiling the reference; number results by emulation."
 )
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def extract(
     citekey: str,
@@ -130,7 +130,7 @@ def extract(
 @digest.command(name="import")
 @click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option("--as", "as_citekey", default=None, metavar="CITEKEY", help="Rename the digest's citekey on the way in.")
-@click.option("--json", "as_json", is_flag=True)
+@click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def import_digest(path: Path, as_citekey: str | None, as_json: bool, quilt_path: str | None) -> None:
     """Copy a digest from another quilt into digests/, rewriting its id prefix when --as renames the citekey."""

@@ -77,7 +77,7 @@ def test_a_second_pass_sorts_after_its_first(tmp_path: Path) -> None:
     from loom.sessions import files_dir, sessions
 
     q = demo(tmp_path)
-    sid = ok("session", "new", "two passes", "--author", "A. Author", cwd=q).stdout.split()[0]
+    sid = ok("session", "new", "--name", "two passes", "--as", "A. Author", cwd=q).stdout.split()[0]
     notes = files_dir(q, sessions(q)[sid])
     notes.mkdir(parents=True, exist_ok=True)
     (notes / "referee-dm-0003.2.notes.md").write_text("## [summary]\nSecond.\n")

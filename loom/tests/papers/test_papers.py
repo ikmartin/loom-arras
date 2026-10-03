@@ -74,7 +74,7 @@ def manolache_atomized(once: Once) -> tuple[Path, str]:
 
     def make(base: Path) -> tuple[Path, str]:
         q = copy(manolache(once)[1], base / "q")
-        r = ok("atomize", "drafting/virtual6.tex", "drafting/main-atomic.tex", "--sections", cwd=q)
+        r = ok("atomize", "drafting/virtual6.tex", "--to", "drafting/main-atomic.tex", "--sections", cwd=q)
         return q, r.output
 
     return once.get("manolache-atomized", make)

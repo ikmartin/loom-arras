@@ -259,7 +259,7 @@ def test_id_prints_patch_and_to_writes_copy(tmp_path: Path) -> None:
         str(tmp_path / "extra-labelled.tex"),
         cwd=q,
         code=2,
-        match="exists; id never overwrites",
+        match="exists; loom does not overwrite it",
     )
 
 
@@ -308,10 +308,8 @@ def test_id_fix_anchoring_can_repair_without_inserting_ids(tmp_path: Path) -> No
 
 def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    refused(
-        "atomize", "drafting/main.tex", cwd=q, code=2, match="specify a destination file after the source, or with --to"
-    )
-    r2 = ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+    refused("atomize", "drafting/main.tex", cwd=q, code=2, match="name the spine to write with --to FILE")
+    r2 = ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     spine = (q / "drafting" / "spine.tex").read_text()
     assert "\\input{nodes/pp-" in spine and "\\begin{definition}" not in spine
     node_files = sorted(f for f in (q / "nodes").glob("pp-*.tex") if ".proof" not in f.name)
@@ -333,13 +331,19 @@ def test_atomize_requires_dest_moves_nodes_and_identity(tmp_path: Path) -> None:
 
     # superseded
     refused(
-        "atomize", "drafting/main.tex", "drafting/again.tex", cwd=q, code=1, match="is superseded and defines nothing"
+        "atomize",
+        "drafting/main.tex",
+        "--to",
+        "drafting/again.tex",
+        cwd=q,
+        code=1,
+        match="is superseded and defines nothing",
     )
 
 
 def test_live_makes_a_superseded_document_define_again(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     assert "duplicate-id" not in run("lint", cwd=q).output
     said = ok("live", "drafting/main.tex", cwd=q).output
     # it says what it did: every id the document defines is now defined twice, each named with the command that splits it
@@ -352,7 +356,7 @@ def test_live_makes_a_superseded_document_define_again(tmp_path: Path) -> None:
 
 def test_atomize_retire_moves_the_source(tmp_path: Path) -> None:
     q = imported(tmp_path)
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", "--retire", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", "--retire", cwd=q)
     assert not (q / "drafting" / "main.tex").exists()
     assert (q / "retired" / "drafting" / "main.tex").read_text().count("\\begin{definition}") == 1
     line = json.loads((q / ".loom" / "history" / "ledger.jsonl").read_text().splitlines()[-1])
@@ -367,8 +371,8 @@ def test_an_acceptance_follows_its_document_through_atomize(tmp_path: Path) -> N
     save_author("R")  # status reports the local reviewer's acceptance
     for retire in ([], ["--retire"]):
         q = imported(tmp_path / ("retired" if retire else "superseded"))
-        ok("accept", "pp-0005", "--force", "--author", "R", cwd=q)
-        ok("atomize", "drafting/main.tex", "drafting/spine.tex", *retire, cwd=q)
+        ok("accept", "pp-0005", "--force", "--as", "R", cwd=q)
+        ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", *retire, cwd=q)
         acc = json_of("status", "--json", cwd=q)["keys"]["pp-0005"]["acceptance"]
         assert acc["fresh"] is True, acc
 
@@ -377,7 +381,7 @@ def test_atomize_proofs_separate_directives_sections_and_all(tmp_path: Path) -> 
     q = imported(tmp_path)
     main = q / "drafting" / "main.tex"
     main.write_text(main.read_text().replace("\\begin{lemma}", "% !LOOM tags: moved-with-me\n\\begin{lemma}", 1))
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", "--proofs", "separate", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", "--proofs", "separate", cwd=q)
     lemma = next(f for f in (q / "nodes").glob("pp-*.tex") if "Alpha" in f.read_text())
     assert lemma.read_text().startswith("% !LOOM tags: moved-with-me\n") and "\\begin{proof}" not in lemma.read_text()
     proof = next(f for f in (q / "nodes").glob("*.proof.tex") if "Obvious" in f.read_text())
@@ -387,7 +391,7 @@ def test_atomize_proofs_separate_directives_sections_and_all(tmp_path: Path) -> 
 def test_atomize_sections_and_linearize_round_trip(tmp_path: Path) -> None:
     q = imported(tmp_path)
     before = (q / "drafting" / "main.tex").read_text()
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", "--sections", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", "--sections", cwd=q)
     spine = (q / "drafting" / "spine.tex").read_text()
     assert "\\input{nodes/pp-" in spine and "\\section{Results}" not in spine
     section_file = next(f for f in (q / "nodes").glob("pp-*.tex") if "\\section{Results}" in f.read_text())
@@ -401,7 +405,7 @@ def test_atomize_sections_and_linearize_round_trip(tmp_path: Path) -> None:
         "drafting/back.tex",
         cwd=q,
         code=2,
-        match="drafting/back.tex exists; linearize never overwrites",
+        match="drafting/back.tex exists; loom does not overwrite it",
     )
 
 
@@ -422,7 +426,7 @@ def test_linearize_nest_shifts_and_identity_on_master(tmp_path: Path) -> None:
 def test_linearize_refuses_shared_nodes_keeps_or_forks_them(tmp_path: Path) -> None:
     """A node is defined once and included many times: inlining a file two documents include would define it twice, so linearize refuses and names both continuations."""
     q = imported(tmp_path)
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     shared = next(f for f in sorted((q / "nodes").glob("pp-*.tex")) if "Alpha" in f.read_text())
     (q / "drafting" / "talk.tex").write_text(
         "\\documentclass{article}\n\\usepackage{amsthm}\n\\usepackage{loom}\n"
@@ -457,10 +461,10 @@ def test_linearize_refuses_shared_nodes_keeps_or_forks_them(tmp_path: Path) -> N
 def test_selector_survives_atomize(tmp_path: Path) -> None:
     """A quote-anchored comment on a theorem stays attached after the theorem moves into nodes/<id>.tex: the key and the text are unchanged, only the file is."""
     q = imported(tmp_path)
-    ok("annotate", "pp-0005", "Which lemma?", "--quote", "Beta uses", "--kind", "question", "--author", "R", cwd=q)
+    ok("annotate", "pp-0005", "Which lemma?", "--quote", "Beta uses", "--kind", "question", "--as", "R", cwd=q)
     before = run("status", "--explain", "pp-0005", cwd=q).output
     assert "1 open question" in before and "detached" not in before
-    ok("atomize", "drafting/main.tex", "drafting/spine.tex", cwd=q)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
     after = run("status", "--explain", "pp-0005", cwd=q).output
     assert "1 open question" in after and "detached" not in after, after
     assert "nodes/pp-0005.tex" in after
@@ -506,10 +510,11 @@ def test_atomize_one_key_writes_the_node_and_leaves_the_source_to_the_author(tmp
     assert sorted(run("status", cwd=q).output.splitlines()) == states_before, "moving a node into nodes/ moves no state"
 
 
-def test_atomize_key_json_writes_nothing_and_carries_the_edit(tmp_path: Path) -> None:
+def test_atomize_key_dry_run_writes_nothing_and_carries_the_edit(tmp_path: Path) -> None:
     q = imported(tmp_path)
     key = widget(q)
-    plan = json_of("atomize", "--key", key, "--json", cwd=q)
+    plan = json_of("atomize", "--key", key, "--dry-run", "--json", cwd=q)
+    assert plan["dry_run"] is True
     assert plan["keys"] == [key] and plan["refusals"] == []
     (edit,) = plan["edits"]
     assert edit["file"] == "drafting/main.tex" and edit["text"] == f"\\input{{nodes/{key}}}"
@@ -517,7 +522,11 @@ def test_atomize_key_json_writes_nothing_and_carries_the_edit(tmp_path: Path) ->
     assert made["path"] == f"nodes/{key}.tex" and made["text"].endswith("\n")
     text = (q / "drafting" / "main.tex").read_text()
     assert text[edit["start"] : edit["end"]] == made["text"].rstrip("\n"), "the region is what moves"
-    assert not (q / "nodes" / f"{key}.tex").exists(), "--json writes nothing"
+    assert not (q / "nodes" / f"{key}.tex").exists(), "--dry-run writes nothing"
+    # --json is not a dry run (K4): it writes, and reports the same plan and what it wrote
+    done = json_of("atomize", "--key", key, "--json", cwd=q)
+    assert "dry_run" not in done and done["written"] == [f"nodes/{key}.tex"] and done["edits"] == plan["edits"]
+    assert (q / "nodes" / f"{key}.tex").read_text() == made["text"]
 
 
 def test_atomize_key_refuses_what_it_cannot_move(tmp_path: Path) -> None:

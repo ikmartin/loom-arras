@@ -1,4 +1,4 @@
-// The documents an agent edits (book 4.4, 15.2; plan 0.17.1): the fixture's agent copy of main.tex, `drafting-ai/aidoc.tex`, is listed apart under its own directory, is never given a Review tab or a place among the home page's documents, and its derived nodes are left out of every whole-quilt view while a scope on the copy shows them.
+// The documents an agent edits (book 4.4, 15.2; plan 0.17.1): the fixture's agent document, drafted from main.tex, `drafting-ai/aidoc.tex`, is listed apart under its own directory, is never given a Review tab or a place among the home page's documents, and its derived nodes are left out of every whole-quilt view while a scope on the copy shows them.
 import { expect, test } from '@playwright/test';
 
 test("an agent's document is listed under its own directory, apart from the working drafts", async ({ page }) => {
