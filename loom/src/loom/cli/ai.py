@@ -132,9 +132,10 @@ def ai_orient(session: str | None, quilt_path: str | None) -> None:
 
 
 @ai.command(name="drafts")
+@click.option("--closed", is_flag=True, help="List retained closed drafts instead of active drafts.")
 @click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
+def ai_drafts(as_json: bool, closed: bool, quilt_path: str | None) -> None:
     """List each agent copy, the document it copies, and what has moved on the person's side since it was made.
 
     Before a large instruction, an agent checks its copy here: a stale copy is refreshed first, or the agent says what it is working against.
@@ -144,11 +145,36 @@ def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
     from loom.history.ledger import load_history
 
     result = open_scan(quilt_path)
+    import json
+
+    from loom.draft_lifecycle import closed_drafts
+    from loom.section_drafts import context_changed, metadata
+
+    if closed:
+        rows = [
+            {"copy": copy, "closed": True, "when": row["when"], "snapshot": row["snapshot"]}
+            for copy, row in closed_drafts(load_history(result.quilt.history_dir)).items()
+        ]
+        if as_json:
+            click.echo(json.dumps(rows, indent=2))
+        else:
+            for row in rows:
+                click.echo(f"{row['copy']}  closed {row['when']}; loom ai reopen {row['copy']}")
+        return
     states = copy_states(result, load_history(result.quilt.history_dir))
     if as_json:
         from loom.cli._common import emit_json
 
-        emit_json([st.to_dict() for st in states])
+        emit_json(
+            [
+                {
+                    **st.to_dict(),
+                    **metadata(result, st.copy),
+                    "context_changed": context_changed(result, metadata(result, st.copy).get("context") or {}),
+                }
+                for st in states
+            ]
+        )
         return
     if not states:
         click.echo(f"no agent copies: loom draft DOC --ai NAME writes one into {result.quilt.config.drafting_ai}/")
@@ -366,3 +392,53 @@ def refresh_draft(document: str, as_json: bool, quilt_path: str | None) -> None:
         if as_json
         else answer["message"] + ("\n" + "\n".join(answer["conflicts"]) if answer["conflicts"] else "")
     )
+
+
+@ai.command(name="close")
+@click.argument("document")
+@click.option("--yes", is_flag=True, help="Close even when unapplied changes remain; text and annotations are kept.")
+@click.option("--json", "as_json", is_flag=True)
+@quilt_option
+def close_draft(document: str, yes: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Close an AI draft, retaining its text and annotations and releasing its scope."""
+    import json
+
+    from loom.cli._common import agent_marker, whoever
+    from loom.cli._quilt import open_scan
+    from loom.draft_lifecycle import close_draft as close
+    from loom.sync import SyncError
+
+    if agent_marker():
+        raise EnvError("Closing drafts is an author action")
+    result = open_scan(quilt_path)
+    try:
+        answer = close(result, document, whoever(result.quilt.root), confirmed=yes)
+        if answer.get("confirmation_required") and not as_json:
+            if click.confirm(answer["message"]):
+                answer = close(open_scan(quilt_path), document, whoever(result.quilt.root), confirmed=True)
+        click.echo(json.dumps(answer, indent=2) if as_json else answer["message"])
+    except (SyncError, ValueError, OSError) as exc:
+        raise EnvError(str(exc)) from exc
+
+
+@ai.command(name="reopen")
+@click.argument("document")
+@click.option("--json", "as_json", is_flag=True)
+@quilt_option
+def reopen_draft(document: str, as_json: bool, quilt_path: str | None) -> None:
+    """Reopen a retained AI draft when its scope and identities are available."""
+    import json
+
+    from loom.cli._common import agent_marker, whoever
+    from loom.cli._quilt import open_scan
+    from loom.draft_lifecycle import reopen_draft as reopen
+    from loom.sync import SyncError
+
+    if agent_marker():
+        raise EnvError("Reopening drafts is an author action")
+    result = open_scan(quilt_path)
+    try:
+        answer = reopen(result, document, whoever(result.quilt.root))
+        click.echo(json.dumps(answer, indent=2) if as_json else answer["message"])
+    except (SyncError, ValueError, OSError) as exc:
+        raise EnvError(str(exc)) from exc

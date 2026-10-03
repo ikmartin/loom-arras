@@ -67,17 +67,23 @@ def _confirm(yes: bool, what: str) -> None:
     metavar="NAME",
     help="The copy to write in the agent's drafting directory.",
 )
+@click.option("--section", metavar="ID", help="Copy only this section or subsection and its descendants.")
 @click.option("--json", "as_json", is_flag=True)
 @quilt_option
-def draft(document: str, ai_name: str, as_json: bool, quilt_path: str | None) -> None:
+def draft(document: str, ai_name: str, as_json: bool, quilt_path: str | None, section: str | None) -> None:
     """Copy a live drafting document into the agent's drafting directory as NAME, flat, with every label it defines derived; a copy step records what each of its nodes began from (book 17.7).
 
     Starting a document from an old version of one is `loom history restore`.
     """
-    _draft_ai(open_scan(quilt_path), document, ai_name, as_json)
+    from loom.sync import SyncError
+
+    try:
+        _draft_ai(open_scan(quilt_path), document, ai_name, as_json, section)
+    except (ValueError, SyncError) as exc:
+        raise EnvError(str(exc)) from exc
 
 
-def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None:
+def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool, section: str | None = None) -> None:
     """`loom draft SOURCE --ai NAME`: one agent copy per document, never over an existing file or a taken name."""
     from loom.reshape.copy import plan_copy
 
@@ -104,15 +110,20 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
             f"{taken[0]} is already named {Path(dest_rel).stem}; arras and the build tell documents apart by name"
         )
     history = _history(result)
-    existing = [c for c, s in history.copies(result.masters).items() if s == source_rel]
-    if existing:
-        raise EnvError(f"{source_rel} already has an agent copy, {existing[0]}; an agent works in that one")
     conflicted = sorted(k for k, n in result.nodes.items() if n.kind == "conflict" and source_rel in n.reached_by)
     if conflicted:
         raise ContentError(
             f"{source_rel} reaches {', '.join(conflicted)}, defined by two files each; a copy needs one text per key"
         )
-    plan = plan_copy(result, history, source_rel, dest_rel)
+    plan = plan_copy(result, history, source_rel, dest_rel, section)
+    from loom.section_drafts import capture_context, check_overlap
+    from loom.sync import SyncError
+
+    try:
+        check_overlap(result, source_rel, plan.scope)
+    except SyncError as exc:
+        raise EnvError(str(exc)) from exc
+    context = capture_context(result, source_rel) if section else None
     dest = root / dest_rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(plan.text, encoding="utf-8")
@@ -122,7 +133,14 @@ def _draft_ai(result: ScanResult, source: str, name: str, as_json: bool) -> None
         f"copy-{Path(dest_rel).stem}",
         plan.freeze,
         actor_for(root),
-        extra={"from": source_rel, "to": dest_rel, "bases": plan.bases},
+        extra={
+            "from": source_rel,
+            "to": dest_rel,
+            "bases": plan.bases,
+            "scope": plan.scope,
+            "suffix": plan.suffix,
+            "context": context,
+        },
         document_text=plan.source_text,
         document_name=Path(source_rel).name,
     )

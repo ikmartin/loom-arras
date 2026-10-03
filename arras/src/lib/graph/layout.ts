@@ -306,6 +306,6 @@ export function documentColor(path: string): string {
 
 /** Shared nodes keep every live document that reaches them. */
 export function memberships(m: Manifest, id: string): string[] {
-	const live = new Set(m.masters.map((master) => master.path));
+	const live = new Set(m.masters.filter(d => !d.closed && !d.context_only).map((master) => master.path));
 	return (m.nodes[id]?.reached_by ?? []).filter((path) => live.has(path)).sort();
 }

@@ -203,7 +203,7 @@ def attach_adoptions(
     for copy in sorted(load_history(result.quilt.history_dir).copies(result.masters)):
         try:
             data = comparison(result, copy)
-            choices = decisions(result, copy, manifest.get("reviewer", {}).get("name"))
+            choices = decisions(result, copy, manifest.get("reviewer", {}).get("name"), data=data)
             rows = []
             for row in data["changes"]:
                 if not row["offered"]:
@@ -213,7 +213,7 @@ def attach_adoptions(
                     (old for old, new in data["baseline"].get("mapping", {}).items() if new == key.split("/", 1)[0]),
                     key.split("/", 1)[0],
                 )
-                derived = derived_key(original + ("/" + key.split("/", 1)[1] if "/" in key else ""))
+                derived = derived_key(original + ("/" + key.split("/", 1)[1] if "/" in key else ""), data["suffix"])
                 local_node = result.nodes.get(key)
                 proposed_node = result.nodes.get(derived)
                 current_pre = result.closures.get(data["source"])
@@ -283,13 +283,20 @@ def attach_adoptions(
             manifest["macros"]["sets"][prose["incoming_macros"]] = to_mathjax(
                 parse_macros(blank_comments(proposal_pre.raw_text() if proposal_pre else ""))
             )
-            if rows or data["document_changed"]:
+            if rows or data["document_changed"] or data["preamble_changed"]:
                 contributions.append(
                     {
                         "kind": "adopt",
+                        "scope": data["scope"],
+                        "preamble_changed": data["preamble_changed"],
+                        "preamble_conflict": data["preamble_conflict"],
+                        "preamble_current": data["current_preamble"],
+                        "preamble_proposed": data["proposed_preamble"],
                         "copy": copy,
                         "source": data["source"],
-                        "label": f"Incoming from AI draft “{Path(copy).stem}”",
+                        "label": f"{data['scope']['title']} · {Path(copy).stem}"
+                        if data["scope"].get("kind") == "section"
+                        else f"Incoming from AI draft “{Path(copy).stem}”",
                         "fingerprint": data["fingerprint"],
                         "changes": rows,
                         "document_changed": data["document_changed"],

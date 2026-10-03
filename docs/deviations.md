@@ -4,6 +4,7 @@ Every place the implementation departs from a `[decided]` statement, or settles 
 
 | date | section | book says | implemented | why | DR | book updated |
 |---|---|---|---|---|---|---|
+| 2026-10-03 | 5.3.1, 17.7, 17.18 | one active whole-document AI copy; one prose/preamble group | disjoint section drafts with saved context, close/reopen, separate preamble choices and metadata-only selection | isolated section work and responsive, understandable review | DR-323-luisa | y |
 | 2026-09-28 | 7.6, 15.3.5, write API | all incorporated mathematics is reviewed afterward | Incoming can explicitly accept inspected mathematical blocks on submission; unvisited and held items stay pending | one inspection pass with deliberate acceptance | DR-316-luisa | y |
 | 2026-09-28 | 15.3.5, write API | every review decision rebuilds the view before answering | pending decisions publish queue metadata only; Finish review rebuilds | avoid regenerating unchanged renderings per click | DR-315-luisa | y |
 | 2026-09-26 | 8.12, 10.4; DR-209 | a result's anchor keeps the neutral tint, and a double-click travels between a mark and what is anchored to it | a result is drawn only where a link lands and takes no pointer; a double-click travels only from an annotation's mark | a tint on every result said nothing the page did not, and the result's button swallowed the press that should select its words | DR-306-ikmartin | y |

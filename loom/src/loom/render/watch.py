@@ -26,7 +26,7 @@ def snapshot(root: Path) -> dict[Path, float]:
             continue
         rel = p.relative_to(root)
         # Review decisions publish only queue metadata through the API; Finish review rebuilds the view.
-        if rel.as_posix() == ".loom/review-decisions.json":
+        if rel.as_posix() in (".loom/review-decisions.json", ".loom/adoption-decisions.json"):
             continue
         if any(part in SKIP for part in rel.parts[:-1]):
             continue

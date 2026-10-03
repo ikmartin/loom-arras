@@ -38,7 +38,13 @@ class Comparison {
 		const items = [workspace.active(0), workspace.active(1)];
 		if (!items[0] || !items[1]) return null;
 		const sides = [sideOf(items[0], m), sideOf(items[1], m)] as [Side, Side];
-		return plan(this.found, sides, (key) => m.nodes[key]?.base?.math ?? null, this.answer);
+		const found = this.found.map((nodes, i) => {
+            const other = m.masters.find(d => d.path === items[1-i]!.id);
+            if (other?.copy_of !== items[i]!.id || !other.scope_keys) return nodes;
+            const allowed = new Set([...other.scope_keys, ...this.found[1-i].map(n => n.pair)]);
+            return nodes.filter(n => allowed.has(n.pair.split('/')[0]));
+        }) as [Found[], Found[]];
+        return plan(found, sides, (key) => m.nodes[key]?.base?.math ?? null, this.answer);
 	});
 
 	/** Forget what one comparison found, when it ends or another begins. */
@@ -112,6 +118,7 @@ export function uncomparable(narrow: boolean): string {
 	const items = [workspace.active(0), workspace.active(1)];
 	if (!items[0] || !items[1]) return 'Open a second document beside this one to compare them';
 	for (const i of items) {
+        if (store.manifest?.masters.some(d => d.path === i!.id && (d.closed || d.context_only))) return 'A saved draft or context is read-only; reopen the draft to compare it';
 		const what = WHAT[i!.kind];
 		if (what) return `Nothing in ${what} pairs with the other pane: compare reads documents, landmarks and nodes`;
 	}

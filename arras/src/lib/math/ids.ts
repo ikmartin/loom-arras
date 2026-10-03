@@ -1,7 +1,7 @@
 // Bare ids in published prose made into `quilt:` links (Prose.svelte), which the viewer then names as a reader refers to the result: `rl-0020-ai(a)` reads `Proposition 2.7(a)`.
 
 /** A loom-local id, a derived one, and a proof's key: `rl-0020`, `rl-0020-ai`, `rl-0020/proof/2`; never inside a longer word or label. */
-const ID = /(?<![\w:/-])[A-Za-z][A-Za-z0-9]*-[0-9A-Z]{4}(?:-ai)?(?:\/proof(?:\/\d+)?)?(?![\w-])/g;
+const ID = /(?<![\w:/-])[A-Za-z][A-Za-z0-9]*-[0-9A-Z]{4}(?:-ai(?:-[0-9A-Z]{2,})?)?(?:\/proof(?:\/\d+)?)?(?![\w-])/g;
 
 /** Where an id is already something else: a link, code, a formula. */
 const SKIP = 'a, code, pre, .math, mjx-container';

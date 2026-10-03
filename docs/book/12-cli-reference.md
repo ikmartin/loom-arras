@@ -61,7 +61,8 @@ Inspect an AI draft's changes and incorporate them after confirmation; never acc
 
 | option | description |
 |---|---|
-| `--document-changes` | Include proposed prose, preamble and ordering changes. |
+| `--document-changes` | Include proposed prose and ordering changes. |
+| `--preamble-changes` | Include the separately reviewed preamble changes. |
 | `--document-only` | Include document-level changes while keeping every node version. |
 | `--incorporate` `TOKEN` | Incorporate exactly the previously inspected preview. |
 | `--to` | Export the preview patch without incorporating. |
@@ -121,6 +122,18 @@ Report files outside SESSION, the annotation log, and build/ modified since it o
 |---|---|
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
+#### `loom ai close`
+
+`loom ai close [OPTIONS] DOCUMENT`
+
+Close an AI draft, retaining its text and annotations and releasing its scope.
+
+| option | description |
+|---|---|
+| `--yes` | Close even when unapplied changes remain; text and annotations are kept. |
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
 #### `loom ai discard`
 
 `loom ai discard [OPTIONS] [RUN]`
@@ -147,6 +160,7 @@ Before a large instruction, an agent checks its copy here: a stale copy is refre
 
 | option | description |
 |---|---|
+| `--closed` | List retained closed drafts instead of active drafts. |
 | `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -190,6 +204,17 @@ This is also how an agent joins a session it did not open: `loom ai orient --ses
 `loom ai refresh [OPTIONS] DOCUMENT`
 
 Update an AI draft from its working document, preserving outstanding proposals.
+
+| option | description |
+|---|---|
+| `--json` |  |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+#### `loom ai reopen`
+
+`loom ai reopen [OPTIONS] DOCUMENT`
+
+Reopen a retained AI draft when its scope and identities are available.
 
 | option | description |
 |---|---|
@@ -391,6 +416,7 @@ Starting a document from an old version of one is `loom history restore`.
 | option | description |
 |---|---|
 | `--ai` `NAME` | The copy to write in the agent's drafting directory. |
+| `--section` `ID` | Copy only this section or subsection and its descendants. |
 | `--json` |  |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 

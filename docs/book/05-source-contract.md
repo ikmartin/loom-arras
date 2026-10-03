@@ -469,3 +469,5 @@ We construct the residue as a specialization followed by a Segre class.
 ```
 
 Keys: `rl-0040`, `rl-0041`, `rl-0042`. The second proof follows a proof that attached by adjacency, so it attaches to the same theorem (5.6.1). The graph shows that `rl-0004` is used only by the first proof; if the author adopts the second, `rl-0004` may become unnecessary, which `loom unravel rl-0004` reports.
+
+**[decided]** Scoped AI drafts use numbered derived suffixes such as `zk-0001-ai-01`; the discriminator is never reused, and `plain_key` removes it for matching source identity. Existing `-ai` keys remain valid. `loom id FILE --next` and label patches for a recorded copy use that copy's suffix (DR-323-luisa, 17.18).

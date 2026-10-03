@@ -16,7 +16,8 @@ from loom.sync import SyncError
 @click.command()
 @click.argument("document")
 @click.argument("keys", nargs=-1)
-@click.option("--document-changes", is_flag=True, help="Include proposed prose, preamble and ordering changes.")
+@click.option("--document-changes", is_flag=True, help="Include proposed prose and ordering changes.")
+@click.option("--preamble-changes", is_flag=True, help="Include the separately reviewed preamble changes.")
 @click.option("--document-only", is_flag=True, help="Include document-level changes while keeping every node version.")
 @click.option("--incorporate", metavar="TOKEN", help="Incorporate exactly the previously inspected preview.")
 @click.option("--to", "output", type=click.Path(path_type=Path), help="Export the preview patch without incorporating.")
@@ -28,6 +29,7 @@ def adopt(
     keys: tuple[str, ...],
     document_changes: bool,
     document_only: bool,
+    preamble_changes: bool,
     incorporate: str | None,
     output: Path | None,
     as_json: bool,
@@ -46,7 +48,7 @@ def adopt(
         )
     if document_only and keys:
         raise EnvError("--document-only cannot be combined with node keys")
-    if incorporate and (keys or document_changes or document_only or output):
+    if incorporate and (keys or document_changes or document_only or preamble_changes or output):
         raise EnvError("--incorporate applies the saved preview; change selections by preparing a new preview")
     result = open_scan(quilt_path)
     try:
@@ -55,7 +57,11 @@ def adopt(
             click.echo(json.dumps(answer, indent=2) if as_json else answer["message"])
             return
         preview = prepare(
-            result, document, [] if document_only else list(keys) if keys else None, document_changes or document_only
+            result,
+            document,
+            [] if document_only else list(keys) if keys else None,
+            document_changes or document_only,
+            preamble=preamble_changes,
         )
         if output:
             output.write_text(preview["patch"])

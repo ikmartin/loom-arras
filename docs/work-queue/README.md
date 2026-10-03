@@ -45,7 +45,7 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-49](WQ-49-editor-clients.md) | rework the editor clients; until then they are deprecated and may break | loom-lsp, loom-nvim, loom-vscode | someone starts to work seriously in a quilt and wants loom in their editor |
 | [WQ-50](WQ-50-publish-after-mv-test.md) | a committed test that a publish after `loom mv` keeps Overleaf's file name | loom | the next change to sync's mapping of Overleaf's main, or to `loom mv` |
 | [WQ-51](WQ-51-macro-sets-leak.md) | a view's macros stay its own: no page-wide `\renewcommand` leaking between documents | arras | a real quilt has two macro sets defining one name differently |
-| [WQ-52](WQ-52-simultaneous-agent-copies.md) | several agent copies of one document at once (`-ai-01`) | loom, arras | a person wants two agent versions of one document side by side and `loom draft --ai` refuses the second |
+| [WQ-52](WQ-52-simultaneous-agent-copies.md) | alternative AI drafts of overlapping scopes | loom, arras | a person requests concurrent alternatives for the same section or overlapping document scopes |
 | [WQ-54](WQ-54-annotations-follow-adopted-text.md) | open annotations follow the text a person adopts | loom, arras | an adoption leaves an open annotation on the copy, and the person files it again on the adopted node |
 | [WQ-55](WQ-55-digest-review-in-review.md) | reviewing proposed digest results in Review, one at a time, after a design study | arras, loom | `loom refs coverage` shows proposals waiting in two or more works, or ten in one, and the author sets out to verify them |
 

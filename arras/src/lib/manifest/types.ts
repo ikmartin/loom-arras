@@ -67,6 +67,17 @@ export interface Master {
   directory?: "drafting" | "drafting-ai" | null;
   /** An agent copy's source document, where the history's moves have taken it (book 17.7.1). */
   copy_of?: string;
+  scope?: {kind: string; key?: string; title?: string; keys?: string[]};
+  scope_keys?: string[];
+  context_when?: string;
+  context_changed?: boolean;
+  context_only?: boolean;
+  context_document?: string;
+  closed?: boolean;
+  closed_at?: string;
+  closed_annotations?: Annotation[];
+  closed_keys?: string[];
+  macros?: string;
 }
 
 export interface NumberEntry {
@@ -78,6 +89,7 @@ export interface Node {
   name?: string;
   /** An agent copy's node: the plain key it corresponds to, `zk-0001` for `zk-0001-ai` (book 5.3). Whole-quilt views leave such nodes out. */
   derived_of?: string;
+  draft_macros?: string;
   /** A derived node's base: the version of its plain key it began from, and that version's hash as `data-hash` takes it (`math`), so compare can tell a node changed on both sides. */
   base?: { key: string; step: number; hash: string; math?: string };
   id: string;
@@ -174,7 +186,12 @@ export interface AdoptionReview {
   document_conflict: boolean;
   document_diff: string;
   document_comparison?: {local: string | null; incoming: string | null; current: string; proposed: string; incoming_macros: string};
-  choices: {keys: string[]; document: boolean; kept?: string[]};
+  scope?: {kind: string; title?: string};
+  preamble_changed?: boolean;
+  preamble_conflict?: boolean;
+  preamble_current?: string;
+  preamble_proposed?: string;
+  choices: {keys: string[]; document: boolean; preamble?: boolean; kept?: string[]; revision?: number; invalidated?: string[]};
   issues: string[];
 }
 
@@ -543,6 +560,7 @@ export interface Manifest {
 
 export interface IncorporationMathItem {
   key: string;
+  dependencies?: string[];
   name: string;
   reason: string;
   local: {path: string; macros: Macro[]} | null;

@@ -1,5 +1,5 @@
 // After a fragment is injected: references become routes, images point at the build directory, citations link to their targets, inclusions become links the viewer can expand.
-import { anchorId, workUrl, keyUrl, nodeUrl } from '$lib/nav';
+import { anchorId, masterUrl, workUrl, keyUrl, nodeUrl } from '$lib/nav';
 import { dataUrl } from '$lib/paths';
 import { pageOf } from '$lib/worklink';
 import { taxonTone } from '$lib/taxonomy';
@@ -104,6 +104,11 @@ export function wire(
 	LIVE.set(root, opts);
 	for (const a of root.querySelectorAll<HTMLAnchorElement>('a.ref[data-target]')) {
 		const target = a.dataset.target ?? '';
+		if (a.dataset.contextDocument) {
+            a.href = masterUrl(a.dataset.contextDocument) + '#' + (a.dataset.contextAnchor ?? '');
+            a.title = 'Reference in saved paper context';
+            continue;
+        }
 		if (opts.keyless) continue;
 		if (a.classList.contains('ref-dangling')) {
 			a.removeAttribute('href');

@@ -7,7 +7,7 @@
 	import { linkName } from '$lib/workspace/names';
 	import { linkIds } from './ids';
 
-	let { html, class: klass = 'body' }: { html: string; class?: string } = $props();
+	let { html, class: klass = 'body', macroSet }: { html: string; class?: string; macroSet?: string } = $props();
 
 	let el: HTMLElement | undefined = $state();
 
@@ -27,7 +27,8 @@
 		const node = el;
 		const body = html; // re-typeset when the body is superseded by an edit
 		if (!node || !body.includes('class="math')) return;
-		void typeset(node, store.manifest?.macros.default ?? []);
+		if (macroSet) { const macros = store.manifest?.macros.sets[macroSet] ?? []; void import('$lib/math/scoped').then(({typesetScoped}) => typesetScoped(node, macros)); }
+        else void typeset(node, store.manifest?.macros.default ?? []);
 	});
 </script>
 

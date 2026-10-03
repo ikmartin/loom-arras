@@ -99,6 +99,11 @@ def preview(before: ScanResult, overlay: dict[str, str], binding: dict[str, str]
             path = f"incorporation-review/{token}-{len(items)}-{i}.html"
             write_atomic(root / "build" / path, _render(renderers[i], result, key, text, pre, spans[i]))
             sides.append({"path": path, "macros": to_mathjax(parse_macros(blank_comments(pre)))})
+        dependencies = sorted(
+            d
+            for d in after.dependencies.closure(key)
+            if before.dependencies.texts.get(d) != after.dependencies.texts.get(d)
+        )
         proof_changed = node.kind == "proof" and node.of in changed and key not in changed
         items.append(
             {
@@ -112,7 +117,10 @@ def preview(before: ScanResult, overlay: dict[str, str], binding: dict[str, str]
                 if proof_changed
                 else "Mathematical text changed"
                 if key in changed
-                else "A mathematical dependency or document context changed",
+                else "Unchanged text · cited support changed"
+                if dependencies
+                else "Unchanged text · document context changed",
+                "dependencies": sorted({after.dependencies.owners.get(d, d) for d in dependencies}),
                 "local": sides[0],
                 "proposed": sides[1],
                 "unavailable": _refusal(after, key),

@@ -499,13 +499,13 @@
 <PagePanel label="Graph">
 	<div class="filters">
 		<div class="document-legend" role="group" aria-label="Document membership">
-			{#each m.masters as document (document.path)}
+			{#each m.masters.filter(d => !d.closed && !d.context_only) as document (document.path)}
 				<button aria-pressed={documentHighlight === document.path} onclick={() => documentHighlight = documentHighlight === document.path ? '' : document.path}>
 					<span style:background={documentColor(document.path)}></span>{document.path}
 				</button>
 			{/each}
 		</div>
-		<label>Scope<select aria-label="Scope" bind:value={master}><option value="">Whole quilt</option>{#each m.masters as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
+		<label>Scope<select aria-label="Scope" bind:value={master}><option value="">Whole quilt</option>{#each m.masters.filter(d => !d.closed && !d.context_only) as x (x.path)}<option value={x.path}>{x.path}</option>{/each}</select></label>
 		<label>taxon<select bind:value={taxon}><option value="">all</option>{#each taxa as t (t)}<option value={t}>{t}</option>{/each}</select></label>
 		<label>tag<select bind:value={tag}><option value="">all</option>{#each tags as t (t)}<option value={t}>{t}</option>{/each}</select></label>
 		<label>state<select bind:value={stateFilter}><option value="">all</option>{#each states as t (t)}<option value={t}>{t}</option>{/each}</select></label>

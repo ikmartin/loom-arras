@@ -256,7 +256,7 @@ def test_one_copy_per_document_never_over_a_file_or_a_taken_name(tmp_path: Path)
         "again.tex",
         cwd=q,
         code=2,
-        match="already has an agent copy, drafting-ai/aidoc.tex",
+        match="overlaps drafting-ai/aidoc.tex",
     )
     refused("draft", "drafting/outline.tex", "--ai", "aidoc.tex", cwd=q, code=2, match="exists; draft never overwrites")
     refused("draft", "drafting/outline.tex", "--ai", "main.tex", cwd=q, code=2, match="already named main")
@@ -270,6 +270,10 @@ def test_a_copy_is_stale_when_the_persons_side_moves_mathematically(tmp_path: Pa
         {
             "copy": "drafting-ai/aidoc.tex",
             "source": "drafting/main.tex",
+            "scope": {"kind": "document"},
+            "suffix": "-ai",
+            "context": None,
+            "context_changed": False,
             "stale": False,
             "changed": [],
             "gone": [],

@@ -36,6 +36,10 @@ CAPABILITIES = [
     "agent-stop",
     "sync-incorporate",
     "sync-preview",
+    "adopt-close",
+    "adopt-reopen",
+    "adopt-refresh",
+    "adopt-paper",
     "adopt-decision",
     "adopt-preview",
     "adopt-finish",
@@ -47,10 +51,10 @@ CAPABILITIES = [
 WRITE_API_VERSION = 1
 
 #: Endpoints that answer and change nothing the manifest shows, so the publisher does not rebuild after them.
-READS = ("compare", "adopt-preview", "sync-preview")
+READS = ("compare", "adopt-preview", "sync-preview", "adopt-paper")
 
 #: Decision writes publish queue metadata themselves, without rendering documents.
-NO_REBUILD = (*READS, "review-decision")
+NO_REBUILD = (*READS, "review-decision", "adopt-decision")
 
 
 class ApiError(Exception):
@@ -150,9 +154,17 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         except SyncError as exc:
             raise ApiError("sync-refused", str(exc), status=409) from exc
         return {"ok": True, "result": sync_result}
-    if endpoint in ("adopt-decision", "adopt-preview", "adopt-finish"):
+    if endpoint in (
+        "adopt-decision",
+        "adopt-preview",
+        "adopt-finish",
+        "adopt-close",
+        "adopt-reopen",
+        "adopt-refresh",
+        "adopt-paper",
+    ):
+        from loom.adopt import comparison, decisions, incorporate, prepare
         from loom.adopt import decide as adopt_decide
-        from loom.adopt import decisions, incorporate, prepare
         from loom.cli._common import is_agent
         from loom.scan.quilt import load_quilt, reviewer_identity
         from loom.scan.scan import scan
@@ -166,7 +178,23 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         copy = _str(body, "copy", required=True) or ""
         try:
             result = scan(load_quilt(root))
-            if endpoint == "adopt-finish":
+            if endpoint in ("adopt-close", "adopt-reopen"):
+                from loom.draft_lifecycle import close_draft, reopen_draft
+
+                answer = (
+                    close_draft(result, copy, reviewer, confirmed=body.get("confirmed") is True)
+                    if endpoint == "adopt-close"
+                    else reopen_draft(result, copy, reviewer)
+                )
+            elif endpoint == "adopt-refresh":
+                from loom.adopt import refresh
+
+                answer = refresh(result, copy)
+            elif endpoint == "adopt-paper":
+                from loom.section_drafts import preview_in_paper
+
+                answer = preview_in_paper(result, copy)
+            elif endpoint == "adopt-finish":
                 from loom.incorporation_review import finish, validate
 
                 token = _str(body, "token", required=True) or ""
@@ -193,18 +221,56 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
                     not isinstance(keys, list)
                     or not all(isinstance(k, str) for k in keys)
                     or not isinstance(document, bool)
+                    or not isinstance(body.get("preamble", False), bool)
                     or not isinstance(kept, list)
                     or not all(isinstance(k, str) for k in kept)
                 ):
                     raise ApiError("bad-field", "keys must be a list of strings and document must be a boolean")
+                revision = body.get("revision", 0)
+                if not isinstance(revision, int) or isinstance(revision, bool) or revision < 0:
+                    raise ApiError("bad-field", "revision must be a nonnegative integer")
+                data = comparison(result, copy)
                 answer = adopt_decide(
-                    result, copy, keys, document, _str(body, "fingerprint", required=True) or "", reviewer, kept
+                    result,
+                    copy,
+                    keys,
+                    document,
+                    _str(body, "fingerprint", required=True) or "",
+                    reviewer,
+                    kept,
+                    revision=revision,
+                    data=data,
+                    preamble=bool(body.get("preamble", False)),
                 )
+                import json
+
+                from loom.render.publish import publish
+
+                manifest_path = root / "build/manifest.json"
+                if manifest_path.is_file():
+                    manifest = json.loads(manifest_path.read_text())
+                    if manifest.get("reviewer", {}).get("name") == reviewer:
+                        for contribution in manifest.get("contributions", []):
+                            if (
+                                contribution.get("copy") == data["copy"]
+                                and contribution.get("fingerprint") == data["fingerprint"]
+                            ):
+                                contribution["choices"] = answer
+                        publish(root / "build", {}, manifest)
             else:
-                chosen = decisions(result, copy, reviewer)
+                data = comparison(result, copy)
+                chosen = decisions(result, copy, reviewer, data=data)
                 if _str(body, "fingerprint", required=True) != chosen["fingerprint"]:
                     raise SyncError("Contribution changed; reload Incoming")
-                answer = prepare(result, copy, chosen["keys"], chosen["document"], reviewer)
+                answer = prepare(
+                    result,
+                    copy,
+                    chosen["keys"],
+                    chosen["document"],
+                    reviewer,
+                    data=data,
+                    preamble=chosen.get("preamble", False),
+                )
                 from loom.incorporation_review import preview
 
                 answer["review"] = preview(

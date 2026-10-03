@@ -107,20 +107,19 @@ def _flat_shape(result: ScanResult, text: str) -> tuple[dict[str, str], str]:
 
 def _baseline(result: ScanResult, copy: str) -> dict[str, Any]:
     history = _history(result)
-    baseline: dict[str, Any] | None = None
-    for entry in history.entries:
+    for entry in reversed(history.entries):
         path = str(entry.get("to" if entry.action == "copy" else "copy", ""))
         if history.current_document(path, result.masters) != copy:
             continue
+        if entry.action in ("adopt", "refresh") and entry.get("adoption_base"):
+            return dict(entry.get("adoption_base"))
         if entry.action == "copy":
             recorded = history.dir / (entry.dir or "") / Path(str(entry.get("from"))).name
-            bodies, skeleton = _flat_shape(result, recorded.read_text())
-            baseline = {"nodes": bodies, "document": skeleton, "mapping": {}}
-        elif entry.action in ("adopt", "refresh") and entry.get("adoption_base"):
-            baseline = entry.get("adoption_base")
-    if baseline is None:
-        raise SyncError("This AI draft has no recorded baseline; create it with loom draft DOC --ai NAME")
-    return baseline
+            from loom.section_drafts import pinned_inputs
+
+            bodies, skeleton = _flat_shape(pinned_inputs(result, copy), recorded.read_text())
+            return {"nodes": bodies, "document": skeleton, "mapping": {}}
+    raise SyncError("This AI draft has no recorded baseline; create it with loom draft DOC --ai NAME")
 
 
 def _merge(base: str, ours: str, theirs: str) -> tuple[str, bool]:
@@ -178,9 +177,21 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
         Normalized comparison, baseline and revision fingerprint.
     """
     copy, source = _resolve(result, copy)
+    from loom.section_drafts import check_overlap, extract, metadata
+
+    meta = metadata(result, copy)
+    scope = meta.get("scope", {"kind": "document"})
     baseline = _baseline(result, copy)
-    proposed, proposal_document = _flat_shape(result, flatten(result.quilt.root, copy).text)
-    current, current_document = _flat_shape(result, flatten(result.quilt.root, source).text)
+    proposed_text = rename_labels(flatten(result.quilt.root, copy).text, plain=True)
+    current_text = flatten(result.quilt.root, source).text
+    if scope.get("kind") == "section":
+        check_overlap(result, source, scope, exclude=copy)
+        proposed_text = extract(proposed_text, scope, proposal=True)
+        current_text = extract(current_text, scope)
+    from loom.section_drafts import pinned_inputs
+
+    proposed, proposal_document = _flat_shape(pinned_inputs(result, copy), proposed_text)
+    current, current_document = _flat_shape(result, current_text)
     mapping = baseline.get("mapping", {})
     if mapping:
         proposed = {_mapped(k, mapping): _rename(v, mapping) for k, v in proposed.items()}
@@ -213,12 +224,27 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
                 "math_changed": pair_hash(ours or "") != pair_hash(theirs or ""),
             }
         )
-    merged, conflict = _merge(baseline["document"], current_document, proposal_document)
+    from loom.section_drafts import split_preamble
+
+    base_pre, base_body = split_preamble(baseline["document"])
+    current_pre, current_body = split_preamble(current_document)
+    proposed_pre, proposed_body = split_preamble(proposal_document)
+    merged_body, conflict = _merge(base_body, current_body, proposed_body)
+    merged_pre, preamble_conflict = _merge(base_pre, current_pre, proposed_pre)
+    merged = current_pre + merged_body
     data = {
+        "scope": scope,
+        "suffix": meta.get("suffix", "-ai"),
+        "context": meta.get("context"),
+        "preamble_changed": proposed_pre != base_pre and proposed_pre != current_pre,
+        "preamble_conflict": preamble_conflict,
+        "current_preamble": current_pre,
+        "proposed_preamble": proposed_pre,
+        "merged_preamble": merged_pre,
         "copy": copy,
         "source": source,
         "changes": changes,
-        "document_changed": proposal_document != baseline["document"] and proposal_document != current_document,
+        "document_changed": proposed_body != base_body and proposed_body != current_body,
         "document_conflict": conflict,
         "current_document": current_document,
         "proposed_document": proposal_document,
@@ -232,6 +258,14 @@ def comparison(result: ScanResult, copy: str) -> dict[str, Any]:
             "config": (result.quilt.root / "config.toml").read_text(),
             "history": [e.to_dict() for e in _history(result).entries],
             "comparison": data,
+            "preambles": {name: closure.raw_text() for name, closure in result.closures.items()},
+            "context_inputs": {
+                name: hashlib.sha256((result.quilt.root / name).read_bytes()).hexdigest()
+                if (result.quilt.root / name).is_file()
+                else None
+                for name in (meta.get("context") or {}).get("hashes", {})
+                if not name.endswith(".tex")
+            },
         }
     )
     return data
@@ -294,7 +328,7 @@ def _project(result: ScanResult, source: str, bodies: dict[str, str], document: 
 
     spine, locations = flatten_spine(source)
     # The scanner's flat form may contain harmless inclusion newlines. Match its whitespace using a three-way merge.
-    _, flat_spine = _flat_shape(result, flatten(root, source).text)
+    flat_spine = flatten(root, source, overlay=skeletons).text
     target, conflict = _merge(flat_spine, spine, document)
     if conflict:
         raise SyncError(
@@ -359,7 +393,14 @@ def _not_offered(unknown: list[str], data: dict[str, Any], offered: dict[str, An
 
 
 def prepare(
-    result: ScanResult, copy: str, keys: list[str] | None = None, document: bool = False, reviewer: str | None = None
+    result: ScanResult,
+    copy: str,
+    keys: list[str] | None = None,
+    document: bool = False,
+    reviewer: str | None = None,
+    *,
+    data: dict[str, Any] | None = None,
+    preamble: bool | None = None,
 ) -> dict[str, Any]:
     """Pin the exact selected patch for inspection before any author-file write.
 
@@ -383,7 +424,11 @@ def prepare(
     """
     root = result.quilt.root
     who = resolve_author(reviewer, root)[0]
-    data = comparison(result, copy)
+    data = data if data is not None else comparison(result, copy)
+    from loom.section_drafts import replace_section, split_preamble
+
+    if preamble is None:
+        preamble = document and data["scope"].get("kind") != "section"
     offered = {row["key"]: row for row in data["changes"] if row["offered"]}
     selected = sorted(offered if keys is None else set(keys))
     unknown = sorted(set(selected) - offered.keys())
@@ -396,6 +441,8 @@ def prepare(
     ]
     if document and data["document_conflict"]:
         issues.append("Document prose or ordering conflicts; reconcile in your editor and refresh Incoming")
+    if preamble and data["preamble_conflict"]:
+        issues.append("Preamble changes conflict; reconcile them before including this group")
     if issues:
         raise SyncError("\n".join(issues))
     bodies = {r["key"]: r["current"] for r in data["changes"] if r["current"]}
@@ -411,7 +458,9 @@ def prepare(
         head = key.split("/", 1)[0]
         if row["class"] == "separate-result" and head not in new_mapping:
             target = result.quilt.config.prefix + "-" + next_local(reserved)
-            fork = plan_fork(result, _history(result), derived_key(head) or head, data["copy"], as_id=target)
+            fork = plan_fork(
+                result, _history(result), derived_key(head, data["suffix"]) or head, data["copy"], as_id=target
+            )
             if fork.refusal:
                 raise SyncError(fork.refusal)
             new_mapping[head] = fork.new_id
@@ -432,6 +481,8 @@ def prepare(
         else:
             bodies.pop(key, None)
     spine = _rename(data["merged_document"] if document else data["current_document"], new_mapping)
+    _, chosen_body = split_preamble(spine)
+    spine = (data["merged_preamble"] if preamble else data["current_preamble"]) + chosen_body
     for key in selected:
         row = offered[key]
         if not row["proposed"]:
@@ -444,15 +495,40 @@ def prepare(
         if row["key"] in selected and not row["proposed"]:
             bodies = {key: text.replace(_marker(row["key"]), "") for key, text in bodies.items()}
     final_text = _expand(spine, bodies)
+    if not preamble and data["preamble_changed"]:
+        from loom.scan.macros import parse_macros
+        from loom.scan.source import blank_comments
+
+        added = set(parse_macros(blank_comments(data["proposed_preamble"]))) - set(
+            parse_macros(blank_comments(data["current_preamble"]))
+        )
+        used = set(re.findall(r"\\([A-Za-z@]+)", split_preamble(final_text)[1]))
+        missing = sorted(added & used)
+        if missing:
+            raise SyncError(
+                "Selected edits need proposed preamble definitions: "
+                + ", ".join("\\" + name for name in missing)
+                + ". Include Preamble changes or revise the edits."
+            )
     final_bodies, _ = _flat_shape(result, final_text)
     for row in data["changes"]:
         if row["key"] not in selected and row["current"] and row["key"] not in final_bodies:
             raise SyncError(f"Document changes would remove kept result {row['key']}; revise the selection or document")
     for key in selected:
         target = _mapped(key, new_mapping)
-        if offered[key]["proposed"] and target not in _flat_shape(result, final_text)[0]:
+        if offered[key]["proposed"] and target not in final_bodies:
             raise SyncError(f"{key} has no placement in the selected document")
-    overlay = _project(result, data["source"], bodies, spine)
+    projection_bodies = bodies
+    projection_spine = spine
+    if data["scope"].get("kind") == "section":
+        all_bodies, _, full_skeletons = _shape(result, data["source"])
+        full_spine = flatten(root, data["source"], overlay=full_skeletons).text
+        outside = {k: v for k, v in all_bodies.items() if k not in {r["key"] for r in data["changes"]}}
+        projection_bodies = {**outside, **bodies}
+        projection_spine = replace_section(full_spine, spine, data["scope"]) if document else full_spine
+        _, full_body = split_preamble(projection_spine)
+        projection_spine = split_preamble(spine)[0] + full_body
+    overlay = _project(result, data["source"], projection_bodies, projection_spine)
     after = scan(result.quilt, overlay=overlay)
     before_errors = {(d.code, d.message) for d in result.diagnostics + result.lint if d.severity == "error"}
     errors = [
@@ -485,22 +561,27 @@ def prepare(
             moved["nodes"].pop(row["key"], None)
             if row["proposed"]:
                 moved["nodes"][key] = bodies[key]
-    if document:
-        moved["document"] = _rename(data["proposed_document"], new_mapping)
+    base_pre, base_body = split_preamble(moved["document"])
+    proposed_pre, proposed_body = split_preamble(data["proposed_document"])
+    moved["document"] = _rename(
+        (proposed_pre if preamble else base_pre) + (proposed_body if document else base_body), new_mapping
+    )
     moved["mapping"] = new_mapping
     prepared = {
         "copy": data["copy"],
         "source": data["source"],
         "fingerprint": data["fingerprint"],
+        "proposal_hash": _digest((root / data["copy"]).read_text()),
         "reviewer": who,
         "keys": selected,
         "document": document,
+        "preamble": preamble,
         "patch": patch,
         "paths": paths,
         "overlay": overlay,
         "adoption_base": moved,
     }
-    prepared["decision"] = decisions(result, copy, who)
+    prepared["decision"] = decisions(result, copy, who, data=data)
     prepared["token"] = _digest(prepared)
     home = root / "build/adoption"
     home.mkdir(parents=True, exist_ok=True)
@@ -540,10 +621,14 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
     data = comparison(result, copy)
     who = resolve_author(reviewer, root)[0]
     if data["copy"] != saved["copy"] or data["fingerprint"] != saved["fingerprint"] or who != saved["reviewer"]:
-        raise SyncError("Source, proposal or reviewer changed; refresh Incoming and preview again")
-    if saved.get("decision") != decisions(result, copy, who):
+        if who != saved["reviewer"]:
+            raise SyncError("Reviewer changed; refresh Incoming and preview again")
+        if saved.get("proposal_hash") != _digest((root / data["copy"]).read_text()):
+            raise SyncError("The AI draft changed; preview again")
+        raise SyncError("The paper or its context changed since this preview; preview again")
+    if saved.get("decision") != decisions(result, copy, who, data=data):
         raise SyncError("Selection changed; preview the selected changes again")
-    checked = prepare(result, copy, saved["keys"], saved["document"], who)
+    checked = prepare(result, copy, saved["keys"], saved["document"], who, data=data, preamble=saved.get("preamble"))
     if checked["overlay"] != saved["overlay"] or checked["adoption_base"] != saved["adoption_base"]:
         raise SyncError("Result identities or dependencies changed; inspect a fresh preview")
     if not saved["patch"]:
@@ -610,7 +695,7 @@ def incorporate(result: ScanResult, copy: str, token: str, reviewer: str | None 
             if key not in freeze.current:
                 continue
             original = _mapped(key, inverse)
-            derived = derived_key(original)
+            derived = derived_key(original, data["suffix"])
             if derived:
                 latest = history.latest_versions().get(key)
                 bases[derived] = {
@@ -778,7 +863,7 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
     # Keep the copy's identities stable when a separate result has been allocated during incorporation.
     reverse = {v: k for k, v in baseline.get("mapping", {}).items()}
     text = rename_labels(text, reverse)
-    text, _ = derive_labels(text)
+    text, _ = derive_labels(text, data["suffix"])
     path = result.quilt.root / data["copy"]
     if path.is_symlink() or not path.resolve().is_relative_to(result.quilt.drafting_ai_dir.resolve()):
         raise SyncError("AI copy is outside its writable directory")
@@ -796,7 +881,13 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
                 "step": history.latest_versions()[base["key"]][0],
                 "hash": freeze.current[base["key"]],
             }
-    if text == original and baseline == data["baseline"]:
+    context = data.get("context")
+    if data["scope"].get("kind") == "section":
+        from loom.section_drafts import capture_context, context_changed
+
+        if not conflicts and (not context or context_changed(result, context)):
+            context = capture_context(result, data["source"])
+    if text == original and baseline == data["baseline"] and context == data.get("context"):
         return {
             "copy": data["copy"],
             "updated": [],
@@ -807,7 +898,12 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
         temporary = path.with_suffix(".refresh.tmp")
         temporary.write_text(text)
         temporary.replace(path)
-        append_entry(history.dir, "refresh", {"copy": data["copy"], "bases": bases, "adoption_base": baseline}, None)
+        append_entry(
+            history.dir,
+            "refresh",
+            {"copy": data["copy"], "bases": bases, "adoption_base": baseline, "context": context},
+            None,
+        )
     except Exception:
         path.write_text(original)
         ledger.write_bytes(ledger_before)
@@ -820,7 +916,9 @@ def refresh(result: ScanResult, copy: str) -> dict[str, Any]:
     }
 
 
-def decisions(result: ScanResult, copy: str, reviewer: str | None) -> dict[str, Any]:
+def decisions(
+    result: ScanResult, copy: str, reviewer: str | None, *, data: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Read this reviewer's choices for the current contribution revision.
 
     Parameters
@@ -837,15 +935,44 @@ def decisions(result: ScanResult, copy: str, reviewer: str | None) -> dict[str, 
     dict
         Current selected keys, document choice and comparison fingerprint.
     """
-    data = comparison(result, copy)
+    data = data if data is not None else comparison(result, copy)
     path = result.quilt.root / ".loom/adoption-decisions.json"
     stored = json.loads(path.read_text()) if path.is_file() else {}
     row = stored.get(reviewer or "", {}).get(data["copy"], {})
-    return (
-        row
-        if row.get("fingerprint") == data["fingerprint"]
-        else {"keys": [], "document": False, "fingerprint": data["fingerprint"]}
-    )
+    if row.get("fingerprint") == data["fingerprint"]:
+        return dict(row)
+    signatures = choice_signatures(data)
+    previous = row.get("signatures", {})
+    valid = {k for k, value in signatures.items() if previous.get(k) == value}
+    return {
+        "keys": [k for k in row.get("keys", []) if k in valid],
+        "kept": [k for k in row.get("kept", []) if k in valid],
+        "document": bool(row.get("document") and "document" in valid),
+        "preamble": bool(row.get("preamble") and "preamble" in valid),
+        "fingerprint": data["fingerprint"],
+        "revision": row.get("revision", 0),
+        "invalidated": [
+            k
+            for k in row.get("keys", [])
+            + row.get("kept", [])
+            + (["document"] if row.get("document") else [])
+            + (["preamble"] if row.get("preamble") else [])
+            if k not in valid
+        ],
+    }
+
+
+def choice_signatures(data: dict[str, Any]) -> dict[str, str]:
+    """Inputs deciding whether a saved source choice still has the same meaning."""
+    from loom.section_drafts import split_preamble
+
+    signatures = {r["key"]: _digest([r["base"], r["current"], r["proposed"], r["class"]]) for r in data["changes"]}
+    parts = [
+        split_preamble(t) for t in (data["baseline"]["document"], data["current_document"], data["proposed_document"])
+    ]
+    signatures["preamble"] = _digest([p[0] for p in parts])
+    signatures["document"] = _digest([p[1] for p in parts])
+    return signatures
 
 
 def decide(
@@ -856,6 +983,10 @@ def decide(
     expected: str,
     reviewer: str,
     kept: list[str] | None = None,
+    *,
+    revision: int | None = None,
+    preamble: bool = False,
+    data: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Save explicit choices against the displayed contribution, without incorporating it.
 
@@ -879,13 +1010,19 @@ def decide(
     dict
         Persisted selection for this comparison.
     """
-    data = comparison(result, copy)
+    data = data if data is not None else comparison(result, copy)
     if expected != data["fingerprint"]:
         raise SyncError("Contribution changed; refresh Incoming before selecting changes")
     offered = {r["key"] for r in data["changes"] if r["offered"]}
     if set(keys) - offered or set(kept or []) - {r["key"] for r in data["changes"]}:
         raise SyncError("Selection contains an unavailable proposal")
+    previous = decisions(result, copy, reviewer, data=data)
+    if revision is not None and revision != previous.get("revision", 0):
+        raise SyncError("Your selected changes changed in another tab; reload Incoming")
     row = {
+        "revision": previous.get("revision", 0) + 1,
+        "preamble": preamble,
+        "signatures": choice_signatures(data),
         "fingerprint": expected,
         "keys": sorted(set(keys)),
         "document": document,

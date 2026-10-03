@@ -305,6 +305,28 @@ def build_manifest(
         entry["numbering_known"] = aux_known
         if m in copies:
             entry["copy_of"] = copies[m]
+            from loom.reshape.linearize import flatten
+            from loom.scan.labels import LABEL_DEF
+            from loom.section_drafts import context_changed, extract, metadata
+            from loom.sync import SyncError
+
+            meta = metadata(result, m)
+            entry["scope"] = meta["scope"]
+            if meta.get("context"):
+                entry["context_when"] = meta["context"]["when"]
+                entry["context_changed"] = context_changed(result, meta["context"])
+            if meta["scope"].get("kind") == "section":
+                keys = set(meta["scope"]["keys"])
+                try:
+                    keys.update(
+                        match[2]
+                        for match in LABEL_DEF.finditer(
+                            extract(flatten(result.quilt.root, copies[m]).text, meta["scope"])
+                        )
+                    )
+                except SyncError:
+                    pass
+                entry["scope_keys"] = sorted(keys)
         manifest["masters"].append(entry)
     for key, n in asm.nodes.items():
         if n.kind == "conflict":

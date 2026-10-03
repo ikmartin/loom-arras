@@ -66,6 +66,10 @@ def id_command(
         if fix_anchoring:
             raise EnvError("--fix-anchoring requires a FILE; it cannot be used with --next")
         allocated = f"{pre_next}-{next_local(visible_locals(result, pre_next))}"
+        if file:
+            from loom.section_drafts import metadata
+
+            allocated += metadata(result, _rel(root, file)).get("suffix", "")
         emit_json({"id": allocated, "prefix": pre_next}) if as_json else click.echo(allocated)
         return
     if as_json:

@@ -1,7 +1,7 @@
 // The manifest store: one loaded manifest, its hash, and a poll that re-fetches with If-None-Match. Re-rendering follows the hash; nothing else ever triggers it (spec README, viewer obligation 3).
 import { dataUrl } from '$lib/paths';
 import { loadManifest, type Loaded } from './loader';
-import type { Diagnostic, Manifest } from './types';
+import type { AdoptionReview, Diagnostic, Manifest } from './types';
 
 class ManifestStore {
 	manifest = $state<Manifest | null>(null);
@@ -18,6 +18,13 @@ class ManifestStore {
 		return this.url || dataUrl('manifest.json');
 	}
 
+	/** Apply the server acknowledgement immediately; late polls cannot regress its revision. */
+	setAdoption(copy: string, fingerprint: string, choices: AdoptionReview['choices']): void {
+		for (const c of this.manifest?.contributions ?? []) {
+			if (c.kind === 'adopt' && c.copy === copy && c.fingerprint === fingerprint && (c.choices?.revision ?? 0) <= (choices.revision ?? 0)) c.choices = choices;
+		}
+	}
+
 	async refresh(): Promise<void> {
 		try {
 			const r = await loadManifest(this.manifestUrl, this.#etag);
@@ -31,7 +38,17 @@ class ManifestStore {
 			}
 			const loaded = r as Loaded;
 			if (loaded.hash !== this.hash) {
-				this.manifest = loaded.manifest;
+				if (loaded.manifest.reviewer?.name === this.manifest?.reviewer?.name) {
+					for (const old of this.manifest?.contributions ?? []) {
+						if (old.kind !== 'adopt') continue;
+						const next = loaded.manifest.contributions?.find(c => c.kind === 'adopt' && c.copy === old.copy);
+						if (next?.kind === 'adopt' && next.fingerprint === old.fingerprint && (old.choices?.revision ?? 0) > (next.choices?.revision ?? 0)) next.choices = old.choices;
+					}
+				}
+                const content = (m: Manifest) => JSON.stringify({...m, contributions: m.contributions?.map(c => c.kind === 'adopt' ? {...c, choices: undefined} : c)});
+                if (this.manifest && content(this.manifest) === content(loaded.manifest)) {
+                    for (const c of loaded.manifest.contributions ?? []) if (c.kind === 'adopt') this.setAdoption(c.copy, c.fingerprint, c.choices);
+                } else this.manifest = loaded.manifest;
 				this.hash = loaded.hash;
 				this.problem = null;
 			}

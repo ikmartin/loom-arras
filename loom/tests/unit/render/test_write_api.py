@@ -701,6 +701,58 @@ def _adoption(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert any(e.action == "adopt" for e in scan(load_quilt(root)).history.entries)
 
 
+@case("adopt-close")
+@case("adopt-reopen")
+@case("adopt-refresh")
+@case("adopt-paper")
+def _section_lifecycle(serve: Serve, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from loom.scan.quilt import save_author
+    from tests.helpers import ok
+    from tests.unit.test_section_drafts import TEXT
+
+    root = tmp_path / "sections"
+    (root / "drafting").mkdir(parents=True)
+    (root / "config.toml").write_text('[quilt]\nname="section-api"\nprefix="zk"\nmain="drafting/main.tex"\n')
+    source = root / "drafting/main.tex"
+    source.write_text(TEXT)
+    save_author(WHO)
+    ok("draft", "drafting/main.tex", "--ai", "first.tex", "--section", "zk-0100", cwd=root)
+    draft = root / "drafting-ai/first.tex"
+    draft.write_text(draft.read_text().replace("First statement.", "Proposal."))
+    s = serve(root)
+    body = {"copy": "drafting-ai/first.tex", "reviewer": WHO}
+    for endpoint in ("adopt-close", "adopt-reopen", "adopt-refresh", "adopt-paper"):
+        refuses(s, endpoint, {**body, "reviewer": "different"}, 409, "reviewer-changed", "reload Incoming")
+    builds = s.builds
+    data = json.loads(get(s.url + "build/manifest.json")[2])["contributions"][0]
+    from loom.render.watch import snapshot
+
+    watched = snapshot(root)
+    selected = succeeds(
+        s,
+        "adopt-decision",
+        {**body, "fingerprint": data["fingerprint"], "revision": 0, "keys": ["zk-0001"], "document": False},
+    )["result"]
+    assert selected["revision"] == 1 and s.builds == builds and snapshot(root) == watched
+    refuses(
+        s,
+        "adopt-decision",
+        {**body, "fingerprint": data["fingerprint"], "revision": 0, "keys": [], "document": False},
+        409,
+        "adoption-refused",
+        "another tab",
+    )
+    succeeds(s, "adopt-paper", body)
+    source.write_text(source.read_text().replace("Detail prose.", "Author detail."))
+    succeeds(s, "adopt-refresh", body)
+    assert "Author detail." in draft.read_text() and "Proposal." in draft.read_text()
+    assert succeeds(s, "adopt-close", body)["result"]["confirmation_required"]
+    succeeds(s, "adopt-close", {**body, "confirmed": True})
+    manifest = json.loads(get(s.url + "build/manifest.json")[2])
+    assert next(m for m in manifest["masters"] if m["path"] == body["copy"])["closed"]
+    succeeds(s, "adopt-reopen", body)
+
+
 def synthetic(serve: Serve, tmp_path: Path) -> tuple[ServeSession, Path]:
     """A copy of loom's synthetic quilt, served (which builds it)."""
     root = tmp_path / "synthetic"

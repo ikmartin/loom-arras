@@ -46,10 +46,19 @@ def ai_copy(q: Path) -> None:
     ok("draft", "drafting/main.tex", "--ai", "contribution.tex", cwd=q)
 
 
+def closed_copy(q: Path) -> None:
+    from tests.helpers import ok
+
+    ai_copy(q)
+    ok("ai", "close", "contribution", "--yes", cwd=q)
+
+
 #: command path -> (arguments before `--json`, setup, exit code); each runs on its own fresh demo.
 CASES: dict[str, tuple[list[str], Setup, int]] = {
     "ai annotations": ([], nothing, 0),
     "ai drafts": ([], nothing, 0),
+    "ai close": (["contribution", "--yes"], ai_copy, 0),
+    "ai reopen": (["contribution"], closed_copy, 0),
     "ai refresh": (["contribution"], ai_copy, 0),
     "adopt": (["contribution"], ai_copy, 0),
     "atomize": (["--key", "dm-0004"], nothing, 0),

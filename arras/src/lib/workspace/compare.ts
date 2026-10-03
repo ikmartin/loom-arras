@@ -105,7 +105,7 @@ export function lcs(a: string[], b: string[]): Set<string> {
 
 /** Whether a key is an agent copy's: its id carries the derived suffix. */
 export function derived(key: string | null): boolean {
-	return !!key && /-ai$/.test(key.split('/')[0]);
+	return !!key && /-ai(?:-[0-9A-Z]{2,})?$/.test(key.split('/')[0]);
 }
 
 /**

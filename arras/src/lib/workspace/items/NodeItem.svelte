@@ -4,7 +4,7 @@
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';
 	import { slotsFor } from '$lib/fragments/slots';
-	import { keyUrl, nodeUrl, reviewUrl } from '$lib/nav';
+	import { keyUrl, nodeUrl, reviewUrl, masterUrl, anchorId } from '$lib/nav';
 	import { fetchSource } from '$lib/source';
 	import { route } from '$lib/paths';
 	import type { Item } from '../item';
@@ -32,6 +32,9 @@
 <div class="page item node">
 	{#if owner}
 		<p class="muted"><code>{key}</code> has no page of its own. It is part of <a href={keyUrl(m, key)}>{m.nodes[owner].title ?? owner}</a>.</p>
+	{:else if !node && m.masters.some(d => d.closed_keys?.includes(key))}
+		{@const saved = m.masters.find(d => d.closed_keys?.includes(key))!}
+		<p>This result belongs to a closed AI draft. <a href={masterUrl(saved.path) + '#' + anchorId(key)}>Read its saved text and annotations</a>.</p>
 	{:else if !node}
 		<p class="muted">The manifest has no node <code>{key}</code>.</p>
 	{:else if node.conflict?.length}
@@ -46,7 +49,7 @@
 				<div class="column">
 					<!-- `margins` so Show ids puts the id and state in the gutter, as in a document; a digest node's text is read, not written, so it is not authoring -->
 					<FragmentNotes holder={held} fallback={key}>
-						<Fragment path={node.fragment} macroSet={node.digest ?? ''} margins comments={slots} authoring={!node.external} annotations={held.notes} anchor={item.anchor ?? ''} jump={item.seq} note={item.note} arrival={held.arrival} />
+						<Fragment path={node.fragment} macroSet={node.draft_macros ?? node.digest ?? ''} isolatedMacros={!!node.draft_macros} margins comments={slots} authoring={!node.external} annotations={held.notes} anchor={item.anchor ?? ''} jump={item.seq} note={item.note} arrival={held.arrival} />
 					</FragmentNotes>
 					{#if missingProof}<p class="muted absent" data-testid="missing-proof">No proof is attached. <a href={reviewUrl(node.reached_by[0], key)}>See this block in Review</a>.</p>{/if}
 					{#if node.children.length}

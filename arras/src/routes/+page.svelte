@@ -14,7 +14,7 @@
 	const incomplete = $derived(keys.filter((k) => k.state === 'incomplete'));
 	const errors = $derived(m.diagnostics.filter((d) => d.severity === 'error'));
 	const nodes = $derived(Object.values(m.nodes).filter((n) => n.kind !== 'section' && !n.derived_of));
-	const own = $derived(m.masters.filter((master) => master.directory !== 'drafting-ai'));
+	const own = $derived(m.masters.filter((master) => !master.closed && !master.context_only && master.directory !== 'drafting-ai'));
 	const loose = $derived(nodes.filter((n) => n.reached_by.length === 0));
 
 	const cards = $derived([

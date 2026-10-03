@@ -10,7 +10,7 @@ import re
 LOOMLOCAL = re.compile(r"^[0-9A-Z]{4}$")
 PAPERLOCAL = re.compile(r"^[A-Za-z0-9.]+(?:-[A-Za-z0-9.]+)*$")
 PREFIX = re.compile(r"^[A-Za-z0-9]+$")
-DERIVED = re.compile(r"^([A-Za-z0-9]+-[0-9A-Z]{4})-ai$")
+DERIVED = re.compile(r"^([A-Za-z0-9]+-[0-9A-Z]{4})-ai(?:-[0-9A-Z]{2,})?$")
 SUFFIX = "-ai"
 # every place a source names a label: its definition, the reference family with \uses, hyperref's optional argument, a `see:` directive, and a child marker
 LABEL_DEF = re.compile(r"(\\label\s*\{\s*)([^}\s]+)(\s*\})")
@@ -67,7 +67,7 @@ def rename_labels(text: str, rename: dict[str, str] | None = None, *, plain: boo
             return rename.get(name, name)
         if plain:
             head, sep, rest = name.partition("/")
-            return (head[: -len(SUFFIX)] if head.endswith(SUFFIX) else head) + sep + rest
+            return (re.sub(r"-ai(?:-[0-9A-Z]{2,})?$", "", head)) + sep + rest
         return name
 
     def names(m: re.Match[str]) -> str:

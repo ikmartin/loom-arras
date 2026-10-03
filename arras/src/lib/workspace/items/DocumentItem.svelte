@@ -3,6 +3,8 @@
 	// The gutters use the site generator's algebra, so a corpus page and a note page are laid out alike; the environment's taxon accent stands on the boundary between the left gutter and the text.
 	import { mount, unmount, untrack, type Component } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
+	import DraftActions from '$lib/components/DraftActions.svelte';
+	import Prose from '$lib/math/Prose.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
 	import FragmentNotes from '$lib/fragments/FragmentNotes.svelte';
 	import AnnotationBox from '$lib/components/AnnotationBox.svelte';
@@ -132,6 +134,12 @@
 				</div>
 			</div>
 		</div>
+	{:else if master?.closed || master?.context_only}
+		<div class="gutters-host"><div class="gutters"><div class="column">
+		{#if master.closed}<p>Closed AI draft · saved {master.closed_at?.slice(0, 10)}. Its text and annotations are preserved.</p><DraftActions {master}/>{:else}<p>Paper context saved when this section draft was created or refreshed.</p>{/if}
+		<Fragment path={master.fragment} macroSet={master.macros ?? ''} standalone anchor={item.anchor ?? ''} jump={item.seq}/>
+		{#each master.closed_annotations ?? [] as a}<section id={a.id}><h3>{a.author.id} · {a.created}</h3><p>{a.kind} · {a.status}</p>{#if a.quote}<blockquote>{a.quote}</blockquote>{/if}<Prose html={a.body_html} macroSet={master.macros}/>{#if a.payload_html}<Prose html={a.payload_html} macroSet={master.macros}/>{/if}{#if a.discard_reason}<p>{a.discard_reason}</p>{/if}</section>{/each}
+		</div></div></div>
 	{:else if !m.masters.length}
 		<h1>Read</h1>
 		<NoDrafts what="documents to read" />
@@ -139,6 +147,7 @@
 		<h1>Unknown document</h1>
 		<p class="muted">No document in this corpus is <code>{item.id}</code>.</p>
 	{:else}
+		{#if master.copy_of}<DraftActions {master}/>{/if}
 		<div class:with-comparison={hasComparison} class="review-layout">
 			<div class="gutters-host">
 				<div class="gutters">
@@ -147,6 +156,8 @@
 							{#key hasComparison}<Fragment
 									path={master.fragment}
 									master={master.path}
+                                    macroSet={master.macros ?? ""}
+                                    isolatedMacros={!!master.macros}
 									headingLinks
 									annotations={notes}
 									margins={!hasComparison}

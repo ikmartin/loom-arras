@@ -1,4 +1,6 @@
 <script lang="ts">
+ import {keyUrl} from '$lib/nav';
+ import {store} from '$lib/manifest/client.svelte';
  import Fragment from '$lib/fragments/Fragment.svelte';
  import type { IncorporationMathItem } from '$lib/manifest/types';
  let {item, accepted=$bindable<string[]>([]), busy=false, kept=$bindable<string[]>([])}: {item:IncorporationMathItem;accepted?:string[];busy?:boolean;kept?:string[]}=$props();
@@ -7,7 +9,7 @@
  const chosen=$derived(accepted.includes(item.key));
  function choose(accept:boolean){accepted=[...accepted.filter(k=>k!==item.key),...(accept?[item.key]:[])];kept=[...kept.filter(k=>k!==item.key),...(!accept?[item.key]:[])];}
 </script>
-<h2>{item.name}</h2><p class="reason">{item.reason}</p>
+<h2>{item.name}</h2><p class="reason">{item.reason}{#if item.dependencies?.length}: {#each item.dependencies as key, i}{#if i}, {/if}<a href={keyUrl(store.manifest, key)}>{key}</a>{/each}{/if}</p>
 <div class="math-pair"><section><h3>Current working version</h3>{#if item.local}<Fragment path={item.local.path} previewMacros={item.local.macros} isolatedMacros/>{:else}<p>New mathematical block</p>{/if}</section><section><h3>After incorporation</h3><Fragment path={item.proposed.path} previewMacros={item.proposed.macros} isolatedMacros onmounted={()=>loaded=item.key}/></section></div>
 <div class="decisions" aria-label={`Mathematical decision for ${item.name}`}><strong>{chosen?'Accept on incorporation':held?'Keep for review':'Pending'}</strong><button class:primary={chosen} aria-pressed={chosen} disabled={busy||loaded!==item.key||!!item.unavailable} onclick={()=>choose(true)}>Accept</button><button class:primary={held} aria-pressed={held} disabled={busy} onclick={()=>choose(false)}>Keep for review</button></div>
 {#if item.unavailable}<p>{item.unavailable} This block will stay in mathematical review.</p>{/if}
