@@ -29,10 +29,17 @@ Second prose.
   await page.getByLabel('Contribution').selectOption('drafting-ai/first-scope.tex');
   const row = page.getByTestId('adoption-sy-0A01');
   const use = row.getByRole('button',{name:'Use proposed version',exact:true});
+  // The watcher may publish an intermediate draft while the fixture is still being written. Inspect the final proposal before selecting it (V3).
+  await expect(row).toContainText('Proposed');
+  await expect(page.getByRole('button',{name:'Preamble changes Not selected',exact:true})).toBeVisible();
   await expect(row.locator('mjx-container').first()).toBeVisible();
   const math = await row.locator('mjx-container').first().elementHandle();
   const poll = page.waitForResponse(r => r.url().endsWith('/build/manifest.json') && r.status() === 200);
-  await use.click();
+  const [decision] = await Promise.all([
+   page.waitForResponse(r => r.url().endsWith('/_api/adopt-decision')),
+   use.click()
+  ]);
+  expect(decision.ok(), await decision.text()).toBe(true);
   await expect(use).toHaveAttribute('aria-pressed','true');
   await poll;
   expect(await math!.evaluate(node => node.isConnected)).toBe(true);
