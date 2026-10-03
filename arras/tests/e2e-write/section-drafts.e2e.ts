@@ -2,10 +2,11 @@ import {expect, test} from '../served';
 import {readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 
-for (const width of [736, 1100, 1440]) {
- test(`section source, preamble and close/reopen at ${width}px`, async ({page, served}) => {
-  await page.setViewportSize({width, height:1000});
-  const sourcePath = 'drafting/sections-test.tex';
+const sourcePath = 'drafting/sections-test.tex';
+
+test.use({
+ prepareQuilt: async ({}, use) => {
+  await use(({root, loom}) => {
   const text = String.raw`\documentclass{article}
 \usepackage{amsthm}
 \newtheorem{lemma}{Lemma}
@@ -19,17 +20,23 @@ Second prose.
 \begin{lemma}\label{sy-0B01}Other statement.\end{lemma}
 \end{document}
 `;
-  writeFileSync(join(served.root,sourcePath),text);
-  served.loom(['draft',sourcePath,'--ai','first-scope','--section','sy-0A00']);
-  served.loom(['draft',sourcePath,'--ai','second-scope','--section','sy-0B00']);
-  const draft = join(served.root,'drafting-ai/first-scope.tex');
+  writeFileSync(join(root,sourcePath),text);
+  loom(['draft',sourcePath,'--ai','first-scope','--section','sy-0A00']);
+  loom(['draft',sourcePath,'--ai','second-scope','--section','sy-0B00']);
+  const draft = join(root,'drafting-ai/first-scope.tex');
   writeFileSync(draft,readFileSync(draft,'utf8').replace('Original','Proposed').replace('First prose.','New prose.').replace('\\begin{document}','\\newcommand{\\extra}{E}\n\\begin{document}'));
+  });
+ }
+});
+
+for (const width of [736, 1100, 1440]) {
+ test(`section source, preamble and close/reopen at ${width}px`, async ({page, served}) => {
+  await page.setViewportSize({width, height:1000});
   await page.goto('/review?show=incoming');
   await expect(page.getByLabel('Contribution')).toContainText('first-scope');
   await page.getByLabel('Contribution').selectOption('drafting-ai/first-scope.tex');
   const row = page.getByTestId('adoption-sy-0A01');
   const use = row.getByRole('button',{name:'Use proposed version',exact:true});
-  // The watcher may publish an intermediate draft while the fixture is still being written. Inspect the final proposal before selecting it (V3).
   await expect(row).toContainText('Proposed');
   await expect(page.getByRole('button',{name:'Preamble changes Not selected',exact:true})).toBeVisible();
   await expect(row.locator('mjx-container').first()).toBeVisible();

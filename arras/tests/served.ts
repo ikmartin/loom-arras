@@ -85,13 +85,19 @@ export function reviewerEnv(suite: Suite, directory: string): NodeJS.ProcessEnv 
 	return { ...process.env, XDG_CONFIG_HOME: directory };
 }
 
-async function start(suite: Suite, name: string): Promise<Running> {
+type PrepareQuilt = (quilt: Pick<Served, 'root' | 'loom'>) => void | Promise<void>;
+
+async function start(suite: Suite, name: string, prepare?: PrepareQuilt): Promise<Running> {
 	const dir = scratchDir(suite);
 	const root = join(dir, 'quilts', name);
 	const logPath = `${root}.serve.log`;
 	rmSync(root, { recursive: true, force: true });
 	cpSync(join(dir, 'template'), root, { recursive: true });
 	const env = reviewerEnv(suite, `${root}.config`);
+	const loom: Served['loom'] = (args, overrides = {}) =>
+		execFileSync(LOOM, [...args, '--quilt', root], { cwd: ARRAS, env: { ...env, ...overrides } }).toString();
+	// Finish fixture writes before the publisher scans, so its first manifest describes one consistent source revision.
+	await prepare?.({ root, loom });
 	let lastLog = '';
 	for (let attempt = 0; attempt < 3; attempt++) {
 		const port = await freePort();
@@ -171,9 +177,7 @@ async function start(suite: Suite, name: string): Promise<Running> {
 				expect(res.status, `POST /_api/${endpoint} answered ${text}`).toBe(200);
 				return String((JSON.parse(text) as { result: unknown }).result ?? '');
 			},
-			loom(args, overrides = {}) {
-				return execFileSync(LOOM, [...args, '--quilt', root], { cwd: ARRAS, env: { ...env, ...overrides } }).toString();
-			}
+			loom
 		};
 		return { served, logPath, stop };
 	}
@@ -193,6 +197,8 @@ async function finish(running: Running, info: TestInfo): Promise<void> {
 }
 
 interface TestFixtures {
+	/** Prepare a test's private quilt before starting its publisher. */
+	prepareQuilt: PrepareQuilt | undefined;
 	/** Whether this test gets a copy of its own; `readOnly` sets it false. */
 	ownQuilt: boolean;
 	served: Served;
@@ -205,6 +211,7 @@ interface WorkerFixtures {
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
 	ownQuilt: [true, { option: true }],
+	prepareQuilt: undefined,
 	sharedServed: [
 		async ({}, use, info) => {
 			let running: Promise<Running> | undefined;
@@ -213,12 +220,13 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 		},
 		{ scope: 'worker' }
 	],
-	served: async ({ ownQuilt, sharedServed }, use, info) => {
+	served: async ({ ownQuilt, sharedServed, prepareQuilt }, use, info) => {
 		if (!ownQuilt) {
+			if (prepareQuilt) throw new Error('prepareQuilt requires a private quilt');
 			await use(await sharedServed());
 			return;
 		}
-		const running = await start(suiteOf(info), `${info.testId}-${info.repeatEachIndex}-${info.retry}`);
+		const running = await start(suiteOf(info), `${info.testId}-${info.repeatEachIndex}-${info.retry}`, prepareQuilt);
 		await use(running.served);
 		await finish(running, info);
 	},
