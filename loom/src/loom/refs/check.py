@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from loom.scan.bib import BibEntry
+from loom.scan.model import Diagnostic
+from loom.scan.scan import ScanResult
 
 
 @dataclass(frozen=True)
@@ -28,13 +30,13 @@ def recorded_works(root: Path) -> list[str]:
 
 
 def moved_anchors(root: Path, bib: dict[str, BibEntry], works: Iterable[str]) -> tuple[int, list[Problem]]:
-    """(how many verified anchors were re-read, those that no longer read as recorded).
+    """(how many person-verified anchors were re-read, those that no longer read as recorded).
 
-    A mechanical result is its own source and is skipped, and so is a verified node's LaTeX: that rendering was judged by a person once, and re-judging it mechanically would claim a check that does not exist.
+    A mechanical result is its own source and is skipped, verified or not, and so is a verified node's LaTeX: that rendering was judged by a person once, and re-judging it mechanically would claim a check that does not exist.
     """
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map, read_pages
-    from loom.refs.proposals import VERIFIED, load_results, locate_quote
+    from loom.refs.proposals import VERIFIED, load_results, locate_quote, state_of
     from loom.refs.search import find_in_page
 
     out: list[Problem] = []
@@ -45,7 +47,7 @@ def moved_anchors(root: Path, bib: dict[str, BibEntry], works: Iterable[str]) ->
         home = work_dir(root, bib[ck])
         m = read_map(home)
         for rid, r in load_results(root, ck).items():
-            if r.state != VERIFIED or r.cls == "mechanical":
+            if state_of(r) != VERIFIED or r.cls == "mechanical":
                 continue
             if r.anchor.kind == "tex" and r.anchor.path:
                 checked += 1
@@ -141,13 +143,52 @@ def guessed_maps(root: Path, bib: dict[str, BibEntry], works: Iterable[str]) -> 
     return out
 
 
-def duplicate_documents(bib: dict[str, BibEntry], works: Iterable[str] | None = None) -> list[Problem]:
-    """Entries that name one stored document by `loom-file` (`scan._duplicates`); with `works`, those touching one of them."""
-    from loom.refs.scan import _duplicates
+def duplicate_documents(root: Path, bib: dict[str, BibEntry], works: Iterable[str] | None = None) -> list[Problem]:
+    """Entries holding one document, once per work; with `works`, those touching one of them.
 
+    Two kinds, merged by work: entries naming one stored document by `loom-file` (`scan._duplicates`), and versions of a work whose stored PDFs are copies of each other by the filing rule (`scan.same_document`), which an earlier loom filed as versions.
+    """
+    from loom.refs.scan import _duplicates, _own_account, primary_of, same_document, stored_versions, versions_of
+
+    tops = primary_of(bib)
+    keys: dict[str, set[str]] = {}
+    why: dict[str, list[str]] = {}
+    for _source, named in _duplicates(bib):
+        work = tops.get(named[0], named[0])
+        keys.setdefault(work, set()).update(named)
+        why.setdefault(work, []).append(f"{len(named)} entries name one document")
+    for top in versions_of(bib):
+        stored = [(e, p) for e, p in stored_versions(root, bib, top) if p.is_file()]
+        for i, (entry, path) in enumerate(stored):
+            same, reason = same_document(path, _own_account(path)[0], stored[:i])
+            if same:
+                keys.setdefault(top, set()).update({same, entry.key})
+                why.setdefault(top, []).append(f"{entry.key} is a copy of {same}'s document: {reason}")
     wanted = set(works) if works is not None else None
     return [
-        Problem("duplicate-document", ", ".join(keys), f"{len(keys)} entries name one document", keys[0])
-        for _source, keys in _duplicates(bib)
-        if wanted is None or wanted & set(keys)
+        Problem("duplicate-document", ", ".join(sorted(ks)), "; ".join(why[work]), work)
+        for work, ks in sorted(keys.items())
+        if wanted is None or wanted & ks
     ]
+
+
+def uncited_lint(result: ScanResult, diags: Iterable[Diagnostic], works: Iterable[str]) -> list[Problem]:
+    """Works nothing cites whose digest lint finds wrong, each with its count by severity (`cli.diagnostics.Owners`).
+
+    `diags` is what `loom lint` reports, so the counts are the ones its single line for these works sums; no exit code counts them, so this is the one place they are listed by work.
+    """
+    from loom.cli.diagnostics import UNCITED, Owners
+    from loom.cli.report import counted
+
+    owners = Owners(result)
+    wanted = set(works)
+    per: dict[str, list[str]] = {}
+    for d in diags:
+        if owners.of(d) == UNCITED:
+            for ck in owners.works(d) & wanted:
+                per.setdefault(ck, []).append(d.severity)
+    out: list[Problem] = []
+    for ck, severities in sorted(per.items()):
+        said = ", ".join(counted(severities.count(s), s) for s in ("error", "warning", "info") if s in severities)
+        out.append(Problem("uncited-lint", ck, f"lint finds {said}", ck))
+    return out

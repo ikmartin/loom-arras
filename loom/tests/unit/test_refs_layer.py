@@ -957,8 +957,21 @@ def test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest(tmp_path: Path)
     )
     record_source(home, "arxiv:1607.00001", "candidate")
     ok("library", "update", ck, "--only", "extract", cwd=q)
-    head = (q / "digests" / f"{ck}.tex").read_text().splitlines()[:4]
+    head = (q / "digests" / f"{ck}.tex").read_text().splitlines()[:5]
     assert "% !LOOM extracted-from: arxiv:1607.00001" in head
+    # the entry declares no identifier, so what it cites is the work itself, which a lookup's preprint may not be (audit §5)
+    from loom.refs.identity import synthetic
+    from loom.scan.quilt import load_quilt
+    from loom.scan.scan import scan
+
+    work = str(synthetic(scan(load_quilt(q)).bib[ck]))
+    assert f"% !LOOM published-as: {work}" in head
+    row = json_of("library", ck, "--json", cwd=q)["work"]
+    assert row["digest_version"] == {"extracted_from": "arxiv:1607.00001", "cited_as": work}
+    assert (
+        "read from arxiv:1607.00001; the bibliography cites a version it does not identify"
+        in ok("library", "why", f"{ck}-thm-1", cwd=q).stdout
+    )
 
 
 def test_a_read_command_logs_to_the_session_it_is_given(tmp_path: Path) -> None:
@@ -1763,7 +1776,7 @@ def test_library_add_files_a_pdf_or_source_and_never_replaces_one(tmp_path: Path
     refused("library", "add", wrong, "--for", "Man12", cwd=q, code=2, match="does not show it is Man12")
     assert not (home / "paper.pdf").exists()
     one = _fake_pdf(tmp_path / "one.pdf", f"{title}\nCristina Manolache\nfirst copy")
-    two = _fake_pdf(tmp_path / "two.pdf", f"{title}\nCristina Manolache\nsecond copy")
+    two = _fake_pdf(tmp_path / "two.pdf", f"{title}\nCristina Manolache\nsecond copy\fan appendix")
     said = ok("library", "add", one, "--for", "Man12", cwd=q).stdout
     assert "one.pdf as Man12's PDF, with its page text" in said and (home / "pages").is_dir()  # mapped at once
     said = " ".join(ok("library", "add", two, "--for", "Man12", cwd=q).stdout.split())
@@ -1796,7 +1809,9 @@ def test_library_add_files_what_a_document_shows_plainly_and_says_why_it_skipped
     _fake_pdf(pile / "a.pdf", "Virtual pull-backs\nCristina Manolache\narXiv:0805.2065v2 [math.AG]")
     _fake_pdf(pile / "Hartshorne - 1977 - Algebraic Geometry.pdf", "Some other text entirely\nnobody at all")
     _fake_pdf(pile / "b.pdf", "Algebraic Geometry\nRobin Hartshorne\nSpringer")
-    _fake_pdf(pile / "c.pdf", "Fixed loci of involutions on separated spaces\nImogen Calloway\ndoi 10.4171/demo/14-1")
+    _fake_pdf(
+        pile / "c.pdf", "Fixed loci of involutions on separated spaces\nImogen Calloway\narXiv:1301.00001v1, a preprint"
+    )
     _fake_pdf(pile / "d.pdf", "Lecture notes on something unrelated\nA. Stranger")
     (tmp_path / "empty").mkdir()
     refused("library", "add", tmp_path / "empty", cwd=q, code=2, match="holds no PDF and no LaTeX source")
@@ -1833,19 +1848,19 @@ def test_library_drop_removes_records_by_work_session_or_state_and_never_the_dig
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=sid)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
     digest_before = (q / "digests" / "Calloway14.tex").read_text()
-    refused("library", "drop", cwd=q, code=2, match="give exactly one of --work, --session or --unverified")
-    refused("library", "drop", "--work", ck, "--unverified", cwd=q, code=2, match="give exactly one of")
-    refused("library", "drop", "--unverified", cwd=q, code=2, match="dropping needs confirmation; pass --yes")
+    refused("library", "drop", cwd=q, code=2, match="give exactly one of --work, --session or --proposed")
+    refused("library", "drop", "--work", ck, "--proposed", cwd=q, code=2, match="give exactly one of")
+    refused("library", "drop", "--proposed", cwd=q, code=2, match="dropping needs confirmation; pass --yes")
     assert len(load_results(q, ck)) == 2  # the refusal dropped nothing
 
     r = ok("library", "drop", "--session", sid, "--yes", cwd=q)
     assert r.stdout.startswith("dropped 1 record;") and list(load_results(q, ck)) == [f"{ck}-thm-4.1"]
-    ok("library", "drop", "--unverified", "--yes", cwd=q)
-    assert load_results(q, ck) == {} and len(load_results(q, "Calloway14")) == 5  # verified results stay
+    ok("library", "drop", "--proposed", "--yes", cwd=q)
+    assert load_results(q, ck) == {} and len(load_results(q, "Calloway14")) == 5  # extracted results stay
     ok("library", "drop", "--work", "Calloway14", "--yes", cwd=q)
     assert load_results(q, "Calloway14") == {}
     assert (q / "digests" / "Calloway14.tex").read_text() == digest_before
-    assert ok("library", "drop", "--unverified", "--yes", cwd=q).output.strip() == "nothing to drop"
+    assert ok("library", "drop", "--proposed", "--yes", cwd=q).output.strip() == "nothing to drop"
 
 
 def test_why_walks_relations_depth_hops_and_relate_undo_removes_one(tmp_path: Path) -> None:

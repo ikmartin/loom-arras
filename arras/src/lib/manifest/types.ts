@@ -415,8 +415,8 @@ export interface Taxon {
 }
 
 export interface ResultRecord {
-  /** `proposed` (written, not yet vouched for) or `verified` (a person compared the rendering to the source text and accepted it). */
-  state: string;
+  /** `proposed` (written, not yet vouched for), `extracted` (loom's own reading of the paper's source, which nobody has vouched for), `verified` (a person compared the rendering to the source text and accepted it) or `discarded`. */
+  state: 'proposed' | 'extracted' | 'verified' | 'discarded' | (string & {});
   level: number;
   /** `mechanical` (parsed from a source), `anchored` (read from a page, re-checkable) or `declared` (no check available). */
   class: string;
@@ -440,6 +440,8 @@ export interface ResultRecord {
   local?: string;
   taxon?: string;
   supersedes?: string;
+  /** On an extracted result whose digest was read off another version than the bibliography cites: the artifact extracted ('' when the digest does not say) and what the bibliography cites, a `work:` identifier when the entry states none. Its numbers and pages are the other version's. */
+  version?: { extracted_from: string; cited: string };
 }
 
 export interface Reference {
@@ -472,6 +474,10 @@ export interface Reference {
   results?: Record<string, ResultRecord>;
   version_mismatch: boolean;
   cited_by: string[];
+  /** On a work with several documents, its other versions: each a bibliography entry of its own, filed beside the first document, with its identifier and what the store holds for it. Absent on a work with one document. */
+  versions?: { citekey: string; work: string; artifacts: { dir: string; pdf: boolean; source: boolean } }[];
+  /** On a version, the citekey of the work it is another document of; that work's reference lists it under `versions`. */
+  version_of?: string;
   /** Identifiers a lookup proposed for a work whose entry states none. Unconfirmed: never the work's identity, which changes only when the bibliography states it. */
   candidates?: { id: string; source: string; confidence: number; strength: 'strong' | 'possible' | (string & {}); title: string }[];
 }

@@ -388,12 +388,16 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
             )
     # citations without digests
     undigested: dict[str, list[str]] = {}
+    from loom.refs.scan import other_versions
+
+    # a key whose version is digested is answered through it (`postnote_edges`)
+    answered = digest_keys | {k for k, vs in other_versions(result.bib).items() if digest_keys & set(vs)}
     for c in edges.cites:
         # a citation inside a digest is the cited paper's own bibliography, not a work the author cites: counting them
         # listed thirty "undigested" citekeys of which three were the author's, and two agents took the rest as real
         if c.file in asm.digest_files:
             continue
-        if c.postnote and c.citekey not in digest_keys:
+        if c.postnote and c.citekey not in answered:
             undigested.setdefault(c.citekey, []).append(c.src)
     for ck, srcs in sorted(undigested.items()):
         diags.append(

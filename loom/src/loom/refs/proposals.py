@@ -21,9 +21,10 @@ from loom.anchors import Anchor as Anchor  # re-exported: a result's anchor is t
 from loom.clock import stamp
 from loom.digest.extract import ABBREV
 
-# Contract §9.9. `proposed` is written, and not yet vouched for; `verified` is a person having compared the
-# rendering to the source text and accepted it. Nothing else may sit in `<citekey>.tex`.
+# Contract §9.9. `proposed` is written, and not yet vouched for; `extracted` is loom's own reading of a source;
+# `verified` is a person having compared the rendering to the source text and accepted it. Read through `state_of`.
 PROPOSED = "proposed"
+EXTRACTED = "extracted"
 VERIFIED = "verified"
 DISCARDED = "discarded"
 
@@ -71,6 +72,46 @@ class Result:
             supersedes=str(d.get("supersedes", "")),
             env=str(d.get("env", "")),
         )
+
+
+def state_of(r: Result) -> str:
+    """A result's state as read: `proposed` and `discarded` as stored, `verified` only when a person vouched for it, else `extracted`.
+
+    A mechanical result is `verified` once its origin has a `verified` or `edited` act, which only `verify_result` writes; one stored `verified` without either reads `extracted`, so no recorded file needs rewriting.
+    """
+    if r.state in (PROPOSED, DISCARDED):
+        return r.state
+    if r.cls != "mechanical" or any(o.get("act") in ("verified", "edited") for o in r.origin):
+        return VERIFIED
+    return EXTRACTED
+
+
+def verified_by(r: Result) -> str:
+    """Who last verified the result, from its origin; '' when no act names anyone."""
+    return next((str(o.get("by") or "") for o in reversed(r.origin) if o.get("act") == "verified"), "")
+
+
+def said_state(r: Result) -> str:
+    """The state as a reader is told it: `extracted by loom`, `verified by NAME`, or the state itself."""
+    state = state_of(r)
+    if state == EXTRACTED:
+        return "extracted by loom"
+    if state == VERIFIED and verified_by(r):
+        return f"verified by {verified_by(r)}"
+    return state
+
+
+def discard_refusal(r: Result, citekey: str) -> str:
+    """Why `r` cannot be discarded, or '' when it can: a verified result is in the digest, and an extracted one is redone, never discarded."""
+    state = state_of(r)
+    if state == VERIFIED:
+        return f"{r.id} is verified and in the digest; edit or remove it there, or loom library drop --work {citekey}"
+    if state == EXTRACTED:
+        return (
+            f"{r.id} is extracted by loom from {citekey}'s source, not proposed; "
+            f"loom library update {citekey} --redo extracts the digest again"
+        )
+    return ""
 
 
 def results_path(root: Path, citekey: str) -> Path:
@@ -234,6 +275,8 @@ def node_tex(r: Result, citekey: str) -> str:
 
     A result the paper states as two numbers -- "Theorem (3.2), (3.3)" -- gets the first as its id and the rest as id-shaped aliases, which contract §6.2 reads a number off. Recorded as one id, `...-thm-3.2-3.3`, it was citable by neither number: `\\cite[Theorem 3.2]` matched nothing.
     """
+    if r.cls == "mechanical":
+        return _extracted_tex(r)
     nums = numbers_of(r.number)
     taxon = r.taxon.strip().lower() or "theorem"
     if taxon == "equation":
@@ -255,6 +298,20 @@ def node_tex(r: Result, citekey: str) -> str:
     )
 
 
+def _extracted_tex(r: Result) -> str:
+    """A mechanical result as its node: the extracted node itself, its body the author's when they edited it.
+
+    `source_text` is the whole node as extraction wrote it, its `\\begin` line and the `\\label`/`\\uses` lines after it kept; an edited statement is the body alone, as `rewrite_in_digest` writes it.
+    """
+    node = r.source_text.strip().split("\n")
+    if r.statement.strip() == r.source_text.strip() or len(node) < 2:
+        return r.source_text.strip() + "\n"
+    head = 1
+    while head < len(node) - 1 and node[head].strip().startswith(("\\label{", "\\uses{")):
+        head += 1
+    return "\n".join([*node[:head], r.statement.strip(), node[-1]]) + "\n"
+
+
 def header(citekey: str, prefix: str, kind: str) -> str:
     """The provenance header a digest or a proposal file carries (contract §2)."""
     return (
@@ -274,7 +331,7 @@ def header(citekey: str, prefix: str, kind: str) -> str:
 def write_proposed_tex(root: Path, citekey: str, prefix: str, results: dict[str, Result]) -> Path | None:
     """Rewrite the work's shadow file from every result still in the `proposed` state; removes it when none is left."""
     path = proposed_path(root, citekey)
-    pending = [results[k] for k in sorted(results) if results[k].state == PROPOSED]
+    pending = [results[k] for k in sorted(results) if state_of(results[k]) == PROPOSED]
     if not pending:
         path.unlink(missing_ok=True)
         return None
@@ -379,7 +436,7 @@ def _extracted_anchor(root: Path, citekey: str, entry: Any, locator: str, statem
 def record_extracted(result: Any, citekey: str) -> int:
     """Write `results.json` entries for a digest that `loom library update` extracted; returns how many.
 
-    Mechanical extraction and an agent's reading must end in the same place, or half the digest is invisible to every surface that reads results. These carry `class: mechanical` and `state: verified` — verified by construction, since the statement *is* the source (contract §9.4), with the file and its hash as the anchor (§9.3). An entry already recorded is left alone, so this never overwrites a result a person edited.
+    Mechanical extraction and an agent's reading must end in the same place, or half the digest is invisible to every surface that reads results. These carry `class: mechanical` and `state: extracted`: loom's own reading, whose statement *is* the source (contract §9.4), with the file and its hash as the anchor (§9.3); only a person's verify makes one `verified`. An entry already recorded is left alone, so this never overwrites a result a person verified or edited.
     """
     from loom.refs.pages import sha256_of
 
@@ -412,7 +469,7 @@ def record_extracted(result: Any, citekey: str) -> int:
             anchor=_extracted_anchor(root, citekey, result.bib.get(citekey), n.title or "", text.strip(), rel, sha),
             level=3,
             cls="mechanical",
-            state=VERIFIED,
+            state=EXTRACTED,
             origin=[{"act": "extracted", "by": "loom library update", "when": stamp()}],
         )
         added += 1
@@ -483,8 +540,10 @@ def verify_result(
     prefix = result.assembly.prefix_of(citekey)
     renamed = ""
     if local or taxon:
-        if r.state != PROPOSED:
-            raise LookupError(f"{rid} is verified and may already be cited; rename it in digests/{citekey}.tex by hand")
+        if state_of(r) != PROPOSED:
+            raise LookupError(
+                f"{rid} is {state_of(r)} and may already be cited; rename it in digests/{citekey}.tex by hand"
+            )
         try:
             new_taxon, number = check_local(local or r.local, taxon)
         except ValueError as exc:
@@ -492,7 +551,7 @@ def verify_result(
         new_local = (local or r.local).strip()
         new_id = f"{prefix}-{new_local}"
         if new_id != rid and new_id in results:
-            raise LookupError(f"{new_id} is already recorded ({results[new_id].state})")
+            raise LookupError(f"{new_id} is already recorded ({state_of(results[new_id])})")
         if new_id != rid:
             # the author's correction of the name, recorded like a correction of the text: the old id is what the
             # proposer and any link knew it by
@@ -511,7 +570,7 @@ def verify_result(
         r.origin.append({"act": "edited", "by": author, "when": stamp(), "was": r.statement.strip()})
         r.statement = statement.strip()
         edited = True
-    was_proposed = r.state == PROPOSED
+    was_proposed = state_of(r) == PROPOSED
     if was_proposed:
         append_to_digest(root, citekey, prefix, r)
     elif (edited or r.cls != "mechanical") and not rewrite_in_digest(root, citekey, r):
@@ -604,10 +663,9 @@ def discard_result(result: Any, target: str, reason: str, author: str) -> str:
     root = result.quilt.root
     citekey, rid, results = find_result(result, target)
     r = results[rid]
-    if r.state == VERIFIED:
-        raise LookupError(
-            f"{rid} is verified and in the digest; edit or remove it there, or loom library drop --work {citekey}"
-        )
+    refusal = discard_refusal(r, citekey)
+    if refusal:
+        raise LookupError(refusal)
     r.state = DISCARDED
     r.origin.append({"act": "discarded", "by": author, "when": stamp()})
     save_results(root, citekey, results)

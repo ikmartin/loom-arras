@@ -185,10 +185,14 @@ def match(postnote: str, candidates: list[tuple[str, set[str]]]) -> list[str]:
     return [key for key, forms in candidates if forms & wanted]
 
 
-def postnote_edges(asm: Assembly, res: EdgeResult) -> None:
-    """Add a `postnote` edge for every `\\cite[postnote]{citekey}` that names a node of the citekey's digest; warn `loom:unmatched-postnote` when a digest exists but nothing matches."""
+def postnote_edges(asm: Assembly, res: EdgeResult, versions: dict[str, list[str]] | None = None) -> None:
+    """Add a `postnote` edge for every `\\cite[postnote]{citekey}` that names a node of the citekey's digest; warn `loom:unmatched-postnote` when a digest exists but nothing matches.
+
+    `versions` maps a citekey to its work's other versions (`refs.scan.other_versions`): a postnote the key's own digest does not match is matched against theirs, in order, and `loom:postnote-from-another-version` says which one answered.
+    """
     from loom.scan.edges import EdgeRec, _kind_of
 
+    versions = versions or {}
     by_citekey: dict[str, list[tuple[str, set[str]]]] = {}
     for key, n in asm.nodes.items():
         ck = asm.digest_files.get(n.file)
@@ -198,16 +202,34 @@ def postnote_edges(asm: Assembly, res: EdgeResult) -> None:
         if forms:
             by_citekey.setdefault(ck, []).append((key, forms))
     for c in res.cites:
-        if not c.postnote or c.citekey not in by_citekey:
+        others = [v for v in versions.get(c.citekey, []) if v in by_citekey]
+        if not c.postnote or (c.citekey not in by_citekey and not others):
             continue
         src_node = asm.nodes.get(c.src)
-        if src_node is not None and asm.digest_files.get(src_node.file) == c.citekey:
+        if src_node is not None and asm.digest_files.get(src_node.file) in {c.citekey, *versions.get(c.citekey, [])}:
             continue  # a digest node's own locator title cites the paper it digests; that is not a dependency
         kind = _kind_of(src_node.kind) if src_node else "prose"
-        hits = [k for k in match(c.postnote, by_citekey[c.citekey]) if k != c.src]
+        hits = [k for k in match(c.postnote, by_citekey.get(c.citekey, [])) if k != c.src]
+        answered = c.citekey
+        for v in others if not hits else []:
+            hits = [k for k in match(c.postnote, by_citekey[v]) if k != c.src]
+            if hits:
+                answered = v
+                break
         if hits:
             for to in hits:
                 res.edges.append(EdgeRec(c.src, to, kind, "postnote", c.file, c.line, f"{c.citekey}|{c.postnote}"))
+            if answered != c.citekey:
+                res.diagnostics.append(
+                    Diagnostic(
+                        "info",
+                        "loom:postnote-from-another-version",
+                        f"\\cite[{c.postnote}]{{{c.citekey}}} names {hits[0]}, from the digest of {answered}, "
+                        f"another version of {c.citekey}",
+                        [Location(c.file, c.line)],
+                        [c.src],
+                    )
+                )
             # Citing a result nobody has vouched for is a normal intermediate state of drafting, so this is a
             # warning: the node is in no bundle, so the compile already tells the truth (plan 0.12 §8).
             pending = [k for k in hits if asm.nodes[k].file.endswith(".proposed.tex")]
@@ -222,11 +244,12 @@ def postnote_edges(asm: Assembly, res: EdgeResult) -> None:
                     )
                 )
         else:
+            digests = [k for k in (c.citekey, *others) if k in by_citekey]
             res.diagnostics.append(
                 Diagnostic(
                     "warning",
                     "loom:unmatched-postnote",
-                    f"\\cite[{c.postnote}]{{{c.citekey}}} names no result in the digest of {c.citekey}",
+                    f"\\cite[{c.postnote}]{{{c.citekey}}} names no result in the digest of {' or of '.join(digests)}",
                     [Location(c.file, c.line)],
                     [c.src],
                 )

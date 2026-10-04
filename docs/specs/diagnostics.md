@@ -91,6 +91,7 @@ References and digests:
 
 - `loom:unmatched-postnote` (warning): a `\cite[postnote]` that matched no digest node, when a digest for the citekey exists; a digest node's own locator title is exempt (DR-66).
 - `loom:undigested-citekey` (info): a cited key with no digest; the ingest trigger.
+- `loom:postnote-from-another-version` (info): a `\cite[postnote]{key}` that `key`'s own digest does not answer, answered by the digest of another version of the work (an entry filed as another document of it, `loom-copy-of`); the edge goes to that version's node. A key counts as digested for `loom:undigested-citekey` when a version of it is (book 8.16).
 - `loom:unresolved-work` (info): a cited work whose bibliography entry states no identifier (`doi`, `eprint`, `mrnumber`, `zbl`, or a URL carrying one). It can still be digested and still enters the graph; what it cannot do is deduplicate against another corpus's copy or be fetched (DR-109).
 - `loom:unverified-locators` (warning): a digest extracted from a preprint while the bibliography cites a published version, or one that does not say what it was extracted from. Its result numbers and page references are unverified against the document a reader will open (DR-109). The commands that read a digest say the same where it is read (book 8.4, DR-313-ikmartin).
 - `loom:version-mismatch` (warning): a digest's source version differs from the bibliography's.

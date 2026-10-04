@@ -268,7 +268,9 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
             result.diagnostics.append(
                 Diagnostic("error", "loom:environment-spans-files", msg, [Location(path, src.line_of(off))])
             )
-    result.edges = find_edges(result.assembly, result.files)
+    from loom.refs.scan import other_versions
+
+    result.edges = find_edges(result.assembly, result.files, other_versions(result.bib))
     # relations are resolved beside the edges and stored beside them; nothing that walks the graph can reach one
     seen = find_relations(result.assembly, result.files)
     result.relations = seen.relations

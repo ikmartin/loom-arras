@@ -24,4 +24,4 @@ The vocabulary already names such a document: every document in `drafting-ai/` i
 
 ## Related
 
-[WQ-52](WQ-52-simultaneous-agent-copies.md), several agent documents drafted from one document; [plan 0.18.4](../plans/0.18.4-surface.md), which named the agent document and left this open.
+[WQ-52](WQ-52-simultaneous-agent-copies.md), several agent documents drafted from one document; [plan 0.18.4](../plans/0.18-the-command-line.md), which named the agent document and left this open.

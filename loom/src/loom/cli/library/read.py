@@ -230,9 +230,10 @@ def _citations(result: Any) -> dict[str, int]:
 
 
 def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, limit: int) -> Report:
-    """The ranked result search (WQ-41): ties by citekey, then id."""
-    from loom.refs.proposals import load_results
+    """The ranked result search (WQ-41): ties by citekey, then id. Each hit says its state, and a work read off another version than the one cited says so once."""
+    from loom.refs.proposals import DISCARDED, load_results, said_state, state_of
     from loom.refs.search import score_result, snippet
+    from loom.scan.digests import other_version_of
 
     root = result.quilt.root
     digested = [p.name[: -len(".results.json")] for p in sorted((root / "digests").glob("*.results.json"))]
@@ -247,7 +248,7 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
         entry = result.bib.get(ck)
         title = str(entry.fields.get("title") or "") if entry else ""
         for rid, r in results.items():
-            if r.state == "discarded":
+            if state_of(r) == DISCARDED:
                 continue
             where = _locator(r)
             score = score_result(
@@ -268,25 +269,32 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
                     "locator": where,
                     "snippet": snippet(LABEL.sub("", body or statement), terms, 44),
                     "score": score,
-                    "state": r.state,
+                    "state": state_of(r),
+                    "said": said_state(r),
                     "level": r.level,
                     "page": r.anchor.page,
                     "class": r.cls,
                     "citations": cites.get(rid, 0),
+                    "same": re.sub(r"[^0-9a-z]+", "", statement.casefold()),
                 }
             )
+    hits = _once_per_work(hits, result.bib)
     hits.sort(key=lambda h: (-h["score"], h["work"], h["id"]))
     shown = hits[:limit]
-    in_works = len({h["work"] for h in hits})
+    in_works = len({h["of"] for h in hits})
     items = [
         Item(
-            f"{h['work']}  {h['locator']}" + (" (proposed)" if h["state"] == "proposed" else "") + f"  {h['snippet']}",
+            f"{h['work']}  {h['locator']} ({h['said']})  {h['snippet']}"
+            + (f"  (also in {', '.join(h['versions'])})" if h["versions"] else ""),
             key=h["id"],
         )
         for h in shown
     ]
     q = shlex.quote(text)
     cut = len(hits) > len(shown)
+    # a digest's version is its extraction's, so it is said for a work whose extracted results were hit
+    mechanical = dict.fromkeys(h["work"] for h in shown if h["class"] == "mechanical")
+    versions = {ck: other_version_of(result.assembly, ck) for ck in mechanical}
     return Report(
         f"{counted(len(hits), 'result')} in {counted(in_works, 'work')}"
         + (f", showing {len(shown)}" if cut else "")
@@ -303,8 +311,32 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
                 else "loom library why ID says where one came from",
             )
         ),
+        notes=[f"{ck}: {v.read_from}" for ck, v in versions.items() if v is not None],
         data={"results": len(hits), "searched": searched, "of": len(result.bib), "truncated": cut, "hits": shown},
     )
+
+
+def _once_per_work(hits: list[dict[str, Any]], bib: Any) -> list[dict[str, Any]]:
+    """Each result once per work: hits on one statement in several versions of a work become the primary's hit, else the best one, naming the versions that also hold it.
+
+    `of` is the work's primary citekey; the statement is compared as `same`, its words without apparatus, which is dropped from the hit.
+    """
+    from loom.refs.scan import primary_of
+
+    tops = primary_of(bib)
+    kept: dict[tuple[str, str], dict[str, Any]] = {}
+    for h in sorted(hits, key=lambda h: (h["work"] in tops, -h["score"], h["work"], h["id"])):
+        h["of"] = tops.get(h["work"], h["work"])
+        same = h.pop("same")
+        first = kept.get((h["of"], same)) if same else None
+        if first is not None:
+            first["versions"].append(h["work"])
+            continue
+        h["versions"] = []
+        kept[(h["of"], same or h["id"])] = h
+    for h in kept.values():
+        h["versions"].sort()
+    return list(kept.values())
 
 
 def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, limit: int) -> Report:
@@ -398,12 +430,15 @@ def why_command(target: str, depth: int, as_json: bool, quilt_path: str | None) 
     if is_suggestion(target):
         _why_suggestion(result, target).emit(as_json)
         return
-    from loom.refs.proposals import edit_diff, read_events
+    from loom.refs.proposals import edit_diff, read_events, said_state, state_of
+    from loom.scan.digests import other_version_of
 
     citekey, rid, results = find_result(result, target)
     r = results[rid]
     chain = [e for e in read_events(result.quilt.root, citekey) if e.get("id") == rid or e.get("supersedes") == rid]
-    state = "transcription verified" if r.state == "verified" else r.state
+    state = said_state(r)
+    # the numbers of an extracted result are its digest's, read off whatever version was extracted
+    version = other_version_of(result.assembly, citekey) if r.cls == "mechanical" else None
     if r.anchor.kind == "pdf":
         last = f"-{r.anchor.last}" if r.anchor.last > r.anchor.page else ""
         anchor = f"p.{r.anchor.page}{last} of {citekey}'s PDF"
@@ -411,6 +446,7 @@ def why_command(target: str, depth: int, as_json: bool, quilt_path: str | None) 
         anchor = f"{r.anchor.path or citekey + ' (its source)'}"
     rows = [
         ("state", state),
+        *([("version", version.read_from)] if version is not None else []),
         ("anchor", f"{anchor} ({r.anchor.kind}, level {r.level}, {r.cls})"),
         *((str(o.get("act", "")), f"{o.get('by') or '—'}  {str(o.get('when', ''))[:19]}") for o in r.origin),
     ]
@@ -434,7 +470,14 @@ def why_command(target: str, depth: int, as_json: bool, quilt_path: str | None) 
             Group("the author's edit (- proposed, + verified)", [Item(line) for line in edit_diff(r)], limit=None),
             Group(f"relations within {hops}: asserted, not checked", related, limit=None),
         ),
-        data={"work": citekey, **r.to_json(), "events": chain, "links": [x.to_json() for x in found]},
+        data={
+            "work": citekey,
+            **r.to_json(),
+            "state": state_of(r),
+            "version": version.to_json() if version is not None else None,
+            "events": chain,
+            "links": [x.to_json() for x in found],
+        },
     ).emit(as_json)
 
 

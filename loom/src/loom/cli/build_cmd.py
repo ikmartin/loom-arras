@@ -7,7 +7,7 @@ import click
 from loom.cli._common import EXIT_CONTENT
 from loom.cli._quilt import open_quilt, quilt_option, resolve_key
 from loom.cli.diagnostics import groups as diagnostic_groups
-from loom.cli.diagnostics import tally
+from loom.cli.diagnostics import has_errors, tally
 from loom.cli.report import Progress, Report, counted
 from loom.render.build import build
 from loom.scan.scan import scan
@@ -28,7 +28,7 @@ from loom.scan.scan import scan
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def build_command(keys: tuple[str, ...], force: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
+    """Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
 
     Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
     """
@@ -39,11 +39,12 @@ def build_command(keys: tuple[str, ...], force: bool, as_json: bool, quilt_path:
         wanted = [resolve_key(result, k) for k in keys] if result is not None else None
         report = build(quilt, wanted, force=force, reuse=result, progress=progress.told)
     errors = [d for d in report.diagnostics if d.severity == "error"]
+    bad = has_errors(errors, report.result)
     done = f"published build/: {counted(len(report.rendered), 'fragment')} rendered, {len(report.skipped)} unchanged"
     Report(
-        done + (f"; {tally(errors, report.result)}" if errors else ""),
-        ok=not report.has_errors,
-        exit=EXIT_CONTENT if report.has_errors else 0,
+        done + (f"; {tally(errors, report.result)}" if bad else ""),
+        ok=not bad,
+        exit=EXIT_CONTENT if bad else 0,
         groups=diagnostic_groups(errors, report.result, cited_next="loom lint --json"),
         data={
             "rendered": len(report.rendered),

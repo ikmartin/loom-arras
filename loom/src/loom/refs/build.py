@@ -39,6 +39,8 @@ class WorkState:
 
     citekey: str
     cited_by: int = 0
+    #: The work's primary citekey when this entry is another document of it (`refs.scan.versions_of`); '' for a primary.
+    version_of: str = ""
     pages: int = 0
     sections: int = 0
     declared: bool = False  # the entry states an arXiv id, the one kind of identifier a source is fetched on
@@ -559,11 +561,13 @@ def main_tex(root: Path, entry: BibEntry) -> Path | None:
 
 def survey(result: ScanResult) -> list[WorkState]:
     """What the quilt holds for every cited work, before anything is fetched; reads disk only."""
+    from loom.refs.scan import primary_of
     from loom.refs.unreadable import declarations
 
     root = result.quilt.root
     counts = cited_counts(result)
     declared_unreadable = declarations(root, "unreadable")
+    tops = primary_of(result.bib)
     out: list[WorkState] = []
     for ck in sorted(set(result.bib) | set(counts)):
         entry = result.bib.get(ck)
@@ -578,6 +582,7 @@ def survey(result: ScanResult) -> list[WorkState]:
             WorkState(
                 citekey=ck,
                 cited_by=counts.get(ck, 0),
+                version_of=tops.get(ck, ""),
                 pages=m.pages if m else 0,
                 sections=len(m.sections) if m else 0,
                 results=sum(1 for r in load_results(root, ck).values() if r.cls == "mechanical"),
@@ -661,14 +666,23 @@ def _fetch_step(
 
 
 def _extract_step(
-    result: ScanResult, works: list[WorkState], force: bool, progress: OnProgress | None = None, *, compile: bool = True
+    result: ScanResult,
+    works: list[WorkState],
+    force: bool,
+    progress: OnProgress | None = None,
+    *,
+    compile: bool = True,
+    named: frozenset[str] = frozenset(),
 ) -> list[str]:
-    """Extract a digest for every work whose source landed and whose digest is absent, or every one with a source under `force`."""
+    """Extract a digest for every work whose source landed and whose digest is absent, or every one with a source under `force`.
+
+    A version (`WorkState.version_of`) is extracted only when the author's text cites it or the run `named` it, so a second document of a work brings no second digest.
+    """
     from loom.digest.extract import extract_digest
 
     root = result.quilt.root
     written: list[str] = []
-    for w in _each(progress, "extract", works):
+    for w in _each(progress, "extract", [w for w in works if _extractable(w, named)]):
         if w.digest and not force:
             continue
         if not w.source:
@@ -691,24 +705,28 @@ def _extract_step(
     return written
 
 
+def _extractable(w: WorkState, named: frozenset[str]) -> bool:
+    """Whether extraction may read `w`: a primary always, a version only when cited or named."""
+    return not w.version_of or bool(w.cited_by) or w.citekey in named
+
+
 def _restore_verified(result: ScanResult, citekey: str, text: str) -> tuple[list[str], list[str]]:
     """Put back every result the author verified that a fresh extraction of `citekey` left out, and keep the author's edits.
 
-    The digest file is rewritten whole by an extraction, and a node `library verify` added to it, or an edit the author made to an extracted one, is the author's: losing it while `results.json` still says `verified` was the CLI study's defect 3. A result the new extraction states differently from the author's record is put back as the author left it and listed, so the author can look again.
+    The digest file is rewritten whole by an extraction, and a node `library verify` added to it, or an edit the author made to an extracted one, is the author's: losing it while `results.json` still says `verified` was the CLI study's defect 3. A mechanical result a person verified is put back as extracted, with their edit. A result the new extraction states differently from the author's record is put back as the author left it and listed, so the author can look again.
     """
     import re
 
-    from loom.refs.proposals import append_to_digest, load_results, rewrite_in_digest
+    from loom.refs.proposals import VERIFIED, append_to_digest, load_results, rewrite_in_digest, state_of
 
     restored: list[str] = []
     contradicted: list[str] = []
     for r in load_results(result.quilt.root, citekey).values():
-        if r.state != "verified":
+        # an extracted result is the extractor's own reading, which a fresh extraction is entitled to replace
+        if state_of(r) != VERIFIED:
             continue
         edited = any(act.get("act") == "edited" for act in r.origin)
         present = re.search(r"\\label\{" + re.escape(r.id) + r"\}", text) is not None
-        if r.cls == "mechanical" and not edited:
-            continue  # the extractor's own reading, which a fresh extraction is entitled to replace
         if present:
             if edited and rewrite_in_digest(result.quilt.root, citekey, r):
                 restored.append(r.id)
@@ -816,7 +834,7 @@ def build_refs(
     if "fetch" in steps:
         _fetch_step(result, works, report, candidates, progress)
     if "extract" in steps:
-        report.entered = _extract_step(result, works, force, progress, compile=compile)
+        report.entered = _extract_step(result, works, force, progress, compile=compile, named=frozenset(only))
         report.recorded = _record_step(result, works, report.entered)
     # Counted after extraction, not by the survey that opened the run: `survey` reads results.json before this run has
     # written it, and a count taken then called every one of sixteen fresh digests "too thin to trust".
@@ -836,6 +854,7 @@ def planned(
     steps: tuple[str, ...] = WORK_STEPS,
     redo: bool = False,
     candidates: bool = True,
+    named: frozenset[str] = frozenset(),
 ) -> dict[str, list[str]]:
     """The citekeys each step of a run would act on, read from disk alone: a dry run's answer, which asks no service and writes nothing.
 
@@ -858,7 +877,7 @@ def planned(
             and (w.declared or (w.candidate and candidates) or (not w.pdf and pdf_url(result.bib[w.citekey])))
         ]
     if "extract" in steps:
-        out["extract"] = [w.citekey for w in works if w.source and (redo or not w.digest)]
+        out["extract"] = [w.citekey for w in works if w.source and (redo or not w.digest) and _extractable(w, named)]
     if "map" in steps:
         out["map"] = []
         for w in works:

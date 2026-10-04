@@ -39,10 +39,6 @@ class BuildReport:
     skipped: list[str] = field(default_factory=list)
     diagnostics: list[Diagnostic] = field(default_factory=list)
 
-    @property
-    def has_errors(self) -> bool:
-        return any(d.severity == "error" for d in self.diagnostics)
-
 
 def _attach_reports(root: Path, manifest: dict[str, Any], fragments: dict[str, str], files: dict[str, Any]) -> None:
     """Render every run's notes files as report fragments and index their blocks on the thread's pipeline.

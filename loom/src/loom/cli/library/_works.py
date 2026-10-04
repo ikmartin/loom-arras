@@ -98,9 +98,10 @@ def citekey_of_id(result: ScanResult, rid: str) -> str | None:
 def works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
     """Citekeys for each argument: an exact citekey, a result id's work, else every entry whose citekey, author or title contains it.
 
-    An argument that matches nothing is refused by name rather than answered with an empty table, which read as "nothing is known about that work".
+    An argument that matches nothing is refused by name rather than answered with an empty table, which read as "nothing is known about that work". A fragment matching only a work and its versions names the work, and says so on stderr.
     """
     from loom.refs.resolve import _fold
+    from loom.refs.scan import one_work_of, versions_of
 
     out: set[str] = set()
     for needle in needles:
@@ -124,6 +125,12 @@ def works(result: ScanResult, needles: tuple[str, ...]) -> set[str]:
         }
         if not hits:
             raise NotFoundError("work", f"{needle!r} names no work: no citekey, result id, author or title matches it")
+        top = one_work_of(sorted(hits), result.bib) if len(hits) > 1 else ""
+        if top:
+            others = versions_of(result.bib)[top]
+            are = "is another document" if len(others) == 1 else "are other documents"
+            click.echo(f"{needle!r} names {top}; {', '.join(others)} {are} of it", err=True)
+            hits = {top}
         out |= hits
     return out
 

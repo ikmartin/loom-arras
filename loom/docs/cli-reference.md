@@ -478,7 +478,7 @@ A WORK is a citekey, a fragment of one or of its author or title, or one of its 
 
 File PDFs and LaTeX sources in loom's store, each under the work it shows it is.
 
-A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), and a PDF's page text is written at once.
+A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
 
 | option | description |
 |---|---|
@@ -495,7 +495,7 @@ A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document,
 
 Check the library for what has gone wrong, each problem with its fix.
 
-Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries naming one document. Exit 1 when anything is wrong.
+Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.
 
 | option | description |
 |---|---|
@@ -523,7 +523,7 @@ Discard a proposed result, or reject a citation suggestion, with a reason.
 
 `loom library drop [OPTIONS]`
 
-Remove recorded results: one work's, one session's proposals, or every unverified one.
+Remove recorded results: one work's, one session's proposals, or every one still proposed.
 
 Dropping costs re-reading, never correctness. A verified node already written into digests/<citekey>.tex is the author's file and is never touched; only the records and the proposals go.
 
@@ -531,7 +531,7 @@ Dropping costs re-reading, never correctness. A verified node already written in
 |---|---|
 | `--work` `WORK` | Everything recorded for this work. |
 | `--session` `SESSION` | Everything proposed in this session. |
-| `--unverified` | Every result not yet verified, in every work. |
+| `--proposed` | Every result still proposed, in every work. |
 | `--yes` | Do not ask. |
 | `--dry-run` | Say what would be dropped; drop nothing. |
 | `--json` | Print the report as one JSON object (book 12.9). |
@@ -1007,7 +1007,7 @@ Build the site and the PDFs, serve them, and exchange sources with a workspace.
 
 `loom build [OPTIONS]`
 
-Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
+Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
 
 Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
 

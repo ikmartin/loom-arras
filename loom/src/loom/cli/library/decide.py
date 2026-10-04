@@ -177,17 +177,16 @@ def discard(
     `loom library propose` refuses a discarded result and returns the reason, so the agent that proposed it learns why in the turn it fails. A rejected suggestion is resolved with the reason on the resolve event and records nothing. Nothing is deleted: the log keeps it and `loom library why` reports it.
     """
     from loom.refs.notes import decide_citation
-    from loom.refs.proposals import VERIFIED, discard_result, load_results
+    from loom.refs.proposals import discard_refusal, discard_result, load_results
 
     refuse_under_agent("loom library discard", "Discard in the digest view or in your own terminal.", as_name)
     result = open_scan(quilt_path)
     root = result.quilt.root
     targets = _targets(result, ids, "reject")
     for kind, tid, ck in targets:
-        if kind == "result" and load_results(root, ck)[tid].state == VERIFIED:
-            raise ContentError(
-                f"{tid} is verified and in the digest; edit or remove it there, or loom library drop --work {ck}"
-            )
+        refusal = discard_refusal(load_results(root, ck)[tid], ck) if kind == "result" else ""
+        if refusal:
+            raise ContentError(refusal)
     who = _who(root, as_name)
     items = [
         Item(

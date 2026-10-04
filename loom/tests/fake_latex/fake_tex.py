@@ -228,7 +228,8 @@ def run_bib(args: list[str]) -> int:
 
 
 def read_fake_pdf(path: Path) -> tuple[str, int]:
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    # split on newlines alone: a form feed in the body is a page break, which pdftotext writes as one
+    lines = path.read_text(encoding="utf-8", errors="replace").removesuffix("\n").split("\n")
     pages = 1
     body: list[str] = []
     for line in lines:

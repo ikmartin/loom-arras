@@ -48,26 +48,45 @@ class OtherVersion:
     """A digest whose numbers belong to another version than the one the bibliography cites (DR-109, DR-313-ikmartin)."""
 
     extracted_from: str  # '' when the digest does not say
-    cited_as: str
+    cited_as: str  # a published identifier, or the `work:` hash of an entry that states none
+
+    @property
+    def cited(self) -> str:
+        """What the bibliography cites, as a reader is told it: the identifier, unless it is only loom's hash of the entry."""
+        from loom.refs.identity import parse
+
+        w = parse(self.cited_as)
+        return self.cited_as if w is not None and w.published else "a version it does not identify"
 
     @property
     def why(self) -> str:
         if not self.extracted_from:
             return "does not say what it was extracted from"
-        return f"was extracted from {self.extracted_from} but the bibliography cites {self.cited_as}"
+        return f"was extracted from {self.extracted_from} but the bibliography cites {self.cited}"
+
+    @property
+    def read_from(self) -> str:
+        """The line `library why` and search give a result of this digest."""
+        if not self.extracted_from:
+            return "the digest does not say what it was read from"
+        return f"read from {self.extracted_from}; the bibliography cites {self.cited}"
+
+    def to_json(self) -> dict[str, str]:
+        """The manifest's per-result `version`."""
+        return {"extracted_from": self.extracted_from, "cited": self.cited_as}
 
 
 def other_version(asm: Assembly, file: str) -> OtherVersion | None:
     """Whether a digest's result numbers and pages are unverified against the version a reader will open.
 
-    True of a digest extracted from a preprint whose bibliography entry cites the published work, and of an extracted digest that does not say what it was extracted from. `loom:unverified-locators` reports it, and every command that reads a digest says it where it is read.
+    True of a digest extracted from a preprint whose bibliography entry cites the published work or, stating no identifier, the work itself (a preprint a lookup found), and of an extracted digest that does not say what it was extracted from. `loom:unverified-locators` reports it, and every command that reads a digest says it where it is read.
     """
     from loom.refs.identity import parse
 
     header = digest_header(asm, file)
     got, cites_as = extracted_from(header), published_as(header)
     a, b = parse(got), parse(cites_as)
-    if a is not None and b is not None and a.preprint and b.published:
+    if a is not None and b is not None and a.preprint and not b.preprint:
         return OtherVersion(got, cites_as)
     if not got and header.get("method", "") == "extract":
         return OtherVersion("", cites_as)
@@ -76,7 +95,7 @@ def other_version(asm: Assembly, file: str) -> OtherVersion | None:
 
 def other_version_of(asm: Assembly, citekey: str) -> OtherVersion | None:
     """`other_version` of the digest of `citekey`, or None when it has none."""
-    file = next((f for f, ck in asm.digest_files.items() if ck == citekey), None)
+    file = next((f for f, ck in asm.digest_files.items() if ck == citekey and not f.endswith(".proposed.tex")), None)
     return other_version(asm, file) if file is not None else None
 
 

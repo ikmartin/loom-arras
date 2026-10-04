@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING
 
 from loom.clock import stamp
 from loom.refs.fetch import FetchRefused, work_dir
-from loom.refs.identity import WorkId, primary
-from loom.refs.ingest import filename_title, identifiers_in, identify_document
+from loom.refs.identity import WorkId, declared, primary
+from loom.refs.ingest import TOP_LINES, _title_span, filename_title, identifiers_in, identify_document
 from loom.refs.pages import STORAGE, page_texts, sha256_of, storage_root, write_map
 from loom.refs.unreadable import declarations
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
@@ -70,6 +70,8 @@ class ScanReport:
     #: (seed file, why) for a document that resembles an entry without showing plainly that it is that entry's.
     unmatched: list[tuple[str, str]] = field(default_factory=list)
     siblings: list[tuple[str, str]] = field(default_factory=list)  # (new key, the work it is a second document of)
+    #: (seed file, the version it is a copy of, why): recorded in the ledger and not filed.
+    copies: list[tuple[str, str, str]] = field(default_factory=list)
     unmapped: list[tuple[str, str]] = field(default_factory=list)  # (file, why no page text was written)
     adopted: list[tuple[str, str]] = field(default_factory=list)  # (new key, the store directory nothing named)
     forgotten: int = 0  # stored documents a tombstone says not to offer again
@@ -148,6 +150,10 @@ class ScanReport:
                 [Item(f"a second document for {old}", key=new_key) for new_key, old in sorted(self.siblings)],
             ),
             Group(
+                "copies of a filed document, recorded and not filed again",
+                [Item(f"{name}: {why}", key=of) for name, of, why in sorted(self.copies)],
+            ),
+            Group(
                 "entries for stored documents",
                 [
                     Item("a document in loom's store, which the bibliography no longer named", key=key)
@@ -180,6 +186,7 @@ class ScanReport:
                 "derived": list(self.derived),
                 "unnamed": list(self.unnamed),
                 "siblings": [{"key": a, "of": b} for a, b in self.siblings],
+                "copies": [{"file": a, "of": b, "why": c} for a, b, c in self.copies],
                 "unmapped": [{"file": a, "why": b} for a, b in self.unmapped],
                 "unmatched": [{"file": a, "why": b} for a, b in self.unmatched],
                 "adopted": [{"key": a, "home": b} for a, b in self.adopted],
@@ -404,6 +411,89 @@ def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
     return report
 
 
+def versions_of(bib: dict[str, BibEntry]) -> dict[str, list[str]]:
+    """Each work with versions: its primary citekey and the sibling entries filed as other documents of it, by `loom-copy-of` (book 8.16).
+
+    A version of a version belongs to the first one's primary; a sibling whose primary is no longer in the bibliography, or a cycle, stands alone.
+    """
+    out: dict[str, list[str]] = {}
+    for key in sorted(bib):
+        top, seen = key, {key}
+        while (up := str(bib[top].fields.get("loom-copy-of") or "").strip()) in bib and up not in seen:
+            top = up
+            seen.add(up)
+        if top != key and str(bib[top].fields.get("loom-copy-of") or "").strip() not in bib:
+            out.setdefault(top, []).append(key)
+    return out
+
+
+def primary_of(bib: dict[str, BibEntry]) -> dict[str, str]:
+    """Each version's primary citekey, the inverse of `versions_of`; a key absent is its own work's primary."""
+    return {v: top for top, vs in versions_of(bib).items() for v in vs}
+
+
+def other_versions(bib: dict[str, BibEntry]) -> dict[str, list[str]]:
+    """Each key of a work with versions, mapped to the work's other keys, primary first: where a citation of one finds what the others hold."""
+    out: dict[str, list[str]] = {}
+    for top, vs in versions_of(bib).items():
+        work = [top, *vs]
+        for k in work:
+            out[k] = [o for o in work if o != k]
+    return out
+
+
+def one_work_of(keys: list[str], bib: dict[str, BibEntry]) -> str:
+    """The primary of the one work `keys` all belong to, or '' when they name more than one; how a document naming a work and its versions equally is filed."""
+    tops = {primary_of(bib).get(k, k) for k in keys}
+    return tops.pop() if len(tops) == 1 else ""
+
+
+def _held(pdf: Path, title: str) -> tuple[str, int] | None:
+    """(byline, page count) of a PDF whose first page sets `title` whole; None when it does not, or cannot be read."""
+    from loom.refs.resolve import _fold
+
+    try:
+        pages = page_texts(pdf)
+    except Exception:  # noqa: BLE001 -- an unreadable document matches nothing
+        return None
+    lines = [_fold(" ".join(x.split())) for x in (pages[0] if pages else "").splitlines()[:TOP_LINES] if x.strip()]
+    span = _title_span(lines, title) if title else None
+    if span is None:
+        return None
+    return (lines[span[1]] if span[1] < len(lines) else ""), len(pages)
+
+
+def same_document(pdf: Path, wid: WorkId | None, stored: list[tuple[BibEntry, Path]]) -> tuple[str, str]:
+    """(citekey, why) when `pdf` is a copy of a version's document, else ('', ''): the filing rule of book 8.16.
+
+    A copy states a version's own identifier, or sets the same title over the same byline on as many pages as that version's stored PDF. `stored` is each version of one work with where its PDF is, primary first; `wid` is what `pdf` states (`_own_account`).
+    """
+    from loom.refs.resolve import _fold
+
+    if wid is not None:
+        for entry, _ in stored:
+            if any(w.scheme == wid.scheme and w.value.lower() == wid.value.lower() for w in declared(entry)):
+                return entry.key, f"it states {wid}, {entry.key}'s own identifier"
+    for entry, path in stored:
+        title = _fold(str(entry.fields.get("title") or ""))
+        theirs = _held(path, title) if path.is_file() else None
+        if theirs is not None and _held(pdf, title) == theirs:
+            n = theirs[1]
+            return entry.key, f"same title, authors and {n} page{'' if n == 1 else 's'}"
+    return "", ""
+
+
+def stored_versions(root: Path, bib: dict[str, BibEntry], top: str) -> list[tuple[BibEntry, Path]]:
+    """Every version of the work `top` with where its PDF is stored, primary first; a version with no home is left out."""
+    out = []
+    for key in [top, *versions_of(bib).get(top, [])]:
+        try:
+            out.append((bib[key], work_dir(root, bib[key]) / "paper.pdf"))
+        except FetchRefused:
+            continue
+    return out
+
+
 def _duplicates(bib: dict[str, BibEntry]) -> list[tuple[str, list[str]]]:
     """Entries that name one stored document, which earlier scans offered again and again; reported, never removed, since the file is the author's to edit."""
     by_home: dict[str, list[str]] = {}
@@ -562,7 +652,7 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
         wid = primary(entry)
         if wid is not None:
             claimed.add(wid.path)
-    ledger = {rec.get("to", ""): rec for rec in load_ledger(quilt.root).values()}
+    ledger = {rec.get("to", ""): rec for rec in load_ledger(quilt.root).values() if not rec.get("duplicate-of")}
     # What the author has deliberately deleted the entry for. Without this the offer is loom undoing their decision on every scan, which is the whole reason `loom library ignore` sets a document aside.
     forgotten = declarations(quilt.root, "forget")
     taken = set(bib)
@@ -611,7 +701,7 @@ def copy_documents(
 ) -> list[Candidate]:
     """Copy every document in the seed space the store has not seen before, and offer an entry for one the bibliography does not have.
 
-    Copy-once is by content hash and by the ledger, never by what is on disk: a document the author has since deleted from `refs/` is not copied again, and neither is one they renamed. Where it goes is decided by what it says about itself -- its own identifier, the entry it shows plainly it is (`identify_document`, the rule `library add` files on), or its hash -- and a second document for a work that already has one is filed beside it under a sibling key rather than over it, because a preprint often carries results the published version drops (DR-192).
+    Copy-once is by content hash and by the ledger, never by what is on disk: a document the author has since deleted from `refs/` is not copied again, and neither is one they renamed. Where it goes is decided by what it says about itself -- its own identifier, the entry it shows plainly it is (`identify_document`, the rule `library add` files on), or its hash. A second document for a work that already has one is a copy when `same_document` says so, recorded in the ledger and not filed; otherwise it is another version, filed beside the first under a sibling key rather than over it, because a preprint often carries results the published version drops (DR-192).
     """
     root = quilt.root
     seed = root / SEED
@@ -631,7 +721,7 @@ def copy_documents(
         # filed against an entry only on the rule `library add` files on; anything weaker is its own document
         identity = identify_document(pdf, bib)
         best = identity.best()
-        citekey = best[0].citekey if len(best) == 1 else ""
+        citekey = best[0].citekey if len(best) == 1 else one_work_of([m.citekey for m in best], bib) if best else ""
         if not citekey:
             why = f"it names {' and '.join(m.citekey for m in best)} equally" if best else identity.weak
             if why and not why.startswith("nothing in the bibliography"):
@@ -650,11 +740,19 @@ def copy_documents(
         if claimed is not None and not (claimed / "paper.pdf").is_file():
             home = claimed  # the work the bibliography already names, with nothing filed for it yet
         elif claimed is not None and entry is not None:
-            home = own  # a second document for that work: beside the first, under a sibling key
-            sibling = _free_key(citekey, taken)
+            top = primary_of(bib).get(citekey, citekey)
+            same, why = same_document(pdf, wid, stored_versions(root, bib, top))
+            if same:
+                report.copies.append((rel, same, why))
+                if write:
+                    to = work_dir(root, bib[same]).relative_to(root).as_posix()
+                    record_copy(root, sha, rel, to, {"duplicate-of": same})
+                continue
+            home = own  # another version of that work: beside the first, under a sibling key
+            sibling = _free_key(top, taken)
             taken.add(sibling)
-            offers.append(_sibling(pdf, wid, entry, sibling, source=rel, home=own.relative_to(storage_root(root))))
-            report.siblings.append((sibling, citekey))
+            offers.append(_sibling(pdf, wid, bib[top], sibling, source=rel, home=own.relative_to(storage_root(root))))
+            report.siblings.append((sibling, top))
         else:
             home = own  # nothing in the bibliography claims it
             key = _derived_key(pdf, sha, taken)
@@ -702,6 +800,8 @@ class Filing:
     sibling: str = ""
     #: Why nothing is filed: the same document is in the store already; '' when it is filed.
     already: str = ""
+    #: The version this document is a copy of (`same_document`), which the ledger records; '' otherwise.
+    copy_of: str = ""
     #: The refusal `--force` overrode, recorded in the ledger with who forced it.
     forced: str = ""
     #: Why no page text was written for a filed PDF.
@@ -713,7 +813,7 @@ def plan_filing(
 ) -> Candidate | None:
     """Decide where `f` lands, filling in its home, sibling or `already`; returns the sibling entry to append, or None.
 
-    Never over a document: a work that holds one gets this one beside it under `<key>A`, and the same bytes already in the store, or given twice in one run, are filed once. Reads only; `file_document` writes.
+    Never over a document: a copy of a version's document (`same_document`) is not filed and `record_copy_of` records it, another version goes beside the first under `<key>A`, and the same bytes already in the store, or given twice in one run, are filed once. Reads only; `file_document` writes.
     """
     root = quilt.root
     store = storage_root(root)
@@ -723,7 +823,12 @@ def plan_filing(
     seen[f.sha] = f.path.name
     ledger = load_ledger(root)
     if f.kind == "pdf" and f.sha in ledger:
-        f.already = f"already in loom's store, filed from {ledger[f.sha].get('from', 'elsewhere')}"
+        rec = ledger[f.sha]
+        f.already = (
+            f"already recorded as a copy of {rec['duplicate-of']}'s document, from {rec.get('from', 'elsewhere')}"
+            if rec.get("duplicate-of")
+            else f"already in loom's store, filed from {rec.get('from', 'elsewhere')}"
+        )
         return None
     entry = bib[f.citekey]
     claimed = work_dir(root, entry)
@@ -735,12 +840,24 @@ def plan_filing(
     if f.kind == "pdf" and sha256_of(first) == f.sha:
         f.already = f"already filed for {f.citekey}"
         return None
+    top = primary_of(bib).get(f.citekey, f.citekey)
+    wid = _own_account(f.path)[0] if f.kind == "pdf" else None
+    if f.kind == "pdf":
+        same, why = same_document(f.path, wid, stored_versions(root, bib, top))
+        if same:
+            f.already, f.copy_of = f"the same document as {same}'s: {why}", same
+            return None
     own = store / "file" / f.sha[:16]
     f.home = own
-    f.sibling = _free_key(f.citekey, taken)
+    f.sibling = _free_key(top, taken)
     taken.add(f.sibling)
-    wid = _own_account(f.path)[0] if f.kind == "pdf" else None
-    return _sibling(f.path, wid, entry, f.sibling, source=f.source, home=own.relative_to(store))
+    return _sibling(f.path, wid, bib[top], f.sibling, source=f.source, home=own.relative_to(store))
+
+
+def record_copy_of(quilt: Quilt, bib: dict[str, BibEntry], f: Filing) -> None:
+    """Record in the copy ledger that `f` is a copy of `f.copy_of`'s document, so it is never offered again and nothing is filed."""
+    to = work_dir(quilt.root, bib[f.copy_of]).relative_to(quilt.root).as_posix()
+    record_copy(quilt.root, f.sha, f.source, to, {"duplicate-of": f.copy_of})
 
 
 def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:

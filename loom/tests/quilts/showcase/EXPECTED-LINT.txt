@@ -1,5 +1,6 @@
 error duplicate-id
 info loom:detached-annotation
+info loom:postnote-from-another-version
 info loom:superseded-file
 info loom:unresolved-work
 info unreachable

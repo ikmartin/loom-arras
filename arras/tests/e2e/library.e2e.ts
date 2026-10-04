@@ -37,7 +37,7 @@ test.describe('the ledger', () => {
 		});
 		await page.goto('/library');
 		const filters = page.getByRole('group', { name: 'which works' }).getByRole('button');
-		await expect(filters).toHaveText([/^all/, /^needs work/, /^proposed/]);
+		await expect(filters).toHaveText([/^all/, /^needs work/, /^proposed/, /^verified/, /^extracted/]);
 		await page.getByTestId('show-needs-work').click();
 		await expect(page).toHaveURL(/show=needs-work/);
 		const rows = page.getByTestId('library-works').locator('tbody tr');
@@ -57,6 +57,61 @@ test.describe('the ledger', () => {
 		await expect(page).toHaveURL(/show=proposed/);
 		await expect(page.getByTestId('pending-Kre99')).toHaveText('1');
 		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(1);
+	});
+
+	test('the ledger says what loom extracted, what a person verified and what an agent proposed', async ({ page }) => {
+		await serve(page, (m) => {
+			const base = { level: 3, class: 'mechanical', page: 4, artifact: 'x', origin: [] };
+			m.references.Kre99.results = {
+				'Kre99-thm-2.1': { ...base, state: 'verified', origin: [{ act: 'verified', by: 'A. Author', when: '2026-10-04T00:00:00Z' }] },
+				'Kre99-x': { ...base, state: 'extracted' }
+			};
+			m.references.Man12.results = { 'Man12-y': { ...base, state: 'extracted' } };
+		});
+		await page.goto('/library');
+		const head = page.getByTestId('library-works').locator('thead th');
+		await expect(head).toContainText(['verified', 'proposed']);
+		await expect(head.filter({ hasText: 'unvouched' })).toHaveCount(0);
+		await expect(page.getByTestId('verified-Kre99')).toHaveText('1');
+		await expect(page.getByTestId('verified-Man12')).toHaveText('—');
+		const rows = page.getByTestId('library-works').locator('tbody tr');
+		await page.getByTestId('show-verified').click();
+		await expect(page).toHaveURL(/show=verified/);
+		await expect(rows).toHaveCount(1);
+		await page.getByTestId('show-extracted').click();
+		await expect(rows).toHaveCount(2);
+		// nothing extracted or verified waits on the author
+		await page.getByTestId('show-proposed').click();
+		await expect(rows).toHaveCount(0);
+	});
+
+	test("a work's versions are one row, and its Info links each to its own page", async ({ page }) => {
+		await serve(page, (m) => {
+			const base = { level: 3, class: 'mechanical', page: 4, artifact: 'x', origin: [] };
+			m.references.Kre99A = {
+				...structuredClone(m.references.Kre99),
+				citekey: 'Kre99A',
+				version_of: 'Kre99',
+				results: { 'Kre99A-x': { ...base, state: 'extracted' } }
+			};
+			m.references.Kre99.versions = [{ citekey: 'Kre99A', work: 'arXiv:math/9810166v1', artifacts: { dir: 'x', pdf: false, source: false } }];
+		});
+		await page.goto('/library');
+		await expect(page.getByTestId('library-works').locator('tbody tr')).toHaveCount(Object.keys(manifest.references).length);
+		await expect(page.getByTestId('ledger-Kre99A')).toHaveCount(0);
+		await expect(page.getByTestId('versions-Kre99')).toContainText('Kre99A');
+		await page.goto('/library/Kre99');
+		await page.getByTestId('tab-info').click();
+		const versions = page.getByTestId('work-versions');
+		await expect(versions).toContainText('Kre99A (arXiv:math/9810166v1)');
+		const link = versions.getByRole('link', { name: 'Kre99A' });
+		await expect(link).toHaveAttribute('href', '/library/Kre99A');
+		// a link inside a work opens beside it, as every link in a pane does
+		await link.click();
+		await expect(page).toHaveURL(/beside=%2Flibrary%2FKre99A/);
+		await page.goto('/library/Kre99A');
+		await page.getByTestId('tab-info').click();
+		await expect(page.getByTestId('work-version-of')).toContainText('Kre99');
 	});
 
 	test('the panel lists every work, however many', async ({ page }) => {
@@ -130,6 +185,28 @@ test.describe('a work', () => {
 		await page.goto('/library/Kre99');
 		await expect(page.getByTestId('pdf-doc')).toBeVisible();
 		await expect(page.getByTestId('tab-digest')).toHaveCount(0);
+	});
+
+	test("a work's Info says who stands behind its results, and when they were read off another version", async ({ page }) => {
+		await serve(page, (m) => {
+			const base = { level: 3, class: 'mechanical', page: 4, artifact: 'x', origin: [] };
+			const version = { extracted_from: 'arXiv:math/9810166v2', cited: 'doi:10.1007/s002220050351' };
+			m.references.Kre99.results = {
+				'Kre99-a': { ...base, state: 'extracted', version },
+				'Kre99-b': { ...base, state: 'extracted', version },
+				'Kre99-c': { ...base, state: 'verified', version },
+				'Kre99-d': { ...base, class: 'anchored', state: 'proposed' }
+			};
+		});
+		await page.goto('/library/Kre99');
+		await page.getByTestId('tab-info').click();
+		await expect(page.getByTestId('result-counts')).toHaveText('Results: 2 extracted by loom, 1 verified by you, 1 proposed.');
+		await expect(page.getByTestId('read-from')).toHaveText('Read from arXiv:math/9810166v2; the bibliography cites the published version.');
+		// a work read off the version it cites says nothing about versions
+		await page.goto('/library/Man12');
+		await page.getByTestId('tab-info').click();
+		await expect(page.getByTestId('work-info')).toBeVisible();
+		await expect(page.getByTestId('read-from')).toHaveCount(0);
 	});
 
 	test('a fetched PDF is offered only when the manifest says it is there', async ({ page }) => {

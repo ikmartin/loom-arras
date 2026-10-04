@@ -70,6 +70,7 @@ def propose_command(
     from loom.cli._common import agent_marker
     from loom.refs.pages import read_map, read_pages
     from loom.refs.proposals import (
+        DISCARDED,
         PROPOSED,
         Anchor,
         Result,
@@ -80,6 +81,7 @@ def propose_command(
         numbers_of,
         quilt_env,
         save_results,
+        state_of,
         write_proposed_tex,
     )
     from loom.refs.search import find_in_page, words_not_on_page
@@ -144,7 +146,7 @@ def propose_command(
             f"\\begin{{{taxon}}}, the locator and the \\label itself. Pass the text between them."
         )
     results = load_results(root, citekey)
-    if level != "1" and not any(r.level == 1 and r.state != "discarded" for r in results.values()):
+    if level != "1" and not any(r.level == 1 and state_of(r) != DISCARDED for r in results.values()):
         raise ContentError(
             f"{citekey} has no level-1 result yet. Read the abstract and introduction and propose the main results "
             f"first (--level 1); everything deeper is cheaper once they are there."
@@ -157,18 +159,18 @@ def propose_command(
         prior = results[rid]
         mine = (
             bool(run_dir)
-            and prior.state == "proposed"
+            and state_of(prior) == PROPOSED
             and any(o.get("act") == "proposed" and Path(str(o.get("by", ""))).name == run_dir for o in prior.origin)
         )
         if supersedes and supersedes == rid and mine:
             # A run correcting its own proposal before anyone has looked at it, which touches nothing the author has decided: the record is still `proposed`. Without it a mistake could only be re-proposed under a new id, and eleven results became twenty-two to review.
             results.pop(rid)
             withdrawn = True
-        elif supersedes and supersedes == rid and prior.state == "discarded":
+        elif supersedes and supersedes == rid and state_of(prior) == DISCARDED:
             # The chain lives in the log, which `discarded_locals` replays and `loom library why` prints; an id is how a locator finds a result (contract §6.2), so it may not carry the history of how it was arrived at.
             results.pop(rid)
         else:
-            raise ContentError(f"{rid} is already recorded ({prior.state}); loom library why {rid}")
+            raise ContentError(f"{rid} is already recorded ({state_of(prior)}); loom library why {rid}")
     number = number or local_number
     nums = numbers_of(number)
     if len(nums) > 1:
@@ -176,7 +178,7 @@ def propose_command(
         local = f"{local.split('-')[0]}-{nums[0]}"
         rid = f"{prefix}-{local}"
         if rid in results:
-            raise ContentError(f"{rid} is already recorded ({results[rid].state}); loom library why {rid}")
+            raise ContentError(f"{rid} is already recorded ({state_of(results[rid])}); loom library why {rid}")
     r = Result(
         id=rid,
         local=local,

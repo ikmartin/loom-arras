@@ -56,7 +56,7 @@ KIND: dict[str, str] = {
 CASES: dict[str, list[Case]] = {
     "library verify": [
         Case(("Calloway14-rem-9.1", "--yes", *AS), proposed),
-        Case(("Calloway14-prop-3.2", "--yes", *AS), why="re-verifying a mechanical result"),
+        Case(("Calloway14-prop-3.2", "--yes", *AS), why="verifying an extracted result"),
         Case((SUGGESTION, *AS), suggested, why="accepting a citation suggestion"),
         Case(("Calloway14-rem-9.1", SUGGESTION, "--yes", *AS), both, why="a result and a suggestion at once"),
         Case(("Calloway14-rem-9.1", "--dry-run", *AS), proposed, unchanged=True),
@@ -83,7 +83,7 @@ CASES: dict[str, list[Case]] = {
         Case(("Calloway14-rem-9.1", "--why", "r", *AS), proposed),
         Case((SUGGESTION, "--why", "already cited", *AS), suggested, why="rejecting a citation suggestion"),
         Case(("Calloway14-rem-9.1", "--why", "r", "--dry-run", *AS), proposed, unchanged=True),
-        Case(("Calloway14-prop-3.2", "--why", "r", *AS), exit=1, unchanged=True, why="a verified result stays"),
+        Case(("Calloway14-prop-3.2", "--why", "r", *AS), exit=1, unchanged=True, why="an extracted result stays"),
         Case(("Calloway14-rem-9.1", *AS), proposed, exit=2, unchanged=True, why="no --why"),
         Case(("nope", "--why", "r", *AS), exit=2, unchanged=True, why="an unknown id"),
     ],
@@ -115,8 +115,8 @@ CASES: dict[str, list[Case]] = {
     "library drop": [
         Case(("--work", "Calloway14", "--yes")),
         Case(("--work", "Calloway14", "--dry-run"), unchanged=True),
-        Case(("--unverified", "--yes"), unchanged=True, why="nothing to drop"),
-        Case((), exit=2, unchanged=True, why="none of --work, --session, --unverified"),
+        Case(("--proposed", "--yes"), unchanged=True, why="nothing to drop: extracted results are not proposals"),
+        Case((), exit=2, unchanged=True, why="none of --work, --session, --proposed"),
         Case(("--work", "Calloway14"), exit=2, unchanged=True, why="no --yes and no terminal to ask"),
         Case(("--work", "Nobody99xyz", "--yes"), exit=2, unchanged=True, why="an unknown work"),
         Case(("--session", "s-1999-01-01-0001", "--yes"), exit=2, unchanged=True, why="an unknown session"),

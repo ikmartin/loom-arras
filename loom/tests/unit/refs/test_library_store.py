@@ -163,7 +163,7 @@ def test_a_second_document_is_filed_beside_the_first_and_keeps_its_pdf(tmp_path:
     q = demo(tmp_path)
     _olsson(q)
     one = _fake_pdf(tmp_path / "one.pdf", OLSSON + "first copy")
-    two = _fake_pdf(tmp_path / "two.pdf", OLSSON + "second copy")
+    two = _fake_pdf(tmp_path / "two.pdf", OLSSON + "second copy\fan appendix the first lacks")
     ok("library", "add", one, cwd=q)
     r = ok("library", "add", two, "--for", "olsson03", cwd=q)
     assert "two.pdf as olsson03's PDF, beside its first document as olsson03A" in " ".join(r.stdout.split())

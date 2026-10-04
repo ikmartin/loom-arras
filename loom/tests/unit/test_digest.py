@@ -136,11 +136,12 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
     assert "0805.2065v3" in bib.read_text()
     digest = q / "digests" / "Calloway14.tex"
     digest.write_text(digest.read_text().replace("% !LOOM method:", "% !LOOM requires: tikz-cd\n% !LOOM method:", 1))
+    node = q / "nodes" / "dm-0002.tex"
+    node.write_text(node.read_text().rstrip("\n") + "\nAs in \\cite{Man12}.\n")  # a work nothing cites is one line
     said = ok("lint", cwd=q).output  # a cited work's diagnostics are counted in the text, and listed in the JSON
     assert "loom:version-mismatch" in said and "loom:missing-package" in said
     lint = " ".join(d["message"] for d in json_of("lint", "--json", cwd=q)["diagnostics"])
     assert "v2" in lint and "v3" in lint and "tikz-cd" in lint
-    node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().rstrip("\n") + "\nSee \\cite[Theorem 1]{Ref20}.\n")
     assert json_of("status", "--undigested", "--json", cwd=q)["undigested"] == ["Ref20"]
     assert ok("status", "--undigested", cwd=q).output.splitlines()[2:] == ["Ref20"]

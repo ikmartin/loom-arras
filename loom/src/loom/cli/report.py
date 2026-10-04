@@ -51,7 +51,7 @@ class Item:
 class Group:
     """What repeats, written once (T2): a heading, its count, its items, and the command that clears or lists them.
 
-    `count` defaults to the number of items; give it when the items stand for more than themselves. `counted=False` leaves the count out of the heading, for a group of summary lines rather than of things (T5: a count says what it counts). `limit` cuts the text (never the JSON); None shows every item. `problem` marks a group whose items need action, so their commands read `fix:`.
+    `count` defaults to the number of items; give it when the items stand for more than themselves. `counted=False` leaves the count out of the heading, for a group of summary lines rather than of things (T5: a count says what it counts). `limit` cuts the text (never the JSON); None shows every item, and 0 the heading alone. `problem` marks a group whose items need action, so their commands read `fix:`.
     """
 
     heading: str
@@ -125,6 +125,8 @@ class Report:
             out.append("")
             if g.heading:
                 out += wrap(f"{g.heading} ({g.size})" if g.counted else g.heading, width)
+            if g.limit == 0:
+                continue
             shown = g.items if g.limit is None or len(g.items) <= g.limit else g.items[: g.limit]
             indent = "  " if g.heading else ""
             for item in shown:

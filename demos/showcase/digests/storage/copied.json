@@ -9,6 +9,11 @@
     "to": "digests/storage/arxiv/2504.01234v1",
     "when": "2026-09-14T09:10:00Z"
   },
+  "b37ce5dc842486cbdab936197730d54ce2f27ed107ce410872938701ea808adb": {
+    "from": "arden-cycle-spaces-v2.tex",
+    "to": "digests/storage/file/e43d5afaac8f10f0",
+    "when": "2026-09-14T09:15:00Z"
+  },
   "c7af5b0d095ff4ad6e26a86e523d6c92f936cf946b34fdd8591df106cb4b050f": {
     "from": "refs/Halloway - 2026 - Notes on balanced quivers.pdf",
     "to": "digests/storage/file/c7af5b0d095ff4ad",
@@ -18,5 +23,10 @@
     "from": "refs/bellamy-median-orders.pdf",
     "to": "digests/storage/doi/10.4171_showcase_19-2",
     "when": "2026-09-14T09:10:00Z"
+  },
+  "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724": {
+    "from": "arden-cycle-spaces-v2.pdf",
+    "to": "digests/storage/file/e43d5afaac8f10f0",
+    "when": "2026-09-14T09:15:00Z"
   }
 }

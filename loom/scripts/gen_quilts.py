@@ -616,6 +616,8 @@ def _tiny_pdf(path: Path, text: str = "Notes on balanced quivers, for a reader i
 
 #: The invented cited works, compiled by `sources/showcase-works/build.sh` and committed beside their LaTeX. They are copied into the quilt's seed space and filed by `loom library update --only gather`, so that generating the showcase needs no TeX distribution and writes the same bytes on every machine.
 WORKS = SOURCES / "showcase-works"
+#: The second arXiv version of Arden24, which adds a Section 5: filed by `library add` rather than gathered, so the showcase has a work with two documents.
+ARDEN_V2 = WORKS / "arden-cycle-spaces-v2"
 DEMO_WORKS = SOURCES / "demo-works"
 
 
@@ -637,13 +639,18 @@ def build_showcase(dest: Path) -> None:
     # The author drops the two PDFs they hold into `refs/`; gathering reads the landmark's bibliography and files each document under the identifier it states on its own first page.
     (dest / "refs").mkdir(exist_ok=True)
     for pdf in sorted(WORKS.glob("*.pdf")):
-        shutil.copy(pdf, dest / "refs" / pdf.name)
+        if pdf != ARDEN_V2.with_suffix(".pdf"):
+            shutil.copy(pdf, dest / "refs" / pdf.name)
     g.at("2026-09-14T09:10:00Z")
     g.run("library", "update", "--only", "gather")
     g.at("2026-09-14T09:15:00Z")
     # The source goes into the store before the digest is made: a digest extracted from a file only this machine holds cites pages nobody else can open, which is the invariant extraction enforces (plan 0.13 §4).
     g.run("library", "add", str(WORKS / "arden-cycle-spaces.tex"), "--for", "Arden24")
     g.run("library", "update", "Arden24", "--only", "extract", "--no-compile")
+    # A second document of Arden24, its arXiv v2, which states a theorem the version cited does not: filed beside the first as the version Arden24A, with its source, and extracted by name, since loom extracts a version only when it is cited or named. The paper cites that theorem as Arden24's, and the citation resolves through the version.
+    g.run("library", "add", str(ARDEN_V2.with_suffix(".pdf")), "--for", "Arden24")
+    g.run("library", "add", str(ARDEN_V2.with_suffix(".tex")), "--for", "Arden24A")
+    g.run("library", "update", "Arden24A", "--only", "extract", "--no-compile")
     g.at("2026-09-14T09:20:00Z")
     g.run("ai", "init", "--skills")
     (
@@ -1299,8 +1306,10 @@ def build_showcase(dest: Path) -> None:
     _tiny_pdf(g.root / "refs" / "Halloway - 2026 - Notes on balanced quivers.pdf")
     g.run("library", "update", "--only", "gather")
     bib = g.root / "digests" / "bibliography.bib"
-    kept = [block for block in bib.read_text(encoding="utf-8").split("\n@") if "Notes on balanced quivers" not in block]
-    bib.write_text("@".join(kept) if kept[0].startswith("@") else kept[0] + "@".join(kept[1:]), encoding="utf-8")
+    # the entry and the comment line gathering wrote above it, and nothing else
+    text = bib.read_text(encoding="utf-8")
+    entry = re.compile(r"\n% from [^\n]*\n@.*?\n\}\n", re.S)
+    bib.write_text(entry.sub(lambda m: "" if "Notes on balanced quivers" in m[0] else m[0], text), encoding="utf-8")
     g.run(
         "library", "update", "--only", "gather"
     )  # adopted: the entry is back, from the ledger's record of how the document arrived

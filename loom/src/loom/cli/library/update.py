@@ -99,7 +99,7 @@ def update_command(
         scanned = scan_bibliography(quilt, write=False) if gather else None
         result = result or open_scan(quilt_path)
         ws = [w for w in survey(result) if not named or w.citekey in set(named)]
-        plan = planned(result, ws, steps=work_steps, redo=redo, candidates=not no_candidates)
+        plan = planned(result, ws, steps=work_steps, redo=redo, candidates=not no_candidates, named=frozenset(named))
         plan_report(ws, plan, online=allowed, scan=scanned).emit(as_json)
         return
     scanned = scan_bibliography(quilt) if gather else None

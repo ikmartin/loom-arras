@@ -331,7 +331,7 @@ def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
 
 def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
     """Every digest proposal a run made, with the author's decision on it: state, the edit as diff lines, and the reason for a discard."""
-    from loom.refs.proposals import edit_diff, load_results, read_events
+    from loom.refs.proposals import DISCARDED, VERIFIED, edit_diff, load_results, read_events, state_of
 
     out: list[dict[str, Any]] = []
     for path in sorted((root / "digests").glob("*.results.json")):
@@ -344,11 +344,11 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
                 {
                     "id": rid,
                     "work": ck,
-                    "state": "transcription verified" if r.state == "verified" else r.state,
+                    "state": "transcription verified" if state_of(r) == VERIFIED else state_of(r),
                     "edited": any(o.get("act") == "edited" for o in r.origin),
                     "edit": edit_diff(r),
                     "renamed_from": next((str(o.get("was")) for o in r.origin if o.get("act") == "renamed"), ""),
-                    "reason": reasons.get(rid, "") if r.state == "discarded" else "",
+                    "reason": reasons.get(rid, "") if state_of(r) == DISCARDED else "",
                 }
             )
     return out

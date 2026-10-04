@@ -353,10 +353,19 @@ def record_source(home: Path, identifier: str, via: str) -> None:
 
 def recorded_source(home: Path) -> str:
     """The identifier `src.json` names for the source under `home`, or '' when none was recorded."""
+    return _recorded(home, "identifier")
+
+
+def recorded_via(home: Path) -> str:
+    """How the identifier `src.json` names was known (`declared` or `candidate`), or '' when none was recorded."""
+    return _recorded(home, "via")
+
+
+def _recorded(home: Path, field: str) -> str:
     import json as _json
 
     try:
-        return str(_json.loads((home / "src.json").read_text(encoding="utf-8")).get("identifier", ""))
+        return str(_json.loads((home / "src.json").read_text(encoding="utf-8")).get(field, ""))
     except (OSError, ValueError, AttributeError):
         return ""
 

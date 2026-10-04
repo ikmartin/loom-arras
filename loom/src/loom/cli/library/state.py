@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from loom.cli.library._works import one_work, present
@@ -44,12 +44,22 @@ INGEST = "an agent digests them in ingest mode (ai/modes/ingest.md)"
 
 @dataclass
 class Row:
-    """One work as the library reports it: what the store holds, what waits on it, and why it needs the person."""
+    """One work as the library reports it: what the store holds, what waits on it, and why it needs the person.
+
+    A work with versions is one row, its primary's: `versions` names the other documents, whose citations and results are counted in, and whose own store state is not.
+    """
 
     work: WorkState
     waiting: int = 0
     cause: str = ""
     other_version: Any = None
+    extracted: int = 0
+    verified: int = 0
+    versions: list[str] = field(default_factory=list)
+    #: The author's keys citing the work, through any of its versions.
+    cited: int = 0
+    #: Whether the work or one of its versions has a digest.
+    digested: bool = False
 
     @property
     def unread(self) -> bool:
@@ -60,13 +70,14 @@ class Row:
     @property
     def done(self) -> bool:
         w = self.work
-        return w.digest and not (self.cause or self.waiting or self.unread or w.needs_an_agent)
+        return self.digested and not (self.cause or self.waiting or self.unread or w.needs_an_agent)
 
     def to_json(self) -> dict[str, Any]:
         w, v = self.work, self.other_version
         return {
             "citekey": w.citekey,
-            "cited_by": w.cited_by,
+            "cited_by": self.cited,
+            "versions": self.versions,
             "source": w.source,
             "pdf": w.pdf,
             "pages": w.pages,
@@ -74,6 +85,8 @@ class Row:
             "digest": w.digest,
             "digest_version": {"extracted_from": v.extracted_from, "cited_as": v.cited_as} if v is not None else None,
             "waiting": self.waiting,
+            "extracted": self.extracted,
+            "verified": self.verified,
             "needs": self.cause,
             "needs_an_agent": w.needs_an_agent,
             "ignored": w.unreadable,
@@ -96,19 +109,46 @@ def cause_of(w: WorkState) -> str:
     return "unidentified"
 
 
-def rows(result: ScanResult, works: list[WorkState] | None = None) -> list[Row]:
-    """Every work `survey` sees, or `works` when a run already has them (their `fetched` says what a fetch discarded)."""
+def rows(result: ScanResult, works: list[WorkState] | None = None, *, fold: bool = True) -> list[Row]:
+    """Every work `survey` sees, or `works` when a run already has them (their `fetched` says what a fetch discarded).
+
+    With `fold`, a version whose primary is among them is counted into the primary's row and has none of its own (`Row.versions`).
+    """
     from loom.refs.build import survey
-    from loom.refs.proposals import load_results
+    from loom.refs.proposals import EXTRACTED, PROPOSED, VERIFIED, load_results, state_of
     from loom.scan.digests import other_version_of
 
     root = result.quilt.root
     out = []
     for w in survey(result) if works is None else works:
-        waiting = sum(1 for r in load_results(root, w.citekey).values() if r.state == "proposed")
+        states = [state_of(r) for r in load_results(root, w.citekey).values()]
         other = other_version_of(result.assembly, w.citekey) if w.digest else None
-        out.append(Row(w, waiting=waiting, cause=cause_of(w), other_version=other))
-    return out
+        out.append(
+            Row(
+                w,
+                waiting=states.count(PROPOSED),
+                cause=cause_of(w),
+                other_version=other,
+                extracted=states.count(EXTRACTED),
+                verified=states.count(VERIFIED),
+                cited=w.cited_by,
+                digested=w.digest,
+            )
+        )
+    by_key = {r.work.citekey: r for r in out}
+    if not fold:
+        return out
+    for r in out:
+        top = by_key.get(r.work.version_of)
+        if top is None:
+            continue
+        top.versions.append(r.work.citekey)
+        top.waiting += r.waiting
+        top.extracted += r.extracted
+        top.verified += r.verified
+        top.cited += r.cited
+        top.digested = top.digested or r.digested
+    return [r for r in out if r.work.version_of not in by_key]
 
 
 def open_suggestions(result: ScanResult) -> list[Any]:
@@ -144,7 +184,7 @@ def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
 
     root = result.quilt.root
     every = rows(result, works)
-    cited = [r for r in every if r.work.cited_by]
+    cited = [r for r in every if r.cited]
     by_key = sorted(cited, key=lambda r: r.work.citekey.lower())
     groups: list[Group] = []
     for cause in CAUSES:
@@ -191,7 +231,7 @@ def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
         shown.append(Group(f"cited nowhere, so not followed: {counted(uncited, 'entry', 'entries')}", counted=False))
     # a work an update will fetch on the quilt's own consent waits on a run, not on the person
     need_you = sum(1 for r in cited if r.cause and cause_entry(result, r.cause) is not FETCHABLE)
-    digested = sum(1 for r in cited if r.work.digest)
+    digested = sum(1 for r in cited if r.digested)
     verdict = (
         f"{counted(len(cited), 'work')} cited, {digested} digested; "
         f"{need_you} need{'s' if need_you == 1 else ''} you, {waiting} wait{'s' if waiting == 1 else ''} for review"
@@ -219,17 +259,21 @@ def work_report(result: ScanResult, citekey: str) -> Report:
     from loom.refs.notes import read_notes
     from loom.refs.resolve import _fold
 
-    row = next(r for r in rows(result) if r.work.citekey == citekey)
+    row = next((r for r in rows(result) if r.work.citekey == citekey), None) or next(
+        r for r in rows(result, fold=False) if r.work.citekey == citekey
+    )
     w = row.work
     table_rows = [
-        ("cited", "src", "pdf", "pages", "secs", "digest", "waiting"),
+        ("cited", "src", "pdf", "pages", "secs", "digest", "extracted", "verified", "waiting"),
         (
-            str(w.cited_by),
+            str(row.cited),
             "yes" if w.source else "-",
             "yes" if w.pdf else "-",
             str(w.pages or "-"),
             str(w.sections or "-"),
             ("preprint" if row.other_version is not None else "yes") if w.digest else "-",
+            str(row.extracted or "-"),
+            str(row.verified or "-"),
             str(row.waiting or "-"),
         ),
     ]
@@ -287,16 +331,25 @@ def work_report(result: ScanResult, citekey: str) -> Report:
     state = (
         "digested" + (" from another version" if row.other_version is not None else "")
         if w.digest
+        else "digested through a version"
+        if row.digested
         else ("set aside" if w.unreadable else "not digested")
     )
     needs = (
         "needs you" if row.cause else ("waits for review" if row.waiting else ("done" if row.done else "in progress"))
     )
-    verdict = f"{citekey}: cited by {counted(w.cited_by, 'key')}, {state}; {needs}"
+    verdict = f"{citekey}: cited by {counted(row.cited, 'key')}, {state}; {needs}"
+    said = (
+        [f"versions {', '.join(row.versions)}: other documents of this work, counted in this row"]
+        if row.versions
+        else [f"a version of {w.version_of}: loom library {w.version_of} reports the work"]
+        if w.version_of
+        else []
+    )
     return Report(
         verdict,
         ok=row.done,
-        lines=["", *table(table_rows)],
+        lines=[*said, "", *table(table_rows)],
         groups=present(*groups),
         data={"work": row.to_json(), "reference_notes": accepted},
     )

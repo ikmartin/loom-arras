@@ -19,7 +19,7 @@
         "end": 1431
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -48,7 +48,7 @@
         "end": 1078
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -77,7 +77,7 @@
         "end": 1307
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -106,7 +106,7 @@
         "end": 416
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -135,7 +135,7 @@
         "end": 1943
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -164,7 +164,7 @@
         "end": 2234
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -193,7 +193,7 @@
         "end": 2612
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -219,7 +219,7 @@
         "path": "digests/Arden24.tex"
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -248,7 +248,7 @@
         "end": 974
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",

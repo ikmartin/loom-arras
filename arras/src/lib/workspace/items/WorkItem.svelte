@@ -4,11 +4,12 @@
 	// **The paper opens first**, wherever a copy can be read; with none, its Paper view is greyed and the work opens on the first view that can be. A work in the Library is a document a reader came to read, and the digest is a derived index of it — useful, and never the thing you meant when you clicked the title. The three views stand at the end of the pane's tab strip, and everything that is *about* the work rather than *of* it stands behind **Info**, so the reading surface is the paper and nothing else, full bleed in its pane.
 	import { store } from '$lib/manifest/client.svelte';
 	import Fragment from '$lib/fragments/Fragment.svelte';
-	import { keyUrl, nodeUrl } from '$lib/nav';
+	import { keyUrl, nodeUrl, workUrl } from '$lib/nav';
 	import { reachedExternal } from '$lib/reached';
 	import Tex from '$lib/math/Tex.svelte';
 	import WorkLinks from '$lib/components/WorkLinks.svelte';
 	import { bibText } from '$lib/works';
+	import { readFrom, resultCounts } from '$lib/library';
 	import Locator from '$lib/components/Locator.svelte';
 	import ProposalBox from '$lib/review/ProposalBox.svelte';
 	import LinkList from '$lib/review/LinkList.svelte';
@@ -37,6 +38,18 @@
 			.map((id) => ({ id, record: ref?.results?.[id] }))
 			.filter((x): x is { id: string; record: NonNullable<typeof x.record> } => !!x.record)
 	);
+	/** How many of the work's results each party stands behind; a state with none is left out. */
+	const counts = $derived.by(() => {
+		if (!ref) return '';
+		const c = resultCounts(ref);
+		return [
+			c.extracted ? `${c.extracted} extracted by loom` : '',
+			c.verified ? `${c.verified} verified by you` : '',
+			c.proposed ? `${c.proposed} proposed` : ''
+		]
+			.filter(Boolean)
+			.join(', ');
+	});
 	/** The page to open at: whatever the item's place names, else the first. A paper always opens somewhere. */
 	const reading = $derived(item.place?.page || 1);
 	// The place the item points at, in the one locator syntax `cited:` links share (plan 0.13 item 6).
@@ -153,11 +166,26 @@
 					</dl>
 				{/if}
 
+				{#if ref.versions?.length}
+					<p class="muted" data-testid="work-versions">
+						Other documents of this work:
+						{#each ref.versions as v, i (v.citekey)}{i ? ', ' : ''}<a href={workUrl(v.citekey)}><code>{v.citekey}</code></a>{#if v.work}&nbsp;({v.work}){/if}{/each}.
+					</p>
+				{/if}
+				{#if ref.version_of}
+					<p class="muted" data-testid="work-version-of">Another document of <a href={workUrl(ref.version_of)}><code>{ref.version_of}</code></a>, filed beside it.</p>
+				{/if}
 				{#if ref.digest}
 					<p class="muted">Digest from {ref.digest.source} ({ref.digest.method}).</p>
 				{/if}
+				{#if counts}
+					<p class="muted" data-testid="result-counts">Results: {counts}.</p>
+				{/if}
 				{#if ref.version_mismatch}
 					<p class="problem">The digest's source and the bibliography name different versions of this work.</p>
+				{/if}
+				{#if readFrom(ref)}
+					<p class="problem" data-testid="read-from">{readFrom(ref)}</p>
 				{/if}
 				{#if ref.unreadable}
 					<p class="muted">Declared unreadable: {ref.unreadable.why} — {ref.unreadable.who}.</p>

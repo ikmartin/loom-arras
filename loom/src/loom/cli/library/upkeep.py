@@ -32,7 +32,7 @@ def review(work: str | None, as_json: bool, quilt_path: str | None) -> None:
     """
     from loom.records.store import Records
     from loom.refs.check import recorded_works
-    from loom.refs.proposals import PROPOSED, load_results
+    from loom.refs.proposals import PROPOSED, load_results, state_of
 
     result = open_scan(quilt_path)
     root = result.quilt.root
@@ -40,7 +40,7 @@ def review(work: str | None, as_json: bool, quilt_path: str | None) -> None:
     proposals: list[Item] = []
     for ck in scope:
         for rid, r in sorted(load_results(root, ck).items()):
-            if r.state != PROPOSED:
+            if state_of(r) != PROPOSED:
                 continue
             where = f"p.{r.anchor.page}" if r.anchor.kind == "pdf" and r.anchor.page else "its source"
             proposals.append(
@@ -117,7 +117,13 @@ PROBLEMS: dict[str, tuple[str, str]] = {
         "entries that name one document",
         "keep one of them in your bibliography; loom never edits it",
     ),
+    "uncited-lint": (
+        "works nothing cites that lint finds wrong",
+        "nothing, or loom library ignore WORK --why WHY if you will not cite it; no exit code counts them",
+    ),
 }
+#: Problems listed for the record that leave `check` ok: a work nothing cites is the author's to keep or drop.
+NOT_FAULTS = {"uncited-lint"}
 
 
 @click.command(name="check")
@@ -128,14 +134,16 @@ PROBLEMS: dict[str, tuple[str, str]] = {
 def check(works: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None:
     """Check the library for what has gone wrong, each problem with its fix.
 
-    Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries naming one document. Exit 1 when anything is wrong.
+    Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.
     """
+    from loom.cli.lint_cmd import all_diagnostics
     from loom.refs.check import (
         duplicate_documents,
         empty_digests,
         guessed_maps,
         moved_anchors,
         recorded_works,
+        uncited_lint,
         wrong_documents,
     )
 
@@ -146,20 +154,32 @@ def check(works: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None
     problems += wrong_documents(root, result.bib, scope)
     problems += empty_digests(root, scope)
     problems += guessed_maps(root, result.bib, scope)
-    problems += duplicate_documents(result.bib, scope if works else None)
+    problems += duplicate_documents(root, result.bib, scope if works else None)
+    problems += uncited_lint(result, all_diagnostics(result), scope)
     by_kind: dict[str, list[Item]] = {}
     for p in problems:
         by_kind.setdefault(p.kind, []).append(Item(p.why, key=p.key, data={"work": p.work, "problem": p.kind}))
-    affected = len({p.work for p in problems})
+    faults = [p for p in problems if p.kind not in NOT_FAULTS]
+    uncited = len(problems) - len(faults)
+    affected = len({p.work for p in faults})
     reread = counted(checked, "verified anchor")
     Report(
-        f"{counted(len(problems), 'problem')} in {counted(affected, 'work')}; {reread} re-read"
-        if problems
-        else f"nothing wrong in {counted(len(scope), 'work')}; {reread} re-read",
-        ok=not problems,
-        exit=EXIT_CONTENT if problems else 0,
+        (
+            f"{counted(len(faults), 'problem')} in {counted(affected, 'work')}; {reread} re-read"
+            if faults
+            else f"nothing wrong in {counted(len(scope), 'work')}; {reread} re-read"
+        )
+        + (f"; {counted(uncited, 'work')} nothing cites with lint diagnostics" if uncited else ""),
+        ok=not faults,
+        exit=EXIT_CONTENT if faults else 0,
         groups=[
-            Group(heading, sorted(by_kind[kind], key=lambda i: i.key or ""), problem=True, limit=None, next=fix)
+            Group(
+                heading,
+                sorted(by_kind[kind], key=lambda i: i.key or ""),
+                problem=kind not in NOT_FAULTS,
+                limit=None,
+                next=fix,
+            )
             for kind, (heading, fix) in PROBLEMS.items()
             if kind in by_kind
         ],
@@ -238,7 +258,7 @@ def import_digest(path: Path, citekey: str | None, dry_run: bool, as_json: bool,
 @click.command(name="drop")
 @click.option("--work", "work", default=None, metavar="WORK", help="Everything recorded for this work.")
 @click.option("--session", "session", default=None, metavar="SESSION", help="Everything proposed in this session.")
-@click.option("--unverified", is_flag=True, help="Every result not yet verified, in every work.")
+@click.option("--proposed", is_flag=True, help="Every result still proposed, in every work.")
 @click.option("--yes", is_flag=True, help="Do not ask.")
 @click.option("--dry-run", is_flag=True, help="Say what would be dropped; drop nothing.")
 @click.option("--json", "as_json", is_flag=True, help=_JSON)
@@ -246,26 +266,34 @@ def import_digest(path: Path, citekey: str | None, dry_run: bool, as_json: bool,
 def drop(
     work: str | None,
     session: str | None,
-    unverified: bool,
+    proposed: bool,
     yes: bool,
     dry_run: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Remove recorded results: one work's, one session's proposals, or every unverified one.
+    """Remove recorded results: one work's, one session's proposals, or every one still proposed.
 
     Dropping costs re-reading, never correctness. A verified node already written into digests/<citekey>.tex is the author's file and is never touched; only the records and the proposals go.
     """
     from loom.refs.check import recorded_works
-    from loom.refs.proposals import append_event, load_results, results_path, save_results, write_proposed_tex
+    from loom.refs.proposals import (
+        PROPOSED,
+        append_event,
+        load_results,
+        results_path,
+        save_results,
+        state_of,
+        write_proposed_tex,
+    )
 
     refuse_under_agent(
         "loom library drop",
         "Removing recorded results is the author's; an agent corrects its own proposal with "
         "loom library propose --supersedes.",
     )
-    if sum(map(bool, [work, session, unverified])) != 1:
-        raise EnvError("give exactly one of --work, --session or --unverified")
+    if sum(map(bool, [work, session, proposed])) != 1:
+        raise EnvError("give exactly one of --work, --session or --proposed")
     result = open_scan(quilt_path)
     root = result.quilt.root
     # a work no longer in the bibliography is still named by the results recorded for it
@@ -274,7 +302,7 @@ def drop(
     doomed: list[tuple[str, str]] = []
     for w in [ck] if ck else recorded_works(root):
         for rid, r in load_results(root, w).items():
-            if ck or (unverified and r.state != "verified") or (by and any(o.get("by") in by for o in r.origin)):
+            if ck or (proposed and state_of(r) == PROPOSED) or (by and any(o.get("by") in by for o in r.origin)):
                 doomed.append((w, rid))
     if session and not doomed and not known:
         raise NotFoundError("session", f"{session} names no session and nothing was proposed under it")

@@ -1,4 +1,4 @@
-"""`loom lint` (book 12.5): every diagnostic, one group per code with the author's before the cited works'; exit 1 if any error. `--nodes` groups by node id (book 17.16)."""
+"""`loom lint` (book 12.5): every diagnostic, one group per code with the author's before the cited works', and one line for works nothing cites; exit 1 on an error outside those works. `--nodes` groups by node id (book 17.16)."""
 
 from __future__ import annotations
 

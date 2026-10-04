@@ -1,0 +1,30 @@
+5
+
+Balanced subquivers
+
+A subquiver P of Q is given by subsets of the vertices and arrows of Q such that every arrow
+of P has its source and its target in P . A weighting of P extends by zero to a weighting of Q,
+and the question of this section is when balance survives the extension.
+Theorem 5.1. Let P be a subquiver of a quiver Q and w a weighting of P . The extension of
+w by zero is balanced on Q if and only if w is balanced on P . In particular the cycle space of
+P is a saturated sublattice of the cycle space of Q, of rank |A(P )| − |V (P )| + c(P ).
+Proof. The divergence of the extension at a vertex of P is the divergence of w there, since
+every arrow carrying a nonzero weight lies in P ; at a vertex outside P it is zero, since no arrow
+of P meets such a vertex. So the extension is balanced exactly when w is. Extension by zero
+is an injective homomorphism whose image is cut out by the vanishing of the coordinates of
+the arrows outside P , so the image is saturated, and Lemma 2.2 applied to P gives saturation
+inside the cycle space of Q. The rank is Theorem 3.1 for P .
+Corollary 5.2. A weighting of Q supported on a subquiver whose underlying graph is a forest
+is balanced only if it is zero.
+Proof. Such a weighting is the extension by zero of a weighting of the subquiver, which by
+Theorem 5.1 is balanced on it, and the cycle space of a forest is trivial by Corollary 3.2.
+The criterion is what makes the cycle space local: a balanced weighting may be studied
+one subquiver at a time, provided the subquivers together carry its support. We record the
+consequence used most often, that the cycle space of a disjoint union is the direct sum of the
+cycle spaces of its parts, without separate proof.
+Remark 5.3. The converse of Corollary 5.2 fails as soon as the support contains a cycle: the
+weighting that is 1 on every arrow of a directed cycle and 0 elsewhere is balanced and nonzero.
+What the corollary rules out is a balanced weighting whose support is acyclic, and that is the
+form in which Theorem 3.1 is usually applied.
+
+3

@@ -9,7 +9,7 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
 - Quilt discovery: every command except `init` and `doctor` walks up from the current directory to the nearest `config.toml` with a `[quilt]` table and runs against that quilt. `--quilt PATH` overrides. `doctor` needs no quilt, and checks the one it finds the same way.
 - Exit codes: `0` success; `1` a content problem (lint errors, a failed identity test, a failed compile, a refused write that the author can fix in the source); `2` a usage or environment problem (bad arguments, an argument that names no key, annotation, session, work or result, missing tools, no author name, consent `config.toml` does not give, a destination that exists). The rule decides by what the person must change: the quilt's source is `1`, the command or the machine is `2` (DR-290-ikmartin).
 - `--json`: machine output on stdout, one JSON document, nothing else on stdout, on failure as on success; diagnostics and progress go to stderr. Every command that reports takes it, and its JSON is the envelope of 12.9, built from the same report as the text, so the two cannot drift (DR-329-ikmartin).
-- Output: every command that reports prints through one layer (`loom/cli/report.py`): the verdict first, then groups each with a heading and a count, a long list cut with `… and N more` and the command that lists it whole, a `fix:` or `next:` line naming each command that acts, lines within 100 columns, an identifier never cut, and notes on stderr. A dry run's verdict begins `dry run:`. Diagnostics are grouped by code with their locations and `fix:` lines, the author's before the cited works', which are counted under a heading of their own. Commands whose body is the author's own text, a patch, a page or a link (`source`, `id`, `revert`, `sync status --patch`, `history show`, `library read`, `library locate`, `link`, `ai orient`, `session next`) print that body as it is (DR-329-ikmartin).
+- Output: every command that reports prints through one layer (`loom/cli/report.py`): the verdict first, then groups each with a heading and a count, a long list cut with `… and N more` and the command that lists it whole, a `fix:` or `next:` line naming each command that acts, lines within 100 columns, an identifier never cut, and notes on stderr. A dry run's verdict begins `dry run:`. Diagnostics are grouped by code with their locations and `fix:` lines, in three parts by whose they are (DR-332-ikmartin): the author's, which include a diagnostic on a cited work's result the author's text reaches; the cited works', counted under a heading of their own; and those of works nothing cites, one line in the text, every one in `--json`, which never set an exit code and which `loom library check` lists by work. Commands whose body is the author's own text, a patch, a page or a link (`source`, `id`, `revert`, `sync status --patch`, `history show`, `library read`, `library locate`, `link`, `ai orient`, `session next`) print that body as it is (DR-329-ikmartin).
 - Errors: a refusal is one line on stderr, `Error: …`, with nothing on stdout, and exits by the rule above.
 - Progress: a command still working after 2 s says so on stderr, with its stage, its item, the item's place in the count and the time elapsed; an item past 15 s adds `still working`; on a terminal it is one line that rewrites itself, elsewhere a plain line at most every 2 s (T6).
 - How what a command prints should read — the verdict first, repeated lines grouped and counted, the next command named, the reader's words, numbers that add up, progress for anything slow, saying only what happened, and `--json` that carries what the text does — is T1–T8, in Chapter 1 (1.10); the shape of the command line itself, its commands, flags, validation and help, is K1–K7 (1.12).
@@ -512,7 +512,7 @@ A WORK is a citekey, a fragment of one or of its author or title, or one of its 
 
 File PDFs and LaTeX sources in loom's store, each under the work it shows it is.
 
-A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), and a PDF's page text is written at once.
+A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
 
 | option | description |
 |---|---|
@@ -529,7 +529,7 @@ A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document,
 
 Check the library for what has gone wrong, each problem with its fix.
 
-Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries naming one document. Exit 1 when anything is wrong.
+Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.
 
 | option | description |
 |---|---|
@@ -557,7 +557,7 @@ Discard a proposed result, or reject a citation suggestion, with a reason.
 
 `loom library drop [OPTIONS]`
 
-Remove recorded results: one work's, one session's proposals, or every unverified one.
+Remove recorded results: one work's, one session's proposals, or every one still proposed.
 
 Dropping costs re-reading, never correctness. A verified node already written into digests/<citekey>.tex is the author's file and is never touched; only the records and the proposals go.
 
@@ -565,7 +565,7 @@ Dropping costs re-reading, never correctness. A verified node already written in
 |---|---|
 | `--work` `WORK` | Everything recorded for this work. |
 | `--session` `SESSION` | Everything proposed in this session. |
-| `--unverified` | Every result not yet verified, in every work. |
+| `--proposed` | Every result still proposed, in every work. |
 | `--yes` | Do not ask. |
 | `--dry-run` | Say what would be dropped; drop nothing. |
 | `--json` | Print the report as one JSON object (book 12.9). |
@@ -1041,7 +1041,7 @@ Build the site and the PDFs, serve them, and exchange sources with a workspace.
 
 `loom build [OPTIONS]`
 
-Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists (the build is still published).
+Scan, derive, render, and publish build/. Exit 1 if any error-severity diagnostic exists outside the works nothing cites (the build is still published).
 
 Rendering is cached per fragment by its inputs, which include loom's own version and, in a checkout, loom's code; --force renders everything regardless, and tries again every block whose SVG failed before. Only errors are listed; `loom lint` lists every diagnostic.
 

@@ -1,9 +1,9 @@
 <script lang="ts">
-	// The Library's ledger (DR-206; plan 0.13.3, View 4): every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, what awaits their judgment and what is unanswered on it. One question per column.
+	// The Library's ledger (DR-206; plan 0.13.3, View 4): every work this corpus cites, with what the author needs to know to work on it — whether a copy is filed, how much has been read off it, how much of that the text leans on, how much a person has verified, what awaits their judgment and what is unanswered on it. One question per column.
 	//
 	// **The list of works has one home, and it is the side panel** (V2): this page is a working table, not a second list to navigate by, so it registers no panel of its own and the panel keeps its Library section beside it. Its filters are its own, in its header.
 	//
-	// The backlog is this page filtered to `proposed` (DR-206). The filters are the three that answer "which of these need me": a column already says which are filed or digested, and a filter that restated it would be one fact said twice.
+	// The backlog is this page filtered to `proposed` (DR-206). The filters answer "which of these need me", then "which has a person vouched for" and "which hold only loom's own reading": a column already says which are filed or digested, and a filter that restated it would be one fact said twice.
 	import { page } from '$app/state';
 	import { store } from '$lib/manifest/client.svelte';
 	import Tex from '$lib/math/Tex.svelte';
@@ -12,26 +12,30 @@
 	import { workUrl } from '$lib/nav';
 	import { setQuery } from '$lib/query';
 	import { reachedExternal } from '$lib/reached';
-	import { ledgerRow, needsWork } from '$lib/library';
+	import { ledgerRows, needsWork, type LedgerRow } from '$lib/library';
 
 	const m = $derived(store.manifest!);
 	const SHOWS = [
 		{ v: 'all', label: 'all' },
 		{ v: 'needs-work', label: 'needs work' },
-		{ v: 'proposed', label: 'proposed' }
+		{ v: 'proposed', label: 'proposed' },
+		{ v: 'verified', label: 'verified' },
+		{ v: 'extracted', label: 'extracted' }
 	] as const;
 	const asked = $derived(page.url.searchParams.get('show') ?? '');
 	const filter = $derived(SHOWS.some((s) => s.v === asked) ? asked : 'all');
 
 	const rows = $derived.by(() => {
 		const reached = reachedExternal(m);
-		return Object.values(m.references)
-			.map((r) => ledgerRow(m, r, reached))
+		// one row per work: a version's counts are its work's, and the row names it
+		return ledgerRows(m, reached)
 			// what wants the author first, then by key: a ledger is read for what is owed
 			.sort((a, b) => Number(needsWork(b)) - Number(needsWork(a)) || a.citekey.localeCompare(b.citekey));
 	});
-	const shown = $derived(rows.filter((r) => (filter === 'needs-work' ? needsWork(r) : filter === 'proposed' ? r.unvouched > 0 : true)));
-	const count = (v: string) => (v === 'needs-work' ? rows.filter(needsWork).length : v === 'proposed' ? rows.filter((r) => r.unvouched > 0).length : rows.length);
+	const keep = (v: string) => (r: LedgerRow) =>
+		v === 'needs-work' ? needsWork(r) : v === 'proposed' ? r.proposed > 0 : v === 'verified' ? r.verified > 0 : v === 'extracted' ? r.extracted > 0 : true;
+	const shown = $derived(rows.filter(keep(filter)));
+	const count = (v: string) => rows.filter(keep(v)).length;
 	const show = (v: string) => void setQuery(page.url, 'show', v, 'all');
 	const n = (x: number) => x || '—';
 </script>
@@ -52,7 +56,8 @@
 				<th title="a copy of the paper is filed here">filed</th>
 				<th class="num" title="results read off it">digest</th>
 				<th class="num" title="of those, what this corpus leans on">used here</th>
-				<th class="num" title="statements nobody has vouched for">unvouched</th>
+				<th class="num" title="results a person compared with the paper and vouched for">verified</th>
+				<th class="num" title="statements an agent read off the pages, awaiting your judgment">proposed</th>
 				<th class="num" title="annotations still awaiting an answer">open</th>
 				<th>links</th>
 			</tr>
@@ -65,14 +70,16 @@
 						<a class="title" href={workUrl(r.citekey)}><Tex text={r.title} /></a>
 						<span class="byline">
 							<code>{r.citekey}</code>{#if ref.bib.author} · <Tex text={bibText(ref.bib.author)} />{/if}
+							{#if r.versions.length}<span class="versions" data-testid="versions-{r.citekey}">· also {#each r.versions as v, i (v)}{i ? ', ' : ''}<a href={workUrl(v)}><code>{v}</code></a>{/each}</span>{/if}
 							{#if r.unreadable}<span class="held" data-testid="unreadable-{r.citekey}">· declared unreadable</span>{/if}
 						</span>
 					</td>
 					<td><span class="dot" class:filed={r.filed} role="img" aria-label={r.filed ? 'filed here' : 'not filed here'}></span></td>
 					<td class="num" data-testid="digest-{r.citekey}">{n(r.digest)}</td>
 					<td class="num" data-testid="used-{r.citekey}">{n(r.used)}</td>
+					<td class="num" data-testid="verified-{r.citekey}">{n(r.verified)}</td>
 					<td class="num">
-						{#if r.unvouched}<a class="pending" href={workUrl(r.citekey) + '?view=digest'} data-testid="pending-{r.citekey}">{r.unvouched}</a>{:else}—{/if}
+						{#if r.proposed}<a class="pending" href={workUrl(r.citekey) + '?view=digest'} data-testid="pending-{r.citekey}">{r.proposed}</a>{:else}—{/if}
 					</td>
 					<td class="num" data-testid="open-{r.citekey}">{n(r.open)}</td>
 					<td><WorkLinks {ref} /></td>
@@ -141,8 +148,12 @@
 		background: none;
 		padding: 0;
 	}
-	.held {
+	.held,
+	.versions {
 		margin-left: 0.2em;
+	}
+	.versions a {
+		color: inherit;
 	}
 	th.num,
 	td.num {

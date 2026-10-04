@@ -1,0 +1,351 @@
+{
+  "record": 1,
+  "citekey": "Arden24A",
+  "results": [
+    {
+      "id": "Arden24A-cor-3.2",
+      "local": "cor-3.2",
+      "taxon": "corollary",
+      "number": "",
+      "locator": "{\\cite[Corollary 3.2, p.~2]{Arden24A}}",
+      "statement": "\\begin{corollary}[{\\cite[Corollary 3.2, p.~2]{Arden24A}}]\\label{Arden24A-cor-3.2}\n\\uses{Arden24A-thm-3.1, Arden24A-lem-2.2}\n\\label{Arden24A-cor:forest}\nThe cycle space of a quiver is trivial if and only if the underlying graph is a forest.\n\\end{corollary}",
+      "source_text": "\\begin{corollary}[{\\cite[Corollary 3.2, p.~2]{Arden24A}}]\\label{Arden24A-cor-3.2}\n\\uses{Arden24A-thm-3.1, Arden24A-lem-2.2}\n\\label{Arden24A-cor:forest}\nThe cycle space of a quiver is trivial if and only if the underlying graph is a forest.\n\\end{corollary}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 2,
+        "basis": "text",
+        "start": 1532,
+        "end": 1621
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-cor-5.2",
+      "local": "cor-5.2",
+      "taxon": "corollary",
+      "number": "",
+      "locator": "{\\cite[Corollary 5.2, p.~3]{Arden24A}}",
+      "statement": "\\begin{corollary}[{\\cite[Corollary 5.2, p.~3]{Arden24A}}]\\label{Arden24A-cor-5.2}\n\\uses{Arden24A-thm-5.1, Arden24A-cor-3.2}\n\\label{Arden24A-cor:subquiver}\nA weighting of $Q$ supported on a subquiver whose underlying graph is a forest is balanced only if it is zero.\n\\end{corollary}",
+      "source_text": "\\begin{corollary}[{\\cite[Corollary 5.2, p.~3]{Arden24A}}]\\label{Arden24A-cor-5.2}\n\\uses{Arden24A-thm-5.1, Arden24A-cor-3.2}\n\\label{Arden24A-cor:subquiver}\nA weighting of $Q$ supported on a subquiver whose underlying graph is a forest is balanced only if it is zero.\n\\end{corollary}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 3,
+        "basis": "text",
+        "start": 1090,
+        "end": 1169
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-def-1.1",
+      "local": "def-1.1",
+      "taxon": "definition",
+      "number": "",
+      "locator": "{\\cite[Definition 1.1, p.~1]{Arden24A}}",
+      "statement": "\\begin{definition}[{\\cite[Definition 1.1, p.~1]{Arden24A}}]\\label{Arden24A-def-1.1}\n\\label{Arden24A-def:quiver}\nA \\emph{quiver} is a quadruple $Q = (V, A, s, t)$ in which $V$ and $A$ are finite sets and $s, t \\colon A \\to V$ are functions, called the source and target maps.\n\\end{definition}",
+      "source_text": "\\begin{definition}[{\\cite[Definition 1.1, p.~1]{Arden24A}}]\\label{Arden24A-def-1.1}\n\\label{Arden24A-def:quiver}\nA \\emph{quiver} is a quadruple $Q = (V, A, s, t)$ in which $V$ and $A$ are finite sets and $s, t \\colon A \\to V$ are functions, called the source and target maps.\n\\end{definition}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 1,
+        "basis": "text",
+        "start": 1007,
+        "end": 1162
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-def-1.2",
+      "local": "def-1.2",
+      "taxon": "definition",
+      "number": "",
+      "locator": "{\\cite[Definition 1.2, p.~1]{Arden24A}}",
+      "statement": "\\begin{definition}[{\\cite[Definition 1.2, p.~1]{Arden24A}}]\\label{Arden24A-def-1.2}\n\\label{Arden24A-def:cycle-space}\nThe \\emph{cycle space} of a quiver $Q$ is the kernel $\\mathcal{Z}(Q)$ of the divergence map $\\partial \\colon \\mathbb{Z}^{A(Q)} \\to \\mathbb{Z}^{V(Q)}$ whose value at a vertex $v$ is the total weight of the arrows with target $v$ less the total weight of the arrows with source $v$.\n\\end{definition}",
+      "source_text": "\\begin{definition}[{\\cite[Definition 1.2, p.~1]{Arden24A}}]\\label{Arden24A-def-1.2}\n\\label{Arden24A-def:cycle-space}\nThe \\emph{cycle space} of a quiver $Q$ is the kernel $\\mathcal{Z}(Q)$ of the divergence map $\\partial \\colon \\mathbb{Z}^{A(Q)} \\to \\mathbb{Z}^{V(Q)}$ whose value at a vertex $v$ is the total weight of the arrows with target $v$ less the total weight of the arrows with source $v$.\n\\end{definition}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 1,
+        "basis": "text",
+        "start": 1164,
+        "end": 1391
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-lem-2.2",
+      "local": "lem-2.2",
+      "taxon": "lemma",
+      "number": "",
+      "locator": "{\\cite[Lemma 2.2, p.~2]{Arden24A}}",
+      "statement": "\\begin{lemma}[{\\cite[Lemma 2.2, p.~2]{Arden24A}}]\\label{Arden24A-lem-2.2}\n\\label{Arden24A-lem:saturated}\nThe cycle space of a quiver is a saturated sublattice of the lattice of weightings: if $nw$ is balanced for some nonzero integer $n$, then $w$ is balanced.\n\\end{lemma}",
+      "source_text": "\\begin{lemma}[{\\cite[Lemma 2.2, p.~2]{Arden24A}}]\\label{Arden24A-lem-2.2}\n\\label{Arden24A-lem:saturated}\nThe cycle space of a quiver is a saturated sublattice of the lattice of weightings: if $nw$ is balanced for some nonzero integer $n$, then $w$ is balanced.\n\\end{lemma}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 2,
+        "basis": "text",
+        "start": 469,
+        "end": 606
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-prop-2.1",
+      "local": "prop-2.1",
+      "taxon": "proposition",
+      "number": "",
+      "locator": "{\\cite[Proposition 2.1, p.~1]{Arden24A}}",
+      "statement": "\\begin{proposition}[{\\cite[Proposition 2.1, p.~1]{Arden24A}}]\\label{Arden24A-prop-2.1}\n\\label{Arden24A-prop:image}\nLet $Q$ be a quiver whose underlying graph has $c$ connected components. The image of the divergence map is the lattice of integer vectors in $\\mathbb{Z}^{V(Q)}$ whose coordinates sum to zero on each component, and its rank is $|V(Q)| - c$.\n\\end{proposition}",
+      "source_text": "\\begin{proposition}[{\\cite[Proposition 2.1, p.~1]{Arden24A}}]\\label{Arden24A-prop-2.1}\n\\label{Arden24A-prop:image}\nLet $Q$ be a quiver whose underlying graph has $c$ connected components. The image of the divergence map is the lattice of integer vectors in $\\mathbb{Z}^{V(Q)}$ whose coordinates sum to zero on each component, and its rank is $|V(Q)| - c$.\n\\end{proposition}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 1,
+        "basis": "text",
+        "start": 1804,
+        "end": 2027
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-rem-4.1",
+      "local": "rem-4.1",
+      "taxon": "remark",
+      "number": "",
+      "locator": "{\\cite[Remark 4.1, p.~2]{Arden24A}}",
+      "statement": "\\begin{remark}[{\\cite[Remark 4.1, p.~2]{Arden24A}}]\\label{Arden24A-rem-4.1}\n\\label{Arden24A-rem:orientation}\nNothing above uses the orientation of the arrows except as bookkeeping, which is the content of the last sentence of the proof of Theorem~\\ref{Arden24A-thm-3.1}. Readers who prefer graphs to quivers may replace every quiver by its underlying graph with an arbitrary orientation, and no statement changes.\n\\end{remark}",
+      "source_text": "\\begin{remark}[{\\cite[Remark 4.1, p.~2]{Arden24A}}]\\label{Arden24A-rem-4.1}\n\\label{Arden24A-rem:orientation}\nNothing above uses the orientation of the arrows except as bookkeeping, which is the content of the last sentence of the proof of Theorem~\\ref{Arden24A-thm-3.1}. Readers who prefer graphs to quivers may replace every quiver by its underlying graph with an arbitrary orientation, and no statement changes.\n\\end{remark}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 2,
+        "basis": "text",
+        "start": 2179,
+        "end": 2424
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-rem-4.2",
+      "local": "rem-4.2",
+      "taxon": "remark",
+      "number": "",
+      "locator": "{\\cite[Remark 4.2, p.~2]{Arden24A}}",
+      "statement": "\\begin{remark}[{\\cite[Remark 4.2, p.~2]{Arden24A}}]\\label{Arden24A-rem-4.2}\n\\label{Arden24A-rem:infinite}\nFor an infinite quiver of finite valence the divergence map is still defined on finitely supported weightings and its kernel is still saturated, but the rank formula of Theorem~\\ref{Arden24A-thm-3.1} has no meaning, since all three of its terms are infinite. The correct statement in that setting is a description of the cycle space as a direct limit, which we do not pursue.\n\\end{remark}",
+      "source_text": "\\begin{remark}[{\\cite[Remark 4.2, p.~2]{Arden24A}}]\\label{Arden24A-rem-4.2}\n\\label{Arden24A-rem:infinite}\nFor an infinite quiver of finite valence the divergence map is still defined on finitely supported weightings and its kernel is still saturated, but the rank formula of Theorem~\\ref{Arden24A-thm-3.1} has no meaning, since all three of its terms are infinite. The correct statement in that setting is a description of the cycle space as a direct limit, which we do not pursue.\n\\end{remark}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 2,
+        "basis": "text",
+        "start": 2477,
+        "end": 2802
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-rem-5.3",
+      "local": "rem-5.3",
+      "taxon": "remark",
+      "number": "",
+      "locator": "{\\cite[Remark 5.3, p.~3]{Arden24A}}",
+      "statement": "\\begin{remark}[{\\cite[Remark 5.3, p.~3]{Arden24A}}]\\label{Arden24A-rem-5.3}\n\\label{Arden24A-rem:local}\nThe converse of Corollary~\\ref{Arden24A-cor-5.2} fails as soon as the support contains a cycle: the weighting that is $1$ on every arrow of a directed cycle and $0$ elsewhere is balanced and nonzero. What the corollary rules out is a balanced weighting whose support is acyclic, and that is the form in which Theorem~\\ref{Arden24A-thm-3.1} is usually applied.\n\\end{remark}",
+      "source_text": "\\begin{remark}[{\\cite[Remark 5.3, p.~3]{Arden24A}}]\\label{Arden24A-rem-5.3}\n\\label{Arden24A-rem:local}\nThe converse of Corollary~\\ref{Arden24A-cor-5.2} fails as soon as the support contains a cycle: the weighting that is $1$ on every arrow of a directed cycle and $0$ elsewhere is balanced and nonzero. What the corollary rules out is a balanced weighting whose support is acyclic, and that is the form in which Theorem~\\ref{Arden24A-thm-3.1} is usually applied.\n\\end{remark}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 3,
+        "basis": "text",
+        "start": 1721,
+        "end": 1976
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-setup",
+      "local": "setup",
+      "taxon": "theorem",
+      "number": "",
+      "locator": "{\\cite[Standing assumptions]{Arden24A}}",
+      "statement": "\\begin{theorem}[{\\cite[Standing assumptions]{Arden24A}}]\\label{Arden24A-setup}\n\\emph{Sentences of the paper that state an assumption, gathered by the extractor; check each one's scope.}\n\nThroughout, all quivers are finite, loops and parallel arrows are permitted, and the underlying graph of a quiver is the undirected multigraph obtained by forgetting the orientation of each arrow.\n\\end{theorem}",
+      "source_text": "\\begin{theorem}[{\\cite[Standing assumptions]{Arden24A}}]\\label{Arden24A-setup}\n\\emph{Sentences of the paper that state an assumption, gathered by the extractor; check each one's scope.}\n\nThroughout, all quivers are finite, loops and parallel arrows are permitted, and the underlying graph of a quiver is the undirected multigraph obtained by forgetting the orientation of each arrow.\n\\end{theorem}",
+      "anchor": {
+        "kind": "tex",
+        "sha256": "cea9e248cf5bfa34738353b2b1bb52758e36b309d4f59e2f808e5392350576cc",
+        "path": "digests/Arden24A.tex"
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-thm-3.1",
+      "local": "thm-3.1",
+      "taxon": "theorem",
+      "number": "",
+      "locator": "{\\cite[Theorem 3.1, p.~2]{Arden24A}}",
+      "statement": "\\begin{theorem}[{\\cite[Theorem 3.1, p.~2]{Arden24A}}]\\label{Arden24A-thm-3.1}\n\\uses{Arden24A-prop-2.1}\n\\label{Arden24A-thm:rank}\nLet $Q$ be a quiver whose underlying graph has $c$ connected components. Then the cycle space of $Q$ is a free abelian group of rank $|A(Q)| - |V(Q)| + c$, and this rank depends only on the underlying graph of $Q$.\n\\end{theorem}",
+      "source_text": "\\begin{theorem}[{\\cite[Theorem 3.1, p.~2]{Arden24A}}]\\label{Arden24A-thm-3.1}\n\\uses{Arden24A-prop-2.1}\n\\label{Arden24A-thm:rank}\nLet $Q$ be a quiver whose underlying graph has $c$ connected components. Then the cycle space of $Q$ is a free abelian group of rank $|A(Q)| - |V(Q)| + c$, and this rank depends only on the underlying graph of $Q$.\n\\end{theorem}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 2,
+        "basis": "text",
+        "start": 952,
+        "end": 1164
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    },
+    {
+      "id": "Arden24A-thm-5.1",
+      "local": "thm-5.1",
+      "taxon": "theorem",
+      "number": "",
+      "locator": "{\\cite[Theorem 5.1, p.~3]{Arden24A}}",
+      "statement": "\\begin{theorem}[{\\cite[Theorem 5.1, p.~3]{Arden24A}}]\\label{Arden24A-thm-5.1}\n\\uses{Arden24A-lem-2.2, Arden24A-thm-3.1}\n\\label{Arden24A-thm:subquiver}\nLet $P$ be a subquiver of a quiver $Q$ and $w$ a weighting of $P$. The extension of $w$ by zero is balanced on $Q$ if and only if $w$ is balanced on $P$. In particular the cycle space of $P$ is a saturated sublattice of the cycle space of $Q$, of rank $|A(P)| - |V(P)| + c(P)$.\n\\end{theorem}",
+      "source_text": "\\begin{theorem}[{\\cite[Theorem 5.1, p.~3]{Arden24A}}]\\label{Arden24A-thm-5.1}\n\\uses{Arden24A-lem-2.2, Arden24A-thm-3.1}\n\\label{Arden24A-thm:subquiver}\nLet $P$ be a subquiver of a quiver $Q$ and $w$ a weighting of $P$. The extension of $w$ by zero is balanced on $Q$ if and only if $w$ is balanced on $P$. In particular the cycle space of $P$ is a saturated sublattice of the cycle space of $Q$, of rank $|A(P)| - |V(P)| + c(P)$.\n\\end{theorem}",
+      "anchor": {
+        "kind": "pdf",
+        "sha256": "e43d5afaac8f10f05cb6e7848ca3d8304585d0f4ee22e6f6c71b2fea93eb7724",
+        "page": 3,
+        "basis": "text",
+        "start": 286,
+        "end": 468
+      },
+      "level": 3,
+      "state": "extracted",
+      "origin": [
+        {
+          "act": "extracted",
+          "by": "loom library update",
+          "when": "2026-09-14T09:15:00Z"
+        }
+      ],
+      "supersedes": "",
+      "env": "",
+      "class": "mechanical"
+    }
+  ]
+}

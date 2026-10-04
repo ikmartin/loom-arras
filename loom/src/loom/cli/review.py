@@ -1180,7 +1180,11 @@ def status_payload(result: ScanResult, records: Records) -> dict[str, Any]:
         }
         for r in records.records
     ]
+    from loom.refs.scan import other_versions
+
     digested = set(result.assembly.digest_files.values())
+    # a key whose version is digested is answered through it, as lint counts it
+    digested |= {k for k, vs in other_versions(result.bib).items() if digested & set(vs)}
     undigested = sorted(
         {
             c.citekey

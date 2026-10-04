@@ -388,7 +388,7 @@ def _env_definitions(raw: str) -> dict[str, str]:
 def _provenance(result: ScanResult, citekey: str, src: Path) -> tuple[str, str | None]:
     """What this digest was extracted from, and what the bibliography cites it as.
 
-    Two facts, not two candidates for one. The statements and their numbers come from the artifact that was parsed; the work a reader will open is whatever the entry cites. When those differ -- an arXiv source against a published DOI -- every locator is unverified, which `loom:unverified-locators` says and this pair is what lets it (DR-109).
+    Two facts, not two candidates for one. The statements and their numbers come from the artifact that was parsed; the work a reader will open is whatever the entry cites. When those differ -- an arXiv source against a published DOI -- every locator is unverified, which `loom:unverified-locators` says and this pair is what lets it (DR-109). A source fetched on a lookup's candidate, for an entry stating no published identifier, is cited as the entry's own identifier: the bibliography names the work, not that preprint.
     """
     entry = result.bib.get(citekey)
     published = next((str(w) for w in identify(entry) if w.published), None) if entry else None
@@ -398,10 +398,13 @@ def _provenance(result: ScanResult, citekey: str, src: Path) -> tuple[str, str |
     if "storage" in parts:
         i = len(parts) - 1 - parts[::-1].index("storage")
         if len(parts) > i + 2:
-            from loom.refs.fetch import recorded_source
+            from loom.refs.fetch import recorded_source, recorded_via
 
             # the directory names the work; what was fetched into it may be another version of it (src.json)
-            fetched = recorded_source(Path(*parts[: i + 3]))
+            home = Path(*parts[: i + 3])
+            fetched = recorded_source(home)
+            if fetched and published is None and entry is not None and recorded_via(home) == "candidate":
+                published = str(identify(entry)[0])
             return fetched or str(WorkId(parts[i + 1], parts[i + 2])), published
     if entry is not None:
         eprint = next((str(w) for w in identify(entry) if w.preprint), None)

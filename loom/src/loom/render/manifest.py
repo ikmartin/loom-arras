@@ -13,7 +13,7 @@ from loom.refs.identity import declared, identify, primary
 from loom.refs.resolve import load as load_candidates
 from loom.render.fragments import digest_macro_set, master_title, plain_text
 from loom.render.threads import build_threads
-from loom.scan.digests import extracted_from, loaded_packages, published_as, source_version
+from loom.scan.digests import OtherVersion, extracted_from, loaded_packages, other_version, published_as, source_version
 from loom.scan.directives import list_value
 from loom.scan.hashing import child_marker, hash_text, pair_hash
 from loom.scan.macros import compatibility_macros, declared_alphabets, package_macros, to_mathjax
@@ -65,20 +65,39 @@ def _sessions(root: Path) -> list[dict[str, Any]]:
     ]
 
 
-def _results_for(root: Path, citekey: str) -> dict[str, dict[str, Any]]:
+def _version(result: ScanResult, ck: str) -> dict[str, Any]:
+    """One version of a work as its primary's `versions` lists it: citekey, identifier and what the store holds."""
+    bib = result.bib[ck]
+    wid = primary(bib)
+    home = _work_home(result.quilt.root, bib)
+    return {
+        "citekey": ck,
+        "work": str(wid) if wid else "",
+        "artifacts": {
+            "dir": home.relative_to(result.quilt.root).as_posix() if home else "",
+            "pdf": bool(home and (home / "paper.pdf").is_file()),
+            "source": bool(home and (home / "src").is_dir()),
+        },
+    }
+
+
+def _results_for(root: Path, citekey: str, version: OtherVersion | None = None) -> dict[str, dict[str, Any]]:
     """The work's recorded results, as the viewer needs them (digest contract §9).
+
+    `state` is `state_of`'s, never the stored word, so a mechanical result nobody verified reads `extracted`. `version` is the digest's `OtherVersion` when its numbers are another version's; it rides on every mechanical result, whose numbers are the extraction's.
 
     `source_text` travels for every result read off a page, verified or not: it is what a link's two endpoints are compared by eye against (§7), and a verified transcription is exactly the case where that comparison is worth making. It does **not** travel for a mechanically extracted result, whose `source_text` is its own LaTeX and is already in the digest fragment -- carrying it would put the whole literature in the manifest twice.
 
     `statement` travels only for a proposal, because that is the one claim a person is being asked to make and the surface that must show both texts together (§5.3).
     """
-    from loom.refs.proposals import PROPOSED, load_results, page_context
+    from loom.refs.proposals import PROPOSED, load_results, page_context, state_of
     from loom.refs.search import words_not_on_page
 
     out: dict[str, dict[str, Any]] = {}
     for rid, r in load_results(root, citekey).items():
+        state = state_of(r)
         row: dict[str, Any] = {
-            "state": r.state,
+            "state": state,
             "level": r.level,
             "class": r.cls,
             "page": r.anchor.page,
@@ -87,9 +106,11 @@ def _results_for(root: Path, citekey: str) -> dict[str, dict[str, Any]]:
         }
         if r.cls != "mechanical":
             row["source_text"] = r.source_text
+        elif version is not None:
+            row["version"] = version.to_json()
         if r.anchor.kind == "tex" and r.cls != "mechanical":
             row["source_file"] = r.anchor.path
-        if r.state == PROPOSED:
+        if state == PROPOSED:
             row["statement"] = r.statement
             row["local"] = r.local
             row["taxon"] = r.taxon
@@ -408,6 +429,10 @@ def build_manifest(
 
     manifest["links"] = [x.to_json() for x in read_links(result.quilt.root)]
     unreadable = declarations(result.quilt.root, "unreadable")
+    from loom.refs.scan import versions_of
+
+    versions = versions_of(result.bib)
+    tops = {v: top for top, vs in versions.items() for v in vs}
     for ck in sorted(set(result.bib) | set(digests) | set(proposals)):
         bib = result.bib.get(ck)
         fields = {
@@ -466,10 +491,15 @@ def build_manifest(
             },
             "digest": digest_entry,
             "proposed": proposed_entry,
-            "results": _results_for(result.quilt.root, ck),
+            "results": _results_for(result.quilt.root, ck, other_version(asm, digests[ck]) if ck in digests else None),
             "version_mismatch": version_mismatch,
             "cited_by": sorted(set(cited_by.get(ck, []))),
         }
+        # one work, several documents (book 8.16): a primary names its versions, each with what is on disk for it
+        if ck in versions:
+            manifest["references"][ck]["versions"] = [_version(result, v) for v in versions[ck]]
+        if ck in tops:
+            manifest["references"][ck]["version_of"] = tops[ck]
         # the author's claim that there is no document to hold, so the reading view says so rather than showing an
         # empty pane and the digest as though it were the paper (plan 0.13 §4)
         said = unreadable.get(ck)

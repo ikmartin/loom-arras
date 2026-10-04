@@ -1,0 +1,86 @@
+% !LOOM digest: Arden24A
+% !LOOM prefix: Arden24A
+% !LOOM extracted-from: file:e43d5afaac8f10f0
+% !LOOM method: extract
+% !LOOM created: 2026-09-14
+% !LOOM numbering: emulated
+
+\section*{Overview}
+Let $Q$ be a finite quiver. A weighting of $Q$ assigns an integer to each arrow, and the weightings form a free abelian group of rank $|A(Q)|$. Among them sit the weightings that balance at every vertex. This note fixes the notation for that sublattice and proves the three facts about it that are used everywhere.
+
+Throughout, all quivers are finite, loops and parallel arrows are permitted, and the underlying graph of a quiver is the undirected multigraph obtained by forgetting the orientation of each arrow.
+
+\begin{theorem}[{\cite[Standing assumptions]{Arden24A}}]\label{Arden24A-setup}
+\emph{Sentences of the paper that state an assumption, gathered by the extractor; check each one's scope.}
+
+Throughout, all quivers are finite, loops and parallel arrows are permitted, and the underlying graph of a quiver is the undirected multigraph obtained by forgetting the orientation of each arrow.
+\end{theorem}
+
+\section{Introduction}\label{Arden24A-sec-1}
+
+\begin{definition}[{\cite[Definition 1.1, p.~1]{Arden24A}}]\label{Arden24A-def-1.1}
+\label{Arden24A-def:quiver}
+A \emph{quiver} is a quadruple $Q = (V, A, s, t)$ in which $V$ and $A$ are finite sets and $s, t \colon A \to V$ are functions, called the source and target maps.
+\end{definition}
+
+\begin{definition}[{\cite[Definition 1.2, p.~1]{Arden24A}}]\label{Arden24A-def-1.2}
+\label{Arden24A-def:cycle-space}
+The \emph{cycle space} of a quiver $Q$ is the kernel $\mathcal{Z}(Q)$ of the divergence map $\partial \colon \mathbb{Z}^{A(Q)} \to \mathbb{Z}^{V(Q)}$ whose value at a vertex $v$ is the total weight of the arrows with target $v$ less the total weight of the arrows with source $v$.
+\end{definition}
+
+\section{The image of the divergence map}\label{Arden24A-sec-2}
+
+\begin{proposition}[{\cite[Proposition 2.1, p.~1]{Arden24A}}]\label{Arden24A-prop-2.1}
+\label{Arden24A-prop:image}
+Let $Q$ be a quiver whose underlying graph has $c$ connected components. The image of the divergence map is the lattice of integer vectors in $\mathbb{Z}^{V(Q)}$ whose coordinates sum to zero on each component, and its rank is $|V(Q)| - c$.
+\end{proposition}
+
+\begin{lemma}[{\cite[Lemma 2.2, p.~2]{Arden24A}}]\label{Arden24A-lem-2.2}
+\label{Arden24A-lem:saturated}
+The cycle space of a quiver is a saturated sublattice of the lattice of weightings: if $nw$ is balanced for some nonzero integer $n$, then $w$ is balanced.
+\end{lemma}
+
+\section{Rank and duality}\label{Arden24A-sec-3}
+
+\begin{theorem}[{\cite[Theorem 3.1, p.~2]{Arden24A}}]\label{Arden24A-thm-3.1}
+\uses{Arden24A-prop-2.1}
+\label{Arden24A-thm:rank}
+Let $Q$ be a quiver whose underlying graph has $c$ connected components. Then the cycle space of $Q$ is a free abelian group of rank $|A(Q)| - |V(Q)| + c$, and this rank depends only on the underlying graph of $Q$.
+\end{theorem}
+
+\begin{corollary}[{\cite[Corollary 3.2, p.~2]{Arden24A}}]\label{Arden24A-cor-3.2}
+\uses{Arden24A-thm-3.1, Arden24A-lem-2.2}
+\label{Arden24A-cor:forest}
+The cycle space of a quiver is trivial if and only if the underlying graph is a forest.
+\end{corollary}
+
+\section{Examples and remarks}\label{Arden24A-sec-4}
+
+\begin{remark}[{\cite[Remark 4.1, p.~2]{Arden24A}}]\label{Arden24A-rem-4.1}
+\label{Arden24A-rem:orientation}
+Nothing above uses the orientation of the arrows except as bookkeeping, which is the content of the last sentence of the proof of Theorem~\ref{Arden24A-thm-3.1}. Readers who prefer graphs to quivers may replace every quiver by its underlying graph with an arbitrary orientation, and no statement changes.
+\end{remark}
+
+\begin{remark}[{\cite[Remark 4.2, p.~2]{Arden24A}}]\label{Arden24A-rem-4.2}
+\label{Arden24A-rem:infinite}
+For an infinite quiver of finite valence the divergence map is still defined on finitely supported weightings and its kernel is still saturated, but the rank formula of Theorem~\ref{Arden24A-thm-3.1} has no meaning, since all three of its terms are infinite. The correct statement in that setting is a description of the cycle space as a direct limit, which we do not pursue.
+\end{remark}
+
+\section{Balanced subquivers}\label{Arden24A-sec-5}
+
+\begin{theorem}[{\cite[Theorem 5.1, p.~3]{Arden24A}}]\label{Arden24A-thm-5.1}
+\uses{Arden24A-lem-2.2, Arden24A-thm-3.1}
+\label{Arden24A-thm:subquiver}
+Let $P$ be a subquiver of a quiver $Q$ and $w$ a weighting of $P$. The extension of $w$ by zero is balanced on $Q$ if and only if $w$ is balanced on $P$. In particular the cycle space of $P$ is a saturated sublattice of the cycle space of $Q$, of rank $|A(P)| - |V(P)| + c(P)$.
+\end{theorem}
+
+\begin{corollary}[{\cite[Corollary 5.2, p.~3]{Arden24A}}]\label{Arden24A-cor-5.2}
+\uses{Arden24A-thm-5.1, Arden24A-cor-3.2}
+\label{Arden24A-cor:subquiver}
+A weighting of $Q$ supported on a subquiver whose underlying graph is a forest is balanced only if it is zero.
+\end{corollary}
+
+\begin{remark}[{\cite[Remark 5.3, p.~3]{Arden24A}}]\label{Arden24A-rem-5.3}
+\label{Arden24A-rem:local}
+The converse of Corollary~\ref{Arden24A-cor-5.2} fails as soon as the support contains a cycle: the weighting that is $1$ on every arrow of a directed cycle and $0$ elsewhere is balanced and nonzero. What the corollary rules out is a balanced weighting whose support is acyclic, and that is the form in which Theorem~\ref{Arden24A-thm-3.1} is usually applied.
+\end{remark}

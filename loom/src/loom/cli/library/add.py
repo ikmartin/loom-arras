@@ -74,11 +74,11 @@ def add_command(
 ) -> None:
     """File PDFs and LaTeX sources in loom's store, each under the work it shows it is.
 
-    A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), and a PDF's page text is written at once.
+    A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), unless it is a copy of one of the work's documents: it states that version's identifier, or its title, byline and page count are that document's. A copy is recorded in the ledger and not filed. A PDF's page text is written at once.
     """
     from loom.refs.ingest import identify_document, identify_source
     from loom.refs.pages import sha256_of
-    from loom.refs.scan import Filing, append_entries, file_document, plan_filing, tree_sha
+    from loom.refs.scan import Filing, append_entries, file_document, one_work_of, plan_filing, record_copy_of, tree_sha
 
     if force and not for_work:
         raise EnvError("--force applies only with --for: name the work the document is")
@@ -110,6 +110,8 @@ def add_command(
             forced, ck = why, target
         else:
             best = identity.best()
+            if len(best) > 1 and (top := one_work_of([m.citekey for m in best], bib)):
+                best = [m for m in best if m.citekey == top] or best[:1]
             if len(best) > 1:
                 why = f"it names {' and '.join(m.citekey for m in best)} equally"
                 refused.append((path, why))
@@ -140,6 +142,9 @@ def add_command(
         by = whoever(root, as_name)
         for f in filed:
             file_document(result.quilt, f, by=by)
+        for f in plans:
+            if f.copy_of:
+                record_copy_of(result.quilt, bib, f)
         append_entries(result.quilt, entries)
     for f in plans:
         row = next(r for r in rows if r["file"] == str(f.path))

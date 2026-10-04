@@ -302,7 +302,7 @@ def test_a_second_document_for_a_work_that_states_no_identifier_shows_its_own_pd
     scan_bibliography(quilt)
     _fake(
         seed / "Ekedahl - 1988 - The order of the tautological ring, preprint.pdf",
-        "The order of the tautological ring\nTorsten Ekedahl\npreprint",
+        "The order of the tautological ring\nTorsten Ekedahl\npreprint\fan appendix the first lacks",
     )
     report = scan_bibliography(quilt)
     assert report.siblings, report.lines()

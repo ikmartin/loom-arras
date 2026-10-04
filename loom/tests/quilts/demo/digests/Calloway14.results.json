@@ -19,7 +19,7 @@
         "end": 1406
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -48,7 +48,7 @@
         "end": 1486
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -77,7 +77,7 @@
         "end": 1804
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -103,7 +103,7 @@
         "path": "digests/Calloway14.tex"
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",
@@ -132,7 +132,7 @@
         "end": 234
       },
       "level": 3,
-      "state": "verified",
+      "state": "extracted",
       "origin": [
         {
           "act": "extracted",

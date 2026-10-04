@@ -71,7 +71,8 @@ def _kind_of(kind: str) -> str:
     return {"environment": "statement", "proof": "proof"}.get(kind, "prose")
 
 
-def find_edges(asm: Assembly, files: dict[str, SourceFile]) -> EdgeResult:
+def find_edges(asm: Assembly, files: dict[str, SourceFile], versions: dict[str, list[str]] | None = None) -> EdgeResult:
+    """Every edge of the assembled quilt, with the citations; `versions` is each citekey's other versions, for `postnote_edges`."""
     res = EdgeResult()
     for key, n in asm.nodes.items():
         src = files[n.file]
@@ -114,7 +115,7 @@ def find_edges(asm: Assembly, files: dict[str, SourceFile]) -> EdgeResult:
                     res.edges.append(EdgeRec(pkey, skey, "proof", "nested", path, src.line_of(env.start)))
     from loom.scan.postnote import postnote_edges
 
-    postnote_edges(asm, res)
+    postnote_edges(asm, res, versions)
     return res
 
 

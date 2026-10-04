@@ -409,6 +409,28 @@ The session's `seq` in `sessions` is the last event's number, so a viewer knows 
 
 **[decided]** `unreadable`, present only where the author has declared one, is `{"why": …, "who": …, "when": …}`: the standing claim that the work has no document to hold at all. Nothing in a bibliography entry says so, which is why it is declared and never inferred, and a viewer says it rather than showing an empty pane (DR-198).
 
+**[decided]** `proposed`, null when the work has none, is `{"file": …, "fragment": …, "nodes": [...]}` for the work's proposals: results an agent read off a page that nobody has vouched for yet. They live in `digests/<citekey>.proposed.tex`, which nothing inputs, so their nodes are in no bundle and no closure and can be neither cited nor compiled; a viewer shows them among the digest's nodes, flagged (DR-178).
+
+**[decided]** `results`, by result id, is what `digests/<citekey>.results.json` records for each of the work's results (digest contract §9), as a viewer needs it:
+
+```json
+"Man12-thm-4.1": {"state": "extracted", "level": 3, "class": "mechanical", "page": 12, "artifact": "4b8db624054b",
+                  "origin": [{"act": "extracted", "by": "loom library update", "when": "2026-09-16T00:00:00Z"}],
+                  "version": {"extracted_from": "arXiv:0805.2065v2", "cited": "doi:10.1090/S1056-3911-2011-00606-1"}}
+```
+
+- `state` is one of `proposed` (written, not yet vouched for), `extracted` (loom's own reading of the paper's source, which no person has vouched for), `verified` (a person compared the rendering with the source text and accepted it) and `discarded`. It is derived when the manifest is written, not copied from the record: a `mechanical` result is `verified` only once its `origin` carries a person's `verified` or `edited` act, and `extracted` otherwise (DR-332-ikmartin).
+- `level` is 1 for a main result and deeper for the rest; `class` is `mechanical` (parsed from a source), `anchored` (read off a page, re-checkable) or `declared` (no check available).
+- `page` is the page the statement was read from, 0 for a result read out of LaTeX; `artifact` is the first twelve characters of the sha256 of the document the anchor names.
+- `origin` lists every party who made or changed the result, in order, each `{"act", "by", "when"}`.
+- `source_text`, the page's own words, is present for every result that is not `mechanical`; a mechanical result's source is its own LaTeX, already in the digest's fragment. `source_file` is present for one quoted from the paper's LaTeX rather than a page.
+- `statement`, `local`, `taxon`, `page_text` (the page around the quoted span), `not_on_page` (words of the statement the quotation lacks) and `supersedes` are present only on a `proposed` result: it is the one claim a person is being asked to make, and the surface that offers it must show both texts.
+- `version`, present only on a `mechanical` result whose digest was read off another version than the one the bibliography cites, is `{"extracted_from", "cited"}`: the artifact extracted (`''` when the digest does not say) and the identifier the bibliography cites, which is a `work:` identifier when the entry states none and the source was a preprint a lookup found. Its numbers and pages are then the other version's.
+
+A viewer that knows only `proposed` reads every other state as settled, so `extracted` and `version` are additive and the interface version is unchanged.
+
+**[decided]** `versions`, present only on a work that has other versions (book 8.16), lists them, each `{"citekey", "work", "artifacts"}` as the version's own reference carries them; `version_of`, present only on a version, is the citekey of its work. A version is a reference of its own as well, so a viewer that knows neither field still shows every document; one that knows them shows a work once, with its versions under it (DR-332-ikmartin). Both are additive.
+
 **[decided]** `candidates`, present only on a reference whose bibliography entry states no identifier and only once a lookup has run, lists identifiers a lookup proposed, best first: `{"id": "doi:10.1353/ajm.1998.0020", "source": "zbMATH Open", "confidence": 1.0, "strength": "strong", "title": "…"}`. They are unconfirmed and never the reference's `work`, which changes only when the bibliography states the identifier. A viewer may show them, marked as unconfirmed. Additive; the interface version is unchanged (DR-122).
 
 ## 14. Macros
