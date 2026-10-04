@@ -11,6 +11,7 @@ import click
 
 from loom.cli._common import ContentError, EnvError, destination
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted
 from loom.scan.quilt import Quilt
 from loom.scan.scan import scan
@@ -33,7 +34,7 @@ from loom.sync import (
 )
 
 
-@click.group()
+@click.group(cls=CommandGroup)
 def sync() -> None:
     """Exchange the paper's sources with a document workspace, such as an Overleaf project."""
 

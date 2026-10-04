@@ -5,8 +5,8 @@ drafting = "drafting"
 prefix = "hx"
 engine = "pdflatex"
 
-[refs]
-fetch = false
+[library]
+online = false
 
 [lint]
 disable = []

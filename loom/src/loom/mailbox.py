@@ -401,7 +401,7 @@ def render_changes(changed: list[dict[str, Any]]) -> str:
 def work_of(root: Path, annotation: Any) -> str | None:
     """The citekey a page note's target names, or None when the target is a key in the corpus.
 
-    The record stores the work's identifier, which is what two quilts agree on; every `loom refs` command wants the citekey, which is what this machine calls it. Nothing mapped one to the other, so an agent given a changed-annotation block had an address it could not use.
+    The record stores the work's identifier, which is what two quilts agree on; every `loom library` command wants the citekey, which is what this machine calls it. Nothing mapped one to the other, so an agent given a changed-annotation block had an address it could not use.
     """
     if annotation.anchor is None:
         return None
@@ -448,7 +448,7 @@ def pending(root: Path, session: Any, who: str) -> list[dict[str, Any]]:
                 "id": a.id,
                 "kind": a.kind,
                 "target": a.target_key,
-                # A page note targets the work's identifier, which no `loom refs` command accepts. An agent handed only that has to find the citekey by trial -- which is what the reading study watched one do. The citekey and the page travel with it, as `ai annotations` prints them.
+                # A page note targets the work's identifier, which no `loom library` command accepts. An agent handed only that has to find the citekey by trial -- which is what the reading study watched one do. The citekey and the page travel with it, as `ai annotations` prints them.
                 "work": work_of(root, a),
                 "page": a.anchor.page if a.anchor else None,
                 "act": "replied" if a.in_reply_to else "created",

@@ -30,7 +30,7 @@ SECTIONS: list[tuple[str, str, tuple[str, ...]]] = [
         "Record steps, read and restore earlier text, and move documents.",
         ("stamp", "history", "revert", "mv", "fork", "linearize", "deloom"),
     ),
-    ("Library", "The papers you cite and the results taken from them.", ("refs", "digest")),
+    ("Library", "The papers you cite and the results taken from them.", ("library",)),
     (
         "Agents",
         "Hand a document to an agent, take its changes back, and the sessions you both work in.",
@@ -56,6 +56,20 @@ def agent_runs(path: str) -> bool:
     from loom.ai.layout import AGENT_COMMANDS
 
     return any(c == path or c.startswith(path + " ") for c in AGENT_COMMANDS)
+
+
+class CommandGroup(click.Group):
+    """A command group whose help lists each subcommand with its first sentence whole, as `loom --help` does (K6); every group but the top level's is one."""
+
+    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        rows = [
+            (n, c.get_short_help_str(FULL))
+            for n in self.list_commands(ctx)
+            if (c := self.get_command(ctx, n)) and not c.hidden
+        ]
+        if rows:
+            with formatter.section("Commands"):
+                formatter.write_dl(rows)
 
 
 class LoomGroup(click.Group):

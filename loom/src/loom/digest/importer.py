@@ -1,4 +1,4 @@
-"""`loom digest import PATH [--as CITEKEY]` (book 8.10): copy a digest into this quilt's `digests/`, renaming its citekey and every prefixed id, label, and citation when `--as` says so."""
+"""`loom library import PATH [--name CITEKEY]` (book 8.10): copy a digest into this quilt's `digests/`, renaming its citekey and every prefixed id, label, and citation when `--name` says so."""
 
 from __future__ import annotations
 

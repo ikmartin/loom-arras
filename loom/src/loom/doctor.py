@@ -275,7 +275,7 @@ def _tiny_pdf() -> bytes:
 
 
 def _bbox(got: Answer, item: Item) -> None:
-    """pdftotext must write `-bbox-layout` word boxes, which `loom refs locate` and the viewer's highlights need; xpdf's has no such flag."""
+    """pdftotext must write `-bbox-layout` word boxes, which `loom library locate` and the viewer's highlights need; xpdf's has no such flag."""
     if got.hung:
         item.status, item.detail = FAIL, f"{item.detail}: hung writing word boxes (-bbox-layout)"
     elif got.code != 0 or "<page " not in got.out:

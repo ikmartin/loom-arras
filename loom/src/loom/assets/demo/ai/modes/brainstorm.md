@@ -10,7 +10,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 ## Input
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
 - `loom source ID --closure --session SESSION` for each definition or result the topic touches.
-- The overviews of the relevant digests (`loom refs overview CITEKEY`, each written to be read whole); `loom search --kind digest`.
+- The overviews of the relevant digests (`loom library read CITEKEY`, each written to be read whole); `loom search --kind digest`.
 - If the author has an outline master, `loom source drafting/outline.tex --session SESSION` prints the plan as it stands, flattened.
 
 ## Procedure

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from loom.clock import stamp
 from loom.refs.fetch import FetchRefused, work_dir
 from loom.refs.identity import WorkId, primary
-from loom.refs.ingest import filename_title, identifiers_in, look_at
+from loom.refs.ingest import filename_title, identifiers_in, identify_document
 from loom.refs.pages import STORAGE, page_texts, sha256_of, storage_root, write_map
 from loom.refs.unreadable import declarations
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from loom.cli.report import Report
 
 HEADER = (
-    "% The quilt's bibliography, written by `loom refs scan` from the landmarks (book 8.15).\n"
+    "% The quilt's bibliography, gathered by `loom library update` from the landmarks (book 8.15).\n"
     "% Loom only appends: an entry here is never rewritten or removed, so correct one by hand and it stays corrected.\n"
 )
 
@@ -67,6 +67,8 @@ class ScanReport:
     already: int = 0  # documents the ledger had seen before
     derived: list[str] = field(default_factory=list)  # entries offered for a document that stated an identifier
     unnamed: list[str] = field(default_factory=list)  # entries offered for a document that stated none
+    #: (seed file, why) for a document that resembles an entry without showing plainly that it is that entry's.
+    unmatched: list[tuple[str, str]] = field(default_factory=list)
     siblings: list[tuple[str, str]] = field(default_factory=list)  # (new key, the work it is a second document of)
     unmapped: list[tuple[str, str]] = field(default_factory=list)  # (file, why no page text was written)
     adopted: list[tuple[str, str]] = field(default_factory=list)  # (new key, the store directory nothing named)
@@ -75,7 +77,7 @@ class ScanReport:
         default_factory=list
     )  # (where the document came from, the entries naming it)
 
-    #: True when the scan wrote nothing: a dry run, or `refs build` asking what a scan would add.
+    #: True when the scan wrote nothing: a dry run, or `library update` asking what gathering would add.
     dry_run: bool = False
 
     def problems(self) -> int:
@@ -110,7 +112,7 @@ class ScanReport:
         if self.forgotten:
             lines.append(
                 f"{counted(self.forgotten, 'stored document')} not offered: forgotten; "
-                "loom refs forget TARGET --undo --why '…' offers one again"
+                "loom library ignore WORK --undo --why '…' offers one again"
             )
         if not self.canon:
             lines.append(
@@ -153,6 +155,12 @@ class ScanReport:
                 ],
             ),
             Group("no page text", [Item(why, key=name) for name, why in sorted(self.unmapped)]),
+            Group(
+                "not filed against an entry, so offered one of their own",
+                [Item(f"{name}: {why}") for name, why in sorted(self.unmatched)],
+                limit=None,
+                next="loom library add FILE --for WORK files one you know is that work",
+            ),
         ]
         return Report(
             verdict,
@@ -173,6 +181,7 @@ class ScanReport:
                 "unnamed": list(self.unnamed),
                 "siblings": [{"key": a, "of": b} for a, b in self.siblings],
                 "unmapped": [{"file": a, "why": b} for a, b in self.unmapped],
+                "unmatched": [{"file": a, "why": b} for a, b in self.unmatched],
                 "adopted": [{"key": a, "home": b} for a, b in self.adopted],
                 "forgotten": self.forgotten,
                 "duplicates": [{"from": a, "keys": b} for a, b in self.duplicates],
@@ -425,11 +434,11 @@ def load_ledger(root: Path) -> dict[str, dict[str, str]]:
     return data if isinstance(data, dict) else {}
 
 
-def record_copy(root: Path, sha: str, source: str, dest: str) -> None:
-    """Append one copy to the ledger. Nothing is ever removed from it."""
+def record_copy(root: Path, sha: str, source: str, dest: str, extra: dict[str, str] | None = None) -> None:
+    """Append one copy to the ledger, with `extra` fields such as an override `library add --force` made. Nothing is ever removed from it."""
     path = storage_root(root) / LEDGER
     ledger = load_ledger(root)
-    ledger[sha] = {"from": source, "to": dest, "when": stamp()}
+    ledger[sha] = {"from": source, "to": dest, "when": stamp(), **(extra or {})}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -491,6 +500,16 @@ def _entry_for(
     return _bibtex(key, out)
 
 
+def _sibling(pdf: Path, wid: WorkId | None, entry: BibEntry, key: str, *, source: str, home: Path) -> Candidate:
+    """The entry for a second document of `entry`'s work, filed beside the first at `home` (store-relative).
+
+    It always names its home in `loom-file`: one stating no identifier is otherwise looked for under the synthetic home its author, title and year hash to, which is the original's, and shows the original's PDF or none (audit §3).
+    """
+    fields = {k: v for k, v in entry.fields.items() if k in ("author", "title", "year")}
+    fields["loom-copy-of"] = entry.key
+    return Candidate(key, _entry_for(pdf, wid, fields, key, source=source, filed=home.as_posix()), source, source)
+
+
 def _derived_key(pdf: Path, sha: str, taken: set[str]) -> str:
     """A citekey for a document nothing in the bibliography claims: its filename, or its hash when the name says nothing."""
     stem = re.sub(r"[^A-Za-z0-9]", "", pdf.stem)[:24]
@@ -544,8 +563,7 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
         if wid is not None:
             claimed.add(wid.path)
     ledger = {rec.get("to", ""): rec for rec in load_ledger(quilt.root).values()}
-    # What the author has deliberately deleted the entry for. Without this the offer is loom undoing their decision on
-    # every scan, which is the whole reason `loom refs forget` exists.
+    # What the author has deliberately deleted the entry for. Without this the offer is loom undoing their decision on every scan, which is the whole reason `loom library ignore` sets a document aside.
     forgotten = declarations(quilt.root, "forget")
     taken = set(bib)
     offers: list[Candidate] = []
@@ -593,7 +611,7 @@ def copy_documents(
 ) -> list[Candidate]:
     """Copy every document in the seed space the store has not seen before, and offer an entry for one the bibliography does not have.
 
-    Copy-once is by content hash and by the ledger, never by what is on disk: a document the author has since deleted from `refs/` is not copied again, and neither is one they renamed. Where it goes is decided by what it says about itself -- its own identifier, the entry two signals agree it is, or its hash -- and a second document for a work that already has one is filed beside it under a sibling key rather than over it, because a preprint often carries results the published version drops (DR-192).
+    Copy-once is by content hash and by the ledger, never by what is on disk: a document the author has since deleted from `refs/` is not copied again, and neither is one they renamed. Where it goes is decided by what it says about itself -- its own identifier, the entry it shows plainly it is (`identify_document`, the rule `library add` files on), or its hash -- and a second document for a work that already has one is filed beside it under a sibling key rather than over it, because a preprint often carries results the published version drops (DR-192).
     """
     root = quilt.root
     seed = root / SEED
@@ -608,9 +626,16 @@ def copy_documents(
         if sha in ledger:
             report.already += 1
             continue
+        ledger[sha] = {"from": rel}  # the same bytes dropped twice in one gathering are one document, offered once
         wid, said = _own_account(pdf)
-        found = look_at(pdf, bib)
-        citekey = found.best()[0] if found.attachable else ""
+        # filed against an entry only on the rule `library add` files on; anything weaker is its own document
+        identity = identify_document(pdf, bib)
+        best = identity.best()
+        citekey = best[0].citekey if len(best) == 1 else ""
+        if not citekey:
+            why = f"it names {' and '.join(m.citekey for m in best)} equally" if best else identity.weak
+            if why and not why.startswith("nothing in the bibliography"):
+                report.unmatched.append((rel, why))
         entry = bib.get(citekey)
         # where the entry's document lives, `loom-file` first, as every reader looks (`work_dir`)
         try:
@@ -624,19 +649,11 @@ def copy_documents(
             )  # a second document stating the work's own identifier is filed by its content, never over the first
         if claimed is not None and not (claimed / "paper.pdf").is_file():
             home = claimed  # the work the bibliography already names, with nothing filed for it yet
-        elif claimed is not None:
+        elif claimed is not None and entry is not None:
             home = own  # a second document for that work: beside the first, under a sibling key
             sibling = _free_key(citekey, taken)
             taken.add(sibling)
-            fields = {k: v for k, v in entry.fields.items() if k in ("author", "title", "year")}  # type: ignore[union-attr]
-            fields["loom-copy-of"] = citekey
-            # the sibling names where its document went, or one stating no identifier is looked for under the original's synthetic home and shows the original's PDF
-            filed = (
-                ""
-                if wid and own.relative_to(storage_root(root)).as_posix() == wid.path
-                else own.relative_to(storage_root(root)).as_posix()
-            )
-            offers.append(Candidate(sibling, _entry_for(pdf, wid, fields, sibling, source=rel, filed=filed), rel, rel))
+            offers.append(_sibling(pdf, wid, entry, sibling, source=rel, home=own.relative_to(storage_root(root))))
             report.siblings.append((sibling, citekey))
         else:
             home = own  # nothing in the bibliography claims it
@@ -658,3 +675,96 @@ def copy_documents(
             report.unmapped.append((rel, str(exc)))
         record_copy(root, sha, rel, home.relative_to(root).as_posix())
     return offers
+
+
+def tree_sha(path: Path) -> str:
+    """A content hash for a LaTeX source, a file or a whole tree: what the ledger keys a source by, as it keys a PDF by its bytes."""
+    import hashlib
+
+    h = hashlib.sha256()
+    files = [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file())
+    for f in files:
+        h.update((f.relative_to(path).as_posix() if path.is_dir() else f.name).encode() + b"\0" + f.read_bytes())
+    return h.hexdigest()
+
+
+@dataclass
+class Filing:
+    """One document `loom library add` files, or would: the work, where it lands, and whether it goes beside the work's first document."""
+
+    path: Path
+    citekey: str
+    kind: str  # "pdf" or "source"
+    sha: str
+    source: str  # where it came from, as the ledger and `loom-source` record it
+    home: Path | None = None
+    #: The sibling entry's key when the work already holds a document, so this one is filed beside it (book 8.16).
+    sibling: str = ""
+    #: Why nothing is filed: the same document is in the store already; '' when it is filed.
+    already: str = ""
+    #: The refusal `--force` overrode, recorded in the ledger with who forced it.
+    forced: str = ""
+    #: Why no page text was written for a filed PDF.
+    unmapped: str = ""
+
+
+def plan_filing(
+    quilt: Quilt, bib: dict[str, BibEntry], f: Filing, taken: set[str], seen: dict[str, str]
+) -> Candidate | None:
+    """Decide where `f` lands, filling in its home, sibling or `already`; returns the sibling entry to append, or None.
+
+    Never over a document: a work that holds one gets this one beside it under `<key>A`, and the same bytes already in the store, or given twice in one run, are filed once. Reads only; `file_document` writes.
+    """
+    root = quilt.root
+    store = storage_root(root)
+    if f.sha in seen:
+        f.already = f"the same document as {seen[f.sha]}"
+        return None
+    seen[f.sha] = f.path.name
+    ledger = load_ledger(root)
+    if f.kind == "pdf" and f.sha in ledger:
+        f.already = f"already in loom's store, filed from {ledger[f.sha].get('from', 'elsewhere')}"
+        return None
+    entry = bib[f.citekey]
+    claimed = work_dir(root, entry)
+    first = claimed / "paper.pdf" if f.kind == "pdf" else claimed / "src"
+    held = first.is_file() if f.kind == "pdf" else first.is_dir() and any(first.rglob("*.tex"))
+    if not held:
+        f.home = claimed
+        return None
+    if f.kind == "pdf" and sha256_of(first) == f.sha:
+        f.already = f"already filed for {f.citekey}"
+        return None
+    own = store / "file" / f.sha[:16]
+    f.home = own
+    f.sibling = _free_key(f.citekey, taken)
+    taken.add(f.sibling)
+    wid = _own_account(f.path)[0] if f.kind == "pdf" else None
+    return _sibling(f.path, wid, entry, f.sibling, source=f.source, home=own.relative_to(store))
+
+
+def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
+    """Copy a planned filing into the store, write a PDF's page text, and record it in the copy ledger, with the override and who made it when `--force` did."""
+    assert f.home is not None and not f.already
+    root = quilt.root
+    f.home.mkdir(parents=True, exist_ok=True)
+    if f.kind == "pdf":
+        shutil.copy(f.path, f.home / "paper.pdf")
+        try:
+            write_map(f.home, f.home / "paper.pdf")
+        except Exception as exc:  # noqa: BLE001 -- no poppler, or no text layer: the PDF stands either way
+            f.unmapped = str(exc)
+    else:
+        dest = f.home / "src"
+        dest.mkdir(parents=True, exist_ok=True)
+        if f.path.is_dir():
+            shutil.copytree(f.path, dest, dirs_exist_ok=True)
+        else:
+            shutil.copy(f.path, dest / f.path.name)
+    extra = {"forced": f.forced, "by": by} if f.forced else None
+    record_copy(root, f.sha, f.source, f.home.relative_to(root).as_posix(), extra)
+
+
+def append_entries(quilt: Quilt, entries: list[Candidate]) -> None:
+    """Append entries to the quilt's bibliography, as gathering does: only ever appended, so a correction by hand outlives them."""
+    _append(quilt.root / BIBLIOGRAPHY, entries)

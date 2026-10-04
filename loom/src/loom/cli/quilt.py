@@ -27,9 +27,8 @@ drafting_ai = "{drafting_ai}"     # documents you and an agent both edit, live b
 prefix = "{prefix}"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 
-[refs]
-fetch = false               # may loom fetch sources and PDFs for cited works (loom refs fetch); --fetch allows one run
-resolve = false             # may loom look identifiers up at zbMATH Open and Crossref (loom refs resolve); --resolve allows one run
+[library]
+online = false              # may loom library update look identifiers up (zbMATH Open, Crossref) and fetch documents (arXiv); --online allows one run
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]

@@ -1,6 +1,6 @@
-"""`loom refs fetch`: sources and PDFs for the works a quilt cites (plan 0.12 §4.3).
+"""The fetch step of `loom library update`: sources and PDFs for the works a quilt cites (plan 0.12 §4.3).
 
-Absorbs what `loom digest fetch` did, and adds the two things §4.3 needs. **A resolver candidate is enough to fetch with and never enough to be an identity**: DR-122 keeps identity with the author, but downloading an e-print on a strong candidate is reversible, costs one request, and is checkable on arrival -- so a work whose entry declares no identifier is still fetchable, which is what takes relloc's mechanically-extractable fraction from 2 works toward 15.
+It does the two things §4.3 needs. **A resolver candidate is enough to fetch with and never enough to be an identity**: DR-122 keeps identity with the author, but downloading an e-print on a strong candidate is reversible, costs one request, and is checkable on arrival -- so a work whose entry declares no identifier is still fetchable, which is what takes relloc's mechanically-extractable fraction from 2 works toward 15.
 
 **The arrival check is the guard.** A fetched source's title is scored against the bibliography entry's, and a source that does not match is discarded rather than filed. This is what stops a plausible-but-wrong candidate attaching the wrong paper to the right entry, and it is why fetching on a candidate is safe when identifying on one is not.
 """
@@ -102,7 +102,7 @@ def work_dir(root: Path, entry: BibEntry | None) -> Path:
 
     Named by the work's primary global identifier, never by the citekey: two quilts citing one paper name one directory, which is what lets a shared cache be a hardlink rather than a mapping (DR-108).
 
-    **A document that states no identifier is filed under its own content hash**, and the entry `refs scan` offers for it states none either -- so `primary` answers with the *synthetic* identifier, a hash of author, title and year, and the two disagree. A scanned paper was filed at `file/04232c5d…` while every reader looked under `work/51661974` and was told there was no copy on this machine. The entry records where its document went, and that wins; `loom-file` is written by whatever files it (reading study, 2026-09-21).
+    **A document that states no identifier is filed under its own content hash**, and the entry gathering offers for it states none either -- so `primary` answers with the *synthetic* identifier, a hash of author, title and year, and the two disagree. A scanned paper was filed at `file/04232c5d…` while every reader looked under `work/51661974` and was told there was no copy on this machine. The entry records where its document went, and that wins; `loom-file` is written by whatever files it (reading study, 2026-09-21).
     """
     from loom.refs.pages import storage_root
 
@@ -264,7 +264,7 @@ def fetch_work(
     Parameters
     ----------
     quilt : Quilt
-        The quilt; `config.fetch` must be true or nothing touches the network.
+        The quilt; `config.online` must be true or nothing touches the network.
     citekey : str
         The entry's key, for the report only.
     entry : BibEntry or None
@@ -285,9 +285,9 @@ def fetch_work(
     arrival_score : the check a candidate-fetched source must pass.
     """
     out = Fetched(citekey=citekey)
-    if not quilt.config.fetch:
+    if not quilt.config.online:
         out.refused = (
-            "fetching is off: set fetch = true under [refs] in config.toml to allow it, or pass --fetch for this run"
+            "the network is off: set online = true under [library] in config.toml, or pass --online for this run"
         )
         return out
     if entry is None:
@@ -301,7 +301,7 @@ def fetch_work(
         out.refused = f"{citekey} names no arXiv identifier or PDF link, and no lookup has proposed one"
         return out
     if via == "candidate" and not allow_candidate:
-        out.refused = f"{citekey} declares no identifier (a candidate exists; pass --candidates to use it)"
+        out.refused = f"{citekey} declares no identifier (a candidate exists, and --no-candidates leaves it unused)"
         return out
     out.ident, out.via = ident, via
     home = work_dir(quilt.root, entry)

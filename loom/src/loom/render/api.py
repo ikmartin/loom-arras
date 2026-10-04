@@ -11,8 +11,6 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from loom.clock import stamp
-
 if TYPE_CHECKING:
     from loom.scan.scan import ScanResult
 
@@ -24,9 +22,9 @@ CAPABILITIES = [
     "resolve",
     "edit",
     "discard",
-    "refs-cite",
-    "digest-verify",
-    "digest-discard",
+    "library-cite",
+    "library-verify",
+    "library-discard",
     "locate",
     "compare",
     "session-use",
@@ -80,7 +78,7 @@ RECORD_WRITES = (
     "resolve",
     "edit",
     "discard",
-    "refs-cite",
+    "library-cite",
     "session-new",
     "session-use",
     "session-rename",
@@ -139,10 +137,10 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
     """
     if endpoint not in CAPABILITIES:
         raise ApiError("unknown-endpoint", f"no endpoint {endpoint}", status=404)
-    if endpoint == "refs-cite":
-        return {"ok": True, "result": _refs_cite(root, body)}
-    if endpoint in ("digest-verify", "digest-discard"):
-        return {"ok": True, "result": _digest(root, endpoint, body)}
+    if endpoint == "library-cite":
+        return {"ok": True, "result": _library_cite(root, body)}
+    if endpoint in ("library-verify", "library-discard"):
+        return {"ok": True, "result": _library(root, endpoint, body)}
     if endpoint == "locate":
         return _locate(root, body)
     if endpoint == "compare":
@@ -499,10 +497,10 @@ def _anchor_json(anchor: Any) -> dict[str, Any]:
     return out
 
 
-def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
-    """Verify or discard a proposed digest node, through the same functions `loom refs verify|discard` call.
+def _library(root: Path, endpoint: str, body: dict[str, Any]) -> str:
+    """Verify or discard a proposed digest node, through the same functions `loom library verify|discard` call.
 
-    `digest-verify` with a `statement` is edit-then-verify: the author's own rendering replaces the proposed one and both parties are recorded. It never touches `source_text`, so the anchor survives and the node stays re-checkable (plan 0.12 §5.4).
+    `library-verify` with a `statement` is edit-then-verify: the author's own rendering replaces the proposed one and both parties are recorded. It never touches `source_text`, so the anchor survives and the node stays re-checkable (plan 0.12 §5.4).
 
     **Both are the author's verbs, and the guard is on the declared identity** (plan 0.13 §8). The server's own environment says nothing here -- loom may be serving from the terminal an agent is working in -- so the marker is not consulted; what is refused is a writer who names itself an agent. A post with no author is the author's own click in their own browser, which is what this endpoint is for.
     """
@@ -513,7 +511,7 @@ def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     node = _str(body, "node", required=True) or ""
     named = _str(body, "author")
     if named and is_agent(named):
-        verb = "loom refs discard" if endpoint == "digest-discard" else "loom refs verify"
+        verb = "loom library discard" if endpoint == "library-discard" else "loom library verify"
         raise ApiError(
             "author-only",
             f"{verb} is the author's, and {named} is an agent. An agent proposes; it does not vouch for its own "
@@ -523,8 +521,8 @@ def _digest(root: Path, endpoint: str, body: dict[str, Any]) -> str:
     result = _scan(root)
     who = resolve_author(named, root)[0]
     try:
-        if endpoint == "digest-discard":
-            return discard_result(result, node, _str(body, "reason", required=True) or "", who)
+        if endpoint == "library-discard":
+            return discard_result(result, node, _str(body, "why", required=True) or "", who)
         return verify_result(
             result, node, _str(body, "statement"), who, local=_str(body, "local"), taxon=_str(body, "taxon")
         )[0]
@@ -608,46 +606,35 @@ def _review(root: Path, endpoint: str, body: dict[str, Any]) -> str:
         raise ApiError("bad-request", str(exc)) from exc
 
 
-def _refs_cite(root: Path, body: dict[str, Any]) -> str:
-    """Accept or reject a citation an agent suggested: the log records the decision, the breadcrumb records the work."""
-    from loom.cli._common import is_agent
-    from loom.records.annotations import find_annotation
-    from loom.records.store import Records
-    from loom.refs.notes import append_note
+def _library_cite(root: Path, body: dict[str, Any]) -> str:
+    """Accept or reject a citation an agent suggested, through `decide_citation` as `loom library verify|discard` do."""
+    from loom.cli._common import ContentError, EnvError, NotFoundError, is_agent
+    from loom.cli.review import _writer
+    from loom.refs.notes import DECISIONS, decide_citation, find_citation
 
     if is_agent(_str(body, "author") or ""):
         raise ApiError(
             "author-only", "An agent suggests a citation; only the author accepts or rejects one", status=403
         )
     decision = _str(body, "decision", required=True)
-    if decision not in ("accept", "reject"):
+    if decision not in DECISIONS:
         raise ApiError("bad-field", "decision must be accept or reject")
     ann_id = _str(body, "annotation", required=True) or ""
-    records = Records(root).records
-    found = find_annotation(records, ann_id)
-    if found is None:
-        raise ApiError("no-such-annotation", f"no annotation {ann_id}", status=404)
-    record, annotation = found
-
-    reason = _str(body, "reason")
+    which = _str(body, "session")
+    if not which:
+        raise ApiError("no-session", "a write must name the session it belongs to")
     try:
-        resolved = _review(root, "resolve", {**body, "message": reason or f"{decision}ed"})
-    except ApiError:
-        raise
-    if decision == "reject":
-        return f"rejected {ann_id}; {resolved}"
-    append_note(
-        root,
-        {
-            "work": annotation.body,
-            "for": [annotation.target_key],
-            "claim": annotation.selector.exact if annotation.selector else None,
-            "identifier": {"verified": False},
-            "accepted": {"when": stamp(), "who": _str(body, "author") or "viewer"},
-            "from": {"session": record.rel, "annotation": ann_id},
-        },
-    )
-    return f"accepted {ann_id}; {resolved}"
+        # the suggestion first: one that names nothing is the caller's mistake whoever is asking
+        find_citation(root, ann_id, decision)
+        session, _kind, who = _writer(root, which, _str(body, "author"), sniff=False)
+        decide_citation(root, ann_id, decision, _str(body, "why"), who, session)
+    except LookupError as exc:
+        raise ApiError("no-such-annotation", str(exc), status=404) from exc
+    except NotFoundError as exc:
+        raise ApiError(f"no-such-{exc.what}", str(exc), status=404) from exc
+    except (EnvError, ContentError, ValueError) as exc:
+        raise ApiError("refused", str(exc)) from exc
+    return f"{decision}ed {ann_id}; resolved {ann_id}"
 
 
 def _accept_keys(body: dict[str, Any]) -> list[str]:

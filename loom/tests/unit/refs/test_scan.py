@@ -1,4 +1,4 @@
-"""`loom refs scan`: the quilt's bibliography gathered from the landmarks, and only ever appended to (book 8.15)."""
+"""Gathering (`loom library update --only gather`): the quilt's bibliography gathered from the landmarks, and only ever appended to (book 8.15)."""
 
 from __future__ import annotations
 
@@ -184,7 +184,7 @@ def test_a_document_the_store_holds_and_no_entry_names_is_adopted_once(tmp_path:
 
 
 def test_a_forgotten_document_is_not_offered_again(tmp_path: Path) -> None:
-    """`loom refs forget` is the tombstone that stops the store undoing a deletion (plan 0.13 §9).
+    """`loom library ignore` on a stored document is the tombstone that stops the store undoing a deletion (plan 0.13 §9).
 
     Without this the command was a report of success and nothing else: it wrote the declaration, nothing read it, and the next scan offered the deleted entry straight back. The tombstone is honoured by the citekey the author typed and by the document's own hash, and `--undo` restores the offer.
     """
@@ -295,14 +295,14 @@ def test_a_second_document_for_a_work_that_states_no_identifier_shows_its_own_pd
     bib = "@article{Eke88,\n  author = {Ekedahl, Torsten},\n  title = {The order of the tautological ring},\n  year = {1988},\n}\n"
     quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER, "refs/mine.bib": bib})
     seed = quilt.root / "refs"
-    _pdf(
+    _fake(
         seed / "Ekedahl - 1988 - The order of the tautological ring.pdf",
-        text="The order of the tautological ring Ekedahl",
+        "The order of the tautological ring\nTorsten Ekedahl",
     )
     scan_bibliography(quilt)
-    _pdf(
+    _fake(
         seed / "Ekedahl - 1988 - The order of the tautological ring, preprint.pdf",
-        text="The order of the tautological ring Ekedahl preprint",
+        "The order of the tautological ring\nTorsten Ekedahl\npreprint",
     )
     report = scan_bibliography(quilt)
     assert report.siblings, report.lines()
@@ -330,3 +330,63 @@ def test_entries_naming_one_stored_document_are_reported_once_with_the_fix(tmp_p
         "SiebertA",
         "SiebertB",
     ]
+
+
+def _files(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+def test_gathering_twice_changes_nothing_and_offers_one_document_one_entry(tmp_path: Path) -> None:
+    """A document already offered an entry is not offered another (plan 0.18.5): one document dropped twice under two names, a second document for a work, a document that says nothing about itself, and a store directory no entry names, gathered twice, leave every file as the first gathering left it."""
+    bib = "@article{Eke88,\n  author = {Ekedahl, Torsten},\n  title = {The order of the tautological ring},\n  year = {1988},\n}\n"
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER, "refs/mine.bib": bib})
+    seed = quilt.root / "refs"
+    _pdf(seed / "Ekedahl - 1988 - The order of the tautological ring.pdf", text="The order of the tautological ring")
+    (seed / "copy").mkdir()
+    _pdf(seed / "notes.pdf", text="Unrelated notes")
+    _pdf(seed / "copy" / "notes again.pdf", text="Unrelated notes")  # the same bytes under another name
+    orphan = quilt.root / "digests" / "storage" / "file" / "00ff00ff00ff00ff"
+    orphan.mkdir(parents=True)
+    _pdf(orphan / "paper.pdf", text="An orphan")
+    first = scan_bibliography(quilt)
+    offered = [c.key for c in first.added if "loom-source" in c.text]
+    entries = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())
+    sources = [str(entries[k].fields.get("loom-source")) for k in offered]
+    assert sum(1 for s in sources if "notes" in s) == 1, f"one document, one entry: {sources}"
+    _pdf(seed / "Ekedahl - 1988 - The order of the tautological ring, v2.pdf", text="The order, a second copy")
+    scan_bibliography(quilt)  # a second document for Eke88, filed beside the first
+    before = _files(quilt.root)
+    again = scan_bibliography(quilt)
+    assert again.added == [] and again.copied == [] and again.adopted == [], again.lines()
+    assert _files(quilt.root) == before
+
+
+def _fake(path: Path, text: str) -> None:
+    """A PDF in the shape the fake toolchain's pdftotext reads (tests/fake_latex)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(f"%PDF-1.4\n%FAKE-LOOM\n%%Pages: 1\n{text}\n".encode())
+
+
+def test_gathering_files_a_document_against_an_entry_only_on_a_strong_match(tmp_path: Path) -> None:
+    """The rule `library add` files on holds for `refs/` too: the handbook names Olsson fifth and shares half his 2003 title, so it is not filed as his paper; it is offered its own entry, and the report says why with the fix (audit §4)."""
+    from loom.refs.fetch import work_dir
+
+    bib = "@article{olsson03,\n  author = {Olsson, Martin C.},\n  title = {Logarithmic geometry and algebraic stacks},\n  year = {2003},\n}\n"
+    quilt = _quilt(tmp_path, {landmark(1, "paper"): PAPER, "refs/mine.bib": bib})
+    seed = quilt.root / "refs"
+    _fake(
+        seed / "Handbook of Moduli.pdf",
+        "Logarithmic geometry and moduli\nDan Abramovich, Qile Chen, Danny Gillam, Martin Olsson, and Shenghao Sun",
+    )
+    _fake(seed / "olsson.pdf", "Logarithmic geometry and algebraic stacks\nMartin C. Olsson\nAnn. Sci. ENS")
+    report = scan_bibliography(quilt)
+    entries = parse_bib((quilt.root / BIBLIOGRAPHY).read_text())
+    home = work_dir(quilt.root, entries["olsson03"])
+    assert (home / "paper.pdf").read_bytes() == (seed / "olsson.pdf").read_bytes()
+    assert not any(e.fields.get("loom-copy-of") == "olsson03" for e in entries.values()), "no sibling: it is not his"
+    offered = [k for k, e in entries.items() if e.fields.get("loom-source") == "refs/Handbook of Moduli.pdf"]
+    assert len(offered) == 1, "the handbook is offered its own entry"
+    assert [name for name, _ in report.unmatched] == ["refs/Handbook of Moduli.pdf"]
+    said = " ".join("\n".join(report.lines()).split())
+    assert "olsson03 is the nearest entry" in said and "Olsson does not lead its byline" in said, said
+    assert "loom library add FILE --for WORK" in said

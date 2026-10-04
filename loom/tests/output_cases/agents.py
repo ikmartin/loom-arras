@@ -1,4 +1,4 @@
-"""Output cases for the agents commands -- `session`, `ai`, `doctor --agents`, `digest` and `sync`; see `tests/output_cases/__init__.py`."""
+"""Output cases for the agents commands -- `session`, `ai`, `doctor --agents` and `sync`; see `tests/output_cases/__init__.py`."""
 
 from __future__ import annotations
 
@@ -30,8 +30,6 @@ KIND: dict[str, str] = {
     "ai drafts": "report",
     "ai annotations": "report",
     "ai refresh": "report",
-    "digest extract": "report",
-    "digest import": "report",
     "sync init": "report",
     "sync fetch": "report",
     "sync status": "report",
@@ -39,24 +37,6 @@ KIND: dict[str, str] = {
     "sync incorporate": "report",
     "sync publish": "report",
 }
-
-
-REF = (
-    "\\documentclass{article}\n\\newtheorem{thm}{Theorem}[section]\n\\begin{document}\n\\section{Introduction}\n"
-    "We study widgets.\n\\section{Results}\n\\begin{thm}\\label{main}\nWidgets are gadgets.\n\\end{thm}\n\\end{document}\n"
-)
-
-
-def filed_source(q: Path) -> None:
-    """A cited work, Ref20, whose source loom holds, which is what `digest extract` reads."""
-    from tests.helpers import ok
-
-    with (q / "digests" / "bibliography.bib").open("a", encoding="utf-8") as fh:
-        fh.write("\n@misc{Ref20, title={Widgets}, author={Ref, A.}, year={2020}}\n")
-    paper = q.parent / "paper" / "ref.tex"
-    paper.parent.mkdir()
-    paper.write_text(REF, encoding="utf-8")
-    ok("refs", "add", "Ref20", str(paper), cwd=q)
 
 
 def no_ai(q: Path) -> None:
@@ -226,15 +206,6 @@ CASES: dict[str, list[Case]] = {
         Case(("--agents",), setup=author),
         Case(("--agents",), setup=configured, why="an agent configured: its start, resume and prompt lines"),
         Case(("--agents",), setup=launching, exit=2, why="launching on with no agent configured: a fault and its fix"),
-    ],
-    "digest extract": [
-        Case(("Ref20",), setup=filed_source),
-        Case(("Ref20", "--no-compile", "--to", "elsewhere.tex"), setup=filed_source),
-        Case(("Calloway14",), exit=2, why="loom holds no source for it"),
-    ],
-    "digest import": [
-        Case(("digests/Calloway14.tex", "--as", "Other14")),
-        Case(("digests/Calloway14.tex",), exit=2, why="the digest exists; import never overwrites"),
     ],
     "sync init": [
         Case(("../overleaf.git", "--publish-main", "main.tex"), setup=workspace),

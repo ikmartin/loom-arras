@@ -1,6 +1,6 @@
 """What an annotation is, and the record one belongs to (book 7.4).
 
-Annotations are stored as events in `annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom annotate` and `loom refs cite` write them.
+Annotations are stored as events in `annotations/log.jsonl` (`records/log.py`) and replayed into these shapes; a Record is one run's or one author's annotations as they now stand, not a file. Only `loom annotate` and `loom library verify|discard` write them.
 """
 
 from __future__ import annotations

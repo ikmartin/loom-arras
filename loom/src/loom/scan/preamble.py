@@ -88,7 +88,7 @@ def build_closure(
 ) -> PreambleClosure:
     """Collect the closure, then parse taxa and macros over it in inclusion order.
 
-    `foreign` is for someone else's paper, read by `loom digest extract`: it also takes theorem environments declared in the body and environments defined as wrappers around theorem-like ones. A quilt's own scan does not, deliberately -- an author is asked to declare in the preamble so a node file describes itself -- but a cited paper cannot be asked, and missing either idiom cost three of sixteen real papers their results or their numbering.
+    `foreign` is for someone else's paper, read by `loom library update`'s extraction: it also takes theorem environments declared in the body and environments defined as wrappers around theorem-like ones. A quilt's own scan does not, deliberately -- an author is asked to declare in the preamble so a node file describes itself -- but a cited paper cannot be asked, and missing either idiom cost three of sixteen real papers their results or their numbering.
     """
     closure = PreambleClosure(master=master.path)
     seen: set[str] = set()

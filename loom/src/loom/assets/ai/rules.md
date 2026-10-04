@@ -15,7 +15,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
    Never present a memory-grade claim as verified. When a digest for a cited paper exists, prefer it to memory for anything about that paper.
 4. Cite by id. A fact from the quilt is cited as its key — `<prefix>-0002`, `<prefix>-0004/proof`, where the prefix is this quilt's from `[quilt] prefix` — and a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters, and then from the closure.
-5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the web. Say which you used. If none, write "unlocated".
+5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF's page text through `loom library read WORK PAGES` (its file is `loom library read WORK --where pdf`), then the web. Say which you used. If none, write "unlocated".
 6. Distinguish what the author asked for from what you noticed on the way. Report both; do not act on the second.
 7. Report every numerical or symbolic trial you run: inputs, intermediate steps, exact outputs. Save scripts as `MODE-TARGET.check.py` in your session's directory with the output appended as a comment block.
 
@@ -25,8 +25,8 @@ This file is the contract. Where a mode template, the orientation, or anything e
    - A key: `loom source KEY --closure --session SESSION` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom downstream ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
-   - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
-2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and an annotation is recorded under your tool's name (`claude-code`), never the author's. The author's own acts refuse you whatever name you give, in any shell loom can tell is yours: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`, `loom refs drop`, `loom refs cite`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`, and `loom refs unlink` on a link you did not make. To ask for one, write a `suggestion` on the result.
+   - A digest's overview: `loom library read WORK` prints its `\section*{Overview}`, which is written to be read whole.
+2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and an annotation is recorded under your tool's name (`claude-code`), never the author's. The author's own acts refuse you whatever name you give, in any shell loom can tell is yours: `loom accept`, `loom library verify`, `loom library discard`, `loom library ignore`, `loom library add`, `loom library import`, `loom library drop`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`, and `loom library relate --undo` on a relation you did not make. To ask for one, write a `suggestion` on the result.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --session SESSION`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
 ## Outputs
@@ -39,7 +39,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 ## Findings
 
 1. A finding about a key is an annotation: `loom annotate KEY "message" --quote "exact text" --kind KIND --session SESSION`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
-2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom annotate CITEKEY "…" --page N --quote "…"`, the quote copied from `loom refs page CITEKEY N` — or a rectangle on it with `--box`; it lands in the same log and the same session, and `loom status` lists it only under `--reading`.
+2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom annotate CITEKEY "…" --page N --quote "…"`, the quote copied from `loom library read CITEKEY N` — or a rectangle on it with `--box`; it lands in the same log and the same session, and `loom status` lists it only under `--reading`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The notes file holds the reasoning and refers to the annotation by the id loom printed.
 4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `citation` for a work worth citing that the bibliography does not have; `note` for an explanation or an aside that asks nothing. Any unambiguous prefix names one, so `conf` is enough. `objection` and `suggestion` are the only kinds that take a `--severity`; the others name no fault to grade.
 5. `--severity major|moderate|minor` grades the fault a finding names, not how strongly you feel about it: a grammar note is minor because the fault is small. Review mode requires one on every item; elsewhere give one only when something is actually wrong.
@@ -64,7 +64,7 @@ The blocks below are the vocabulary, not furniture belonging to the templates. W
 
 - you find a fault in a key while answering a question about something else: annotate it (`loom annotate KEY "..." --quote "..." --kind objection --severity ... --session SESSION`), and say in your reply that you did;
 - you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
-- you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs cite`;
+- you notice a work worth citing: `--kind citation`, which the author accepts with `loom library verify ID` or rejects with `loom library discard ID`;
 - you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;
 - you read something and it was fine: `--kind note` saying so is a record that it was read, which is worth more than silence; a note is also for an explanation or an aside that asks nothing.
 
@@ -82,10 +82,10 @@ The author may be talking to you. A session carries an inbox; `loom session next
 
 {allowed_commands}
 
-  `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your session's directory.
+  `loom new` without `--print` writes a node file; give it `--print` and keep what you draft inside your session's directory.
 - Never delete anything outside your own session's directory. Inside it, you may remove what you created.
 - **Name yourself with `--as`** on everything you write, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: unnamed, the session commands refuse you and an annotation is recorded under your tool's name, never the author's.
-- **These are the author's and refuse you whatever name you give**, because each makes a claim only a person can make or destroys what cannot be had back: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`, `loom refs drop`, `loom refs cite`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
+- **These are the author's and refuse you whatever name you give**, because each makes a claim only a person can make or destroys what cannot be had back: `loom accept`, `loom library verify`, `loom library discard`, `loom library ignore`, `loom library add`, `loom library import`, `loom library drop`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
 

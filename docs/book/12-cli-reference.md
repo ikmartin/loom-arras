@@ -9,13 +9,13 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
 - Quilt discovery: every command except `init` and `doctor` walks up from the current directory to the nearest `config.toml` with a `[quilt]` table and runs against that quilt. `--quilt PATH` overrides. `doctor` needs no quilt, and checks the one it finds the same way.
 - Exit codes: `0` success; `1` a content problem (lint errors, a failed identity test, a failed compile, a refused write that the author can fix in the source); `2` a usage or environment problem (bad arguments, an argument that names no key, annotation, session, work or result, missing tools, no author name, consent `config.toml` does not give, a destination that exists). The rule decides by what the person must change: the quilt's source is `1`, the command or the machine is `2` (DR-290-ikmartin).
 - `--json`: machine output on stdout, one JSON document, nothing else on stdout, on failure as on success; diagnostics and progress go to stderr. Every command that reports takes it, and its JSON is the envelope of 12.9, built from the same report as the text, so the two cannot drift (DR-329-ikmartin).
-- Output: every command that reports prints through one layer (`loom/cli/report.py`): the verdict first, then groups each with a heading and a count, a long list cut with `… and N more` and the command that lists it whole, a `fix:` or `next:` line naming each command that acts, lines within 100 columns, an identifier never cut, and notes on stderr. A dry run's verdict begins `dry run:`. Diagnostics are grouped by code with their locations and `fix:` lines, the author's before the cited works', which are counted under a heading of their own. Commands whose body is the author's own text, a patch, a page or a link (`source`, `id`, `revert`, `sync status --patch`, `history show`, `refs page`, `refs overview`, `refs path`, `refs locate`, `link`, `ai orient`, `session next`) print that body as it is (DR-329-ikmartin).
+- Output: every command that reports prints through one layer (`loom/cli/report.py`): the verdict first, then groups each with a heading and a count, a long list cut with `… and N more` and the command that lists it whole, a `fix:` or `next:` line naming each command that acts, lines within 100 columns, an identifier never cut, and notes on stderr. A dry run's verdict begins `dry run:`. Diagnostics are grouped by code with their locations and `fix:` lines, the author's before the cited works', which are counted under a heading of their own. Commands whose body is the author's own text, a patch, a page or a link (`source`, `id`, `revert`, `sync status --patch`, `history show`, `library read`, `library locate`, `link`, `ai orient`, `session next`) print that body as it is (DR-329-ikmartin).
 - Errors: a refusal is one line on stderr, `Error: …`, with nothing on stdout, and exits by the rule above.
 - Progress: a command still working after 2 s says so on stderr, with its stage, its item, the item's place in the count and the time elapsed; an item past 15 s adds `still working`; on a terminal it is one line that rewrites itself, elsewhere a plain line at most every 2 s (T6).
 - How what a command prints should read — the verdict first, repeated lines grouped and counted, the next command named, the reader's words, numbers that add up, progress for anything slow, saying only what happened, and `--json` that carries what the text does — is T1–T8, in Chapter 1 (1.10); the shape of the command line itself, its commands, flags, validation and help, is K1–K7 (1.12).
 - `--yes`: skip confirmations that would otherwise be asked on a terminal. Commands that would ask and have no terminal and no `--yes` exit 2.
 - `--session SESSION`: on `source`, `compile`, `annotate`, `status`, `search`, `deps`, `downstream`, `lint`, `id`, `new`, `ai orient` and `ai annotations`: append the invocation to the session's `run.log` (`LOOM_SESSION` is the default). `annotate` writes into the active session when neither is given. **[decided]** `SESSION` is a session's id, its title, or an unambiguous part of either; an ambiguous one names its matches and refuses (DR-199). On `annotate` it names where the annotation belongs, never its author, because a session is a place and an author is a person or a named agent (DR-200).
-- **One idea, one flag** (K2, DR-330-ikmartin), on every command outside `refs`, which follows in 0.18.5:
+- **One idea, one flag** (K2, DR-330-ikmartin, DR-331-ikmartin):
   - `--as NAME` is who acts: the person's name, overriding the user config (4.3), or an agent's declared name. On `accept`, `annotate`, the `session` writers and `session say`/`next`/`watch`.
   - `--by NAME` filters by who wrote: `ai discard --by`.
   - `--name NAME` names something new: `fork --name ID`, `session new --name TITLE`, `session rename --name TITLE`.
@@ -488,465 +488,277 @@ Removed: `\usepackage{loom}`, `% !LOOM` lines, `\uses{…}`, and every label tha
 
 The papers you cite and the results taken from them.
 
-#### `loom refs`
+#### `loom library`
 
-`loom refs [OPTIONS] COMMAND [ARGS]...`
+`loom library [OPTIONS]`
 
-Manage cited works: where their artifacts are, how to add one by hand, and identifiers for works that state none.
+`loom library [OPTIONS] [WORK | COMMAND [ARGS]...]`
 
-##### `loom refs add`
+Run alone, `loom library` is a command; its subcommands follow its options.
 
-`loom refs add [OPTIONS] CITEKEY FILE`
+Report what the quilt's cited works need: from you, from an agent, and in review; `loom library WORK` reports one work.
 
-File FILE as CITEKEY's PDF, or its LaTeX source, in loom's store.
-
-A published PDF usually sits behind a subscription that loom cannot and should not automate past, so the author supplies the bytes and names the citekey they know; loom resolves the identifier and does the filing. A `.tex` file, or a directory of them, is filed as the work's source, which is what `loom digest extract` reads: fetching is the usual way source arrives, and this is the way for a paper that is not on a preprint server.
+A WORK is a citekey, a fragment of one or of its author or title, or one of its result ids.
 
 | option | description |
 |---|---|
-| `--force` | Replace an artifact that is already there. |
-| `--json` | Print the report as JSON. |
+| `--json` | Print the report as one JSON object (book 12.9). |
+| `--session` `SESSION` | Log this call to the session. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom refs build`
+##### `loom library add`
 
-`loom refs build [OPTIONS] [CITEKEYS]...`
+`loom library add [OPTIONS] FILE...`
 
-Make everything about this quilt's cited works that a machine can make: resolve, fetch, extract, report.
+File PDFs and LaTeX sources in loom's store, each under the work it shows it is.
 
-The one command that starts a digest. It runs `loom refs scan` first, and each step is a no-op where its work is done, so running it again after a new entry reaches the bibliography resolves, fetches and extracts that entry alone. Nothing here touches the network unless `[refs] resolve` and `[refs] fetch` say it may; without them it still extracts from whatever sources are already on disk. The last two groups say what is left for a person and what is left for an agent; progress shows on stderr per step and per work.
+A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document, and a folder holding no PDF is one LaTeX source. A document is filed on a strong match only: an identifier on its first pages equals the entry's, or its whole title is the entry's and the entry's first author leads its byline. Anything weaker is skipped with its reason, and a document naming two entries equally is refused. With `--for`, every FILE is that work's: a PDF that does not show it, or any document that shows it is another work's, is refused unless `--force`, and a source is refused when its own title is another's. A work that holds a document gets the new one beside it under a sibling entry, never over it (book 8.16), and a PDF's page text is written at once.
 
 | option | description |
 |---|---|
-| `--refresh` | Ask the lookup services again where an answer is recorded. |
-| `--no-candidates` | Fetch only on identifiers an entry declares itself. |
-| `--force` | Re-extract digests that are already present. |
-| `--fetch` | Allow fetching for this run, without setting [refs] fetch in config.toml. |
-| `--resolve` | Allow looking identifiers up for this run, without setting [refs] resolve in config.toml. |
-| `--only` `STEP[,STEP]` | Run only these steps: resolve, fetch, extract, map. |
-| `--json` | Print the report as JSON. |
+| `--for` `WORK` | The work every FILE is; without it each is matched to the bibliography by what it shows. |
+| `--force` | With --for, file a document that does not show it is that work; the override is recorded. |
+| `--as` `NAME` | Who is filing, when the user config and git do not say. |
+| `--dry-run` | Say what would be filed, skipped and refused, and write nothing. |
+| `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom refs cite`
+##### `loom library check`
 
-`loom refs cite [OPTIONS]`
+`loom library check [OPTIONS] [WORK...]`
 
-Accept or reject an agent's citation suggestion.
+Check the library for what has gone wrong, each problem with its fix.
 
-Accepting appends to `reference-notes.jsonl` and resolves the annotation; rejecting resolves it and records nothing, the reason riding on the resolve event. Neither touches `refs.bib`: a candidate becomes a work's identity when your own bibliography entry says so, and nothing else (DR-122). This is the breadcrumb for the day you add it.
-
-| option | description |
-|---|---|
-| `--from` `SESSION` | The session whose suggestion this is. |
-| `--accept` `ID` | Record this citation suggestion and resolve it. |
-| `--reject` `ID` | Resolve the suggestion without recording it. |
-| `--reason` | Why, optionally; it rides on the resolve event. |
-| `--author` | Who accepted, when the user config and git do not say. |
-| `--list` | Print what has been accepted. |
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs coverage`
-
-`loom refs coverage [OPTIONS] [CITEKEYS]...`
-
-Report what the quilt knows about each cited work: source, PDF, page text, digest, and proposals waiting on the author.
-
-A search over a partly digested corpus is a search over silence, so this is the line every other answer should be read against. Each argument is a citekey or a fragment of an author's name or a title -- `romagny`, `intrinsic normal cone` -- and a fragment that matches several works lists them all, because two papers by the same authors in the same year is exactly when guessing goes wrong.
+Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries naming one document. Exit 1 when anything is wrong.
 
 | option | description |
 |---|---|
-| `--json` | Print as JSON. |
+| `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
-##### `loom refs discard`
+##### `loom library discard`
 
-`loom refs discard [OPTIONS] TARGET`
+`loom library discard [OPTIONS] ID...`
 
-Discard a proposed result, with a reason.
+Discard a proposed result, or reject a citation suggestion, with a reason.
 
-The reason is not a courtesy. `loom refs propose` refuses a discarded work-and-local-id and returns it, so the agent that proposed the thing learns why in the turn it fails rather than proposing it again next session. Nothing is deleted: the log keeps it and `loom refs why` reports it.
+`loom library propose` refuses a discarded result and returns the reason, so the agent that proposed it learns why in the turn it fails. A rejected suggestion is resolved with the reason on the resolve event and records nothing. Nothing is deleted: the log keeps it and `loom library why` reports it.
 
 | option | description |
 |---|---|
-| `--reason` | Why it should not stand; the agent that proposed it is shown this. |
-| `--author` | Who discarded, when the user config and git do not say. |
-| `--json` | Print the report as JSON. |
+| `--why` | Why it should not stand; whatever proposes it again is shown this. |
+| `--as` `NAME` | Who is deciding, when the user config and git do not say. |
+| `--dry-run` | Check everything and say what would be recorded; write nothing. |
+| `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom refs drop`
+##### `loom library drop`
 
-`loom refs drop [OPTIONS]`
+`loom library drop [OPTIONS]`
 
-Remove recorded results. The store is safe to delete: dropping it costs re-reading, never correctness.
+Remove recorded results: one work's, one session's proposals, or every unverified one.
 
-A verified node already written into `digests/<citekey>.tex` is the author's file and is never touched here; only the records and the proposals are removed.
+Dropping costs re-reading, never correctness. A verified node already written into digests/<citekey>.tex is the author's file and is never touched; only the records and the proposals go.
 
 | option | description |
 |---|---|
-| `--work` | Everything recorded for this work. |
-| `--session` | Everything proposed in this session. |
+| `--work` `WORK` | Everything recorded for this work. |
+| `--session` `SESSION` | Everything proposed in this session. |
 | `--unverified` | Every result not yet verified, in every work. |
-| `--yes`, `-y` | Do not ask. |
-| `--json` | Print the report as JSON. |
+| `--yes` | Do not ask. |
+| `--dry-run` | Say what would be dropped; drop nothing. |
+| `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom refs fetch`
+##### `loom library ignore`
 
-`loom refs fetch [OPTIONS] [CITEKEYS]...`
+`loom library ignore [OPTIONS] WORK`
 
-Fetch sources and PDFs for cited works into loom's store, checking on arrival that each is the work its entry names.
+Stop loom asking for a work's document, or offering a stored document an entry.
 
-Fetches on an identifier the entry declares, or on a strong candidate a lookup proposed (plan 0.12 §4.3): a candidate is enough to fetch with and never enough to be an identity, because fetching is reversible and checkable and identifying is neither. A source whose own title does not match the entry is discarded rather than filed. With no CITEKEYS, every cited work that has no artifact yet.
+A work with no document is declared unreadable -- the Stacks Project is a living work with no fixed version -- so the lint stops asking for a PDF that does not exist. A work whose store holds a document is set aside: once your bibliography no longer names it, the store stops offering it an entry on every scan. WORK may also be a prefix of a stored document's hash, for one no entry names. Both are recorded in loom's own file, never in your .bib, and --undo withdraws whichever stands.
 
 | option | description |
 |---|---|
-| `--no-pdf` | Take the source only; the PDF is fetched by default. |
-| `--no-candidates` | Fetch only on identifiers an entry declares itself. |
-| `--fetch` | Allow fetching for this run, without setting [refs] fetch in config.toml. |
-| `--json` | Print the report as JSON. |
+| `--why` | Why loom should stop asking for it; with --undo, why that was wrong. |
+| `--undo` | Withdraw what stands, so the work is asked for or offered again. |
+| `--as` `NAME` | Who is deciding, when the user config and git do not say. |
+| `--dry-run` | Check everything and say what would be recorded; write nothing. |
+| `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom refs find`
+##### `loom library import`
 
-`loom refs find [OPTIONS] TEXT`
+`loom library import [OPTIONS] PATH`
 
-Search the statements this corpus has digested.
+Copy a digest from another quilt into digests/, rewriting its citekey and id prefix when --name renames it.
 
-**Every answer carries how much of the corpus it could have searched**, because a search over a partly digested corpus is a search over silence and a result set that does not say so reads like a finding. When nothing matches, the fallback is named.
+It never overwrites a digest already there.
 
 | option | description |
 |---|---|
-| `--work` | Limit to these citekeys. |
-| `--limit` | Stop showing after this many. |
-| `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--session` `SESSION` | Log this call to the session. |
-
-##### `loom refs forget`
-
-`loom refs forget [OPTIONS] TARGET`
-
-Stop the store offering a bibliography entry for TARGET, a citekey or a content hash.
-
-The store is a seed of last resort: a document nobody's entry names is offered one on the next scan, from the copy ledger's record of how it arrived. That is right until you have deliberately deleted the entry, at which point the offer is loom undoing your decision every time. This is the tombstone that stops it, and like every deletion in loom it removes nothing -- the document stays in the store and the ledger keeps its arrival.
-
-| option | description |
-|---|---|
-| `--why` | Why the store should stop offering it; required unless --undo. |
-| `--undo` | Withdraw the tombstone, so the document is offered again. |
-| `--author` | Who forgot it, when the user config and git do not say. |
-| `--json` | Print the report as JSON. |
+| `--name` `CITEKEY` | File it under this citekey, rewriting its ids. |
+| `--dry-run` | Say what would be written; write nothing. |
+| `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom refs grep`
+##### `loom library locate`
 
-`loom refs grep [OPTIONS] TEXT`
+`loom library locate [OPTIONS] WORK TEXT`
 
-Search the raw page text of every mapped work for TEXT, a literal phrase (not a pattern).
-
-The cold-start path: before anything is digested this is the only thing that can answer, and it answers with pages to read rather than with statements. **Page text is mathematics that has been through a text layer**, so a hit is a pointer and never a quotable statement — read the page with `loom refs page`, and quote from that.
-
-| option | description |
-|---|---|
-| `--work` | Limit to these citekeys. |
-| `--limit` | Show at most this many hits; every work is still searched. |
-| `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--session` `SESSION` | Log this call to the session. |
-
-##### `loom refs ingest`
-
-`loom refs ingest [OPTIONS] DIRECTORY`
-
-Match every PDF under DIRECTORY to a bibliography entry and file the ones that are unambiguous.
-
-Three signals: an identifier in the text of the first pages, the paper's own title, and the filename. **Two agreeing signals attach**, and an identifier read off the page attaches on its own. Everything else is listed by `loom refs match` with its evidence, because a wrong PDF filed against the right entry is worse than an unfiled one — the corpus this was built against has 25 files for 22 entries, eleven of which match nothing at all.
-
-| option | description |
-|---|---|
-| `--dry-run` | Say what would be filed and file nothing. |
-| `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs link`
-
-`loom refs link [OPTIONS]`
-
-Assert a typed relation between two results, with a reason.
-
-**Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; a link is an assertion, attributed to whoever made it. Links are never citable, never enter a closure, and are never written into a digest — they are navigation, not mathematics.
-
-| option | description |
-|---|---|
-| `--from` `ID` | The result the claim is about. |
-| `--to` `ID` | The result it relates to. |
-| `--kind` | same-notion, generalises, specialises, depends-on, contradicts. |
-| `--why` | One or two sentences. This is what you read six months later. |
-| `--session` | The session asserting it; an agent must say which. |
-| `--author`, `--as` | Who asserted it; an agent names itself, with Agent or AI in the name. |
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs links`
-
-`loom refs links [OPTIONS] [TARGET]`
-
-List the links touching TARGET, out to --depth hops, or every link when TARGET is omitted.
-
-An agent walking a chain of results called this once per node; --depth walks it in one.
-
-| option | description |
-|---|---|
-| `--depth` | Follow links this many hops out from TARGET. |
-| `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--session` `SESSION` | Log this call to the session. |
-
-##### `loom refs locate`
-
-`loom refs locate [OPTIONS] CITEKEY TEXT`
-
-Print the region of CITEKEY's page PAGE that TEXT occupies, so an anchor need not compute geometry.
+An agent's tool: print the region of WORK's page PAGE that TEXT occupies, so an anchor need not compute geometry.
 
 Token geometry is thirty times the size of plain page text, so it is produced for the one page asked about and kept there; nothing writes it in bulk. Where `loom serve` is running, an `open:` line follows with a link into the viewer **at the place** -- `?page=4&span=812-871` -- so that following it lights the quotation rather than leaving it to be found by eye.
 
 | option | description |
 |---|---|
 | `--page` | The page the text is on. |
-| `--json` | Print as JSON. |
+| `--json` | Print the anchor as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
-##### `loom refs map`
+##### `loom library propose`
 
-`loom refs map [OPTIONS] [CITEKEYS]...`
+`loom library propose [OPTIONS] WORK`
 
-Write page text and the section map for cited works that have a PDF.
+An agent's tool: propose one result of WORK, its quotation checked against the page or source file it claims to come from.
 
-Deterministic, eager and cheap: no model, nothing to review, and re-running costs nothing where the artifact has not changed. The page text is committed, which is what lets a coauthor who holds no PDF re-check an anchor; the token geometry an anchor's quad needs is written per page by `loom refs locate`, on demand, because it is thirty times the size.
-
-| option | description |
-|---|---|
-| `--force` | Re-map even where the recorded map matches the PDF on disk. |
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs match`
-
-`loom refs match [OPTIONS]`
-
-List the cited works a person has to look at: no artifact and no identifier, or a source discarded on arrival.
-
-Reads disk only; it never fetches and never asks a service. `loom refs build` shows the same list under `needs you`.
-
-| option | description |
-|---|---|
-| `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs overview`
-
-`loom refs overview [OPTIONS] CITEKEY`
-
-Print a digest's Overview: the paper's own framing, which is prose and so is no result.
-
-Agents read it from the digest's `.tex` by hand in every study iteration -- it is where a paper says which results it considers main and what it assumes throughout, and no other command reaches it.
-
-| option | description |
-|---|---|
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--session` `SESSION` | Log this call to the session. |
-
-##### `loom refs page`
-
-`loom refs page [OPTIONS] CITEKEY PAGES`
-
-Print CITEKEY's page text for PAGES (`12` or `10-14`), with the section each page falls in.
-
-The sanctioned read. A quotation an agent proposes must come from here, because this is the text the anchor is checked against; anything quoted from elsewhere may be right and cannot be verified.
-
-| option | description |
-|---|---|
-| `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--session` `SESSION` | Log this call to the session. |
-
-##### `loom refs path`
-
-`loom refs path [OPTIONS] CITEKEY`
-
-Print where CITEKEY's artifacts live, under digests/storage. Nothing there is meant to be navigated by hand; the author's own pile goes in refs/ (book 8.16).
-
-| option | description |
-|---|---|
-| `--pdf` | The PDF rather than the directory. |
-| `--src` | The unpacked source rather than the directory. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-| `--session` `SESSION` | Log this call to the session. |
-
-##### `loom refs propose`
-
-`loom refs propose [OPTIONS] CITEKEY`
-
-Propose one result of CITEKEY, its quotation checked against the page or source file it claims to come from.
-
-The only write an agent makes to the reference layer. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
+The only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
 
 | option | description |
 |---|---|
 | `--local` | The paper's own name for the result: thm-4.1, cor-2.3.1, eq-1, thm-star-2. |
 | `--page` | The page the statement is on, or 353-354 if it runs over. |
-| `--source-file` `FILE` | Quote the work's LaTeX source instead of a page: a file under the directory `loom refs path` prints. |
+| `--source-file` `FILE` | Quote the work's LaTeX source instead of a page: a file under the directory `loom library read WORK --where src` prints. |
 | `--source-text` | The paper's own words, verbatim; checked against the page or file. |
 | `--statement` | The same result as LaTeX, in the paper's words only; the author verifies it. |
 | `--taxon` | theorem, lemma, definition, equation, …; read off --local when omitted. |
 | `--number` | The paper's numbers when it states several results together: '3.2, 3.3'. |
 | `--level` | 1 is a main result. |
 | `--supersedes` `ID` | Re-propose something discarded, recording the chain. |
-| `--session` | The session proposing this. |
+| `--session` `SESSION` | The session proposing this. |
+| `--dry-run` | Check the quotation and say what would be proposed, storing nothing. |
 | `--json` | Print the stored record as JSON. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom refs recheck`
+##### `loom library read`
 
-`loom refs recheck [OPTIONS] [CITEKEYS]...`
+`loom library read [OPTIONS] WORK [PAGES]`
 
-Re-read every verified result's anchor and report what moved. It does not re-check extraction: a mis-numbered or missing result in a mechanical digest is invisible to it.
+Print a cited work's page text for PAGES (`12` or `10-14`), each page with its section, or without PAGES its digest's Overview.
 
-This is what makes `transcription verified` a claim a command can falsify. It re-reads the page the anchor names and compares it to the stored `source_text`; it never re-verifies anything by itself, because re-verifying is a person saying the copy is still faithful, which is `loom refs verify`. **A verified node's LaTeX is never re-checked** — that rendering was judged by a person once, and re-judging it mechanically would claim a check that does not exist.
-
-| option | description |
-|---|---|
-| `--json` | Print as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs resolve`
-
-`loom refs resolve [OPTIONS] [CITEKEYS]...`
-
-Look up identifiers for cited works whose bibliography entry states none. Requires [refs] resolve = true, or --resolve for one run.
-
-Asks zbMATH Open, then Crossref, and prints candidates with how well each matched. Nothing is changed: a candidate becomes the work's identity when you add the field to your own bibliography entry. Answers are kept in the store, so `loom lint` can name them and a second run asks nothing. With no CITEKEYS, every cited entry that states no identifier.
+The page text is the sanctioned read: a quotation an agent proposes must come from it, because it is the text the anchor is checked against. The Overview is the paper's own framing, which is prose and so no result. `--where` prints where loom keeps the work instead; nothing there is meant to be navigated by hand, and the author's own pile goes in refs/ (book 8.16).
 
 | option | description |
 |---|---|
-| `--refresh` | Ask again even where an answer is recorded. |
-| `--json` | Print the candidates as JSON. |
-| `--resolve` | Allow looking up for this run, without setting [refs] resolve in config.toml. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs scan`
-
-`loom refs scan [OPTIONS]`
-
-Add every bibliography entry the landmarks carry to digests/bibliography.bib.
-
-Reads each landmark's inline `thebibliography` and the `.bib` files it names. The file is only ever appended to: an entry already there is never rewritten or removed, so a hand correction survives. A `\bibitem` becomes an entry with its text in `loom-text`, its identifiers, and a heuristic author, title and year. `import`, a stamp given a document, and `refs build` run this themselves.
-
-It also files what the author dropped in `refs/`, and offers an entry for any document the store holds that no entry names -- an entry deleted by hand leaves a PDF and its page text that nothing can reach, and an entry is what names it. The offer is made once per document; a later scan leaves it alone.
-
-| option | description |
-|---|---|
-| `--dry-run` | Report what would be added and write nothing. |
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs unlink`
-
-`loom refs unlink [OPTIONS] LINK_ID`
-
-Remove a link. An agent may remove only a link a session asserted; the author's links are the author's to remove.
-
-| option | description |
-|---|---|
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs unreadable`
-
-`loom refs unreadable [OPTIONS] CITEKEY`
-
-Declare that CITEKEY has no document loom can hold, and stop it being asked for.
-
-Nothing in a bibliography entry says that the Stacks Project is a living work with no fixed version, so loom would chase a PDF that does not exist on every build. This records the claim -- in loom's own file, never in your `.bib` -- and the invariant's lint goes quiet for the work while `loom refs build` lists it in a section of its own. It is a claim about the world, so it is yours to make and an agent is refused.
-
-| option | description |
-|---|---|
-| `--why` | Why no document can be held for this work; required unless --undo. |
-| `--undo` | Withdraw the declaration; --why then says why it was wrong. |
-| `--author` | Who declared it, when the user config and git do not say. |
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs verify`
-
-`loom refs verify [OPTIONS] TARGET`
-
-Record that a transcription is faithful: promote a proposal into the digest, or re-verify one already there.
-
-Two claims must not share a word. `loom accept` says *I have proved this, or I am satisfied it holds* and is about your own mathematics; this says *this copy is faithful to the paper it came from*, and settles nothing mathematical. With --statement you fix the rendering first: you are editing `statement`, never `source_text`, so the anchor is untouched and the result stays re-checkable — and both parties are recorded, because a record that credits an agent with a sentence you wrote cannot be audited.
-
-| option | description |
-|---|---|
-| `--statement` | Your own rendering, replacing the proposed one before verifying. |
-| `--local` | The paper's own name for it, correcting the proposal's: cor-3.2.1. |
-| `--taxon` | The environment, when --local does not imply it. |
-| `--author` | Who verified, when the user config and git do not say. |
-| `--yes`, `-y` | Skip the question; you have read both texts. |
-| `--json` | Print the report as JSON. |
-| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
-
-##### `loom refs why`
-
-`loom refs why [OPTIONS] TARGET`
-
-Show where a result came from, what state it is in, and who changed it.
-
-Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited.
-
-| option | description |
-|---|---|
-| `--json` | Print as JSON. |
+| `--where` | Print where the work's directory, PDF or source is kept, instead of reading it. |
+| `--json` | Print the pages, the overview or the location as one JSON object. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 | `--session` `SESSION` | Log this call to the session. |
 
-#### `loom digest`
+##### `loom library relate`
 
-`loom digest [OPTIONS] COMMAND [ARGS]...`
+`loom library relate [OPTIONS] FROM TO`
 
-Make digests of cited papers: extract one from a paper's source, or port one in.
+Assert a typed relation between two results, FROM and TO, with a reason; with --undo LINK_ID, remove one.
 
-To search what the digests hold, see `loom refs find` (statements) and `loom refs grep` (page text); to read a page, `loom refs page`; for the whole mechanical pass over every cited work, `loom refs build`.
-
-##### `loom digest extract`
-
-`loom digest extract [OPTIONS] CITEKEY [SRC]`
-
-Produce digests/CITEKEY.tex mechanically from the reference paper's source (proofs dropped, ids prefixed).
-
-With no SRC, the source loom holds for CITEKEY: the file in the store declaring `\documentclass`, which is what `loom refs fetch` or `loom refs add` put there. A path may be given instead, and must be inside the store -- a digest made from a file nobody else holds cites pages nobody else can open.
+**Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; it is an assertion, attributed to whoever made it. Relations are never citable, never enter a closure, and are never written into a digest: they are navigation, not mathematics. `loom library why ID` lists a result's relations.
 
 | option | description |
 |---|---|
-| `--to` `PATH` | Write here instead of digests/<citekey>.tex. |
-| `--engine` | Engine for compiling the reference (default: its magic comment or pdflatex). |
-| `--no-compile` | Skip compiling the reference; number results by emulation. |
+| `--kind` | How FROM relates to TO; required unless --undo. |
+| `--why` | One or two sentences: what you read six months later, or why a relation is removed. |
+| `--undo` `LINK_ID` | Remove this relation instead; an agent removes only an agent's. |
+| `--as` `NAME` | Who asserts it; an agent names itself, with Agent or AI in the name. |
+| `--session` `SESSION` | The session asserting it; it is recorded as who did. |
+| `--dry-run` | Check everything and say what would change, writing nothing. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
-##### `loom digest import`
+##### `loom library review`
 
-`loom digest import [OPTIONS] PATH`
+`loom library review [OPTIONS] [WORK]`
 
-Copy a digest from another quilt into digests/, rewriting its id prefix when --as renames the citekey.
+List what waits for you to review: proposed results and open citation suggestions, one line each with its id.
+
+With WORK, only that work's proposals. Each line ends with the id that `loom library verify` and `loom library discard` take.
 
 | option | description |
 |---|---|
-| `--as` `CITEKEY` | Rename the digest's citekey on the way in. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--session` `SESSION` | Log this call to the session. |
+
+##### `loom library search`
+
+`loom library search [OPTIONS] TEXT`
+
+Search the library's results for every word of TEXT, ignoring case, best match first; with --pages, its page text.
+
+A word in a result's locator, its local name or its work's title counts three, one in its statement one; a main result (level 1) and each citation of it in your documents count more. **Every answer says how much of the library it could search**, because a search over a partly digested corpus is a search over silence. Page text is mathematics after a text layer, so a page hit is a pointer and never a quotation: read the page with `loom library read`, and quote from that.
+
+| option | description |
+|---|---|
+| `--pages` | Search the page text of every mapped work, not the results digested from them. |
+| `--work` `WORK` | Search only this work; repeatable. |
+| `--limit` | Show at most this many hits; everything is still searched. |
+| `--json` | Print the report as one JSON object (book 12.9). |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--session` `SESSION` | Log this call to the session. |
+
+##### `loom library update`
+
+`loom library update [OPTIONS] [WORK]...`
+
+Make what a machine can about the cited works: gather the bibliography, look up, fetch, extract digests, map pages.
+
+Each step is a no-op where its work is done, so a second run does only what is new. WORK narrows every step to the works it names (a citekey, a fragment of one or of an author or title, or a result id); naming works leaves gathering out, since it reads the whole bibliography. Looking up and fetching use the network only under `[library] online = true` or `--online`, and an agent only under the config's: it may not grant itself the network. Offline, every local step still runs. Progress shows on stderr.
+
+| option | description |
+|---|---|
+| `--only` | Run one step: gather (the bibliography, from the landmarks and refs/), resolve, fetch, extract or map. |
+| `--redo` | Do the steps again where they are done: ask the lookups again, re-extract, re-map; verified results are kept. |
+| `--online` | Let this run look identifiers up and fetch documents, without setting [library] online in config.toml. |
+| `--no-candidates` | Fetch only on identifiers an entry declares, never on a lookup's candidate. |
+| `--no-compile` | Extract without compiling each paper; its numbering is emulated, and the digest says so. |
+| `--dry-run` | Say what each step would act on, from what is on disk; no network, nothing written. |
+| `--json` | Print the report as one JSON object (book 12.9). |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+##### `loom library verify`
+
+`loom library verify [OPTIONS] ID...`
+
+Record that a result's transcription is faithful, or accept a citation suggestion.
+
+A result id promotes a proposal into the digest, or re-verifies one already there: the claim is that this copy is faithful to the paper, never that its mathematics holds, which is `loom accept`. --statement edits the rendering, never the quotation, so the anchor stays re-checkable and both parties are recorded. A suggestion's annotation id (`a-…`) files the work it names in reference-notes.jsonl and resolves it; your bibliography is never touched.
+
+| option | description |
+|---|---|
+| `--statement` | Your own rendering, replacing the proposed one; one ID only. |
+| `--local` | The paper's own name for it, correcting the proposal's (cor-3.2.1); one ID only. |
+| `--taxon` | The environment, when --local does not imply it; one ID only. |
+| `--as` `NAME` | Who is deciding, when the user config and git do not say. |
+| `--yes` | Skip the question; you have read both texts. |
+| `--dry-run` | Check everything and say what would be recorded; write nothing. |
+| `--json` | Print the report as one JSON object (book 12.9). |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+
+##### `loom library why`
+
+`loom library why [OPTIONS] ID`
+
+Show where a result came from, what state it is in and who changed it, then its relations to other results.
+
+Provenance names every party, not just the first: a record that credits an agent with a sentence you wrote cannot be audited. A relation is somebody's reading, asserted and never checked. ID may also be a citation suggestion's annotation id.
+
+| option | description |
+|---|---|
+| `--depth` | Follow its relations this many hops out. |
+| `--json` | Print the report as one JSON object (book 12.9). |
+| `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--session` `SESSION` | Log this call to the session. |
 
 ### Agents
 
@@ -1406,6 +1218,8 @@ Make a superseded document live again, so that it defines its nodes once more.
 
 ## 12.11 Withdrawn commands
 
-For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into `session close`, `ai orient --session`, `ai runs` and `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai runs` is `session list [--all]`, which listed the same sessions; `ai promote` is gone entirely: a drafted node is previewed in arras and pasted by the author with an id from `loom id --next` (DR-140), and a digest is produced by `loom digest extract` rather than typed by an agent, so there is nothing left for it to copy (DR-173). `loom refs crawl plan`, `fetch` and `status` went to weft with the rest of the crawl, and the `[crawl]` table with them (8.13, DR-144). `loom bundle` is gone: reading a key and its dependencies is `loom source KEY --closure`, which prints, and checking that a proposal compiles is `loom compile KEY --with FILE`; the document itself is still written under `build/bundles/` by the compile that needs it (DR-148). `loom ai start` no longer launches an agent and `[ai] agent` and `--no-launch` are withdrawn with it (DR-149). `loom digest fetch` is `loom refs fetch`, which also fetches on a strong resolver candidate and on a bibliography `url` that is a PDF, and records which identifier a source came from; `loom refs build` runs it with every other mechanical step (DR-176, DR-181). There has never been a `loom label`: the command that writes ids is `loom id`. `comment` is `annotate`, `ai findings` is `ai annotations` and `refs note` is `refs cite`: an annotation is the one noun for the record, and `note` names only a kind (DR-292-ikmartin).
+For readers of earlier design notes: `impact` became `unravel`; `dependents` and `closure` folded into `deps`/`unravel`; `resolve` folded into `search --json`; `tag` became `id`; `state set`/`state refresh` became `accept`/`status`; `ref use` disappeared when digests became LaTeX; `ai finish`, `ai resume`, `ai list`, `ai restore` folded into `session close`, `ai orient --session`, `ai runs` and `status --runs`, and `ai discard --undo`; `digest export` is `cp`; `bundle --for-review` is the modes' business; `new --in FILE` is `new --print`; `assemble` is `linearize`, which takes `--to` and knows the identity rule (DR-139); `atomize --ignore-src` is gone, the history recording that a spine superseded its source and `--retire` moving the file when asked (DR-138); `ai runs` is `session list [--all]`, which listed the same sessions; `ai promote` is gone entirely: a drafted node is previewed in arras and pasted by the author with an id from `loom id --next` (DR-140), and a digest is produced by `loom digest extract` rather than typed by an agent, so there is nothing left for it to copy (DR-173). `loom refs crawl plan`, `fetch` and `status` went to weft with the rest of the crawl, and the `[crawl]` table with them (8.13, DR-144). `loom bundle` is gone: reading a key and its dependencies is `loom source KEY --closure`, which prints, and checking that a proposal compiles is `loom compile KEY --with FILE`; the document itself is still written under `build/bundles/` by the compile that needs it (DR-148). `loom ai start` no longer launches an agent and `[ai] agent` and `--no-launch` are withdrawn with it (DR-149). `loom digest fetch` became `loom refs fetch`, now `loom library update`'s fetch step, which also fetches on a resolver candidate and on a bibliography `url` that is a PDF, and records which identifier a source came from; `loom library update` runs it with every other mechanical step (DR-176, DR-181). There has never been a `loom label`: the command that writes ids is `loom id`. `comment` is `annotate`, `ai findings` is `ai annotations` and `refs note` became `refs cite`, now `library verify` and `discard` on the suggestion: an annotation is the one noun for the record, and `note` names only a kind (DR-292-ikmartin).
 
 The command surface of plan 0.18.4 (DR-330-ikmartin): `unravel`, `reach` and `pop` are `downstream`; `delete`, `rm` and `remove` are answered with a refusal (7.9); `review` is `build`, which publishes, with `status --stale`, which lists; `check --no-compile` is `lint`; `check --bundles` is `check --closures`, and the diagnostic `loom:bundle-failed` is `loom:closure-failed`; `ai start` is `session new --name`; `ai name` is `session rename --name`; `agent check` is `doctor --agents`; `ai check` is withdrawn until a write can be attributed to an agent by something other than its time (11.8); `session send` is `session say`; `sync patch` is `sync status --patch`; `history`'s words are its subcommands `show`, `restore` and `verify`, each taking only its own flags; `fork --as` is `fork --name`; `atomize SRC DEST` is `atomize SRC --to DEST`; `--author` is `--as` outside `refs`, and `ai discard --author` is `--by`; `init --author` is gone, the reviewer's name coming from Settings or git (4.3).
+
+The library of plan 0.18.5 (DR-331-ikmartin): `loom refs` and `loom digest` are `loom library`. `refs coverage`, `refs match`, `refs cite --list` and `refs build`'s report are bare `library [WORK]`; `refs build`, `refs scan`, `refs resolve`, `refs fetch`, `refs map` and `digest extract` are `library update`, a step of it alone with `--only`; `refs add` and `refs ingest` are `library add`; `refs verify` and `refs cite --accept` are `library verify`; `refs discard` and `refs cite --reject` are `library discard`; `refs unreadable` and `refs forget` are `library ignore`; `refs page`, `refs overview` and `refs path` are `library read`; `refs find` and `refs grep` are `library search`; `refs why` and `refs links` are `library why`; `refs link` and `refs unlink` are `library relate` and `relate --undo`; `refs recheck` is `library check`; `refs propose`, `refs locate` and `refs drop` are `library propose`, `locate` and `drop`; `digest import` is `library import`, its `--as` now `--name`. `--fetch` and `--resolve` are `--online`, `--refresh` and the `--force` of `build` and `map` are `--redo`, `--reason` is `--why`, `--author` is `--as`, and `[refs] fetch`, `resolve` and `contact` are `[library] online` and `contact`. The write API's `refs-cite`, `digest-verify` and `digest-discard` are `library-cite`, `library-verify` and `library-discard`, their `reason` now `why`.

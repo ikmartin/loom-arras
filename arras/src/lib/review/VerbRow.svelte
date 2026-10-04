@@ -19,7 +19,7 @@
 	} = $props();
 
 	//: Seeded from the probe's standing answer, so a row re-mounted after a write does not blink out while it asks again.
-	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'refs-cite'];
+	const ENDPOINTS = ['reply', 'edit', 'resolve', 'discard', 'library-cite'];
 	let allowed = $state<Record<string, boolean>>(
 		Object.fromEntries(ENDPOINTS.map((v) => [v, known(v) ?? false]).filter(([, ok]) => ok))
 	);
@@ -77,7 +77,7 @@
 	const gone = $derived(annotation.status === 'discarded' || annotation.discarded);
 	const done = $derived(gone || annotation.status !== 'open');
 	const citation = $derived(annotation.kind === 'citation' && !compact);
-	const any = $derived(allowed.reply || allowed.edit || allowed.resolve || allowed.discard || allowed['refs-cite']);
+	const any = $derived(allowed.reply || allowed.edit || allowed.resolve || allowed.discard || allowed['library-cite']);
 
 	function show(verb: Verb) {
 		if (open === verb) return (open = null);
@@ -120,7 +120,7 @@
 	const resolve = () => send('resolve', {});
 	const reopen = () => send(gone ? 'discard' : 'resolve', { undo: true });
 	const decide = async (decision: 'accept' | 'reject') => {
-		if (await send('refs-cite', { decision })) decided[annotation.id] = decision === 'accept' ? 'accepted' : 'rejected';
+		if (await send('library-cite', { decision })) decided[annotation.id] = decision === 'accept' ? 'accepted' : 'rejected';
 	};
 </script>
 
@@ -138,7 +138,7 @@
 				<button type="button" class="verb" onclick={() => show('discard')} aria-expanded={open === 'discard'} data-testid="verb-withdraw">withdraw</button>
 			{/if}
 		{:else}
-			{#if citation && allowed['refs-cite']}
+			{#if citation && allowed['library-cite']}
 				<button type="button" class="verb" onclick={() => decide('accept')} disabled={busy} data-testid="verb-accept">accept</button>
 				<button type="button" class="verb" onclick={() => decide('reject')} disabled={busy} data-testid="verb-reject">reject</button>
 			{/if}

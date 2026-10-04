@@ -412,7 +412,7 @@
      "current": "\\begin{remark}\nAn unlabelled remark: gadgets never have odd order.\n\\end{remark}",
      "documents": [],
      "incoming": null,
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "drafting/adoption-snapshot.tex#remark:1",
      "local": null,
      "math_changed": true,
@@ -427,7 +427,7 @@
      "current": "",
      "documents": [],
      "incoming": null,
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "drafting/adoption-snapshot.tex#remark:2",
      "local": null,
      "math_changed": true,
@@ -472,10 +472,10 @@
      "documents": [
       "drafting/main.tex"
      ],
-     "incoming": "fragments/incoming/6f92b21e2013e083394b-proposal.html",
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming": "fragments/incoming/243c579054de4cc5977d-proposal.html",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "sy-0001",
-     "local": "fragments/incoming/6f92b21e2013e083394b-local.html",
+     "local": "fragments/incoming/243c579054de4cc5977d-local.html",
      "math_changed": true,
      "name": "Widget",
      "offered": true,
@@ -511,10 +511,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/8fd861724cce51063888-proposal.html",
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming": "fragments/incoming/ed42be2b5d5b0f428981-proposal.html",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "sy-0002",
-     "local": "fragments/incoming/8fd861724cce51063888-local.html",
+     "local": "fragments/incoming/ed42be2b5d5b0f428981-local.html",
      "math_changed": true,
      "name": "Orbits",
      "offered": true,
@@ -538,10 +538,10 @@
       "drafting/main.tex",
       "drafting/talk.tex"
      ],
-     "incoming": "fragments/incoming/59f8ebc01e07871994a4-proposal.html",
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming": "fragments/incoming/863f6dfe6e6e311d5ed9-proposal.html",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "sy-0008",
-     "local": "fragments/incoming/59f8ebc01e07871994a4-local.html",
+     "local": "fragments/incoming/863f6dfe6e6e311d5ed9-local.html",
      "math_changed": true,
      "name": "Gadget",
      "offered": true,
@@ -561,9 +561,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "sy-0202",
-     "local": "fragments/incoming/8c0adfe516dbcacc2bbd-local.html",
+     "local": "fragments/incoming/4f42bd3b1674f9ed61d8-local.html",
      "math_changed": true,
      "name": null,
      "offered": true,
@@ -578,9 +578,9 @@
       "drafting/main.tex"
      ],
      "incoming": null,
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "sy-0202/proof",
-     "local": "fragments/incoming/61e0bb952495d6fd6e10-local.html",
+     "local": "fragments/incoming/3a02ed456b97536ca0ad-local.html",
      "math_changed": true,
      "name": null,
      "offered": true,
@@ -592,8 +592,8 @@
      "class": "new",
      "current": "",
      "documents": [],
-     "incoming": "fragments/incoming/04bf42a9c849f4e74ded-proposal.html",
-     "incoming_macros": "adopt:53286bd08de86468e287",
+     "incoming": "fragments/incoming/9ebacfe0ca74d251f502-proposal.html",
+     "incoming_macros": "adopt:10ff652f6548a0de0b06",
      "key": "sy-999C",
      "local": null,
      "math_changed": true,
@@ -604,7 +604,7 @@
    ],
    "choices": {
     "document": false,
-    "fingerprint": "53286bd08de86468e28794e7ef3e4aa0f00ad49028bfc866d4aed0bcd4b4fe58",
+    "fingerprint": "10ff652f6548a0de0b0649859929dcf47014bd0e2590ff803dfbdf2b50972bdb",
     "keys": []
    },
    "copy": "drafting-ai/aidoc.tex",
@@ -612,13 +612,13 @@
    "document_comparison": {
     "current": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n% !LOOM adopt-node: sy-0202\n\n% !LOOM adopt-node: sy-0202/proof\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:1\n\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\input{nodes/missing}\n\\fi\n\n% !LOOM adopt-node: sy-000A\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n% !LOOM adopt-node: sy-999B\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n",
     "incoming": "fragments/incoming/prose-a78e508153408692b07a8136-incoming.html",
-    "incoming_macros": "adopt:53286bd08de86468e287",
+    "incoming_macros": "adopt:10ff652f6548a0de0b06",
     "local": "fragments/incoming/prose-a78e508153408692b07a8136-local.html",
     "proposed": "\n\\maketitle\n\n\\section{Introduction}\\label{sy-0100}\n\nThis paper studies widgets. The basic identity is\n\\begin{equation}\\label{eq:prose}\n\\sigma^2 = \\mathrm{id},\n\\end{equation}\nwhich we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n\n% !LOOM adopt-node: sy-0001\n\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: orbits, setup\n\n% !LOOM adopt-node: sy-000A\n\n\n% !LOOM adopt-node: sy-0002\n\n% !LOOM adopt-node: sy-0002/proof\n\n\n\n\\begin{itemize}\n\\item widgets,\n\\item gadgets.\n\\end{itemize}\n\n\\begin{tabular}{ll}\nobject & involution \\\\\nwidget & yes \\\\\ngadget & no\n\\end{tabular}\n\n\\begin{center}\n\\begin{tikzcd}\nX \\arrow[r, \"\\sigma\"] \\arrow[d] & X \\arrow[d] \\\\\nY \\arrow[r] & Y\n\\end{tikzcd}\n\\end{center}\n\n\\includegraphics[width=3cm]{figures/fig.pdf}\n\n\\parbox{5cm}{A boxed paragraph the converter renders as an image.}\n\n\\red{This sentence is in red.}\n\n% !LOOM author: The synthetic quilt\n% !LOOM tags: results\n\n% !LOOM adopt-node: sy-999C\n\n\n\\section{Results}\\label{sy-0200}\n\nThe main results, with one proof deferred to the end of the section.\n\n% !LOOM author: The synthetic quilt\n% !LOOM created: 2026-09-16\n% !LOOM tags: main\n\n% !LOOM adopt-node: sy-0003\n\n% !LOOM adopt-node: sy-0004\n\n% !LOOM adopt-node: sy-0005\n\n\n\n\\subsection{Consequences}\\label{sy-0201}\n\n% !LOOM adopt-node: sy-0006\n\n% !LOOM adopt-node: sy-0006/proof\n\n% !LOOM adopt-node: sy-0006/proof/2\n\n\n\n% !LOOM tags: deferred\n\n% !LOOM adopt-node: sy-0007\n\n\n\n% !LOOM adopt-node: sy-0008\n\n\n\n% !LOOM adopt-node: sy-0007/proof\n\n\n\n\n\\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n\nThis file is nested, so its section renders one level down.\n\n% !LOOM adopt-node: sy-000C\n\n% !LOOM adopt-node: sy-000C/proof\n\n\n% !LOOM adopt-node: sy-000D\n\n\n% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:2\n\n\n% !LOOM adopt-node: sy-000E\n\n% !LOOM adopt-node: sy-000E/proof\n\n\n% !LOOM priority: high\n\n% !LOOM adopt-node: sy-000D/proof\n\n\n\n% A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n\\iffalse\n\\fi\n\n\n\n% !LOOM adopt-node: sy-000B\n\n% !LOOM adopt-node: sy-000B/proof\n\n\n\n\\bibliographystyle{amsplain}\n\\bibliography{refs}\n\n"
    },
    "document_conflict": false,
    "document_diff": "--- Working document\n+++ Proposed document\n@@ -28,7 +28,7 @@\n \\begin{equation}\\label{eq:prose}\n \\sigma^2 = \\mathrm{id},\n \\end{equation}\n-which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest. Note also the dangling reference to Lemma~\\ref{sy-9999}.\n+which we use throughout.\\footnote{The name comes from nowhere.} The \\GW{} theory of gadgets is not touched. See \\cite[Chapter II]{Har77} for schemes and \\cite[Theorem 2.1]{Kre99} for cycle groups; the lemma \\cite[Lemma 9]{Kre99} is not in the digest.\n \n % !LOOM adopt-node: sy-0001\n \n@@ -36,6 +36,9 @@\n % !LOOM author: The synthetic quilt\n % !LOOM created: 2026-09-16\n % !LOOM tags: orbits, setup\n+\n+% !LOOM adopt-node: sy-000A\n+\n \n % !LOOM adopt-node: sy-0002\n \n@@ -69,6 +72,9 @@\n \n % !LOOM author: The synthetic quilt\n % !LOOM tags: results\n+\n+% !LOOM adopt-node: sy-999C\n+\n \n \\section{Results}\\label{sy-0200}\n \n@@ -109,10 +115,6 @@\n % !LOOM adopt-node: sy-0007/proof\n \n \n-% !LOOM adopt-node: sy-0202\n-\n-% !LOOM adopt-node: sy-0202/proof\n-\n \n \n \\subsection{Appendix: an incomplete argument}\\label{sy-0300}\n@@ -127,7 +129,7 @@\n % !LOOM adopt-node: sy-000D\n \n \n-% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:1\n+% !LOOM adopt-node: drafting/adoption-snapshot.tex#remark:2\n \n \n % !LOOM adopt-node: sy-000E\n@@ -143,10 +145,7 @@\n \n % A missing \\input for the missing-include diagnostic. LaTeX would abort on it, so it sits inside \\iffalse, which LaTeX skips and the scanner does not interpret.\n \\iffalse\n-\\input{nodes/missing}\n \\fi\n-\n-% !LOOM adopt-node: sy-000A\n \n \n \n@@ -156,10 +155,6 @@\n \n \n \n-% !LOOM adopt-node: sy-999B\n-\n-\n-\n \\bibliographystyle{amsplain}\n \\bibliography{refs}\n \n",
-   "fingerprint": "53286bd08de86468e28794e7ef3e4aa0f00ad49028bfc866d4aed0bcd4b4fe58",
+   "fingerprint": "10ff652f6548a0de0b0649859929dcf47014bd0e2590ff803dfbdf2b50972bdb",
    "issues": [],
    "kind": "adopt",
    "label": "Incoming from agent document “aidoc”",
@@ -834,7 +834,7 @@
     "Kre99"
    ],
    "locations": [],
-   "message": "Kre99 has a digest but no copy of the paper is on this machine, so nothing it says can be checked against the paper; loom refs fetch Kre99, or loom refs add Kre99 <FILE>, or loom refs unreadable Kre99 --why '...' when there is no document to hold",
+   "message": "Kre99 has a digest but no copy of the paper is on this machine, so nothing it says can be checked against the paper; loom library update Kre99 --online, or loom library add FILE --for Kre99, or loom library ignore Kre99 --why '...' when there is no document to hold",
    "severity": "warning"
   },
   {
@@ -973,7 +973,7 @@
     "Har77"
    ],
    "locations": [],
-   "message": "Har77 states no identifier, so loom cannot name the work the same way on another machine; add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom refs resolve",
+   "message": "Har77 states no identifier, so loom cannot name the work the same way on another machine; add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom library update --online",
    "severity": "info"
   },
   {
@@ -4408,7 +4408,7 @@
      "name": "Hom"
     }
    ],
-   "adopt:53286bd08de86468e287": [
+   "adopt:10ff652f6548a0de0b06": [
     {
      "args": 0,
      "body": "\\operatorname{Fix}",

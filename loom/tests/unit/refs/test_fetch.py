@@ -70,7 +70,7 @@ def fetching(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answers: dict[str, bytes | Exception]
 ) -> tuple[Quilt, Transport]:
     q = demo(tmp_path)
-    edit(q / "config.toml", "fetch = false", "fetch = true")
+    edit(q / "config.toml", "online = false", "online = true")
     t = Transport(answers)
     monkeypatch.setattr(F, "_get", t)
     return load_quilt(q), t
@@ -145,10 +145,12 @@ def test_the_gates_refuse_before_anything_is_asked(tmp_path: Path, monkeypatch: 
         ],
     )
     refusal = F.fetch_work(quilt, "Bare", bare, allow_candidate=False).refused
-    assert refusal == "Bare declares no identifier (a candidate exists; pass --candidates to use it)"
+    assert refusal == "Bare declares no identifier (a candidate exists, and --no-candidates leaves it unused)"
     off = load_quilt(quilt.root)
-    off.config.fetch = False
-    assert F.fetch_work(off, "Man12", man12(off)).refused.startswith("fetching is off: set fetch = true under [refs]")
+    off.config.online = False
+    assert F.fetch_work(off, "Man12", man12(off)).refused.startswith(
+        "the network is off: set online = true under [library]"
+    )
     assert t.urls == []
     # the same candidate, allowed, is fetched on and says so
     t.answers["https://export.arxiv.org/e-print/0805.2065"] = source("Virtual pull-backs")

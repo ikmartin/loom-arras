@@ -23,7 +23,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 
    Never present a memory-grade claim as verified. When a digest for a cited paper exists, prefer it to memory for anything about that paper.
 4. Cite by id. A fact from the quilt is cited as its key — `<prefix>-0002`, `<prefix>-0004/proof`, where the prefix is this quilt's from `[quilt] prefix` — and a fact from a cited paper as its digest node id with the locator the node carries (`Man12-thm-4.1`, Theorem 4.1, p. 12). Quote exact source text only when wording matters, and then from the closure.
-5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF at `loom refs path CITEKEY --pdf`, then the web. Say which you used. If none, write "unlocated".
+5. Search order for anything about a cited paper: the digest (`loom search CITEKEY --json`), then the PDF's page text through `loom library read WORK PAGES` (its file is `loom library read WORK --where pdf`), then the web. Say which you used. If none, write "unlocated".
 6. Distinguish what the author asked for from what you noticed on the way. Report both; do not act on the second.
 7. Report every numerical or symbolic trial you run: inputs, intermediate steps, exact outputs. Save scripts as `MODE-TARGET.check.py` in your session's directory with the output appended as a comment block.
 
@@ -33,8 +33,8 @@ This file is the contract. Where a mode template, the orientation, or anything e
    - A key: `loom source KEY --closure --session SESSION` prints the statement, its proofs, and the statements of everything it depends on, in dependency order. This is the complete context; you may assume nothing outside it. Without `--closure` it prints the key alone.
    - The quilt: `loom status --json`. Ids: `loom search QUERY --json`. The graph: `loom deps KEY --closure`, `loom downstream ID`.
    - A cited result: its digest node's statement is in the closure when the citation resolved. Otherwise see standing rule 5.
-   - A digest's overview: `loom refs overview CITEKEY` prints its `\section*{Overview}`, which is written to be read whole.
-2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and an annotation is recorded under your tool's name (`claude-code`), never the author's. The author's own acts refuse you whatever name you give, in any shell loom can tell is yours: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`, `loom refs drop`, `loom refs cite`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`, and `loom refs unlink` on a link you did not make. To ask for one, write a `suggestion` on the result.
+   - A digest's overview: `loom library read WORK` prints its `\section*{Overview}`, which is written to be read whole.
+2. `SESSION` above is a session: its id, its title, or part of either. Writing lands in the active session without it; pass `--session` when you mean another, and loom logs the call to that session's `run.log`. **Name yourself with `--as`** on everything you write, including `Agent` or `AI` — identity is declared, not sniffed. Unnamed, the session commands refuse you and an annotation is recorded under your tool's name (`claude-code`), never the author's. The author's own acts refuse you whatever name you give, in any shell loom can tell is yours: `loom accept`, `loom library verify`, `loom library discard`, `loom library ignore`, `loom library add`, `loom library import`, `loom library drop`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`, and `loom library relate --undo` on a relation you did not make. To ask for one, write a `suggestion` on the result.
 3. If you need a dependency's *proof* rather than its statement, request it (`loom source DEP/proof --closure --session SESSION`) and record in your findings that the argument relies on something inside another proof; that is a candidate for extraction into a statement of its own.
 
 ## Outputs
@@ -47,7 +47,7 @@ This file is the contract. Where a mode template, the orientation, or anything e
 ## Findings
 
 1. A finding about a key is an annotation: `loom annotate KEY "message" --quote "exact text" --kind KIND --session SESSION`, where `KIND` is one of the five below. One finding per call; `--batch` (JSON lines on stdin) for many.
-2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom annotate CITEKEY "…" --page N --quote "…"`, the quote copied from `loom refs page CITEKEY N` — or a rectangle on it with `--box`; it lands in the same log and the same session, and `loom status` lists it only under `--reading`.
+2. The quote is a substring of the key's own text, copied exactly from the source, long enough to be unique and no longer. If loom reports it ambiguous, lengthen it; if not found, you copied it wrong. A finding about the whole key takes no `--quote`. A finding about **a page of a cited work** names the citekey and the page — `loom annotate CITEKEY "…" --page N --quote "…"`, the quote copied from `loom library read CITEKEY N` — or a rectangle on it with `--box`; it lands in the same log and the same session, and `loom status` lists it only under `--reading`.
 3. The message states the problem and, where you have one, the fix, in at most three sentences. The notes file holds the reasoning and refers to the annotation by the id loom printed.
 4. Kinds: `objection` for anything that must change; `suggestion` for anything that could; `question` for anything you could not decide; `citation` for a work worth citing that the bibliography does not have; `note` for an explanation or an aside that asks nothing. Any unambiguous prefix names one, so `conf` is enough. `objection` and `suggestion` are the only kinds that take a `--severity`; the others name no fault to grade.
 5. `--severity major|moderate|minor` grades the fault a finding names, not how strongly you feel about it: a grammar note is minor because the fault is small. Review mode requires one on every item; elsewhere give one only when something is actually wrong.
@@ -72,7 +72,7 @@ The blocks below are the vocabulary, not furniture belonging to the templates. W
 
 - you find a fault in a key while answering a question about something else: annotate it (`loom annotate KEY "..." --quote "..." --kind objection --severity ... --session SESSION`), and say in your reply that you did;
 - you propose wording, a proof, or a replacement passage: carry it as `--payload` on a suggestion, so the author can preview and paste it rather than scroll back for it;
-- you notice a work worth citing: `--kind citation`, which the author accepts or rejects with `loom refs cite`;
+- you notice a work worth citing: `--kind citation`, which the author accepts with `loom library verify ID` or rejects with `loom library discard ID`;
 - you are unsure whether something is a fault: `--kind question` anchored where the doubt is, rather than a paragraph the author must re-find;
 - you read something and it was fine: `--kind note` saying so is a record that it was read, which is worth more than silence; a note is also for an explanation or an aside that asks nothing.
 
@@ -90,10 +90,10 @@ The author may be talking to you. A session carries an inbox; `loom session next
 
 {allowed_commands}
 
-  `loom new` without `--print` writes a node file and `loom digest extract` without `--to` writes into `digests/`; give both a destination inside your session's directory.
+  `loom new` without `--print` writes a node file; give it `--print` and keep what you draft inside your session's directory.
 - Never delete anything outside your own session's directory. Inside it, you may remove what you created.
 - **Name yourself with `--as`** on everything you write, including `Agent` or `AI`, so a record says what wrote it. Identity is declared and never sniffed: unnamed, the session commands refuse you and an annotation is recorded under your tool's name, never the author's.
-- **These are the author's and refuse you whatever name you give**, because each makes a claim only a person can make or destroys what cannot be had back: `loom accept`, `loom refs verify`, `loom refs discard`, `loom refs unreadable`, `loom refs forget`, `loom refs drop`, `loom refs cite`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
+- **These are the author's and refuse you whatever name you give**, because each makes a claim only a person can make or destroys what cannot be had back: `loom accept`, `loom library verify`, `loom library discard`, `loom library ignore`, `loom library add`, `loom library import`, `loom library drop`, `loom session delete --purge`, `loom ai discard`, `loom sync publish --push`, `loom sync incorporate`. To ask for one, write a `suggestion` on the result with your reasoning; it surfaces where the author verifies anyway.
 - Never claim a result is proved when a step is missing.
 - Never invent a locator.
 
@@ -184,7 +184,7 @@ Help the author explore a topic before anything is proved. Your job is to make t
 ## Input
 - `loom status --json`; `loom search TOPIC --json` for the ids involved.
 - `loom source ID --closure --session SESSION` for each definition or result the topic touches.
-- The overviews of the relevant digests (`loom refs overview CITEKEY`, each written to be read whole); `loom search --kind digest`.
+- The overviews of the relevant digests (`loom library read CITEKEY`, each written to be read whole); `loom search --kind digest`.
 - If the author has an outline master, `loom source drafting/outline.tex --session SESSION` prints the plan as it stands, flattened.
 
 ## Procedure
@@ -242,44 +242,43 @@ Write the statement first and check it against the plan. Then the proof: cite ea
 # Mode: ingest
 
 ## Before you begin
-- Write only under your session's directory. Never edit source. Never run `loom accept`. **Never write `digests/`.** A digest is produced by `loom digest extract`, not typed.
+- Write only under your session's directory. Never edit source. Never run `loom accept`. **Never write `digests/` yourself.** A digest is produced by `loom library update`, not typed.
 - Read `ai/rules.md` once this session and the digest rules below.
 
 ## Purpose
 Check a mechanically extracted digest of a cited paper against the paper itself, and say exactly where the two differ. You are the verifier of loom's copy, not its author: a typed transcription is unfalsifiable, an extracted one can be diffed against its source, and the whole value of a digest is that a reader can trust it without opening the paper.
 
 ## What loom already did
-`loom digest extract CITEKEY SRC --to ingest-CITEKEY.tex` produces the digest from the paper's LaTeX source: every numbered result as an external node, proofs dropped, labels prefixed with the citekey's slug, numbering taken from the compiled reference. `loom refs fetch CITEKEY` gets that source from arXiv when `[refs] fetch = true`, and `loom refs build` does the whole mechanical pass -- resolve, fetch, extract -- over every cited work at once. Extraction is mechanical and therefore wrong in predictable ways, which is what you are looking for.
+`loom library update CITEKEY --only extract` produces the digest, `digests/CITEKEY.tex`, from the paper's LaTeX source: every numbered result as an external node, proofs dropped, labels prefixed with the citekey's slug, numbering taken from the compiled reference. `loom library update CITEKEY` without `--only` also gets that source from arXiv where `config.toml` says `online = true` under `[library]`, and `loom library update` alone does the whole mechanical pass over every cited work at once. `loom library CITEKEY` says whether a work has a source. Extraction is mechanical and therefore wrong in predictable ways, which is what you are looking for.
 
 ## When there is no source
-Some cited works exist only as a PDF — a thesis, a journal-only paper, most of the classical literature. There is nothing to extract, and a digest you typed would be exactly the unverifiable artefact this mode exists to avoid (DR-173). What you do instead is read and propose: `loom refs page CITEKEY N` for the text, then `loom refs propose` for each result, main results first (`--level 1`). A proposal is not typed in DR-173's sense: its `--source-text` is checked against the page before anything is stored, and its `--statement` — your rendering, in the paper's words only — waits in a file nothing inputs until the author compares the two and verifies it. You never write `digests/` yourself, and a proposal that passed the check is **waiting for the author**, not verified.
+Some cited works exist only as a PDF — a thesis, a journal-only paper, most of the classical literature. There is nothing to extract, and a digest you typed would be exactly the unverifiable artefact this mode exists to avoid (DR-173). What you do instead is read and propose: `loom library read CITEKEY N` for the text, then `loom library propose` for each result, main results first (`--level 1`). A proposal is not typed in DR-173's sense: its `--source-text` is checked against the page before anything is stored, and its `--statement` — your rendering, in the paper's words only — waits in a file nothing inputs until the author compares the two and verifies it. You never write `digests/` yourself, and a proposal that passed the check is **waiting for the author**, not verified.
 
-For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the message in the chat; there is no extractor output to keep and no diff to write.
+For a work with no source the checks below apply to what you propose, and the outputs are `ingest-CITEKEY.notes.md` and the message in the chat; there is no extraction to diff against.
 
 ## What to check, in this order
 1. **Completeness.** Every numbered result in the paper is a node, and nothing that is not a result became one. Name what is missing by the paper's own number.
 2. **Hypotheses.** A statement is worthless with a hypothesis dropped. Read each against the paper and say which are incomplete — this is the failure that makes a digest dangerous rather than merely thin.
 3. **Standing assumptions.** The `-setup` node holds what the paper assumes outside numbered results: conventions, notation, blanket hypotheses. The extractor fills it from a conventions or notation heading, or else gathers the sentences that state an assumption and says it did; check each for its scope, and name what it missed — assumptions stated in passing are the ones a reader loses.
 4. **`\uses` edges.** A proof invokes lemmas it never `\ref`s. The extractor sees only what the source cites, so the dependency graph is systematically thin.
-5. **Locators.** Every node's title carries the paper's own number and page. The extractor leaves what it could not resolve as `\incomplete`. A digest extracted from a preprint carries the preprint's numbers, pages and statements; when the bibliography cites the published version `loom lint` says so (`loom:unverified-locators`), as do `loom refs coverage`, `loom refs overview` and `loom source` wherever the digest is read, and then every number is checked against the cited PDF with `loom refs page` — versions renumber, and they change statements.
-6. **Notes on the page.** What you notice while reading that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a note on the page, not a proposal: `loom annotate CITEKEY "…" --page N --quote "…" --kind note` (or `question`), the quote from `loom refs page`. It lands in your session beside your proposals, `loom ai annotations` lists it with the page, and the author sees it on the page in arras.
+5. **Locators.** Every node's title carries the paper's own number and page. The extractor leaves what it could not resolve as `\incomplete`. A digest extracted from a preprint carries the preprint's numbers, pages and statements; when the bibliography cites the published version `loom lint` says so (`loom:unverified-locators`), as do `loom library CITEKEY`, `loom library read CITEKEY` and `loom source` wherever the digest is read, and then every number is checked against the cited PDF with `loom library read CITEKEY N` — versions renumber, and they change statements.
+6. **Notes on the page.** What you notice while reading that is not a result — a hypothesis stated only in prose, a convention the paper inherits, a step you could not follow — is a note on the page, not a proposal: `loom annotate CITEKEY "…" --page N --quote "…" --kind note` (or `question`), the quote from `loom library read`. It lands in your session beside your proposals, `loom ai annotations` lists it with the page, and the author sees it on the page in arras.
 6. **Macros.** What could not be expanded sits in `% !LOOM begin macros`. Check the statements still say what the paper says with those definitions.
 
 ## Output
-1. `ingest-CITEKEY.tex` — the extractor's output, unedited, so the author can see what it produced.
-2. `proposal-CITEKEY.diff` — a unified diff against it carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
-3. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
-4. A finding per defect that matters, with `loom annotate <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
-5. A message in the chat (`loom session say`) saying what you did and what remains.
+1. `proposal-CITEKEY.diff` — a unified diff against `digests/CITEKEY.tex`, as the extraction wrote it, carrying every correction you found: the `-setup` node, missing hypotheses, missing `\uses`, resolved locators. **The diff is a proposal; nothing applies it but the author.**
+2. `ingest-CITEKEY.notes.md`: `## [summary]`; one section per check above, each naming the paper's own numbers; what you could not determine and why.
+3. A finding per defect that matters, with `loom annotate <node-id> --kind objection --severity ... --session SESSION`, so the author's to-do list carries them. A digest node is the cited paper's text: a finding on one says the **copy** is wrong, never that the paper is.
+4. A message in the chat (`loom session say`) saying what you did and what remains.
 
 ## Checklist
-- [ ] For a work with a source: `loom digest extract` was run and its output is in your session's directory, unedited.
+- [ ] For a work with a source: `loom library update CITEKEY --only extract` was run, and the diff is against what it wrote.
 - [ ] Every numbered result of the paper is accounted for, present or named as missing.
 - [ ] Every statement checked for dropped hypotheses, by the paper's own numbers.
 - [ ] Standing assumptions found in the prose and proposed for the `-setup` node.
 - [ ] `\uses` edges the source does not state are proposed.
 - [ ] Every locator either resolved or named as unresolved.
-- [ ] Nothing was written outside your session's directory. In particular nothing was written to `digests/`.
+- [ ] Nothing was written outside your session's directory. `digests/` was written by loom's own commands, never by you.
 
 ---
 

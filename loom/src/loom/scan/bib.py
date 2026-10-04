@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from loom.scan.tokenize import match_group
 
-#: The quilt's bibliography, which `loom refs scan` appends to from the landmarks; the only `.bib` loom reads for references (book 8.15).
+#: The quilt's bibliography, which `loom library update` gathers into from the landmarks; the only `.bib` loom reads for references (book 8.15).
 BIBLIOGRAPHY = "digests/bibliography.bib"
 
 _ENTRY = re.compile(r"@(\w+)\s*[{(]")

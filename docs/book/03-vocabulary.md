@@ -69,7 +69,7 @@ All entries are **[decided]** unless marked.
 - ledger : `.loom/state.toml`. Holds acceptance rows and nothing else. Written only by `loom accept`. Never edited.
 - acceptance row : one entry in the ledger: key, author, date, hash of the key's text, hashes of the closure's statements and the preamble closure, references to snapshots.
 - snapshot : the normalized text of a key or preamble at the time of an acceptance, stored content-addressed under `.loom/history/texts/`, the same store the versions use. What lets a stale acceptance be explained with a diff.
-- review record : one session's annotations as they now stand, replayed from `annotations/log.jsonl`. Not a file: the log is the only store, written only by `loom annotate` and `loom refs cite`.
+- review record : one session's annotations as they now stand, replayed from `annotations/log.jsonl`. Not a file: the log is the only store, written only by `loom annotate` and by `loom library verify` and `discard` on a citation suggestion.
 - annotation : the one record of review, and the one noun for it in commands, the viewer and the documents: id, author (person or agent), session, target key, target hash, selector, `in` (the document a claim about a node is read in, or none), kind (one of five: objection, suggestion, question, citation, note), severity, body, status, reply-to. Written by `loom annotate`; listed by `loom ai annotations`. A note is one of its kinds (7.2), never the record itself.
 - selector : the text-quote selector: the exact quoted text with prefix and suffix context, resolved within the target's own text.
 - detached : an annotation whose selector no longer matches its target's current text.
@@ -85,7 +85,7 @@ All entries are **[decided]** unless marked.
 ## 3.6 Digests
 
 - digest : a LaTeX file under `digests/` holding one cited paper's results as digest nodes under the paper's outline, with a provenance header.
-- extraction : producing a digest mechanically from the reference paper's LaTeX source (`loom digest extract`).
+- extraction : producing a digest mechanically from the reference paper's LaTeX source (`loom library update`'s extract step).
 - ingest : the AI mode in which an agent produces or completes a digest from a PDF, or checks an extracted digest for missing dependencies.
 - postnote : the optional argument of `\cite`, as in `\cite[Theorem 4.1]{Man12}`.
 - postnote edge : an edge created by matching a postnote against a digest node's locator.
@@ -94,6 +94,8 @@ All entries are **[decided]** unless marked.
 - Library : the view of a quilt's cited works as **whole documents** rather than as loose digest nodes — a work is one thing one opens, reads and annotates. **[decided]** It is where `/references` and `/digest` fold together (DR-206).
 - work : one cited paper, named by its global identifier rather than by a citekey, with whatever the store holds for it — a PDF, its LaTeX source, its page text, its digest.
 - unreadable : an author's standing claim that a work has no document to hold at all, recorded in `digests/unreadable.json`. Declared and never inferred, because nothing in a bibliography entry says so.
+- library : the papers a quilt cites and what loom knows of them — their documents in the store, their digests, the results proposed and verified, and the relations asserted between results — and `loom library`, the commands that keep it (Chapter 8, DR-331-ikmartin). "Reference layer" is the same thing seen from the store's side.
+- relation : a typed link between two results (`same-notion`, `generalises`, `specialises`, `depends-on`, `contradicts`), with its reason, asserted by `loom library relate` and never checked or citable.
 - library quilt : a quilt with no masters, holding only digests and the store. The place digests are kept once per paper.
 
 ## 3.7 Build and interface
@@ -124,7 +126,7 @@ All entries are **[decided]** unless marked.
 - application : one use of a mode on one target inside a session, producing named output files in the session's directory.
 - `run.log` : automatic log of every loom command invoked with `--session`, in the session's directory; `loom annotate` adds the annotation it made or changed after an arrow. A session's What it did is this log.
 - transcript : a session's conversation, which is its inbox: every message the person and the agent said, in order, and nothing loom wrote. The agent writes its account of the work there with `loom session say`; there is no separate journal.
-- promote : withdrawn (DR-173). Nothing copies what an agent wrote into the quilt: a digest is made by `loom digest extract` and checked by ingest mode, and a drafted node is previewed by the author and pasted by them, taking an id from `loom id --next`.
+- promote : withdrawn (DR-173). Nothing copies what an agent wrote into the quilt: a digest is made by `loom library update` and checked by ingest mode, and a drafted node is previewed by the author and pasted by them, taking an id from `loom id --next`.
 - agent : the interactive program a person points at a quilt (Claude Code, Codex). Never a dependency.
 
 ## 3.9 Operations
@@ -170,8 +172,9 @@ The following words were used during design and are not terms of the system. Do 
 - `reviewed` (as a state) : not a state; reviews are facts and counts.
 - `impact`, `deps --closure` vs `closure`, `dependents`, `resolve`, `ai finish`, `ai resume`, `ai list`, `ai restore`, `digest export`, `state set`, `state refresh`, `ref use`, `bundle --for-review`, `\blocker`, `\block`, `% !LOOM begin preamble` : withdrawn commands and syntax; see the CLI reference for what replaced each.
 - `map.toml`, `map.md` : withdrawn digest form.
+- `loom refs`, `loom digest` : withdrawn groups; `loom library` holds their commands (DR-331-ikmartin, 12.11).
 - `unravel`, `reach`, `pop` : withdrawn names for `loom downstream` (DR-330-ikmartin).
 - AI draft, AI copy, agent copy : withdrawn names for an agent document (DR-330-ikmartin).
 - bundle (of a key) : now closure document (DR-330-ikmartin); "bundle" still names the viewer's built files.
-- comment, finding : withdrawn as names for the record (DR-292-ikmartin); it is an annotation, whatever its kind. `loom comment` is `loom annotate`, `loom ai findings` is `loom ai annotations`, `loom refs note` is `loom refs cite`, and the write API's `comment` and `refs-note` are `annotate` and `refs-cite`.
+- comment, finding : withdrawn as names for the record (DR-292-ikmartin); it is an annotation, whatever its kind. `loom comment` is `loom annotate`, `loom ai findings` is `loom ai annotations`, `loom refs note` is `loom library verify` and `discard` on the suggestion's id, and the write API's `comment` and `refs-note` are `annotate` and `library-cite`.
 - `--proofs` on `\nest`, `section-nesting` directive : withdrawn; `\nest` is per-site.

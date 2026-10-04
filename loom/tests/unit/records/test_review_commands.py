@@ -704,14 +704,14 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
     )
     second = bad.output.split()[0]
 
-    ok("refs", "cite", "--accept", first, "--reason", "Checked the statement.", *AUTHOR, cwd=d)
+    ok("library", "verify", first, *AS, cwd=d)
     notes = [json.loads(ln) for ln in (d / "reference-notes.jsonl").read_text().splitlines() if ln.strip()]
     assert len(notes) == 1
     assert notes[0]["for"] == ["dm-0002"] and notes[0]["identifier"] == {"verified": False}
     assert notes[0]["from"]["annotation"] == first and "Kreck" in notes[0]["claim"]
     assert set(notes[0]["from"]) == {"session", "annotation"} and notes[0]["from"]["session"].startswith("s-")
 
-    ok("refs", "cite", "--reject", second, "--reason", "Har77 is about something else.", *AUTHOR, cwd=d)
+    ok("library", "discard", second, "--why", "Har77 is about something else.", *AS, cwd=d)
     still = [json.loads(ln) for ln in (d / "reference-notes.jsonl").read_text().splitlines() if ln.strip()]
     assert len(still) == 1  # rejecting records nothing; the reason rides on the resolve event
 
@@ -719,13 +719,11 @@ def test_reference_notes_accept_and_reject(tmp_path: Path) -> None:
     assert status_json(d)["keys"]["dm-0002"]["reviews"]["open"] == {}
     assert (d / "refs.bib").read_text() == bib_before  # the bibliography is the author's, always
 
-    listed = ok("refs", "cite", "--list", cwd=d)
-    assert "Kreck" in listed.output
+    listed = ok("library", cwd=d)
+    assert "accepted citations" in listed.output and "Kreck" in listed.output
 
     plain = ok("annotate", "dm-0002", "Not a citation.", "--quote", "one or two", *AS, cwd=d)
-    refused(
-        "refs", "cite", "--accept", plain.output.split()[0], *AUTHOR, cwd=d, code=1, match="not a citation suggestion"
-    )
+    refused("library", "verify", plain.output.split()[0], *AS, cwd=d, code=1, match="not a citation suggestion")
 
 
 def test_retired_key_dependency_removed_merge_by_alias(tmp_path: Path) -> None:
@@ -1033,7 +1031,7 @@ def test_a_reference_note_records_the_work_and_the_argument_for_it(tmp_path: Pat
     """`work` held the agent's prose and `claim` was empty, so the breadcrumb could never become a bibliography entry (H18)."""
     d = demo(tmp_path)
     bare = ok("annotate", "dm-0002", "Someone has surely proved this.", "--kind", "citation", *AS, cwd=d)
-    refused("refs", "cite", "--accept", bare.output.split()[0], *AUTHOR, cwd=d, code=1, match="proposes no work")
+    refused("library", "verify", bare.output.split()[0], *AS, cwd=d, code=1, match="proposes no work")
 
     named = ok(
         "annotate",
@@ -1046,10 +1044,42 @@ def test_a_reference_note_records_the_work_and_the_argument_for_it(tmp_path: Pat
         *AS,
         cwd=d,
     )
-    ok("refs", "cite", "--accept", named.output.split()[0], *AUTHOR, cwd=d)
+    ok("library", "verify", named.output.split()[0], *AS, cwd=d)
     note = json.loads((d / "reference-notes.jsonl").read_text().splitlines()[0])
     assert note["work"].startswith("Kreschmer,")
     assert note["claim"].startswith("The parity count")
+
+
+def test_the_cli_and_the_write_api_record_one_citation_the_same_way(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The write API filed the suggestion's body as the work and its quotation as the claim, where the CLI files the payload and the body; `decide_citation` now serves both (plan 0.18.5)."""
+    from loom.render.api import handle
+    from tests.unit._quilts import open_session
+
+    monkeypatch.setenv("LOOM_FIXED_TIME", "2026-01-02T00:00:00Z")
+    notes, resolved = [], []
+    for surface in ("cli", "api"):
+        (tmp_path / surface).mkdir()
+        d = demo(tmp_path / surface)
+        made = ok(
+            "annotate", "dm-0002", "The parity count is Kreschmer's; cite it.", "--quote", "one or two",
+            "--kind", "citation", "--payload", "Kreschmer, Cycle groups, J. Alg. 1999", *AS, cwd=d,
+        )  # fmt: skip
+        ann = made.output.split()[0]
+        if surface == "cli":
+            ok("library", "verify", ann, *AS, cwd=d)
+        else:
+            handle(
+                d,
+                "library-cite",
+                {"session": open_session(d), "annotation": ann, "decision": "accept", "author": AS[1]},
+            )
+        notes.append([json.loads(x) for x in (d / "reference-notes.jsonl").read_text().splitlines() if x.strip()])
+        resolved.append([e for e in events(d) if e.get("id") == ann and e["event"] == "resolved"])
+    assert notes[0] == notes[1] and len(notes[0]) == 1, notes
+    assert notes[0][0]["work"].startswith("Kreschmer,") and notes[0][0]["claim"].startswith("The parity count")
+    assert len(resolved[0]) == len(resolved[1]) == 1
 
 
 def test_a_reply_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
@@ -1153,7 +1183,7 @@ def test_accept_refuses_a_digest_node_and_names_the_command_that_does_it(tmp_pat
     """Two claims, two commands (plan 0.12 §5.6). `loom accept` is the author's own mathematics; someone else's theorem is not theirs to accept, and DR-172 relabelled the output where the command needed splitting."""
     q = synthetic(tmp_path)
     r = refused("accept", "Kre99-thm-2.1", *AS, cwd=q, code=2, match="not yours to accept")
-    assert "loom refs verify Kre99-thm-2.1" in r.output
+    assert "loom library verify Kre99-thm-2.1" in r.output
 
     # the author's own keys are untouched by any of it
     assert ok("accept", "sy-0002", *AS, cwd=q).output.startswith("accepted sy-0002")
@@ -1162,9 +1192,9 @@ def test_accept_refuses_a_digest_node_and_names_the_command_that_does_it(tmp_pat
 def test_verifying_a_digest_node_says_what_it_claims(tmp_path: Path) -> None:
     """Verifying an external node claims loom's copy of the cited paper is faithful, never that this quilt proved the theorem; both printed `accepted` (H22)."""
     q = synthetic(tmp_path)
-    # a digest extracted before the reference layer existed gains its records from one `refs build` (contract §1.4)
-    ok("refs", "build", "--only", "extract", cwd=q)
-    r = ok("refs", "verify", "Kre99-thm-2.1", "--author", "A. Author", "--yes", cwd=q)
+    # a digest extracted before the reference layer existed gains its records from one `library update` (contract §1.4)
+    ok("library", "update", "--only", "extract", cwd=q)
+    r = ok("library", "verify", "Kre99-thm-2.1", "--as", "A. Author", "--yes", cwd=q)
     assert "verified Kre99-thm-2.1" in r.output
     assert "--- the source ---" in r.output, "a mechanical result's anchor is its LaTeX, and it says so"
     assert "as a faithful transcription of Kre99" in r.output

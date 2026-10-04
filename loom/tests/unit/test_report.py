@@ -19,7 +19,7 @@ def test_the_verdict_comes_first_and_a_long_group_says_what_it_left_out() -> Non
                 "no PDF",
                 [Item(f"work {n}", key=f"Ck{n:02d}") for n in range(15)],
                 limit=12,
-                next="loom refs coverage",
+                next="loom library",
                 problem=True,
             )
         ],
@@ -28,7 +28,7 @@ def test_the_verdict_comes_first_and_a_long_group_says_what_it_left_out() -> Non
     assert lines[0] == "2 works need you"
     assert lines[2] == "no PDF (15)"
     assert lines[3] == "  work 0  Ck00"
-    assert lines[-1] == "  … and 3 more; loom refs coverage"
+    assert lines[-1] == "  … and 3 more; loom library"
 
 
 def test_an_identifier_is_never_cut_to_fit() -> None:
@@ -69,11 +69,11 @@ def test_a_dry_run_says_so_and_fixes_read_as_fixes() -> None:
     r = Report(
         "would add 3 entries",
         dry_run=True,
-        groups=[Group("needs you", [Item("no PDF", key="Ck", fixes=["loom refs add Ck FILE"])], problem=True)],
+        groups=[Group("needs you", [Item("no PDF", key="Ck", fixes=["loom library add FILE --for Ck"])], problem=True)],
     )
     text = r.render()
     assert text.startswith("dry run: would add 3 entries")
-    assert "    fix: loom refs add Ck FILE" in text
+    assert "    fix: loom library add FILE --for Ck" in text
     assert r.to_json()["dry_run"] is True
 
 

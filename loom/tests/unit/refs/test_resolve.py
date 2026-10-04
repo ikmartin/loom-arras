@@ -13,7 +13,7 @@ from loom.refs import resolve as R
 from loom.refs.identity import identify
 from loom.refs.pages import storage_root
 from loom.scan.bib import BibEntry
-from tests.helpers import json_of, ok, refused
+from tests.helpers import json_of, ok
 
 RESPONSES = json.loads((Path(__file__).parent / "resolve_responses.json").read_text(encoding="utf-8"))
 
@@ -216,10 +216,11 @@ def demo(tmp_path: Path) -> Path:
     return q
 
 
-def test_resolving_is_refused_until_the_author_allows_it(tmp_path: Path) -> None:
+def test_looking_up_waits_until_the_author_allows_it(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    refused("refs", "resolve", code=2, match="resolve = true", cwd=q)
-    assert list(storage_root(q).rglob("resolved.json")) == [], "a refused lookup records no candidates"
+    r = ok("library", "update", "Edi98", "--only", "resolve", cwd=q)
+    assert "1 entry could be looked up" in r.stdout and "online = true under [library]" in r.stdout
+    assert list(storage_root(q).rglob("resolved.json")) == [], "an offline run records no candidates"
 
 
 def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_it(
@@ -227,22 +228,23 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
 ) -> None:
     q = demo(tmp_path)
     cfg = q / "config.toml"
-    cfg.write_text(cfg.read_text().replace("resolve = false", "resolve = true"))
+    cfg.write_text(cfg.read_text().replace("online = false", "online = true"))
     before = (q / "digests" / "bibliography.bib").read_text()
-    lint = ok("lint", cwd=q)
-    assert "Edi98 states no identifier" in lint.output and "loom refs resolve" in lint.output
+    lint = " ".join(ok("lint", cwd=q).output.split())
+    assert "Edi98 states no identifier" in lint and "loom library update --online" in lint
 
     monkeypatch.setattr(R, "http_get", Recorded("zbmath_edidin_graham"))
-    r = ok("refs", "resolve", cwd=q)
-    said = r.stdout.split("candidates for Edi98 (")[1]
-    assert said.split("\n")[1].startswith("  strong") and "doi:10.1353/ajm.1998.0020" in said, r.stdout
+    r = ok("library", "update", "Edi98", "--only", "resolve", cwd=q)
+    said = r.stdout.split("looked up: the best candidate for each (1)\n")[1]
+    assert said.startswith("  Edi98: strong") and "doi:10.1353/ajm.1998.0020" in said, r.stdout
     assert (
         q / "digests" / "bibliography.bib"
-    ).read_text() == before  # resolve records candidates elsewhere and never writes the bibliography
+    ).read_text() == before  # a lookup records candidates elsewhere and never writes the bibliography
 
-    data = json_of("refs", "resolve", "--json", cwd=q)
-    assert data["lookups"] == 0  # answered from the cache
-    assert data["works"]["Edi98"]["candidates"][0]["strength"] == "strong"
+    data = json_of("library", "update", "Edi98", "--only", "resolve", "--json", cwd=q)
+    assert data["looked_up"] == 0 and data["works"][0]["candidates"] is None  # the answer on disk stands
+    data = json_of("library", "update", "Edi98", "--only", "resolve", "--redo", "--json", cwd=q)
+    assert data["works"][0]["candidates"][0]["strength"] == "strong"
 
     lint = " ".join(ok("lint", cwd=q).stdout.split())  # the report wraps a long message; the words are what is checked
     assert "a lookup found doi:10.1353/ajm.1998.0020 (strong match, zbMATH Open)" in lint
@@ -260,17 +262,17 @@ def test_the_command_proposes_lint_names_the_proposal_and_the_manifest_carries_i
     assert ref["work"].startswith("work:")  # a candidate is never the work's identity
 
 
-def test_the_resolve_flag_is_one_runs_consent_and_writes_no_config(
+def test_the_online_flag_is_one_runs_consent_and_writes_no_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`--resolve` allows the lookup for this run without touching `config.toml`, which stays the standing answer and stays false (DR-193)."""
+    """`--online` allows the lookup for this run without touching `config.toml`, which stays the standing answer and stays false (DR-193)."""
     q = demo(tmp_path)
     before = (q / "config.toml").read_text()
-    assert "resolve = false" in before
+    assert "online = false" in before
 
-    refused("refs", "resolve", code=2, match="--resolve", cwd=q)
+    assert "--online" in ok("library", "update", "Edi98", "--only", "resolve", cwd=q).stdout
 
     monkeypatch.setattr(R, "http_get", Recorded("zbmath_edidin_graham"))
-    r = ok("refs", "resolve", "--resolve", cwd=q)
-    assert "candidates for Edi98" in r.stdout and "doi:10.1353/ajm.1998.0020" in r.stdout
+    r = ok("library", "update", "Edi98", "--only", "resolve", "--online", cwd=q)
+    assert "Edi98: strong" in r.stdout and "doi:10.1353/ajm.1998.0020" in r.stdout
     assert (q / "config.toml").read_text() == before

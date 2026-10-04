@@ -1,6 +1,6 @@
 """Finding text in a cited work's pages, and the one normalisation an anchor is checked under (plan 0.12 §5, digest contract §9.5).
 
-Everything that compares a quotation to a page goes through `normalize` here: `loom refs grep` so a search finds what is on the page, `loom refs locate` so a span can be given geometry, and `loom refs propose` so a proposal is accepted or refused on the same terms it was searched under. Three implementations of "near enough" would mean a quotation that greps but will not anchor, which is the worst failure this layer could have.
+Everything that compares a quotation to a page goes through `normalize` here: `loom library locate` so a span can be given geometry, and `loom library propose` so a proposal is accepted or refused on the same terms. Three implementations of "near enough" would mean a quotation that is found but will not anchor, which is the worst failure this layer could have. `loom library search` finds under `fold`, which is `normalize` without case, and ranks what it finds here too.
 """
 
 from __future__ import annotations
@@ -115,6 +115,8 @@ class Hit:
     page: int
     section: str
     context: str
+    #: How often the search's terms occur on the page, which `loom library search --pages` ranks by.
+    score: int = 0
 
 
 def _context(page: str, needle: str, width: int = 70) -> str:
@@ -145,6 +147,82 @@ def grep_work(home: Path, citekey: str, needle: str) -> list[Hit]:
         sec = m.section_of(n) if m else None
         label = f"{sec.n} {sec.title}".strip() if sec else ""
         out.append(Hit(citekey=citekey, page=n, section=label, context=_context(text, needle)))
+    return out
+
+
+def fold(text: str) -> str:
+    """`normalize`, then case-folded and with a hyphen inside a word dropped: the form `loom library search` matches its terms in, so `pullback` finds `pull-back`.
+
+    For finding only. An anchor is still checked under `normalize`, whose case and hyphens a statement keeps.
+    """
+    return _unhyphen(normalize(text).casefold())
+
+
+def _unhyphen(text: str) -> str:
+    return re.sub(r"(?<=\w)-(?=\w)", "", text)
+
+
+def terms_of(text: str) -> list[str]:
+    """The words of a search, folded, each once and in the order given."""
+    out: list[str] = []
+    for t in fold(text).split():
+        if t not in out:
+            out.append(t)
+    return out
+
+
+#: What a term found in a result's head (its locator, its local name, its work's title) counts, against one in its body.
+HEAD, BODY = 3, 1
+
+
+def score_result(terms: list[str], head: str, body: str, *, level: int, citations: int) -> int | None:
+    """A result's rank for `terms` (WQ-41), or None when some term is in neither its head nor its body.
+
+    Each term scores `HEAD` when it is in `head` and `BODY` when it is in `body`, both folded; a level-1 result scores 2 more, and each citation of it in the author's documents 1 more.
+    """
+    h, b = fold(head), fold(body)
+    score = 0
+    for t in terms:
+        if t not in h and t not in b:
+            return None
+        score += (HEAD if t in h else 0) + (BODY if t in b else 0)
+    return score + (2 if level == 1 else 0) + citations
+
+
+def snippet(text: str, terms: list[str], width: int = 60) -> str:
+    """The text around the first of `terms` it contains, on one line; its opening when it contains none."""
+    flat = _unhyphen(normalize(text))
+    folded = flat.casefold()
+    if len(folded) != len(flat):
+        flat = folded  # a fold that changed a length (ß to ss) would misplace every offset after it
+    at = min((i for i in (folded.find(t) for t in terms) if i >= 0), default=0)
+    lo = max(0, at - width // 3)
+    hi = min(len(flat), lo + width)
+    return ("…" if lo else "") + flat[lo:hi].strip() + ("…" if hi < len(flat) else "")
+
+
+def search_pages(home: Path, citekey: str, terms: list[str]) -> list[Hit]:
+    """Every page of one mapped work holding all of `terms`, folded, each scored by how often they occur on it."""
+    from loom.refs.pages import read_map
+
+    out: list[Hit] = []
+    if not terms:
+        return out
+    m = read_map(home)
+    for path in sorted((home / "pages").glob("*.txt")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        folded = fold(text)
+        if not all(t in folded for t in terms):
+            continue
+        n = int(path.stem)
+        sec = m.section_of(n) if m else None
+        label = f"{sec.n} {sec.title}".strip() if sec else ""
+        hit = Hit(citekey=citekey, page=n, section=label, context=snippet(text, terms, 70))
+        hit.score = sum(folded.count(t) for t in terms)
+        out.append(hit)
     return out
 
 

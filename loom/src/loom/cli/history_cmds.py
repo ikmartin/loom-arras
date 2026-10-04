@@ -18,6 +18,7 @@ from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for
 from loom.cli.diagnostics import groups as diagnostic_groups
 from loom.cli.diagnostics import has_errors, tally
+from loom.cli.help import CommandGroup
 from loom.cli.paper import bibliography_groups, identity_group, identity_said
 from loom.cli.report import Group, Item, Report, counted, table
 from loom.history.checks import verify
@@ -781,7 +782,7 @@ def _version_lines(result: ScanResult, history: History, key: str) -> tuple[list
     return versions, matching_version(history, key, head_hash) if head_hash else None, head_hash
 
 
-class _HistoryGroup(click.Group):
+class _HistoryGroup(CommandGroup):
     """`loom history`: a word that names no subcommand is a KEY, whose versions the hidden `_versions` command lists."""
 
     def resolve_command(

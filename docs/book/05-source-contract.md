@@ -125,7 +125,7 @@ Example: `drafting/main.tex` includes `nodes/rl-0001.tex`; a talk includes the s
 ### 5.5.2 Consequences for lint
 
 - A `local-proof` block with no attached proof and no `\incomplete` is a gap: `loom:missing-proof` (warning), regardless of its TeX style. An explicitly classified remark or comment with its justification inline is its own proof and has no missing-proof diagnostic (DR-213).
-- A `cited-result` block is external, not a local proof obligation. Its locator identifies what is quoted; `loom refs verify` checks fidelity of the transcription, not the quoted theorem's mathematics (Chapter 8).
+- A `cited-result` block is external, not a local proof obligation. Its locator identifies what is quoted; `loom library verify` checks fidelity of the transcription, not the quoted theorem's mathematics (Chapter 8).
 - A live `unclassified` block receives `loom:needs-classification` (warning) and cannot become settled. A proof attached to a block explicitly classified as `expository`, `assumption`, or `open-claim` receives `loom:unexpected-proof` (info).
 - A `% !LOOM basis:` outside a theorem-like block is ignored and receives `loom:misplaced-basis` (warning): one file-level directive cannot classify every block in a document.
 

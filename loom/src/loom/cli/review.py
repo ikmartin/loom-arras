@@ -92,7 +92,7 @@ def write_acceptance(
 ) -> tuple[list[AcceptRow], int, int]:
     """Record acceptance rows and the snapshots they name; returns (rows, snapshots written, snapshots already present).
 
-    The one writer of the ledger, shared by `loom accept` and `loom refs verify`. They make different claims -- the author's own mathematics against a faithful copy of someone else's -- but the record is the same shape, and a second implementation would drift in exactly the way that makes `stale` stop meaning anything. With `dry_run` the rows are computed and nothing is written.
+    The one writer of the ledger, shared by `loom accept` and `loom library verify`. They make different claims -- the author's own mathematics against a faithful copy of someone else's -- but the record is the same shape, and a second implementation would drift in exactly the way that makes `stale` stop meaning anything. With `dry_run` the rows are computed and nothing is written.
     """
     root = result.quilt.root
     rows: list[AcceptRow] = []
@@ -287,11 +287,11 @@ def accept(
             if n.digest:
                 raise EnvError(
                     f"{key} is a digest node: someone else's theorem, which is not yours to accept.\n"
-                    f"To record that the copy is faithful: loom refs verify {key}"
+                    f"To record that the copy is faithful: loom library verify {key}"
                 )
             raise EnvError(
                 f"{key} quotes someone else's result, which is not yours to accept. "
-                "To verify its transcription, represent it as a digest result and use loom refs verify there."
+                "To verify its transcription, represent it as a digest result and use loom library verify there."
             )
         targets.append(key)
         contexts[key] = _acceptance_master(result, key)
@@ -621,11 +621,14 @@ def _note_on_page(
         raise EnvError("a note on a page needs --quote (text on it) or --box (x0,y0,x1,y1 in points, origin top left)")
     home = work_dir(result.quilt.root, result.bib[citekey])
     if read_map(home) is None or not (home / "paper.pdf").is_file():
-        raise ContentError(f"{citekey} has no readable copy on this machine; loom refs fetch {citekey} files one")
+        raise ContentError(
+            f"{citekey} has no readable copy on this machine; loom library update {citekey} --online fetches one, "
+            f"or loom library add FILE --for {citekey} files yours"
+        )
     placed = anchor_on_page(home, page, quote, rects)
     if not placed.found:
         raise ContentError(
-            f"that text is not on {citekey} p.{page}: quote from `loom refs page {citekey} {page}`, or draw a --box"
+            f"that text is not on {citekey} p.{page}: quote from `loom library read {citekey} {page}`, or draw a --box"
         )
     if kind is None:
         kind = "note"

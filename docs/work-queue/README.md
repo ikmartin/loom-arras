@@ -40,17 +40,16 @@ Several triggers below are numbers loom already prints. That is the property to 
 | [WQ-36](WQ-36-annotation-bodies-beside-the-manifest.md) | annotation bodies beside the manifest rather than inside it | loom, arras | a manifest crosses a few megabytes because of annotation prose |
 | [WQ-38](WQ-38-digest-blocks-in-their-own-preamble.md) | a digest block rendered against the paper's own preamble | loom | a digest block the author needs shows a raw-TeX error box |
 | [WQ-39](WQ-39-mechanical-version-check.md) | a mechanical version check for extracted digests | loom | the author cites, with a locator, a result in a flagged digest that the cited version numbers differently |
-| [WQ-41](WQ-41-ranked-find.md) | ranking for `loom refs find` | loom | an agent reruns `refs find` three or more times in one query to narrow it |
 | [WQ-42](WQ-42-the-gradient-with-orientation-held.md) | measure the gradient with orientation held fixed | — | before the layer is claimed to make later questions cheaper outside the project |
 | [WQ-49](WQ-49-editor-clients.md) | rework the editor clients; until then they are deprecated and may break | loom-lsp, loom-nvim, loom-vscode | someone starts to work seriously in a quilt and wants loom in their editor |
 | [WQ-50](WQ-50-publish-after-mv-test.md) | a committed test that a publish after `loom mv` keeps Overleaf's file name | loom | the next change to sync's mapping of Overleaf's main, or to `loom mv` |
 | [WQ-51](WQ-51-macro-sets-leak.md) | a view's macros stay its own: no page-wide `\renewcommand` leaking between documents | arras | a real quilt has two macro sets defining one name differently |
 | [WQ-52](WQ-52-simultaneous-agent-copies.md) | several agent documents drafted from one document at once (`-ai-01`) | loom, arras | a person wants two agent versions of one document side by side and `loom draft --ai` refuses the second |
 | [WQ-54](WQ-54-annotations-follow-adopted-text.md) | open annotations follow the text a person adopts | loom, arras | an adoption leaves an open annotation on the copy, and the person files it again on the adopted node |
-| [WQ-55](WQ-55-digest-review-in-review.md) | reviewing proposed digest results in Review, one at a time, after a design study | arras, loom | `loom refs coverage` shows proposals waiting in two or more works, or ten in one, and the author sets out to verify them |
+| [WQ-55](WQ-55-digest-review-in-review.md) | reviewing proposed digest results in Review, one at a time, after a design study | arras, loom | `loom library review` shows proposals waiting in two or more works, or ten in one, and the author sets out to verify them |
 | [WQ-56](WQ-56-figures-cold-build.md) | a cold build's figures: a preamble format, and the cited papers' blocks that fail | loom | `scripts/bench` shows a cold build over three minutes once cold builds are common, or a cited paper's figure shows as source with an error |
 | [WQ-57](WQ-57-agent-documents-from-scratch.md) | agent documents written from scratch: made by a command, adopted as a new working document | loom, arras | a person asks an agent for a document drafted from none of theirs, and the agent has to fake one |
 
-Thirty active, fifteen slots of headroom.
+Twenty-nine active, sixteen slots of headroom.
 
 Every item above has an observable trigger, which is the rule. The rule does not catch a second failure: **a trigger that is observable and will never be observed is a polite way of saying no.** Such an item looks like a plan and is actually a decline, which is worse than an empty queue because it suggests work is coming. So each review asks two questions, not one — is the trigger checkable, and will it ever fire? Five items failed the second on 2026-09-16 and were closed for it; their reasons are in [closed.md](closed.md), and their ids are retired rather than reused.

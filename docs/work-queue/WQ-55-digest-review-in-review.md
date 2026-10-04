@@ -4,7 +4,7 @@
 
 ## Trigger
 
-`loom refs coverage` shows proposals waiting on the author (its `waiting` column) in two or more works at once, or ten or more in one work, and the author sets out to verify them.
+`loom library review` shows proposals waiting on the author (its `waiting` column) in two or more works at once, or ten or more in one work, and the author sets out to verify them.
 
 ## Why deferred
 
@@ -38,7 +38,7 @@ Before a plan, a study in `docs/reports/digest-review-study.md` with a static de
 - the states to draw: one proposal; a proposal with mismatched words; a work with no readable copy (source only, DR-198); a blank or failed page image; three works waiting at once; a result the author edited before verifying; a discard with its reason;
 - the layout at a full pane, a half pane and phone width, light and dark;
 - the keyboard path through ten proposals without the pointer;
-- the question the study must settle: whether the page crop comes from the quads the publisher already writes (`spans/…json`, the ones the proposal test routes) or needs something new from `loom refs map`.
+- the question the study must settle: whether the page crop comes from the quads the publisher already writes (`spans/…json`, the ones the proposal test routes) or needs something new from `loom library update`'s map step.
 
 The blank page image is investigated first and fixed on its own if it is a bug rather than a design question.
 

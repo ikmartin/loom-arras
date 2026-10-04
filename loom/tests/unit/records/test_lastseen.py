@@ -39,7 +39,7 @@ def test_an_edit_under_an_annotation_freezes_the_text_it_was_written_against(
     """The comment freezes the version it names; the cache moves on with the quilt. `[quilt] history` moves the ledger, the frozen texts and this cache together."""
     q = demo(tmp_path)
     if history:
-        edit(q / "config.toml", "[refs]", f'history = "{history}"\n\n[refs]')
+        edit(q / "config.toml", "[library]", f'history = "{history}"\n\n[library]')
     hist = q / (history or ".loom/history")
     ok("annotate", "dm-0002", "Which orbits?", "--quote", ORIGINAL, "--as", "Tom", cwd=q)
     ok("build", cwd=q)

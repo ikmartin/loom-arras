@@ -42,7 +42,7 @@ def anchor_on_page(
     page : int
         The page, from 1.
     text : str, optional
-        What was selected. Matched against the word boxes with the tolerance `refs locate` has for hyphenation and ligatures, and then located in the committed page text for offsets.
+        What was selected. Matched against the word boxes with the tolerance `library locate` has for hyphenation and ligatures, and then located in the committed page text for offsets.
     rects : list of [x0, y0, x1, y1], optional
         What was drawn, in points with the origin at the top left, when there was no text worth selecting.
     span : (start, end), optional

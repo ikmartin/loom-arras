@@ -5,9 +5,8 @@ drafting = "drafting"
 prefix = "sy"
 engine = "pdflatex"
 
-[refs]
-fetch = false
-resolve = false
+[library]
+online = false
 
 [lint]
 disable = []

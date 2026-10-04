@@ -225,7 +225,7 @@ def scan(quilt: Quilt, overlay: dict[str, str] | None = None) -> ScanResult:
                 [],
             )
         )
-    # the quilt's own bibliography, gathered from the landmarks by `loom refs scan`; an author's `.bib` reaches it only through a landmark that names it (book 8.2)
+    # the quilt's own bibliography, gathered from the landmarks by `loom library update`; an author's `.bib` reaches it only through a landmark that names it (book 8.2)
     if (root / BIBLIOGRAPHY).is_file():
         result.bib.update(parse_bib(read_source(root, BIBLIOGRAPHY).text))
     from loom.scan.directives import parse_directives

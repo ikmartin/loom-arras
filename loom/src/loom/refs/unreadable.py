@@ -1,6 +1,6 @@
 """`digests/unreadable.json`: what the author has said loom should stop chasing (plan 0.13 §4, book 8.14).
 
-Two claims live here, both the author's and both keyed by what the author can name. **Unreadable** says a cited work has no document to hold -- the Stacks Project is a living work with no fixed version -- so the invariant's lint stops asking for a PDF that does not exist. **Forgotten** says a document in the store is not wanted as a bibliography entry, so `refs scan` stops re-offering one for it.
+Two claims live here, both the author's and both keyed by what the author can name. **Unreadable** says a cited work has no document to hold -- the Stacks Project is a living work with no fixed version -- so the invariant's lint stops asking for a PDF that does not exist. **Forgotten** says a document in the store is not wanted as a bibliography entry, so gathering stops re-offering one for it.
 
 Nothing in a bibliography entry states either fact, and loom will not infer them: an entry with no identifier looks exactly like one whose identifier nobody has typed yet. So they are declared, with a reason, or not at all.
 

@@ -255,7 +255,7 @@ This is the principle against visual noise.
 
 ## 1.10 T · Terminal output
 
-How what a command prints reads, for a person at a terminal and for an agent reading the same text. 12.1 has the mechanics these rest on: `--json` alone on stdout, diagnostics and progress on stderr. T1–T6 were drawn from what made `loom refs build`'s report unreadable on a real quilt (DR-323-ikmartin); the CLI study of 2026-10-02 (`docs/reports/cli-study.md`) sharpened them and added T7 and T8 (DR-324-ikmartin). The shape of the command line itself, as opposed to what one command prints, is the K set (1.12). All are **[decided]**.
+How what a command prints reads, for a person at a terminal and for an agent reading the same text. 12.1 has the mechanics these rest on: `--json` alone on stdout, diagnostics and progress on stderr. T1–T6 were drawn from what made the reference layer's build report unreadable on a real quilt (DR-323-ikmartin); the CLI study of 2026-10-02 (`docs/reports/cli-study.md`) sharpened them and added T7 and T8 (DR-324-ikmartin). The shape of the command line itself, as opposed to what one command prints, is the K set (1.12). All are **[decided]**.
 
 ### T1. Lead with the verdict.
 

@@ -423,7 +423,8 @@ def test_the_allow_list_and_the_permission_file_cannot_disagree(tmp_path: Path) 
     # what the table must not admit: every command that writes into the quilt outside the session and build/, the history's restore among them, so `loom canonise` cannot walk past a deny on `loom canonize`
     writes_outside_a_session = {
         "accept", "atomize", "import", "stamp", "fork",
-        "revert", "live", "mv", "linearize", "refs cite", "refs add", "upgrade", "digest import", "ai init",
+        "revert", "live", "mv", "linearize", "upgrade", "ai init",
+        "library add", "library verify", "library discard", "library ignore", "library import", "library drop",
     }  # fmt: skip
     missing = sorted(writes_outside_a_session - denied)
     assert not missing, f"agent-writable commands missing from the deny list: {missing}"
@@ -471,10 +472,12 @@ def test_every_command_an_agent_writes_with_takes_as() -> None:
         else:
             yield " ".join(path), {o for p in cmd.params for o in getattr(p, "opts", [])}
 
-    # `ai discard --author` picks records to discard; it says nothing about who is discarding
-    naming = {c: opts for c, opts in walk(main) if c in AGENT_COMMANDS and "--author" in opts and c != "ai discard"}
-    assert naming, "no agent command takes an author"
-    assert not [c for c, opts in naming.items() if "--as" not in opts]
+    options = dict(walk(main))
+    # who acts is `--as` everywhere (K2); `--author` names nothing an agent may pass
+    assert not [c for c in AGENT_COMMANDS if "--author" in options.get(c, set())]
+    writers = {"annotate", "session say", "session new", "library relate", "library propose"}
+    assert writers <= AGENT_COMMANDS
+    assert not [c for c in sorted(writers) if "--as" not in options[c] and c != "library propose"]
 
 
 def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
@@ -486,12 +489,12 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
     # the author's own verbs are named to be refused; `session use` is named beside `--session`, which the agent uses
     named_to_refuse = {
         "accept",
-        "refs verify",
-        "refs discard",
-        "refs unreadable",
-        "refs forget",
-        "refs cite",
-        "refs drop",
+        "library add",
+        "library verify",
+        "library discard",
+        "library ignore",
+        "library drop",
+        "library import",
         "session delete",
         "ai discard",
         "sync publish",
@@ -503,16 +506,16 @@ def test_every_command_the_agent_is_told_to_run_is_allowed() -> None:
     }
     told = {c for c in author_commands() if re.search(rf"`loom {re.escape(c)}\b", docs)}
     assert told <= named_to_refuse, sorted(told - named_to_refuse)
-    assert "refs overview" in AGENT_COMMANDS
+    assert "library read" in AGENT_COMMANDS
 
 
 def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> None:
-    """`ai annotations` shows the author's decision on each of the session's proposals, so an agent that reattaches need not ask `refs why` id by id."""
+    """`ai annotations` shows the author's decision on each of the session's proposals, so an agent that reattaches need not ask `library why` id by id."""
     from tests.unit._quilts import mapped, propose
 
     q, ck = mapped(tmp_path)
     runname = ok("session", "new", "--name", "r", cwd=q).stdout.split()[0]
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=runname)
-    ok("refs", "discard", f"{ck}-thm-1.1", "--reason", "wrong theorem", "--author", "i", cwd=q)
+    ok("library", "discard", f"{ck}-thm-1.1", "--why", "wrong theorem", "--as", "i", cwd=q)
     out = ok("ai", "annotations", "--session", runname, cwd=q).output
     assert f"{ck}-thm-1.1" in out and "discarded -- wrong theorem" in out

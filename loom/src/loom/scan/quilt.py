@@ -5,6 +5,7 @@ find_quilt walks up from a directory to the nearest config.toml with a [quilt] t
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import tomllib
@@ -20,7 +21,8 @@ NO_AUTHOR_MESSAGE = (
 CONFIG_KEYS: dict[str, set[str]] = {
     # `history` is the record's directory, documented and never written by init
     "quilt": {"name", "main", "drafting", "drafting_ai", "history", "prefix", "engine"},
-    "refs": {"fetch", "resolve", "contact"},
+    # `online`: whether loom may use the network for cited works; `contact`: the address the lookup services are given
+    "library": {"online", "contact"},
     "lint": {"disable"},
     "author": {"name"},
     # `launch`: whether `loom serve` may start the agent `ai/ai-config.toml` names (plan 0.14)
@@ -30,8 +32,20 @@ CONFIG_KEYS: dict[str, set[str]] = {
 }
 
 
+#: Keys a quilt's config no longer carries, each with what replaced it; `[library] online` is the one consent to use the network.
+RETIRED_KEYS: dict[tuple[str, str], str] = {
+    ("refs", "fetch"): "online under [library]",
+    ("refs", "resolve"): "online under [library]",
+    ("refs", "contact"): "contact under [library]",
+}
+
+
 class NoQuiltError(Exception):
     """Raised when no config.toml with a [quilt] table is found walking up from the start directory."""
+
+
+class ConfigRefused(NoQuiltError):
+    """A config.toml carrying a retired key (RETIRED_KEYS): not read until the author edits it, since reading past it would drop a consent they gave."""
 
 
 class NoAuthorError(Exception):
@@ -51,9 +65,8 @@ class QuiltConfig:
     history: str = ".loom/history"
     prefix: str = "q"
     engine: str = "pdflatex"
-    fetch: bool = False
-    resolve: bool = False
-    contact: str = ""
+    online: bool = False  # [library] online: whether loom may look identifiers up and fetch documents (book 8.9)
+    contact: str = ""  # [library] contact: the address the lookup services are given
     author: str = ""  # [author] name: who this quilt's records name (book 4.3)
     author_declared: bool = False  # the quilt states an `[author]` table, even with an empty name
     lint_disable: list[str] = field(default_factory=list)
@@ -64,6 +77,20 @@ class QuiltConfig:
     @classmethod
     def from_dict(cls, data: dict[str, Any], user: dict[str, Any] | None = None) -> QuiltConfig:
         """The config of a quilt from its `config.toml` table, with the user config's `[quilt]` values (USER_QUILT_KEYS only) as defaults under it."""
+        retired = [
+            (t, k, new) for (t, k), new in RETIRED_KEYS.items() if isinstance(data.get(t), dict) and k in data[t]
+        ]
+        if retired:
+            named = "; ".join(f"[{t}] {k} is now {new}" for t, k, new in retired)
+            refs = data["refs"]
+            online = any(bool(refs.get(k)) for k in ("fetch", "resolve") if k in refs)
+            edit = "\n".join(
+                ["[library]", f"online = {'true' if online else 'false'}"]
+                + ([f"contact = {json.dumps(str(refs['contact']))}"] if "contact" in refs else [])
+            )
+            raise ConfigRefused(
+                f"config.toml: {named}. Replace the [refs] table with:\n{edit}\nloom reads nothing until it is edited"
+            )
         cfg = cls()
 
         def table(name: str) -> dict[str, Any]:
@@ -95,9 +122,8 @@ class QuiltConfig:
         cfg.main = str(q.get("main", f"{cfg.drafting}/main.tex"))
         cfg.prefix = str(q.get("prefix", cfg.prefix))
         cfg.engine = str(q.get("engine", cfg.engine))
-        cfg.fetch = bool(table("refs").get("fetch", False))
-        cfg.resolve = bool(table("refs").get("resolve", False))
-        cfg.contact = str(table("refs").get("contact", ""))
+        cfg.online = bool(table("library").get("online", False))
+        cfg.contact = str(table("library").get("contact", ""))
         cfg.lint_disable = [str(x) for x in table("lint").get("disable", [])]
         cfg.launch = bool(table("ai").get("launch", False))
         from loom.scan.nodes import NAMED_BASES

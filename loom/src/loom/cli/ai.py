@@ -10,6 +10,7 @@ import click
 
 from loom.cli._common import EXIT_CONTENT, EnvError, NotFoundError, find_session
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted
 from loom.cli.review import STATUSES
 from loom.records.annotations import KINDS, SEVERITIES
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
     from loom.ai.layout import LayerReport
 
 
-@click.group()
+@click.group(cls=CommandGroup)
 def ai() -> None:
     """Set up the agent layer and read what an agent works from: its orientation, its documents and its annotations."""
 
@@ -419,7 +420,7 @@ def ai_annotations(
         and (not f_status or r["status"] == f_status)
     ]
     proposals = run_proposals(root, rel.rsplit("/", 1)[-1])
-    # what the author did with this run's proposals: a reattaching agent otherwise ran `refs why` on each id it happened to know from the run's thread, which is how it learned the author's decisions three times over
+    # what the author did with this run's proposals: a reattaching agent otherwise ran `library why` on each id it happened to know from the run's thread, which is how it learned the author's decisions three times over
     lines: list[str] = []
     if proposals:
         lines += ["", f"proposals ({len(proposals)})"]

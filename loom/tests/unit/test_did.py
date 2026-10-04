@@ -69,8 +69,10 @@ def test_the_manifest_carries_the_annotation_apart_from_the_command(q: Path) -> 
     assert log[1] == {"time": "2026-09-01T00:00:00Z", "command": "loom source dm-0003"}
 
 
-def test_refs_commands_log_their_arguments_as_typed(q: Path) -> None:
-    """The log, and so the status line and What it did, shows a refs command as typed, not as a Python tuple (0.14 study F10)."""
+def test_library_commands_log_their_arguments_as_typed(q: Path) -> None:
+    """The log, and so the status line and What it did, shows a library command as typed, not as a Python tuple (0.14 study F10)."""
     sid = new_session(q)
-    ok("refs", "coverage", "Calloway14", "--session", sid, cwd=q)
-    assert "loom refs coverage Calloway14" in lines(q, sid)
+    ok("library", "search", "widget", "--work", "Calloway14", "--work", "Man12", "--session", sid, cwd=q)
+    [line] = lines(q, sid)
+    assert line.startswith("loom library search ") and "(" not in line and "'" not in line, line
+    assert {"widget", "Calloway14", "Man12"} <= set(line.split()), line

@@ -81,12 +81,12 @@ def propose(
     match: str | None = None,
     **kw: str,
 ) -> Result:
-    """Run `refs propose` and assert its exit `code`; with `match`, assert a refusal naming it.
+    """Run `library propose` and assert its exit `code`; with `match`, assert a refusal naming it.
 
     `kw` become `--key value` options, so `code` and `match` are the only names a caller cannot pass through.
     """
     args = [
-        "refs", "propose", citekey, "--local", local, "--page", str(page), "--level", level,
+        "library", "propose", citekey, "--local", local, "--page", str(page), "--level", level,
         "--source-text", source, "--statement", statement,
     ]  # fmt: skip
     for k, v in kw.items():

@@ -92,8 +92,24 @@ def next_id(links: list[Link]) -> str:
     return f"link-{n:04d}"
 
 
+def check_link(links: list[Link], frm: str, to: str, kind: str, why: str) -> None:
+    """Refuse a kind outside the vocabulary, a link to itself, an empty reason, and a link already recorded; `add_link` and a dry run both ask this.
+
+    Raises ValueError with the reason.
+    """
+    if kind not in KINDS:
+        raise ValueError(f"{kind} is not a link kind; use one of {', '.join(sorted(KINDS))}")
+    if frm == to:
+        raise ValueError("a link needs two different results")
+    if not why.strip():
+        raise ValueError("say why in a sentence: an unexplained edge is noise, and the sentence is what you read later")
+    for x in links:
+        if x.frm == frm and x.to == to and x.kind == kind:
+            raise ValueError(f"{x.id} already says that; loom library relate --undo {x.id} --why '…' to replace it")
+
+
 def add_link(root: Path, frm: str, to: str, kind: str, why: str, by: str) -> Link:
-    """Record one link, refusing a kind outside the vocabulary and a link to itself.
+    """Record one link, after `check_link`.
 
     Parameters
     ----------
@@ -112,17 +128,13 @@ def add_link(root: Path, frm: str, to: str, kind: str, why: str, by: str) -> Lin
     -------
     Link
         The stored record.
+
+    See Also
+    --------
+    check_link : the refusals, for a caller that writes nothing.
     """
-    if kind not in KINDS:
-        raise ValueError(f"{kind} is not a link kind; use one of {', '.join(sorted(KINDS))}")
-    if frm == to:
-        raise ValueError("a link needs two different results")
-    if not why.strip():
-        raise ValueError("say why in a sentence: an unexplained edge is noise, and the sentence is what you read later")
     links = read_links(root)
-    for x in links:
-        if x.frm == frm and x.to == to and x.kind == kind:
-            raise ValueError(f"{x.id} already says that; loom refs unlink {x.id} to replace it")
+    check_link(links, frm, to, kind, why)
     made = Link(id=next_id(links), frm=frm, to=to, kind=kind, why=why.strip(), by=by, when=stamp())
     links.append(made)
     write_links(root, links)
@@ -140,14 +152,15 @@ def remove_link(root: Path, link_id: str) -> Link:
     return gone
 
 
-def record_removal(root: Path, gone: Link, by: str) -> None:
-    """Append what was removed and who removed it to `digests/links-removed.jsonl`, since the live file keeps no tombstones."""
-    import json
-
+def record_removal(root: Path, gone: Link, by: str, why: str = "") -> None:
+    """Append what was removed, who removed it and why to `digests/links-removed.jsonl`, since the live file keeps no tombstones."""
     path = root / "digests" / "links-removed.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
+    entry: dict[str, Any] = {"link": gone.to_json(), "removed_by": by, "when": stamp()}
+    if why:
+        entry["why"] = why
     with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps({"link": gone.to_json(), "removed_by": by, "when": stamp()}, sort_keys=True) + "\n")
+        fh.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
 def touching(root: Path, key: str) -> list[Link]:

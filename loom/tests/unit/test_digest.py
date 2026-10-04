@@ -66,7 +66,7 @@ def demo(tmp_path: Path) -> Path:
     (tmp_path / "paper").mkdir()
     (tmp_path / "paper" / "ref.tex").write_text(REF)
     # extraction is gated on loom holding the document, so the source is filed before it is read (plan 0.13 §4)
-    ok("refs", "add", "Ref20", str(tmp_path / "paper" / "ref.tex"), cwd=q)
+    ok("library", "add", str(tmp_path / "paper" / "ref.tex"), "--for", "Ref20", cwd=q)
     return q
 
 
@@ -146,9 +146,9 @@ def test_version_mismatch_and_missing_package_and_undigested(tmp_path: Path) -> 
     assert ok("status", "--undigested", cwd=q).output.splitlines()[2:] == ["Ref20"]
 
 
-def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_path: Path) -> None:
+def test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_exists(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = ok("digest", "extract", "Ref20", cwd=q)
+    r = ok("library", "update", "Ref20", "--only", "extract", cwd=q)
     text = (q / "digests" / "Ref20.tex").read_text()
     head = text.splitlines()[:5]
     assert head[0] == "% !LOOM digest: Ref20" and head[1] == "% !LOOM prefix: Ref20"
@@ -173,15 +173,21 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_pa
     assert "\\section{Setup}\\label{Ref20-sec-2}" in text and "\\section{Results}\\label{Ref20-sec-3}" in text
     assert "\\section*{Overview}\nWe study widgets. This paper proves Theorem~\\ref{Ref20-thm-3.1}." in text
     assert "\\label{Ref20-setup}" in text and "\\incomplete{Standing assumptions not extracted" in text
-    assert "Extracted 4 results (2 Theorem, 1 Definition, 1 Lemma); 2 sections" in r.output
-    assert "\\uses recorded: 3" in r.output and "Numbering: from the paper's .aux" in r.output
-    # the digest requires xy and the demo's master does not load it, which the extraction's own lint says
-    verdict = r.stdout.splitlines()[0]
-    assert verdict.startswith("wrote digests/Ref20.tex: 4 results from Ref20; its lint: ") and "1 warning" in verdict
-    assert "warning loom:missing-package (1)" in r.stdout
     said = " ".join(r.stdout.split())  # an item's line wraps within 100 columns
-    assert "digest Ref20 requires xy, which the preamble of drafting/main.tex does not load" in said
-    refused("digest", "extract", "Ref20", code=2, match="digests/Ref20.tex exists", cwd=q)
+    assert "4 results (2 Theorem, 1 Definition, 1 Lemma), 2 sections; numbering from the paper's .aux" in said
+    assert "this run extracted 1" in r.stdout.splitlines()[0]
+    # the digest requires xy and the demo's master does not load it, which the extraction's own lint says
+    assert "its lint: 1 warning" in said, r.stdout
+    lint = [
+        d["message"] for d in json_of("lint", "--json", cwd=q)["diagnostics"] if d["code"] == "loom:missing-package"
+    ]
+    assert "digest Ref20 requires xy, which the preamble of drafting/main.tex does not load" in " ".join(lint)
+    # a digest that exists is done, and a second run leaves it as it is
+    digest = (q / "digests" / "Ref20.tex").read_text()
+    assert "nothing new this run" in ok("library", "update", "Ref20", "--only", "extract", cwd=q).stdout
+    assert (q / "digests" / "Ref20.tex").read_text() == digest
+    again = json_of("library", "update", "Ref20", "--only", "extract", "--redo", "--json", cwd=q)["works"][0]
+    assert (again["extraction"]["uses"], again["extraction"]["numbering"]) == (3, "aux")
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(
         node.read_text().replace(
@@ -204,20 +210,20 @@ def test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing(tmp_pa
 
 def test_extract_counter_emulation_when_compile_fails(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = ok("digest", "extract", "Ref20", cwd=q, env={"FAKE_TEX_FAIL": "1"})
+    r = ok("library", "update", "Ref20", "--only", "extract", cwd=q, env={"FAKE_TEX_FAIL": "1"})
     text = (q / "digests" / "Ref20.tex").read_text()
-    assert "% !LOOM numbering: emulated" in text and "Numbering: emulated" in r.output
+    assert "% !LOOM numbering: emulated" in text and "numbering emulated (compile failed" in r.output
     for local in ("def-2.1", "lem-2.2", "thm-3.1", "thm-3.2", "sec-2", "sec-3"):
         assert f"\\label{{Ref20-{local}}}" in text, local
 
 
 def test_import_digest_as_rewrites_prefix(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    ok("digest", "extract", "Ref20", cwd=q)
+    ok("library", "update", "Ref20", "--only", "extract", cwd=q)
     src = q / "digests" / "Ref20.tex"
     ok("init", str(tmp_path / "lib"), "--demo", cwd=tmp_path)
     lib = tmp_path / "lib"
-    r = ok("digest", "import", str(src), "--as", "Other20", cwd=lib)
+    r = ok("library", "import", str(src), "--name", "Other20", cwd=lib)
     text = (lib / "digests" / "Other20.tex").read_text()
     assert text.startswith("% !LOOM digest: Other20\n")
     assert "Ref20" not in text
@@ -225,25 +231,27 @@ def test_import_digest_as_rewrites_prefix(tmp_path: Path) -> None:
     assert "\\cite[Theorem 3.1 (Main), p.~1]{Other20}" in text and "\\eqref{Other20-eq:key}" in text
     assert "digest-without-bib" in r.output  # Other20 is not in lib's bibliography
     refused(
-        "digest", "import", str(src), "--as", "Other20", code=2, match="digest import never overwrites", cwd=lib
+        "library", "import", str(src), "--name", "Other20", code=2, match="library import never overwrites", cwd=lib
     )  # never overwrites
 
 
 def test_fetch_refused_without_config(tmp_path: Path) -> None:
     q = demo(tmp_path)
     before = sorted(p.relative_to(q) for p in storage_root(q).rglob("*"))
-    refused("refs", "fetch", "Ref20", code=2, match="fetch = true", cwd=q)
+    r = ok("library", "update", "Man12", "--only", "fetch", cwd=q)
+    assert "1 work could be fetched" in r.stdout and "online = true under [library]" in r.stdout
     assert sorted(p.relative_to(q) for p in storage_root(q).rglob("*")) == before, "a refused fetch writes nothing"
 
 
 def test_build_runs_with_the_network_off_and_says_how_to_turn_each_step_on(tmp_path: Path) -> None:
-    """`loom refs build` is usable in a quilt that has opted into nothing: it says so, still does the local steps, and names the two things a machine cannot do. Both switches are false in a new quilt's config, so a build that could fetch or look up says which line to change and which flag does it for one run (DR-193)."""
+    """`loom library update` is usable in a quilt that has opted into nothing: it says so, still does the local steps, and names the two things a machine cannot do. `[library] online` is false in a new quilt's config, so a run that could fetch or look up says which line to change and which flag does it for one run (DR-193)."""
     q = demo(tmp_path)
-    r = ok("refs", "build", cwd=q)
-    assert "(lookup off)" in r.output and "(fetching off)" in r.output
-    assert "needs you" in r.output and "needs an agent" in r.output
-    assert "could be looked up: pass --resolve, or set resolve = true under [refs] in config.toml" in r.output
-    assert "could be fetched: pass --fetch, or set fetch = true under [refs] in config.toml" in r.output
+    r = ok("library", "update", cwd=q)
+    assert r.output.count("(offline)") == 2, "both network steps say they were off"
+    assert "left for you and for an agent" in r.output and "need you, 0 an agent" in r.output
+    assert "could be looked up" in r.output and "could be fetched" in r.output
+    said = " ".join(r.stdout.split())
+    assert "next: loom library update --online, or set online = true under [library] in config.toml" in said
 
 
 def test_a_digest_is_called_thin_by_the_results_it_has_after_extraction(tmp_path: Path) -> None:
@@ -251,14 +259,22 @@ def test_a_digest_is_called_thin_by_the_results_it_has_after_extraction(tmp_path
     q = demo(tmp_path)
     sections = work_home(q, "Ref20") / "sections.json"
     sections.write_text(json.dumps({"sha256": "0" * 64, "pages": 12, "chars": 1, "sections": []}))
-    fresh = ok("refs", "build", "--only", "extract", cwd=q)
-    assert "entered the digest (1)\n  Ref20" in fresh.output and "too thin to trust" not in fresh.output, fresh.output
-    assert "needs an agent: works with pages and no digest (0)" in fresh.output, fresh.output
+    fresh = ok("library", "update", "--only", "extract", cwd=q)
+    assert re.search(
+        r"\bextracted \(1\) 4 results [^()]*\([^)]*\), [^;]*;[^;]*;[^;]* Ref20 ", " ".join(fresh.stdout.split()) + " "
+    ), fresh.output
+    assert "too thin to trust" not in fresh.output, fresh.output
+
+    def needs_an_agent() -> bool:
+        works = json_of("library", "update", "--only", "extract", "--json", cwd=q)["works"]
+        return bool(next(w for w in works if w["citekey"] == "Ref20")["needs_an_agent"])
+
+    assert not needs_an_agent()
     # the same five results against a paper of forty pages are too few to trust
     sections.write_text(json.dumps({"sha256": "0" * 64, "pages": 40, "chars": 1, "sections": []}))
-    thin = ok("refs", "build", "--only", "extract", cwd=q)
+    thin = ok("library", "update", "--only", "extract", cwd=q)
     assert "too thin to trust (1)\n  5 results, 40 pages  Ref20" in thin.output, thin.output
-    assert "needs an agent: works with pages and no digest (1)\n  Ref20" in thin.output, thin.output
+    assert needs_an_agent()
 
 
 def test_the_build_report_lists_every_blocked_work_under_what_would_unblock_it() -> None:
@@ -280,21 +296,24 @@ def test_the_build_report_lists_every_blocked_work_under_what_would_unblock_it()
         resolve_off=True,
     )
     text = "\n".join(report.lines())
-    assert text.splitlines()[0] == "1 of 19 works digested; 18 blocked; 3 need you, 0 an agent"
+    assert text.splitlines()[0] == "1 of 19 works digested, nothing new this run; 18 blocked; 3 need you, 0 an agent"
     assert text.splitlines()[1].startswith("resolved   19  entries: 3 state an arXiv id")
     assert f"blocked: no arXiv id to fetch a source on ({LISTED + 3})\n  Doi00" in text
     flat = " ".join(text.split())  # the cut line is long, and wraps
-    assert f"Doi{LISTED - 1:02d} … and 3 more; loom refs build --resolve --fetch looks for the preprint" in flat
-    assert "loom refs coverage lists every work" in flat
-    assert "blocked: no identifier and no document (1)\n  Bare\n  fix: loom refs resolve CITEKEY" in text
-    assert "blocked: source not fetched yet (1)\n  Arx\n  fix: loom refs build --fetch gets it from arXiv" in text
+    assert f"Doi{LISTED - 1:02d} … and 3 more; loom library update --online looks for the preprint" in flat
+    assert "loom library update --dry-run --json lists every work" in flat
+    assert (
+        "blocked: no identifier and no document (1)\n  Bare\n  fix: loom library update CITEKEY --online looks it up"
+        in text
+    )
+    assert "blocked: source not fetched yet (1)\n  Arx\n  fix: loom library update --online gets it from arXiv" in text
     assert '  fetched source is titled "X"  Wrong' in text
     # a work with a DOI is never told to add one
     assert "add a doi" not in text.split("no identifier and no document")[0]
 
 
-def test_build_refuses_an_unknown_step(tmp_path: Path) -> None:
-    refused("refs", "build", "--only", "polish", code=2, match="unknown step", cwd=demo(tmp_path))
+def test_update_refuses_an_unknown_step(tmp_path: Path) -> None:
+    refused("library", "update", "--only", "polish", code=2, match="'polish' is not one of", cwd=demo(tmp_path))
 
 
 @pytest.mark.network
@@ -303,8 +322,10 @@ def test_fetch_writes_gitignored_dirs(tmp_path: Path) -> None:
     if not os.environ.get("LOOM_NETWORK"):
         pytest.skip("set LOOM_NETWORK=1 to fetch from arXiv")
     q = demo(tmp_path)
-    edit(q / "config.toml", "fetch = false", "fetch = true")
-    ok("refs", "fetch", "Man12", cwd=q)  # the demo's own entry: eprint 0805.2065v2, whose title the arrival check reads
+    edit(q / "config.toml", "online = false", "online = true")
+    ok(
+        "library", "update", "Man12", "--only", "fetch", cwd=q
+    )  # the demo's own entry: eprint 0805.2065v2, whose title the arrival check reads
     home = work_home(q, "Man12")
     assert home == storage_root(q) / "arxiv" / "0805.2065v2"
     assert any((home / "src").iterdir()) and (home / "paper.pdf").is_file()
@@ -314,7 +335,7 @@ def test_fetch_writes_gitignored_dirs(tmp_path: Path) -> None:
 
 def test_requires_missing_package_named_first_on_bundle_failure(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    ok("digest", "extract", "Ref20", cwd=q)
+    ok("library", "update", "Ref20", "--only", "extract", cwd=q)
     node = q / "nodes" / "dm-0002.tex"
     node.write_text(node.read_text().replace("\\end{lemma}", "By \\cite[Theorem 3.1]{Ref20}.\n\\end{lemma}", 1))
     r = exits(1, "compile", "dm-0002", cwd=q, env={"FAKE_TEX_FAIL": "1"})
@@ -358,7 +379,7 @@ def test_unverified_locators_when_the_artifact_and_the_cited_work_differ(tmp_pat
 
 
 def test_the_other_version_is_said_where_the_digest_is_read(tmp_path: Path) -> None:
-    """An agent reading a digest through `refs coverage`, `refs overview` or `loom source` is told its numbers are another version's, rather than finding it only in `loom lint` and filing the preprint's numbering as an extraction bug (WQ-37, DR-313-ikmartin)."""
+    """An agent reading a digest through `loom library WORK`, `library read WORK` or `loom source` is told its numbers are another version's, rather than finding it only in `loom lint` and filing the preprint's numbering as an extraction bug (WQ-37, DR-313-ikmartin)."""
     q = demo(tmp_path)
     (q / "digests" / "bibliography.bib").write_text(
         (q / "digests" / "bibliography.bib").read_text()
@@ -372,20 +393,18 @@ def test_the_other_version_is_said_where_the_digest_is_read(tmp_path: Path) -> N
         encoding="utf-8",
     )
     said = "was extracted from arXiv:2001.00002v1 but the bibliography cites doi:10.1090/S1"
-    r = ok("refs", "coverage", "Split", cwd=q)
-    assert "preprint" in r.output and said in r.output and "loom refs page Split" in r.output
-    row = next(
-        w
-        for w in json.loads(ok("refs", "coverage", "Split", "--json", cwd=q).stdout)["works"]
-        if w["citekey"] == "Split"
-    )
+    r = ok("library", "Split", cwd=q)
+    assert "preprint" in r.output and said in r.output and "loom library read Split PAGES" in r.output
+    row = json.loads(ok("library", "Split", "--json", cwd=q).stdout)["work"]
     assert row["digest_version"] == {"extracted_from": "arXiv:2001.00002v1", "cited_as": "doi:10.1090/S1"}
-    r = ok("refs", "overview", "Split", cwd=q)
+    row = next(w for w in json.loads(ok("library", "--json", cwd=q).stdout)["works"] if w["citekey"] == "Split")
+    assert row["digest_version"] == {"extracted_from": "arXiv:2001.00002v1", "cited_as": "doi:10.1090/S1"}
+    r = ok("library", "read", "Split", cwd=q)
     assert r.stdout.strip() == "O." and said in r.stderr
     r = ok("source", "Split-thm-1", cwd=q)
     assert "\\begin{theorem}" in r.stdout and said in r.stderr and said not in r.stdout
     # a digest cited as it was extracted says nothing
-    other = json.loads(ok("refs", "coverage", "--json", cwd=q).stdout)["works"]
+    other = json.loads(ok("library", "--json", cwd=q).stdout)["works"]
     assert all(w["digest_version"] is None for w in other if w["citekey"] != "Split")
 
 
@@ -446,8 +465,8 @@ def _extract(tmp_path: Path, src: str, key: str) -> str:
     paper.write_text(src)
     with (q / "digests" / "bibliography.bib").open("a") as fh:
         fh.write(f"\n@misc{{{key}, title={{X}}, author={{Y, Z.}}, year={{2000}}}}\n")
-    ok("refs", "add", key, str(paper), cwd=q)
-    ok("digest", "extract", key, "--no-compile", cwd=q)
+    ok("library", "add", str(paper), "--for", key, cwd=q)
+    ok("library", "update", key, "--only", "extract", cwd=q, env={"FAKE_TEX_FAIL": "1"})  # numbered by emulation
     return (q / "digests" / f"{key}.tex").read_text()
 
 
@@ -615,16 +634,15 @@ def _cited(q: Path, key: str) -> None:
 
 
 def test_emulated_numbering_follows_the_starred_appendix_duplicate_and_cap_rules(tmp_path: Path) -> None:
-    """Book 8.5 on `--no-compile`: `\\newtheorem*` is `-star-<n>` titled `(unnumbered)`, `\\appendix` letters the section, a second result under a used number is skipped and reported, `--to` writes elsewhere, and the setup node is capped at 1,500 characters."""
+    """Book 8.5 on emulated numbering: `\\newtheorem*` is `-star-<n>` titled `(unnumbered)`, `\\appendix` letters the section, a second result under a used number is skipped and reported, and the setup node is capped at 1,500 characters."""
     q = demo(tmp_path)
     paragraph = "Throughout, every widget is a gadget of finite type over a field, and we say so at length. " * 8
     paper = tmp_path / "nu.tex"
     paper.write_text(NUMBERING.replace("CONVENTIONS", "\n\n".join([paragraph] * 3)))
     _cited(q, "Nu01")
-    ok("refs", "add", "Nu01", paper, cwd=q)
-    r = ok("digest", "extract", "Nu01", "--no-compile", "--to", "elsewhere.tex", cwd=q)
-    assert not (q / "digests" / "Nu01.tex").exists()
-    text = (q / "elsewhere.tex").read_text()
+    ok("library", "add", paper, "--for", "Nu01", cwd=q)
+    r = ok("library", "update", "Nu01", "--only", "extract", cwd=q, env={"FAKE_TEX_FAIL": "1"})
+    text = (q / "digests" / "Nu01.tex").read_text()
     labels = re.findall(r"\\label\{(Nu01-[^}]*)\}", text)
     aliases = ("Nu01-a", "Nu01-b")  # the paper's own labels ride along, prefixed
     assert [x for x in labels if "-sec-" not in x and x not in ("Nu01-setup", *aliases)] == [
@@ -635,7 +653,7 @@ def test_emulated_numbering_follows_the_starred_appendix_duplicate_and_cap_rules
     ], labels
     assert "\\cite[Main Theorem (unnumbered)]{Nu01}" in text
     assert "A second Theorem 2.1" not in text
-    assert re.search(r"Skipped: Theorem 2\.1 at \S+:\d+: duplicate number 2\.1", r.output), r.output
+    assert re.search(r"skipped Theorem 2\.1 at \S+:\d+: duplicate number 2\.1", " ".join(r.output.split())), r.output
     assert "% !LOOM numbering: emulated" in text.splitlines()[:8]
     setup = text.split("\\label{Nu01-setup}", 1)[1].split("\\end{theorem}", 1)[0]
     more = "\n\\emph{The paper's conventions continue beyond this; see the paper.}"
@@ -645,16 +663,17 @@ def test_emulated_numbering_follows_the_starred_appendix_duplicate_and_cap_rules
 def test_a_compiled_paper_with_an_unlabelled_result_says_numbering_mixed(tmp_path: Path) -> None:
     """DR-180, contract §2.9: a compile that succeeded does not make every number the .aux's; an unlabelled result counted by emulation marks the header `mixed`, and a fully labelled paper claims nothing."""
     q = demo(tmp_path)
-    r = ok("digest", "extract", "Ref20", cwd=q)  # REF's last theorem is unlabelled
+    r = ok("library", "update", "Ref20", "--only", "extract", cwd=q)  # REF's last theorem is unlabelled
     text = (q / "digests" / "Ref20.tex").read_text()
     assert "% !LOOM numbering: mixed" in text and "numbering: emulated" not in text
-    assert "Numbering: from the paper's .aux, except 1 unlabelled result(s) counted by emulation" in r.output
+    said = " ".join(r.stdout.split())
+    assert "numbering from the paper's .aux, except 1 unlabelled result counted by emulation" in said
     labelled = tmp_path / "paper" / "ref.tex"
     edit(labelled, "\\begin{thm}\nUnlabelled theorem.", "\\begin{thm}\\label{last}\nLabelled now.")
-    ok("refs", "add", "Ref20", labelled, "--force", cwd=q)
-    r = ok("digest", "extract", "Ref20", "--to", "again.tex", cwd=q)
-    assert "% !LOOM numbering" not in (q / "again.tex").read_text()
-    assert "Numbering: from the paper's .aux\n" in r.output
+    ok("library", "add", labelled, "--for", "Ref20", cwd=q)  # filed beside the first source, as Ref20A
+    r = ok("library", "update", "Ref20A", "--only", "extract", cwd=q)
+    assert "% !LOOM numbering" not in (q / "digests" / "Ref20A.tex").read_text()
+    assert "numbering from the paper's .aux;" in r.stdout
 
 
 def test_a_paper_with_no_sections_gets_an_incomplete_overview(tmp_path: Path) -> None:
@@ -685,7 +704,7 @@ def test_a_result_on_a_sectioning_counter_steps_it_and_an_aux_number_resynchroni
 
 
 def test_an_overview_named_by_a_fragment_matching_two_works_is_refused_by_name(tmp_path: Path) -> None:
-    """`refs overview romagny` printed a different paper's overview on successive runs: a set was asked for its first element (CLI study, defect 12)."""
+    """A fragment naming two works is refused by name: the overview of `romagny` once named a different paper on each run, because a set was asked for its first element (CLI study, defect 12)."""
     q = demo(tmp_path)
     bib = q / "digests" / "bibliography.bib"
     bib.write_text(
@@ -694,4 +713,5 @@ def test_an_overview_named_by_a_fragment_matching_two_works_is_refused_by_name(t
         + "\n@article{Romagny22, title={Fixed point stacks}, author={Romagny, M.}}\n",
         encoding="utf-8",
     )
-    refused("refs", "overview", "romagny", cwd=q, code=2, match="names 2 works: Romagny05, Romagny22")
+    refused("library", "read", "romagny", cwd=q, code=2, match="names 2 works: Romagny05, Romagny22")
+    refused("library", "romagny", cwd=q, code=2, match="names 2 works: Romagny05, Romagny22")

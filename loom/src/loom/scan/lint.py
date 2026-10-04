@@ -417,9 +417,7 @@ def lint(result: ScanResult, edges: EdgeResult, graph: Graph) -> list[Diagnostic
                 field_name = {"doi": "doi", "zbl": "zbl", "mr": "mrnumber", "arxiv": "eprint"}.get(scheme, scheme)
                 advice = f"a lookup found {best.id} ({best.strength} match, {best.source}); if it is the right work, add {field_name} = {{{value}}} to the entry"
             else:
-                advice = (
-                    "add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom refs resolve"
-                )
+                advice = "add doi = {...} or eprint = {...} to its bibliography entry, or look it up with loom library update --online"
             diags.append(
                 Diagnostic(
                     "info",
@@ -510,7 +508,7 @@ def _no_readable_copy(result: ScanResult, digest_keys: set[str]) -> list[Diagnos
 
     Renderable content is a digest file or a recorded result; a bibliography entry alone is not, and a work nobody has fetched is a perfectly good state. What backs it may be either artifact, and which one decides what can be done with it. **Source** is enough to check a statement against -- it is the paper's own LaTeX, better evidence than a page image -- but carries no pagination and no page to read, so it reports as `info`. **Nothing at all** is the state the invariant is about and reports as `warning`. Never an error either way: loom cannot fetch without consent, and a build must not fail for want of a document.
 
-    A work the author has declared unreadable is silent here, and `refs build` lists it instead.
+    A work the author has declared unreadable is silent here, and `library update` lists it instead.
     """
     from loom.refs.fetch import work_dir
     from loom.refs.pages import read_map
@@ -534,20 +532,20 @@ def _no_readable_copy(result: ScanResult, digest_keys: set[str]) -> list[Diagnos
             continue
         has_pdf, has_source = (home / "paper.pdf").is_file(), (home / "src").is_dir()
         if has_pdf:
-            sev, what, how = "warning", "its pages have never been read", f"loom refs map {ck}"
+            sev, what, how = "warning", "its pages have never been read", f"loom library update {ck} --only map"
         elif has_source:
             sev = "info"
             what = "loom holds its LaTeX and no PDF, so there is no page to read and its page locators are unverified"
-            how = f"loom refs fetch {ck}, or loom refs add {ck} <FILE>"
+            how = f"loom library update {ck} --online, or loom library add FILE --for {ck}"
         else:
             sev = "warning"
             what = "no copy of the paper is on this machine, so nothing it says can be checked against the paper"
-            how = f"loom refs fetch {ck}, or loom refs add {ck} <FILE>"
+            how = f"loom library update {ck} --online, or loom library add FILE --for {ck}"
         out.append(
             Diagnostic(
                 sev,
                 "loom:no-readable-copy",
-                f"{ck} has a digest but {what}; {how}, or loom refs unreadable {ck} --why '...' when there is no document to hold",
+                f"{ck} has a digest but {what}; {how}, or loom library ignore {ck} --why '...' when there is no document to hold",
                 [],
                 [ck],
             )

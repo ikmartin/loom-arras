@@ -1,6 +1,6 @@
 """Diagnostics as report groups (plan 0.18.3): one group per code with its count, the author's before the cited works', which are summarised under a heading of their own.
 
-Every command that reports diagnostics (`lint`, `build`, `check`, `digest extract`, `history verify`) builds its groups here, so a diagnostic reads the same wherever it is printed: its location, its message, the keys it names, and the commands that would resolve it as `fix:` lines.
+Every command that reports diagnostics (`lint`, `build`, `check`, `library update`, `history verify`) builds its groups here, so a diagnostic reads the same wherever it is printed: its location, its message, the keys it names, and the commands that would resolve it as `fix:` lines.
 """
 
 from __future__ import annotations

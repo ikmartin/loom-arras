@@ -46,3 +46,13 @@ def test_bare_loom_is_the_help_and_succeeds(tmp_path) -> None:  # type: ignore[n
     r = run(cwd=tmp_path)
     assert r.exit_code == 0
     assert "Start:" in r.stdout and "Upkeep:" in r.stdout
+
+
+def test_every_group_lists_its_commands_by_whole_first_sentence() -> None:
+    from loom.cli.help import CommandGroup, LoomGroup
+
+    groups = [p for p, c in commands(main, []) if isinstance(c, click.Group)]
+    assert groups, "no groups found"
+    plain = sorted(p for p, c in commands(main, []) if isinstance(c, click.Group) and not isinstance(c, CommandGroup))
+    assert isinstance(main, LoomGroup)
+    assert plain == [], "groups whose help cuts its commands' first sentences"

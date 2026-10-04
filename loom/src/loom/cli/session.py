@@ -9,6 +9,7 @@ import click
 
 from loom.cli._common import ContentError, EnvError, find_session, note
 from loom.cli._quilt import open_quilt, quilt_option
+from loom.cli.help import CommandGroup
 from loom.cli.report import Group, Item, Report, counted
 from loom.sessions import (
     active,
@@ -23,7 +24,7 @@ from loom.sessions import (
 )
 
 
-@click.group(name="session")
+@click.group(name="session", cls=CommandGroup)
 def session() -> None:
     """Open, name and follow sessions: the stretch of work an annotation belongs to, and which one is current.
 

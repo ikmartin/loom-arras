@@ -616,8 +616,8 @@ test.describe('the box', () => {
 			}
 			await route.fulfill({ json: m });
 		});
-		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'discard', 'refs-cite']);
-		await page.route('**/_api/refs-cite', (r) => ((accepted = true), r.fulfill({ json: { ok: true, result: 'accepted' } })));
+		await writes(page, ['annotate', 'reply', 'resolve', 'edit', 'discard', 'library-cite']);
+		await page.route('**/_api/library-cite', (r) => ((accepted = true), r.fulfill({ json: { ok: true, result: 'accepted' } })));
 		await page.goto('/node/sy-0002');
 		await pickSession(page, REFEREE);
 		const box = await openBox(page, '/node/sy-0002', id);

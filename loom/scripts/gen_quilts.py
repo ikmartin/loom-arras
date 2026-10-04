@@ -330,7 +330,7 @@ def build_synthetic(dest: Path) -> None:
     )
     objection, suggestion, document, cited, _open = _annotation_ids(dest, referee)[:5]
     g.at("2026-09-16T09:00:00Z")
-    g.run("refs", "cite", "--from", referee, "--accept", cited, "--reason", "worth citing", "--author", AUTHOR)
+    g.run("library", "verify", cited, "--as", AUTHOR)
     g.at("2026-09-16T00:00:00Z")
     g.write(f".loom/sessions/{referee}/referee-sy-0003.notes.md", _synthetic_report(objection, suggestion, document))
     g.run("annotate", "--reply", objection, "Agreed; I will add the hypothesis to the statement.", "--as", AUTHOR)
@@ -509,16 +509,13 @@ def build_demo(dest: Path) -> None:
     g.run("accept", "dm-0002", "--proofs", "--as", "The loom demo", "--force")
     g.run("stamp", "drafting/main.tex", "-m", "widgets-v1")
 
-    # The cited work, the showcase's way: an invented paper this repository compiles, so the demo has a real document
-    # behind its digest rather than prose about a paper nobody holds. The author drops the PDF into the seed space and
-    # `refs scan` files it under the identifier it prints; the source is added beside it, and the digest is extracted by
-    # the command that extracts one.
+    # The cited work, the showcase's way: an invented paper this repository compiles, so the demo has a real document behind its digest rather than prose about a paper nobody holds. The author drops the PDF into the seed space and gathering files it under the identifier it prints; the source is added beside it, and the digest is extracted by the command that extracts one.
     (dest / "refs").mkdir(exist_ok=True)
     shutil.copy(DEMO_WORKS / "calloway-fixed-loci.pdf", dest / "refs" / "calloway-fixed-loci.pdf")
-    g.run("refs", "scan")
-    g.run("refs", "add", "Calloway14", str(DEMO_WORKS / "calloway-fixed-loci.tex"))
-    g.run("refs", "map", "Calloway14")
-    g.run("digest", "extract", "Calloway14", "--no-compile")
+    g.run("library", "update", "--only", "gather")
+    g.run("library", "add", str(DEMO_WORKS / "calloway-fixed-loci.tex"), "--for", "Calloway14")
+    g.run("library", "update", "Calloway14", "--only", "map")
+    g.run("library", "update", "Calloway14", "--only", "extract", "--no-compile")
 
     g.at("2026-09-16T14:02:00Z")
     run_dir = g.run("session", "new", "--name", "referee-dm-0003").split()[0]
@@ -617,7 +614,7 @@ def _tiny_pdf(path: Path, text: str = "Notes on balanced quivers, for a reader i
     path.write_bytes(bytes(out))
 
 
-#: The invented cited works, compiled by `sources/showcase-works/build.sh` and committed beside their LaTeX. They are copied into the quilt's seed space and filed by `loom refs scan`, so that generating the showcase needs no TeX distribution and writes the same bytes on every machine.
+#: The invented cited works, compiled by `sources/showcase-works/build.sh` and committed beside their LaTeX. They are copied into the quilt's seed space and filed by `loom library update --only gather`, so that generating the showcase needs no TeX distribution and writes the same bytes on every machine.
 WORKS = SOURCES / "showcase-works"
 DEMO_WORKS = SOURCES / "demo-works"
 
@@ -637,17 +634,16 @@ def build_showcase(dest: Path) -> None:
     g.run("stamp", "drafting/main-atomic.tex", "-m", "flows-v1")
 
     # ---- The seed space, and loom's store. --------------------------------------------------------------
-    # The author drops the two PDFs they hold into `refs/`; `refs scan` reads the landmark's bibliography and files each document under the identifier it states on its own first page.
+    # The author drops the two PDFs they hold into `refs/`; gathering reads the landmark's bibliography and files each document under the identifier it states on its own first page.
     (dest / "refs").mkdir(exist_ok=True)
     for pdf in sorted(WORKS.glob("*.pdf")):
         shutil.copy(pdf, dest / "refs" / pdf.name)
     g.at("2026-09-14T09:10:00Z")
-    g.run("refs", "scan")
+    g.run("library", "update", "--only", "gather")
     g.at("2026-09-14T09:15:00Z")
-    # The source goes into the store before the digest is made: a digest extracted from a file only this machine
-    # holds cites pages nobody else can open, which is the invariant `digest extract` now enforces (plan 0.13 §4).
-    g.run("refs", "add", "Arden24", str(WORKS / "arden-cycle-spaces.tex"))
-    g.run("digest", "extract", "Arden24", "--no-compile")
+    # The source goes into the store before the digest is made: a digest extracted from a file only this machine holds cites pages nobody else can open, which is the invariant extraction enforces (plan 0.13 §4).
+    g.run("library", "add", str(WORKS / "arden-cycle-spaces.tex"), "--for", "Arden24")
+    g.run("library", "update", "Arden24", "--only", "extract", "--no-compile")
     g.at("2026-09-14T09:20:00Z")
     g.run("ai", "init", "--skills")
     (
@@ -660,7 +656,7 @@ def build_showcase(dest: Path) -> None:
     g.at("2026-09-15T10:00:00Z")
     survey = g.run("session", "new", "--name", "survey-bellamy").split()[0]
     g.run(
-        "refs",
+        "library",
         "propose",
         "Bellamy19",
         "--local",
@@ -679,7 +675,7 @@ def build_showcase(dest: Path) -> None:
         "$M(D) \\subseteq \\mathbb{R}^{A}$ cut out by the exchange inequalities of Lemma~2.2, and $M(D)$ is bounded.",
     )
     g.run(
-        "refs",
+        "library",
         "propose",
         "Bellamy19",
         "--local",
@@ -702,7 +698,7 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "refs",
+        "library",
         "propose",
         "Bellamy19",
         "--local",
@@ -719,7 +715,7 @@ def build_showcase(dest: Path) -> None:
         "dividing the least common multiple of the denominators of the vertices of $M(D)$.",
     )
     g.run(
-        "refs",
+        "library",
         "propose",
         "Bellamy19",
         "--local",
@@ -737,11 +733,9 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "refs",
-        "link",
-        "--from",
+        "library",
+        "relate",
         "Bellamy19-thm-3.2",
-        "--to",
         "Arden24-thm-3.1",
         "--kind",
         "depends-on",
@@ -752,11 +746,9 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
     g.run(
-        "refs",
-        "link",
-        "--from",
+        "library",
+        "relate",
         "Bellamy19-thm-2.3",
-        "--to",
         "Bellamy19-thm-3.2",
         "--kind",
         "specialises",
@@ -789,9 +781,9 @@ def build_showcase(dest: Path) -> None:
     # Verified, verified with the rendering corrected, left pending, and discarded with a reason: the four
     # states 8.14 gives a proposal, all four visible in the digest view at once.
     g.at("2026-09-16T09:00:00Z")
-    g.run("refs", "verify", "Bellamy19-thm-2.3", "--yes")
+    g.run("library", "verify", "Bellamy19-thm-2.3", "--yes")
     g.run(
-        "refs",
+        "library",
         "verify",
         "Bellamy19-thm-3.2",
         "--yes",
@@ -801,10 +793,10 @@ def build_showcase(dest: Path) -> None:
         "$k \\geq 0$, and the leading coefficient of $L_{D}$ is the relative volume of $M(D)$.",
     )
     g.run(
-        "refs",
+        "library",
         "discard",
         "Bellamy19-def-4.1",
-        "--reason",
+        "--why",
         "The defect is defined in the sequel, not here; this paper only names it. Nothing in the quilt uses it.",
     )
 
@@ -1132,14 +1124,9 @@ def build_showcase(dest: Path) -> None:
     g.run("annotate", "--resolve", walk, "The walk is a walk in the support, which is a subquiver.")
     g.run("annotate", "--resolve", walk, "--undo")
     g.run(
-        "refs",
-        "cite",
-        "--from",
-        referee,
-        "--accept",
+        "library",
+        "verify",
         citation,
-        "--reason",
-        "worth citing when the infinite case is written up",
     )
     g.run(
         "annotate",
@@ -1307,22 +1294,22 @@ def build_showcase(dest: Path) -> None:
         agent=True,
     )
 
-    # ---- An orphan document, healed by the store. -----------------------------------------------------------
-    # A document dropped into `refs/` is filed and offered an entry; the author deletes the entry; the store
-    # outlives the bibliography, and the next scan offers it back (plan 0.13 item 6, `refs scan`'s adoption).
+    # ---- An orphan document, healed by the store. ----------------------------------------------------------- A document dropped into `refs/` is filed and offered an entry; the author deletes the entry; the store outlives the bibliography, and the next scan offers it back (plan 0.13 item 6, gathering's adoption).
     g.at("2026-09-17T11:15:00Z")
     _tiny_pdf(g.root / "refs" / "Halloway - 2026 - Notes on balanced quivers.pdf")
-    g.run("refs", "scan")
+    g.run("library", "update", "--only", "gather")
     bib = g.root / "digests" / "bibliography.bib"
     kept = [block for block in bib.read_text(encoding="utf-8").split("\n@") if "Notes on balanced quivers" not in block]
     bib.write_text("@".join(kept) if kept[0].startswith("@") else kept[0] + "@".join(kept[1:]), encoding="utf-8")
-    g.run("refs", "scan")  # adopted: the entry is back, from the ledger's record of how the document arrived
+    g.run(
+        "library", "update", "--only", "gather"
+    )  # adopted: the entry is back, from the ledger's record of how the document arrived
 
     # ---- A work with no document to hold, declared rather than inferred. ----------------------------------
     g.at("2026-09-17T11:20:00Z")
     g.run(
-        "refs",
-        "unreadable",
+        "library",
+        "ignore",
         "Stacks",
         "--why",
         "a living work with no fixed version; there is no document to file",
@@ -1405,9 +1392,7 @@ def build_showcase(dest: Path) -> None:
     g.run("live", "drafting/sketch.tex")
 
     _write_expected_lint(g)
-    # The seed space is the author's and is not in version control (8.16), so the committed quilt is what a
-    # coauthor's clone looks like: loom's store, and no `refs/`. The copy ledger keeps a second `refs scan`
-    # from filing the same documents again.
+    # The seed space is the author's and is not in version control (8.16), so the committed quilt is what a coauthor's clone looks like: loom's store, and no `refs/`. The copy ledger keeps a second gathering from filing the same documents again.
     shutil.rmtree(dest / "refs")
 
 

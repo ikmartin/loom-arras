@@ -1,8 +1,6 @@
-"""`loom refs build`: the one command that starts the digest (plan 0.12 §4.4).
+"""`loom library update`: everything a machine can make about the works a quilt cites (plan 0.12 §4.4, plan 0.18.5).
 
-Everything §3 calls *derived* is what this makes, and it makes all of it. The steps exist as their own verbs too -- for forcing work after a rule changes, and for running one step over what is already on disk -- but an author never runs them in order, because a four-command ritual is what §3's own rule forbids: anything a machine can derive, a machine derives eagerly, in full, and again whenever its inputs change.
-
-Each step is a no-op where its work is done, so re-running after `refs.bib` changes resolves, fetches and extracts the new entry alone. The report's last two groups are the handoff: what needs a person, and what needs an agent.
+Resolve, fetch, extract and map, each a no-op where its work is done, so re-running after the bibliography grows does the new entry alone. The report says what the run did, and what stands in each work's way under the command that clears it.
 """
 
 from __future__ import annotations
@@ -20,10 +18,19 @@ from loom.scan.bib import BibEntry
 from loom.scan.scan import ScanResult
 
 if TYPE_CHECKING:
-    from loom.cli.report import Report
+    from loom.cli.report import Group, Report
+    from loom.digest.extract import ExtractReport
+    from loom.refs.resolve import Candidate
+    from loom.refs.scan import ScanReport
 
 #: Called as each step reaches a work: (stage, citekey, n, total), n counting from 1.
 OnProgress = Callable[[str, str, int, int], None]
+#: The steps of `loom library update`, in the order they run: `gather` reads the bibliography, the rest act per work.
+STEPS = ("gather", "resolve", "fetch", "extract", "map")
+#: The steps `build_refs` takes, one work at a time.
+WORK_STEPS = STEPS[1:]
+#: The command that grants this run the network, and the line that grants it for good.
+ONLINE = "loom library update --online, or set online = true under [library] in config.toml"
 
 
 @dataclass
@@ -42,12 +49,22 @@ class WorkState:
     digest: bool = False
     fetched: Fetched | None = None
     extract_error: str = ""
-    #: Results the author verified that a fresh extraction dropped and this run put back (`--force` rewrites the digest file).
+    #: Results the author verified that a fresh extraction dropped and this run put back (`--redo` rewrites the digest file).
     restored: list[str] = field(default_factory=list)
     #: Of those, the ones the fresh extraction now states differently, for the author to look at again.
     contradicted: list[str] = field(default_factory=list)
     #: The author's standing claim that this work has no document to hold, or '' -- `digests/unreadable.json`.
     unreadable: str = ""
+    #: The candidates this run's lookup found, best first; None when it asked nothing.
+    lookup: list[Candidate] | None = None
+    #: What extraction said about the digest this run wrote; None when it wrote none.
+    extraction: ExtractReport | None = None
+    #: The new digest's diagnostics as `tally` counts them; '' when this run wrote no digest.
+    lint: str = ""
+    #: Whether this run wrote the page text and section map; `map_error` says why it could not, `map_warning` what to look at.
+    remapped: bool = False
+    map_error: str = ""
+    map_warning: str = ""
 
     @property
     def needs_a_person(self) -> str:
@@ -83,16 +100,17 @@ class WorkState:
         if self.fetched is not None and self.fetched.discarded:
             return (f"discarded on arrival: {self.fetched.discarded}", "")
         if self.declared or self.candidate:
-            return ("source not fetched yet", "loom refs build --fetch gets it from arXiv")
+            return ("source not fetched yet", "loom library update --online gets it from arXiv")
         if self.identified or self.pdf:
             # a DOI names the published article and a dropped PDF is a page image: neither is LaTeX, and only arXiv serves that
             return (
                 "no arXiv id to fetch a source on",
-                "loom refs build --resolve --fetch looks for the preprint; or loom refs add CITEKEY FILE with its LaTeX source",
+                "loom library update --online looks for the preprint; or loom library add FILE --for CITEKEY with its LaTeX source",
             )
         return (
             "no identifier and no document",
-            "loom refs resolve CITEKEY, add a doi or eprint to the entry, or drop its PDF in refs/",
+            "loom library update CITEKEY --online looks it up; or add a doi or eprint to the entry; "
+            "or loom library add FILE --for CITEKEY",
         )
 
     @property
@@ -103,9 +121,13 @@ class WorkState:
 
 @dataclass
 class BuildReport:
-    """What one `loom refs build` did, and what is left."""
+    """What one `loom library update` did, and what is left."""
 
     works: list[WorkState] = field(default_factory=list)
+    #: The steps this run took, in order.
+    steps: tuple[str, ...] = WORK_STEPS
+    #: The gathering that opened the run, or None when it did not gather.
+    scan: ScanReport | None = None
     looked_up: int = 0
     recorded: int = 0
     lookup_errors: list[str] = field(default_factory=list)
@@ -130,6 +152,11 @@ class BuildReport:
     @property
     def unresolved(self) -> int:
         return sum(1 for w in self.works if not w.declared and not w.candidate)
+
+    @property
+    def lookable(self) -> int:
+        """Works a lookup would actually ask about: no arXiv id, no candidate, and no source on disk."""
+        return sum(1 for w in self.works if not (w.declared or w.candidate or w.source))
 
     @property
     def sources(self) -> int:
@@ -174,53 +201,59 @@ class BuildReport:
         return [w for w in self.works if w.needs_an_agent]
 
     def report(self) -> Report:
-        """The build as a report (§4.4): a verdict, the four step counts, what to turn on, what entered the digest, what is blocked under the command that clears it, and the two handoffs.
+        """The run as a report: a verdict, a count per step taken, then what this run did, what failed and why, and what stands in each work's way under the command that clears it.
 
-        A blocked work is listed under its reason, the command that clears it given once for the group with `CITEKEY` standing for the work; a reason that is the work's own (an extraction error) stays beside its citekey.
+        A blocked work is listed under its reason, the command that clears it given once for the group with `CITEKEY` standing for the work; a reason that is the work's own (an extraction error) stays beside its citekey. What waits for a person or an agent is counted and left to `loom library`.
         """
         from loom.cli.report import Group, Item, Report, counted, table
 
         n = len(self.works)
+        ran = self.steps
         sections = sum(1 for x in self.works if x.sections)
-        rows = [
-            (
-                "resolved",
-                str(n),
-                f"entries: {self.declared} state an arXiv id, {self.with_candidate} have a strong candidate, "
-                f"{self.unresolved} have neither" + (" (lookup off)" if self.resolve_off else ""),
-            ),
-            (
-                "fetched",
-                str(self.sources),
-                f"sources and {self.pdfs} PDFs; {len(self.discarded)} rejected on the title check"
-                + (" (fetching off)" if self.fetch_off else ""),
-            ),
-            (
-                "extracted",
-                str(self.digests),
-                "digests" + (f", {self.recorded} results recorded" if self.recorded else ""),
-            ),
-            ("mapped", str(self.mapped), f"works from PDF text, {self.pages} pages, sections found for {sections}"),
-        ]
-        width = max(len(r[1]) for r in rows)
+        rows = []
+        if "resolve" in ran:
+            rows.append(
+                (
+                    "resolved",
+                    str(n),
+                    f"entries: {self.declared} state an arXiv id, {self.with_candidate} have a strong candidate, "
+                    f"{self.unresolved} have neither" + (" (offline)" if self.resolve_off else ""),
+                )
+            )
+        if "fetch" in ran:
+            rows.append(
+                (
+                    "fetched",
+                    str(self.sources),
+                    f"{'source' if self.sources == 1 else 'sources'} and {counted(self.pdfs, 'PDF')}; "
+                    f"{len(self.discarded)} rejected on the title check" + (" (offline)" if self.fetch_off else ""),
+                )
+            )
+        if "extract" in ran:
+            rows.append(
+                (
+                    "extracted",
+                    str(self.digests),
+                    "digests" + (f", {self.recorded} results recorded" if self.recorded else ""),
+                )
+            )
+        if "map" in ran:
+            rows.append(
+                ("mapped", str(self.mapped), f"works from PDF text, {self.pages} pages, sections found for {sections}")
+            )
+        width = max((len(r[1]) for r in rows), default=0)
         lines = table((label, count.rjust(width), text) for label, count, text in rows)
-        # a step that was off and had nothing to do says nothing; one that was off with work waiting says how to turn it on
+        groups = list(self.scan.report().groups) if self.scan is not None else []
+        if self.scan is not None:
+            lines.insert(0, f"gathered: {self.scan.report().verdict}")
+        # a step that was offline with nothing to do says nothing; one with work waiting says how to go online
         off: list[Item] = []
-        if self.resolve_off and self.unresolved:
-            off.append(
-                Item(
-                    f"{counted(self.unresolved, 'entry', 'entries')} could be looked up: pass --resolve, "
-                    "or set resolve = true under [refs] in config.toml"
-                )
-            )
+        if self.resolve_off and self.lookable:
+            off.append(Item(f"{counted(self.lookable, 'entry', 'entries')} could be looked up"))
         if self.fetch_off and self.fetchable:
-            off.append(
-                Item(
-                    f"{counted(self.fetchable, 'work')} could be fetched: pass --fetch, "
-                    "or set fetch = true under [refs] in config.toml"
-                )
-            )
-        groups = [Group("switched off", off, limit=None)]
+            off.append(Item(f"{counted(self.fetchable, 'work')} could be fetched"))
+        groups.append(Group("needs the network", off, limit=None, next=ONLINE if off else None))
+        groups += self._this_run()
         thin = sorted((x for x in self.works if x.thin), key=lambda x: x.citekey.lower())
         groups.append(
             Group("too thin to trust", [Item(f"{x.results} results, {x.pages} pages", key=x.citekey) for x in thin])
@@ -236,21 +269,13 @@ class BuildReport:
         groups.append(
             Group(
                 "stated differently by the new extraction, so check again",
-                [Item("", key=rid, fixes=[f"loom refs why {rid}"]) for rid in contradicted],
+                [Item("", key=rid, fixes=[f"loom library why {rid}"]) for rid in contradicted],
                 problem=True,
             )
         )
-        entered = sorted(self.entered, key=str.lower)
-        groups.append(
-            Group(
-                "entered the digest",
-                [Item("", key=ck) for ck in entered],
-                limit=LISTED,
-                next=EVERY if len(entered) > LISTED else None,
-            )
-        )
         by_reason: dict[tuple[str, str], list[Item]] = {}
-        for x in self.blocked:
+        # blocked is about entering the digest, which a run of the map step alone does not attempt
+        for x in self.blocked if {"resolve", "fetch", "extract"} & set(ran) else []:
             missing, how = x.blocked
             own = next((p for p in OWN_REASON if missing.startswith(p + ": ")), None)
             if own is not None:
@@ -277,58 +302,159 @@ class BuildReport:
             )
         )
         person, agent = self.for_a_person, self.for_an_agent
-        handoff = [
-            Group(
-                "needs you",
-                [Item(x.needs_a_person, key=x.citekey) for x in sorted(person, key=lambda x: x.citekey.lower())],
-                limit=LISTED,
-                next="loom refs match lists them" if person else None,
-            ),
-            Group(
-                "needs an agent: works with pages and no digest",
-                [Item("", key=x.citekey) for x in sorted(agent, key=lambda x: x.citekey.lower())],
-                limit=LISTED,
-            ),
-        ]
-        blocked = len(self.blocked)
+        waiting = []
+        if person or agent:
+            waiting.append(
+                Group(
+                    "left for you and for an agent",
+                    [
+                        Item(
+                            f"{counted(len(person), 'work')} need{'s' if len(person) == 1 else ''} you, {len(agent)} an agent"
+                        )
+                    ],
+                    counted=False,
+                    next="loom library lists them",
+                )
+            )
+        blocked = len(self.blocked) if {"resolve", "fetch", "extract"} & set(ran) else 0
+        failed = self.failures
         verdict = (
             f"{self.digests} of {counted(n, 'work')} digested"
-            + (f", {len(self.entered)} this run" if self.entered else "")
+            + (f"; this run {self.did}" if self.did else ", nothing new this run")
+            + (f"; {failed} failed" if failed else "")
             + (f"; {blocked} blocked" if blocked else "")
             + f"; {len(person)} need{'s' if len(person) == 1 else ''} you, {len(agent)} an agent"
         )
+        notes = (
+            ["a candidate becomes the work's identity when you add its field to your own bibliography entry"]
+            if any(w.lookup for w in self.works)
+            else []
+        )
         return Report(
             verdict,
-            ok=not (blocked or person or agent or thin or contradicted),
+            ok=not (blocked or failed or person or agent or thin or contradicted),
             lines=lines,
-            groups=[g for g in groups if g.items] + handoff,
-            notes=self.lookup_errors[:5],
+            groups=[g for g in groups if g.items] + waiting,
+            notes=notes,
             data={
+                "steps": list(ran),
                 "looked_up": self.looked_up,
                 "recorded": self.recorded,
                 "entered": list(self.entered),
                 "lookup_errors": list(self.lookup_errors),
-                "works": [
-                    {
-                        "citekey": w.citekey,
-                        "cited_by": w.cited_by,
-                        "declared": w.declared,
-                        "candidate": w.candidate,
-                        "source": w.source,
-                        "pdf": w.pdf,
-                        "digest": w.digest,
-                        "pages": w.pages,
-                        "sections": w.sections,
-                        "discarded": w.fetched.discarded if w.fetched else "",
-                        "refused": w.fetched.refused if w.fetched else "",
-                        "extract_error": w.extract_error,
-                        "blocked": w.blocked[0],
-                        "unreadable": w.unreadable,
-                    }
-                    for w in self.works
-                ],
+                "scan": self.scan.report().to_json() if self.scan is not None else None,
+                "works": [_row(w) for w in self.works],
             },
         )
+
+    @property
+    def did(self) -> str:
+        """What this run made, `looked up 2, fetched 1 and extracted 1`; '' when it made nothing."""
+        from loom.cli.report import counted
+
+        made = [
+            (f"looked up {sum(1 for w in self.works if w.lookup is not None)}", "resolve"),
+            (
+                f"fetched {sum(1 for w in self.works if w.fetched is not None and (w.fetched.source or w.fetched.pdf))}",
+                "fetch",
+            ),
+            (f"extracted {len(self.entered)}", "extract"),
+            (f"mapped {sum(1 for w in self.works if w.remapped)}", "map"),
+        ]
+        done = [text for text, step in made if step in self.steps and not text.endswith(" 0")]
+        if self.scan is not None and self.scan.added:
+            done.insert(0, f"gathered {counted(len(self.scan.added), 'entry', 'entries')}")
+        return ", ".join(done[:-1]) + (" and " if len(done) > 1 else "") + done[-1] if done else ""
+
+    @property
+    def failures(self) -> int:
+        """What this run tried and could not do and no blocked group lists: a lookup, a fetch refused, a map.
+
+        A discarded fetch and a failed extraction are each a work's blocked reason, counted there once.
+        """
+        refused = sum(1 for w in self.works if w.fetched is not None and w.fetched.refused)
+        return len(self.lookup_errors) + refused + sum(1 for w in self.works if w.map_error)
+
+    def _this_run(self) -> list[Group]:
+        """The groups saying what this run did to each work: looked up, fetched, extracted, mapped, and each failure with its reason."""
+        from loom.cli.report import Group, Item, counted
+
+        def by_key(items: list[Item]) -> list[Item]:
+            return sorted(items, key=lambda i: (i.key or "").lower())
+
+        looked = [w for w in self.works if w.lookup is not None]
+        found: list[Item] = []
+        for w in looked:
+            for c in (w.lookup or [])[:1]:
+                names = ", ".join(a.split(",")[0] for a in c.authors[:3]) + (" et al." if len(c.authors) > 3 else "")
+                also = f" (also {', '.join(c.also)})" if c.also else ""
+                found.append(
+                    Item(
+                        f"{w.citekey}: {c.strength} {c.confidence:.2f}  {c.source}  {c.title} — {names} {c.year}".rstrip(),
+                        key=f"{c.id}{also}",
+                    )
+                )
+        unmatched = [Item("", key=w.citekey) for w in looked if not w.lookup]
+        fetched = [w for w in self.works if w.fetched is not None and not (w.fetched.refused or w.fetched.discarded)]
+        got = []
+        for w in fetched:
+            assert w.fetched is not None
+            what = " and ".join(x for x in ["source" if w.fetched.source else "", "PDF" if w.fetched.pdf else ""] if x)
+            got.append(Item(f"{what or 'nothing new'}, on {w.fetched.via} {w.fetched.ident}", key=w.citekey))
+        refused = [
+            Item(w.fetched.refused, key=w.citekey) for w in self.works if w.fetched is not None and w.fetched.refused
+        ]
+        extracted: list[Item] = []
+        noted: list[Item] = []
+        for w in self.works:
+            r = w.extraction
+            if r is None:
+                continue
+            by = ", ".join(f"{k} {t}" for t, k in sorted(r.by_taxon.items(), key=lambda x: (-x[1], x[0])))
+            numbering = (
+                f"numbering from the paper's .aux, except {counted(r.emulated, 'unlabelled result')} counted by emulation"
+                if r.numbering == "aux" and r.emulated
+                else "numbering from the paper's .aux"
+                if r.numbering == "aux"
+                else "numbering emulated" + (f" (compile failed: {r.compile_error})" if r.compile_error else "")
+            )
+            total = sum(r.by_taxon.values())
+            extracted.append(
+                Item(
+                    f"{counted(total, 'result')}"
+                    + (f" ({by})" if by else "")
+                    + f", {counted(r.sections, 'section')}; {numbering}; its lint: {w.lint or 'clean'}",
+                    key=w.citekey,
+                )
+            )
+            noted += [
+                Item(f"environment {env} is not declared in this quilt; add {hint}", key=w.citekey)
+                for env, hint in r.unknown_envs.items()
+            ]
+            noted += [Item(f"skipped {s}", key=w.citekey) for s in r.skipped]
+        mapped = [
+            Item(f"{counted(w.pages, 'page')}, {counted(w.sections, 'section')}", key=w.citekey)
+            for w in self.works
+            if w.remapped
+        ]
+        unmapped = [Item(w.map_error, key=w.citekey) for w in self.works if w.map_error]
+        look = [Item(w.map_warning, key=w.citekey) for w in self.works if w.map_warning]
+        return [
+            Group("lookups that failed", [Item(e) for e in self.lookup_errors], problem=True, limit=None),
+            Group("looked up: the best candidate for each", by_key(found)),
+            Group(
+                "looked up: no match",
+                by_key(unmatched),
+                next="loom library add FILE --for CITEKEY files a document you hold" if unmatched else None,
+            ),
+            Group("not fetched", by_key(refused), problem=True, limit=None),
+            Group("fetched", by_key(got)),
+            Group("extracted", by_key(extracted)),
+            Group("noted while extracting", by_key(noted), limit=None),
+            Group("not mapped", by_key(unmapped), problem=True, limit=None),
+            Group("mapped, to look at", by_key(look), limit=None),
+            Group("mapped", by_key(mapped)),
+        ]
 
     def lines(self) -> list[str]:
         """The report's text, line by line."""
@@ -340,13 +466,58 @@ OWN_REASON = {
     "extraction failed": ("extraction failed", ""),
     "discarded on arrival": (
         "fetched and discarded: its title did not match the entry",
-        "look at it; loom refs add CITEKEY FILE files the right document",
+        "look at it; loom library add FILE --for CITEKEY files the right document",
     ),
 }
 #: How many works a group of the report lists before it counts the rest.
 LISTED = 12
 #: The command that lists every work, named where a group is cut.
-EVERY = "loom refs coverage lists every work"
+EVERY = "loom library update --dry-run --json lists every work"
+
+
+def _row(w: WorkState) -> dict[str, object]:
+    """One work's line of the report's JSON."""
+    from dataclasses import asdict
+
+    r = w.extraction
+    return {
+        "citekey": w.citekey,
+        "cited_by": w.cited_by,
+        "declared": w.declared,
+        "candidate": w.candidate,
+        "source": w.source,
+        "pdf": w.pdf,
+        "digest": w.digest,
+        "pages": w.pages,
+        "sections": w.sections,
+        "candidates": None if w.lookup is None else [asdict(c) | {"strength": c.strength} for c in w.lookup],
+        "fetched": None
+        if w.fetched is None
+        else {"source": w.fetched.source, "pdf": w.fetched.pdf, "via": w.fetched.via, "identifier": w.fetched.ident},
+        "discarded": w.fetched.discarded if w.fetched else "",
+        "refused": w.fetched.refused if w.fetched else "",
+        "extraction": None
+        if r is None
+        else {
+            "results": sum(r.by_taxon.values()),
+            "by_taxon": dict(r.by_taxon),
+            "sections": r.sections,
+            "uses": r.uses,
+            "numbering": r.numbering,
+            "emulated": r.emulated,
+            "requires": list(r.requires),
+            "skipped": list(r.skipped),
+            "lint": w.lint,
+        },
+        "extract_error": w.extract_error,
+        "mapped": w.remapped,
+        "map_error": w.map_error,
+        "blocked": w.blocked[0],
+        "unreadable": w.unreadable,
+        "needs_a_person": w.needs_a_person,
+        "needs_an_agent": w.needs_an_agent,
+        "restored": list(w.restored),
+    }
 
 
 def cited_counts(result: ScanResult) -> dict[str, int]:
@@ -437,7 +608,7 @@ def _resolve_step(
 ) -> None:
     """Ask the two services for identifiers, for cited entries that declare none and have no answer on disk."""
     cfg = result.quilt.config
-    if not cfg.resolve:
+    if not cfg.online:
         report.resolve_off = True
         return
     root = result.quilt.root
@@ -450,13 +621,14 @@ def _resolve_step(
         if w.declared or w.source:
             continue
         if load(root, entry) and not refresh:
-            continue  # an answer is on disk; asking again is what --refresh is for
+            continue  # an answer is on disk; asking again is what --redo is for
         try:
             found = resolver.candidates(query_for(entry))
         except ResolveRefused as exc:
             report.lookup_errors.append(f"{w.citekey}: {exc}")
             continue
         save(root, entry, found)
+        w.lookup = found
         ident, via = identifier_for(root, entry)
         if via == "candidate" and ident:
             w.candidate = ident
@@ -471,7 +643,7 @@ def _fetch_step(
     progress: OnProgress | None = None,
 ) -> None:
     """Fetch source and PDF for every work that has an identifier and no artifact; checks titles on arrival."""
-    if not result.quilt.config.fetch:
+    if not result.quilt.config.online:
         report.fetch_off = True
         return
     for w in _each(progress, "fetch", works):
@@ -489,9 +661,9 @@ def _fetch_step(
 
 
 def _extract_step(
-    result: ScanResult, works: list[WorkState], force: bool, progress: OnProgress | None = None
+    result: ScanResult, works: list[WorkState], force: bool, progress: OnProgress | None = None, *, compile: bool = True
 ) -> list[str]:
-    """Run `loom digest extract` on every work whose source landed and whose digest is absent."""
+    """Extract a digest for every work whose source landed and whose digest is absent, or every one with a source under `force`."""
     from loom.digest.extract import extract_digest
 
     root = result.quilt.root
@@ -506,7 +678,7 @@ def _extract_step(
             w.extract_error = "no file in the source declares \\documentclass"
             continue
         try:
-            text, _report = extract_digest(result, w.citekey, main, engine=None, compile=True)
+            text, w.extraction = extract_digest(result, w.citekey, main, engine=None, compile=compile)
         except Exception as exc:  # noqa: BLE001 -- one paper that will not build must not stop the other twenty
             w.extract_error = f"{type(exc).__name__}: {exc}"
             continue
@@ -522,7 +694,7 @@ def _extract_step(
 def _restore_verified(result: ScanResult, citekey: str, text: str) -> tuple[list[str], list[str]]:
     """Put back every result the author verified that a fresh extraction of `citekey` left out, and keep the author's edits.
 
-    The digest file is rewritten whole by an extraction, and a node `refs verify` added to it, or an edit the author made to an extracted one, is the author's: losing it while `results.json` still says `verified` was the CLI study's defect 3. A result the new extraction states differently from the author's record is put back as the author left it and listed, so the author can look again.
+    The digest file is rewritten whole by an extraction, and a node `library verify` added to it, or an edit the author made to an extracted one, is the author's: losing it while `results.json` still says `verified` was the CLI study's defect 3. A result the new extraction states differently from the author's record is put back as the author left it and listed, so the author can look again.
     """
     import re
 
@@ -559,15 +731,20 @@ def _map_step(result: ScanResult, works: list[WorkState], force: bool, progress:
             continue
         try:
             m = write_map(home, pdf)
-        except MapRefused:
-            continue  # `loom refs map` reports why; the composite carries on with the other twenty
-        w.pages, w.sections = m.pages, len(m.sections)
+        except MapRefused as exc:
+            w.map_error = str(exc)  # reported; the run carries on with the other twenty
+            continue
+        w.pages, w.sections, w.remapped = m.pages, len(m.sections), True
+        if m.pages and m.chars / m.pages < 200:
+            w.map_warning = "almost no text: probably a scan, which cannot be searched or quoted"
+        elif m.suspect:
+            w.map_warning = "too few sections for its length; the section map is a guess (a book?)"
 
 
 def _record_step(result: ScanResult, works: list[WorkState], written: list[str]) -> int:
-    """Write `results.json` for every digest that has none; returns how many results were recorded.
+    """Write `results.json` for every digest that has none, and tally each new digest's lint; returns how many results were recorded.
 
-    Derived, not incidental: a mechanical digest's results are a function of its `.tex`, so this runs for any digest lacking records rather than only for the ones this run extracted. That is what lets a quilt whose digests predate the reference layer gain them by running `loom refs build` once.
+    Derived, not incidental: a mechanical digest's results are a function of its `.tex`, so this runs for any digest lacking records rather than only for the ones this run extracted. That is what lets a quilt whose digests predate the reference layer gain them by running `loom library update` once.
     """
     from loom.refs.proposals import record_extracted, results_path
 
@@ -575,10 +752,16 @@ def _record_step(result: ScanResult, works: list[WorkState], written: list[str])
     want = [w.citekey for w in works if w.digest and not results_path(root, w.citekey).is_file()]
     if not want and not written:
         return 0
+    from loom.cli.diagnostics import tally
     from loom.scan.quilt import load_quilt
     from loom.scan.scan import scan
 
     rescan = scan(load_quilt(root))
+    for w in works:
+        if w.citekey in written:
+            rel = f"digests/{w.citekey}.tex"
+            hits = [d for d in rescan.lint if any(loc.file == rel for loc in d.locations) or w.citekey in d.message]
+            w.lint = tally(hits, None).replace(" in your documents", "") if hits else ""
     return sum(record_extracted(rescan, ck) for ck in dict.fromkeys([*written, *want]))
 
 
@@ -589,7 +772,8 @@ def build_refs(
     refresh: bool = False,
     candidates: bool = True,
     force: bool = False,
-    steps: tuple[str, ...] = ("resolve", "fetch", "extract", "map"),
+    compile: bool = True,
+    steps: tuple[str, ...] = WORK_STEPS,
     progress: OnProgress | None = None,
 ) -> BuildReport:
     """Make everything about this quilt's cited works that a machine can make.
@@ -601,13 +785,15 @@ def build_refs(
     only : tuple of str, default ()
         Citekeys to limit the run to; empty means every entry in the bibliography.
     refresh : bool, default False
-        Ask the services again where an answer is already recorded.
+        Ask the services again where an answer is already recorded (`--redo`).
     candidates : bool, default True
         Fetch on a resolver candidate where the entry declares no identifier (§4.3).
     force : bool, default False
-        Re-extract a digest that is already present.
-    steps : tuple of str, default ('resolve', 'fetch', 'extract', 'map')
-        Which steps to run; the CLI's `--only` narrows this.
+        Re-extract a digest and re-map a PDF that are already current (`--redo`); verified results are kept.
+    compile : bool, default True
+        Compile each paper for its numbering; False emulates it (`--no-compile`).
+    steps : tuple of str, default WORK_STEPS
+        Which steps to run; the CLI's `--only` narrows this to one.
     progress : callable, optional
         Called as (stage, citekey, n, total) when each step reaches a work, n counting from 1.
 
@@ -618,18 +804,19 @@ def build_refs(
 
     See Also
     --------
-    survey : the same picture with nothing fetched, which is what `loom refs match` reads.
+    survey : the same picture with nothing fetched.
+    planned : what each step would act on, for a dry run.
     """
     works = survey(result)
     if only:
         works = [w for w in works if w.citekey in set(only)]
-    report = BuildReport(works=works)
+    report = BuildReport(works=works, steps=tuple(s for s in WORK_STEPS if s in steps))
     if "resolve" in steps:
         _resolve_step(result, works, report, refresh, progress)
     if "fetch" in steps:
         _fetch_step(result, works, report, candidates, progress)
     if "extract" in steps:
-        report.entered = _extract_step(result, works, force, progress)
+        report.entered = _extract_step(result, works, force, progress, compile=compile)
         report.recorded = _record_step(result, works, report.entered)
     # Counted after extraction, not by the survey that opened the run: `survey` reads results.json before this run has
     # written it, and a count taken then called every one of sixteen fresh digests "too thin to trust".
@@ -640,3 +827,84 @@ def build_refs(
     if "map" in steps:
         _map_step(result, works, force, progress)
     return report
+
+
+def planned(
+    result: ScanResult,
+    works: list[WorkState],
+    *,
+    steps: tuple[str, ...] = WORK_STEPS,
+    redo: bool = False,
+    candidates: bool = True,
+) -> dict[str, list[str]]:
+    """The citekeys each step of a run would act on, read from disk alone: a dry run's answer, which asks no service and writes nothing.
+
+    Mirrors each step's own test of whether its work is done; what a fetch would bring is unknowable offline, so extraction counts the sources already on disk.
+    """
+    from loom.refs.fetch import pdf_url
+    from loom.refs.pages import is_current
+
+    root = result.quilt.root
+    out: dict[str, list[str]] = {}
+    if "resolve" in steps:
+        out["resolve"] = [
+            w.citekey for w in works if not (w.declared or w.source) and (redo or not load(root, result.bib[w.citekey]))
+        ]
+    if "fetch" in steps:
+        out["fetch"] = [
+            w.citekey
+            for w in works
+            if not w.source
+            and (w.declared or (w.candidate and candidates) or (not w.pdf and pdf_url(result.bib[w.citekey])))
+        ]
+    if "extract" in steps:
+        out["extract"] = [w.citekey for w in works if w.source and (redo or not w.digest)]
+    if "map" in steps:
+        out["map"] = []
+        for w in works:
+            home = work_dir(root, result.bib[w.citekey])
+            if (home / "paper.pdf").is_file() and (redo or not is_current(home, home / "paper.pdf")):
+                out["map"].append(w.citekey)
+    return out
+
+
+def plan_report(
+    works: list[WorkState], plan: dict[str, list[str]], *, online: bool, scan: ScanReport | None = None
+) -> Report:
+    """A dry run as a report: what gathering would add, and the works each step would act on, the network's steps marked when this run is offline."""
+    from loom.cli.report import Group, Item, Report, counted
+
+    verbs = {"resolve": "look up", "fetch": "fetch", "extract": "extract", "map": "map"}
+    parts = [f"{verbs[s]} {len(plan[s])}" for s in WORK_STEPS if s in plan]
+    said = ", ".join(parts[:-1]) + (" and " if len(parts) > 1 else "") + parts[-1] if parts else ""
+    doing = [
+        "gather the bibliography" if scan is not None else "",
+        f"{said} of {counted(len(works), 'work')}" if said else "",
+    ]
+    verdict = "would " + ", then ".join(x for x in doing if x)
+    groups = list(scan.report().groups) if scan is not None else []
+    lines = [f"gathered: {scan.report().verdict}"] if scan is not None else []
+    for step in WORK_STEPS:
+        keys = sorted(plan.get(step, []), key=str.lower)
+        network = step in ("resolve", "fetch") and not online
+        groups.append(
+            Group(
+                f"would {verbs[step]}" + (", with the network" if network else ""),
+                [Item("", key=ck) for ck in keys],
+                limit=LISTED,
+                next=ONLINE if network and keys else (EVERY if len(keys) > LISTED else None),
+            )
+        )
+    return Report(
+        verdict,
+        dry_run=True,
+        lines=lines,
+        groups=[g for g in groups if g.items],
+        data={
+            "steps": [s for s in STEPS if s in plan or (s == "gather" and scan is not None)],
+            "online": online,
+            "would": {s: plan[s] for s in WORK_STEPS if s in plan},
+            "scan": scan.report().to_json() if scan is not None else None,
+            "works": [_row(w) for w in works],
+        },
+    )

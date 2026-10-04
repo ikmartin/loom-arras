@@ -69,7 +69,7 @@ This is quoted later in the block from \cite[Theorem 3]{Paper}.\end{theorem}
         match="live unclassified keys",
     )
     assert not (result.quilt.root / ".loom" / "state.toml").exists()
-    # an open claim is content the author can change; someone else's result is the wrong command for it (use refs verify)
+    # an open claim is content the author can change; someone else's result is the wrong command for it (use library verify)
     for key, phrase, code in (("ab-0004", "open claim", 1), ("ab-0005", "quotes someone else's result", 2)):
         refused(
             "accept",

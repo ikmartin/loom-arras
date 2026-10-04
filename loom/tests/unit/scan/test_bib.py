@@ -36,7 +36,7 @@ def test_citekey_slug() -> None:
 
 
 def test_the_quilts_bibliography_is_the_only_bib_read(tmp_path: Path) -> None:
-    """An author's `.bib`, a fetched source's, a run's: none is the quilt's bibliography until `loom refs scan` copies an entry into `digests/bibliography.bib` (book 8.15)."""
+    """An author's `.bib`, a fetched source's, a run's: none is the quilt's bibliography until `loom library update` gathers an entry into `digests/bibliography.bib` (book 8.15)."""
     from tests.unit.scan.helpers import PREAMBLE, make_quilt
 
     result = make_quilt(

@@ -23,7 +23,7 @@
       "origin": [
         {
           "act": "extracted",
-          "by": "loom digest extract",
+          "by": "loom library update",
           "when": "2026-09-16T00:00:00Z"
         }
       ],
@@ -52,7 +52,7 @@
       "origin": [
         {
           "act": "extracted",
-          "by": "loom digest extract",
+          "by": "loom library update",
           "when": "2026-09-16T00:00:00Z"
         }
       ],
@@ -81,7 +81,7 @@
       "origin": [
         {
           "act": "extracted",
-          "by": "loom digest extract",
+          "by": "loom library update",
           "when": "2026-09-16T00:00:00Z"
         }
       ],
@@ -107,7 +107,7 @@
       "origin": [
         {
           "act": "extracted",
-          "by": "loom digest extract",
+          "by": "loom library update",
           "when": "2026-09-16T00:00:00Z"
         }
       ],
@@ -136,7 +136,7 @@
       "origin": [
         {
           "act": "extracted",
-          "by": "loom digest extract",
+          "by": "loom library update",
           "when": "2026-09-16T00:00:00Z"
         }
       ],

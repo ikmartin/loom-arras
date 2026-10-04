@@ -1,4 +1,4 @@
-"""`loom digest extract` (book 8.5): a digest produced mechanically from a reference paper's LaTeX source.
+"""The extract step of `loom library update` (book 8.5): a digest produced mechanically from a reference paper's LaTeX source.
 
 The paper's closure is read with the scanner's own parsers (preamble, macros, environments, sections, master expansion); results are numbered from the paper's .aux when it compiles and from the amsthm counter emulation otherwise; every theorem-like environment becomes an external node with a slugged id, a locator title, its statement with the paper's simple macros expanded and its labels prefixed, and a `\\uses` line listing the results its dropped proof referred to. What cannot be expanded goes into the macro block.
 """

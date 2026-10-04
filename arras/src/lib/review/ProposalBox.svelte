@@ -59,7 +59,7 @@
 	);
 
 	$effect(() => {
-		void can('digest-verify').then((ok) => (allowed = ok));
+		void can('library-verify').then((ok) => (allowed = ok));
 	});
 
 	const proposer = $derived(record.origin.find((o) => o.act === 'proposed')?.by || 'an agent');
@@ -100,15 +100,15 @@
 		];
 	}
 
-	const verify = () => send('digest-verify', {});
+	const verify = () => send('library-verify', {});
 	/** Edit-then-verify: the rendering, the name, or both -- only what the author changed is sent. */
 	function verifyEdited() {
 		const body: Record<string, unknown> = {};
 		if (text.trim() && text.trim() !== (record.statement ?? '').trim()) body.statement = text.trim();
 		if (name.trim() && name.trim() !== (record.local ?? '')) body.local = name.trim();
-		return send('digest-verify', body);
+		return send('library-verify', body);
 	}
-	const discard = () => text.trim() && send('digest-discard', { reason: text.trim() });
+	const discard = () => text.trim() && send('library-discard', { why: text.trim() });
 </script>
 
 <article class="proposal" data-testid="proposal" data-id={id}>

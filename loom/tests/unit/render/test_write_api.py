@@ -120,6 +120,7 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session, dec
             "target": "dm-0003",
             "message": "Cite Manolache, Prop 3.2.",
             "kind": "citation",
+            "payload": "C. Manolache, Virtual pull-backs, J. Algebraic Geom. 21 (2012)",
             "author": "R",
         },
     )
@@ -129,8 +130,8 @@ def test_a_citation_suggestion_is_accepted_or_rejected_over_the_api(session, dec
     before = notes.read_text() if notes.exists() else ""
 
     status, body = post(
-        s.url + "_api/refs-cite",
-        {"session": sid, "annotation": ann, "decision": decision, "reason": "already cited", "author": "R"},
+        s.url + "_api/library-cite",
+        {"session": sid, "annotation": ann, "decision": decision, "why": "already cited", "author": "R"},
     )
     after = notes.read_text() if notes.exists() else ""
     resolved = [e for e in log(d) if e.get("id") == ann and e["event"] == "resolved"]
@@ -362,19 +363,39 @@ def _discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     refuses(s, "discard", {"annotation": ann, "author": WHO}, 400, "no-session", "must name the session")
 
 
-@case("refs-cite")
-def _refs_cite(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("library-cite")
+def _library_cite(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, sid = on_demo(serve, tmp_path)
-    ann = noted(s, q, sid, "Cite Manolache.")
-    said = succeeds(s, "refs-cite", {"session": sid, "annotation": ann, "decision": "accept", "author": WHO})
+    plain = noted(s, q, sid, "Not a citation.")
+    refuses(
+        s, "library-cite", {"session": sid, "annotation": plain, "decision": "accept", "author": WHO},
+        400, "refused", "not a citation suggestion",
+    )  # fmt: skip
+    work = "C. Manolache, Virtual pull-backs, J. Algebraic Geom. 21 (2012)"
+    succeeds(
+        s,
+        "annotate",
+        {
+            "session": sid,
+            "target": "dm-0003",
+            "message": "Cite Manolache.",
+            "kind": "citation",
+            "payload": work,
+            "author": WHO,
+        },
+    )
+    ann = the(log(q), lambda e: e.get("body") == "Cite Manolache." and e["event"] == "created", "suggestion")["id"]
+    said = succeeds(s, "library-cite", {"session": sid, "annotation": ann, "decision": "accept", "author": WHO})
     assert said["result"].startswith(f"accepted {ann}")
     crumb = json.loads((q / "reference-notes.jsonl").read_text().splitlines()[-1])
-    assert (crumb["work"], crumb["for"]) == ("Cite Manolache.", ["dm-0003"]), crumb
+    # the payload names the work and the body argues for it, as `loom library verify` records it
+    assert (crumb["work"], crumb["claim"], crumb["for"]) == (work, "Cite Manolache.", ["dm-0003"]), crumb
+    assert crumb["accepted"]["who"] == WHO, crumb
     assert crumb["from"] == {"session": sid, "annotation": ann}, crumb
     missing = "a-1999-01-01-0001"
     refuses(
         s,
-        "refs-cite",
+        "library-cite",
         {"session": sid, "annotation": missing, "decision": "reject"},
         404,
         "no-such-annotation",
@@ -395,23 +416,23 @@ def result_state(q: Path, node: str) -> str:
     return str(the(recs, lambda r: r["id"] == node, node)["state"])
 
 
-@case("digest-verify")
-def _digest_verify(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("library-verify")
+def _library_verify(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, node = proposed(serve, tmp_path)
     # an agent proposes and never vouches for its own reading, whatever surface it posts through
-    refuses(s, "digest-verify", {"node": node, "author": "Referee Agent"}, 403, "author-only", "is an agent")
+    refuses(s, "library-verify", {"node": node, "author": "Referee Agent"}, 403, "author-only", "is an agent")
     assert result_state(q, node) == "proposed"
-    succeeds(s, "digest-verify", {"node": node, "author": WHO})
+    succeeds(s, "library-verify", {"node": node, "author": WHO})
     assert result_state(q, node) == "verified"
 
 
-@case("digest-discard")
-def _digest_discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
+@case("library-discard")
+def _library_discard(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
     s, q, node = proposed(serve, tmp_path)
-    refuses(s, "digest-discard", {"node": node, "author": WHO}, 400, "missing-field", "reason is required")
-    refuses(s, "digest-discard", {"node": node + ".9", "reason": "x", "author": WHO}, 404, "no-such-node", node + ".9")
+    refuses(s, "library-discard", {"node": node, "author": WHO}, 400, "missing-field", "why is required")
+    refuses(s, "library-discard", {"node": node + ".9", "why": "x", "author": WHO}, 404, "no-such-node", node + ".9")
     assert result_state(q, node) == "proposed"
-    succeeds(s, "digest-discard", {"node": node, "reason": "not the paper's", "author": WHO})
+    succeeds(s, "library-discard", {"node": node, "why": "not the paper's", "author": WHO})
     assert result_state(q, node) == "discarded"
 
 

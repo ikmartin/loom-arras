@@ -86,7 +86,7 @@ def test_build_json_orders_by_how_often_a_work_is_cited(tmp_path: Path) -> None:
         fh.write("\n@article{Zed20, title={Zeds}, author={Zed, A.}, year={2020}}\n")
     edit(q / "nodes" / "dm-0001.tex", "\\end{definition}", "See \\cite{Zed20}.\n\\end{definition}")
     edit(q / "nodes" / "dm-0002.tex", "\\end{lemma}", "See \\cite{Zed20} and \\cite[Theorem 1]{Zed20}.\n\\end{lemma}")
-    works = json_of("refs", "build", "--json", cwd=q)["works"]
+    works = json_of("library", "update", "--json", cwd=q)["works"]
     assert [(w["citekey"], w["cited_by"]) for w in works] == [
         ("Zed20", 2),
         ("Calloway14", 1),
@@ -96,30 +96,30 @@ def test_build_json_orders_by_how_often_a_work_is_cited(tmp_path: Path) -> None:
     assert [w["citekey"] for w in works if w["digest"]] == ["Calloway14"], "the demo ships one digest"
 
 
-def test_match_lists_only_what_a_person_must_look_at(tmp_path: Path) -> None:
-    """A work with a document on disk is not a person's problem; one with neither a document nor a source anyone will serve is, and the list says how to add one by hand."""
+def test_the_library_lists_only_what_a_person_must_look_at(tmp_path: Path) -> None:
+    """A work with a document on disk is not a person's problem; a cited one with neither a document nor an identifier is, and one with an identifier needs only the network. Each cause names the command that clears it."""
     q = demo(tmp_path)
-    rows = json_of("refs", "match", "--json", cwd=q)["works"]
-    why = "no artifact and no identifier anyone will serve"
-    assert rows == [
-        {"citekey": "Har77", "cited_by": 0, "why": why},
-        {"citekey": "Man12", "cited_by": 0, "why": why},
-    ]
-    assert "loom refs add CITEKEY FILE" in ok("refs", "match", cwd=q).output
+    node = q / "nodes" / "dm-0003.tex"
+    node.write_text(node.read_text() + "\nCompare \\cite{Har77} and \\cite{Man12}.\n")
+    rows = {w["citekey"]: w["needs"] for w in json_of("library", "--json", cwd=q)["works"]}
+    assert rows == {"Calloway14": "", "Har77": "unidentified", "Man12": "offline"}
+    said = ok("library", cwd=q).output
+    assert "loom library add FILE --for WORK" in said and "loom library update --online" in said, said
     # and once every work has a document, it says so rather than printing nothing
     for ck in ("Har77", "Man12"):
-        paper = tmp_path / f"{ck}.tex"
-        paper.write_text("\\documentclass{article}\\begin{document}\\end{document}\n")
-        ok("refs", "add", ck, str(paper), cwd=q)
-    assert json_of("refs", "match", "--json", cwd=q)["works"] == []
-    assert "nothing needs you" in ok("refs", "match", cwd=q).output
+        src = work_home(q, ck) / "src"
+        src.mkdir(parents=True, exist_ok=True)
+        (src / "main.tex").write_text("\\documentclass{article}\\begin{document}\\end{document}\n")
+    got = json_of("library", "--json", cwd=q)
+    assert got["need_you"] == 0 and [w["needs"] for w in got["works"]] == ["", "", ""]
+    assert "; 0 need you" in ok("library", cwd=q).stdout.splitlines()[0]
 
 
 def test_an_agent_may_run_the_mechanical_pass_and_not_the_authors_verbs() -> None:
     from loom.ai.layout import AGENT_COMMANDS
 
-    assert {"refs build", "refs fetch", "refs match", "refs path", "refs resolve"} <= AGENT_COMMANDS
-    assert "digest fetch" not in AGENT_COMMANDS, "the command is withdrawn; refs fetch absorbed it"
+    assert {"library", "library update", "library read", "library check"} <= AGENT_COMMANDS
+    assert not {"library add", "library verify", "library discard", "library ignore"} & AGENT_COMMANDS
     assert "accept" not in AGENT_COMMANDS
 
 
@@ -175,10 +175,10 @@ def test_a_numbered_bibliography_is_not_a_section_list() -> None:
 
 def test_map_and_coverage_need_no_pdf_to_be_useful(tmp_path: Path) -> None:
     q = demo(tmp_path)
-    r = ok("refs", "map", cwd=q)
-    assert r.stdout.startswith("mapped 0 works")
-    c = ok("refs", "coverage", cwd=q)
-    assert "1 has page text" in c.output
+    r = ok("library", "update", "--only", "map", cwd=q)
+    assert "nothing new this run" in r.stdout.splitlines()[0] and "mapped  1  works from PDF text" in r.stdout
+    c = json_of("library", "--json", cwd=q)
+    assert sum(1 for w in c["works"] if w["pages"]) == 1, "the shipped page text is read with no PDF"
 
 
 def test_the_page_text_is_committed_and_the_pdf_is_not(tmp_path: Path) -> None:
@@ -233,20 +233,20 @@ def test_locate_reads_bbox_output_that_is_not_valid_xml() -> None:
     assert locate_span(page, "not on this page", 5) is None
 
 
-def test_grep_searches_every_work_before_truncating(tmp_path: Path) -> None:
-    """Stopping at the limit made the answer depend on citation order: the first papers filled it and the rest looked empty. Every work is searched, then the hits are cut per work, and the summary says how much of the corpus could be searched."""
+def test_a_page_search_searches_every_work_before_truncating(tmp_path: Path) -> None:
+    """Stopping at the limit made the answer depend on citation order: the first papers filled it and the rest looked empty. Every work is searched, then the hits are cut taking each work's best page first, and the summary says how much of the corpus could be searched."""
     q, ck = mapped(tmp_path)
     # Calloway14 is cited and Vir12 is not, so Calloway14 is searched first; each holds more hits than the limit
     for home in (work_home(q, "Calloway14"), work_home(q, ck)):
         for n in (3, 4, 5):
             (home / "pages" / f"{n:04d}.txt").write_text("The zebra lemma holds here.\n")
-    got = json_of("refs", "grep", "zebra lemma", "--limit", "2", "--json", cwd=q)
+    got = json_of("library", "search", "zebra lemma", "--pages", "--limit", "2", "--json", cwd=q)
     assert got["searched"] == 2 and got["truncated"] is True
     assert sorted(h["work"] for h in got["hits"]) == ["Calloway14", ck], got["hits"]
-    said = ok("refs", "grep", "zebra lemma", "--limit", "2", cwd=q).stdout
+    said = ok("library", "search", "Zebra LEMMA", "--pages", "--limit", "2", cwd=q).stdout
     assert said.startswith("6 hits in 2 of 2 works with page text, showing 2"), said
-    assert "Calloway14 (3)" in said and f"{ck} (3)" in said, said
-    assert f"loom refs grep 'zebra lemma' --work {ck} --limit 3" in said, said
+    assert "3 pages  Calloway14" in said and f"3 pages  {ck}" in said, said
+    assert f"loom library search 'Zebra LEMMA' --pages --work {ck} --limit 3" in said, said
 
 
 def test_a_quotation_that_is_not_on_the_page_is_refused_with_the_page(tmp_path: Path) -> None:
@@ -280,7 +280,7 @@ def test_verifying_moves_it_into_the_digest_and_records_both_parties(tmp_path: P
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session="run:A")
     rid = f"{ck}-thm-1.1"
-    r = ok("refs", "verify", rid, "--statement", "Z", "--author", "isaac", "--yes", cwd=q)
+    r = ok("library", "verify", rid, "--statement", "Z", "--as", "isaac", "--yes", cwd=q)
     assert "faithful transcription" in r.output and "with your own rendering" in r.output
     assert not (q / "digests" / f"{ck}.proposed.tex").exists(), "the shadow file goes when nothing is proposed"
     assert "Z" in (q / "digests" / f"{ck}.tex").read_text()
@@ -295,7 +295,7 @@ def test_an_edit_never_touches_the_anchor(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     before = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]
-    ok("refs", "verify", f"{ck}-thm-1.1", "--statement", "rewritten", "--author", "isaac", "--yes", cwd=q)
+    ok("library", "verify", f"{ck}-thm-1.1", "--statement", "rewritten", "--as", "isaac", "--yes", cwd=q)
     after = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]
     assert after["statement"] == "rewritten" and after["source_text"] == before["source_text"]
     assert after["anchor"] == before["anchor"]
@@ -305,12 +305,12 @@ def test_a_discard_is_returned_to_whatever_proposes_it_again(tmp_path: Path) -> 
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     ok(
-        "refs",
+        "library",
         "discard",
         f"{ck}-thm-1.1",
-        "--reason",
+        "--why",
         "that is the hypothesis, not the theorem",
-        "--author",
+        "--as",
         "i",
         cwd=q,
     )
@@ -332,7 +332,7 @@ def test_the_manifest_keeps_the_digest_and_its_proposals_apart(tmp_path: Path) -
     """Both files claim one citekey, and a `{ck: f}` comprehension keeps whichever came last — so the viewer could have rendered unverified statements as the digest."""
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    ok("refs", "verify", f"{ck}-thm-1.1", "--author", "i", "--yes", cwd=q)
+    ok("library", "verify", f"{ck}-thm-1.1", "--as", "i", "--yes", cwd=q)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     ok("build", cwd=q)
     ref = json.loads((q / "build" / "manifest.json").read_text())["references"][ck]
@@ -403,20 +403,19 @@ def test_the_link_cli_refuses_an_end_that_is_not_a_result(tmp_path: Path) -> Non
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     refused(
-        "refs",
-        "link",
-        "--from",
+        "library",
+        "relate",
         f"{ck}-thm-1.1",
-        "--to",
         "nope-0001",
         "--kind",
         "same-notion",
         "--why",
         "w",
         code=2,
-        match="not a result",
+        match="no result nope-0001",
         cwd=q,
     )
+    assert not (q / "digests" / "links.jsonl").exists()
 
 
 def test_recheck_makes_transcription_verified_falsifiable(tmp_path: Path) -> None:
@@ -427,36 +426,37 @@ def test_recheck_makes_transcription_verified_falsifiable(tmp_path: Path) -> Non
 
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    ok("refs", "verify", f"{ck}-thm-1.1", "--author", "i", "--yes", cwd=q)
-    clean = ok("refs", "recheck", cwd=q)
-    assert clean.stdout.startswith("1 verified anchor re-read; 0 moved")
+    ok("library", "verify", f"{ck}-thm-1.1", "--as", "i", "--yes", cwd=q)
+    clean = ok("library", "check", ck, cwd=q)
+    assert clean.stdout.startswith("nothing wrong in 1 work; 1 verified anchor re-read")
 
     home = work_dir(q, scan(load_quilt(q)).bib[ck])
     page = home / "pages" / "0001.txt"
     page.write_text(page.read_text().replace("DM-type morphism", "DM-type map"))
-    moved = exits(1, "refs", "recheck", cwd=q)
-    assert "transcription changed (1)" in moved.output and "1 moved" in moved.output
+    moved = exits(1, "library", "check", ck, cwd=q)
+    assert "verified results whose page no longer reads that way (1)" in moved.output
+    assert moved.stdout.startswith("1 problem in 1 work; 1 verified anchor re-read")
 
 
 def test_recheck_never_re_reads_a_verified_rendering(tmp_path: Path) -> None:
     """A verified node's LaTeX was judged by a person once; re-judging it mechanically would claim a check that does not exist."""
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    ok("refs", "verify", f"{ck}-thm-1.1", "--statement", "utterly different prose", "--author", "i", "--yes", cwd=q)
-    r = ok("refs", "recheck", cwd=q)
-    assert "0 moved" in r.output, "the rendering may differ from the page and that is the author's call"
+    ok("library", "verify", f"{ck}-thm-1.1", "--statement", "utterly different prose", "--as", "i", "--yes", cwd=q)
+    r = ok("library", "check", ck, cwd=q)
+    assert r.stdout.startswith("nothing wrong"), "the rendering may differ from the page and that is the author's call"
 
 
 def test_every_search_says_how_much_of_the_corpus_it_could_search(tmp_path: Path) -> None:
     """A search over a partly digested corpus is a search over silence, and a result set that does not say so reads like a finding."""
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    hit = ok("refs", "find", "DM-type", cwd=q)
+    hit = ok("library", "search", "DM-type", cwd=q)
     assert f"{ck}-thm-1.1" in hit.output
     assert "works digested" in hit.output.splitlines()[0]
-    miss = ok("refs", "find", "quantum cohomology of a gerbe", cwd=q)
+    miss = ok("library", "search", "quantum cohomology of a gerbe", cwd=q)
     assert miss.stdout.startswith("0 results") and "works digested" in miss.output.splitlines()[0]
-    assert "loom refs grep" in miss.output, "a miss must name the fallback"
+    assert "loom library search 'quantum cohomology of a gerbe' --pages" in miss.output, "a miss must name the fallback"
 
 
 def test_a_more_specific_title_is_not_the_same_paper() -> None:
@@ -530,7 +530,7 @@ def test_a_pdf_on_disk_does_not_stop_loom_looking_for_the_source(
         home = work_home(q, key)
         home.mkdir(parents=True, exist_ok=True)
         (home / "paper.pdf").write_bytes(b"%PDF-1.4\n")
-    edit(q / "config.toml", "fetch = false\nresolve = false", "fetch = true\nresolve = true")
+    edit(q / "config.toml", "online = false", "online = true")
 
     asked: list[str] = []
     fetched: list[str] = []
@@ -564,8 +564,8 @@ def test_an_agent_cannot_vouch_for_its_own_reading(tmp_path: Path, monkeypatch: 
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
     monkeypatch.setenv("AI_AGENT", "1")
     for args in (
-        ["refs", "verify", f"{ck}-thm-1.1", "--yes"],
-        ["refs", "discard", f"{ck}-thm-1.1", "--reason", "r"],
+        ["library", "verify", f"{ck}-thm-1.1", "--yes"],
+        ["library", "discard", f"{ck}-thm-1.1", "--why", "r"],
     ):
         r = refused(*args, code=2, match="AI_AGENT", cwd=q)
         assert "the author's" in r.output, r.output
@@ -586,13 +586,11 @@ def test_verifying_on_a_terminal_shows_both_texts_first(tmp_path: Path) -> None:
     """§5.3: a surface that offers verify without showing both texts is a bug, and a terminal is a surface."""
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "Every widget is a gadget.", level="1")
-    r = ok("refs", "verify", f"{ck}-thm-4.1", "--yes", "--author", "x", cwd=q)
+    r = ok("library", "verify", f"{ck}-thm-4.1", "--yes", "--as", "x", cwd=q)
     assert "--- the page" in r.output and "Theorem 4.1. Every widget is a gadget" in r.output
     assert "--- rendered as ---" in r.output
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
-    refused(
-        "refs", "verify", f"{ck}-thm-1.1", "--author", "x", code=2, match="pass --yes", cwd=q
-    )  # not a tty, no --yes
+    refused("library", "verify", f"{ck}-thm-1.1", "--as", "x", code=2, match="pass --yes", cwd=q)  # not a tty, no --yes
 
 
 def test_the_page_around_the_quote_is_what_a_rendering_is_judged_against(tmp_path: Path) -> None:
@@ -623,9 +621,11 @@ def test_a_result_stated_under_two_numbers_is_citable_by_either(tmp_path: Path) 
 def test_coverage_finds_a_work_by_author_and_refuses_what_it_cannot(tmp_path: Path) -> None:
     """Agents grepped refs.bib for an author twice; with two Edidin-Graham 1998 papers, guessing chose between them."""
     q, ck = mapped(tmp_path)
-    by_author = ok("refs", "coverage", "manolache", cwd=q)
+    # two works share the author, so a report of one is refused naming both rather than guessed
+    refused("library", "manolache", code=2, match=f"'manolache' names 2 works: Man12, {ck}", cwd=q)
+    by_author = ok("library", "search", "perfect obstruction", "--pages", "--work", "manolache", cwd=q)
     assert ck in by_author.output
-    refused("refs", "coverage", "FixedLocusRomagny", code=2, match="not a citekey", cwd=q)
+    refused("library", "FixedLocusRomagny", code=2, match="names no work", cwd=q)
 
 
 def test_a_pdf_link_in_the_bibliography_is_fetchable() -> None:
@@ -671,7 +671,7 @@ def test_an_agents_link_is_the_runs_never_the_authors(tmp_path: Path, monkeypatc
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G", level="3")
     a, b = f"{ck}-thm-1.1", f"{ck}-thm-4.1"
     monkeypatch.setenv("AI_AGENT", "1")
-    link = ("refs", "link", "--from", a, "--to", b, "--kind", "depends-on", "--why", "w")
+    link = ("library", "relate", a, b, "--kind", "depends-on", "--why", "w")
     refused(*link, code=2, match="--session", cwd=q)
     ok(*link, "--session", "2026-x", cwd=q)
     assert read_links(q)[0].by == "2026-x"
@@ -732,22 +732,22 @@ def test_an_authors_edit_is_kept_and_shown(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Let $f$ be DM.")
     ok(
-        "refs",
+        "library",
         "verify",
         f"{ck}-thm-1.1",
         "--statement",
         "Let $f$ be DM-type with a perfect theory.",
         "--yes",
-        "--author",
+        "--as",
         "i",
         cwd=q,
     )
-    why = ok("refs", "why", f"{ck}-thm-1.1", cwd=q)
+    why = ok("library", "why", f"{ck}-thm-1.1", cwd=q)
     assert "the author's edit" in why.output
     assert "-Let $f$ be DM." in why.output and "+Let $f$ be DM-type with a perfect theory." in why.output
     # a second correction: the diff is still from what was proposed, never from the author's own first try
-    ok("refs", "verify", f"{ck}-thm-1.1", "--statement", "Let $f$ be DM-type.", "--yes", "--author", "i", cwd=q)
-    why = ok("refs", "why", f"{ck}-thm-1.1", cwd=q).output
+    ok("library", "verify", f"{ck}-thm-1.1", "--statement", "Let $f$ be DM-type.", "--yes", "--as", "i", cwd=q)
+    why = ok("library", "why", f"{ck}-thm-1.1", cwd=q).output
     assert why.count("the author's edit") == 1
     assert "-Let $f$ be DM." in why and "+Let $f$ be DM-type." in why and "-Let $f$ be DM-type with" not in why
     # and the document has it: a re-verify once changed the record and left the digest -- and so `loom source` -- as it was
@@ -842,8 +842,8 @@ def test_propose_does_not_hand_an_agent_the_authors_verb(tmp_path: Path, monkeyp
     with monkeypatch.context() as agent:
         agent.setenv("AI_AGENT", "1")
         r = propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "S")
-        assert "waiting for the author" in r.output and "loom refs verify" not in r.output
-    helptext = ok("refs", "propose", "--help", cwd=q).output
+        assert "waiting for the author" in r.output and "loom library verify" not in r.output
+    helptext = ok("library", "propose", "--help", cwd=q).output
     assert "verified against" not in helptext and "this is what is verified" not in helptext
 
 
@@ -852,7 +852,7 @@ def test_the_author_can_correct_the_locator_when_verifying(tmp_path: Path) -> No
     q, ck = mapped(tmp_path)
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "S")
     ok(
-        "refs",
+        "library",
         "verify",
         f"{ck}-thm-1.1",
         "--local",
@@ -860,7 +860,7 @@ def test_the_author_can_correct_the_locator_when_verifying(tmp_path: Path) -> No
         "--taxon",
         "corollary",
         "--yes",
-        "--author",
+        "--as",
         "i",
         cwd=q,
     )
@@ -890,20 +890,20 @@ def test_the_write_api_verifies_renames_and_discards_a_proposal(
     with monkeypatch.context() as agent:
         agent.setenv("AI_AGENT", "1")
         got = handle(
-            q, "digest-verify", {"node": f"{ck}-thm-1.1", "statement": "S'", "local": "cor-1.1.1", "author": "i"}
+            q, "library-verify", {"node": f"{ck}-thm-1.1", "statement": "S'", "local": "cor-1.1.1", "author": "i"}
         )
         assert got["ok"] and "renamed from" in got["result"]
         gone = handle(
             q,
-            "digest-discard",
-            {"session": open_session(q), "node": f"{ck}-thm-4.1", "reason": "not the paper's", "author": "i"},
+            "library-discard",
+            {"session": open_session(q), "node": f"{ck}-thm-4.1", "why": "not the paper's", "author": "i"},
         )
         assert gone["ok"]
     recs = {x["id"]: x for x in json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]}
     assert recs[f"{ck}-cor-1.1.1"]["state"] == "verified" and recs[f"{ck}-cor-1.1.1"]["statement"] == "S'"
     assert recs[f"{ck}-thm-4.1"]["state"] == "discarded"
     with pytest.raises(ApiError):
-        handle(q, "digest-verify", {"session": open_session(q), "node": f"{ck}-thm-9.9", "author": "i"})
+        handle(q, "library-verify", {"session": open_session(q), "node": f"{ck}-thm-9.9", "author": "i"})
 
 
 def test_a_work_with_a_source_is_quoted_from_its_source(tmp_path: Path) -> None:
@@ -917,7 +917,7 @@ def test_a_work_with_a_source_is_quoted_from_its_source(tmp_path: Path) -> None:
     )
     quote = "\\Xvir = \\iota_* \\sum \\frac{\\Xivir}{e(N^{\\it{vir}}_i)}"
     ok(
-        "refs", "propose", ck, "--local", "eq-1", "--source-file", "main.tex", "--level", "1",
+        "library", "propose", ck, "--local", "eq-1", "--source-file", "main.tex", "--level", "1",
         "--source-text", quote, "--statement", "[X]^{vir} = \\iota_* \\sum \\frac{[X_i]^{vir}}{e(N_i^{vir})}", cwd=q,
     )  # fmt: skip
     rec = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]
@@ -929,18 +929,20 @@ def test_a_work_with_a_source_is_quoted_from_its_source(tmp_path: Path) -> None:
     shadow = (q / "digests" / f"{ck}.proposed.tex").read_text()
     assert "\\begin{theorem}[{\\cite[Equation (1)]{" in shadow, "a display is named as the paper names it"
     refused(
-        "refs", "propose", ck, "--local", "eq-2", "--source-file", "main.tex",
+        "library", "propose", ck, "--local", "eq-2", "--source-file", "main.tex",
         "--source-text", "a formula the file does not have", "--statement", "x", code=1, match="not in", cwd=q,
     )  # fmt: skip
-    refused("refs", "propose", ck, "--local", "eq-3", "--source-file", "main.tex", "--page", "1",
+    refused("library", "propose", ck, "--local", "eq-3", "--source-file", "main.tex", "--page", "1",
             "--source-text", "x", "--statement", "x", code=2, match="one of them", cwd=q)  # fmt: skip
 
 
-def test_grep_is_a_phrase_and_says_so(tmp_path: Path) -> None:
+def test_search_is_literal_words_and_says_so(tmp_path: Path) -> None:
     """ "Localization in equivariant\\|Edidin.*Graham" found nothing, and the agent took the silence for an answer."""
     q, _ck = mapped(tmp_path)
-    refused("refs", "grep", "Localization in equivariant\\|Edidin.*Graham", code=2, match="literal phrase", cwd=q)
-    ok("refs", "grep", "widget", cwd=q)
+    pattern = "Localization in equivariant\\|Edidin.*Graham"
+    refused("library", "search", pattern, code=2, match="matches words literally", cwd=q)
+    refused("library", "search", pattern, "--pages", code=2, match="matches words literally", cwd=q)
+    ok("library", "search", "widget", "--pages", cwd=q)
 
 
 def test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest(tmp_path: Path) -> None:
@@ -954,7 +956,7 @@ def test_a_source_fetched_on_a_preprint_id_says_so_in_the_digest(tmp_path: Path)
         "\\documentclass{article}\n\\newtheorem{theorem}{Theorem}\n\\begin{document}\n\\begin{theorem}\\label{t}A.\\end{theorem}\n\\end{document}\n"
     )
     record_source(home, "arxiv:1607.00001", "candidate")
-    ok("digest", "extract", ck, str(home / "src" / "main.tex"), "--no-compile", cwd=q)
+    ok("library", "update", ck, "--only", "extract", cwd=q)
     head = (q / "digests" / f"{ck}.tex").read_text().splitlines()[:4]
     assert "% !LOOM extracted-from: arxiv:1607.00001" in head
 
@@ -963,10 +965,12 @@ def test_a_read_command_logs_to_the_session_it_is_given(tmp_path: Path) -> None:
     """`loom refs page ... --run` was refused twice in one study run; the orientation says to pass --session wherever it is accepted, and the log is the record of what an agent read."""
     q, ck = mapped(tmp_path)
     runname = ok("session", "new", "--name", "r", cwd=q).stdout.split()[0]
-    for args in (["refs", "page", ck, "12"], ["refs", "coverage"], ["refs", "grep", "widget"]):
+    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y")
+    for args in (["library", "read", ck, "12"], ["library", "why", f"{ck}-thm-1.1"], ["library", "search", "widget"]):
         ok(*args, "--session", runname, cwd=q)
     log = (q / ".loom" / "sessions" / runname / "run.log").read_text()
-    assert f"loom refs page {ck} 12" in log and "loom refs coverage" in log and "loom refs grep widget" in log
+    assert f"loom library read {ck} 12" in log and f"loom library why {ck}-thm-1.1" in log
+    assert "loom library search widget" in log
 
 
 def test_locate_matches_across_the_two_extractions_of_one_page() -> None:
@@ -1114,21 +1118,28 @@ def _source_only(tmp_path: Path) -> Path:
     return q
 
 
-def test_extract_refuses_a_source_outside_the_store(tmp_path: Path) -> None:
-    """A digest made from a file on the author's desktop cites pages nobody else can open, so the obligation starts where the digest is born."""
-    q = demo(tmp_path)
+def test_extract_reads_the_store_alone(tmp_path: Path) -> None:
+    """A digest made from a file on the author's desktop cites pages nobody else can open, so extraction reads only what the store holds, and a source the author holds reaches it through `library add`."""
+    q = _no_copy(tmp_path)
+    (q / "digests" / "Calloway14.tex").unlink()
     loose = tmp_path / "paper.tex"
     loose.write_text("\\documentclass{article}\\begin{document}\\end{document}\n", encoding="utf-8")
-    r = refused("digest", "extract", "Ref20", str(loose), code=2, match="not in loom's store", cwd=q)
-    assert "loom refs add" in r.output
+    r = ok("library", "update", "Calloway14", "--only", "extract", cwd=q)
+    assert not (q / "digests" / "Calloway14.tex").exists() and "loom library add FILE --for CITEKEY" in r.stdout
+    ok("library", "add", loose, "--for", "Calloway14", cwd=q)
+    ok("library", "update", "Calloway14", "--only", "extract", cwd=q)
+    assert (q / "digests" / "Calloway14.tex").is_file()
 
 
 def test_extract_with_no_source_says_how_to_get_one(tmp_path: Path) -> None:
-    """The refusal names both routes: fetching where an identifier serves it, and adding source already held."""
+    """A work with no source names both routes: fetching where an identifier serves it, and adding source already held."""
     q = _no_copy(tmp_path)
     (q / "digests" / "Calloway14.tex").unlink()
-    r = refused("digest", "extract", "Calloway14", code=2, match="holds no source", cwd=q)
-    assert "loom refs fetch Calloway14" in r.output and "loom refs add Calloway14" in r.output
+    r = ok("library", "update", "Calloway14", "--only", "extract", cwd=q)
+    said = " ".join(r.stdout.split())
+    assert "blocked: no arXiv id to fetch a source on (1) Calloway14" in said, r.stdout
+    assert "loom library update --online looks for the preprint" in said
+    assert "loom library add FILE --for CITEKEY with its LaTeX source" in said
 
 
 def test_a_digest_with_no_readable_copy_warns_and_never_errors(tmp_path: Path) -> None:
@@ -1136,7 +1147,7 @@ def test_a_digest_with_no_readable_copy_warns_and_never_errors(tmp_path: Path) -
     q = _no_copy(tmp_path)
     said = [d for d in json_of("lint", "--json", cwd=q)["diagnostics"] if d["code"] == "loom:no-readable-copy"]
     assert [d["severity"] for d in said] == ["warning"]
-    assert "loom refs unreadable Calloway14" in said[0]["message"]
+    assert "loom library ignore Calloway14" in said[0]["message"]
     # and source alone is an info, not a warning: the paper's own LaTeX is what a statement is checked against
     quieter = [
         d
@@ -1151,10 +1162,10 @@ def test_declaring_a_work_unreadable_suppresses_the_lint_and_undo_restores_it(tm
     """Impossible is declared, never inferred: nothing in a bibliography entry says a work has no fixed document."""
     q = _no_copy(tmp_path)
     ok(
-        "refs",
-        "unreadable",
+        "library",
+        "ignore",
         "Calloway14",
-        "--author",
+        "--as",
         "A. Author",
         "--why",
         "a living work with no fixed version",
@@ -1163,10 +1174,10 @@ def test_declaring_a_work_unreadable_suppresses_the_lint_and_undo_restores_it(tm
     codes = [d["code"] for d in json_of("lint", "--json", cwd=q)["diagnostics"]]
     assert "loom:no-readable-copy" not in codes
     ok(
-        "refs",
-        "unreadable",
+        "library",
+        "ignore",
         "Calloway14",
-        "--author",
+        "--as",
         "A. Author",
         "--undo",
         "--why",
@@ -1182,8 +1193,8 @@ def test_the_declaration_is_appended_and_never_edited(tmp_path: Path) -> None:
     from loom.refs.unreadable import declarations, load_events
 
     q = _no_copy(tmp_path)
-    ok("refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version", cwd=q)
-    ok("refs", "unreadable", "Calloway14", "--author", "A. Author", "--undo", "--why", "wrong", cwd=q)
+    ok("library", "ignore", "Calloway14", "--as", "A. Author", "--why", "no fixed version", cwd=q)
+    ok("library", "ignore", "Calloway14", "--as", "A. Author", "--undo", "--why", "wrong", cwd=q)
     assert len(load_events(q)) == 2
     assert declarations(q, "unreadable") == {}
 
@@ -1196,12 +1207,12 @@ def test_unreadable_refuses_under_an_agent_and_without_a_reason(
     Under an agent marker the act refuses whatever name is declared, since a name cannot be checked (DR-325-ikmartin); a name that calls itself an agent is refused whatever shell it came from.
     """
     q = demo(tmp_path)
-    refused("refs", "unreadable", "Calloway14", code=2, match="--why is required", cwd=q)
+    refused("library", "ignore", "Calloway14", code=2, match="Missing option '--why'", cwd=q)
     monkeypatch.setenv("AI_AGENT", "1")
     # nothing declared: the marker is all there is to go on, and it refuses rather than guessing
     refused(
-        "refs",
-        "unreadable",
+        "library",
+        "ignore",
         "Calloway14",
         "--why",
         "no fixed version",
@@ -1211,15 +1222,15 @@ def test_unreadable_refuses_under_an_agent_and_without_a_reason(
     )
     # nor does the author's name pass under the marker
     refused(
-        "refs", "unreadable", "Calloway14", "--author", "A. Author", "--why", "no fixed version",
+        "library", "ignore", "Calloway14", "--as", "A. Author", "--why", "no fixed version",
         code=2, match="whatever --author or --as says", cwd=q,
     )  # fmt: skip
     # and a declared agent is refused whichever surface it came through
     refused(
-        "refs",
-        "unreadable",
+        "library",
+        "ignore",
         "Kre99",
-        "--author",
+        "--as",
         "Agent",
         "--why",
         "could not fetch",
@@ -1229,7 +1240,7 @@ def test_unreadable_refuses_under_an_agent_and_without_a_reason(
     )
 
 
-def test_forget_is_keyed_by_citekey_or_by_a_prefix_of_a_stored_hash(tmp_path: Path) -> None:
+def test_ignore_sets_a_document_aside_by_citekey_or_by_a_prefix_of_a_stored_hash(tmp_path: Path) -> None:
     """The tombstone stops the store re-offering an entry; a document with no entry is named by its content."""
     from loom.refs.scan import record_copy
     from loom.refs.unreadable import declarations
@@ -1237,19 +1248,19 @@ def test_forget_is_keyed_by_citekey_or_by_a_prefix_of_a_stored_hash(tmp_path: Pa
     q = demo(tmp_path)
     sha = "9f2c" + "0" * 60
     record_copy(q, sha, "refs/whatever.pdf", "digests/storage/file/9f2c/paper.pdf")
-    ok("refs", "forget", "9f2c00", "--author", "A. Author", "--why", "a duplicate scan", cwd=q)
-    ok("refs", "forget", "Calloway14", "--author", "A. Author", "--why", "deliberately not cited", cwd=q)
+    ok("library", "ignore", "9f2c00", "--as", "A. Author", "--why", "a duplicate scan", cwd=q)
+    ok("library", "ignore", "Calloway14", "--as", "A. Author", "--why", "deliberately not cited", cwd=q)
     assert set(declarations(q, "forget")) == {f"sha256:{sha}", "Calloway14"}
     refused(
-        "refs",
-        "forget",
+        "library",
+        "ignore",
         "nothing-like-this",
-        "--author",
+        "--as",
         "A. Author",
         "--why",
         "x",
         code=2,
-        match="neither a citekey",
+        match="names no work",
         cwd=q,
     )
 
@@ -1477,7 +1488,7 @@ def test_a_note_on_a_page_is_written_by_citekey_or_identifier_and_refused_legibl
     )
     refused(
         "annotate", "Bellamy19", "absent", "--page", "2", "--quote", "zebra crossing", *who,
-        code=1, match="loom refs page Bellamy19 2", cwd=q,
+        code=1, match="loom library read Bellamy19 2", cwd=q,
     )  # fmt: skip
     refused(
         "annotate", "Bellamy19", "bad box", "--page", "2", "--box", "1,2,3", *who, code=2, match="x0,y0,x1,y1", cwd=q
@@ -1614,14 +1625,16 @@ def test_a_locator_by_offsets_lights_the_same_place_a_selection_would(tmp_path: 
 
 
 @pytest.mark.poppler
-def test_refs_locate_names_the_place_and_not_only_the_page(tmp_path: Path) -> None:
-    """`refs locate` kept its own mapping, so its anchor had no `basis`, `start` or `end`, and the `open:` line could name only the page — design §6 specifies `?page=3&span=1043-1189`, and following what it printed left the quotation to be found by eye."""
+def test_locate_names_the_place_and_not_only_the_page(tmp_path: Path) -> None:
+    """`locate` kept its own mapping, so its anchor had no `basis`, `start` or `end`, and the `open:` line could name only the page — design §6 specifies `?page=3&span=1043-1189`, and following what it printed left the quotation to be found by eye."""
 
     from loom.render.serve import write_serve_json
 
     q = showcase(tmp_path)
-    got = json_of("refs", "locate", "Bellamy19", "totally unimodular", "--page", "2", "--json", cwd=q)
-    missing = json_of("refs", "locate", "Bellamy19", "no such words anywhere", "--page", "2", "--json", cwd=q, code=1)
+    got = json_of("library", "locate", "Bellamy19", "totally unimodular", "--page", "2", "--json", cwd=q)
+    missing = json_of(
+        "library", "locate", "Bellamy19", "no such words anywhere", "--page", "2", "--json", cwd=q, code=1
+    )
     assert {k: missing[k] for k in ("found", "citekey", "page", "ok")} == {
         "found": False,
         "citekey": "Bellamy19",
@@ -1633,11 +1646,11 @@ def test_refs_locate_names_the_place_and_not_only_the_page(tmp_path: Path) -> No
     assert page_text[got["start"] : got["end"]] == "totally unimodular"
 
     write_serve_json(q, 8791)  # this process is alive, so the link is offered
-    said = ok("refs", "locate", "Bellamy19", "totally unimodular", "--page", "2", cwd=q).output
+    said = ok("library", "locate", "Bellamy19", "totally unimodular", "--page", "2", cwd=q).output
     assert f"span={got['start']}-{got['end']}" in said, said
     # a quotation found on the word boxes and not in the committed text is a box, and names its rectangle instead
     edit(q / "digests/storage/doi/10.4171_showcase_19-2/pages/0002.txt", "The function L is a", "The map L is a")
-    drawn = ok("refs", "locate", "Bellamy19", "The function L is a quasi-polynomial", "--page", "2", cwd=q).output
+    drawn = ok("library", "locate", "Bellamy19", "The function L is a quasi-polynomial", "--page", "2", cwd=q).output
     assert "  box  " in drawn and "&box=" in drawn and "span=" not in drawn, drawn
 
 
@@ -1701,19 +1714,28 @@ def _fake_pdf(path: Path, text: str) -> Path:
     return path
 
 
-def test_refs_path_prints_where_an_artifact_would_go_and_says_when_nothing_is_there(tmp_path: Path) -> None:
+def test_read_where_prints_where_an_artifact_would_go_and_says_when_nothing_is_there(tmp_path: Path) -> None:
     q = demo(tmp_path)
     home = work_home(q, "Calloway14")
-    assert ok("refs", "path", "Calloway14", cwd=q).stdout.strip() == str(home)
-    assert ok("refs", "path", "Calloway14", "--pdf", cwd=q).stdout.strip() == str(home / "paper.pdf")
+    assert ok("library", "read", "Calloway14", "--where", "dir", cwd=q).stdout.strip() == str(home)
+    assert ok("library", "read", "Calloway14", "--where", "pdf", cwd=q).stdout.strip() == str(home / "paper.pdf")
     # Git does not preserve empty source directories; file a source explicitly.
     (home / "src").mkdir(exist_ok=True)
     (home / "src" / "main.tex").write_text("Source text.\n")
-    assert ok("refs", "path", "Calloway14", "--src", cwd=q).stdout.strip() == str(home / "src")
-    r = refused("refs", "path", "Man12", "--pdf", cwd=q, code=1, match="nothing there yet; loom refs fetch Man12")
+    assert ok("library", "read", "Calloway14", "--where", "src", cwd=q).stdout.strip() == str(home / "src")
+    r = refused(
+        "library",
+        "read",
+        "Man12",
+        "--where",
+        "pdf",
+        cwd=q,
+        code=1,
+        match="nothing there yet; loom library update Man12 --online",
+    )
     assert r.stdout.strip() == str(work_home(q, "Man12") / "paper.pdf")  # printed anyway: it is where it would go
-    refused("refs", "path", "Nobody99", cwd=q, code=2, match="Nobody99 is not in the bibliography")
-    # a document `refs scan` filed names its own directory, and `refs path` looks where every other reader does
+    refused("library", "read", "Nobody99", "--where", "dir", cwd=q, code=2, match="'Nobody99' names no work")
+    # a document `refs scan` filed names its own directory, and `library read --where` looks where every other reader does
     from loom.refs.pages import storage_root
 
     bib = q / "digests" / "bibliography.bib"
@@ -1721,84 +1743,89 @@ def test_refs_path_prints_where_an_artifact_would_go_and_says_when_nothing_is_th
         bib.read_text()
         + "\n@misc{Filed20, title={A filed thing}, author={Doe, A.}, year={2020}, loom-file={file/0123abcd}}\n"
     )
-    r = refused("refs", "path", "Filed20", cwd=q, code=1, match="nothing there yet")
+    r = refused("library", "read", "Filed20", "--where", "dir", cwd=q, code=1, match="nothing there yet")
     assert r.stdout.strip() == str(storage_root(q) / "file" / "0123abcd")
 
 
-def test_refs_add_files_a_pdf_or_source_and_replaces_only_with_force(tmp_path: Path) -> None:
+def test_library_add_files_a_pdf_or_source_and_never_replaces_one(tmp_path: Path) -> None:
     q = demo(tmp_path)
     home = work_home(q, "Man12")
     notes = tmp_path / "notes.txt"
     notes.write_text("not a paper")
-    refused("refs", "add", "Man12", notes, cwd=q, code=2, match="notes.txt is neither a PDF nor LaTeX source")
+    refused(
+        "library", "add", notes, "--for", "Man12", cwd=q, code=2, match="notes.txt is neither a PDF nor LaTeX source"
+    )
     assert not home.exists()
 
     title = parse_bib((q / "digests" / "bibliography.bib").read_text())["Man12"].fields["title"]
     # a PDF whose first page carries another title is refused: filed under the wrong work, every anchor would read the wrong paper (CLI study, defect 9)
     wrong = _fake_pdf(tmp_path / "wrong.pdf", "Advanced Topics in the Arithmetic of Elliptic Curves")
-    refused("refs", "add", "Man12", wrong, cwd=q, code=1, match="does not carry Man12's title")
+    refused("library", "add", wrong, "--for", "Man12", cwd=q, code=2, match="does not show it is Man12")
     assert not (home / "paper.pdf").exists()
-    one = _fake_pdf(tmp_path / "one.pdf", f"{title}\nfirst copy")
-    two = _fake_pdf(tmp_path / "two.pdf", f"{title}\nsecond copy")
-    said = ok("refs", "add", "Man12", one, cwd=q).stdout
-    assert (
-        said.startswith("filed one.pdf as Man12's PDF, with its page text") and (home / "pages").is_dir()
-    )  # mapped at once, so nothing else needs running
-    refused(
-        "refs", "add", "Man12", two, cwd=q, code=2, match="Man12 already has a PDF on file; pass --force to replace it"
-    )
-    assert b"first copy" in (home / "paper.pdf").read_bytes()
-    ok("refs", "add", "Man12", two, "--force", cwd=q)
-    assert b"second copy" in (home / "paper.pdf").read_bytes()
+    one = _fake_pdf(tmp_path / "one.pdf", f"{title}\nCristina Manolache\nfirst copy")
+    two = _fake_pdf(tmp_path / "two.pdf", f"{title}\nCristina Manolache\nsecond copy")
+    said = ok("library", "add", one, "--for", "Man12", cwd=q).stdout
+    assert "one.pdf as Man12's PDF, with its page text" in said and (home / "pages").is_dir()  # mapped at once
+    said = " ".join(ok("library", "add", two, "--for", "Man12", cwd=q).stdout.split())
+    assert "two.pdf as Man12's PDF, beside its first document as Man12A" in said, said
+    assert b"first copy" in (home / "paper.pdf").read_bytes(), "a second document never replaces the first (book 8.16)"
 
     src = tmp_path / "eprint"
     (src / "sec").mkdir(parents=True)
     (src / "main.tex").write_text("\\documentclass{article}")
     (src / "sec" / "one.tex").write_text("\\section{One}")
-    assert ok("refs", "add", "Man12", src, cwd=q).stdout.startswith("filed eprint as Man12's LaTeX source")
+    assert "eprint as Man12's LaTeX source" in ok("library", "add", src, "--for", "Man12", cwd=q).stdout
     assert sorted(p.relative_to(home / "src").as_posix() for p in (home / "src").rglob("*.tex")) == [
         "main.tex",
         "sec/one.tex",
     ]
     other = tmp_path / "other.tex"
     other.write_text("\\documentclass{amsart}")
-    refused("refs", "add", "Man12", other, cwd=q, code=2, match="already holds source; pass --force to replace it")
-    ok("refs", "add", "Man12", other, "--force", cwd=q)
-    assert sorted(p.name for p in (home / "src").rglob("*.tex")) == ["other.tex"]  # replaced, not merged
+    said = " ".join(ok("library", "add", other, "--for", "Man12", cwd=q).stdout.split())
+    assert "other.tex as Man12's LaTeX source, beside its first document as Man12B" in said, said
+    assert sorted(p.name for p in (home / "src").rglob("*.tex")) == [
+        "main.tex",
+        "one.tex",
+    ]  # neither replaced nor merged
 
 
-def test_refs_ingest_files_what_two_signals_agree_on_and_lists_the_rest(tmp_path: Path) -> None:
-    """Book 8.9: an identifier on the page attaches alone, two agreeing signals attach, nothing attaches nothing; a work that has a PDF is skipped; --dry-run files nothing."""
+def test_library_add_files_what_a_document_shows_plainly_and_says_why_it_skipped_the_rest(tmp_path: Path) -> None:
+    """Book 8.14: an identifier on the page files a document alone, and so does its whole title with the entry's first author leading its byline; anything weaker is skipped with its reason; a work that has a PDF gets the new one beside it; --dry-run files nothing."""
     q = demo(tmp_path)
     pile = tmp_path / "pile"
     _fake_pdf(pile / "a.pdf", "Virtual pull-backs\nCristina Manolache\narXiv:0805.2065v2 [math.AG]")
     _fake_pdf(pile / "Hartshorne - 1977 - Algebraic Geometry.pdf", "Some other text entirely\nnobody at all")
+    _fake_pdf(pile / "b.pdf", "Algebraic Geometry\nRobin Hartshorne\nSpringer")
     _fake_pdf(pile / "c.pdf", "Fixed loci of involutions on separated spaces\nImogen Calloway\ndoi 10.4171/demo/14-1")
     _fake_pdf(pile / "d.pdf", "Lecture notes on something unrelated\nA. Stranger")
-    refused("refs", "ingest", pile / "c.pdf", cwd=q, code=2, match="is a file")
     (tmp_path / "empty").mkdir()
-    refused("refs", "ingest", tmp_path / "empty", cwd=q, code=2, match="no PDFs under")
+    refused("library", "add", tmp_path / "empty", cwd=q, code=2, match="holds no PDF and no LaTeX source")
 
-    dry = json_of("refs", "ingest", pile, "--dry-run", "--json", cwd=q)
-    rows = {r["file"]: r for r in dry["works"]}
-    assert dry["pdfs"] == 4 and dry["filed"] == 0
-    assert (rows["a.pdf"]["citekey"], rows["a.pdf"]["filed"]) == ("Man12", True)
-    assert "arxiv" in {s["kind"] for s in rows["a.pdf"]["signals"]}
+    dry = json_of("library", "add", pile, "--dry-run", "--json", cwd=q)
+    rows = {Path(r["file"]).name: r for r in dry["documents"]}
+    assert (dry["filed"], dry["skipped"], dry["refused"]) == (3, 2, 0)
+    assert (rows["a.pdf"]["citekey"], rows["a.pdf"]["outcome"]) == ("Man12", "filed")
+    assert rows["a.pdf"]["strong"][0]["how"] == "arXiv:0805.2065v2 is on its first pages"
     hart = rows["Hartshorne - 1977 - Algebraic Geometry.pdf"]
-    assert (hart["citekey"], hart["filed"]) == ("Har77", True)
-    assert sorted(s["kind"] for s in hart["signals"]) == ["first-author", "title-in-filename"]
-    assert (rows["c.pdf"]["skipped"], rows["c.pdf"]["filed"]) == ("already has a PDF", False)
-    assert (rows["d.pdf"]["citekey"], rows["d.pdf"]["filed"], rows["d.pdf"]["signals"]) == ("", False, [])
+    assert hart["outcome"] == "skipped" and hart["reason"].startswith("Har77 is the nearest entry, on first-author")
+    assert (rows["b.pdf"]["citekey"], rows["b.pdf"]["outcome"]) == ("Har77", "filed")
+    assert (rows["c.pdf"]["outcome"], rows["c.pdf"]["sibling"]) == ("filed", "Calloway14A")
+    assert (rows["d.pdf"]["outcome"], rows["d.pdf"]["reason"]) == ("skipped", "nothing in the bibliography matches it")
     assert not (work_home(q, "Man12") / "paper.pdf").exists() and not (work_home(q, "Har77") / "paper.pdf").exists()
 
-    r = ok("refs", "ingest", pile, cwd=q)
+    r = ok("library", "add", pile, cwd=q)
     assert (work_home(q, "Man12") / "paper.pdf").read_bytes() == (pile / "a.pdf").read_bytes()
-    assert (work_home(q, "Har77") / "paper.pdf").is_file()
-    assert r.stdout.startswith("4 PDFs: 2 filed, 1 for works that already have one, 1 for you"), r.output
+    assert (work_home(q, "Har77") / "paper.pdf").read_bytes() == (pile / "b.pdf").read_bytes()
+    assert r.stdout.startswith("5 documents: 3 filed, 2 skipped, 0 refused"), r.output
+    said = " ".join(r.stdout.split())
+    assert (
+        "d.pdf: nothing in the bibliography matches it" in said
+        and "Hartshorne - 1977 - Algebraic Geometry.pdf: Har77" in said
+    )
     assert b"Imogen" not in (work_home(q, "Calloway14") / "paper.pdf").read_bytes()  # the shipped copy is untouched
 
 
-def test_refs_drop_removes_records_by_work_session_or_state_and_never_the_digest(tmp_path: Path) -> None:
+def test_library_drop_removes_records_by_work_session_or_state_and_never_the_digest(tmp_path: Path) -> None:
     from loom.refs.proposals import load_results
 
     q, ck = mapped(tmp_path)
@@ -1806,60 +1833,54 @@ def test_refs_drop_removes_records_by_work_session_or_state_and_never_the_digest
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=sid)
     propose(q, ck, "thm-4.1", 12, "Every widget is a gadget", "G")
     digest_before = (q / "digests" / "Calloway14.tex").read_text()
-    refused("refs", "drop", cwd=q, code=2, match="give exactly one of --work, --session or --unverified")
-    refused("refs", "drop", "--work", ck, "--unverified", cwd=q, code=2, match="give exactly one of")
-    refused("refs", "drop", "--unverified", cwd=q, code=2, match="dropping needs confirmation; pass --yes")
+    refused("library", "drop", cwd=q, code=2, match="give exactly one of --work, --session or --unverified")
+    refused("library", "drop", "--work", ck, "--unverified", cwd=q, code=2, match="give exactly one of")
+    refused("library", "drop", "--unverified", cwd=q, code=2, match="dropping needs confirmation; pass --yes")
     assert len(load_results(q, ck)) == 2  # the refusal dropped nothing
 
-    r = ok("refs", "drop", "--session", sid, "--yes", cwd=q)
+    r = ok("library", "drop", "--session", sid, "--yes", cwd=q)
     assert r.stdout.startswith("dropped 1 record;") and list(load_results(q, ck)) == [f"{ck}-thm-4.1"]
-    ok("refs", "drop", "--unverified", "--yes", cwd=q)
+    ok("library", "drop", "--unverified", "--yes", cwd=q)
     assert load_results(q, ck) == {} and len(load_results(q, "Calloway14")) == 5  # verified results stay
-    ok("refs", "drop", "--work", "Calloway14", "--yes", cwd=q)
+    ok("library", "drop", "--work", "Calloway14", "--yes", cwd=q)
     assert load_results(q, "Calloway14") == {}
     assert (q / "digests" / "Calloway14.tex").read_text() == digest_before
-    assert ok("refs", "drop", "--unverified", "--yes", cwd=q).output.strip() == "nothing to drop"
+    assert ok("library", "drop", "--unverified", "--yes", cwd=q).output.strip() == "nothing to drop"
 
 
-def test_refs_links_walks_depth_hops_and_unlink_removes_one(tmp_path: Path) -> None:
-    """Book 8.14: `--depth` follows links out from the target in one call; `unlink` removes by id and refuses an unknown one."""
+def test_why_walks_relations_depth_hops_and_relate_undo_removes_one(tmp_path: Path) -> None:
+    """Book 8.14: `why --depth` follows relations out from the result in one call; `relate --undo` removes one by id, records why, and refuses an unknown one."""
     q = demo(tmp_path)
     a, b, c, d = (f"Calloway14-{x}" for x in ("def-3.1", "prop-3.2", "prop-3.3", "thm-3.4"))
     for frm, to in ((a, b), (b, c), (c, d)):
-        ok(
-            "refs",
-            "link",
-            "--from",
-            frm,
-            "--to",
-            to,
-            "--kind",
-            "depends-on",
-            "--why",
-            "Because.",
-            "--author",
-            "isaac",
-            cwd=q,
-        )
+        ok("library", "relate", frm, to, "--kind", "depends-on", "--why", "Because.", "--as", "isaac", cwd=q)
 
     def walk(*extra: str) -> list[str]:
-        return [x["id"] for x in json_of("refs", "links", *extra, "--json", cwd=q)["links"]]
+        return [x["id"] for x in json_of("library", "why", *extra, "--json", cwd=q)["links"]]
 
     assert walk(a) == ["link-0001"]
     assert walk(a, "--depth", "2") == ["link-0001", "link-0002"]
     assert walk(a, "--depth", "5") == ["link-0001", "link-0002", "link-0003"]
     assert walk(c) == ["link-0002", "link-0003"]  # both directions
-    assert walk() == ["link-0001", "link-0002", "link-0003"]
-    assert ok("refs", "unlink", "link-0002", cwd=q).output.strip() == f"removed link-0002: {b} depends-on {c}"
+    every = [x["id"] for x in json_of("library", "--json", cwd=q)["links"]]
+    assert every == ["link-0001", "link-0002", "link-0003"]
+    undo = ("library", "relate", "--undo", "link-0002", "--why", "A misreading.", "--as", "A. Author")
+    assert ok(*undo, cwd=q).output.strip() == f"removed link-0002: {b} depends-on {c}"
+    removed = json.loads((q / "digests" / "links-removed.jsonl").read_text())
+    assert (
+        removed["link"]["id"] == "link-0002"
+        and removed["why"] == "A misreading."
+        and removed["removed_by"] == "A. Author"
+    )
     assert walk(a, "--depth", "5") == ["link-0001"]  # the chain is cut
-    refused("refs", "unlink", "link-0002", cwd=q, code=2, match="link-0002")
-    assert ok("refs", "links", "Calloway14-setup", cwd=q).output.strip() == "nothing links Calloway14-setup"
+    refused(*undo, cwd=q, code=2, match="link-0002")
+    assert ok("library", "why", "Calloway14-setup", cwd=q).stdout.splitlines()[0].endswith("; no relations")
 
 
 def test_a_forced_rebuild_keeps_every_result_the_author_verified(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`refs build --force` rewrote the digest from the paper's source, deleting a node `refs verify` had put there while `results.json` still said verified (CLI study, defect 3)."""
+    """`library update --redo` rewrites the digest from the paper's source, and keeps a node `library verify` put there while `results.json` says verified (CLI study, defect 3)."""
     q = demo(tmp_path)
     ck = "Calloway14"
     extracted = (q / "digests" / f"{ck}.tex").read_text()
@@ -1882,10 +1903,10 @@ def test_a_forced_rebuild_keeps_every_result_the_author_verified(
         level="1",
     )
     rid = f"{ck}-rem-4.1"
-    ok("refs", "verify", rid, "--author", "A. Author", "--yes", cwd=q)
+    ok("library", "verify", rid, "--as", "A. Author", "--yes", cwd=q)
     digest = q / "digests" / f"{ck}.tex"
     assert f"\\label{{{rid}}}" in digest.read_text()
-    r = ok("refs", "build", "--force", ck, cwd=q)
+    r = ok("library", "update", ck, "--redo", cwd=q)
     assert (
         f"\\label{{{rid}}}" in digest.read_text() and "The indiscrete pair is no counterexample." in digest.read_text()
     )
@@ -1893,12 +1914,12 @@ def test_a_forced_rebuild_keeps_every_result_the_author_verified(
 
 
 def test_a_works_path_and_its_pages_are_read_without_a_scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`refs path` and `refs page` need a work's bibliography entry and its store, and nothing the documents say; a scan cost a second or more on a large quilt (plan 0.18.2)."""
+    """`library read --where` and `library read WORK PAGES` need a work's bibliography entry and its store, and nothing the documents say; a scan cost a second or more on a large quilt (plan 0.18.2)."""
     q = demo(tmp_path)
 
     def no_scan(_quilt: object) -> None:
         raise AssertionError("scanned")
 
     monkeypatch.setattr("loom.cli._quilt.scan", no_scan)
-    assert ok("refs", "path", "Calloway14", cwd=q).stdout.strip().endswith("10.4171_demo_14-1")
-    assert ok("refs", "page", "Calloway14", "1", cwd=q).stdout.strip()
+    assert ok("library", "read", "Calloway14", "--where", "dir", cwd=q).stdout.strip().endswith("10.4171_demo_14-1")
+    assert ok("library", "read", "Calloway14", "1", cwd=q).stdout.strip()

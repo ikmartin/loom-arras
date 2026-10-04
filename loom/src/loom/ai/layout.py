@@ -35,11 +35,9 @@ AGENT_COMMANDS = frozenset(
         "ai annotations", "ai drafts", "ai refresh", "ai orient",
         # the agent opens and names the session it works in, and parks, reads and answers in it; closing, resuming and deleting a session stay the author's, because they are decisions about the work rather than part of it
         "session new", "session rename", "session list", "session next", "session say", "session watch",
-        "digest extract",
-        "refs build", "refs coverage", "refs fetch", "refs grep", "refs link", "refs links", "refs locate",
-        "refs find", "refs ingest", "refs map", "refs match", "refs overview", "refs page", "refs path", "refs propose",
-        "refs recheck",
-        "refs resolve", "refs unlink", "refs why",
+        # the library's readers and an agent's tools; filing a document (`library add`, `import`) and every decision are the author's
+        "library", "library update", "library review", "library read", "library search", "library why",
+        "library propose", "library locate", "library relate", "library check",
     }
 )  # fmt: skip
 AGENT_WRITES = (
@@ -69,7 +67,7 @@ def _asset(*parts: str) -> str:
 
 
 def command_tree() -> list[str]:
-    """Every leaf command loom offers, as the path a person types: `accept`, `ai promote`, `refs cite`."""
+    """Every leaf command loom offers, as the path a person types: `accept`, `ai orient`, `library verify`."""
     import click
 
     from loom.cli import main

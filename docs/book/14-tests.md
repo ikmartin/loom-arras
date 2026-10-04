@@ -124,7 +124,7 @@ Not written: `test_comment_target_hash_recorded`; `test_comment_refuses_cross_no
 - Digest files: `test_external_node_and_digest_file` (header directives, external nodes, prefixed ids and labels), `test_citekey_slug`, the `macro-collision` quilt through `test_lint_fixture_expected_codes[macro-collision]`
 - Postnotes: `test_postnote_normalization_table`, `test_postnote_match_edge_unmatched_and_no_postnote` (a match is an edge, an unmatched postnote is the warning, a `\cite` without a postnote is neither, and an alias id names the result under another numbering, DR-75)
 - Versions and packages: `test_version_mismatch_and_missing_package_and_undigested`, `test_requires_missing_package_named_first_on_bundle_failure`
-- Extraction: `test_extract_from_source_drops_proofs_keeps_uses_and_refuses_existing` (on the shim: proofs dropped, `\uses` kept, macros expanded, the macro block written, refusal when the file exists), `test_extract_counter_emulation_when_compile_fails` (under `FAKE_TEX_FAIL`, DR-68)
+- Extraction: `test_extract_from_source_drops_proofs_keeps_uses_and_leaves_a_digest_that_exists` (on the shim: proofs dropped, `\uses` kept, macros expanded, the macro block written, refusal when the file exists), `test_extract_counter_emulation_when_compile_fails` (under `FAKE_TEX_FAIL`, DR-68)
 - Fetch: `test_fetch_refused_without_config`, `test_fetch_writes_gitignored_dirs` (network)
 - Import: `test_import_digest_as_rewrites_prefix`
 - Closure documents: `test_bundle_contents_and_order` (the digest statements a closure document carries, on the shim)

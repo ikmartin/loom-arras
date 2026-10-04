@@ -5,9 +5,8 @@ drafting = "drafting"           # working documents, every one live
 prefix = "dm"               # default id prefix for loom new
 engine = "pdflatex"         # default engine; % !TEX program in a master overrides
 
-[refs]
-fetch = false
-resolve = false
+[library]
+online = false
 
 [lint]
 disable = []

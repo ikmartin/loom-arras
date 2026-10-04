@@ -6,7 +6,7 @@ Three files per cited work, and the split between them is the whole design.
 - `digests/<citekey>.proposed.tex` holds proposals. loom scans it and **nothing ever `\\input`s it**, so a proposal cannot enter a closure, be cited, or reach a compile. That is a structural guarantee rather than a check. It is a `.tex` rather than rows in JSON because a proposal exists to be *looked at*, and the pipeline that turns LaTeX into something a person can look at is the one that reads `.tex` files.
 - `digests/<citekey>.results.json` carries what the document cannot: both texts, the anchor, the level, the state and the provenance. Contract §9 governs its shape, so a digest weft wrote is readable here.
 
-Events append to `digests/<citekey>.proposals.jsonl`, which is what makes a discard visible to the agent that proposed it: `loom refs propose` refuses a discarded work-and-local-id and returns the reason in the same turn.
+Events append to `digests/<citekey>.proposals.jsonl`, which is what makes a discard visible to the agent that proposed it: `loom library propose` refuses a discarded work-and-local-id and returns the reason in the same turn.
 """
 
 from __future__ import annotations
@@ -230,7 +230,7 @@ def numbers_of(number: str) -> list[str]:
 
 
 def node_tex(r: Result, citekey: str) -> str:
-    """One result as a digest node, in the shape `loom digest extract` writes (contract §4.2).
+    """One result as a digest node, in the shape extraction writes (contract §4.2).
 
     A result the paper states as two numbers -- "Theorem (3.2), (3.3)" -- gets the first as its id and the rest as id-shaped aliases, which contract §6.2 reads a number off. Recorded as one id, `...-thm-3.2-3.3`, it was citable by neither number: `\\cite[Theorem 3.2]` matched nothing.
     """
@@ -341,7 +341,7 @@ def rewrite_in_digest(root: Path, citekey: str, r: Result) -> bool:
     return True
 
 
-#: The page a locator names, as `digest extract` writes it: `Proposition 2.1, p.~7`.
+#: The page a locator names, as extraction writes it: `Proposition 2.1, p.~7`.
 _LOCATOR_PAGE = re.compile(r"\bpp?\.\s*~?\s*(\d+)")
 
 
@@ -377,7 +377,7 @@ def _extracted_anchor(root: Path, citekey: str, entry: Any, locator: str, statem
 
 
 def record_extracted(result: Any, citekey: str) -> int:
-    """Write `results.json` entries for a digest that `loom digest extract` produced; returns how many.
+    """Write `results.json` entries for a digest that `loom library update` extracted; returns how many.
 
     Mechanical extraction and an agent's reading must end in the same place, or half the digest is invisible to every surface that reads results. These carry `class: mechanical` and `state: verified` — verified by construction, since the statement *is* the source (contract §9.4), with the file and its hash as the anchor (§9.3). An entry already recorded is left alone, so this never overwrites a result a person edited.
     """
@@ -413,7 +413,7 @@ def record_extracted(result: Any, citekey: str) -> int:
             level=3,
             cls="mechanical",
             state=VERIFIED,
-            origin=[{"act": "extracted", "by": "loom digest extract", "when": stamp()}],
+            origin=[{"act": "extracted", "by": "loom library update", "when": stamp()}],
         )
         added += 1
         _ = key
@@ -441,7 +441,7 @@ def find_result(result: Any, target: str) -> tuple[str, str, dict[str, Result]]:
         results = load_results(root, citekey)
         if target in results:
             return citekey, target, results
-    raise LookupError(f"no result {target}; loom refs coverage names the works that have any")
+    raise LookupError(f"no result {target}; loom library search TEXT finds one by its words")
 
 
 def verify_result(
@@ -600,13 +600,13 @@ def locate_quote(text: str, quote: str) -> tuple[int, int] | None:
 
 
 def discard_result(result: Any, target: str, reason: str, author: str) -> str:
-    """Discard a proposed result with a reason, which `loom refs propose` returns to whatever proposes it again."""
+    """Discard a proposed result with a reason, which `loom library propose` returns to whatever proposes it again."""
     root = result.quilt.root
     citekey, rid, results = find_result(result, target)
     r = results[rid]
     if r.state == VERIFIED:
         raise LookupError(
-            f"{rid} is verified and in the digest; edit or remove it there, or loom refs drop --work {citekey}"
+            f"{rid} is verified and in the digest; edit or remove it there, or loom library drop --work {citekey}"
         )
     r.state = DISCARDED
     r.origin.append({"act": "discarded", "by": author, "when": stamp()})
