@@ -18,7 +18,7 @@ from loom.refs.fetch import FetchRefused, work_dir
 from loom.refs.identity import WorkId, declared, primary
 from loom.refs.ingest import TOP_LINES, _title_span, filename_title, identifiers_in, identify_document
 from loom.refs.pages import STORAGE, page_texts, sha256_of, storage_root, write_map
-from loom.refs.unreadable import declarations
+from loom.refs.unreadable import declarations, set_aside_documents
 from loom.scan.bib import BIBLIOGRAPHY, BibEntry, parse_bib, raw_entries
 from loom.scan.quilt import Quilt
 from loom.scan.scan import landmark_documents
@@ -140,9 +140,10 @@ class ScanReport:
                 problem=True,
             ),
             Group(
-                f"entries naming one document: keep one and delete the others from {BIBLIOGRAPHY}",
+                "entries naming one document",
                 [Item(_shown(came), key=", ".join(keys)) for came, keys in self.duplicates],
                 problem=True,
+                next="loom library ignore DUP --why '…' sets the copy aside, for each entry but the one you keep",
             ),
             Group("new entries", [Item(origin(c), key=c.key) for c in sorted(self.added, key=lambda c: c.key.lower())]),
             Group(
@@ -321,6 +322,17 @@ def _named_bibs(root: Path, text: str) -> tuple[list[Path], list[str]]:
     return found, absent
 
 
+def bib_file(quilt: Quilt) -> str:
+    """The first `.bib` a landmark names, quilt-relative, else one in the seed space: the file the author adds an entry to; '' when there is none."""
+    root = quilt.root
+    for rel in landmark_documents(quilt):
+        found, _absent = _named_bibs(root, (root / rel).read_text(encoding="utf-8", errors="replace"))
+        if found:
+            return found[0].relative_to(root).as_posix()
+    seeds = sorted((root / SEED).glob("*.bib")) if (root / SEED).is_dir() else []
+    return seeds[0].relative_to(root).as_posix() if seeds else ""
+
+
 def candidates(quilt: Quilt, report: ScanReport) -> dict[str, Candidate]:
     """Every entry the landmarks carry, first source winning; a second source disagreeing is a conflict."""
     root = quilt.root
@@ -407,7 +419,7 @@ def scan_bibliography(quilt: Quilt, *, write: bool = True) -> ScanReport:
     report.added += orphans
     if write:
         _append(path, orphans)
-    report.duplicates = _duplicates(existing)
+    report.duplicates = _duplicates(existing, set(declarations(quilt.root, "forget")))
     return report
 
 
@@ -494,11 +506,16 @@ def stored_versions(root: Path, bib: dict[str, BibEntry], top: str) -> list[tupl
     return out
 
 
-def _duplicates(bib: dict[str, BibEntry]) -> list[tuple[str, list[str]]]:
-    """Entries that name one stored document, which earlier scans offered again and again; reported, never removed, since the file is the author's to edit."""
+def _duplicates(bib: dict[str, BibEntry], aside: set[str]) -> list[tuple[str, list[str]]]:
+    """Entries that name one stored document, which earlier scans offered again and again; reported, never removed, since the file is the author's to edit.
+
+    An entry in `aside` (the citekeys `library ignore` set aside) no longer counts: setting the copy aside is how a duplicate is cleared.
+    """
     by_home: dict[str, list[str]] = {}
     came: dict[str, str] = {}
     for key, entry in bib.items():
+        if key in aside:
+            continue
         filed = str(entry.fields.get("loom-file") or "").strip()
         if filed:
             by_home.setdefault(filed, []).append(key)
@@ -652,9 +669,11 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
         wid = primary(entry)
         if wid is not None:
             claimed.add(wid.path)
-    ledger = {rec.get("to", ""): rec for rec in load_ledger(quilt.root).values() if not rec.get("duplicate-of")}
-    # What the author has deliberately deleted the entry for. Without this the offer is loom undoing their decision on every scan, which is the whole reason `loom library ignore` sets a document aside.
+    records = load_ledger(quilt.root)
+    ledger = {rec.get("to", ""): rec for rec in records.values() if not rec.get("duplicate-of")}
+    # What the author has deliberately deleted the entry for. Without this the offer is loom undoing their decision on every scan, which is the whole reason `loom library ignore` sets a document aside; the hash is what names it once its entry is gone.
     forgotten = declarations(quilt.root, "forget")
+    aside = set_aside_documents(quilt.root)
     taken = set(bib)
     offers: list[Candidate] = []
     for pdf in sorted(store.glob("*/*/paper.pdf")):
@@ -667,9 +686,12 @@ def adopt_orphans(quilt: Quilt, bib: dict[str, BibEntry], report: ScanReport) ->
         if _spaced(came) in sources:
             continue  # an entry already names this document by where it came from
         sha = sha256_of(pdf)
-        if f"sha256:{sha}" in forgotten:
+        if sha in aside:
             report.forgotten += 1
             continue
+        filed_at = str(records.get(sha, {}).get("to", "")).removeprefix(STORAGE + "/")
+        if filed_at and filed_at != f"{home.parent.name}/{home.name}" and filed_at in claimed:
+            continue  # the same bytes, filed again under the work they are and named there: a stale copy, not an orphan
         wid, said = _own_account(pdf)  # the real file, for what the document says about itself
         stem = Path(came).stem
         named = filename_title(stem)
@@ -708,6 +730,7 @@ def copy_documents(
     if not seed.is_dir():
         return []
     ledger = load_ledger(root)
+    aside = set_aside_documents(root)
     taken = set(bib)
     offers: list[Candidate] = []
     for pdf in sorted(seed.rglob("*.pdf")):
@@ -715,6 +738,9 @@ def copy_documents(
         rel = pdf.relative_to(root).as_posix()
         if sha in ledger:
             report.already += 1
+            continue
+        if sha in aside:
+            report.forgotten += 1
             continue
         ledger[sha] = {"from": rel}  # the same bytes dropped twice in one gathering are one document, offered once
         wid, said = _own_account(pdf)
@@ -806,6 +832,10 @@ class Filing:
     forced: str = ""
     #: Why no page text was written for a filed PDF.
     unmapped: str = ""
+    #: The hash of the document set aside (`library ignore`) that this one replaces at the work's home; '' when it replaces none.
+    replaces: str = ""
+    #: Why that document was set aside, carried to the claim that keeps it aside once it is replaced.
+    replaces_why: str = ""
 
 
 def plan_filing(
@@ -813,7 +843,7 @@ def plan_filing(
 ) -> Candidate | None:
     """Decide where `f` lands, filling in its home, sibling or `already`; returns the sibling entry to append, or None.
 
-    Never over a document: a copy of a version's document (`same_document`) is not filed and `record_copy_of` records it, another version goes beside the first under `<key>A`, and the same bytes already in the store, or given twice in one run, are filed once. Reads only; `file_document` writes.
+    Never over a document, unless the author set it aside (`library ignore`): then the new PDF takes its place at the work's home, even when the same bytes are filed elsewhere. Otherwise a copy of a version's document (`same_document`) is not filed and `record_copy_of` records it, another version goes beside the first under `<key>A`, and the same bytes already in the store, or given twice in one run, are filed once. Reads only; `file_document` writes.
     """
     root = quilt.root
     store = storage_root(root)
@@ -821,6 +851,14 @@ def plan_filing(
         f.already = f"the same document as {seen[f.sha]}"
         return None
     seen[f.sha] = f.path.name
+    entry = bib[f.citekey]
+    claimed = work_dir(root, entry)
+    first = claimed / "paper.pdf" if f.kind == "pdf" else claimed / "src"
+    held = first.is_file() if f.kind == "pdf" else first.is_dir() and any(first.rglob("*.tex"))
+    aside = declarations(root, "forget").get(f.citekey) if f.kind == "pdf" and held else None
+    if aside is not None and sha256_of(first) != f.sha:
+        f.home, f.replaces, f.replaces_why = claimed, aside.sha256 or sha256_of(first), aside.why
+        return None
     ledger = load_ledger(root)
     if f.kind == "pdf" and f.sha in ledger:
         rec = ledger[f.sha]
@@ -830,10 +868,6 @@ def plan_filing(
             else f"already in loom's store, filed from {rec.get('from', 'elsewhere')}"
         )
         return None
-    entry = bib[f.citekey]
-    claimed = work_dir(root, entry)
-    first = claimed / "paper.pdf" if f.kind == "pdf" else claimed / "src"
-    held = first.is_file() if f.kind == "pdf" else first.is_dir() and any(first.rglob("*.tex"))
     if not held:
         f.home = claimed
         return None
@@ -861,10 +895,17 @@ def record_copy_of(quilt: Quilt, bib: dict[str, BibEntry], f: Filing) -> None:
 
 
 def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
-    """Copy a planned filing into the store, write a PDF's page text, and record it in the copy ledger, with the override and who made it when `--force` did."""
+    """Copy a planned filing into the store, write a PDF's page text, and record it in the copy ledger, with the override and who made it when `--force` did.
+
+    A filing that replaces a set-aside document clears what was read off it (its word boxes; its page text is rewritten), keeps it set aside by its hash, and withdraws the work's own claim, since the work now holds a document wanted.
+    """
+    from loom.refs.unreadable import declare
+
     assert f.home is not None and not f.already
     root = quilt.root
     f.home.mkdir(parents=True, exist_ok=True)
+    if f.replaces:
+        shutil.rmtree(storage_root(root) / "cache" / "boxes" / f.home.parent.name / f.home.name, ignore_errors=True)
     if f.kind == "pdf":
         shutil.copy(f.path, f.home / "paper.pdf")
         try:
@@ -880,6 +921,9 @@ def file_document(quilt: Quilt, f: Filing, *, by: str = "") -> None:
             shutil.copy(f.path, dest / f.path.name)
     extra = {"forced": f.forced, "by": by} if f.forced else None
     record_copy(root, f.sha, f.source, f.home.relative_to(root).as_posix(), extra)
+    if f.replaces:
+        declare(root, "forget", f"sha256:{f.replaces}", f"set aside from {f.citekey}: {f.replaces_why}", by)
+        declare(root, "forget", f.citekey, f"replaced by {f.source}", by, undo=True)
 
 
 def append_entries(quilt: Quilt, entries: list[Candidate]) -> None:

@@ -11,7 +11,7 @@ from loom.history.steps import text_hash
 from loom.reshape.anchoring import anchoring_violations, fix_anchoring
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import scan
-from tests.helpers import json_of, ok, refused, run, templated, the
+from tests.helpers import exits, json_of, ok, refused, run, templated, the
 
 PAPER = r"""\documentclass{amsart}
 \usepackage{amsthm}
@@ -157,6 +157,20 @@ def test_import_never_overwrites_a_document(tmp_path: Path) -> None:
         match="drafting/main.tex exists; import never overwrites a document",
     )
     assert len(ledger(q)) == 1 and (q / "drafting" / "main.tex").read_text() == before
+
+
+def test_a_same_named_paper_is_imported_under_another_name_and_every_import_ends_with_its_next_step(
+    tmp_path: Path,
+) -> None:
+    """The re-grade: the refusal named no way to import a same-named paper, and a successful import ended without a next step."""
+    q = imported(tmp_path)
+    p = tmp_path / "paper"
+    r = refused("import", str(p / "main.tex"), "--yes", cwd=q, code=2, match="import never overwrites a document")
+    assert f"loom import {p / 'main.tex'} --to drafting/main-2.tex" in said(r)
+    r2 = ok("import", str(p / "main.tex"), "--to", "drafting/main-2.tex", "--yes", cwd=q)
+    assert (q / "drafting" / "main-2.tex").is_file() and "landmark main-2, step 0002" in said(r2)
+    assert r2.stdout.rstrip().splitlines()[-1].strip() == "next: loom lint; loom build"
+    refused("import", str(p / "main.tex"), "--to", "nodes/x.tex", "--yes", cwd=q, code=2, match="directly in drafting/")
 
 
 def bare_quilt(tmp_path: Path) -> Path:
@@ -450,7 +464,9 @@ def test_linearize_refuses_shared_nodes_keeps_or_forks_them(tmp_path: Path) -> N
     assert "% !LOOM shared:" in text and f"\\input{{nodes/{shared.stem}}}" in text
     ok("live", "drafting/talk.tex", cwd=q)
 
-    ok("linearize", "drafting/talk.tex", "--to", "drafting/talk-fork.tex", "--fork", "--no-check", cwd=q)
+    # the forked lemma cites the definition, which talk.tex never reached: an error its source did not have, so exit 1
+    r = exits(1, "linearize", "drafting/talk.tex", "--to", "drafting/talk-fork.tex", "--fork", "--no-check", cwd=q)
+    assert "errors drafting/talk.tex did not have (1)" in r.stdout and "which its master does not reach" in r.stdout
     flat = (q / "drafting" / "talk-fork.tex").read_text()
     assert "\\input{nodes/" not in flat and "Alpha" in flat
     new_id = flat.split("\\label{")[1].split("}")[0]
@@ -586,3 +602,33 @@ def test_import_inlines_an_arxiv_bbl_when_the_bib_is_absent(tmp_path: Path) -> N
 
     (tmp_path / "topology.bib").write_text("@book{a, title={A}}\n")
     assert inline_bbl(tmp_path, "paper.tex", text) == (text, None)  # a real .bib wins
+
+
+def test_atomize_and_linearize_say_what_they_are_doing_on_a_long_run(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """T6: 41.8 s of silence for atomize and 30.6 s for linearize on the author's quilt. A clock that moves ten seconds a reading stands in for the long run; each command names its stages on stderr."""
+    import io
+    import itertools
+
+    import loom.cli.history_cmds
+    import loom.cli.paper
+    from loom.cli.report import Progress
+
+    said: list[str] = []
+    ticks = itertools.count(0, 10)
+
+    class Slow(Progress):
+        def __init__(self, stage: str, total: int | None = None, **kw: object) -> None:
+            self.out = io.StringIO()
+            super().__init__(stage, total, stream=self.out, tty=False, clock=lambda: float(next(ticks)), ticking=False)
+
+        def __exit__(self, *exc: object) -> None:
+            super().__exit__(*exc)
+            said.append(self.out.getvalue())
+
+    monkeypatch.setattr(loom.cli.paper, "Progress", Slow)
+    monkeypatch.setattr(loom.cli.history_cmds, "Progress", Slow)
+    q = imported(tmp_path)
+    ok("atomize", "drafting/main.tex", "--to", "drafting/spine.tex", cwd=q)
+    assert "writing" in said[-1] and "identity test: compiling drafting/main.tex and drafting/spine.tex" in said[-1]
+    ok("linearize", "drafting/spine.tex", "--to", "drafting/back.tex", cwd=q)
+    assert "flattening" in said[-1] and "identity test: compiling drafting/spine.tex" in said[-1]

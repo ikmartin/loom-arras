@@ -51,7 +51,7 @@ class Item:
 class Group:
     """What repeats, written once (T2): a heading, its count, its items, and the command that clears or lists them.
 
-    `count` defaults to the number of items; give it when the items stand for more than themselves. `counted=False` leaves the count out of the heading, for a group of summary lines rather than of things (T5: a count says what it counts). `limit` cuts the text (never the JSON); None shows every item, and 0 the heading alone. `problem` marks a group whose items need action, so their commands read `fix:`.
+    `count` defaults to the number of items; give it when the items stand for more than themselves. An item whose `data` carries a `count` stands for that many, and when the items' counts make up the group's, a cut counts the lines it hides rather than what they count. `counted=False` leaves the count out of the heading, for a group of summary lines rather than of things (T5: a count says what it counts). `limit` cuts the text (never the JSON); None shows every item, and 0 the heading alone. `problem` marks a group whose items need action, so their commands read `fix:`.
     """
 
     heading: str
@@ -65,6 +65,11 @@ class Group:
     @property
     def size(self) -> int:
         return self.count if self.count is not None else len(self.items)
+
+    def hidden(self, shown: int) -> int:
+        """How many the text leaves out when it shows `shown` items: of the count, unless the items are tallies that make it up."""
+        whole = self.count is None or sum(int(i.data.get("count", 0)) for i in self.items) == self.count
+        return (len(self.items) if whole else self.size) - shown
 
     def to_json(self) -> dict[str, Any]:
         out: dict[str, Any] = {"heading": self.heading, "count": self.size, "items": [i.to_json() for i in self.items]}
@@ -135,7 +140,7 @@ class Report:
                 label = "fix" if g.problem else "next"
                 for f in item.fixes:
                     out += wrap(f"{indent}  {label}: {f}", width)
-            hidden = g.size - len(shown) if g.count is not None else len(g.items) - len(shown)
+            hidden = g.hidden(len(shown))
             if hidden > 0:
                 out += wrap(f"{indent}… and {hidden} more" + (f"; {g.next}" if g.next else ""), width)
             elif g.next:

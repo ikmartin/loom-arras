@@ -13,14 +13,15 @@ from typing import Any
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, destination, note
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, destination, note, writer
 from loom.cli._quilt import open_scan, quilt_option, require_text, resolve_key
 from loom.cli.build_cmds import engine_for
 from loom.cli.diagnostics import groups as diagnostic_groups
 from loom.cli.diagnostics import has_errors, tally
+from loom.cli.diagnostics import item as diagnostic_item
 from loom.cli.help import CommandGroup
 from loom.cli.paper import bibliography_groups, identity_group, identity_said
-from loom.cli.report import Group, Item, Report, counted, table
+from loom.cli.report import Group, Item, Progress, Report, counted, table
 from loom.history.checks import verify
 from loom.history.ledger import Entry, History, Version, actor_for, append_entry, load_history
 from loom.history.steps import (
@@ -40,7 +41,7 @@ from loom.reshape.ids import unified_diff
 from loom.reshape.importer import set_main_forced
 from loom.reshape.linearize import flatten, to_canon
 from loom.scan.alloc import visible_locals
-from loom.scan.labels import next_local, split_id
+from loom.scan.labels import LABEL_DEF, next_local, rename_labels, split_id
 from loom.scan.quilt import load_quilt
 from loom.scan.scan import ScanResult, scan, skipped_dirs
 from loom.tex.assemble import shift_sectioning
@@ -80,23 +81,33 @@ def _confirm(yes: bool, what: str) -> None:
     metavar="NAME",
     help="The agent document to write, directly in the agent's drafting directory.",
 )
+@click.option(
+    "--as",
+    "declared",
+    default=None,
+    metavar="NAME",
+    help="Who drafts it; an agent names itself, including Agent or AI.",
+)
 @click.option("--dry-run", is_flag=True, help="Say what would be written, and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def draft(document: str, ai_name: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+def draft(
+    document: str, ai_name: str, declared: str | None, dry_run: bool, as_json: bool, quilt_path: str | None
+) -> None:
     """Draft an agent document NAME from a live working document: flat, in the agent's drafting directory, with every label it defines derived.
 
-    A copy step records what each of its nodes began from (book 17.7). Starting a document from an old version of one is `loom history restore`.
+    A copy step records what each of its nodes began from (book 17.7), and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. Starting a document from an old version of one is `loom history restore`.
     """
-    _draft_ai(open_scan(quilt_path), document, ai_name, dry_run, as_json)
+    _draft_ai(open_scan(quilt_path), document, ai_name, declared, dry_run, as_json)
 
 
-def _draft_ai(result: ScanResult, source: str, name: str, dry_run: bool, as_json: bool) -> None:
+def _draft_ai(result: ScanResult, source: str, name: str, declared: str | None, dry_run: bool, as_json: bool) -> None:
     """`loom draft SOURCE --ai NAME`: one agent document per working document, never over an existing file or a taken name."""
     from loom.reshape.copy import plan_copy
 
     quilt = result.quilt
     root = quilt.root
+    actor = writer(root, declared)[0] or None
     source_rel = _rel(root, source)
     role = result.document_role(source_rel)
     if role != "drafting":
@@ -152,7 +163,7 @@ def _draft_ai(result: ScanResult, source: str, name: str, dry_run: bool, as_json
         "copy",
         f"copy-{Path(dest_rel).stem}",
         plan.freeze,
-        actor_for(root),
+        actor,
         extra={"from": source_rel, "to": dest_rel, "bases": plan.bases},
         document_text=plan.source_text,
         document_name=Path(source_rel).name,
@@ -640,11 +651,28 @@ def linearize(
     quilt_path: str | None,
 ) -> None:
     """Write FILE, SPINE with every \\input, \\include and \\nest (levels shifted) expanded in place; the spine and every file it inlined are then superseded."""
+    with Progress("scanning") as progress:
+        report = _linearize(progress, spine, to, do_fork, keep_shared, no_check, dry_run, quilt_path)
+    report.emit(as_json)
+
+
+def _linearize(
+    progress: Progress,
+    spine: str,
+    to: str,
+    do_fork: bool,
+    keep_shared: bool,
+    no_check: bool,
+    dry_run: bool,
+    quilt_path: str | None,
+) -> Report:
+    """`loom linearize`'s work, its report returned for the caller to print once the progress line is gone."""
     result = open_scan(quilt_path)
     root = result.quilt.root
     spine_rel = _rel(root, spine)
     if spine_rel not in result.files:
         raise NotFoundError("file", f"{spine} is not a scanned file of this quilt")
+    progress.next_stage("flattening")
     to_rel = destination(result.quilt, to, drafting=True).relative_to(root.resolve()).as_posix()
     if do_fork and keep_shared:
         raise EnvError("--fork and --keep-shared exclude each other")
@@ -689,6 +717,7 @@ def linearize(
         import re
 
         taken: set[str] = set()
+        renames: list[tuple[set[str], str, dict[str, str]]] = []
         for f in sorted(shared):
             ids = ids_in[f]
             node = result.nodes[ids[0]] if ids else None
@@ -700,6 +729,7 @@ def linearize(
             taken.add(new_id.split("-", 1)[1])
             names = {node.id or "", *node.aliases, *node.label_offsets}
             body = _rewrite_refs(_relabel(result.files[f].text, node, node.id or "", new_id), names, new_id)
+            inner = _inner_labels(body, names | {new_id}, new_id)
             stem = f[: -len(".tex")]
             pat = re.compile(r"^([ \t]*)\\(input|nest)\{(" + re.escape(stem) + "|" + re.escape(f) + r")\}[ \t]*$", re.M)
 
@@ -708,10 +738,15 @@ def linearize(
                 return b.rstrip("\n")
 
             text = pat.sub(repl, text)
-            text = _rewrite_refs(text, names, new_id)
+            renames.append((names, new_id, inner))
             forks.append({"new": new_id, "from": {"id": node.id, "hash": file_hash(root / f)}, "file": f})
+        # once every copy is in, so a forked node's reference to another forked node follows it too
+        for names, new_id, inner in renames:
+            text = rename_labels(_rewrite_refs(text, names, new_id), inner)
+    forked = {fk["file"] for fk in forks}
+    kept = [f for f in flat.kept if f not in forked]
     superseded = [spine_rel, *[f for f in flat.inlined if f in result.files]]
-    record = {"from": spine_rel, "to": to_rel, "superseded": superseded, "forks": forks, "kept": list(flat.kept)}
+    record = {"from": spine_rel, "to": to_rel, "superseded": superseded, "forks": forks, "kept": kept}
     groups = []
     if forks:
         groups.append(
@@ -720,8 +755,8 @@ def linearize(
                 [Item(f"{fk['from']['id']} -> {fk['new']}", key=fk["file"]) for fk in forks],
             )
         )
-    if flat.kept:
-        groups.append(Group("kept as inclusions, shared with another document", [Item(f) for f in sorted(flat.kept)]))
+    if kept:
+        groups.append(Group("kept as inclusions, shared with another document", [Item(f) for f in sorted(kept)]))
     groups.append(
         Group(
             ("would be " if dry_run else "") + "superseded: each defines nothing until loom live FILE says otherwise",
@@ -731,14 +766,13 @@ def linearize(
     shape = f"{spine_rel} flat: {text.count(chr(10))} lines, {counted(len(flat.inlined), 'file')} inlined"
     main = result.quilt.config.main
     if dry_run:
-        Report(
+        return Report(
             f"would write {to_rel}, {shape}; the identity test runs when it is written",
             dry_run=True,
             lines=[f"config.toml: main = {to_rel}"] if main in superseded and main != to_rel else [],
             groups=groups,
             data={"action": "linearize", **record},
-        ).emit(as_json)
-        return
+        )
     dest = root / to_rel
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(text, encoding="utf-8")
@@ -748,6 +782,7 @@ def linearize(
         else f"not compared with it: {spine_rel} is not a document"
     )
     if not no_check and spine_rel in result.masters:
+        progress.next_stage(f"identity test: compiling {spine_rel} and {to_rel}")
         with tempfile.TemporaryDirectory(prefix="loom-identity-") as tmp:
             ident = identity_test(root, spine_rel, root, to_rel, Path(tmp), engine_for(result, spine_rel))
         if not ident.passed and not ident.skipped:
@@ -760,12 +795,36 @@ def linearize(
         checked = identity_said(ident, "it", spine_rel)
     entry = append_entry(result.quilt.history_dir, "linearize", record, actor_for(root))
     main_moved = main in superseded and set_main_forced(result.quilt, to_rel)
-    Report(
-        f"wrote {to_rel}, {shape}; {checked}",
+    progress.next_stage(f"scanning with {to_rel}")
+    had = {(d.code, d.message) for d in result.lint if d.severity == "error"}
+    brought = [d for d in scan(load_quilt(root)).lint if d.severity == "error" and (d.code, d.message) not in had]
+    if brought:
+        groups.insert(
+            0,
+            Group(
+                f"errors {spine_rel} did not have",
+                [diagnostic_item(d) for d in brought],
+                problem=True,
+                next="loom lint",
+            ),
+        )
+    return Report(
+        f"wrote {to_rel}, {shape}; {checked}"
+        + (f"; it has {counted(len(brought), 'error')} {spine_rel} did not have" if brought else ""),
+        ok=not brought,
+        exit=EXIT_CONTENT if brought else 0,
         lines=[f"config.toml: main = {to_rel}"] if main_moved else [],
         groups=groups,
-        data={**entry.to_dict(), "line": entry.line},
-    ).emit(as_json)
+        data={**entry.to_dict(), "line": entry.line, "errors": [d.to_dict() for d in brought]},
+    )
+
+
+def _inner_labels(body: str, own: set[str], new_id: str) -> dict[str, str]:
+    """Every other label a forked node's text defines, each given the new id after it (`eq:fix` -> `eq:fix-dm-0012`).
+
+    Labels are claimed quilt-wide, so a fork that kept them would define each twice while the original stays live; `own` is the node's id and aliases, which `_relabel` has already handled.
+    """
+    return {m.group(2): f"{m.group(2)}-{new_id}" for m in LABEL_DEF.finditer(body) if m.group(2) not in own}
 
 
 # ---- history ------------------------------------------------------------------
@@ -783,14 +842,34 @@ def _version_lines(result: ScanResult, history: History, key: str) -> tuple[list
 
 
 class _HistoryGroup(CommandGroup):
-    """`loom history`: a word that names no subcommand is a KEY, whose versions the hidden `_versions` command lists."""
+    """`loom history`: a word that names no subcommand is a KEY, whose versions the hidden `_versions` command lists.
+
+    Asked for help, a word that is no key either is refused with the nearest command, so a typo never gets help of its own.
+    """
 
     def resolve_command(
         self, ctx: click.Context, args: list[str]
     ) -> tuple[str | None, click.Command | None, list[str]]:
         if args and args[0] not in self.commands and not args[0].startswith("-"):
+            if any(a in ("--help", "-h") for a in args[1:]) and not _is_key(ctx, args[0]):
+                import difflib
+
+                close = difflib.get_close_matches(args[0], list(self.commands), n=1)
+                raise EnvError(
+                    f"no such command or key: {args[0]}"
+                    + (f"; did you mean {close[0]}?" if close else "; loom history --help lists the commands")
+                )
             return args[0], _versions, args[1:]
         return super().resolve_command(ctx, args)
+
+
+def _is_key(ctx: click.Context, word: str) -> bool:
+    """Whether `word` names a key of the quilt `history` runs in; False outside a quilt."""
+    try:
+        resolve_key(open_scan(ctx.params.get("quilt_path")), word)
+    except click.ClickException:
+        return False
+    return True
 
 
 def _inherited(quilt_path: str | None, as_json: bool) -> tuple[str | None, bool]:
@@ -846,10 +925,24 @@ def _versions(as_json: bool, quilt_path: str | None) -> None:
     k = resolve_key(result, key)
     versions, match, head_hash = _version_lines(result, hist, k)
     head = ""
+    groups = []
     if head_hash:
         head = f"; its text now is that of @{match.step}" if match else "; its text now differs from every version"
+        if versions and not match:
+            last = versions[-1].step
+            groups.append(
+                Group(
+                    "to make its text a version again",
+                    [
+                        Item("record the text now as a new version", fixes=['loom stamp -m "…"']),
+                        Item(f"or put the text of @{last} back", fixes=[f"loom revert {k}@{last}"]),
+                    ],
+                    counted=False,
+                )
+            )
     Report(
         f"{k} has {counted(len(versions), 'recorded version')}{head}" if versions else f"{k} has no recorded version",
+        groups=groups,
         lines=table((f"{k}@{v.step}", v.name, f"of {v.of}" if v.of else "") for v in versions),
         data={
             "key": k,

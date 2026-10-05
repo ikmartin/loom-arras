@@ -1,0 +1,2 @@
+2026-09-15T10:00:00Z  loom library relate Bellamy19-thm-3.2 Arden24-thm-3.1 --kind depends-on --why 'Bellamy'"'"'s counting theorem needs the polytope to be full-dimensional, and its dimension is Arden'"'"'s rank.' --as 'Survey Agent'
+2026-09-15T10:00:00Z  loom library relate Bellamy19-thm-2.3 Bellamy19-thm-3.2 --kind specialises --why '2.3 is the polytope; 3.2 counts its lattice points. The second is the one this quilt cites.' --as 'Survey Agent'

@@ -8,11 +8,11 @@ from typing import Any
 
 import click
 
-from loom.cli._common import EXIT_CONTENT, ContentError, EnvError
+from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library._works import home, logged, one_work, present
 from loom.cli.library.read import no_pages, page_range
-from loom.cli.report import Group, Item, Report
+from loom.cli.report import Group, Item, Report, counted
 from loom.clock import stamp
 
 #: A statement that brings its own environment or label: loom writes those itself.
@@ -42,6 +42,13 @@ WRAPPER = re.compile(
 @click.option("--level", type=click.Choice(["1", "3"]), default="3", show_default=True, help="1 is a main result.")
 @click.option("--supersedes", default=None, metavar="ID", help="Re-propose something discarded, recording the chain.")
 @click.option(
+    "--as",
+    "as_name",
+    default=None,
+    metavar="NAME",
+    help="Who proposes it; an agent names itself, with Agent or AI in the name.",
+)
+@click.option(
     "--session", "run_dir", default=None, envvar="LOOM_SESSION", metavar="SESSION", help="The session proposing this."
 )
 @click.option("--dry-run", is_flag=True, help="Check the quotation and say what would be proposed, storing nothing.")
@@ -58,6 +65,7 @@ def propose_command(
     number: str,
     level: str,
     supersedes: str | None,
+    as_name: str | None,
     run_dir: str | None,
     dry_run: bool,
     as_json: bool,
@@ -67,7 +75,9 @@ def propose_command(
 
     The only write an agent makes to the library's results. SOURCE-TEXT must appear on PAGE — whitespace, hyphenation across lines and ligatures are normalised, nothing else is — and on failure nothing is stored and the page's text is printed so the quotation can be corrected in the same turn. For a work with a LaTeX source, quote the source with --source-file instead: the mathematics is there, and in a PDF's text layer it is often control bytes. A proposal lands in `digests/CITEKEY.proposed.tex`, which no bundle inputs, and waits there for the author to verify or discard it.
     """
-    from loom.cli._common import agent_marker
+    from loom.cli._common import agent_marker, whoever
+    from loom.cli._quilt import open_quilt
+    from loom.cli.library._works import session
     from loom.refs.pages import read_map, read_pages
     from loom.refs.proposals import (
         DISCARDED,
@@ -92,13 +102,12 @@ def propose_command(
         taxon, local_number = check_local(local, taxon)
     except ValueError as exc:
         raise ContentError(str(exc)) from exc
+    run_dir = session(open_quilt(quilt_path).root, run_dir)
     result = open_scan(quilt_path)
     root = result.quilt.root
     citekey = one_work(result, work)
     where_home = home(result, citekey)
-    if run_dir:
-        # "ai/runs/2026-...-fixed-stacks" and "2026-...-fixed-stacks" are one run; provenance showed both spellings
-        run_dir = Path(run_dir).name
+    by = whoever(root, as_name)
 
     # a discard the agent cannot see is a discard it will make again (§5.5)
     gone = discarded_locals(root, citekey)
@@ -160,7 +169,7 @@ def propose_command(
         mine = (
             bool(run_dir)
             and state_of(prior) == PROPOSED
-            and any(o.get("act") == "proposed" and Path(str(o.get("by", ""))).name == run_dir for o in prior.origin)
+            and any(o.get("act") == "proposed" and run_dir in (o.get("session"), o.get("by")) for o in prior.origin)
         )
         if supersedes and supersedes == rid and mine:
             # A run correcting its own proposal before anyone has looked at it, which touches nothing the author has decided: the record is still `proposed`. Without it a mistake could only be re-proposed under a new id, and eleven results became twenty-two to review.
@@ -191,7 +200,7 @@ def propose_command(
         level=int(level),
         cls="anchored",
         state=PROPOSED,
-        origin=[{"act": "proposed", "by": run_dir or "", "when": stamp()}],
+        origin=[{"act": "proposed", "by": by, "session": run_dir, "when": stamp()}],
         supersedes=supersedes or "",
     )
     if not dry_run:
@@ -305,8 +314,11 @@ def locate_command(work: str, text: str, page_no: int, as_json: bool, quilt_path
     result = open_scan(quilt_path)
     citekey = one_work(result, work)
     where = home(result, citekey)
-    if read_map(where) is None or not (where / "paper.pdf").is_file():
+    m = read_map(where)
+    if m is None or not (where / "paper.pdf").is_file():
         raise ContentError(f"{citekey} has no mapped PDF; {no_pages(where, citekey)}")
+    if m.pages and page_no > m.pages:
+        raise NotFoundError("page", f"{citekey} has {counted(m.pages, 'page')}; p.{page_no} is past the end")
     # The mapping the viewer previews with and `loom annotate` records, so the three cannot spell one place differently.
     placed = anchor_on_page(where, page_no, text)
     if not placed.found:

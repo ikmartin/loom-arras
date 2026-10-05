@@ -323,7 +323,8 @@ def test_entries_naming_one_stored_document_are_reported_once_with_the_fix(tmp_p
     )
     (quilt.root / BIBLIOGRAPHY).write_text(twice)
     lines = "\n".join(scan_bibliography(quilt).lines())
-    assert "entries naming one document: keep one and delete the others from digests/bibliography.bib (1)" in lines
+    assert "entries naming one document (1)" in lines
+    assert "loom library ignore DUP --why '…' sets the copy aside" in " ".join(lines.split())
     assert "  refs/Siebert.pdf  Siebert, SiebertA, SiebertB" in lines, lines
     assert sorted(k for k in parse_bib((quilt.root / BIBLIOGRAPHY).read_text()) if k.startswith("Siebert")) == [
         "Siebert",

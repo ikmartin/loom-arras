@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import shutil
 import sys
 import tempfile
@@ -15,7 +16,7 @@ import click
 from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError, destination, note
 from loom.cli._quilt import open_quilt, open_scan, quilt_option
 from loom.cli.build_cmds import engine_for, log_run
-from loom.cli.report import Group, Item, Report, counted
+from loom.cli.report import Group, Item, Progress, Report, counted
 from loom.history.ledger import actor_for, append_entry, load_history
 from loom.history.steps import FreezePlan, text_hash, write_step
 from loom.reshape.anchoring import anchoring_violations
@@ -208,9 +209,15 @@ def _document_counts(result: ScanResult, doc: str) -> list[Item]:
 
 
 def run_import(
-    quilt: Quilt, paper: Path, yes: bool, check: bool = True, fix_anchors: bool = False, dry_run: bool = False
+    quilt: Quilt,
+    paper: Path,
+    yes: bool,
+    check: bool = True,
+    fix_anchors: bool = False,
+    dry_run: bool = False,
+    to: str | None = None,
 ) -> Imported:
-    """The import of 6.1: the assets at the root, the paper as received kept as step 0001's landmark, and the working document drafted from it at once, with the identity test between them.
+    """The import of 6.1: the assets at the root, the paper as received kept as a landmark named for the working document, and that document drafted from it at once at `to` (default the paper's name in the drafting directory), with the identity test between them.
 
     Every refusal raises before anything is written; the plan is shown on stderr only when a terminal is asked to confirm it, and is in the refusal when one is not. `dry_run` stops at the plan, which needs no confirmation and writes nothing; the identity test needs the written document, so it does not run.
     """
@@ -221,9 +228,20 @@ def run_import(
     if not paper.is_file():
         raise EnvError(f"{paper} is not a file")
     root = quilt.root
-    plan = plan_import(quilt, paper)
+    dest_rel = None
+    if to is not None:
+        dest_rel = quilt_relative(quilt, destination(quilt, to, drafting=True))
+        if Path(dest_rel).parent.as_posix() != quilt.config.drafting:
+            raise EnvError(f"{to}: an imported document goes directly in {quilt.config.drafting}/")
+    plan = plan_import(quilt, paper, dest_rel)
     if plan.exists:
-        raise EnvError(f"{plan.dest_rel} exists; import never overwrites a document")
+        stem, n = Path(plan.dest_rel).stem, 2
+        while (root / quilt.config.drafting / f"{stem}-{n}.tex").exists():
+            n += 1
+        raise EnvError(
+            f"{plan.dest_rel} exists; import never overwrites a document. Import it under another name: "
+            f"loom import {shlex.quote(str(paper))} --to {quilt.config.drafting}/{stem}-{n}.tex"
+        )
     arrows = [(Path(src).relative_to(plan.paper_dir).as_posix(), dest) for dest, src in sorted(plan.assets.items())]
     from loom.tex.runner import compile_tex, stage_sources
 
@@ -295,7 +313,7 @@ def run_import(
                 )
     history = load_history(quilt.history_dir)
     original = (plan.paper_dir / plan.master_rel).read_text(encoding="utf-8", errors="replace")
-    name = slug(Path(plan.master_rel).stem)
+    name = slug(Path(plan.dest_rel).stem)
     entry = write_step(
         history,
         "import",
@@ -362,19 +380,43 @@ def run_import(
     is_flag=True,
     help="Rewrite the drafted document so every theorem-like \\begin and \\end is alone on its line.",
 )
+@click.option(
+    "--to",
+    "to",
+    default=None,
+    metavar="FILE",
+    help="The working document to draft, directly in the drafting directory (default: the paper's file name there).",
+)
 @click.option("--dry-run", is_flag=True, help="Say what the import would write, and write nothing; no identity test.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def import_command(
-    file: str, yes: bool, no_check: bool, fix_anchors: bool, dry_run: bool, as_json: bool, quilt_path: str | None
+    file: str,
+    yes: bool,
+    no_check: bool,
+    fix_anchors: bool,
+    to: str | None,
+    dry_run: bool,
+    as_json: bool,
+    quilt_path: str | None,
 ) -> None:
-    """Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark in step 0001, and the working document drafted from it at once in the drafting directory."""
+    """Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark, and the working document drafted from it at once in the drafting directory."""
     quilt = open_quilt(quilt_path)
     path = Path(file).expanduser()
     if not path.is_file():
         raise NotFoundError("file", f"{file} is not a file")
-    done = run_import(quilt, path, yes, check=not no_check, fix_anchors=fix_anchors, dry_run=dry_run)
-    Report(done.said, dry_run=dry_run, groups=done.groups, data=done.data).emit(as_json)
+    done = run_import(quilt, path, yes, check=not no_check, fix_anchors=fix_anchors, dry_run=dry_run, to=to)
+    groups = list(done.groups)
+    if not dry_run:
+        document = done.data["document"]
+        groups.append(
+            Group(
+                "",
+                [Item(f"{document} is the working document to edit; the landmark keeps the paper as received")],
+                next="loom lint; loom build",
+            )
+        )
+    Report(done.said, dry_run=dry_run, groups=groups, data=done.data).emit(as_json)
 
 
 @click.command()
@@ -431,11 +473,35 @@ def atomize(
 
     SRC is not modified; the history records that the spine superseded it, so it defines nothing until `loom live`.
     """
-    result = open_scan(quilt_path)
-    root = result.quilt.root
-    if keys:
-        _atomize_keys(result, list(keys), src, proofs, dry_run, as_json)
+    with Progress("scanning") as progress:
+        result = open_scan(quilt_path)
+        if keys:
+            report, diff = _atomize_keys(result, list(keys), src, proofs, dry_run, as_json)
+        else:
+            report, diff = _atomize(progress, result, src, to, proofs, sections, all_files, to_dir, retire, dry_run), ""
+    if as_json:
+        report.emit(True)
         return
+    report.emit()
+    if diff:
+        click.echo("")
+        click.echo(diff, nl=False)
+
+
+def _atomize(
+    progress: Progress,
+    result: ScanResult,
+    src: str | None,
+    to: str | None,
+    proofs: str,
+    sections: bool,
+    all_files: bool,
+    to_dir: str | None,
+    retire: bool,
+    dry_run: bool,
+) -> Report:
+    """`loom atomize SRC`'s work, its report returned for the caller to print once the progress line is gone."""
+    root = result.quilt.root
     if src is None:
         raise EnvError("name the file to atomize, or the nodes with --key")
     src_rel = _rel(root, src)
@@ -459,14 +525,18 @@ def atomize(
             if (root / "retired" / s_rel).exists():
                 raise EnvError(f"retired/{s_rel} exists; atomize never overwrites")
     plans = []
+    progress.next_stage("planning", len(targets))
     for s_rel, d_rel in targets:
+        progress.item(s_rel)
         plan = plan_atomize(result, s_rel, d_rel, proofs, sections)
         if plan.refusals:
             raise ContentError("\n".join(f"{s_rel}: {r}" for r in plan.refusals))
         plans.append(plan)
     wrote: list[Item] = []
     unlabelled: list[Group] = []
+    progress.next_stage("writing" if not dry_run else "checking", len(plans))
     for plan in plans:
+        progress.item(plan.dest)
         if dry_run:
             taken = [m.target for m in plan.moves if (root / m.target).exists()]
             if taken:
@@ -511,6 +581,7 @@ def atomize(
     moved = sum(len(pl.moves) for pl in plans)
     ident: IdentityResult | None = None
     if not dry_run:
+        progress.next_stage(f"identity test: compiling {plan.src} and {plan.dest}")
         ident = _identity_for(result, root, plan.src, plan.dest)
         for pl in plans if retire else []:
             target_path = root / "retired" / pl.src
@@ -541,7 +612,7 @@ def atomize(
         verdict = f"would atomize {plan.src} into {plan.dest}{others}, {counted(moved, 'file')} in nodes/; the identity test runs when it is written"
     else:
         verdict = f"atomized {plan.src} into {plan.dest}{others}, {counted(moved, 'file')} in nodes/; {identity_said(ident, plan.dest, plan.src)}"
-    Report(
+    return Report(
         verdict,
         ok=not failed and not unlabelled,
         exit=EXIT_CONTENT if failed else 0,
@@ -551,13 +622,13 @@ def atomize(
             **record,
             "identity": None if ident is None else ("skipped" if ident.skipped else "pass" if ident.passed else "fail"),
         },
-    ).emit(as_json)
+    )
 
 
 def _atomize_keys(
     result: ScanResult, keys: list[str], src: str | None, proofs: str, dry_run: bool, as_json: bool
-) -> None:
-    """`atomize --key`: write the node files and print the patch for the source; with --dry-run, the plan and the patch alone.
+) -> tuple[Report, str]:
+    """`atomize --key`: write the node files; the report and the patch for the source are returned to print. With --dry-run, the plan and the patch alone.
 
     The source is never edited: the editor applies the patch (loom-lsp offers it as one workspace edit), which is what keeps undo and an unsaved buffer the author's business. The JSON carries the plan (`plan_payload`) either way.
     """
@@ -611,12 +682,7 @@ def _atomize_keys(
             groups=[Group("written", [Item(p) for p in sorted(written)], limit=None)],
             data={**plan_payload(result, plan), "diff": diff, "written": sorted(written)},
         )
-    if as_json:
-        report.emit(True)
-        return
-    report.emit()
-    click.echo("")
-    click.echo(diff, nl=False)
+    return report, diff
 
 
 def _identity_for(result: ScanResult, root: Path, src_rel: str, dest_rel: str) -> IdentityResult | None:

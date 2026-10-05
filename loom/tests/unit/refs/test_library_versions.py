@@ -210,7 +210,10 @@ def test_the_library_lists_one_row_per_work_and_search_one_hit(tmp_path: Path) -
     closed = [h for h in hits if h["locator"] == "Proposition 3.2"]
     assert [(h["work"], h["versions"]) for h in closed] == [(CK, [V])], hits
     assert f"{CK}  Proposition 3.2" in ok("library", "search", "Hausdorff closed", cwd=q).stdout
-    assert f"also in {V}" in ok("library", "search", "Hausdorff closed", cwd=q).stdout
+    assert (
+        f"also stated in another version (1)\n  1 result in {V}  {CK}"
+        in ok("library", "search", "Hausdorff closed", cwd=q).stdout
+    )
     only = json_of("library", "search", "compact", "--json", cwd=q)["hits"]
     assert [(h["work"], h["versions"]) for h in only] == [(V, [])]
     r = ok("library", "Callow", cwd=q)

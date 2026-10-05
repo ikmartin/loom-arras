@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -123,6 +125,50 @@ def git(cwd: Path, *args: str, env: dict[str, str] | None = None, input: bytes |
             detail += "\n" + run.stdout.decode("utf-8", errors="replace").strip()
         raise SyncError(f"git {' '.join(args)}: {detail or f'exited {run.returncode}'}")
     return run.stdout
+
+
+def reason(exc: SyncError) -> str:
+    """Git's own reason for a failure, one line: its last `fatal:` or `error:` line, without the prefix or the command loom ran."""
+    lines = [ln.strip() for ln in str(exc).splitlines() if ln.strip()]
+    said = [ln.split("fatal: ", 1)[1] for ln in lines if "fatal: " in ln] or [
+        ln.split("error: ", 1)[1] for ln in lines if "error: " in ln
+    ]
+    return (said[-1] if said else lines[-1] if lines else str(exc)).rstrip(".")
+
+
+def place(url: str, base: Path) -> str:
+    """A workspace URL or path as a key that compares equal however it is spelled: a path resolved against `base`, a URL as its host and path; no scheme, user, port, trailing `/` or `.git`."""
+    u = url.strip().removeprefix("file://")
+    m = re.match(r"^[A-Za-z][A-Za-z0-9+.-]*://(?:[^@/]*@)?([^/:]+)(?::\d+)?(/.*)?$", u)
+    if m is None and not u.startswith((".", "/", "~")):
+        m = re.match(r"^(?:[^@/]+@)?([^/:]+):(.*)$", u)  # scp-style, `git@host:path`
+    if m is not None:
+        key = f"{m.group(1).lower()}/{(m.group(2) or '').lstrip('/')}"
+    else:
+        p = Path(u).expanduser()
+        key = str((p if p.is_absolute() else base / p).resolve())
+    return key.rstrip("/").removesuffix(".git")
+
+
+def own_remotes(root: Path) -> dict[str, str]:
+    """`{place: remote name}` for every fetch and push URL of the repository the quilt sits in, if it sits in one; read with `git config`, which changes nothing there."""
+
+    def ask(*args: str) -> str:
+        try:
+            run = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
+        except FileNotFoundError:
+            return ""
+        return run.stdout if run.returncode == 0 else ""
+
+    top = ask("rev-parse", "--show-toplevel").strip()
+    if not top:
+        return {}
+    out: dict[str, str] = {}
+    for line in ask("config", "--get-regexp", r"^remote\..*\.(push)?url$").splitlines():
+        key, _, url = line.partition(" ")
+        if url:
+            out.setdefault(place(url, Path(top)), key.split(".")[1])
+    return out
 
 
 def workspace(root: Path) -> Path:
@@ -267,8 +313,17 @@ def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool =
     root = quilt.root
     if published_main and (Path(published_main).is_absolute() or ".." in Path(published_main).parts):
         raise SyncError("the document workspace main path must stay within the project")
+    remote = own_remotes(root).get(place(url, root))
+    if remote is not None:
+        raise SyncError(
+            f"{url} is `{remote}`, a remote of the repository this quilt is in: the quilt's own upstream, which a publish "
+            "would replace with the documents' sources; give the workspace's own URL (an Overleaf project's is under Menu, Git)"
+        )
     if not write:
-        said = git(root, "ls-remote", "--symref", url, "HEAD").decode().splitlines()
+        try:
+            said = git(root, "ls-remote", "--symref", url, "HEAD").decode().splitlines()
+        except SyncError as exc:
+            raise SyncError(f"cannot reach {url}: {reason(exc)}") from exc
         heads = [line.split("\t")[0] for line in said if line.startswith("ref: ")]
         tips = [line.split("\t")[0] for line in said if not line.startswith("ref: ") and line.strip()]
         if not tips:
@@ -285,7 +340,10 @@ def configure(quilt: Quilt, url: str, published_main: str = "", *, write: bool =
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="workspace-", dir=target.parent) as temporary:
         clone = Path(temporary) / "clone"
-        git(root, "clone", "--quiet", "--no-tags", url, str(clone))
+        try:
+            git(root, "clone", "--quiet", "--no-tags", url, str(clone))
+        except SyncError as exc:
+            raise SyncError(f"cannot reach {url}: {reason(exc)}") from exc
         try:
             tip = revision(clone, "HEAD")
         except SyncError as exc:
@@ -333,17 +391,35 @@ def push_publication(quilt: Quilt, state: SyncState, commit: str) -> None:
     """Send the prepared revision from loom's clone to the workspace, never forced."""
     if not commit or commit != state.prepared:
         raise SyncError("publication does not match the prepared revision")
+    clone = workspace(quilt.root)
+    label = source_label(state.url)
     try:
-        git(workspace(quilt.root), "push", "--porcelain", "origin", f"{commit}:refs/heads/{state.branch}")
-    except SyncError as exc:
-        outcome = (
-            "Publication rejected"
-            if "[rejected]" in str(exc) or "[remote rejected]" in str(exc)
-            else "Publication was not confirmed"
-        )
+        held = tomllib.loads(git(clone, "show", f"{commit}^:config.toml").decode("utf-8", errors="replace"))
+    except (SyncError, tomllib.TOMLDecodeError):
+        held = {}
+    if isinstance(held.get("quilt"), dict):
         raise SyncError(
-            f"{outcome}: {exc}. The prepared revision is kept; "
-            "run `loom sync fetch` to reconcile the workspace before publishing again, since a transport failure can leave the outcome uncertain."
+            f"{label} holds a config.toml with a [quilt] table: it is a quilt's repository, not a document workspace, "
+            "and publishing would replace that quilt with the documents' sources; nothing was pushed. "
+            "Pair with the workspace's own URL: loom sync init URL"
+        )
+    try:
+        git(clone, "push", "--porcelain", "origin", f"{commit}:refs/heads/{state.branch}")
+    except SyncError as exc:
+        said = str(exc)
+        if "[rejected]" in said:
+            raise SyncError(
+                f"{label} has moved since the last fetch, so it refused the publication; run `loom sync fetch`, "
+                "incorporate what it brings, then publish again. The prepared revision is kept."
+            ) from exc
+        refused = re.search(r"\[remote rejected\] \((.*)\)", said)
+        if refused:
+            raise SyncError(
+                f"{label} refused the publication: {refused.group(1)}. The prepared revision is kept."
+            ) from exc
+        raise SyncError(
+            f"the publication to {label} was not confirmed: {reason(exc)}, which leaves the outcome uncertain. "
+            "The prepared revision is kept; `loom sync fetch` shows whether it arrived."
         ) from exc
     _recognize_publication(state)
     try:

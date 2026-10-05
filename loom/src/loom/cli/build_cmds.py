@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -182,6 +184,74 @@ def substitution_for(result: ScanResult, key: str, with_file: str) -> str:
         raise ContentError(f"--with {with_file}: {exc}") from exc
 
 
+#: A file TeX opens, as its log shows it: `(` then a path with an extension.
+_OPENED = re.compile(r"\(([^\s()]+\.[A-Za-z]+)")
+#: The line TeX stopped at, after an error: `l.12 <the text up to the point>`.
+_STOPPED = re.compile(r"^l\.(\d+) (.*)$", re.M)
+_MACRO = re.compile(r"\\(?:[A-Za-z@]+|.)")
+
+
+def error_place(res: CompileResult, root: Path) -> dict[str, Any] | None:
+    """Where the log's first error is: the file TeX had open, the line it stopped at, and for an undefined control sequence the macro.
+
+    Read from the log, whose `(file` and `)` mark what TeX opened and closed; a log that says less gives None, or the fields it does say.
+    """
+    if res.log is None or not res.errors:
+        return None
+    try:
+        text = res.log.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    at = text.find(res.errors[0])
+    if at < 0:
+        return None
+    stack: list[str | None] = []
+    i = 0
+    while i < at:
+        c = text[i]
+        if c == "(":
+            m = _OPENED.match(text, i)
+            stack.append(m.group(1) if m else None)
+        elif c == ")" and stack:
+            stack.pop()
+        i += 1
+    opened = next((f for f in reversed(stack) if f and f.endswith(".tex")), None)
+    out: dict[str, Any] = {"file": None, "line": None, "macro": None}
+    if opened:
+        p = Path(opened)
+        rel = (
+            p.resolve().relative_to(root.resolve())
+            if p.is_absolute() and p.resolve().is_relative_to(root.resolve())
+            else p
+        )
+        out["file"] = rel.as_posix().removeprefix("./")
+    stopped = _STOPPED.search(text, at)
+    if stopped is not None and text.count("\n", at, stopped.start()) <= 8:
+        out["line"] = int(stopped.group(1))
+        if "Undefined control sequence" in res.errors[0]:
+            macros = _MACRO.findall(stopped.group(2))
+            out["macro"] = macros[-1] if macros else None
+    return out if any(out.values()) else None
+
+
+def failure(res: CompileResult, root: Path) -> tuple[str, dict[str, Any] | None, str | None]:
+    """(the first error with its macro and place, the place as data, the log's quilt-relative path): what a failed compile says, in `compile` and `check` alike."""
+    place = error_place(res, root)
+    said = res.first_error.rstrip(".")
+    if place:
+        said += f" {place['macro']}" if place["macro"] else ""
+        where = f"{place['file']}:{place['line']}" if place["file"] and place["line"] else place["file"] or ""
+        said += f" at {where}" if where else ""
+    log = None
+    if res.log is not None:
+        log = (
+            res.log.resolve().relative_to(root.resolve()).as_posix()
+            if res.log.resolve().is_relative_to(root.resolve())
+            else str(res.log)
+        )
+    return said, place, log
+
+
 def compile_report(res: CompileResult, label: str, root: Path, missing: list[Diagnostic] | None = None) -> Report:
     """The outcome of one compile, as `loom compile` reports it: exit 0 when it produced a PDF, whether or not the log carried warnings.
 
@@ -189,7 +259,7 @@ def compile_report(res: CompileResult, label: str, root: Path, missing: list[Dia
     """
     state = res.usable
     where = f"{res.outdir.relative_to(root).as_posix()}/"
-    data = {
+    data: dict[str, Any] = {
         "target": label,
         "state": state,
         "engine": res.engine,
@@ -208,14 +278,29 @@ def compile_report(res: CompileResult, label: str, root: Path, missing: list[Dia
         )
     # a missing package is a digest's, so it is listed in full here rather than summarised as a cited work's
     groups = diagnostic_groups(missing or [], None)
+    said, place, log = failure(res, root)
+    data.update(error_at=place, log=log)
     named = (
         f"; {counted(len({tuple(d.keys) for d in missing}), 'digest')} it includes requires a package that is missing"
         if missing
         else ""
     )
     return Report(
-        f"{label} did not compile: {res.first_error}{named}", ok=False, exit=EXIT_CONTENT, groups=groups, data=data
+        f"{label} did not compile: {said}{named}",
+        ok=False,
+        exit=EXIT_CONTENT,
+        lines=[f"the log: {log}"] if log else [],
+        groups=groups,
+        data=data,
     )
+
+
+def _failed(res: CompileResult, root: Path, bad: bool) -> dict[str, Any]:
+    """A `check` row's error fields: the error as `failure` says it, its place and the log; `error` None alone when it compiled."""
+    if not bad:
+        return {"error": None}
+    said, place, log = failure(res, root)
+    return {"error": said + (f"; the log: {log}" if log else ""), "error_at": place, "log": log}
 
 
 def missing_packages(result: ScanResult, keys: list[str]) -> list[Diagnostic]:
@@ -240,24 +325,27 @@ def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
 
     `loom lint` is the same check without LaTeX.
     """
-    from loom.cli.lint_cmd import all_diagnostics
+    from loom.cli import lint_cmd
 
-    result = open_scan(quilt_path)
-    root = result.quilt.root
-    diags = all_diagnostics(result)
     documents: list[dict[str, object]] = []
     compiled: list[dict[str, object]] = []
-    keys = (
-        [k for k, n in result.nodes.items() if n.kind == "environment" and n.digest is None]
-        if closures == "all"
-        else []
-    )
-    with Progress("compiling", len(result.masters) + len(keys)) as p:
+    # one progress line from the start: the scan and the lint before the first compile are the slow part on a large quilt
+    with Progress("reading the quilt") as p:
+        result = open_scan(quilt_path)
+        root = result.quilt.root
+        p.next_stage("linting")
+        diags = lint_cmd.all_diagnostics(result)
+        keys = (
+            [k for k, n in result.nodes.items() if n.kind == "environment" and n.digest is None]
+            if closures == "all"
+            else []
+        )
+        p.next_stage("compiling", len(result.masters) + len(keys))
         for master in result.masters:
             p.item(master)
             res = compile_tex(root, master, root / "build" / Path(master).stem, engine_for(result, master))
             bad = res.usable == "failed"
-            documents.append({"document": master, "ok": not bad, "error": res.first_error if bad else None})
+            documents.append({"document": master, "ok": not bad, **_failed(res, root, bad)})
         for key in keys:
             p.item(key)
             b = build_bundle(result, key)
@@ -269,7 +357,7 @@ def check(closures: str, as_json: bool, quilt_path: str | None) -> None:
                 engine_for(result, result.default_master or result.masters[0]),
             )
             bad = res.usable == "failed"
-            compiled.append({"key": key, "ok": not bad, "error": res.first_error if bad else None})
+            compiled.append({"key": key, "ok": not bad, **_failed(res, root, bad)})
     failed_docs = [d for d in documents if not d["ok"]]
     failed_closures = [c for c in compiled if not c["ok"]]
     failed = has_errors(diags, result) or bool(failed_docs) or bool(failed_closures)

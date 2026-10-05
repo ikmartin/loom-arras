@@ -193,6 +193,10 @@ def close_command(
     here = active(root)
     s = find_session(root, which)
     data = {"session": s.id, "title": s.title, "was_active": s.id == here}
+    if s.state == "closed":
+        Report(f'{s.id} is already closed: "{s.title}"; nothing recorded', data={**data, "closed": False}).emit(as_json)
+        return
+    data["closed"] = not dry_run
     if dry_run:
         Report(
             f'would close {s.id} "{s.title}"' + ("; no session would be active" if s.id == here else ""),

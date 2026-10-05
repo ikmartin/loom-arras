@@ -253,7 +253,7 @@ def ignore(
             raise ContentError(f"{_shown(key)} is already {_STATE[kind]} ({held.why}); --undo withdraws it")
     who = _who(root, as_name)
     if not dry_run:
-        declare(root, kind, key, why, who, undo=undo)
+        declare(root, kind, key, why, who, undo=undo, sha256=_document_sha(result, key) if kind == "forget" else "")
     if undo:
         said = (
             f"{_shown(key)} is offered again" if kind == "forget" else f"{_shown(key)} is no longer declared unreadable"
@@ -294,6 +294,16 @@ def _ignore_key(result: ScanResult, work: str) -> tuple[str, bool]:
         return f"sha256:{hits[0]}", True
     home = _works.home(result, ck)
     return ck, (home / "paper.pdf").is_file() or (home / "src").is_dir()
+
+
+def _document_sha(result: ScanResult, key: str) -> str:
+    """The hash of the PDF a work's store holds, which the set-aside claim carries so it still names the document once the entry is deleted; '' for a hash key or a source alone."""
+    from loom.refs.pages import sha256_of
+
+    if key.startswith("sha256:") or key not in result.bib:
+        return ""
+    pdf = _works.home(result, key) / "paper.pdf"
+    return sha256_of(pdf) if pdf.is_file() else ""
 
 
 def _shown(key: str) -> str:

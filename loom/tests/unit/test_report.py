@@ -126,3 +126,21 @@ def test_progress_follows_a_builds_stages_and_counts() -> None:
     lines = out.getvalue().splitlines()
     assert "rendering  2/3  dm-0002  0:05" in lines
     assert lines[-1] == "publishing  0:05"
+
+
+def test_a_group_of_tallies_cuts_by_its_lines_and_a_sample_by_its_count() -> None:
+    """T5: lines that each count part of the group (as the cited works' group in `build`, `check` and `lint` does) already stand for its count, so nothing is "more"; lines that are a sample of the count leave the rest to say."""
+    tallies = Group(
+        "in cited works",
+        [Item(f"{n} errors  code-{n}", data={"count": n}) for n in (100, 10, 4, 1)],
+        count=115,
+        limit=None,
+        next="loom lint --json",
+    )
+    lines = Report("1 error", groups=[tallies]).render().split("\n")
+    assert lines[2] == "in cited works (115)" and not any("more" in ln for ln in lines), lines
+    assert lines[-1] == "  next: loom lint --json"
+    cut = Report("1 error", groups=[Group(**{**tallies.__dict__, "limit": 3})]).render().split("\n")
+    assert cut[-1] == "  … and 1 more; loom lint --json", cut
+    sample = Group("best match first", [Item(f"hit {n}") for n in range(5)], count=50, limit=None, next="more")
+    assert Report("50 results", groups=[sample]).render().split("\n")[-1] == "  … and 45 more; more"

@@ -1,7 +1,7 @@
 # Mode: draft
 
 ## Before you begin
-- Write only under your session's directory, unless the author asks you to draft into an agent document in `drafting-ai/`: then run `loom ai drafts` first, make one with `loom draft DOC --ai NAME` if there is none, and write the node there, its id with the `-ai` suffix. Never edit the author's source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
+- Write only under your session's directory, unless the author asks you to draft into an agent document in `drafting-ai/`: then run `loom ai drafts` first, make one with `loom draft DOC --ai NAME --as "Draft Agent"` if there is none, and write the node there, its id with the `-ai` suffix. Never edit the author's source. Never run `loom accept`: a drafted node is previewed by the author and pasted by them, with an id from `loom id --next`.
 - Read `ai/rules.md` once this session.
 
 ## Purpose

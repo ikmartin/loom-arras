@@ -1,6 +1,6 @@
 """`loom ai init` and `loom upgrade` (book 11.2, 11.3, 11.8, 11.12): the `ai/` directory, the vendor files, and their refresh.
 
-Mode files are the author's once written: `.loom-modes-version` records the shipped hash of each, so upgrade overwrites only files still equal to what it shipped and writes `<mode>.md.new` beside an edited one.
+Mode files are the author's once written: `.loom-modes-version` records the shipped hash of each, so upgrade overwrites only files still equal to what it shipped and writes `<mode>.md.new` beside an edited one. The record holds `loom.sty`'s too, which upgrade always replaces, keeping an edited one as `loom.sty.old` (`refresh_sty`).
 """
 
 from __future__ import annotations
@@ -58,12 +58,62 @@ AGENT_READONLY_FILES = (
     ".loom/sessions/index.jsonl",
 )
 
+#: The style file at every quilt's root: loom's, so always replaced by upgrade, and its shipped hash recorded with the mode files'.
+STY = "loom.sty"
+
 CLAUDE_LINE = "This directory is a quilt managed by loom. Before doing anything, run `loom ai orient` and follow it. Write only under your session's directory in `.loom/sessions/`, and in the documents `loom ai orient` names as yours to edit."
 VERSION_FILE = ".loom-modes-version"
 
 
 def _asset(*parts: str) -> str:
     return resources.files("loom").joinpath("assets", "ai", *parts).read_text(encoding="utf-8")
+
+
+def shipped_sty() -> str:
+    """The `loom.sty` this loom ships."""
+    return resources.files("loom").joinpath("assets", STY).read_text(encoding="utf-8")
+
+
+def record_version(root: Path, name: str, text: str) -> None:
+    """Set one file's shipped hash in `ai/.loom-modes-version`, leaving the others; nothing without an `ai/`."""
+    if not (root / "ai").is_dir():
+        return
+    versions = {**read_versions(root), name: sha(text)}
+    (root / "ai" / VERSION_FILE).write_text(
+        "\n".join(f"{k} {v}" for k, v in sorted(versions.items())) + "\n", encoding="utf-8"
+    )
+
+
+def refresh_sty(root: Path, write: bool = True) -> tuple[str, str]:
+    """Make the quilt's `loom.sty` the shipped one; (outcome, where the one replaced is kept, or '').
+
+    The outcome is `unchanged`, `written` (missing, or as loom wrote it), `edited` (kept first), or `unknown` (different, and no record says loom wrote it: kept first too). The old one goes to `loom.sty.old`, or `loom.sty.old.N` when an earlier one with other text is there. With `write` false nothing is written and the result is what upgrade would do.
+    """
+    shipped = shipped_sty()
+    p = root / STY
+    current = p.read_text(encoding="utf-8") if p.is_file() else None
+    recorded = read_versions(root).get(STY)
+    if current == shipped:
+        outcome = "unchanged"
+    elif current is None or recorded == sha(current):
+        outcome = "written"
+    else:
+        outcome = "edited" if recorded else "unknown"
+    old = ""
+    if current is not None and outcome in ("edited", "unknown"):
+        n, spare = 0, p.with_name(STY + ".old")
+        while spare.is_file() and spare.read_text(encoding="utf-8") != current:
+            n += 1
+            spare = p.with_name(f"{STY}.old.{n}")
+        old = spare.name
+        if write:
+            spare.write_text(current, encoding="utf-8")
+    if write:
+        if outcome != "unchanged":
+            p.write_text(shipped, encoding="utf-8")
+        if recorded != sha(shipped):
+            record_version(root, STY, shipped)
+    return outcome, old
 
 
 def command_tree() -> list[str]:
@@ -266,7 +316,11 @@ def init_layer(root: Path, skills: bool = False) -> LayerReport:
     for name in ("README.md",):
         (ai / name).write_text(_asset(name), encoding="utf-8")
         rep.written.append(f"ai/{name}")
-    write_versions(root, texts)
+    sty = root / STY
+    write_versions(
+        root,
+        {**texts, STY: shipped_sty()} if sty.is_file() and sty.read_text(encoding="utf-8") == shipped_sty() else texts,
+    )
     rep.written.append(f"ai/{VERSION_FILE}")
     for rel, text in vendor_files(quilt_config(root), True, skills, True).items():
         p = root / rel
@@ -310,12 +364,15 @@ def upgrade_layer(root: Path, write: bool = True) -> LayerReport:
                 p.with_name(name + ".new").write_text(shipped, encoding="utf-8")
             rep.kept.append(rel)
             rep.new_beside.append(rel + ".new")
-    names = {Path(rel).name for rel in texts}
+    names = {Path(rel).name for rel in texts} | {STY}
     new_versions = {name: h for name, h in recorded.items() if name in names}
     for rel, shipped in texts.items():
         if rel in rep.kept:
             continue  # the record keeps the hash of what was shipped last time, so a later upgrade still sees the edit
         new_versions[Path(rel).name] = sha(shipped)
+    sty = root / STY
+    if STY not in new_versions and sty.is_file() and sty.read_text(encoding="utf-8") == shipped_sty():
+        new_versions[STY] = sha(shipped_sty())  # loom's own, so an edit from here on is known as one
     if write:
         (ai / VERSION_FILE).write_text(
             "\n".join(f"{k} {v}" for k, v in sorted(new_versions.items())) + "\n", encoding="utf-8"

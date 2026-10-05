@@ -64,7 +64,7 @@ def find_session(root: Path, which: str | None, *, deleted: bool = False):  # ty
         standing = sessions(root)
         if here and here in standing:
             return standing[here]
-        raise EnvError('no session is active; loom session new "a name" opens one')
+        raise EnvError('no session is active; loom session new --name "a name" opens one')
     try:
         return resolve(root, which, deleted=deleted)
     except SessionNotFound as exc:

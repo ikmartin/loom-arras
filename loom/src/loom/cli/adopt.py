@@ -10,7 +10,7 @@ import click
 
 from loom.cli._common import EnvError, agent_marker
 from loom.cli._quilt import open_scan, quilt_option
-from loom.cli.report import Report, counted
+from loom.cli.report import Progress, Report, counted
 from loom.scan.quilt import NoAuthorError
 from loom.sync import SyncError
 
@@ -54,16 +54,24 @@ def adopt(
         raise EnvError("--document-only cannot be combined with node keys")
     if incorporate and (keys or document_changes or document_only or output):
         raise EnvError("--incorporate applies the saved preview; change selections by preparing a new preview")
-    result = open_scan(quilt_path)
-    target = destination(result.quilt, output) if output else None
     try:
+        with Progress("scanning") as progress:
+            result = open_scan(quilt_path)
+            target = destination(result.quilt, output) if output else None
+            if incorporate:
+                progress.next_stage("checking the preview against the quilt")
+                answer = apply(result, document, incorporate)
+            else:
+                preview = prepare(
+                    result,
+                    document,
+                    [] if document_only else list(keys) if keys else None,
+                    document_changes or document_only,
+                    stage=progress.next_stage,
+                )
         if incorporate:
-            answer = apply(result, document, incorporate)
             Report(answer["message"], data=answer).emit(as_json)
             return
-        preview = prepare(
-            result, document, [] if document_only else list(keys) if keys else None, document_changes or document_only
-        )
         if target is not None:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(preview["patch"], encoding="utf-8")

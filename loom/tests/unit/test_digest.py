@@ -248,8 +248,10 @@ def test_build_runs_with_the_network_off_and_says_how_to_turn_each_step_on(tmp_p
     """`loom library update` is usable in a quilt that has opted into nothing: it says so, still does the local steps, and names the two things a machine cannot do. `[library] online` is false in a new quilt's config, so a run that could fetch or look up says which line to change and which flag does it for one run (DR-193)."""
     q = demo(tmp_path)
     r = ok("library", "update", cwd=q)
-    assert r.output.count("(offline)") == 2, "both network steps say they were off"
-    assert "left for you and for an agent" in r.output and "need you, 0 an agent" in r.output
+    assert "nothing looked up: offline" in r.output and "nothing fetched: offline" in r.output, (
+        "both network steps say they were off"
+    )
+    assert "0 need you, 0 an agent" in r.output.splitlines()[0], "library's counts: the demo's needy works are uncited"
     assert "could be looked up" in r.output and "could be fetched" in r.output
     said = " ".join(r.stdout.split())
     assert "next: loom library update --online, or set online = true under [library] in config.toml" in said
@@ -297,8 +299,9 @@ def test_the_build_report_lists_every_blocked_work_under_what_would_unblock_it()
         resolve_off=True,
     )
     text = "\n".join(report.lines())
-    assert text.splitlines()[0] == "1 of 19 works digested, nothing new this run; 18 blocked; 3 need you, 0 an agent"
-    assert text.splitlines()[1].startswith("resolved   19  entries: 3 state an arXiv id")
+    # the closing counts are `library`'s, which the command sets; a report built bare has none
+    assert text.splitlines()[0] == "1 of 19 works digested, nothing new this run; 18 blocked; 0 need you, 0 an agent"
+    assert text.splitlines()[1].startswith("looked up  0  nothing looked up: offline")
     assert f"blocked: no arXiv id to fetch a source on ({LISTED + 3})\n  Doi00" in text
     flat = " ".join(text.split())  # the cut line is long, and wraps
     assert f"Doi{LISTED - 1:02d} … and 3 more; loom library update --online looks for the preprint" in flat

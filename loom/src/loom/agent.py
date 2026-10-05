@@ -205,7 +205,7 @@ def remedy(fault: str) -> str:
     if fault.endswith(" is not on PATH"):
         return f"install {fault.removesuffix(' is not on PATH')}, or name another command in {CONFIG}"
     if fault == UNCONFIGURED:
-        return f"fill in {CONFIG} (loom ai init writes it), or set launch = false under [ai] in config.toml"
+        return f"loom ai init --agent claude (or --agent codex) fills in {CONFIG}; or set launch = false under [ai] in config.toml"
     return f"edit {CONFIG}"
 
 

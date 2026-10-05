@@ -17,6 +17,8 @@ export interface Suite {
 
 export const ARRAS = fileURLToPath(new URL('..', import.meta.url));
 export const LOOM = join(ARRAS, '../loom/.venv/bin/loom');
+/** The variables by which loom tells an agent's shell (`loom/cli/_common.AGENT_MARKERS`). */
+const AGENT_MARKERS = ['AI_AGENT', 'CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CODEX_SANDBOX', 'CURSOR_AGENT', 'GEMINI_CLI'];
 
 export type Entry = Record<string, unknown>;
 
@@ -82,7 +84,10 @@ export function reviewerEnv(suite: Suite, directory: string): NodeJS.ProcessEnv 
 	mkdirSync(config, { recursive: true });
 	const name = suite.quilt === 'synthetic' ? 'The synthetic quilt' : 'The loom showcase';
 	writeFileSync(join(config, 'config.toml'), `[author]\nname = ${JSON.stringify(name)}\n`);
-	return { ...process.env, XDG_CONFIG_HOME: directory };
+	// loom runs as the author here: an agent running the suite must not make loom refuse the author's own commands, as the Python suite's conftest arranges too
+	const env: NodeJS.ProcessEnv = { ...process.env, XDG_CONFIG_HOME: directory };
+	for (const marker of AGENT_MARKERS) delete env[marker];
+	return env;
 }
 
 async function start(suite: Suite, name: string): Promise<Running> {

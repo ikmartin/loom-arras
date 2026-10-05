@@ -49,8 +49,12 @@ def test_check_finds_a_wrong_document_an_empty_digest_a_guessed_map_and_shared_d
     r = exits(1, "library", "check", cwd=q)
     assert sorted((p, p.stat().st_mtime_ns) for p in q.rglob("*") if p.is_file()) == before
     out = r.stdout
-    assert f"documents that are another work's (1)\n  its PDF's first page carries Calloway14's title  {ck}" in out
-    assert "fix: loom library add FILE --for WORK" in out
+    said = " ".join(out.split())
+    assert (
+        f"documents that are another work's (1) it is Calloway14's: its title is the entry's and Calloway leads its byline {ck}"
+        in said
+    )
+    assert "fix: loom library ignore WORK --why '…' sets it aside, then loom library add FILE --for WORK" in said
     assert f"digests with no results recorded (1)\n  its digest records no results  {ck}" in out
     assert f"section maps that are a guess (1)\n  0 sections found in 300 pages  {ck}" in out
     assert "entries that name one document (1)\n  2 entries name one document  DupA, DupB" in out
@@ -66,7 +70,11 @@ def test_check_names_a_pdf_whose_first_page_carries_no_title_of_its_own(tmp_path
     (home / "paper.pdf").write_bytes(b"%PDF-1.4\n")
     (home / "pages" / "0001.txt").write_text("Handbook of something else entirely\nA. Editor\n")
     out = exits(1, "library", "check", ck, cwd=q).stdout
-    assert f"documents that may not be their work (1)\n  its PDF's first page does not carry its title  {ck}" in out
+    said = " ".join(out.split())
+    assert (
+        f"documents that may not be their work (1) it does not show it is the work: its title is not {ck}'s in full"
+        in said
+    )
     assert "documents that are another work's" not in out
 
 

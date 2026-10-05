@@ -672,6 +672,8 @@ def build_showcase(dest: Path) -> None:
         "2",
         "--level",
         "1",
+        "--as",
+        "Survey Agent",
         "--session",
         survey,
         "--source-text",
@@ -691,6 +693,8 @@ def build_showcase(dest: Path) -> None:
         "2",
         "--level",
         "1",
+        "--as",
+        "Survey Agent",
         "--session",
         survey,
         "--source-text",
@@ -712,6 +716,8 @@ def build_showcase(dest: Path) -> None:
         "prop-3.1",
         "--page",
         "2",
+        "--as",
+        "Survey Agent",
         "--session",
         survey,
         "--source-text",
@@ -729,6 +735,8 @@ def build_showcase(dest: Path) -> None:
         "def-4.1",
         "--page",
         "2",
+        "--as",
+        "Survey Agent",
         "--session",
         survey,
         "--source-text",
@@ -750,6 +758,8 @@ def build_showcase(dest: Path) -> None:
         "Bellamy's counting theorem needs the polytope to be full-dimensional, and its dimension is Arden's rank.",
         "--session",
         survey,
+        "--as",
+        "Survey Agent",
         agent=True,
     )
     g.run(
@@ -763,6 +773,8 @@ def build_showcase(dest: Path) -> None:
         "2.3 is the polytope; 3.2 counts its lattice points. The second is the one this quilt cites.",
         "--session",
         survey,
+        "--as",
+        "Survey Agent",
         agent=True,
     )
     # The agent's account of the run, said in the chat (plan 0.14).

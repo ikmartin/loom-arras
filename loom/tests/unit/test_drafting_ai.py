@@ -306,7 +306,7 @@ def test_an_agent_may_make_a_copy_and_never_adopt_one(tmp_path: Path) -> None:
     assert {"draft", "ai drafts", "ai refresh"} <= AGENT_COMMANDS and "adopt" not in AGENT_COMMANDS
     q = demo(tmp_path)
     before = {p: p.read_bytes() for p in (q / "drafting").rglob("*") if p.is_file()}
-    ok("draft", "drafting/main.tex", "--ai", "aidoc.tex", cwd=q, env={"CLAUDECODE": "1"})
+    ok("draft", "drafting/main.tex", "--ai", "aidoc.tex", "--as", "Copy Agent", cwd=q, env={"CLAUDECODE": "1"})
     assert (q / "drafting-ai" / "aidoc.tex").is_file()
     assert {p: p.read_bytes() for p in (q / "drafting").rglob("*") if p.is_file()} == before
     assert "aidoc.tex" in ok("ai", "drafts", cwd=q, env={"CLAUDECODE": "1"}).stdout
@@ -382,3 +382,15 @@ def test_bases_follow_adopt_and_refresh_lines_and_a_move_of_the_copy(tmp_path: P
         history.bases("drafting-ai/aidoc.tex", result.masters) == bases
     )  # the path a record wrote leads to the same copy
     assert history.copy_of("drafting-ai/agentdoc.tex", result.masters) == "drafting/main.tex"
+
+
+def test_an_agent_drafting_a_document_is_the_actor_the_history_records(tmp_path: Path) -> None:
+    """The re-grade: with `AI_AGENT=1`, `draft` recorded the author as the step's actor. An agent names itself, as it does for everything it writes, and is refused unnamed before anything is written."""
+    q = demo(tmp_path)
+    agent = {"AI_AGENT": "1"}
+    refused("draft", "drafting/main.tex", "--ai", "review", cwd=q, env=agent, code=2, match="has not said who it is")
+    assert not (q / "drafting-ai" / "review.tex").exists()
+    ok("draft", "drafting/main.tex", "--ai", "review", "--as", "Referee Agent", cwd=q, env=agent)
+    lines = (q / ".loom" / "history" / "ledger.jsonl").read_text().splitlines()
+    copy = json.loads(lines[-1])
+    assert copy["action"] == "copy" and copy["actor"] == "Referee Agent"

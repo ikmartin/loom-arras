@@ -176,7 +176,8 @@ def test_a_numbered_bibliography_is_not_a_section_list() -> None:
 def test_map_and_coverage_need_no_pdf_to_be_useful(tmp_path: Path) -> None:
     q = demo(tmp_path)
     r = ok("library", "update", "--only", "map", cwd=q)
-    assert "nothing new this run" in r.stdout.splitlines()[0] and "mapped  1  works from PDF text" in r.stdout
+    # the step's count is this run's: the shipped page text is already mapped, so nothing was
+    assert "nothing new this run" in r.stdout.splitlines()[0] and "mapped  0  works from PDF text" in r.stdout
     c = json_of("library", "--json", cwd=q)
     assert sum(1 for w in c["works"] if w["pages"]) == 1, "the shipped page text is read with no PDF"
 
@@ -278,7 +279,7 @@ def test_a_proposal_is_in_no_bundle_and_no_closure(tmp_path: Path) -> None:
 
 def test_verifying_moves_it_into_the_digest_and_records_both_parties(tmp_path: Path) -> None:
     q, ck = mapped(tmp_path)
-    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session="run:A")
+    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=new_session(q, "run A"))
     rid = f"{ck}-thm-1.1"
     r = ok("library", "verify", rid, "--statement", "Z", "--as", "isaac", "--yes", cwd=q)
     assert "faithful transcription" in r.output and "with your own rendering" in r.output
@@ -645,7 +646,7 @@ def test_the_session_is_named_the_same_way_in_every_record(tmp_path: Path) -> No
     sid = ok("session", "new", "--name", "fixed stacks", cwd=q).stdout.split()[0]
     propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "Y", session=sid)
     origin = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"][0]["origin"]
-    assert origin[0]["by"] == sid
+    assert origin[0]["session"] == sid
 
 
 def test_a_statement_that_brings_its_own_environment_is_refused(tmp_path: Path) -> None:
@@ -672,9 +673,10 @@ def test_an_agents_link_is_the_runs_never_the_authors(tmp_path: Path, monkeypatc
     a, b = f"{ck}-thm-1.1", f"{ck}-thm-4.1"
     monkeypatch.setenv("AI_AGENT", "1")
     link = ("library", "relate", a, b, "--kind", "depends-on", "--why", "w")
-    refused(*link, code=2, match="--session", cwd=q)
-    ok(*link, "--session", "2026-x", cwd=q)
-    assert read_links(q)[0].by == "2026-x"
+    # the actor, never the session it was asserted in
+    refused(*link, code=2, match="--as NAME", cwd=q)
+    ok(*link, "--as", "Reader Agent", "--session", new_session(q), cwd=q)
+    assert read_links(q)[0].by == "Reader Agent"
 
 
 def test_a_statement_over_a_page_break_is_anchored_to_both_pages(tmp_path: Path) -> None:
@@ -708,8 +710,9 @@ def test_a_statement_over_a_page_break_is_anchored_to_both_pages(tmp_path: Path)
 def test_a_run_may_correct_its_own_unverified_proposal(tmp_path: Path) -> None:
     """Unable to withdraw its own mistake, an agent re-proposed under `-clean` ids: eleven results became twenty-two."""
     q, ck = mapped(tmp_path)
-    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "first", session="R1")
-    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "second", session="R1", supersedes=f"{ck}-thm-1.1")
+    r1, r2 = new_session(q, "R1"), new_session(q, "R2")
+    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "first", session=r1)
+    propose(q, ck, "thm-1.1", 1, "Let $f$ be a DM-type morphism", "second", session=r1, supersedes=f"{ck}-thm-1.1")
     rs = json.loads((q / "digests" / f"{ck}.results.json").read_text())["results"]
     assert len(rs) == 1 and rs[0]["statement"] == "second", "the same id, corrected -- not a second proposal"
     # another run may not overwrite it: that is not a correction, it is a disagreement for the author
@@ -720,7 +723,7 @@ def test_a_run_may_correct_its_own_unverified_proposal(tmp_path: Path) -> None:
         1,
         "Let $f$ be a DM-type morphism",
         "third",
-        session="R2",
+        session=r2,
         supersedes=f"{ck}-thm-1.1",
         code=1,
         match="is already recorded",
@@ -1854,7 +1857,7 @@ def test_library_drop_removes_records_by_work_session_or_state_and_never_the_dig
     assert len(load_results(q, ck)) == 2  # the refusal dropped nothing
 
     r = ok("library", "drop", "--session", sid, "--yes", cwd=q)
-    assert r.stdout.startswith("dropped 1 record;") and list(load_results(q, ck)) == [f"{ck}-thm-4.1"]
+    assert r.stdout.startswith("dropped 1 record") and list(load_results(q, ck)) == [f"{ck}-thm-4.1"]
     ok("library", "drop", "--proposed", "--yes", cwd=q)
     assert load_results(q, ck) == {} and len(load_results(q, "Calloway14")) == 5  # extracted results stay
     ok("library", "drop", "--work", "Calloway14", "--yes", cwd=q)

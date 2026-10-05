@@ -6,8 +6,10 @@ import difflib
 import hashlib
 import json
 import re
+import shlex
 import subprocess
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -48,8 +50,15 @@ def _history(result: ScanResult) -> History:
 
 
 def _shape(result: ScanResult, document: str) -> tuple[dict[str, str], dict[str, tuple[str, int, int]], dict[str, str]]:
-    """Mask node bodies recursively, retaining independent statement and proof choices."""
-    nodes = [n for n in result.nodes.values() if document in n.reached_by and n.kind in ("environment", "proof")]
+    """Mask node bodies recursively, retaining independent statement and proof choices.
+
+    A node with no id, keyed by its file and position (`drafting/main.tex#remark:2`), stays in the skeleton as prose: its key differs between the document and its flat snapshot, so it can be offered only as a document-level change.
+    """
+    nodes = [
+        n
+        for n in result.nodes.values()
+        if document in n.reached_by and n.kind in ("environment", "proof") and "#" not in n.key
+    ]
     spans: dict[str, tuple[str, int, int]] = {}
     for n in nodes:
         text = result.files[n.file].text
@@ -359,7 +368,12 @@ def _not_offered(unknown: list[str], data: dict[str, Any], offered: dict[str, An
 
 
 def prepare(
-    result: ScanResult, copy: str, keys: list[str] | None = None, document: bool = False, reviewer: str | None = None
+    result: ScanResult,
+    copy: str,
+    keys: list[str] | None = None,
+    document: bool = False,
+    reviewer: str | None = None,
+    stage: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Pin the exact selected patch for inspection before any author-file write.
 
@@ -375,6 +389,8 @@ def prepare(
         Include proposed prose, preamble and ordering.
     reviewer : str, optional
         Reviewer identity; defaults to the local author.
+    stage : callable, optional
+        Told each stage as it begins, for a progress line (`report.Progress.next_stage`).
 
     Returns
     -------
@@ -382,6 +398,8 @@ def prepare(
         Immutable token, exact patch, paths, selection and baseline updates.
     """
     root = result.quilt.root
+    tell = stage or (lambda _: None)
+    tell(f"comparing {Path(copy).name} with the document it was drafted from")
     data = comparison(result, copy)
     who = resolve_author(reviewer, root)[0]
     offered = {row["key"]: row for row in data["changes"] if row["offered"]}
@@ -452,6 +470,7 @@ def prepare(
         target = _mapped(key, new_mapping)
         if offered[key]["proposed"] and target not in _flat_shape(result, final_text)[0]:
             raise SyncError(f"{key} has no placement in the selected document")
+    tell(f"checking {data['source']} with the selected changes")
     overlay = _project(result, data["source"], bodies, spine)
     after = scan(result.quilt, overlay=overlay)
     before_errors = {(d.code, d.message) for d in result.diagnostics + result.lint if d.severity == "error"}
@@ -808,7 +827,7 @@ def refresh(result: ScanResult, copy: str, *, write: bool = True) -> dict[str, A
                 "hash": freeze.current[base["key"]],
             }
     reconcile = (
-        f"{len(conflicts)} changed on both sides, in the working document and in the agent document: {', '.join(conflicts)}; reconcile them in your editor, then run loom ai refresh {Path(data['copy']).name} again"
+        f"{len(conflicts)} changed on both sides, in the working document and in the agent document: {', '.join(conflicts)}; reconcile them in your editor, then run loom ai refresh {shlex.quote(Path(data['copy']).name)} again"
         if conflicts
         else ""
     )

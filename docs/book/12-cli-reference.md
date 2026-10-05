@@ -23,7 +23,7 @@ Every loom command, with syntax, flags, behaviour, exit codes, and machine outpu
   - `--why TEXT` is a reason.
   - `--dry-run` shows what a writer would write and writes nothing; its verdict begins `dry run:` and its envelope carries `dry_run`. Every writer takes it. `--json` is never a dry run: it reports what was done. `adopt`'s preview is its dry run.
 - Values are checked before anything runs (K3): a value with a fixed set of answers is a choice (`compile --engine`, `ai annotations --severity/--kind/--status`), and one that must name something in the quilt (a key, a session, `status --kind/--master/--tag`, a `--prefix` that must fit the id grammar) is refused by name, exit 2, before anything prints or a session log is written.
-- No command has an alias (K1). `delete`, `rm` and `remove` are not commands; loom answers each with why it does not delete and exits 2 (7.9).
+- No command has an alias (K1). `delete`, `rm` and `remove` are not commands; loom answers each with why it does not delete and exits 2 (7.9). A command withdrawn by 0.18 is answered with its replacement (`loom review` names `loom build` and `loom status --stale`), exit 2, rather than with a guess at a near name (DR-333-ikmartin). A group given no subcommand (`loom sync`) prints its help and exits 0, as `loom` does.
 - Help (K6): `loom --help`, and `loom` alone, which exits 0, lists the commands in sections by task, the person's first — Start, Write, Review, History, Library, Agents, Publish, Upkeep — each with a line of what it is for, every command with its first sentence whole, and `*` on each command an agent may run, or some of whose subcommands it may (11.8). 12.2 lists them in the same order.
 - `--quiet` / `-q` and `--verbose` / `-v` were planned and are not implemented; diagnostics go to stderr, summaries to stdout (M7).
 - Keys are written as ids (`rl-0004`), proof keys (`rl-0004/proof`, `rl-0004/proof/2`), qualified keys (`rl-0004#eq:main`, `drafting/main.tex#section:3`), or master paths. Aliases are accepted wherever an id is and resolved. An **address** adds a step: `rl-0004@3`, or `rl-0004@paper-v2` naming the landmark instead of the number (17.4).
@@ -75,13 +75,14 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 
 `loom import [OPTIONS] FILE`
 
-Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark in step 0001, and the working document drafted from it at once in the drafting directory.
+Bring a paper into the quilt: its styles, bibliography and figures at the root, the paper as received kept as a landmark, and the working document drafted from it at once in the drafting directory.
 
 | option | description |
 |---|---|
 | `--yes`, `-y` | Import without asking for confirmation. |
 | `--no-check` | Skip the identity test. |
 | `--fix-anchoring` | Rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
+| `--to` `FILE` | The working document to draft, directly in the drafting directory (default: the paper's file name there). |
 | `--dry-run` | Say what the import would write, and write nothing; no identity test. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -134,12 +135,15 @@ Make and find nodes, and see what state each is in.
 
 Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead.
 
+The node's `% !LOOM author:` line is whoever writes it: `--as`, else the configured author; an agent that has not named itself is refused.
+
 | option | description |
 |---|---|
 | `--prefix` | Allocate under this prefix instead of [quilt] prefix. |
 | `--print` | Print the skeleton without allocating an id or writing a file. |
 | `--dry-run` | Say which id and file would be written, and write nothing. |
 | `--session` `SESSION` | Log this call to the session. |
+| `--as` `NAME` | Who writes the node; an agent names itself, including Agent or AI. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
@@ -529,7 +533,7 @@ A FILE is a PDF, a `.tex` file, or a folder: each PDF in a folder is a document,
 
 Check the library for what has gone wrong, each problem with its fix.
 
-Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.
+Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF that does not show plainly it is its work, or shows it is another's, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.
 
 | option | description |
 |---|---|
@@ -557,9 +561,9 @@ Discard a proposed result, or reject a citation suggestion, with a reason.
 
 `loom library drop [OPTIONS]`
 
-Remove recorded results: one work's, one session's proposals, or every one still proposed.
+Remove recorded results: one work's or one session's proposals and extracted results, or every one still proposed.
 
-Dropping costs re-reading, never correctness. A verified node already written into digests/<citekey>.tex is the author's file and is never touched; only the records and the proposals go.
+Dropping costs re-reading, never correctness. What you decided stays: a verified result keeps its record, which is what keeps its text through a later `update --redo`, and a discarded one keeps the reason the next proposer is told. The report says how many it kept.
 
 | option | description |
 |---|---|
@@ -637,6 +641,7 @@ The only write an agent makes to the library's results. SOURCE-TEXT must appear 
 | `--number` | The paper's numbers when it states several results together: '3.2, 3.3'. |
 | `--level` | 1 is a main result. |
 | `--supersedes` `ID` | Re-propose something discarded, recording the chain. |
+| `--as` `NAME` | Who proposes it; an agent names itself, with Agent or AI in the name. |
 | `--session` `SESSION` | The session proposing this. |
 | `--dry-run` | Check the quotation and say what would be proposed, storing nothing. |
 | `--json` | Print the stored record as JSON. |
@@ -663,7 +668,7 @@ The page text is the sanctioned read: a quotation an agent proposes must come fr
 
 Assert a typed relation between two results, FROM and TO, with a reason; with --undo LINK_ID, remove one.
 
-**Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; it is an assertion, attributed to whoever made it. Relations are never citable, never enter a closure, and are never written into a digest: they are navigation, not mathematics. `loom library why ID` lists a result's relations.
+**Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; it is an assertion, attributed to whoever made it: `--as`, else you as the quilt's reviewer. Relations are never citable, never enter a closure, and are never written into a digest: they are navigation, not mathematics. `loom library why ID` lists a result's relations.
 
 | option | description |
 |---|---|
@@ -671,10 +676,10 @@ Assert a typed relation between two results, FROM and TO, with a reason; with --
 | `--why` | One or two sentences: what you read six months later, or why a relation is removed. |
 | `--undo` `LINK_ID` | Remove this relation instead; an agent removes only an agent's. |
 | `--as` `NAME` | Who asserts it; an agent names itself, with Agent or AI in the name. |
-| `--session` `SESSION` | The session asserting it; it is recorded as who did. |
 | `--dry-run` | Check everything and say what would change, writing nothing. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
+| `--session` `SESSION` | Log this call to the session. |
 
 ##### `loom library review`
 
@@ -770,11 +775,12 @@ Hand a document to an agent, take its changes back, and the sessions you both wo
 
 Draft an agent document NAME from a live working document: flat, in the agent's drafting directory, with every label it defines derived.
 
-A copy step records what each of its nodes began from (book 17.7). Starting a document from an old version of one is `loom history restore`.
+A copy step records what each of its nodes began from (book 17.7), and who drafted it: `--as`, else the configured author; an agent that has not named itself is refused. Starting a document from an old version of one is `loom history restore`.
 
 | option | description |
 |---|---|
 | `--ai` `NAME` | The agent document to write, directly in the agent's drafting directory. |
+| `--as` `NAME` | Who drafts it; an agent names itself, including Agent or AI. |
 | `--dry-run` | Say what would be written, and write nothing. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -998,12 +1004,12 @@ Before a large instruction, an agent checks its document here: a stale one is re
 
 Write the agent layer: ai/ (orientation, rules, modes), ai/ai-config.toml, CLAUDE.md and AGENTS.md, and the permission files.
 
-The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it; an existing ai/ai-config.toml is the person's and is kept.
+The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it. An ai/ai-config.toml that configures an agent is the person's and is kept; --agent naming another is refused.
 
 | option | description |
 |---|---|
 | `--skills` | Also write skill stubs and slash commands for Claude Code. |
-| `--agent` | The agent a new ai/ai-config.toml names; default every key commented out. An existing one is kept. |
+| `--agent` | The agent ai/ai-config.toml names, written when it is new or all comments; default every key commented out. |
 | `--dry-run` | Say what would be written and write nothing. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
@@ -1143,7 +1149,7 @@ Apply the fetched pull to the quilt's files, stamping first each document it rea
 
 Pair the quilt with a document workspace, such as an Overleaf project's Git URL.
 
-Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched.
+Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched. A URL that is a remote of the quilt's own repository is refused, and `publish --push` refuses a workspace that holds a quilt.
 
 | option | description |
 |---|---|
@@ -1187,6 +1193,8 @@ Keep loom's own files current, and documents live.
 `loom upgrade [OPTIONS]`
 
 Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones.
+
+loom.sty is loom's and is always replaced; one you edited is kept first as loom.sty.old.
 
 | option | description |
 |---|---|

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import shlex
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeVar, cast
@@ -20,7 +21,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 def logged(name: str) -> Callable[[F], F]:
     """Give a `library` command `--session`, logging the call to that session as `loom source --session` does.
 
-    The line is written once the command has answered, so a refused call logs nothing, and it holds what was typed: no default, and a multiple option's values rather than Python's repr of them.
+    The session is resolved before the command runs, so an unknown one is refused with nothing printed or written; the line is written once the command has answered, so a refused call logs nothing, and it holds what was typed as a command line: arguments, then each option given with its flag, no default.
     """
 
     def wrap(f: F) -> F:
@@ -42,19 +43,25 @@ def logged(name: str) -> Callable[[F], F]:
             from loom.cli.build_cmds import log_run
 
             ctx = click.get_current_context()
-            typed = {
-                k: v
-                for k, v in kwargs.items()
-                if k != "quilt_path" and ctx.get_parameter_source(k) is not ParameterSource.DEFAULT
-            }
-            shown = [
-                str(x)
-                for v in typed.values()
-                if v not in (None, False, (), "")
-                for x in (v if isinstance(v, (tuple, list)) else (v,))
-            ]
-            line = " ".join(["loom library", name, *shown])
+            words: list[str] = []
+            opts: list[str] = []
+            for p in ctx.command.params:
+                k = p.name or ""
+                v = kwargs.get(k)
+                if k in ("quilt_path", "run_dir") or ctx.get_parameter_source(k) is ParameterSource.DEFAULT:
+                    continue
+                if v in (None, False, (), ""):
+                    continue
+                values = [str(x) for x in (v if isinstance(v, (tuple, list)) else (v,))]
+                if isinstance(p, click.Argument):
+                    words += [shlex.quote(x) for x in values]
+                elif v is True:
+                    opts.append(p.opts[0])
+                else:
+                    opts += [f"{p.opts[0]} {shlex.quote(x)}" for x in values]
+            line = " ".join(["loom library", name, *words, *opts])
             root = open_quilt(kwargs.get("quilt_path")).root
+            session(root, run_dir)
             try:
                 out = f(*args, **kwargs)
             except click.exceptions.Exit:
@@ -67,6 +74,15 @@ def logged(name: str) -> Callable[[F], F]:
         return cast(F, inner)
 
     return wrap
+
+
+def session(root: Path, run_dir: str | None) -> str:
+    """The id of the session `--session` names, '' with none; an unknown one is refused, exit 2, before the caller prints or writes anything."""
+    if not run_dir:
+        return ""
+    from loom.cli._common import find_session
+
+    return str(find_session(root, run_dir).id)
 
 
 def present(*groups: Group) -> list[Group]:

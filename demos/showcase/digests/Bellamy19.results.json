@@ -20,7 +20,8 @@
       "origin": [
         {
           "act": "proposed",
-          "by": "s-2026-09-15-0001",
+          "by": "Survey Agent",
+          "session": "s-2026-09-15-0001",
           "when": "2026-09-15T10:00:00Z"
         },
         {
@@ -51,7 +52,8 @@
       "origin": [
         {
           "act": "proposed",
-          "by": "s-2026-09-15-0001",
+          "by": "Survey Agent",
+          "session": "s-2026-09-15-0001",
           "when": "2026-09-15T10:00:00Z"
         }
       ],
@@ -77,13 +79,15 @@
       "origin": [
         {
           "act": "proposed",
-          "by": "s-2026-09-15-0001",
+          "by": "Survey Agent",
+          "session": "s-2026-09-15-0001",
           "when": "2026-09-15T10:00:00Z"
         },
         {
           "act": "verified",
           "by": "The loom showcase",
-          "when": "2026-09-16T09:00:00Z"
+          "when": "2026-09-16T09:00:00Z",
+          "read": "b507fe667a1d7a054993793fb050b30756f097f3ecb755813223b576becca55c"
         }
       ],
       "supersedes": "",
@@ -108,7 +112,8 @@
       "origin": [
         {
           "act": "proposed",
-          "by": "s-2026-09-15-0001",
+          "by": "Survey Agent",
+          "session": "s-2026-09-15-0001",
           "when": "2026-09-15T10:00:00Z"
         },
         {
@@ -120,7 +125,8 @@
         {
           "act": "verified",
           "by": "The loom showcase",
-          "when": "2026-09-16T09:00:00Z"
+          "when": "2026-09-16T09:00:00Z",
+          "read": "b507fe667a1d7a054993793fb050b30756f097f3ecb755813223b576becca55c"
         }
       ],
       "supersedes": "",

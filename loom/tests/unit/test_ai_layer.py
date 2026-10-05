@@ -184,7 +184,10 @@ def test_upgrade_refreshes_an_unedited_mode_the_first_time(tmp_path: Path, monke
 
     q = bare(tmp_path)
     shipped = layout.tracked_docs()
-    assert layout.read_versions(q) == {Path(rel).name: layout.sha(text) for rel, text in shipped.items()}
+    assert layout.read_versions(q) == {
+        **{Path(rel).name: layout.sha(text) for rel, text in shipped.items()},
+        "loom.sty": layout.sha(layout.shipped_sty()),
+    }
     shipped["ai/modes/audit.md"] += "\n## New shipped section\n"
     monkeypatch.setattr(layout, "tracked_docs", lambda: shipped)
     r = json_of("upgrade", "--json", cwd=q)
@@ -519,3 +522,87 @@ def test_findings_for_a_run_include_what_the_author_decided(tmp_path: Path) -> N
     ok("library", "discard", f"{ck}-thm-1.1", "--why", "wrong theorem", "--as", "i", cwd=q)
     out = ok("ai", "annotations", "--session", runname, cwd=q).output
     assert f"{ck}-thm-1.1" in out and "discarded -- wrong theorem" in out
+
+
+def test_upgrade_keeps_an_edited_loom_sty_as_old_and_says_so(tmp_path: Path) -> None:
+    """An edited `loom.sty` is replaced, as book 11 decides, but kept first as `loom.sty.old`, under a heading of its own."""
+    import loom.ai.layout as layout
+
+    q = bare(tmp_path)
+    assert layout.read_versions(q)["loom.sty"] == layout.sha(layout.shipped_sty())
+    sty = q / "loom.sty"
+    edited = sty.read_text() + "% my edit\n"
+    sty.write_text(edited)
+    dry = ok("upgrade", "--dry-run", cwd=q)
+    assert "loom.sty.old" in dry.stdout and sty.read_text() == edited and not (q / "loom.sty.old").exists()
+    said = ok("upgrade", cwd=q).stdout
+    assert sty.read_text() == layout.shipped_sty() and (q / "loom.sty.old").read_text() == edited
+    assert said.startswith("upgraded:") and "loom.sty.old" in said.splitlines()[0], said
+    assert "\nyour edited loom.sty" in said, said
+    again = json_of("upgrade", "--json", cwd=q)
+    assert again["sty"] == "unchanged" and (q / "loom.sty.old").read_text() == edited
+
+
+def test_upgrade_refreshes_a_loom_sty_nobody_edited(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import loom.ai.layout as layout
+
+    q = bare(tmp_path)
+    shipped = layout.shipped_sty() + "% a newer loom\n"
+    monkeypatch.setattr(layout, "shipped_sty", lambda: shipped)
+    r = json_of("upgrade", "--json", cwd=q)
+    assert r["sty"] == "written" and "loom.sty" in r["written"]
+    assert (q / "loom.sty").read_text() == shipped and not (q / "loom.sty.old").exists()
+    assert layout.read_versions(q)["loom.sty"] == layout.sha(shipped)
+
+
+def test_ai_init_agent_fills_a_config_whose_keys_are_all_commented_out(tmp_path: Path) -> None:
+    """K3: `--agent` never succeeds silently. A file of comments, as `loom init` writes it, is filled; a configured one that would be left as it is refuses by name."""
+    from loom.agent import CONFIG, config_text
+
+    q = demo(tmp_path)
+    cfg = q / CONFIG
+    cfg.write_text(config_text(None))
+    said = ok("ai", "init", "--agent", "claude", cwd=q).stdout
+    assert cfg.read_text() == config_text("claude") and CONFIG in said
+    ok("ai", "init", "--agent", "claude", cwd=q)  # already what was asked
+    cfg.write_text(config_text("codex"))
+    for argv in (("--agent", "claude"), ("--agent", "claude", "--dry-run")):
+        r = refused("ai", "init", *argv, cwd=q, code=2, match=CONFIG)
+        assert "--agent claude" in r.stderr and r.stdout == ""
+    assert cfg.read_text() == config_text("codex")
+
+
+def test_ai_annotations_after_a_discard_says_how_many_are_withdrawn(tmp_path: Path) -> None:
+    """T7: a session whose annotations were all withdrawn is not "no annotations yet"."""
+    q = demo(tmp_path)
+    sid = "s-2026-09-16-0002"
+    before = json_of("ai", "annotations", "--session", sid, "--json", cwd=q)["annotations"]
+    assert before
+    ok("ai", "discard", sid, cwd=q)
+    said = ok("ai", "annotations", "--session", sid, cwd=q).stdout.splitlines()[0]
+    assert "no annotations yet" not in said
+    assert f"{len(before)} withdrawn" in said and "--all lists them" in said, said
+
+
+def test_a_stale_or_conflicted_agent_document_names_a_command_that_runs_as_printed(tmp_path: Path) -> None:
+    """T3: `ai drafts` and `ai refresh` quote a document's name, so a name with a space survives a paste."""
+    import shlex
+
+    from loom.scan.quilt import save_author
+    from tests.helpers import run
+
+    save_author("Tester")
+    q = demo(tmp_path)
+    ok("draft", "drafting/main.tex", "--ai", "Referee Agent.tex", cwd=q)
+    copy = q / "drafting-ai" / "Referee Agent.tex"
+    copy.write_text(copy.read_text().replace("restricts to a map", "restricts, by the agent, to a map"))
+    main = q / "drafting" / "main.tex"
+    main.write_text(main.read_text().replace("restricts to a map", "restricts, by the author, to a map"))
+    fixes = [f for c in json_of("ai", "drafts", "--json", cwd=q)["groups"][0]["items"] for f in c.get("fixes", [])]
+    assert fixes and all(shlex.split(f)[3:] == ["drafting-ai/Referee Agent.tex"] for f in fixes), fixes
+    refreshed = run("ai", "refresh", "Referee Agent.tex", cwd=q)
+    assert refreshed.exit_code == 1, refreshed.output
+    line = next(ln for ln in refreshed.stdout.splitlines() if "loom ai refresh" in ln)
+    argv = shlex.split(line.split(": ", 1)[1])
+    assert argv[:3] == ["loom", "ai", "refresh"] and len(argv) == 4, line
+    assert run(*argv[1:], cwd=q).exit_code == 1  # the same conflict, not an unexpected argument

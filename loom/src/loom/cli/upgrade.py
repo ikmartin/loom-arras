@@ -1,8 +1,6 @@
-"""`loom upgrade` (book 12.2): refresh loom.sty and the generated AI-layer files to the installed loom's versions; edited mode files are kept and a `.new` written beside them."""
+"""`loom upgrade` (book 12.2): refresh loom.sty and the generated AI-layer files to the installed loom's versions; edited mode files are kept and a `.new` written beside them, and an edited loom.sty is kept as `loom.sty.old` before it is replaced."""
 
 from __future__ import annotations
-
-from importlib import resources
 
 import click
 
@@ -15,8 +13,11 @@ from loom.cli.report import Group, Item, Report, counted
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones."""
-    from loom.ai.layout import upgrade_layer
+    """Refresh loom.sty, ai/orientation.md, ai/README.md, the vendor files, and unedited mode files; report edited ones.
+
+    loom.sty is loom's and is always replaced; one you edited is kept first as loom.sty.old.
+    """
+    from loom.ai.layout import STY, refresh_sty, upgrade_layer
     from loom.gitignore import ensure, missing
 
     quilt = open_quilt(quilt_path)
@@ -27,12 +28,9 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     added = missing(root) if dry_run else ensure(root)
     if added:
         written.append(".gitignore")
-    sty = resources.files("loom").joinpath("assets", "loom.sty").read_text(encoding="utf-8")
-    p = root / "loom.sty"
-    if not p.is_file() or p.read_text(encoding="utf-8") != sty:
-        if not dry_run:
-            p.write_text(sty, encoding="utf-8")
-        written.append("loom.sty")
+    sty, old = refresh_sty(root, write=not dry_run)
+    if sty == "written":
+        written.append(STY)
     has_ai = (root / "ai").is_dir()
     if has_ai:
         rep = upgrade_layer(root, write=not dry_run)
@@ -64,10 +62,27 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
             limit=None,
             problem=True,
         ),
+        Group(
+            f"your {'edited ' if sty == 'edited' else ''}{STY}, replaced by the one this loom ships",
+            [
+                Item(
+                    f"{'would be' if dry_run else 'is'} kept as {old}"
+                    + ("" if sty == "edited" else "; loom has no record of writing it, so it may hold your edits"),
+                    fixes=[f"carry your changes into a .sty of your own: loom replaces {STY} on every upgrade"],
+                )
+            ]
+            if old
+            else [],
+            limit=None,
+            problem=True,
+            counted=False,
+        ),
     ]
-    if written or kept:
-        parts = ([f"{'would write' if dry_run else 'wrote'} {counted(len(written), 'file')}"] if written else []) + (
-            [f"{'would keep' if dry_run else 'kept'} {counted(len(kept), 'edited file')}"] if kept else []
+    if written or kept or old:
+        parts = (
+            ([f"{'would write' if dry_run else 'wrote'} {counted(len(written), 'file')}"] if written else [])
+            + ([f"{'would keep' if dry_run else 'kept'} {counted(len(kept), 'edited file')}"] if kept else [])
+            + ([f"{'would replace' if dry_run else 'replaced'} your {STY}, kept as {old}"] if old else [])
         )
         verdict = (
             ("" if dry_run else "upgraded: ")
@@ -79,8 +94,16 @@ def upgrade(dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     Report(
         verdict,
         dry_run=dry_run,
-        ok=not beside,
+        ok=not beside and not old,
         groups=[g for g in groups if g.items],
         lines=[] if has_ai else ["no ai/ to upgrade; loom ai init creates it"],
-        data={"written": written, "kept": kept, "beside": beside, "gitignore": added, "ai": has_ai},
+        data={
+            "written": written,
+            "kept": kept,
+            "beside": beside,
+            "sty": sty,
+            "sty_old": old or None,
+            "gitignore": added,
+            "ai": has_ai,
+        },
     ).emit(as_json)

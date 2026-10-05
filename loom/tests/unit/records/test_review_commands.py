@@ -443,7 +443,7 @@ def test_comment_quote_rules_and_records(tmp_path: Path) -> None:
     refused("annotate", "dm-0003/proof", "x", "--quote", "the", *AS, cwd=d, code=1, match="ambiguous")
     # the quote lies in the proof, outside the statement's own text
     refused("annotate", "dm-0003", "x", "--quote", "closedness", *AS, cwd=d, code=1, match="quote not found in dm-0003")
-    r5 = ok("annotate", "dm-0003", "--kind", "note", *AS, cwd=d)
+    r5 = ok("annotate", "dm-0003", "Read; fine.", "--kind", "note", *AS, cwd=d)
     assert "  note  " in r5.output
     s = status_json(d)
     assert s["keys"]["dm-0003/proof"]["reviews"]["open"] == {"objection": 1}
@@ -847,7 +847,7 @@ def test_timeline_7_11(tmp_path: Path) -> None:
     f.write_text(new)
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["detached"] == 2
-    ok("annotate", proof, "--kind", "note", "--session", sid, cwd=d, env=AGENT)
+    ok("annotate", proof, "Read through; nothing to add.", "--kind", "note", "--session", sid, cwd=d, env=AGENT)
     s = status_json(d)
     assert s["keys"][proof]["reviews"]["latest_current"]["author"]["kind"] == "agent"
     # Day 3: the author resolves the statement objection and accepts
@@ -965,14 +965,20 @@ BATCH = [
     pytest.param([{"target": "dm-0002", "messsage": "typo"}], 2, "unknown key(s) messsage", [], id="unknown-key"),
     pytest.param([{"edit": "{ann}", "discard": "{ann}", "message": "?"}], 2, "one verb per line", [], id="two-verbs"),
     pytest.param([{"edit": "{ann}"}], 2, "nothing to change", [], id="answers-nothing"),
-    # the failing line stops the rest, and what came before it stands
+    # every line is checked before any is written, so a failing line leaves nothing half done (the re-grade's K3)
     pytest.param(
         [{"target": "dm-0002", "message": "one", "quote": "Every orbit", "kind": "suggestion"},
          {"target": "dm-0002", "message": "two", "quote": "NOPE"},
          {"target": "dm-0002", "message": "three"}],
-        1, "batch line 2", [("created", "one")],
-        id="stops-at-the-failing-line",
+        1, "batch line 2", [],
+        id="checks-every-line-before-writing-any",
     ),
+    pytest.param(
+        [{"target": "dm-0002", "message": "one"}, {"target": "dm-9999", "message": "two"}],
+        2, "nothing was written", [],
+        id="an-unknown-key-on-a-later-line",
+    ),
+    pytest.param([{"target": "dm-0002", "kind": "objection"}], 2, "no message", [], id="an-empty-objection"),
 ]  # fmt: skip
 
 
@@ -990,12 +996,24 @@ def test_a_batch_carries_every_verb_and_refuses_line_by_line(
     assert [(e["event"], e.get("body")) for e in events(d)[1:]] == wrote
 
 
+def test_an_annotation_that_asks_needs_a_message_and_a_bare_note_does_not(tmp_path: Path) -> None:
+    """The re-grade: `annotate dm-0002 --kind objection` with no MESSAGE filed an empty objection, exit 0; a note with none is book 7.4.3's record that the target was read and nothing was wrong."""
+    d = demo(tmp_path)
+    for kind in ("objection", "suggestion", "question", "citation"):
+        refused("annotate", "dm-0002", "--kind", kind, *AS, cwd=d, code=2, match="no message")
+        refused("annotate", "dm-0002", "  ", "--kind", kind, *AS, cwd=d, code=2, match="no message")
+    assert events(d) == []
+    ok("annotate", "dm-0002", *AS, cwd=d)
+    assert [e["annotation_kind"] for e in events(d)] == ["note"]
+
+
 def test_a_clean_read_takes_no_severity(tmp_path: Path) -> None:
     """`--severity` grades a fault; a note claims none, and the pair was once accepted and stored (H9)."""
     d = demo(tmp_path)
     refused(
         "annotate",
         "dm-0002",
+        "Fine.",
         "--kind",
         "note",
         "--severity",
@@ -1449,3 +1467,11 @@ def test_a_conflicted_id_is_a_row_of_its_own_and_its_definitions_are_not(tmp_pat
     said = ok("status", cwd=q).output
     assert "loom fork sy-999B --in drafting/talk.tex" in said
     assert ": 1 conflicted," in said.splitlines()[0]  # the verdict counts it, first
+
+
+def test_explain_names_another_reviewers_acceptance(tmp_path: Path) -> None:
+    """The re-grade: `status --explain dm-0002` said "never accepted" while the ledger held an acceptance by "The loom demo"; the local reviewer has none, which is what the state counts, and the other is named beside it."""
+    d = demo(tmp_path, clean=False)
+    r = ok("status", "--explain", "dm-0002", cwd=d)
+    assert "never accepted" not in r.stdout
+    assert "not accepted by you (Markas Hecht); accepted by The loom demo on 2026-09-16" in " ".join(r.stdout.split())

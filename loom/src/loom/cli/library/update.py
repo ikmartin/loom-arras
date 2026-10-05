@@ -127,7 +127,10 @@ def update_command(
             )
     else:
         built = BuildReport(works=[w for w in survey(result) if not named or w.citekey in set(named)], steps=())
+    from loom.cli.library.state import left
+
     built.scan = scanned
+    built.left = left(result, built.works)
     built.report().emit(as_json)
 
 

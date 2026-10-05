@@ -254,7 +254,7 @@ def test_init_takes_the_workspace_url(tmp_path: Path) -> None:
     root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
     refused("sync", "init", cwd=root, code=2, match="Missing argument 'URL'")
     refused("sync", "init", "--remote", "origin", cwd=root, code=2, match="No such option")
-    refused("sync", "init", str(tmp_path / "nowhere.git"), cwd=root, code=2, match="git clone")
+    refused("sync", "init", str(tmp_path / "nowhere.git"), cwd=root, code=2, match="cannot reach")
     assert not (root / WORKSPACE).exists()
     empty = tmp_path / "empty.git"
     subprocess.check_call(["git", "init", "-q", "--bare", str(empty)])
@@ -385,7 +385,7 @@ def test_selected_documents_publish_one_union_from_the_files_on_disk(
     (root / "shared/common.tex").write_text("\\begin{lemma}\\label{zk-0001}Shared, third.\\end{lemma}\n")
     publication = publish(quilt, state)
     edit(colleague(tmp_path, bare), "collaborator update", {"notes.tex": "A note.\n"})
-    with pytest.raises(SyncError, match="Publication rejected"):
+    with pytest.raises(SyncError, match="has moved since the last fetch"):
         push_publication(quilt, state, publication.commit)
     assert SyncState.read(root).prepared == publication.commit
     state = fetch(quilt, SyncState.read(root))
@@ -561,3 +561,65 @@ def test_incorporating_a_pull_is_one_command_and_the_author_s() -> None:
     for gone in ("prepare", "finish", "incorporated"):
         refused("sync", gone, code=2, match="No such command")
     refused("sync", "incorporate", code=2, match="an agent is running this shell", env={"AI_AGENT": "1"})
+
+
+def quilt_with_upstream(tmp_path: Path) -> tuple[Path, Path]:
+    """The re-grade's reproduction: a quilt that is a repository whose `origin` is a bare repository holding the whole quilt."""
+    root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
+    run(root, "init", "-q", "-b", "main")
+    run(root, "config", "user.name", "Tester")
+    run(root, "config", "user.email", "tester@example.org")
+    run(root, "add", ".")
+    run(root, "commit", "-q", "-m", "the author's history")
+    upstream = tmp_path / "upstream.git"
+    subprocess.check_call(["git", "init", "-q", "--bare", "-b", "main", str(upstream)])
+    run(root, "remote", "add", "origin", str(upstream))
+    run(root, "push", "-q", "origin", "main")
+    return root, upstream
+
+
+def test_sync_init_refuses_the_quilt_s_own_upstream_however_it_is_spelled(tmp_path: Path) -> None:
+    """Defect 1: pairing with a remote of the quilt's own repository would let a publish replace the quilt with its documents."""
+    root, upstream = quilt_with_upstream(tmp_path)
+    before = run(upstream, "rev-parse", "main")
+    for url in (str(upstream), str(upstream) + "/", f"file://{upstream}", "../upstream.git"):
+        for dry in ((), ("--dry-run",)):
+            r = refused("sync", "init", url, *dry, cwd=root, code=2, match="origin")
+            assert "own" in r.stderr and r.stdout == "", r.output
+    assert not (root / WORKSPACE).exists() and run(upstream, "rev-parse", "main") == before
+
+
+def test_publish_push_refuses_a_workspace_that_holds_a_quilt(tmp_path: Path, compiled: list[str]) -> None:
+    """The second guard: a quilt that is no repository, paired with another copy's upstream, still never publishes over a quilt."""
+    save_author("Tester")
+    (tmp_path / "first").mkdir()
+    (tmp_path / "second").mkdir()
+    _, upstream = quilt_with_upstream(tmp_path / "first")
+    copy = quilt_at(tmp_path / "second", {"drafting/main.tex": SOURCE})
+    ok("sync", "init", str(upstream), cwd=copy)
+    before = run(upstream, "ls-tree", "--name-only", "main")
+    r = refused("sync", "publish", "--push", cwd=copy, code=2, match="config.toml")
+    assert "[quilt]" in r.stderr and r.stdout == "", r.output
+    assert run(upstream, "ls-tree", "--name-only", "main") == before
+
+
+def test_a_rejected_push_says_the_workspace_moved_and_what_to_run(tmp_path: Path, compiled: list[str]) -> None:
+    """Defect 8: the verdict first, git's hints dropped, and no "Done."."""
+    save_author("Tester")
+    root, bare = paired(tmp_path)
+    (root / "drafting/main.tex").write_text(SOURCE.replace("zk-0001}A", "zk-0001}Mine"))
+    ok("sync", "publish", cwd=root)
+    edit(colleague(tmp_path, bare), "theirs", {"notes.tex": "A note.\n"})
+    r = refused("sync", "publish", "--push", cwd=root, code=2, match="has moved")
+    first = r.stderr.splitlines()[0]
+    assert first.startswith("Error: ") and "loom sync fetch" in first, r.stderr
+    for noise in ("hint:", "Done", "git pull", "[rejected]", "To "):
+        assert noise not in r.stderr, (noise, r.stderr)
+
+
+def test_a_workspace_that_cannot_be_cloned_is_one_line(tmp_path: Path) -> None:
+    """T5: git's own line, with its temporary path, becomes one line naming the URL."""
+    root = quilt_at(tmp_path, {"drafting/main.tex": SOURCE})
+    for dry in ((), ("--dry-run",)):
+        r = refused("sync", "init", "../nowhere.git", *dry, cwd=root, code=2, match="cannot reach ../nowhere.git")
+        assert len(r.stderr.strip().splitlines()) == 1 and "workspace-" not in r.stderr and "git " not in r.stderr

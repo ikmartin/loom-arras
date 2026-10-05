@@ -378,7 +378,7 @@ def check_agent_command(name: str, configured: bool) -> Item:
     remedy = (
         "install it, or name another command in ai/ai-config.toml; loom doctor --agents tests it"
         if configured
-        else f"install it if you use it: loom serve starts agents with {name}"
+        else f"install it if you use it, then loom ai init --agent {name} configures it"
     )
     return Item(name, WARN, OPTIONAL, "not found: loom serve cannot start the agent", remedy, {"path": None})
 
@@ -482,7 +482,7 @@ def check_agent(d: Any) -> Item:
                 FAIL,
                 QUILT,
                 "launch is on and no agent is configured",
-                f"fill in {CONFIG}, or set launch = false under [ai] in config.toml; loom doctor --agents tests it",
+                f"loom ai init --agent claude (or --agent codex) fills in {CONFIG}, or set launch = false under [ai] in config.toml; loom doctor --agents tests it",
             )
         return Item("agent", OK, QUILT, f"none configured, {launch}")
     if d.faults:
@@ -653,7 +653,8 @@ def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool
             bad_quilt = str(exc)
     diagnosis = diagnose(quilt.root) if quilt else None
     configured = [cmd[0] for _, cmd in diagnosis.commands] if diagnosis is not None else []
-    presets = [str(p["start"][0]) for p in PRESETS.values()] if agents else []
+    # the agent configured is the one looked for; with none, each loom can configure
+    presets = [str(p["start"][0]) for p in PRESETS.values()] if agents and not configured else []
     report.items += check_tools()
     report.items += [check_agent_command(c, c in configured) for c in dict.fromkeys(configured + presets)]
     report.items += [check_author(quilt), check_bundle()]

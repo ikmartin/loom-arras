@@ -226,3 +226,26 @@ def test_a_session_dry_run_writes_nothing_and_an_unnamed_agent_is_refused(tmp_pa
         assert state() == was, argv
     refused("session", "new", "--name", "x", cwd=q, env={"AI_AGENT": "1"}, code=2, match="Name yourself with --as")
     assert state() == was
+
+
+def test_closing_with_nothing_active_names_a_command_that_opens_one(tmp_path: Path) -> None:
+    """T3: the advice is a command that works as printed, `session new --name`, and following it succeeds."""
+    q = demo(tmp_path)
+    set_active(q, None)
+    r = refused("session", "close", "--as", WHO, cwd=q, code=2, match="no session is active")
+    advice = r.stderr.split("; ", 1)[1].split(" opens one")[0]
+    assert advice == 'loom session new --name "a name"', r.stderr
+    ok("session", "new", "--name", "a name", "--as", WHO, cwd=q)
+
+
+def test_closing_a_closed_session_says_so_and_records_nothing(tmp_path: Path) -> None:
+    """K4 and T7: a second close is "already closed", exit 0, and no second `closed` event."""
+    from loom.sessions import index_path
+
+    q = demo(tmp_path)
+    sid = new_session(q, "json one")
+    ok("session", "close", sid, "--as", WHO, cwd=q)
+    log = index_path(q).read_bytes()
+    again = ok("session", "close", sid, "--as", WHO, cwd=q)
+    assert again.stdout.startswith(f"{sid} is already closed"), again.stdout
+    assert index_path(q).read_bytes() == log

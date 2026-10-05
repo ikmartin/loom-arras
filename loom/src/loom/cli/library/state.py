@@ -151,6 +151,20 @@ def rows(result: ScanResult, works: list[WorkState] | None = None, *, fold: bool
     return [r for r in out if r.work.version_of not in by_key]
 
 
+def need_you(result: ScanResult, row: Row) -> bool:
+    """Whether a cited work waits on the person: a cause, unless it is a fetch the quilt's own consent makes (`FETCHABLE`)."""
+    return bool(row.cause) and cause_entry(result, row.cause) is not FETCHABLE
+
+
+def left(result: ScanResult, works: list[WorkState]) -> tuple[int, int]:
+    """(need the person, need an agent) over the cited works among `works`, versions folded: the two counts `report` lists, for `library update` to close on."""
+    cited = [r for r in rows(result, works) if r.cited]
+    return (
+        sum(1 for r in cited if need_you(result, r)),
+        sum(1 for r in cited if r.work.needs_an_agent and not r.cause),
+    )
+
+
 def open_suggestions(result: ScanResult) -> list[Any]:
     """The citation suggestions still open, which `loom library review` lists beside the proposals."""
     from loom.records.store import Records
@@ -230,20 +244,20 @@ def report(result: ScanResult, works: list[WorkState] | None = None) -> Report:
         uncited = len(every) - len(cited)
         shown.append(Group(f"cited nowhere, so not followed: {counted(uncited, 'entry', 'entries')}", counted=False))
     # a work an update will fetch on the quilt's own consent waits on a run, not on the person
-    need_you = sum(1 for r in cited if r.cause and cause_entry(result, r.cause) is not FETCHABLE)
+    for_you = sum(1 for r in cited if need_you(result, r))
     digested = sum(1 for r in cited if r.digested)
     verdict = (
         f"{counted(len(cited), 'work')} cited, {digested} digested; "
-        f"{need_you} need{'s' if need_you == 1 else ''} you, {waiting} wait{'s' if waiting == 1 else ''} for review"
+        f"{for_you} need{'s' if for_you == 1 else ''} you, {waiting} wait{'s' if waiting == 1 else ''} for review"
     )
     return Report(
         verdict,
-        ok=not (need_you or waiting or agent or any(r.unread for r in cited)),
+        ok=not (for_you or waiting or agent or any(r.unread for r in cited)),
         groups=shown,
         data={
             "cited": len(cited),
             "digested": digested,
-            "need_you": need_you,
+            "need_you": for_you,
             "waiting": waiting,
             "need_an_agent": len(agent),
             "done": done,

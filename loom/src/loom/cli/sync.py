@@ -81,7 +81,7 @@ def _short(revision: str) -> str:
 def init_sync(url: str, publish_main: str, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Pair the quilt with a document workspace, such as an Overleaf project's Git URL.
 
-    Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched.
+    Loom clones the workspace into .loom/workspace/ and runs Git only there; the quilt need not be a repository, and its own is never touched. A URL that is a remote of the quilt's own repository is refused, and `publish --push` refuses a workspace that holds a quilt.
     """
     quilt = open_quilt(quilt_path)
     state = _run(lambda: configure(quilt, url, publish_main, write=not dry_run))

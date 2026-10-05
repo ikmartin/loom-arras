@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -14,9 +15,11 @@ from loom.cli._common import EXIT_CONTENT, ContentError, EnvError, NotFoundError
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.library import _works
 from loom.cli.library.decide import _short
-from loom.cli.report import Group, Item, Report, counted
+from loom.cli.report import Group, Item, Progress, Report, counted
 
 _JSON = "Print the report as one JSON object (book 12.9)."
+#: What `import --name` takes: a key BibTeX reads and a file name every system keeps.
+CITEKEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9_:.+-]*")
 _DRY = "Say what would be written; write nothing."
 
 
@@ -102,11 +105,12 @@ PROBLEMS: dict[str, tuple[str, str]] = {
     "no-page-text": ("verified results with no page text to re-read", "loom library update WORK --only map"),
     "wrong-document": (
         "documents that are another work's",
-        "loom library add FILE --for WORK, with the right document",
+        "loom library ignore WORK --why '…' sets it aside, then loom library add FILE --for WORK files the right one",
     ),
     "unconfirmed-document": (
         "documents that may not be their work",
-        "loom library read WORK 1 shows the page; if it is not the work, loom library add FILE --for WORK",
+        "loom library read WORK 1 shows the page; if it is not the work, loom library ignore WORK --why '…' "
+        "sets it aside, then loom library add FILE --for WORK files the right one",
     ),
     "empty-digest": ("digests with no results recorded", "loom library update WORK records them"),
     "guessed-map": (
@@ -115,7 +119,7 @@ PROBLEMS: dict[str, tuple[str, str]] = {
     ),
     "duplicate-document": (
         "entries that name one document",
-        "keep one of them in your bibliography; loom never edits it",
+        "loom library ignore DUP --why '…' sets the copy aside, for each entry but the one you keep",
     ),
     "uncited-lint": (
         "works nothing cites that lint finds wrong",
@@ -134,7 +138,7 @@ NOT_FAULTS = {"uncited-lint"}
 def check(works: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None:
     """Check the library for what has gone wrong, each problem with its fix.
 
-    Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF whose first page carries another work's title, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.
+    Re-reads every verified result's anchor against the page or source it names; never re-judges a verified rendering, which a person judged once, and never re-checks extraction. Then: a stored PDF that does not show plainly it is its work, or shows it is another's, a digest with no results, a section map with far too few sections for its length, and entries or versions holding one document, once per work. Exit 1 when anything is wrong. Works nothing cites whose digests lint finds wrong are listed too, and do not fail it.
     """
     from loom.cli.lint_cmd import all_diagnostics
     from loom.refs.check import (
@@ -147,15 +151,20 @@ def check(works: tuple[str, ...], as_json: bool, quilt_path: str | None) -> None
         wrong_documents,
     )
 
-    result = open_scan(quilt_path)
-    root = result.quilt.root
-    scope = sorted(_works.works(result, works)) if works else sorted(set(result.bib) | set(recorded_works(root)))
-    checked, problems = moved_anchors(root, result.bib, scope)
-    problems += wrong_documents(root, result.bib, scope)
-    problems += empty_digests(root, scope)
-    problems += guessed_maps(root, result.bib, scope)
-    problems += duplicate_documents(root, result.bib, scope if works else None)
-    problems += uncited_lint(result, all_diagnostics(result), scope)
+    with Progress("reading the library") as progress:
+        result = open_scan(quilt_path)
+        root = result.quilt.root
+        scope = sorted(_works.works(result, works)) if works else sorted(set(result.bib) | set(recorded_works(root)))
+        progress.next_stage("re-reading verified anchors")
+        checked, problems = moved_anchors(root, result.bib, scope)
+        progress.next_stage("checking documents", len(scope))
+        problems += wrong_documents(root, result.bib, scope, progress=progress.told)
+        problems += empty_digests(root, scope)
+        problems += guessed_maps(root, result.bib, scope)
+        progress.next_stage("comparing versions")
+        problems += duplicate_documents(root, result.bib, scope if works else None, progress=progress.told)
+        progress.next_stage("linting")
+        problems += uncited_lint(result, all_diagnostics(result), scope)
     by_kind: dict[str, list[Item]] = {}
     for p in problems:
         by_kind.setdefault(p.kind, []).append(Item(p.why, key=p.key, data={"work": p.work, "problem": p.kind}))
@@ -209,6 +218,8 @@ def import_digest(path: Path, citekey: str | None, dry_run: bool, as_json: bool,
     refuse_under_agent(
         "loom library import", "A digest is the author's file once it is in digests/; say which one to bring in."
     )
+    if citekey is not None and not CITEKEY.fullmatch(citekey):
+        raise EnvError(f"--name {citekey!r} is not a citekey: letters and digits, and _ : . + - after the first")
     result = open_scan(quilt_path)
     root = result.quilt.root
     try:
@@ -272,12 +283,13 @@ def drop(
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Remove recorded results: one work's, one session's proposals, or every one still proposed.
+    """Remove recorded results: one work's or one session's proposals and extracted results, or every one still proposed.
 
-    Dropping costs re-reading, never correctness. A verified node already written into digests/<citekey>.tex is the author's file and is never touched; only the records and the proposals go.
+    Dropping costs re-reading, never correctness. What you decided stays: a verified result keeps its record, which is what keeps its text through a later `update --redo`, and a discarded one keeps the reason the next proposer is told. The report says how many it kept.
     """
     from loom.refs.check import recorded_works
     from loom.refs.proposals import (
+        EXTRACTED,
         PROPOSED,
         append_event,
         load_results,
@@ -300,14 +312,30 @@ def drop(
     ck = (work if results_path(root, work).is_file() else _works.one_work(result, work)) if work else None
     by, known = _session_names(root, session) if session else (set(), False)
     doomed: list[tuple[str, str]] = []
+    kept: dict[str, int] = {}
     for w in [ck] if ck else recorded_works(root):
         for rid, r in load_results(root, w).items():
-            if ck or (proposed and state_of(r) == PROPOSED) or (by and any(o.get("by") in by for o in r.origin)):
+            state = state_of(r)
+            named = (
+                ck
+                or (proposed and state == PROPOSED)
+                or (by and any(o.get("by") in by or o.get("session") in by for o in r.origin))
+            )
+            if not named:
+                continue
+            if state in (PROPOSED, EXTRACTED):
                 doomed.append((w, rid))
-    if session and not doomed and not known:
+            else:
+                kept[state] = kept.get(state, 0) + 1
+    if session and not doomed and not kept and not known:
         raise NotFoundError("session", f"{session} names no session and nothing was proposed under it")
+    still = " and ".join(f"{n} {state}" for state, n in sorted(kept.items(), key=lambda kv: kv[0] != "verified"))
     if not doomed:
-        Report("nothing to drop", dry_run=dry_run, data={"dropped": []}).emit(as_json)
+        Report(
+            "nothing to drop" + (f"; kept {still}" if still else ""),
+            dry_run=dry_run,
+            data={"dropped": [], "kept": kept},
+        ).emit(as_json)
         return
     if not yes and not dry_run:
         if not sys.stdin.isatty():
@@ -332,11 +360,11 @@ def drop(
     for w, rid in doomed:
         per.setdefault(w, []).append(rid)
     Report(
-        f"{'would drop' if dry_run else 'dropped'} {counted(len(doomed), 'record')}; "
-        "verified nodes already in digests/ are not touched",
+        f"{'would drop' if dry_run else 'dropped'} {counted(len(doomed), 'record')}"
+        + (f"; kept {still}, which you decided" if still else ""),
         dry_run=dry_run,
         groups=[Group(w, [Item("", key=rid) for rid in sorted(rids)]) for w, rids in sorted(per.items())],
-        data={"dropped": [{"work": w, "id": rid} for w, rid in doomed]},
+        data={"dropped": [{"work": w, "id": rid} for w, rid in doomed], "kept": kept},
     ).emit(as_json)
 
 

@@ -493,6 +493,8 @@ def _one_comment(
 
     if not target:
         raise EnvError("TARGET is required")
+    if not (message or "").strip() and _asks(kind):
+        raise EnvError(NO_MESSAGE)
     work = _work_target(result, target)
     if work is not None or page is not None or rects:
         return _note_on_page(
@@ -550,6 +552,14 @@ def _one_comment(
     )
     sev = f" {severity}" if severity else ""
     return f"{ann_id}  {key}  {kind}{sev}  ({aid}{' run' if akind == 'run' else ''})"
+
+
+NO_MESSAGE = 'an objection, suggestion, question or citation with no message says nothing; give its text after the target: loom annotate TARGET "…"'
+
+
+def _asks(kind: str | None) -> bool:
+    """Whether an annotation of `kind` asks something, so needs words; a `note` with none records that the target was read and nothing was wrong (book 7.4.3)."""
+    return (full_kind(kind) if kind else "note") != "note"
 
 
 def _work_target(result: ScanResult, target: str) -> tuple[str, Any] | None:
@@ -931,6 +941,9 @@ def annotate(
         raise EnvError("--undo applies to --resolve or --discard")
     if not batch:
         _check_named(result, target, reply or resolve or edit or discard_id, in_doc, page is not None or bool(box))
+        if not (reply or resolve or edit or discard_id) and not (message or "").strip() and _asks(kind):
+            raise EnvError(NO_MESSAGE)
+    lines = _batch_lines(result, session, author) if batch else []
     writer = _writer(root, session, author, dry_run=dry_run)
     written: list[str] = []
 
@@ -941,14 +954,7 @@ def annotate(
             log_run(writer[0], _logged(said, **verb), root)
 
     if batch:
-        for lineno, line in enumerate(sys.stdin, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                item: dict[str, Any] = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise EnvError(f"batch line {lineno}: {exc}") from exc
+        for lineno, item in lines:
             try:
                 done(_batch_line(result, writer, item, dry_run), **{k: item.get(k) for k in _VERB_KEYS})
             except EnvError as exc:
@@ -1005,6 +1011,32 @@ def annotate(
         )
     first, *rest = written[0].split("\n")
     Report(_would(first) if dry_run else first, lines=rest, dry_run=dry_run, data=_annotated(written)).emit(as_json)
+
+
+def _batch_lines(result: ScanResult, session: str | None, author: str | None) -> list[tuple[int, dict[str, Any]]]:
+    """Every `--batch` line from stdin, each checked as a dry run before any is written, so a refused line leaves nothing half done.
+
+    A line cannot name an annotation an earlier line of the same batch makes, since that id exists only once it is written.
+    """
+    items: list[tuple[int, dict[str, Any]]] = []
+    for lineno, line in enumerate(sys.stdin, 1):
+        if not line.strip():
+            continue
+        try:
+            items.append((lineno, json.loads(line)))
+        except json.JSONDecodeError as exc:
+            raise EnvError(f"batch line {lineno}: {exc}; nothing was written") from exc
+    if not items:
+        return items
+    trial = _writer(result.quilt.root, session, author, dry_run=True)
+    for lineno, item in items:
+        try:
+            _batch_line(result, trial, item, dry_run=True)
+        except EnvError as exc:
+            raise EnvError(f"batch line {lineno}: {exc.message}; nothing was written") from exc
+        except ContentError as exc:
+            raise ContentError(f"batch line {lineno}: {exc.message}; nothing was written") from exc
+    return items
 
 
 def _check_named(result: ScanResult, target: str | None, ann_id: str | None, in_doc: str | None, on_page: bool) -> None:
@@ -1677,6 +1709,19 @@ def _reading_report(payload: dict[str, Any]) -> Report:
     )
 
 
+def _not_accepted(records: Records, key: str) -> str:
+    """What `--explain` says of a key the local reviewer has not accepted: whose acceptances the ledger does hold, latest first per reviewer."""
+    latest: dict[str, str] = {}
+    for row in records.rows:
+        if row.key == key and row.author and row.author != records.reviewer:
+            latest[row.author] = max(latest.get(row.author, ""), str(row.date)[:10])
+    if not latest:
+        return "never accepted"
+    others = ", ".join(f"{who} on {when}" for who, when in sorted(latest.items()))
+    you = f"you ({records.reviewer})" if records.reviewer else "you"
+    return f"not accepted by {you}; accepted by {others}"
+
+
 def _explain_report(result: ScanResult, records: Records, payload: dict[str, Any], explain: str) -> Report:
     """`loom status --explain KEY`: the key's state, where it is, its open findings, and each cause of staleness with its diff."""
     key = resolve_key(result, explain)
@@ -1690,7 +1735,7 @@ def _explain_report(result: ScanResult, records: Records, payload: dict[str, Any
     if section:
         lines.append("a section: it carries findings and takes no acceptance")
     elif not ks.causes:
-        lines.append("no causes: the acceptance is fresh" if ks.row else "never accepted")
+        lines.append("no causes: the acceptance is fresh" if ks.row else _not_accepted(records, key))
     e = payload["keys"].get(key) or {"reviews": {"open": dict(ks.open), "detached": ks.detached}}
     opened = {k: v for k, v in e["reviews"]["open"].items() if v}
     if opened:

@@ -9,7 +9,7 @@ from pathlib import Path
 from click.testing import Result
 
 from loom.history.steps import text_hash
-from tests.helpers import edit, exits, json_of, ok, refused, templated, the
+from tests.helpers import edit, exits, json_of, ok, refused, run, templated, the
 
 PAPER = r"""\documentclass{article}
 \usepackage{amsthm}
@@ -450,7 +450,7 @@ def test_history_restore_drafts_a_landmark_as_a_new_document_and_records_it(tmp_
         cwd=q,
         env={"AI_AGENT": "1"},
         code=2,
-        match="loom history restore is the author's",
+        match="may not run `loom history restore`",  # K5's one guard, in the top-level group
     )
     assert len(ledger(q)) == n and not (q / "drafting" / "x.tex").exists()  # the refusals wrote nothing
 
@@ -464,3 +464,54 @@ def test_restoring_a_landmark_whose_ids_are_still_live_adds_no_second_id(tmp_pat
     assert re.search(r"\\label\{pp-[0-9A-Z]{4}\}\s*\\label\{pp-", text) is None, text
     assert "0 ids inserted" in r.stdout
     assert "ids it defines another live document also defines" in said(r)
+
+
+def test_linearize_fork_derives_the_forked_nodes_inner_labels_and_lists_them_only_as_forked(tmp_path: Path) -> None:
+    """The re-grade's demo case: `--fork` copied `\\label{eq:fix}` into the flat document, so lint found it defined twice and the outline's node resolved `\\eqref{eq:fix}` into the flat copy; and it listed the forked files as kept inclusions too."""
+    from tests.unit._quilts import demo
+
+    q = demo(tmp_path)
+    r = ok("linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--fork", "--no-check", cwd=q)
+    flat = (q / "drafting" / "flat.tex").read_text()
+    assert "\\label{eq:fix}" not in flat and "\\eqref{eq:fix}" not in flat
+    derived = re.search(r"\\label\{(eq:fix-dm-[0-9A-Z]{4})\}", flat)
+    assert derived is not None, flat
+    assert f"\\eqref{{{derived.group(1)}}}" in flat  # the forked lemma's proof follows its own copy
+    assert "forked, so this document has its own copy (2)" in r.stdout
+    assert "kept as inclusions" not in r.stdout
+    assert ledger(q)[-1]["kept"] == []
+    lint = run("lint", "--json", cwd=q)
+    errors = [d for d in json.loads(lint.stdout)["diagnostics"] if d["severity"] == "error"]
+    assert errors == [], errors
+
+
+def test_linearize_that_leaves_an_error_the_source_did_not_have_exits_1_naming_it(tmp_path: Path) -> None:
+    """A node file the spine includes twice is one definition in the source and two once inlined: the flat document is written and recorded, and the error it brought is named with exit 1."""
+    from tests.unit._quilts import demo
+
+    q = demo(tmp_path)
+    edit(q / "drafting" / "main.tex", "\\input{nodes/dm-0003}", "\\input{nodes/dm-0003}\n\n\\input{nodes/dm-0003}")
+    r = exits(1, "linearize", "drafting/main.tex", "--to", "drafting/flat.tex", "--fork", "--no-check", cwd=q)
+    assert "wrote drafting/flat.tex" in r.stdout and "drafting/main.tex did not have" in said(r)
+    assert "dm-0003" in r.stdout and ledger(q)[-1]["action"] == "linearize"
+
+
+def test_a_key_whose_text_differs_from_every_version_names_both_ways_back(tmp_path: Path) -> None:
+    """The re-grade: "its text now differs from every version" named neither the stamp that records the text nor the revert that puts a version back."""
+    q = quilt(tmp_path)
+    ok("stamp", "-m", "one", cwd=q)
+    main = q / "drafting" / "main.tex"
+    main.write_text(main.read_text().replace("Alpha.", "Alpha, revised."))
+    r = ok("history", "pp-0002", cwd=q)
+    assert "its text now differs from every version" in r.stdout
+    assert 'loom stamp -m "…"' in r.stdout and "loom revert pp-0002@2" in r.stdout
+    j = json_of("history", "pp-0002", "--json", cwd=q)
+    assert [g["items"][1]["fixes"] for g in j["groups"]] == [["loom revert pp-0002@2"]]
+
+
+def test_history_help_for_a_word_that_is_neither_a_command_nor_a_key_is_refused(tmp_path: Path) -> None:
+    """The re-grade: `history shwo --help` documented a command `loom history shwo`, because an unknown word is taken for a KEY."""
+    q = quilt(tmp_path)
+    r = refused("history", "shwo", "--help", cwd=q, code=2, match="no such command or key: shwo")
+    assert "did you mean show?" in r.output and "Usage" not in r.output
+    assert "history pp-0002 [OPTIONS]" in ok("history", "pp-0002", "--help", cwd=q).stdout

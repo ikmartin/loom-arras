@@ -10,7 +10,7 @@ from loom.scan.scan import scan
 from loom.tex.assemble import assemble, shift_sectioning
 from loom.tex.aux import parse_aux
 from loom.tex.bundle import apply_unified_diff, build_bundle, unified_diff
-from tests.helpers import exits, json_of, ok, refused
+from tests.helpers import exits, json_of, ok, refused, run
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -238,3 +238,62 @@ def test_citation_labels_come_from_the_compile() -> None:
     aux = "\\bibcite{b}{1}\n\\bibcite{nat}{{7}{2008}{{Manolache}}{{}}}\n\\bibcite{al}{ABC{\\etalchar{+}}99}\n"
     bbl = "\\entry{gp}{article}{}\n\\field{labelalpha}{GP99}\n\\field{extraalpha}{2}\n\\endentry\n\\entry{x}{book}{}\n\\endentry\n"
     assert parse_cite_labels(aux, bbl) == {"b": "1", "nat": "7", "al": "ABC+99", "gp": "GP99b"}
+
+
+#: The end of a real pdflatex log for `\nosuchmacro` in a node the demo's main document includes.
+UNDEFINED_LOG = r"""(/usr/local/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+)
+(./nodes/dm-0001.tex) (./nodes/dm-0002.tex
+
+LaTeX Warning: Reference `eq:fix' on page 1 undefined on input line 9.
+
+) (./nodes/dm-0003.tex
+
+LaTeX Warning: Reference `lem:orbits' on page 1 undefined on input line 10.
+
+! Undefined control sequence.
+l.10 ...od 2$, which gives the parity \nosuchmacro
+                                                   statement. For closedness...
+
+Here is how much of TeX's memory you used:
+"""
+
+
+def test_a_compile_failure_names_the_macro_the_file_the_line_and_the_log(tmp_path: Path) -> None:
+    """T3: `! Undefined control sequence.` alone names nothing to fix; the report reads the place from the log and says where the log is."""
+    from loom.cli.build_cmds import compile_report
+    from loom.tex.runner import CompileResult
+
+    out = tmp_path / "build" / "main"
+    out.mkdir(parents=True)
+    log = out / "main.log"
+    log.write_text(UNDEFINED_LOG)
+    res = CompileResult(False, "pdflatex", out, 12, "", ["! Undefined control sequence."], None, None, log)
+    report = compile_report(res, "drafting/main.tex", tmp_path)
+    text = report.render()
+    assert report.verdict.startswith("drafting/main.tex did not compile: ! Undefined control sequence")
+    assert "\\nosuchmacro" in report.verdict and "nodes/dm-0003.tex:10" in report.verdict, report.verdict
+    assert "build/main/main.log" in text, text
+    data = report.to_json()
+    assert data["log"] == "build/main/main.log"
+    assert data["error_at"] == {"file": "nodes/dm-0003.tex", "line": 10, "macro": "\\nosuchmacro"}
+
+
+def test_check_says_it_is_alive_while_it_lints(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """T6: the progress line starts with the command, so a slow lint before the first compile is not silent."""
+    import time
+
+    import loom.cli.lint_cmd as lint_cmd
+
+    d = demo(tmp_path)
+    real = lint_cmd.all_diagnostics
+
+    def slow(result):  # type: ignore[no-untyped-def]
+        time.sleep(3.2)
+        return real(result)
+
+    monkeypatch.setattr(lint_cmd, "all_diagnostics", slow)
+    r = run("check", cwd=d)
+    assert r.exit_code == 0, r.output
+    assert "linting" in r.stderr, r.stderr

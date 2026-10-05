@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import click
 
 from loom.cli._common import EnvError, NotFoundError
 from loom.cli._quilt import open_scan, quilt_option
-from loom.cli.library._works import find_result
+from loom.cli.library._works import find_result, logged
 from loom.cli.report import Report
 from loom.refs.links import KINDS
 
@@ -36,17 +34,10 @@ from loom.refs.links import KINDS
     metavar="NAME",
     help="Who asserts it; an agent names itself, with Agent or AI in the name.",
 )
-@click.option(
-    "--session",
-    "run_dir",
-    default=None,
-    envvar="LOOM_SESSION",
-    metavar="SESSION",
-    help="The session asserting it; it is recorded as who did.",
-)
 @click.option("--dry-run", is_flag=True, help="Check everything and say what would change, writing nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
+@logged("relate")
 def relate_command(
     frm: str | None,
     to: str | None,
@@ -54,44 +45,42 @@ def relate_command(
     why: str,
     undo: str | None,
     who: str | None,
-    run_dir: str | None,
     dry_run: bool,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
     """Assert a typed relation between two results, FROM and TO, with a reason; with --undo LINK_ID, remove one.
 
-    **Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; it is an assertion, attributed to whoever made it. Relations are never citable, never enter a closure, and are never written into a digest: they are navigation, not mathematics. `loom library why ID` lists a result's relations.
+    **Nobody verifies this and it says so.** A relation has no page span to check it against, so a verification step would be theatre; it is an assertion, attributed to whoever made it: `--as`, else you as the quilt's reviewer. Relations are never citable, never enter a closure, and are never written into a digest: they are navigation, not mathematics. `loom library why ID` lists a result's relations.
     """
     if undo is not None:
         if frm is not None or to is not None or kind is not None:
             raise EnvError(
                 "--undo removes the relation it names; give FROM TO --kind K to relate two results, or --undo LINK_ID, not both"
             )
-        _undo(quilt_path, undo, why, who, run_dir, dry_run, as_json)
+        _undo(quilt_path, undo, why, who, dry_run, as_json)
         return
     if frm is None or to is None or kind is None:
         raise EnvError("give FROM TO --kind K to relate two results, or --undo LINK_ID to remove a relation")
     from loom.cli._common import agent_marker
     from loom.refs.links import add_link, check_link, next_id, read_links
-    from loom.scan.quilt import resolve_author
+    from loom.scan.quilt import NoAuthorError, resolve_author
 
     result = open_scan(quilt_path)
     root = result.quilt.root
     for end in (frm, to):
         find_result(result, end)
-    if run_dir:
-        # who asserted it, as `loom annotate` records it: an assertion is somebody's, and a reader weighs it by whose
-        by = Path(run_dir).name
-    elif who:
+    # who asserted it, never the session it was asserted in: an assertion is somebody's, and a reader weighs it by whose
+    if who and who.strip():
         by = who.strip()
     elif agent_marker():
         # an agent with no --session would otherwise be recorded as the author, by way of git: eleven links in the second study run were
-        raise EnvError(
-            "an agent is running this shell: pass --session SESSION, or --as NAME, so the relation says who asserted it"
-        )
+        raise EnvError("an agent is running this shell: pass --as NAME, so the relation says who asserted it")
     else:
-        by = resolve_author(None, root)[0]
+        try:
+            by = resolve_author(None, root)[0]
+        except NoAuthorError as exc:
+            raise EnvError(str(exc)) from exc
     links = read_links(root)
     try:
         check_link(links, frm, to, kind, why)
@@ -117,9 +106,7 @@ def relate_command(
     ).emit(as_json)
 
 
-def _undo(
-    quilt_path: str | None, link_id: str, why: str, who: str | None, run_dir: str | None, dry_run: bool, as_json: bool
-) -> None:
+def _undo(quilt_path: str | None, link_id: str, why: str, who: str | None, dry_run: bool, as_json: bool) -> None:
     """Remove one relation, recording who removed it and why; an agent is refused one a person asserted."""
     from loom.cli._common import agent_marker, is_agent, whoever
     from loom.cli._quilt import open_quilt
@@ -139,7 +126,7 @@ def _undo(
         raise EnvError(
             f"{link_id} was asserted by {target.by}, and {acting}; removing someone else's relation is theirs to do"
         )
-    by = Path(run_dir).name if run_dir else whoever(root, who)
+    by = whoever(root, who)
     if dry_run:
         Report(
             f"would remove {target.id}: {target.frm} {target.kind} {target.to}",

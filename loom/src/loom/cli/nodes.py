@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from loom.cli._common import EnvError, NotFoundError, find_session
+from loom.cli._common import EnvError, NotFoundError, find_session, whoever, writer
 from loom.cli._quilt import open_scan, quilt_option
 from loom.cli.build_cmds import log_run
 from loom.cli.graph import keyed, natural
@@ -16,7 +16,6 @@ from loom.cli.report import Group, Report, counted
 from loom.clock import today
 from loom.scan.alloc import visible_locals
 from loom.scan.labels import PREFIX, next_local
-from loom.scan.quilt import NoAuthorError, resolve_author
 from loom.scan.scan import ScanResult
 
 
@@ -42,14 +41,26 @@ def skeleton(result: ScanResult, node_id: str | None, env: str, title: str | Non
 
 
 def resolve_taxon(result: ScanResult, name: str) -> str:
+    """The environment `name` means, by environment or by printed name; refused with what each document declares."""
     if name in result.taxa:
         return name
     for env, t in result.taxa.items():
         if t.name.lower() == name.lower():
             return env
-    raise NotFoundError(
-        "taxon", f"unknown taxon {name!r}; the default master declares: {', '.join(sorted(result.taxa))}"
-    )
+    raise NotFoundError("taxon", f"unknown taxon {name!r}; " + _declared(result))
+
+
+def _declared(result: ScanResult) -> str:
+    """Which document declares which environments: the default master's in full, then each other document's that it lacks."""
+    first = result.default_master
+    seen = set(result.closures[first].taxa) if first in result.closures else set()
+    parts = [f"{first} declares {', '.join(sorted(seen)) or 'none'}"] if first in result.closures else []
+    for m in sorted(result.closures):
+        extra = sorted(set(result.closures[m].taxa) - seen)
+        if m != first and extra:
+            parts.append(f"{m} also {', '.join(extra)}")
+            seen |= set(extra)
+    return "; ".join(parts) or f"no document declares any: {', '.join(sorted(result.taxa)) or 'none'}"
 
 
 @click.command()
@@ -63,6 +74,13 @@ def resolve_taxon(result: ScanResult, name: str) -> str:
 @click.option(
     "--session", "run_dir", default=None, metavar="SESSION", envvar="LOOM_SESSION", help="Log this call to the session."
 )
+@click.option(
+    "--as",
+    "declared",
+    default=None,
+    metavar="NAME",
+    help="Who writes the node; an agent names itself, including Agent or AI.",
+)
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
 def new(
@@ -72,24 +90,26 @@ def new(
     print_only: bool,
     dry_run: bool,
     run_dir: str | None,
+    declared: str | None,
     as_json: bool,
     quilt_path: str | None,
 ) -> None:
-    """Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead."""
+    """Allocate an id and write nodes/<id>.tex with a skeleton for TAXON; with --print, print the skeleton instead.
+
+    The node's `% !LOOM author:` line is whoever writes it: `--as`, else the configured author; an agent that has not named itself is refused.
+    """
     result = open_scan(quilt_path)
     env = resolve_taxon(result, taxon)
     if prefix is not None and not PREFIX.match(prefix):
         raise EnvError(f"--prefix {prefix}: a prefix is letters and digits, without a hyphen")
     if prefix is not None and prefix in result.assembly.citeslugs:
         raise EnvError(f"--prefix {prefix} is a cited work's slug, whose ids are that paper's own")
+    root = result.quilt.root
+    author = (whoever(root, declared) if print_only else writer(root, declared)[0]) or None
     if dry_run and run_dir:
         find_session(result.quilt.root, run_dir)
     elif not dry_run:
         log_run(run_dir, f"loom new {taxon}" + (f" {title!r}" if title else ""), result.quilt.root)
-    try:
-        author, _ = resolve_author(None, result.quilt.root)
-    except NoAuthorError:
-        author = None
     if print_only:
         click.echo(skeleton(result, None, env, title, author), nl=False)
         return
@@ -103,10 +123,13 @@ def new(
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(skeleton(result, node_id, env, title, author), encoding="utf-8")
+    home = result.default_master or result.quilt.config.main
+    line = f"\\input{{nodes/{node_id}}}"
     Report(
-        f"{node_id}  {'would write' if dry_run else 'wrote'} {rel}, a new {name.lower()}",
+        f"{node_id}  {'would write' if dry_run else 'wrote'} {rel}, a new {name.lower()}; no document reaches it yet",
         dry_run=dry_run,
-        data={"id": node_id, "file": rel, "taxon": env},
+        lines=[f"to place it, add {line} to a document, e.g. {home}"],
+        data={"id": node_id, "file": rel, "taxon": env, "author": author, "input": line},
     ).emit(as_json)
 
 
@@ -151,6 +174,7 @@ def search_entries(result: ScanResult, query: str, kind: str | None) -> list[dic
                     "kind": entry_kind,
                     "taxon": n.taxon,
                     "title": title,
+                    "name": cited_name(result, n.digest, title) if n.digest else title,
                     "aliases": list(n.aliases),
                     "tags": tags,
                     "file": n.file,
@@ -162,6 +186,23 @@ def search_entries(result: ScanResult, query: str, kind: str | None) -> list[dic
         )
     out.sort(key=lambda x: (x[0], natural(x[1])))
     return [e for _, _, e in out]
+
+
+def cited_name(result: ScanResult, citekey: str, title: str) -> str:
+    """A cited work's result as a reader names it: its locator without the page, then the work's authors (`Corollary 2.16 of Edidin et al.`); the title as written when it carries no locator."""
+    from loom.refs.resolve import query_for
+    from loom.scan.postnote import locator_of
+
+    loc = locator_of(title)
+    if not loc:
+        return title
+    loc = re.sub(r",\s*p+\.\s*~?\s*[\d-]+$", "", loc).replace("~", " ").strip()
+    entry = result.bib.get(citekey)
+    names = list(query_for(entry).surnames) if entry is not None else []
+    more = entry is not None and bool(re.search(r"\band\s+others\b", entry.fields.get("author", "")))
+    if not names:
+        return f"{loc} of {citekey}"
+    return f"{loc} of " + (f"{names[0]} et al." if len(names) > 2 or more else " and ".join(names))
 
 
 #: A result named as a reader sees it: `Theorem 3.4`, `Lemma 4.1`, `3.4`, or an equation's `(3)`.
@@ -274,19 +315,23 @@ def search(
     if only:
         raise EnvError("--in names a document to resolve a number in, such as `Theorem 3.4`")
     entries = search_entries(result, query, kind)
-    rows = [
-        (
-            (str(e["taxon"] or e["kind"]), f'"{e["title"]}"' if e["title"] else "", f"{e['file']}:{e['line']}"),
-            str(e["key"]),
-        )
-        for e in entries
-    ]
+    more = f"loom search {shlex.quote(query)} --json"
+    groups = []
+    for heading, part in (
+        ("in your documents", [e for e in entries if e["kind"] != "digest"]),
+        ("in cited works", [e for e in entries if e["kind"] == "digest"]),
+    ):
+        rows = [
+            (
+                (str(e["taxon"] or e["kind"]), f'"{e["name"]}"' if e["name"] else "", f"{e['file']}:{e['line']}"),
+                str(e["key"]),
+            )
+            for e in part
+        ]
+        if rows:
+            groups.append(Group(heading, keyed(rows), limit=20, next=more if len(rows) > 20 else None))
     Report(
         f"{counted(len(entries), 'match', 'matches')} for {asked!r}" if entries else f"nothing matches {asked!r}",
-        groups=[
-            Group(
-                "", keyed(rows), limit=20, next=f"loom search {shlex.quote(query)} --json" if len(rows) > 20 else None
-            )
-        ],
+        groups=groups,
         data={"matches": entries},
     ).emit(as_json)

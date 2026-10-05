@@ -51,7 +51,7 @@ def test_a_mechanical_result_reads_extracted_everywhere_and_no_file_is_written(t
     assert json_of("library", "why", RID, "--json", cwd=q)["state"] == "extracted"
     hits = json_of("library", "search", "involution", "--json", cwd=q)["hits"]
     assert hits and {h["state"] for h in hits} == {"extracted"}
-    assert "(extracted by loom)" in ok("library", "search", "involution", cwd=q).stdout
+    assert "extracted by loom, best match first" in ok("library", "search", "involution", cwd=q).stdout
     row = next(w for w in json_of("library", "--json", cwd=q)["works"] if w["citekey"] == CK)
     assert (row["extracted"], row["verified"], row["waiting"]) == (5, 0, 0)
     ok("build", cwd=q)

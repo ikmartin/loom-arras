@@ -21,10 +21,14 @@ def quilt_option(f: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def open_quilt(quilt_path: str | None) -> Quilt:
+    """The quilt at `--quilt`, else the nearest one above the current directory; outside one, the refusal says how to get into one."""
     try:
         return find_quilt(Path(quilt_path).expanduser() if quilt_path else None)
     except NoQuiltError as exc:
-        raise EnvError(str(exc)) from exc
+        said = str(exc)
+        if said.startswith("not inside a quilt"):
+            said += "; cd into one, or make one with loom init DIR"
+        raise EnvError(said) from exc
 
 
 def open_scan(quilt_path: str | None) -> ScanResult:

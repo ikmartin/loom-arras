@@ -105,7 +105,7 @@ def discard_refusal(r: Result, citekey: str) -> str:
     """Why `r` cannot be discarded, or '' when it can: a verified result is in the digest, and an extracted one is redone, never discarded."""
     state = state_of(r)
     if state == VERIFIED:
-        return f"{r.id} is verified and in the digest; edit or remove it there, or loom library drop --work {citekey}"
+        return f"{r.id} is verified and in digests/{citekey}.tex; edit or remove it there"
     if state == EXTRACTED:
         return (
             f"{r.id} is extracted by loom from {citekey}'s source, not proposed; "
@@ -580,7 +580,21 @@ def verify_result(
             f"{rid} is not in digests/{citekey}.tex in the shape loom writes; put your text there by hand"
         )
     r.state = VERIFIED
-    r.origin.append({"act": "verified", "by": author, "when": stamp()})
+    act = {"act": "verified", "by": author, "when": stamp()}
+    # re-anchored to the page or file as the author read it now, which is what `check` compares against next time
+    entry = result.bib.get(citekey)
+    if entry is not None and r.cls != "mechanical":
+        from loom.refs.fetch import work_dir
+        from loom.refs.pages import read_map
+
+        home = work_dir(root, entry)
+        read = anchored_text(root, home, r)
+        if read is not None:
+            act["read"] = text_sha(read)
+            m = read_map(home) if r.anchor.kind == "pdf" else None
+            if m is not None and m.sha256:
+                r.anchor.sha256 = m.sha256
+    r.origin.append(act)
     save_results(root, citekey, results)
     write_proposed_tex(root, citekey, prefix, results)
     if renamed:
@@ -647,6 +661,32 @@ def home_of(root: Path, r: Result) -> Path | None:
         if sections.is_file() and r.anchor.sha256 in sections.read_text(encoding="utf-8"):
             return d
     return None
+
+
+def anchored_text(root: Path, home: Path, r: Result) -> str | None:
+    """The text a result's anchor is read against: its page span from the work's page text at `home`, or its source file; None when there is none to read."""
+    from loom.refs.pages import read_pages
+
+    if r.anchor.kind == "tex" and r.anchor.path:
+        try:
+            return (root / r.anchor.path).read_bytes().decode("utf-8", "surrogateescape")
+        except OSError:
+            return None
+    if r.anchor.kind == "pdf" and r.anchor.page:
+        return read_pages(home, r.anchor.page, max(r.anchor.page, r.anchor.last))
+    return None
+
+
+def text_sha(text: str) -> str:
+    """The hash a verify records of the text it was read against, so `check` knows a page re-read since it changed."""
+    import hashlib
+
+    return hashlib.sha256(text.encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def read_at_verify(r: Result) -> str:
+    """The hash of the text the last verify was read against (`text_sha`); '' when none was recorded."""
+    return next((str(o.get("read") or "") for o in reversed(r.origin) if o.get("act") == "verified"), "")
 
 
 def locate_quote(text: str, quote: str) -> tuple[int, int] | None:

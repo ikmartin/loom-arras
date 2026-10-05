@@ -137,14 +137,8 @@ class BuildReport:
     fetch_off: bool = False
     #: Citekeys whose digest this run wrote; the works already digested are not listed again.
     entered: list[str] = field(default_factory=list)
-
-    @property
-    def declared(self) -> int:
-        return sum(1 for w in self.works if w.declared)
-
-    @property
-    def with_candidate(self) -> int:
-        return sum(1 for w in self.works if not w.declared and w.candidate)
+    #: (need the person, need an agent) as `loom library` counts them -- cited works, versions folded -- which the command sets, so the report closes on the numbers `library` then lists.
+    left: tuple[int, int] = (0, 0)
 
     @property
     def fetchable(self) -> int:
@@ -152,33 +146,13 @@ class BuildReport:
         return sum(1 for w in self.works if not w.source and (w.declared or w.candidate))
 
     @property
-    def unresolved(self) -> int:
-        return sum(1 for w in self.works if not w.declared and not w.candidate)
-
-    @property
     def lookable(self) -> int:
         """Works a lookup would actually ask about: no arXiv id, no candidate, and no source on disk."""
         return sum(1 for w in self.works if not (w.declared or w.candidate or w.source))
 
     @property
-    def sources(self) -> int:
-        return sum(1 for w in self.works if w.source)
-
-    @property
-    def pdfs(self) -> int:
-        return sum(1 for w in self.works if w.pdf)
-
-    @property
     def digests(self) -> int:
         return sum(1 for w in self.works if w.digest)
-
-    @property
-    def mapped(self) -> int:
-        return sum(1 for w in self.works if w.pages)
-
-    @property
-    def pages(self) -> int:
-        return sum(w.pages for w in self.works)
 
     @property
     def discarded(self) -> list[WorkState]:
@@ -194,14 +168,6 @@ class BuildReport:
         """Works the author has declared there is no document for; listed and never retried."""
         return [w for w in self.works if w.unreadable]
 
-    @property
-    def for_a_person(self) -> list[WorkState]:
-        return [w for w in self.works if w.needs_a_person]
-
-    @property
-    def for_an_agent(self) -> list[WorkState]:
-        return [w for w in self.works if w.needs_an_agent]
-
     def report(self) -> Report:
         """The run as a report: a verdict, a count per step taken, then what this run did, what failed and why, and what stands in each work's way under the command that clears it.
 
@@ -211,37 +177,53 @@ class BuildReport:
 
         n = len(self.works)
         ran = self.steps
-        sections = sum(1 for x in self.works if x.sections)
         rows = []
+        # each step's count is what this run did; an offline step did nothing, and says so rather than count the disk
         if "resolve" in ran:
+            looked = [w for w in self.works if w.lookup is not None]
             rows.append(
-                (
-                    "resolved",
-                    str(n),
-                    f"entries: {self.declared} state an arXiv id, {self.with_candidate} have a strong candidate, "
-                    f"{self.unresolved} have neither" + (" (offline)" if self.resolve_off else ""),
+                ("looked up", "0", "nothing looked up: offline")
+                if self.resolve_off
+                else (
+                    "looked up",
+                    str(len(looked)),
+                    f"{'entry' if len(looked) == 1 else 'entries'}, "
+                    f"{sum(1 for w in looked if w.lookup)} with a candidate",
                 )
             )
         if "fetch" in ran:
+            got = [w.fetched for w in self.works if w.fetched is not None and not w.fetched.discarded]
+            sources, pdfs = sum(1 for f in got if f.source), sum(1 for f in got if f.pdf)
             rows.append(
-                (
+                ("fetched", "0", "nothing fetched: offline")
+                if self.fetch_off
+                else (
                     "fetched",
-                    str(self.sources),
-                    f"{'source' if self.sources == 1 else 'sources'} and {counted(self.pdfs, 'PDF')}; "
-                    f"{len(self.discarded)} rejected on the title check" + (" (offline)" if self.fetch_off else ""),
+                    str(sources),
+                    f"{'source' if sources == 1 else 'sources'} and {counted(pdfs, 'PDF')}; "
+                    f"{len(self.discarded)} rejected on the title check",
                 )
             )
         if "extract" in ran:
             rows.append(
                 (
                     "extracted",
-                    str(self.digests),
-                    "digests" + (f", {self.recorded} results recorded" if self.recorded else ""),
+                    str(len(self.entered)),
+                    ("digest" if len(self.entered) == 1 else "digests")
+                    + (f", {self.recorded} results recorded" if self.recorded else ""),
                 )
             )
         if "map" in ran:
+            remapped = [w for w in self.works if w.remapped]
             rows.append(
-                ("mapped", str(self.mapped), f"works from PDF text, {self.pages} pages, sections found for {sections}")
+                (
+                    "mapped",
+                    str(len(remapped)),
+                    f"works from PDF text, {sum(w.pages for w in remapped)} pages, "
+                    f"sections found for {sum(1 for w in remapped if w.sections)}"
+                    if remapped
+                    else "works from PDF text",
+                )
             )
         width = max((len(r[1]) for r in rows), default=0)
         lines = table((label, count.rjust(width), text) for label, count, text in rows)
@@ -303,17 +285,13 @@ class BuildReport:
                 [Item(x.unreadable, key=x.citekey) for x in sorted(self.unreadable, key=lambda x: x.citekey.lower())],
             )
         )
-        person, agent = self.for_a_person, self.for_an_agent
+        person, agent = self.left
         waiting = []
         if person or agent:
             waiting.append(
                 Group(
                     "left for you and for an agent",
-                    [
-                        Item(
-                            f"{counted(len(person), 'work')} need{'s' if len(person) == 1 else ''} you, {len(agent)} an agent"
-                        )
-                    ],
+                    [Item(f"{counted(person, 'work')} need{'s' if person == 1 else ''} you, {agent} an agent")],
                     counted=False,
                     next="loom library lists them",
                 )
@@ -325,7 +303,7 @@ class BuildReport:
             + (f"; this run {self.did}" if self.did else ", nothing new this run")
             + (f"; {failed} failed" if failed else "")
             + (f"; {blocked} blocked" if blocked else "")
-            + f"; {len(person)} need{'s' if len(person) == 1 else ''} you, {len(agent)} an agent"
+            + f"; {person} need{'s' if person == 1 else ''} you, {agent} an agent"
         )
         notes = (
             ["a candidate becomes the work's identity when you add its field to your own bibliography entry"]

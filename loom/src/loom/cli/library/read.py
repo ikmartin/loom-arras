@@ -282,14 +282,14 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
     hits.sort(key=lambda h: (-h["score"], h["work"], h["id"]))
     shown = hits[:limit]
     in_works = len({h["of"] for h in hits})
-    items = [
-        Item(
-            f"{h['work']}  {h['locator']} ({h['said']})  {h['snippet']}"
-            + (f"  (also in {', '.join(h['versions'])})" if h["versions"] else ""),
-            key=h["id"],
-        )
-        for h in shown
-    ]
+    # a state and a work's versions are said once, in a heading and a group of their own, not on every hit
+    by_state: dict[str, list[Item]] = {}
+    for h in shown:
+        by_state.setdefault(h["said"], []).append(Item(f"{h['work']}  {h['locator']}  {h['snippet']}", key=h["id"]))
+    also: dict[str, dict[str, int]] = {}
+    for h in shown:
+        for v in h["versions"]:
+            also.setdefault(h["work"], {})[v] = also.get(h["work"], {}).get(v, 0) + 1
     q = shlex.quote(text)
     cut = len(hits) > len(shown)
     # a digest's version is its extraction's, so it is said for a work whose extracted results were hit
@@ -301,15 +301,33 @@ def _results(result: Any, text: str, terms: list[str], wanted: set[str] | None, 
         + f"; {len(digested)} of {len(result.bib)} works digested",
         lines=[] if hits else [f"next: loom library search {q} --pages searches the page text"],
         groups=present(
+            *[
+                Group(
+                    f"{said}, best match first",
+                    items,
+                    count=sum(1 for h in hits if h["said"] == said),
+                    limit=None,
+                    next=(
+                        f"loom library search {q} --limit {len(hits)} shows every one"
+                        if cut
+                        else "loom library why ID says where one came from"
+                    )
+                    if i == len(by_state) - 1
+                    else None,
+                )
+                for i, (said, items) in enumerate(by_state.items())
+            ],
             Group(
-                "best match first",
-                items,
-                count=len(hits),
+                "also stated in another version",
+                [
+                    Item(
+                        ", ".join(f"{counted(n, 'result')} in {v}" for v, n in sorted(vs.items())),
+                        key=work,
+                    )
+                    for work, vs in sorted(also.items())
+                ],
                 limit=None,
-                next=f"loom library search {q} --limit {len(hits)} shows every one"
-                if cut
-                else "loom library why ID says where one came from",
-            )
+            ),
         ),
         notes=[f"{ck}: {v.read_from}" for ck, v in versions.items() if v is not None],
         data={"results": len(hits), "searched": searched, "of": len(result.bib), "truncated": cut, "hits": shown},
@@ -340,25 +358,44 @@ def _once_per_work(hits: list[dict[str, Any]], bib: Any) -> list[dict[str, Any]]
 
 
 def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, limit: int) -> Report:
-    """The page search: pages ranked by how often the terms occur on them, every work's best page shown before any work's second."""
+    """The page search: pages ranked by how often the terms occur on them, every work's best page shown before any work's second.
+
+    A work's versions are one work: a page a version holds as the work does is one hit, the work's, and the version is named once below.
+    """
     from loom.refs.build import survey
     from loom.refs.fetch import work_dir
+    from loom.refs.scan import primary_of
     from loom.refs.search import search_pages
 
     root = result.quilt.root
+    tops = primary_of(result.bib)
     pool = [w for w in survey(result) if wanted is None or w.citekey in wanted]
-    hits = []
+    found = []
     searched = 0
     for w in pool:
         if not w.pages:
             continue
         searched += 1
-        hits.extend(search_pages(work_dir(root, result.bib[w.citekey]), w.citekey, terms))
+        found.extend(search_pages(work_dir(root, result.bib[w.citekey]), w.citekey, terms))
+    found.sort(key=lambda h: (h.citekey in tops, -h.score, h.citekey, h.page))
+    hits = []
+    seen: dict[tuple[str, int, str], Any] = {}
+    also: dict[str, dict[str, int]] = {}
+    for h in found:
+        same = (tops.get(h.citekey, h.citekey), h.page, h.context)
+        first = seen.get(same)
+        if first is None:
+            seen[same] = h
+            hits.append(h)
+        else:
+            per = also.setdefault(first.citekey, {})
+            per[h.citekey] = per.get(h.citekey, 0) + 1
     hits.sort(key=lambda h: (-h.score, h.citekey, h.page))
+    works_with_pages = len({tops.get(w.citekey, w.citekey) for w in pool if w.pages})
     # Every work is searched before anything is cut, and the cut takes each work's best page before any work's second: a plain top-N filled up with whichever paper had the most pages, and the others looked empty.
     per_work: dict[str, list[Any]] = {}
     for h in hits:
-        per_work.setdefault(h.citekey, []).append(h)
+        per_work.setdefault(tops.get(h.citekey, h.citekey), []).append(h)
     shown: list[Any] = []
     depth = 0
     while len(shown) < limit and any(len(v) > depth for v in per_work.values()):
@@ -371,7 +408,7 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
     items = [
         Item(f"p.{h.page}" + (f" [{h.section}]" if h.section else "") + f"  {h.context}", key=h.citekey) for h in shown
     ]
-    taken = {ck: sum(1 for h in shown if h.citekey == ck) for ck in per_work}
+    taken = {ck: sum(1 for h in shown if tops.get(h.citekey, h.citekey) == ck) for ck in per_work}
     by_work = [
         Item(
             counted(len(v), "page"),
@@ -381,8 +418,9 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
         for ck, v in sorted(per_work.items(), key=lambda kv: kv[0].lower())
     ]
     cut = len(hits) > len(shown)
-    verdict = f"{counted(len(hits), 'hit')} in {len(per_work)} of {counted(searched, 'work')} with page text" + (
-        f", showing {len(shown)}" if cut else ""
+    verdict = (
+        f"{counted(len(hits), 'hit')} in {len(per_work)} of {counted(works_with_pages, 'work')} with page text"
+        + (f", showing {len(shown)}" if cut else "")
     )
     if searched < len(pool):
         verdict += f"; {len(pool) - searched} of {len(pool)} have none to search (loom library)"
@@ -397,6 +435,14 @@ def _pages(result: Any, text: str, terms: list[str], wanted: set[str] | None, li
                 next=f"loom library read {shown[0].citekey} {shown[0].page} reads one" if shown else None,
             ),
             Group("pages per work", by_work if cut else []),
+            Group(
+                "also on a version's page",
+                [
+                    Item(", ".join(f"{counted(n, 'page')} in {v}" for v, n in sorted(vs.items())), key=ck)
+                    for ck, vs in sorted(also.items())
+                ],
+                limit=None,
+            ),
         ),
         notes=["page text is mathematics after a text layer: read the page before quoting anything from it"]
         if shown

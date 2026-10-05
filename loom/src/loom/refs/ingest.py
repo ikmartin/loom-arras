@@ -193,6 +193,8 @@ class Identity:
     strong: list[Strong] = field(default_factory=list)
     #: Why nothing matched plainly, naming the nearest entry when there is one; '' when something did.
     weak: str = ""
+    #: That nearest entry's citekey, '' when there is none.
+    nearest: str = ""
     #: The evidence read, kept for `shortfall`: page one's lines, folded, and the identifiers on the first pages.
     lines: list[str] = field(default_factory=list)
     dois: set[str] = field(default_factory=set)
@@ -238,9 +240,18 @@ def _title_span(folded: list[str], title: str) -> tuple[int, int] | None:
     return None
 
 
+#: An affiliation mark set after a name: a digit, `*`, a dagger, or a superscript, which the text layer prints inline.
+_MARKS = re.compile(r"[0-9*†‡§¶⁰¹²³⁴⁵⁶⁷⁸⁹ᵃ-ᵿ]+")
+
+
 def _leader(line: str) -> str:
-    """The first name of a byline: what precedes the first comma, `and` or `&`, folded."""
-    return _fold(_NAMES.split(re.sub(r"^\s*by\s+", "", line, flags=re.I))[0])
+    """The first name of a byline: what precedes the first comma, `and` or `&`, folded.
+
+    Affiliation marks go first, and the commas they leave stray (`K. Behrend1 , B. Fantechi2`, `, B. Fantechi`), so the first name is read as the byline prints it.
+    """
+    line = _MARKS.sub(" ", re.sub(r"^\s*by\s+", "", line, flags=re.I))
+    line = re.sub(r"(?:\s*,)+", ",", line).strip(" ,")
+    return _fold(_NAMES.split(line)[0])
 
 
 def _first_surname(entry: BibEntry) -> str:
@@ -248,19 +259,47 @@ def _first_surname(entry: BibEntry) -> str:
     return _fold(names[0]) if names else ""
 
 
+#: A line the text layer sets between a title and its byline that is not a name: arXiv's margin stamp.
+_STAMP = re.compile(r"^arXiv:\S+\s*\[", re.I)
+#: A line that is one name and nothing else, as a byline set one name a line prints it.
+_ONE_NAME = re.compile(r"^(?:[A-Z][\w'’.-]*\.?\s+){1,3}[A-Z][\w'’-]+$")
+
+
+def _named_first(surname: str, line: str) -> bool:
+    """Whether `surname` (folded) is the first name of byline `line`: its words, or with the text layer's stray spaces closed up (`M at th i e u Rom ag n y`)."""
+    leader = _leader(line)
+    if f" {surname} " in f" {leader} ":
+        return True
+    # closed up only where the layer did split the letters: three fragments of a name, not one initial
+    spaced = sum(1 for w in leader.split() if len(w) <= 2) >= 3
+    return spaced and len(surname) >= 4 and leader.replace(" ", "").endswith(surname.replace(" ", ""))
+
+
 def _leads(identity: Identity, entry: BibEntry, span: tuple[int, int] | None) -> bool:
-    """Whether the entry's first author leads the byline beside its title: the line after the title, else the line before."""
+    """Whether the entry's first author leads the byline beside its title.
+
+    The byline is the line after the title, past an arXiv stamp; else the line before it, or the first of a run of lines above it that each hold one name.
+    """
     surname = _first_surname(entry)
     if not surname:
         return False
     if identity.kind == "source":
-        return surname in _leader(identity.author).split()
+        return _named_first(surname, identity.author)
     if span is None:
         return False
     lines = identity.lines
-    near = [lines[span[1]]] if span[1] < len(lines) else []
-    near += [lines[span[0] - 1]] if span[0] > 0 else []
-    return any(surname in _leader(line).split() for line in near)
+    after = span[1]
+    while after < len(lines) and _STAMP.match(lines[after]):
+        after += 1
+    near = [lines[after]] if after < len(lines) else []
+    if span[0] > 0:
+        near.append(lines[span[0] - 1])
+        top = span[0]
+        while top > 0 and _ONE_NAME.match(lines[top - 1]):
+            top -= 1
+        if top < span[0] - 1:
+            near.append(lines[top])
+    return any(_named_first(surname, line) for line in near)
 
 
 def shortfall(identity: Identity, entry: BibEntry) -> str:
@@ -275,10 +314,12 @@ def shortfall(identity: Identity, entry: BibEntry) -> str:
     problems = []
     if span is None:
         problems.append(f"its title is not {entry.key}'s in full")
-    if not _leads(identity, entry, span):
+    if not surname:
+        problems.append(f"{entry.key} names no author to look for in its byline")
+    elif not _leads(identity, entry, span):
         named = surname and (
-            surname in _fold(identity.author).split()
-            or any(surname in _fold(x).split() for x in identity.lines[:TOP_LINES])
+            surname in _fold(_MARKS.sub(" ", identity.author)).split()
+            or any(surname in _fold(_MARKS.sub(" ", x)).split() for x in identity.lines[:TOP_LINES])
         )
         problems.append(f"{shown} does not lead its byline" if named else f"{shown} is not in its byline")
     return " and ".join(problems) if problems else "it names the work only weakly"
@@ -347,6 +388,7 @@ def identify_document(pdf: Path, bib: dict[str, BibEntry]) -> Identity:
     out.strong = _strong(out, bib)
     if not out.strong:
         guess, _score, sigs = look_at(pdf, bib).best()
+        out.nearest = guess
         named = ", ".join(sorted({*out.dois, *(f"arXiv:{a}" for a in out.arxivs)}))
         out.weak = (
             f"{guess} is the nearest entry, on {', '.join(s.kind for s in sigs)}, but {shortfall(out, bib[guess])}"
@@ -355,6 +397,23 @@ def identify_document(pdf: Path, bib: dict[str, BibEntry]) -> Identity:
             if named
             else "nothing in the bibliography matches it"
         )
+    return out
+
+
+def identify_stored(home: Path, bib: dict[str, BibEntry]) -> Identity | None:
+    """What a stored PDF shows it is, read from the page text the store recorded rather than from the PDF; None when no page one was recorded.
+
+    The rule is `identify_document`'s; `weak` is left empty, since `shortfall` says what one entry lacks.
+    """
+    from loom.refs.pages import read_page
+
+    first = read_page(home, 1)
+    if first is None:
+        return None
+    out = Identity(path=home / "paper.pdf")
+    out.dois, out.arxivs = identifiers_in(first + "\n" + (read_page(home, 2) or ""))
+    out.lines = [" ".join(x.split()) for x in first.splitlines()[:TOP_LINES] if x.strip()]
+    out.strong = _strong(out, bib)
     return out
 
 

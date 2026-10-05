@@ -1,6 +1,6 @@
 """`digests/unreadable.json`: what the author has said loom should stop chasing (plan 0.13 §4, book 8.14).
 
-Two claims live here, both the author's and both keyed by what the author can name. **Unreadable** says a cited work has no document to hold -- the Stacks Project is a living work with no fixed version -- so the invariant's lint stops asking for a PDF that does not exist. **Forgotten** says a document in the store is not wanted as a bibliography entry, so gathering stops re-offering one for it.
+Two claims live here, both the author's and both keyed by what the author can name. **Unreadable** says a cited work has no document to hold -- the Stacks Project is a living work with no fixed version -- so the invariant's lint stops asking for a PDF that does not exist. **Forgotten** (set aside) says a document in the store is not wanted, so gathering never offers it an entry again; a claim keyed by a citekey also carries the document's hash, which is what still names it once the entry is deleted.
 
 Nothing in a bibliography entry states either fact, and loom will not infer them: an entry with no identifier looks exactly like one whose identifier nobody has typed yet. So they are declared, with a reason, or not at all.
 
@@ -31,6 +31,8 @@ class Declaration:
     why: str
     who: str
     when: str
+    #: The stored document a `forget` sets aside, when the key is a citekey; '' otherwise.
+    sha256: str = ""
 
 
 def path_of(root: Path) -> Path:
@@ -82,11 +84,25 @@ def declarations(root: Path, kind: str) -> dict[str, Declaration]:
             why=str(e.get("why", "")),
             who=str(e.get("who", "")),
             when=str(e.get("when", "")),
+            sha256=str(e.get("sha256", "")),
         )
     return out
 
 
-def declare(root: Path, kind: str, key: str, why: str, who: str, *, undo: bool = False) -> Declaration | None:
+def set_aside_documents(root: Path) -> set[str]:
+    """The hashes of every stored document set aside, whether the claim names it by hash or by the citekey it was filed under."""
+    out = set()
+    for key, d in declarations(root, "forget").items():
+        if key.startswith("sha256:"):
+            out.add(key.removeprefix("sha256:"))
+        if d.sha256:
+            out.add(d.sha256)
+    return out
+
+
+def declare(
+    root: Path, kind: str, key: str, why: str, who: str, *, undo: bool = False, sha256: str = ""
+) -> Declaration | None:
     """Append one claim, or its undoing.
 
     Parameters
@@ -103,6 +119,8 @@ def declare(root: Path, kind: str, key: str, why: str, who: str, *, undo: bool =
         The author, as `resolve_author` settled it.
     undo : bool, default False
         Withdraw the standing claim instead of making one.
+    sha256 : str, default ''
+        For a `forget` keyed by citekey, the hash of the document it sets aside.
 
     Returns
     -------
@@ -114,6 +132,8 @@ def declare(root: Path, kind: str, key: str, why: str, who: str, *, undo: bool =
     event: dict[str, Any] = {"kind": kind, "key": key, "why": why, "who": who, "when": stamp()}
     if undo:
         event["undo"] = True
+    if sha256:
+        event["sha256"] = sha256
     p = path_of(root)
     events = load_events(root)
     events.append(event)

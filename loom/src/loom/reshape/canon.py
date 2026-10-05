@@ -32,11 +32,11 @@ class ImportPlan:
     exists: bool = False  # the drafted document's path is taken
 
 
-def plan_import(quilt: Quilt, paper_file: Path) -> ImportPlan:
-    """Linearize the paper's master into one flat text and list its assets for copying to the root at their paper-relative paths; the draft goes to `<drafting>/<name>`."""
+def plan_import(quilt: Quilt, paper_file: Path, dest_rel: str | None = None) -> ImportPlan:
+    """Linearize the paper's master into one flat text and list its assets for copying to the root at their paper-relative paths; the draft goes to `dest_rel`, by default `<drafting>/<name>`."""
     paper_file = paper_file.resolve()
     paper_dir = paper_file.parent
-    dest_rel = f"{quilt.config.drafting}/{paper_file.name}"
+    dest_rel = dest_rel or f"{quilt.config.drafting}/{paper_file.name}"
     plan = ImportPlan(paper_dir=paper_dir, master_rel=paper_file.name, dest_rel=dest_rel)
     files, outside = closure_of(paper_dir, paper_file)
     plan.outside = outside

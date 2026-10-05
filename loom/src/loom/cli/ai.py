@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shlex
+import tomllib
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -143,7 +145,7 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
     skills : bool, default False
         Also write the Claude Code skills and slash commands; where `ai/` exists they are refreshed when present either way.
     agent : str, optional
-        `claude` or `codex`, whose command a new `ai/ai-config.toml` names; default every key commented out. An existing one is the person's and is never touched.
+        `claude` or `codex`, whose command `ai/ai-config.toml` names when it is new or every key in it is commented out; default every key commented out. One that configures an agent is the person's: never touched, and refused by name when `agent` asks for another.
     write : bool, default True
         False writes nothing and reports what would be written.
 
@@ -151,6 +153,11 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
     -------
     LayerReport
         `written` (quilt-relative paths), and where `ai/` existed, `kept` and `new_beside` for edited mode files, as `loom upgrade` reports them.
+
+    Raises
+    ------
+    EnvError
+        `agent` names an agent and `ai/ai-config.toml` configures another (or does not read), so it would be left as it is; checked before anything is written.
 
     See Also
     --------
@@ -168,6 +175,19 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
         vendor_files,
     )
 
+    cfg = root / CONFIG
+    fill = not cfg.exists()
+    if agent and not fill:
+        try:
+            current: dict[str, Any] | None = tomllib.loads(cfg.read_text(encoding="utf-8"))
+        except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+            current = None
+        fill = current == {}  # every key commented out, as `loom init` writes it
+        if not fill and current != tomllib.loads(config_text(agent)):
+            raise EnvError(
+                f"{CONFIG} already configures an agent, so --agent {agent} would leave it as it is; "
+                f"edit it yourself, or remove it and run loom ai init --agent {agent} again"
+            )
     if not (root / "ai").exists():
         if write:
             rep = init_layer(root, skills=skills)
@@ -185,10 +205,10 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
                     p.parent.mkdir(parents=True, exist_ok=True)
                     p.write_text(text, encoding="utf-8")
                 rep.written.append(rel)
-    if not (root / CONFIG).exists():
+    if fill:
         if write:
-            (root / CONFIG).parent.mkdir(parents=True, exist_ok=True)
-            (root / CONFIG).write_text(config_text(agent), encoding="utf-8")
+            cfg.parent.mkdir(parents=True, exist_ok=True)
+            cfg.write_text(config_text(agent), encoding="utf-8")
         rep.written.append(CONFIG)
     return rep
 
@@ -199,7 +219,7 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
     "--agent",
     type=click.Choice(AGENTS),
     default=None,
-    help="The agent a new ai/ai-config.toml names; default every key commented out. An existing one is kept.",
+    help="The agent ai/ai-config.toml names, written when it is new or all comments; default every key commented out.",
 )
 @click.option("--dry-run", is_flag=True, help="Say what would be written and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
@@ -207,8 +227,10 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
 def ai_init(skills: bool, agent: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
     """Write the agent layer: ai/ (orientation, rules, modes), ai/ai-config.toml, CLAUDE.md and AGENTS.md, and the permission files.
 
-    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it; an existing ai/ai-config.toml is the person's and is kept.
+    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it. An ai/ai-config.toml that configures an agent is the person's and is kept; --agent naming another is refused.
     """
+    from loom.agent import CONFIG
+
     quilt = open_quilt(quilt_path)
     existed = (quilt.root / "ai").is_dir()
     rep = install_layer(quilt.root, skills=skills, agent=agent, write=not dry_run)
@@ -249,6 +271,8 @@ def ai_init(skills: bool, agent: str | None, dry_run: bool, as_json: bool, quilt
         )
     else:
         verdict = "the agent layer is current; nothing written"
+    if agent and CONFIG in written:
+        verdict += f"; {CONFIG} {'would name' if dry_run else 'names'} {agent}"
     Report(verdict, dry_run=dry_run, groups=groups, data=data).emit(as_json)
 
 
@@ -316,7 +340,7 @@ def ai_drafts(as_json: bool, quilt_path: str | None) -> None:
         items.append(
             Item(
                 f"{st.copy}  drafted from {st.source}  stale: {'; '.join(moved)}",
-                fixes=[f"loom ai refresh {st.copy}"],
+                fixes=[f"loom ai refresh {shlex.quote(st.copy)}"],
             )
         )
     stale = sum(1 for st in states if st.stale)
@@ -338,7 +362,10 @@ def run_proposals(root: Path, run: str) -> list[dict[str, Any]]:
         ck = path.name[: -len(".results.json")]
         reasons = {e.get("id"): e.get("reason", "") for e in read_events(root, ck) if e.get("event") == "discarded"}
         for rid, r in sorted(load_results(root, ck).items()):
-            if not any(o.get("act") == "proposed" and Path(str(o.get("by", ""))).name == run for o in r.origin):
+            if not any(
+                o.get("act") == "proposed" and run in (o.get("session"), Path(str(o.get("by", ""))).name)
+                for o in r.origin
+            ):
                 continue
             out.append(
                 {
@@ -411,6 +438,7 @@ def ai_annotations(
         for a in Records(root, result.quilt.history_dir).resolved(result)
         if a.record.rel == rel or a.record.rel.startswith(f"{rel}/")
     ]
+    hidden = sum(1 for r in rows if r["discarded"])
     rows = [
         r
         for r in rows
@@ -444,7 +472,11 @@ def ai_annotations(
         where = f"{r['work']} p.{r['page']}" if r["page"] else r["target"]
         withdrawn = f"; withdrawn: {r['discard_reason'] or 'no reason given'}" if r["discarded"] else ""
         items.append(Item(f"{r['id']}  {where}  {r['kind']}{sev}{mark}{quote}{withdrawn}"))
-    verdict = f"{rel}: " + (counted(len(rows), "annotation") if rows else "no annotations yet")
+    verdict = f"{rel}: " + (
+        counted(len(rows), "annotation") if rows else "no annotations" if hidden else "no annotations yet"
+    )
+    if hidden and not f_all:
+        verdict += f"; {hidden} withdrawn: --all lists them"
     if proposals:
         verdict += f", {counted(len(proposals), 'proposal')}"
     Report(
@@ -492,7 +524,7 @@ def refresh_draft(document: str, dry_run: bool, as_json: bool, quilt_path: str |
                     [Item(c) for c in sorted(conflicts)],
                     problem=True,
                     limit=None,
-                    next=f"loom ai refresh {name}",
+                    next=f"loom ai refresh {shlex.quote(name)}",
                 ),
                 *done,
             ],

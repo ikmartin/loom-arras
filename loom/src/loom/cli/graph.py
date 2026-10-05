@@ -89,6 +89,24 @@ def deps_payload(result: ScanResult, key: str) -> dict[str, Any]:
     }
 
 
+def _proof_closure(result: ScanResult, key: str, closure: list[dict[str, str]]) -> list[str]:
+    """What the closures of a statement's proofs add to its own, in dependency order: with it, what `loom source KEY --closure` prints (`tex.bundle.build_bundle`).
+
+    `deps --closure` stays the statement closure, which is what the statement's meaning rests on; a proof's citations are what checking it needs, so they are listed apart rather than folded in. Empty for a proof key, whose closure already holds them.
+    """
+    assert result.graph is not None
+    n = result.assembly.nodes[key]
+    if n.kind == "proof":
+        return []
+    have = {e["key"] for e in closure} | {key}
+    out: list[str] = []
+    for pk in n.proofs:
+        for k in result.graph.closure(pk):
+            if k not in have and k not in out:
+                out.append(k)
+    return out
+
+
 def _relation_entries(result: ScanResult, key: str) -> list[dict[str, str]]:
     """Both directions of every declared relation of `key`, in target order. These are not dependencies and are reported apart from them."""
     node = result.assembly.nodes[key]
@@ -119,10 +137,25 @@ def deps(key: str, show_closure: bool, as_json: bool, run_dir: str | None, quilt
     payload = deps_payload(result, key)
     if show_closure:
         rest = [e["key"] for e in payload["closure"] if e["key"] != key]
+        added = _proof_closure(result, key, payload["closure"])
+        payload["proof_closure"] = [{"key": k} for k in added]
         verdict = (
-            f"{key} depends on {counted(len(rest), 'statement')}, transitively" if rest else f"{key} depends on nothing"
+            f"{key} depends on {counted(len(rest), 'statement')}, transitively"
+            if rest
+            else f"{key}'s statement depends on no other statement"
+            if added
+            else f"{key} depends on nothing"
         )
-        groups = [Group("closure, dependencies first", keyed([((taxon(result, k),), k) for k in rest]), limit=None)]
+        if added:
+            verdict += f"; its proof adds {len(added)}, which loom source {key} --closure prints with it"
+        groups = [
+            Group("closure, dependencies first", keyed([((taxon(result, k),), k) for k in rest]), limit=None),
+            Group(
+                "added by its proof, not part of the statement's closure",
+                keyed([((taxon(result, k),), k) for k in added]),
+                limit=None,
+            ),
+        ]
         Report(verdict, groups=[g for g in groups if g.items], data=payload).emit(as_json)
         return
     groups = []

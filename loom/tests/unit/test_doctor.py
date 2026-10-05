@@ -671,3 +671,20 @@ def test_the_text_report_lines_up(box: Box) -> None:
     # each directory a tool was found in is said once, with the tools found there
     found = lines[lines.index(next(ln for ln in lines if ln.startswith("found in ("))) + 1 :]
     assert "latexmk" in found[0] and str(box.bin.name) in " ".join(found)
+
+
+def test_agents_names_a_fix_that_works_and_only_the_agent_configured(box: Box) -> None:
+    """T3 and T7: the unconfigured fault's fix is a command that configures the agent, and once Claude is configured no codex row says loom serve cannot start it."""
+    from loom.agent import CONFIG, config_text
+
+    q = quilt(box)
+    (q / CONFIG).write_text(config_text(None))  # every key commented out, as `loom init` writes it
+    launch(q, True)
+    box.script("claude", "print('2.1')\n")
+    data = doctor(box, "--agents", cwd=q)
+    fixes = [f["fix"] for f in data["agent"]["faults"]] + [item(data, "agent")["remedy"]]
+    assert all("loom ai init --agent claude" in f for f in fixes), fixes
+    ok("ai", "init", "--agent", "claude", cwd=q)
+    data = doctor(box, "--agents", cwd=q)
+    assert data["agent"]["faults"] == [] and item(data, "agent")["status"] == "ok"
+    assert "codex" not in {i["name"] for i in data["items"]}

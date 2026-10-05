@@ -78,7 +78,16 @@ def add_command(
     """
     from loom.refs.ingest import identify_document, identify_source
     from loom.refs.pages import sha256_of
-    from loom.refs.scan import Filing, append_entries, file_document, one_work_of, plan_filing, record_copy_of, tree_sha
+    from loom.refs.scan import (
+        Filing,
+        append_entries,
+        bib_file,
+        file_document,
+        one_work_of,
+        plan_filing,
+        record_copy_of,
+        tree_sha,
+    )
 
     if force and not for_work:
         raise EnvError("--force applies only with --for: name the work the document is")
@@ -95,6 +104,11 @@ def add_command(
     plans: list[Filing] = []
     refused: list[tuple[Path, str]] = []
     skipped: list[tuple[Path, str]] = []
+    #: The command that files each skipped document, for the case its reason shows.
+    fixes: dict[Path, str] = {}
+    #: A refused document's own work, when it is a version of the work named by --for.
+    versions: dict[Path, str] = {}
+    where: str | None = None  # the .bib a missing entry goes in, read once and only when needed
     for path, kind in docs:
         identity = identify_source(path, bib) if kind == "source" else identify_document(path, bib)
         strong = [{"citekey": m.citekey, "strength": m.strength, "how": m.how} for m in identity.strong]
@@ -106,6 +120,9 @@ def add_command(
             if why and not force:
                 refused.append((path, why))
                 row.update(outcome="refused", citekey=target, reason=why)
+                other = next((m.citekey for m in identity.strong if m.citekey != target), "")
+                if other and one_work_of([other, target], bib):
+                    versions[path] = other
                 continue
             forced, ck = why, target
         else:
@@ -119,6 +136,8 @@ def add_command(
                 continue
             if not best:
                 skipped.append((path, identity.weak))
+                where = bib_file(result.quilt) if where is None else where
+                fixes[path] = _fix_for(identity, where)
                 row.update(outcome="skipped", reason=identity.weak)
                 continue
             ck = best[0].citekey
@@ -127,9 +146,14 @@ def add_command(
         row.update(citekey=ck, forced=forced)
     if target is not None and refused:
         shown = "; ".join(f"{p.name}: {why}" for p, why in refused)
+        version = next(iter(set(versions.values())), "") if len(set(versions.values())) == 1 else ""
         raise EnvError(
             f"nothing filed under {target}, {shown}. "
-            f"If it is {target}'s, pass --force with --for {target}, and the override is recorded"
+            + (
+                f"{version} is a version of the same work: loom library add FILE --for {version} files it there"
+                if version and len(versions) == len(refused)
+                else f"If it is {target}'s, pass --force with --for {target}, and the override is recorded"
+            )
         )
     taken, seen = set(bib), dict[str, str]()
     entries = []
@@ -157,7 +181,24 @@ def add_command(
             error=f.unmapped,
         )
     skipped += [(f.path, f.already) for f in plans if f.already]
-    _report(filed, skipped, refused, rows, dry_run).emit(as_json)
+    _report(filed, skipped, refused, rows, dry_run, fixes).emit(as_json)
+
+
+def _fix_for(identity: Any, bib: str) -> str:
+    """The command that files a skipped document, for the reason it was skipped: the entry to write for an identifier no entry states or a document nothing matches, else `--for` its nearest entry with `--force`."""
+    where = bib or "your bibliography"
+    if identity.nearest:
+        return f"loom library add FILE --for {identity.nearest} --force files it there, if you know it is"
+    if identity.arxivs or identity.dois:
+        stated = (
+            f"eprint = {{{sorted(identity.arxivs)[0]}}}, archiveprefix = {{arXiv}}"
+            if identity.arxivs
+            else f"doi = {{{sorted(identity.dois)[0]}}}"
+        )
+        return (
+            f"add @misc{{KEY, {stated}}} to {where}, run loom library update --only gather, then loom library add FILE"
+        )
+    return f"add its entry to {where}, then loom library add FILE files it"
 
 
 def _report(
@@ -166,13 +207,18 @@ def _report(
     refused: list[tuple[Path, str]],
     rows: list[dict[str, Any]],
     dry_run: bool,
+    how: dict[Path, str],
 ) -> Report:
-    """Every document as filed, skipped or refused, each with its reason (audit §4)."""
+    """Every document as filed, skipped or refused, each with its reason (audit §4), and under a skipped one the command `how` gives for it."""
     items: list[Item] = []
     for f in filed:
         what = "PDF" if f.kind == "pdf" else "LaTeX source"
         text = f"{f.path.name} as {f.citekey}'s {what}" + (
-            f", beside its first document as {f.sibling}" if f.sibling else ""
+            f", beside its first document as {f.sibling}"
+            if f.sibling
+            else ", in place of the document you set aside"
+            if f.replaces
+            else ""
         )
         if f.kind == "pdf" and not dry_run:
             text += f", without page text ({f.unmapped})" if f.unmapped else ", with its page text"
@@ -200,9 +246,8 @@ def _report(
             ),
             Group(
                 "skipped",
-                [Item(f"{p.name}: {why}") for p, why in skipped],
+                [Item(f"{p.name}: {why}", fixes=[how[p]] if p in how else []) for p, why in skipped],
                 limit=None,
-                next="loom library add FILE --for WORK files a document you know is that work",
             ),
             Group("would be filed" if dry_run else "filed", items, limit=None),
         ),

@@ -609,3 +609,89 @@ def test_incoming_source_change_during_compile_does_not_accept(quilt, monkeypatc
     )["result"]
     assert "Source changed during compilation" in answer["acceptance_error"]
     assert not Records(quilt.root, quilt.history_dir).latest
+
+
+def test_refresh_conflict_names_the_command_with_its_path_quoted(tmp_path):
+    """The reconcile line is a command to run, so an agent document whose name has a space is quoted in it."""
+    import shlex
+
+    from loom.adopt import refresh
+    from loom.scan.quilt import save_author
+
+    save_author("Tester")
+    spaced = "drafting-ai/my proposal.tex"
+    (tmp_path / "drafting").mkdir()
+    (tmp_path / "drafting-ai").mkdir()
+    (tmp_path / "config.toml").write_text('[quilt]\nname="test"\nprefix="zk"\nmain="drafting/main.tex"\n')
+    (tmp_path / DOC).write_text(TEXT)
+    q = load_quilt(tmp_path)
+    history = load_history(q.history_dir)
+    cp = plan_copy(scan(q), history, DOC, spaced)
+    (tmp_path / spaced).write_text(cp.text)
+    write_step(
+        history, "copy", "copy-my-proposal", cp.freeze, "Tester", {"from": DOC, "to": spaced, "bases": cp.bases},
+        cp.source_text, "main.tex",
+    )  # fmt: skip
+    edit(q, "First statement.", "AI revision.", spaced)
+    edit(q, "First statement.", "Author revision.", DOC)
+    answer = refresh(scan(q), spaced)
+    assert f"then run loom ai refresh {shlex.quote('my proposal.tex')} again" in answer["message"]
+
+
+def test_an_unlabelled_node_is_document_level_and_never_a_missing_proposal(tmp_path):
+    """The re-grade's demo case: one unlabelled remark in main.tex made every preview of a fresh agent document refuse, "drafting/main.tex#remark:2 is missing". A node with no id is prose to adoption: an edit to it waits behind --document-changes."""
+    from loom.scan.quilt import save_author
+    from tests.helpers import edit as edit_file
+    from tests.helpers import ok
+    from tests.unit._quilts import demo
+
+    save_author("Tester")
+    q = demo(tmp_path)
+    edit_file(
+        q / "drafting" / "main.tex",
+        "\\end{document}",
+        "\\begin{remark}\nAn unlabelled remark.\n\\end{remark}\n\n\\end{document}",
+    )
+    ok("draft", "drafting/main.tex", "--ai", "review", cwd=q)
+    assert "No changes to incorporate" in ok("adopt", "drafting-ai/review.tex", "--json", cwd=q).stdout
+    edit_file(q / "drafting-ai" / "review.tex", "An unlabelled remark.", "An unlabelled remark, revised.")
+    waiting = ok("adopt", "drafting-ai/review.tex", "--json", cwd=q).stdout
+    assert "--document-changes" in waiting
+    r = ok("adopt", "drafting-ai/review.tex", "--document-changes", "--json", cwd=q)
+    assert "+An unlabelled remark, revised." in r.stdout
+
+
+def test_adopts_preview_says_what_it_is_doing_on_a_long_run(tmp_path, monkeypatch):
+    """T6: 17.6 s of silence before a preview on the author's quilt. A clock that moves ten seconds a reading stands in for it; the stages are named on stderr."""
+    import importlib
+    import io
+    import itertools
+
+    from loom.cli.report import Progress
+    from loom.scan.quilt import save_author
+    from tests.helpers import edit as edit_file
+    from tests.helpers import ok
+    from tests.unit._quilts import demo
+
+    said: list[str] = []
+    ticks = itertools.count(0, 10)
+
+    class Slow(Progress):
+        def __init__(self, stage, total=None, **kw):
+            self.out = io.StringIO()
+            super().__init__(stage, total, stream=self.out, tty=False, clock=lambda: float(next(ticks)), ticking=False)
+
+        def __exit__(self, *exc):
+            super().__exit__(*exc)
+            said.append(self.out.getvalue())
+
+    monkeypatch.setattr(
+        importlib.import_module("loom.cli.adopt"), "Progress", Slow
+    )  # the package's `adopt` is the command
+    save_author("Tester")
+    q = demo(tmp_path)
+    ok("draft", "drafting/main.tex", "--ai", "review", cwd=q)
+    edit_file(q / "drafting-ai" / "review.tex", "Every orbit", "Each orbit")
+    ok("adopt", "drafting-ai/review.tex", "--json", cwd=q)
+    assert "comparing review.tex with the document it was drafted from" in said[-1]
+    assert "checking drafting/main.tex with the selected changes" in said[-1]
