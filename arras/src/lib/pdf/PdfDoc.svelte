@@ -252,13 +252,36 @@
 		onpage?.({ page: n });
 	}
 
+	/** Where each page's holder starts, read once and kept until the pages are laid out differently: reading every holder's offset on each scroll event laid the whole paper out again for every one. */
+	let tops: number[] | null = null;
+	$effect(() => {
+		void [drawAt, stretch, columnWidth, sizes, count];
+		tops = null;
+	});
+	let following = 0;
 	function scrolled(): void {
+		following ||= requestAnimationFrame(() => {
+			following = 0;
+			follow();
+		});
+	}
+
+	/** The page the reader is on: the last whose holder starts above the column's middle. */
+	function follow(): void {
 		if (!column) return;
+		tops ??= [...column.querySelectorAll<HTMLElement>('[data-holder]')].map((h) => h.offsetTop);
 		const middle = column.scrollTop + column.clientHeight / 2;
-		let best = here;
-		for (const holder of column.querySelectorAll<HTMLElement>('[data-holder]')) {
-			if (holder.offsetTop <= middle) best = Number(holder.dataset.holder);
+		let lo = 0;
+		let hi = tops.length - 1;
+		let last = -1;
+		while (lo <= hi) {
+			const mid = (lo + hi) >> 1;
+			if (tops[mid] <= middle) {
+				last = mid;
+				lo = mid + 1;
+			} else hi = mid - 1;
 		}
+		const best = last >= 0 ? last + 1 : here;
 		if (best !== here) {
 			here = best;
 			onpage?.({ page: best });

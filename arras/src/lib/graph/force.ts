@@ -1,69 +1,31 @@
 import { displayNode } from '$lib/nodes/display';
 // The force layout (book 15.5), the default: a neighbourhood, circular nodes, labels beneath, no direction encoded. It answers what sits near what, where the layered drawing answers what this rests on.
 
-import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
 import type { Manifest } from '$lib/manifest/types';
 import { taxonTone } from '$lib/taxonomy';
+import { forcePositions, R, type ForceInput, type ForceOutput } from './force-sim';
 import { colorOf, graphInput, type Filters, type Layout } from './layout';
 
-/** The radius of a node at rest; the selection is drawn larger by the page, not here. */
-export const R = 7;
+export { R };
 
-interface Sim extends SimulationNodeDatum {
-	id: string;
+type Input = ReturnType<typeof graphInput>;
+
+/** What the force layout's positions depend on: the nodes in order and the edges between them. A manifest that leaves it unchanged leaves the drawing where it is. */
+export function forceKey(input: Input): string {
+	return input.nodes.map((n) => n.id).join(',') + '|' + input.edges.map((e) => `${e.from}>${e.to}>${e.kind}`).join(',');
 }
 
-/**
- * Lay the filtered graph out by simulated forces, synchronously.
- *
- * The simulation is stepped to completion rather than animated: the page animates between the two layouts itself, and a running simulation would fight the drag handler. `seed` carries positions over from a previous layout so a filter change moves nodes rather than reshuffling them.
- */
-export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: number; y: number }>): Layout {
-	const { nodes, edges } = graphInput(m, f);
-	const sims: Sim[] = nodes.map((n, i) => {
-		const s = seed?.get(n.id);
-		const a = (i / Math.max(1, nodes.length)) * Math.PI * 2;
-		return { id: n.id, x: s?.x ?? Math.cos(a) * 200, y: s?.y ?? Math.sin(a) * 200 };
-	});
-	const links: SimulationLinkDatum<Sim>[] = edges.map((e) => ({ source: e.from, target: e.to }));
-	const sim = forceSimulation<Sim>(sims)
-		.force(
-			'link',
-			forceLink<Sim, SimulationLinkDatum<Sim>>(links)
-				.id((d) => d.id)
-				.distance(58)
-				.strength(0.35)
-		)
-		.force('charge', forceManyBody().strength(-160).distanceMax(520))
-		.force('collide', forceCollide(R * 2.4))
-		.force('x', forceX(0).strength(0.035))
-		.force('y', forceY(0).strength(0.035))
-		.force('center', forceCenter(0, 0))
-		.stop();
-	for (let i = 0; i < 320; i++) sim.tick();
+function simInput(input: Input, seed?: Map<string, { x: number; y: number }>): ForceInput {
+	const s: Record<string, [number, number]> = {};
+	for (const [id, p] of seed ?? []) s[id] = [p.x, p.y];
+	return { ids: input.nodes.map((n) => n.id), edges: input.edges.map((e) => [e.from, e.to]), seed: s };
+}
 
-	let minX = Infinity;
-	let minY = Infinity;
-	let maxX = -Infinity;
-	let maxY = -Infinity;
-	for (const s of sims) {
-		minX = Math.min(minX, s.x ?? 0);
-		minY = Math.min(minY, s.y ?? 0);
-		maxX = Math.max(maxX, s.x ?? 0);
-		maxY = Math.max(maxY, s.y ?? 0);
-	}
-	if (!sims.length) {
-		minX = minY = 0;
-		maxX = maxY = 1;
-	}
-	const pad = 60;
-	const dx = pad - minX;
-	const dy = pad - minY;
-	const at = new Map(sims.map((s) => [s.id, { x: (s.x ?? 0) + dx, y: (s.y ?? 0) + dy }]));
-
+/** Positions laid out as a drawing: each node with its label, colour and tone from the manifest as it stands. */
+function decorate(m: Manifest, f: Filters, input: Input, out: ForceOutput): Layout {
 	return {
-		nodes: nodes.map((n) => {
-			const p = at.get(n.id)!;
+		nodes: input.nodes.map((n) => {
+			const [x, y] = out.at[n.id] ?? [0, 0];
 			return {
 				id: n.id,
 				label: n.kind === 'work' ? (n.title ?? n.id) : displayNode(m, n.id, f.master).name,
@@ -74,18 +36,94 @@ export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: num
 				style: n.style ?? 'plain',
 				external: n.external,
 				section: n.kind === 'section',
-				x: p.x,
-				y: p.y,
+				x,
+				y,
 				w: R * 2,
 				h: R * 2
 			};
 		}),
-		edges: edges.map((e) => {
-			const a = at.get(e.from)!;
-			const b = at.get(e.to)!;
-			return { from: e.from, to: e.to, kind: e.kind, points: [a, b], count: e.count };
+		edges: input.edges.map((e) => {
+			const [ax, ay] = out.at[e.from] ?? [0, 0];
+			const [bx, by] = out.at[e.to] ?? [0, 0];
+			return { from: e.from, to: e.to, kind: e.kind, points: [{ x: ax, y: ay }, { x: bx, y: by }], count: e.count };
 		}),
-		width: maxX - minX + pad * 2,
-		height: maxY - minY + pad * 2
+		width: out.width,
+		height: out.height
 	};
+}
+
+/**
+ * Lay the filtered graph out by simulated forces, on the page's thread.
+ *
+ * `seed` carries positions over from a previous layout so a filter change moves nodes rather than reshuffling them.
+ *
+ * See Also
+ * --------
+ * forceLayoutOff : The same, in a worker; what the graph page uses.
+ */
+export function forceLayout(m: Manifest, f: Filters, seed?: Map<string, { x: number; y: number }>): Layout {
+	const input = graphInput(m, f);
+	return decorate(m, f, input, forcePositions(simInput(input, seed)));
+}
+
+/** A drawing already laid out, its labels, colours and tones read again from `m`: what a manifest that moved no node or edge changes. */
+export function redecorate(m: Manifest, f: Filters, laid: Layout): Layout {
+	const input = graphInput(m, f);
+	const at: Record<string, [number, number]> = {};
+	for (const n of laid.nodes) at[n.id] = [n.x, n.y];
+	return decorate(m, f, input, { at, width: laid.width, height: laid.height });
+}
+
+let worker: Worker | null = null;
+let asked = 0;
+const waiting = new Map<number, { input: ForceInput; done: (out: ForceOutput) => void }>();
+
+/** The simulation in a worker, or on the page where no worker can be had. */
+function positionsOff(input: ForceInput): Promise<ForceOutput> {
+	if (typeof Worker === 'undefined') return Promise.resolve(forcePositions(input));
+	try {
+		if (!worker) {
+			worker = new Worker(new URL('./force.worker.ts', import.meta.url), { type: 'module' });
+			worker.onmessage = (e: MessageEvent<{ n: number; out: ForceOutput }>) => {
+				waiting.get(e.data.n)?.done(e.data.out);
+				waiting.delete(e.data.n);
+			};
+			// a worker that cannot run leaves the page to do it, as it did before there was one
+			worker.onerror = () => {
+				for (const { input: i, done } of waiting.values()) done(forcePositions(i));
+				waiting.clear();
+				worker?.terminate();
+				worker = null;
+			};
+		}
+	} catch {
+		return Promise.resolve(forcePositions(input));
+	}
+	const n = ++asked;
+	return new Promise((done) => {
+		waiting.set(n, { input, done });
+		worker!.postMessage({ ...input, n });
+	});
+}
+
+/**
+ * Lay the filtered graph out by simulated forces, in a worker, so the page is not frozen while it settles.
+ *
+ * Parameters
+ * ----------
+ * m : Manifest
+ *     The manifest the graph is drawn from.
+ * f : Filters
+ *     What is drawn.
+ * seed : Map<string, {x, y}>, optional
+ *     The previous drawing's positions, which the simulation starts from.
+ *
+ * Returns
+ * -------
+ * Promise<Layout>
+ *     The drawing; a caller that asked again since discards it.
+ */
+export async function forceLayoutOff(m: Manifest, f: Filters, seed?: Map<string, { x: number; y: number }>): Promise<Layout> {
+	const input = graphInput(m, f);
+	return decorate(m, f, input, await positionsOff(simInput(input, seed)));
 }

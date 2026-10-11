@@ -56,12 +56,18 @@
 		return out;
 	});
 
+	/** The neighbourhood drawn and the node it centres on: a manifest that changes neither leaves the drawing, and the reader's zoom, alone. */
+	let drawnHood = '';
+	let drawnCentre = '';
 	$effect(() => {
 		const mm = m;
 		const c = center;
 		const d = depth;
 		if (!mm || !c) return;
 		const hood = neighbourhood(mm, c, d);
+		const key = `${d}|${hood.nodes.join(',')}|${hood.links.map((l) => `${l.from}>${l.to}`).join(',')}`;
+		if (key === drawnHood) return;
+		drawnHood = key;
 		const degree = new Map<string, number>();
 		for (const l of hood.links) {
 			degree.set(l.from, (degree.get(l.from) ?? 0) + 1);
@@ -101,7 +107,10 @@
 		sim.force('link', forceLink<SimNode, SimLink>(nextLinks).id((n) => n.id).distance(46).strength(0.7));
 		sim.force('collide', forceCollide<SimNode>((n) => n.r + 3));
 		// a new centre is a new question, so the drawing fits itself again even if the reader had zoomed the last one
-		placed = false;
+		if (c !== drawnCentre) {
+			drawnCentre = c;
+			placed = false;
+		}
 		sim.alpha(0.8).restart();
 	});
 

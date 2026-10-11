@@ -11,6 +11,8 @@ const raw = (process.env.ARRAS_BASE ?? '').replace(/\/+$/, '');
 const base = (raw && !raw.startsWith('/') ? '/' + raw : raw) as '' | `/${string}`;
 
 export default defineConfig({
+	// the graph's force layout runs in a module worker (src/lib/graph/force.worker.ts)
+	worker: { format: 'es' },
 	plugins: [
 		sveltekit({
 			compilerOptions: {

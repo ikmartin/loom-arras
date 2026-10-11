@@ -51,6 +51,8 @@ test.describe('the graph page', () => {
 		const legend = page.getByRole('group', { name: 'Document membership' });
 		const documents = await legend.getByRole('button').allTextContents();
 		await expect(scope.locator('option')).toHaveText(['Whole quilt', ...documents.map((d) => d.trim())]);
+		// the force layout arrives from a worker, after the page
+		await page.locator('svg g.node').first().waitFor();
 		const count = await page.locator('g.node').count();
 		await legend.getByRole('button').first().click();
 		await expect(legend.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');

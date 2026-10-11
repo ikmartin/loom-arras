@@ -140,3 +140,7 @@ The harness should become part of `arras/tests/perf` with budgets that would hav
 ## Side findings
 
 - `demos/relloc`'s landmark `canon/draft3-v1.tex` defines all 52 of the paper's ids again, so every labelled node is `duplicate-id` and refuses annotations, although the quilt's own README says a landmark is never scanned. The seeded annotations went to file-qualified keys for that reason.
+
+## Outcome
+
+Plan 0.19 (`docs/plans/0.19-viewer-speed.md`) carried out the plan above on 2026-10-11, with these differences: phase 2's push is a server-sent stream plus a fast lane in the watcher; item 7 keeps a left document's typeset markup rather than keeping its component alive; item 9's cost turned out to be PDF.js's own; and item 10 was tried and reverted (WQ-61). Its Outcome section has the numbers: an agent's annotation reaches the page in under a second with no freeze, memory holds flat, the graph opens without a long task, and a return to a document and a divider move are a third of what they were, short of the targets by what the browser spends styling a whole paper.

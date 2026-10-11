@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { displayNode } from '$lib/nodes/display';
 	import NodePreview from '$lib/workspace/items/NodePreview.svelte';
 	import { relationships, scopedDrawing } from '$lib/graph/relationships';
@@ -10,7 +10,7 @@
 	import { graphInput, layout, PAPER, type Layout } from '$lib/graph/layout';
 	import { sectionLayout, type Sections } from '$lib/graph/sections';
 	import { readingOrder, type Reading } from '$lib/graph/reading';
-	import { forceLayout, R } from '$lib/graph/force';
+	import { forceKey, forceLayoutOff, R, redecorate } from '$lib/graph/force';
 	import PagePanel from '$lib/shell/PagePanel.svelte';
 	import PageRail from '$lib/shell/PageRail.svelte';
 	import RailList from '$lib/components/RailList.svelte';
@@ -61,6 +61,8 @@
 	});
 	const name = (id: string) => displayNode(m, id, master).name;
 	let requestRevision = 0;
+	/** What the drawing's positions were laid out for (`forceKey`): a manifest that leaves it unchanged re-colours the drawing and moves nothing, the reader's own moves included. */
+	let dotsKey = '';
 	$effect(() => { mode = scopedDrawing(mode, master); });
 	const paper = $derived(selected.startsWith(PAPER) ? m.references[selected.slice(PAPER.length)] : undefined);
 	const open = (id: string) => (id.startsWith(PAPER) ? workUrl(id.slice(PAPER.length)) : nodeUrl(id));
@@ -103,17 +105,24 @@
 		const revision = ++requestRevision;
 		if (!hash) return;
 		if (mo === 'dots') {
-			try {
-				// the seed is taken from the value, never from `laid`: reading state this effect has just written makes the effect depend on itself, which re-laid the graph hundreds of times per navigation
-				const next = forceLayout(m, f, seed);
-				seed = new Map(next.nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
-				laid = next;
-				laidMode = 'dots';
-				moved = new Map();
-				error = '';
-			} catch (e) {
-				error = String(e);
+			// what was drawn is read untracked: reading state this effect writes makes the effect depend on itself, which re-laid the graph hundreds of times per navigation
+			const key = forceKey(graphInput(m, f));
+			const drawn = untrack(() => (laidMode === 'dots' ? laid : null));
+			if (drawn && key === dotsKey) {
+				laid = redecorate(m, f, drawn);
+				return;
 			}
+			forceLayoutOff(m, f, seed)
+				.then((next) => {
+					if (revision !== requestRevision || mode !== 'dots') return; // asked again, or toggled away, while it was laid out
+					seed = new Map(next.nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
+					dotsKey = key;
+					laid = next;
+					laidMode = 'dots';
+					moved = new Map();
+					error = '';
+				})
+				.catch((e) => { if (revision === requestRevision) error = String(e); });
 			return;
 		}
 		if (mo === 'reading') {
