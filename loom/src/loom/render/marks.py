@@ -1,6 +1,6 @@
 """Annotation marks in fragments (book 9.5): a resolved quote becomes `<mark class="annotation" data-annotation="ID">` inside the block whose data-src covers its source span.
 
-The quote is TeX and the block is HTML, so both are compared as a projection: inline math reads as `$tex$`, a reference or citation as the command it carries in `data-tex`, `\\emph{..}` and its kind read as their text, other tags read as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
+The quote is TeX and the block is HTML, so both are compared as the page prints them: the quote, a formula's TeX and the command a reference or citation carries in `data-tex` all read through `selectors.project`; printed text reads as it is, other tags as nothing. A formula is never cut: a mark takes a whole `span.math` or none of it, and a quote inside a displayed formula marks the display as a block, since a tag inside TeX stops MathJax from reading it. A quote that still cannot be found marks its whole block.
 """
 
 from __future__ import annotations
@@ -9,6 +9,8 @@ import html as htmllib
 import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
+
+from loom.records.selectors import project
 
 
 @dataclass
@@ -175,7 +177,6 @@ def _norm_positions(text: str) -> tuple[str, list[int]]:
 
 
 _MATH_OPEN = re.compile(r'^<(span|div)\b[^>]*\bclass="[^"]*\bmath\b')
-_TEXT_MACRO = re.compile(r"\\(?:emph|textit|textbf|texttt|textrm|textsf|textsc|textup)\{([^{}]*)\}")
 _ENTITY = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[A-Za-z]+);")
 #: An element that carries the source of the command it draws (`convert._said`): a reference, a citation.
 _SAID = re.compile(r'^<([A-Za-z][\w-]*)\b[^>]*\bdata-tex="([^"]*)"')
@@ -183,15 +184,6 @@ _SAID = re.compile(r'^<([A-Za-z][\w-]*)\b[^>]*\bdata-tex="([^"]*)"')
 
 def _is_math(open_tag: str) -> bool:
     return bool(_MATH_OPEN.match(open_tag))
-
-
-def project_tex(tex: str) -> str:
-    """TeX as the reader sees it: math delimiters as `$`, the simple text macros unwrapped, whitespace collapsed."""
-    t = tex.replace("\\(", "$").replace("\\)", "$").replace("\\[", "$$").replace("\\]", "$$")
-    prev = None
-    while prev != t:
-        prev, t = t, _TEXT_MACRO.sub(r"\1", t)
-    return _norm(t)
 
 
 def _units(html: str, a: int, b: int) -> list[tuple[int, int, str, bool]]:
@@ -210,7 +202,7 @@ def _units(html: str, a: int, b: int) -> list[tuple[int, int, str, bool]]:
                 close = _close_of(html, end, b, said.group(1))
                 stop = html.index(">", close) + 1
                 at = (re.search(r'\bdata-at="([^"]*)"', tag) or [None, None])[1]
-                text = "" if at is not None and at == said_at else htmllib.unescape(said.group(2))
+                text = "" if at is not None and at == said_at else project(htmllib.unescape(said.group(2)))[0]
                 said_at = at
                 out.append((pos, stop, text, True))
                 pos = stop
@@ -228,7 +220,7 @@ def _units(html: str, a: int, b: int) -> list[tuple[int, int, str, bool]]:
                 tex = tex.strip()
                 d = "$$" if display else "$"
                 stop = html.index(">", close) + 1
-                out.append((pos, stop, f"{d}{tex}{d}", True))
+                out.append((pos, stop, project(f"{d}{tex}{d}")[0], True))
                 pos = stop
             else:
                 pos = end
@@ -252,7 +244,7 @@ def _close_of(html: str, start: int, limit: int, name: str) -> int:
 
 def _locate(html: str, a: int, b: int, quote: str) -> list[tuple[int, int]]:
     """Where `quote` falls in html[a:b], as the ranges to wrap: one range when it is balanced markup, else one per run of text or formula."""
-    target = project_tex(quote)
+    target = _norm(project(quote)[0])
     if not target:
         return []
     chars: list[str] = []

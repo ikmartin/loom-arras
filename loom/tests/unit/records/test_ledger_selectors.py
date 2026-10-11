@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from loom.records.ledger import AcceptRow, append_rows, latest_rows, read_ledger
-from loom.records.selectors import Selector, find_quote, make_selector, resolve_selector
+from loom.records.selectors import Selector, find_quote, make_selector, project, resolve_selector
 from loom.records.snapshots import read_snapshot, write_snapshot
 
 
@@ -76,3 +76,14 @@ def test_a_selection_is_found_as_the_page_prints_it() -> None:
     assert find_quote(src, "Ehrhart's theorem") == [
         (src.index("Ehrhart"), src.index("Ehrhart") + len("Ehrhart's theorem"))
     ]
+
+
+def test_symbols_print_and_layout_commands_read_as_nothing() -> None:
+    """The page prints `\\S` as §, and `\\noindent`, `\\vspace{..}` and `\\label{..}` as nothing; a selection carrying what the page shows still finds the source, and the span is the source's."""
+    src = "\\noindent As in (\\S~3)\\label{x} we go\\vspace{2pt} on."
+    [(a, b)] = find_quote(src, "As in (§ 3) we go on.")
+    assert src[a:b] == "As in (\\S~3)\\label{x} we go\\vspace{2pt} on."
+    assert project("\\noindent\\textbf{Problem 1:}")[0] == "Problem 1:"
+    # the group after an argument-less layout command is no argument, and prints its words
+    assert project("\\noindent{Convention (Gysin maps)} If")[0] == "Convention (Gysin maps) If"
+    assert project("\\{x\\} \\& y")[0] == "{x} & y"  # an escaped brace is a character, not a group

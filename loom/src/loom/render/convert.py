@@ -260,6 +260,44 @@ IGNORED_CMDS = {
     "hyphenation",
     "selectlanguage",
 }
+#: The arguments an ignored command consumes, read as `read_args` reads them; a command not here consumes none.
+IGNORED_ARGS = {
+    "frametitle": "m",
+    "framesubtitle": "m",
+    "usetheme": "om",
+    "usecolortheme": "om",
+    "logo": "m",
+    "institute": "om",
+    "date": "om",
+    "author": "om",
+    "title": "om",
+    "subtitle": "om",
+    "thanks": "m",
+    "email": "m",
+    "address": "m",
+    "subjclass": "om",
+    "keywords": "m",
+    "urladdr": "m",
+    "dedicatory": "m",
+    "vspace": "m",
+    "vspace*": "m",
+    "hspace": "m",
+    "hspace*": "m",
+    "bibliography": "m",
+    "bibliographystyle": "m",
+    "setcounter": "mm",
+    "addtocounter": "mm",
+    "numberwithin": "mm",
+    "thispagestyle": "m",
+    "pagestyle": "m",
+    "addcontentsline": "mmm",
+    "index": "m",
+    "nocite": "m",
+    "hyphenation": "m",
+    "selectlanguage": "m",
+    "label": "m",
+    "uses": "m",
+}
 SYMBOLS = {
     "S": "§",
     "P": "¶",
@@ -554,6 +592,8 @@ class Converter:
         out: list[str] = []
         para: list[str] = []
         pstart = [a]
+        # a layout command opened the paragraph (`\noindent`): the paragraph's source starts there, so a quote copied from it is inside the paragraph's span
+        held = [False]
         fallback_reason: list[str | None] = [None]
 
         def flush(pend: int) -> None:
@@ -574,6 +614,7 @@ class Converter:
                 else:
                     out.append(f'<p data-src="{ctx.src(pstart[0], pend)}">{body.strip()}</p>')
             para.clear()
+            held[0] = False
             fallback_reason[0] = None
 
         def emit_text(value: str, start: int) -> None:
@@ -586,7 +627,7 @@ class Converter:
                     pstart[0] = offset
                     continue
                 if part:
-                    if not para and not part.strip():
+                    if not para and not part.strip() and not held[0]:
                         pstart[0] = offset + len(part)
                     para.append(self._prose(part, offset))
                 offset += len(part)
@@ -595,7 +636,7 @@ class Converter:
         n = len(toks)
         while i < n:
             t = toks[i]
-            if not para:
+            if not para and not held[0]:
                 pstart[0] = t.start
             if t.kind == "text":
                 emit_text(t.value, t.start)
@@ -750,6 +791,8 @@ class Converter:
                 piece, after, reason = self.inline_command(t, toks, i, b)
                 if piece is not None:
                     para.append(piece)
+                elif not para and name in IGNORED_CMDS and name not in ("label", "uses"):
+                    held[0] = True
                 if reason and not fallback_reason[0]:
                     fallback_reason[0] = reason
                 if after > t.end:
@@ -984,41 +1027,7 @@ class Converter:
         if name in SYMBOLS:
             return SYMBOLS[name], t.end, None
         if name in IGNORED_CMDS:
-            spec = {
-                "frametitle": "m",
-                "framesubtitle": "m",
-                "usetheme": "om",
-                "usecolortheme": "om",
-                "logo": "m",
-                "institute": "om",
-                "date": "om",
-                "author": "om",
-                "title": "om",
-                "subtitle": "om",
-                "thanks": "m",
-                "email": "m",
-                "address": "m",
-                "subjclass": "om",
-                "keywords": "m",
-                "urladdr": "m",
-                "dedicatory": "m",
-                "vspace": "m",
-                "vspace*": "m",
-                "hspace": "m",
-                "hspace*": "m",
-                "bibliography": "m",
-                "bibliographystyle": "m",
-                "setcounter": "mm",
-                "addtocounter": "mm",
-                "numberwithin": "mm",
-                "thispagestyle": "m",
-                "pagestyle": "m",
-                "addcontentsline": "mmm",
-                "index": "m",
-                "nocite": "m",
-                "hyphenation": "m",
-                "selectlanguage": "m",
-            }.get(name, "")
+            spec = IGNORED_ARGS.get(name, "")
             _, _, after = args(spec) if spec else ([], [], t.end)
             return None, after, None
         if name in ("textsuperscript", "textsubscript"):

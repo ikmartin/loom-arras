@@ -171,7 +171,7 @@ def test_a_change_in_looms_own_code_re_renders_everything(tmp_path: Path, monkey
 
 
 def test_only_the_rendering_code_is_in_the_cache_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Editing the command line or the reference layer in a checkout re-renders nothing; the converter, the scanner and the TeX layer are what a fragment is made by."""
+    """Editing the command line or the reference layer in a checkout re-renders nothing; the converter, the scanner, the TeX layer and the reading of a quote that places a mark are what a fragment is made by."""
     from loom.render import keys
 
     read: list[Path] = []
@@ -185,8 +185,10 @@ def test_only_the_rendering_code_is_in_the_cache_key(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(keys, "__version__", "0.1.0.dev0")
     keys.code_hash.__wrapped__()
     package = Path(keys.__file__).resolve().parent.parent
-    under = {p.relative_to(package).parts[0] for p in read}
-    assert under == set(keys.RENDERING), under
+    rel = [p.relative_to(package).as_posix() for p in read]
+    outside = [r for r in rel if not any(r == e or r.startswith(e + "/") for e in keys.RENDERING)]
+    assert outside == [], outside  # `records/selectors.py` is read, and nothing else of `records/`
+    assert {e for e in keys.RENDERING if any(r == e or r.startswith(e + "/") for r in rel)} == set(keys.RENDERING)
 
 
 def test_force_renders_every_fragment_again(tmp_path: Path) -> None:

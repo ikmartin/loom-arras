@@ -440,18 +440,12 @@ def _one_comment(
 
         refuse_bad_links(result, root, message)
 
-    # a reply or a resolution is its text and nothing else; the rest would be dropped without a word
     if reply or resolve:
-        lost = [
-            f"--{n}"
-            for n, v in (("quote", quote), ("severity", severity), ("payload", payload), ("placement", placement))
-            if v
-        ]
-        if lost:
-            raise EnvError(
-                f"a {'reply' if reply else 'resolution'} carries its text only, so {', '.join(lost)} would be lost; "
-                f"write a suggestion of its own for text to paste in, or --edit {reply or resolve} to change the note itself"
-            )
+        refuse_lost(
+            "reply" if reply else "resolve",
+            reply or resolve,
+            {"quote": quote, "severity": severity, "payload": payload, "placement": placement},
+        )
 
     if resolve:
         found = find_annotation(records, resolve)
@@ -709,12 +703,43 @@ def discard_annotation(
     return f"{'reopened' if undo else 'withdrew'} {ann_id}"
 
 
-def check_edit(body: str | None, severity: str | None, payload: str | None) -> None:
+#: What each verb carries beside its message; anything else given with it is refused by `refuse_lost`.
+VERB_CARRIES: dict[str, tuple[str, ...]] = {
+    "reply": (),
+    "resolve": (),
+    "edit": ("severity", "payload", "placement"),
+    "discard": (),
+}
+_VERB_NOUN = {"reply": "a reply", "resolve": "a resolution", "edit": "an edit", "discard": "a discard"}
+
+
+def refuse_lost(verb: str, ann_id: str | None, given: dict[str, Any]) -> None:
+    """Refuse an option `verb` would drop without a word: a verb carries its message and its `VERB_CARRIES` only.
+
+    Called by `_one_comment` for a reply or resolution, and by `annotate` and `_batch_line` for an edit or a discard. An anchor, a kind and a document are set when an annotation is written, so losing one of those points at a new annotation rather than at `--edit`.
+    """
+    carried = VERB_CARRIES[verb]
+    lost = [f"--{n}" for n, v in given.items() if v and n not in carried]
+    if not lost:
+        return
+    fixed = {"--quote", "--page", "--box", "--in", "--kind"}
+    carries = ", ".join(f"--{n}" for n in carried)
+    what = f"{_VERB_NOUN[verb]} carries " + (f"a new body, {carries} only" if carried else "its text only")
+    if fixed & set(lost):
+        fix = "an annotation's anchor, kind and document are set when it is written; write a new annotation for different ones"
+    elif verb == "discard":
+        fix = "give the reason as the message, and nothing else"
+    else:
+        fix = f"write a suggestion of its own for text to paste in, or --edit {ann_id} to change the note itself"
+    raise EnvError(f"{what}, so {', '.join(lost)} would be lost; {fix}")
+
+
+def check_edit(body: str | None, severity: str | None, payload: str | None, placement: str | None) -> None:
     """An edit must change something, and an edit to an empty body says nothing -- `--discard` is how a finding is withdrawn."""
     if body is not None and not body.strip():
         raise EnvError("an edit to an empty body says nothing; give the new text, or withdraw it with --discard")
-    if body is None and severity is None and payload is None:
-        raise EnvError("--edit with nothing to change; give a new body, --severity or --payload")
+    if body is None and severity is None and payload is None and placement is None:
+        raise EnvError("--edit with nothing to change; give a new body, --severity, --payload or --placement")
 
 
 def edit_annotation(
@@ -761,6 +786,8 @@ BATCH_KEYS = (
     "in",
 )
 BATCH_VERBS = ("reply", "resolve", "edit", "discard")
+#: The fields an edit or a discard is checked for, by their batch key and their flag's name.
+_LOSABLE = ("quote", "kind", "severity", "payload", "placement", "page", "box", "in")
 
 
 def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str, Any], dry_run: bool = False) -> str:
@@ -775,10 +802,13 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
     if len(verbs) > 1:
         raise EnvError(f"one verb per line; this one gives {' and '.join(verbs)}")
     root = result.quilt.root
+    for verb in ("discard", "edit"):
+        if item.get(verb):
+            refuse_lost(verb, str(item[verb]), {k: item.get(k) for k in _LOSABLE})
     if item.get("discard"):
         return discard_annotation(root, str(item["discard"]), writer, item.get("message"), dry_run=dry_run)
     if item.get("edit"):
-        check_edit(item.get("message"), item.get("severity"), item.get("payload"))
+        check_edit(item.get("message"), item.get("severity"), item.get("payload"), item.get("placement"))
         return edit_annotation(
             result,
             str(item["edit"]),
@@ -787,6 +817,7 @@ def _batch_line(result: ScanResult, writer: tuple[str, str, str], item: dict[str
             body=item.get("message"),
             severity=item.get("severity"),
             payload=item.get("payload"),
+            placement=item.get("placement"),
         )
     return _one_comment(
         result,
@@ -869,7 +900,10 @@ def _rects(box: str) -> list[list[float]]:
 @click.option("--reply", default=None, metavar="ID", help="Answer annotation ID; the message is the reply.")
 @click.option("--resolve", default=None, metavar="ID", help="Mark annotation ID resolved, with the message as why.")
 @click.option(
-    "--edit", default=None, metavar="ID", help="Supersede an annotation's body; the history stays in the log."
+    "--edit",
+    default=None,
+    metavar="ID",
+    help="Restate an annotation: a new body, --severity, --payload or --placement; never its anchor.",
 )
 @click.option(
     "--discard",
@@ -939,6 +973,16 @@ def annotate(
         message, target = target, None
     if undo and not (discard_id or resolve):
         raise EnvError("--undo applies to --resolve or --discard")
+    verbs = [
+        f"--{n}" for n, v in (("reply", reply), ("resolve", resolve), ("edit", edit), ("discard", discard_id)) if v
+    ]
+    if len(verbs) > 1:
+        raise EnvError(f"one verb per call; this one gives {' and '.join(verbs)}")
+    if edit or discard_id:
+        given = {"quote": quote, "kind": kind, "severity": severity, "payload": payload, "placement": placement}
+        refuse_lost(
+            "edit" if edit else "discard", edit or discard_id, {**given, "page": page, "box": box, "in": in_doc}
+        )
     if not batch:
         _check_named(result, target, reply or resolve or edit or discard_id, in_doc, page is not None or bool(box))
         if not (reply or resolve or edit or discard_id) and not (message or "").strip() and _asks(kind):
@@ -975,9 +1019,11 @@ def annotate(
             discard_annotation(root, discard_id, writer, message, undo, dry_run=dry_run), discard=discard_id, undo=undo
         )
     elif edit:
-        check_edit(message, severity, payload)
+        check_edit(message, severity, payload, placement)
         done(
-            edit_annotation(result, edit, writer, dry_run, body=message, severity=severity, payload=payload),
+            edit_annotation(
+                result, edit, writer, dry_run, body=message, severity=severity, payload=payload, placement=placement
+            ),
             edit=edit,
         )
     else:

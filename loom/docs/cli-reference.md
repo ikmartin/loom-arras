@@ -246,7 +246,7 @@ A note on a page of a cited work names the work by citekey or identifier and the
 | `--as` `NAME` | Who is writing; an agent names itself, with Agent or AI in the name. |
 | `--reply` `ID` | Answer annotation ID; the message is the reply. |
 | `--resolve` `ID` | Mark annotation ID resolved, with the message as why. |
-| `--edit` `ID` | Supersede an annotation's body; the history stays in the log. |
+| `--edit` `ID` | Restate an annotation: a new body, --severity, --payload or --placement; never its anchor. |
 | `--discard` `ID` | Withdraw a finding you should not have raised; resolving would claim the author addressed it. |
 | `--severity` | How bad the fault is, not how keen you are. |
 | `--payload` | Suggested text the author may preview and copy. |

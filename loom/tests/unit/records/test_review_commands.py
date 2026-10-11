@@ -965,6 +965,9 @@ BATCH = [
     pytest.param([{"target": "dm-0002", "messsage": "typo"}], 2, "unknown key(s) messsage", [], id="unknown-key"),
     pytest.param([{"edit": "{ann}", "discard": "{ann}", "message": "?"}], 2, "one verb per line", [], id="two-verbs"),
     pytest.param([{"edit": "{ann}"}], 2, "nothing to change", [], id="answers-nothing"),
+    pytest.param([{"edit": "{ann}", "message": "x", "quote": "Every orbit"}], 2, "--quote would be lost", [], id="an-edit-moves-no-anchor"),
+    pytest.param([{"discard": "{ann}", "message": "wrong", "severity": "minor"}], 2, "--severity would be lost", [], id="a-discard-carries-its-reason"),
+    pytest.param([{"edit": "{ann}", "placement": "after"}], 0, None, [("edited", None)], id="an-edit-carries-placement"),
     # every line is checked before any is written, so a failing line leaves nothing half done (the re-grade's K3)
     pytest.param(
         [{"target": "dm-0002", "message": "one", "quote": "Every orbit", "kind": "suggestion"},
@@ -1119,6 +1122,46 @@ def test_a_reply_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
                 match=f"{extra[0]} would be lost",
             )
     assert len(events(d)) == before
+
+
+def test_an_edit_or_a_discard_refuses_what_it_cannot_carry(tmp_path: Path) -> None:
+    """`--edit ID --quote ..` exited 0 and wrote an edit with no anchor (the anchoring critique, 2026-10-03); a discard dropped everything but its reason, and two verbs in one call ran one."""
+    d = demo(tmp_path)
+    ann = ok("annotate", "dm-0002", "A finding", "--quote", "Every orbit", *AS, cwd=d).output.split()[0]
+    before = len(events(d))
+    for verb, extra in (
+        ("--edit", ("--quote", "one or two")),
+        ("--edit", ("--kind", "objection")),
+        ("--edit", ("--page", "3")),
+        ("--discard", ("--quote", "one or two")),
+        ("--discard", ("--payload", "New sentence.")),
+    ):
+        refused("annotate", verb, ann, "Restated.", *extra, *AS, cwd=d, code=2, match=f"{extra[0]} would be lost")
+    refused("annotate", "--edit", ann, "x", "--reply", ann, *AS, cwd=d, code=2, match="one verb per call")
+    assert len(events(d)) == before
+
+    # --placement is one of the fields an edit restates (7.4.3), and an edit of it alone is a change
+    ok("annotate", "--edit", ann, "--placement", "after", *AS, cwd=d)
+    [f] = json_of("ai", "annotations", "--all", "--json", cwd=d)["annotations"]
+    assert f["placement"] == "after" and f["quote"] == "Every orbit"
+
+
+def test_a_quote_copied_from_the_source_is_marked_where_it_is(tmp_path: Path) -> None:
+    """The anchoring critique (2026-10-03): quotes `annotate` accepted -- one opening with `\\noindent`, one with `\\S~\\ref`, one with a TeX dash -- were marked as their whole section or paragraph. Each is marked on its own words."""
+    d = synthetic(tmp_path)
+    edit(
+        d / "sections" / "results.tex",
+        "deferred to the end of the section.\n",
+        "deferred to the end of the section.\n\n\\noindent\\textbf{Problem 1:} decide whether every widget is tame.\n\n"
+        "As shown in (\\S~\\ref{sy-0201}) the consequences follow -- mostly.\n",
+    )
+    quotes = ["\\noindent\\textbf{Problem 1:}", "(\\S~\\ref{sy-0201})", "follow -- mostly"]
+    ids = [ok("annotate", "sy-0200", "Look.", "--quote", q, *AS, cwd=d).output.split()[0] for q in quotes]
+    exits(1, "build", cwd=d)
+    frag = (d / "build" / "fragments" / "nodes" / "sy-0200.html").read_text()
+    assert "annotation-block" not in frag
+    for ann in ids:
+        assert f'<mark class="annotation" data-annotation="{ann}">' in frag, ann
 
 
 def test_a_verb_that_answers_nothing_is_refused(tmp_path: Path) -> None:

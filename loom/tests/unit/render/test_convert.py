@@ -229,3 +229,19 @@ def test_a_paragraph_of_only_an_empty_formula_is_drawn_as_nothing() -> None:
     assert "<p " not in out and "<ol " in out and "One." in out
     out, _, _ = make("Keep $x$ here.\n\n$y$\n")
     assert out.count("<p ") == 2  # a formula with something in it is a paragraph like any other
+
+
+def test_a_paragraph_starts_at_the_layout_command_that_opens_it() -> None:
+    """`\\noindent` and `\\bigskip` print nothing but are the paragraph's source, so its `data-src` starts at them and a quote copied from there lies inside the paragraph; a `\\label` after an environment's heading belongs to the heading, and a blank line still ends what came before."""
+    for text, first in (
+        ("Prev.\n\n\\noindent\\textbf{Problem 1:} text", "\\noindent\\textbf"),
+        ("Prev.\n\n\\noindent Text", "\\noindent Text"),
+        ("Prev.\n\n\\noindent\n\\textbf{X} y", "\\noindent\n"),
+        ("Prev.\n\n\\medskip\\noindent Text", "\\medskip"),
+        ("Prev.\n\n\\bigskip\nText", "\\bigskip\nText"),
+        ("Prev.\n\n\\bigskip\n\nText", "Text"),
+        ("\\begin{proof}\\label{l}\nText here.\n\\end{proof}", "\nText here."),
+    ):
+        out, _, _ = make(text)
+        a, b = map(int, re.findall(r'<p data-src="f.tex:(\d+):(\d+)"', out)[-1])
+        assert text[a:b].startswith(first), (text, text[a:b])

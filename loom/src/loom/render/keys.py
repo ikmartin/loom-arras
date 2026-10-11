@@ -12,8 +12,8 @@ from pathlib import Path
 from loom.tex.aux import AuxNumber
 from loom.version import __version__
 
-#: The packages a rendering's output depends on; editing anything else in a checkout re-renders nothing.
-RENDERING = ("render", "scan", "tex")
+#: The code a rendering's output depends on: three packages, and the reading of a quote that places its mark; editing anything else in a checkout re-renders nothing.
+RENDERING = ("render", "scan", "tex", "records/selectors.py")
 
 
 @cache
@@ -27,7 +27,8 @@ def code_hash() -> str:
     package = Path(__file__).resolve().parent.parent
     h = hashlib.sha256()
     for sub in RENDERING:
-        for path in sorted((package / sub).rglob("*.py")):
+        target = package / sub
+        for path in sorted(target.rglob("*.py")) if target.is_dir() else [target]:
             h.update(path.relative_to(package).as_posix().encode())
             h.update(path.read_bytes())
     return h.hexdigest()[:16]

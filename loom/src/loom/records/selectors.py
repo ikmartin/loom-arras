@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import html
+import re
 from dataclasses import dataclass
 from functools import lru_cache
+
+from loom.render.convert import IGNORED_ARGS, IGNORED_CMDS, SYMBOLS
+from loom.scan.tokenize import read_args
 
 CONTEXT = 32
 
@@ -43,7 +48,7 @@ def _norm_map(text: str) -> tuple[str, list[int]]:
 def find_quote(own_text: str, quote: str) -> list[tuple[int, int]]:
     """Every occurrence of `quote` in `own_text`, compared with whitespace normalised; returns original-offset spans.
 
-    A quote a reader selected on the page is not the source: math comes as `$tex$` whatever the source's delimiters, and `\\emph{x}` comes as `x`. When the plain comparison finds nothing, both sides are compared as that projection, and the spans are still offsets into the source.
+    When the plain comparison finds nothing, both sides are compared as `project` reads them -- the source as the page prints it -- and the spans are still offsets into the source.
     """
     return list(_find(own_text, quote))
 
@@ -57,10 +62,14 @@ def _find(own_text: str, quote: str) -> tuple[tuple[int, int], ...]:
 _SIMPLE = ("emph", "textit", "textbf", "texttt", "textrm", "textsf", "textsc", "textup")
 #: What the renderer prints for the source's quotes and dashes (`ligatures` in render/convert.py), longest first: a reader's selection carries `Ehrhart’s` where the source has `Ehrhart's`.
 _TYPOGRAPHY = {"---": "—", "--": "–", "``": "“", "''": "”", "`": "‘", "'": "’"}
+_CONTROL = re.compile(r"\\([A-Za-z@]+\*?|.)", re.S)
 
 
-def _project(text: str) -> tuple[str, list[tuple[int, int]]]:
-    """`text` as a reader sees it, each character mapped to the source range it came from: math delimiters as `$`/`$$`, the simple text macros unwrapped, `~` a space, quotes and dashes as printed, whitespace collapsed."""
+def project(text: str) -> tuple[str, list[tuple[int, int]]]:
+    """`text` as the page prints it, each character mapped to the source range it came from.
+
+    Math delimiters as `$`/`$$`, the simple text macros unwrapped, the converter's symbols as printed (`\\S` as §), its ignored commands and their arguments as nothing (a group after an argument-less one reads as its words), `~` a space, quotes and dashes as printed, whitespace collapsed. Blind to math mode, so a formula reads with `’` for `'` too: compare only two texts read by this same function.
+    """
     out: list[str] = []
     where: list[tuple[int, int]] = []
     dropped: list[bool] = []  # per open brace: whether it belongs to an unwrapped macro
@@ -87,6 +96,24 @@ def _project(text: str) -> tuple[str, list[tuple[int, int]]]:
         elif text[i] == "\\" and (m := _simple_macro(text, i)):
             dropped.append(True)
             i = m
+        elif text[i] == "\\" and (c := _CONTROL.match(text, i)):
+            name = c.group(1)
+            if name in SYMBOLS:
+                put(html.unescape(SYMBOLS[name]), i, c.end())
+                i = c.end()
+            elif name in IGNORED_CMDS:
+                spec = IGNORED_ARGS.get(name, "")
+                i = read_args(text, c.end(), spec)[2] if spec else c.end()
+                # a group after an argument-less layout command is no argument: `\noindent{Convention}` prints its words
+                j = i
+                while not spec and j < n and text[j] in " \t":
+                    j += 1
+                if not spec and text.startswith("{", j):
+                    dropped.append(True)
+                    i = j + 1
+            else:
+                put(c.group(0), i, c.end())
+                i = c.end()
         elif text[i] == "{":
             dropped.append(False)
             put("{", i, i + 1)
@@ -117,8 +144,8 @@ def _simple_macro(text: str, i: int) -> int | None:
 
 
 def _find_projected(own_text: str, quote: str) -> list[tuple[int, int]]:
-    pt, where = _project(own_text)
-    pq = _project(quote)[0].strip()
+    pt, where = project(own_text)
+    pq = project(quote)[0].strip()
     if not pq:
         return []
     out: list[tuple[int, int]] = []

@@ -1,3 +1,5 @@
+import pytest
+
 from loom.render.marks import MarkEntry, place_marks
 
 
@@ -81,3 +83,42 @@ def test_a_quote_across_a_reference_and_a_formula_is_marked_where_it_is() -> Non
     assert "annotation-block" not in out
     assert out.count('<mark class="annotation" data-annotation="a-1">') == 1
     assert '>by Proposition <a class="ref"' in out and "is representable</mark>" in out
+
+
+#: The converter's own output for `As shown in (\S~\ref{sec:x}) the results follow -- mostly, ``quoted'' and a\,b.`: § and nbsp, an en dash, curly quotes, a thin space.
+PRINTED = (
+    '<p data-src="f.tex:0:79">As shown in (§ <a class="ref ref-dangling" data-target="sec:x" data-tex="\\ref{sec:x}" data-at="16">??</a>)'
+    " the results follow – mostly, “quoted” and a b.</p>"
+)
+
+
+@pytest.mark.parametrize(
+    ("quote", "marked"),
+    [
+        ("(\\S~\\ref{sec:x})", '(§ <a class="ref'),
+        ("follow -- mostly", "follow – mostly"),
+        ("``quoted''", "“quoted”"),
+        ("a\\,b", "a b"),
+    ],
+)
+def test_a_quote_copied_from_the_source_is_marked_as_the_page_prints_it(quote: str, marked: str) -> None:
+    """`annotate` reads a quote as the page prints it (book 7.4.3), so the mark does too: a symbol, a tie, a dash, TeX quotes and a thin space were each found by the one and missed by the other, and the quote marked its whole paragraph (the anchoring critique, 2026-10-03)."""
+    out = place_marks(PRINTED, [MarkEntry("a-1", quote, "f.tex", 12, 30)])
+    assert "annotation-block" not in out
+    assert f'<mark class="annotation" data-annotation="a-1">{marked}' in out
+
+
+def test_a_quote_that_opens_with_a_layout_command_is_marked_inside_its_paragraph() -> None:
+    """`\\noindent` prints nothing; the paragraph's source starts at it, so the quote's span lies in the paragraph and the mark takes the words after it, never the whole section."""
+    html = '<section data-src="f.tex:0:200"><p data-src="f.tex:50:86"><strong>Problem 1:</strong> decide.</p></section>'
+    out = place_marks(html, [MarkEntry("a-1", "\\noindent\\textbf{Problem 1:}", "f.tex", 50, 78)])
+    assert "annotation-block" not in out
+    assert '<strong><mark class="annotation" data-annotation="a-1">Problem 1:</mark></strong>' in out
+
+
+def test_a_formula_is_read_as_the_quote_is() -> None:
+    """The formula's TeX and the quote are read by one function, so a prime the prose would print as ’ still matches inside a formula, and so does a quote that starts in the middle of one."""
+    html = '<p data-src="f.tex:0:40">so <span class="math inline">\\(f\'(x)\\)</span> is big</p>'
+    whole = '<mark class="annotation" data-annotation="a-1"><span class="math inline">\\(f\'(x)\\)</span> is</mark>'
+    assert whole in place_marks(html, [MarkEntry("a-1", "$f'(x)$ is", "f.tex", 3, 15)])
+    assert whole in place_marks(html, [MarkEntry("a-1", "f'(x)\\) is", "f.tex", 5, 15)])

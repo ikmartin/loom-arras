@@ -14,7 +14,7 @@ Plan 0.18.6 fixed the re-grade's defects and every finding graded **F**; the fin
 
 Take them by principle, as the appendices group them, each with a test reproducing it first: the remaining T2 repetition (one sentence under a heading many times), T4's raw LaTeX titles and implementation words (`fragments`, `via postnote`, preview tokens), T5's counts that disagree between commands and lines over 100 columns on stderr, T6's one-to-four-second silences, and the K2 leftovers (`WHICH` against `--session` for a session, `--why` missing from `ai discard`, `-p1` against `-p0` patches).
 
-Found while fixing the Fs and left for this item: `loom fork` copies a forked node's inner labels, the defect `linearize --fork` had, so a fork can leave a label defined twice; `history shwo` without `--help` says "no such key"; `import --dry-run` names step 0001 where the step will be the next.
+Found while fixing the Fs and left for this item: `loom fork` copies a forked node's inner labels, the defect `linearize --fork` had, so a fork can leave a label defined twice; `history shwo` without `--help` says "no such key"; `import --dry-run` names step 0001 where the step will be the next. Found while fixing the anchoring critique (DR-334-ikmartin): a reply's `--kind` is stored as given, unchecked against the five kinds or their prefixes, and `--edit --severity` is accepted on a kind that takes none, which a new annotation refuses.
 
 ## Blast radius
 
