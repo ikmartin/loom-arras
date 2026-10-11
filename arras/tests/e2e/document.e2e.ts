@@ -46,3 +46,21 @@ test('a formula is never skipped off screen, so typesetting a document again nev
 	// a skipped formula is laid out at a placeholder size, and growing to its real one above the browser's scroll anchor carried a reader to the end of the page
 	expect(cv).toEqual(['visible', 'visible', 'visible']);
 });
+
+test('a document drawn again leaves nothing of the old one in MathJax', async ({ page }) => {
+	// MathJax lists every formula it typesets and each entry holds its output, so a document replaced stayed alive whole until arras forgot the entries whose output had left the page (plan 0.19.1)
+	const typeset = () => page.waitForFunction(() => !!document.querySelector('.fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
+	await page.goto('/master/main');
+	await typeset();
+	for (let i = 0; i < 2; i++) {
+		await page.getByTestId('view-graph').click();
+		await page.locator('svg g.node').first().waitFor();
+		await page.getByTestId('view-read').click();
+		await typeset();
+	}
+	const { gone, shown } = await page.evaluate(() => {
+		const list = [...(window.MathJax as { startup: { document: { math: Iterable<{ start: { node: Node } }> } } }).startup.document.math];
+		return { gone: list.filter((m) => !m.start.node.isConnected).length, shown: document.querySelectorAll('.fragment mjx-container').length };
+	});
+	expect(gone, `${gone} entries for formulas no longer on the page, ${shown} on it`).toBeLessThan(shown);
+});

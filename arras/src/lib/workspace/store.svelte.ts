@@ -26,6 +26,8 @@ export class Workspace {
 	compared = $state<[string, string] | null>(null);
 	/** Whether the workspace draws one pane at a time, below its two-pane width; set by the workspace. */
 	narrow = $state(false);
+	/** Whether the divider is being dragged: what is costly to draw again at every width (a work's pages, a comparison) holds until the drop. */
+	resizing = $state(false);
 	/** Whether reading mode is on screen; set by the layout. Outside it the panes are kept but nothing is drawn, so nothing should open into them. */
 	onScreen = $state(false);
 	/** Where each open item was scrolled to, by key: kept here rather than in its pane, which is made again when the reader comes back to reading from another page. */

@@ -16,12 +16,18 @@
 	let frame = $state<HTMLElement | null>(null);
 	let width = $state(0);
 	let dragging = $state(false);
+	/** The ratio while a drag is in hand: drawn at most once a frame, and kept as the preference only on the drop, so the preferences are applied and stored once a drag rather than once a move. */
+	let live = $state<number | null>(null);
+	/** The frame's box, read once when a drag begins: it does not move while the divider does. */
+	let box: DOMRect | null = null;
+	let next: number | null = null;
+	let painting = 0;
 
 	const two = $derived(workspace.panes.length === 2);
 	const narrow = $derived(width > 0 && width < NARROW);
 	const works = $derived([0, 1].some((i) => workspace.active(i)?.kind === 'work'));
 	const floor = $derived(works && width > 2 * WORK_FLOOR ? WORK_FLOOR / width : 0.2);
-	const ratio = $derived(Math.min(1 - floor, Math.max(floor, prefs.divider)));
+	const ratio = $derived(Math.min(1 - floor, Math.max(floor, live ?? prefs.divider)));
 	$effect(() => {
 		workspace.narrow = narrow;
 	});
@@ -32,13 +38,19 @@
 	}
 
 	function drag(e: PointerEvent): void {
-		if (!frame) return;
-		const at = frame.getBoundingClientRect();
-		set((e.clientX - at.left) / (at.width || 1));
+		if (!box) return;
+		next = settle((e.clientX - box.left) / (box.width || 1));
+		painting ||= requestAnimationFrame(() => {
+			painting = 0;
+			live = next;
+		});
 	}
 
 	function grab(e: PointerEvent): void {
+		if (!frame) return;
 		dragging = true;
+		workspace.resizing = true;
+		box = frame.getBoundingClientRect();
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 		drag(e);
 	}
@@ -47,6 +59,11 @@
 		if (!dragging) return;
 		dragging = false;
 		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+		cancelAnimationFrame(painting);
+		painting = 0;
+		if (next !== null) prefs.divider = next;
+		live = next = box = null;
+		workspace.resizing = false;
 	}
 
 	function key(e: KeyboardEvent): void {
@@ -60,7 +77,7 @@
 
 <svelte:window onresize={() => (width = frame?.clientWidth ?? width)} />
 
-<main class="workspace" class:dragging class:narrow bind:this={frame} bind:clientWidth={width} data-testid="workspace" style="--ratio: {ratio}">
+<main class="workspace" class:dragging class:narrow bind:this={frame} bind:clientWidth={width} data-testid="workspace">
 	{#if !workspace.panes.length}
 		<p class="muted empty">Nothing is open. Choose a document in the panel.</p>
 	{:else if narrow && two}
@@ -75,7 +92,8 @@
 		{#key workspace.focus}<Pane index={workspace.focus} head={false} style="flex: 1 1 auto" />{/key}
 	{:else}
 		<!-- one element for the first pane however many there are: a second pane opening beside must not re-create the first, and lose what the reader was doing in it -->
-		<Pane index={0} style={two ? 'flex: 0 0 calc(var(--ratio) * 100%)' : 'flex: 1 1 auto'} />
+		<!-- the first pane's own width, never a custom property on the workspace: both documents would inherit it, and every move of the divider would restyle every element of both -->
+		<Pane index={0} style={two ? `flex: 0 0 ${ratio * 100}%` : 'flex: 1 1 auto'} />
 		{#if two}
 			<!-- A separator that takes focus is a widget in ARIA's own terms — a window splitter, with the arrow keys and aria-valuenow this one has — so the two rules below are being told about a case they do not model. -->
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -138,6 +156,10 @@
 	.divider:focus-visible {
 		outline: 2px solid var(--link);
 		outline-offset: -2px;
+	}
+	/* the comparison's gutter is drawn against the text's lines, which move while the divider does; it is drawn again at the drop */
+	.workspace.dragging :global(.compare-gutter) {
+		visibility: hidden;
 	}
 	.workspace.dragging .divider::before,
 	.divider:hover::before {

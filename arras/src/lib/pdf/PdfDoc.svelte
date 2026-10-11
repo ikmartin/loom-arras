@@ -7,8 +7,9 @@
 	//
 	// Page sizes are per page, not per document: a scan's pages differ by a point or two, and a fixed transform would
 	// creep down a long paper. Page one's size is the placeholder until a page reports its own.
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { prefs } from '$lib/prefs.svelte';
+	import { workspace } from '$lib/workspace/store.svelte';
 	import { PdfView } from './view.svelte';
 	import { document_ } from './document';
 	import PdfPage from './PdfPage.svelte';
@@ -94,7 +95,15 @@
 	const ready = $derived(scale !== undefined || !v.fitText || columnWidth > 0);
 
 	// The reader's zoom for this kind of renderer, remembered across papers and across visits, unless a caller fixes it.
-	const drawAt = $derived(scale ?? fitted ?? textFitted ?? prefs.zoom.pdf ?? 1.4);
+	const fits = $derived(scale ?? fitted ?? textFitted ?? prefs.zoom.pdf ?? 1.4);
+	/** The zoom the pages were drawn at when the divider was taken, held while it moves: the pages are stretched to the moving width and drawn again once, at the drop, rather than at every width. */
+	let held = $state<number | null>(null);
+	$effect(() => {
+		const resizing = workspace.resizing;
+		untrack(() => (held = resizing ? (held ?? fits) : null));
+	});
+	const drawAt = $derived(held ?? fits);
+	const stretch = $derived(held === null ? 1 : fits / held);
 
 	/** With the page wider than the column, start the view at the text's left edge, less the dot's room, rather than at the paper's. */
 	function toText(): void {
@@ -112,7 +121,7 @@
 		void drawAt;
 		void columnWidth;
 		void count;
-		if (!focus) requestAnimationFrame(toText);
+		if (!focus && !workspace.resizing) requestAnimationFrame(toText);
 	});
 	// The controls read the scale actually drawn, which is the fitted one while fit-width holds.
 	$effect(() => {
@@ -193,7 +202,8 @@
 		// a redraw at another zoom or width moves the result: land again, which also re-reads whether the text now fits
 		void drawAt;
 		void columnWidth;
-		if (!id || !column) return;
+		// a moving divider changes the width every frame; land once it is put down
+		if (!id || !column || workspace.resizing) return;
 		const at = spans.find((s) => s.id === id);
 		if (!at) return;
 		here = at.page;
@@ -263,7 +273,7 @@
 		{/if}
 		{#each all as n (n)}
 			{@const at = sizeOf(n)}
-			<div class="holder" data-holder={n} style="min-height: {at.height * drawAt}px;">
+			<div class="holder" data-holder={n} style="min-height: {at.height * drawAt}px;" style:zoom={stretch === 1 ? null : stretch}>
 				<PdfPage
 					{url}
 					page={n}

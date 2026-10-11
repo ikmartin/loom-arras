@@ -1,10 +1,13 @@
 // MathJax 3, TeX input and SVG output, bundled from the mathjax package so nothing loads from a CDN and a deployed site works offline. Macros come from the manifest at startup; a fragment naming a per-fragment set gets those definitions applied before its math is typeset.
 import type { Macro } from '$lib/manifest/types';
 
+/** One formula in MathJax's list of what it has typeset; once typeset, `start.node` is its output's container. */
+type MathItem = { start: { node: Node } };
+
 type MJ = {
 	typesetPromise: (els: Element[]) => Promise<void>;
 	typesetClear: (els: Element[]) => void;
-	startup: { promise: Promise<void> };
+	startup: { promise: Promise<void>; document?: { math: Iterable<MathItem> & { remove: (...items: MathItem[]) => void } } };
 	texReset?: () => void;
 };
 
@@ -60,9 +63,27 @@ function macroPrefix(macros: Macro[]): string {
 /** Typesetting is serialised: MathJax is not safe to enter twice, and a document typesetting in the background shares it with titles and previews. */
 let queue: Promise<unknown> = Promise.resolve();
 function run(mj: MJ, els: Element[]): Promise<void> {
-	const next = queue.then(() => mj.typesetPromise(els));
+	const next = queue.then(() => {
+		prune(mj);
+		return mj.typesetPromise(els);
+	});
 	queue = next.catch(() => {});
 	return next;
+}
+
+/** Forget the formulas whose output has left the page. MathJax lists every formula it has typeset and each entry holds its output, so a document replaced or a box closed would otherwise stay alive for good, and every later typeset would walk its entries. Run inside the queue, where nothing is being typeset. */
+function prune(mj: MJ): void {
+	const list = mj.startup.document?.math;
+	if (!list) return;
+	const gone: MathItem[] = [];
+	for (const item of list) if (!item.start.node.isConnected) gone.push(item);
+	for (let i = 0; i < gone.length; i += 1000) list.remove(...gone.slice(i, i + 1000));
+}
+
+/** Give the page a turn between batches, so input and painting are never held behind a whole document. */
+function yieldToPage(): Promise<void> {
+	const s = (globalThis as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+	return s?.yield ? s.yield() : new Promise((r) => setTimeout(r, 0));
 }
 
 /** How many formulas one pass typesets before the page gets a turn.
@@ -73,7 +94,7 @@ const BATCH = 48;
 /**
  * Typeset the mathematics inside `el`.
  *
- * A short fragment is typeset in one pass. A long one — a whole document, where two or three thousand formulas took over a second before anything showed — is typeset in batches: first everything up to `until` (the element a link points at) or the first screenful, and the returned promise resolves once that part is done, so the caller can reveal and scroll; the rest follows in batches that yield to the page between them. Everything above the reader is typeset before the promise resolves, so nothing above them changes height afterwards and the page never jumps under them.
+ * A short fragment is typeset in one pass. A long one — a whole document, where two or three thousand formulas took over a second before anything showed — is typeset in batches, each of which gives the page a turn before the next: first everything up to `until` (the element a link points at) or the first screenful, and the returned promise resolves once that part is done, so the caller can reveal and scroll; then the rest. Everything above the reader is typeset before the promise resolves, so nothing above them changes height afterwards and the page never jumps under them.
  *
  * Parameters
  * ----------
@@ -120,10 +141,15 @@ export async function typeset(el: Element, defaults: Macro[], perFragment: Macro
 	const screen = window.innerHeight * 1.5;
 	while (cut < items.length && items[cut].getBoundingClientRect().top < screen) cut++;
 	cut = Math.min(items.length, Math.max(cut, BATCH));
-	for (let i = 0; i < cut; i += BATCH) await run(mj, items.slice(i, Math.min(cut, i + BATCH)));
+	// MathJax resolves on microtasks alone, so batches that only awaited one another ran as one task: every batch yields
+	for (let i = 0; i < cut; i += BATCH) {
+		if (i) await yieldToPage();
+		if (!el.isConnected) return;
+		await run(mj, items.slice(i, Math.min(cut, i + BATCH)));
+	}
 	void (async () => {
 		for (let i = cut; i < items.length; i += BATCH) {
-			await new Promise((r) => setTimeout(r, 0));
+			await yieldToPage();
 			if (!el.isConnected) return;
 			await run(mj, items.slice(i, i + BATCH));
 		}

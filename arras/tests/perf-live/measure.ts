@@ -56,6 +56,8 @@ export async function instrument(page: Page): Promise<CDPSession> {
 	});
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('Performance.enable');
+	// a forced collection is only carried out with the heap profiler enabled; without it `liveNodes` counted garbage
+	await cdp.send('HeapProfiler.enable');
 	return cdp;
 }
 
@@ -88,8 +90,12 @@ export async function settle(page: Page, quiet = 400, cap = 30000): Promise<void
 
 /** Every formula in the open fragments typeset. */
 export async function typesetAll(page: Page): Promise<void> {
-	await page.waitForSelector('[data-pane="0"] .fragment mjx-container', { timeout: 60000 });
-	await page.waitForFunction(() => document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0, null, { polling: 200, timeout: 60000 });
+	// a function rather than a selector wait: `waitForSelector` returns a handle to the element, which keeps the whole document it is in alive
+	await page.waitForFunction(
+		() => !!document.querySelector('[data-pane="0"] .fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0,
+		null,
+		{ polling: 200, timeout: 60000 }
+	);
 }
 
 /** DOM nodes alive after two forced collections: what the page holds, garbage excluded. */

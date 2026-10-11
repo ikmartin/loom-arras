@@ -13,5 +13,6 @@ export default defineConfig({
 	timeout: 600000,
 	expect: { timeout: 60000 },
 	workers: 1,
-	use: { viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 }
+	// the full browser rather than the headless shell, whose memory and collection are not a reader's
+	use: { channel: 'chromium', viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2 }
 });

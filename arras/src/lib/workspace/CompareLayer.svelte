@@ -10,6 +10,7 @@
 	import { flash } from '$lib/travel/travel';
 	import type { Found, Mark, Plan } from './compare';
 	import { comparison } from './compare.svelte';
+	import { workspace } from './store.svelte';
 
 	let { index, body }: { index: number; body: () => HTMLElement | null } = $props();
 
@@ -136,10 +137,22 @@
 		schedule();
 	}
 
+	/** A draw asked for while the divider moves: owed, and drawn once at the drop, since every width in between is thrown away. */
+	let owed = false;
 	function schedule(): void {
 		cancelAnimationFrame(frame);
+		if (workspace.resizing) {
+			owed = true;
+			return;
+		}
 		frame = requestAnimationFrame(draw);
 	}
+	$effect(() => {
+		if (!workspace.resizing && owed) {
+			owed = false;
+			untrack(schedule);
+		}
+	});
 
 	/** The lines of an element's text, as their middles in viewport coordinates: from its words and its formulas, never from a block's box, which spans several lines. */
 	function lines(el: HTMLElement): number[] {

@@ -436,6 +436,24 @@ test.describe('the divider', () => {
 		expect(Math.min(...z), `panes at z ${z.join(', ')}, the divider at ${dz}`).toBeGreaterThan(dz);
 	});
 
+	test('a drag sizes the first pane alone, and the preference is stored at the drop', async ({ page }) => {
+		// a custom property on the workspace was inherited by every element of both documents, so each move restyled them all (plan 0.19.1)
+		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+		const divider = page.getByTestId('divider');
+		const frame = (await page.getByTestId('workspace').boundingBox())!;
+		const handle = (await divider.boundingBox())!;
+		const stored = () => page.evaluate(() => (JSON.parse(localStorage.getItem('arras.prefs') ?? '{}') as { divider?: number }).divider);
+		const before = await stored();
+		await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(frame.x + frame.width * 0.3, handle.y + handle.height / 2, { steps: 6 });
+		await expect.poll(() => pane(page, 0).evaluate((p) => p.style.flex)).toMatch(/%/);
+		expect(await page.getByTestId('workspace').evaluate((w) => w.style.getPropertyValue('--ratio'))).toBe('');
+		expect(await stored()).toBe(before);
+		await page.mouse.up();
+		await expect.poll(stored).toBeLessThan(0.4);
+	});
+
 	test('it drags, snaps at the middle, resets on double-click and nudges by key; below the breakpoint one pane shows', async ({ page }) => {
 		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
 		const divider = page.getByTestId('divider');
