@@ -1,6 +1,6 @@
 """`loom serve` (book 9.8): one loop with three jobs, watch, serve, compile.
 
-Serves the arras bundle at / (with index.html as the fallback for any path that is not a file of the bundle or an asset, so the viewer's routes work, dots in keys included) and build/ at /build/. The manifest carries an ETag so the viewer's poll costs nothing while unchanged. Loom never notifies the viewer; the viewer polls.
+Serves the arras bundle at / (with index.html as the fallback for any path that is not a file of the bundle or an asset, so the viewer's routes work, dots in keys included) and build/ at /build/. The manifest carries an ETag so the viewer's poll costs nothing while unchanged, and `/_api/stream` says each time a new one is published, so a viewer that listens fetches it at once rather than on its next poll.
 """
 
 from __future__ import annotations
@@ -49,6 +49,34 @@ ASSET_SUFFIXES = {
 
 
 SERVE_JSON = ".loom/serve.json"
+#: How often an idle stream says it is still open, so a proxy or a sleeping laptop does not drop it unseen.
+HEARTBEAT = 15.0
+
+
+class Publications:
+    """Every publication the server makes, counted, so `/_api/stream` can say that one happened."""
+
+    def __init__(self) -> None:
+        self._cond = threading.Condition()
+        self.count = 0
+        self._closed = False
+
+    def published(self) -> None:
+        with self._cond:
+            self.count += 1
+            self._cond.notify_all()
+
+    def close(self) -> None:
+        """End every stream: the server is stopping."""
+        with self._cond:
+            self._closed = True
+            self._cond.notify_all()
+
+    def wait(self, seen: int, timeout: float) -> int | None:
+        """The count once it is past `seen`, or as it stands after `timeout`; None once closed."""
+        with self._cond:
+            self._cond.wait_for(lambda: self._closed or self.count != seen, timeout)
+            return None if self._closed else self.count
 
 
 def write_serve_json(root: Path, port: int) -> str:
@@ -130,6 +158,8 @@ class LoomHandler(SimpleHTTPRequestHandler):
     #: What starts and stops an agent's turn, set when the server owns one (plan 0.14): `agent-stop` is answered by it.
     launcher: Any = None
     publication_lock: Any = None
+    #: The server's publications, set when it owns a build: what `/_api/stream` reports.
+    publications: Publications | None = None
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         if os.environ.get("LOOM_SERVE_LOG"):
@@ -358,13 +388,16 @@ class LoomHandler(SimpleHTTPRequestHandler):
         if self.path.split("?", 1)[0] == "/_api/packet":
             self._packet()
             return
+        if self.path.split("?", 1)[0] == "/_api/stream":
+            self._stream()
+            return
         if self.path.split("?", 1)[0] == "/_api":
             from loom.render.api import discovery
 
             if self.quilt_root is None:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            self._json(HTTPStatus.OK, {**discovery(), "token": self.token})
+            self._json(HTTPStatus.OK, {**discovery(), "token": self.token, "stream": self.publications is not None})
             return
         target = self._resolve()
         if target is None or not target.is_file():
@@ -387,6 +420,35 @@ class LoomHandler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(data)
+
+    def _stream(self) -> None:
+        """`GET /_api/stream`: a server-sent event, `manifest`, each time a new manifest is published, and nothing else (book 9.8).
+
+        It says only that one exists: the viewer fetches the manifest as it would on a poll and learns nothing of what changed, so it still reacts to the manifest alone (10.8). Held open on its own thread; a comment every `HEARTBEAT` seconds keeps an idle one alive, and the server's stop ends it.
+        """
+        pubs = self.publications
+        if pubs is None or self.quilt_root is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        seen = pubs.count
+        try:
+            self.wfile.write(b": open\n\n")
+            while True:
+                now = pubs.wait(seen, HEARTBEAT)
+                if now is None:
+                    return
+                if now == seen:
+                    self.wfile.write(b": still open\n\n")
+                else:
+                    seen = now
+                    self.wfile.write(b"event: manifest\ndata:\n\n")
+                self.wfile.flush()
+        except OSError:
+            return
 
     def do_HEAD(self) -> None:  # noqa: N802
         target = self._resolve()
@@ -417,6 +479,7 @@ class ServeSession:
         self.watcher: Watcher | None = None
         self.last_report: BuildReport | None = None
         self.published: dict[Path, float] = {}  # the watched files as the last publication read them
+        self.publications = Publications()
         from loom.agent import Launcher
 
         self.launcher = Launcher(quilt.root, interval)
@@ -448,6 +511,7 @@ class ServeSession:
             self.published = seen
             if self.watcher is not None:
                 self.watcher.rebaseline(seen)
+            self.publications.published()
         if changed is not None:
             names = ", ".join(p.relative_to(self.quilt.root).as_posix() for p in changed[:3])
             print(
@@ -504,6 +568,7 @@ class ServeSession:
                 "rebuild": self.rebuild,
                 "launcher": self.launcher,
                 "publication_lock": self.lock,
+                "publications": self.publications,
             },
         )
         from loom.render.api import offer_scan
@@ -543,6 +608,7 @@ class ServeSession:
         )
 
     def stop(self) -> None:
+        self.publications.close()
         self.launcher.close()
         if self.watcher:
             self.watcher.stop()

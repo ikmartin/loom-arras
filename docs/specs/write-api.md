@@ -6,7 +6,7 @@ The write API is the HTTP form of the publisher's local commands, so that a brow
 
 ## 1. Discovery
 
-**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...], "token": "..."}` or 404. The token is what every write must carry (§3). A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
+**[decided]** `GET /_api` returns `{"write_api": 1, "capabilities": [...], "token": "...", "stream": true}` or 404. `stream` says `GET /_api/stream` is served: a `text/event-stream` with an event `manifest`, carrying nothing, each time a new manifest is published, and a comment every fifteen seconds while idle. The token is what every write must carry (§3). A viewer that receives 404 or a version it does not accept shows no editing affordances. The capability list is what this publisher actually serves, so a viewer must read it rather than assume the table below: an endpoint absent from the list answers 404, and a viewer that hides the affordance is correct.
 
 ## 2. Endpoints
 

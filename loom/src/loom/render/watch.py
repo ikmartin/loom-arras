@@ -1,4 +1,4 @@
-"""Poll file mtimes every second and rebuild when something the build depends on changed (book 9.8), the skeleton of the site generator's watcher with the roots parameterised.
+"""Poll file mtimes, the tree every second and loom's own records five times a second, and rebuild when something the build depends on changed (book 9.8), the skeleton of the site generator's watcher with the roots parameterised.
 
 Watched: every .tex, .sty, .cls, .bib under the quilt root outside build/, config.toml, the ledger and snapshots, the annotation log, the reference notes, and session files other than the inbox. Build-written observation caches are excluded to avoid an extra rebuild. The callback runs in the watcher thread; a blanket except keeps the thread alive and reports.
 """
@@ -65,7 +65,25 @@ def snapshot(root: Path) -> dict[Path, float]:
     return seen
 
 
+#: The records loom's own commands append to, looked at between full scans: an agent's annotation is drawn within a fraction of a second rather than on the next scan.
+FAST = ("annotations/log.jsonl", "reference-notes.jsonl", ".loom/sessions/index.jsonl")
+#: How often the fast lane looks.
+FAST_INTERVAL = 0.2
+
+
+def _fast(root: Path) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for rel in FAST:
+        try:
+            out[rel] = (root / rel).stat().st_mtime
+        except OSError:
+            continue
+    return out
+
+
 class Watcher:
+    """Poll the quilt and call `on_change` with what changed: the whole tree every `interval`, and loom's own records (`FAST`) every `FAST_INTERVAL`, a change there starting a full look at once."""
+
     def __init__(self, root: Path, on_change: Callable[[list[Path]], None], interval: float = 1.0) -> None:
         self.root = root
         self.on_change = on_change
@@ -88,8 +106,15 @@ class Watcher:
         self._seen = snapshot(self.root) if seen is None else seen
 
     def _loop(self) -> None:
+        fast = _fast(self.root)
+        due = time.monotonic() + self.interval
         while not self._stop.is_set():
-            time.sleep(self.interval)
+            time.sleep(min(FAST_INTERVAL, self.interval))
+            now_fast = _fast(self.root)
+            if now_fast == fast and time.monotonic() < due:
+                continue
+            fast = now_fast
+            due = time.monotonic() + self.interval
             try:
                 now = snapshot(self.root)
                 changed = [p for p, m in now.items() if self._seen.get(p) != m] + [

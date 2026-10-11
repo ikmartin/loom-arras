@@ -45,7 +45,7 @@
 		const h = html;
 		if (!node) return;
 		node.innerHTML = h;
-		void typeset(node, store.manifest?.macros.default ?? []);
+		void typeset(node, store.macros);
 	});
 </script>
 

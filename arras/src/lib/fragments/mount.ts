@@ -42,12 +42,39 @@ export function labelFor(manifest: Manifest | null, key: string): string {
 	return `${n.taxon}${number ? ' ' + number : ''}${n.title ? ' (' + n.title + ')' : ''}`;
 }
 
+/** What a wired root is working under now: its options, the manifest it was wired from, and the two callbacks its elements call. */
+interface Live extends WireOptions {
+	manifest: Manifest | null;
+	select: (id: string) => void;
+	include: (el: HTMLElement, key: string) => void;
+}
+
 /**
- * The options a wired fragment is currently working under.
+ * Each wired root's current options, by root.
  *
- * A mark's handlers are bound once and then read this, so changing where comments stand costs a re-wire rather than a re-render. Re-rendering meant re-typesetting: 1,250 formulas and about 800ms of stall for one click in the settings panel.
+ * A mark's and an inclusion's handlers are bound once and look this up when they fire, from the nearest wired root above them, so a re-wire changes what they do without re-rendering, and markup that outlives the call that wired it — kept through a patch, or moved into a new fragment — still answers to the fragment it is in now.
  */
-const LIVE = new WeakMap<HTMLElement, WireOptions>();
+const LIVE = new WeakMap<HTMLElement, Live>();
+
+/** The nearest wired root at or above `el`, with what it is working under; null outside any. */
+function liveAt(el: HTMLElement): { root: HTMLElement; now: Live } | null {
+	for (let at: HTMLElement | null = el; at; at = at.parentElement) {
+		const now = LIVE.get(at);
+		if (now) return { root: at, now };
+	}
+	return null;
+}
+
+/** Set an attribute only when it differs: a wiring pass runs on every new manifest over the whole document, and a write of the same value still makes the browser restyle what it touches. */
+function set(el: Element, name: string, value: string): void {
+	if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+}
+
+/** Of the annotations a mark stands for, the one to select and to take the hue from: an open one with a card of its own, since a reply is shown inside its parent. */
+function leadOf(manifest: Manifest | null, ids: string[]): string {
+	const leads = ids.filter((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to);
+	return leads.find((i) => !settled(manifest?.annotations[i])) ?? leads[0] ?? ids[0] ?? '';
+}
 
 /** Take out what the comment setting put in, so `wire` can put the other setting's back without the fragment being rebuilt. A label mark is unwrapped: its words are the label's and go back where they were. */
 export function resetComments(root: HTMLElement): void {
@@ -94,6 +121,11 @@ function atResult(manifest: Manifest | null, node: string): string {
 	return `${workUrl(ref.citekey)}?page=${at}&result=${encodeURIComponent(node)}`;
 }
 
+/**
+ * Wire a fragment's markup: references, citations, tones, images, margins, comment placements, marks, heading links and inclusions.
+ *
+ * Every pass re-reads what the manifest decides (hrefs, tones, margin states, mark classes); listeners and inserted elements are added once, flagged on the element.
+ */
 export function wire(
 	root: HTMLElement,
 	manifest: Manifest | null,
@@ -101,13 +133,13 @@ export function wire(
 	select: (id: string) => void = () => {},
 	opts: WireOptions = {}
 ): void {
-	LIVE.set(root, opts);
+	LIVE.set(root, { ...opts, manifest, select, include: expand });
 	for (const a of root.querySelectorAll<HTMLAnchorElement>('a.ref[data-target]')) {
 		const target = a.dataset.target ?? '';
 		if (opts.keyless) continue;
 		if (a.classList.contains('ref-dangling')) {
 			a.removeAttribute('href');
-			a.title = `dangling reference to ${target}`;
+			set(a, 'title', `dangling reference to ${target}`);
 			continue;
 		}
 		const region = manifest?.regions[target];
@@ -115,7 +147,7 @@ export function wire(
 		const key = region ? region.key : target;
 		const owner = region ? region.container : target;
 		const here = opts.master ? manifest?.nodes[owner]?.reached_by?.includes(opts.master) : false;
-		a.href = here ? '#' + anchorId(key) : keyUrl(manifest, owner) + (region ? '#' + anchorId(key) : '');
+		set(a, 'href', here ? '#' + anchorId(key) : keyUrl(manifest, owner) + (region ? '#' + anchorId(key) : ''));
 	}
 	// **A citation opens the paper, not the transcription of it.** `[1, Proposition 2.1]` means that proposition in that work, so where a copy is filed the link goes to the work at the result: the reader lands on the page they cited, with the statement in view. The digest node's own page renders loom's record of the result -- its LaTeX, its provenance, what depends on it -- which is a thing to go and look at, not what the citation names. With no copy filed, or no page in the locator, that record is the best there is and the link goes there as before; a citation with no digest node behind it opens the reference; a citekey the manifest does not know stays text.
 	for (const c of root.querySelectorAll<HTMLElement>('span.cite[data-citekey]')) {
@@ -133,33 +165,42 @@ export function wire(
 	// One palette, two surfaces: the accent down an environment's edge and the node in the graph are the same colour
 	// because both ask `$lib/taxonomy` for it, rather than each keeping a list of taxon names.
 	for (const env of root.querySelectorAll<HTMLElement>('.env[data-taxon]')) {
-		env.style.setProperty('--taxon-tone', taxonTone(manifest, env.dataset.taxon));
+		const tone = taxonTone(manifest, env.dataset.taxon);
+		if (env.style.getPropertyValue('--taxon-tone') !== tone) env.style.setProperty('--taxon-tone', tone);
 	}
 	for (const img of root.querySelectorAll<HTMLImageElement>('img[src]')) {
 		const src = img.getAttribute('src') ?? '';
 		if (!/^(\/|https?:)/.test(src)) img.src = dataUrl(src);
 	}
 	if (opts.margins) {
+		// read again on every pass, since a node's state moves with the manifest; the margin is made once and changed only where it differs
 		for (const el of root.querySelectorAll<HTMLElement>('div.env[data-key], details.env-proof[data-key]')) {
-			if (el.dataset.wiredMargin) continue;
-			el.dataset.wiredMargin = '1';
 			const key = el.dataset.key ?? '';
 			const entry = manifest?.keys[key];
 			const label = manifest?.states.labels[entry?.state ?? ''];
-			const margin = document.createElement('span');
-			margin.className = 'node-margin';
-			const idEl = document.createElement('a');
-			idEl.className = 'mid';
-			idEl.href = keyUrl(manifest, key);
-			idEl.textContent = el.dataset.id ?? key;
-			margin.appendChild(idEl);
-			if (entry) {
-				const st = document.createElement('span');
-				st.className = 'mstate ' + toneClass(label?.color);
-				st.textContent = label?.label ?? entry.state;
+			let margin = el.querySelector<HTMLElement>(':scope > span.node-margin');
+			if (!margin) {
+				margin = document.createElement('span');
+				margin.className = 'node-margin';
+				const idEl = document.createElement('a');
+				idEl.className = 'mid';
+				idEl.textContent = el.dataset.id ?? key;
+				margin.appendChild(idEl);
+				el.prepend(margin);
+			}
+			set(margin.querySelector<HTMLElement>('a.mid')!, 'href', keyUrl(manifest, key));
+			let st = margin.querySelector<HTMLElement>('span.mstate');
+			if (!entry) {
+				st?.remove();
+				continue;
+			}
+			if (!st) {
+				st = document.createElement('span');
 				margin.appendChild(st);
 			}
-			el.prepend(margin);
+			set(st, 'class', 'mstate ' + toneClass(label?.color));
+			const text = label?.label ?? entry.state;
+			if (st.textContent !== text) st.textContent = text;
 		}
 	}
 	if (opts.comments) {
@@ -194,22 +235,23 @@ export function wire(
 	// Every mark, the publisher's and the label marks made above. What a mark looks like is CSS keyed on its classes (theme.css, 15.3.1): `k-<kind>` for the hue, `s-<severity>` for the weight, `settled` for one whose annotation is resolved or discarded, `hidden` for one the session filter excludes. The classes are read from the manifest on every wire, since a resolve or a filter change lands here without the fragment being rebuilt; the handlers are bound once.
 	for (const mark of root.querySelectorAll<HTMLElement>('mark.annotation[data-annotation], .annotation-block[data-annotation]')) {
 		const ids = (mark.dataset.annotation ?? '').split(/\s+/).filter(Boolean);
-		// a block mark answers every rule a phrase's does: its hue, its weight, settled and hidden are all keyed on `.annotation`
-		mark.classList.add('annotation');
-		// several annotations can share one phrase, and the mark lists them in no particular order; the one to select, and to take the hue from, is an open one with a card of its own, since a reply is shown inside its parent
+		// several annotations can share one phrase, and the mark lists them in no particular order
 		const leads = ids.filter((i) => manifest?.annotations[i] && !manifest.annotations[i].in_reply_to);
-		const lead = leads.find((i) => !settled(manifest?.annotations[i])) ?? leads[0] ?? ids[0] ?? '';
+		const lead = leadOf(manifest, ids);
 		const first = manifest?.annotations[lead];
 		const judged = (leads.length ? leads : ids).map((i) => manifest?.annotations[i]).filter((a) => !!a);
-		for (const c of [...mark.classList]) if (/^(k|s)-/.test(c)) mark.classList.remove(c);
+		// a block mark answers every rule a phrase's does: its hue, its weight, settled and hidden are all keyed on `.annotation`
+		const want = new Set(['annotation']);
 		if (first) {
-			mark.title = `${first.kind}: ${first.author.label ?? first.author.id}`;
-			mark.classList.add('k-' + first.kind);
-			if (first.severity) mark.classList.add('s-' + first.severity);
+			set(mark, 'title', `${first.kind}: ${first.author.label ?? first.author.id}`);
+			want.add('k-' + first.kind);
+			if (first.severity) want.add('s-' + first.severity);
 		}
-		mark.classList.toggle('settled', judged.length > 0 && judged.every(settled));
-		mark.classList.toggle('hidden', judged.length > 0 && !judged.some((a) => visible(manifest, a)));
-		mark.setAttribute('tabindex', inert(mark) ? '-1' : '0');
+		if (judged.length > 0 && judged.every(settled)) want.add('settled');
+		if (judged.length > 0 && !judged.some((a) => visible(manifest, a))) want.add('hidden');
+		for (const c of [...mark.classList]) if (/^(k|s)-|^(settled|hidden)$/.test(c) && !want.has(c)) mark.classList.remove(c);
+		for (const c of want) if (!mark.classList.contains(c)) mark.classList.add(c);
+		set(mark, 'tabindex', inert(mark) ? '-1' : '0');
 		if (mark.dataset.wiredMark) continue;
 		mark.dataset.wiredMark = '1';
 		mark.setAttribute('role', 'button');
@@ -219,10 +261,12 @@ export function wire(
 			if (inert(mark)) return;
 			// inside a proof's summary a click on the label would also fold the proof
 			if (mark.classList.contains('annotation-label')) e.preventDefault();
-			const now = LIVE.get(root) ?? opts;
-			if (now.expand) return now.expand(mark, ids);
-			select(lead);
-			card(root, lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			const at = liveAt(mark);
+			if (!at) return;
+			if (at.now.expand) return at.now.expand(mark, ids);
+			const lead = leadOf(at.now.manifest, ids);
+			at.now.select(lead);
+			card(at.root, lead)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		};
 		// A click opens; hovering never does (plan 0.13 §7). The pointer used to open a box after a beat, which made passing over a marked line flash boxes, could not be read without holding the pointer still, and could not be clicked into at all -- a box that appears under the pointer and vanishes when it moves toward the box.
 		mark.addEventListener('click', go);
@@ -231,13 +275,15 @@ export function wire(
 		mark.addEventListener('dblclick', (e) => {
 			e.preventDefault();
 			if (inert(mark)) return;
-			let to = boxFor(root, lead);
-			const now = LIVE.get(root) ?? opts;
-			if (!to && now.expand) {
-				now.expand(mark, ids);
-				to = boxFor(root, lead);
+			const at = liveAt(mark);
+			if (!at) return;
+			const lead = leadOf(at.now.manifest, ids);
+			let to = boxFor(at.root, lead);
+			if (!to && at.now.expand) {
+				at.now.expand(mark, ids);
+				to = boxFor(at.root, lead);
 			}
-			travel(to ?? card(root, lead), mark);
+			travel(to ?? card(at.root, lead), mark);
 		});
 	}
 	if (opts.headingLinks) {
@@ -265,7 +311,7 @@ export function wire(
 		const btn = document.createElement('button');
 		btn.type = 'button';
 		btn.textContent = 'show';
-		btn.addEventListener('click', () => expand(inc, key));
+		btn.addEventListener('click', () => liveAt(inc)?.now.include(inc, key));
 		inc.append(a, ' ', btn);
 	}
 }

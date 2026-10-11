@@ -5,6 +5,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import '$lib/theme.css';
 	import { store } from '$lib/manifest/client.svelte';
+	import { listen } from '$lib/manifest/stream';
 	import Diagnostics from '$lib/components/Diagnostics.svelte';
 	import Palette from '$lib/components/Palette.svelte';
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
@@ -32,6 +33,7 @@
 		prefs.load();
 		sessionView.load();
 		store.start(1000);
+		void listen();
 	});
 
 	// A stored selection the corpus no longer lists is dropped once, on the first manifest; after that a session just made with `+ new` is briefly missing from the manifest and must survive it.

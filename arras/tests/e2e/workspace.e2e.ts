@@ -271,6 +271,60 @@ test.describe('the arrangement', () => {
 	});
 });
 
+/** Count what goes through MathJax from here on, as the document's text or a card's, and remember the document's first block. */
+async function watchTypesetting(page: Page): Promise<void> {
+	await page.evaluate(() => {
+		const w = window as unknown as { MathJax: { typesetPromise: (els: Element[]) => Promise<void> }; typeset: string[]; first: Element | null; wrapped?: boolean };
+		w.typeset = [];
+		w.first = document.querySelector('[data-pane="0"] .fragment [data-src]');
+		if (w.wrapped) return;
+		w.wrapped = true;
+		const real = w.MathJax.typesetPromise.bind(w.MathJax);
+		w.MathJax.typesetPromise = (els) => {
+			w.typeset.push(els.some((e) => e.closest('.fragment') && !e.closest('aside.comment-slot')) ? 'document' : 'card');
+			return real(els);
+		};
+	});
+}
+
+const allTypeset = (page: Page) => page.waitForFunction(() => !!document.querySelector('[data-pane="0"] .fragment mjx-container') && document.querySelectorAll('.fragment .math:not(:has(mjx-container))').length === 0);
+
+test.describe('coming back to a document', () => {
+	// leaving a document destroyed it, and coming back drew and typeset it from nothing: a second and more on a whole paper (plan 0.19.2)
+	test('a tab switched away from and back to is taken back as it was, with nothing typeset again', async ({ page }) => {
+		await page.goto('/master/main');
+		await allTypeset(page);
+		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await expect(tabs(page, 0)).toHaveCount(2);
+		await allTypeset(page);
+		await tabs(page, 0).first().getByRole('tab').click();
+		await allTypeset(page);
+		await watchTypesetting(page);
+		await page.getByTestId('docs-drafts').getByRole('link', { name: 'talk.tex' }).click();
+		await allTypeset(page);
+		await page.evaluate(() => ((window as unknown as { typeset: string[] }).typeset = []));
+		await tabs(page, 0).first().getByRole('tab').click();
+		await expect.poll(() => page.evaluate(() => (window as unknown as { first: Element }).first.isConnected)).toBe(true);
+		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
+		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').click();
+		await expect(page.locator('aside.comment-slot.floating article.box').first()).toBeVisible();
+	});
+
+	test('reading come back to from the graph is taken back as it was, with nothing typeset again', async ({ page }) => {
+		await page.goto('/master/main');
+		await allTypeset(page);
+		await watchTypesetting(page);
+		await page.getByTestId('view-graph').click();
+		await page.locator('svg g.node').first().waitFor();
+		await page.getByTestId('view-read').click();
+		await expect.poll(() => page.evaluate(() => (window as unknown as { first: Element }).first.isConnected)).toBe(true);
+		await allTypeset(page);
+		expect(await page.evaluate(() => (window as unknown as { typeset: string[] }).typeset)).not.toContain('document');
+		await page.locator('.fragment mark.annotation[data-annotation~="a-2026-09-16-0001"]').click();
+		await expect(page.locator('aside.comment-slot.floating article.box').first()).toBeVisible();
+	});
+});
+
 test.describe('tabs', () => {
 	test('a context is marked by a glyph and named by its node, and says so where it is read as text', async ({ page }) => {
 		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));

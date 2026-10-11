@@ -15,7 +15,7 @@
 		const t = delimit(text);
 		if (!node) return;
 		node.textContent = t;
-		void typeset(node, store.manifest?.macros.default ?? []);
+		void typeset(node, store.macros);
 	});
 </script>
 

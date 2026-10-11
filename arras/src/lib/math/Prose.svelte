@@ -27,7 +27,7 @@
 		const node = el;
 		const body = html; // re-typeset when the body is superseded by an edit
 		if (!node || !body.includes('class="math')) return;
-		void typeset(node, store.manifest?.macros.default ?? []);
+		void typeset(node, store.macros);
 	});
 </script>
 

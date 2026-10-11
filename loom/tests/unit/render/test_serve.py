@@ -264,3 +264,59 @@ def test_a_burst_of_edits_publishes_once(session) -> None:  # type: ignore[no-un
         time.sleep(0.05)
     time.sleep(1.0)
     assert s.builds == before + 1
+
+
+def test_serve_streams_each_publication_and_ends_when_it_stops(session) -> None:  # type: ignore[no-untyped-def]
+    """`/_api/stream` says each time a new manifest is published, and nothing about what changed, so a viewer listening fetches it at once instead of on its next poll; the server's stop ends it (plan 0.19.2)."""
+    import urllib.request
+
+    s, d = session
+    assert json.loads(get(s.url + "_api")[2])["stream"] is True
+    with urllib.request.urlopen(s.url + "_api/stream", timeout=10) as resp:
+        assert resp.headers["Content-Type"] == "text/event-stream"
+        assert resp.readline() == b": open\n" and resp.readline() == b"\n"
+        s.rebuild()
+        assert [resp.readline(), resp.readline(), resp.readline()] == [b"event: manifest\n", b"data:\n", b"\n"]
+        s.publications.close()
+        assert resp.read() == b""
+
+
+def test_the_watcher_sees_loom_s_own_records_between_full_scans(tmp_path: Path) -> None:
+    """An append to the annotation log is seen within a fraction of a second though the tree is scanned only every ten, so an agent's finding reaches a served page without waiting out a scan (plan 0.19.2)."""
+    from loom.render.watch import Watcher
+
+    (tmp_path / "annotations").mkdir()
+    entries = tmp_path / "annotations" / "log.jsonl"
+    entries.write_text("")
+    seen: list[list[Path]] = []
+    w = Watcher(tmp_path, seen.append, interval=10.0)
+    w.start()
+    try:
+        time.sleep(0.3)
+        entries.write_text('{"event": "created"}\n')
+        deadline = time.time() + 2
+        while not seen and time.time() < deadline:
+            time.sleep(0.05)
+        assert seen and any(p.name == "log.jsonl" for p in seen[0])
+    finally:
+        w.stop()
+
+
+def test_the_watcher_still_scans_the_tree_on_its_interval(tmp_path: Path) -> None:
+    """A source file outside the records is seen by the full scan, at the interval it was given."""
+    from loom.render.watch import Watcher
+
+    source = tmp_path / "main.tex"
+    source.write_text("a")
+    seen: list[list[Path]] = []
+    w = Watcher(tmp_path, seen.append, interval=0.5)
+    w.start()
+    try:
+        time.sleep(0.2)
+        source.write_text("b")
+        deadline = time.time() + 3
+        while not seen and time.time() < deadline:
+            time.sleep(0.05)
+        assert seen and seen[0] == [source]
+    finally:
+        w.stop()

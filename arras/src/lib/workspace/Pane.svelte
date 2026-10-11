@@ -77,6 +77,7 @@
 			watch.disconnect();
 			clearTimeout(quit);
 			for (const e of events) el.removeEventListener(e, stop);
+			el.removeEventListener('arrive', stop);
 		}
 		function attempt(): void {
 			if (shown !== k) return stop();
@@ -85,6 +86,8 @@
 			else if (el.scrollHeight - el.clientHeight >= place!.top - 1) el.scrollTop = place!.top;
 		}
 		for (const e of events) el.addEventListener(e, stop, { passive: true });
+		// a document sent somewhere goes there, and the place it was left at gives way
+		el.addEventListener('arrive', stop);
 		for (const child of el.children) watch.observe(child);
 		attempt();
 	}

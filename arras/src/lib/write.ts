@@ -16,6 +16,8 @@ export interface Capabilities {
 	capabilities: string[];
 	/** What every write must carry, from the publisher's own `.loom/serve.json`. Absent from a corpus nobody is serving. */
 	token?: string;
+	/** Whether the publisher says when it publishes a new manifest, at `/_api/stream` (manifest/stream.ts). */
+	stream?: boolean;
 }
 
 /** The versions of the write API this viewer knows how to speak. */

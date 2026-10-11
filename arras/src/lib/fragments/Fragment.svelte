@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Annotations } from './shown.svelte';
-	import { onMount, tick, untrack } from 'svelte';
+	import type { Macro } from '$lib/manifest/types';
+	import { onDestroy, onMount, tick, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import { fetchFragment } from '$lib/fragments/fetch';
 	import { card, resetComments, settled, wire, type CommentSlot } from '$lib/fragments/mount';
@@ -12,6 +13,8 @@
 	import { prefs } from '$lib/prefs.svelte';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
 	import { inlineComments, triggerFor, type InlineComments } from './expand';
+	import { keep, take } from './kept';
+	import { parse, patch } from './patch';
 
 	let {
 		path,
@@ -69,6 +72,10 @@
 	const arrived = () => arrival ?? own;
 
 	let html = $state('');
+	/** The published markup drawn in `el` now, which new markup is patched against; null until something is drawn. */
+	let placed: string | null = null;
+	/** `placed` parsed, once a patch has needed it, so the next patch parses only the new markup. */
+	let tree: DocumentFragment | null = null;
 	let error = $state('');
 	let mathReady = $state(false);
 	let el: HTMLElement | undefined = $state();
@@ -109,15 +116,14 @@
 
 	// The compiled paper's page boundaries, drawn only where they can be known: `p2`, in a document, from the numbers
 	// loom read out of the `.aux`. Re-run on a change of setting, and cleared when the setting is not `p2`.
-	$effect(() => {
+	function pages(root: HTMLElement): void {
 		const paged = prefs.format === 'p2';
-		// Everything it reads: the setting, the manifest the boundaries come from, and the markup they are drawn into.
-		// The fragment's HTML arrives after the element does, so an effect that does not read it runs once against an
-		// empty div and never again.
+		markPages(paged ? store.manifest : null, paged ? master : null, root);
+	}
+	$effect(() => {
+		void prefs.format;
 		void store.hash;
-		void html;
-		if (!el) return;
-		markPages(paged ? store.manifest : null, paged ? master : null, el);
+		if (el && placed !== null) untrack(() => pages(el!));
 	});
 
 	/** Wire the fragment for where comments currently stand; nothing here re-renders or re-typesets.
@@ -133,8 +139,17 @@
 		// own business. `hover` was a third mode and is gone: a box the pointer brought up could not be read without
 		// holding the pointer still, and could not be clicked into at all (plan 0.13 §7).
 		const inPlace = prefs.comments === 'inline' || prefs.comments === 'floating';
-		const floats = prefs.comments === 'floating' || !authoring;
-		inline = inPlace && store.manifest ? inlineComments(store.manifest, floats) : null;
+		inline = inPlace && store.manifest ? inlineComments(() => store.manifest, floats()) : null;
+		const opened = inline;
+		rewire(root);
+		const trigger = was && opened ? triggerFor(root, was) : null;
+		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? '').split(/\s+/).filter(Boolean));
+	}
+
+	const floats = (): boolean => prefs.comments === 'floating' || !authoring;
+
+	/** Wire the fragment again under the comments controller it has: what the manifest decides is read afresh, and nothing already bound is bound twice. */
+	function rewire(root: HTMLElement): void {
 		const opened = inline;
 		wire(root, store.manifest, (t, k) => void expand(t, k), (id) => (ui.activeAnnotation = id), {
 			master,
@@ -143,10 +158,16 @@
 			keyless: standalone,
 			comments,
 			expand: opened ? (trigger, ids) => opened.toggle(trigger, ids) : undefined,
-			floating: floats
+			floating: floats()
 		});
-		const trigger = was && opened ? triggerFor(root, was) : null;
-		if (trigger && opened) opened.toggle(trigger, (trigger.dataset.annotation ?? '').split(/\s+/).filter(Boolean));
+	}
+
+	/** What the comments controller and the slots show: every annotation's id, status and text. While it holds, a new manifest re-wires in place; when it moves, the controller and the slots are made again. */
+	let wiredKey = '';
+	function annotationKey(): string {
+		return Object.values(store.manifest?.annotations ?? {})
+			.map((a) => `${a.id}:${a.status}:${a.discarded ? 1 : 0}:${a.detached ? 1 : 0}:${a.in ?? ''}:${a.body_html}`)
+			.join('|');
 	}
 
 	// Changing where comments stand used to re-key the fragment, which re-rendered the HTML and re-typeset every
@@ -182,18 +203,128 @@
 		});
 	});
 
-	async function mount(root: HTMLElement) {
-		const version = ++mountVersion;
-		// Each formula's TeX, kept before MathJax replaces it: a reader's selection across a formula is quoted as that TeX, which is what loom finds in the source (FragmentNotes).
-		for (const m of root.querySelectorAll<HTMLElement>('.math')) if (m.dataset.tex === undefined) m.dataset.tex = m.textContent ?? '';
-		wireComments(root);
-		wiredFor = prefs.comments;
-		// counted as soon as the marks are wired, not after the mathematics is set: the header is about what is in the
-		// document, and a reader should not wait on MathJax to be told how much of it is annotated
-		counts();
+	/** The corpus's macros and the fragment's own set, which every typeset of it is given. */
+	function macros(root: HTMLElement): { defaults: Macro[]; set: Macro[] } {
 		const first = root.firstElementChild as HTMLElement | null;
 		const setName = macroSet || first?.dataset.macros || '';
 		const sets = store.manifest?.macros.sets ?? {};
+		return { defaults: store.manifest?.macros.default ?? [], set: setName ? (sets[setName] ?? []) : [] };
+	}
+
+	/** Each formula's TeX, kept before MathJax replaces it: a reader's selection across a formula is quoted as that TeX, which is what loom finds in the source (FragmentNotes). */
+	function keepTex(root: HTMLElement): void {
+		for (const m of root.querySelectorAll<HTMLElement>('.math')) if (m.dataset.tex === undefined) m.dataset.tex = m.textContent ?? '';
+	}
+
+	/**
+	 * Put markup in the fragment: drawn whole the first time, taken back from a document kept when this one was last left, and patched in place after that.
+	 *
+	 * A new manifest whose fragment changed by one mark used to replace every element of a whole paper and typeset all its formulas again; a patch replaces the blocks that changed and typesets only those.
+	 */
+	async function place(root: HTMLElement, h: string): Promise<void> {
+		if (h === placed) return;
+		if (placed === null) {
+			const back = cacheable() ? take(keepKey()) : undefined;
+			if (!back) return draw(root, h);
+			root.replaceChildren(back.nodes);
+			placed = back.html;
+			tree = null;
+			await restored(root);
+			if (h === placed) return;
+		}
+		if (!(await patched(root, placed, h))) draw(root, h);
+	}
+
+	/** Draw the markup whole: parsed, wired and typeset from nothing. */
+	function draw(root: HTMLElement, h: string): void {
+		root.innerHTML = h;
+		placed = h;
+		tree = null;
+		void mount(root);
+	}
+
+	/** Bring the drawn markup up to `after` by replacing only the blocks that changed (`patch`), then typeset and wire what was put in; false when it must be drawn whole. */
+	async function patched(root: HTMLElement, before: string, after: string): Promise<boolean> {
+		if (isolatedMacros) return false;
+		const done = patch(root, (tree ??= parse(before)), after);
+		if (!done) return false;
+		const { put } = done;
+		placed = after;
+		tree = done.tree;
+		const version = ++mountVersion;
+		for (const b of put) keepTex(b);
+		// what is placed in the blocks kept stays, as it does for a new manifest; the blocks put in are wired fresh
+		wireComments(root);
+		wiredKey = annotationKey();
+		pages(root);
+		counts();
+		const { defaults, set } = macros(root);
+		for (const b of put) {
+			if (version !== mountVersion) return true;
+			await typeset(b, defaults, set);
+		}
+		onmounted?.(root);
+		counts();
+		return true;
+	}
+
+	/** A kept document back in the fragment: wired again, and any formula a typesetting cut short when it was left set now. */
+	async function restored(root: HTMLElement): Promise<void> {
+		const version = ++mountVersion;
+		wireComments(root);
+		wiredFor = prefs.comments;
+		wiredKey = annotationKey();
+		pages(root);
+		counts();
+		const { defaults, set } = macros(root);
+		if (root.querySelector('.math:not(:has(mjx-container))')) await typeset(root, defaults, set);
+		if (version !== mountVersion) return;
+		onmounted?.(root);
+		counts();
+		// a frame later: a kept document is back before the pane has begun putting the reader where it was left, which would otherwise undo the arrival
+		if (request() !== arrived().at) requestAnimationFrame(() => void arrive());
+	}
+
+	/** A new manifest with the markup unchanged: the wiring is read afresh, and the comments controller and the slots are made again only when the annotations moved. Nothing is typeset, and nothing already placed is taken out, so the box a reader acted in stays open on its mark. */
+	function refresh(root: HTMLElement): void {
+		const key = annotationKey();
+		if (key !== wiredKey) {
+			wiredKey = key;
+			wireComments(root);
+			onmounted?.(root);
+		} else rewire(root);
+		counts();
+	}
+
+	/** Whether this fragment's document can be kept when it goes: not a comparison's or a preview's, which typeset with macros of their own. */
+	const cacheable = (): boolean => !isolatedMacros && !previewMacros;
+	/** What the kept markup was drawn and typeset for. */
+	const keepKey = (): string => JSON.stringify([path, macroSet, master, margins, headingLinks, standalone]);
+
+	// The document is kept when the fragment goes, typeset, so coming back to it -- a tab, a narrow layout's other pane, reading after the graph -- is a re-wire rather than a fresh draw.
+	onDestroy(() => {
+		const root = el;
+		if (!root || placed === null || !cacheable()) return;
+		inline?.destroy();
+		inline = null;
+		resetComments(root);
+		for (const b of root.querySelectorAll('.page-break')) b.remove();
+		const nodes = document.createDocumentFragment();
+		nodes.append(...root.childNodes);
+		keep(keepKey(), { html: placed, nodes });
+	});
+
+	async function mount(root: HTMLElement) {
+		const version = ++mountVersion;
+		keepTex(root);
+		wireComments(root);
+		wiredFor = prefs.comments;
+		if (root === el) wiredKey = annotationKey();
+		pages(root);
+		// counted as soon as the marks are wired, not after the mathematics is set: the header is about what is in the
+		// document, and a reader should not wait on MathJax to be told how much of it is annotated
+		counts();
+		const { defaults, set } = macros(root);
 		const id = target();
 		const landing = id ? root.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`) : null;
 		// a long document typesets the part the reader lands on first, and everything above it, before revealing and scrolling there
@@ -201,7 +332,7 @@
 			try {
 				const { typesetScoped } = await import('$lib/math/scoped');
 				if (version !== mountVersion || root !== el) return;
-				await typesetScoped(root, previewMacros ?? (setName ? (sets[setName] ?? []) : []));
+				await typesetScoped(root, previewMacros ?? set);
 				if (version !== mountVersion || root !== el) return;
 				mathReady = true;
 			} catch (err) {
@@ -209,7 +340,7 @@
 				return;
 			}
 		} else {
-			await typeset(root, store.manifest?.macros.default ?? [], setName ? (sets[setName] ?? []) : [], landing);
+			await typeset(root, defaults, set, landing);
 		}
 		onmounted?.(root);
 		// the header counts what is in the fragment, which is only knowable once the fragment is wired
@@ -231,6 +362,8 @@
 	/** Go where the item names: its place, and the annotation it names, open at its mark — or, with comments in the gutter, its card. */
 	async function arrive() {
 		arrived().at = request();
+		// the pane stops putting the reader back where the item was left: this request names where to go
+		el?.dispatchEvent(new CustomEvent('arrive', { bubbles: true }));
 		scrollToHash();
 		const id = note;
 		if (!id || !el) return;
@@ -255,11 +388,29 @@
 		flash(box);
 	}
 
-	// Mounting reads the comments setting, and an effect that tracked it re-mounted the whole fragment on every change of placement: a second wiring, a pass of MathJax over every formula, and a jump back to the URL's anchor. The effect above answers that setting; this one follows the markup and what the wiring is built from.
+	// New markup is placed: drawn, taken back, or patched (`place`).
 	$effect(() => {
-		void [store.manifest, macroSet, previewMacros, isolatedMacros, master, headingLinks, margins, standalone, comments];
+		const h = html;
 		const root = el;
-		if (html && root) untrack(() => void mount(root));
+		if (h && root) untrack(() => void place(root, h));
+	});
+
+	// What the wiring is built from: a new manifest, or a change of what the caller wires for, re-wires without typesetting. The comments setting has an effect of its own, above.
+	$effect(() => {
+		void [store.manifest, master, headingLinks, margins, standalone, comments];
+		const root = el;
+		if (root) untrack(() => placed !== null && refresh(root));
+	});
+
+	// What the fragment is typeset with: a change draws it again.
+	let typesetWith = '';
+	$effect(() => {
+		const key = JSON.stringify([macroSet, previewMacros ?? null, isolatedMacros]);
+		const root = el;
+		untrack(() => {
+			if (typesetWith && key !== typesetWith && root && placed !== null) draw(root, html);
+			typesetWith = key;
+		});
 	});
 
 	// A contents entry on the page already changes only the hash, so nothing re-mounts and the browser will not scroll to an element the fragment created after navigation.
@@ -344,7 +495,7 @@
 			role="region"
 			aria-label="the document"
 			onkeydown={keys}
-		>{@html html}</div>
+		></div>
 	</div>
 {/if}
 
