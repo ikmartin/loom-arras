@@ -508,6 +508,25 @@ test.describe('the divider', () => {
 		await expect.poll(stored).toBeLessThan(0.4);
 	});
 
+	test('while it moves each pane keeps its content at the width it had, laid out again once at the drop', async ({ page }) => {
+		// laid out at every width, a long paper's frame cost 50-60 ms and the divider trailed the pointer at about 20 frames a second
+		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
+		const divider = page.getByTestId('divider');
+		const frame = (await page.getByTestId('workspace').boundingBox())!;
+		const handle = (await divider.boundingBox())!;
+		const widths = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-pane]')].map((p) => [p.getBoundingClientRect().width, p.querySelector('.body')!.getBoundingClientRect().width]));
+		const [[, left], [, right]] = await widths();
+		await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(frame.x + frame.width * 0.3, handle.y + handle.height / 2, { steps: 6 });
+		await expect.poll(async () => (await widths())[0][0]).toBeLessThan(left - 50);
+		const [[, heldLeft], [, heldRight]] = await widths();
+		expect(Math.abs(heldLeft - left)).toBeLessThan(1);
+		expect(Math.abs(heldRight - right)).toBeLessThan(1);
+		await page.mouse.up();
+		await expect.poll(async () => (await widths()).every(([p, b]) => Math.abs(p - b) < 1)).toBe(true);
+	});
+
 	test('it drags, snaps at the middle, resets on double-click and nudges by key; below the breakpoint one pane shows', async ({ page }) => {
 		await page.goto('/node/sy-0003' + beside('/context/sy-0003'));
 		const divider = page.getByTestId('divider');

@@ -4,7 +4,7 @@
 	// **A pinned toolbar has room** (DR-304-ikmartin): while the pin holds, a pane whose item draws a toolbar starts its body's content the bar's height lower, so the first line stands clear below the bar rather than under it. The unfocused pane keeps the same room, so moving focus never moves text; faded, the bar gets out of the way and no room is kept.
 	//
 	// **Focus is taken by any interaction** — a press on its text, a wheel over it, a tab into it — in the capture phase, so whatever acts on the focused pane reads the new value in the same frame. A pane scrolling itself (a paper sent to its page) is not an interaction, which is why the scroll event is not what is listened for. **The focused pane is marked** by its shadow while both are open, and the other is not dimmed: making a document harder to read to say it is not the current one is the wrong trade in a reading tool.
-	import { onDestroy, tick } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import CompareLayer from './CompareLayer.svelte';
 	import PaneHead from './PaneHead.svelte';
 	import { itemKey } from './item';
@@ -33,6 +33,13 @@
 	const Controls = $derived(item && workspace.focus === index ? kinds[item.kind].controls : undefined);
 	const name = $derived(item && store.manifest ? nameOf(item, store.manifest) : '');
 	const room = $derived(prefs.controls === 'pinned' && !!item && !!store.manifest && hasToolbar(item, store.manifest));
+
+	/** The body's width when the divider was taken, kept while it moves, the pane clipping it or leaving room beside it, so the item is laid out once at the drop. Laid out at every width, a long paper's frame cost 50–60 ms of layout and pre-paint, and the divider trailed the pointer at about 20 frames a second. */
+	let held = $state<number | null>(null);
+	$effect(() => {
+		const resizing = workspace.resizing;
+		untrack(() => (held = resizing && body ? body.getBoundingClientRect().width : null));
+	});
 
 	// Where each item was scrolled to, so a tab brought back to the front, or the whole workspace brought back from another page, is where it was left. What is kept is the block at the top of the pane, since the content arrives after the pane does -- fetched, then typeset, formulas changing height as they are set -- and a pixel offset would land on other words. The place is taken again each time the page grows, until it settles or the reader scrolls themselves.
 	let shown = '';
@@ -102,6 +109,7 @@
 	class:focused
 	class:headless={!head}
 	class:room
+	class:holding={held !== null}
 	data-pane={index}
 	data-testid="pane-{index}"
 	aria-label="pane {index + 1}"
@@ -115,7 +123,7 @@
 	{#if item && Controls}
 		{#key key}<Controls {item} {name} />{/key}
 	{/if}
-	<div class="body" bind:this={body} onscroll={remember}>
+	<div class="body" bind:this={body} style:width={held === null ? null : `${held}px`} onscroll={remember}>
 		{#if item}
 			{#each [item] as it (key)}
 				{@const Renderer = kinds[it.kind].renderer}
@@ -142,6 +150,9 @@
 	}
 	.pane.headless {
 		--toolbar-top: 8px;
+	}
+	.pane.holding {
+		overflow: clip;
 	}
 	.body {
 		flex: 1 1 auto;

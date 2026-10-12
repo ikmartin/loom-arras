@@ -7,7 +7,7 @@
 	//
 	// Page sizes are per page, not per document: a scan's pages differ by a point or two, and a fixed transform would
 	// creep down a long paper. Page one's size is the placeholder until a page reports its own.
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { prefs } from '$lib/prefs.svelte';
 	import { workspace } from '$lib/workspace/store.svelte';
 	import { PdfView } from './view.svelte';
@@ -96,14 +96,8 @@
 
 	// The reader's zoom for this kind of renderer, remembered across papers and across visits, unless a caller fixes it.
 	const fits = $derived(scale ?? fitted ?? textFitted ?? prefs.zoom.pdf ?? 1.4);
-	/** The zoom the pages were drawn at when the divider was taken, held while it moves: the pages are stretched to the moving width and drawn again once, at the drop, rather than at every width. */
-	let held = $state<number | null>(null);
-	$effect(() => {
-		const resizing = workspace.resizing;
-		untrack(() => (held = resizing ? (held ?? fits) : null));
-	});
-	const drawAt = $derived(held ?? fits);
-	const stretch = $derived(held === null ? 1 : fits / held);
+	// while the divider moves the pane holds this column's width (Pane.svelte), so the pages are drawn again once, at the drop
+	const drawAt = $derived(fits);
 
 	/** With the page wider than the column, start the view at the text's left edge, less the dot's room, rather than at the paper's. */
 	function toText(): void {
@@ -255,7 +249,7 @@
 	/** Where each page's holder starts, read once and kept until the pages are laid out differently: reading every holder's offset on each scroll event laid the whole paper out again for every one. */
 	let tops: number[] | null = null;
 	$effect(() => {
-		void [drawAt, stretch, columnWidth, sizes, count];
+		void [drawAt, columnWidth, sizes, count];
 		tops = null;
 	});
 	let following = 0;
@@ -296,7 +290,7 @@
 		{/if}
 		{#each all as n (n)}
 			{@const at = sizeOf(n)}
-			<div class="holder" data-holder={n} style="min-height: {at.height * drawAt}px;" style:zoom={stretch === 1 ? null : stretch}>
+			<div class="holder" data-holder={n} style="min-height: {at.height * drawAt}px;">
 				<PdfPage
 					{url}
 					page={n}

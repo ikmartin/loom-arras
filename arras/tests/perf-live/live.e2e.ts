@@ -1,12 +1,12 @@
 // The viewer's speed on a large paper under a running publisher. Each test gets its own served copy of the prepared quilt (setup.ts) and its own browser context.
 //
-// The budgets are floors, set at about twice what plan 0.19 reached, so a return of what it removed fails and the noise of a busy machine does not; the plan's own targets, and which it met, are in its Delivery.
+// The budgets are floors, set at about twice what was reached (plan 0.19, and DR-341-ikmartin for the divider), so a return of what was removed fails and the noise of a busy machine does not; the plan's own targets, and which it met, are in its Delivery.
 
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { expect, test } from '../served';
-import { drag, enforce, instrument, liveNodes, measure, report, settle, typesetAll } from './measure';
+import { drag, enforce, instrument, liveNodes, measure, presented, report, settle, typesetAll, type Presented } from './measure';
 import { phrases, reading } from './setup';
 
 interface Corpus {
@@ -45,14 +45,16 @@ async function dragDivider(page: Page, name: string, cdp: Awaited<ReturnType<typ
 	const handle = (await page.getByTestId('divider').boundingBox())!;
 	const frame = (await page.getByTestId('workspace').boundingBox())!;
 	const y = handle.y + handle.height / 2;
+	let frames: Presented | undefined;
 	const m = await measure(page, cdp, name, async () => {
-		await drag(page, handle.x + handle.width / 2, y, frame.x + frame.width * 0.3, 40);
-		await drag(page, frame.x + frame.width * 0.3, y, frame.x + frame.width * 0.65, 40);
+		frames = await presented(page, () => drag(page, y, [handle.x + handle.width / 2, frame.x + frame.width * 0.3, frame.x + frame.width * 0.65], 60));
+		return `${frames.shown} frames shown, ${frames.dropped} dropped`;
 	});
-	const perMove = Math.round(m.task / 80);
+	const perMove = Math.round(m.task / 120);
 	report({ name: `${name}, per move`, task: perMove });
-	budget(perMove <= 60, `${name}: ${perMove} ms of work per move, budget 60`);
-	budget(m.frameP95 <= 67, `${name}: frame p95 ${m.frameP95} ms, budget 67`);
+	report({ name: `${name}, frames shown`, frames: frames!.shown, frameP95: frames!.p95, note: `median ${frames!.median} ms, ${frames!.dropped} dropped` });
+	budget(perMove <= 16, `${name}: ${perMove} ms of work per move, budget 16`);
+	budget(frames!.p95 <= 34, `${name}: shown frames p95 ${frames!.p95} ms apart, budget 34`);
 }
 
 test('cold load of the main document', async ({ page, served }) => {

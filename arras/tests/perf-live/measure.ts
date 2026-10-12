@@ -157,13 +157,53 @@ export function report(m: Measured | (Partial<Measured> & { name: string })): vo
 	console.log(`  ${m.name}: ${Object.entries(m).filter(([k]) => k !== 'name').map(([k, v]) => `${k} ${v}`).join(', ')}`);
 }
 
-/** Drag from (x0, y) to (x1, y) in `steps` moves, one per animation frame, as a hand would. */
-export async function drag(page: Page, x0: number, y: number, x1: number, steps = 40): Promise<void> {
-	await page.mouse.move(x0, y);
+/** Drag along y through `stops`, `steps` moves between each two, in one press: a move every 8 ms, as a 120 Hz pointer sends them, never waiting on the page.
+ *
+ * Waiting a frame after each move, as this once did, put idle frames between the moves, and a frame count over them hid what every frame costs when the pointer moves in each one. */
+export async function drag(page: Page, y: number, stops: number[], steps = 40): Promise<void> {
+	await page.mouse.move(stops[0], y);
 	await page.mouse.down();
-	for (let i = 1; i <= steps; i++) {
-		await page.mouse.move(x0 + ((x1 - x0) * i) / steps, y);
-		await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => r())));
+	for (let k = 1; k < stops.length; k++) {
+		for (let i = 1; i <= steps; i++) {
+			const sent = Date.now();
+			await page.mouse.move(stops[k - 1] + ((stops[k] - stops[k - 1]) * i) / steps, y);
+			const rest = 8 - (Date.now() - sent);
+			if (rest > 0) await page.waitForTimeout(rest);
+		}
 	}
 	await page.mouse.up();
+}
+
+interface TraceEvent {
+	name: string;
+	ph: string;
+	ts: number;
+	args?: { data?: { type?: string }; frame_reporter?: { state?: string; has_main_animation?: boolean } };
+}
+
+export interface Presented {
+	/** Frames with the page's own changes that reached the screen while the pointer moved. */
+	shown: number;
+	dropped: number;
+	/** Between two shown frames, ms. */
+	median: number;
+	p95: number;
+}
+
+/** The frames that reached the screen while `run` moved the pointer, from Chrome's trace: the compositor's record of each frame carrying the page's changes, shown or dropped, between the first and the last pointermove.
+ *
+ * Not from requestAnimationFrame: its timestamp is when a frame was begun, not when the main thread reached it, so frames held up behind 50 ms of layout still read as 17 ms apart. */
+export async function presented(page: Page, run: () => Promise<void>): Promise<Presented> {
+	const browser = page.context().browser()!;
+	await browser.startTracing(page, { categories: ['devtools.timeline', 'disabled-by-default-devtools.timeline.frame'] });
+	await run();
+	const { traceEvents } = JSON.parse((await browser.stopTracing()).toString()) as { traceEvents: TraceEvent[] };
+	const moves = traceEvents.filter((e) => e.name === 'EventDispatch' && e.args?.data?.type === 'pointermove').map((e) => e.ts);
+	const from = Math.min(...moves);
+	const to = Math.max(...moves);
+	const frames = traceEvents.filter((e) => e.name === 'PipelineReporter' && e.ph === 'b' && e.ts >= from && e.ts <= to && e.args?.frame_reporter?.has_main_animation);
+	const shown = frames.filter((e) => e.args!.frame_reporter!.state?.startsWith('STATE_PRESENTED')).map((e) => e.ts).sort((a, b) => a - b);
+	const gaps = shown.slice(1).map((t, i) => (t - shown[i]) / 1000).sort((a, b) => a - b);
+	const at = (q: number) => Math.round(gaps.length ? gaps[Math.min(gaps.length - 1, Math.floor(q * gaps.length))] : 0);
+	return { shown: shown.length, dropped: frames.filter((e) => e.args!.frame_reporter!.state === 'STATE_DROPPED').length, median: at(0.5), p95: at(0.95) };
 }
