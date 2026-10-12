@@ -73,6 +73,16 @@ def test_declared_alphabets_become_the_nearest_alphabet_a_renderer_has() -> None
     assert unknown["mathodd"].body == r"\mathrm{#1}"  # legible, rather than an error
 
 
+def test_a_declared_alphabet_the_renderer_already_draws_is_left_to_it() -> None:
+    """The relative localization paper's preamble sets `\\mathcal` on Computer Modern's own calligraphic font; mapped as an unknown family it was published as `\\mathrm{#1}`, and every calligraphic letter rendered upright roman (the author's report, 2026-10-12)."""
+    from loom.scan.macros import declared_alphabets
+
+    assert declared_alphabets(r"\DeclareMathAlphabet{\mathcal}{OMS}{cmsy}{m}{n}") == {}
+    assert declared_alphabets(r"\DeclareMathAlphabet{\mathbf}{OT1}{cmr}{bx}{n}") == {}
+    # a new name on the same font is calligraphic
+    assert declared_alphabets(r"\DeclareMathAlphabet{\mathcalx}{OMS}{cmsy}{m}{n}")["mathcalx"].body == r"\mathcal{#1}"
+
+
 def test_compatibility_macros_are_published_only_when_a_body_needs_them() -> None:
     """A renderer implements neither `\\scalebox` nor `\\ensuremath`, and an operator defined with them renders as an error; each keeps its content and gives up only presentation."""
     from loom.scan.macros import compatibility_macros

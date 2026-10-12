@@ -257,9 +257,23 @@ PACKAGE_COMMANDS: dict[str, dict[str, tuple[int, str]]] = {
 # packages that load others, so a preamble naming only the outer one still gets the inner one's stand-ins
 _LOADS = {"mathtools": {"amsmath"}, "empheq": {"mathtools", "amsmath"}}
 
-# `\DeclareMathAlphabet{\name}{encoding}{family}{series}{shape}` declares a font a renderer does not have. The family is mapped to the nearest alphabet the renderer does have; an unrecognised family becomes upright roman, which is legible and honest, rather than an error.
+# `\DeclareMathAlphabet{\name}{encoding}{family}{series}{shape}` declares a font a renderer does not have. The family is mapped to the nearest alphabet the renderer does have; an unrecognised family becomes upright roman, which is legible and honest, rather than an error. A declaration of an alphabet the renderer already draws -- `\mathcal` on `cmsy`, a preamble choosing its calligraphic font -- is left to the renderer's own.
 _ALPHABET = re.compile(r"\\DeclareMathAlphabet\s*\{\s*\\([A-Za-z@]+)\s*\}\s*\{[^}]*\}\s*\{([^}]*)\}")
+_RENDERER_ALPHABETS = {
+    "mathrm",
+    "mathit",
+    "mathbf",
+    "mathsf",
+    "mathtt",
+    "mathnormal",
+    "mathcal",
+    "mathscr",
+    "mathfrak",
+    "mathbb",
+}
 _FAMILY_ALPHABET = {
+    "cmsy": "mathcal",  # Computer Modern's symbol font, whose letters are its calligraphic alphabet
+    "cmm": "mathit",  # Computer Modern's math italic
     "pzc": "mathcal",  # Zapf Chancery, the usual choice for a script alphabet
     "rsfs": "mathscr",
     "eus": "mathscr",
@@ -276,6 +290,8 @@ def declared_alphabets(text: str) -> dict[str, Macro]:
     out: dict[str, Macro] = {}
     for m in _ALPHABET.finditer(text):
         name, family = m.group(1), m.group(2).strip()
+        if name in _RENDERER_ALPHABETS:
+            continue
         target = _FAMILY_ALPHABET.get(family, "mathrm")
         out[name] = Macro(name=name, args=1, body=f"\\{target}{{#1}}")
     return out
