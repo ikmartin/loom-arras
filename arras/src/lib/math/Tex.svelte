@@ -1,15 +1,17 @@
 <script lang="ts">
 	// A title that carries inline math, typeset in place. Titles keep their LaTeX rather than losing it (a section called `Structure of $\Sigma$` used to arrive as `Structure of $ $`), so wherever a title is shown as prose it goes through here.
 	import { store } from '$lib/manifest/client.svelte';
+	import { delimit, hasMath as holdsMath } from '$lib/math/delimit';
 	import { typeset } from '$lib/math/mathjax';
 
 	let { text }: { text: string } = $props();
 
 	let el: HTMLElement | undefined = $state();
-	const hasMath = $derived(/\$[^$]*\$/.test(text));
+	// a title keeps the delimiters its author wrote, `$…$` or `\(…\)`
+	const hasMath = $derived(holdsMath(text));
 
 	// MathJax's inline delimiters here are \( \), matching what the publisher emits, so a title's dollars are translated before typesetting.
-	const prepared = $derived(hasMath ? text.replace(/\$([^$]*)\$/g, (_, m: string) => '\\(' + m + '\\)') : text);
+	const prepared = $derived(hasMath ? delimit(text) : text);
 
 	$effect(() => {
 		const node = el;

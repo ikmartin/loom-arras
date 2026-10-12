@@ -6,3 +6,8 @@ export function delimit(tex: string): string {
 		.replace(/(?<!\\)\$\$([\s\S]*?)(?<!\\)\$\$/g, (_, m: string) => '\\[' + m + '\\]')
 		.replace(/(?<!\\)\$([^$]+?)(?<!\\)\$/g, (_, m: string) => '\\(' + m + '\\)');
 }
+
+/** Whether `tex` holds a formula in any delimiter a title or a statement arrives with: `$…$`, `$$…$$`, `\(…\)` or `\[…\]`. */
+export function hasMath(tex: string): boolean {
+	return /(?<!\\)\$[^$]+?(?<!\\)\$|\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\]/.test(tex);
+}

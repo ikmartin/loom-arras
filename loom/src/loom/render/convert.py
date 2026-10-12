@@ -1041,6 +1041,10 @@ class Converter:
         if name in ("textsuperscript", "textsubscript"):
             (body,), spans, after = args("m")
             return self.inline_text(body or "", spans[0][0], depth + 1), after, None
+        if name == "texorpdfstring":
+            # hyperref's: the document typesets the first argument, and a PDF bookmark reads the second
+            (tex, _), spans, after = args("mm")
+            return self.inline_text(tex or "", spans[0][0], depth + 1), after, None
         if name in ("caption",):
             (_, body), spans, after = args("om")
             return self.inline_text(body or "", spans[1][0], depth + 1), after, None

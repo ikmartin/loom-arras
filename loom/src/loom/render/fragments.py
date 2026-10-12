@@ -552,6 +552,17 @@ def master_title(result: ScanResult, master: str) -> str | None:
 
 
 _MATH_SPAN = re.compile(r"\$[^$]*\$|\\\((?:.|\n)*?\\\)")
+_TEXORPDF = re.compile(r"\\texorpdfstring(?![A-Za-z@])")
+
+
+def _tex_strings(latex: str) -> str:
+    """Each `\\texorpdfstring{TEX}{PDF}` as TEX, the form the document typesets; PDF is for the PDF's bookmarks alone."""
+    while m := _TEXORPDF.search(latex):
+        (tex, _), _, after = read_args(latex, m.end(), "mm")
+        if tex is None:
+            break
+        latex = latex[: m.start()] + tex + latex[after:]
+    return latex
 
 
 def plain_text(latex: str) -> str:
@@ -566,6 +577,7 @@ def plain_text(latex: str) -> str:
         s = re.sub(r"\\[A-Za-z@]+\*?", " ", s)
         return s.replace("{", "").replace("}", "").replace("~", " ").replace("--", "–")
 
+    latex = _tex_strings(latex)
     out: list[str] = []
     pos = 0
     for m in _MATH_SPAN.finditer(latex):

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { delimit } from './delimit';
+import { delimit, hasMath } from './delimit';
 
 describe('delimit', () => {
 	it('turns a display into a display, not two inline halves', () => {
@@ -11,5 +11,16 @@ describe('delimit', () => {
 	});
 	it('keeps line breaks and text without math', () => {
 		expect(delimit('(i) one\n(ii) two')).toBe('(i) one\n(ii) two');
+	});
+});
+
+describe('hasMath', () => {
+	it('finds a formula in either delimiter a title is written with', () => {
+		// a section titled `Examples on \(\mathbb P^2\)` was shown untypeset in the contents, which only looked for dollars
+		expect(hasMath('Examples on \\(\\mathbb P^2\\)')).toBe(true);
+		expect(hasMath('Structure of $\\Sigma$')).toBe(true);
+		expect(hasMath('then \\[x^2\\]')).toBe(true);
+		expect(hasMath('costs \\$5')).toBe(false);
+		expect(hasMath('Toric targets')).toBe(false);
 	});
 });

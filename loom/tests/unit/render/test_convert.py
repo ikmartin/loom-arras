@@ -270,3 +270,18 @@ def test_a_macro_around_a_heading_the_scanner_split_off_draws_nothing() -> None:
     start = text.index("\\subsection*")
     out, _, _ = make(text, macros=macros, children={start: (len(text), "k-0002")})
     assert out == '<div class="include" data-key="k-0002"></div>'
+
+
+def test_texorpdfstring_is_its_tex_argument() -> None:
+    """hyperref's `\\texorpdfstring{TEX}{PDF}` typesets TEX and gives PDF to the bookmarks; read as an unknown command, a heading showed both, `Examples on \\texorpdfstring P²P2`, and so did its title in the contents (the author's screenshot, 2026-10-12)."""
+    from loom.render.fragments import plain_text
+
+    out, _, _ = make("\\section{Examples on \\texorpdfstring{\\(\\mathbb P^2\\)}{P2}}\n\nBody.\n")
+    heading = out[: out.index("</h1>")]
+    assert "texorpdfstring" not in heading and "P2" not in heading
+    assert '<span class="math inline">\\(\\mathbb P^2\\)</span>' in heading
+    assert plain_text("Examples on \\texorpdfstring{\\(\\mathbb P^2\\)}{P2}") == "Examples on \\(\\mathbb P^2\\)"
+    assert (
+        plain_text("$h$-descent for \\texorpdfstring{$\\mathcal{X}_0$}{X0} and \\texorpdfstring{}{}")
+        == "$h$-descent for $\\mathcal{X}_0$ and"
+    )
