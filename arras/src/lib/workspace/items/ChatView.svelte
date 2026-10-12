@@ -178,22 +178,22 @@
 		</ol>
 	</div>
 	{#if live}
-		<!-- the foot's rule spans the pane; what stands on it keeps the conversation's column -->
+		<!-- the foot's rule spans the pane; what stands on it keeps the transcript's margins -->
 		<div class="foot">
-			<div class="column">
-				<p class="status" data-testid="chat-line">
-					<span role="status" data-testid="chat-status">{status}</span>
-					{#if running}<button type="button" class="stop" data-testid="agent-stop" onclick={stop}>stop</button>{/if}
-				</p>
-				<PacketTray session={item.id} refresh={sends} oncount={(n) => (packed = n)} />
-				<Composer session={item.id} {packed} {onsent} />
-			</div>
+			<p class="status" data-testid="chat-line">
+				<span role="status" data-testid="chat-status">{status}</span>
+				{#if running}<button type="button" class="stop" data-testid="agent-stop" onclick={stop}>stop</button>{/if}
+			</p>
+			<PacketTray session={item.id} refresh={sends} oncount={(n) => (packed = n)} />
+			<Composer session={item.id} {packed} {onsent} />
 		</div>
 	{/if}
 </div>
 
 <style>
+	/* The conversation takes the pane's whole width, its margin growing a little with the pane. Not `--measure`, which is the paper's text block (33rem in the paper formats) and leaves a wide pane mostly blank. The percentage is of the pane, so the transcript and the foot agree. */
 	.chat {
+		--chat-margin: clamp(var(--gap-wide), 4%, 3rem);
 		display: flex;
 		flex-direction: column;
 		height: 100%;
@@ -203,16 +203,10 @@
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow: auto;
-		padding: var(--gap) var(--gap-wide);
+		padding: var(--gap) var(--chat-margin);
 	}
 	.top {
 		height: 1px;
-	}
-	/* One column of reading width, centered in the pane however wide it is: a conversation pinned to the left edge of a wide pane left most of it empty on one side. */
-	.messages,
-	.column {
-		max-width: var(--measure);
-		margin-inline: auto;
 	}
 	.messages {
 		list-style: none;
@@ -259,7 +253,7 @@
 	}
 	.foot {
 		border-top: 1px solid var(--rule);
-		padding: 0 var(--gap-wide);
+		padding: 0 var(--chat-margin);
 	}
 	.status {
 		display: flex;

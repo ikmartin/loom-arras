@@ -153,6 +153,21 @@ test.describe('where a publisher serves', () => {
 		await expect(page.getByTestId('message-3')).toBeInViewport();
 	});
 
+	test('in a wide pane the conversation takes its width, the foot standing under it', async ({ page }) => {
+		// the paper's measure (33rem) left two thirds of a wide pane blank; the margin is at most 3rem a side
+		await page.setViewportSize({ width: 1600, height: 900 });
+		await publisher(page, { events: [said(1, 'Referee Agent')], attached: [{ who: 'Referee Agent', kind: 'agent' }] });
+		await page.goto('/session/' + REFEREE);
+		await expect(page.getByTestId('chat-status')).toHaveText('Referee Agent is attached');
+		const chat = (await page.getByTestId('chat').boundingBox())!;
+		const message = (await page.getByTestId('message-1').boundingBox())!;
+		const line = (await page.getByTestId('chat-line').boundingBox())!;
+		expect(chat.width).toBeGreaterThan(900);
+		expect(message.x - chat.x).toBeLessThanOrEqual(49);
+		expect(message.width).toBeGreaterThan(chat.width - 2 * 48 - 20);
+		expect(Math.abs(line.x - message.x)).toBeLessThanOrEqual(1);
+	});
+
 	test('the first poll follows the newest page at once, not a second later', async ({ page }) => {
 		const state = { events: [said(1, 'Referee Agent')], attached: [{ who: 'Referee Agent', kind: 'agent' }] };
 		await publisher(page, state);

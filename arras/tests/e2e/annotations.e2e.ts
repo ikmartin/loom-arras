@@ -435,6 +435,17 @@ test.describe('marks and boxes', () => {
 		await expect(boxes).toHaveCount(0);
 	});
 
+	test('the keys draw no focus ring around the document', async ({ page }) => {
+		// a click focuses the document without a ring and a key then asks for one, which around a document taller than the window showed as two blue rules down its sides
+		await page.goto('/master/main');
+		await page.waitForSelector('.fragment mjx-container');
+		const fragment = page.locator('.fragment');
+		await fragment.locator('p').first().click();
+		await page.keyboard.press('e');
+		expect(await fragment.evaluate((el) => el.matches(':focus-visible'))).toBe(true);
+		await expect(fragment).toHaveCSS('outline-style', 'none');
+	});
+
 	test('a document carries annotations of its own, and they are read beside it', async ({ page }) => {
 		// a remark about the whole paper is not drawn above its title; it is read in what the session did, beside the document
 		await page.goto('/master/main' + beside(`/session/${REFEREE}?view=did`));

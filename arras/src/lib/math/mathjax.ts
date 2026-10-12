@@ -55,9 +55,23 @@ export function ensureMathJax(macros: Macro[]): Promise<MJ> {
 	return loaded;
 }
 
-/** A fragment's macro set as definitions placed before its first formula. `\renewcommand` alone: MathJax's never checks that a macro exists, and it has no `\providecommand`, whose argument it would read as math and fail on, showing the formula's source instead. */
+/** A fragment's macro set as one formula of definitions. `\renewcommand` alone: MathJax's never checks that a macro exists, and it has no `\providecommand`, whose argument it would read as math and fail on, showing the formula's source instead. */
 function macroPrefix(macros: Macro[]): string {
 	return macros.map((m) => (m.args > 0 ? `\\renewcommand{\\${m.name}}[${m.args}]{${m.body}}` : `\\renewcommand{\\${m.name}}{${m.body}}`)).join('');
+}
+
+/** Queue a fragment's macro set for definition: one formula of `\renewcommand`, typeset in a holder off the page and removed.
+ *
+ * MathJax keeps a definition page-wide (WQ-51), so whatever is queued next sees it; call it in the same task as the fragment's own `run`. Not written into one of the fragment's own formulas, which need not open with `\(` or `\[` (an `align`, a formula already typeset), and outside a delimiter MathJax reads the definitions as prose. */
+function define(mj: MJ, macros: Macro[]): void {
+	const holder = document.createElement('span');
+	holder.setAttribute('aria-hidden', 'true');
+	holder.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+	holder.textContent = `\\(${macroPrefix(macros)}\\)`;
+	document.body.append(holder);
+	void run(mj, [holder])
+		.catch(() => {})
+		.finally(() => holder.remove());
 }
 
 /** Typesetting is serialised: MathJax is not safe to enter twice, and a document typesetting in the background shares it with titles and previews. */
@@ -103,7 +117,7 @@ const BATCH = 48;
  * defaults : Macro[]
  *     The corpus-wide macros, applied when MathJax first loads.
  * perFragment : Macro[], default []
- *     A digest's own macros, defined ahead of the first formula.
+ *     The fragment's own macro set (a landmark's, a digest's), defined just before its formulas are typeset.
  * until : Element | null, default null
  *     Typeset at least through this element before resolving.
  *
@@ -115,19 +129,8 @@ const BATCH = 48;
 export async function typeset(el: Element, defaults: Macro[], perFragment: Macro[] = [], until: Element | null = null): Promise<void> {
 	const mj = await ensureMathJax(defaults);
 	const items = [...el.querySelectorAll('.math')];
-	if (perFragment.length) {
-		const first = items[0];
-		// Inside the opening delimiter, not before it. MathJax reads what lies outside `\(…\)` as prose, so a prefix
-		// prepended to the element put four kilobytes of `\renewcommand` on the page as visible text and defined
-		// nothing -- which is what the canon read view was: a document whose first paragraph was its own preamble.
-		if (first) {
-			const text = first.textContent ?? '';
-			const open = /^\s*(\\\(|\\\[)/.exec(text);
-			first.textContent = open
-				? text.slice(0, open[0].length) + macroPrefix(perFragment) + text.slice(open[0].length)
-				: macroPrefix(perFragment) + text;
-		}
-	}
+	// queued in this task, with the first pass below, so nothing typeset between the two sees another fragment's set
+	if (perFragment.length && items.length) define(mj, perFragment);
 	if (items.length <= BATCH) {
 		await run(mj, [el]);
 		return;

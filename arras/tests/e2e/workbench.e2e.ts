@@ -71,12 +71,33 @@ test('without working documents, document views point at landmarks and the graph
 });
 
 test('a landmark\'s formulas typeset with its own macros: no formula falls back to its source', async ({ page }) => {
-	// a landmark's fragment names its macro set, which arras places before the first formula; a definition MathJax cannot read turns that whole formula into its TeX source
+	// a landmark's fragment names its macro set, which arras defines in one formula of its own before typesetting the fragment; a definition MathJax cannot read would fail that formula and leave the set undefined
 	await page.goto('/canon/widgets-v1');
 	const math = page.locator('.fragment .math');
 	await expect(math.first().locator('mjx-container')).toBeAttached({ timeout: 15000 });
 	await expect(page.locator('.fragment mjx-container [data-mml-node="merror"]')).toHaveCount(0);
 	await expect(page.locator('.fragment')).not.toContainText('\\providecommand');
 	await expect(page.locator('.fragment')).not.toContainText('\\renewcommand');
+	expect(await math.evaluateAll((els) => els.filter((e) => !e.querySelector('mjx-container')).length), 'every formula typeset').toBe(0);
+});
+
+test("a landmark whose first formula is an environment keeps its macros out of the text", async ({ page }) => {
+	// the converter writes an `align` as a bare `\begin{align*}`, with no `\[` for definitions to sit inside; written ahead of it, the macro set read as a paragraph of `\renewcommand`
+	await page.route('**/fragments/canon/widgets-v1.html*', async (route) => {
+		const response = await route.fetch();
+		const body = (await response.text()).replace('\\[\\sigma^2 = \\mathrm{id},\\]', '\\begin{align*}\\sigma^2 &amp;= \\mathrm{id},\\end{align*}');
+		expect(body).toContain('\\begin{align*}');
+		await route.fulfill({ response, body });
+	});
+	// the default set defines `\Fix` too, so the landmark's own reads differently to show which one applied
+	await serve(page, (m) => {
+		for (const d of m.macros.sets['canon:widgets-v1']) if (d.name === 'Fix') d.body = '\\operatorname{Fixed}';
+	});
+	await page.goto('/canon/widgets-v1');
+	const math = page.locator('.fragment .math');
+	await expect(math.first().locator('mjx-container')).toBeAttached({ timeout: 15000 });
+	await expect(page.locator('.fragment')).not.toContainText('\\renewcommand');
+	await expect(page.locator('.fragment')).toContainText('Fixed(σ)');
+	await expect(page.locator('.fragment mjx-container [data-mml-node="merror"]')).toHaveCount(0);
 	expect(await math.evaluateAll((els) => els.filter((e) => !e.querySelector('mjx-container')).length), 'every formula typeset').toBe(0);
 });

@@ -514,4 +514,8 @@
 	.framed {
 		position: relative;
 	}
+	/* Focusable only so `e`, `h` and `s` reach it. A browser rings it once a key is pressed, and around a document taller than the window the ring is two blue rules down the text's edges. */
+	.fragment:focus {
+		outline: none;
+	}
 </style>
