@@ -114,6 +114,8 @@ def renders_as_math(tex: str) -> bool:
 
 
 VERBATIM_ENVS = {"verbatim", "verbatim*", "lstlisting"}
+# the `comment` package's: LaTeX prints nothing for its body, which the tokenizer already reads as verbatim; a quilt that declares `comment` as a theorem environment keeps it as one
+SKIPPED_ENVS = {"comment"}
 SECTIONING = {
     "part": -1,
     "chapter": 0,
@@ -159,6 +161,10 @@ INLINE_WRAP = {
     "mathrm": "",
 }
 IGNORED_CMDS = {
+    "begingroup",
+    "endgroup",
+    "bgroup",
+    "egroup",
     "titlepage",
     "frametitle",
     "framesubtitle",
@@ -687,6 +693,8 @@ class Converter:
                 elif env in ("proof",) or env in ctx.taxa:
                     flush(t.start)
                     out.append(self.inline_env(t, env, env_end, end_idx, toks))
+                elif env in SKIPPED_ENVS:
+                    pass
                 elif env in ("document",):
                     i += 1
                     continue
@@ -1042,6 +1050,9 @@ class Converter:
                 macro.args - (1 if macro.default is not None else 0)
             )
             vals, spans, after = args(spec) if spec else ([], [], t.end)
+            if clean is not None and after > b:
+                # the argument runs into a block the scanner split off, as `\hidefromtoc{\subsection*{…}}` does into its section: that block draws what the argument holds, and the call draws nothing
+                return None, b, None
             arg_values = [v if v is not None else (macro.default or "") for v in vals]
             expansion = expand(macro, arg_values)
             if not expansion.strip():

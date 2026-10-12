@@ -245,3 +245,28 @@ def test_a_paragraph_starts_at_the_layout_command_that_opens_it() -> None:
         out, _, _ = make(text)
         a, b = map(int, re.findall(r'<p data-src="f.tex:(\d+):(\d+)"', out)[-1])
         assert text[a:b].startswith(first), (text, text[a:b])
+
+
+def test_a_comment_environment_is_drawn_as_nothing() -> None:
+    """The `comment` package's environment prints nothing; sent to the fallback it drew an empty frame (the author's screenshot, 2026-10-12)."""
+    out, _, calls = make(
+        "Before.\n\n\\begin{comment}\nTodo:\n\\begin{itemize}\n\\item cut \\ref{x}\n\\end{itemize}\n\\end{comment}\n\nAfter.\n"
+    )
+    assert calls == [] and "Todo" not in out and "cut" not in out
+    assert "Before." in out and "After." in out
+
+
+def test_a_group_draws_nothing_of_its_own() -> None:
+    out, _, _ = make(
+        "Say \\quiet{this} softly.\n", macros=r"\newcommand{\quiet}[1]{\begingroup#1\endgroup\bgroup\egroup}"
+    )
+    assert "Say this softly." in " ".join(out.split()) and "\\" not in out
+
+
+def test_a_macro_around_a_heading_the_scanner_split_off_draws_nothing() -> None:
+    """`\\hidefromtoc{\\subsection*{…}}`: the heading is its own section, which begins inside the call's argument, so what is left before it is the call's head alone; expanded, that drew the heading a second time as `\\begingroup\\subsection*…\\endgroup` (the author's screenshot, 2026-10-12)."""
+    macros = r"\newcommand{\hidefromtoc}[1]{\begingroup\renewcommand{\@tocwrite}[2]{}#1\endgroup}"
+    text = "\\hidefromtoc{\\subsection*{History}\\label{s}}\n\nBody.\n"
+    start = text.index("\\subsection*")
+    out, _, _ = make(text, macros=macros, children={start: (len(text), "k-0002")})
+    assert out == '<div class="include" data-key="k-0002"></div>'

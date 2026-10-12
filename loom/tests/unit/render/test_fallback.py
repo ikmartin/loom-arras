@@ -1,8 +1,8 @@
-"""The fallback renderer's pure functions (book 9.4.2): id namespacing, sizing in em, and the prolog strip. Compiling a block is the TeX tier's (tests/tex/test_fallback_preamble.py)."""
+"""The fallback renderer's pure functions (book 9.4.2): id namespacing, sizing in em, the prolog strip, and the figure. Compiling a block is the TeX tier's (tests/tex/test_fallback_preamble.py)."""
 
 from __future__ import annotations
 
-from loom.render.fallback import _strip_prolog, namespace_ids, resize_svg
+from loom.render.fallback import SvgResult, _strip_prolog, fallback_figure, namespace_ids, resize_svg
 
 SVG = (
     "<svg width='20pt' height='10pt' viewBox='0 0 20 10'><defs><path id='g0-1'/><path id=\"g0-12\"/></defs>"
@@ -32,3 +32,13 @@ def test_resizing_states_the_width_in_em_and_drops_the_height() -> None:
 def test_the_prolog_and_comments_are_stripped_before_the_svg_is_inlined() -> None:
     assert _strip_prolog("<?xml version='1.0'?>\n<!-- dvisvgm\n two lines -->\n<svg/>\n") == "<svg/>"
     assert _strip_prolog("<svg><!-- inner --><g/></svg>") == "<svg><g/></svg>"
+
+
+def test_a_block_with_no_ink_is_no_figure() -> None:
+    """A block LaTeX typesets as nothing, as a `comment` environment is, crops to a 0×0 picture; framed, it drew an empty box (the author's screenshot, 2026-10-12)."""
+    empty = "<svg version='1.1' viewBox='0 0 0 0' width='0.0000em'>\n<g id='lm1-page1'/>\n</svg>"
+    assert (
+        fallback_figure("\\begin{comment}x\\end{comment}", SvgResult(empty, "k", False), "fallback", "f.tex:0:1") == ""
+    )
+    drawn = fallback_figure("x", SvgResult(resize_svg(SVG), "k", False), "fallback", "f.tex:0:1")
+    assert drawn.startswith('<figure class="fallback"') and "<svg" in drawn

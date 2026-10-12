@@ -247,13 +247,24 @@ def _compile_svg(
     return SvgResult(svg, key, False)
 
 
+_VIEWBOX = re.compile(r"""viewBox=['"]\s*[-\d.eE]+[\s,]+[-\d.eE]+[\s,]+([-\d.eE]+)[\s,]+([-\d.eE]+)""")
+
+
+def _inkless(svg: str) -> bool:
+    """Whether dvisvgm's crop to the ink left nothing: a block LaTeX typesets as nothing, such as an environment that swallows its body."""
+    m = _VIEWBOX.search(svg)
+    return m is not None and (float(m.group(1)) == 0 or float(m.group(2)) == 0)
+
+
 def fallback_figure(latex: str, svg: SvgResult, css_class: str, data_src: str) -> str:
-    """`figure.fallback` (or `figure.diagram`) holding the inline SVG, or a `pre` with the error when rendering failed."""
+    """`figure.fallback` (or `figure.diagram`) holding the inline SVG, a `pre` with the error when rendering failed, or nothing when the block has no ink."""
     src_text = html.escape(latex, quote=True)
     if svg.svg is None:
         # the source is kept so nothing is lost, and data-error marks it as a fault rather than as the paper's text
         error = html.escape(svg.error or "the block could not be compiled", quote=True)
         return f'<figure class="{css_class} failed" data-src="{data_src}" data-src-text="{src_text}" data-error="{error}"><pre>{html.escape(latex)}</pre></figure>'
+    if _inkless(svg.svg):
+        return ""
     return f'<figure class="{css_class}" data-src="{data_src}" data-src-text="{src_text}">{svg.svg}</figure>'
 
 
