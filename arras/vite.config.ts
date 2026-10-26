@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
-// arras is a single-page application served as files: locally by a publisher that serves index.html for unknown paths, or prerendered per route for a static deployment (milestone M2). The interface it renders is docs/specs in the loom-arras workspace.
+// arras is a single-page application served as files, by a publisher that serves index.html for unknown paths. The interface it renders is docs/specs in the loom-arras workspace.
 //
 // ARRAS_BASE is the path the app is served under, empty for the root. It is a build-time choice because SvelteKit
 // resolves routes and assets against it; where the *corpus* lives is a separate, runtime choice (src/lib/paths.ts),

@@ -23,7 +23,6 @@
     "test": "npm run test:unit -- --run && npm run test:e2e && npm run test:minimal",
     "test:e2e": "playwright test",
     "stage:fixture": "node scripts/stage-fixture.mjs tests/fixture",
-    "build:prerender": "node scripts/build-prerender.mjs",
     "shots": "playwright test --config playwright.shots.config.ts",
     "test:minimal": "playwright test --config playwright.minimal.config.ts",
     "shots:report": "playwright test --config playwright.shots.config.ts tests/shots/report.spec.ts",

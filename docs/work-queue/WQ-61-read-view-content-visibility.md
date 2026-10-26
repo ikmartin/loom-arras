@@ -12,7 +12,7 @@ Plan 0.19.3 tried `content-visibility: auto` on the read view's leaf blocks (par
 
 ## Rough design
 
-Find what moves: trace a patch above a skipped region and see which anchor the browser chooses and why its compensation is wrong. Candidates: pin the anchor by hand around a patch (record the block at the pane's top and its offset, patch, restore the offset, as the pane's own restore already does); skip whole sections rather than leaf blocks, so the anchor is never inside a skipped region; or exempt the blocks a patch touches from skipping until they have been on screen once. The live perf suite measures the place directly (`tests/perf-live/live.e2e.ts`, the text at the pane's top), so each candidate is one run.
+Find what moves: trace a patch above a skipped region and see which anchor the browser chooses and why its compensation is wrong. Candidates: pin the anchor by hand around a patch (record the block at the pane's top and its offset, patch, restore the offset, as the pane's own restore already does); skip whole sections rather than leaf blocks, so the anchor is never inside a skipped region; or exempt the blocks a patch touches from skipping until they have been on screen once. The live perf suite that measured the place directly (`tests/perf-live/live.e2e.ts`, the text at the pane's top) was deleted on 2026-10-26, unrun; it is in git history at `3de1c0bc`, and restoring it makes each candidate one run.
 
 ## Blast radius
 

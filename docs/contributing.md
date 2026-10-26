@@ -29,7 +29,7 @@ The workspace's documents and loom are GPL-3.0-or-later; arras AGPL-3.0-or-later
 - `--only loom|arras|docs`: one lane, when a change touches one codebase or only documents.
 - `--steps "pytest tex"`: named steps whatever their tier; CI runs the TeX tier this way.
 
-The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/`, each runnable alone and printing the command that fixes what it finds. The arras perf suites (`playwright.perf.config.ts`, `playwright.perf-live.config.ts`) run by hand.
+The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/`, each runnable alone and printing the command that fixes what it finds.
 
 ## How the tests work
 
@@ -41,7 +41,6 @@ The docs lane runs `docs/work-queue/check.py` and the checks in `scripts/checks/
 - Every diagnostic code is in `docs/specs/diagnostics.md` before loom emits it, and some test emits it. `test_all_emitted_codes_are_known` checks only that the fixtures' codes are in loom's table, not that every code is emitted.
 - CI sees only committed files, so `loom/tests/unit/test_tracked.py` fails on a shipped file under `loom/src`, `loom/tests/quilts` or `arras/src` that is untracked or ignored.
 - When loom's pytest runs beside the Playwright suites, `scripts/verify` gives it half the cores and splits the rest among the suites, because together they once starved the reading suite into timeouts.
-- Dragging the divider is judged by the frames Chrome's trace records as presented (`presented()` in `arras/tests/perf-live/measure.ts`); scrolling a PDF is budgeted on `frameP95` from the `requestAnimationFrame` recorder in the same file.
 
 ## Construction
 
