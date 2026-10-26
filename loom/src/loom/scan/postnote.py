@@ -217,8 +217,11 @@ def postnote_edges(asm: Assembly, res: EdgeResult, versions: dict[str, list[str]
                 answered = v
                 break
         if hits:
+            # A proposal is never an edge target: nobody has vouched for it, so it enters no closure, no closure document and no compile. The warning below still reports the citation.
+            pending = [k for k in hits if asm.nodes[k].file.endswith(".proposed.tex")]
             for to in hits:
-                res.edges.append(EdgeRec(c.src, to, kind, "postnote", c.file, c.line, f"{c.citekey}|{c.postnote}"))
+                if to not in pending:
+                    res.edges.append(EdgeRec(c.src, to, kind, "postnote", c.file, c.line, f"{c.citekey}|{c.postnote}"))
             if answered != c.citekey:
                 res.diagnostics.append(
                     Diagnostic(
@@ -230,9 +233,7 @@ def postnote_edges(asm: Assembly, res: EdgeResult, versions: dict[str, list[str]
                         [c.src],
                     )
                 )
-            # Citing a result nobody has vouched for is a normal intermediate state of drafting, so this is a
-            # warning: the node is in no bundle, so the compile already tells the truth (plan 0.12 §8).
-            pending = [k for k in hits if asm.nodes[k].file.endswith(".proposed.tex")]
+            # Citing a result nobody has vouched for is a normal intermediate state of drafting, so this is a warning: the node is in no closure and no bundle, so the compile already tells the truth.
             if pending:
                 res.diagnostics.append(
                     Diagnostic(
