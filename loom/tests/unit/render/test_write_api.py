@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
-import time
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,7 +14,6 @@ import pytest
 
 from loom.render.serve import ServeSession
 from tests.helpers import the
-from tests.unit._fakes import configure, sleeper
 from tests.unit._quilts import REPO, demo, mapped, new_session, open_session, propose, showcase
 from tests.unit.render._serve import get, log, post
 
@@ -538,57 +535,6 @@ def _session_purpose(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> Non
     refuses(s, "session-purpose", {"session": "s-1999-01-01-0001", "purpose": "x"}, 404, "no-such-session", "s-1999")
 
 
-@case("message")
-def _message(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    from loom.mailbox import read_events
-
-    s, q, sid = on_demo(serve, tmp_path)
-    refuses(s, "message", {"session": sid, "author": WHO}, 400, "nothing-to-send", "nothing marked")
-    said = succeeds(s, "message", {"session": sid, "text": "Look at dm-0003.", "author": WHO})
-    assert (said["session"], said["attached"]) == (sid, [])
-    got = read_events(q, sid)[-1]
-    assert (got.seq, got.body, got.who) == (said["seq"], "Look at dm-0003.", WHO)
-    refuses(s, "message", {"session": "no such sitting", "text": "x"}, 404, "no-such-session", "no such sitting")
-
-
-def running(q: Path, sid: str, ready: Path, timeout: float = 20) -> int:
-    """Wait for the turn loom started in `sid` to be running and to have written `ready`; its pid."""
-    from loom.agent import state
-
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if state(q, sid).get("state") == "running" and ready.exists() and ready.read_text():
-            return int(ready.read_text())
-        time.sleep(0.05)
-    raise AssertionError(f"no turn started in {sid} within {timeout}s: {state(q, sid)}")
-
-
-def gone(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return True
-    return False
-
-
-@case("agent-stop")
-def _agent_stop(serve: Serve, tmp_path: Path, _: pytest.MonkeyPatch) -> None:
-    from loom.agent import state
-
-    q = demo(tmp_path)
-    ready = tmp_path / "turn.pid"
-    configure(q, start=sleeper(ready), resume=[], launch=False)
-    s = serve(q)
-    sid = new_session(q)
-    refuses(s, "agent-stop", {"session": sid}, 409, "not-launching", "not launched")
-    configure(q, start=sleeper(ready), resume=[])
-    succeeds(s, "message", {"session": sid, "text": "Take your time.", "author": WHO})
-    pid = running(q, sid, ready)
-    assert succeeds(s, "agent-stop", {"session": sid}) == {"ok": True, "result": "stopped", "session": sid}
-    assert gone(pid) and state(q, sid)["state"] == "stopped"
-    assert succeeds(s, "agent-stop", {"session": sid})["result"] == "nothing was running"
-
-
 def git(root: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
 
@@ -853,9 +799,3 @@ def test_events_needs_a_session_and_reads_a_bad_since_as_the_start(session) -> N
     status, _, raw = get(s.url + f"_api/events?session={sid}&since=abc")
     body = json.loads(raw)
     assert status == 200 and body["from"] == 0 and [e["body"] for e in body["events"]] == ["First."], body
-
-
-def test_agent_stop_passes_the_csrf_gate_like_every_write(session) -> None:  # type: ignore[no-untyped-def]
-    s, d = session
-    status, said = post(s.url + "_api/agent-stop", {"session": new_session(d)}, token="")
-    assert status == 403 and "X-Loom-Token" in said["error"]["message"], said

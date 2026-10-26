@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import shlex
-import tomllib
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -131,12 +130,8 @@ def discard(
     ).emit(as_json)
 
 
-#: The agents `ai init --agent` can name in `ai/ai-config.toml`; with none, every key is written commented out.
-AGENTS = ("claude", "codex")
-
-
-def install_layer(root: Path, *, skills: bool = False, agent: str | None = None, write: bool = True) -> LayerReport:
-    """Write the agent layer into a quilt, or refresh it where `ai/` exists, and `ai/ai-config.toml` when it is absent.
+def install_layer(root: Path, *, skills: bool = False, write: bool = True) -> LayerReport:
+    """Write the agent layer into a quilt, or refresh it where `ai/` exists.
 
     Parameters
     ----------
@@ -144,8 +139,6 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
         The quilt root.
     skills : bool, default False
         Also write the Claude Code skills and slash commands; where `ai/` exists they are refreshed when present either way.
-    agent : str, optional
-        `claude` or `codex`, whose command `ai/ai-config.toml` names when it is new or every key in it is commented out; default every key commented out. One that configures an agent is the person's: never touched, and refused by name when `agent` asks for another.
     write : bool, default True
         False writes nothing and reports what would be written.
 
@@ -154,16 +147,10 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
     LayerReport
         `written` (quilt-relative paths), and where `ai/` existed, `kept` and `new_beside` for edited mode files, as `loom upgrade` reports them.
 
-    Raises
-    ------
-    EnvError
-        `agent` names an agent and `ai/ai-config.toml` configures another (or does not read), so it would be left as it is; checked before anything is written.
-
     See Also
     --------
     loom.ai.layout.upgrade_layer : the refresh alone, which `loom upgrade` runs.
     """
-    from loom.agent import CONFIG, config_text
     from loom.ai.layout import (
         VERSION_FILE,
         LayerReport,
@@ -175,19 +162,6 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
         vendor_files,
     )
 
-    cfg = root / CONFIG
-    fill = not cfg.exists()
-    if agent and not fill:
-        try:
-            current: dict[str, Any] | None = tomllib.loads(cfg.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, UnicodeDecodeError):
-            current = None
-        fill = current == {}  # every key commented out, as `loom init` writes it
-        if not fill and current != tomllib.loads(config_text(agent)):
-            raise EnvError(
-                f"{CONFIG} already configures an agent, so --agent {agent} would leave it as it is; "
-                f"edit it yourself, or remove it and run loom ai init --agent {agent} again"
-            )
     if not (root / "ai").exists():
         if write:
             rep = init_layer(root, skills=skills)
@@ -205,35 +179,22 @@ def install_layer(root: Path, *, skills: bool = False, agent: str | None = None,
                     p.parent.mkdir(parents=True, exist_ok=True)
                     p.write_text(text, encoding="utf-8")
                 rep.written.append(rel)
-    if fill:
-        if write:
-            cfg.parent.mkdir(parents=True, exist_ok=True)
-            cfg.write_text(config_text(agent), encoding="utf-8")
-        rep.written.append(CONFIG)
     return rep
 
 
 @ai.command(name="init")
 @click.option("--skills", is_flag=True, help="Also write skill stubs and slash commands for Claude Code.")
-@click.option(
-    "--agent",
-    type=click.Choice(AGENTS),
-    default=None,
-    help="The agent ai/ai-config.toml names, written when it is new or all comments; default every key commented out.",
-)
 @click.option("--dry-run", is_flag=True, help="Say what would be written and write nothing.")
 @click.option("--json", "as_json", is_flag=True, help="Print the report as one JSON object (book 12.9).")
 @quilt_option
-def ai_init(skills: bool, agent: str | None, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
-    """Write the agent layer: ai/ (orientation, rules, modes), ai/ai-config.toml, CLAUDE.md and AGENTS.md, and the permission files.
+def ai_init(skills: bool, dry_run: bool, as_json: bool, quilt_path: str | None) -> None:
+    """Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md and AGENTS.md, and the permission files.
 
-    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it. An ai/ai-config.toml that configures an agent is the person's and is kept; --agent naming another is refused.
+    The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
     """
-    from loom.agent import CONFIG
-
     quilt = open_quilt(quilt_path)
     existed = (quilt.root / "ai").is_dir()
-    rep = install_layer(quilt.root, skills=skills, agent=agent, write=not dry_run)
+    rep = install_layer(quilt.root, skills=skills, write=not dry_run)
     written = sorted(dict.fromkeys(str(rel) for rel in rep.written))
     by_dir: dict[str, list[str]] = {}
     for rel in written:
@@ -271,8 +232,6 @@ def ai_init(skills: bool, agent: str | None, dry_run: bool, as_json: bool, quilt
         )
     else:
         verdict = "the agent layer is current; nothing written"
-    if agent and CONFIG in written:
-        verdict += f"; {CONFIG} {'would name' if dry_run else 'names'} {agent}"
     Report(verdict, dry_run=dry_run, groups=groups, data=data).emit(as_json)
 
 

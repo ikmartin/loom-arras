@@ -30,8 +30,7 @@ Create a quilt in DIRECTORY (default: the current directory); with --from FILE, 
 | `--demo` | Write the demo quilt instead of a minimal master. |
 | `--prefix` | Id prefix for new nodes. |
 | `--git` | Also run git init. A quilt is files; loom reads no history. |
-| `--ai` | Which AI you use, instead of being asked: Claude or Codex get the agent layer, as loom ai init writes it. |
-| `--launch-agents`, `--no-launch-agents` | Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default. |
+| `--ai` | Which AI you use, instead of being asked: any but none gets the agent layer, as loom ai init writes it. |
 | `--fix-anchoring` | With --from: rewrite the drafted document so every theorem-like \begin and \end is alone on its line. |
 | `--yes`, `-y` | Skip questions; take defaults and confirm the import. |
 | `--dry-run` | Say what would be created, and write nothing; no identity test. |
@@ -78,9 +77,7 @@ SRC is not modified; the history records that the spine superseded it, so it def
 
 `loom doctor [OPTIONS]`
 
-Check the TeX toolchain and what loom needs of it, poppler, git, the author name and the arras bundle; inside a quilt, also its engine, its agent configuration, its generated files, its .gitignore and its config.
-
-With --agents, the agent `loom serve` would start is reported in full: whether launching is on, the config, the start, resume and prompt lines, and each fault with its fix. Nothing is run.
+Check the TeX toolchain and what loom needs of it, poppler, git, the author name and the arras bundle; inside a quilt, also its engine, its generated files, its .gitignore and its config.
 
 Each item is ok, warn (works, but you will hit it) or fail (a command you need will refuse), with the command that fixes it. Exits 0 when nothing fails and 2 when anything does; under --strict a warning counts as a failure. Writes nothing; a tool is run only to ask its version or test what loom needs of it, and one that has not answered in 10 s is reported as hung.
 
@@ -88,7 +85,6 @@ Each item is ok, warn (works, but you will hit it) or fail (a command you need w
 |---|---|
 | `--json` | Machine-readable report on stdout. |
 | `--strict` | Count a warning as a failure: exit 2 when any item warns. |
-| `--agents` | Also look for claude and codex, and inside a quilt report the agent loom serve would start: its commands, its prompt, and what would stop it. |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |
 
 ## Write
@@ -968,14 +964,13 @@ Before a large instruction, an agent checks its document here: a stale one is re
 
 `loom ai init [OPTIONS]`
 
-Write the agent layer: ai/ (orientation, rules, modes), ai/ai-config.toml, CLAUDE.md and AGENTS.md, and the permission files.
+Write the agent layer: ai/ (orientation, rules, modes), CLAUDE.md and AGENTS.md, and the permission files.
 
-The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it. An ai/ai-config.toml that configures an agent is the person's and is kept; --agent naming another is refused.
+The permission files say what agents may run, for Claude Code (.claude/settings.json) and Codex (.codex/rules/loom.rules). Where ai/ exists this refreshes what `loom upgrade` would, keeping an edited mode file and writing the new version beside it.
 
 | option | description |
 |---|---|
 | `--skills` | Also write skill stubs and slash commands for Claude Code. |
-| `--agent` | The agent ai/ai-config.toml names, written when it is new or all comments; default every key commented out. |
 | `--dry-run` | Say what would be written and write nothing. |
 | `--json` | Print the report as one JSON object (book 12.9). |
 | `--quilt` `PATH` | Quilt root (default: discovered by walking up). |

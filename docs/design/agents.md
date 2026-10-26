@@ -67,7 +67,7 @@ An agent writes the transcript so that the person, coming back to it later, sees
 
 It writes at natural pauses and before it stops, and it links rather than restates (`loom link` prints a correct link). The viewer shows the transcript beside the documents it refers to.
 
-The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (not built yet, see [README](README.md#decided-not-yet-built)). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks.
+The viewer's chat composer, and loom launching an agent for one turn when a message waits, are retired (plan 0.20.1). A turn that could not ask, be interrupted or get a permission approved served nobody well, and the agent apps already reach people away from their desks.
 
 ## What an agent is told
 

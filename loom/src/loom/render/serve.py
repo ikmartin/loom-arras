@@ -155,8 +155,6 @@ class LoomHandler(SimpleHTTPRequestHandler):
     #: watcher's filesystem scan and the viewer's manifest poll are a second each, so a change that costs 40ms to
     #: build took ~1.3s to appear, and the `refresh()` a viewer runs on the answer raced the rebuild and lost.
     rebuild: Callable[..., None] | None = None
-    #: What starts and stops an agent's turn, set when the server owns one (plan 0.14): `agent-stop` is answered by it.
-    launcher: Any = None
     publication_lock: Any = None
     #: The server's publications, set when it owns a build: what `/_api/stream` reports.
     publications: Publications | None = None
@@ -233,9 +231,6 @@ class LoomHandler(SimpleHTTPRequestHandler):
         if refused:
             self._json(HTTPStatus.FORBIDDEN, {"error": {"code": "refused", "message": refused}})
             return
-        if path == "/_api/agent-stop":
-            self._agent_stop()
-            return
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -265,25 +260,6 @@ class LoomHandler(SimpleHTTPRequestHandler):
             # A write that failed for a reason nobody anticipated is still the publisher's answer, not a dead socket.
             self._json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": {"code": "failed", "message": str(exc)}})
 
-    def _agent_stop(self) -> None:
-        """`POST /_api/agent-stop {session}`: end the running turn in a session. Answered by the server's launcher, since the process is its own."""
-        from loom.agent import launching
-
-        try:
-            body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
-        except (ValueError, UnicodeDecodeError):
-            body = {}
-        sid = str(body.get("session", "")) if isinstance(body, dict) else ""
-        if self.launcher is None or self.quilt_root is None or not launching(self.quilt_root):
-            self._json(
-                HTTPStatus.CONFLICT, {"error": {"code": "not-launching", "message": "agents are not launched here"}}
-            )
-            return
-        stopped = self.launcher.stop(sid)
-        self._json(
-            HTTPStatus.OK, {"ok": True, "result": "stopped" if stopped else "nothing was running", "session": sid}
-        )
-
     def _events(self) -> None:
         """`GET /_api/events?session=<id>&since=<seq>`: what has landed in a session's inbox since a sequence number.
 
@@ -293,7 +269,6 @@ class LoomHandler(SimpleHTTPRequestHandler):
         """
         from urllib.parse import parse_qs, urlsplit
 
-        from loom.agent import report
         from loom.mailbox import attached, public, transcript
         from loom.sessions import ID
 
@@ -327,41 +302,7 @@ class LoomHandler(SimpleHTTPRequestHandler):
                 "attached": [
                     {"who": r.get("who", ""), "kind": r.get("kind", "")} for r in attached(self.quilt_root, sid)
                 ],
-                "agent": report(self.quilt_root, sid),
             },
-        )
-
-    def _packet(self) -> None:
-        """`GET /_api/packet?session=<id>`: what the person's next message in a session will carry, as rows and as the text the agent will read (plan 0.14).
-
-        The text is `render_changes` of the same rows `post` will record, so the viewer's preview is what is sent and not a description of it.
-        """
-        from urllib.parse import parse_qs, urlsplit
-
-        from loom.cli._common import whoever
-        from loom.mailbox import pending, render_changes
-        from loom.sessions import ID, sessions
-
-        if self.quilt_root is None:
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-        sid = (parse_qs(urlsplit(self.path).query).get("session") or [""])[0]
-        if not ID.match(sid):
-            self._json(
-                HTTPStatus.BAD_REQUEST, {"error": {"code": "bad-session", "message": f"not a session id: {sid}"}}
-            )
-            return
-        found = sessions(self.quilt_root).get(sid)
-        if found is None:
-            self._json(HTTPStatus.NOT_FOUND, {"error": {"code": "no-such-session", "message": f"no session {sid}"}})
-            return
-        # the viewer's own name, as the message it will go with is named (`_message`), unless the caller says whose
-        who = (parse_qs(urlsplit(self.path).query).get("author") or [""])[0] or whoever(self.quilt_root, sniff=False)
-        rows = pending(self.quilt_root, found, who)
-        keep = ("id", "kind", "act", "target", "work", "page")
-        self._json(
-            HTTPStatus.OK,
-            {"session": sid, "rows": [{k: r.get(k) for k in keep} for r in rows], "text": render_changes(rows)},
         )
 
     def _page(self) -> bool:
@@ -384,9 +325,6 @@ class LoomHandler(SimpleHTTPRequestHandler):
             return
         if self.path.split("?", 1)[0] == "/_api/events":
             self._events()
-            return
-        if self.path.split("?", 1)[0] == "/_api/packet":
-            self._packet()
             return
         if self.path.split("?", 1)[0] == "/_api/stream":
             self._stream()
@@ -480,9 +418,6 @@ class ServeSession:
         self.last_report: BuildReport | None = None
         self.published: dict[Path, float] = {}  # the watched files as the last publication read them
         self.publications = Publications()
-        from loom.agent import Launcher
-
-        self.launcher = Launcher(quilt.root, interval)
 
     def rebuild(
         self,
@@ -551,11 +486,7 @@ class ServeSession:
             self.rebuild()
 
     def listen(self) -> None:
-        """Settle the launcher, bind the port and start serving. The build has not run yet, so `/build/` answers 503 until `start` finishes it.
-
-        The launcher settles here, before the socket takes a write: what was waiting is old, and a message posted from now on, during the first build included, starts a turn.
-        """
-        self.launcher.settle()
+        """Bind the port and start serving. The build has not run yet, so `/build/` answers 503 until `start` finishes it."""
         handler = type(
             "Handler",
             (LoomHandler,),
@@ -566,7 +497,6 @@ class ServeSession:
                 # The write API is served for the quilt being served, and only ever over this loopback socket.
                 "quilt_root": self.quilt.root,
                 "rebuild": self.rebuild,
-                "launcher": self.launcher,
                 "publication_lock": self.lock,
                 "publications": self.publications,
             },
@@ -588,7 +518,6 @@ class ServeSession:
         self.first_build()
         assert self.watcher is not None
         self.watcher.start()
-        self.launcher.start()
 
     def first_build(self) -> None:
         """The initial publish, reported as it happens: on a cold cache it compiles every block the converter cannot translate."""
@@ -609,7 +538,6 @@ class ServeSession:
 
     def stop(self) -> None:
         self.publications.close()
-        self.launcher.close()
         if self.watcher:
             self.watcher.stop()
         if self.httpd:

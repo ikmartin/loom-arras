@@ -242,7 +242,10 @@ def test_a_write_of_records_publishes_from_the_last_scan_and_once(session, monke
         )[0]
         == 200
     )
-    assert post(s.url + "_api/message", {"text": "Hello.", "session": sid, "author": "A. Author"})[0] == 200
+    assert (
+        post(s.url + "_api/session-rename", {"session": sid, "title": "a better title", "author": "A. Author"})[0]
+        == 200
+    )
     assert s.builds == before + 3 and scans[0] == 0
     manifest = json.loads(get(s.url + "build/manifest.json")[2])
     assert any(

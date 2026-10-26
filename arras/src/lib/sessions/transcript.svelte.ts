@@ -1,4 +1,4 @@
-// A session's transcript as the Chat reads it (plan 0.14): the build's pages for what was said before, and — where a publisher is serving — a poll of `/_api/events` for what lands now.
+// A session's transcript as the viewer reads it (plan 0.14, 0.20.1): the build's pages for what was said before, and — where a publisher is serving — a poll of `/_api/events` for what lands now.
 //
 // **Out of the manifest.** Every viewer polls the manifest, so a long conversation there would make every poll pay for it. The build writes the transcript beside it in pages of a hundred events (specs/manifest.md §10.1), which a viewer reads with or without a publisher; the session's `seq` in the manifest says which page is the last.
 //
@@ -6,7 +6,6 @@
 
 import { base } from '$app/paths';
 import { dataUrl } from '$lib/paths';
-import type { WriteResult } from '$lib/write';
 
 /** An annotation a message carried, as the inbox recorded it. */
 export interface Change {
@@ -31,31 +30,6 @@ export interface ChatEvent {
 	changed?: Change[];
 }
 
-export interface Listener {
-	who: string;
-	kind: string;
-}
-
-/** What the publisher says of the agent it may start for a turn (plan 0.14): whether it does, the agent's name, and how the last turn went. */
-export interface AgentState {
-	launch: boolean;
-	name: string;
-	state?: 'running' | 'done' | 'failed' | 'stopped';
-	error?: string;
-	activity?: string;
-	/** When the last turn started, so a turn begun after a send can be told from one before it. */
-	started?: string;
-	/** What keeps loom from starting the agent at all, where launching is on. */
-	blocked?: string;
-}
-
-/** The publisher's answer to a posted message: the session it landed in and who was listening. */
-export interface Posted extends WriteResult {
-	session?: string;
-	seq?: number;
-	attached?: Listener[];
-}
-
 /** Events per page in the build (specs/manifest.md §10.1). */
 export const PAGE = 100;
 
@@ -64,10 +38,6 @@ export class Transcript {
 	events = $state<ChatEvent[]>([]);
 	/** The lowest page loaded, so scrolling up knows what to ask for next; 0 once the first page is in. */
 	page = $state(0);
-	/** Who the publisher says is listening, or null where no publisher answers. */
-	attached = $state<Listener[] | null>(null);
-	/** The agent the publisher starts, or null where no publisher answers. */
-	agent = $state<AgentState | null>(null);
 	loading = $state(false);
 
 	constructor(session: string) {
@@ -147,8 +117,6 @@ export class Transcript {
 			if (!r.ok) return;
 			const j = await r.json();
 			const got: ChatEvent[] = Array.isArray(j?.events) ? j.events : [];
-			this.attached = Array.isArray(j?.attached) ? j.attached : [];
-			this.agent = j?.agent && typeof j.agent === 'object' ? j.agent : null;
 			// events we were not given between what we hold and what arrived: ask again from the start
 			if (got.length && got[0].seq > since + 1 && since > 0) {
 				await this.load(j.seq ?? got[got.length - 1].seq);
@@ -176,14 +144,4 @@ export function carried(changed: Change[] | undefined): string {
 	}
 	const plural = (w: string, n: number) => (n === 1 ? w : w === 'reply' ? 'replies' : `${w}s`);
 	return 'carried ' + [...counts].map(([w, n]) => `${n} ${plural(w, n)}`).join(', ');
-}
-
-/** One row of what the next message will carry, as the publisher reports it. */
-export interface PacketRow {
-	id: string;
-	kind: string;
-	act: string;
-	target: string;
-	work?: string | null;
-	page?: number | null;
 }

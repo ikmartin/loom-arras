@@ -1,6 +1,6 @@
 """The checks behind `loom doctor`: the machine's tools and what they can do, the author name, the arras bundle, and, inside a quilt, the quilt's own setup.
 
-Every item is `ok`, `warn` (it works, but the person will hit something) or `fail` (a command they need will refuse or misbehave), and every item that is not ok carries a one-line remedy. The quilt's items call the functions the owning commands use -- `loom upgrade`, `loom lint`, and `loom.agent.diagnose` for the agent -- rather than restating them. Tools are found through shutil.which, so tests point PATH at the fake TeX shim; the probes run at once and share one deadline, PROBE_TIMEOUT, so a hung tool is reported rather than waited on.
+Every item is `ok`, `warn` (it works, but the person will hit something) or `fail` (a command they need will refuse or misbehave), and every item that is not ok carries a one-line remedy. The quilt's items call the functions the owning commands use -- `loom upgrade`, `loom lint` -- rather than restating them. Tools are found through shutil.which, so tests point PATH at the fake TeX shim; the probes run at once and share one deadline, PROBE_TIMEOUT, so a hung tool is reported rather than waited on.
 """
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ TOOLS = [
         OPTIONAL,
         ("--version",),
         GIT,
-        "loom init --git, loom sync, and telling whether git tracks the agent's config",
+        "loom init --git and loom sync",
     ),
 ]
 
@@ -110,8 +110,6 @@ class Report:
     quilt: Path | None = None
     items: list[Item] = field(default_factory=list)
     strict: bool = False
-    #: with `--agents` inside a quilt, the agent loom serve would start: the `agent_report` fields
-    agent: dict[str, Any] | None = None
 
     @property
     def failing(self) -> list[str]:
@@ -136,7 +134,6 @@ class Report:
             "failing": self.failing,
             "warnings": self.warnings,
             "items": [i.to_dict() for i in self.items],
-            **({"agent": self.agent} if self.agent is not None else {}),
         }
 
     def summary(self) -> str:
@@ -168,8 +165,6 @@ class Report:
                 said = f"{i.status:<4}  {i.name:<{width}}  {_home(i.detail)}".rstrip()
                 lines.append(Line(said, fixes=fixes, data=i.to_dict()))
             groups.append(Group(section, lines, limit=None, problem=True))
-        if self.agent is not None:
-            groups.append(_agent_group(self.agent))
         # a path runs longer than a line, so each directory is said once, with what was found in it, rather than beside every tool
         found: dict[str, list[str]] = {}
         for i in self.items:
@@ -370,19 +365,6 @@ def check_tools() -> list[Item]:
     return items
 
 
-def check_agent_command(name: str, configured: bool) -> Item:
-    """An agent's command on PATH; found, never run, since it is a command the person wrote."""
-    path = shutil.which(name)
-    if path is not None:
-        return Item(name, OK, OPTIONAL, "found", "", {"path": path})
-    remedy = (
-        "install it, or name another command in ai/ai-config.toml; loom doctor --agents tests it"
-        if configured
-        else f"install it if you use it, then loom ai init --agent {name} configures it"
-    )
-    return Item(name, WARN, OPTIONAL, "not found: loom serve cannot start the agent", remedy, {"path": None})
-
-
 def check_author(quilt: Any) -> Item:
     """The name `accept` and `annotate` record, by the book's order (4.3)."""
     from loom.scan.quilt import NoAuthorError, resolve_author, user_config_path
@@ -470,78 +452,6 @@ def check_engine(quilt: Any) -> Item:
     return Item("engine", OK, QUILT, engine, "", {"path": path})
 
 
-def check_agent(d: Any) -> Item:
-    """The agent loom serve would start, in one line: a fault fails when launching is on, since loom serve will not start the agent, and warns when off."""
-    from loom.agent import CONFIG
-
-    launch = f"launch {'on' if d.launch else 'off'}"
-    if not d.configured:
-        if d.launch:
-            return Item(
-                "agent",
-                FAIL,
-                QUILT,
-                "launch is on and no agent is configured",
-                f"loom ai init --agent claude (or --agent codex) fills in {CONFIG}, or set launch = false under [ai] in config.toml; loom doctor --agents tests it",
-            )
-        return Item("agent", OK, QUILT, f"none configured, {launch}")
-    if d.faults:
-        return Item(
-            "agent", FAIL if d.launch else WARN, QUILT, f"{'; '.join(d.faults)}; {launch}", "loom doctor --agents"
-        )
-    return Item("agent", OK, QUILT, f"{d.config.name}, {launch}")
-
-
-def agent_report(root: Path, d: Any) -> dict[str, Any]:
-    """The agent `loom serve` would start, in full: launching, the config, the start, resume and prompt lines, and each fault with its fix.
-
-    Runs nothing; the commands are filled with `loom.agent.SAMPLE`. `doctor --agents` prints it as its own group.
-    """
-    from loom.agent import PROMPT, SAMPLE, argv, remedy
-
-    out: dict[str, Any] = {
-        "launch": d.launch,
-        "configured": d.configured,
-        "config": None,
-        "name": None,
-        "commands": {label: cmd for label, cmd in d.commands},
-        "prompt": None,
-        "faults": [{"fault": f, "fix": remedy(f)} for f in d.faults],
-        "unignored": d.unignored,
-    }
-    if d.config is not None:
-        prompt = argv([PROMPT], **SAMPLE, quilt=str(root), name=d.config.name)[0]
-        out.update(config=d.config.source, name=d.config.name, prompt=prompt)
-    return out
-
-
-def _agent_group(agent: dict[str, Any]) -> Any:
-    """`agent_report` as the report's `agent` group: its lines, then each fault and warning with its fix."""
-    from loom.agent import CONFIG
-    from loom.cli.report import Group
-    from loom.cli.report import Item as Line
-
-    lines = [Line(f"launching: {'on' if agent['launch'] else 'off'} (launch under [ai] in config.toml)")]
-    if agent["config"] is None:
-        lines.append(Line(f"config: none that loads; {CONFIG} configures one"))
-    else:
-        lines += [Line(f"config: {agent['config']}"), Line(f"name: {agent['name']}")]
-        for label in ("start", "resume"):
-            cmd = agent["commands"].get(label)
-            said = " ".join(cmd) if cmd else "(none: start runs every turn)" if label == "resume" else "(none)"
-            lines.append(Line(f"{label}: {_home(said)}"))
-        lines.append(Line(f"prompt: {_home(agent['prompt'])}"))
-    lines += [Line(f"fault: {f['fault']}", fixes=[f["fix"]]) for f in agent["faults"]]
-    if agent["unignored"]:
-        lines.append(
-            Line(
-                f"warn: .gitignore does not ignore {CONFIG}, so it could be committed by accident",
-                fixes=["loom upgrade"],
-            )
-        )
-    return Group("agent", lines, limit=None, problem=True, counted=False)
-
-
 def check_permissions(root: Path) -> Item:
     """`.claude/settings.json` and `.codex/rules/loom.rules` byte for byte what this loom's table renders (`vendor_files`)."""
     from loom.ai.layout import CLAUDE_SETTINGS, CODEX_RULES, quilt_config, vendor_files
@@ -623,15 +533,13 @@ def check_config(quilt: Any) -> Item:
     return Item("config", WARN, QUILT, f"{w[0]}{more}", "loom lint")
 
 
-def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool = False) -> Report:
+def run_doctor(quilt_path: str | None = None, strict: bool = False) -> Report:
     """Check the machine, and the quilt when there is one.
 
     Parameters
     ----------
     quilt_path : str, optional
         The quilt to check; default the one found from the current directory, and no quilt section when there is none.
-    agents : bool, default False
-        Also look for `claude` and `codex`, which are otherwise looked for only when the quilt configures an agent, and inside a quilt report the agent in full (`agent_report`).
     strict : bool, default False
         Warnings count against the exit code, as failures do (2).
 
@@ -640,7 +548,6 @@ def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool
     Report
         Every item in order, machine first; `exit_code` is what `loom doctor` exits with.
     """
-    from loom.agent import PRESETS, diagnose
     from loom.scan.quilt import NoQuiltError, find_quilt
 
     report = Report(sys.version.split()[0], __version__, INTERFACE_VERSION, strict=strict)
@@ -651,12 +558,7 @@ def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool
         # not being in a quilt is normal here; a quilt that cannot be read is not
         if quilt_path or not str(exc).startswith("not inside a quilt"):
             bad_quilt = str(exc)
-    diagnosis = diagnose(quilt.root) if quilt else None
-    configured = [cmd[0] for _, cmd in diagnosis.commands] if diagnosis is not None else []
-    # the agent configured is the one looked for; with none, each loom can configure
-    presets = [str(p["start"][0]) for p in PRESETS.values()] if agents and not configured else []
     report.items += check_tools()
-    report.items += [check_agent_command(c, c in configured) for c in dict.fromkeys(configured + presets)]
     report.items += [check_author(quilt), check_bundle()]
     if bad_quilt is not None:
         report.items.append(
@@ -673,13 +575,10 @@ def run_doctor(quilt_path: str | None = None, agents: bool = False, strict: bool
         root = quilt.root
         report.items += [
             check_engine(quilt),
-            check_agent(diagnosis),
             check_permissions(root),
             check_ai_files(root),
             check_sty(root),
             check_gitignore(root),
             check_config(quilt),
         ]
-        if agents and diagnosis is not None:
-            report.agent = agent_report(root, diagnosis)
     return report

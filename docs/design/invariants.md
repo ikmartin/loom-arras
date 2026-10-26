@@ -58,23 +58,27 @@ An invariant is a rule loom keeps because breaking it once caused a real failure
 
 ### Loom never runs a command the quilt carries
 
-**Rule.** Configuration that names a command for an agent client is the person's own and never committed. Today that is `ai/ai-config.toml`, gitignored and refused when git tracks it; a future MCP server entry, or anything loom hands a client that can carry commands, follows the same rule.
+**Rule.** Configuration that names a command for an agent client is the person's own and never committed. Loom generates none today; the MCP configuration of plan 0.21, or anything loom hands a client that can carry commands, is generated untracked and passed by name (`--mcp-config FILE --strict-mcp-config`), never read from the quilt.
 
-**Why.** No incident is recorded. `loom serve` runs the agent command when a message waits, so a tracked one would let cloning and serving someone's quilt run whatever they committed.
+**Why.** No incident is recorded. While `loom serve` ran the agent command when a message waited, a tracked one would have let cloning and serving someone's quilt run whatever they committed; a client reading a committed config file runs it the same way (`claude -p` loads a project `.mcp.json` without asking).
 
-**Guard.** `loom/tests/unit/test_launch.py::test_no_turn_starts_when_it_should_not`, `loom/tests/unit/test_doctor.py::test_a_tracked_agent_config_is_a_fault`. Neither covers the tracked `.claude/settings.json`, which a launched turn is given with `--settings` unchecked, though Claude Code settings can carry hooks.
+**Guard.** None while loom generates no such configuration; plan 0.21 adds one with the MCP configuration.
 
 **Record.** DR-273-ikmartin
 
+**2026-10-26.** Loom starts no agent (plan 0.20.1): `ai/ai-config.toml`, `[ai] launch` and the launcher are gone, and with them this rule's two guards and the unchecked `.claude/settings.json` a launched turn was given.
+
 ### Generated agent configuration is tested against the real client
 
-**Rule.** A change to what loom generates for an agent client (permission files, Codex rules, launch commands, MCP settings when they exist) is tried with the client itself, run as loom runs it (`claude -p --settings …`), before it ships. Unit tests check only the shape loom believes right.
+**Rule.** A change to what loom generates for an agent client (permission files, Codex rules, MCP settings when they exist) is tried with the client itself, run as loom runs it (`claude -p --settings …`), before it ships. Unit tests check only the shape loom believes right.
 
 **Why.** The permission file's `Write` rules passed every unit test and were never enforced: Claude Code matches only `Edit` rules to paths. Then root-relative allows passed too, but under `--settings` a leading `/` means `.claude/`, so every write a launched agent made was refused.
 
 **Guard.** The opt-in `client` tier, run by hand with `scripts/verify client` and never in CI, since it spends on the account of whoever runs it: `loom/tests/client/test_claude.py::test_a_launched_claude_writes_in_the_agents_drafting_directory_and_not_the_authors` and `::test_a_launched_claude_runs_the_agents_loom_commands_and_not_the_authors`. It covers Claude Code only; Codex has no path rules to try.
 
 **Record.** DR-275-ikmartin, DR-343-ikmartin
+
+**2026-10-26.** Launch commands are gone with launching (plan 0.20.1); the client tier runs `claude -p` itself, as a person starting an agent in the quilt would.
 
 ### Agent instructions name only commands the agent may run
 

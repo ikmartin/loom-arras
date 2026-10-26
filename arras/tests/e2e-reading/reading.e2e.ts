@@ -238,7 +238,7 @@ test('a box is recorded as drawn, and the words under it are its hint', async ({
 	expect(await mark.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(/[ /,] ?0\.05\)$/);
 });
 
-test('a mark opens the box a fragment opens, Escape closes it, and the note waits in the Chat for the next message', async ({ page, served }) => {
+test('a mark opens the box a fragment opens, Escape closes it, and its mark has nowhere to travel', async ({ page, served }) => {
 	// a person's note in the session the page is opened in, written before the page is
 	const id = await noteOnPage2(served, served.openSessions().at(-1)!, 'incidence matrix', 'a note to open from its mark');
 	await opened(page, served);
@@ -250,8 +250,6 @@ test('a mark opens the box a fragment opens, Escape closes it, and the note wait
 	await expect(open.locator('article.box').first()).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(open).toHaveCount(0);
-	// beside it, the session it was written in, whose Chat choosing it opened: a person's note goes to the agent with the next message (plan 0.14)
-	await expect(page.getByTestId(`packet-row-${id}`)).toBeVisible();
 	// what the session did is the log of what was done through loom's commands, which a note written here is not: its mark has nowhere to travel, and says so
 	await mark.dblclick();
 	await expect(page.getByTestId('travel-nowhere')).toBeVisible();

@@ -491,9 +491,6 @@ def build_demo(dest: Path) -> None:
     g = Gen(dest, "The loom demo")
     g.at("2026-09-16T00:00:00Z")
     g.run("ai", "init", "--skills")
-    (
-        g.root / "ai" / "ai-config.toml"
-    ).unlink()  # the person's own file, never committed: loom refuses to run a tracked one
     g.run(
         "annotate",
         "dm-0003/proof",
@@ -653,9 +650,6 @@ def build_showcase(dest: Path) -> None:
     g.run("library", "update", "Arden24A", "--only", "extract", "--no-compile")
     g.at("2026-09-14T09:20:00Z")
     g.run("ai", "init", "--skills")
-    (
-        g.root / "ai" / "ai-config.toml"
-    ).unlink()  # the person's own file, never committed: loom refuses to run a tracked one
 
     # ---- A run reads the work loom could not extract, and proposes its results. -------------------------
     # Bellamy19 is a PDF and nothing else, so every result is read off a page and anchored to it. The run

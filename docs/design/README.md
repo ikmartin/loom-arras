@@ -60,7 +60,6 @@ Two markers keep the text honest:
 - **Open problems as nodes,** with the attempts, claims and dead ends about them attached as notes.
 - **A reader-first library.** Works that are read but not cited are first-class; the bibliography, fetching and the graph stop assuming a draft. See `docs/specs/digests.md`.
 - **A viewer that opens on what exists.** The left panel shows the quilt's content, drafts and works alike, sized by what is there; a Library view; Review as a place. See `model.md`.
-- **Retiring the viewer's chat composer and agent launching.** Conversations happen in agent apps; the viewer shows transcripts and takes annotations. The code still carries both.
 - **A shorter agent contract.** The orientation cut to pointers, modes as tools rather than the default framing, and no per-mode scripts. See `agents.md`.
 - **Later:** running code to test claims (not in the next weeks).
 

@@ -72,7 +72,7 @@ Two things do not change. **The standing rules, the Inputs and Outputs contracts
 
 ## Messages
 
-The author may be talking to you. A session carries an inbox; `loom session next --wait 120 --json --as "…"` parks until something lands and exits, and `loom session say "…" --as "…"` answers. Nothing assigns you work: loom appends a line and you find it because you asked. When the author has let it, loom starts you for one turn because a message waited; then read with `--wait 0`, answer, and stop. The inbox is a broadcast — another agent in the same session sees everything you see — and it is read, never consumed, so a message survives being read and you resume where you were.
+A session's inbox is its transcript. The author talks to you in your own app, so `loom session say "…" --as "…"` is where the main points of the conversation and its outcomes go, written so that the author re-reading the sitting sees its broad strokes. `loom session next --wait 120 --json --as "…"` parks until something lands and exits; nothing assigns you work. The inbox is a broadcast — another agent in the same session sees everything you see — and it is read, never consumed, so a message survives being read and you resume where you were.
 
 ## Never
 

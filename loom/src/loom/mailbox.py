@@ -1,6 +1,6 @@
 """`.loom/sessions/<id>/`: the mailbox a session carries, and who is listening to it (plan 0.13 §8).
 
-**Loom is a mailbox and not an orchestrator.** A message is appended and a parked reader wakes; no model is called and no task is assigned. The one thing loom may start is the author's own agent command, for a turn, where the quilt allows it (`loom.agent`). Two attached agents both see everything and neither is handed anything to do, which is the honest behaviour for a tool that is not orchestrating.
+**Loom is a mailbox and not an orchestrator.** A message is appended and a parked reader wakes; no model is called and no task is assigned. Loom starts no agent: each runs in its own app. Two attached agents both see everything and neither is handed anything to do, which is the honest behaviour for a tool that is not orchestrating.
 
 **Read, never consumed.** The inbox is append-only and each reader keeps a cursor of its own, so a message survives being read, a second reader sees it too, and an agent that crashed resumes where it was rather than losing the turn.
 

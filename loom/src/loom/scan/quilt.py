@@ -25,8 +25,6 @@ CONFIG_KEYS: dict[str, set[str]] = {
     "library": {"online", "contact"},
     "lint": {"disable"},
     "author": {"name"},
-    # `launch`: whether `loom serve` may start the agent `ai/ai-config.toml` names (plan 0.14)
-    "ai": {"launch"},
     # `[basis]` names environments, so any key is valid there and each value is checked instead
     "basis": set(),
 }
@@ -71,7 +69,6 @@ class QuiltConfig:
     author_declared: bool = False  # the quilt states an `[author]` table, even with an empty name
     lint_disable: list[str] = field(default_factory=list)
     basis: dict[str, str] = field(default_factory=dict)  # [basis]: environment name -> basis, over the built-in names
-    launch: bool = False  # [ai] launch: whether `loom serve` may start the configured agent for a turn (plan 0.14)
     warnings: list[str] = field(default_factory=list)
 
     @classmethod
@@ -125,7 +122,6 @@ class QuiltConfig:
         cfg.online = bool(table("library").get("online", False))
         cfg.contact = str(table("library").get("contact", ""))
         cfg.lint_disable = [str(x) for x in table("lint").get("disable", [])]
-        cfg.launch = bool(table("ai").get("launch", False))
         from loom.scan.nodes import NAMED_BASES
 
         for env_name, basis in table("basis").items():

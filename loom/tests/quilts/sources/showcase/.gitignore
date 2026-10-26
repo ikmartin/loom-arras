@@ -48,6 +48,3 @@ drafting/*.pdf
 .loom/serve.json
 .loom/sessions/*/attached.json
 .loom/sessions/*/cursors/
-# The agent loom may start: your own command, and each turn's runtime state. None of it is the quilt's.
-.loom/sessions/*/agent.*
-ai/ai-config.toml

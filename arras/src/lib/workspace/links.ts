@@ -47,7 +47,7 @@ export function itemForHref(m: Manifest, href: string): Item | null {
 /**
  * The item a `quilt:` link names, by the key after the scheme, or null when the manifest knows no such thing.
  *
- * An annotation opens what it is on, with its box open (`note`); a session its Chat; a document path its document, at the place after `#`; any other key its node, at the place in it.
+ * An annotation opens what it is on, with its box open (`note`); a session its transcript; a document path its document, at the place after `#`; any other key its node, at the place in it.
  */
 export function itemForQuilt(m: Manifest, body: string): Item | null {
 	const cut = body.indexOf('#');
@@ -144,7 +144,7 @@ export function holding(m: Manifest, item: Item, from: number): { item: Item; pa
 }
 
 /**
- * Close every session but `id`, wherever it stands: the Chat on screen is the selected session's, so two conversations are never open at once (plan 0.14).
+ * Close every session but `id`, wherever it stands: the transcript on screen is the selected session's, so two sessions are never open at once (plan 0.14).
  */
 export function soleSession(id: string): void {
 	for (let p = workspace.panes.length - 1; p >= 0; p--) {
@@ -153,9 +153,9 @@ export function soleSession(id: string): void {
 }
 
 /**
- * Select a session and open its Chat beside what is being read, or reveal it where it is, without taking focus. `select` is false for a caller that has set the selection itself.
+ * Select a session and open its transcript beside what is being read, or reveal it where it is, without taking focus. `select` is false for a caller that has set the selection itself.
  *
- * Choosing whom to talk to is not a change of what is being read, so the focused pane, and with it the controls, stays with the item the reader was in.
+ * Choosing a session is not a change of what is being read, so the focused pane, and with it the controls, stays with the item the reader was in.
  */
 export function openChat(id: string, m: Manifest | null, select = true): void {
 	if (select) sessionView.select(id, m);

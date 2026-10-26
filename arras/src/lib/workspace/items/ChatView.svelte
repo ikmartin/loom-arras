@@ -1,19 +1,16 @@
 <script lang="ts">
-	// A session's Chat (plan 0.14): the conversation and its input in one pane. The transcript is every message the person and the agent said, newest at the bottom and the first thing seen; beneath it one line on who is listening, and the input. Annotations are not here — a message says what it carried, and an agent links what it wrote (V2).
+	// A session's transcript (plan 0.20.1): what agents said into the session with `loom session say`, newest at the bottom and the first thing seen, read beside the documents it discusses. The viewer posts nothing into it: a conversation with an agent happens in the agent's own app. Annotations are not here — a message says what it carried, and an agent links what it wrote (V2).
 	//
 	// **Flat, like a log.** A line saying who and when, then the words at full width; the agent's messages carry a faint rule and nothing else tells the two parties apart (V6).
 	//
-	// **One Chat at a time.** The Chat on screen is the selected session's: arriving here by a link or a URL selects it and closes any other session, so the footer and the Chat never name two different conversations.
+	// **One transcript at a time.** The transcript on screen is the selected session's: arriving here by a link or a URL selects it and closes any other session, so the footer and the transcript never name two different sessions.
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { store } from '$lib/manifest/client.svelte';
 	import Prose from '$lib/math/Prose.svelte';
-	import Composer from '$lib/sessions/Composer.svelte';
-	import PacketTray from '$lib/sessions/PacketTray.svelte';
 	import { sessionView } from '$lib/sessions/sessions.svelte';
-	import { statusLine } from '$lib/sessions/status';
-	import { carried, isAgent, Transcript, type Posted } from '$lib/sessions/transcript.svelte';
+	import { carried, isAgent, Transcript } from '$lib/sessions/transcript.svelte';
 	import { when } from '$lib/sessions/when';
-	import { can, write } from '$lib/write';
+	import { capabilities } from '$lib/write';
 	import type { Item } from '../item';
 	import { soleSession } from '../links';
 
@@ -24,14 +21,10 @@
 	const seq = $derived(row?.seq ?? 0);
 
 	const log = new Transcript(untrack(() => item.id));
-	/** Whether a publisher is serving, which is what makes the status line and the input honest (V3). */
+	/** Whether a publisher is serving, and so answering `/_api/events`: what lets the transcript follow new messages as they land. */
 	let live = $state(false);
-	/** How many annotations the next message will carry, and a nudge that asks the tray again after a send. */
-	let packed = $state(0);
-	let sends = $state(0);
-	/** What the last send came back with, until someone answers it, and when it went. */
-	let sent = $state<Posted | null>(null);
-	let sentAt = '';
+	/** A publisher that serves the write API serves its events read beside it. */
+	const serving = async (): Promise<boolean> => (await capabilities()) !== null;
 	let scroller: HTMLElement | undefined = $state();
 	let top: HTMLElement | undefined = $state();
 
@@ -56,12 +49,12 @@
 		scroller.scrollTop = scroller.scrollHeight;
 	}
 
-	// A reader at the newest stays there when the log's own height changes -- the tray opening, the input growing, the window narrowing -- which otherwise keeps the offset and drops the newest below the fold (V1).
+	// A reader at the newest stays there when the log's own height changes -- a message's formulas typesetting, the window narrowing -- which otherwise keeps the offset and drops the newest below the fold (V1).
 	let pinned = true;
 	$effect(() => {
 		const s = scroller;
 		if (!s) return;
-		// Where the reader is decides, on every scroll but one that ends where the re-pinning below sent it: a tray that grows over several frames would otherwise read that scroll as the reader leaving, and a reader's scroll that arrives in the same event is still theirs.
+		// Where the reader is decides, on every scroll but one that ends where the re-pinning below sent it: content that grows over several frames would otherwise read that scroll as the reader leaving, and a reader's scroll that arrives in the same event is still theirs.
 		let ours: number | null = null;
 		const onscroll = () => {
 			if (ours === null || Math.abs(s.scrollTop - ours) > 1) pinned = atBottom();
@@ -82,10 +75,10 @@
 	});
 
 	// The newest page first: from the publisher where one serves, whose count is current, else from the manifest.
-	/** Set once the newest page is in: a poll before it would ask for everything since nothing, which is the whole transcript. Polling starts on it, so the status line is there as soon as the page is. */
+	/** Set once the newest page is in: a poll before it would ask for everything since nothing, which is the whole transcript. Polling starts on it. */
 	let landed = $state(false);
 	async function land(): Promise<void> {
-		const served = (await can('message')) ? await log.latest() : null;
+		const served = (await serving()) ? await log.latest() : null;
 		await log.load(served ?? untrack(() => seq));
 		landed = true;
 		await toBottom();
@@ -108,11 +101,10 @@
 		const stay = atBottom();
 		const before = log.last;
 		await log.poll();
-		if (sent?.seq && log.last > sent.seq) sent = null;
 		if (log.last !== before && stay) await toBottom();
 	}
 	$effect(() => {
-		void can('message').then((ok) => (live = ok));
+		void serving().then((ok) => (live = ok));
 	});
 	$effect(() => {
 		if (!live || !landed) return;
@@ -138,27 +130,9 @@
 		return () => seen.disconnect();
 	});
 
-	/** One line on who is listening, and after a send what became of it (`statusLine`). */
-	const status = $derived(statusLine({ agent: log.agent, attached: log.attached, sent, sentAt }));
-	const running = $derived(log.agent?.state === 'running');
-
-	async function stop(): Promise<void> {
-		await write('agent-stop', { session: item.id });
-		await log.poll();
-	}
-
 	function clock(stamp: string): string {
 		const d = new Date(stamp);
 		return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-	}
-
-	async function onsent(res: Posted): Promise<void> {
-		sent = res;
-		// the publisher stamps whole seconds, so the send is taken as of the start of its second
-		sentAt = new Date(Math.floor(Date.now() / 1000) * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
-		sends++;
-		await log.poll();
-		await toBottom();
 	}
 </script>
 
@@ -177,21 +151,10 @@
 			{/each}
 		</ol>
 	</div>
-	{#if live}
-		<!-- the foot's rule spans the pane; what stands on it keeps the transcript's margins -->
-		<div class="foot">
-			<p class="status" data-testid="chat-line">
-				<span role="status" data-testid="chat-status">{status}</span>
-				{#if running}<button type="button" class="stop" data-testid="agent-stop" onclick={stop}>stop</button>{/if}
-			</p>
-			<PacketTray session={item.id} refresh={sends} oncount={(n) => (packed = n)} />
-			<Composer session={item.id} {packed} {onsent} />
-		</div>
-	{/if}
 </div>
 
 <style>
-	/* The conversation takes the pane's whole width, its margin growing a little with the pane. Not `--measure`, which is the paper's text block (33rem in the paper formats) and leaves a wide pane mostly blank. The percentage is of the pane, so the transcript and the foot agree. */
+	/* The transcript takes the pane's whole width, its margin growing a little with the pane. Not `--measure`, which is the paper's text block (33rem in the paper formats) and leaves a wide pane mostly blank. */
 	.chat {
 		--chat-margin: clamp(var(--gap-wide), 4%, 3rem);
 		display: flex;
@@ -250,33 +213,5 @@
 		font-family: var(--sans);
 		font-size: 11px;
 		color: var(--ink-faint);
-	}
-	.foot {
-		border-top: 1px solid var(--rule);
-		padding: 0 var(--chat-margin);
-	}
-	.status {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		gap: var(--gap);
-		margin: 0;
-		padding: 4px 0;
-		font-family: var(--sans);
-		font-size: 11px;
-		color: var(--ink-faint);
-	}
-	.stop {
-		font: inherit;
-		color: var(--ink-soft);
-		background: none;
-		border: 1px solid var(--rule);
-		border-radius: 3px;
-		padding: 0 8px;
-		cursor: pointer;
-	}
-	.stop:hover {
-		color: var(--ink);
-		border-color: var(--rule-strong);
 	}
 </style>

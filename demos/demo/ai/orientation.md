@@ -99,7 +99,7 @@ Your session:
 
 ## 6. Messages, and how to wait for one
 
-**The author may be talking to you.** A session carries an inbox, and the Chat in the viewer posts into it. Nothing assigns you work: loom appends a line, and you find it because you asked. **If loom started you**, for one turn because a message was waiting, its prompt says so: read what is waiting with `loom session next --wait 0 --json --as "…"`, answer with `loom session say`, and stop — loom starts you again when the next message arrives. **If the author started you**, park on `next` as below.
+**A session's inbox is its transcript, and you write it.** The author talks to you in your own app; the viewer shows the transcript beside the documents it discusses and posts nothing into it. With `loom session say`, write the main points of the conversation and what came of it, so that the author, coming back to re-read the sitting, sees its broad strokes and its outcomes there. Another agent in the same session may post too: nothing assigns you work, and you find what it said because you asked.
 
 - `loom session next --wait 120 --json --as "Referee Agent"`: **park until something lands**, print it, and exit. One call is one turn. It returns the moment a message arrives rather than on a poll interval; with nothing waiting it comes back empty and you park again. Keep `--wait` under whatever timeout your harness puts on a tool call.
 - `loom session say "…" --as "Referee Agent"`: say something back. `-` in place of the text reads it from stdin, for anything long.

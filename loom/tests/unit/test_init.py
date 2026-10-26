@@ -142,23 +142,20 @@ def test_init_asks_only_which_ai_and_writes_no_author(tmp_path: Path, monkeypatc
     assert "[author]" not in (tmp_path / "asked" / "config.toml").read_text()
 
 
-def test_init_asks_which_ai_and_says_whether_it_will_be_started(tmp_path: Path) -> None:
-    import tomllib
-
-    r = ok("init", str(tmp_path / "c"), "--ai", "claude", "--launch-agents", cwd=tmp_path)
+def test_init_asks_which_ai_and_writes_the_agent_layer_for_any(tmp_path: Path) -> None:
+    """Any AI gets the agent layer, Claude, Codex or another; none gets nothing. Loom starts no agent, so nothing names a command to start one (plan 0.20.1)."""
+    r = ok("init", str(tmp_path / "c"), "--ai", "claude", cwd=tmp_path)
     c = tmp_path / "c"
-    cfg = tomllib.loads((c / "ai" / "ai-config.toml").read_text())
-    assert cfg["name"] == "Claude Agent" and cfg["start"][0] == "claude" and "{agent_session}" in cfg["resume"]
-    assert tomllib.loads((c / "config.toml").read_text())["ai"]["launch"] is True
+    assert not (c / "ai" / "ai-config.toml").exists() and "[ai]" not in (c / "config.toml").read_text()
     perms = json.loads((c / ".claude" / "settings.json").read_text())["permissions"]
     assert "Bash(loom session say*)" in perms["allow"] and "Bash(loom accept*)" in perms["deny"]
-    assert "ai/ai-config.toml" in (c / ".gitignore").read_text()
-    assert "Agents will be launched by loom serve" in r.output
-    # no terminal, no flag: no AI, and nothing will be started
+    assert "AI: Claude (Claude Code). Run it in this quilt" in r.output and "launch" not in r.output
+    o = ok("init", str(tmp_path / "o"), "--ai", "other", cwd=tmp_path)
+    assert (tmp_path / "o" / "ai" / "orientation.md").is_file() and "AI: another agent" in o.output
+    # no terminal, no flag: no AI, and no layer
     n = ok("init", str(tmp_path / "n"), cwd=tmp_path)
-    assert "AI: none" in n.output and "Agents will not be launched" in n.output
-    assert not (tmp_path / "n" / ".claude").exists()
-    assert tomllib.loads((tmp_path / "n" / "ai" / "ai-config.toml").read_text()) == {}
+    assert "AI: none" in n.output
+    assert not (tmp_path / "n" / ".claude").exists() and not (tmp_path / "n" / "ai").exists()
 
 
 def test_init_from_leaves_the_authors_preamble_alone(tmp_path: Path) -> None:

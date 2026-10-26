@@ -41,16 +41,16 @@ def test_ai_init_layout_and_vendor_files(tmp_path: Path) -> None:
     assert "# Orientation: working in a quilt" in (q / "ai" / "orientation.md").read_text()
     # what agents may run is written for every tool, whichever the person uses (DR-283)
     assert (q / ".claude" / "settings.json").is_file() and (q / ".codex" / "rules" / "loom.rules").is_file()
-    assert (q / "ai" / "ai-config.toml").read_text().startswith("# How loom starts an agent")
+    # loom starts no agent, so nothing names a command to start one (plan 0.20.1)
+    assert not (q / "ai" / "ai-config.toml").exists()
 
 
 def test_ai_init_refreshes_an_existing_layer_as_upgrade_would(tmp_path: Path) -> None:
-    """`ai init` where `ai/` exists writes what is missing or stale, keeps an edited mode file with the new one beside it, and never touches the person's ai-config.toml."""
+    """`ai init` where `ai/` exists writes what is missing or stale, and keeps an edited mode file with the new one beside it."""
     q = bare(tmp_path)
     (q / "ai" / "orientation.md").unlink()
     mode = q / "ai" / "modes" / "audit.md"
     mode.write_text(mode.read_text() + "\nMy own rule.\n")
-    (q / "ai" / "ai-config.toml").write_text('name = "My Agent"\n')
     before = {p: p.read_bytes() for p in q.rglob("*") if p.is_file()}
     dry = ok("ai", "init", "--dry-run", cwd=q)
     assert (
@@ -60,7 +60,6 @@ def test_ai_init_refreshes_an_existing_layer_as_upgrade_would(tmp_path: Path) ->
     r = ok("ai", "init", cwd=q)
     assert r.stdout.startswith("refreshed the agent layer") and (q / "ai" / "orientation.md").is_file()
     assert mode.read_text().endswith("My own rule.\n") and (q / "ai" / "modes" / "audit.md.new").is_file()
-    assert (q / "ai" / "ai-config.toml").read_text() == 'name = "My Agent"\n'
     assert ok("ai", "init", cwd=q).stdout.startswith("refreshed the agent layer: 0 files written, 1 edited file kept")
 
 
@@ -563,23 +562,6 @@ def test_upgrade_refreshes_a_loom_sty_nobody_edited(tmp_path: Path, monkeypatch:
     assert r["sty"] == "written" and "loom.sty" in r["written"]
     assert (q / "loom.sty").read_text() == shipped and not (q / "loom.sty.old").exists()
     assert layout.read_versions(q)["loom.sty"] == layout.sha(shipped)
-
-
-def test_ai_init_agent_fills_a_config_whose_keys_are_all_commented_out(tmp_path: Path) -> None:
-    """K3: `--agent` never succeeds silently. A file of comments, as `loom init` writes it, is filled; a configured one that would be left as it is refuses by name."""
-    from loom.agent import CONFIG, config_text
-
-    q = demo(tmp_path)
-    cfg = q / CONFIG
-    cfg.write_text(config_text(None))
-    said = ok("ai", "init", "--agent", "claude", cwd=q).stdout
-    assert cfg.read_text() == config_text("claude") and CONFIG in said
-    ok("ai", "init", "--agent", "claude", cwd=q)  # already what was asked
-    cfg.write_text(config_text("codex"))
-    for argv in (("--agent", "claude"), ("--agent", "claude", "--dry-run")):
-        r = refused("ai", "init", *argv, cwd=q, code=2, match=CONFIG)
-        assert "--agent claude" in r.stderr and r.stdout == ""
-    assert cfg.read_text() == config_text("codex")
 
 
 def test_ai_annotations_after_a_discard_says_how_many_are_withdrawn(tmp_path: Path) -> None:

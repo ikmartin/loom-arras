@@ -218,28 +218,6 @@ def test_biber_without_a_readable_biblatex_is_only_run(box: Box) -> None:
     assert (got["status"], got["detail"]) == ("ok", "biber version: 2.20")
 
 
-# ---- machine: the agent commands
-
-
-def test_agent_commands_are_looked_for_only_with_agents_or_a_configured_agent(box: Box) -> None:
-    names = {i["name"] for i in doctor(box)["items"]}
-    assert not {"claude", "codex"} & names
-    box.script("claude", "print('2.1 (Claude Code)')\n")
-    data = doctor(box, "--agents")
-    assert item(data, "claude")["status"] == "ok" and item(data, "claude")["path"] == str(box.bin / "claude")
-    codex = item(data, "codex")
-    assert (codex["status"], codex["path"]) == ("warn", None) and "codex" in codex["remedy"]
-
-
-def test_a_configured_agents_command_is_looked_for(box: Box) -> None:
-    q = quilt(box)
-    (q / "ai" / "ai-config.toml").write_text('name = "Claude Agent"\nstart = ["claude", "-p", "{prompt}"]\n')
-    got = item(doctor(box, cwd=q), "claude")
-    assert got["status"] == "warn" and "ai/ai-config.toml" in got["remedy"]
-    box.script("claude", "raise SystemExit('never run')\n")  # found, not run: it is a command the person wrote
-    assert item(doctor(box, cwd=q), "claude")["status"] == "ok"
-
-
 # ---- machine: the author
 
 
@@ -420,7 +398,6 @@ def test_the_demo_is_ok_in_every_quilt_item(box: Box) -> None:
     got = {i["name"]: (i["status"], i["detail"]) for i in data["items"] if i["severity"] == "quilt"}
     assert got == {
         "engine": ("ok", "pdflatex"),
-        "agent": ("ok", "none configured, launch off"),
         "permissions": ("ok", ".claude/settings.json, .codex/rules/loom.rules"),
         "ai files": ("ok", "current"),
         "loom.sty": ("ok", "current"),
@@ -456,51 +433,6 @@ def test_the_engine(box: Box) -> None:
     edit(q / "config.toml", 'engine = "xelatex"', 'engine = "xetex"')
     got = item(doctor(box, cwd=q), "engine")
     assert got["status"] == "warn" and got["detail"].startswith("engine = 'xetex' is not one of")
-
-
-def launch(q: Path, on: bool) -> None:
-    with (q / "config.toml").open("a", encoding="utf-8") as fh:
-        fh.write(f"\n[ai]\nlaunch = {'true' if on else 'false'}\n")
-
-
-CLAUDE = """name = "Claude Agent"
-start = ["claude", "-p", "{prompt}"]
-"""
-
-
-@pytest.mark.parametrize(
-    "config,on,claude,status,detail",
-    [
-        (None, True, False, "fail", "launch is on and no agent is configured"),
-        (CLAUDE, False, False, "warn", "claude is not on PATH; launch off"),
-        (CLAUDE, True, False, "fail", "claude is not on PATH; launch on"),
-        (CLAUDE, True, True, "ok", "Claude Agent, launch on"),
-        ('name = "Bob"\nstart = ["claude"]\n', False, True, "warn", "name 'Bob' must include Agent or AI"),
-    ],
-    ids=["unconfigured-on", "missing-off", "missing-on", "sound-on", "incomplete-off"],
-)
-def test_the_agent(box: Box, config: str | None, on: bool, claude: bool, status: str, detail: str) -> None:
-    q = quilt(box)
-    if config:
-        (q / "ai" / "ai-config.toml").write_text(config)
-    launch(q, on)
-    if claude:
-        box.script("claude", "print('2.1')\n")
-    got = item(doctor(box, cwd=q), "agent")
-    assert got["status"] == status and got["detail"].startswith(detail), got
-    if status != "ok":
-        assert "loom doctor --agents" in got["remedy"]
-
-
-def test_a_tracked_agent_config_is_a_fault(box: Box) -> None:
-    box.real_git()
-    q = quilt(box)
-    (q / "ai" / "ai-config.toml").write_text(CLAUDE)
-    box.script("claude", "print('2.1')\n")
-    subprocess.run(["git", "init", "-q"], cwd=q, check=True)
-    subprocess.run(["git", "add", "-f", "ai/ai-config.toml"], cwd=q, check=True)
-    got = item(doctor(box, cwd=q), "agent")
-    assert got["status"] == "warn" and got["detail"].startswith("git tracks ai/ai-config.toml"), got
 
 
 def test_the_permission_files(box: Box) -> None:
@@ -575,11 +507,10 @@ def test_loom_sty(box: Box) -> None:
 def test_the_gitignore_lines(box: Box) -> None:
     q = quilt(box)
     edit(q / ".gitignore", "\nlast-seen.json\n", "\n")
-    edit(q / ".gitignore", "\nai/ai-config.toml\n", "\n")
     got = item(doctor(box, cwd=q), ".gitignore")
     assert (got["status"], got["detail"], got["remedy"]) == (
         "warn",
-        "lacks last-seen.json, ai/ai-config.toml",
+        "lacks last-seen.json",
         "loom upgrade",
     )
     ok("upgrade", cwd=q)
@@ -610,9 +541,8 @@ def everything_wrong(box: Box) -> None:
 @pytest.mark.parametrize("inside", [False, True], ids=["outside", "inside"])
 def test_the_json_schema(box: Box, setup: Case, inside: bool) -> None:
     setup(box)
-    data = doctor(box, "--agents", cwd=quilt(box) if inside else None)
+    data = doctor(box, cwd=quilt(box) if inside else None)
     envelope = {"verdict", "exit", "groups", "notes"}  # beside `ok`, which the envelope carries
-    # `--agents` inside a quilt adds the agent loom serve would start, in full
     assert set(data) - envelope == {
         "python",
         "loom",
@@ -622,12 +552,7 @@ def test_the_json_schema(box: Box, setup: Case, inside: bool) -> None:
         "failing",
         "warnings",
         "items",
-    } | ({"agent"} if inside else set())
-    if inside:
-        assert {"launch", "configured", "config", "name", "commands", "prompt", "faults", "unignored"} == set(
-            data["agent"]
-        )
-        assert all(set(f) == {"fault", "fix"} and f["fix"] for f in data["agent"]["faults"]), data["agent"]
+    }
     names = [i["name"] for i in data["items"]]
     assert len(names) == len(set(names)), names
     for i in data["items"]:
@@ -663,7 +588,7 @@ def test_the_text_report_lines_up(box: Box) -> None:
     box.drop("pdfinfo")
     lines = ok("doctor", cwd=quilt(box)).stdout.splitlines()
     checks = [m for ln in lines if (m := re.match(r"^  (?:ok|warn|fail)\s+\S+(?: \S+)?\s{2,}", ln))]
-    assert len(checks) == 15 + 7  # the machine's items and the quilt's
+    assert len(checks) == 15 + 6  # the machine's items and the quilt's
     assert len({m.end() for m in checks}) == 1, "the details do not start in one column"
     at = lines.index(next(ln for ln in lines if ln.startswith("  warn  pdfinfo")))
     assert lines[at + 1] == f"    fix: {item(doctor(box), 'pdfinfo')['remedy']}"  # beneath the item it fixes
@@ -671,20 +596,3 @@ def test_the_text_report_lines_up(box: Box) -> None:
     # each directory a tool was found in is said once, with the tools found there
     found = lines[lines.index(next(ln for ln in lines if ln.startswith("found in ("))) + 1 :]
     assert "latexmk" in found[0] and str(box.bin.name) in " ".join(found)
-
-
-def test_agents_names_a_fix_that_works_and_only_the_agent_configured(box: Box) -> None:
-    """T3 and T7: the unconfigured fault's fix is a command that configures the agent, and once Claude is configured no codex row says loom serve cannot start it."""
-    from loom.agent import CONFIG, config_text
-
-    q = quilt(box)
-    (q / CONFIG).write_text(config_text(None))  # every key commented out, as `loom init` writes it
-    launch(q, True)
-    box.script("claude", "print('2.1')\n")
-    data = doctor(box, "--agents", cwd=q)
-    fixes = [f["fix"] for f in data["agent"]["faults"]] + [item(data, "agent")["remedy"]]
-    assert all("loom ai init --agent claude" in f for f in fixes), fixes
-    ok("ai", "init", "--agent", "claude", cwd=q)
-    data = doctor(box, "--agents", cwd=q)
-    assert data["agent"]["faults"] == [] and item(data, "agent")["status"] == "ok"
-    assert "codex" not in {i["name"] for i in data["items"]}

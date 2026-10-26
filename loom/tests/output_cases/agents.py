@@ -1,4 +1,4 @@
-"""Output cases for the agents commands -- `session`, `ai`, `doctor --agents` and `sync`; see `tests/output_cases/__init__.py`."""
+"""Output cases for the agents commands -- `session`, `ai` and `sync`; see `tests/output_cases/__init__.py`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from tests.output_cases import core
 from tests.output_cases.base import Case, ai_copy, author
 
 S1, S2 = "s-2026-09-16-0001", "s-2026-09-16-0002"
@@ -50,20 +49,6 @@ def marked(q: Path) -> None:
 
     author(q)
     ok("annotate", "dm-0003", "Is this right?", "--kind", "question", "--session", S1, cwd=q)
-
-
-def launching(q: Path) -> None:
-    """Launching on, with no agent configured: what `loom serve` cannot honour."""
-    with (q / "config.toml").open("a", encoding="utf-8") as fh:
-        fh.write("\n[ai]\nlaunch = true\n")
-
-
-def configured(q: Path) -> None:
-    """Claude configured as the agent, with the author named, so `doctor --agents` prints its commands and prompt."""
-    from loom.agent import CONFIG, config_text
-
-    author(q)
-    (q / CONFIG).write_text(config_text("claude"), encoding="utf-8")
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -183,7 +168,7 @@ CASES: dict[str, list[Case]] = {
     ],
     "ai init": [
         Case((), setup=no_ai),
-        Case(("--skills", "--agent", "claude"), setup=no_ai),
+        Case(("--skills",), setup=no_ai),
         Case((), why="ai/ exists: refreshes it"),
         Case(("--dry-run",), setup=no_ai, unchanged=True),
         Case(("--dry-run", "--skills"), unchanged=True),
@@ -199,13 +184,6 @@ CASES: dict[str, list[Case]] = {
         Case(("contribution.tex",), setup=ai_copy),
         Case(("contribution.tex", "--dry-run"), setup=ai_copy, unchanged=True),
         Case(("no-such-copy.tex",), exit=2, why="names no agent document", unchanged=True),
-    ],
-    # core.py holds doctor's own cases; these add the agent report `doctor --agents` prints, merged after them
-    "doctor": [
-        *core.CASES["doctor"],
-        Case(("--agents",), setup=author),
-        Case(("--agents",), setup=configured, why="an agent configured: its start, resume and prompt lines"),
-        Case(("--agents",), setup=launching, exit=2, why="launching on with no agent configured: a fault and its fix"),
     ],
     "sync init": [
         Case(("../overleaf.git", "--publish-main", "main.tex"), setup=workspace),

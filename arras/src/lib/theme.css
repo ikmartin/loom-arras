@@ -883,17 +883,17 @@ a.heading-link:focus {
 	font-weight: 400;
 	font-style: italic;
 }
-/* What the viewer adds is not the paper and is not set like it: a comment, a margin key, a composer. They sit inside
+/* What the viewer adds is not the paper and is not set like it: a comment, a margin key, a verb row. They sit inside
    the fragment and would otherwise inherit its justification and its indent, which at gutter width is unreadable. */
-.arras[data-format='p1'] .fragment :is(.comment-slot, .node-margin, .composer, .verbs),
-.arras[data-format='p2'] .fragment :is(.comment-slot, .node-margin, .composer, .verbs) {
+.arras[data-format='p1'] .fragment :is(.comment-slot, .node-margin, .verbs),
+.arras[data-format='p2'] .fragment :is(.comment-slot, .node-margin, .verbs) {
 	text-align: left;
 	text-indent: 0;
 	hyphens: none;
 	font-style: normal;
 }
-.arras[data-format='p1'] .fragment :is(.comment-slot, .composer) p,
-.arras[data-format='p2'] .fragment :is(.comment-slot, .composer) p {
+.arras[data-format='p1'] .fragment .comment-slot p,
+.arras[data-format='p2'] .fragment .comment-slot p {
 	text-indent: 0;
 }
 

@@ -8,7 +8,6 @@ from typing import Any
 import pytest
 
 from tests.helpers import json_of, ok, refused
-from tests.unit._fakes import FakeHandler
 from tests.unit._quilts import demo, new_session
 
 
@@ -132,35 +131,6 @@ def test_say_with_no_words_sends_the_packet_and_refuses_when_there_is_none(q: Pa
     assert e.body == "" and [c["kind"] for c in e.changed] == ["question"]
 
 
-def test_the_message_endpoint_takes_a_packet_alone(q: Path) -> None:
-    from loom.render.api import ApiError, handle
-
-    sid, _ = sitting(q)
-    with pytest.raises(ApiError, match="nothing to send"):
-        handle(q, "message", {"session": sid, "text": "", "author": "A. Author"})
-    comment(q, sid, "dm-0003", "Which orbit?", "--kind", "question")
-    said = handle(q, "message", {"session": sid, "author": "A. Author"})
-    assert said["ok"] and said["seq"] == 1
-
-
-def test_the_packet_endpoint_previews_rows_and_text(q: Path) -> None:
-    from loom.render.serve import LoomHandler
-
-    sid, _ = sitting(q)
-    ann = comment(q, sid, "dm-0003", "Which orbit?", "--kind", "question")
-
-    good = FakeHandler(q, f"/_api/packet?session={sid}&author=A.%20Author")
-    LoomHandler._packet(good)  # type: ignore[arg-type]
-    assert good.answer is not None and good.answer[0] == 200
-    body = good.answer[1]
-    assert [(r["id"], r["kind"], r["target"]) for r in body["rows"]] == [(ann, "question", "dm-0003")]
-    assert f"  {ann}  question · dm-0003 · created by A. Author" in body["text"]
-    for path, status in ((f"/_api/packet?session=../{sid}", 400), ("/_api/packet?session=s-2026-01-01-0099", 404)):
-        bad = FakeHandler(q, path)
-        LoomHandler._packet(bad)  # type: ignore[arg-type]
-        assert bad.answer is not None and bad.answer[0] == status
-
-
 def test_the_agent_is_handed_the_packet_whole(q: Path) -> None:
     sid, _ = sitting(q)
     comment(q, sid, "dm-0003", "Which orbit?", "--quote", "finite set", "--kind", "question")
@@ -180,19 +150,3 @@ def test_the_agent_is_handed_the_packet_whole(q: Path) -> None:
     )
     [c] = got["events"][0]["changed"]
     assert (c["body"], c["quote"], c["kind"]) == ("Which orbit?", "finite set", "question")
-
-
-def test_a_message_from_the_viewer_is_the_persons_whatever_shell_serve_runs_in(
-    q: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A message through the viewer is the person's even when `loom serve` runs in an agent's shell; recorded as an agent's, a launched agent would take it for another agent's and never start (0.14 study F17)."""
-    from loom.mailbox import read_events
-    from loom.render.api import handle
-
-    sid, _ = sitting(q)
-    monkeypatch.setenv("AI_AGENT", "1")
-    handle(q, "message", {"session": sid, "text": "From the browser."})
-    from loom.cli._common import is_agent
-
-    [e] = read_events(q, sid)
-    assert not is_agent(e.who)  # the quilt's author, or nobody named -- never the shell's agent

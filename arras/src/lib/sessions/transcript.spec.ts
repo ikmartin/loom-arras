@@ -28,15 +28,13 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('a poll', () => {
 	it('merges what arrives right after what is held, asking for no page', async () => {
-		const asked = network({ 1: [1, 2, 3] }, (since) => ({ seq: 5, events: [4, 5].filter((s) => s > since).map(ev), attached: [{ who: 'Referee', kind: 'terminal' }], agent: { launch: true, name: 'Claude' } }));
+		const asked = network({ 1: [1, 2, 3] }, (since) => ({ seq: 5, events: [4, 5].filter((s) => s > since).map(ev) }));
 		const t = new Transcript('s-1');
 		await t.load(3);
 		await t.poll();
 		expect(seqs(t)).toEqual([1, 2, 3, 4, 5]);
 		expect(asked.filter((u) => u.includes('/transcripts/'))).toHaveLength(1);
 		expect(asked.at(-1)).toBe('/_api/events?session=s-1&since=3');
-		expect(t.attached).toEqual([{ who: 'Referee', kind: 'terminal' }]);
-		expect(t.agent).toEqual({ launch: true, name: 'Claude' });
 	});
 
 	it('takes what arrives into an empty transcript, which has nothing to have missed', async () => {
@@ -76,8 +74,6 @@ describe('a poll', () => {
 		await t.load(3);
 		await t.poll();
 		expect(seqs(t)).toEqual([1, 2, 3]);
-		expect(t.attached).toBeNull();
-		expect(t.agent).toBeNull();
 	});
 });
 

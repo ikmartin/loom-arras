@@ -120,7 +120,7 @@ Sessions are not what work is organised around. Work collects around the mathema
 
 A session's **transcript** is what its participants wrote deliberately with `loom session say`, not a copy of a conversation held in an agent app. An agent writes it so that someone coming back later sees the main points of the discussion, what was decided or found, what is still open, and links to everything durable that came of it. The viewer shows a transcript beside the documents it refers to, its links live, like a long-running annotation.
 
-The viewer's chat composer and agent launching are retired (not built yet, see [README](README.md#decided-not-yet-built)): conversations happen in agent apps, which own the model, the streaming, interruption and permissions.
+The viewer's chat composer and agent launching are retired (plan 0.20.1): conversations happen in agent apps, which own the model, the streaming, interruption and permissions.
 
 ## The viewer
 

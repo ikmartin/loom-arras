@@ -96,7 +96,7 @@
 	/** Everything a row does not draw, for the pointer that lingers on it. */
 	function about(s: SessionRow): string {
 		const it = summary(m, s.id);
-		return [s.purpose, it.who.join(', '), touched(s.opened || s.created, s.state), ...(s.attached ?? []).map((a) => `${a.who} (${a.kind}) attached`)]
+		return [s.purpose, it.who.join(', '), touched(s.opened || s.created, s.state)]
 			.filter(Boolean)
 			.join(' · ');
 	}
@@ -148,7 +148,6 @@
 				<button type="button" class="pick" aria-pressed={mine} data-testid="session-{s.id}" onclick={() => choose(s)}>
 					<span class="dot" aria-hidden="true"></span>
 					<span class="title">{titleOf(s)}</span>
-					{#each s.attached ?? [] as a (a.who)}<span class="attached" data-testid="attached-{a.who}">{a.who}</span>{/each}
 					{#if !shutAlready}<span class="count">{it.open ? `${it.open} open` : 'nothing open'}</span>{/if}
 					<span class="when">{when(s.opened || s.created)}</span>
 				</button>
@@ -339,17 +338,6 @@
 	}
 	li.shut .title {
 		color: var(--ink-soft);
-	}
-	.attached {
-		flex: none;
-		font-size: 10px;
-		color: var(--link);
-	}
-	.attached::before {
-		content: '⟨';
-	}
-	.attached::after {
-		content: '⟩';
 	}
 	.count,
 	.when {

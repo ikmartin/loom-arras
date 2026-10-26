@@ -270,115 +270,18 @@ function inPlace(where: 'inline' | 'floating') {
 test('a reply written in an inline comment box leaves the box open', inPlace('inline'));
 test('a reply written in a floating comment box leaves the box open', inPlace('floating'));
 
-test("the Chat posts through the publisher, and the agent's answer arrives without a rebuild", async ({ page, served }) => {
-	// plan 0.14 phase 2: the person writes in the Chat, the agent answers with `loom session say` from its own shell, and the answer is read from `/_api/events` rather than waiting for the manifest
+test('what an agent says arrives in the transcript without a rebuild, and the viewer offers nothing to post with', async ({ page, served }) => {
+	// plan 0.20.1: the conversation happens in the agent's own app; the agent writes the transcript with `loom session say`, read from `/_api/events` rather than waiting for the manifest
 	await page.goto('/node/sy-0003');
 	const sid = await intoASession(page, served);
 	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
 	await expect(chat).toBeVisible();
-	await chat.getByTestId('composer-text').fill('Is the second proof needed?');
-	await chat.getByTestId('composer-send').click();
-	await expect(chat.getByTestId('transcript')).toContainText('Is the second proof needed?');
-	await expect(chat.getByTestId('chat-status')).toContainText('sent');
+	await expect(chat.getByRole('textbox')).toHaveCount(0);
 	served.loom(['session', 'say', 'Only for the *odd* case.', '--session', sid, '--as', 'Referee Agent'], { AI_AGENT: '1' });
 	await expect(chat.getByTestId('transcript')).toContainText('Only for the odd case.', { timeout: 3000 });
 	await expect(chat.getByTestId('transcript').locator('em', { hasText: 'odd' })).toHaveCount(1);
 });
 
-test('what the person marks goes with their next message, whole, and the agent is handed it', async ({ page, served }) => {
-	// plan 0.14 phase 4: a note written in the document waits in the Chat's tray, goes without words, and reaches a parked agent with its body and the words it is on
-	// A fresh sitting has no unsent notes from the fixture's existing conversation.
-	await served.api('session-new', { title: 'packet delivery' });
-	await page.goto('/node/sy-0003');
-	const sid = await intoASession(page, served);
-	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
-	await expect(chat).toBeVisible();
-	const statement = page.locator('[data-pane="0"] .fragment .env[data-id="sy-0003"] > p[data-src]').first();
-	await statement.locator('mjx-container').first().waitFor();
-	await select(statement);
-	await page.getByTestId('annotate-offer').click();
-	await page.getByTestId('note-body').fill('Packet: does the fixed point count once?');
-	await page.getByTestId('note-kind').locator('[data-kind="question"]').click();
-	await page.getByTestId('note-submit').click();
-	await expect(page.getByTestId('note-at')).toHaveCount(0);
-	const id = served.written('Packet: does the fixed point count once?').id as string;
-	await expect(chat.getByTestId(`packet-row-${id}`)).toBeVisible();
-	await chat.getByTestId('composer-send').click();
-	await expect(chat.getByTestId('packet-tray')).toHaveCount(0);
-	await expect(chat.getByTestId('message-carried').last()).toContainText('1 question');
-	const out = served.loom(['session', 'next', '--wait', '0', '--json', '--since', '0', '--session', sid, '--as', 'Test Agent'], { AI_AGENT: '1' });
-	const carried = JSON.parse(out).events.flatMap((e: { changed?: { id: string; body: string; quote?: string }[] }) => e.changed ?? []);
-	const mine = carried.find((c: { id: string }) => c.id === id);
-	expect(mine.body).toBe('Packet: does the fixed point count once?');
-	expect(mine.quote).toContain('finite widget');
-});
-
-/**
- * Turn launching on in the copy, with a stand-in agent that reads the waiting message, sleeps `sleep` seconds and answers `echo: <message>`.
- *
- * Written after the server started: `loom serve` reads the agent configuration when a message waits, not at startup.
- */
-function launching(served: Served, sleep: number): void {
-	writeFileSync(
-		join(served.root, '.fake-agent.py'),
-		[
-			'import json, subprocess, sys, time',
-			'session = sys.argv[1]',
-			'loom = [sys.executable, "-m", "loom"]',
-			'out = subprocess.run(loom + ["session", "next", "--wait", "0", "--json", "--session", session, "--as", "Stand-in Agent"], capture_output=True, text=True, check=True).stdout',
-			'said = [e.get("body", "") for e in json.loads(out)["events"]]',
-			`time.sleep(${sleep})`,
-			'subprocess.run(loom + ["session", "say", "echo: " + (said[-1] if said else ""), "--session", session, "--as", "Stand-in Agent"], check=True)'
-		].join('\n')
-	);
-	const python = new URL('../../../loom/.venv/bin/python', import.meta.url).pathname;
-	mkdirSync(join(served.root, 'ai'), { recursive: true });
-	writeFileSync(join(served.root, 'ai/ai-config.toml'), `name = "Stand-in Agent"\nstart = ${JSON.stringify([python, '.fake-agent.py', '{session}'])}\n`);
-	const cfgPath = join(served.root, 'config.toml');
-	const before = readFileSync(cfgPath, 'utf8');
-	const on = /^launch\s*=/m.test(before)
-		? before.replace(/^launch\s*=.*$/m, 'launch = true')
-		: /^\[ai\]/m.test(before)
-			? before.replace(/^\[ai\]\s*$/m, '[ai]\nlaunch = true')
-			: before + '\n[ai]\nlaunch = true\n';
-	writeFileSync(cfgPath, on);
-}
-
-/** The state of the last agent turn loom recorded for a session. */
-function agentState(served: Served, sid: string): string {
-	return JSON.parse(readFileSync(join(served.root, '.loom/sessions', sid, 'agent.json'), 'utf8')).state;
-}
-
-test('with launching on, a message starts the configured agent for a turn, and its answer arrives', async ({ page, served }) => {
-	// plan 0.14 phase 5: `loom serve` runs the command in ai/ai-config.toml -- here a stand-in agent -- when a message waits and nobody is listening
-	launching(served, 2);
-	await page.goto('/node/sy-0003');
-	const sid = await intoASession(page, served);
-	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
-	await chat.getByTestId('composer-text').fill('Stand-in, are you there?');
-	await chat.getByTestId('composer-send').click();
-	await expect(chat.getByTestId('chat-status')).toContainText('Stand-in Agent is working', { timeout: 10000 });
-	await expect(chat.getByTestId('transcript')).toContainText('echo: Stand-in, are you there?', { timeout: 15000 });
-	await expect.poll(() => agentState(served, sid), { timeout: 10000 }).toBe('done');
-});
-
-test('stopping a launched turn ends it, and loom records the turn stopped', async ({ page, served }) => {
-	// the stand-in sleeps long enough that only the stop can end its turn
-	launching(served, 60);
-	await page.goto('/node/sy-0003');
-	const sid = await intoASession(page, served);
-	const chat = page.locator('[data-pane="1"]').getByTestId('chat');
-	await chat.getByTestId('composer-text').fill('Stand-in, take your time.');
-	await chat.getByTestId('composer-send').click();
-	await expect(chat.getByTestId('chat-status')).toContainText('Stand-in Agent is working', { timeout: 10000 });
-	await expect.poll(() => agentState(served, sid), { timeout: 10000 }).toBe('running');
-	await chat.getByTestId('agent-stop').click();
-	await expect.poll(() => agentState(served, sid), { timeout: 10000 }).toBe('stopped');
-	await expect(chat.getByTestId('agent-stop')).toHaveCount(0);
-	await expect(chat.getByTestId('chat-status')).not.toContainText('is working');
-});
-
-/** Read the copy's session index. */
 function sessionIndex(served: Served): Record<string, unknown>[] {
 	return readFileSync(join(served.root, '.loom/sessions/index.jsonl'), 'utf8')
 		.split('\n')

@@ -202,3 +202,17 @@ def test_a_purpose_set_later_is_replayed(tmp_path: Path) -> None:
     q, sid = quilt(tmp_path)
     purpose(q, sid, "the second proof", "A. Author")
     assert sessions(q)[sid].purpose == "the second proof"
+
+
+def test_serve_answers_a_transcript_page_from_the_inbox(tmp_path: Path) -> None:
+    """`loom serve` answers a transcript page from the inbox itself, since a message rebuilds nothing (0.14 study F14)."""
+    from loom.mailbox import PAGE, post
+    from loom.render.serve import LoomHandler
+
+    q, sid = quilt(tmp_path)
+    for i in range(PAGE + 3):
+        post(q, sid, f"m{i}", "Seed Agent")
+    ask = FakeHandler(q, f"/build/transcripts/{sid}/2.json")
+    assert LoomHandler._page(ask) is True  # type: ignore[arg-type]
+    assert ask.answer is not None and [e["seq"] for e in ask.answer[1]["events"]] == [PAGE + 1, PAGE + 2, PAGE + 3]
+    assert LoomHandler._page(FakeHandler(q, "/build/manifest.json")) is False  # type: ignore[arg-type]

@@ -32,9 +32,6 @@ online = false              # may loom library update look identifiers up (zbMAT
 
 [lint]
 disable = []                # diagnostic codes to silence, e.g. ["loom:unmatched-postnote"]
-
-[ai]
-launch = {launch}              # may loom serve run the command in ai/ai-config.toml for a turn when a message waits
 """
 
 USER_CONFIG_TEMPLATE = """# loom user configuration: settings that belong to a person, not a quilt.
@@ -90,7 +87,7 @@ AI_LABELS = {"claude": "Claude (Claude Code)", "codex": "ChatGPT (Codex)", "othe
 def ask_ai(yes: bool) -> str:
     """Which AI the person works with: `claude`, `codex`, `other` or `none`, asked when a terminal is attached.
 
-    Anything but 1, 2 or 3 is 4, no AI; without a terminal, or with `--yes`, the answer is `none` -- loom starts nothing it was not told about.
+    Anything but 1, 2 or 3 is 4, no AI; without a terminal, or with `--yes`, the answer is `none` -- loom writes no agent layer it was not asked for.
     """
     if yes or not sys.stdin.isatty():
         return "none"
@@ -101,56 +98,23 @@ def ask_ai(yes: bool) -> str:
     return {"1": "claude", "2": "codex", "3": "other"}.get(str(value).strip(), "none")
 
 
-def _set_launch(target: Path, launch: bool) -> None:
-    """Say in `config.toml` whether `loom serve` may start the agent; written only when it differs from what the file says."""
-    from loom.agent import launching
+def setup_ai(target: Path, choice: str, *, write: bool = True) -> tuple[list[str], list[str]]:
+    """Install the agent layer as `loom ai init` does for any AI, and nothing for `none`; and say what was done.
 
-    if launching(target) == launch:
-        return
-    p = target / "config.toml"
-    text = p.read_text(encoding="utf-8")
-    value = "true" if launch else "false"
-    import re as _re
-
-    if _re.search(r"(?m)^launch\s*=", text):
-        text = _re.sub(r"(?m)^launch\s*=\s*\w+", f"launch = {value}", text, count=1)
-    elif _re.search(r"(?m)^\[ai\]\s*$", text):
-        text = _re.sub(r"(?m)^\[ai\]\s*$", f"[ai]\nlaunch = {value}", text, count=1)
-    else:
-        text = text.rstrip("\n") + f"\n\n[ai]\nlaunch = {value}\n"
-    p.write_text(text, encoding="utf-8")
-
-
-def setup_ai(target: Path, choice: str, launch: bool, *, write: bool = True) -> tuple[list[str], list[str]]:
-    """Install the agent layer for Claude or Codex as `loom ai init` does, or for any other answer only `ai/ai-config.toml` with every key commented out; and say what will happen.
-
-    Returns the paths written (or, with `write` False, that would be) and the lines `loom init` prints: which AI, where its command lives, and whether `loom serve` will start it.
+    Returns the paths written (or, with `write` False, that would be) and the line `loom init` prints about the AI.
     """
-    from loom.agent import CONFIG, config_text
-
-    if choice in ("claude", "codex"):
+    written: list[str] = []
+    if choice != "none":
         from loom.cli.ai import install_layer
 
-        written = list(install_layer(target, agent=choice, write=write).written)
-    else:
-        written = [CONFIG]
-        if write:
-            (target / CONFIG).parent.mkdir(parents=True, exist_ok=True)
-            (target / CONFIG).write_text(config_text(None), encoding="utf-8")
-    if write:
-        _set_launch(target, launch)
+        written = list(install_layer(target, write=write).written)
     said = {
-        "claude": f"AI: {AI_LABELS['claude']}. The command loom would run is in {CONFIG}; loom doctor --agents tests it.",
-        "codex": f"AI: {AI_LABELS['codex']} configured. Run codex login if needed, then loom doctor --agents. Start and resume commands are in {CONFIG}.",
-        "other": f"AI: another agent. Fill in {CONFIG} with the command that starts it for one turn -- its header says how -- and loom doctor --agents tests it.",
-        "none": f"AI: none. {CONFIG} is there, commented out, should that change.",
+        "claude": f"AI: {AI_LABELS['claude']}. Run it in this quilt; CLAUDE.md and ai/ tell it how loom works.",
+        "codex": f"AI: {AI_LABELS['codex']}. Run codex login if needed and trust this quilt in an interactive codex session; AGENTS.md and ai/ tell it how loom works.",
+        "other": "AI: another agent. Run it in this quilt; AGENTS.md and ai/ tell it how loom works.",
+        "none": "AI: none. loom ai init writes the agent layer should that change.",
     }[choice]
-    when = (
-        "Agents will be launched by loom serve when a message waits: set launch = false under [ai] in config.toml to stop that."
-        if launch
-        else "Agents will not be launched by loom serve: set launch = true under [ai] in config.toml to change that."
-    )
-    return written, [said, when]
+    return written, [said]
 
 
 #: What the `.gitignore` init writes leaves out, as `init` says it.
@@ -207,7 +171,6 @@ def write_minimal_quilt(target: Path, prefix: str, minimal_master: bool = True) 
             prefix=prefix,
             drafting=drafting,
             drafting_ai=drafting_ai,
-            launch="false",
         ),
     )
     write(target / "loom.sty", (ASSETS / "loom.sty").read_text(encoding="utf-8"))
@@ -285,12 +248,7 @@ def write_demo_quilt(target: Path) -> None:
     "ai",
     type=click.Choice(AI_CHOICES),
     default=None,
-    help="Which AI you use, instead of being asked: Claude or Codex get the agent layer, as loom ai init writes it.",
-)
-@click.option(
-    "--launch-agents/--no-launch-agents",
-    default=False,
-    help="Let loom serve start the agent for a turn when a message waits (config.toml [ai] launch). Off by default.",
+    help="Which AI you use, instead of being asked: any but none gets the agent layer, as loom ai init writes it.",
 )
 @click.option(
     "--fix-anchoring",
@@ -308,7 +266,6 @@ def init(
     prefix: str | None,
     git_init: bool,
     ai: str | None,
-    launch_agents: bool,
     fix_anchors: bool,
     yes: bool,
     dry_run: bool,
@@ -346,7 +303,7 @@ def init(
     choice = ai or ask_ai(yes)
     made_it = f"wrote the demo quilt to {target}" if demo else f"created quilt {target} with prefix {chosen}"
     if dry_run:
-        _init_dry_run(target, demo, chosen, choice, launch_agents, paper, fix_anchors, made_it, as_json)
+        _init_dry_run(target, demo, chosen, choice, paper, fix_anchors, made_it, as_json)
         return
     if demo:
         write_demo_quilt(target)
@@ -365,7 +322,7 @@ def init(
             undo_minimal_quilt(target, existed, made)
             raise
     # said only once the quilt is certain to outlive the command
-    _, said_ai = setup_ai(target, choice, launch_agents)
+    _, said_ai = setup_ai(target, choice)
     gitted = git_init and _git_init(target)
     groups = list(imported.groups) if imported else []
     groups.append(Group("wrote .gitignore, which ignores", [Item(line) for line in GITIGNORE], limit=None))
@@ -383,7 +340,6 @@ def init(
             "demo": demo,
             "prefix": chosen or None,
             "ai": choice,
-            "launch": launch_agents,
             "git": gitted,
             "import": imported.data if imported else None,
         },
@@ -395,7 +351,6 @@ def _init_dry_run(
     demo: bool,
     prefix: str,
     choice: str,
-    launch: bool,
     paper: Path | None,
     fix_anchors: bool,
     made_it: str,
@@ -415,7 +370,7 @@ def _init_dry_run(
             from loom.cli.paper import run_import
 
             imported = run_import(load_quilt(skeleton), paper, True, fix_anchors=fix_anchors, dry_run=True)
-        layer, said_ai = setup_ai(skeleton, choice, launch, write=False)
+        layer, said_ai = setup_ai(skeleton, choice, write=False)
     groups = [Group("would write", [Item(f) for f in [*files, *layer]], limit=None)]
     groups += list(imported.groups) if imported else []
     groups.append(Group("", [Item(line) for line in said_ai], limit=None))
@@ -429,7 +384,6 @@ def _init_dry_run(
             "demo": demo,
             "prefix": prefix or None,
             "ai": choice,
-            "launch": launch,
             "import": imported.data if imported else None,
         },
     ).emit(as_json)

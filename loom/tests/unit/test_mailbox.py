@@ -22,7 +22,6 @@ from loom.mailbox import (
     set_cursor,
     waiting_on,
 )
-from loom.render.api import handle
 from loom.sessions import create, sessions
 from tests.helpers import ok
 from tests.unit._quilts import demo, new_session
@@ -31,13 +30,12 @@ WHO = "A. Author"
 
 
 def test_a_post_lands_with_nobody_listening_is_read_not_consumed_and_carries_what_changed(tmp_path: Path) -> None:
-    """The viewer's composer and `loom session say` are one mechanism: both append, and both say who was listening. Refusing a message because nobody is attached would lose what the author typed; a post says what changed since the last one, so a parked agent needs no second call to learn what it is being asked about."""
+    """`loom session say` appends whether or not anybody is listening, since refusing would lose what was said; a post carries what changed since the last one, so a reader needs no second call to learn what it is about."""
     q = demo(tmp_path)
     sid = new_session(q, "referee pass", WHO)
     ok("annotate", "dm-0002", "Orbits may be empty.", "--as", WHO, cwd=q)
     assert attached(q, sid) == []
-    said = handle(q, "message", {"session": sid, "text": "Have a look at dm-0003.", "author": WHO})
-    assert said["ok"] and said["session"] == sid and said["attached"] == []
+    ok("session", "say", "Have a look at dm-0003.", "--session", sid, "--as", WHO, cwd=q)
     first = read_events(q, sid)
     assert [e.body for e in first] == ["Have a look at dm-0003."]
     assert [c["target"] for c in first[-1].changed] == ["dm-0002"]
@@ -50,8 +48,8 @@ def test_a_post_lands_with_nobody_listening_is_read_not_consumed_and_carries_wha
     assert [e.body for e in read_events(q, sid, cursor(q, sid, "Tutor Agent"))] == ["Have a look at dm-0003."]
 
     attach(q, sid, "Referee Agent", "agent")
-    again = handle(q, "message", {"session": sid, "text": "And the hypothesis.", "author": WHO})
-    assert [r["who"] for r in again["attached"]] == ["Referee Agent"]
+    ok("session", "say", "And the hypothesis.", "--session", sid, "--as", WHO, cwd=q)
+    assert [r["who"] for r in attached(q, sid)] == ["Referee Agent"]
     # and the next post carries only what changed after the last one, rather than repeating itself
     assert read_events(q, sid)[-1].changed == []
 

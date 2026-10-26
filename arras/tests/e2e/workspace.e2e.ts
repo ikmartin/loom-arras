@@ -387,10 +387,10 @@ test.describe('the tab strip', () => {
 		await expect(pane(page, 1).getByTestId('tab-info')).toHaveAttribute('aria-pressed', 'true');
 		await expect(pane(page, 0).getByTestId('tab-paper')).toHaveAttribute('aria-pressed', 'true');
 
-		// a session beside a document: Chat · What it did, in the unfocused pane
+		// a session beside a document: Transcript · What it did, in the unfocused pane
 		await page.goto('/master/main' + beside('/session/s-2026-09-16-0001'));
 		await expect(pane(page, 0)).toHaveClass(/focused/);
-		await expect(pane(page, 1).getByRole('group', { name: /^views of / }).getByRole('button')).toHaveText(['Chat', 'What it did']);
+		await expect(pane(page, 1).getByRole('group', { name: /^views of / }).getByRole('button')).toHaveText(['Transcript', 'What it did']);
 		await expect(pane(page, 1).getByTestId('tab-chat')).toHaveAttribute('aria-pressed', 'true');
 	});
 

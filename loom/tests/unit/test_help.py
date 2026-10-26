@@ -114,7 +114,7 @@ def test_an_agent_may_read_the_help_of_any_command(tmp_path) -> None:  # type: i
         ("pop", "loom downstream"),
         ("refs", "loom library"),
         ("digest", "loom library"),
-        ("agent check", "loom doctor --agents"),
+        ("agent check", "loom starts no agent"),
         ("ai start", "loom session new"),
         ("ai name", "loom session rename"),
         ("ai check", "loom ai drafts"),

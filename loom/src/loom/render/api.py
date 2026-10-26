@@ -34,8 +34,6 @@ CAPABILITIES = [
     "session-close",
     "session-reopen",
     "session-purpose",
-    "message",
-    "agent-stop",
     "sync-incorporate",
     "sync-preview",
     "adopt-decision",
@@ -86,7 +84,6 @@ RECORD_WRITES = (
     "session-close",
     "session-reopen",
     "session-purpose",
-    "message",
     "adopt-decision",
     "reviewer-settings",
 )
@@ -145,8 +142,6 @@ def handle(root: Path, endpoint: str, body: dict[str, Any]) -> dict[str, Any]:
         return _locate(root, body)
     if endpoint == "compare":
         return _compare(root, body)
-    if endpoint == "message":
-        return _message(root, body)
     if endpoint in ("sync-incorporate", "sync-preview"):
         from loom.cli._common import is_agent
         from loom.incorporation_review import finish, preview, validate
@@ -390,41 +385,6 @@ def _compare(root: Path, body: dict[str, Any]) -> dict[str, Any]:
         return {"ok": True, **compare(_scan(root), left, right)}
     except CompareError as exc:
         raise ApiError("unknown-item", str(exc), status=404) from exc
-
-
-def _message(root: Path, body: dict[str, Any]) -> dict[str, Any]:
-    """Post a message into a session, and say whether anybody was listening (plan 0.13 §8, DR-195).
-
-    **Loom appends.** A parked reader wakes because a file grew; where the quilt lets it, `loom serve` starts the author's own agent command for the turn (`loom.agent`). Loom holds no credentials, calls no model, and hands the message to nobody -- this is the mailbox the agent reads.
-
-    **The message lands whether or not anybody is attached**, and the answer says which. Refusing would lose what the author typed, for a reason the browser cannot fix; saying nothing would let them believe it was delivered.
-    """
-    from loom.cli._common import whoever, writer
-    from loom.mailbox import attached, pending, post, waiting_on
-
-    # the words may be left out: a message may be what the person marked, and nothing else (plan 0.14)
-    text = (_str(body, "text") or "").strip()
-    said = _str(body, "as")
-    # A declared identity is taken as declared; with none, this is the author at their own keyboard, which is what the
-    # viewer's composer is. `writer` is what refuses an agent that has not named itself.
-    name, kind = writer(root, said) if said else (_str(body, "author") or whoever(root, sniff=False), "person")
-    # A message names its session like every other write (plan 0.13.1): it is addressed to whoever is attached there,
-    # and a message posted to "whatever was last active" would reach the wrong reader.
-    which = _str(body, "session", required=True) or ""
-    found = _resolve_session(root, which)
-    packet = pending(root, found, name)
-    if not text and not packet:
-        raise ApiError("nothing-to-send", "nothing to send: no words, and nothing marked since the last message")
-    event = post(root, found.id, text, name, kind="message", changed=packet)
-    here = [r for r in attached(root, found.id) if r.get("who") != name]
-    return {
-        "ok": True,
-        "result": f"posted to {found.id}",
-        "session": found.id,
-        "seq": event.seq,
-        "attached": here,
-        "waiting": waiting_on(root, found.id, name),
-    }
 
 
 def _resolve_session(root: Path, which: str, *, deleted: bool = False) -> Any:
