@@ -103,6 +103,13 @@ def test_a_config_with_the_retired_consent_keys_is_refused_by_name(tmp_path: Pat
 
 def test_a_dry_run_says_what_each_step_would_do_and_writes_nothing(tmp_path: Path) -> None:
     q = demo(tmp_path)
+    # The demo's cited work has its source in the store; a checkout may or may not carry that untracked file, so the test writes it rather than depend on it, and removes the untracked PDF a checkout may have left in refs/.
+    src = work_home(q, "Calloway14") / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "calloway-fixed-loci.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\nFixed loci.\n\\end{document}\n"
+    )
+    (q / "refs" / "calloway-fixed-loci.pdf").unlink(missing_ok=True)
     _fake_pdf(q / "refs" / "Hartshorne - 1977 - Algebraic Geometry.pdf", "Algebraic Geometry\nRobin Hartshorne")
     data = json_of("library", "update", "--dry-run", "--json", cwd=q)
     assert data["dry_run"] and data["would"] == {"resolve": ["Har77"], "fetch": ["Man12"], "extract": [], "map": []}
